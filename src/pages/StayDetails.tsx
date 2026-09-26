@@ -35,6 +35,7 @@ import { formatMoney, normalizeCurrency } from '../lib/money';
 import PriceBreakdown, { PriceHero } from '../components/PriceBreakdown';
 import StayNightPicker from '../components/StayNightPicker';
 import GuestStepper from '../components/booking/GuestStepper';
+import { ListingReviewsModal } from '../components/ListingReviewsModal';
 import NoticeCallout from '../components/NoticeCallout';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { CHECKOUT_HOLD_MINUTES } from '../lib/booking-hold';
@@ -105,6 +106,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
   const [bookingIdForReview, setBookingIdForReview] = useState<string | undefined>();
   const [hasReviewed, setHasReviewed] = useState(false);
   const [showReviewForm, setShowReviewForm] = useState(false);
+  const [reviewsModalOpen, setReviewsModalOpen] = useState(false);
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [reviewRating, setReviewRating] = useState(5);
@@ -756,7 +758,18 @@ export default function StayDetails({ stayId, onBack }: Props) {
             ) : null}
 
             <div id="stay-reviews">
-              <h2 className="font-display text-xl mb-2">Reviews</h2>
+              <div className="mb-2 flex flex-wrap items-end justify-between gap-3">
+                <h2 className="font-display text-xl">Reviews</h2>
+                {reviews.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setReviewsModalOpen(true)}
+                    className="text-sm font-semibold text-finland hover:underline"
+                  >
+                    See all reviews
+                  </button>
+                ) : null}
+              </div>
               {(() => {
                 const review = publicReviewLabel(reviewAggregate);
                 return review.score ? (
@@ -786,7 +799,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
                 </p>
               ) : null}
               <div className="space-y-6 mb-6">
-                {reviews.map((r) => (
+                {reviews.slice(0, 3).map((r) => (
                   <div key={r.id} className="border-b border-black/[0.06] pb-6 last:border-0">
                     <div className="flex items-center gap-3 mb-2">
                       <span className="font-medium text-ink">{r.guest_name}</span>
@@ -1197,6 +1210,14 @@ export default function StayDetails({ stayId, onBack }: Props) {
         </div>,
         document.body
       )}
+
+      <ListingReviewsModal
+        open={reviewsModalOpen}
+        onClose={() => setReviewsModalOpen(false)}
+        reviews={reviews}
+        replies={reviewReplies}
+        listingTitle={stay.title}
+      />
     </div>
   );
 }
