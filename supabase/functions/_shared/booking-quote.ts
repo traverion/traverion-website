@@ -4,6 +4,11 @@
  */
 
 import { bookingOccupiesInventory, type InventoryHoldRow } from './booking-hold.ts';
+import {
+  assertDepartureStillBookable,
+  normalizeBookingCutoffHours,
+  wallTimeInZoneToUtcMs,
+} from './tour-departure-cutoff.ts';
 
 export type DiscountRow = {
   type: string;
@@ -634,6 +639,7 @@ export function quoteListingBooking(input: {
   checkoutDate?: string | null;
   participantMix?: Record<string, number> | null;
   startTime?: string | null;
+  nowMs?: number;
 }): QuoteOk | QuoteErr {
   const today = input.todayIso ?? new Date().toISOString().slice(0, 10);
   const date = (input.bookingDate ?? '').trim();
@@ -647,7 +653,11 @@ export function quoteListingBooking(input: {
   }
   const extrasObj =
     input.listing.listing_extras && typeof input.listing.listing_extras === 'object'
-      ? (input.listing.listing_extras as { inventoryFamily?: unknown; stay?: Record<string, unknown> })
+      ? (input.listing.listing_extras as {
+          inventoryFamily?: unknown;
+          stay?: Record<string, unknown>;
+          bookingCutoffHoursBeforeStart?: unknown;
+        })
       : null;
   const family = extrasObj?.inventoryFamily;
   if (family === 'experience' || family === 'package') {
@@ -665,6 +675,10 @@ export function quoteListingBooking(input: {
   if (!ISO_DATE.test(date)) return { ok: false, error: 'Choose a valid date.' };
   if (date < today) return { ok: false, error: 'Choose a date that is today or later.' };
 
+  const cutoffHours = normalizeBookingCutoffHours(extrasObj?.bookingCutoffHoursBeforeStart);
+  const nowMs =
+    input.nowMs ??
+    (input.todayIso ? wallTimeInZoneToUtcMs(input.todayIso, '12:00') ?? Date.now() : Date.now());
   const opts = parseOptions(input.listing.listing_extras);
   const fallbackBase = Number(input.listing.price_starting_from ?? 0);
   const currency = (input.listing.price_currency ?? 'EUR').trim().toUpperCase() || 'EUR';
@@ -687,6 +701,17 @@ export function quoteListingBooking(input: {
       const resolved = resolveScheduleForDate(option, date, input.startTime);
       if (!resolved) return { ok: false, error: 'Choose a departure time to continue.' };
       option = applyScheduleToOption(option, resolved);
+    }
+
+    const departureHm = (input.startTime ?? option.startTime ?? '').trim().slice(0, 5);
+    if (departureHm) {
+      const cut = assertDepartureStillBookable({
+        bookingDate: date,
+        startTimeHm: departureHm,
+        cutoffHoursBeforeStart: cutoffHours,
+        nowMs,
+      });
+      if (!cut.ok) return { ok: false, error: cut.error };
     }
 
     if (option.isPrivate && option.privatePricing === 'flat_group') {

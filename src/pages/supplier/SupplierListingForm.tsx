@@ -540,6 +540,8 @@ type ListingFormState = {
   excludes: string[];
   scheduleStyle: ScheduleStyle | '';
   typicalTimelineNotes: string;
+  /** Hours before departure when online booking closes; empty = until start. */
+  bookingCutoffHoursBeforeStart: string;
   accessibilitySummary: string;
   minGuestAge: string;
   venueSetting: VenueSetting;
@@ -631,6 +633,14 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
     ...(form.scheduleStyle ? { scheduleStyle: form.scheduleStyle } : {}),
     ...(form.typicalTimelineNotes.trim()
       ? { typicalTimelineNotes: form.typicalTimelineNotes.trim().slice(0, MAX_TIMELINE_LENGTH) }
+      : {}),
+    ...(Number(form.bookingCutoffHoursBeforeStart) > 0
+      ? {
+          bookingCutoffHoursBeforeStart: Math.min(
+            168,
+            Math.floor(Number(form.bookingCutoffHoursBeforeStart))
+          ),
+        }
       : {}),
     ...(galleryList.length > 0 ? { galleryImageUrls: galleryList } : {}),
     ...(labelsNorm.some((l) => l.trim()) ? { photoSlotLabels: labelsNorm } : {}),
@@ -850,6 +860,7 @@ const emptyForm: ListingFormState = {
   excludes: Array.from({ length: TOUR_EXCLUDE_MIN_VISIBLE }, () => ''),
   scheduleStyle: 'flexible',
   typicalTimelineNotes: '',
+  bookingCutoffHoursBeforeStart: '',
   accessibilitySummary: '',
   minGuestAge: '',
   venueSetting: 'unspecified',
@@ -1324,6 +1335,10 @@ export default function SupplierListingForm({
           excludes: normalizeProgressiveSlots(existing.excludes, TOUR_EXCLUDE_MIN_VISIBLE, TOUR_EXCLUDE_MAX),
           scheduleStyle: extras.scheduleStyle ?? 'flexible',
           typicalTimelineNotes: extras.typicalTimelineNotes ?? '',
+          bookingCutoffHoursBeforeStart:
+            extras.bookingCutoffHoursBeforeStart && extras.bookingCutoffHoursBeforeStart > 0
+              ? String(extras.bookingCutoffHoursBeforeStart)
+              : '',
           accessibilitySummary: extras.accessibilitySummary ?? '',
           minGuestAge: extras.minGuestAge ?? '',
           venueSetting: extras.venueSetting ?? 'unspecified',
@@ -2926,6 +2941,31 @@ export default function SupplierListingForm({
                     />
                     <p className="text-xs text-ink-muted mt-1 tabular-nums">
                       {form.typicalTimelineNotes.length}/{MAX_TIMELINE_LENGTH}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-ink mb-1">
+                      Stop online booking (hours before departure)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={168}
+                      step={1}
+                      value={form.bookingCutoffHoursBeforeStart}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          bookingCutoffHoursBeforeStart: e.target.value.replace(/[^\d]/g, '').slice(0, 3),
+                        }))
+                      }
+                      className="tv-input max-w-[8rem]"
+                      placeholder="0"
+                      inputMode="numeric"
+                    />
+                    <p className="text-xs text-ink-muted mt-1">
+                      0 or blank = travelers can book until the departure starts (Finland time). Example: 2 closes
+                      booking two hours before start.
                     </p>
                   </div>
                 </div>

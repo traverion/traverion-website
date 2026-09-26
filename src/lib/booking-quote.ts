@@ -18,6 +18,11 @@ import { travelerFacingBookingOptions } from './legacy-participant-options';
 import { DEFAULT_CURRENCY, normalizeCurrency } from './money';
 import { localYmd } from './local-ymd';
 import {
+  assertDepartureStillBookable,
+  normalizeBookingCutoffHours,
+  wallTimeInZoneToUtcMs,
+} from './tour-departure-cutoff';
+import {
   buildParticipantMixLines,
   guestBreakdownFromLines,
   mixLineAmount,
@@ -198,6 +203,8 @@ export function quoteBooking(input: {
   startTime?: string | null;
   /** YYYY-MM-DD; defaults to the operator’s local calendar day. */
   todayIso?: string;
+  /** Epoch ms for cut-off tests; defaults to Date.now(). */
+  nowMs?: number;
 }): BookingQuoteResult {
   const today = input.todayIso ?? localYmd();
   const date = (input.bookingDate ?? '').trim();
@@ -217,6 +224,10 @@ export function quoteBooking(input: {
   }
 
   const extras = parseListingExtras(input.tour.listingExtras);
+  const cutoffHours = normalizeBookingCutoffHours(extras.bookingCutoffHoursBeforeStart);
+  const nowMs =
+    input.nowMs ??
+    (input.todayIso ? wallTimeInZoneToUtcMs(input.todayIso, '12:00') ?? Date.now() : Date.now());
   const opts = travelerFacingBookingOptions(extras.bookingOptions);
   const fallbackBase = Number(input.tour.price?.startingFrom ?? 0);
   const currency = normalizeCurrency(input.tour.price?.currency ?? DEFAULT_CURRENCY);
@@ -253,6 +264,19 @@ export function quoteBooking(input: {
         };
       }
       option = applyScheduleToOption(option, resolved);
+    }
+
+    const departureHm = (input.startTime ?? option.startTime ?? '').trim().slice(0, 5);
+    if (departureHm) {
+      const cut = assertDepartureStillBookable({
+        bookingDate: date,
+        startTimeHm: departureHm,
+        cutoffHoursBeforeStart: cutoffHours,
+        nowMs,
+      });
+      if (!cut.ok) {
+        return { ok: false, code: 'bad_date', error: cut.error };
+      }
     }
 
     if (optionUsesPrivateFlatPrice(option)) {

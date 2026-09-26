@@ -73,6 +73,35 @@ describe('weekdayIndexMondayFirst', () => {
 describe('quoteBooking', () => {
   const today = '2026-09-04';
 
+  it('rejects a departure inside the listing booking cut-off window', () => {
+    const startMs = Date.UTC(2026, 8, 27, 17, 30, 0); // 20:30 Europe/Helsinki (EEST = UTC+3)
+    const q = quoteBooking({
+      tour: tour({
+        listingExtras: {
+          bookingCutoffHoursBeforeStart: 2,
+          bookingOptions: [
+            option({
+              id: 'opt-small',
+              name: 'Small group',
+              priceUsd: 149,
+              startTime: '20:30',
+            }),
+          ],
+        },
+      }),
+      discounts: [],
+      bookingDate: '2026-09-27',
+      guests: 2,
+      bookingOptionId: 'opt-small',
+      startTime: '20:30',
+      todayIso: '2026-09-27',
+      nowMs: startMs - 90 * 60 * 1000,
+    });
+    expect(q.ok).toBe(false);
+    if (q.ok) return;
+    expect(q.error).toMatch(/2 hours before departure/i);
+  });
+
   it('prices option × guests after percent discount', () => {
     const q = quoteBooking({
       tour: tour(),

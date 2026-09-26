@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `5c5ae05`  
-**Current phase:** 855  
+**Current SHA:** `8d817ed`  
+**Current phase:** 856  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -266,6 +266,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 853 | Tour creation completeness audit | `d4ba2b3` |
 | 854 | Server publish bookability migration 101 | `03a5603` |
 | 855 | Option-scoped pickup/meeting on tour PDP | `5c5ae05` |
+| 856 | Booking cut-off before departure | `8d817ed` |
 
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
@@ -4336,6 +4337,14 @@ Deep audit of listing → option → schedule ownership vs publish/traveler/snap
 **Fix:** `resolveTourPickupMeetingDisplay` — selected option fulfillment/place/note wins; multi-option hint when places differ and none selected. `TourListingSections` + `TourDetails` wired. `optionMetaParts` uses `Pickup ·` / `Meet ·` when fulfillment set.
 
 **Cert:** vitest `tour-pickup-meeting` + `tour-available-options` 7/7.
+
+### Phase 856 — Booking cut-off before departure
+
+**Gap (853):** No modeled last-bookable hours before start; quotes accepted same-day departures that had already started (calendar-day only).
+
+**Fix:** `tour-departure-cutoff` (Helsinki wall clock, matching cancel SQL). Listing extras `bookingCutoffHoursBeforeStart`; enforced in client + Deno `quoteListingBooking`; partner field; traveler Good-to-know + PDP departure filter. `todayIso` freezes noon Helsinki for tests when `nowMs` omitted.
+
+**Cert:** vitest cutoff + quote suites 60/60.
 
 ## Known remaining risks (ranked)
 

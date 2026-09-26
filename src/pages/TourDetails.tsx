@@ -89,6 +89,10 @@ import {
   applyScheduleToOption,
   tourSellingDeparturesOnDate,
 } from '../lib/listing-option-schedules';
+import {
+  isDepartureTimeStillBookable,
+  normalizeBookingCutoffHours,
+} from '../lib/tour-departure-cutoff';
 import { formatTourAvailabilityHeading, optionsOnDate } from '../lib/tour-available-options';
 import { tourSlotMaxSpotsFromOption } from '../lib/tour-slot-capacity';
 import { tourStickyBookCtaLabel } from '../lib/tour-sticky-cta';
@@ -263,10 +267,20 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   }, [tour]);
 
   const selectedOption = selectedBookingVariant?.listingOption ?? null;
+  const bookingCutoffHours = normalizeBookingCutoffHours(
+    tour?.listingExtras?.bookingCutoffHoursBeforeStart
+  );
   const departureTimes = useMemo(() => {
     if (!selectedOption || !bookingDate.trim()) return [] as string[];
-    return departureTimesOnDate(selectedOption, bookingDate.trim());
-  }, [selectedOption, bookingDate]);
+    const times = departureTimesOnDate(selectedOption, bookingDate.trim());
+    return times.filter((time) =>
+      isDepartureTimeStillBookable({
+        bookingDate: bookingDate.trim(),
+        startTimeHm: time,
+        cutoffHoursBeforeStart: bookingCutoffHours,
+      })
+    );
+  }, [selectedOption, bookingDate, bookingCutoffHours]);
 
   useEffect(() => {
     if (departureTimes.length === 1) {

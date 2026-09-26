@@ -5,6 +5,10 @@ import {
   type ListingBookingOption,
 } from '../../types/listingExtras';
 import { resolveTourPickupMeetingDisplay } from '../../lib/tour-pickup-meeting';
+import {
+  bookingCutoffTravelerLabel,
+  normalizeBookingCutoffHours,
+} from '../../lib/tour-departure-cutoff';
 
 type Legal = {
   operatorName: string;
@@ -58,8 +62,14 @@ export default function TourListingSections({
   const excludes = tour.excludes.map((s) => String(s).trim()).filter(Boolean);
   const notes = (tour.price?.importantNotes ?? []).map((n) => String(n).trim()).filter(Boolean);
   const showImportant =
-    tour.difficulty === 'Challenging' || notes.length > 0 || Boolean(tour.listingExtras?.minGuestAge?.trim());
+    tour.difficulty === 'Challenging' ||
+    notes.length > 0 ||
+    Boolean(tour.listingExtras?.minGuestAge?.trim()) ||
+    normalizeBookingCutoffHours(tour.listingExtras?.bookingCutoffHoursBeforeStart) > 0;
   const pickup = resolveTourPickupMeetingDisplay(tour, selectedOption);
+  const cutoffLabel = bookingCutoffTravelerLabel(
+    tour.listingExtras?.bookingCutoffHoursBeforeStart ?? 0
+  );
 
   return (
     <div className="space-y-8">
@@ -193,6 +203,7 @@ export default function TourListingSections({
             {tour.listingExtras?.minGuestAge?.trim() ? (
               <li>Minimum age: {tour.listingExtras.minGuestAge.trim()}</li>
             ) : null}
+            {cutoffLabel ? <li>{cutoffLabel}.</li> : null}
             {notes.map((n) => (
               <li key={n} className="break-words [overflow-wrap:anywhere]">
                 {n}

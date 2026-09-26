@@ -136,6 +136,11 @@ export interface ListingExtras {
   galleryImageUrls?: string[];
   cancellationPreset?: CancellationPreset;
   cancellationExtra?: string;
+  /**
+   * Hours before local departure (Europe/Helsinki wall clock) when online booking closes.
+   * 0 / omitted = bookable until start; after start is always closed.
+   */
+  bookingCutoffHoursBeforeStart?: number;
   /** Multiple priced variants under one product (partner Cost & options). */
   bookingOptions?: ListingBookingOption[];
   /**
@@ -533,6 +538,12 @@ export function parseListingExtras(raw: unknown): ListingExtras {
   if (typeof o.typicalTimelineNotes === 'string' && o.typicalTimelineNotes.trim()) {
     out.typicalTimelineNotes = o.typicalTimelineNotes.trim();
   }
+  if (typeof o.bookingCutoffHoursBeforeStart === 'number' && o.bookingCutoffHoursBeforeStart > 0) {
+    out.bookingCutoffHoursBeforeStart = Math.min(168, Math.floor(o.bookingCutoffHoursBeforeStart));
+  } else if (typeof o.bookingCutoffHoursBeforeStart === 'string' && o.bookingCutoffHoursBeforeStart.trim()) {
+    const n = Number(o.bookingCutoffHoursBeforeStart);
+    if (Number.isFinite(n) && n > 0) out.bookingCutoffHoursBeforeStart = Math.min(168, Math.floor(n));
+  }
   if (Array.isArray(o.galleryImageUrls)) {
     out.galleryImageUrls = o.galleryImageUrls.map((x) => String(x ?? '').trim()).filter(Boolean);
   }
@@ -573,6 +584,9 @@ export function listingExtrasToDb(extras: ListingExtras | undefined): Record<str
   if (extras.minGuestAge?.trim()) payload.minGuestAge = extras.minGuestAge.trim();
   if (extras.scheduleStyle) payload.scheduleStyle = extras.scheduleStyle;
   if (extras.typicalTimelineNotes?.trim()) payload.typicalTimelineNotes = extras.typicalTimelineNotes.trim();
+  if (typeof extras.bookingCutoffHoursBeforeStart === 'number' && extras.bookingCutoffHoursBeforeStart > 0) {
+    payload.bookingCutoffHoursBeforeStart = Math.min(168, Math.floor(extras.bookingCutoffHoursBeforeStart));
+  }
   if (extras.galleryImageUrls?.length) payload.galleryImageUrls = extras.galleryImageUrls;
   if (extras.photoSlotLabels?.some((l) => l.trim())) payload.photoSlotLabels = extras.photoSlotLabels;
   if (extras.bookingOptions?.length) payload.bookingOptions = extras.bookingOptions;
