@@ -25,7 +25,16 @@ export function ListingCardRating({ tour, aggregate, compact }: Props) {
   const textSize = compact ? 'text-xs' : 'text-sm';
 
   return (
-    <div className={`flex items-center font-medium ${textSize} text-ink`}>
+    <div
+      className={`flex items-center font-medium ${textSize} text-ink`}
+      aria-label={
+        hasReal
+          ? `${aggregate.rating} out of 5 from ${aggregate.count} review${aggregate.count === 1 ? '' : 's'}`
+          : showSeedRating
+            ? `${tour.rating} out of 5 from ${tour.reviews} review${tour.reviews === 1 ? '' : 's'}`
+            : 'No reviews yet'
+      }
+    >
       {hasReal ? (
         <>
           <Star className={`mr-0.5 fill-finland text-finland ${compact ? 'h-3.5 w-3.5' : 'h-4 w-4'}`} />

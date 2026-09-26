@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `4930b4a`  
-**Current phase:** 749  
+**Current SHA:** `f29d12d`  
+**Current phase:** 750  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -159,6 +159,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 661 | Offers empty only when load succeeded | `7cb49d1` |
 | 662 | StayDetails reviews reset + eligibility stale guard | `a0bc0c2` |
 | 663 | Checkout contact fields label htmlFor + ids | `fa7cfef` |
+| 750 | Listing card rating accessible name | `f29d12d` |
 | 749 | Partner sidebar nav group aria wiring | `905ebf4` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
@@ -3623,6 +3624,10 @@ Remaining listing sticky copy alignment from agent pass.
 ### Phase 749 — Partner sidebar nav group aria wiring
 
 Partner sidebar expandable groups lacked aria-controls / aria-labelledby. Finish setup button lacked aria-label when collapsed to !.
+
+### Phase 750 — Listing card rating accessible name
+
+ListingCardRating visual stars had no accessible name. Add aria-label for aggregate, seed, and no-reviews states.
 
 ## Known remaining risks (ranked)
 
