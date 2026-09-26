@@ -22,6 +22,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [hasUnreadBookings, setHasUnreadBookings] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const userMenuPanelRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   /** Product pages already have browse nav — hide redundant primary CTA so it cannot cover booking controls. */
   /** Hero search already covers discovery on Home; hide the tours-only CTA there too. */
@@ -36,6 +37,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
     currentPage !== 'destination';
 
   useDialogFocus(isMobileMenuOpen, mobileMenuRef, () => setIsMobileMenuOpen(false));
+  useDialogFocus(isUserMenuOpen, userMenuPanelRef, () => setIsUserMenuOpen(false));
 
   useEffect(() => {
     if (!isSupabaseConfigured() || !user?.id) {
@@ -170,6 +172,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 onClick={openBookings}
                 onPointerEnter={prefetchMyBookingsPage}
                 aria-current={currentPage === 'bookings' ? 'page' : undefined}
+                aria-label={hasUnreadBookings ? 'Trips, unread updates' : 'Trips'}
                 className={`lux-flat relative rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
                   currentPage === 'bookings'
                     ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
@@ -191,9 +194,9 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 type="button"
                 onClick={() => setIsUserMenuOpen((o) => !o)}
                 className="lux-tap-target flex flex-col items-center gap-0.5 p-1.5 text-ink-muted hover:text-finland rounded-lg"
-                aria-label="Profile"
+                aria-label={hasUnreadBookings ? 'Profile, unread trip updates' : 'Profile'}
                 aria-expanded={isUserMenuOpen}
-                aria-haspopup="menu"
+                aria-haspopup="true"
                 aria-controls="profile-menu"
                 onPointerEnter={() => {
                   prefetchAuthPage();
@@ -204,7 +207,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                   <span className="relative w-8 h-8 rounded-full bg-finland/20 text-finland flex items-center justify-center text-sm font-medium ring-1 ring-black/[0.08]">
                     {(user.email ?? user.id).slice(0, 1).toUpperCase()}
                     {hasUnreadBookings ? (
-                      <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />
+                      <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" aria-hidden />
                     ) : null}
                   </span>
                 ) : (
@@ -217,7 +220,8 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               {isUserMenuOpen && (
                 <div
                   id="profile-menu"
-                  role="menu"
+                  ref={userMenuPanelRef}
+                  role="dialog"
                   aria-label="Profile"
                   className="absolute right-0 top-full mt-1 py-1 w-48 origin-top-right bg-paper-raised rounded-xl shadow-soft-lg ring-1 ring-black/[0.08] motion-safe:animate-slide-down"
                 >
@@ -269,13 +273,16 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                       <button
                         type="button"
                         onClick={openBookings}
+                        aria-label={hasUnreadBookings ? 'Trips, unread updates' : 'Trips'}
                         className="lux-flat w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-ink hover:bg-black/[0.04] text-left rounded-lg"
                       >
                         <span className="inline-flex items-center gap-2">
                           <Calendar className="w-4 h-4" />
                           Trips
                         </span>
-                        {hasUnreadBookings ? <span className="h-2.5 w-2.5 rounded-full bg-red-500" /> : null}
+                        {hasUnreadBookings ? (
+                          <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden />
+                        ) : null}
                       </button>
                       <button
                         type="button"
@@ -353,10 +360,12 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
           >
             <nav className="flex flex-col p-4 space-y-2" aria-label="Mobile">
               <button
+                type="button"
                 onClick={() => {
                   onNavigate('home');
                   setIsMobileMenuOpen(false);
                 }}
+                aria-current={currentPage === 'home' ? 'page' : undefined}
                 className={`lux-flat text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux font-medium ${
                   currentPage === 'home' ? 'bg-finland/10 text-finland' : 'text-ink hover:bg-black/[0.04]'
                 }`}
@@ -364,11 +373,15 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 Explore
               </button>
               <button
+                type="button"
                 onClick={() => {
                   onNavigate('packages');
                   setIsMobileMenuOpen(false);
                 }}
                 onPointerEnter={prefetchPackagesPage}
+                aria-current={
+                  currentPage === 'packages' || currentPage === 'tour-details' ? 'page' : undefined
+                }
                 className={`lux-flat text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux font-medium ${
                   currentPage === 'packages' || currentPage === 'tour-details'
                     ? 'bg-finland/10 text-finland'
@@ -378,10 +391,12 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 Tours
               </button>
               <button
+                type="button"
                 onClick={() => {
                   onNavigate('stays');
                   setIsMobileMenuOpen(false);
                 }}
+                aria-current={currentPage === 'stays' || currentPage === 'stay-details' ? 'page' : undefined}
                 className={`lux-flat text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux font-medium ${
                   currentPage === 'stays' || currentPage === 'stay-details'
                     ? 'bg-finland/10 text-finland'
@@ -392,10 +407,12 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               </button>
               {isSupabaseConfigured() && user ? (
                 <button
+                  type="button"
                   onClick={() => {
                     onNavigate('wishlist');
                     setIsMobileMenuOpen(false);
                   }}
+                  aria-current={currentPage === 'wishlist' ? 'page' : undefined}
                   className={`lux-flat text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux font-medium ${
                     currentPage === 'wishlist' ? 'bg-finland/10 text-finland' : 'text-ink hover:bg-black/[0.04]'
                   }`}
@@ -438,6 +455,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 ) : null}
                 {isSupabaseConfigured() && !authLoading && !user && (
                   <button
+                    type="button"
                     onClick={() => {
                       window.history.pushState({}, '', '/log-in?next=home');
                       onNavigate('auth');
@@ -452,6 +470,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 {isSupabaseConfigured() && !authLoading && user && (
                   <>
                     <button
+                      type="button"
                       onClick={() => {
                         onNavigate('account');
                         setIsMobileMenuOpen(false);
@@ -462,16 +481,22 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                       My account
                     </button>
                     <button
+                      type="button"
                       onClick={openBookings}
+                      aria-current={currentPage === 'bookings' ? 'page' : undefined}
+                      aria-label={hasUnreadBookings ? 'Trips, unread updates' : 'Trips'}
                       className="lux-flat w-full text-left px-4 py-3 rounded-lg text-ink hover:bg-black/[0.04] transition-colors duration-300 ease-lux flex items-center justify-between gap-2"
                     >
                       <span className="inline-flex items-center gap-2">
                         <Calendar className="w-5 h-5" />
                         Trips
                       </span>
-                      {hasUnreadBookings ? <span className="h-2.5 w-2.5 rounded-full bg-red-500" /> : null}
+                      {hasUnreadBookings ? (
+                        <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden />
+                      ) : null}
                     </button>
                     <button
+                      type="button"
                       onClick={() => {
                         signOut();
                         setIsMobileMenuOpen(false);
@@ -485,6 +510,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 )}
                 {showFindToursCta ? (
                   <button
+                    type="button"
                     onClick={() => {
                       onNavigate('home');
                       setIsMobileMenuOpen(false);
