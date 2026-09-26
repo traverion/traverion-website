@@ -29,6 +29,7 @@ import {
   type ReviewReplyRow,
 } from '../data/supabase-reviews';
 import { fetchSupplierPublicLegal } from '../data/supabase-supplier-profile';
+import { fetchConsumerProfileRow } from '../data/supabase-consumer-profile';
 import { setPageMetaWithOg, setTourJsonLd, clearTourJsonLd } from '../lib/seo';
 import { Skeleton } from '../components/ui/Skeleton';
 import { dateNotInPast } from '../lib/validation';
@@ -141,6 +142,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewTitle, setReviewTitle] = useState('');
   const [reviewComment, setReviewComment] = useState('');
+  const [profileDisplayName, setProfileDisplayName] = useState('');
   const [bookingDate, setBookingDate] = useState(() => readSearchPrefill().date);
   const [guests, setGuests] = useState(() => readSearchPrefill().guests);
   const [discountsByListing, setDiscountsByListing] = useState<Map<string, import('../data/supabase-discounts').ListingDiscount[]>>(new Map());
@@ -481,6 +483,20 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       cancelled = true;
     };
   }, [user?.id, tour?.id]);
+
+  useEffect(() => {
+    if (!user?.id || !isSupabaseConfigured()) {
+      setProfileDisplayName('');
+      return;
+    }
+    let cancelled = false;
+    void fetchConsumerProfileRow(user.id).then((row) => {
+      if (!cancelled) setProfileDisplayName((row?.display_name ?? '').trim());
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   const handleToggleWishlist = useCallback(() => {
     if (!tour?.id || !isSupabaseListingId(tour.id) || !isSupabaseConfigured()) return;
@@ -1541,10 +1557,13 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                         type="button"
                         onClick={() => setReviewRating(i)}
                         className="p-0.5"
+                        aria-label={`Rate ${i} out of 5 stars`}
+                        aria-pressed={i <= reviewRating}
                       >
                         <Star
                           size={24}
                           className={i <= reviewRating ? 'text-finland fill-finland' : 'text-ink-faint'}
+                          aria-hidden
                         />
                       </button>
                     ))}
@@ -1587,6 +1606,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                         listingId: tour.id,
                         userId: user.id,
                         guestName: travelerDisplayNameFromSources({
+                          profileDisplayName,
                           metadata: user.user_metadata as {
                             full_name?: string;
                             name?: string;

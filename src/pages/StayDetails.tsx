@@ -84,6 +84,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
   const checkoutLockRef = useRef(false);
   const [payError, setPayError] = useState<string | null>(null);
   const [guestName, setGuestName] = useState('');
+  const [profileDisplayName, setProfileDisplayName] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
   const [hostName, setHostName] = useState<string | null>(null);
   const [occupiedRanges, setOccupiedRanges] = useState<{ checkIn: string; checkOut: string }[]>([]);
@@ -324,6 +325,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
       // local-part (partner sessions on localhost share the same auth storage).
       const fromProfile = (row?.display_name ?? '').trim();
       const nextName = fromProfile || fromMeta;
+      if (fromProfile) setProfileDisplayName(fromProfile);
       if (nextName) setGuestName((prev) => prev.trim() || nextName);
       const ph = (row?.contact_phone ?? meta?.customer_phone ?? meta?.phone ?? '').trim();
       if (ph) setGuestPhone((prev) => prev.trim() || ph);
@@ -668,10 +670,18 @@ export default function StayDetails({ stayId, onBack }: Props) {
                       <label className="block text-sm font-medium text-ink mb-1">Rating</label>
                       <div className="flex gap-1">
                         {[1, 2, 3, 4, 5].map((i) => (
-                          <button key={i} type="button" onClick={() => setReviewRating(i)} className="p-0.5">
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => setReviewRating(i)}
+                            className="p-0.5"
+                            aria-label={`Rate ${i} out of 5 stars`}
+                            aria-pressed={i <= reviewRating}
+                          >
                             <Star
                               size={24}
                               className={i <= reviewRating ? 'text-finland fill-finland' : 'text-ink-faint'}
+                              aria-hidden
                             />
                           </button>
                         ))}
@@ -715,6 +725,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
                             userId: user.id,
                             guestName: travelerDisplayNameFromSources({
                               formValue: guestName,
+                              profileDisplayName,
                               metadata: user.user_metadata as {
                                 full_name?: string;
                                 name?: string;

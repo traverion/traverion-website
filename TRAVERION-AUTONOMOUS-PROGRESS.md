@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `a68ac76`  
-**Current phase:** 629  
+**Current SHA:** `ba432c3`  
+**Current phase:** 630  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -125,6 +125,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 627 | Confirmation missing-title fallback stay-aware | `7f2c69f` |
 | 628 | Trips Participants label + snapshot pickup time line | `3c599d8` |
 | 629 | Stop seeding traveler display_name from email local-part | `a68ac76` |
+| 630 | Review star a11y + profile display_name on submit | `ba432c3` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3074,6 +3075,12 @@ Same split-text-node class: Availability bulk capacity copy rendered `date` / `s
 **Problem:** `ensureConsumerProfile` / AuthContext sign-up / Account prefill used email local-part when metadata was empty — contradicts Phase 614/624 honesty and invents names on shared localhost auth.
 
 **Fix:** Persist/prefill only from signup metadata or saved profile; leave blank when unknown. Account page falls back to metadata name fields, not email.
+
+### Phase 630 — Review stars a11y + profile display_name on submit
+
+**Problem:** Star rating buttons lacked accessible names/pressed state. Review submit still omitted `consumer_profiles.display_name` (Tour) and Stay only used form+metadata.
+
+**Fix:** `aria-label` / `aria-pressed` on rating buttons; cache `profileDisplayName` from `fetchConsumerProfileRow` into `travelerDisplayNameFromSources` on both tour and stay review submit.
 
 ## Known remaining risks (ranked)
 
