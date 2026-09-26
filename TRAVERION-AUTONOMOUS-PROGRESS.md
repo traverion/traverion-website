@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `d74d9a3`  
-**Current phase:** 751  
+**Current SHA:** `fe0c92e`  
+**Current phase:** 752  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -159,6 +159,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 661 | Offers empty only when load succeeded | `7cb49d1` |
 | 662 | StayDetails reviews reset + eligibility stale guard | `a0bc0c2` |
 | 663 | Checkout contact fields label htmlFor + ids | `fa7cfef` |
+| 752 | Partner Create listing label coherence | `fe0c92e` |
 | 751 | Shared traveler checkout CTA constants | `d74d9a3` |
 | 750 | Listing card rating accessible name | `f29d12d` |
 | 749 | Partner sidebar nav group aria wiring | `905ebf4` |
@@ -3633,6 +3634,10 @@ ListingCardRating visual stars had no accessible name. Add aria-label for aggreg
 ### Phase 751 — Shared traveler checkout CTA constants
 
 Hard-coded Opening checkout / Pay now · TEST strings drifted across surfaces. Export TRAVELER_OPENING_CHECKOUT_CTA and TRAVELER_PAY_NOW_TEST_CTA; wire Trips, confirmation, stay sticky helper + StayDetails; unit tests.
+
+### Phase 752 — Partner Create listing label coherence
+
+Partner nav Create was ambiguous vs create-account. Align primary sidebar + More sheet CTA to Create listing with aria-label.
 
 ## Known remaining risks (ranked)
 

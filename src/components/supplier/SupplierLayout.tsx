@@ -979,9 +979,10 @@ export default function SupplierLayout() {
                   type="button"
                   onClick={() => handleNavigate('create')}
                   className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-md bg-finland px-3 py-3 text-[15px] font-semibold text-white"
+                  aria-label="Create listing"
                 >
                   <Plus className="h-4 w-4" strokeWidth={2.2} aria-hidden />
-                  Create
+                  Create listing
                 </button>
                 {PARTNER_MORE_GROUPS.map((group) => (
                   <div key={group.id} className="pt-4">
@@ -1230,6 +1231,26 @@ export default function SupplierLayout() {
             aria-expanded={mobileAccountOpen}
             aria-haspopup="dialog"
             aria-label="More"
+            aria-current={
+              !PRIMARY_NAV.some((tab) => tab.id === section) &&
+              [
+                'create',
+                'inbox',
+                'reviews',
+                'discounts',
+                'pickup',
+                'availability',
+                'reservations',
+                'performance',
+                'help',
+                'business-profile',
+                'account-settings',
+                'onboarding',
+                'change-password',
+              ].includes(section)
+                ? 'page'
+                : undefined
+            }
             className={`partner-nav-item lux-flat flex min-h-[52px] min-w-[44px] flex-1 flex-col items-center justify-center gap-0.5 py-2 ${
               mobileAccountOpen ||
               ['create', 'inbox', 'reviews', 'discounts', 'pickup', 'availability', 'reservations', 'performance', 'help', 'business-profile', 'account-settings', 'onboarding', 'change-password'].includes(
