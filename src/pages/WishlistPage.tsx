@@ -171,7 +171,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
             <button
               type="button"
               onClick={() => onNavigate('account')}
-              className="lux-flat inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink"
+              className="lux-flat lux-tap-target min-h-11 inline-flex items-center gap-1.5 px-2 py-2 text-sm text-ink-muted hover:text-ink"
             >
               <ArrowLeft className="w-4 h-4" />
               Account
