@@ -3323,6 +3323,14 @@ Home Stays section ignored `listingsError` and claimed no stays published. Show 
 
 Same dishonest empty as TourDetails for stay reviews. Surface `reviewsLoadError` + Try again.
 
+### Phase 674 — Stay occupancy: RPC failure ≠ free nights
+
+`fetchPublishedStayOccupiedRanges` / `BlockedNights` returned `[]` on error → nights looked free. Throw on error; Stays browse + StayDetails show retry and block checkout until known.
+
+### Phase 675 — Tour capacity: fetch failure ≠ unlimited spots
+
+Availability / paid-guest fetchers returned empty on error → calendars understated sold-out. Throw on real errors; Packages / TourDetails / BookingPage surface capacity errors and stop treating failure as open inventory.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Partner create→publish wizard** not browser-certified this pass (ops Home/Bookings/Calendar/Listings **are** localhost-browser certified in Phase 597). Full create→publish still pending.

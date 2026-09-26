@@ -125,6 +125,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
     { ranges: { checkIn: string; checkOut: string }[]; blockedNights: string[] }
   > | null>(null);
   const [occupancyLoading, setOccupancyLoading] = useState(false);
+  const [occupancyError, setOccupancyError] = useState<string | null>(null);
   const [reviewAggregates, setReviewAggregates] = useState<Map<string, { rating: number; count: number }>>(
     () => new Map()
   );
@@ -195,10 +196,12 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
     if (!dateFilterActive || stays.length === 0 || !isSupabaseConfigured()) {
       setOccupiedByListing(null);
       setOccupancyLoading(false);
+      setOccupancyError(null);
       return () => {};
     }
     let cancelled = false;
     setOccupancyLoading(true);
+    setOccupancyError(null);
     void Promise.all(
       stays.map(async (s) => {
         const [ranges, blockedNights] = await Promise.all([
@@ -207,11 +210,18 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
         ]);
         return [s.id, { ranges, blockedNights }] as const;
       })
-    ).then((entries) => {
-      if (cancelled) return;
-      setOccupiedByListing(Object.fromEntries(entries));
-      setOccupancyLoading(false);
-    });
+    )
+      .then((entries) => {
+        if (cancelled) return;
+        setOccupiedByListing(Object.fromEntries(entries));
+        setOccupancyLoading(false);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setOccupiedByListing(null);
+        setOccupancyError(userFacingError(e, 'We could not check stay availability. Check your connection and try again.'));
+        setOccupancyLoading(false);
+      });
     return () => {
       cancelled = true;
     };
@@ -322,7 +332,8 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
     reviewAggregates,
   ]);
 
-  const waitingOnOccupancy = dateFilterActive && isSupabaseConfigured() && (occupancyLoading || occupiedByListing === null);
+  const waitingOnOccupancy =
+    dateFilterActive && isSupabaseConfigured() && !occupancyError && (occupancyLoading || occupiedByListing === null);
 
   const searchValues: MarketplaceSearchValues = useMemo(
     () => ({ where: q, date: checkIn, checkout: checkOut, guests }),
@@ -582,6 +593,12 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
             title="Stays unavailable"
             body={userFacingError(error, USER_ERROR.tours)}
             retry={{ onClick: () => reload() }}
+          />
+        ) : occupancyError && dateFilterActive ? (
+          <ErrorState
+            title="Availability unavailable"
+            body={occupancyError}
+            retry={{ onClick: () => reloadStayBrowseOccupancy() }}
           />
         ) : catalogLoading || waitingOnOccupancy ? (
           <SkeletonCardGrid count={6} />

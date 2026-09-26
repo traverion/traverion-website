@@ -990,7 +990,8 @@ export async function fetchPublishedStayOccupiedRanges(
   const { data, error } = await supabase.rpc('published_stay_occupied_ranges', {
     p_listing_id: listingId,
   });
-  if (error || !Array.isArray(data)) return [];
+  if (error) throw new Error(error.message);
+  if (!Array.isArray(data)) return [];
   return (data as { check_in: string; check_out: string }[])
     .map((row) => ({
       checkIn: String(row.check_in ?? '').slice(0, 10),
@@ -1012,7 +1013,8 @@ export async function fetchPublishedStayBlockedNights(listingId: string): Promis
     .eq('listing_id', listingId)
     .gte('available_date', today)
     .lte('capacity', 0);
-  if (error || !Array.isArray(data)) return [];
+  if (error) throw new Error(error.message);
+  if (!Array.isArray(data)) return [];
   return (data as { available_date: string; capacity: number }[])
     .map((row) => String(row.available_date ?? '').slice(0, 10))
     .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d));

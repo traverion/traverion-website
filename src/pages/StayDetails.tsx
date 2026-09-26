@@ -964,13 +964,21 @@ export default function StayDetails({ stayId, onBack }: Props) {
                   className="tv-input mt-1 w-full"
                   placeholder="Arrival contact"
                 />
+                {occupancyError ? (
+                  <p className="mt-3 text-sm text-red-700">
+                    {occupancyError}{' '}
+                    <button type="button" className="font-semibold text-finland hover:underline" onClick={() => reloadStayOccupancy()}>
+                      Try again
+                    </button>
+                  </p>
+                ) : null}
                 {payError ? <p className="mt-3 text-sm text-red-700">{payError}</p> : null}
                 <button
                   type="button"
                   className="tv-btn-primary w-full mt-4 disabled:opacity-50"
-                  disabled={paying || selectionOccupied}
+                  disabled={paying || selectionOccupied || Boolean(occupancyError)}
                   onClick={() => {
-                    if (selectionOccupied) return;
+                    if (selectionOccupied || occupancyError) return;
                     if (!quoteOk) {
                       document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                       window.requestAnimationFrame(() => {
@@ -1050,9 +1058,9 @@ export default function StayDetails({ stayId, onBack }: Props) {
               <button
                 type="button"
                 className="tv-btn-primary shrink-0 disabled:opacity-50"
-                disabled={paying || selectionOccupied}
+                disabled={paying || selectionOccupied || Boolean(occupancyError)}
                 onClick={() => {
-                  if (selectionOccupied) return;
+                  if (selectionOccupied || occupancyError) return;
                   if (!quoteOk) {
                     document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     window.requestAnimationFrame(() => {
