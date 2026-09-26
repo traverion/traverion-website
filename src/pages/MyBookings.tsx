@@ -3,7 +3,7 @@
  * RLS ensures only rows where guest_email = auth user email are returned.
  */
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { LogIn, RefreshCw, ArrowLeft, CalendarDays, MapPin, ChevronDown } from 'lucide-react';
+import { LogIn, RefreshCw, ArrowLeft, CalendarDays, MapPin, ChevronDown, X } from 'lucide-react';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
@@ -449,18 +449,18 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               <button
                 type="button"
                 onClick={() => onNavigate('account')}
-                className="lux-flat inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink"
+                className="lux-flat lux-tap-target inline-flex min-h-11 items-center gap-1.5 px-2 py-2 text-sm text-ink-muted hover:text-ink"
               >
-                <ArrowLeft className="w-4 h-4" />
+                <ArrowLeft className="w-4 h-4" aria-hidden />
                 Account
               </button>
               <button
                 type="button"
                 onClick={load}
                 disabled={loading}
-                className="lux-flat inline-flex items-center gap-2 px-3 py-2 text-sm text-ink-muted hover:text-ink disabled:opacity-50"
+                className="lux-flat lux-tap-target inline-flex min-h-11 items-center gap-2 px-3 py-2 text-sm text-ink-muted hover:text-ink disabled:opacity-50"
               >
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} aria-hidden />
                 Refresh
               </button>
             </div>
@@ -1075,12 +1075,24 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           <div ref={cancelSheetRef} className="tv-sheet-overlay z-50">
             <button type="button" tabIndex={-1} className="absolute inset-0" aria-label="Close" onClick={closeCancelConfirm} />
             <div className="tv-sheet-panel relative max-w-lg motion-safe:animate-slide-up" role="dialog" aria-modal="true" aria-labelledby="cancel-trip-title">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">Cancellation</p>
-              <h3 id="cancel-trip-title" className="mt-2 font-display text-2xl sm:text-3xl text-ink tracking-tight">
-                {travelerSelfCancelIsUnpaidCheckout(cancelConfirm)
-                  ? 'Cancel this checkout?'
-                  : 'Cancel this booking?'}
-              </h3>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">Cancellation</p>
+                  <h3 id="cancel-trip-title" className="mt-2 font-display text-2xl sm:text-3xl text-ink tracking-tight">
+                    {travelerSelfCancelIsUnpaidCheckout(cancelConfirm)
+                      ? 'Cancel this checkout?'
+                      : 'Cancel this booking?'}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeCancelConfirm}
+                  className="lux-flat lux-tap-target inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full text-ink-muted hover:bg-black/[0.04] hover:text-ink"
+                  aria-label="Close"
+                >
+                  <X className="w-5 h-5" aria-hidden />
+                </button>
+              </div>
               <div className="mt-4 rounded-2xl bg-paper px-4 py-3.5 ring-1 ring-black/[0.05]">
                 <p className="font-semibold text-ink leading-snug">
                   {displayListingTitleFromPurchase(
