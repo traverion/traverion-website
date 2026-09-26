@@ -89,10 +89,12 @@ export default function StayDetails({ stayId, onBack }: Props) {
   const [hostName, setHostName] = useState<string | null>(null);
   const [occupiedRanges, setOccupiedRanges] = useState<{ checkIn: string; checkOut: string }[]>([]);
   const [blockedNights, setBlockedNights] = useState<string[]>([]);
+  const [occupancyError, setOccupancyError] = useState<string | null>(null);
   const [savedToWishlist, setSavedToWishlist] = useState(false);
   const [wishlistBusy, setWishlistBusy] = useState(false);
   const [savePop, setSavePop] = useState(false);
   const [reviews, setReviews] = useState<ReviewDisplay[]>([]);
+  const [reviewsLoadError, setReviewsLoadError] = useState<string | null>(null);
   const [reviewReplies, setReviewReplies] = useState<Record<string, ReviewReplyRow>>({});
   const [reviewAggregate, setReviewAggregate] = useState<{ rating: number; count: number } | null>(null);
   const [canLeaveReview, setCanLeaveReview] = useState(false);
@@ -138,17 +140,25 @@ export default function StayDetails({ stayId, onBack }: Props) {
     setReviewTitle('');
     setReviewComment('');
     setReviews([]);
+    setReviewsLoadError(null);
     setReviewReplies({});
     setReviewAggregate(null);
     if (!stayId || !isSupabaseConfigured()) return;
     let cancelled = false;
-    void fetchReviewsByListingId(stayId).then(async (rows) => {
-      if (cancelled) return;
-      setReviews(rows);
-      const replies = await getReviewRepliesByReviewIds(rows.map((r) => r.id));
-      if (cancelled) return;
-      setReviewReplies(replies);
-    });
+    void fetchReviewsByListingId(stayId)
+      .then(async (rows) => {
+        if (cancelled) return;
+        setReviews(rows);
+        const replies = await getReviewRepliesByReviewIds(rows.map((r) => r.id));
+        if (cancelled) return;
+        setReviewReplies(replies);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setReviews([]);
+        setReviewReplies({});
+        setReviewsLoadError(userFacingError(e, USER_ERROR.reviews));
+      });
     void getReviewAggregateForListing(stayId).then((agg) => {
       if (!cancelled) setReviewAggregate(agg);
     });
@@ -159,11 +169,18 @@ export default function StayDetails({ stayId, onBack }: Props) {
 
   const loadReviews = useCallback(() => {
     if (!stayId || !isSupabaseConfigured()) return;
-    void fetchReviewsByListingId(stayId).then(async (rows) => {
-      setReviews(rows);
-      const replies = await getReviewRepliesByReviewIds(rows.map((r) => r.id));
-      setReviewReplies(replies);
-    });
+    setReviewsLoadError(null);
+    void fetchReviewsByListingId(stayId)
+      .then(async (rows) => {
+        setReviews(rows);
+        const replies = await getReviewRepliesByReviewIds(rows.map((r) => r.id));
+        setReviewReplies(replies);
+      })
+      .catch((e) => {
+        setReviews([]);
+        setReviewReplies({});
+        setReviewsLoadError(userFacingError(e, USER_ERROR.reviews));
+      });
     void getReviewAggregateForListing(stayId).then(setReviewAggregate);
   }, [stayId]);
 
@@ -278,15 +295,25 @@ export default function StayDetails({ stayId, onBack }: Props) {
     if (!stay?.id) {
       setOccupiedRanges([]);
       setBlockedNights([]);
+      setOccupancyError(null);
       return () => {};
     }
     let cancelled = false;
-    void fetchPublishedStayOccupiedRanges(stay.id).then((ranges) => {
-      if (!cancelled) setOccupiedRanges(ranges);
-    });
-    void fetchPublishedStayBlockedNights(stay.id).then((nights) => {
-      if (!cancelled) setBlockedNights(nights);
-    });
+    setOccupancyError(null);
+    void Promise.all([fetchPublishedStayOccupiedRanges(stay.id), fetchPublishedStayBlockedNights(stay.id)])
+      .then(([ranges, nights]) => {
+        if (cancelled) return;
+        setOccupiedRanges(ranges);
+        setBlockedNights(nights);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setOccupiedRanges([]);
+        setBlockedNights([]);
+        setOccupancyError(
+          userFacingError(e, 'We could not check stay availability. Check your connection and try again.')
+        );
+      });
     return () => {
       cancelled = true;
     };
@@ -391,12 +418,21 @@ export default function StayDetails({ stayId, onBack }: Props) {
       return;
     }
     // Re-fetch inventory so a concurrent hold or fresh host block is visible before Stripe opens.
-    const [freshRanges, freshBlocked] = await Promise.all([
-      fetchPublishedStayOccupiedRanges(stay.id),
-      fetchPublishedStayBlockedNights(stay.id),
-    ]);
+    let freshRanges: { checkIn: string; checkOut: string }[];
+    let freshBlocked: string[];
+    try {
+      [freshRanges, freshBlocked] = await Promise.all([
+        fetchPublishedStayOccupiedRanges(stay.id),
+        fetchPublishedStayBlockedNights(stay.id),
+      ]);
+    } catch (e) {
+      setPayError(userFacingError(e, 'We could not re-check availability. Try again before paying.'));
+      document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
     setOccupiedRanges(freshRanges);
     setBlockedNights(freshBlocked);
+    setOccupancyError(null);
     const stillTaken =
       freshRanges.some((r) => stayDateRangesOverlap(stayQuote.checkIn, stayQuote.checkOut, r.checkIn, r.checkOut)) ||
       nightsOccupiedByStay(stayQuote.checkIn, stayQuote.checkOut).some((n) => freshBlocked.includes(n));
@@ -661,7 +697,18 @@ export default function StayDetails({ stayId, onBack }: Props) {
                   </p>
                 ) : null;
               })()}
-              {reviews.length === 0 && !showReviewForm ? (
+              {reviewsLoadError ? (
+                <div className="mb-4 max-w-xl">
+                  <p className="text-ink-muted leading-relaxed">{reviewsLoadError}</p>
+                  <button
+                    type="button"
+                    className="mt-2 text-sm font-semibold text-finland hover:underline"
+                    onClick={() => loadReviews()}
+                  >
+                    Try again
+                  </button>
+                </div>
+              ) : reviews.length === 0 && !showReviewForm ? (
                 <p className="text-ink-muted mb-4 max-w-xl leading-relaxed">
                   No reviews yet. Guests can write one after a completed stay.
                 </p>
