@@ -36,6 +36,7 @@ import {
   bookingConfirmationPhase,
   bookingConfirmationCancelledBody,
   BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE,
+  STRIPE_TEST_UNTIL_LIVE,
 } from '../lib/booking-confirmation-copy';
 import { formatBookingParticipantsLabel } from '../lib/participant-mix';
 import { formatBookingDateDisplay } from '../lib/booking-flow';
@@ -601,7 +602,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                   </NoticeCallout>
                 ) : needsPay ? (
                   <NoticeCallout title="What happens next" tone="warn">
-                    Your hold stays on Trips until you pay or cancel. Stripe TEST checkout opens in the same flow as before.
+                    Your hold stays on Trips until you pay or cancel. Checkout uses {STRIPE_TEST_UNTIL_LIVE} and opens in the same flow as before.
                   </NoticeCallout>
                 ) : (
                   <NoticeCallout title="What happens next" tone="info">
@@ -631,7 +632,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                     disabled={payingNow}
                     className="tv-btn-primary w-full"
                   >
-                    {payingNow ? 'Opening checkout…' : 'Pay now'}
+                    {payingNow ? 'Opening checkout…' : 'Pay now · TEST'}
                   </button>
                 ) : null}
                 <button
