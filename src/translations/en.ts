@@ -1,3 +1,8 @@
+/**
+ * English UI copy. Prefer shared honesty constants from booking-confirmation-copy when the phrase is product-critical.
+ */
+import { STRIPE_TEST_UNTIL_LIVE } from '../lib/booking-confirmation-copy';
+
 export const en = {
   // Navigation
   navigation: {
@@ -36,12 +41,12 @@ export const en = {
       description: 'Premium accommodations and exclusive experiences',
     },
     support: {
-      title: '24/7 Support',
-      description: 'Dedicated assistance throughout your journey',
+      title: 'Human support',
+      description: 'Reach us through Contact — we do not claim round-the-clock coverage we do not staff',
     },
     guarantee: {
-      title: 'Best Price Guarantee',
-      description: 'Competitive pricing with unmatched value',
+      title: 'Clear cancellation',
+      description: 'Cancellation follows each listing — not a blanket guarantee',
     },
   },
 
@@ -98,7 +103,7 @@ export const en = {
     bookNow: 'BOOK A HOLIDAY',
     learnMore: 'Learn More',
     contact: 'Contact Us',
-    loading: 'Loading...',
+    loading: 'Loading…',
     error: 'Something went wrong',
     success: 'Success!',
   },
@@ -199,7 +204,7 @@ export const en = {
 
   // Top bar (above main nav) - one line, minimal
   topBanner: {
-    trustLine: 'Cancellation follows each listing · Stripe TEST until live',
+    trustLine: `Cancellation follows each listing · ${STRIPE_TEST_UNTIL_LIVE}`,
   },
 
   // Promotional Banner
