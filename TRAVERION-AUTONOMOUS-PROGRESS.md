@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `5bcf823`  
-**Current phase:** 620  
+**Current SHA:** `beca448`  
+**Current phase:** 621  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -116,6 +116,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 618 | Pluralize Adult/Child participant labels + mobile Inbox cert | `d617dc5` |
 | 619 | Checkout Participants strings use plural helper | `73e4f2c` |
 | 620 | Stop capitalizing partner payment labels on Bookings | `5bcf823` |
+| 621 | Tour detail option label + sticky quote gate + tour-switch reset | `beca448` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3008,6 +3009,17 @@ Same split-text-node class as Phases 599/616: “No activity date” subsection 
 **Problem:** List + detail payment chips applied Tailwind `capitalize` on `partnerPaymentLabel`, turning “Refund due” / “Checkout hold” into “Refund Due” / “Checkout Hold” — diverging from Inbox, Money, and CSV honesty.
 
 **Fix:** Remove `capitalize` from both chips so labels match `partnerPaymentLabel` exactly.
+
+### Phase 621 — Tour detail selection honesty (option label, sticky CTA, tour switch)
+
+**Problems:**
+1. Options strip `guestsLabel` used `selectedOption` instead of schedule-resolved `selectedOptionApplied`.
+2. Mobile sticky CTA stayed enabled with “Continue · TEST” when `panelQuote` was invalid (desktop Continue disabled).
+3. Switching tours in-session left `listingHydratedRef` true so date/guests/option from the previous listing could linger.
+
+**Fixes:** Use `selectedOptionApplied` for mix label; disable sticky + `Fix guests` label when quote invalid; reset hydration + selection state when `tour.id` changes, then re-read URL selection.
+
+**Evidence:** `tour-sticky-cta` vitest includes `quoteInvalid → Fix guests`.
 
 ## Known remaining risks (ranked)
 

@@ -18,5 +18,8 @@ describe('tourStickyBookCtaLabel', () => {
     expect(
       tourStickyBookCtaLabel({ hasDate: true, hasOption: true, needsDeparture: false, soldOut: true })
     ).toBe('Sold out');
+    expect(
+      tourStickyBookCtaLabel({ hasDate: true, hasOption: true, needsDeparture: false, quoteInvalid: true })
+    ).toBe('Fix guests');
   });
 });

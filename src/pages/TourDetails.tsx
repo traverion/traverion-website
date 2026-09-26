@@ -675,8 +675,20 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   }, [checkoutFromUrl, checkoutVariant, tour, commitLocation]);
 
   const listingHydratedRef = useRef(false);
+  const hydratedTourIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!tour || checkoutFromUrl || listingHydratedRef.current) return;
+    if (!tour || checkoutFromUrl) return;
+    if (hydratedTourIdRef.current !== tour.id) {
+      hydratedTourIdRef.current = tour.id;
+      listingHydratedRef.current = false;
+      setBookingDate('');
+      setBookingVariantsOpen(false);
+      setSelectedBookingVariant(null);
+      setSelectedDepartureTime('');
+      setParticipantMix({});
+      setGuests(1);
+    }
+    if (listingHydratedRef.current) return;
     listingHydratedRef.current = true;
     const sel = parseTourListingSelection(window.location.search);
     if (sel.date) {
@@ -684,6 +696,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       setBookingVariantsOpen(true);
       scrollToOptionsSection();
     }
+    if (sel.guests && sel.guests > 0) setGuests(sel.guests);
     if (sel.optionId) {
       const restored = resolveTourCheckoutVariant(tourVariants, sel.optionId);
       if (restored) setSelectedBookingVariant(restored);
@@ -1170,8 +1183,8 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     available={optionsForSelectedDate.available}
                     selectedId={selectedBookingVariant?.id ?? null}
                     guestsLabel={
-                      usesAgePricing && selectedOption
-                        ? formatMixSummaryCompact(buildParticipantMixLines(selectedOption, participantMix)) ||
+                      usesAgePricing && selectedOptionApplied
+                        ? formatMixSummaryCompact(buildParticipantMixLines(selectedOptionApplied, participantMix)) ||
                           `${guests} ${guests === 1 ? 'guest' : 'guests'}`
                         : `${guests} ${guests === 1 ? 'guest' : 'guests'}`
                     }
@@ -1663,6 +1676,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     return (
                       variantChecking ||
                       allDeparturesSoldOut ||
+                      (panelQuote != null && !panelQuote.ok) ||
                       (Boolean(selectedBookingVariant) &&
                         selectedDaySpotsLeft != null &&
                         selectedDaySpotsLeft < partyForCap)
@@ -1697,6 +1711,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                           selectedDaySpotsLeft < partyForCap)
                       );
                     })(),
+                    quoteInvalid: Boolean(selectedBookingVariant && panelQuote != null && !panelQuote.ok),
                   })}
                 </button>
               </div>
