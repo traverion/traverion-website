@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `73990df`  
-**Current phase:** 610  
+**Current SHA:** `d12b36a`  
+**Current phase:** 611  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -106,6 +106,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 608 | Mobile homepage 390×844 browser cert | `24b1bf8` |
 | 609 | Mobile Packages + tour detail sticky CTA 390×844 | `688dafc` |
 | 610 | Mobile date→options multi-departure handoff | `73990df` |
+| 611 | App tsc + production build clean | `d12b36a` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -2946,6 +2947,10 @@ Emulated 390×844: Packages lists 5 live tours with Filters/Sort. Opened Guarant
 ### Phase 610 — Mobile date → multi-option handoff (390×844)
 
 On Northern Lights detail: sticky **Pick a date** focuses calendar; selecting Sun 27 Sept loads **Shared group Starts 20:00** and **Private tour Starts 20:30** with distinct prices (€119 / €449). Sticky becomes **Choose option**; panel shows “12 spots left this day”. URL gains `date=` + `guests=`. Commercial multi-departure truth visible on mobile.
+
+### Phase 611 — Traveler-band build/tsc checkpoint
+
+After Phases 601–610: `tsc -p tsconfig.app.json` clean; `npm run build` succeeded (~4.5s). Stripe still TEST.
 
 ## Known remaining risks (ranked)
 
