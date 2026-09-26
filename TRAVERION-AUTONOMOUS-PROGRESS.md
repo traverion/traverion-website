@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `beca448`  
-**Current phase:** 621  
+**Current SHA:** `550c67c`  
+**Current phase:** 622  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -117,6 +117,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 619 | Checkout Participants strings use plural helper | `73e4f2c` |
 | 620 | Stop capitalizing partner payment labels on Bookings | `5bcf823` |
 | 621 | Tour detail option label + sticky quote gate + tour-switch reset | `beca448` |
+| 622 | Trips empty/cancel CTAs include Browse stays | `550c67c` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3020,6 +3021,12 @@ Same split-text-node class as Phases 599/616: “No activity date” subsection 
 **Fixes:** Use `selectedOptionApplied` for mix label; disable sticky + `Fix guests` label when quote invalid; reset hydration + selection state when `tour.id` changes, then re-read URL selection.
 
 **Evidence:** `tour-sticky-cta` vitest includes `quoteInvalid → Fix guests`.
+
+### Phase 622 — Trips empty / cancel recovery offers stays
+
+**Problem:** Primary “No trips yet” empty state and Stripe-cancel recovery (when no pending pay booking) only offered “Browse tours”, while per-tab empties already offered stays — commercial path incomplete for stay-first travelers.
+
+**Fix:** Add “Browse stays” ghost CTAs beside Browse tours on those surfaces (and bookings-unavailable fallback).
 
 ## Known remaining risks (ranked)
 

@@ -358,6 +358,13 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               </button>
               <button
                 type="button"
+                onClick={() => onNavigate('stays')}
+                className="tv-btn-ghost"
+              >
+                Browse stays
+              </button>
+              <button
+                type="button"
                 onClick={() => onNavigate('contact')}
                 className="tv-btn-ghost"
               >
@@ -510,9 +517,14 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   {payingId === pendingPayBookings[0].id ? 'Opening checkout…' : 'Pay now · TEST'}
                 </button>
               ) : (
-                <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-primary">
-                  Browse tours
-                </button>
+                <>
+                  <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-primary">
+                    Browse tours
+                  </button>
+                  <button type="button" onClick={() => onNavigate('stays')} className="tv-btn-ghost">
+                    Browse stays
+                  </button>
+                </>
               )}
               <button type="button" onClick={() => setPaymentBanner(null)} className="tv-btn-ghost">
                 Dismiss
@@ -533,9 +545,14 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
             title="No trips yet"
             body="You have not booked a tour or stay, so this list is empty. When you complete a booking, it appears here."
             action={
-              <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-primary">
-                Browse tours
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-primary">
+                  Browse tours
+                </button>
+                <button type="button" onClick={() => onNavigate('stays')} className="tv-btn-ghost">
+                  Browse stays
+                </button>
+              </div>
             }
           />
         ) : (
