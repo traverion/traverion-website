@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `7d7ed82`  
-**Current phase:** 812  
+**Current SHA:** `a17fc5e`  
+**Current phase:** 813  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -223,6 +223,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 810 | Traveler overscroll containment | `6e4a548` |
 | 811 | Homepage mobile viewport pass notes | `a07d6d1` |
 | 812 | Homepage premium band checkpoint 806-812 | `7d7ed82` |
+| 813 | Tours primary search applies only on Search submit | `a17fc5e` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -4001,6 +4002,16 @@ Browser-inspected homepage at desktop and noted destination tiles + denser tour 
 **Closed:** compact destinations (real inventory only), denser listing grids, section rhythm, first-party interest ranking, stay affinity titles, overscroll containment, mobile notes.
 
 **Gates:** tsc clean; traveler-interest vitest green. Stripe TEST stays off marketing surfaces (Phase 801). Next: search + catalog (813–820).
+
+### Phase 813 — Tours primary search: draft then Search
+
+**Problem:** Tour catalog refiltered while typing Where/Date/Travelers — felt chaotic vs mature marketplaces.
+
+**Fix:** `Packages.tsx` draft fields (`draftWhere` / `draftDate` / `draftGuests`) drive the search pill and mobile sheet; applied `searchTerm` / `filterDate` / `filterGuests` (and URL) update only on explicit Search submit (desktop trailing button + mobile Search). Typing does not change results or URL. Chip remove / Clear sync drafts. Applied where-query records first-party `search` interest.
+
+**Browser (localhost desktop):** `/packages` — typed `zzzznonexistent` kept “5 tours” + clean URL; Search → `?q=zzzznonexistent`, “0 tours…”, active chip, honest empty state. tsc clean.
+
+**Not this phase:** Stays mirror; horizontal filter row; denser cards.
 
 ## Known remaining risks (ranked)
 

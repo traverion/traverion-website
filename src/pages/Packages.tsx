@@ -39,6 +39,7 @@ import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { formatMoney, normalizeCurrency } from '../lib/money';
+import { recordTravelerInterest } from '../lib/traveler-interest';
 import {
   buildPriceChips,
   catalogHasParseableDurations,
@@ -151,6 +152,10 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
   const [priceRange, setPriceRange] = useState(initialFilters.price);
   const [filterDate, setFilterDate] = useState(initialFilters.date);
   const [filterGuests, setFilterGuests] = useState(initialFilters.guests);
+  /** Draft primary search — applied only on Search (does not refilter while typing). */
+  const [draftWhere, setDraftWhere] = useState(initialFilters.searchTerm);
+  const [draftDate, setDraftDate] = useState(initialFilters.date);
+  const [draftGuests, setDraftGuests] = useState(initialFilters.guests);
   const [privateOnly, setPrivateOnly] = useState(initialFilters.privateOnly);
   const [ratingFilter, setRatingFilter] = useState<RatingFilterId>(initialFilters.rating);
   const [durationFilter, setDurationFilter] = useState<DurationFilterId>(initialFilters.duration);
@@ -191,12 +196,15 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     const search = window.location.search;
     const parsed = parsePackagesSearchParams(search);
     setSearchTerm(parsed.searchTerm);
+    setDraftWhere(parsed.searchTerm);
     setSelectedDestination(parsed.destination);
     setSelectedTags(parsed.tags);
     setSortBy(parsed.sort);
     setPriceRange(parsed.price);
     setFilterDate(parsed.date);
+    setDraftDate(parsed.date);
     setFilterGuests(parsed.guests);
+    setDraftGuests(parsed.guests);
     setPrivateOnly(parsed.privateOnly);
     setRatingFilter(parsed.rating);
     setDurationFilter(parsed.duration);
@@ -220,7 +228,10 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
       try {
         const criteria = JSON.parse(searchCriteria) as { destination?: string; q?: string };
         const q = String(criteria.q ?? criteria.destination ?? '').trim();
-        if (q) setSearchTerm(q);
+        if (q) {
+          setSearchTerm(q);
+          setDraftWhere(q);
+        }
         sessionStorage.removeItem('searchCriteria');
       } catch {
         sessionStorage.removeItem('searchCriteria');
@@ -509,17 +520,31 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
 
   const clearAllFilters = () => {
     setSearchTerm('');
+    setDraftWhere('');
     setSelectedDestination('all');
     setSelectedTags([]);
     setPriceRange('all');
     setSortBy('recommended');
     setFilterDate('');
+    setDraftDate('');
     setFilterGuests('');
+    setDraftGuests('');
     setPrivateOnly(false);
     setRatingFilter('all');
     setDurationFilter('all');
     setLanguageFilter('');
   };
+
+  const applyPrimarySearch = useCallback(() => {
+    setSearchTerm(draftWhere);
+    setFilterDate(draftDate);
+    setFilterGuests(draftGuests);
+    setMobileSearchOpen(false);
+    const q = draftWhere.trim();
+    if (q) {
+      recordTravelerInterest({ kind: 'search', key: q, family: 'tour' });
+    }
+  }, [draftWhere, draftDate, draftGuests]);
 
   const toggleTag = (tagId: string) => {
     setSelectedTags(prev => prev.includes(tagId) ? prev.filter(t => t !== tagId) : [...prev, tagId]);
@@ -540,19 +565,18 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     (languageFilter && languageFilter !== 'all' ? 1 : 0);
 
   const searchValues = useMemo(
-    () => ({ where: searchTerm, date: filterDate, checkout: '', guests: filterGuests }),
-    [searchTerm, filterDate, filterGuests]
+    () => ({ where: draftWhere, date: draftDate, checkout: '', guests: draftGuests }),
+    [draftWhere, draftDate, draftGuests]
   );
 
   const mobileSearchSummary = useMemo(() => {
-    const where = searchTerm.trim() || 'Anywhere';
-    const whenLabel = filterDate || 'Any date';
-    const guestCount = Number.parseInt(filterGuests, 10);
-    const whoLabel = filterGuests.trim()
-      ? `${filterGuests} ${guestCount === 1 ? 'traveler' : 'travelers'}`
+    const where = draftWhere.trim() || 'Anywhere';
+    const whenLabel = draftDate || 'Any date';
+    const whoLabel = draftGuests.trim()
+      ? `${draftGuests} ${Number(draftGuests) === 1 ? 'traveler' : 'travelers'}`
       : 'Add travelers';
     return { where, whenLabel, whoLabel };
-  }, [searchTerm, filterDate, filterGuests]);
+  }, [draftWhere, draftDate, draftGuests]);
 
   const destLabel =
     selectedDestination !== 'all'
@@ -693,11 +717,23 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
             family="tours"
             values={searchValues}
             onChange={(patch) => {
-              if (patch.where !== undefined) setSearchTerm(patch.where);
-              if (patch.date !== undefined) setFilterDate(patch.date);
-              if (patch.guests !== undefined) setFilterGuests(patch.guests);
+              if (patch.where !== undefined) setDraftWhere(patch.where);
+              if (patch.date !== undefined) setDraftDate(patch.date);
+              if (patch.guests !== undefined) setDraftGuests(patch.guests);
+            }}
+            onSubmit={(e) => {
+              e.preventDefault();
+              applyPrimarySearch();
             }}
             idPrefix="tours"
+            trailing={
+              <button
+                type="submit"
+                className="h-12 self-center px-6 rounded-full bg-finland text-white text-sm font-semibold hover:bg-finland-dark shadow-sm"
+              >
+                Search
+              </button>
+            }
           />
         }
         mobileSearch={
@@ -748,7 +784,10 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
               {searchTerm.trim() !== '' ? (
                 <MarketplaceActiveChip
                   label={`“${searchTerm.trim().slice(0, 36)}${searchTerm.trim().length > 36 ? '…' : ''}”`}
-                  onRemove={() => setSearchTerm('')}
+                  onRemove={() => {
+                    setSearchTerm('');
+                    setDraftWhere('');
+                  }}
                 />
               ) : null}
               {selectedDestination !== 'all' ? (
@@ -770,11 +809,22 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
                   onRemove={() => setPriceRange('all')}
                 />
               ) : null}
-              {filterDate ? <MarketplaceActiveChip label={filterDate} onRemove={() => setFilterDate('')} /> : null}
+              {filterDate ? (
+                <MarketplaceActiveChip
+                  label={filterDate}
+                  onRemove={() => {
+                    setFilterDate('');
+                    setDraftDate('');
+                  }}
+                />
+              ) : null}
               {filterGuests ? (
                 <MarketplaceActiveChip
                   label={`${filterGuests} ${filterGuests === '1' ? 'traveler' : 'travelers'}`}
-                  onRemove={() => setFilterGuests('')}
+                  onRemove={() => {
+                    setFilterGuests('');
+                    setDraftGuests('');
+                  }}
                 />
               ) : null}
               {privateOnly ? <MarketplaceActiveChip label="Private tours" onRemove={() => setPrivateOnly(false)} /> : null}
@@ -933,19 +983,22 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
                 family="tours"
                 values={searchValues}
                 onChange={(patch) => {
-                  if (patch.where !== undefined) setSearchTerm(patch.where);
-                  if (patch.date !== undefined) setFilterDate(patch.date);
-                  if (patch.guests !== undefined) setFilterGuests(patch.guests);
+                  if (patch.where !== undefined) setDraftWhere(patch.where);
+                  if (patch.date !== undefined) setDraftDate(patch.date);
+                  if (patch.guests !== undefined) setDraftGuests(patch.guests);
                 }}
                 idPrefix="tours-sheet"
                 stacked
               />
             </div>
             <div className="mt-5 flex gap-2 shrink-0">
-              {searchTerm || filterDate || filterGuests ? (
+              {draftWhere || draftDate || draftGuests || searchTerm || filterDate || filterGuests ? (
                 <button
                   type="button"
                   onClick={() => {
+                    setDraftWhere('');
+                    setDraftDate('');
+                    setDraftGuests('');
                     setSearchTerm('');
                     setFilterDate('');
                     setFilterGuests('');
@@ -955,8 +1008,15 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
                   Clear
                 </button>
               ) : null}
-              <button type="button" onClick={closeMobileSearch} className="tv-btn-primary flex-1">
-                Show {filteredPackages.length}
+              <button
+                type="button"
+                onClick={() => {
+                  applyPrimarySearch();
+                  closeMobileSearch();
+                }}
+                className="tv-btn-primary flex-1"
+              >
+                Search
               </button>
             </div>
           </aside>
