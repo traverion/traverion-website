@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `8133328`  
-**Current phase:** 805  
+**Current SHA:** `75b7e6d`  
+**Current phase:** 806  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -216,6 +216,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 803 | Profile menu mature account surface | `4f0e111` |
 | 804 | Traveler layout primitives + hero contrast | `cb9b898` |
 | 805 | Global visual foundation checkpoint 801-805 | `8133328` |
+| 806 | Compact destination discovery strip | `75b7e6d` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3960,6 +3961,12 @@ Cookies and marketing preferences: 7\n```
 **Gates:** `tsc -p tsconfig.app.json` clean; traveler-env + booking-confirmation vitest green. Browser: Home/Wishlist share stable primary nav; homepage hero sells travel without Stripe QA language.
 
 **Next band:** Homepage destination density + recommendations (806–812).
+
+### Phase 806 — Compact destination discovery strip
+
+**Problem:** Homepage destination cards were oversized (2–3 per desktop row).
+
+**Fix:** Portrait `.tv-dest-tile` grid with `auto-fill` minmax(~10–11.5rem) so denser discovery when many places exist, without ballooning when only a few real destinations publish. Still derived only from published inventory (`getDestinationsFromListings`). Show up to 12 places. Browser: Finland / Ranua / Rovaniemi tiles only (no invented cities).
 
 ## Known remaining risks (ranked)
 

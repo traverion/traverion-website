@@ -1629,7 +1629,7 @@ a:focus-visible,
   border-top: 1px solid rgba(28, 25, 23, 0.06);
 }
 
-/* Destination discovery: compact photo tiles */
+/* Destination discovery: compact photo tiles (fixed-ish width so few destinations do not balloon) */
 .tv-dest-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1638,19 +1638,14 @@ a:focus-visible,
 
 @media (min-width: 640px) {
   .tv-dest-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(9.75rem, 11.25rem));
+    justify-content: start;
   }
 }
 
 @media (min-width: 1024px) {
   .tv-dest-grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
-}
-
-@media (min-width: 1280px) {
-  .tv-dest-grid {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(10rem, 11.5rem));
   }
 }
 

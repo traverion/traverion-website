@@ -368,9 +368,10 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         </div>
       </section>
 
-      <section className="py-8 sm:py-10">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="tv-section">
+        <div className="tv-content">
           <div className="mb-5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Destinations</p>
             <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Where can I go?</h2>
             <p className="mt-2 text-sm text-ink-muted max-w-lg">
               Places with published tours and stays on Traverion.
@@ -379,8 +380,8 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
           {catalogLoading ? (
             <SkeletonPlaceGrid count={6} />
           ) : placeChips.length > 0 ? (
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-              {placeChips.slice(0, 6).map((p) => {
+            <div className="tv-dest-grid">
+              {placeChips.slice(0, 12).map((p) => {
                 const matches = [...allListings, ...stayListings].filter(
                   (t) =>
                     (t.city && t.city.toLowerCase() === p.label.toLowerCase()) ||
@@ -393,7 +394,9 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                 const stayCount = matches.filter((t) => listingIsFamily(t, 'stay')).length;
                 const countLabel =
                   tourCount > 0 && stayCount > 0
-                    ? `${tourCount} ${tourCount === 1 ? 'tour' : 'tours'} · ${stayCount} ${stayCount === 1 ? 'stay' : 'stays'}`
+                    ? `${tourCount} ${tourCount === 1 ? 'tour' : 'tours'} · ${stayCount} ${
+                        stayCount === 1 ? 'stay' : 'stays'
+                      }`
                     : tourCount > 0
                       ? `${tourCount} ${tourCount === 1 ? 'tour' : 'tours'}`
                       : stayCount > 0
@@ -403,21 +406,19 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                   <button
                     key={p.id}
                     type="button"
+                    aria-label={countLabel ? `${p.label}, ${countLabel}` : p.label}
                     onClick={() =>
                       onNavigate ? onNavigate(`destinations/${p.id}`) : goToPackages({ destination: p.id })
                     }
-                    className="lux-flat relative aspect-[4/5] sm:aspect-[5/4] rounded-2xl overflow-hidden text-left group shadow-soft ring-1 ring-black/[0.06] focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
+                    className="tv-dest-tile lux-flat focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
                   >
-                    <img
-                      src={img}
-                      alt=""
-                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
-                    <span className="absolute bottom-4 left-4 right-4">
-                      <span className="block font-display text-xl sm:text-2xl text-white">{p.label}</span>
+                    <img src={img} alt="" loading="lazy" decoding="async" />
+                    <span className="tv-dest-tile-label">
+                      <span className="block font-display text-base sm:text-lg leading-tight">{p.label}</span>
                       {countLabel ? (
-                        <span className="mt-0.5 block text-xs sm:text-sm text-white/80">{countLabel}</span>
+                        <span className="mt-0.5 block text-[11px] text-white/80" aria-hidden>
+                          {countLabel}
+                        </span>
                       ) : null}
                     </span>
                   </button>
@@ -426,27 +427,25 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="relative h-72 rounded-2xl overflow-hidden shadow-soft ring-1 ring-black/[0.06]">
+              <div className="relative h-64 rounded-2xl overflow-hidden shadow-soft ring-1 ring-black/[0.06] bg-ink">
                 <img src={HERO_IMG.vacation} alt="" className="absolute inset-0 w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/75 to-transparent" />
                 <div className="absolute bottom-6 left-6 right-6 text-white">
                   <p className="font-display text-2xl mb-2">Operators are listing now</p>
                   <p className="text-sm text-white/80 mb-4">
-                    When a tour is published, it appears here for travelers to book.
+                    When a tour is published, destination discovery appears here.
                   </p>
                   <a href={supplierPortalLandingHref()} className="tv-btn-primary bg-white text-ink hover:bg-paper">
                     List your tours and stays
                   </a>
                 </div>
               </div>
-              <div className="relative h-72 rounded-2xl overflow-hidden">
+              <div className="relative h-64 rounded-2xl overflow-hidden bg-ink">
                 <img src={HERO_IMG.beach} alt="" className="absolute inset-0 w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/75 to-transparent" />
                 <div className="absolute bottom-6 left-6 right-6 text-white">
                   <p className="font-display text-2xl mb-2">Browse anyway</p>
-                  <p className="text-sm text-white/80 mb-4">
-                    Date and guests still apply as soon as inventory is live.
-                  </p>
+                  <p className="text-sm text-white/80 mb-4">Explore tours and stays as soon as inventory is live.</p>
                   <button
                     type="button"
                     onClick={() => goToPackages()}
