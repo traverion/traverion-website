@@ -5,6 +5,7 @@
 
 export type TravelerNameMetadata = {
   full_name?: string;
+  display_name?: string;
   name?: string;
   customer_first_name?: string;
   customer_last_name?: string;
@@ -24,6 +25,7 @@ export function travelerDisplayNameFromSources(params: {
   const meta = params.metadata;
   const fromMeta = (
     meta?.full_name ||
+    meta?.display_name ||
     meta?.name ||
     [meta?.customer_first_name, meta?.customer_last_name].filter(Boolean).join(' ')
   ).trim();

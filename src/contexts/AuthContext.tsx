@@ -121,6 +121,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           customer_phone: normalizedPhone,
           ...(first ? { customer_first_name: first } : {}),
           ...(last ? { customer_last_name: last } : {}),
+          ...(displayNameFromSignup
+            ? { full_name: displayNameFromSignup, display_name: displayNameFromSignup }
+            : {}),
         },
       },
     });

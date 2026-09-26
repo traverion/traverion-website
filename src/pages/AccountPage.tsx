@@ -103,9 +103,16 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
         meta?.name ||
         [meta?.customer_first_name, meta?.customer_last_name].filter(Boolean).join(' ')
       ).trim();
-      setDisplayName((row?.display_name ?? fromMeta ?? '').trim());
+      const resolvedName = (row?.display_name?.trim() || fromMeta || '').trim();
+      setDisplayName(resolvedName);
       setPhone(row?.contact_phone?.trim() || fallbackPhone || '');
-    } finally {
+      // Backfill empty consumer_profiles.display_name from signup metadata (existing users).
+      if (user.id && fromMeta && !row?.display_name?.trim()) {
+        void saveConsumerProfile(user.id, {
+          displayName: fromMeta,
+          phone: row?.contact_phone?.trim() || fallbackPhone || '',
+        });
+      }    } finally {
       if (gen === profileGenRef.current) setProfileLoading(false);
     }
   }, [user?.id, user?.email, user?.user_metadata]);

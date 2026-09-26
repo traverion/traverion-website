@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
 import { supplierPortalLandingHref } from '../lib/partnerHost';
+import { travelerDisplayNameFromSources } from '../lib/traveler-display-name';
 import TravelerTestModeBanner from './TravelerTestModeBanner';
 import {
   clearBookingsUnread,
@@ -56,8 +57,17 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
 
   const travelerDisplayName = (() => {
     if (!user) return '';
-    const meta = user.user_metadata as { full_name?: string; display_name?: string } | undefined;
-    return (meta?.full_name || meta?.display_name || '').trim();
+    const meta = user.user_metadata as {
+      full_name?: string;
+      display_name?: string;
+      name?: string;
+      customer_first_name?: string;
+      customer_last_name?: string;
+    } | undefined;
+    return travelerDisplayNameFromSources({
+      metadata: meta,
+      fallback: '',
+    });
   })();
   const travelerInitial = (
     travelerDisplayName ||
@@ -223,7 +233,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               >
                 {user ? (
                   <span className="relative w-8 h-8 rounded-full bg-finland/20 text-finland flex items-center justify-center text-sm font-medium ring-1 ring-black/[0.08]">
-                    {(user.email ?? user.id).slice(0, 1).toUpperCase()}
+                    {travelerInitial}
                     {hasUnreadBookings ? (
                       <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" aria-hidden />
                     ) : null}

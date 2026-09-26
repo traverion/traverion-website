@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `50e0fde`  
-**Current phase:** 832  
+**Current SHA:** `459e6ea`  
+**Current phase:** 833  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4142,6 +4142,21 @@ Wider footer (`max-w-[90rem]`), display-serif brand + section titles, calmer cre
 **Browser:** `/terms` — hero + On this page TOC + section separators verified on localhost. Legal text unchanged in meaning.
 
 **Certification:** browser-tested (desktop Terms). Legal meaning not altered.
+
+### Phase 833 — Signup / display-name lifecycle coherence
+
+**Problem:** Founder saw blank Display Name / “Traveler” in profile menu despite signup collecting first+last name. Root cause: signup stored `customer_first_name`/`customer_last_name` only; header read only `full_name`/`display_name`. Account used `row?.display_name ?? meta` which failed when profile row existed with empty string. Avatar used email initial only.
+
+**Fix:**
+- Signup metadata also sets `full_name` + `display_name`
+- `travelerDisplayNameFromSources` reads `display_name` meta
+- UnifiedHeader uses shared helper + name initial on avatar
+- Account coalesces empty profile name from meta and backfills `consumer_profiles.display_name`
+- `ensureConsumerProfile` / `consumerProfileEnsurePayloadFromAuthUser` preserve/backfill display name
+
+**Tests:** `traveler-display-name.test.ts` pass; `tsc` clean. Phone remains required at signup (fraud/uniqueness). No country column yet — not invented.
+
+**Certification:** automated-tested + code-inspected. Browser account session not re-signed this phase.
 
 ## Known remaining risks (ranked)
 

@@ -23,10 +23,18 @@ export function consumerProfileEnsurePayloadFromAuthUser(user: User): {
     customer_phone?: string;
     customer_first_name?: string;
     customer_last_name?: string;
+    full_name?: string;
+    display_name?: string;
+    name?: string;
   };
   const metaFirst = (meta?.customer_first_name ?? '').trim();
   const metaLast = (meta?.customer_last_name ?? '').trim();
-  const displayFromMeta = [metaFirst, metaLast].filter(Boolean).join(' ').trim() || null;
+  const displayFromMeta =
+    [metaFirst, metaLast].filter(Boolean).join(' ').trim() ||
+    (meta?.full_name ?? '').trim() ||
+    (meta?.display_name ?? '').trim() ||
+    (meta?.name ?? '').trim() ||
+    null;
   const phoneRaw = (meta?.customer_phone ?? meta?.phone ?? '').trim();
   return {
     display_name: displayFromMeta,
@@ -88,22 +96,33 @@ export async function ensureConsumerProfile(
 
   const { data: existing } = await supabase
     .from('consumer_profiles')
-    .select('id, welcome_email_sent_at')
+    .select('id, display_name, contact_phone, welcome_email_sent_at')
     .eq('id', userId)
     .maybeSingle();
 
+  const existingRow = existing as {
+    id: string;
+    display_name?: string | null;
+    contact_phone?: string | null;
+    welcome_email_sent_at?: string | null;
+  } | null;
+
   const normalizedPhone = payload?.contact_phone ? normalizePhone(payload.contact_phone) : '';
+  const nextDisplay =
+    (payload?.display_name ?? '').trim() ||
+    (existingRow?.display_name ?? '').trim() ||
+    null;
   const row = {
     id: userId,
-    ...(payload?.display_name ? { display_name: payload.display_name } : {}),
+    ...(nextDisplay ? { display_name: nextDisplay } : {}),
     ...(normalizedPhone ? { contact_phone: normalizedPhone } : {}),
   };
 
   const { error } = await supabase.from('consumer_profiles').upsert(row, { onConflict: 'id' });
   if (error) return { success: false, error: error.message };
 
-  const isNew = !existing;
-  const needsWelcome = isNew || !(existing as { welcome_email_sent_at?: string | null } | null)?.welcome_email_sent_at;
+  const isNew = !existingRow;
+  const needsWelcome = isNew || !existingRow?.welcome_email_sent_at;
   if (needsWelcome) {
     void maybeSendTravelerWelcome(userId);
   }

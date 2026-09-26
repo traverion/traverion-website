@@ -21,6 +21,11 @@ describe('travelerDisplayNameFromSources', () => {
         metadata: { customer_first_name: 'Sofia', customer_last_name: 'Laine' },
       })
     ).toBe('Sofia Laine');
+    expect(
+      travelerDisplayNameFromSources({
+        metadata: { display_name: 'Display Only' },
+      })
+    ).toBe('Display Only');
     expect(travelerDisplayNameFromSources({})).toBe('Guest');
   });
 });
