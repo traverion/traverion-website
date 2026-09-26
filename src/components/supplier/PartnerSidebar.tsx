@@ -210,6 +210,8 @@ export default function PartnerSidebar({
                 type="button"
                 onClick={() => toggleGroup(entry)}
                 aria-expanded={isOpen}
+                aria-controls={isOpen ? `partner-nav-group-${entry.id}` : undefined}
+                id={`partner-nav-group-btn-${entry.id}`}
                 className={`partner-nav-item lux-flat group flex w-full items-center gap-2.5 rounded-md px-2.5 py-[8px] text-left text-[13.5px] font-medium ${
                   groupActive
                     ? 'text-slate-900 hover:bg-slate-900/[0.04]'
@@ -230,7 +232,12 @@ export default function PartnerSidebar({
                 />
               </button>
               {isOpen ? (
-                <ul className="mt-1 mb-1.5 space-y-1">
+                <ul
+                  id={`partner-nav-group-${entry.id}`}
+                  role="group"
+                  aria-labelledby={`partner-nav-group-btn-${entry.id}`}
+                  className="mt-1 mb-1.5 space-y-1"
+                >
                   {entry.children.map((child) => (
                     <li key={child.id}>
                       <NavButton
@@ -256,6 +263,7 @@ export default function PartnerSidebar({
                 collapsed ? 'px-2 py-2' : 'px-2.5 py-2 text-left'
               }`}
               title="Finish setup"
+              aria-label="Finish setup"
             >
               {collapsed ? '!' : 'Finish setup'}
             </button>
