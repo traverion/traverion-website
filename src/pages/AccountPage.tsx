@@ -328,6 +328,11 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
               title="Could not load your trips"
               body={statsError}
               retry={{ onClick: () => void loadStats() }}
+              extra={
+                <button type="button" onClick={() => onNavigate('contact')} className="tv-btn-ghost">
+                  Contact support
+                </button>
+              }
             />
           ) : null}
           <ul className="space-y-1.5">

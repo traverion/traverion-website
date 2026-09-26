@@ -184,6 +184,11 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
             title="Saved listings unavailable"
             body={userFacingError(error, USER_ERROR.wishlist)}
             retry={{ onClick: () => void load() }}
+            extra={
+              <button type="button" onClick={() => onNavigate('contact')} className="tv-btn-ghost">
+                Contact support
+              </button>
+            }
           />
         )}
         {loading ? (
