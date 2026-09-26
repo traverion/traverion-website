@@ -239,8 +239,8 @@ export default function ContentCreatorPage({ onNavigate }: ContentCreatorPagePro
                 </p>
               )}
             </div>
-            <button type="submit" disabled={isSubmitting} className="tv-btn-primary disabled:opacity-50">
-              {isSubmitting ? 'Submitting…' : 'Submit application'}
+            <button type="submit" disabled={isSubmitting} aria-busy={isSubmitting || undefined} className="tv-btn-primary disabled:opacity-50">
+              {isSubmitting ? 'Sending…' : 'Submit application'}
             </button>
           </form>
         </>

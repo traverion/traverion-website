@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `84460ea`  
-**Current phase:** 765  
+**Current SHA:** `283866b`  
+**Current phase:** 770  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -180,6 +180,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 767 | Finnish cookies label and honest reply SLA | `e305dae` |
 | 768 | Partner cookies marketing preferences naming | `fc8b48d` |
 | 769 | Partner Today error Contact support | `21e171d` |
+| 770 | Partnership forms Sending and aria-busy | `283866b` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3723,6 +3724,10 @@ Partner marketing legal pages still said Partner Cookie Policy while traveler si
 ### Phase 769 — Partner Today error Contact support
 
 Partner Home ErrorState lacked support path when Today failed to load.
+
+### Phase 770 — Partnership forms Sending and aria-busy
+
+Partnership application buttons still said Submitting without aria-busy.
 
 ## Known remaining risks (ranked)
 
