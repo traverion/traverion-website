@@ -29,7 +29,7 @@ export async function fetchReviewsByListingId(listingId: string): Promise<Review
     .select('*')
     .eq('listing_id', listingId)
     .order('created_at', { ascending: false });
-  if (error) return [];
+  if (error) throw new Error(error.message);
   return (data ?? []).map((r: ReviewRow) => ({
     ...r,
     images: Array.isArray(r.images) ? r.images : [],

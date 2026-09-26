@@ -131,6 +131,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const [tourLoadError, setTourLoadError] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState(0);
   const [reviews, setReviews] = useState<ReviewDisplay[]>([]);
+  const [reviewsLoadError, setReviewsLoadError] = useState<string | null>(null);
   const [reviewReplies, setReviewReplies] = useState<Record<string, ReviewReplyRow>>({});
   const [reviewAggregate, setReviewAggregate] = useState<{ rating: number; count: number } | null>(null);
   const [canLeaveReview, setCanLeaveReview] = useState(false);
@@ -582,11 +583,18 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
   const loadReviews = useCallback(() => {
     if (!tourId || !isSupabaseConfigured()) return;
-    void fetchReviewsByListingId(tourId).then(async (rows) => {
-      setReviews(rows);
-      const replies = await getReviewRepliesByReviewIds(rows.map((r) => r.id));
-      setReviewReplies(replies);
-    });
+    setReviewsLoadError(null);
+    void fetchReviewsByListingId(tourId)
+      .then(async (rows) => {
+        setReviews(rows);
+        const replies = await getReviewRepliesByReviewIds(rows.map((r) => r.id));
+        setReviewReplies(replies);
+      })
+      .catch((e) => {
+        setReviews([]);
+        setReviewReplies({});
+        setReviewsLoadError(userFacingError(e, USER_ERROR.reviews));
+      });
     getReviewAggregateForListing(tourId).then(setReviewAggregate);
   }, [tourId]);
 
@@ -1502,11 +1510,22 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       <section className="py-8 bg-paper border-t border-black/[0.06]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="font-display text-xl sm:text-2xl text-ink mb-4">Reviews</h2>
-          {reviews.length === 0 && !showReviewForm && (
+          {reviewsLoadError ? (
+            <div className="mb-6 max-w-xl">
+              <p className="text-ink-muted leading-relaxed">{reviewsLoadError}</p>
+              <button
+                type="button"
+                className="mt-2 text-sm font-semibold text-finland hover:underline"
+                onClick={() => loadReviews()}
+              >
+                Try again
+              </button>
+            </div>
+          ) : reviews.length === 0 && !showReviewForm ? (
             <p className="text-ink-muted mb-6 max-w-xl leading-relaxed">
               No reviews yet. Guests can write one after a completed booking.
             </p>
-          )}
+          ) : null}
           <div className="space-y-4 mb-5">
             {reviews.map((r) => (
               <div key={r.id} className="border-b border-black/[0.06] pb-6 last:border-0">
