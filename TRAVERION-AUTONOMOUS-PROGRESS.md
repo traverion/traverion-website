@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `e8c1bf5`  
-**Current phase:** 642  
+**Current SHA:** `00fcd92`  
+**Current phase:** 643  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -138,6 +138,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 640 | Confirmation loads on user id not email | `32c44c6` |
 | 641 | Partner Home listing failure keeps counts unknown | `d2f05d7` |
 | 642 | Checkout progress aria-current + real list items | `e8c1bf5` |
+| 643 | Mobile header email truncate with min-w-0 | `00fcd92` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3161,6 +3162,10 @@ Same class as BookingPage Phase 633: StayDetails lead-guest name/phone could lin
 **Problem:** BookingProgress used `li.contents` (weak list semantics), never set `aria-current="step"`, and `Math.max(0, indexOf)` highlighted Trip for unknown steps.
 
 **Fix:** Real flex `li`s, `aria-current` on the active step, no current step when step not in order.
+
+### Phase 643 — Mobile header email truncate with min-w-0
+
+Long traveler emails in the mobile menu / user menu could blow the flex row. Constrain with `min-w-0 flex-1 truncate` and `title` for the full address.
 
 ## Known remaining risks (ranked)
 

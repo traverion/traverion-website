@@ -249,8 +249,10 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                     </div>
                   ) : user ? (
                     <>
-                      <div className="px-3 py-2 border-b border-black/[0.06]">
-                        <p className="text-sm font-medium text-ink truncate">{user.email}</p>
+                      <div className="px-3 py-2 border-b border-black/[0.06] min-w-0">
+                        <p className="text-sm font-medium text-ink truncate" title={user.email ?? undefined}>
+                          {user.email}
+                        </p>
                       </div>
                       <button
                         type="button"
@@ -416,11 +418,13 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               {/* Mobile Action Buttons */}
               <div className="border-t border-black/[0.06] pt-4 space-y-2">
                 {isSupabaseConfigured() && user ? (
-                  <div className="px-2 py-2 flex items-center gap-2 text-sm text-ink-muted">
+                  <div className="px-2 py-2 flex items-center gap-2 text-sm text-ink-muted min-w-0">
                     <span className="w-8 h-8 rounded-full bg-finland/20 text-finland flex items-center justify-center text-sm font-medium flex-shrink-0">
                       {(user.email ?? user.id).slice(0, 1).toUpperCase()}
                     </span>
-                    <span className="truncate">{user.email}</span>
+                    <span className="min-w-0 flex-1 truncate" title={user.email ?? undefined}>
+                      {user.email}
+                    </span>
                   </div>
                 ) : null}
                 {isSupabaseConfigured() && !user && (
