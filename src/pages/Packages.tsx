@@ -914,8 +914,13 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
                   Find a tour
                 </h2>
               </div>
-              <button type="button" onClick={closeMobileSearch} className="lux-tap-target p-2 -mr-1" aria-label="Close">
-                <X className="w-5 h-5" />
+              <button
+                type="button"
+                onClick={closeMobileSearch}
+                className="lux-tap-target inline-flex min-h-11 min-w-11 items-center justify-center p-2 -mr-1"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" aria-hidden />
               </button>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto space-y-1 rounded-2xl bg-black/[0.02] p-1 ring-1 ring-black/[0.04]">
