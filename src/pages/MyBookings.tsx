@@ -158,11 +158,18 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   }, [user?.email]);
 
   useEffect(() => {
-    const next: Record<string, string> = {};
-    for (const b of bookings) {
-      next[b.id] = extractPlaceOfStay(b.special_requests);
-    }
-    setStayDrafts(next);
+    setStayDrafts((prev) => {
+      const next: Record<string, string> = {};
+      for (const b of bookings) {
+        // Keep in-progress edits; seed only new booking ids from saved notes.
+        if (Object.prototype.hasOwnProperty.call(prev, b.id)) {
+          next[b.id] = prev[b.id]!;
+        } else {
+          next[b.id] = extractPlaceOfStay(b.special_requests);
+        }
+      }
+      return next;
+    });
   }, [bookings]);
 
   const handleSaveStay = useCallback(
@@ -557,7 +564,11 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           />
         ) : (
           <div className="space-y-4">
-            <div className="flex gap-1 rounded-full bg-paper-raised p-1 w-fit shadow-soft ring-1 ring-black/[0.06]">
+            <div
+              className="flex gap-1 rounded-full bg-paper-raised p-1 w-fit shadow-soft ring-1 ring-black/[0.06]"
+              role="tablist"
+              aria-label="Trip status"
+            >
               {([
                 ['upcoming', 'Upcoming'],
                 ['past', 'Past'],
@@ -566,8 +577,10 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 <button
                   key={id}
                   type="button"
+                  role="tab"
+                  aria-selected={tripView === id}
                   onClick={() => setTripView(id)}
-                  className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium transition-[background-color,color,box-shadow] duration-150 ${
+                  className={`lux-flat min-h-11 rounded-full px-3.5 py-1.5 text-sm font-medium transition-[background-color,color,box-shadow] duration-150 ${
                     tripView === id
                       ? id === 'cancelled'
                         ? 'bg-rose-600 text-white shadow-sm ring-1 ring-rose-700/20'

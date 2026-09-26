@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `a0790d9`  
-**Current phase:** 637  
+**Current SHA:** `3690179`  
+**Current phase:** 638  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -133,6 +133,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 635 | Money threshold preference formats with currency | `b58b04a` |
 | 636 | Account hub stats gate on user id | `a63c48c` |
 | 637 | Wishlist hides unpublished + stale load guard | `a0790d9` |
+| 638 | Trips stay-draft preserve + tab a11y | `3690179` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3126,6 +3127,12 @@ Same class as BookingPage Phase 633: StayDetails lead-guest name/phone could lin
 **Problem:** Wishlist rendered draft/unpublished fetches as bookable cards; failed loads left prior cards; overlapping loads could apply stale results.
 
 **Fix:** Filter with `isListingVisibleToTravelers`; track unavailable count with honest empty copy; generation guard clears listings on error / ignores stale responses.
+
+### Phase 638 — Trips: preserve Place of stay drafts + tab a11y
+
+**Problem:** Refreshing bookings wiped in-progress “Place of stay” drafts. Upcoming/Past/Cancelled controls lacked tab semantics and had short tap targets on ~390px.
+
+**Fix:** Seed stay drafts only for new booking ids; keep dirty edits. `role="tablist"` / `aria-selected` + `min-h-11`.
 
 ## Known remaining risks (ranked)
 
