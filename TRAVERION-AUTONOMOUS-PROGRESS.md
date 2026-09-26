@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `23017b2`  
-**Current phase:** 777  
+**Current SHA:** `656ddc9`  
+**Current phase:** 791  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -201,6 +201,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 788 | Launch-break localhost Stays HTTP smoke | `31753a5` |
 | 789 | Launch-break localhost Partner HTTP smoke | `8e1a138` |
 | 790 | Launch-break Contact and Cookies HTTP smoke | `f45dc86` |
+| 791 | Launch-break full src/lib vitest gate | `656ddc9` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3850,6 +3851,11 @@ LOCAL_PRESENT\n```
 ### Phase 790 — Launch-break Contact and Cookies HTTP smoke
 
 **Launch-break:** `/contact` → **200**; `/cookies` → **200**.
+
+### Phase 791 — Launch-break full src/lib vitest gate
+
+**Launch-break:** `vitest run src/lib` exit **0**.\n```\n109: Test Files  103 passed (103)
+110:      Tests  599 passed (599)\n```
 
 ## Known remaining risks (ranked)
 
