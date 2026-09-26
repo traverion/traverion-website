@@ -986,19 +986,23 @@ export default function SupplierLayout() {
                 {PARTNER_MORE_GROUPS.map((group) => (
                   <div key={group.id} className="pt-4">
                     <p className="pb-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-slate-400">{group.label}</p>
-                    {group.items.map((item) => (
+                    {group.items.map((item) => {
+                      const active = section === item.id;
+                      return (
                       <button
                         key={item.id}
                         type="button"
                         onClick={() => handleNavigate(item.id as SupplierSection)}
+                        aria-current={active ? 'page' : undefined}
                         className={`partner-nav-item lux-flat w-full flex items-center gap-3 text-left rounded-md px-2 py-3 text-[15px] ${
-                          section === item.id ? 'bg-finland/[0.07] text-finland font-medium' : 'text-slate-700'
+                          active ? 'bg-finland/[0.07] text-finland font-medium' : 'text-slate-700'
                         }`}
                       >
-                        <item.icon className={`w-4 h-4 shrink-0 ${section === item.id ? 'text-finland' : 'text-slate-400'}`} strokeWidth={1.7} aria-hidden />
+                        <item.icon className={`w-4 h-4 shrink-0 ${active ? 'text-finland' : 'text-slate-400'}`} strokeWidth={1.7} aria-hidden />
                         {item.label}
                       </button>
-                    ))}
+                      );
+                    })}
                   </div>
                 ))}
                 <div className="pt-4">
