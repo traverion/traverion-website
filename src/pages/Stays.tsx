@@ -637,12 +637,22 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
             title="Stays unavailable"
             body={userFacingError(error, USER_ERROR.stays)}
             retry={{ onClick: () => reload() }}
+            extra={
+              <a href="/contact" className="tv-btn-ghost inline-flex">
+                Contact support
+              </a>
+            }
           />
         ) : occupancyError && dateFilterActive ? (
           <ErrorState
             title="Capacity unavailable"
             body={occupancyError}
             retry={{ onClick: () => reloadStayBrowseOccupancy() }}
+            extra={
+              <a href="/contact" className="tv-btn-ghost inline-flex">
+                Contact support
+              </a>
+            }
           />
         ) : catalogLoading || waitingOnOccupancy ? (
           <SkeletonCardGrid count={6} />

@@ -432,7 +432,7 @@ function App() {
       contact: { title: 'Contact', description: 'Get in touch with Traverion.' },
       privacy: { title: 'Privacy Policy', description: 'Traverion privacy policy.' },
       terms: { title: 'Terms of Service', description: 'Traverion terms of service.' },
-      cookies: { title: 'Cookie Policy', description: 'Traverion cookie policy.' },
+      cookies: { title: 'Cookies and marketing preferences', description: 'What cookies Traverion uses and how you can control analytics and marketing signals.' },
       about: { title: 'About Us', description: 'Learn about Traverion.' },
       sitemap: { title: 'Sitemap', description: 'All pages and links.' },
       'legal-notice': { title: 'Legal notice', description: 'Traverion operator information and legal contacts.' },
@@ -742,6 +742,9 @@ function App() {
                     </button>
                     <button type="button" className="tv-btn-ghost" onClick={() => handleNavigate('stays')}>
                       Browse stays
+                    </button>
+                    <button type="button" className="tv-btn-ghost" onClick={() => handleNavigate('contact')}>
+                      Contact support
                     </button>
                   </div>
                 </div>

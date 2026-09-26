@@ -826,6 +826,11 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
             title="Capacity unavailable"
             body={dateCapacityError}
             retry={{ onClick: () => reloadDateCapacity() }}
+            extra={
+              <a href="/contact" className="tv-btn-ghost inline-flex">
+                Contact support
+              </a>
+            }
           />
         ) : null}
         {showCatalogLoading ? (
