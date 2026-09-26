@@ -1,6 +1,8 @@
 /**
  * Mobile sticky CTA labels for tour listing — name the missing step, don't imply checkout is ready.
  */
+import { TRAVELER_CONTINUE_TEST_CTA } from './booking-confirmation-copy';
+
 export function tourStickyBookCtaLabel(params: {
   hasDate: boolean;
   hasOption: boolean;
@@ -16,7 +18,7 @@ export function tourStickyBookCtaLabel(params: {
   if (params.hasOption && params.needsDeparture) return 'Pick time';
   if (params.hasOption && params.soldOut) return 'Sold out';
   if (params.hasOption && params.quoteInvalid) return 'Fix guests';
-  if (params.hasOption) return 'Continue · TEST';
+  if (params.hasOption) return TRAVELER_CONTINUE_TEST_CTA;
   if (params.variantsOpen) return 'Choose option';
   return 'See options';
 }

@@ -176,6 +176,9 @@ export const TRAVELER_OPENING_CHECKOUT_CTA = 'Opening checkout…';
 /** Traveler Trips / confirmation — pay CTA while Stripe is still in TEST mode. */
 export const TRAVELER_PAY_NOW_TEST_CTA = 'Pay now · TEST';
 
+/** Tour / stay sticky + booking card — continue into TEST Stripe checkout. */
+export const TRAVELER_CONTINUE_TEST_CTA = 'Continue · TEST';
+
 /** Traveler Trips — self-cancel is immediate, not a host-approval “request”. */
 export const TRAVELER_SELF_CANCEL_CTA = 'Cancel booking';
 

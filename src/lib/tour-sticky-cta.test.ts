@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { tourStickyBookCtaLabel } from './tour-sticky-cta';
+import { TRAVELER_CONTINUE_TEST_CTA } from './booking-confirmation-copy';
 
 describe('tourStickyBookCtaLabel', () => {
   it('names the missing booking step', () => {
@@ -14,8 +15,7 @@ describe('tourStickyBookCtaLabel', () => {
     ).toBe('Pick time');
     expect(
       tourStickyBookCtaLabel({ hasDate: true, hasOption: true, needsDeparture: false })
-    ).toBe('Continue · TEST');
-    expect(
+    ).toBe(TRAVELER_CONTINUE_TEST_CTA);    expect(
       tourStickyBookCtaLabel({ hasDate: true, hasOption: true, needsDeparture: false, soldOut: true })
     ).toBe('Sold out');
     expect(
