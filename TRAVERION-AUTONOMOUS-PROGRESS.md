@@ -3439,6 +3439,34 @@ Draft/unpublished tours were set into state so JSON-LD/meta could publish before
 
 Expanded booking thread had no Inbox shortcut. Add Open in Inbox → `openSupplierInbox(booking.id)`.
 
+### Phase 703 — Shared calendar month title helper
+
+TourDatePicker and StayNightPicker duplicated `monthTitle()`. Extract `calendarMonthTitle` and reuse.
+
+### Phase 704 — Account: Trips messaging cross-link
+
+Account hub never mentioned messaging. Add a one-line note that messages live on each trip with a Trips control.
+
+### Phase 705 — Wishlist: larger Account back tap target
+
+Account back control was text-sized only. Add `lux-tap-target min-h-11`.
+
+### Phase 706 — Shared listing reviews empty copy
+
+Tour/Stay empty review lines diverged. Share `LISTING_REVIEWS_EMPTY_COPY`.
+
+### Phase 707 — Sitemap: Destinations discoverability
+
+`/destinations/*` was routed but unlinked. Add Destinations on Sitemap pointing home with honest note.
+
+### Phase 708 — App deep links: reject unpublished listings
+
+`?tour=` / `?stay=` hydration set any fetched row. Gate on `listingDetailVisibleToTraveler` (and return-stay resume).
+
+### Phase 709 — Partner Inbox: shared booking date formatter
+
+Inbox tour dates used ad-hoc `toLocaleDateString`. Route through `formatBookingDateDisplay`.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Partner create→publish wizard** not browser-certified this pass (ops Home/Bookings/Calendar/Listings **are** localhost-browser certified in Phase 597). Full create→publish still pending.

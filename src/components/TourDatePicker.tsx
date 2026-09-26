@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { ListingBookingOption } from '../types/listingExtras';
 import { monthGrid } from '../lib/stay-calendar';
 import { formatBookingDateDisplay } from '../lib/booking-flow';
+import { calendarMonthTitle } from '../lib/calendar-month-title';
 import { formatTourDayAria, tourDayState, tourMonthAvailabilityNote } from '../lib/tour-calendar';
 import { localYmd } from '../lib/local-ymd';
 
@@ -16,13 +17,6 @@ type Props = {
   hint?: string;
   soldOutDates?: ReadonlySet<string>;
 };
-
-function monthTitle(year: number, month0: number): string {
-  return new Date(Date.UTC(year, month0, 1)).toLocaleDateString(undefined, {
-    month: 'long',
-    year: 'numeric',
-  });
-}
 
 export default function TourDatePicker({
   id,
@@ -79,7 +73,7 @@ export default function TourDatePicker({
         className="rounded-xl bg-paper-raised p-3 ring-1 ring-black/[0.06] outline-none focus-visible:ring-2 focus-visible:ring-finland/40"
       >
         <div className="flex items-center justify-between mb-2">
-          <p className="text-sm font-semibold text-ink">{monthTitle(cursor.y, cursor.m)}</p>
+          <p className="text-sm font-semibold text-ink">{calendarMonthTitle(cursor.y, cursor.m)}</p>
           <div className="flex gap-1">
             <button
               type="button"

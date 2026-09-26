@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { monthGrid, stayNightState } from '../lib/stay-calendar';
+import { calendarMonthTitle } from '../lib/calendar-month-title';
 import { addCalendarDays } from '../lib/stayOccupancy';
 
 type Props = {
@@ -12,13 +13,6 @@ type Props = {
   onChange: (checkIn: string, checkOut: string) => void;
   id?: string;
 };
-
-function monthTitle(year: number, month0: number): string {
-  return new Date(Date.UTC(year, month0, 1)).toLocaleDateString(undefined, {
-    month: 'long',
-    year: 'numeric',
-  });
-}
 
 export default function StayNightPicker({
   checkIn,
@@ -79,7 +73,7 @@ export default function StayNightPicker({
       className="outline-none focus-visible:ring-2 focus-visible:ring-finland/40 rounded-xl"
     >
       <div className="flex items-center justify-between mb-2">
-        <p className="text-sm font-semibold text-ink">{monthTitle(cursor.y, cursor.m)}</p>
+        <p className="text-sm font-semibold text-ink">{calendarMonthTitle(cursor.y, cursor.m)}</p>
         <div className="flex gap-1">
           <button type="button" className="lux-tap-target min-h-11 min-w-11 inline-flex items-center justify-center p-1.5 rounded-lg" aria-label="Previous month" onClick={() => shift(-1)}>
             <ChevronLeft className="w-4 h-4" />
