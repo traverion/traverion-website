@@ -151,7 +151,7 @@ export default function PartnerSidebar({
                   <button
                     type="button"
                     onClick={onCreate}
-                    className="partner-nav-item partner-nav-cta lux-flat flex h-8 w-8 items-center justify-center rounded-md bg-finland text-white hover:bg-finland-dark"
+                    className="partner-nav-item partner-nav-cta lux-flat flex min-h-11 w-11 items-center justify-center rounded-md bg-finland text-white hover:bg-finland-dark"
                     title={entry.label}
                     aria-label={entry.label}
                   >

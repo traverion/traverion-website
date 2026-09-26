@@ -3379,6 +3379,26 @@ Show more/less had `aria-expanded` without pointing at the description region.
 
 Marketplace mobile search triggers lacked `aria-controls`; wire dialog ids on Tours/Stays sheets.
 
+### Phase 688 — Partner sidebar: 44px collapsed Create
+
+Collapsed Create control was `h-8 w-8`. Enlarge to `min-h-11 w-11`.
+
+### Phase 689 — Partner account menu: focus trap + 44px trigger
+
+Desktop account control was `h-8` with `role="menu"` and Escape-only close. Use `min-h-11`, `role="dialog"`, and `useDialogFocus`.
+
+### Phase 690 — Partner offers: labeled 44px Edit/Delete
+
+Discounts Offers icon actions relied on `title` only and small hit areas. Add `aria-label` and enlarge.
+
+### Phase 691 — Partner listings: focus trap on confirm sheets
+
+Delete/deactivate confirm dialogs lacked `useDialogFocus` (create chooser already had it).
+
+### Phase 692 — BookingOptionEditor: labels + 44px remove
+
+Age from/to and related fields lacked `htmlFor`/`id`; remove-category under 44px. Associate labels and enlarge.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Partner create→publish wizard** not browser-certified this pass (ops Home/Bookings/Calendar/Listings **are** localhost-browser certified in Phase 597). Full create→publish still pending.
