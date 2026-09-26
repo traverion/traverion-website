@@ -15,6 +15,7 @@ import { isCollectedEarningKind } from '../../lib/supplier-ledger-balance';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchSupplierLedger, type SupplierLedgerEntry } from '../../data/supabase-booking-ops';
 import { PARTNER_MONEY_PAYOUT_STATUS_NOTE, PARTNER_MONEY_EMPTY_TITLE, PARTNER_MONEY_EMPTY_BODY, PARTNER_MONEY_LOAD_ERROR_TITLE, PARTNER_MONEY_FILTER_EMPTY_BODY, PARTNER_MONEY_AVAILABLE_BALANCE_LABEL, PARTNER_MONEY_NEGATIVE_BALANCE_LABEL, PARTNER_MONEY_NEGATIVE_BALANCE_NOTE, PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL, PARTNER_MONEY_THRESHOLD_PREFERENCE_NOTE, STRIPE_TEST_UNTIL_LIVE } from '../../lib/booking-confirmation-copy';
+import { formatBookingDateDisplay } from '../../lib/booking-flow';
 import NoticeCallout from '../../components/NoticeCallout';
 import StatusChip from '../../components/StatusChip';
 import { localYmd } from '../../lib/local-ymd';
@@ -510,7 +511,8 @@ export default function SupplierEarnings() {
                             {listingTitles[b.listing_id] || b.guest_name?.trim() || 'Guest'}
                           </p>
                           <p className="mt-0.5 text-xs text-ink-muted truncate">
-                            {b.guest_name?.trim() || 'Guest'} · {b.booking_date}
+                            {b.guest_name?.trim() || 'Guest'} ·{' '}
+                            {b.booking_date ? formatBookingDateDisplay(b.booking_date) : 'Date TBC'}
                             {isStripeTestCheckoutSession(b.checkout_session_id) || appStripeIsTestMode()
                               ? ' · Stripe TEST'
                               : ''}

@@ -38,6 +38,7 @@ import { parseListingExtras, materializedBookingOptions } from '../../types/list
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { partnerPickupAllowsForceCancel, partnerManualConfirmBlock } from '../../lib/cancellation-policy';
 import { PARTNER_CANCEL_REQUEST_REFUND_POLICY } from '../../lib/booking-confirmation-copy';
+import { formatBookingDateDisplay } from '../../lib/booking-flow';
 import NoticeCallout from '../../components/NoticeCallout';
 import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
 import { partnerPaymentLabel } from '../../lib/payment-states';
@@ -137,11 +138,8 @@ function PlannerBookingCard({
   onOpen,
 }: PlannerBookingCardProps) {
   const participants = formatBookingParticipantsLabel(booking);
-  const activityParsed = booking.booking_date ? parseYmdLocal(booking.booking_date) : null;
   const actDate =
-    showActivityDate && activityParsed
-      ? activityParsed.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
-      : null;
+    showActivityDate && booking.booking_date ? formatBookingDateDisplay(booking.booking_date) : null;
   const times = bookingTimesLine(booking);
   const guide = guideScheduleSummary(guideMeta);
   const ref =

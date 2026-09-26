@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `17a4133`  
-**Current phase:** 756  
+**Current SHA:** `c096920`  
+**Current phase:** 757  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -159,6 +159,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 661 | Offers empty only when load succeeded | `7cb49d1` |
 | 662 | StayDetails reviews reset + eligibility stale guard | `a0bc0c2` |
 | 663 | Checkout contact fields label htmlFor + ids | `fa7cfef` |
+| 757 | Partner Money and Pickup shared date display | `c096920` |
 | 756 | Contact support on Packages Stays browse errors | `17a4133` |
 | 755 | Trips cancel dialog stay dates and CTAs | `1b222ab` |
 | 754 | Partner Analytics empty and error honesty | `6fdcf3d` |
@@ -3658,6 +3659,10 @@ Cancel confirm dialog ignored stay check-out from notes; confirm button said Yes
 ### Phase 756 — Contact support on Packages Stays browse errors
 
 Browse/capacity ErrorStates lacked a support path. Add Contact support on Packages capacity, Stays catalog/occupancy, and App stay-missing panel.
+
+### Phase 757 — Partner Money and Pickup shared date display
+
+Income and Pickup still showed raw YMD / ad-hoc locale dates. Use shared formatBookingDateDisplay for traveler-consistent dates.
 
 ## Known remaining risks (ranked)
 
