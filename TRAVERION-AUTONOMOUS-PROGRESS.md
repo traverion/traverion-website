@@ -3,13 +3,13 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `87a6270`  
-**Current phase:** 599  
+**Current SHA:** `912b13e`  
+**Current phase:** 600  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Local-only (gitignored):** `scripts/cert-transactional-emails.cjs` — must stay untracked; contains service-role secrets when present locally  
-**Remote migration truth (2026-09-26):** After Phase 596 `supabase db push --linked`, Local **and** Remote show **080–099 applied** on project `xcopqllkulxfkpunetbc`. Spot-checked: `jwt_verified_email`, `cancel_booking_as_traveler`, `admin_record_supplier_payout`, voucher RLS policies present; `listings.status` NOT NULL  
+**Remote migration truth (Phase 600):** Local=Remote for **080–099** on `xcopqllkulxfkpunetbc` (re-verified). Stripe: TEST only.  
 
 ## Milestone Phase 513 (inventory band)
 
@@ -95,6 +95,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 597 | Partner ops golden journey localhost browser cert | `644608c` |
 | 598 | Trips: require session before empty-state; await session after login | `aedd6c5` |
 | 599 | Pickup Planner browser cert + fix guest/booking plural spacing | `87a6270` |
+| 600 | Backend/trust/supplier band checkpoint | `912b13e` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -2862,6 +2863,29 @@ Also fixed progress header SHA for Phase 595 (`59057da`) after a quoting glitch.
 **Browser (localhost, aurora-ops demo):** `/partner/pickup` loads after partner login. Shows 10 bookings / 26 guests, day sections with start + pickup times, multi-departure 19 Sept (09:00 ice / 20:00 NL / 20:30 NL private). Filters: All dates / Today / Tomorrow / Needs details / Export.
 
 **Bug fixed:** Day headers and hero stats rendered “guest s” / “booking s” because plural `s` was a separate React text node (and/or newline), so accessibility/layout inserted a space. Collapsed to a single template-string text node.
+
+### Phase 600 — Backend / trust / supplier band checkpoint
+
+Closing the 526–600 / trust band deliberately. Distinctions (do not collapse):
+
+| Claim | Status |
+|-------|--------|
+| Migrations 080–099 **in git** | Yes |
+| Migrations 080–099 **SQL-tested** (repo `supabase/tests`) | Yes for key guards (many phases) |
+| Migrations 080–099 **applied remotely** | **Yes** (Phase 596 push; Phase 600 re-list Local=Remote) |
+| Production **adversarial SQL re-run on remote** | Not claimed — local scratch/CI style proofs remain the primary artifacts |
+| Inventory / slot / hold / cancel occupancy | Unit-certified (prior honesty batches); browser multi-departure Calendar verified (597) |
+| Checkout concurrency advisory lock | Still **listing-scoped** (P1) — safe/coarse |
+| Traveler golden journey (production) | Partial (Phase 547 browse/detail/checkout handoff) |
+| Traveler Trips (demo anna) | API returns 3 bookings; Phase 598 fixed dishonest empty-without-session |
+| Partner ops Home/Bookings/Calendar/Listings | **Localhost browser certified** (597) |
+| Partner Pickup Planner | **Localhost browser certified** (599) + plural fix |
+| Partner create→publish wizard E2E | **Not** browser-certified (mutating) |
+| Stripe | **TEST only** — LIVE blocked client + edge |
+
+**Stripe:** remains TEST. Do not enable LIVE.
+
+**Next band (601+):** Traveler experience friction — discovery → detail → quote → checkout → Trips — without extending security deep-dive unless a launch-critical vuln appears.
 
 ## Known remaining risks (ranked)
 
