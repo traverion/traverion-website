@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `cb9b898`  
-**Current phase:** 804  
+**Current SHA:** `8133328`  
+**Current phase:** 805  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -215,6 +215,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 802 | Stable traveler header chrome | `635aac3` |
 | 803 | Profile menu mature account surface | `4f0e111` |
 | 804 | Traveler layout primitives + hero contrast | `cb9b898` |
+| 805 | Global visual foundation checkpoint 801-805 | `8133328` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3947,6 +3948,18 @@ Cookies and marketing preferences: 7\n```
 **Problem:** Homepage sections used ad-hoc max-widths; hero white type could wash out if media lagged; destination densification needed shared tile primitives.
 
 **Fix:** CSS tokens `--tv-content-*`, `.tv-content`, `.tv-section*`, `.tv-dest-grid` / `.tv-dest-tile`. Hero base `bg-ink` + slightly stronger overlay so white display type stays readable.
+
+### Phase 805 — Global visual foundation checkpoint (801–805)
+
+**Band closed:**
+- 801 consumer vs payment Test mode strategy + marketing copy clean
+- 802 stable header (no Find CTA jump; Saved/Trips always present; Test chip)
+- 803 mature profile menu
+- 804 layout primitives + hero contrast
+
+**Gates:** `tsc -p tsconfig.app.json` clean; traveler-env + booking-confirmation vitest green. Browser: Home/Wishlist share stable primary nav; homepage hero sells travel without Stripe QA language.
+
+**Next band:** Homepage destination density + recommendations (806–812).
 
 ## Known remaining risks (ranked)
 
