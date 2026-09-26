@@ -360,13 +360,11 @@ export default function SupplierEarnings() {
                       </NoticeCallout>
                     </div>
                   ) : null}
-                  {threshold > 0 && moneyByCurrency.length === 1 ? (
+                  {threshold > 0 &&
+                  (moneyByCurrency.length === 1 || moneyByCurrency[0]?.currency === s.currency) ? (
                     <p className="mt-3 text-sm text-ink-muted max-w-lg">
-                      Saved minimum preference: {formatMoney(threshold, s.currency)}. {PARTNER_MONEY_THRESHOLD_PREFERENCE_NOTE}
-                    </p>
-                  ) : threshold > 0 && moneyByCurrency[0]?.currency === s.currency ? (
-                    <p className="mt-3 text-sm text-ink-muted max-w-lg">
-                      Saved minimum preference: {threshold} (no currency on file). {PARTNER_MONEY_THRESHOLD_PREFERENCE_NOTE}
+                      Saved minimum preference: {formatMoney(threshold, s.currency)}.{' '}
+                      {PARTNER_MONEY_THRESHOLD_PREFERENCE_NOTE}
                     </p>
                   ) : null}
                   {s.refundDueCount > 0 ? (
