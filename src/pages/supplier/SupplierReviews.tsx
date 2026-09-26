@@ -275,7 +275,7 @@ export default function SupplierReviews() {
 
       {loading ? (
         <SupplierListSkeleton rows={3} />
-      ) : reviews.length === 0 ? (
+      ) : error ? null : reviews.length === 0 ? (
         <SupplierEmptyState
           icon={Star}
           title="No reviews yet"
