@@ -912,8 +912,8 @@ export default function SupplierLayout() {
                   <span className="flex h-6 w-6 items-center justify-center rounded-md bg-finland text-[10px] font-semibold text-white">
                     {(user?.email ?? user?.id ?? 'S').slice(0, 1).toUpperCase()}
                   </span>
-                  <span className="max-w-[9rem] truncate text-[12.5px] font-medium text-slate-700">
-                    {supplierEmail?.split('@')[0] ?? 'Account'}
+                  <span className="max-w-[9rem] min-w-0 truncate text-[12.5px] font-medium text-slate-700" title={supplierEmail || undefined}>
+                    {supplierEmail || 'Account'}
                   </span>
                 </button>
                 {accountMenuOpen && (
@@ -924,7 +924,7 @@ export default function SupplierLayout() {
                     className="absolute right-0 top-10 w-64 rounded-lg bg-white shadow-[0_8px_30px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/80 p-1.5 z-50 origin-top-right motion-safe:animate-slide-down"
                   >
                     {supplierEmail ? (
-                      <p className="px-2.5 py-2 text-xs text-slate-500 truncate border-b border-slate-100 mb-1">
+                      <p className="px-2.5 py-2 text-xs text-slate-500 truncate border-b border-slate-100 mb-1 min-w-0" title={supplierEmail}>
                         {supplierEmail}
                       </p>
                     ) : null}
@@ -1000,7 +1000,11 @@ export default function SupplierLayout() {
                 ))}
                 <div className="pt-4">
                   <p className="pb-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-slate-400">Account</p>
-                  {supplierEmail ? <p className="px-2 py-2 text-[13px] text-slate-500 truncate">{supplierEmail}</p> : null}
+                  {supplierEmail ? (
+                    <p className="px-2 py-2 text-[13px] text-slate-500 truncate min-w-0" title={supplierEmail}>
+                      {supplierEmail}
+                    </p>
+                  ) : null}
                   {!onboardingComplete && (
                     <button type="button" onClick={() => handleNavigate('onboarding')} className="partner-nav-item lux-flat w-full text-left rounded-md px-2 py-3 text-[15px] text-slate-700">
                       Finish setup
