@@ -3299,6 +3299,18 @@ Desktop profile menu and mobile drawer flashed “Log in / Sign up” during ses
 
 Special requests textarea lacked `htmlFor`/`id` (same class as Phase 663 contact fields).
 
+### Phase 668 — Packages: hide empty catalog when load failed
+
+Failed tour catalog still showed “No tours published yet” under ErrorState (`emptyOnFirstError` → `[]`). Gate results/empty on `!listingsLoadError`.
+
+### Phase 669 — Stays: ErrorState whenever catalog error
+
+Stays only showed ErrorState when `supplierListings === null`, but first failure sets `[]` — so travelers saw “No stays published yet”. Gate on `error` alone.
+
+### Phase 670 — Home stays: mirror tours error honesty
+
+Home Stays section ignored `listingsError` and claimed no stays published. Show ErrorState (and hide “All stays”) when the catalog fails.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Partner create→publish wizard** not browser-certified this pass (ops Home/Bookings/Calendar/Listings **are** localhost-browser certified in Phase 597). Full create→publish still pending.

@@ -808,7 +808,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
         ) : null}
         {showCatalogLoading ? (
           <SkeletonCardGrid count={6} />
-        ) : allListings.length > 0 && filteredPackages.length > 0 ? (
+        ) : listingsLoadError ? null : allListings.length > 0 && filteredPackages.length > 0 ? (
           <>
             <div className={MARKETPLACE_BROWSE_GRID_CLASS}>
               {filteredPackages.map((tour, index) => (
