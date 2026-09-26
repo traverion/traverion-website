@@ -5,6 +5,7 @@ import { prefetchAuthPage, prefetchMyBookingsPage, prefetchPackagesPage } from '
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
+import TravelerTestModeBanner from './TravelerTestModeBanner';
 import {
   clearBookingsUnread,
   getBookingNotificationEventName,
@@ -24,17 +25,6 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
   const userMenuRef = useRef<HTMLDivElement>(null);
   const userMenuPanelRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
-  /** Product pages already have browse nav — hide redundant primary CTA so it cannot cover booking controls. */
-  /** Hero search already covers discovery on Home; hide the tours-only CTA there too. */
-  const showFindToursCta =
-    currentPage !== 'home' &&
-    currentPage !== 'tour-details' &&
-    currentPage !== 'stay-details' &&
-    currentPage !== 'booking' &&
-    currentPage !== 'booking-confirmation' &&
-    currentPage !== 'packages' &&
-    currentPage !== 'stays' &&
-    currentPage !== 'destination';
 
   useDialogFocus(isMobileMenuOpen, mobileMenuRef, () => setIsMobileMenuOpen(false));
   useDialogFocus(isUserMenuOpen, userMenuPanelRef, () => setIsUserMenuOpen(false));
@@ -152,43 +142,54 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
             >
               Stays
             </button>
-            {user ? (
-              <button
-                type="button"
-                onClick={() => onNavigate('wishlist')}
-                aria-current={currentPage === 'wishlist' ? 'page' : undefined}
-                className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
-                  currentPage === 'wishlist'
-                    ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
-                    : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
-                }`}
-              >
-                Saved
-              </button>
-            ) : null}
-            {user ? (
-              <button
-                type="button"
-                onClick={openBookings}
-                onPointerEnter={prefetchMyBookingsPage}
-                aria-current={currentPage === 'bookings' ? 'page' : undefined}
-                aria-label={hasUnreadBookings ? 'Trips, unread updates' : 'Trips'}
-                className={`lux-flat relative rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
-                  currentPage === 'bookings'
-                    ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
-                    : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
-                }`}
-              >
-                Trips
-                {hasUnreadBookings ? (
-                  <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-paper-raised" aria-hidden />
-                ) : null}
-              </button>
-            ) : null}
+            <button
+              type="button"
+              onClick={() => {
+                if (!user) {
+                  window.history.pushState({}, '', '/log-in?next=wishlist');
+                  onNavigate('auth');
+                  return;
+                }
+                onNavigate('wishlist');
+              }}
+              aria-current={currentPage === 'wishlist' ? 'page' : undefined}
+              className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                currentPage === 'wishlist'
+                  ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
+                  : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
+              }`}
+            >
+              Saved
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (!user) {
+                  window.history.pushState({}, '', '/log-in?next=bookings');
+                  onNavigate('auth');
+                  return;
+                }
+                openBookings();
+              }}
+              onPointerEnter={prefetchMyBookingsPage}
+              aria-current={currentPage === 'bookings' ? 'page' : undefined}
+              aria-label={hasUnreadBookings ? 'Trips, unread updates' : 'Trips'}
+              className={`lux-flat relative rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                currentPage === 'bookings'
+                  ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
+                  : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
+              }`}
+            >
+              Trips
+              {hasUnreadBookings ? (
+                <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-paper-raised" aria-hidden />
+              ) : null}
+            </button>
           </nav>
 
           {/* Profile */}
-          <div className="flex items-center gap-4 sm:gap-6" ref={userMenuRef}>
+          <div className="flex items-center gap-3 sm:gap-4" ref={userMenuRef}>
+            <TravelerTestModeBanner variant="chip" />
             <div className="relative hidden lg:block">
               <button
                 type="button"
@@ -318,17 +319,6 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 </div>
               )}
             </div>
-            {showFindToursCta ? (
-              <div className="hidden lg:block">
-                <button
-                  type="button"
-                  onClick={() => onNavigate('home')}
-                  className="tv-btn-primary h-10 px-5 text-sm"
-                >
-                  Find a tour or stay
-                </button>
-              </div>
-            ) : null}
             <button
               type="button"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -405,21 +395,47 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               >
                 Stays
               </button>
-              {isSupabaseConfigured() && user ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onNavigate('wishlist');
+              <button
+                type="button"
+                onClick={() => {
+                  if (!user) {
+                    window.history.pushState({}, '', '/log-in?next=wishlist');
+                    onNavigate('auth');
                     setIsMobileMenuOpen(false);
-                  }}
-                  aria-current={currentPage === 'wishlist' ? 'page' : undefined}
-                  className={`lux-flat text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux font-medium ${
-                    currentPage === 'wishlist' ? 'bg-finland/10 text-finland' : 'text-ink hover:bg-black/[0.04]'
-                  }`}
-                >
-                  Saved
-                </button>
-              ) : null}
+                    return;
+                  }
+                  onNavigate('wishlist');
+                  setIsMobileMenuOpen(false);
+                }}
+                aria-current={currentPage === 'wishlist' ? 'page' : undefined}
+                className={`lux-flat text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux font-medium ${
+                  currentPage === 'wishlist' ? 'bg-finland/10 text-finland' : 'text-ink hover:bg-black/[0.04]'
+                }`}
+              >
+                Saved
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!user) {
+                    window.history.pushState({}, '', '/log-in?next=bookings');
+                    onNavigate('auth');
+                    setIsMobileMenuOpen(false);
+                    return;
+                  }
+                  openBookings();
+                }}
+                aria-current={currentPage === 'bookings' ? 'page' : undefined}
+                aria-label={hasUnreadBookings ? 'Trips, unread updates' : 'Trips'}
+                className={`lux-flat text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux font-medium flex items-center justify-between ${
+                  currentPage === 'bookings' ? 'bg-finland/10 text-finland' : 'text-ink hover:bg-black/[0.04]'
+                }`}
+              >
+                <span>Trips</span>
+                {hasUnreadBookings ? (
+                  <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden />
+                ) : null}
+              </button>
               {!isSupabaseConfigured() && (
                 <div className="mx-2 px-4 py-3 rounded-xl bg-finland/[0.06] ring-1 ring-finland/15 text-sm text-ink-muted">
                   <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-finland">Accounts</p>
@@ -508,18 +524,6 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                     </button>
                   </>
                 )}
-                {showFindToursCta ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onNavigate('home');
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className="tv-btn-primary w-full justify-center"
-                  >
-                    Find a tour or stay
-                  </button>
-                ) : null}
               </div>
             </nav>
           </div>

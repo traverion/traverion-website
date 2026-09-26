@@ -4,12 +4,29 @@ import {
   travelerShowsTestModeBanner,
 } from '../lib/traveler-env-presentation';
 
+type Props = {
+  /** `bar` = full-width strip (legacy). `chip` = compact header indicator (preferred). */
+  variant?: 'bar' | 'chip';
+};
+
 /**
- * Calm global indicator when Stripe publishable key is TEST.
- * Browse/marketing copy stays clean; payment surfaces keep explicit TEST CTAs.
+ * Calm Test mode indicator when Stripe publishable key is TEST.
+ * Prefer `chip` in the stable header so chrome height does not jump.
  */
-export default function TravelerTestModeBanner() {
+export default function TravelerTestModeBanner({ variant = 'chip' }: Props) {
   if (!travelerShowsTestModeBanner()) return null;
+
+  if (variant === 'chip') {
+    return (
+      <span
+        className="inline-flex items-center rounded-full border border-finland/20 bg-finland/[0.07] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-finland"
+        title={TRAVELER_TEST_MODE_DETAIL}
+        role="status"
+      >
+        {TRAVELER_TEST_MODE_LABEL}
+      </span>
+    );
+  }
 
   return (
     <div

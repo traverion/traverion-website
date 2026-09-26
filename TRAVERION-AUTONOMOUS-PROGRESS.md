@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `f7a50ca`  
-**Current phase:** 801  
+**Current SHA:** `635aac3`  
+**Current phase:** 802  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -212,6 +212,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 799 | Launch-break final tsc vitest build gate | `7fa5c90` |
 | 800 | Founder handoff TRAVERION-PHASE-800 | Phase 800 tip |
 | 801 | Consumer vs payment test-mode presentation | `f7a50ca` |
+| 802 | Stable traveler header chrome | `635aac3` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3921,6 +3922,17 @@ Cookies and marketing preferences: 7\n```
 - Payment/checkout/listing sticky TEST honesty **unchanged**
 
 **Browser (desktop localhost):** Home shows Test mode banner; hero sells travel; no “Stripe TEST until live” in hero/Why/footer. Vitest env-presentation + booking-confirmation-copy green. `tsc` clean.
+
+### Phase 802 — Stable traveler header chrome
+
+**Problem:** Header reflowed between routes (`Find a tour or stay` CTA on Saved/utility pages) and Saved/Trips only appeared when signed in. Full-width Test mode bar also fought fixed header height.
+
+**Fix:**
+- Remove route-conditional Find CTA (desktop + mobile)
+- Always show Explore / Tours / Stays / Saved / Trips; Saved/Trips prompt login when signed out
+- Move Test mode to compact header chip (stable height)
+
+**Browser:** Home and Wishlist share identical primary nav slots; Wishlist no longer gains a primary CTA. `tsc` clean.
 
 ## Known remaining risks (ranked)
 
