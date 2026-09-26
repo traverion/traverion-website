@@ -9,7 +9,7 @@ import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { navigateSupplierUrl, openSupplierBooking } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
-import { formatMoney, isStripeTestCheckoutSession, normalizeCurrency } from '../../lib/money';
+import { formatMoney, isStripeTestCheckoutSession, appStripeIsTestMode, normalizeCurrency } from '../../lib/money';
 import { isCollectedBooking, isRefundDueBooking } from '../../lib/payment-states';
 import { isCollectedEarningKind } from '../../lib/supplier-ledger-balance';
 import { fetchMyListings } from '../../data/supabase-listings';
@@ -511,7 +511,7 @@ export default function SupplierEarnings() {
                           </p>
                           <p className="mt-0.5 text-xs text-ink-muted truncate">
                             {b.guest_name?.trim() || 'Guest'} · {b.booking_date}
-                            {isStripeTestCheckoutSession(b.checkout_session_id)
+                            {isStripeTestCheckoutSession(b.checkout_session_id) || appStripeIsTestMode()
                               ? ' · Stripe TEST'
                               : ''}
                             {' · collected, not paid out'}
