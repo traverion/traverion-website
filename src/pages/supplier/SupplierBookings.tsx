@@ -67,6 +67,7 @@ import { parseStayCheckOutFromNotes, nightsOccupiedByStay, stayRangeFromBooking 
 import { partnerBookingIsLiveTrip, partnerBookingIsOperatingTrip, partnerBookingNeedsLook, partnerBookingIsUnpaidCheckout, partnerBookingIsActiveUnpaidCheckout, partnerBookingShowsCancelAction, partnerBookingIsPastSchedule, partnerStayTouchesScheduleDay } from '../../lib/trip-views';
 import { formatPartnerCheckoutHoldLabel, partnerUnpaidCheckoutHoldsInventory } from '../../lib/booking-hold';
 import { formatStayNightHuman } from '../../lib/stay-calendar';
+import { formatBookingDateDisplay } from '../../lib/booking-flow';
 import { partnerBookingHasPickupAttention } from '../../lib/pickup-completeness';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 import { comparePartnerBookingsOperational } from '../../lib/partner-bookings-order';
@@ -152,13 +153,8 @@ function bookingPaginationRange(totalPages: number, current: number): (number | 
 
 function formatActivityDateLong(bookingDate: string | null, startHm: string | null): string {
   if (!bookingDate) return 'No activity date';
-  const date = new Date(bookingDate);
-  const datePart = date.toLocaleDateString(undefined, {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+  const datePart = formatBookingDateDisplay(bookingDate);
+  if (!datePart) return 'No activity date';
   return startHm ? `${datePart} · ${startHm}` : datePart;
 }
 
