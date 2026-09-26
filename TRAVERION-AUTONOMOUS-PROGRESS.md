@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `118c1e2`  
-**Current phase:** 770  
+**Current SHA:** `4343e28`  
+**Current phase:** 775  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -185,6 +185,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 772 | Partner Inbox error Contact support | `b93c106` |
 | 773 | Partner Bookings error Contact support | `beaaf3e` |
 | 774 | Partner Money error Contact support | `affcaff` |
+| 775 | Product coherence band checkpoint 726-775 | `4343e28` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3748,6 +3749,10 @@ Bookings unavailable ErrorState had retry only.
 ### Phase 774 — Partner Money error Contact support
 
 Money load ErrorState had retry only.
+
+### Phase 775 — Product coherence band checkpoint 726-775
+
+**Band 726–775 closed.** Shared STRIPE_TEST_UNTIL_LIVE + traveler TEST CTAs; cookies/marketing preferences naming; Contact support on traveler browse + partner Today/Inbox/Bookings/Money errors; FI/EN honesty. Evidence: `tsc -p tsconfig.app.json` clean; vitest sticky/copy/listingTruth/stripe-test suites green.
 
 ## Known remaining risks (ranked)
 
