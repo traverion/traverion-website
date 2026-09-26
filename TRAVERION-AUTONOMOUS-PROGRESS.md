@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `39a2192`  
-**Current phase:** 834  
+**Current SHA:** `1dac730`  
+**Current phase:** 835  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4163,6 +4163,12 @@ Wider footer (`max-w-[90rem]`), display-serif brand + section titles, calmer cre
 **Change:** Wishlist/Trips match traveler dashboard chrome: `max-w-[90rem]`, open hairline header (no card box), “Your travel” eyebrow. Wishlist H1 → **Saved** (nav alignment); compact marketplace grid for saved cards. Document title “Saved”. Logic/empty honesty unchanged.
 
 **Browser:** `/wishlist` — Saved header + stable Saved nav current verified.
+
+### Phase 835 — Human test-mode payment copy
+
+**Change:** Soften payment-critical honesty strings without hiding TEST: `STRIPE_TEST_UNTIL_LIVE` → “test-mode payment (no real charge)”; CTAs → “Pay now · test mode” / “Continue · test mode”. Homepage meta description no longer mentions Stripe TEST. Global Test mode chip unchanged. Admin/partner money surfaces still use the shared constant (now human wording).
+
+**Tests:** booking-confirmation-copy + stay-sticky-cta 28/28.
 
 ## Known remaining risks (ranked)
 

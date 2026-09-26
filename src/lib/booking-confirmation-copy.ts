@@ -16,10 +16,11 @@ export const BOOKING_CONFIRMATION_EMAIL_DISCLAIMER =
   'Trips is your confirmation. If an email arrives, keep it for your records — Traverion does not treat email delivery as booking proof.';
 
 /**
- * Shared Stripe TEST honesty phrase for **payment-critical** surfaces until live money.
+ * Shared honesty phrase for **payment-critical** surfaces until live money.
  * Do not use on homepage/marketing browse — see `traveler-env-presentation.ts` + Test mode banner.
+ * Keep short, human, and unambiguous: the traveler must not think a test charge is real.
  */
-export const STRIPE_TEST_UNTIL_LIVE = 'Stripe TEST until live';
+export const STRIPE_TEST_UNTIL_LIVE = 'test-mode payment (no real charge)';
 
 /** Empty reviews on tour/stay listing pages — guests review after a completed booking. */
 export const LISTING_REVIEWS_EMPTY_COPY =
@@ -177,10 +178,10 @@ export const PARTNER_PAYOUT_THRESHOLD_HINT =
 export const TRAVELER_OPENING_CHECKOUT_CTA = 'Opening checkout…';
 
 /** Traveler Trips / confirmation — pay CTA while Stripe is still in TEST mode. */
-export const TRAVELER_PAY_NOW_TEST_CTA = 'Pay now · TEST';
+export const TRAVELER_PAY_NOW_TEST_CTA = 'Pay now · test mode';
 
-/** Tour / stay sticky + booking card — continue into TEST Stripe checkout. */
-export const TRAVELER_CONTINUE_TEST_CTA = 'Continue · TEST';
+/** Tour / stay sticky + booking card — continue into test-mode Stripe checkout. */
+export const TRAVELER_CONTINUE_TEST_CTA = 'Continue · test mode';
 
 /** Traveler Trips — self-cancel is immediate, not a host-approval “request”. */
 export const TRAVELER_SELF_CANCEL_CTA = 'Cancel booking';

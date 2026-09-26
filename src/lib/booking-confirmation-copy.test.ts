@@ -268,8 +268,8 @@ describe('booking confirmation copy', () => {
     expect(TRAVELER_SELF_CANCEL_CTA.toLowerCase()).toBe('cancel booking');
     expect(TRAVELER_SELF_CANCEL_CTA.toLowerCase()).not.toContain('request');
     expect(TRAVELER_OPENING_CHECKOUT_CTA).toBe('Opening checkout…');
-    expect(TRAVELER_PAY_NOW_TEST_CTA).toBe('Pay now · TEST');
-    expect(TRAVELER_CONTINUE_TEST_CTA).toBe('Continue · TEST');
+    expect(TRAVELER_PAY_NOW_TEST_CTA).toBe('Pay now · test mode');
+    expect(TRAVELER_CONTINUE_TEST_CTA).toBe('Continue · test mode');
     expect(TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE.toLowerCase()).toContain('refund due');
     expect(TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE.toLowerCase()).toContain('does not send refunds automatically');
     expect(TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE.toLowerCase()).toContain('cancelled');

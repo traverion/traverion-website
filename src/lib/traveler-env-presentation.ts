@@ -2,7 +2,7 @@
  * Traveler environment presentation (Phase 801+).
  *
  * Marketing / browse surfaces sell travel — no Stripe/TEST/QA language.
- * Payment-critical surfaces keep STRIPE_TEST_UNTIL_LIVE and Pay now · TEST.
+ * Payment-critical surfaces keep STRIPE_TEST_UNTIL_LIVE and Pay now · test mode.
  * When the app publishable key is TEST, show one calm global Test mode indicator.
  */
 
