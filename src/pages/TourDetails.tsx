@@ -44,7 +44,6 @@ import { departureSlotSpotsLeft, partyMaxCappedByRemainingSpots } from '../lib/d
 import { tourSoldOutDates } from '../lib/tour-calendar';
 import BookingPage from './BookingPage';
 import {
-  BOOKING_CONFIRMATION_EMAIL_DISCLAIMER,
   TOUR_LISTING_CONFIRMATION_NOTE,
   LISTING_REVIEWS_EMPTY_COPY,
   STRIPE_TEST_UNTIL_LIVE,
@@ -1297,7 +1296,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
             </div>
 
             <div className="lg:col-span-1 order-1 lg:order-2">
-              <div id="tour-booking-panel" className="lg:sticky lg:top-24 h-fit scroll-mt-24 tv-card p-3.5 sm:p-4">
+              <div
+                id="tour-booking-panel"
+                className="lg:sticky lg:top-24 h-fit scroll-mt-24 rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft-lg ring-1 ring-black/[0.06]"
+              >
+                <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">Book this experience</p>
                 {!canBook ? (
                   <div>
                     <p className="text-lg font-semibold text-ink">Not bookable yet</p>
@@ -1558,12 +1561,9 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                       <div className="space-y-1.5 text-xs text-ink-muted">
                         <p className="flex items-start gap-2">
                           <Shield className="w-3.5 h-3.5 text-finland flex-shrink-0 mt-0.5" aria-hidden />
-                          Pay via {STRIPE_TEST_UNTIL_LIVE}
+                          Secure checkout · {STRIPE_TEST_UNTIL_LIVE}
                         </p>
-                        <p className="leading-relaxed">
-                          {TOUR_LISTING_CONFIRMATION_NOTE} {BOOKING_CONFIRMATION_EMAIL_DISCLAIMER}{' '}
-                          {STRIPE_TEST_UNTIL_LIVE}.
-                        </p>
+                        <p className="leading-relaxed">{TOUR_LISTING_CONFIRMATION_NOTE}</p>
                       </div>
                     </div>
                   </>

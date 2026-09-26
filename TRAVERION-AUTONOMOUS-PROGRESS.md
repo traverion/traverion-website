@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `df42b28`  
-**Current phase:** 825  
+**Current SHA:** `21610af`  
+**Current phase:** 826  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -236,6 +236,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 823 | BookingDateField Traverion calendar + home search cert | `05c80fb` |
 | 824 | Calendar + guest picker band checkpoint 819-823 | `8e0591b` |
 | 825 | Tour detail gallery-first + wider desktop canvas | `df42b28` |
+| 826 | Tour booking panel + quick facts premium | `21610af` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -4101,6 +4102,10 @@ Browse cards: compact `aspect-[5/4]`, display-serif titles, group hover lift/sca
 ### Phase 825 — Tour detail: gallery-first + wider desktop canvas
 
 Reorder tour detail to gallery → identity → quick facts (marketplace rhythm). Widen shell to `max-w-[90rem]` (match catalog). Taller desktop gallery (`min-h-[28rem]`). Reduced-motion-safe image hover. Transaction truth untouched.
+
+### Phase 826 — Tour booking panel + quick facts premium
+
+Booking sticky panel: elevated Traverion surface, “Book this experience” label. Quick facts on soft raised grid. Consolidate Stripe TEST honesty to one checkout line (CTA still Continue · TEST). No transaction changes.
 
 ## Known remaining risks (ranked)
 
