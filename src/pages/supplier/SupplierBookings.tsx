@@ -60,7 +60,7 @@ import { decrementAvailabilityBooked } from '../../data/supabase-availability';
 import { fetchMyListings, pgTimeToHm } from '../../data/supabase-listings';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
-import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
+import { navigateSupplierUrl, openSupplierInbox, openSupplierPickup } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { parseStayCheckOutFromNotes, nightsOccupiedByStay, stayRangeFromBooking } from '../../lib/stayOccupancy';
@@ -68,7 +68,6 @@ import { partnerBookingIsLiveTrip, partnerBookingIsOperatingTrip, partnerBooking
 import { formatPartnerCheckoutHoldLabel, partnerUnpaidCheckoutHoldsInventory } from '../../lib/booking-hold';
 import { formatStayNightHuman } from '../../lib/stay-calendar';
 import { partnerBookingHasPickupAttention } from '../../lib/pickup-completeness';
-import { openSupplierPickup } from '../../lib/supplierPortalNavigation';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 import { comparePartnerBookingsOperational } from '../../lib/partner-bookings-order';
 import { displayListingTitleFromPurchase, displayMeetingPointFromPurchase, displayOptionLabelFromPurchase, displayPickupInstructionsFromPurchase, partnerOpsDepartureDisplay } from '../../lib/purchase-snapshot';
@@ -1501,6 +1500,13 @@ export default function SupplierBookings({
                     bookingNumber={typeof booking.booking_number === 'number' ? booking.booking_number : undefined}
                     bookingDate={booking.booking_date}
                   />
+                  <button
+                    type="button"
+                    className="mt-2 text-sm font-semibold text-finland hover:underline"
+                    onClick={() => openSupplierInbox(booking.id)}
+                  >
+                    Open in Inbox
+                  </button>
                 </div>
               </>
             );
