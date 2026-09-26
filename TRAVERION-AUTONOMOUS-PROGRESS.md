@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `e8901b0`  
-**Current phase:** 791  
+**Current SHA:** `9b27ef9`  
+**Current phase:** 792  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
