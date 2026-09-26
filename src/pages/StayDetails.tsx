@@ -47,6 +47,7 @@ import {
   BOOKING_CONFIRMATION_EMAIL_DISCLAIMER,
   STAY_LISTING_CONFIRMATION_NOTE,
   LISTING_REVIEWS_EMPTY_COPY,
+  STRIPE_TEST_UNTIL_LIVE,
 } from '../lib/booking-confirmation-copy';
 import { listingShowsFreeCancellation, publicReviewLabel } from '../lib/listingTruth';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -1045,7 +1046,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
               </a>
             )}
             <p className="mt-3 text-xs text-ink-muted leading-relaxed">
-              {STAY_LISTING_CONFIRMATION_NOTE} {BOOKING_CONFIRMATION_EMAIL_DISCLAIMER} Stripe TEST until live.
+              {STAY_LISTING_CONFIRMATION_NOTE} {BOOKING_CONFIRMATION_EMAIL_DISCLAIMER} {STRIPE_TEST_UNTIL_LIVE}.
             </p>
           </aside>
         </div>
@@ -1061,7 +1062,9 @@ export default function StayDetails({ stayId, onBack }: Props) {
                 <span className="text-ink-muted"> {quoteOk ? 'total' : 'per night'}</span>
               </p>
               <p className="text-xs text-ink-muted">
-                {listingShowsFreeCancellation(stay) ? 'Free cancellation · Stripe TEST until live' : 'Pay via Stripe TEST until live'}
+                {listingShowsFreeCancellation(stay)
+                  ? `Free cancellation · ${STRIPE_TEST_UNTIL_LIVE}`
+                  : `Pay via ${STRIPE_TEST_UNTIL_LIVE}`}
               </p>
             </div>
             {user ? (

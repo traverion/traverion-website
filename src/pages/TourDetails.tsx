@@ -47,6 +47,7 @@ import {
   BOOKING_CONFIRMATION_EMAIL_DISCLAIMER,
   TOUR_LISTING_CONFIRMATION_NOTE,
   LISTING_REVIEWS_EMPTY_COPY,
+  STRIPE_TEST_UNTIL_LIVE,
 } from '../lib/booking-confirmation-copy';
 import {
   getPartySizeBounds,
@@ -1556,10 +1557,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                       <div className="space-y-1.5 text-xs text-ink-muted">
                         <p className="flex items-start gap-2">
                           <Shield className="w-3.5 h-3.5 text-finland flex-shrink-0 mt-0.5" aria-hidden />
-                          Pay via Stripe TEST until live
+                          Pay via {STRIPE_TEST_UNTIL_LIVE}
                         </p>
                         <p className="leading-relaxed">
-                          {TOUR_LISTING_CONFIRMATION_NOTE} {BOOKING_CONFIRMATION_EMAIL_DISCLAIMER} Stripe TEST until live.
+                          {TOUR_LISTING_CONFIRMATION_NOTE} {BOOKING_CONFIRMATION_EMAIL_DISCLAIMER}{' '}
+                          {STRIPE_TEST_UNTIL_LIVE}.
                         </p>
                       </div>
                     </div>

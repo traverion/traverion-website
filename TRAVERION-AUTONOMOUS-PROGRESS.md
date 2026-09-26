@@ -3531,6 +3531,26 @@ Cancel confirm sheet close uses an X with proper hit area (import + control).
 
 Band 676–725 closed: header/session a11y, review/form labels, 44px tap targets across traveler + partner, catalog/capacity honesty carry-over, shared date helpers. Next: product coherence 726–775.
 
+### Phase 726 — Shared STRIPE_TEST_UNTIL_LIVE constant
+
+Tour/Stay listing panels duplicated “Stripe TEST until live”. Export one constant and use it on both.
+
+### Phase 727 — App handleTourSelect: reject unpublished
+
+Selecting/hydrating a listing by id could open unpublished drafts. Gate stays and tours with `listingDetailVisibleToTraveler`.
+
+### Phase 728 — Destination breadcrumb to Tours/Stays
+
+Destination hero only had Back to browse. Add breadcrumb Home / Tours / Stays and use `USER_ERROR.listings` for catalog failure.
+
+### Phase 729 — Packages/Stays mobile search close: 44px
+
+Match Home search sheet close sizing on browse mobile search dialogs.
+
+### Phase 730 — Partner Home upcoming dates: shared formatter
+
+Dashboard upcoming-by-date labels used ad-hoc `en-GB` formatting. Use `formatBookingDateDisplay`.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Partner create→publish wizard** not browser-certified this pass (ops Home/Bookings/Calendar/Listings **are** localhost-browser certified in Phase 597). Full create→publish still pending.
