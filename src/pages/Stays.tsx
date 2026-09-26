@@ -184,7 +184,9 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
 
   const handleCheckInChange = (next: string) => {
     setCheckIn(next);
-    if (checkOut && next && checkOut <= next) {
+    if (!next) return;
+    // Always keep a valid exclusive check-out so the date range actually filters.
+    if (!checkOut || checkOut <= next) {
       setCheckOut(addCalendarDays(next, 1));
     }
   };

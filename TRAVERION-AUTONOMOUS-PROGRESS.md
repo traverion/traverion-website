@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `034a632`  
-**Current phase:** 605  
+**Current SHA:** `e8a60d5`  
+**Current phase:** 606  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -101,6 +101,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 603 | Stay checkout refreshes blocked nights before Stripe | `30ae77b` |
 | 604 | Honest pickup + free-cancel browse tags | `0df7eb3` |
 | 605 | Confirmation policy honesty + Trips naming | `034a632` |
+| 606 | Stays check-in auto-pairs check-out for real filtering | `e8a60d5` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -2919,6 +2920,12 @@ Vitest `listingTruth.test.ts` updated and passing.
 ### Phase 605 — Confirmation cancel copy + Trips terminology
 
 Confirmation no longer promises universal “free cancellation up to 24 hours”. Points to checkout/listing policy instead. Error strings and App page meta use **Trips** (not “My bookings”).
+
+### Phase 606 — Stays check-in always pairs with check-out
+
+**Problem:** Check-in alone appeared in search summary/chips while occupancy filtering only ran when both dates existed — inventory looked filtered but was not.
+
+**Fix:** Choosing check-in without a valid check-out auto-sets check-out to the next calendar night so `dateFilterActive` engages.
 
 ## Known remaining risks (ranked)
 
