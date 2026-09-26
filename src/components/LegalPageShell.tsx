@@ -21,7 +21,10 @@ export default function LegalPageShell({
 }: LegalPageShellProps) {
   return (
     <div className="min-h-screen bg-paper tv-page">
-      <div className="max-w-2xl mx-auto px-5 sm:px-6 py-8 sm:py-10 motion-safe:animate-fade-in">
+      <article
+        className="max-w-2xl mx-auto px-5 sm:px-6 py-8 sm:py-10 motion-safe:animate-fade-in"
+        aria-labelledby="legal-page-title"
+      >
         <button
           type="button"
           onClick={() => goProductReturn(onNavigate)}
@@ -33,7 +36,9 @@ export default function LegalPageShell({
         {eyebrow ? (
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">{eyebrow}</p>
         ) : null}
-        <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">{title}</h1>
+        <h1 id="legal-page-title" className="font-display text-3xl sm:text-4xl text-ink tracking-tight">
+          {title}
+        </h1>
         {subtitle ? (
           <p className="mt-3 text-base text-ink-muted max-w-xl leading-relaxed">{subtitle}</p>
         ) : null}
@@ -53,7 +58,7 @@ export default function LegalPageShell({
         >
           {children}
         </div>
-      </div>
+      </article>
     </div>
   );
 }
