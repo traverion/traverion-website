@@ -30,6 +30,10 @@ import {
   MarketplaceActiveChip,
 } from '../components/marketplace/MarketplaceFilterPanel';
 import {
+  MarketplaceFilterMenu,
+  MarketplaceSecondaryFilterRow,
+} from '../components/marketplace/MarketplaceFilterMenu';
+import {
   MarketplaceMobileSearchTrigger,
   MarketplaceSearchFields,
   MarketplaceSearchPill,
@@ -691,6 +695,135 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     </>
   );
 
+  const sortControl = (
+    <MarketplaceSortSelect
+      value={sortBy}
+      onChange={(v) => setSortBy(parseMarketplaceSort(v))}
+      options={TOUR_SORT_OPTIONS}
+    />
+  );
+
+  const destSummary =
+    selectedDestination !== 'all'
+      ? destinationOptions.find((c) => c.id === selectedDestination)?.label ?? selectedDestination
+      : null;
+  const priceSummary = priceRange !== 'all' ? priceChips.find((c) => c.id === priceRange)?.label ?? priceRange : null;
+  const ratingSummary =
+    ratingFilter !== 'all' ? RATING_FILTER_CHIPS.find((c) => c.id === ratingFilter)?.label ?? ratingFilter : null;
+  const durationSummary =
+    durationFilter !== 'all' ? DURATION_FILTER_CHIPS.find((c) => c.id === durationFilter)?.label ?? durationFilter : null;
+  const languageSummary =
+    languageFilter && languageFilter !== 'all' ? languageLabel(languageFilter) || languageFilter : null;
+  const detailsActive = privateOnly || selectedTags.length > 0;
+  const detailsSummary = detailsActive
+    ? [
+        privateOnly ? 'Private' : null,
+        selectedTags.length ? `${selectedTags.length} tag${selectedTags.length === 1 ? '' : 's'}` : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')
+    : null;
+
+  const desktopFilters = (
+    <MarketplaceSecondaryFilterRow sortControl={sortControl}>
+      <MarketplaceFilterMenu label="Destination" summary={destSummary} active={selectedDestination !== 'all'}>
+        <MarketplaceFilterChipRow>
+          {destinationOptions.map((chip) => (
+            <MarketplaceFilterChip
+              key={chip.id}
+              pressed={selectedDestination === chip.id}
+              onClick={() => setSelectedDestination(chip.id)}
+            >
+              {chip.label}
+            </MarketplaceFilterChip>
+          ))}
+        </MarketplaceFilterChipRow>
+      </MarketplaceFilterMenu>
+      <MarketplaceFilterMenu label="Price" summary={priceSummary} active={priceRange !== 'all'}>
+        <MarketplaceFilterChipRow>
+          {priceChips.map((chip) => (
+            <MarketplaceFilterChip
+              key={chip.id}
+              pressed={priceRange === chip.id}
+              onClick={() => setPriceRange(chip.id)}
+            >
+              {chip.label}
+            </MarketplaceFilterChip>
+          ))}
+        </MarketplaceFilterChipRow>
+      </MarketplaceFilterMenu>
+      <MarketplaceFilterMenu label="Rating" summary={ratingSummary} active={ratingFilter !== 'all'}>
+        <MarketplaceFilterChipRow>
+          {RATING_FILTER_CHIPS.map((chip) => (
+            <MarketplaceFilterChip
+              key={chip.id}
+              pressed={ratingFilter === chip.id}
+              onClick={() => setRatingFilter(chip.id)}
+            >
+              {chip.label}
+            </MarketplaceFilterChip>
+          ))}
+        </MarketplaceFilterChipRow>
+      </MarketplaceFilterMenu>
+      {showDurationFilter ? (
+        <MarketplaceFilterMenu label="Duration" summary={durationSummary} active={durationFilter !== 'all'}>
+          <MarketplaceFilterChipRow>
+            {DURATION_FILTER_CHIPS.map((chip) => (
+              <MarketplaceFilterChip
+                key={chip.id}
+                pressed={durationFilter === chip.id}
+                onClick={() => setDurationFilter(chip.id)}
+              >
+                {chip.label}
+              </MarketplaceFilterChip>
+            ))}
+          </MarketplaceFilterChipRow>
+        </MarketplaceFilterMenu>
+      ) : null}
+      {languageOptions.length > 0 ? (
+        <MarketplaceFilterMenu
+          label="Languages"
+          summary={languageSummary}
+          active={Boolean(languageFilter && languageFilter !== 'all')}
+        >
+          <MarketplaceFilterChipRow>
+            <MarketplaceFilterChip
+              pressed={!languageFilter || languageFilter === 'all'}
+              onClick={() => setLanguageFilter('')}
+            >
+              Any language
+            </MarketplaceFilterChip>
+            {languageOptions.map((chip) => (
+              <MarketplaceFilterChip
+                key={chip.id}
+                pressed={languageFilter === chip.id}
+                onClick={() => setLanguageFilter(chip.id)}
+              >
+                {chip.label}
+              </MarketplaceFilterChip>
+            ))}
+          </MarketplaceFilterChipRow>
+        </MarketplaceFilterMenu>
+      ) : null}
+      <MarketplaceFilterMenu label="More" summary={detailsSummary} active={detailsActive}>
+        <MarketplaceFilterChipRow>
+          <MarketplaceFilterChip pressed={privateOnly} onClick={() => setPrivateOnly((v) => !v)}>
+            Private tours
+          </MarketplaceFilterChip>
+          {TAG_OPTIONS.map((tag) => (
+            <MarketplaceFilterChip
+              key={tag.id}
+              pressed={selectedTags.includes(tag.id)}
+              onClick={() => toggleTag(tag.id)}
+            >
+              {tag.label}
+            </MarketplaceFilterChip>
+          ))}
+        </MarketplaceFilterChipRow>
+      </MarketplaceFilterMenu>
+    </MarketplaceSecondaryFilterRow>
+  );
+
   return (
     <>
       <MarketplaceBrowseShell
@@ -752,6 +885,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
         onCloseFilters={closeMobileFilters}
         filterSheetRef={filterSheetRef}
         filterPanel={filterPanel}
+        desktopFilters={desktopFilters}
         filterFooter={
           <>
             {extraFilterCount > 0 ? (
@@ -771,13 +905,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
             </button>
           </>
         }
-        sortControl={
-          <MarketplaceSortSelect
-            value={sortBy}
-            onChange={(v) => setSortBy(parseMarketplaceSort(v))}
-            options={TOUR_SORT_OPTIONS}
-          />
-        }
+        sortControl={sortControl}
         activeChips={
           hasActiveFilters ? (
             <div className="mb-4 flex flex-wrap items-center gap-2" aria-label="Active filters">
@@ -897,7 +1025,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
                   discountsByListing={discountsByListing}
                   reviewAggregate={reviewAggregates.get(tour.id)}
                   tagLabels={TAG_LABELS}
-                  size="default"
+                  size="compact"
                   showTagPills={false}
                   wishlist={
                     wishlist.enabled

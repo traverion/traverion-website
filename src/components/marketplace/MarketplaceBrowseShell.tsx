@@ -12,7 +12,10 @@ type Props = {
   onOpenFilters: () => void;
   onCloseFilters: () => void;
   filterSheetRef: Ref<HTMLDivElement>;
+  /** Stacked filter content for the mobile sheet. */
   filterPanel: ReactNode;
+  /** Desktop secondary filter row (popovers) — replaces the left sidebar. */
+  desktopFilters?: ReactNode;
   filterFooter?: ReactNode;
   sortControl: ReactNode;
   activeChips?: ReactNode;
@@ -31,6 +34,7 @@ export function MarketplaceBrowseShell({
   onCloseFilters,
   filterSheetRef,
   filterPanel,
+  desktopFilters,
   filterFooter,
   sortControl,
   activeChips,
@@ -67,30 +71,18 @@ export function MarketplaceBrowseShell({
           </div>
         </div>
 
+        {desktopFilters}
+
         {activeChips}
 
-        <div className="lg:grid lg:grid-cols-[16.5rem_minmax(0,1fr)] lg:gap-8 xl:gap-10">
-          <aside className="hidden lg:block">
-            <div className="sticky top-[calc(4.25rem+env(safe-area-inset-top,0px))] max-h-[calc(100dvh-5.5rem)] overflow-y-auto overscroll-contain pr-1 space-y-6">
-              <div className="flex items-baseline gap-2">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">Filters</p>
-                {filterCount > 0 ? (
-                  <span className="text-[11px] font-semibold tabular-nums text-finland">· {filterCount}</span>
-                ) : null}
-              </div>
-              {filterPanel}
-            </div>
-          </aside>
-
-          <div className="min-w-0">
-            <div className="mb-5 relative z-10 flex flex-wrap items-center justify-between gap-3">
-              <h1 id={headingId} className="font-display text-xl sm:text-2xl text-ink tracking-tight">
-                {resultTitle}
-              </h1>
-              <div className="hidden lg:block shrink-0">{sortControl}</div>
-            </div>
-            {children}
+        <div className="min-w-0">
+          <div className="mb-5 relative z-10 flex flex-wrap items-center justify-between gap-3">
+            <h1 id={headingId} className="font-display text-xl sm:text-2xl text-ink tracking-tight">
+              {resultTitle}
+            </h1>
+            {!desktopFilters ? <div className="hidden lg:block shrink-0">{sortControl}</div> : null}
           </div>
+          {children}
         </div>
       </div>
 

@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `8b130d4`  
-**Current phase:** 814  
+**Current SHA:** `59a59d1`  
+**Current phase:** 815  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -225,6 +225,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 812 | Homepage premium band checkpoint 806-812 | `7d7ed82` |
 | 813 | Tours primary search applies only on Search submit | `a17fc5e` |
 | 814 | Stays primary search applies only on Search submit | `3bd281d` |
+| 815 | Close bookings.status NULL bypass (NOT NULL constraint) | `88418b2` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -4019,6 +4020,20 @@ Browser-inspected homepage at desktop and noted destination tiles + denser tour 
 Mirror Phase 813 on `/stays`: draft Where / check-in / check-out / guests drive the pill + mobile sheet; applied filters + URL update only on Search. Invalid draft ranges normalized on apply. Chip/clear sync drafts. Applied where-query records `search` interest (family stay).
 
 **Browser:** typed `zzzznonexistent` kept “2 stays”; Search → `?q=zzzznonexistent`, “0 stays…”, honest empty. tsc clean.
+
+### Phase 815 -- Close a NULL-status bypass on public.bookings.status
+
+**Hypothesis:** migration 001's `bookings.status` column was defined with a `CHECK(status in ('pending','confirmed','cancelled'))` but never `NOT NULL` -- the same bug class migration 092 already closed on `listings.status`. A CHECK constraint does not restrict NULL, so any ownership-only UPDATE policy on `bookings` (003 supplier, 037 traveler) that never itself constrains the `status` value could be used to set `status = NULL` directly, bypassing the enum entirely on any UNPAID booking (the payment-fields freeze trigger, 078->085->087, only locks status once `payment_status = 'paid'`, by design, to allow the legitimate unpaid-hold-release path).
+
+**Proof:** wrote `supabase/tests/bookings_status_not_null_guard.test.sql` -- a scratch-Postgres-16 harness that stubs `auth.uid()/role()/jwt()` via GUCs and `\ir`s the real, currently-committed migrations 003/037/078/085/087 verbatim. Case 1/1b proved, against today's baseline, that a supplier (via 003) or a traveler (via 037) can `UPDATE bookings SET status = NULL` on their own unpaid booking, and that a raw service-role write does the same -- confirmed failing before any fix, exactly as required by the protocol.
+
+**Impact assessment (honest, not inherited from 092):** no live consumer of `bookings.status` was found to mishandle NULL destructively today -- `booking_occupies_inventory()` already does `coalesce(p_status,'') IS DISTINCT FROM 'cancelled'`, and both `status-language.ts`'s `bookingLifecycleLabel()` and the cancellation RPCs (098) already coalesce defensively. So this is a structural schema gap, not a proven live customer-facing bug today -- closing it now makes the bug class structurally impossible for every future call site (new admin tool, new report, new RPC) rather than relying on each one remembering to coalesce.
+
+**Fix:** `supabase/migrations/100_bookings_status_not_null_close_null_bypass.sql` -- backfill any existing NULL row (none expected; handled defensively: `payment_status` indicating paid -> `confirmed`, else -> `pending`, matching the column's own existing fail-safe default and the app's paid-implies-confirmed convention), then `ALTER TABLE bookings ALTER COLUMN status SET NOT NULL`.
+
+**Verify:** re-ran the same harness after the fix -- Case 2 (identical supplier NULL-status tampering) now rejected outright with `not_null_violation`, not silently reverted; Case 3 confirmed the legitimate "release an unpaid hold" status update (-> `cancelled`) still works for both supplier and traveler; Case 4 confirmed migration 085's paid-booking cancellation-truth guard is unaffected; Case 5 confirmed a legitimate service-role status write is unaffected. **Mutation test:** re-ran the identical suite against a hand-mutated copy of migration 100 with the `ALTER COLUMN ... SET NOT NULL` statement removed -- Case 2 correctly failed (`Case 2 FAILED: supplier status=NULL tampering still succeeds`), confirming the test suite actually exercises the guard rather than passing vacuously. Full project `tsc --noEmit -p tsconfig.app.json` clean; full `vitest run` 603/603 green (unrelated to this SQL-only change, run to confirm no drift from concurrent work on the same branch this session observed in-flight).
+
+**Not this phase:** no application-code changes -- this is a schema-only, additive constraint tightening with a backfill that is a no-op against today's real data (the app has never written NULL here).
 
 ## Known remaining risks (ranked)
 

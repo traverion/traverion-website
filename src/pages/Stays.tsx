@@ -32,6 +32,10 @@ import {
   MarketplaceFilterSection,
 } from '../components/marketplace/MarketplaceFilterPanel';
 import {
+  MarketplaceFilterMenu,
+  MarketplaceSecondaryFilterRow,
+} from '../components/marketplace/MarketplaceFilterMenu';
+import {
   MarketplaceMobileSearchTrigger,
   MarketplaceSearchFields,
   MarketplaceSearchPill,
@@ -528,6 +532,93 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
     </>
   );
 
+  const sortControl = (
+    <MarketplaceSortSelect
+      value={sortBy}
+      onChange={(v) => setSortBy(parseMarketplaceSort(v) === 'duration' ? 'recommended' : parseMarketplaceSort(v))}
+      options={STAY_SORT_OPTIONS}
+    />
+  );
+
+  const typeSummary = propertyType !== 'all' && propertyType ? propertyType : null;
+  const priceSummary = priceRange !== 'all' ? priceChips.find((c) => c.id === priceRange)?.label ?? priceRange : null;
+  const ratingSummary =
+    ratingFilter !== 'all' ? RATING_FILTER_CHIPS.find((c) => c.id === ratingFilter)?.label ?? ratingFilter : null;
+  const amenitiesSummary =
+    selectedAmenities.length > 0
+      ? selectedAmenities.length === 1
+        ? selectedAmenities[0]
+        : `${selectedAmenities.length} selected`
+      : null;
+
+  const desktopFilters = (
+    <MarketplaceSecondaryFilterRow sortControl={sortControl}>
+      {propertyTypes.length > 0 ? (
+        <MarketplaceFilterMenu label="Type" summary={typeSummary} active={Boolean(typeSummary)}>
+          <MarketplaceFilterChipRow>
+            <MarketplaceFilterChip pressed={propertyType === 'all'} onClick={() => setPropertyType('all')}>
+              All
+            </MarketplaceFilterChip>
+            {propertyTypes.map((type) => (
+              <MarketplaceFilterChip
+                key={type}
+                pressed={propertyType.toLowerCase() === type.toLowerCase()}
+                onClick={() => setPropertyType(type)}
+              >
+                {type}
+              </MarketplaceFilterChip>
+            ))}
+          </MarketplaceFilterChipRow>
+        </MarketplaceFilterMenu>
+      ) : null}
+      <MarketplaceFilterMenu label="Price" summary={priceSummary} active={priceRange !== 'all'}>
+        <MarketplaceFilterChipRow>
+          {priceChips.map((chip) => (
+            <MarketplaceFilterChip
+              key={chip.id}
+              pressed={priceRange === chip.id}
+              onClick={() => setPriceRange(chip.id)}
+            >
+              {chip.label}
+            </MarketplaceFilterChip>
+          ))}
+        </MarketplaceFilterChipRow>
+      </MarketplaceFilterMenu>
+      <MarketplaceFilterMenu label="Rating" summary={ratingSummary} active={ratingFilter !== 'all'}>
+        <MarketplaceFilterChipRow>
+          {RATING_FILTER_CHIPS.map((chip) => (
+            <MarketplaceFilterChip
+              key={chip.id}
+              pressed={ratingFilter === chip.id}
+              onClick={() => setRatingFilter(chip.id)}
+            >
+              {chip.label}
+            </MarketplaceFilterChip>
+          ))}
+        </MarketplaceFilterChipRow>
+      </MarketplaceFilterMenu>
+      {amenityOptions.length > 0 ? (
+        <MarketplaceFilterMenu
+          label="Amenities"
+          summary={amenitiesSummary}
+          active={selectedAmenities.length > 0}
+        >
+          <MarketplaceFilterChipRow>
+            {amenityOptions.map((amenity) => (
+              <MarketplaceFilterChip
+                key={amenity}
+                pressed={selectedAmenities.includes(amenity)}
+                onClick={() => toggleAmenity(amenity)}
+              >
+                {amenity}
+              </MarketplaceFilterChip>
+            ))}
+          </MarketplaceFilterChipRow>
+        </MarketplaceFilterMenu>
+      ) : null}
+    </MarketplaceSecondaryFilterRow>
+  );
+
   return (
     <>
       <MarketplaceBrowseShell
@@ -585,6 +676,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
         onCloseFilters={closeMobileFilters}
         filterSheetRef={filterSheetRef}
         filterPanel={filterPanel}
+        desktopFilters={desktopFilters}
         filterFooter={
           <>
             {extraFilterCount > 0 ? (
@@ -607,13 +699,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
             </button>
           </>
         }
-        sortControl={
-          <MarketplaceSortSelect
-            value={sortBy}
-            onChange={(v) => setSortBy(parseMarketplaceSort(v) === 'duration' ? 'recommended' : parseMarketplaceSort(v))}
-            options={STAY_SORT_OPTIONS}
-          />
-        }
+        sortControl={sortControl}
         activeChips={
           hasActiveFilters ? (
             <div className="mb-4 flex flex-wrap items-center gap-2" aria-label="Active filters">
@@ -767,7 +853,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
                   reviewAggregate={reviewAggregates.get(item.id)}
                   tagLabels={{}}
                   showTagPills={false}
-                  size="default"
+                  size="compact"
                   stayStayTotal={
                     stayQuote?.ok
                       ? { nights: stayQuote.nights, total: stayQuote.totalAmount, currency: stayQuote.currency }
