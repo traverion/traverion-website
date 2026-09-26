@@ -48,7 +48,7 @@ const SECTIONS: SitemapSection[] = [
     items: [
       { label: 'Become an affiliate', page: 'affiliate' },
       { label: 'Become a content creator', page: 'content-creator' },
-      { label: 'Become a supplier', href: partnerPortalHomeHref },
+      { label: 'Partner portal (become a supplier)', href: partnerPortalHomeHref },
     ],
   },
 ];
@@ -72,8 +72,8 @@ export default function Sitemap({ onNavigate }: SitemapProps) {
     >
       <div className="not-prose mb-5 rounded-xl bg-finland/8 px-3.5 py-2.5 ring-1 ring-finland/15">
         <p className="text-sm text-ink leading-relaxed m-0">
-          Jump to any section below. Destinations open Home, where live places from operators are listed. Become a
-          supplier opens the Traverion Partner overview.
+          Jump to any section below. Destinations open Home, where live places from operators are listed. Partner
+          portal opens the supplier marketing site on partner.traverion.com — not a traveler account page.
         </p>
       </div>
 
