@@ -335,10 +335,11 @@ export default function BookingOptionEditor({
 
           {groupPricing ? (
             <div id="supplier-listing-field-price">
-              <label className="mb-1 block text-sm font-semibold text-ink">
+              <label htmlFor="booking-option-group-price" className="mb-1 block text-sm font-semibold text-ink">
                 Group price ({currencyLabel}) *
               </label>
               <input
+                id="booking-option-group-price"
                 type="number"
                 min={0}
                 step={1}
@@ -390,10 +391,11 @@ export default function BookingOptionEditor({
 
               {pricingMode === 'uniform' ? (
                 <div id="supplier-listing-field-price">
-                  <label className="mb-1 block text-sm font-semibold text-ink">
+                  <label htmlFor="booking-option-unit-price" className="mb-1 block text-sm font-semibold text-ink">
                     Price per person ({currencyLabel}) *
                   </label>
                   <input
+                    id="booking-option-unit-price"
                     type="number"
                     min={0}
                     step={1}
@@ -410,8 +412,11 @@ export default function BookingOptionEditor({
                         <div className="flex flex-wrap items-start justify-between gap-2">
                           <div className="min-w-0 flex-1 grid grid-cols-1 gap-2 sm:grid-cols-2">
                             <div>
-                              <label className="mb-1 block text-xs font-medium text-ink-muted">Category</label>
+                              <label htmlFor={`booking-option-cat-label-${c.id}`} className="mb-1 block text-xs font-medium text-ink-muted">
+                                Category
+                              </label>
                               <input
+                                id={`booking-option-cat-label-${c.id}`}
                                 type="text"
                                 value={c.label}
                                 onChange={(e) =>
@@ -425,10 +430,11 @@ export default function BookingOptionEditor({
                               />
                             </div>
                             <div>
-                              <label className="mb-1 block text-xs font-medium text-ink-muted">
+                              <label htmlFor={`booking-option-cat-price-${c.id}`} className="mb-1 block text-xs font-medium text-ink-muted">
                                 Price ({currencyLabel})
                               </label>
                               <input
+                                id={`booking-option-cat-price-${c.id}`}
                                 type="number"
                                 min={0}
                                 step={1}
@@ -447,7 +453,7 @@ export default function BookingOptionEditor({
                           <button
                             type="button"
                             onClick={() => removeCategory(c.id)}
-                            className="lc-btn-danger inline-flex min-h-[40px] items-center gap-1 rounded-lg px-2.5 py-2 text-xs font-medium"
+                            className="lc-btn-danger inline-flex min-h-[44px] items-center gap-1 rounded-lg px-2.5 py-2 text-xs font-medium"
                             aria-label={`Remove ${c.label || 'category'}`}
                           >
                             <Trash2 className="h-3.5 w-3.5" aria-hidden />
@@ -456,8 +462,11 @@ export default function BookingOptionEditor({
                         </div>
                         <div className="grid grid-cols-2 gap-2 sm:max-w-xs">
                           <div>
-                            <label className="mb-1 block text-xs font-medium text-ink-muted">Age from</label>
+                            <label htmlFor={`booking-option-cat-age-from-${c.id}`} className="mb-1 block text-xs font-medium text-ink-muted">
+                              Age from
+                            </label>
                             <input
+                              id={`booking-option-cat-age-from-${c.id}`}
                               type="number"
                               min={0}
                               max={120}
@@ -474,8 +483,11 @@ export default function BookingOptionEditor({
                             />
                           </div>
                           <div>
-                            <label className="mb-1 block text-xs font-medium text-ink-muted">Age to</label>
+                            <label htmlFor={`booking-option-cat-age-to-${c.id}`} className="mb-1 block text-xs font-medium text-ink-muted">
+                              Age to
+                            </label>
                             <input
+                              id={`booking-option-cat-age-to-${c.id}`}
                               type="number"
                               min={0}
                               max={120}
@@ -547,8 +559,11 @@ export default function BookingOptionEditor({
           <div id="supplier-listing-field-option-availability" className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-sm font-semibold text-ink">Starting date</label>
+                <label htmlFor="booking-option-date-from" className="mb-1 block text-sm font-semibold text-ink">
+                  Starting date
+                </label>
                 <input
+                  id="booking-option-date-from"
                   type="date"
                   value={option.availabilityDateFrom}
                   onChange={(e) => onChange({ availabilityDateFrom: e.target.value })}
@@ -574,6 +589,7 @@ export default function BookingOptionEditor({
                 </label>
                 {hasEndingDate ? (
                   <input
+                    id="booking-option-date-to"
                     type="date"
                     value={option.availabilityDateTo}
                     onChange={(e) => onChange({ availabilityDateTo: e.target.value })}
@@ -633,8 +649,11 @@ export default function BookingOptionEditor({
         >
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2" id="supplier-listing-field-group">
             <div>
-              <label className="mb-1 block text-sm font-semibold text-ink">Min guests per booking *</label>
+              <label htmlFor="booking-option-min-guests" className="mb-1 block text-sm font-semibold text-ink">
+                Min guests per booking *
+              </label>
               <input
+                id="booking-option-min-guests"
                 type="number"
                 min={1}
                 value={option.minPersons || ''}
@@ -649,8 +668,11 @@ export default function BookingOptionEditor({
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-semibold text-ink">Max guests per booking *</label>
+              <label htmlFor="booking-option-max-guests" className="mb-1 block text-sm font-semibold text-ink">
+                Max guests per booking *
+              </label>
               <input
+                id="booking-option-max-guests"
                 type="number"
                 min={1}
                 value={option.maxPersons || ''}
@@ -667,8 +689,11 @@ export default function BookingOptionEditor({
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-semibold text-ink">Max spots per start time *</label>
+            <label htmlFor="booking-option-max-spots" className="mb-1 block text-sm font-semibold text-ink">
+              Max spots per start time *
+            </label>
             <input
+              id="booking-option-max-spots"
               type="number"
               min={1}
               value={option.maxSpotsPerSlot || ''}
