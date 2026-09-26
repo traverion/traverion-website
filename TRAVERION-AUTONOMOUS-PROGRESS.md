@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `2c6ec5d`  
-**Current phase:** 829  
+**Current SHA:** `1a173ce`  
+**Current phase:** 830  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -240,6 +240,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 827 | Stay detail wider canvas + gallery + booking panel | `e45c4e3` |
 | 828 | Tour reviews See all modal with star filters | `4b8b910` |
 | 829 | Stay reviews See all modal | `2c6ec5d` |
+| 830 | Traveler account dashboard wider desktop | `1a173ce` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -4121,6 +4122,10 @@ Stay detail matches tour marketplace shell: `max-w-[90rem]`, mosaic gallery, sof
 ### Phase 829 — Stay reviews: See all modal
 
 Stay detail uses shared `ListingReviewsModal` (preview 3 + See all). Same filters/sort as tours. Real reviews only.
+
+### Phase 830 — Traveler account dashboard (wider desktop)
+
+Account page uses `max-w-[90rem]` two-column desktop: Your travel tiles + security | profile form. No fake settings. Existing profile persistence unchanged.
 
 ## Known remaining risks (ranked)
 

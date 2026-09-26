@@ -213,198 +213,202 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
 
   return (
     <div className="min-h-screen bg-paper tv-page">
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 pb-12">
-        <header className="mb-5 tv-card p-4 sm:p-5">
+      <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-14">
+        <header className="mb-8 sm:mb-10">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Traveler</p>
-          <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Account</h1>
-          <p className="mt-2 break-words text-sm text-ink-muted [overflow-wrap:anywhere]" title={user.email ?? undefined}>
+          <h1 className="font-display text-3xl sm:text-4xl lg:text-[2.75rem] text-ink tracking-tight">Account</h1>
+          <p className="mt-2 max-w-2xl break-words text-base text-ink-muted [overflow-wrap:anywhere]" title={user.email ?? undefined}>
             {displayName.trim() || user.email}
           </p>
           {displayName.trim() && user.email ? (
-            <p className="mt-0.5 break-all text-xs text-ink-faint [overflow-wrap:anywhere]">{user.email}</p>
+            <p className="mt-0.5 break-all text-sm text-ink-faint [overflow-wrap:anywhere]">{user.email}</p>
           ) : null}
         </header>
 
-        <section className="mb-10">
-          <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint mb-4">Profile</h2>
-          {profileLoading ? (
-            <div
-              className="tv-card p-5 sm:p-6"
-              aria-busy="true"
-              aria-label="Loading profile"
-            >
-              <SkeletonFormFields count={3} />
-            </div>
-          ) : (
-            <form
-              className="space-y-4 max-w-lg tv-card p-5 sm:p-6"
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (!user?.id) return;
-                setProfileSaving(true);
-                setProfileMessage(null);
-                void (async () => {
-                  const digits = normalizeConsumerPhone(phone).replace(/\D/g, '');
-                  if (digits.length > 0 && digits.length < 9) {
-                    setProfileMessage({ kind: 'err', text: 'Enter a valid phone number (at least 9 digits), or leave it blank.' });
-                    setProfileSaving(false);
-                    return;
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-12 xl:gap-16">
+          <div className="min-w-0 space-y-10">
+            <section>
+              <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint mb-3">Your travel</h2>
+              {statsError ? (
+                <ErrorState
+                  className="mb-4 py-4"
+                  title="Could not load your trips"
+                  body={statsError}
+                  retry={{ onClick: () => void loadStats() }}
+                  extra={
+                    <button type="button" onClick={() => onNavigate('contact')} className="tv-btn-ghost">
+                      Contact support
+                    </button>
                   }
-                  const res = await saveConsumerProfile(user.id, { displayName, phone });
-                  setProfileSaving(false);
-                  if (res.success) {
-                    setProfileMessage({ kind: 'ok', text: 'Profile saved.' });
-                    await loadProfile();
-                  } else {
-                    setProfileMessage({ kind: 'err', text: userFacingError(res.error, 'Could not save.') });
-                  }
-                })();
-              }}
-            >
-              <div>
-                <label htmlFor="account-email" className="block text-sm font-medium text-ink mb-1">
-                  Email
-                </label>
-                <input
-                  id="account-email"
-                  type="email"
-                  value={user.email ?? ''}
-                  readOnly
-                  className="tv-input bg-black/[0.03] text-ink-muted"
                 />
-                <p className="text-xs text-ink-faint mt-1">Sign-in email — change via password reset or support.</p>
-              </div>
-              <div>
-                <label htmlFor="account-display-name" className="block text-sm font-medium text-ink mb-1">
-                  Display name
-                </label>
-                <input
-                  id="account-display-name"
-                  type="text"
-                  name="name"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  autoComplete="name"
-                  className="tv-input"
-                  placeholder="Your name"
-                />
-              </div>
-              <div>
-                <label htmlFor="account-phone" className="block text-sm font-medium text-ink mb-1">
-                  Phone <span className="font-normal text-ink-faint">(optional)</span>
-                </label>
-                <input
-                  id="account-phone"
-                  type="tel"
-                  name="tel"
-                  inputMode="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  autoComplete="tel"
-                  className="tv-input"
-                  placeholder="+358 40 123 4567"
-                />
-              </div>
-              {profileMessage ? (
-                <NoticeCallout
-                  title={profileMessage.kind === 'ok' ? 'Saved' : 'Could not save'}
-                  tone={profileMessage.kind === 'ok' ? 'success' : 'danger'}
-                >
-                  {profileMessage.text}
-                </NoticeCallout>
               ) : null}
-              <button type="submit" disabled={profileSaving} className="tv-btn-primary">
-                {profileSaving ? 'Saving…' : 'Save profile'}
+              <ul className="grid gap-2 sm:grid-cols-2">
+                {tiles.map((tile) => {
+                  const Icon = tile.icon;
+                  return (
+                    <li key={tile.id}>
+                      <button
+                        type="button"
+                        onClick={tile.onClick}
+                        className="lux-flat group flex w-full min-h-[4.25rem] items-center gap-3 rounded-2xl bg-paper-raised px-4 py-3.5 text-left ring-1 ring-black/[0.06] hover:ring-finland/25 shadow-soft"
+                      >
+                        <span
+                          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
+                            tile.id === 'wishlist'
+                              ? 'bg-rose-50 text-rose-800 ring-1 ring-rose-100'
+                              : 'bg-finland/[0.08] text-finland ring-1 ring-finland/15'
+                          }`}
+                        >
+                          <Icon className="w-5 h-5" strokeWidth={tile.id === 'wishlist' ? 2 : 1.75} />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-center justify-between gap-2">
+                            <span className="font-semibold text-ink">{tile.title}</span>
+                            {tile.count != null ? (
+                              <span className="text-sm tabular-nums font-semibold text-ink-muted">{tile.count}</span>
+                            ) : statsLoading ? (
+                              <span className="h-4 w-6 animate-pulse rounded bg-black/[0.06]" aria-hidden />
+                            ) : null}
+                          </span>
+                          <span className="mt-0.5 block text-sm text-ink-muted">{tile.description}</span>
+                        </span>
+                        <ChevronRight className="w-4 h-4 shrink-0 text-ink-faint transition-transform group-hover:translate-x-0.5 group-hover:text-finland" />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+              <p className="mt-3 text-xs text-ink-muted leading-relaxed max-w-lg">
+                Messages with hosts live on each trip — open{' '}
+                <button type="button" onClick={() => onNavigate('bookings')} className="font-semibold text-finland hover:underline">
+                  Trips
+                </button>{' '}
+                to read and reply.
+              </p>
+            </section>
+
+            <section className="rounded-2xl bg-paper-raised p-5 sm:p-6 ring-1 ring-black/[0.06]">
+              <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint mb-2">Security</h2>
+              <p className="text-sm text-ink-muted leading-relaxed max-w-lg">
+                You are signed in as this traveler. Signing out does not change bookings.
+              </p>
+              <button
+                type="button"
+                disabled={signingOut}
+                className="tv-btn-secondary mt-4 disabled:opacity-50"
+                onClick={() => {
+                  setSigningOut(true);
+                  void signOut().finally(() => {
+                    onNavigate('home');
+                  });
+                }}
+              >
+                {signingOut ? 'Signing out…' : 'Sign out'}
               </button>
-            </form>
-          )}
-        </section>
+            </section>
 
-        <section className="mb-10">
-          <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint mb-3">Your travel</h2>
-          {statsError ? (
-            <ErrorState
-              className="mb-4 py-4"
-              title="Could not load your trips"
-              body={statsError}
-              retry={{ onClick: () => void loadStats() }}
-              extra={
-                <button type="button" onClick={() => onNavigate('contact')} className="tv-btn-ghost">
-                  Contact support
-                </button>
-              }
-            />
-          ) : null}
-          <ul className="space-y-1.5">
-            {tiles.map((tile) => {
-              const Icon = tile.icon;
-              return (
-                <li key={tile.id}>
-                  <button
-                    type="button"
-                    onClick={tile.onClick}
-                    className="lux-flat group flex w-full min-h-[3.25rem] items-center gap-3 rounded-xl bg-paper-raised px-3.5 py-3 text-left ring-1 ring-black/[0.06] hover:ring-finland/25"
+            <p>
+              <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-ghost -ml-2">
+                Browse tours
+              </button>
+            </p>
+          </div>
+
+          <section className="min-w-0">
+            <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint mb-4">Your profile</h2>
+            {profileLoading ? (
+              <div
+                className="rounded-2xl bg-paper-raised p-5 sm:p-6 ring-1 ring-black/[0.06]"
+                aria-busy="true"
+                aria-label="Loading profile"
+              >
+                <SkeletonFormFields count={3} />
+              </div>
+            ) : (
+              <form
+                className="space-y-4 rounded-2xl bg-paper-raised p-5 sm:p-6 ring-1 ring-black/[0.06] shadow-soft"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!user?.id) return;
+                  setProfileSaving(true);
+                  setProfileMessage(null);
+                  void (async () => {
+                    const digits = normalizeConsumerPhone(phone).replace(/\D/g, '');
+                    if (digits.length > 0 && digits.length < 9) {
+                      setProfileMessage({ kind: 'err', text: 'Enter a valid phone number (at least 9 digits), or leave it blank.' });
+                      setProfileSaving(false);
+                      return;
+                    }
+                    const res = await saveConsumerProfile(user.id, { displayName, phone });
+                    setProfileSaving(false);
+                    if (res.success) {
+                      setProfileMessage({ kind: 'ok', text: 'Profile saved.' });
+                      await loadProfile();
+                    } else {
+                      setProfileMessage({ kind: 'err', text: userFacingError(res.error, 'Could not save.') });
+                    }
+                  })();
+                }}
+              >
+                <div>
+                  <label htmlFor="account-email" className="block text-sm font-medium text-ink mb-1">
+                    Email
+                  </label>
+                  <input
+                    id="account-email"
+                    type="email"
+                    value={user.email ?? ''}
+                    readOnly
+                    className="tv-input bg-black/[0.03] text-ink-muted"
+                  />
+                  <p className="text-xs text-ink-faint mt-1">Sign-in email — change via password reset or support.</p>
+                </div>
+                <div>
+                  <label htmlFor="account-display-name" className="block text-sm font-medium text-ink mb-1">
+                    Display name
+                  </label>
+                  <input
+                    id="account-display-name"
+                    type="text"
+                    name="name"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    autoComplete="name"
+                    className="tv-input"
+                    placeholder="Your name"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="account-phone" className="block text-sm font-medium text-ink mb-1">
+                    Phone <span className="font-normal text-ink-faint">(optional)</span>
+                  </label>
+                  <input
+                    id="account-phone"
+                    type="tel"
+                    name="tel"
+                    inputMode="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    autoComplete="tel"
+                    className="tv-input"
+                    placeholder="+358 40 123 4567"
+                  />
+                </div>
+                {profileMessage ? (
+                  <NoticeCallout
+                    title={profileMessage.kind === 'ok' ? 'Saved' : 'Could not save'}
+                    tone={profileMessage.kind === 'ok' ? 'success' : 'danger'}
                   >
-                    <span
-                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                        tile.id === 'wishlist'
-                          ? 'bg-rose-50 text-rose-800 ring-1 ring-rose-100'
-                          : 'bg-finland/[0.08] text-finland ring-1 ring-finland/15'
-                      }`}
-                    >
-                      <Icon className="w-4 h-4" strokeWidth={tile.id === 'wishlist' ? 2 : 1.75} />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-center justify-between gap-2">
-                        <span className="font-semibold text-ink text-sm">{tile.title}</span>
-                        {tile.count != null ? (
-                          <span className="text-sm tabular-nums font-semibold text-ink-muted">{tile.count}</span>
-                        ) : statsLoading ? (
-                          <span className="h-4 w-6 animate-pulse rounded bg-black/[0.06]" aria-hidden />
-                        ) : null}
-                      </span>
-                      <span className="mt-0.5 block text-xs text-ink-muted">{tile.description}</span>
-                    </span>
-                    <ChevronRight className="w-4 h-4 shrink-0 text-ink-faint transition-transform group-hover:translate-x-0.5 group-hover:text-finland" />
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-          <p className="mt-3 text-xs text-ink-muted leading-relaxed">
-            Messages with hosts live on each trip — open{' '}
-            <button type="button" onClick={() => onNavigate('bookings')} className="font-semibold text-finland hover:underline">
-              Trips
-            </button>{' '}
-            to read and reply.
-          </p>
-        </section>
-
-        <section className="tv-card p-4 sm:p-5">
-          <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint mb-2">Security</h2>
-          <p className="text-sm text-ink-muted leading-relaxed">
-            You are signed in as this traveler. Signing out does not change bookings.
-          </p>
-          <button
-            type="button"
-            disabled={signingOut}
-            className="tv-btn-secondary mt-4 disabled:opacity-50"
-            onClick={() => {
-              setSigningOut(true);
-              void signOut().finally(() => {
-                onNavigate('home');
-              });
-            }}
-          >
-            {signingOut ? 'Signing out…' : 'Sign out'}
-          </button>
-        </section>
-
-        <p className="mt-8">
-          <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-ghost -ml-2">
-            Browse tours
-          </button>
-        </p>
+                    {profileMessage.text}
+                  </NoticeCallout>
+                ) : null}
+                <button type="submit" disabled={profileSaving} className="tv-btn-primary">
+                  {profileSaving ? 'Saving…' : 'Save profile'}
+                </button>
+              </form>
+            )}
+          </section>
+        </div>
       </div>
     </div>
   );
