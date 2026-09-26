@@ -2,7 +2,7 @@
  * Minimal post–Stripe Checkout screen for one booking (no site header/footer).
  * Stripe redirects here with ?session_id=cs_…; we resolve the row via RLS.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle, Calendar, Users, Loader2, LogIn, Copy, Check } from 'lucide-react';
 import { Skeleton } from '../components/ui/Skeleton';
 import ErrorState from '../components/ErrorState';
@@ -85,6 +85,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
   const [payingNow, setPayingNow] = useState(false);
   const [payNowError, setPayNowError] = useState<string | null>(null);
   const [copiedRef, setCopiedRef] = useState(false);
+  const loadGenRef = useRef(0);
 
   const canQuery = Boolean(user?.id && sessionId && isSupabaseConfigured());
 
@@ -98,9 +99,11 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
       return;
     }
     if (!user?.id) return;
+    const gen = ++loadGenRef.current;
     setError(null);
     try {
       const row = await fetchMyBookingByCheckoutSessionId(sessionId);
+      if (gen !== loadGenRef.current) return;
       if (!row) {
         setBooking(null);
         setListingTitle('');
@@ -112,6 +115,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
       setBooking(row);
       if (row.listing_id) {
         const ops = await fetchListingOpsByIds([row.listing_id]);
+        if (gen !== loadGenRef.current) return;
         const meta = ops[row.listing_id];
         setListingTitle(
           displayListingTitleFromPurchase(
@@ -134,6 +138,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
         );
         try {
           const listing = await fetchListingById(row.listing_id);
+          if (gen !== loadGenRef.current) return;
           const opts = travelerFacingBookingOptions(listing?.listingExtras?.bookingOptions);
           const match =
             (row.booking_option_id
@@ -143,6 +148,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
             displayOptionLabelFromPurchase(row.purchase_snapshot, match?.name?.trim() || '')
           );
         } catch {
+          if (gen !== loadGenRef.current) return;
           setOptionLabel(displayOptionLabelFromPurchase(row.purchase_snapshot, ''));
         }
       } else {
@@ -151,6 +157,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
         setPickupPending(false);
       }
     } catch (e) {
+      if (gen !== loadGenRef.current) return;
       setError(userFacingError(e, USER_ERROR.booking));
     }
   }, [sessionId, user?.id]);

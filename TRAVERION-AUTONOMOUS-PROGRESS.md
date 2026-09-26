@@ -3333,7 +3333,7 @@ Availability / paid-guest fetchers returned empty on error → calendars underst
 
 ### Phase 676 — Account: ignore stale stats/profile after account switch
 
-`loadStats` / `loadProfile` applied results without a generation guard — switching accounts could show prior counts/name. Add `statsGenRef` / `profileGenRef`.
+`loadStats` / `loadProfile` applied results without a generation guard — switching accounts could show prior counts/name. Add `statsGenRef` / `profileGenRef`. Also set `inputMode="tel"` on the phone field.
 
 ### Phase 677 — TourDetails: cancel stale review eligibility
 
@@ -3343,25 +3343,13 @@ Availability / paid-guest fetchers returned empty on error → calendars underst
 
 Tour/Stay review Title/Comment lacked `htmlFor`/`id`; star buttons were ~28px. Wire labels and enlarge tap targets.
 
-### Phase 679 — Header mobile: aria-current + type=button
+### Phase 679 — Header mobile a11y + unread labels + profile focus
 
-Mobile nav lacked `aria-current="page"` and several buttons omitted `type="button"`.
+Mobile nav lacked `aria-current` / `type="button"`; unread trip dots were visual-only; profile used `role="menu"` without menuitems. Fix current page, button types, aria-labels, and dialog focus trap.
 
-### Phase 680 — Header: unread trip signals for screen readers
-
-Unread dots on Trips/Profile were visual-only. Add `aria-label` variants and `aria-hidden` on decorative dots.
-
-### Phase 681 — Header profile panel: dialog focus trap
-
-Profile dropdown used `role="menu"` without menuitems. Switch to `role="dialog"` + `useDialogFocus`.
-
-### Phase 682 — Confirmation: ignore stale booking load on account switch
+### Phase 680 — Confirmation: ignore stale booking load on account switch
 
 Payment confirmation `load()` could apply a prior account’s booking after switch. Guard with `loadGenRef`.
-
-### Phase 683 — Account phone: inputMode=tel
-
-Phone field had autocomplete but not `inputMode="tel"` for mobile keyboards.
 
 ## Known remaining risks (ranked)
 
