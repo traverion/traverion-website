@@ -72,7 +72,7 @@ export default function SupplierPerformance() {
     } else {
       setBookings([]);
     }
-    if (settled[0].status === 'rejected' && settled[1].status === 'rejected') {
+    if (settled[0].status === 'rejected' || settled[1].status === 'rejected') {
       setError(PERFORMANCE_LOAD_ERROR);
     }
     setLoading(false);

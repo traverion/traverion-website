@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `6f4fad5`  
-**Current phase:** 653  
+**Current SHA:** `c694040`  
+**Current phase:** 654  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -149,6 +149,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 651 | Partner Reviews empty only when load succeeded | `2c5bad1` |
 | 652 | TourDetails ignore stale listing fetch | `52f25be` |
 | 653 | Partner modal shell dialog focus trap | `6f4fad5` |
+| 654 | Performance error if either fetch fails | `c694040` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3222,6 +3223,12 @@ Fast tour→tour navigation could apply a late `getListingByIdAsync` for the pre
 **Problem:** `SupplierModalShell` only listened for Escape — no `role="dialog"`, `aria-modal`, or focus trap (Trips cancel sheet already used `useDialogFocus`).
 
 **Fix:** Wire `useDialogFocus` + dialog semantics on the panel for Inbox/Bookings/etc. sheets.
+
+### Phase 654 — Performance: error if either listings or bookings fail
+
+**Problem:** `Promise.allSettled` only set error when **both** legs rejected, so half-loaded KPIs could render silently.
+
+**Fix:** Surface `PERFORMANCE_LOAD_ERROR` when either fetch rejects.
 
 ## Known remaining risks (ranked)
 
