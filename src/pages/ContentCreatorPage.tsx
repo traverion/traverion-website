@@ -187,6 +187,7 @@ export default function ContentCreatorPage({ onNavigate }: ContentCreatorPagePro
               <input
                 id="cc-phone"
                 type="tel"
+                inputMode="tel"
                 value={formData.phone}
                 onChange={(e) => setFormData((p) => ({ ...p, phone: e.target.value }))}
                 className="tv-input"

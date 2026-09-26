@@ -291,7 +291,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
               </div>
               <div>
                 <label htmlFor="account-phone" className="block text-sm font-medium text-ink mb-1">
-                  Phone
+                  Phone <span className="font-normal text-ink-faint">(optional)</span>
                 </label>
                 <input
                   id="account-phone"
