@@ -72,7 +72,7 @@ import {
 
 interface MyBookingsProps {
   onNavigate: (page: string) => void;
-  onTourSelect?: (tour: { id: string }) => void;
+  onTourSelect?: (tour: { id: string; listingExtras?: { inventoryFamily?: 'tour' | 'stay' } }) => void;
 }
 
 function extractPlaceOfStay(notes: string | null | undefined): string {
@@ -948,7 +948,17 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     {onTourSelect && (
                       <button
                         type="button"
-                        onClick={() => onTourSelect({ id: b.listing_id })}
+                        onClick={() => {
+                          const isStay = Boolean(
+                            b.check_out || parseStayCheckOutFromNotes(b.special_requests)
+                          );
+                          onTourSelect({
+                            id: b.listing_id,
+                            ...(isStay
+                              ? { listingExtras: { inventoryFamily: 'stay' as const } }
+                              : {}),
+                          });
+                        }}
                         className="tv-btn-ghost"
                       >
                         {b.check_out || parseStayCheckOutFromNotes(b.special_requests) ? 'View stay' : 'View tour'}

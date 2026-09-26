@@ -492,6 +492,26 @@ function App() {
     if (listingIsFamily(tour, 'stay')) {
       setSelectedTour(tour);
       setCurrentPage('stay-details');
+      // Hydrate full stay row when Trips only passed an id + family hint.
+      if (!tour.title) {
+        void getListingByIdAsync(tour.id).then((full) => {
+          if (full) setSelectedTour(full);
+        });
+      }
+      return;
+    }
+    if (!tour.title) {
+      void getListingByIdAsync(tour.id).then((full) => {
+        if (!full) return;
+        if (listingIsFamily(full, 'stay')) {
+          setSelectedTour(full);
+          setCurrentPage('stay-details');
+          return;
+        }
+        if (!listingIsOnTravelerCatalog(full)) return;
+        setSelectedTour(full);
+        setCurrentPage('tour-details');
+      });
       return;
     }
     if (!listingIsOnTravelerCatalog(tour)) return;
