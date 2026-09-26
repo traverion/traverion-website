@@ -805,6 +805,11 @@ export default function SupplierBookings({
           title="Bookings unavailable"
           body={userFacingError(error, USER_ERROR.bookings)}
           retry={{ onClick: () => void load() }}
+          extra={
+            <a href="/contact" className="tv-btn-ghost inline-flex">
+              Contact support
+            </a>
+          }
         />
       )}
 
