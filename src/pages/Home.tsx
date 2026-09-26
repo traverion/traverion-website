@@ -26,6 +26,14 @@ import { prefetchPackagesPage } from '../lib/routePrefetch';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 import { addCalendarDays } from '../lib/stayOccupancy';
 import { useDialogFocus } from '../hooks/useDialogFocus';
+import {
+  recordTravelerInterest,
+  readTravelerInterestSignals,
+  scoreListingFromInterest,
+  sortListingsByInterest,
+  topDestinationInterestLabel,
+  type TravelerInterestSignal,
+} from '../lib/traveler-interest';
 
 const TAG_LABELS: Record<string, string> = {
   'free-cancellation': 'Free cancellation',
@@ -78,7 +86,40 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
       .slice(0, 8);
   }, [allListings, stayListings]);
 
-  const displayedListings = useMemo(() => allListings.slice(0, MAX_RESULTS_HOME), [allListings]);
+  const [interestSignals, setInterestSignals] = useState<TravelerInterestSignal[]>([]);
+  useEffect(() => {
+    setInterestSignals(readTravelerInterestSignals());
+  }, []);
+
+  const openListing = useCallback(
+    (tour: TourPackage) => {
+      const family = listingIsFamily(tour, 'stay') ? 'stay' : 'tour';
+      recordTravelerInterest({ kind: 'listing_view', key: tour.id, family });
+      if (tour.city) {
+        recordTravelerInterest({ kind: 'destination_view', key: tour.city, family: 'destination' });
+      }
+      setInterestSignals(readTravelerInterestSignals());
+      onTourSelect(tour);
+    },
+    [onTourSelect]
+  );
+
+  const displayedListings = useMemo(() => {
+    const ranked = sortListingsByInterest(allListings, (item) =>
+      scoreListingFromInterest({
+        listingId: item.id,
+        city: item.city,
+        country: item.country,
+        destination: item.destination,
+        family: 'tour',
+        signals: interestSignals,
+      })
+    );
+    return ranked.slice(0, MAX_RESULTS_HOME);
+  }, [allListings, interestSignals]);
+  const interestPlace = useMemo(() => topDestinationInterestLabel(interestSignals), [interestSignals]);
+  const toursSectionTitle = interestPlace ? `Because you explored ${interestPlace}` : 'What can I book?';
+  const toursSectionEyebrow = interestPlace ? 'For you' : 'Experiences';
   const featuredListing = displayedListings[0];
   const featuredSrc = featuredListing ? listingHeroImageSrc(featuredListing.image) : undefined;
 
@@ -154,6 +195,15 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
   const submitSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setMobileSearchOpen(false);
+    const q = searchTerm.trim();
+    if (q) {
+      recordTravelerInterest({
+        kind: 'search',
+        key: q,
+        family: searchFamily === 'stays' ? 'stay' : 'tour',
+      });
+      setInterestSignals(readTravelerInterestSignals());
+    }
     if (searchFamily === 'stays') goToStays();
     else goToPackages();
   };
@@ -407,9 +457,15 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                     key={p.id}
                     type="button"
                     aria-label={countLabel ? `${p.label}, ${countLabel}` : p.label}
-                    onClick={() =>
-                      onNavigate ? onNavigate(`destinations/${p.id}`) : goToPackages({ destination: p.id })
-                    }
+                    onClick={() => {
+                      recordTravelerInterest({
+                        kind: 'destination_view',
+                        key: p.label,
+                        family: 'destination',
+                      });
+                      setInterestSignals(readTravelerInterestSignals());
+                      onNavigate ? onNavigate(`destinations/${p.id}`) : goToPackages({ destination: p.id });
+                    }}
                     className="tv-dest-tile lux-flat focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
                   >
                     <img src={img} alt="" loading="lazy" decoding="async" />
@@ -465,9 +521,13 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         <div className="tv-content">
           <div className="flex items-end justify-between gap-3 mb-5">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Experiences</p>
-              <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">What can I book?</h2>
-              <p className="mt-2 text-sm text-ink-muted">Tours published by operators on Traverion.</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">{toursSectionEyebrow}</p>
+              <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">{toursSectionTitle}</h2>
+              <p className="mt-2 text-sm text-ink-muted">
+                {interestPlace
+                  ? 'Ranked from your recent browsing on this device — still only published tours.'
+                  : 'Tours published by operators on Traverion.'}
+              </p>
             </div>
             {!catalogLoading && !listingsError && allListings.length > 0 ? (
               <button
@@ -513,7 +573,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
               {featuredListing ? (
                 <button
                   type="button"
-                  onClick={() => onTourSelect(featuredListing)}
+                  onClick={() => openListing(featuredListing)}
                   className="lux-flat relative w-full h-[12rem] sm:h-[15rem] rounded-2xl overflow-hidden mb-3.5 text-left group bg-ink"
                 >
                   {featuredSrc ? (
@@ -555,7 +615,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                     key={item.id}
                     tour={item}
                     index={index}
-                    onSelect={() => onTourSelect(item)}
+                    onSelect={() => openListing(item)}
                     discountsByListing={discountsByListing}
                     reviewAggregate={reviewAggregates.get(item.id)}
                     tagLabels={TAG_LABELS}
@@ -624,7 +684,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                   key={item.id}
                   tour={item}
                   index={index}
-                  onSelect={() => onTourSelect(item)}
+                  onSelect={() => openListing(item)}
                   discountsByListing={new Map()}
                   reviewAggregate={reviewAggregates.get(item.id)}
                   tagLabels={{}}

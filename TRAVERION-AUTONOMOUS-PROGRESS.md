@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `858b7ce`  
-**Current phase:** 807  
+**Current SHA:** `c68f1b8`  
+**Current phase:** 808  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -218,6 +218,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 805 | Global visual foundation checkpoint 801-805 | `8133328` |
 | 806 | Compact destination discovery strip | `75b7e6d` |
 | 807 | Denser homepage listing discovery + section rhythm | `858b7ce` |
+| 808 | First-party interest signals + homepage ranking | `c68f1b8` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3974,6 +3975,10 @@ Cookies and marketing preferences: 7\n```
 **Problem:** Featured tour hero and catalog cards consumed too much viewport; sections blended.
 
 **Fix:** `HOME_DISCOVERY_GRID_CLASS` (2/3/4 cols), compact cards, shorter featured hero, muted/divider section rhythm, refined Why Traverion surfaces. Still real inventory only.
+
+### Phase 808 — First-party interest signals + honest homepage ranking
+
+**Foundation:** `traveler-interest.ts` records listing_view / destination_view / search / wishlist_save in localStorage (memory fallback). Deterministic scoring ranks homepage tours; when destination affinity exists, section becomes “Because you explored …”. Unknown users keep catalog discovery. Vitest 3/3. No invented personalization.
 
 ## Known remaining risks (ranked)
 
