@@ -271,7 +271,7 @@ export default function AuthModal() {
                     setSuccessMessage(null);
                     exitModalPasswordReset();
                   }}
-                  className={`lux-flat flex-1 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+                  className={`lux-flat flex-1 rounded-full px-3 min-h-11 py-2 text-sm font-medium transition-colors ${
                     tab === 'signin'
                       ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
                       : 'text-ink-muted hover:text-finland'
@@ -287,7 +287,7 @@ export default function AuthModal() {
                     setSuccessMessage(null);
                     exitModalPasswordReset();
                   }}
-                  className={`lux-flat flex-1 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+                  className={`lux-flat flex-1 rounded-full px-3 min-h-11 py-2 text-sm font-medium transition-colors ${
                     tab === 'signup'
                       ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
                       : 'text-ink-muted hover:text-finland'
@@ -449,6 +449,7 @@ export default function AuthModal() {
                     id="auth-phone"
                     type="tel"
                     name="tel"
+                    inputMode="tel"
                     value={phoneNumber}
                     onChange={(e) => {
                       setPhoneNumber(e.target.value);
@@ -502,7 +503,7 @@ export default function AuthModal() {
                       />
                       <button
                         type="button"
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 lux-flat p-1.5 text-ink-muted hover:text-ink"
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 lux-flat lux-tap-target min-h-11 min-w-11 inline-flex items-center justify-center p-1.5 text-ink-muted hover:text-ink"
                         onClick={() => setShowPassword((v) => !v)}
                         aria-label={showPassword ? 'Hide password' : 'Show password'}
                       >
@@ -542,7 +543,7 @@ export default function AuthModal() {
                       />
                       <button
                         type="button"
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 lux-flat p-1.5 text-ink-muted hover:text-ink"
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 lux-flat lux-tap-target min-h-11 min-w-11 inline-flex items-center justify-center p-1.5 text-ink-muted hover:text-ink"
                         onClick={() => setShowConfirmPassword((v) => !v)}
                         aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
                       >
@@ -584,7 +585,7 @@ export default function AuthModal() {
                     />
                     <button
                       type="button"
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 lux-flat p-1.5 text-ink-muted hover:text-ink"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 lux-flat lux-tap-target min-h-11 min-w-11 inline-flex items-center justify-center p-1.5 text-ink-muted hover:text-ink"
                       onClick={() => setShowPassword((v) => !v)}
                       aria-label={showPassword ? 'Hide password' : 'Show password'}
                     >
