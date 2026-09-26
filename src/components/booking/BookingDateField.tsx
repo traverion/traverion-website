@@ -1,7 +1,6 @@
-import { useCallback, useRef } from 'react';
-import { Calendar } from 'lucide-react';
 import { formatBookingDateDisplay } from '../../lib/booking-flow';
 import { localYmd } from '../../lib/local-ymd';
+import { TraverionSingleDateField } from '../calendar/TraverionSingleDateField';
 
 export type BookingDateFieldProps = {
   id: string;
@@ -13,20 +12,9 @@ export type BookingDateFieldProps = {
   hint?: string;
 };
 
-function openNativeDatePicker(el: HTMLInputElement | null) {
-  if (!el) return;
-  if (typeof el.showPicker === 'function') {
-    try {
-      el.showPicker();
-      return;
-    } catch {
-      /* Safari / unsupported */
-    }
-  }
-  el.focus();
-  el.click();
-}
-
+/**
+ * Traveler booking date field — Traverion calendar popover (no native date chrome).
+ */
 export default function BookingDateField({
   id,
   label = 'Date',
@@ -36,56 +24,18 @@ export default function BookingDateField({
   className = '',
   hint,
 }: BookingDateFieldProps) {
-  const internalRef = useRef<HTMLInputElement>(null);
   const displayLabel = value.trim() ? formatBookingDateDisplay(value) : '';
-
-  const openPicker = useCallback(() => {
-    openNativeDatePicker(internalRef.current);
-  }, []);
 
   return (
     <div className={className}>
-      <label htmlFor={id} className="mb-1.5 block text-sm font-medium tracking-tight text-ink">
-        {label}
-      </label>
-      <div
-        className="group relative cursor-pointer overflow-hidden rounded-xl bg-paper-raised shadow-[0_0_0_1px_rgba(28,25,23,0.08)] transition-[box-shadow] duration-150 hover:shadow-[0_0_0_1px_rgba(0,53,128,0.28)] focus-within:shadow-[0_0_0_2px_rgba(0,53,128,0.35)]"
-        onClick={openPicker}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            openPicker();
-          }
-        }}
-        role="presentation"
-      >
-        <Calendar
-          className="pointer-events-none absolute right-3.5 top-1/2 z-[2] h-5 w-5 -translate-y-1/2 text-finland/70 transition-colors duration-200 group-hover:text-finland group-focus-within:text-finland"
-          aria-hidden
-        />
-        {!value.trim() && (
-          <span
-            className="pointer-events-none absolute left-4 top-1/2 z-[1] -translate-y-1/2 text-sm text-ink-faint select-none"
-            aria-hidden
-          >
-            Select a date
-          </span>
-        )}
-        <input
+      <div className="rounded-xl bg-paper-raised px-3.5 py-2 ring-1 ring-black/[0.06] transition-[box-shadow] duration-150 hover:ring-finland/25 focus-within:ring-2 focus-within:ring-finland/35">
+        <TraverionSingleDateField
           id={id}
-          ref={internalRef}
-          type="date"
+          label={label}
           value={value}
-          min={min ?? localYmd()}
-          onChange={(e) => onChange(e.target.value)}
-          onClick={(e) => {
-            e.stopPropagation();
-            openNativeDatePicker(e.currentTarget);
-          }}
-          className={`relative z-[0] w-full cursor-pointer rounded-xl border-0 bg-transparent py-3 pl-4 pr-12 text-sm font-medium text-ink transition-opacity duration-150 focus:outline-none focus:ring-0 ${
-            value.trim() ? 'opacity-100' : 'opacity-0'
-          }`}
-          aria-label={label}
+          minIso={min ?? localYmd()}
+          placeholder="Select a date"
+          onChange={onChange}
         />
       </div>
       {displayLabel ? (

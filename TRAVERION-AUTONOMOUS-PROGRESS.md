@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `26f47da`  
-**Current phase:** 822  
+**Current SHA:** `05c80fb`  
+**Current phase:** 823  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -233,6 +233,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 820 | Shared traveler/guest picker in marketplace search | `ddb321c` |
 | 821 | Tour booking calendar uses shared Traverion chrome | `3edc212` |
 | 822 | Stay night picker uses shared Traverion chrome | `26f47da` |
+| 823 | BookingDateField Traverion calendar + home search cert | `05c80fb` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -4078,6 +4079,10 @@ Browse cards: compact `aspect-[5/4]`, display-serif titles, group hover lift/sca
 ### Phase 822 — Stay night picker uses shared Traverion chrome
 
 `StayNightPicker` renders through `TraverionCalendarMonth` with range-start/middle/end visuals. Occupancy / min-nights / checkout-night truth unchanged (`stayNightState`). stay-calendar unit tests green.
+
+### Phase 823 — BookingDateField → Traverion calendar; home search cert
+
+`BookingDateField` no longer uses native `type=date` — wraps `TraverionSingleDateField`. Homepage hero search (shared `MarketplaceSearchFields`) browser-opens Traverion September 2026 calendar from DATE. Stripe TEST unchanged.
 
 ## Known remaining risks (ranked)
 
