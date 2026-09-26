@@ -131,6 +131,8 @@ export default function SupplierListings() {
   const [justDuplicatedId, setJustDuplicatedId] = useState<string | null>(null);
   const [createFamily, setCreateFamily] = useState<'tour' | 'stay'>('tour');
   const createChooserRef = useRef<HTMLDivElement>(null);
+  const deleteSheetRef = useRef<HTMLDivElement>(null);
+  const deactivateSheetRef = useRef<HTMLDivElement>(null);
   const closeCreateChooser = useCallback(() => setShowCreateChooser(false), []);
   const canonicalListingIdRef = useRef<string | null>(null);
   const listingPersistGateRef = useRef(createListingPersistGate());
@@ -147,6 +149,15 @@ export default function SupplierListings() {
     canonicalListingIdRef.current = null;
   }, []);
   useDialogFocus(showCreateChooser, createChooserRef, closeCreateChooser);
+  useDialogFocus(listingPendingDelete !== null, deleteSheetRef, () => {
+    if (!deleteBusy) setListingPendingDelete(null);
+  });
+  useDialogFocus(listingPendingDeactivate !== null, deactivateSheetRef, () => {
+    if (!deactivateBusy) {
+      setListingPendingDeactivate(null);
+      setDeactivateUpcomingPaid(null);
+    }
+  });
 
   const filteredListings = useMemo(
     () => filterPartnerListings(listings, workspaceFilter, listQuery),
@@ -1447,7 +1458,7 @@ export default function SupplierListings() {
 
       {listingPendingDelete && typeof document !== 'undefined'
         ? createPortal(
-            <div className="tv-sheet-overlay z-[80]">
+            <div ref={deleteSheetRef} className="tv-sheet-overlay z-[80]">
               <button
                 type="button"
                 className="absolute inset-0"
@@ -1502,7 +1513,7 @@ export default function SupplierListings() {
 
       {listingPendingDeactivate && typeof document !== 'undefined'
         ? createPortal(
-            <div className="tv-sheet-overlay z-[80]">
+            <div ref={deactivateSheetRef} className="tv-sheet-overlay z-[80]">
               <button
                 type="button"
                 className="absolute inset-0"
