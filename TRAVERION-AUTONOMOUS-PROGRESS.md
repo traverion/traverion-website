@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `7f2c69f`  
-**Current phase:** 627  
+**Current SHA:** `3c599d8`  
+**Current phase:** 628  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -123,6 +123,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 625 | Sign-up awaits getSession before navigate | `6426194` |
 | 626 | Browse card pickup meta matches experienceStartStyle | `26b1783` |
 | 627 | Confirmation missing-title fallback stay-aware | `7f2c69f` |
+| 628 | Trips Participants label + snapshot pickup time line | `3c599d8` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3060,6 +3061,12 @@ Same split-text-node class: Availability bulk capacity copy rendered `date` / `s
 **Problem:** Missing listing titles on confirmation always fell back to “Your tour”, including stay bookings with `check_out`.
 
 **Fix:** Pass `row.check_out ? 'Your stay' : 'Your tour'` into `displayListingTitleFromPurchase`.
+
+### Phase 628 — Trips detail: Participants label + snapshot pickup time line
+
+**Problem:** Expanded trip always labeled party “Guests” even with `guest_breakdown`. Extra “Pickup {time}” line keyed off live `ops.pickup_instructions` while the card body used snapshot-aware `tripPickupInstructions` — duplicate/orphan lines.
+
+**Fix:** Label “Participants” when breakdown present; gate the time-only line on missing `tripPickupInstructions`.
 
 ## Known remaining risks (ranked)
 

@@ -861,7 +861,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     ) : null}
                     <div>
                       <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
-                        Guests
+                        {b.guest_breakdown && b.guest_breakdown.length > 0 ? 'Participants' : 'Guests'}
                       </dt>
                       <dd className="mt-0.5 text-sm text-ink">
                         {formatBookingParticipantsLabel(b)}
@@ -877,7 +877,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       </div>
                     ) : null}
                   </dl>
-                  {b.pickup_time && (pickupMissing || !ops?.pickup_instructions?.trim()) ? (
+                  {b.pickup_time && (pickupMissing || !tripPickupInstructions) ? (
                     <p className="text-sm text-ink-muted">Pickup {pgTimeToHm(b.pickup_time)}</p>
                   ) : pickupMissing ? (
                     <NoticeCallout title="Pickup details pending" tone="warn">
