@@ -715,6 +715,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 <button
                   type="button"
                   aria-expanded={open}
+                  aria-controls={`trip-panel-${b.id}`}
                   onClick={() => {
                     const next = open ? null : b.id;
                     setOpenTripId(next);
@@ -772,9 +773,9 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-muted">
                       {placeLine ? (
-                        <span className="inline-flex min-w-0 items-center gap-1">
+                        <span className="inline-flex min-w-0 max-w-full items-center gap-1">
                           <MapPin className="h-3.5 w-3.5 shrink-0 text-ink-faint" aria-hidden />
-                          <span className="truncate">{placeLine}</span>
+                          <span className="min-w-0 break-words [overflow-wrap:anywhere]">{placeLine}</span>
                         </span>
                       ) : null}
                       <span>
@@ -835,8 +836,10 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   </div>
                 ) : null}
                 {open ? (
-                <div className="space-y-3 border-t border-black/[0.05] px-3 py-3 sm:px-3.5 motion-safe:animate-fade-in">
-                  <dl className="grid gap-2 rounded-xl bg-paper px-3 py-2.5 ring-1 ring-black/[0.05] sm:grid-cols-2">
+                <div
+                  id={`trip-panel-${b.id}`}
+                  className="space-y-3 border-t border-black/[0.05] px-3 py-3 sm:px-3.5 motion-safe:animate-fade-in"
+                >                  <dl className="grid gap-2 rounded-xl bg-paper px-3 py-2.5 ring-1 ring-black/[0.05] sm:grid-cols-2">
                     <div>
                       <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
                         {isStay ? 'Stay dates' : 'Departure'}

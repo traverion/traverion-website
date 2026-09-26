@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `00fcd92`  
-**Current phase:** 643  
+**Current SHA:** `fc14d35`  
+**Current phase:** 644  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -139,6 +139,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 641 | Partner Home listing failure keeps counts unknown | `d2f05d7` |
 | 642 | Checkout progress aria-current + real list items | `e8c1bf5` |
 | 643 | Mobile header email truncate with min-w-0 | `00fcd92` |
+| 644 | Trips place wrap + aria-controls panel | `fc14d35` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3166,6 +3167,10 @@ Same class as BookingPage Phase 633: StayDetails lead-guest name/phone could lin
 ### Phase 643 — Mobile header email truncate with min-w-0
 
 Long traveler emails in the mobile menu / user menu could blow the flex row. Constrain with `min-w-0 flex-1 truncate` and `title` for the full address.
+
+### Phase 644 — Trips: wrap place line + aria-controls panel
+
+Collapsed trip rows truncated location without wrapping; accordion lacked `aria-controls`. Wrap place with overflow-wrap; pair `aria-controls` with panel `id`.
 
 ## Known remaining risks (ranked)
 
