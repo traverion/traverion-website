@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `bb10928`  
-**Current phase:** 783  
+**Current SHA:** `d0e4776`  
+**Current phase:** 784  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -194,6 +194,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 781 | Launch-break Stripe TEST-only source proof | `b2c360b` |
 | 782 | Launch-break cert-email script stays untracked | `d3773ca` |
 | 783 | Launch-break remote migrations 080-099 still applied | `bb10928` |
+| 784 | Launch-break traveler-visible listing gate usage | `d0e4776` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3815,6 +3816,10 @@ LOCAL_PRESENT\n```
    097   | 097    | 097        
    098   | 098    | 098        
    099   | 099    | 099        \n```
+
+### Phase 784 — Launch-break traveler-visible listing gate usage
+
+**Launch-break:** traveler-visible gate symbols appear in **51** source lines.
 
 ## Known remaining risks (ranked)
 
