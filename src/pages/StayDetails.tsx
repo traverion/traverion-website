@@ -108,19 +108,26 @@ export default function StayDetails({ stayId, onBack }: Props) {
   useEffect(() => {
     let cancelled = false;
     setError(null);
-    void getListingByIdAsync(stayId).then((row) => {
-      if (cancelled) return;
-      const found = row ?? getListingById(stayId) ?? null;
-      if (
-        !found ||
-        !listingDetailVisibleToTraveler({ familyMatches: listingIsFamily(found, 'stay'), status: found.status })
-      ) {
+    setStay(null);
+    void getListingByIdAsync(stayId)
+      .then((row) => {
+        if (cancelled) return;
+        const found = row ?? getListingById(stayId) ?? null;
+        if (
+          !found ||
+          !listingDetailVisibleToTraveler({ familyMatches: listingIsFamily(found, 'stay'), status: found.status })
+        ) {
+          setStay(null);
+          setError('This stay is not available.');
+          return;
+        }
+        setStay(found);
+      })
+      .catch((e) => {
+        if (cancelled) return;
         setStay(null);
-        setError('This stay is not available.');
-        return;
-      }
-      setStay(found);
-    });
+        setError(userFacingError(e, 'We could not load this stay. Check your connection and try again.'));
+      });
     return () => {
       cancelled = true;
     };
