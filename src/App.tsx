@@ -32,6 +32,7 @@ import {
 } from './lib/adminHost';
 import { getListingByIdAsync } from './data/listings';
 import { listingIsFamily, listingIsOnTravelerCatalog } from './lib/inventory';
+import { listingDetailVisibleToTraveler } from './lib/product-workflows';
 import { isPartnerMarketingPathForCurrentHost, isPartnerPortalPathForCurrentHost } from './lib/partnerHost';
 import { rememberProductReturn, isStaticConsumerPage } from './lib/navReturn';
 import { takeTravelerReturnStay } from './lib/travelerAuthLinks';
@@ -187,7 +188,13 @@ function App() {
       const stayParam = new URLSearchParams(window.location.search).get('stay');
       if (path === '/stays' && stayParam && /^[0-9a-f-]{36}$/i.test(stayParam)) {
         void getListingByIdAsync(stayParam).then((t) => {
-          if (cancelled || !t) return;
+          if (
+            cancelled ||
+            !t ||
+            !listingDetailVisibleToTraveler({ familyMatches: listingIsFamily(t, 'stay'), status: t.status })
+          ) {
+            return;
+          }
           setSelectedTour(t);
           setCurrentPage('stay-details');
         });
@@ -196,7 +203,16 @@ function App() {
       const tourParam = new URLSearchParams(window.location.search).get('tour');
       if (path !== '/packages' || !tourParam || !/^[0-9a-f-]{36}$/i.test(tourParam)) return;
       void getListingByIdAsync(tourParam).then((t) => {
-        if (cancelled || !t) return;
+        if (
+          cancelled ||
+          !t ||
+          !listingDetailVisibleToTraveler({
+            familyMatches: listingIsOnTravelerCatalog(t),
+            status: t.status,
+          })
+        ) {
+          return;
+        }
         setSelectedTour(t);
         setCurrentPage('tour-details');
       });
@@ -471,7 +487,10 @@ function App() {
         if (returnStay.guests) params.set('guests', String(returnStay.guests));
         window.history.replaceState({}, '', `/stays?${params.toString()}`);
         void getListingByIdAsync(returnStay.id).then((t) => {
-          if (!t || !listingIsFamily(t, 'stay')) {
+          if (
+            !t ||
+            !listingDetailVisibleToTraveler({ familyMatches: listingIsFamily(t, 'stay'), status: t.status })
+          ) {
             setCurrentPage('stays');
             return;
           }
