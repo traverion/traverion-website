@@ -13,6 +13,7 @@ import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
 import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
 import { isSupabaseListingId } from '../lib/discount-display';
 import { filterCatalogByFamily } from '../lib/inventory';
+import { isListingVisibleToTravelers } from '../lib/product-workflows';
 import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
 import { MARKETPLACE_GRID_CLASS } from '../lib/marketplaceBrowse';
 import { useTravelerWishlist } from '../hooks/useTravelerWishlist';
@@ -64,6 +65,7 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
     if (!slug) return { label: '', listings: [] as TourPackage[] };
     const labelFromSlug = slugToLabel(slug);
     const list = allListings.filter(t => {
+      if (!isListingVisibleToTravelers(t.status)) return false;
       const countryMatch = (t.country ?? '').toLowerCase().replace(/\s+/g, '-') === slug;
       const cityMatch = (t.city ?? '').toLowerCase().replace(/\s+/g, '-') === slug;
       return countryMatch || cityMatch;
