@@ -1258,10 +1258,13 @@ export default function BookingPage({
                 )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-ink mb-1">Special requests (optional)</label>
+                <label htmlFor="booking-special-requests" className="block text-sm font-medium text-ink mb-1">
+                  Special requests (optional)
+                </label>
                 <div className="relative">
                   <MessageSquare className="absolute left-3 top-3 w-5 h-5 text-ink-faint pointer-events-none" />
                   <textarea
+                    id="booking-special-requests"
                     value={specialRequests}
                     onChange={(e) => setSpecialRequests(e.target.value)}
                     placeholder="Dietary needs, accessibility, questions for the provider…"
