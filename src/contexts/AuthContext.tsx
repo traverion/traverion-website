@@ -148,7 +148,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error: undefined, hasSession: false };
       }
       const ensured = await ensureConsumerProfile(data.user.id, {
-        display_name: displayNameFromSignup ?? (normalizedEmail.split('@')[0] ?? null),
+        display_name: displayNameFromSignup,
         contact_phone: normalizedPhone,
       });
       if (!ensured.success) {

@@ -18,7 +18,6 @@ export function consumerProfileEnsurePayloadFromAuthUser(user: User): {
   display_name: string | null;
   contact_phone: string | null;
 } {
-  const email = typeof user.email === 'string' ? user.email.trim().toLowerCase() : '';
   const meta = user.user_metadata as {
     phone?: string;
     customer_phone?: string;
@@ -29,9 +28,8 @@ export function consumerProfileEnsurePayloadFromAuthUser(user: User): {
   const metaLast = (meta?.customer_last_name ?? '').trim();
   const displayFromMeta = [metaFirst, metaLast].filter(Boolean).join(' ').trim() || null;
   const phoneRaw = (meta?.customer_phone ?? meta?.phone ?? '').trim();
-  const emailLocal = email.includes('@') ? (email.split('@')[0]?.trim() || null) : null;
   return {
-    display_name: displayFromMeta ?? emailLocal,
+    display_name: displayFromMeta,
     contact_phone: phoneRaw || null,
   };
 }

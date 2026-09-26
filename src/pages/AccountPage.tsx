@@ -78,9 +78,21 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
     setProfileMessage(null);
     try {
       const row = await fetchConsumerProfileRow(user.id);
-      const meta = user.user_metadata as { customer_phone?: string; phone?: string } | undefined;
+      const meta = user.user_metadata as {
+        customer_phone?: string;
+        phone?: string;
+        full_name?: string;
+        name?: string;
+        customer_first_name?: string;
+        customer_last_name?: string;
+      } | undefined;
       const fallbackPhone = meta?.customer_phone ?? meta?.phone ?? '';
-      setDisplayName((row?.display_name ?? user.email?.split('@')[0] ?? '').trim());
+      const fromMeta = (
+        meta?.full_name ||
+        meta?.name ||
+        [meta?.customer_first_name, meta?.customer_last_name].filter(Boolean).join(' ')
+      ).trim();
+      setDisplayName((row?.display_name ?? fromMeta ?? '').trim());
       setPhone(row?.contact_phone?.trim() || fallbackPhone || '');
     } finally {
       setProfileLoading(false);
