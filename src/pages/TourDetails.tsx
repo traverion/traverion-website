@@ -1074,7 +1074,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
   return (
     <div className="min-h-screen bg-paper tv-page pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-0">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6">
+      <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6">
         <div className="flex items-center justify-between gap-3 mb-4 sm:mb-5">
           <button
             type="button"
@@ -1123,51 +1123,9 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
           </div>
         </div>
 
-        <header className="mb-5 sm:mb-6 max-w-3xl">
-          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-muted mb-2">
-            <span className="inline-flex items-center rounded-md bg-finland/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-finland ring-1 ring-finland/15">
-              {tourKindLabel(tour.experienceKind)}
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <MapPin size={14} className="shrink-0 text-finland" aria-hidden />
-              {tour.destination}
-            </span>
-            {review.score ? (
-              <>
-                <span className="text-ink-faint" aria-hidden>
-                  ·
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <Star size={14} className="text-finland fill-finland shrink-0" aria-hidden />
-                  <strong className="text-ink tabular-nums">{review.score}</strong>
-                  <span>
-                    ({review.count} {review.count === 1 ? 'review' : 'reviews'})
-                  </span>
-                </span>
-              </>
-            ) : null}
-            {supplierLegal?.operatorName ? (
-              <>
-                <span className="text-ink-faint" aria-hidden>
-                  ·
-                </span>
-                <span>Hosted by {supplierLegal.operatorName}</span>
-              </>
-            ) : null}
-          </p>
-          <h1 className="font-display text-3xl sm:text-4xl lg:text-[2.75rem] text-ink tracking-tight leading-[1.15] break-words [overflow-wrap:anywhere]">
-            {tour.title}
-          </h1>
-          {tour.subtitle?.trim() ? (
-            <p className="mt-2 text-base sm:text-lg text-ink-muted leading-snug break-words [overflow-wrap:anywhere]">
-              {tour.subtitle.trim()}
-            </p>
-          ) : null}
-        </header>
-
         <div className="mb-6 sm:mb-8">
           {hasGallery ? (
-            <div className="grid grid-cols-1 gap-2 sm:gap-3 lg:grid-cols-4 lg:grid-rows-2 lg:min-h-[22rem]">
+            <div className="grid grid-cols-1 gap-2 sm:gap-3 lg:grid-cols-4 lg:grid-rows-2 lg:min-h-[28rem]">
               <button
                 type="button"
                 onClick={() => {
@@ -1180,7 +1138,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                 <img
                   src={images[0]}
                   alt=""
-                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 hover:scale-[1.02]"
+                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 motion-safe:hover:scale-[1.02]"
                 />
               </button>
               {images.slice(1, 5).map((img, i) => (
@@ -1244,11 +1202,53 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
           ) : null}
         </div>
 
+        <header className="mb-5 sm:mb-6 max-w-3xl">
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-muted mb-2">
+            <span className="inline-flex items-center rounded-md bg-finland/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-finland ring-1 ring-finland/15">
+              {tourKindLabel(tour.experienceKind)}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <MapPin size={14} className="shrink-0 text-finland" aria-hidden />
+              {tour.destination}
+            </span>
+            {review.score ? (
+              <>
+                <span className="text-ink-faint" aria-hidden>
+                  ·
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <Star size={14} className="text-finland fill-finland shrink-0" aria-hidden />
+                  <strong className="text-ink tabular-nums">{review.score}</strong>
+                  <span>
+                    ({review.count} {review.count === 1 ? 'review' : 'reviews'})
+                  </span>
+                </span>
+              </>
+            ) : null}
+            {supplierLegal?.operatorName ? (
+              <>
+                <span className="text-ink-faint" aria-hidden>
+                  ·
+                </span>
+                <span>Hosted by {supplierLegal.operatorName}</span>
+              </>
+            ) : null}
+          </p>
+          <h1 className="font-display text-3xl sm:text-4xl lg:text-[2.75rem] text-ink tracking-tight leading-[1.15] break-words [overflow-wrap:anywhere]">
+            {tour.title}
+          </h1>
+          {tour.subtitle?.trim() ? (
+            <p className="mt-2 text-base sm:text-lg text-ink-muted leading-snug break-words [overflow-wrap:anywhere]">
+              {tour.subtitle.trim()}
+            </p>
+          ) : null}
+        </header>
+
         <TourQuickFacts tour={tour} />
       </div>
 
       <section className="bg-paper pb-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-8">
             <TourOverview
               description={tour.description}
@@ -1575,7 +1575,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       </section>
 
       <section className="py-8 bg-paper border-t border-black/[0.06]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="font-display text-xl sm:text-2xl text-ink mb-4">Reviews</h2>
           {reviewsLoadError ? (
             <div className="mb-6 max-w-xl">
