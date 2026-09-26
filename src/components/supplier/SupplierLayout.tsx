@@ -965,7 +965,12 @@ export default function SupplierLayout() {
             >
               <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200/80">
                 <h2 id="partner-more-title" className="text-[17px] font-semibold text-slate-900">More</h2>
-                <button type="button" onClick={() => setMobileAccountOpen(false)} className="lux-tap-target p-2 text-slate-500" aria-label="Close">
+                <button
+                  type="button"
+                  onClick={() => setMobileAccountOpen(false)}
+                  className="lux-tap-target inline-flex min-h-11 min-w-11 items-center justify-center p-2 text-slate-500"
+                  aria-label="Close"
+                >
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -1203,7 +1208,7 @@ export default function SupplierLayout() {
                 type="button"
                 onClick={() => handleNavigate(tab.id)}
                 aria-current={active ? 'page' : undefined}
-                className={`partner-nav-item lux-flat relative flex flex-1 flex-col items-center justify-center gap-0.5 py-2 min-h-[52px] ${
+                className={`partner-nav-item lux-flat relative flex min-h-[52px] min-w-[44px] flex-1 flex-col items-center justify-center gap-0.5 py-2 ${
                   active ? 'text-finland' : 'text-slate-400'
                 }`}
               >
@@ -1220,7 +1225,8 @@ export default function SupplierLayout() {
             onClick={() => setMobileAccountOpen(true)}
             aria-expanded={mobileAccountOpen}
             aria-haspopup="dialog"
-            className={`partner-nav-item lux-flat flex flex-1 flex-col items-center justify-center gap-0.5 py-2 min-h-[52px] ${
+            aria-label="More"
+            className={`partner-nav-item lux-flat flex min-h-[52px] min-w-[44px] flex-1 flex-col items-center justify-center gap-0.5 py-2 ${
               mobileAccountOpen ||
               ['create', 'inbox', 'reviews', 'discounts', 'pickup', 'availability', 'reservations', 'performance', 'help', 'business-profile', 'account-settings', 'onboarding', 'change-password'].includes(
                 section

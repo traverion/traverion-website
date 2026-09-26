@@ -129,7 +129,7 @@ export default function SupplierPortalNoticePanel({ userId }: SupplierPortalNoti
               <button
                 type="button"
                 onClick={() => dismissOne(n.id)}
-                className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-black/10 bg-white/80 text-gray-700 hover:bg-white shadow-sm"
+                className="absolute right-2 top-2 inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-black/10 bg-white/80 text-gray-700 hover:bg-white shadow-sm"
                 aria-label="Dismiss this message"
               >
                 <X className="w-4 h-4" />
