@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `1273f2c`  
-**Current phase:** 776  
+**Current SHA:** `f45dc86`  
+**Current phase:** 790  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -200,6 +200,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 787 | Launch-break localhost Packages HTTP smoke | `a09de6e` |
 | 788 | Launch-break localhost Stays HTTP smoke | `31753a5` |
 | 789 | Launch-break localhost Partner HTTP smoke | `8e1a138` |
+| 790 | Launch-break Contact and Cookies HTTP smoke | `f45dc86` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3845,6 +3846,10 @@ LOCAL_PRESENT\n```
 ### Phase 789 — Launch-break localhost Partner HTTP smoke
 
 **Launch-break:** `GET /partner` → HTTP **200**.
+
+### Phase 790 — Launch-break Contact and Cookies HTTP smoke
+
+**Launch-break:** `/contact` → **200**; `/cookies` → **200**.
 
 ## Known remaining risks (ranked)
 
