@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `b4a9b25`  
-**Current phase:** 655  
+**Current SHA:** `36fc213`  
+**Current phase:** 656  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -151,6 +151,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 653 | Partner modal shell dialog focus trap | `6f4fad5` |
 | 654 | Performance error if either fetch fails | `c694040` |
 | 655 | StayDetails clear stay + catch listing fetch | `b4a9b25` |
+| 656 | Trips payment-success banner honest during webhook lag | `36fc213` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3236,6 +3237,12 @@ Fast tour→tour navigation could apply a late `getListingByIdAsync` for the pre
 **Problem:** Changing stayId left the previous stay on screen; fetch errors had no `.catch` (unlike TourDetails).
 
 **Fix:** `setStay(null)` at effect start; catch → null stay + user-facing error.
+
+### Phase 656 — Trips payment-success banner honest during webhook lag
+
+**Problem:** `?payment=success` always said “Your booking is confirmed” even while Pay-now holds remained after Stripe redirect.
+
+**Fix:** While loading or while pending-pay trips remain, show updating/lag copy instead of confirmed.
 
 ## Known remaining risks (ranked)
 

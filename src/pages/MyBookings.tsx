@@ -503,8 +503,11 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           <div className="mb-5 max-w-lg">
             <h2 className="font-display text-2xl text-ink">Payment received</h2>
             <p className="mt-2 text-sm text-ink-muted">
-              Your booking is confirmed. Open this page anytime for details. {BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE}{' '}
-              {BOOKING_CONFIRMATION_EMAIL_DISCLAIMER}
+              {loading
+                ? 'Updating your trips…'
+                : pendingPayBookings.length > 0
+                  ? 'Stripe reported success. If a trip still shows Pay now, wait a moment and refresh — confirmation can lag the redirect.'
+                  : `Your booking is confirmed. Open this page anytime for details. ${BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE} ${BOOKING_CONFIRMATION_EMAIL_DISCLAIMER}`}
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <button type="button" onClick={() => onNavigate('home')} className="tv-btn-primary">
