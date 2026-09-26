@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `6fdcf3d`  
-**Current phase:** 754  
+**Current SHA:** `1b222ab`  
+**Current phase:** 755  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -159,6 +159,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 661 | Offers empty only when load succeeded | `7cb49d1` |
 | 662 | StayDetails reviews reset + eligibility stale guard | `a0bc0c2` |
 | 663 | Checkout contact fields label htmlFor + ids | `fa7cfef` |
+| 755 | Trips cancel dialog stay dates and CTAs | `1b222ab` |
 | 754 | Partner Analytics empty and error honesty | `6fdcf3d` |
 | 753 | Contact form required and field error wiring | `b37913a` |
 | 752 | Partner Create listing label coherence | `fe0c92e` |
@@ -3648,6 +3649,10 @@ Contact topic radiogroup now labelledby legend; name/email/message get required 
 ### Phase 754 — Partner Analytics empty and error honesty
 
 Partner Analytics (Performance) empty state could imply no bookings when unpaid checkouts existed. Distinguish windows; align error vocabulary to Analytics.
+
+### Phase 755 — Trips cancel dialog stay dates and CTAs
+
+Cancel confirm dialog ignored stay check-out from notes; confirm button said Yes cancel instead of Cancel booking / Cancel unpaid checkout CTAs.
 
 ## Known remaining risks (ranked)
 
