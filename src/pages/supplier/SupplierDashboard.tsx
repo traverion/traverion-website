@@ -502,6 +502,11 @@ export default function SupplierDashboard() {
           title="Today unavailable"
           body={dashboardError}
           retry={{ onClick: () => void reloadDashboard() }}
+          extra={
+            <a href="/contact" className="tv-btn-ghost inline-flex">
+              Contact support
+            </a>
+          }
         />
       )}
 
