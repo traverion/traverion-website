@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `4a72f9c`  
-**Current phase:** 612  
+**Current SHA:** `f84f225`  
+**Current phase:** 613  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -108,6 +108,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 610 | Mobile date→options multi-departure handoff | `73990df` |
 | 611 | App tsc + production build clean | `d12b36a` |
 | 612 | Mobile Stays browse 390×844 | `4a72f9c` |
+| 613 | Mobile stay detail + occupancy calendar 390×844 | `f84f225` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -2957,10 +2958,17 @@ After Phases 601–610: `tsc -p tsconfig.app.json` clean; `npm run build` succee
 
 Stays catalog under mobile viewport: Tours/Stays toggle, search rail (“Any dates · Add guests”), Filters/Sort, **2 stays** with per-night prices. One card still shows Free cancellation badge (likely tag/standard policy on that listing — Phase 604 made empty policy non-matching). Demo imagery still mismatched vs Rovaniemi (fixture debt).
 
+### Phase 613 — Mobile stay detail (390×844)
+
+Riverside Apartment detail: sticky **Select dates** + Stripe TEST, night calendar with **occupied** (booked + host-blocked 26–27 Sept) vs available, min 2 nights, guest stepper, lead guest field. Trips-as-confirmation copy present.
+
+**Note:** Lead guest autofilled `aurora-ops` because a partner session was still on the shared localhost origin — expected dual-product friction on one origin; production hosts are separate.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Partner create→publish wizard** not browser-certified this pass (ops Home/Bookings/Calendar/Listings **are** localhost-browser certified in Phase 597). Full create→publish still pending.
-2. **P1 — Migrations 080–099 now remote-applied** — schema present; adversarial SQL suites not re-run against remote in CI this phase (local SQL tests remain the proof artifacts).
+2. **P1 — Localhost same-origin auth**: partner and traveler share one Supabase session; partner login bleeds into traveler lead-guest autofill (seen on StayDetails).
+3. **P1 — Migrations 080–099 now remote-applied** — schema present; adversarial SQL suites not re-run against remote in CI this phase (local SQL tests remain the proof artifacts).
 3. **P1 — Advisory lock listing-scoped** — safe but coarse.
 4. **P2 — LIVE Stripe** intentionally blocked.
 5. **P2 — Service-role JWT briefly tracked** in `scripts/cert-transactional-emails.cjs` (now untracked); rotate when practical.
