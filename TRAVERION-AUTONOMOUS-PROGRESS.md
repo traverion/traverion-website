@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `24b1bf8`  
-**Current phase:** 608  
+**Current SHA:** `688dafc`  
+**Current phase:** 609  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -104,6 +104,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 606 | Stays check-in auto-pairs check-out for real filtering | `e8a60d5` |
 | 607 | Traveler honesty Vitest re-cert 18/18 | `adb2866` |
 | 608 | Mobile homepage 390×844 browser cert | `24b1bf8` |
+| 609 | Mobile Packages + tour detail sticky CTA 390×844 | `688dafc` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -2936,6 +2937,10 @@ After Phases 601–606 traveler fixes, re-ran focused Vitest: listingTruth, depa
 ### Phase 608 — Mobile homepage cert (390×844)
 
 Emulated `390×844` on localhost. Hero shows TRAVERION brand, Tours/Stays toggle, compact search (“Anywhere / Any date · Add travelers”), Stripe TEST honesty line, hamburger nav. No obvious horizontal overflow in first viewport. Stripe remains TEST.
+
+### Phase 609 — Mobile Packages + tour detail (390×844)
+
+Emulated 390×844: Packages lists 5 live tours with Filters/Sort. Opened Guaranteed Northern Lights Tour — sticky **Pick a date** CTA, calendar (past faded / available open), price From €101.15, Stripe TEST honesty, Trips-as-confirmation copy. Multi-departure note “Set start times: 20:00, 20:30.” Demo hero image is mismatched tropical stock (fixture debt, not marketplace invent).
 
 ## Known remaining risks (ranked)
 
