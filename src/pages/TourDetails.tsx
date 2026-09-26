@@ -1809,7 +1809,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                         selectedDaySpotsLeft < partyForCap)
                     );
                   })()}
-                  className="tv-btn-primary shrink-0 disabled:opacity-60"
+                  className="tv-btn-primary min-h-11 shrink-0 disabled:opacity-60"
                 >
                   {tourStickyBookCtaLabel({
                     hasDate: Boolean(bookingDate.trim()),
