@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `c2826a0`  
-**Current phase:** 647  
+**Current SHA:** `3cfcde5`  
+**Current phase:** 648  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -143,6 +143,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 645 | Partner chrome full email + min-w-0 truncate | `f658d82` |
 | 646 | Home recent bookings use collected payment helper | `158d937` |
 | 647 | Traveler mid-band build + honesty 15/15 checkpoint | `c2826a0` |
+| 648 | Trips stale-load guard + empty only after success | `3cfcde5` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3186,6 +3187,12 @@ Recent bookings money column required exact `payment_status === 'paid'`, missing
 ### Phase 647 — Traveler mid-band build + honesty checkpoint
 
 **Evidence:** `npm run build` clean. Focused vitest honesty batch **15/15** (listingTruth, tour-quick-facts, participant-mix labels, traveler-display-name, tour-sticky-cta). App `tsc` clean earlier in band. Stripe TEST. Ahead of origin ~52 commits. Traveler UX band continuing toward 675.
+
+### Phase 648 — Trips: stale-load guard + empty only after success
+
+**Problem:** Overlapping Trips loads could apply stale bookings after account switch. Failed loads still showed “No trips yet” under the error banner and left prior rows.
+
+**Fix:** `loadGenRef` ignores stale responses; clear bookings on error; render empty state only when `!loadError`.
 
 ## Known remaining risks (ranked)
 

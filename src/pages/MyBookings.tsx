@@ -121,6 +121,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   const [tripView, setTripView] = useState<'upcoming' | 'past' | 'cancelled'>('upcoming');
   const [openTripId, setOpenTripId] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<{ title: string; body: string } | null>(null);
+  const loadGenRef = useRef(0);
 
   const getRefundChoiceForCancel = useCallback((b: BookingRow): 'full_refund' | 'no_refund' => {
     return travelerSelfCancelRefundChoice({
@@ -133,27 +134,37 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   const load = useCallback(async () => {
     if (!isSupabaseConfigured() || !user?.id) {
       setLoading(false);
+      setBookings([]);
       return;
     }
+    const gen = ++loadGenRef.current;
     setLoading(true);
     setLoadError(null);
     try {
       const list = await fetchMyBookings();
+      if (gen !== loadGenRef.current) return;
       setBookings(list);
       const ids = [...new Set(list.map((b) => b.listing_id))];
       const ops = await fetchListingOpsByIds(ids);
+      if (gen !== loadGenRef.current) return;
       setListingOps(ops);
       setTitles(Object.fromEntries(Object.entries(ops).map(([id, v]) => [id, v.title])));
       const reqs = await fetchCancellationRequestsForBookings(list.map((b) => b.id));
+      if (gen !== loadGenRef.current) return;
       const open: Record<string, CancellationRequestRow> = {};
       for (const r of reqs) {
         if (r.status === 'requested' && !open[r.booking_id]) open[r.booking_id] = r;
       }
       setCancelRequests(open);
     } catch (e) {
+      if (gen !== loadGenRef.current) return;
+      setBookings([]);
+      setListingOps({});
+      setTitles({});
+      setCancelRequests({});
       setLoadError(userFacingError(e, USER_ERROR.trips));
     } finally {
-      setLoading(false);
+      if (gen === loadGenRef.current) setLoading(false);
     }
   }, [user?.id]);
 
@@ -546,7 +557,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
             <SkeletonListItem />
             <SkeletonListItem />
           </div>
-        ) : bookings.length === 0 ? (
+        ) : loadError ? null : bookings.length === 0 ? (
           <EmptyState
             icon={CalendarDays}
             title="No trips yet"
