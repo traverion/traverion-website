@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `639009e`  
-**Current phase:** 778  
+**Current SHA:** `532123e`  
+**Current phase:** 779  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -189,6 +189,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 776 | Fix partner Inbox ErrorState JSX parse | `b96a444` |
 | 777 | Launch-break production build clean | `c64dd2f` |
 | 778 | Launch-break honesty and money unit suites | `639009e` |
+| 779 | Launch-break checkout resume and trip-view suites | `532123e` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3768,6 +3769,10 @@ Money load ErrorState had retry only.
 ### Phase 778 — Launch-break honesty and money unit suites
 
 **Launch-break:** vitest listingTruth + sticky CTAs + booking-confirmation-copy + stripe-test-only + money — green.
+
+### Phase 779 — Launch-break checkout resume and trip-view suites
+
+**Launch-break:** checkout resume / Trips Pay now / orphan refund unit suites green.
 
 ## Known remaining risks (ranked)
 
