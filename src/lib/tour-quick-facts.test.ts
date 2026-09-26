@@ -41,8 +41,18 @@ function tour(partial: Partial<TourPackage>): TourPackage {
 }
 
 describe('tourQuickFacts', () => {
-  it('omits empty attributes and does not invent pickup', () => {
+  it('omits empty attributes and does not invent pickup or free cancellation', () => {
     const facts = tourQuickFacts(tour({ duration: '2 hours', groupSize: '' }));
+    expect(facts.map((f) => f.label)).toEqual(['Duration']);
+  });
+
+  it('shows free cancellation only when policy or tag proves it', () => {
+    const facts = tourQuickFacts(
+      tour({
+        duration: '2 hours',
+        tags: ['free-cancellation'],
+      })
+    );
     expect(facts.map((f) => f.label)).toEqual(['Duration', 'Cancellation']);
   });
 

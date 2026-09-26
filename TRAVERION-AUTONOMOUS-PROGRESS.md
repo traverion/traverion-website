@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `02c570a`  
-**Current phase:** 631  
+**Current SHA:** `96dd612`  
+**Current phase:** 632  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -127,6 +127,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 629 | Stop seeding traveler display_name from email local-part | `a68ac76` |
 | 630 | Review star a11y + profile display_name on submit | `ba432c3` |
 | 631 | Trips accordion aria-expanded | `02c570a` |
+| 632 | Quick-facts test matches free-cancellation honesty | `96dd612` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3086,6 +3087,12 @@ Same split-text-node class: Availability bulk capacity copy rendered `date` / `s
 ### Phase 631 — Trips accordion exposes aria-expanded
 
 Trip row toggles lacked `aria-expanded`, so screen readers could not tell whether booking detail was open.
+
+### Phase 632 — Quick-facts test matches free-cancellation honesty
+
+**Problem:** `tour-quick-facts.test` expected a Cancellation fact for listings with empty policy, but `listingShowsFreeCancellation` correctly refuses to invent free cancel (empty = unknown). Test lied about product truth.
+
+**Fix:** Expect Duration-only for empty policy; add explicit case proving Cancellation only when tag/policy proves it. Vitest 3/3.
 
 ## Known remaining risks (ranked)
 
