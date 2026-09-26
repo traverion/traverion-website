@@ -41,8 +41,10 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
   const [profileMessage, setProfileMessage] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
 
   const loadStats = useCallback(async () => {
-    if (!isSupabaseConfigured() || !user?.id || !user.email) {
+    if (!isSupabaseConfigured() || !user?.id) {
       setStats(null);
+      setStatsError(null);
+      setStatsLoading(false);
       return;
     }
     setStatsLoading(true);
@@ -62,7 +64,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
     } finally {
       setStatsLoading(false);
     }
-  }, [user?.id, user?.email]);
+  }, [user?.id]);
 
   useEffect(() => {
     if (user) loadStats();

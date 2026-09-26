@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `b58b04a`  
-**Current phase:** 635  
+**Current SHA:** `a63c48c`  
+**Current phase:** 636  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -131,6 +131,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 633 | Checkout Pay lock + clear contact on account switch | `5a74864` |
 | 634 | Stay checkout clears guest PII on account switch | `660bef3` |
 | 635 | Money threshold preference formats with currency | `b58b04a` |
+| 636 | Account hub stats gate on user id | `a63c48c` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3112,6 +3113,12 @@ Same class as BookingPage Phase 633: StayDetails lead-guest name/phone could lin
 **Problem:** Multi-currency Money cards showed raw `threshold` with “(no currency on file)” even when `s.currency` was known — dishonest vs single-currency `formatMoney` path.
 
 **Fix:** Always `formatMoney(threshold, s.currency)` when showing the saved minimum preference (once per currency group).
+
+### Phase 636 — Account hub stats gate on user id
+
+**Problem:** `loadStats` required `user.email`, so sessions without email never populated Trips/Wishlist badges.
+
+**Fix:** Gate on `user?.id` only (aligned with `fetchMyBookings`).
 
 ## Known remaining risks (ranked)
 
