@@ -145,12 +145,14 @@ export function MarketplaceMobileSearchTrigger({
   whoLabel,
   onClick,
   expanded,
+  controlsId,
 }: {
   where: string;
   whenLabel: string;
   whoLabel: string;
   onClick: () => void;
   expanded?: boolean;
+  controlsId?: string;
 }) {
   return (
     <button
@@ -159,6 +161,7 @@ export function MarketplaceMobileSearchTrigger({
       className="sm:hidden w-full flex items-center gap-3 rounded-2xl bg-paper-raised text-ink px-4 py-3.5 shadow-soft-lg ring-1 ring-black/[0.06] text-left active:scale-[0.99] transition-transform"
       aria-haspopup="dialog"
       aria-expanded={expanded}
+      aria-controls={controlsId}
     >
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-finland text-white" aria-hidden>
         <Search className="w-4 h-4" />

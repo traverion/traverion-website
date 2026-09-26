@@ -494,6 +494,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
             whoLabel={mobileSearchSummary.whoLabel}
             onClick={() => setMobileSearchOpen(true)}
             expanded={mobileSearchOpen}
+            controlsId="stays-mobile-search-dialog"
           />
         }
         filterCount={extraFilterCount}
@@ -680,6 +681,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
         <div ref={mobileSearchSheetRef} className="tv-sheet-overlay sm:hidden">
           <button type="button" tabIndex={-1} className="absolute inset-0" aria-label="Close search" onClick={closeMobileSearch} />
           <aside
+            id="stays-mobile-search-dialog"
             role="dialog"
             aria-modal="true"
             aria-labelledby="stays-mobile-search-title"

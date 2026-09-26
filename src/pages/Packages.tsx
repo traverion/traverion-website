@@ -707,6 +707,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
             whoLabel={mobileSearchSummary.whoLabel}
             onClick={() => setMobileSearchOpen(true)}
             expanded={mobileSearchOpen}
+            controlsId="tours-mobile-search-dialog"
           />
         }
         filterCount={extraFilterCount}
@@ -900,6 +901,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
         <div ref={mobileSearchSheetRef} className="tv-sheet-overlay sm:hidden">
           <button type="button" tabIndex={-1} className="absolute inset-0" aria-label="Close search" onClick={closeMobileSearch} />
           <aside
+            id="tours-mobile-search-dialog"
             role="dialog"
             aria-modal="true"
             aria-labelledby="tours-mobile-search-title"
