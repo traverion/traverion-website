@@ -55,16 +55,22 @@ export default function BookingMessageThread({
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const loadGenRef = useRef(0);
 
   const load = useCallback(async () => {
     const gen = ++loadGenRef.current;
     setLoading(true);
+    setLoadError(null);
     try {
       const list = await fetchBookingMessages(bookingId);
       if (gen !== loadGenRef.current) return;
       setRows(list);
       await markBookingMessagesRead(bookingId);
+    } catch (e) {
+      if (gen !== loadGenRef.current) return;
+      setRows([]);
+      setLoadError(userFacingError(e, 'We could not load messages. Check your connection and try again.'));
     } finally {
       if (gen === loadGenRef.current) setLoading(false);
     }
@@ -74,6 +80,7 @@ export default function BookingMessageThread({
     setRows([]);
     setDraft('');
     setError(null);
+    setLoadError(null);
     void load();
   }, [load]);
 
@@ -111,6 +118,13 @@ export default function BookingMessageThread({
         <p className="text-sm text-ink-muted" aria-busy="true">
           Loading messages…
         </p>
+      ) : loadError ? (
+        <NoticeCallout title="Messages unavailable" tone="warn">
+          <p className="text-sm text-ink-muted">{loadError}</p>
+          <button type="button" className="mt-2 text-xs font-semibold text-finland hover:underline" onClick={() => void load()}>
+            Try again
+          </button>
+        </NoticeCallout>
       ) : rows.length === 0 ? (
         canCompose ? (
           <div className="rounded-xl bg-paper-raised px-4 py-3.5 ring-1 ring-black/[0.06]">

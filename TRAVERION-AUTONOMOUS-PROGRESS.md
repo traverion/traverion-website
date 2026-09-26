@@ -3311,6 +3311,18 @@ Stays only showed ErrorState when `supplierListings === null`, but first failure
 
 Home Stays section ignored `listingsError` and claimed no stays published. Show ErrorState (and hide “All stays”) when the catalog fails.
 
+### Phase 671 — Booking message thread: load failure ≠ empty
+
+`fetchBookingMessages` returned `[]` on Supabase error → “No messages yet”. Throw on error; thread shows retry; partner Inbox/Today soft-catch per booking.
+
+### Phase 672 — TourDetails reviews: load failure ≠ empty
+
+`fetchReviewsByListingId` returned `[]` on error → “No reviews yet”. Throw on error; show retry copy instead of empty.
+
+### Phase 673 — StayDetails reviews: load failure ≠ empty
+
+Same dishonest empty as TourDetails for stay reviews. Surface `reviewsLoadError` + Try again.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Partner create→publish wizard** not browser-certified this pass (ops Home/Bookings/Calendar/Listings **are** localhost-browser certified in Phase 597). Full create→publish still pending.

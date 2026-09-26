@@ -70,7 +70,7 @@ export async function fetchBookingMessages(bookingId: string): Promise<BookingMe
     )
     .eq('booking_id', bookingId)
     .order('created_at', { ascending: true });
-  if (error) return [];
+  if (error) throw new Error(error.message);
   return (data ?? []) as BookingMessageRow[];
 }
 

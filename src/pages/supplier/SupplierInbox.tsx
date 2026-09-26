@@ -115,8 +115,12 @@ export default function SupplierInbox() {
       setOlderConversationsHidden(collected.length > PARTNER_INBOX_MESSAGE_FETCH_CAP);
       await Promise.all(
         withMessagesFetched.map(async (b) => {
-          const msgs = await fetchBookingMessages(b.id);
-          if (msgs.length) lasts[b.id] = msgs[msgs.length - 1]!;
+          try {
+            const msgs = await fetchBookingMessages(b.id);
+            if (msgs.length) lasts[b.id] = msgs[msgs.length - 1]!;
+          } catch {
+            // Per-booking message failure must not empty the whole Inbox.
+          }
         })
       );
       if (gen !== loadGenRef.current) return;

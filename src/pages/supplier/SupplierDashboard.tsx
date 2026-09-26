@@ -245,9 +245,13 @@ export default function SupplierDashboard() {
       .slice(0, PARTNER_INBOX_MESSAGE_FETCH_CAP);
     const unreadFlags = await Promise.all(
       paidForMsgs.map(async (b) => {
-        const msgs = await fetchBookingMessages(b.id);
-        const last = msgs[msgs.length - 1];
-        return Boolean(last && last.sender_role === 'traveler' && !last.read_by_supplier_at);
+        try {
+          const msgs = await fetchBookingMessages(b.id);
+          const last = msgs[msgs.length - 1];
+          return Boolean(last && last.sender_role === 'traveler' && !last.read_by_supplier_at);
+        } catch {
+          return false;
+        }
       })
     );
     const unread = unreadFlags.filter(Boolean).length;
