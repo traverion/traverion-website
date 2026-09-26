@@ -31,7 +31,7 @@ describe('partner pickup CSV', () => {
     const paxIdx = PARTNER_PICKUP_CSV_HEADER.indexOf('participants');
     expect(paid[labelIdx]).toBe('Paid');
     expect(paid[payIdx]).toBe('paid');
-    expect(paid[paxIdx]).toBe('2 Adult · 1 Child');
+    expect(paid[paxIdx]).toBe('2 Adults · 1 Child');
 
     const unpaid = partnerPickupCsvValues(
       {

@@ -63,18 +63,26 @@ export function mixSubtotal(lines: ParticipantMixLine[]): number {
   return Math.round(lines.reduce((sum, l) => sum + mixLineAmount(l), 0) * 100) / 100;
 }
 
+/** “2 Adults · 1 Child” — supplier labels stay verbatim when already plural / irregular. */
+export function formatParticipantQuantityLabel(quantity: number, label: string): string {
+  const trimmed = (label || 'Participant').trim() || 'Participant';
+  if (quantity === 1) return `${quantity} ${trimmed}`;
+  const lower = trimmed.toLowerCase();
+  if (lower.endsWith('s')) return `${quantity} ${trimmed}`;
+  if (lower === 'child') return `${quantity} Children`;
+  if (lower === 'person') return `${quantity} People`;
+  return `${quantity} ${trimmed}s`;
+}
+
 export function formatMixSummary(lines: ParticipantMixLine[]): string {
   const parts = lines
     .filter((l) => l.quantity > 0)
-    .map((l) => `${l.quantity} ${l.label}${l.quantity === 1 ? '' : l.label.toLowerCase().endsWith('s') ? '' : 's'}`);
+    .map((l) => formatParticipantQuantityLabel(l.quantity, l.label));
   return parts.join(' · ');
 }
 
 export function formatMixSummaryCompact(lines: ParticipantMixLine[]): string {
-  return lines
-    .filter((l) => l.quantity > 0)
-    .map((l) => `${l.quantity} ${l.label}`)
-    .join(' · ');
+  return formatMixSummary(lines);
 }
 
 /** Human label for a booking row: prefers guest_breakdown, then Participants: note, then guest count. */
@@ -85,7 +93,7 @@ export function formatBookingParticipantsLabel(booking: {
 }): string {
   const fromCol = (booking.guest_breakdown ?? [])
     .filter((r) => r && typeof r.quantity === 'number' && r.quantity > 0 && r.label)
-    .map((r) => `${r.quantity} ${r.label}`);
+    .map((r) => formatParticipantQuantityLabel(r.quantity!, String(r.label)));
   if (fromCol.length > 0) return fromCol.join(' · ');
   const notes = booking.special_requests ?? '';
   for (const line of notes.split(/\n+/)) {

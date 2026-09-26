@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `197ae6d`  
-**Current phase:** 617  
+**Current SHA:** `d617dc5`  
+**Current phase:** 618  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -113,6 +113,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 615 | Checkout concurrency/hold/resume Vitest re-cert | `e73b53b` |
 | 616 | Performance guest plural spacing fix | `206ee7d` |
 | 617 | Pickup Planner no-date booking plural spacing | `197ae6d` |
+| 618 | Pluralize Adult/Child participant labels + mobile Inbox cert | `d617dc5` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -2985,6 +2986,14 @@ Same class of bug as Phase 599: Performance revenue rows split `guest` / `s` acr
 ### Phase 617 — Pickup Planner no-date plural spacing
 
 Same split-text-node class as Phases 599/616: “No activity date” subsection rendered `booking` / `s` as separate React nodes. Collapsed to one template string.
+
+### Phase 618 — Participant mix labels pluralize (2 Adults · 1 Child)
+
+**Problem:** Partner Inbox (390×844 browser cert) showed Anna’s booking as **“2 Adult · 1 Child”**. `formatBookingParticipantsLabel` and `formatMixSummaryCompact` printed raw category labels without pluralization; `formatMixSummary` already pluralized but produced “Childs”.
+
+**Fix:** Shared `formatParticipantQuantityLabel` — Adults / Children / People; labels already ending in `s` left alone. Used by booking-row labels, mix summaries, and pickup CSV.
+
+**Evidence:** Vitest 6/6 (`participant-mix.label` + `partner-pickup-csv`). Mobile Inbox certified: threads, Unread · 1, bottom nav, TEST banner; commercial fields present without invented data.
 
 ## Known remaining risks (ranked)
 
