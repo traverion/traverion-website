@@ -92,6 +92,7 @@ import {
   BOOKING_CONTACT_EMAIL_FIELD_NOTE,
   bookingContactIntroCopy,
   bookingPayConfirmAfterPayCopy,
+  STRIPE_CHECKOUT_CANCELLED_TOUR_COPY,
 } from '../lib/booking-confirmation-copy';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import NoticeCallout from '../components/NoticeCallout';
@@ -1666,9 +1667,8 @@ export default function BookingPage({
 
             {stripeReturnCancelled ? (
               <div className="mb-6">
-                <NoticeCallout title="Payment was not completed" tone="warn">
-                  Stripe TEST checkout was cancelled. Your trip details are still here — you can pay
-                  again, or go back to the tour.
+                <NoticeCallout title="Checkout cancelled" tone="warn">
+                  {STRIPE_CHECKOUT_CANCELLED_TOUR_COPY}
                 </NoticeCallout>
               </div>
             ) : null}
