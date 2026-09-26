@@ -416,20 +416,22 @@ export default function SupplierDiscountsOffers() {
                             type="button"
                             onClick={() => openEdit(d)}
                             disabled={!canEdit}
-                            className="lux-flat p-2 rounded-full text-ink-muted hover:text-ink disabled:opacity-40"
+                            className="lux-flat inline-flex min-h-11 min-w-11 items-center justify-center rounded-full p-2 text-ink-muted hover:text-ink disabled:opacity-40"
                             title="Edit"
+                            aria-label="Edit offer"
                           >
-                            <Pencil className="w-4 h-4" />
+                            <Pencil className="w-4 h-4" aria-hidden />
                           </button>
                         ) : null}
                         <button
                           type="button"
                           onClick={() => void handleDelete(d)}
                           disabled={!canEdit}
-                          className="lux-flat p-2 rounded-full text-ink-muted hover:text-red-700 disabled:opacity-40"
+                          className="lux-flat inline-flex min-h-11 min-w-11 items-center justify-center rounded-full p-2 text-ink-muted hover:text-red-700 disabled:opacity-40"
                           title="Delete"
+                          aria-label="Delete offer"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4" aria-hidden />
                         </button>
                       </div>
                     </article>
