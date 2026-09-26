@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `a74242c`  
-**Current phase:** 818  
+**Current SHA:** `707e44d`  
+**Current phase:** 819  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -229,6 +229,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 816 | Compact catalog card polish + skeleton density | `5075fe9` |
 | 817 | Catalog mobile cert + filter popover close-on-select | `bd9b1e8` |
 | 818 | Search + catalog band checkpoint 813-817 | `a74242c` |
+| 819 | Shared calendar chrome + marketplace search date popover | `707e44d` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -4056,6 +4057,12 @@ Browse cards: compact `aspect-[5/4]`, display-serif titles, group hover lift/sca
 - Single-select filter menus close on chip (Languages included this phase)
 
 **Next band:** shared Traverion calendar + guest picker (821+), starting with search date fields replacing native `type=date`. Stripe TEST unchanged. Concurrent migration 100 left untracked.
+
+### Phase 819 — Shared Traverion calendar chrome + search date popover
+
+**Foundation:** `TraverionCalendarMonth` / day button primitives. `TraverionSingleDateField` popover replaces native `type=date` in marketplace search (tours Date + stays check-in/out). Past days disabled; Clear date; Escape/outside close.
+
+**Browser:** `/packages` Date opens September 2026 Traverion calendar popover; `input[type=date]` count = 0 on search bar. Booking-layer TourDatePicker/StayNightPicker not yet migrated (next phases).
 
 ## Known remaining risks (ranked)
 

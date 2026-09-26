@@ -6,6 +6,7 @@ import {
   type MarketplaceSearchFamily,
   type MarketplaceSearchValues,
 } from '../../lib/marketplaceBrowse';
+import { TraverionSingleDateField } from '../calendar/TraverionSingleDateField';
 
 type Props = {
   family: MarketplaceSearchFamily;
@@ -60,32 +61,25 @@ export function MarketplaceSearchFields({
         </div>
       </FieldShell>
       <FieldShell stacked={stacked}>
-        <label htmlFor={`${idPrefix}-date`} className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-          {isStay ? 'Check-in' : 'Date'}
-        </label>
-        <input
+        <TraverionSingleDateField
           id={`${idPrefix}-date`}
-          type="date"
+          label={isStay ? 'Check-in' : 'Date'}
           value={values.date}
-          onChange={(e) => {
-            const next = e.target.value;
+          placeholder={isStay ? 'Add date' : 'Any date'}
+          onChange={(next) => {
             onChange(isStay ? nextStayDatePatch(values, next) : { date: next });
           }}
-          className="w-full h-9 border-0 text-ink focus:ring-0 text-[15px] bg-transparent"
         />
       </FieldShell>
       {isStay ? (
         <FieldShell stacked={stacked}>
-          <label htmlFor={`${idPrefix}-checkout`} className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-            Check-out
-          </label>
-          <input
+          <TraverionSingleDateField
             id={`${idPrefix}-checkout`}
-            type="date"
+            label="Check-out"
             value={values.checkout}
-            min={values.date ? addCalendarDays(values.date, 1) : undefined}
-            onChange={(e) => onChange({ checkout: e.target.value })}
-            className="w-full h-9 border-0 text-ink focus:ring-0 text-[15px] bg-transparent"
+            placeholder="Add date"
+            minIso={values.date ? addCalendarDays(values.date, 1) : undefined}
+            onChange={(next) => onChange({ checkout: next })}
           />
         </FieldShell>
       ) : null}
