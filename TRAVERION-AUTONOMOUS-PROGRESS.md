@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `9f5deda`  
-**Current phase:** 846  
+**Current SHA:** `ef6205c`  
+**Current phase:** 847  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4235,6 +4235,16 @@ Visual layer only — availability truth unchanged. **code-inspected** this phas
 ### Phase 846 — Reviews modal a11y confirm
 
 `ListingReviewsModal` uses `useDialogFocus`, Escape/close, star filters, sort, real counts only. Import paths fixed in 832. Tour + Stay detail share the modal. **code-inspected** + prior implementation in 828–829. No fabricated reviews.
+
+### Phase 847 — Supporting surfaces band closed
+
+844–847 guidance band complete relative to mission:
+- Signup/display-name lifecycle (833)
+- Traveler dashboard (830) + Saved/Trips shells (834) + Account Saved tile (840)
+- Footer (831) + Legal/info shell + TOCs (832, 836, 837)
+- Contact cert (842)
+
+No further supporting-surface inventiveness. Ready for global coherence (848) and founder handoff (850).
 
 ## Known remaining risks (ranked)
 
