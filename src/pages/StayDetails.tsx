@@ -129,7 +129,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
       .catch((e) => {
         if (cancelled) return;
         setStay(null);
-        setError(userFacingError(e, 'We could not load this stay. Check your connection and try again.'));
+        setError(userFacingError(e, USER_ERROR.stay));
       });
     return () => {
       cancelled = true;
