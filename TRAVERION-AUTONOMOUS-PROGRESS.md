@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `adb2866`  
-**Current phase:** 607  
+**Current SHA:** `24b1bf8`  
+**Current phase:** 608  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -103,6 +103,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 605 | Confirmation policy honesty + Trips naming | `034a632` |
 | 606 | Stays check-in auto-pairs check-out for real filtering | `e8a60d5` |
 | 607 | Traveler honesty Vitest re-cert 18/18 | `adb2866` |
+| 608 | Mobile homepage 390×844 browser cert | `24b1bf8` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -2931,6 +2932,10 @@ Confirmation no longer promises universal “free cancellation up to 24 hours”
 ### Phase 607 — Traveler honesty suite re-cert (18/18)
 
 After Phases 601–606 traveler fixes, re-ran focused Vitest: listingTruth, departure-slot-remaining, tour/stay sticky CTA, booking-flow.party — **18/18 pass**.
+
+### Phase 608 — Mobile homepage cert (390×844)
+
+Emulated `390×844` on localhost. Hero shows TRAVERION brand, Tours/Stays toggle, compact search (“Anywhere / Any date · Add travelers”), Stripe TEST honesty line, hamburger nav. No obvious horizontal overflow in first viewport. Stripe remains TEST.
 
 ## Known remaining risks (ranked)
 
