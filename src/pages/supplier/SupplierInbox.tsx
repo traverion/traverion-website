@@ -31,6 +31,7 @@ import StatusChip, { toneForPaymentLabel } from '../../components/StatusChip';
 import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
 import { PARTNER_INBOX_MESSAGE_FETCH_CAP } from '../../lib/partner-inbox-cap';
 import { formatStayNightHuman } from '../../lib/stay-calendar';
+import { formatBookingDateDisplay } from '../../lib/booking-flow';
 import { displayListingTitleFromPurchase, displayOptionLabelFromPurchase, partnerOpsDepartureDisplay } from '../../lib/purchase-snapshot';
 import { materializedBookingOptions, parseListingExtras } from '../../types/listingExtras';
 import type { TourPackage } from '../../types/tour';
@@ -250,11 +251,7 @@ export default function SupplierInbox() {
     const whenBits = isStay
       ? `${formatStayNightHuman(b.booking_date ?? '')}${b.check_out ? ` → ${formatStayNightHuman(b.check_out)}` : ''}`
       : b.booking_date
-        ? new Date(`${b.booking_date}T12:00:00`).toLocaleDateString(undefined, {
-            weekday: 'short',
-            day: 'numeric',
-            month: 'short',
-          })
+        ? formatBookingDateDisplay(b.booking_date)
         : '';
     return (
       <>
@@ -459,11 +456,7 @@ export default function SupplierInbox() {
                     {b.check_out && /^\d{4}-\d{2}-\d{2}$/.test(b.check_out)
                       ? `${formatStayNightHuman(b.booking_date ?? '')} → ${formatStayNightHuman(b.check_out)}`
                       : b.booking_date
-                        ? new Date(`${b.booking_date}T12:00:00`).toLocaleDateString(undefined, {
-                            weekday: 'short',
-                            day: 'numeric',
-                            month: 'short',
-                          })
+                        ? formatBookingDateDisplay(b.booking_date)
                         : 'Date TBC'}
                     {` · ${formatBookingParticipantsLabel(b)}`}
                     {(() => {
