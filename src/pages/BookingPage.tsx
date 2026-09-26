@@ -907,7 +907,7 @@ export default function BookingPage({
         {step === 'review' && selectedVariant && (
           <div className="tv-card p-4 sm:p-5">
             <BookingProgress step={step} flow={progressFlow} />
-            <h2 className="font-display text-xl text-ink mb-1.5">Your trip</h2>
+            <h2 className="font-display text-xl text-ink mb-1.5">Trip</h2>
             <p className="text-sm text-ink-muted mb-6">
               Confirm date, option, and participants. Next you will enter contact details, then pay on{' '}
               {STRIPE_TEST_UNTIL_LIVE}.
@@ -1001,7 +1001,7 @@ export default function BookingPage({
         {step === 'date-guests' && (
           <div className="tv-card p-4 sm:p-5">
             <BookingProgress step={step} flow={progressFlow} />
-            <h2 className="text-xl font-semibold text-ink mb-4">Select date and guests</h2>
+            <h2 className="text-xl font-semibold text-ink mb-4">Trip</h2>
             <div className="space-y-4">
               <TourDatePicker
                 id="booking-flow-date-input"
@@ -1114,7 +1114,7 @@ export default function BookingPage({
         {step === 'contact' && (
           <div className="tv-card p-4 sm:p-5">
             <BookingProgress step={step} flow={progressFlow} />
-            <h2 className="text-xl font-semibold text-ink mb-2">Your details</h2>
+            <h2 className="text-xl font-semibold text-ink mb-2">Contact</h2>
             <p className="text-sm text-ink-muted mb-6 flex items-start gap-2">
               <Shield className="w-4 h-4 text-finland shrink-0 mt-0.5" aria-hidden />
               <span>{bookingContactIntroCopy(Boolean(user?.email))}</span>
@@ -1324,7 +1324,7 @@ export default function BookingPage({
                 onClick={handleContinueFromContact}
                 className="tv-btn-primary w-full sm:w-auto"
               >
-                Review and pay
+                Continue to Pay
               </button>
             </div>
             ) : null}
@@ -1334,7 +1334,7 @@ export default function BookingPage({
         {step === 'confirm' && (
           <div className="tv-card p-4 sm:p-5">
             <BookingProgress step={step} flow={progressFlow} />
-            <h2 className="font-display text-xl text-ink mb-1.5">Review &amp; pay</h2>
+            <h2 className="font-display text-xl text-ink mb-1.5">Pay</h2>
             <p className="text-sm text-ink-muted mb-6 flex items-start gap-2 rounded-xl bg-finland/5 ring-1 ring-finland/15 px-3 py-2.5">
               <ClipboardList className="w-4 h-4 text-finland shrink-0 mt-0.5" aria-hidden />
               <span>
@@ -1558,7 +1558,7 @@ export default function BookingPage({
             Back
           </button>
           <button type="button" onClick={handleContinueFromContact} className="tv-btn-primary w-full">
-            Review and pay
+            Continue to Pay
           </button>
         </div>
       ) : null}
