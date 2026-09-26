@@ -190,7 +190,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
           <div aria-busy="true" aria-label="Loading wishlist">
             <SkeletonCardGrid count={4} />
           </div>
-        ) : listings.length === 0 ? (
+        ) : error ? null : listings.length === 0 ? (
           <EmptyState
             icon={Heart}
             title={unavailableCount > 0 ? 'No bookable saved listings' : 'Nothing saved yet'}

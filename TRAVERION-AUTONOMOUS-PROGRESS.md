@@ -3283,6 +3283,22 @@ Failed Offers loads showed “No listings yet” beside the error. Gate empty on
 
 Contact step inputs lacked associated labels (mobile screen readers). Wire `htmlFor`/`id` and `aria-describedby` for email hint.
 
+### Phase 664 — Wishlist empty only when load succeeded
+
+Failed wishlist fetch still showed “Nothing saved yet”. Gate EmptyState on `!error` (ErrorState already renders above).
+
+### Phase 665 — Confirmation wait for authLoading
+
+Payment confirmation flash-showed “Log in to view” while session was still resolving. Wait for `authLoading` before the signed-out gate.
+
+### Phase 666 — Header wait for authLoading before Log in CTA
+
+Desktop profile menu and mobile drawer flashed “Log in / Sign up” during session resolve. Show “Checking session…” until auth settles.
+
+### Phase 667 — Checkout special-requests label association
+
+Special requests textarea lacked `htmlFor`/`id` (same class as Phase 663 contact fields).
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Partner create→publish wizard** not browser-certified this pass (ops Home/Bookings/Calendar/Listings **are** localhost-browser certified in Phase 597). Full create→publish still pending.
