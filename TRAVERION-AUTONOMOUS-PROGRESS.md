@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `bfceaed`  
-**Current phase:** 842  
+**Current SHA:** `c02c58f`  
+**Current phase:** 843  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4213,6 +4213,12 @@ Re-ran `traveler-interest.test.ts` **3/3**. Signals: listing_view, destination_v
 ### Phase 842 — Contact page shell browser cert
 
 **Browser (desktop):** `/contact` uses LegalPageShell hero (SUPPORT / Contact us), topic cards, form fields (phone optional). **browser-tested**. No fake newsletter.
+
+### Phase 843 — Production build + guest picker tests
+
+`tsc -p tsconfig.app.json` clean. `npm run build` clean (~4.2s). `TravelerGuestPicker.test.ts` **3/3**. Shared calendar/guest picker remain the booking UX chrome over truthful availability.
+
+**Certification:** automated-tested + build.
 
 ## Known remaining risks (ranked)
 
