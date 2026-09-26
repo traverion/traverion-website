@@ -495,7 +495,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
           ) : allListings.length === 0 ? (
             <EmptyState
               icon={Compass}
-              title="No tours yet"
+              title="No tours published yet"
               body="Nothing is live on Traverion right now. That is normal — we do not fill this page with sample listings. When an operator publishes, tours appear here."
               action={
                 <a href={supplierPortalLandingHref()} className="tv-btn-primary inline-flex">
@@ -588,7 +588,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
             <ErrorState
               className="py-8"
               title="Stays unavailable"
-              body={userFacingError(listingsError, USER_ERROR.tours)}
+              body={userFacingError(listingsError, USER_ERROR.stays)}
               retry={{ onClick: () => reloadCatalog() }}
               extra={
                 <a href="/contact" className="tv-btn-ghost inline-flex">
