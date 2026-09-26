@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { Star, X } from 'lucide-react';
-import { useDialogFocus } from '../../hooks/useDialogFocus';
-import type { ReviewDisplay, ReviewReplyRow } from '../../data/supabase-reviews';
+import { useDialogFocus } from '../hooks/useDialogFocus';
+import type { ReviewDisplay, ReviewReplyRow } from '../data/supabase-reviews';
 
 type SortId = 'newest' | 'oldest' | 'highest' | 'lowest';
 

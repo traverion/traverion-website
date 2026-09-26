@@ -21,7 +21,7 @@ const VALUES = [
   {
     icon: HeartHandshake,
     title: 'Calm support',
-    body: 'From first search to cancellation, we explain what applies — and we don’t invent email receipts when Trips is the confirmation of record.',
+    body: 'From first search to cancellation, we explain what applies — and Trips keeps your confirmed bookings in one place.',
   },
 ] as const;
 

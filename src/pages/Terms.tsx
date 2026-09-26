@@ -31,6 +31,17 @@ export default function Terms({ onNavigate }: TermsProps) {
       subtitle="Terms of Service for using Traverion — bookings, accounts, liability, and your relationship with us and our suppliers."
       lastUpdated={LAST_UPDATED}
       onNavigate={onNavigate}
+      toc={[
+        { id: 'acceptance', label: 'Acceptance' },
+        { id: 'services', label: 'Services' },
+        { id: 'contract', label: 'Who you contract with' },
+        { id: 'booking', label: 'Booking' },
+        { id: 'cancellations', label: 'Cancellations' },
+        { id: 'privacy', label: 'Personal data' },
+        { id: 'liability', label: 'Liability' },
+        { id: 'law', label: 'Governing law' },
+        { id: 'contact', label: 'Contact' },
+      ]}
     >
       <p>
         These Terms work together with our{' '}
@@ -41,7 +52,7 @@ export default function Terms({ onNavigate }: TermsProps) {
       </p>
 
       <section>
-        <h2>Acceptance of Terms</h2>
+        <h2 id="acceptance">Acceptance of Terms</h2>
         <p>
           By accessing and using TRAVERION's services, you accept and agree to be bound by the terms and provision of
           this agreement.
@@ -50,7 +61,7 @@ export default function Terms({ onNavigate }: TermsProps) {
       </section>
 
       <section>
-        <h2>Description of Services</h2>
+        <h2 id="services">Description of Services</h2>
         <p>
           TRAVERION provides an online platform to discover, compare, and book travel-related products and services
           (including tours, activities, and stays) offered by independent operators and, where applicable, other
@@ -66,7 +77,7 @@ export default function Terms({ onNavigate }: TermsProps) {
       </section>
 
       <section>
-        <h2>Who you contract with</h2>
+        <h2 id="contract">Who you contract with</h2>
         <p>
           Depending on the product, your agreement for the travel service may be with TRAVERION and/or with independent
           third-party suppliers (e.g. carriers, hotels, local operators). Your booking confirmation and any supplier
@@ -95,7 +106,7 @@ export default function Terms({ onNavigate }: TermsProps) {
       </section>
 
       <section>
-        <h2>Booking terms</h2>
+        <h2 id="booking">Booking terms</h2>
         <p>When booking tours or stays on Traverion:</p>
         <ul>
           <li>All bookings are subject to availability</li>
@@ -110,7 +121,7 @@ export default function Terms({ onNavigate }: TermsProps) {
       </section>
 
       <section>
-        <h2>Cancellations, changes &amp; refunds</h2>
+        <h2 id="cancellations">Cancellations, changes &amp; refunds</h2>
         <p>{TRAVERION_STANDARD_CANCELLATION_POLICY}</p>
         <p>
           The policy that applies to your booking is shown on the tour page and in your confirmation. If a listing
@@ -149,7 +160,7 @@ export default function Terms({ onNavigate }: TermsProps) {
       </section>
 
       <section>
-        <h2>Personal data</h2>
+        <h2 id="privacy">Personal data</h2>
         <p>
           We process personal data as described in our{' '}
           <a href="/privacy" onClick={goPrivacy}>
@@ -169,7 +180,7 @@ export default function Terms({ onNavigate }: TermsProps) {
       </section>
 
       <section>
-        <h2>Limitation of liability</h2>
+        <h2 id="liability">Limitation of liability</h2>
         <p>
           TRAVERION shall not be liable for any indirect, incidental, special, consequential, or punitive damages,
           including without limitation, loss of profits, data, use, goodwill, or other intangible losses.
@@ -194,7 +205,7 @@ export default function Terms({ onNavigate }: TermsProps) {
       </section>
 
       <section>
-        <h2>Governing law &amp; disputes</h2>
+        <h2 id="law">Governing law &amp; disputes</h2>
         <p>
           These Terms are governed by the laws of Finland, without regard to conflict-of-law principles. Any disputes
           shall be resolved in the courts of Finland, unless mandatory consumer protection rules in your country of
@@ -228,7 +239,7 @@ export default function Terms({ onNavigate }: TermsProps) {
       </section>
 
       <section>
-        <h2>Contact information</h2>
+        <h2 id="contact">Contact information</h2>
         <p>For questions about these Terms of Service, please contact us:</p>
         <p>
           Email: <a href="mailto:info@traverion.com">info@traverion.com</a>

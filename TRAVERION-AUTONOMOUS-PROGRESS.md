@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `0699255`  
-**Current phase:** 831  
+**Current SHA:** `50e0fde`  
+**Current phase:** 832  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -242,6 +242,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 829 | Stay reviews See all modal | `2c6ec5d` |
 | 830 | Traveler account dashboard wider desktop | `1a173ce` |
 | 831 | Footer brand polish | `0699255` |
+| 832 | Legal/info page shell + Terms/Privacy TOC | `50e0fde` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -4131,6 +4132,16 @@ Account page uses `max-w-[90rem]` two-column desktop: Your travel tiles + securi
 ### Phase 831 — Footer brand polish
 
 Wider footer (`max-w-[90rem]`), display-serif brand + section titles, calmer cream shell (no gradient wash), denser vertical rhythm, legal bar intact. Links unchanged.
+
+### Phase 832 — Legal / info page shell
+
+**Problem:** Terms/Privacy/About shared shell wrapped body in a single card on a narrow `max-w-2xl` column — readable but sparse/plain for a finished marketplace.
+
+**Change:** `LegalPageShell` — hero band (eyebrow + display title + subtitle + last-updated), optional TOC nav, open typography with h2 hairline separators, `max-w-3xl`. Terms + Privacy get TOCs with heading ids. About “Calm support” copy no longer mentions inventing email receipts. Fixed `ListingReviewsModal` import paths (`../hooks`, `../data`) that broke `tsc`.
+
+**Browser:** `/terms` — hero + On this page TOC + section separators verified on localhost. Legal text unchanged in meaning.
+
+**Certification:** browser-tested (desktop Terms). Legal meaning not altered.
 
 ## Known remaining risks (ranked)
 

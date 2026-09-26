@@ -15,9 +15,17 @@ export default function Privacy({ onNavigate }: PrivacyProps) {
       subtitle="How we collect, use, and protect personal data when you use Traverion — including bookings, accounts, and marketing preferences."
       lastUpdated={LAST_UPDATED}
       onNavigate={onNavigate}
+      toc={[
+        { id: 'collect', label: 'Information we collect' },
+        { id: 'use', label: 'How we use it' },
+        { id: 'sharing', label: 'Sharing' },
+        { id: 'security', label: 'Security' },
+        { id: 'rights', label: 'Your rights' },
+        { id: 'contact', label: 'Contact' },
+      ]}
     >
       <section>
-        <h2>Information we collect</h2>
+        <h2 id="collect">Information we collect</h2>
         <p>We collect information you provide directly to us, such as when you:</p>
         <ul>
           <li>Book tours, stays, or request support</li>
@@ -29,7 +37,7 @@ export default function Privacy({ onNavigate }: PrivacyProps) {
       </section>
 
       <section>
-        <h2>How we use your information</h2>
+        <h2 id="use">How we use your information</h2>
         <p>We use the information we collect to:</p>
         <ul>
           <li>Provide, maintain, and improve our services</li>
@@ -42,7 +50,7 @@ export default function Privacy({ onNavigate }: PrivacyProps) {
       </section>
 
       <section>
-        <h2>Information sharing</h2>
+        <h2 id="sharing">Information sharing</h2>
         <p>We do not sell, trade, or otherwise transfer your personal information to third parties except:</p>
         <ul>
           <li>With your consent</li>
@@ -53,7 +61,7 @@ export default function Privacy({ onNavigate }: PrivacyProps) {
       </section>
 
       <section>
-        <h2>Data security</h2>
+        <h2 id="security">Data security</h2>
         <p>
           We implement appropriate security measures to protect your personal information against unauthorized access,
           alteration, disclosure, or destruction.
@@ -62,7 +70,7 @@ export default function Privacy({ onNavigate }: PrivacyProps) {
       </section>
 
       <section>
-        <h2>Your rights (including GDPR)</h2>
+        <h2 id="rights">Your rights (including GDPR)</h2>
         <p>
           Where the EU General Data Protection Regulation (GDPR) or similar laws apply, you may have the right to access,
           correct, delete, or restrict processing of your personal data, to data portability, and to object to certain
@@ -77,7 +85,7 @@ export default function Privacy({ onNavigate }: PrivacyProps) {
       </section>
 
       <section>
-        <h2>Contact us</h2>
+        <h2 id="contact">Contact us</h2>
         <p>If you have any questions about this Privacy Policy, please contact us:</p>
         <p>
           Email:{' '}
