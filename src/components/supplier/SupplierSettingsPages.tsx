@@ -1427,7 +1427,7 @@ function BusinessProfilePage(p: Props) {
               <button
                 type="button"
                 onClick={() => p.setLegalDocModal(null)}
-                className="lux-flat p-2 rounded-full text-ink-muted hover:text-ink shrink-0"
+                className="lux-flat lux-tap-target inline-flex min-h-11 min-w-11 items-center justify-center rounded-full p-2 text-ink-muted hover:text-ink shrink-0"
                 aria-label="Close"
               >
                 <X className="w-5 h-5" aria-hidden />

@@ -95,9 +95,10 @@ const LuxuryInput = forwardRef<HTMLInputElement, LuxuryInputProps>(({
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+            className="absolute right-2 top-1/2 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
           >
-            {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            {showPassword ? <EyeOff size={20} aria-hidden /> : <Eye size={20} aria-hidden />}
           </button>
         )}
         
@@ -105,9 +106,10 @@ const LuxuryInput = forwardRef<HTMLInputElement, LuxuryInputProps>(({
           <button
             type="button"
             onClick={onClear}
-            className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+            className="absolute right-2 top-1/2 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
+            aria-label="Clear search"
           >
-            <X size={20} />
+            <X size={20} aria-hidden />
           </button>
         )}
         
