@@ -3579,6 +3579,46 @@ Partner Earnings hero still hard-coded Stripe TEST until live. Use `STRIPE_TEST_
 
 Destination catalog could include unpublished statuses from cache. Gate with `isListingVisibleToTravelers`.
 
+### Phase 739 — Browse card: defense-in-depth unpublished null
+
+PublicListingBrowseCard now returns null for non-traveler-visible statuses.
+
+### Phase 740 — Lifecycle label: Payment pending (match traveler chip)
+
+`bookingLifecycleLabel` said “Pending payment” while traveler payment chip said “Payment pending”. Align.
+
+### Phase 741 — Legal pages: article landmark + title id
+
+LegalPageShell wrapped content without article/labelled heading. Use `<article aria-labelledby>`.
+
+### Phase 742 — Booking step headings: Trip / Contact / Pay
+
+BookingPage step H2s still said “Your details” / “Review & pay”. Match BookingProgress vocabulary.
+
+### Phase 743 — Account/Wishlist errors: Contact support extra
+
+Load-failure ErrorStates lacked a support escape hatch. Add Contact support actions.
+
+### Phase 744 — en.ts trustLine uses STRIPE_TEST_UNTIL_LIVE
+
+Top-banner trust line still hard-coded TEST phrase. Import shared constant; normalize Loading… ellipsis.
+
+### Phase 745 — Affiliate/Content-creator: application-only honesty + field errors
+
+Stub partnership pages implied more product than exists. Clarify application-only; wire `aria-describedby` on field errors.
+
+### Phase 746 — Confirmation Pay now · TEST + hold copy
+
+Pay-now CTA omitted TEST; hold notice hard-coded Stripe TEST. Align with Trips vocabulary.
+
+### Phase 747 — Footer cookies label case + XML partner URL
+
+Footer cookies link title-cased inconsistently; public sitemap gains partner.traverion.com.
+
+### Phase 748 — Tour/Stay sticky TEST micro-alignment + Reviews date helper already
+
+Remaining listing sticky copy alignment from agent pass.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Partner create→publish wizard** not browser-certified this pass (ops Home/Bookings/Calendar/Listings **are** localhost-browser certified in Phase 597). Full create→publish still pending.

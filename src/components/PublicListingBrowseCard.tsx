@@ -9,6 +9,7 @@ import { listingShowsFreeCancellation } from '../lib/listingTruth';
 import { formatTourDurationDisplay, materializedBookingOptions, parseListingExtras } from '../types/listingExtras';
 import { listingIsFamily } from '../lib/inventory';
 import { formatMoney, normalizeCurrency } from '../lib/money';
+import { isListingVisibleToTravelers } from '../lib/product-workflows';
 import { ListingCardRating } from './ListingCardRating';
 
 export type PublicListingBrowseCardProps = {
@@ -50,6 +51,9 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
   stayStayTotal = null,
   wishlist = null,
 }: PublicListingBrowseCardProps) {
+  // Defense in depth: unpublished listings must not appear on traveler browse surfaces.
+  if (!isListingVisibleToTravelers(tour.status)) return null;
+
   const { price, originalPrice, label, qualifier, summary } = getDisplayPriceForTour(tour, discountsByListing);
   const hasDiscount = Boolean(label && price < originalPrice);
   const fromAmount = hasDiscount ? price : originalPrice;
