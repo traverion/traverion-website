@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `be52809`  
-**Current phase:** 765  
+**Current SHA:** `693ed52`  
+**Current phase:** 766  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -176,6 +176,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 763 | Shared Continue TEST CTA constant | `61fb4df` |
 | 764 | Tour and stay detail Continue TEST wiring | `ec7029d` |
 | 765 | Home hero uses shared Stripe TEST phrase | `be52809` |
+| 766 | English cookies label and honest reply SLA | `693ed52` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3703,6 +3704,10 @@ Listing detail Continue · TEST still hard-coded after sticky helper centralizat
 ### Phase 765 — Home hero uses shared Stripe TEST phrase
 
 Home hero still said Stripe remains TEST until live payments are switched on. Use shared STRIPE_TEST_UNTIL_LIVE.
+
+### Phase 766 — English cookies label and honest reply SLA
+
+en.ts footer links still said Cookie Policy and claimed 24h response. Align cookies label; reply copy says no guaranteed SLA.
 
 ## Known remaining risks (ranked)
 
