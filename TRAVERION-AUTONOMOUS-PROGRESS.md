@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800 complete · **801→850 traveler premium**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `d7f7c70`  
-**Current phase:** 840  
+**Current SHA:** `fecf491`  
+**Current phase:** 841  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4203,6 +4203,12 @@ Softened stays empty-state honesty copy (still no invented inventory).
 **Browser (390×844):** Account dashboard loads traveler chrome — Your travel tiles, Security, Profile. Note: localhost session may show partner demo identity (known same-origin risk). **mobile-browser-tested**.
 
 **Change:** Account travel tile “Wishlist” → **Saved**. Catalog heart: press scale + brief fill pulse (respects reduced motion via motion-safe).
+
+### Phase 841 — Personalization foundation re-cert
+
+Re-ran `traveler-interest.test.ts` **3/3**. Signals: listing_view, destination_view, search, wishlist_save (localStorage, deterministic ranking). Homepage uses “Because you explored {place}” only when real destination_view signals exist; otherwise catalog discovery titles. No fabricated “Recommended for you”. No fingerprinting.
+
+**Certification:** automated-tested.
 
 ## Known remaining risks (ranked)
 
