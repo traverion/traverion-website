@@ -39,15 +39,43 @@ describe('stayStickyBookCtaLabel', () => {
     ).toBe('Need 2+ nights');
   });
 
-  it('only says Continue · TEST when quote is ok', () => {
+  it('only says Continue · TEST when quote is ok and lead guest is ready', () => {
     expect(
       stayStickyBookCtaLabel({
         selectionOccupied: false,
         quoteOk: true,
+        leadGuestReady: true,
         checkIn: '2026-10-01',
         checkOut: '2026-10-04',
         minNights: 1,
       })
     ).toBe('Continue · TEST');
+  });
+
+  it('asks for guest name before Continue when quote is ok', () => {
+    expect(
+      stayStickyBookCtaLabel({
+        selectionOccupied: false,
+        quoteOk: true,
+        leadGuestReady: false,
+        checkIn: '2026-10-01',
+        checkOut: '2026-10-04',
+        minNights: 1,
+      })
+    ).toBe('Add guest name');
+  });
+
+  it('uses Opening checkout… while Stripe opens', () => {
+    expect(
+      stayStickyBookCtaLabel({
+        selectionOccupied: false,
+        paying: true,
+        quoteOk: true,
+        leadGuestReady: true,
+        checkIn: '2026-10-01',
+        checkOut: '2026-10-04',
+        minNights: 1,
+      })
+    ).toBe('Opening checkout…');
   });
 });

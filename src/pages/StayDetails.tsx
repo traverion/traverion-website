@@ -46,6 +46,7 @@ import { travelerDisplayNameFromSources } from '../lib/traveler-display-name';
 import {
   BOOKING_CONFIRMATION_EMAIL_DISCLAIMER,
   STAY_LISTING_CONFIRMATION_NOTE,
+  LISTING_REVIEWS_EMPTY_COPY,
 } from '../lib/booking-confirmation-copy';
 import { listingShowsFreeCancellation, publicReviewLabel } from '../lib/listingTruth';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -120,7 +121,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
           !listingDetailVisibleToTraveler({ familyMatches: listingIsFamily(found, 'stay'), status: found.status })
         ) {
           setStay(null);
-          setError('This stay is not available.');
+          setError(USER_ERROR.stayMissing);
           return;
         }
         setStay(found);
@@ -406,6 +407,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
     selectionOccupied,
     paying,
     quoteOk,
+    leadGuestReady: stayCheckoutLeadGuestNameReady(guestName),
     checkIn,
     checkOut,
     quoteError: stayQuote && !stayQuote.ok ? stayQuote.error : null,
@@ -710,7 +712,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
                 </div>
               ) : reviews.length === 0 && !showReviewForm ? (
                 <p className="text-ink-muted mb-4 max-w-xl leading-relaxed">
-                  No reviews yet. Guests can write one after a completed stay.
+                  {LISTING_REVIEWS_EMPTY_COPY}
                 </p>
               ) : null}
               <div className="space-y-6 mb-6">
