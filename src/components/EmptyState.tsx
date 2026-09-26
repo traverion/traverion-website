@@ -26,7 +26,9 @@ export default function EmptyState({ icon: Icon, title, body, action, className 
       ) : null}
       <h2 className="font-display text-xl sm:text-2xl text-ink tracking-tight">{title}</h2>
       <p className="mt-2 text-sm text-ink-muted leading-relaxed">{body}</p>
-      {action ? <div className="mt-4">{action}</div> : null}
+      {action ? (
+        <div className="mt-4 flex flex-wrap gap-2 [&_a]:min-h-11 [&_button]:min-h-11">{action}</div>
+      ) : null}
     </div>
   );
 }

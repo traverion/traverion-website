@@ -3503,6 +3503,34 @@ Pickup detail back link was text-sized. Add `lux-tap-target min-h-11`.
 
 Mobile sticky stay Continue / login controls lacked explicit 44px height. Match tour sticky.
 
+### Phase 719 — EmptyState actions: min-h-11 buttons/links
+
+EmptyState action clusters could ship undersized CTAs. Force `min-h-11` on nested buttons/links.
+
+### Phase 720 — Partner offer wizard + modal closes: 44px
+
+DiscountOfferWizard and SupplierModalHeader close controls undersized. Enlarge to `min-h-11 min-w-11`.
+
+### Phase 721 — Partner bottom More + notice dismiss: a11y
+
+Mobile More tab lacked `aria-label` / min width; portal notice dismiss was 32px. Label More and enlarge dismiss.
+
+### Phase 722 — Partner settings legal close + LuxuryInput toggles
+
+Business profile legal modal close and LuxuryInput show/clear controls undersized/unlabeled. Enlarge and label.
+
+### Phase 723 — Home mobile search close: 44px
+
+Home search sheet close control undersized. Match browse filter close.
+
+### Phase 724 — Trips cancel sheet close: labeled icon
+
+Cancel confirm sheet close uses an X with proper hit area (import + control).
+
+### Phase 725 — Mobile + a11y band checkpoint
+
+Band 676–725 closed: header/session a11y, review/form labels, 44px tap targets across traveler + partner, catalog/capacity honesty carry-over, shared date helpers. Next: product coherence 726–775.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Partner create→publish wizard** not browser-certified this pass (ops Home/Bookings/Calendar/Listings **are** localhost-browser certified in Phase 597). Full create→publish still pending.
