@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `ba76eb2`  
-**Current phase:** 658  
+**Current SHA:** `8b66b64`  
+**Current phase:** 659  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -154,6 +154,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 656 | Trips payment-success banner honest during webhook lag | `36fc213` |
 | 657 | Inbox stale-load guard + empty only after success | `a31424e` |
 | 658 | Onboarding listing count null until known | `ba76eb2` |
+| 659 | Calendar empty only when listings load succeeded | `8b66b64` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3255,6 +3256,10 @@ Same class as Trips/Bookings/Reviews: overlapping Inbox loads could apply stale 
 **Problem:** Failed/unsigned onboarding refresh coerced listing count to `0` and `hasListing={(count ?? 0) > 0}` treated unknown as no listing.
 
 **Fix:** Keep `null` when unknown/failed; pass `onboardingHasListing` (known && > 0) into PartnerOnboarding.
+
+### Phase 659 — Calendar empty only when listings load succeeded
+
+Failed Availability listing fetch showed “Create a listing first”. Show ErrorState instead when `error` is set.
 
 ## Known remaining risks (ranked)
 

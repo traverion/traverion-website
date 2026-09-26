@@ -464,6 +464,13 @@ export default function SupplierAvailability() {
             <div key={i} className="min-h-[4.5rem] rounded-xl bg-black/[0.04] animate-pulse" />
           ))}
         </div>
+      ) : error ? (
+        <ErrorState
+          className="py-6"
+          title="Calendar unavailable"
+          body={userFacingError(error, USER_ERROR.calendar)}
+          retry={{ onClick: () => void loadListings() }}
+        />
       ) : listings.length === 0 ? (
         <SupplierEmptyState
           icon={CalendarDays}
