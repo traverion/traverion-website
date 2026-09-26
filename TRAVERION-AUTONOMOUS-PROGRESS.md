@@ -3,8 +3,8 @@
 **Mission:** Phases 401→800  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `b96a444`  
-**Current phase:** 776  
+**Current SHA:** `c64dd2f`  
+**Current phase:** 777  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -187,6 +187,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 774 | Partner Money error Contact support | `affcaff` |
 | 775 | Product coherence band checkpoint 726-775 | `4343e28` |
 | 776 | Fix partner Inbox ErrorState JSX parse | `b96a444` |
+| 777 | Launch-break production build clean | `c64dd2f` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -3758,6 +3759,10 @@ Money load ErrorState had retry only.
 ### Phase 776 — Fix partner Inbox ErrorState JSX parse
 
 **Launch-break start:** Phase 772 Inbox Contact support used `}}` closing braces and broke `tsc`. Correct JSX; `tsc -p tsconfig.app.json` clean.
+
+### Phase 777 — Launch-break production build clean
+
+**Launch-break:** `npm run build` succeeded after Inbox JSX fix.
 
 ## Known remaining risks (ranked)
 
