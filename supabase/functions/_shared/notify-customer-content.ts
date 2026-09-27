@@ -8,6 +8,7 @@
  * (historical purchase truth), else live listing/booking columns.
  * Phase 1060: join snap meetingPoint + pickupInstructions (place + start copy).
  * Phase 1066: stay emails get snap checkInAddress + house times (not tour meeting).
+ * Phase 1070: stay houseRules + tour includes/excludes from purchase_snapshot.
  *
  * Deliberately left caller-supplied (same scoping as supplier Phase 579):
  * fieldDiffs, unpaidCheckout, refundStatusNote, paidAtIso, paymentIntentId.
@@ -78,6 +79,12 @@ export type CustomerContentOverrides = {
   checkInTime?: string;
   /** Stay: purchased house check-out HH:MM. */
   checkOutTime?: string;
+  /** Stay: purchased house rules text. */
+  houseRules?: string;
+  /** Tour: purchased included items. */
+  includes?: string[];
+  /** Tour: purchased excluded items. */
+  excludes?: string[];
 };
 
 export type CustomerContentResolution =
@@ -94,6 +101,22 @@ function snapshotString(snapshot: unknown, key: string): string | undefined {
   if (!rec) return undefined;
   const v = rec[key];
   return typeof v === 'string' && v.trim() ? v.trim() : undefined;
+}
+
+function snapshotStringList(snapshot: unknown, key: string, maxItems = 40, maxLen = 200): string[] | undefined {
+  const rec = snapshotRecord(snapshot);
+  if (!rec) return undefined;
+  const raw = rec[key];
+  if (!Array.isArray(raw)) return undefined;
+  const out: string[] = [];
+  for (const item of raw) {
+    if (typeof item !== 'string') continue;
+    const t = item.trim().slice(0, maxLen);
+    if (!t) continue;
+    out.push(t);
+    if (out.length >= maxItems) break;
+  }
+  return out.length ? out : undefined;
 }
 
 function resolveListingKind(
@@ -165,6 +188,9 @@ export function resolveBookingTiedContent(params: {
     checkOutTimeRaw && /^\d{2}:\d{2}/.test(checkOutTimeRaw)
       ? checkOutTimeRaw.slice(0, 5)
       : undefined;
+  const houseRules = isStay ? snapshotString(snap, 'houseRules')?.slice(0, 2000) : undefined;
+  const includes = !isStay ? snapshotStringList(snap, 'includes') : undefined;
+  const excludes = !isStay ? snapshotStringList(snap, 'excludes') : undefined;
 
   const overrides: CustomerContentOverrides = {};
   if (listingTitle) overrides.listingTitle = listingTitle;
@@ -208,6 +234,9 @@ export function resolveBookingTiedContent(params: {
   if (checkInAddress) overrides.checkInAddress = checkInAddress;
   if (checkInTime) overrides.checkInTime = checkInTime;
   if (checkOutTime) overrides.checkOutTime = checkOutTime;
+  if (houseRules) overrides.houseRules = houseRules;
+  if (includes) overrides.includes = includes;
+  if (excludes) overrides.excludes = excludes;
 
   return { ok: true, overrides };
 }

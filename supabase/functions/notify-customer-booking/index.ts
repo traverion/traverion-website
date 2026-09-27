@@ -73,6 +73,12 @@ type Payload = {
   checkInTime?: string;
   /** Stay: purchased house check-out HH:MM. */
   checkOutTime?: string;
+  /** Stay: purchased house rules. */
+  houseRules?: string;
+  /** Tour: purchased included items. */
+  includes?: string[];
+  /** Tour: purchased excluded items. */
+  excludes?: string[];
   /** Supplier / operator display name when known. */
   supplierName?: string;
   /** booking_cancelled / refund: truthful refund line for body. */
@@ -146,6 +152,58 @@ ${params.footerNote ? `<p style="margin:16px 0 0;font-size:13px;color:#6b7280;">
 function detailRow(label: string, value: string): string {
   if (!value) return '';
   return `<tr><td style="padding:6px 0;font-size:13px;color:#6b7280;width:130px;vertical-align:top;">${escapeHtml(label)}</td><td style="padding:6px 0;font-size:14px;color:#111827;">${escapeHtml(value)}</td></tr>`;
+}
+
+function htmlBulletList(items: string[] | undefined, title: string): string {
+  if (!items?.length) return '';
+  const lis = items
+    .map((i) => `<li style="margin:0 0 4px;">${escapeHtml(i)}</li>`)
+    .join('');
+  return `<p style="margin:12px 0 0;font-size:14px;color:#111827;"><strong>${escapeHtml(title)}</strong></p><ul style="margin:6px 0 0;padding-left:18px;font-size:14px;color:#111827;">${lis}</ul>`;
+}
+
+function purchasedLogisticsExtraHtml(params: {
+  isStay: boolean;
+  checkInAddress?: string;
+  checkInTime?: string;
+  checkOutTime?: string;
+  houseRules?: string;
+  meetingPoint?: string;
+  includes?: string[];
+  excludes?: string[];
+}): string {
+  if (params.isStay) {
+    const stayLines: string[] = [];
+    if (params.checkInAddress?.trim()) {
+      stayLines.push(
+        `<p style="margin:0 0 8px;font-size:14px;color:#111827;"><strong>Check-in address:</strong> ${escapeHtml(params.checkInAddress.trim())}</p>`
+      );
+    }
+    const houseBits = [
+      params.checkInTime?.trim() ? `Check-in from ${params.checkInTime.trim().slice(0, 5)}` : null,
+      params.checkOutTime?.trim() ? `Check-out by ${params.checkOutTime.trim().slice(0, 5)}` : null,
+    ].filter(Boolean);
+    if (houseBits.length) {
+      stayLines.push(
+        `<p style="margin:0 0 8px;font-size:14px;color:#111827;"><strong>House times:</strong> ${escapeHtml(houseBits.join(' · '))}</p>`
+      );
+    }
+    if (params.houseRules?.trim()) {
+      stayLines.push(
+        `<p style="margin:0;font-size:14px;color:#111827;white-space:pre-wrap;"><strong>House rules:</strong> ${escapeHtml(params.houseRules.trim())}</p>`
+      );
+    }
+    return stayLines.join('');
+  }
+  const parts: string[] = [];
+  if (params.meetingPoint?.trim()) {
+    parts.push(
+      `<p style="margin:0;font-size:14px;color:#111827;"><strong>Meeting / pickup:</strong> ${escapeHtml(params.meetingPoint.trim())}</p>`
+    );
+  }
+  parts.push(htmlBulletList(params.includes, 'Included (when you booked)'));
+  parts.push(htmlBulletList(params.excludes, 'Not included (when you booked)'));
+  return parts.filter(Boolean).join('');
 }
 
 function orderTag(n: number | undefined): string {
@@ -315,6 +373,9 @@ serve(async (req) => {
     let checkInAddress = body.checkInAddress;
     let checkInTime = body.checkInTime;
     let checkOutTime = body.checkOutTime;
+    let houseRules = body.houseRules;
+    let includes = body.includes;
+    let excludes = body.excludes;
     let amount =
       typeof body.totalAmount === 'number' && Number.isFinite(body.totalAmount) && body.totalAmount >= 0
         ? body.totalAmount
@@ -423,6 +484,10 @@ serve(async (req) => {
       checkInAddress = content.overrides.checkInAddress;
       checkInTime = content.overrides.checkInTime;
       checkOutTime = content.overrides.checkOutTime;
+      // Phase 1070: purchased house rules / includes / excludes.
+      houseRules = content.overrides.houseRules;
+      includes = content.overrides.includes;
+      excludes = content.overrides.excludes;
     }
 
     const greeting = name ? `Hi ${name},` : 'Hi,';
@@ -476,6 +541,17 @@ serve(async (req) => {
 <tr><td style="font-size:13px;color:#15803d;padding-top:6px;">${escapeHtml(paidReceiptLine(listingKind))}</td></tr>
 </table>`;
       }
+      const logistics = purchasedLogisticsExtraHtml({
+        isStay: listingKindIsStay(listingKind),
+        checkInAddress,
+        checkInTime,
+        checkOutTime,
+        houseRules,
+        meetingPoint,
+        includes,
+        excludes,
+      });
+      if (logistics) extraHtml += logistics;
       footerNote =
         // Keep in sync with BOOKING_CONFIRMED_PAID_FOLLOWUP_NOTE in booking-confirmation-copy.ts
         'Watch Trips for schedule or meeting updates from the host. Traverion does not treat email delivery as proof you received a notice.';
@@ -565,26 +641,16 @@ serve(async (req) => {
       intro = isStay
         ? `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your stay at <strong>${escapeHtml(title)}</strong> is coming up soon. Details we have on file are below — check Trips for the latest.</p>`
         : `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your tour <strong>${escapeHtml(title)}</strong> is coming up soon. Details we have on file are below — check Trips for the latest.</p>`;
-      if (isStay) {
-        const stayLines: string[] = [];
-        if (checkInAddress?.trim()) {
-          stayLines.push(
-            `<p style="margin:0 0 8px;font-size:14px;color:#111827;"><strong>Check-in address:</strong> ${escapeHtml(checkInAddress.trim())}</p>`
-          );
-        }
-        const houseBits = [
-          checkInTime?.trim() ? `Check-in from ${checkInTime.trim().slice(0, 5)}` : null,
-          checkOutTime?.trim() ? `Check-out by ${checkOutTime.trim().slice(0, 5)}` : null,
-        ].filter(Boolean);
-        if (houseBits.length) {
-          stayLines.push(
-            `<p style="margin:0;font-size:14px;color:#111827;"><strong>House times:</strong> ${escapeHtml(houseBits.join(' · '))}</p>`
-          );
-        }
-        if (stayLines.length) extraHtml = stayLines.join('');
-      } else if (meetingPoint?.trim()) {
-        extraHtml = `<p style="margin:0;font-size:14px;color:#111827;"><strong>Meeting / pickup:</strong> ${escapeHtml(meetingPoint.trim())}</p>`;
-      }
+      extraHtml = purchasedLogisticsExtraHtml({
+        isStay,
+        checkInAddress,
+        checkInTime,
+        checkOutTime,
+        houseRules,
+        meetingPoint,
+        includes,
+        excludes,
+      });
       if (diffs.length) extraHtml += fieldDiffTableHtml(diffs);
       footerNote = isStay
         ? 'Open Trips for check-in address, house times, or host updates.'

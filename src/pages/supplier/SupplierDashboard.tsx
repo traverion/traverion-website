@@ -125,7 +125,11 @@ function TextLink({ children, onClick }: { children: ReactNode; onClick: () => v
 
 function bookingLabel(b: BookingRow | undefined, titles: Record<string, string>): string {
   if (!b) return '';
-  return titles[b.listing_id] ?? (bookingIsStayNight(b) ? 'Stay' : 'Tour');
+  return displayListingTitleFromPurchase(
+    b.purchase_snapshot,
+    titles[b.listing_id],
+    bookingIsStayNight(b) ? 'Stay' : 'Tour'
+  );
 }
 
 export default function SupplierDashboard() {
@@ -1011,7 +1015,11 @@ export default function SupplierDashboard() {
                         {b.guest_name?.trim() || 'Traveler'}
                       </span>
                       <span className="break-words text-[13px] text-slate-500 [overflow-wrap:anywhere] line-clamp-2">
-                        {listingTitlesById[b.listing_id] ?? 'Listing'}
+                        {displayListingTitleFromPurchase(
+                          b.purchase_snapshot,
+                          listingTitlesById[b.listing_id],
+                          'Listing'
+                        )}
                       </span>
                       <span className="text-[13px] text-slate-500 tabular-nums">
                         {formatBookingParticipantsLabel(b)}

@@ -182,6 +182,56 @@ describe('resolveBookingTiedContent (Phase 1052 content-forgery fix)', () => {
     expect(result.overrides.meetingPoint).toBeUndefined();
   });
 
+  it('surfaces stay houseRules and tour includes/excludes from purchase_snapshot (Phase 1070)', () => {
+    const stay = resolveBookingTiedContent({
+      kind: 'experience_reminder',
+      bookingId: BOOKING_ID,
+      bookingRow: {
+        guest_name: 'M',
+        booking_date: '2026-12-01',
+        check_out: '2026-12-02',
+        guests: 1,
+        purchase_snapshot: {
+          listingTitle: 'Cabin',
+          houseRules: 'Quiet after 22:00',
+          checkInAddress: 'Forest 1',
+          capturedAt: '2026-09-01T12:00:00Z',
+        },
+      },
+      listingRow: { id: 'l1', title: 'Cabin', listing_extras: { inventoryFamily: 'stay' } },
+    });
+    expect(stay.ok).toBe(true);
+    if (stay.ok) {
+      expect(stay.overrides.houseRules).toMatch(/Quiet/);
+      expect(stay.overrides.includes).toBeUndefined();
+    }
+
+    const tour = resolveBookingTiedContent({
+      kind: 'booking_confirmed_paid',
+      bookingId: BOOKING_ID,
+      bookingRow: {
+        guest_name: 'M',
+        booking_date: '2026-12-01',
+        guests: 2,
+        purchase_snapshot: {
+          listingTitle: 'Aurora',
+          includes: ['Guide', '  Hot drink  '],
+          excludes: ['Hotel pickup'],
+          meetingPoint: 'Square',
+          capturedAt: '2026-09-01T12:00:00Z',
+        },
+      },
+      listingRow: { id: 'l1', title: 'RENAMED', listing_extras: {} },
+    });
+    expect(tour.ok).toBe(true);
+    if (tour.ok) {
+      expect(tour.overrides.includes).toEqual(['Guide', 'Hot drink']);
+      expect(tour.overrides.excludes).toEqual(['Hotel pickup']);
+      expect(tour.overrides.houseRules).toBeUndefined();
+      expect(tour.overrides.meetingPoint).toContain('Square');
+    }
+  });
+
   it('does not put tour meeting copy on stay emails even if snap has meetingPoint', () => {
     const result = resolveBookingTiedContent({
       kind: 'experience_reminder',
