@@ -233,5 +233,32 @@ begin
   ) into v_ok;
   if v_ok then raise exception 'helper ended schedule season must fail'; end if;
 
+  -- Phase 1270: season ending on experience-local today remains bookable (not UTC current_date).
+  select public.listing_has_bookable_tour_surface(
+    jsonb_build_object(
+      'departureTimezone', 'Europe/Helsinki',
+      'bookingOptions', jsonb_build_array(
+        jsonb_build_object(
+          'pickupPlace', 'Hotel pickup area',
+          'schedules', jsonb_build_array(
+            jsonb_build_object(
+              'status', 'ready',
+              'priceUsd', 10,
+              'minPersons', 1,
+              'maxPersons', 8,
+              'maxSpotsPerSlot', 8,
+              'startTime', '20:00',
+              'weekdays', jsonb_build_array(true, true, true, true, true, true, true),
+              'availabilityDateFrom', '2020-01-01',
+              'availabilityDateTo', (now() at time zone 'Europe/Helsinki')::date::text
+            )
+          )
+        )
+      )
+    ),
+    0
+  ) into v_ok;
+  if not v_ok then raise exception 'helper season ending experience-local today must stay bookable'; end if;
+
   raise notice 'ALL ASSERTIONS PASSED';
 end $$;
