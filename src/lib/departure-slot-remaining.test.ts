@@ -55,7 +55,7 @@ describe('departureSlotSpotsLeft', () => {
     expect(n).toBe(5);
   });
 
-  it('uses day-cap override for all departures when partner set a day limit', () => {
+  it('tightens day-cap override with slot max and keeps slot occupancy (Phase 1112)', () => {
     const day = '2026-10-01';
     const n = departureSlotSpotsLeft({
       dayIso: day,
@@ -67,7 +67,22 @@ describe('departureSlotSpotsLeft', () => {
       dayCapOverride: 4,
       fallbackDayCap: 14,
     });
-    expect(n).toBe(1);
+    expect(n).toBe(4);
+  });
+
+  it('day override above slot max cannot oversell a full departure (Phase 1112)', () => {
+    const day = '2026-10-01';
+    const n = departureSlotSpotsLeft({
+      dayIso: day,
+      startTimeHm: '08:00',
+      maxSpotsPerSlot: 8,
+      maxPersonsFallback: 12,
+      paidBySlot: { [tourPaidSlotKey(day, '08:00')]: 8 },
+      paidByDay: { [day]: 8 },
+      dayCapOverride: 20,
+      fallbackDayCap: 14,
+    });
+    expect(n).toBe(0);
   });
 });
 

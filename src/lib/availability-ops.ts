@@ -78,9 +78,8 @@ export function partnerTourDaySpotDisplay(params: {
 
 /**
  * Partner month-grid label for multi-departure days.
- * Day-level listing_availability overrides stay day-wide.
- * Without a day override and ≥2 departures: Full only when every departure is full;
- * otherwise Open / Partial — never paint the whole day Full from one morning fill.
+ * Day overrides only tighten; with ≥1 departure use per-slot remaining under
+ * min(slotMax, dayCap) (Phase 1112). Without departures, fall back to day-wide.
  */
 export function partnerTourMonthCellCapacityLabel(params: {
   offered: boolean;
@@ -94,6 +93,34 @@ export function partnerTourMonthCellCapacityLabel(params: {
     typeof params.dayCapacityOverride === 'number' && Number.isFinite(params.dayCapacityOverride)
       ? Math.max(0, Math.floor(params.dayCapacityOverride))
       : null;
+  if (dayCap != null && dayCap < 1) {
+    return { short: 'Full', aria: 'closed this day', tone: 'full' };
+  }
+  if (params.departures.length >= 1) {
+    const lines = params.departures.map((d) => {
+      const cap = dayCap != null ? Math.min(d.maxSpots, dayCap) : d.maxSpots;
+      return partnerTourRemainingSpots(cap, d.occupyingGuests);
+    });
+    const anyOpen = lines.some((n) => n > 0);
+    if (!anyOpen) return { short: 'Full', aria: 'fully booked this day', tone: 'full' };
+    const openCount = lines.filter((n) => n > 0).length;
+    if (params.departures.length >= 2 && openCount < params.departures.length) {
+      return {
+        short: 'Partial',
+        aria: `${openCount} of ${params.departures.length} departures still have seats`,
+        tone: 'partial',
+      };
+    }
+    const left = Math.max(...lines);
+    const capShown = dayCap != null
+      ? Math.min(Math.max(...params.departures.map((d) => d.maxSpots)), dayCap)
+      : Math.max(...params.departures.map((d) => d.maxSpots));
+    return {
+      short: `${left}/${capShown} left`,
+      aria: `${left} of ${capShown} spots left on the fullest open departure`,
+      tone: 'open',
+    };
+  }
   if (dayCap != null) {
     const remaining = partnerTourRemainingSpots(dayCap, params.occupyingGuestsDay);
     if (remaining === 0) return { short: 'Full', aria: 'fully booked this day', tone: 'full' };
@@ -103,22 +130,11 @@ export function partnerTourMonthCellCapacityLabel(params: {
       tone: 'open',
     };
   }
-  if (params.departures.length >= 2) {
-    const lines = params.departures.map((d) =>
-      partnerTourRemainingSpots(d.maxSpots, d.occupyingGuests)
-    );
-    const allFull = lines.every((r) => r === 0);
-    if (allFull) return { short: 'Full', aria: 'all departures full', tone: 'full' };
-    const anyTaken = params.departures.some((d) => d.occupyingGuests > 0);
-    if (anyTaken) return { short: 'Partial', aria: 'some departures still open', tone: 'partial' };
-    return { short: 'Open', aria: 'open', tone: 'open' };
-  }
-  const capacity = params.defaultCapacity;
-  const remaining = partnerTourRemainingSpots(capacity, params.occupyingGuestsDay);
-  if (remaining === 0) return { short: 'Full', aria: 'fully booked', tone: 'full' };
+  const remaining = partnerTourRemainingSpots(params.defaultCapacity, params.occupyingGuestsDay);
+  if (remaining === 0) return { short: 'Full', aria: 'fully booked this day', tone: 'full' };
   return {
-    short: `${remaining}/${capacity} left`,
-    aria: `${remaining} of ${capacity} spots left`,
+    short: `${remaining}/${params.defaultCapacity} left`,
+    aria: `${remaining} of ${params.defaultCapacity} spots left`,
     tone: 'open',
   };
 }

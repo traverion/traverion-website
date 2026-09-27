@@ -13,18 +13,24 @@ export function tourPublicAvailabilityRemaining(params: {
   paidGuestsSlot?: number;
 }): { available: boolean; remaining: number; scope: 'day' | 'departure' } {
   const guests = Math.max(1, Math.floor(params.guests));
-  if (params.dayCapacityOverride != null && Number.isFinite(params.dayCapacityOverride)) {
-    const remaining = remainingCapacity(params.dayCapacityOverride, params.paidGuestsDay);
-    return { remaining, available: remaining >= guests, scope: 'day' };
-  }
+  const dayOverride =
+    params.dayCapacityOverride != null && Number.isFinite(params.dayCapacityOverride)
+      ? Math.max(0, Math.floor(params.dayCapacityOverride))
+      : null;
   const start = (params.startTimeHm ?? '').trim();
   const slotCap =
     typeof params.slotMaxSpots === 'number' && Number.isFinite(params.slotMaxSpots) && params.slotMaxSpots >= 1
       ? Math.floor(params.slotMaxSpots)
       : null;
+  // Phase 1112: day override only tightens; with a departure keep slot occupancy.
   if (start && slotCap != null) {
-    const remaining = remainingCapacity(slotCap, params.paidGuestsSlot ?? 0);
+    const cap = dayOverride != null ? Math.min(slotCap, dayOverride) : slotCap;
+    const remaining = remainingCapacity(cap, params.paidGuestsSlot ?? 0);
     return { remaining, available: remaining >= guests, scope: 'departure' };
+  }
+  if (dayOverride != null) {
+    const remaining = remainingCapacity(dayOverride, params.paidGuestsDay);
+    return { remaining, available: remaining >= guests, scope: 'day' };
   }
   const remaining = remainingCapacity(params.fallbackDayCapacity, params.paidGuestsDay);
   return { remaining, available: remaining >= guests, scope: 'day' };

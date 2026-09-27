@@ -433,11 +433,13 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const selectedDaySpotsLeft = useMemo(() => {
     const day = bookingDate.trim();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !dayCapacitySnap) return null;
-    const dayCapOverride = dayCapacitySnap.capByDay.has(day);
+    const dayCap = dayCapacitySnap.capByDay.has(day)
+      ? (dayCapacitySnap.capByDay.get(day) ?? dayCapacitySnap.fallback)
+      : undefined;
     const effectiveStart =
       selectedDepartureTime.trim() ||
       (departureTimes.length === 1 ? departureTimes[0] : '');
-    const slotSelected = !dayCapOverride && selectedOptionApplied && Boolean(effectiveStart);
+    const slotSelected = Boolean(selectedOptionApplied && effectiveStart);
     if (soldOutDates.has(day) && !slotSelected) return 0;
     if (slotSelected && selectedOptionApplied && effectiveStart) {
       return departureSlotSpotsLeft({
@@ -447,12 +449,9 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         maxPersonsFallback: selectedOptionApplied.maxPersons,
         paidBySlot: dayCapacitySnap.paidBySlot,
         paidByDay: dayCapacitySnap.paidByDay,
+        dayCapOverride: dayCap,
         fallbackDayCap: dayCapacitySnap.fallback,
       });
-    }
-    if (dayCapacitySnap.capByDay.has(day)) {
-      const cap = dayCapacitySnap.capByDay.get(day) ?? dayCapacitySnap.fallback;
-      return remainingCapacity(cap, dayCapacitySnap.paidByDay[day] ?? 0);
     }
     if (selectedOptionApplied && departureTimes.length >= 1) {
       return maxSpotsLeftAcrossDepartures({
@@ -462,8 +461,12 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         maxPersonsFallback: selectedOptionApplied.maxPersons,
         paidBySlot: dayCapacitySnap.paidBySlot,
         paidByDay: dayCapacitySnap.paidByDay,
+        dayCapOverride: dayCap,
         fallbackDayCap: dayCapacitySnap.fallback,
       });
+    }
+    if (dayCap != null) {
+      return remainingCapacity(dayCap, dayCapacitySnap.paidByDay[day] ?? 0);
     }
     const cap = dayCapacitySnap.fallback;
     return remainingCapacity(cap, dayCapacitySnap.paidByDay[day] ?? 0);
@@ -476,21 +479,19 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     selectedDepartureTime,
   ]);
 
-  const spotsLeftIsDepartureCapacity =
-    Boolean(
-      selectedDepartureTime.trim() || (departureTimes.length === 1 ? departureTimes[0] : '')
-    ) &&
-    Boolean(selectedOptionApplied) &&
-    !dayCapacitySnap?.capByDay.has(bookingDate.trim());
+  const spotsLeftIsDepartureCapacity = Boolean(
+    (selectedDepartureTime.trim() || (departureTimes.length === 1 ? departureTimes[0] : '')) &&
+      selectedOptionApplied
+  );
 
   const allDeparturesSoldOut = useMemo(() => {
     const day = bookingDate.trim();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !dayCapacitySnap || !selectedOptionApplied) return false;
     if (departureTimes.length < 1) return false;
-    if (dayCapacitySnap.capByDay.has(day)) {
-      const cap = dayCapacitySnap.capByDay.get(day) ?? dayCapacitySnap.fallback;
-      return remainingCapacity(cap, dayCapacitySnap.paidByDay[day] ?? 0) < 1;
-    }
+    const dayCap = dayCapacitySnap.capByDay.has(day)
+      ? (dayCapacitySnap.capByDay.get(day) ?? dayCapacitySnap.fallback)
+      : undefined;
+    if (dayCap != null && dayCap < 1) return true;
     return departureTimes.every((time) => {
       const left = departureSlotSpotsLeft({
         dayIso: day,
@@ -499,6 +500,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         maxPersonsFallback: selectedOptionApplied.maxPersons,
         paidBySlot: dayCapacitySnap.paidBySlot,
         paidByDay: dayCapacitySnap.paidByDay,
+        dayCapOverride: dayCap,
         fallbackDayCap: dayCapacitySnap.fallback,
       });
       return left != null && left < 1;

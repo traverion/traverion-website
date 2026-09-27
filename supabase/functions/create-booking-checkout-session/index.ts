@@ -516,48 +516,53 @@ serve(async (req) => {
         .eq('available_date', bookingDate)
         .maybeSingle();
       // Explicit capacity 0 = partner closed the day. Missing row = option/schedule max.
+      // Phase 1112: day override only tightens; with a startTime keep slot scope + min(day, slot).
       let capacity: number;
       let slotScoped = false;
-      if (capRow != null && Number.isFinite(Number(capRow.capacity))) {
-        capacity = Number(capRow.capacity);
-        if (capacity < 1) {
-          return json({ success: false, error: 'This date is not available.' }, 409);
-        }
+      const dayOverrideCap =
+        capRow != null && Number.isFinite(Number(capRow.capacity)) ? Number(capRow.capacity) : null;
+      if (dayOverrideCap != null && dayOverrideCap < 1) {
+        return json({ success: false, error: 'This date is not available.' }, 409);
+      }
+      const slotCap = tourDepartureSlotCapacity({
+        listing_extras: listingRow.listing_extras,
+        bookingDate,
+        bookingOptionId: storedOptionId || quote.optionId,
+        startTime: startTime || null,
+      });
+      if (canScopeByStartTime && slotCap != null) {
+        capacity = dayOverrideCap != null ? Math.min(slotCap, dayOverrideCap) : slotCap;
+        slotScoped = true;
+      } else if (dayOverrideCap != null) {
+        capacity = dayOverrideCap;
+      } else if (slotCap != null) {
+        capacity = slotCap;
+        slotScoped = canScopeByStartTime;
       } else {
-        const slotCap = tourDepartureSlotCapacity({
-          listing_extras: listingRow.listing_extras,
-          bookingDate,
-          bookingOptionId: storedOptionId || quote.optionId,
-          startTime: startTime || null,
-        });
-        if (slotCap != null) {
-          capacity = slotCap;
-          slotScoped = canScopeByStartTime;
-        } else {
-          const extras = listingRow.listing_extras as {
-            bookingOptions?: Array<{
-              maxSpotsPerSlot?: unknown;
-              schedules?: Array<{ maxSpotsPerSlot?: unknown; status?: string } | null> | null;
-            }>;
-          } | null;
-          let max = 0;
-          for (const opt of extras?.bookingOptions ?? []) {
-            const schedules = Array.isArray(opt.schedules) ? opt.schedules : null;
-            if (schedules && schedules.length > 0) {
-              for (const s of schedules) {
-                if (!s || s.status === 'draft') continue;
-                const spots = s.maxSpotsPerSlot;
-                if (typeof spots !== 'number' || !Number.isFinite(spots) || spots < 1) continue;
-                max = Math.max(max, Math.floor(spots));
-              }
-              continue;
+        const extras = listingRow.listing_extras as {
+          bookingOptions?: Array<{
+            maxSpotsPerSlot?: unknown;
+            schedules?: Array<{ maxSpotsPerSlot?: unknown; status?: string } | null> | null;
+          }>;
+        } | null;
+        let max = 0;
+        for (const opt of extras?.bookingOptions ?? []) {
+          const schedules = Array.isArray(opt.schedules) ? opt.schedules : null;
+          if (schedules && schedules.length > 0) {
+            for (const s of schedules) {
+              if (!s || s.status === 'draft') continue;
+              const spots = s.maxSpotsPerSlot;
+              if (typeof spots !== 'number' || !Number.isFinite(spots) || spots < 1) continue;
+              max = Math.max(max, Math.floor(spots));
             }
-            const spots = opt.maxSpotsPerSlot;
-            if (typeof spots !== 'number' || !Number.isFinite(spots) || spots < 1) continue;
-            max = Math.max(max, Math.floor(spots));
+            continue;
           }
-          capacity = Math.min(99, max >= 1 ? max : 8);
+          const spots = opt.maxSpotsPerSlot;
+          if (typeof spots !== 'number' || !Number.isFinite(spots) || spots < 1) continue;
+          max = Math.max(max, Math.floor(spots));
         }
+        capacity = Math.min(99, max >= 1 ? max : 8);
+        if (dayOverrideCap != null) capacity = Math.min(capacity, dayOverrideCap);
       }
       const occupied = tourCheckoutOccupiedGuests(
         tourRows ?? [],

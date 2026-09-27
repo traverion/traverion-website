@@ -173,7 +173,8 @@ export async function checkAvailability(
 
   let paidSlot = 0;
   const startHm = (opts?.startTimeHm ?? '').trim();
-  if (startHm && dayOverride == null) {
+  // Phase 1112: slot occupancy applies even when a day capacity override exists.
+  if (startHm) {
     const paidBySlot = await fetchPublishedTourPaidGuestsBySlot(listingId);
     paidSlot = paidBySlot[tourPaidSlotKey(date, startHm)] ?? 0;
   }

@@ -420,8 +420,10 @@ export default function BookingPage({
   const selectedDaySpotsLeft = useMemo(() => {
     const day = date.trim();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !dayCapacitySnap) return null;
-    const dayCapOverride = dayCapacitySnap.capByDay.has(day);
-    const slotSelected = !dayCapOverride && departureTime && appliedOption;
+    const dayCap = dayCapacitySnap.capByDay.has(day)
+      ? (dayCapacitySnap.capByDay.get(day) ?? dayCapacitySnap.fallback)
+      : undefined;
+    const slotSelected = Boolean(departureTime && appliedOption);
     if (soldOutDates.has(day) && !slotSelected) return 0;
     if (slotSelected && departureTime && appliedOption) {
       return departureSlotSpotsLeft({
@@ -431,12 +433,9 @@ export default function BookingPage({
         maxPersonsFallback: appliedOption.maxPersons,
         paidBySlot: dayCapacitySnap.paidBySlot,
         paidByDay: dayCapacitySnap.paidByDay,
+        dayCapOverride: dayCap,
         fallbackDayCap: dayCapacitySnap.fallback,
       });
-    }
-    if (dayCapacitySnap.capByDay.has(day)) {
-      const cap = dayCapacitySnap.capByDay.get(day) ?? dayCapacitySnap.fallback;
-      return remainingCapacity(cap, dayCapacitySnap.paidByDay[day] ?? 0);
     }
     if (appliedOption && bookableDepartureTimes.length >= 1) {
       return maxSpotsLeftAcrossDepartures({
@@ -446,17 +445,18 @@ export default function BookingPage({
         maxPersonsFallback: appliedOption.maxPersons,
         paidBySlot: dayCapacitySnap.paidBySlot,
         paidByDay: dayCapacitySnap.paidByDay,
+        dayCapOverride: dayCap,
         fallbackDayCap: dayCapacitySnap.fallback,
       });
+    }
+    if (dayCap != null) {
+      return remainingCapacity(dayCap, dayCapacitySnap.paidByDay[day] ?? 0);
     }
     const cap = dayCapacitySnap.fallback;
     return remainingCapacity(cap, dayCapacitySnap.paidByDay[day] ?? 0);
   }, [date, dayCapacitySnap, soldOutDates, departureTime, appliedOption, bookableDepartureTimes]);
 
-  const spotsLeftIsDepartureCapacity =
-    Boolean(departureTime) &&
-    Boolean(appliedOption) &&
-    !dayCapacitySnap?.capByDay.has(date.trim());
+  const spotsLeftIsDepartureCapacity = Boolean(departureTime) && Boolean(appliedOption);
 
   const partyMaxForSelectedDay = useMemo(
     () => partyMaxCappedByRemainingSpots(partyBounds.max, selectedDaySpotsLeft),

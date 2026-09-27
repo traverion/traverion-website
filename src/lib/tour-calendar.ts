@@ -64,7 +64,7 @@ export function publicTourPaidGuestsByDeparture(
 }
 
 /** Catalog date filter: hide tours when no capacity remains for the party.
- * Day-level listing_availability overrides stay day-wide.
+ * Day-level listing_availability overrides only tighten per-departure capacity (Phase 1112).
  * With per-departure slot data: hide only when every (bookable) departure lacks party capacity —
  * including a single remaining departure after cutoff filtering (Phase 1063).
  * Without slot data and no day override: do not hide (avoid false morning-fill sell-outs).
@@ -79,27 +79,32 @@ export function tourDateLacksCapacityForParty(params: {
   slotKey?: (startTimeHm: string) => string;
 }): boolean {
   const need = Math.max(1, Math.floor(params.partySize ?? 1));
-  if (typeof params.dayCapacity === 'number' && Number.isFinite(params.dayCapacity)) {
-    return remainingCapacity(params.dayCapacity, params.paidGuestsThatDay) < need;
-  }
+  const dayCap =
+    typeof params.dayCapacity === 'number' && Number.isFinite(params.dayCapacity)
+      ? Math.max(0, Math.floor(params.dayCapacity))
+      : null;
+  if (dayCap != null && dayCap < 1) return true;
   // Caller passed an explicit departure list that is empty (e.g. all past cutoff).
   if (Array.isArray(params.departures) && params.departures.length === 0) return true;
   const deps = params.departures ?? [];
   if (deps.length >= 1 && params.paidBySlot && params.slotKey) {
     const anyOpen = deps.some((d) => {
+      const cap = dayCap != null ? Math.min(d.maxSpots, dayCap) : d.maxSpots;
       const paid = params.paidBySlot![params.slotKey!(d.startTimeHm)] ?? 0;
-      return remainingCapacity(d.maxSpots, paid) >= need;
+      return remainingCapacity(cap, paid) >= need;
     });
     return !anyOpen;
+  }
+  if (dayCap != null) {
+    return remainingCapacity(dayCap, params.paidGuestsThatDay) < need;
   }
   return false;
 }
 
 /**
  * Public calendar sold-out markers.
- * Explicit listing_availability day caps remain day-wide.
- * Without a day cap, optional paidBySlot + departures mark a day full only when every departure is full;
- * otherwise fall back to paid-by-day vs fallbackCapacity (single-slot / legacy).
+ * Day overrides only tighten; with slot data a day is full when every departure is full
+ * under min(slotMax, dayCap) (Phase 1112). Without slot data, fall back to day-wide paid.
  */
 export function tourSoldOutDates(params: {
   paidByDay: Record<string, number>;
@@ -110,23 +115,29 @@ export function tourSoldOutDates(params: {
   slotKey?: (day: string, startTimeHm: string) => string;
 }): Set<string> {
   const next = new Set<string>();
-  for (const [day, cap] of params.capByDay) {
-    if (remainingCapacity(cap, params.paidByDay[day] ?? 0) < 1) next.add(day);
-  }
   const days = new Set<string>([
     ...params.capByDay.keys(),
     ...Object.keys(params.paidByDay),
   ]);
   for (const day of days) {
-    if (params.capByDay.has(day)) continue;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
+    const dayCap = params.capByDay.has(day) ? (params.capByDay.get(day) as number) : null;
+    if (dayCap != null && dayCap < 1) {
+      next.add(day);
+      continue;
+    }
     const departures = params.departuresForDay?.(day) ?? [];
     if (departures.length >= 1 && params.paidBySlot && params.slotKey) {
       const allFull = departures.every((d) => {
+        const cap = dayCap != null ? Math.min(d.maxSpots, dayCap) : d.maxSpots;
         const paid = params.paidBySlot![params.slotKey!(day, d.startTimeHm)] ?? 0;
-        return remainingCapacity(d.maxSpots, paid) < 1;
+        return remainingCapacity(cap, paid) < 1;
       });
       if (allFull) next.add(day);
+      continue;
+    }
+    if (dayCap != null) {
+      if (remainingCapacity(dayCap, params.paidByDay[day] ?? 0) < 1) next.add(day);
       continue;
     }
     if (remainingCapacity(params.fallbackCapacity, params.paidByDay[day] ?? 0) < 1) next.add(day);
