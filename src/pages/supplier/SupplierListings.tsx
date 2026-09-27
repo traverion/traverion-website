@@ -43,7 +43,6 @@ import {
 } from '../../lib/listing-creation-persist';
 import { navigateSupplierUrl, openSupplierListingEditor, openSupplierCalendar } from '../../lib/supplierPortalNavigation';
 import {
-  isSupplierBusinessProfileComplete,
   isSupplierBusinessProfileCompleteForPublish,
   isSupplierPayoutConfigured,
   isSupplierReadyToPublishTours,
@@ -527,7 +526,6 @@ export default function SupplierListings() {
         return;
       }
       const profile = await fetchSupplierProfile(user.id);
-      const businessComplete = isSupplierBusinessProfileComplete(profile);
       const businessCompleteForPublish = isSupplierBusinessProfileCompleteForPublish(profile);
       const payoutConfigured = isSupplierPayoutConfigured(profile);
       const v = profile?.verification_status ?? null;

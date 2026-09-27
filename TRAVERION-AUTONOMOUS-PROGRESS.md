@@ -3,13 +3,13 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `aa790e7`  
-**Current phase:** 861  
+**Current SHA:** `ea3f0ad`  
+**Current phase:** 862  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Local-only (gitignored):** `scripts/cert-transactional-emails.cjs` — must stay untracked; contains service-role secrets when present locally  
-**Remote migration truth (Phase 600):** Local=Remote for **080–099** on `xcopqllkulxfkpunetbc` (re-verified). Stripe: TEST only.  
+**Remote migration truth (Phase 862):** Local=Remote for **080–102** on `xcopqllkulxfkpunetbc`. Stripe: TEST only.  
 
 ## Milestone Phase 513 (inventory band)
 
@@ -272,6 +272,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 859 | Stay audit + check-in/out publish + difficulty honesty | `0d446a3` |
 | 860 | Stay purchase snapshot freeze | `3419bdd` |
 | 861 | Verified publish gate + create wizard browser recon | `aa790e7` |
+| 862 | Push migrations 100–102 to linked remote | `ea3f0ad` |
 
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
@@ -4390,6 +4391,14 @@ Deep audit of listing → option → schedule ownership vs publish/traveler/snap
 **Fix:** `isSupplierBusinessProfileCompleteForPublish` skips document path when already verified; listings gate uses it. Submit-to-review still requires the upload.
 
 **Cert:** vitest supplierOnboarding 3/3; browser recon noted.
+
+### Phase 862 — Apply migrations 100–102 remotely
+
+**Gap:** Status NOT NULL (100), tour/stay publish bookability (101), stay check-in/out (102) existed in git only.
+
+**Action:** `supabase db push --linked` applied 100–102. Local=Remote through 102.
+
+Also removed unused businessComplete local in Listings after 861 gate fix.
 
 ## Known remaining risks (ranked)
 
