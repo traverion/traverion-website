@@ -387,13 +387,15 @@ export async function updateSupplierPayout(
   }
 ): Promise<{ success: boolean; error?: string }> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
+  // Phase 1219: team JWT → owner profile id (parity with fetch after 154).
+  const ownerSupplierId = await resolveSupplierId(userId);
   const { data, error } = await supabase
     .from('supplier_profiles')
     .update({
       ...payload,
       updated_at: new Date().toISOString(),
     })
-    .eq('id', userId)
+    .eq('id', ownerSupplierId)
     .select('id')
     .maybeSingle();
   if (error) return { success: false, error: error.message };
@@ -410,13 +412,14 @@ export async function patchSupplierProfile(
   patch: Record<string, unknown>
 ): Promise<{ success: boolean; error?: string }> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
+  const ownerSupplierId = await resolveSupplierId(userId);
   const { data, error } = await supabase
     .from('supplier_profiles')
     .update({
       ...patch,
       updated_at: new Date().toISOString(),
     })
-    .eq('id', userId)
+    .eq('id', ownerSupplierId)
     .select('id')
     .maybeSingle();
   if (error) return { success: false, error: error.message };
