@@ -289,8 +289,15 @@ export default function StayDetails({ stayId, onBack }: Props) {
     void run();
   }, [stay?.id, user, requestAuth, savedToWishlist]);
 
+  // Phase 1273: match TourDetails 1271 — do not advertise non-catalog stays.
   useEffect(() => {
-    if (!stay) {
+    const visible =
+      !!stay &&
+      listingDetailVisibleToTraveler({
+        familyMatches: listingIsFamily(stay, 'stay'),
+        status: stay.status,
+      });
+    if (!visible) {
       setPageMetaWithOg('Stay', 'Apartment or room from an independent operator.');
       clearStayJsonLd();
       return;
