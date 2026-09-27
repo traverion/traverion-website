@@ -90,7 +90,7 @@ export function TourBasicsGuidedScenes({
               return (
                 <label
                   key={opt.id}
-                  className={`lc-choice flex min-h-11 cursor-pointer flex-col rounded-2xl px-5 py-5 text-left ${
+                  className={`lc-choice flex min-h-11 cursor-pointer items-start gap-3 rounded-2xl px-5 py-5 text-left ${
                     selected ? 'lc-choice--selected' : ''
                   }`}
                 >
@@ -100,10 +100,12 @@ export function TourBasicsGuidedScenes({
                     value={opt.id}
                     checked={selected}
                     onChange={() => onChange({ experienceKind: opt.id })}
-                    className="sr-only"
+                    className="mt-1 h-4 w-4 shrink-0 border-black/[0.2] text-finland focus:ring-finland"
                   />
-                  <span className="text-base font-bold text-ink">{opt.title}</span>
-                  <span className="mt-1 text-sm leading-snug text-ink-muted">{opt.description}</span>
+                  <span className="min-w-0">
+                    <span className="block text-base font-bold text-ink">{opt.title}</span>
+                    <span className="mt-1 block text-sm leading-snug text-ink-muted">{opt.description}</span>
+                  </span>
                 </label>
               );
             })}

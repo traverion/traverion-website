@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `bc57ddb`  
-**Current phase:** 863  
+**Current SHA:** `ef55529`  
+**Current phase:** 864  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -274,6 +274,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 861 | Verified publish gate + create wizard browser recon | `aa790e7` |
 | 862 | Push migrations 100–102 to linked remote | `ea3f0ad` |
 | 863 | Fix listing editor backdrop click interception | `bc57ddb` |
+| 864 | Browser create tour Basics → Save draft | `ef55529` |
 
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
@@ -4406,6 +4407,14 @@ Also removed unused businessComplete local in Listings after 861 gate fix.
 **Gap (861 browser):** Tour create wizard Basics radios/Continue were click-intercepted by a full-viewport backdrop (`z-[80]` sibling + `pointer-events-none` shell).
 
 **Fix:** Backdrop `z-0`; editor shell `z-10` without pointer-events-none/auto dance so form controls receive clicks.
+
+### Phase 864 — Browser: create tour Basics → Save draft
+
+**Browser (aurora-ops, localhost):** Opened create tour wizard; selected Tour product type; filled title/subtitle; Save draft → persisted `?edit=1807368c-ae24-4ccd-ba63-2aa72413c2f6` (“Phase 864 Cert Northern Lights Small Group”). Publish banner no longer falsely incomplete after 861.
+
+**UX:** Product-type radios were `sr-only` (automation/hit-target fragile) — restored visible radios in Basics.
+
+**Not yet:** full option/schedule/photos → publish → traveler book (continues 865+).
 
 ## Known remaining risks (ranked)
 
