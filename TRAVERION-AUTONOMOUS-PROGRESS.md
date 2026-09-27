@@ -4763,6 +4763,13 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 
 **Certification:** lock grain = **INTEGRATION** (SQL key harness) + **remotely applied**. Oversell safety still relies on occupancy math + lock (prior browser certs).
 
+
+### Phase 903 — Admin / support minimum intervention map
+
+**Deliverable:** `docs/ADMIN_SUPPORT_READINESS.md` — operator needs vs existing admin panels (verification, bookings, finance/payouts, inquiries). Identifies missing staff force-unpublish; no giant admin rebuild.
+
+**Certification:** admin readiness = **CODE-INSPECTED**.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.
