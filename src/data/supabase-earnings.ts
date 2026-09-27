@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { resolveSupplierId } from './supabase-supplier-team';
 
 export type SupplierEarning = {
   id: string;
@@ -20,13 +21,15 @@ function isMissingSupplierEarningsTable(message: string, code?: string): boolean
   return m.includes('supplier_earnings') && (m.includes('does not exist') || m.includes('not found'));
 }
 
-/** Throws on Supabase error unless the earnings table has not been migrated yet (returns []). */
+/** Throws on Supabase error unless the earnings table has not been migrated yet (returns []).
+ * Phase 1140: resolve team JWT → owner supplier_id. */
 export async function fetchSupplierEarnings(supplierId: string): Promise<SupplierEarning[]> {
   if (!supabase) return [];
+  const ownerSupplierId = await resolveSupplierId(supplierId);
   const { data, error } = await supabase
     .from('supplier_earnings')
     .select('*')
-    .eq('supplier_id', supplierId)
+    .eq('supplier_id', ownerSupplierId)
     .order('period_start', { ascending: false });
   if (error) {
     if (isMissingSupplierEarningsTable(error.message, error.code)) return [];

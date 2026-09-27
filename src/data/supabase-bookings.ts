@@ -5,6 +5,7 @@ import { localYmd } from '../lib/local-ymd';
 import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 import { supplierPortalPublicBaseUrl } from '../lib/partnerHost';
 import { notifySupplierEvent } from './supabase-supplier-messaging';
+import { resolveSupplierId } from './supabase-supplier-team';
 import { hmToPgTime, pgTimeToHm } from './supabase-listings';
 import { upsertBookingPickupNoteOverrides } from '../lib/booking-notes';
 import { travelerSelfCancelBlock, travelerSelfCancelError, travelerSelfCancelIsUnpaidCheckout, partnerBookingStatusRewriteBlock, partnerManualConfirmBlock, partnerManualConfirmError } from '../lib/cancellation-policy';
@@ -419,13 +420,15 @@ export async function updateGuestBookingSpecialRequests(
   return { success: true };
 }
 
-/** Fetch all bookings for a supplier's listings (RLS allows select for own listings). Throws on Supabase error. */
+/** Fetch all bookings for a supplier's listings (RLS allows select for own listings). Throws on Supabase error.
+ * Phase 1140: resolve team JWT → owner supplier_id before listing filter. */
 export async function fetchBookingsForSupplier(supplierId: string): Promise<BookingRow[]> {
   if (!supabase) return [];
+  const ownerSupplierId = await resolveSupplierId(supplierId);
   const { data: listingIds, error: listErr } = await supabase
     .from('listings')
     .select('id')
-    .eq('supplier_id', supplierId);
+    .eq('supplier_id', ownerSupplierId);
   if (listErr) throw new Error(listErr.message);
   const ids = (listingIds ?? []).map((r: { id: string }) => r.id);
   if (ids.length === 0) return [];

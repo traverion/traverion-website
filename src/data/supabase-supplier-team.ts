@@ -18,7 +18,7 @@ function dispatchRoleEvent() {
   window.dispatchEvent(new CustomEvent('traverion-supplier-team-roles'));
 }
 
-async function resolveSupplierId(currentUserId: string): Promise<string> {
+export async function resolveSupplierId(currentUserId: string): Promise<string> {
   if (!supabase) return currentUserId;
   const { data } = await supabase
     .from('supplier_team_members')

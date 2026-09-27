@@ -4,6 +4,7 @@ import { userFacingError } from '../lib/userFacingError';
 import { TourPackage } from '../types/tour';
 import { listingExtrasToDb, parseListingExtras, stripPublicStayCheckInAddress } from '../types/listingExtras';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
+import { resolveSupplierId } from './supabase-supplier-team';
 
 export type ListingRow = {
   id: string;
@@ -287,13 +288,15 @@ export async function fetchAllListings(): Promise<TourPackage[]> {
   return (data as ListingRow[]).map(rowToTourPackage);
 }
 
-/** Fetch listings for the current supplier (requires auth). Throws on Supabase error. */
+/** Fetch listings for the current supplier (requires auth). Throws on Supabase error.
+ * Phase 1140: resolve team JWT → owner supplier_id. */
 export async function fetchMyListings(supplierId: string): Promise<TourPackage[]> {
   if (!supabase) return [];
+  const ownerSupplierId = await resolveSupplierId(supplierId);
   const { data, error } = await supabase
     .from('listings')
     .select('*')
-    .eq('supplier_id', supplierId)
+    .eq('supplier_id', ownerSupplierId)
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
   const tours = (data as ListingRow[]).map(rowToTourPackage);
