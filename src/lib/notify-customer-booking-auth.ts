@@ -36,3 +36,12 @@ export function bookingPartyAllowsCustomerNotify(params: {
   if (params.callerIsListingSupplier) return true;
   return false;
 }
+
+/**
+ * Phase 1128: guest JWT may only invoke guest-originated customer email kinds.
+ * Host/ops/cron kinds require supplier-side or service-role.
+ */
+export function guestMayInvokeCustomerEmailKind(emailKind: string): boolean {
+  const kind = (emailKind ?? '').trim();
+  return kind === 'your_details_updated' || kind === 'booking_cancelled';
+}

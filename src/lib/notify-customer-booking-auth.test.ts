@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   bookingPartyAllowsCustomerNotify,
+  guestMayInvokeCustomerEmailKind,
   isServiceRoleBearer,
 } from './notify-customer-booking-auth';
 
@@ -52,5 +53,14 @@ describe('notify-customer-booking auth (Phase 1092)', () => {
         guestEmail: 'a@b.com',
       })
     ).toBe(false);
+  });
+
+  it('Phase 1128: guest may only invoke guest-originated customer email kinds', () => {
+    expect(guestMayInvokeCustomerEmailKind('your_details_updated')).toBe(true);
+    expect(guestMayInvokeCustomerEmailKind('booking_cancelled')).toBe(true);
+    expect(guestMayInvokeCustomerEmailKind('host_updated_schedule')).toBe(false);
+    expect(guestMayInvokeCustomerEmailKind('pickup_confirmed')).toBe(false);
+    expect(guestMayInvokeCustomerEmailKind('cancellation_requested_by_supplier')).toBe(false);
+    expect(guestMayInvokeCustomerEmailKind('review_request')).toBe(false);
   });
 });

@@ -23,6 +23,7 @@ import {
 import { resolveBookingTiedContent } from '../_shared/notify-customer-content.ts';
 import {
   bookingPartyAllowsCustomerNotify,
+  guestMayInvokeCustomerEmailKind,
   isServiceRoleBearer,
 } from '../_shared/notify-customer-booking-auth.ts';
 import { authUserVerifiedEmail } from '../_shared/auth-verified-email.ts';
@@ -429,6 +430,15 @@ serve(async (req) => {
             callerIsListingSupplier,
           })
         ) {
+          return json({ success: false, error: 'Unauthorized' }, 401);
+        }
+        const callerIsGuest =
+          (partyBooking.guest_user_id && callerId === partyBooking.guest_user_id) ||
+          (callerEmail &&
+            partyBooking.guest_email &&
+            callerEmail.trim().toLowerCase() === String(partyBooking.guest_email).trim().toLowerCase());
+        // Phase 1128: guests must not fire host/ops/cron customer email kinds.
+        if (callerIsGuest && !callerIsListingSupplier && !guestMayInvokeCustomerEmailKind(kind)) {
           return json({ success: false, error: 'Unauthorized' }, 401);
         }
         allowCallerFieldDiffs = callerIsListingSupplier;
