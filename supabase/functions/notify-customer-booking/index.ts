@@ -27,6 +27,7 @@ import {
   isServiceRoleBearer,
 } from '../_shared/notify-customer-booking-auth.ts';
 import { authUserVerifiedEmail } from '../_shared/auth-verified-email.ts';
+import { notifyUnpaidCheckoutFromPaymentStatus } from '../_shared/notify-unpaid-checkout.ts';
 
 type EmailKind =
   | 'booking_request'
@@ -465,6 +466,8 @@ serve(async (req) => {
       typeof body.totalAmount === 'number' && Number.isFinite(body.totalAmount) && body.totalAmount >= 0
         ? body.totalAmount
         : undefined;
+    // Phase 1129: prefer DB payment_status over caller unpaidCheckout flag.
+    let unpaidCheckoutFromDb: boolean | null = null;
 
     // Phase 562/578/1052: recipient + static content re-derived from booking.
     // Phase 1092: anonymous callers never reach this path for booking-tied kinds.
@@ -478,6 +481,9 @@ serve(async (req) => {
         .eq('id', bookingId)
         .maybeSingle();
 
+      if (bookingRow) {
+        unpaidCheckoutFromDb = notifyUnpaidCheckoutFromPaymentStatus(bookingRow.payment_status);
+      }
       const resolved = resolveBookingTiedRecipient({
         kind,
         bookingId,
@@ -622,7 +628,9 @@ serve(async (req) => {
         // Keep in sync with TRAVELER_HOST_SCHEDULE_UPDATED_EMAIL_NOTE in booking-confirmation-copy.ts
         'Updated times appear in Trips. Traverion does not treat email delivery as proof you received this update. Reply to the host in Trips if you need help.';
     } else if (kind === 'booking_cancelled') {
-      const unpaid = body.unpaidCheckout === true;
+      // Phase 1129: unpaid copy follows payment_status, not body.unpaidCheckout.
+      const unpaid =
+        unpaidCheckoutFromDb !== null ? unpaidCheckoutFromDb : body.unpaidCheckout === true;
       headline = unpaid ? 'Checkout cancelled' : 'Your booking was cancelled';
       intro = unpaid
         ? `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">You cancelled an unpaid checkout. No payment was collected. Summary below.</p>`

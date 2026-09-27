@@ -19,6 +19,7 @@ import {
   supplierEventPartyAllowsNotify,
 } from '../_shared/notify-supplier-event-auth.ts';
 import { authUserVerifiedEmail } from '../_shared/auth-verified-email.ts';
+import { notifyUnpaidCheckoutFromPaymentStatus } from '../_shared/notify-unpaid-checkout.ts';
 
 type EventType =
   | 'new_booking'
@@ -644,6 +645,10 @@ serve(async (req) => {
       return json({ success: false, error: resolved.error }, resolved.status);
     }
     const effectivePayload: Payload = { ...payload, ...resolved.overrides };
+    // Phase 1129: cancel unpaid copy from booking payment_status, not caller flag.
+    if (effectivePayload.eventType === 'booking_cancelled' && bookingRow) {
+      effectivePayload.unpaidCheckout = notifyUnpaidCheckoutFromPaymentStatus(bookingRow.payment_status);
+    }
 
     const idempotencyKey =
       (typeof payload.idempotencyKey === 'string' && payload.idempotencyKey.trim()) ||
