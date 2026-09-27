@@ -1,4 +1,5 @@
 import { bookingPaymentWasCollected, isPaidPaymentStatus, normalizePaymentStatus } from './payment-states';
+import { resolveDepartureTimezone, wallTimeInZoneToUtcMs } from './tour-departure-cutoff';
 
 /**
  * Snapshot-able supplier cancellation fee policy.
@@ -93,20 +94,24 @@ export function snapshotSupplierCancellationPolicy(reasonCode: string): Cancella
   };
 }
 
-/** Traveler self-cancel: 24 hours before local start of the activity/check-in date.
+/** Traveler self-cancel: 24 hours before experience-local start (IANA zone).
  * Unpaid / failed checkouts never owe a refund.
+ * SQL cancel_booking_as_traveler is authoritative; this mirrors eligibility UI.
  */
 export function travelerSelfCancelRefundChoice(params: {
   bookingDate: string | null;
   startTimeHm?: string | null;
+  /** purchase_snapshot.departureTimezone or listing extras; invalid → Helsinki. */
+  departureTimezone?: string | null;
   nowMs?: number;
   paymentStatus?: string | null;
 }): 'full_refund' | 'no_refund' {
   if (!bookingPaymentWasCollected(params.paymentStatus)) return 'no_refund';
   if (!params.bookingDate) return 'no_refund';
+  const tz = resolveDepartureTimezone(params.departureTimezone);
   const hm = (params.startTimeHm ?? '00:00').slice(0, 5);
-  const startMs = Date.parse(`${params.bookingDate}T${hm}:00`);
-  if (!Number.isFinite(startMs)) return 'no_refund';
+  const startMs = wallTimeInZoneToUtcMs(params.bookingDate, hm, tz);
+  if (startMs == null || !Number.isFinite(startMs)) return 'no_refund';
   const now = params.nowMs ?? Date.now();
   return startMs - now > 24 * 60 * 60 * 1000 ? 'full_refund' : 'no_refund';
 }

@@ -3,13 +3,13 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness** (continuing 1001+)  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `c447129`  
-**Current phase:** 1054  
+**Current SHA:** `b26a04c`  
+**Current phase:** 1055  
+**Remote migration truth (Phase 1055):** Local=Remote through **124** on `xcopqllkulxfkpunetbc`. Stripe: TEST only.  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Local-only (gitignored):** `scripts/cert-transactional-emails.cjs` — must stay untracked; contains service-role secrets when present locally  
-**Remote migration truth (Phase 1043):** Local=Remote through **123** on `xcopqllkulxfkpunetbc`. Stripe: TEST only.  
 
 ## Milestone Phase 513 (inventory band)
 
@@ -5501,17 +5501,24 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 
 **Certification:** AUTOMATED-TESTED.
 
+### Phase 1055 — Cancel 24h window uses departureTimezone
+
+**Problem:** SQL + client cancel eligibility ignored listing/snapshot IANA zone (always Helsinki / browser local).
+
+**Fix:** Migration **124** + `wallTimeInZoneToUtcMs` in travelerSelfCancelRefundChoice. Remote through **124**.
+
+**Certification:** AUTOMATED-TESTED / INTEGRATION (db push).
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.
 2. **P1 — Localhost same-origin auth**: shared Supabase session remains; Phase 904 blocks business-name lead-guest autofill (customer_* / consumer profile only).
 3. **P1 — FOUNDER:** see `docs/FOUNDER_REQUIRED.md` (auto-refund, take-rate; force-unpublish closed).
 4. **P1 — Stay private check-in address** missing (city-only on Trips).
-5. **P1 — Traveler cancel RPC still hardcodes Europe/Helsinki** (listing TZ used elsewhere).
-6. **P2 — Browser-cert** admin listings moderation on admin host with staff demo.
-7. **P2 — notify-* booking-tied open-invoke residual** — recipient+content re-derived; nuisance spam with real bookingId still possible (full dual-mode auth deferred).
-8. **P2 — LIVE Stripe** intentionally blocked.
-9. **P2 — Service-role JWT briefly tracked** in `scripts/cert-transactional-emails.cjs` (now untracked); rotate when practical.
+5. **P2 — Browser-cert** admin listings moderation on admin host with staff demo.
+6. **P2 — notify-* booking-tied open-invoke residual** — recipient+content re-derived; nuisance spam with real bookingId still possible (full dual-mode auth deferred).
+7. **P2 — LIVE Stripe** intentionally blocked.
+8. **P2 — Service-role JWT briefly tracked** in `scripts/cert-transactional-emails.cjs` (now untracked); rotate when practical.
 
 ## Do not
 

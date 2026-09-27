@@ -1,10 +1,12 @@
 /**
+ * Mirror of src/lib/tour-departure-cutoff.ts for Deno edge runtime.
+ *
  * Tour departure bookability cut-off.
  *
  * Wall-clock times on listings are interpreted in an IANA zone. Default remains
- * Europe/Helsinki — matching traveler self-cancel SQL until that path also reads
- * listing `departureTimezone`. When extras carry a valid IANA id, quote/cutoff
- * use it so a Rovaniemi 20:00 stays 20:00 local regardless of browser TZ.
+ * Europe/Helsinki. When extras / purchase_snapshot carry a valid IANA id, quote,
+ * cutoff, Trips, and traveler self-cancel (Phase 1055 / migration 124) use it
+ * so a Rovaniemi 20:00 stays 20:00 local regardless of browser TZ.
  */
 
 export const TRAVERION_DEPARTURE_TIMEZONE = 'Europe/Helsinki';

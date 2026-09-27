@@ -39,6 +39,7 @@ describe('supplier cancellation policy', () => {
       travelerSelfCancelRefundChoice({
         bookingDate: '2026-09-10',
         startTimeHm: '18:00',
+        departureTimezone: 'Europe/Helsinki',
         nowMs: start - 25 * 60 * 60 * 1000,
         paymentStatus: 'paid',
       })
@@ -47,7 +48,32 @@ describe('supplier cancellation policy', () => {
       travelerSelfCancelRefundChoice({
         bookingDate: '2026-09-10',
         startTimeHm: '18:00',
+        departureTimezone: 'Europe/Helsinki',
         nowMs: start - 2 * 60 * 60 * 1000,
+        paymentStatus: 'paid',
+      })
+    ).toBe('no_refund');
+  });
+
+  it('interprets the 24h window in the experience timezone, not the browser zone', () => {
+    // 20:00 in America/New_York on 2026-01-15 is 01:00 UTC next day (EST).
+    // 30h before that UTC instant is still full_refund; 10h before is no_refund.
+    const startUtc = Date.UTC(2026, 0, 16, 1, 0, 0);
+    expect(
+      travelerSelfCancelRefundChoice({
+        bookingDate: '2026-01-15',
+        startTimeHm: '20:00',
+        departureTimezone: 'America/New_York',
+        nowMs: startUtc - 30 * 60 * 60 * 1000,
+        paymentStatus: 'paid',
+      })
+    ).toBe('full_refund');
+    expect(
+      travelerSelfCancelRefundChoice({
+        bookingDate: '2026-01-15',
+        startTimeHm: '20:00',
+        departureTimezone: 'America/New_York',
+        nowMs: startUtc - 10 * 60 * 60 * 1000,
         paymentStatus: 'paid',
       })
     ).toBe('no_refund');

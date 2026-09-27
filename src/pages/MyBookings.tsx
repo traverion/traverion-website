@@ -131,9 +131,16 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   const loadGenRef = useRef(0);
 
   const getRefundChoiceForCancel = useCallback((b: BookingRow): 'full_refund' | 'no_refund' => {
+    const snapTz =
+      b.purchase_snapshot &&
+      typeof b.purchase_snapshot === 'object' &&
+      typeof (b.purchase_snapshot as { departureTimezone?: unknown }).departureTimezone === 'string'
+        ? (b.purchase_snapshot as { departureTimezone: string }).departureTimezone
+        : null;
     return travelerSelfCancelRefundChoice({
       bookingDate: b.booking_date,
       startTimeHm: pgTimeToHm(b.start_time),
+      departureTimezone: snapTz,
       paymentStatus: b.payment_status,
     });
   }, []);
