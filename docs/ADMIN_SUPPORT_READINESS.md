@@ -1,8 +1,9 @@
 # Traverion — Admin / Support readiness (minimum intervention map)
 
-**Phase:** 1001 (was 903)  
+**Phase:** 1037 (was 1001 / 903)  
 **Stripe:** TEST only  
-**Rule:** Do not build a giant admin suite. List what operators need, what exists, what is deferred.
+**Rule:** Do not build a giant admin suite. List what operators need, what exists, what is deferred.  
+**Remote truth:** migrations through **120**.
 
 ## Minimum interventions a marketplace operator needs
 
@@ -15,7 +16,7 @@
 | Record manual payout | Accounting without Connect | `admin_record_supplier_payout` (094) + `AdminFinancePanel` | PARTIAL / MANUAL |
 | Inspect traveler messages / inquiries | Support | `AdminInquiriesPanel`, `AdminSupplierPortalMessagesPanel` | PARTIAL |
 | Suspend / unpublish listing | Moderation | `AdminListingsModerationPanel` + `admin_force_unpublish_listing` (107) + audit; UUID search finds drafts (1011); remote probe proves paid bookings survive (1003) | IMPLEMENTED / ADVERSARIAL-TESTED |
-| Moderate review | Trust | Reviews ownership guards; no staff delete UI claimed | NOT REQUIRED YET |
+| Moderate review | Trust | Reviews ownership + paid write (117/118); public SELECT published-or-party (119–120); no staff delete UI claimed | NOT REQUIRED YET |
 | Resolve cancellation / Refund due | Money honesty | Partner “Refund due”; manual Stripe TEST refund docs | HONEST / PARTIAL |
 | Find user account | Abuse / account help | Via booking guest email + auth admin outside app | BACKEND / ops |
 
