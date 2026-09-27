@@ -726,6 +726,22 @@ export default function BookingPage({
   }, [phone, placeOfStay, specialRequests]);
 
   const proceedToContactAfterOption = () => {
+    // Phase 1178: defense in depth — never advance when remaining is unknown/sold out.
+    if (capacityUnknown) {
+      setError(
+        dayCapacityError ||
+          'We could not verify departure capacity. Check your connection and try again.'
+      );
+      return;
+    }
+    if (capacityBlocksPay) {
+      setError(
+        departureTime
+          ? `The ${departureTime} departure no longer has enough spots for your party.`
+          : 'This date no longer has enough spots for your party.'
+      );
+      return;
+    }
     saveBookingDraft(tour.id, {
       step: 'date-guests',
       date: date.trim(),
