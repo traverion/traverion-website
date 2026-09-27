@@ -74,7 +74,7 @@
 | Moderation | NOT REQUIRED YET | — | Architecture note only |
 | Cron / jobs | PARTIAL→STRONG | hold expire + GH Actions reminder cron (907) | Live secret fire not claimed |
 | Observability | PARTIAL | DB audit + edge error logs (914) | APM optional later |
-| Cart multi-item | DEAD/OBSOLETE path | `cart_items`; `/cart`→Trips | Do not revive without design |
+| Cart multi-item | DEAD/OBSOLETE path | `cart_items` hardened published-only (113); `/cart`→Trips | Do not revive without design |
 | Scroll / chrome | COMPLETE+VERIFIED | `overflow-x: clip` on roots; re-cert 1004 | Phase scroll fix `32abd10` |
 
 ---
@@ -102,7 +102,7 @@
 
 ## Post–Phase 1000 continuum (1001+)
 
-Remote migrations through **112**. Ownership band 108–111 + wishlist prune 112. FOUNDER open items: `docs/FOUNDER_REQUIRED.md`.
+Remote migrations through **116**. Ownership band 108–111, wishlist/cart prune 112–113, published-or-owner SELECT 114–115, actor_id authenticity 116. FOUNDER open items: `docs/FOUNDER_REQUIRED.md`.
 
 ---
 

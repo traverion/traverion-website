@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness** (continuing 1001+)  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `79739df`  
-**Current phase:** 1027  
+**Current SHA:** `00e4c77`  
+**Current phase:** 1028  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -5301,7 +5301,15 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 
 **Fix:** Replace body with an explicit failure pointing at `createBookingCheckoutSession`. No UI callers.
 
-**Certification:** CODE-INSPECTED.
+**Certification:** CODE-INSPECTED. Ending SHA `00e4c77`.
+
+### Phase 1028 — Correct stale GAP_ANALYSIS cart/payments truth
+
+**Gap:** `docs/GAP_ANALYSIS_GETYOURGUIDE_TRIPADVISOR.md` still claimed request-only payments and a live multi-item cart.
+
+**Fix:** Doc now matches Stripe TEST checkout, wishlist-only Saved, dead cart → Trips; matrix continuum through **116**.
+
+**Certification:** CODE-INSPECTED / docs truth.
 
 ## Known remaining risks (ranked)
 
