@@ -4843,6 +4843,13 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 
 **Certification:** stay vertical minimum = **STRONG / BROWSER** (book path); creation field-depth = **PARTIAL** (honest single-unit).
 
+
+### Phase 914 — Observability / audit trail truth
+
+**Evidence:** Money/inventory truth is recoverable from DB (`bookings`, `purchase_snapshot`, `supplier_ledger_entries`, `transactional_email_log` unique keys). Edge functions log failures via `console.error` (webhook, notify, admin) without claiming a full APM suite. No secret token logging found in checkout path review this phase.
+
+**Certification:** marketplace audit trail = **CODE-INSPECTED** (DB-first). APM dashboards = **NOT BUILT**.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.
