@@ -29,6 +29,7 @@ import {
 import { tourSellingDeparturesOnDate } from '../../lib/listing-option-schedules';
 import { formatPartnerCheckoutHoldLabel, tourCheckoutOccupiedGuests, normalizeTourStartTimeHm } from '../../lib/booking-hold';
 import { capacityBelowSoldWarning } from '../../lib/capacity-reduction-warn';
+import { experienceTodayIsoForListing } from '../../lib/booking-quote';
 import { localYmd } from '../../lib/local-ymd';
 import { navigateSupplierUrl, openSupplierBooking } from '../../lib/supplierPortalNavigation';
 import { PARTNER_CREATE_PATH } from '../../lib/partnerPortalPaths';
@@ -80,6 +81,8 @@ export default function SupplierAvailability() {
   const [loading, setLoading] = useState(true);
   const [savingIso, setSavingIso] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [bookingsError, setBookingsError] = useState<string | null>(null);
+  const [capsError, setCapsError] = useState<string | null>(null);
   const [saveNote, setSaveNote] = useState<string | null>(null);
   const [editing, setEditing] = useState<{ iso: string; capacity: string } | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -208,13 +211,10 @@ export default function SupplierAvailability() {
     }
     setLoading(true);
     setError(null);
+    setBookingsError(null);
     try {
-      const [mine, mineBookings] = await Promise.all([
-        fetchMyListings(user.id),
-        fetchBookingsForSupplier(user.id).catch(() => [] as BookingRow[]),
-      ]);
+      const mine = await fetchMyListings(user.id);
       setListings(mine);
-      setBookings(mineBookings.filter((b) => partnerStayCalendarOccupiesNight(b)));
       setListingId((prev) => {
         if (prev && mine.some((l) => l.id === prev)) return prev;
         const fromUrl = (new URLSearchParams(window.location.search).get('listing') ?? '').trim();
@@ -231,6 +231,16 @@ export default function SupplierAvailability() {
           window.history.replaceState({}, '', `${url.pathname}${url.search}`);
         }
       }
+      try {
+        const mineBookings = await fetchBookingsForSupplier(user.id);
+        setBookings(mineBookings.filter((b) => partnerStayCalendarOccupiesNight(b)));
+        setBookingsError(null);
+      } catch (e) {
+        // Do not pretend occupancy is empty — sold-seat warnings would go dark.
+        setBookingsError(
+          userFacingError(e, 'Could not load bookings for this calendar. Sold seats may be missing until you retry.')
+        );
+      }
     } catch (e) {
       setError(userFacingError(e, USER_ERROR.calendar));
     } finally {
@@ -244,6 +254,7 @@ export default function SupplierAvailability() {
   const loadCaps = useCallback(async (id: string, fromIso?: string, toIso?: string) => {
     if (!id) {
       setRows([]);
+      setCapsError(null);
       return;
     }
     try {
@@ -252,8 +263,12 @@ export default function SupplierAvailability() {
         fromIso && toIso ? { fromDate: fromIso, toDate: toIso } : undefined
       );
       setRows(data);
-    } catch {
-      setRows([]);
+      setCapsError(null);
+    } catch (e) {
+      // Keep prior capacity rows; never flash an empty month as “no overrides”.
+      setCapsError(
+        userFacingError(e, 'Could not load capacity overrides for this month. Check your connection and try again.')
+      );
     }
   }, []);
 
@@ -415,7 +430,9 @@ export default function SupplierAvailability() {
     year: 'numeric',
     timeZone: 'UTC',
   });
-  const localTodayIso = localYmd();
+  const localTodayIso = listing
+    ? experienceTodayIsoForListing(listing.listingExtras?.departureTimezone)
+    : localYmd();
 
   return (
     <div className={`${SUPPLIER_PAGE_CLASS} min-h-[70vh]`}>
@@ -492,6 +509,23 @@ export default function SupplierAvailability() {
         />
       ) : (
         <div>
+          {bookingsError ? (
+            <div className="mb-4">
+              <ErrorState
+                className="py-4"
+                title="Bookings unavailable"
+                body={bookingsError}
+                retry={{ onClick: () => void loadListings() }}
+              />
+            </div>
+          ) : null}
+          {capsError && listingId ? (
+            <div className="mb-4">
+              <NoticeCallout title="Capacity overrides unavailable" tone="warn">
+                {capsError}
+              </NoticeCallout>
+            </div>
+          ) : null}
           <div className="flex items-center justify-between gap-3 mb-4">
             <button
               type="button"
@@ -506,9 +540,11 @@ export default function SupplierAvailability() {
               <button
                 type="button"
                 onClick={() => {
-                  const n = new Date();
-                  setYear(n.getFullYear());
-                  setMonthIndex0(n.getMonth());
+                  const [y, m] = localTodayIso.split('-').map(Number);
+                  if (y && m) {
+                    setYear(y);
+                    setMonthIndex0(m - 1);
+                  }
                 }}
                 className="lux-flat mt-0.5 text-xs font-semibold text-finland"
               >

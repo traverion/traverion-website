@@ -1026,6 +1026,7 @@ export default function SupplierListingForm({
   const [scheduleLeaveOpen, setScheduleLeaveOpen] = useState(false);
   const [pendingScheduleDeleteId, setPendingScheduleDeleteId] = useState<string | null>(null);
   const [listingOccupancyBookings, setListingOccupancyBookings] = useState<BookingRow[]>([]);
+  const [listingOccupancyLoadError, setListingOccupancyLoadError] = useState<string | null>(null);
   const scheduleSessionOpenedAsCreateRef = useRef(false);
   const scheduleSnapshotRef = useRef<string>('');
   /** Start time when the schedule editor was opened — sold seats stay on this purchased slot. */
@@ -1036,6 +1037,7 @@ export default function SupplierListingForm({
   useEffect(() => {
     if (!user?.id || !editingId) {
       setListingOccupancyBookings([]);
+      setListingOccupancyLoadError(null);
       return;
     }
     let cancelled = false;
@@ -1043,9 +1045,14 @@ export default function SupplierListingForm({
       .then((rows) => {
         if (cancelled) return;
         setListingOccupancyBookings(rows.filter((b) => b.listing_id === editingId));
+        setListingOccupancyLoadError(null);
       })
-      .catch(() => {
-        if (!cancelled) setListingOccupancyBookings([]);
+      .catch((e) => {
+        if (cancelled) return;
+        // Keep prior occupancy; never pretend sold seats are zero.
+        setListingOccupancyLoadError(
+          userFacingError(e, 'Could not verify sold seats for this listing. Reload before changing schedules.')
+        );
       });
     return () => {
       cancelled = true;
@@ -2079,6 +2086,10 @@ export default function SupplierListingForm({
   const deleteSchedule = useCallback(
     (scheduleId: string) => {
       if (!optionModalDraft) return;
+      if (listingOccupancyLoadError) {
+        setScheduleSaveError(listingOccupancyLoadError);
+        return;
+      }
       if (pendingScheduleDeleteId !== scheduleId) {
         setPendingScheduleDeleteId(scheduleId);
         return;
@@ -2088,7 +2099,7 @@ export default function SupplierListingForm({
       persistOptionDraftToForm(next);
       setPendingScheduleDeleteId(null);
     },
-    [optionModalDraft, pendingScheduleDeleteId, persistOptionDraftToForm]
+    [optionModalDraft, pendingScheduleDeleteId, persistOptionDraftToForm, listingOccupancyLoadError]
   );
 
   const persistScheduleDraft = useCallback(
@@ -2164,6 +2175,10 @@ export default function SupplierListingForm({
       return;
     }
     if (editingId) {
+      if (listingOccupancyLoadError) {
+        setScheduleSaveError(listingOccupancyLoadError);
+        return;
+      }
       const occupying = occupyingGuestsForOptionDeparture({
         bookings: listingOccupancyBookings,
         listingId: editingId,
@@ -2200,7 +2215,7 @@ export default function SupplierListingForm({
     setScheduleDraft(null);
     setScheduleLeaveOpen(false);
     scheduleSessionOpenedAsCreateRef.current = false;
-  }, [scheduleDraft, optionModalDraft, persistScheduleDraft, editingId, listingOccupancyBookings]);
+  }, [scheduleDraft, optionModalDraft, persistScheduleDraft, editingId, listingOccupancyBookings, listingOccupancyLoadError]);
 
   const occupancyNoticeForSchedule = useCallback(
     (schedule: ListingOptionSchedule) => {
