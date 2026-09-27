@@ -910,6 +910,15 @@ export default function BookingPage({
       );
       return;
     }
+    // Phase 1180: sold-out must not advance to contact (1178 parity).
+    if (capacityBlocksPay) {
+      setError(
+        departureTime
+          ? `The ${departureTime} departure no longer has enough spots for your party.`
+          : 'This date no longer has enough spots for your party.'
+      );
+      return;
+    }
     // Phase 1179: mirror TourDetails 1164 — block own/team listings before contact/Pay.
     if (isSupabaseConfigured() && userRef.current?.id) {
       const selfBook = await viewerIsListingSupplierSide(userRef.current.id, tour.supplierId);
