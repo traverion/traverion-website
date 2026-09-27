@@ -77,4 +77,23 @@ describe('Phase 1236: group_size mapping fail-closed', () => {
     expect(row.pickup_window_minutes_before_min).toBeNull();
     expect(row.pickup_window_minutes_before_max).toBeNull();
   });
+
+  it('Phase 1279: legacy DB DEFAULT 0/30 reads as unset', () => {
+    const tour = rowToTourPackage(
+      minimalRow({
+        pickup_window_minutes_before_min: 0,
+        pickup_window_minutes_before_max: 30,
+      })
+    );
+    expect(tour.pickupWindowMinutesBeforeMin).toBeUndefined();
+    expect(tour.pickupWindowMinutesBeforeMax).toBeUndefined();
+    const explicit = rowToTourPackage(
+      minimalRow({
+        pickup_window_minutes_before_min: 15,
+        pickup_window_minutes_before_max: 45,
+      })
+    );
+    expect(explicit.pickupWindowMinutesBeforeMin).toBe(15);
+    expect(explicit.pickupWindowMinutesBeforeMax).toBe(45);
+  });
 });

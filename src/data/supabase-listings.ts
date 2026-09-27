@@ -122,13 +122,18 @@ export function rowToTourPackage(row: ListingRow): TourPackage {
     meetingPoint: row.meeting_point ?? undefined,
     pickupInstructions: row.pickup_instructions ?? undefined,
     defaultStartTime: pgTimeToHm(row.default_start_time ?? null),
-    // Phase 1253: null pickup window → undefined (no invent 0/30).
-    ...(row.pickup_window_minutes_before_min != null
-      ? { pickupWindowMinutesBeforeMin: row.pickup_window_minutes_before_min }
-      : {}),
-    ...(row.pickup_window_minutes_before_max != null
-      ? { pickupWindowMinutesBeforeMax: row.pickup_window_minutes_before_max }
-      : {}),
+    // Phase 1253/1279: null pickup window → undefined. Legacy 025 DEFAULT 0/30
+    // also reads as unset until rows are cleared (migration 185).
+    ...(() => {
+      const min = row.pickup_window_minutes_before_min;
+      const max = row.pickup_window_minutes_before_max;
+      if (min == null && max == null) return {};
+      if (min === 0 && max === 30) return {};
+      return {
+        ...(min != null ? { pickupWindowMinutesBeforeMin: min } : {}),
+        ...(max != null ? { pickupWindowMinutesBeforeMax: max } : {}),
+      };
+    })(),
     experienceStartStyle: normalizeExperienceStartStyle(row.experience_start_style),
     dropoffMode: normalizeDropoffMode(row.dropoff_mode),
     dropoffLocation: row.dropoff_location ?? undefined,
