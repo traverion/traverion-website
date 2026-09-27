@@ -4850,6 +4850,13 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 
 **Certification:** marketplace audit trail = **CODE-INSPECTED** (DB-first). APM dashboards = **NOT BUILT**.
 
+
+### Phase 915 — Mobile checkout consent (390×844)
+
+**Browser:** Device metrics 390×844; confirm step shows `#booking-checkout-consent` and disabled **Accept terms to pay**. Mobile Menu chrome present.
+
+**Certification:** checkout consent mobile = **MOBILE-BROWSER-TESTED**.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.
