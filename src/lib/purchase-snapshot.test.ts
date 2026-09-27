@@ -213,6 +213,31 @@ describe('resolveOptionFieldsForSnapshot (checkout freeze helpers)', () => {
     expect(fields.travelerStartInstructions).toBe(
       'Wait outside the lobby 10 minutes early. Look for Van B.'
     );
+
+    // Phase 1287: empty availabilityDateFrom must not freeze a scheduleId.
+    expect(
+      resolveOptionFieldsForSnapshot({
+        listingExtras: {
+          bookingOptions: [
+            {
+              id: 'opt-a',
+              schedules: [
+                {
+                  id: 'sch-open',
+                  status: 'ready',
+                  availabilityDateFrom: '',
+                  availabilityDateTo: '2026-12-31',
+                  startTime: '20:30',
+                },
+              ],
+            },
+          ],
+        },
+        optionId: 'opt-a',
+        bookingDate: '2026-09-15',
+        startTimeHm: '20:30',
+      }).scheduleId
+    ).toBeNull();
     expect(
       resolvePickupInstructionsForSnapshot({
         travelerStartInstructions: fields.travelerStartInstructions,
