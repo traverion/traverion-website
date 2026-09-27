@@ -18,6 +18,7 @@ import { isListingVisibleToTravelers } from '../lib/product-workflows';
 import { MARKETPLACE_BROWSE_GRID_CLASS } from '../lib/marketplaceBrowse';
 import { fetchDiscountsByListingIds, type ListingDiscount } from '../data/supabase-discounts';
 import { isSupabaseListingId } from '../lib/discount-display';
+import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
 
 interface WishlistPageProps {
   onNavigate: (page: string) => void;
@@ -31,6 +32,9 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [discountsByListing, setDiscountsByListing] = useState<Map<string, ListingDiscount[]> | null>(null);
+  const [reviewAggregates, setReviewAggregates] = useState<Map<string, { rating: number; count: number }>>(
+    () => new Map()
+  );
   const loadGenRef = useRef(0);
 
   const load = useCallback(async () => {
@@ -81,20 +85,25 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
     }
   }, [user, load]);
 
-  // Phase 1156: wishlist cards need live offer From prices (parity with browse).
+  // Phase 1156/1183: wishlist cards need live offer From prices and review aggregates (browse parity).
   useEffect(() => {
     const ids = listings.map((t) => t.id).filter(isSupabaseListingId);
     if (!isSupabaseConfigured() || ids.length === 0) {
       setDiscountsByListing(new Map());
+      setReviewAggregates(new Map());
       return;
     }
     let cancelled = false;
-    fetchDiscountsByListingIds(ids)
-      .then((map) => {
-        if (!cancelled) setDiscountsByListing(map);
+    void Promise.all([fetchDiscountsByListingIds(ids), getReviewAggregatesForListingIds(ids)])
+      .then(([discounts, reviews]) => {
+        if (cancelled) return;
+        setDiscountsByListing(discounts);
+        setReviewAggregates(reviews);
       })
       .catch(() => {
-        if (!cancelled) setDiscountsByListing(new Map());
+        // Phase 1151: empty map → honest list From; keep prior reviews (failure ≠ zero ratings).
+        if (cancelled) return;
+        setDiscountsByListing(new Map());
       });
     return () => {
       cancelled = true;
