@@ -189,16 +189,16 @@ export async function promotePaidFromCheckoutSession(params: {
   const withStay = await admin
     .from('bookings')
     .select(
-      'id, status, payment_status, currency, total_amount, checkout_session_id, payment_intent_id, listing_id, booking_date, guests, check_out, start_time, purchase_snapshot, booking_option_id'
+      'id, status, payment_status, currency, total_amount, checkout_session_id, payment_intent_id, listing_id, booking_date, guests, check_out, start_time, purchase_snapshot, booking_option_id, guest_user_id'
     )
     .eq('id', bookingId)
     .maybeSingle();
   let existingBooking = withStay.data as Record<string, unknown> | null;
-  if (withStay.error && /check_out|start_time|purchase_snapshot|booking_option_id/i.test(withStay.error.message)) {
+  if (withStay.error && /check_out|start_time|purchase_snapshot|booking_option_id|guest_user_id/i.test(withStay.error.message)) {
     const fallback = await admin
       .from('bookings')
       .select(
-        'id, status, payment_status, currency, total_amount, checkout_session_id, payment_intent_id, listing_id, booking_date, guests, check_out, start_time'
+        'id, status, payment_status, currency, total_amount, checkout_session_id, payment_intent_id, listing_id, booking_date, guests, check_out, start_time, guest_user_id'
       )
       .eq('id', bookingId)
       .maybeSingle();
@@ -596,6 +596,75 @@ export async function promotePaidFromCheckoutSession(params: {
       if (!isCheckoutInventoryConflictError(inventoryErr.message)) {
         throw new Error(inventoryErr.message);
       }
+    }
+  }
+
+  // Phase 1154: never confirm paid self-book (stale session from before 1146/1152).
+  const guestUserId = String(existingBooking?.guest_user_id ?? '').trim();
+  if (listingId && guestUserId) {
+    const { data: listingOwn } = await admin
+      .from('listings')
+      .select('supplier_id')
+      .eq('id', listingId)
+      .maybeSingle();
+    const listingSupplierId = String(listingOwn?.supplier_id ?? '').trim();
+    let isSelfBook =
+      listingSupplierId.length > 0 && listingSupplierId === guestUserId;
+    if (!isSelfBook && listingSupplierId) {
+      const { data: teamSelf } = await admin
+        .from('supplier_team_members')
+        .select('user_id')
+        .eq('supplier_id', listingSupplierId)
+        .eq('user_id', guestUserId)
+        .maybeSingle();
+      isSelfBook = Boolean(teamSelf?.user_id);
+    }
+    if (isSelfBook) {
+      let selfBookRefunded = false;
+      if (
+        rejectedCheckoutCaptureShouldRefund({
+          sessionPaymentStatus: session.payment_status,
+          paymentIntentId,
+        })
+      ) {
+        try {
+          await stripe.refunds.create(
+            {
+              payment_intent: paymentIntentId as string,
+              reason: 'requested_by_customer',
+            },
+            { idempotencyKey: `self-book-checkout-refund:${session.id}` }
+          );
+          selfBookRefunded = true;
+          await admin.from('booking_payment_events').insert({
+            booking_id: bookingId,
+            event_id: event.id,
+            event_type: 'self_book_checkout_refund',
+            payment_intent_id: paymentIntentId,
+            checkout_session_id: session.id,
+            amount: amountPaid,
+            currency,
+            payload: {
+              reason: 'supplier_self_book_on_paid_promotion',
+              stripeEventType: event.type,
+            },
+          });
+        } catch (refundErr) {
+          const msg = refundErr instanceof Error ? refundErr.message : String(refundErr);
+          if (!/already.?been.?refunded|charge_already_refunded/i.test(msg)) {
+            throw refundErr;
+          }
+        }
+      }
+      await markProcessed('processed');
+      return json({
+        success: true,
+        ignored: true,
+        reason: 'supplier self-book on checkout.session.completed',
+        selfBookRefunded,
+        eventId: event.id,
+        bookingId,
+      });
     }
   }
 

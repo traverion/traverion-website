@@ -655,69 +655,17 @@ serve(async (req) => {
           claimed.error.message
         );
         if (conflict) return json({ success: false, error: claimed.error.message }, 409);
+        // Phase 1153: self-book from claim (146) → 403, not 500.
+        if (/cannot book your own listing|supplier account/i.test(claimed.error.message)) {
+          return json({ success: false, error: claimed.error.message }, 403);
+        }
         const missingFn = isMissingPostgresFunctionError(claimed.error.message);
         if (!missingFn) return json({ success: false, error: claimed.error.message }, 500);
-        // Legacy fallback when claim RPC is absent: assert then bare insert.
-        // Phase 1096: if assert is also missing, refuse — never insert unguarded.
-        const { error: inventoryErr } = await admin.rpc('assert_checkout_inventory', {
-          p_listing_id: listingId,
-          p_check_in: bookingDate,
-          p_guests: guests,
-          p_check_out: extrasFamily === 'stay' && checkoutDate ? checkoutDate : null,
-          p_exclude_booking_id: null,
-          p_start_time: startTime || null,
-          p_booking_option_id: quote.optionId || null,
-        });
-        if (inventoryErr) {
-          if (isMissingPostgresFunctionError(inventoryErr.message)) {
-            return json(
-              { success: false, error: 'Checkout inventory guard unavailable. Try again later.' },
-              500
-            );
-          }
-          const invConflict = /already booked|not enough capacity|occupied|nights are blocked|no bookable capacity/i.test(
-            inventoryErr.message
-          );
-          return json({ success: false, error: inventoryErr.message }, invConflict ? 409 : 500);
-        }
-        const insertBase: Record<string, unknown> = {
-          listing_id: listingId,
-          guest_email: email,
-          guest_name: effectiveGuestName || null,
-          guests,
-          booking_date: bookingDate,
-          status: 'pending',
-          special_requests: notesParts.join('\n\n') || null,
-          total_amount: totalAmount,
-          currency,
-          guest_user_id: user.id,
-          payment_status: 'pending',
-          payment_provider: 'stripe',
-          booking_option_id: quote.optionId,
-          hold_expires_at: holdExpiresAtIso,
-        };
-        if (startTime) insertBase.start_time = startTime;
-        if (quote.guestBreakdown?.length) {
-          insertBase.guest_breakdown = quote.guestBreakdown;
-        }
-        insertBase.purchase_snapshot = purchaseSnapshot;
-        if (extrasFamily === 'stay' && checkoutDate) {
-          insertBase.check_out = checkoutDate;
-          if (stayNights != null && stayNights >= 1) {
-            insertBase.nights = stayNights;
-            insertBase.nightly_amount = quote.unitPrice;
-            insertBase.cleaning_fee = Math.round((quote.totalAmount - quote.unitPrice * stayNights) * 100) / 100;
-          }
-        }
-        let res = await admin.from('bookings').insert(insertBase).select('id').single();
-        if (res.error && /purchase_snapshot/i.test(res.error.message)) {
-          const { purchase_snapshot: _drop, ...withoutSnap } = insertBase;
-          res = await admin.from('bookings').insert(withoutSnap).select('id').single();
-        }
-        if (res.error || !res.data?.id) {
-          return json({ success: false, error: res.error?.message ?? 'Could not create booking' }, 500);
-        }
-        targetBookingId = res.data.id;
+        // Phase 1153: claim RPC missing — fail closed (no bare insert bypass of 146).
+        return json(
+          { success: false, error: 'Checkout hold guard unavailable. Try again later.' },
+          500
+        );
       } else {
         const id = claimed.data as string | null;
         if (!id) return json({ success: false, error: 'Could not create booking' }, 500);
