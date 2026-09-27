@@ -15,8 +15,8 @@ export function isServiceRoleBearer(
 }
 
 /**
- * True when the signed-in caller is the booking guest or the listing supplier.
- * Team members are not included here — only listings.supplier_id owner.
+ * True when the signed-in caller is the booking guest, listing supplier, or
+ * a supplier team member (Phase 1130).
  */
 export function bookingPartyAllowsCustomerNotify(params: {
   callerUserId?: string | null;
@@ -24,6 +24,7 @@ export function bookingPartyAllowsCustomerNotify(params: {
   guestUserId?: string | null;
   guestEmail?: string | null;
   callerIsListingSupplier?: boolean;
+  callerIsSupplierTeamMember?: boolean;
 }): boolean {
   const uid = (params.callerUserId ?? '').trim();
   const guestUid = (params.guestUserId ?? '').trim();
@@ -34,6 +35,7 @@ export function bookingPartyAllowsCustomerNotify(params: {
   if (email && guestEmail && email === guestEmail) return true;
 
   if (params.callerIsListingSupplier) return true;
+  if (params.callerIsSupplierTeamMember) return true;
   return false;
 }
 

@@ -20,6 +20,7 @@ export function bookingPartyAllowsCustomerNotify(params: {
   guestUserId?: string | null;
   guestEmail?: string | null;
   callerIsListingSupplier?: boolean;
+  callerIsSupplierTeamMember?: boolean;
 }): boolean {
   const uid = (params.callerUserId ?? '').trim();
   const guestUid = (params.guestUserId ?? '').trim();
@@ -30,6 +31,7 @@ export function bookingPartyAllowsCustomerNotify(params: {
   if (email && guestEmail && email === guestEmail) return true;
 
   if (params.callerIsListingSupplier) return true;
+  if (params.callerIsSupplierTeamMember) return true;
   return false;
 }
 

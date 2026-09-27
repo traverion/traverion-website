@@ -412,15 +412,26 @@ serve(async (req) => {
           return json({ success: false, error: 'Unauthorized' }, 401);
         }
         let callerIsListingSupplier = false;
+        let callerIsSupplierTeamMember = false;
         const listingId = String(partyBooking.listing_id ?? '').trim();
+        let listingSupplierId = '';
         if (listingId) {
           const { data: listingOwn } = await admin
             .from('listings')
             .select('supplier_id')
             .eq('id', listingId)
             .maybeSingle();
-          callerIsListingSupplier =
-            String(listingOwn?.supplier_id ?? '').trim() === callerId;
+          listingSupplierId = String(listingOwn?.supplier_id ?? '').trim();
+          callerIsListingSupplier = listingSupplierId.length > 0 && listingSupplierId === callerId;
+        }
+        if (!callerIsListingSupplier && listingSupplierId) {
+          const { data: teamRow } = await admin
+            .from('supplier_team_members')
+            .select('user_id')
+            .eq('supplier_id', listingSupplierId)
+            .eq('user_id', callerId)
+            .maybeSingle();
+          callerIsSupplierTeamMember = Boolean(teamRow?.user_id);
         }
         if (
           !bookingPartyAllowsCustomerNotify({
@@ -429,6 +440,7 @@ serve(async (req) => {
             guestUserId: partyBooking.guest_user_id,
             guestEmail: partyBooking.guest_email,
             callerIsListingSupplier,
+            callerIsSupplierTeamMember,
           })
         ) {
           return json({ success: false, error: 'Unauthorized' }, 401);
@@ -438,11 +450,13 @@ serve(async (req) => {
           (callerEmail &&
             partyBooking.guest_email &&
             callerEmail.trim().toLowerCase() === String(partyBooking.guest_email).trim().toLowerCase());
+        const callerIsSupplierSide = callerIsListingSupplier || callerIsSupplierTeamMember;
         // Phase 1128: guests must not fire host/ops/cron customer email kinds.
-        if (callerIsGuest && !callerIsListingSupplier && !guestMayInvokeCustomerEmailKind(kind)) {
+        if (callerIsGuest && !callerIsSupplierSide && !guestMayInvokeCustomerEmailKind(kind)) {
           return json({ success: false, error: 'Unauthorized' }, 401);
         }
-        allowCallerFieldDiffs = callerIsListingSupplier;
+        // Phase 1126/1130: fieldDiffs only from supplier-side or service-role.
+        allowCallerFieldDiffs = callerIsSupplierSide;
       }
     }
 

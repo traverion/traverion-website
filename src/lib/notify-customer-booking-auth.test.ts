@@ -40,6 +40,16 @@ describe('notify-customer-booking auth (Phase 1092)', () => {
     ).toBe(true);
   });
 
+  it('Phase 1130: allows supplier team members', () => {
+    expect(
+      bookingPartyAllowsCustomerNotify({
+        callerUserId: 'teammate',
+        guestUserId: 'guest',
+        callerIsSupplierTeamMember: true,
+      })
+    ).toBe(true);
+  });
+
   it('rejects email ownership when callerEmail is empty (callers must pass confirmed email only — Phase 1120)', () => {
     expect(
       bookingPartyAllowsCustomerNotify({
