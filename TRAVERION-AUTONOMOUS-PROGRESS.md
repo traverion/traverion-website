@@ -4,7 +4,7 @@
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
 **Current SHA:** `39a3a1a`  
-**Current phase:** 1011  
+**Current phase:** 1012  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -5182,6 +5182,12 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 **Fix:** Exact UUID search returns any status; non-UUID browse stays published-only. UI shows draft status and hides Force unpublish for non-published rows. Edge function redeployed.
 
 **Certification:** CODE-INSPECTED. Staff-host browser = still deferred (no admin password in agent session).
+
+### Phase 1012 — Admin support readiness cites UUID draft lookup
+
+**Fix:** `docs/ADMIN_SUPPORT_READINESS.md` documents UUID search finds drafts after force-unpublish (1011).
+
+**Certification:** CODE-INSPECTED.
 
 ## Known remaining risks (ranked)
 

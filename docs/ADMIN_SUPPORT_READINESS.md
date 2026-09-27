@@ -14,7 +14,7 @@
 | Inspect supplier identity / verification | Onboarding gate | `AdminSupplierVerificationPanel` + edge `admin-supplier-verification` | STRONG / CODE |
 | Record manual payout | Accounting without Connect | `admin_record_supplier_payout` (094) + `AdminFinancePanel` | PARTIAL / MANUAL |
 | Inspect traveler messages / inquiries | Support | `AdminInquiriesPanel`, `AdminSupplierPortalMessagesPanel` | PARTIAL |
-| Suspend / unpublish listing | Moderation | `AdminListingsModerationPanel` + `admin_force_unpublish_listing` (107) + audit; remote probe proves paid bookings survive (1003) | IMPLEMENTED / ADVERSARIAL-TESTED |
+| Suspend / unpublish listing | Moderation | `AdminListingsModerationPanel` + `admin_force_unpublish_listing` (107) + audit; UUID search finds drafts (1011); remote probe proves paid bookings survive (1003) | IMPLEMENTED / ADVERSARIAL-TESTED |
 | Moderate review | Trust | Reviews ownership guards; no staff delete UI claimed | NOT REQUIRED YET |
 | Resolve cancellation / Refund due | Money honesty | Partner “Refund due”; manual Stripe TEST refund docs | HONEST / PARTIAL |
 | Find user account | Abuse / account help | Via booking guest email + auth admin outside app | BACKEND / ops |
