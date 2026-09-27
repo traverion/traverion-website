@@ -710,7 +710,9 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         // Phase 1175: reply failure must not invent empty reviews.
         void getReviewRepliesByReviewIds(rows.map((r) => r.id))
           .then(setReviewReplies)
-          .catch(() => setReviewReplies({}));
+          .catch(() => {
+            /* Phase 1176: keep prior replies — failure ≠ “no host response” */
+          });
       })
       .catch((e) => {
         setReviews([]);
