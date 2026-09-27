@@ -40,7 +40,7 @@ import { listingIsOnTravelerCatalog } from '../lib/inventory';
 import { listingShowsFreeCancellation, publicReviewLabel } from '../lib/listingTruth';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 import { listingTourCapacityFromOptions, remainingCapacity, capacitySpotsFromBookingOptions } from '../lib/availability-ops';
-import { departureSlotSpotsLeft, partyMaxCappedByRemainingSpots } from '../lib/departure-slot-remaining';
+import { departureSlotSpotsLeft, maxSpotsLeftAcrossDepartures, partyMaxCappedByRemainingSpots } from '../lib/departure-slot-remaining';
 import { tourSoldOutDates } from '../lib/tour-calendar';
 import BookingPage from './BookingPage';
 import {
@@ -445,7 +445,22 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         fallbackDayCap: dayCapacitySnap.fallback,
       });
     }
-    const cap = dayCapacitySnap.capByDay.get(day) ?? dayCapacitySnap.fallback;
+    if (dayCapacitySnap.capByDay.has(day)) {
+      const cap = dayCapacitySnap.capByDay.get(day) ?? dayCapacitySnap.fallback;
+      return remainingCapacity(cap, dayCapacitySnap.paidByDay[day] ?? 0);
+    }
+    if (selectedOptionApplied && departureTimes.length >= 1) {
+      return maxSpotsLeftAcrossDepartures({
+        dayIso: day,
+        departureTimes,
+        maxSpotsPerSlot: selectedOptionApplied.maxSpotsPerSlot,
+        maxPersonsFallback: selectedOptionApplied.maxPersons,
+        paidBySlot: dayCapacitySnap.paidBySlot,
+        paidByDay: dayCapacitySnap.paidByDay,
+        fallbackDayCap: dayCapacitySnap.fallback,
+      });
+    }
+    const cap = dayCapacitySnap.fallback;
     return remainingCapacity(cap, dayCapacitySnap.paidByDay[day] ?? 0);
   }, [
     bookingDate,

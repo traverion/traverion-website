@@ -28,6 +28,41 @@ export function departureSlotSpotsLeft(params: {
 }
 
 /**
+ * Best remaining capacity across still-bookable departures on a day.
+ * Used when no departure is selected yet — day-total paid seats must not treat a
+ * full morning as “fully booked this day” while evening still has seats.
+ */
+export function maxSpotsLeftAcrossDepartures(params: {
+  dayIso: string;
+  departureTimes: string[];
+  maxSpotsPerSlot: number | null | undefined;
+  maxPersonsFallback: number;
+  paidBySlot: Record<string, number>;
+  paidByDay: Record<string, number>;
+  fallbackDayCap: number;
+}): number | null {
+  const times = params.departureTimes.map((t) => t.trim()).filter(Boolean);
+  if (times.length < 1) return null;
+  let maxLeft = 0;
+  let saw = false;
+  for (const time of times) {
+    const left = departureSlotSpotsLeft({
+      dayIso: params.dayIso,
+      startTimeHm: time,
+      maxSpotsPerSlot: params.maxSpotsPerSlot,
+      maxPersonsFallback: params.maxPersonsFallback,
+      paidBySlot: params.paidBySlot,
+      paidByDay: params.paidByDay,
+      fallbackDayCap: params.fallbackDayCap,
+    });
+    if (left == null) continue;
+    saw = true;
+    maxLeft = Math.max(maxLeft, left);
+  }
+  return saw ? maxLeft : null;
+}
+
+/**
  * Guest stepper upper bound from remaining inventory.
  * Unknown remaining → keep option max. Sold out → 0 (never restore full option max).
  */

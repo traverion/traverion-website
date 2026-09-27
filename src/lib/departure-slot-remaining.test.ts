@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { departureSlotSpotsLeft, partyMaxCappedByRemainingSpots } from './departure-slot-remaining';
+import {
+  departureSlotSpotsLeft,
+  maxSpotsLeftAcrossDepartures,
+  partyMaxCappedByRemainingSpots,
+} from './departure-slot-remaining';
 import { tourPaidSlotKey } from '../data/supabase-availability';
 
 describe('partyMaxCappedByRemainingSpots', () => {
@@ -64,5 +68,25 @@ describe('departureSlotSpotsLeft', () => {
       fallbackDayCap: 14,
     });
     expect(n).toBe(1);
+  });
+});
+
+describe('maxSpotsLeftAcrossDepartures (Phase 1064)', () => {
+  it('does not treat a full morning as day sold-out when evening still has seats', () => {
+    const day = '2026-10-01';
+    expect(
+      maxSpotsLeftAcrossDepartures({
+        dayIso: day,
+        departureTimes: ['08:00', '20:00'],
+        maxSpotsPerSlot: 8,
+        maxPersonsFallback: 12,
+        paidBySlot: {
+          [tourPaidSlotKey(day, '08:00')]: 8,
+          [tourPaidSlotKey(day, '20:00')]: 2,
+        },
+        paidByDay: { [day]: 10 },
+        fallbackDayCap: 16,
+      })
+    ).toBe(6);
   });
 });

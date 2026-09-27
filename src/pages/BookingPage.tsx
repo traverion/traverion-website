@@ -33,8 +33,9 @@ import {
   listingOptionReadySchedules,
   resolveScheduleForDate,
   applyScheduleToOption,
+  departureTimesOnDate,
 } from '../lib/listing-option-schedules';
-import { normalizeBookingCutoffHours, resolveDepartureTimezone } from '../lib/tour-departure-cutoff';
+import { normalizeBookingCutoffHours, resolveDepartureTimezone, isDepartureTimeStillBookable } from '../lib/tour-departure-cutoff';
 import { localYmd } from '../lib/local-ymd';
 import { formatMoney, normalizeCurrency } from '../lib/money';
 import PriceBreakdown from '../components/PriceBreakdown';
@@ -53,7 +54,7 @@ import TourDatePicker from '../components/TourDatePicker';
 import GuestStepper from '../components/booking/GuestStepper';
 import ParticipantCategoryStepper from '../components/booking/ParticipantCategoryStepper';
 import { listingTourCapacityFromOptions, remainingCapacity, capacitySpotsFromBookingOptions } from '../lib/availability-ops';
-import { departureSlotSpotsLeft, partyMaxCappedByRemainingSpots } from '../lib/departure-slot-remaining';
+import { departureSlotSpotsLeft, maxSpotsLeftAcrossDepartures, partyMaxCappedByRemainingSpots } from '../lib/departure-slot-remaining';
 import { tourSoldOutDates } from '../lib/tour-calendar';
 import { tourSlotMaxSpotsFromOption } from '../lib/tour-slot-capacity';
 import { useDialogFocus } from '../hooks/useDialogFocus';
@@ -389,6 +390,20 @@ export default function BookingPage({
     return () => document.removeEventListener('visibilitychange', onVis);
   }, [reloadBookingDayCapacity]);
 
+  const bookableDepartureTimes = useMemo(() => {
+    const day = date.trim();
+    const opt = appliedOption ?? selectedVariant?.listingOption ?? null;
+    if (!opt || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return [] as string[];
+    return departureTimesOnDate(opt, day).filter((time) =>
+      isDepartureTimeStillBookable({
+        bookingDate: day,
+        startTimeHm: time,
+        cutoffHoursBeforeStart: bookingCutoffHours,
+        timeZone: departureTimezone,
+      })
+    );
+  }, [date, appliedOption, selectedVariant, bookingCutoffHours, departureTimezone]);
+
   const selectedDaySpotsLeft = useMemo(() => {
     const day = date.trim();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !dayCapacitySnap) return null;
@@ -406,9 +421,24 @@ export default function BookingPage({
         fallbackDayCap: dayCapacitySnap.fallback,
       });
     }
-    const cap = dayCapacitySnap.capByDay.get(day) ?? dayCapacitySnap.fallback;
+    if (dayCapacitySnap.capByDay.has(day)) {
+      const cap = dayCapacitySnap.capByDay.get(day) ?? dayCapacitySnap.fallback;
+      return remainingCapacity(cap, dayCapacitySnap.paidByDay[day] ?? 0);
+    }
+    if (appliedOption && bookableDepartureTimes.length >= 1) {
+      return maxSpotsLeftAcrossDepartures({
+        dayIso: day,
+        departureTimes: bookableDepartureTimes,
+        maxSpotsPerSlot: appliedOption.maxSpotsPerSlot,
+        maxPersonsFallback: appliedOption.maxPersons,
+        paidBySlot: dayCapacitySnap.paidBySlot,
+        paidByDay: dayCapacitySnap.paidByDay,
+        fallbackDayCap: dayCapacitySnap.fallback,
+      });
+    }
+    const cap = dayCapacitySnap.fallback;
     return remainingCapacity(cap, dayCapacitySnap.paidByDay[day] ?? 0);
-  }, [date, dayCapacitySnap, soldOutDates, departureTime, appliedOption]);
+  }, [date, dayCapacitySnap, soldOutDates, departureTime, appliedOption, bookableDepartureTimes]);
 
   const spotsLeftIsDepartureCapacity =
     Boolean(departureTime) &&
