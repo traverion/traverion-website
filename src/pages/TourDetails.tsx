@@ -98,6 +98,7 @@ import {
 } from '../lib/tour-departure-cutoff';
 import { formatTourAvailabilityHeading, optionsOnDate } from '../lib/tour-available-options';
 import { tourSlotMaxSpotsFromOption } from '../lib/tour-slot-capacity';
+import { tourDepartureSlotCapacity } from '../../supabase/functions/_shared/booking-quote.ts';
 import { tourStickyBookCtaLabel } from '../lib/tour-sticky-cta';
 import { travelerDisplayNameFromSources } from '../lib/traveler-display-name';
 import { fetchWishlistListingIds, toggleWishlist } from '../data/supabase-wishlist';
@@ -1047,9 +1048,27 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     setBookingCardError(null);
     setVariantChecking(true);
     try {
+      const startHm = selectedDepartureTime.trim();
+      const optionId =
+        selectedBookingVariant.id !== '__default__' ? selectedBookingVariant.id : undefined;
+      // Phase 1168: mirror BookingPage 1161 / edge 1122 — unresolved schedule slot cap must not navigate.
+      let slotMaxSpots = tourSlotMaxSpotsFromOption(selectedOptionApplied);
+      if (startHm) {
+        const slotCap = tourDepartureSlotCapacity({
+          listing_extras: tour.listingExtras,
+          bookingDate: bookingDate.trim(),
+          bookingOptionId: optionId,
+          startTime: startHm,
+        });
+        if (slotCap == null) {
+          setBookingCardError('No bookable capacity for this departure.');
+          return;
+        }
+        slotMaxSpots = slotCap;
+      }
       const avail = await checkAvailability(tour.id, bookingDate.trim(), partySize, {
-        startTimeHm: selectedDepartureTime.trim() || null,
-        slotMaxSpots: tourSlotMaxSpotsFromOption(selectedOptionApplied),
+        startTimeHm: startHm || null,
+        slotMaxSpots,
       });
       if (!avail.available) {
         setBookingCardError(
