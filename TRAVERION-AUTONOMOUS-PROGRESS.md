@@ -4821,6 +4821,15 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 
 **Certification:** supplier listing isolation = **ADVERSARIAL-TESTED** (SQL harness) + **CODE-INSPECTED**.
 
+
+### Phase 911 — Legacy packages?uuid= deep-link alias
+
+**Problem:** Older share/sitemap links used `?uuid=`; App only read `?tour=`, so legacy URLs opened the tour catalog instead of the PDP.
+
+**Fix:** `resolveTourListingIdFromSearch` + `normalizeLegacyTourUuidQueryParam` rewrite `uuid=` → `tour=` in place. Browser: `packages?uuid=1807368c-…` → `packages?tour=…` with H1 **Phase 872 RENAMED After Purchase**.
+
+**Certification:** legacy tour query alias = **BROWSER-TESTED** + **AUTOMATED-TESTED**.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.

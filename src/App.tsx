@@ -25,6 +25,10 @@ import {
   mapStripeReturnRoute,
   navigateBackOrFallback,
 } from './lib/appRouting';
+import {
+  normalizeLegacyTourUuidQueryParam,
+  resolveTourListingIdFromSearch,
+} from './lib/tour-listing-query';
 import { STRIPE_TEST_UNTIL_LIVE } from './lib/booking-confirmation-copy';
 import {
   isTraverionAdminHost,
@@ -115,9 +119,9 @@ function readInitialRoute(): { page: string; destinationSlug: string | null } {
   const { destinationSlug } = parsed;
   page = mapStripeReturnRoute(page, window.location.search);
   const params = new URLSearchParams(window.location.search);
-  const tourParam = params.get('tour');
+  const tourParam = resolveTourListingIdFromSearch(window.location.search);
   const stayParam = params.get('stay');
-  if (page === 'packages' && tourParam && /^[0-9a-f-]{36}$/i.test(tourParam)) {
+  if (page === 'packages' && tourParam) {
     return { page: 'tour-details', destinationSlug };
   }
   if (page === 'stays' && stayParam && /^[0-9a-f-]{36}$/i.test(stayParam)) {
@@ -143,8 +147,9 @@ function App() {
   // Sync internal route from the URL (initial load + browser back/forward)
   const syncRouteFromUrl = useCallback(() => {
     if (isSupplierArea) return;
+    normalizeLegacyTourUuidQueryParam();
     const params = new URLSearchParams(window.location.search);
-    const tourParam = params.get('tour');
+    const tourParam = resolveTourListingIdFromSearch(window.location.search);
     const adminHost = isTraverionAdminHost();
     const pathForParse = adminHost
       ? window.location.pathname
@@ -156,7 +161,7 @@ function App() {
     const destinationSlug = parsed.destinationSlug;
     page = mapStripeReturnRoute(page, window.location.search);
     const stayParam = params.get('stay');
-    if (!adminHost && page === 'packages' && tourParam && /^[0-9a-f-]{36}$/i.test(tourParam)) {
+    if (!adminHost && page === 'packages' && tourParam) {
       page = 'tour-details';
     }
     if (!adminHost && page === 'stays' && stayParam && /^[0-9a-f-]{36}$/i.test(stayParam)) {
@@ -185,6 +190,7 @@ function App() {
     let cancelled = false;
     const run = () => {
       normalizePublicListingDeepLinkPathname(window.location.pathname);
+      normalizeLegacyTourUuidQueryParam();
       const path = window.location.pathname.replace(/\/$/, '') || '/';
       const stayParam = new URLSearchParams(window.location.search).get('stay');
       if (path === '/stays' && stayParam && /^[0-9a-f-]{36}$/i.test(stayParam)) {
@@ -201,8 +207,8 @@ function App() {
         });
         return;
       }
-      const tourParam = new URLSearchParams(window.location.search).get('tour');
-      if (path !== '/packages' || !tourParam || !/^[0-9a-f-]{36}$/i.test(tourParam)) return;
+      const tourParam = resolveTourListingIdFromSearch(window.location.search);
+      if (path !== '/packages' || !tourParam) return;
       void getListingByIdAsync(tourParam).then((t) => {
         if (
           cancelled ||
@@ -640,7 +646,7 @@ function App() {
       case 'tour-details':
       case 'booking': {
         const tourId =
-          selectedTour?.id ?? new URLSearchParams(window.location.search).get('tour') ?? '';
+          selectedTour?.id ?? resolveTourListingIdFromSearch(window.location.search) ?? '';
         if (/^[0-9a-f-]{36}$/i.test(tourId)) {
           return <TourDetails tourId={tourId} onBack={handleBackToTours} />;
         }
