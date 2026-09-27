@@ -399,7 +399,9 @@ serve(async (req) => {
       }
       if (content.overrides.listingKind) listingKind = content.overrides.listingKind;
       if (content.overrides.checkOutDate) checkOutDate = content.overrides.checkOutDate;
-      if (content.overrides.meetingPoint) meetingPoint = content.overrides.meetingPoint;
+      // Phase 1060: never keep caller-supplied meeting/pickup after re-derivation
+      // (empty snap must not resurrect live listing copy from the reminder job).
+      meetingPoint = content.overrides.meetingPoint;
     }
 
     const greeting = name ? `Hi ${name},` : 'Hi,';

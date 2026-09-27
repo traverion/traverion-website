@@ -98,4 +98,52 @@ describe('resolveBookingTiedContent (Phase 1052 content-forgery fix)', () => {
       })
     ).toEqual({ ok: true, overrides: {} });
   });
+
+  it('joins snapshotted place and traveler start instructions for email logistics', () => {
+    const result = resolveBookingTiedContent({
+      kind: 'experience_reminder',
+      bookingId: BOOKING_ID,
+      bookingRow: {
+        guest_name: 'Alex',
+        booking_date: '2026-10-01',
+        guests: 2,
+        purchase_snapshot: {
+          listingTitle: 'Aurora',
+          meetingPoint: 'Arctic City Hotel',
+          pickupInstructions: 'Wait outside the main entrance 10 minutes early.',
+          capturedAt: '2026-09-01T12:00:00Z',
+        },
+      },
+      listingRow: {
+        id: 'l1',
+        title: 'RENAMED',
+      },
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.overrides.meetingPoint).toBe(
+      'Arctic City Hotel — Wait outside the main entrance 10 minutes early.'
+    );
+    expect(result.overrides.listingTitle).toBe('Aurora');
+  });
+
+  it('does not invent meeting copy when snapshot has neither place nor instructions', () => {
+    const result = resolveBookingTiedContent({
+      kind: 'experience_reminder',
+      bookingId: BOOKING_ID,
+      bookingRow: {
+        guest_name: 'Alex',
+        booking_date: '2026-10-01',
+        guests: 1,
+        purchase_snapshot: {
+          listingTitle: 'Aurora',
+          capturedAt: '2026-09-01T12:00:00Z',
+        },
+      },
+      listingRow: { id: 'l1', title: 'Live title' },
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.overrides.meetingPoint).toBeUndefined();
+  });
 });

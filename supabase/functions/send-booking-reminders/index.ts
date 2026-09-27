@@ -3,6 +3,9 @@
  * Timing is calendar-based (day before / day after booking_date), not exact departure clocks.
  * Email copy says “coming up soon” / review ask — not “24 hours”.
  *
+ * Title / meeting / start instructions come from purchase_snapshot via
+ * notify-customer-booking (Phase 1052 + 1060) — this job must not pass live listing copy.
+ *
  * Invoke with cron / GitHub Action:
  * Secrets: RESEND_API_KEY (via notify-customer-booking), SUPABASE_SERVICE_ROLE_KEY,
  *          BOOKING_REMINDER_CRON_SECRET (Authorization: Bearer <secret>).
@@ -19,6 +22,12 @@ function json(body: unknown, status = 200): Response {
 
 function ymd(d: Date): string {
   return d.toISOString().slice(0, 10);
+}
+
+function snapshotStartHm(snapshot: unknown): string | null {
+  if (!snapshot || typeof snapshot !== 'object') return null;
+  const v = (snapshot as Record<string, unknown>).startTimeHm;
+  return typeof v === 'string' && v.trim() ? v.trim().slice(0, 5) : null;
 }
 
 serve(async (req) => {
@@ -57,7 +66,7 @@ serve(async (req) => {
   const { data: reminderRows, error: remErr } = await admin
     .from('bookings')
     .select(
-      'id, guest_email, guest_name, booking_date, guests, booking_number, listing_id, pickup_time, start_time, reminder_email_sent_at, status, payment_status'
+      'id, guest_email, guest_name, booking_date, guests, booking_number, listing_id, pickup_time, start_time, purchase_snapshot, reminder_email_sent_at, status, payment_status'
     )
     .eq('booking_date', tomorrowYmd)
     .eq('status', 'confirmed')
@@ -70,28 +79,15 @@ serve(async (req) => {
   for (const row of reminderRows ?? []) {
     const email = (row.guest_email ?? '').trim().toLowerCase();
     if (!email) continue;
-    let listingTitle = 'Your experience';
-    let meetingPoint = '';
-    let listingKind: 'tour' | 'stay' = 'tour';
-    if (row.listing_id) {
-      const { data: lt } = await admin
-        .from('listings')
-        .select('title, meeting_point, pickup_instructions, experience_kind, category')
-        .eq('id', row.listing_id)
-        .maybeSingle();
-      if (lt?.title?.trim()) listingTitle = lt.title.trim();
-      meetingPoint = [lt?.meeting_point, lt?.pickup_instructions].filter(Boolean).join(' — ').trim();
-      const kindRaw = String(lt?.experience_kind ?? lt?.category ?? '').toLowerCase();
-      if (kindRaw.includes('stay') || kindRaw.includes('accommodation') || kindRaw.includes('hotel')) {
-        listingKind = 'stay';
-      }
-    }
     const diffs: { label: string; before: string; after: string }[] = [];
     if (row.pickup_time) {
       diffs.push({ label: 'Pickup time', before: '—', after: String(row.pickup_time).slice(0, 5) });
     }
-    if (row.start_time) {
-      diffs.push({ label: 'Start time', before: '—', after: String(row.start_time).slice(0, 5) });
+    const startHm =
+      snapshotStartHm(row.purchase_snapshot) ||
+      (row.start_time ? String(row.start_time).slice(0, 5) : '');
+    if (startHm) {
+      diffs.push({ label: 'Start time', before: '—', after: startHm });
     }
     try {
       const res = await fetch(`${supabaseUrl}/functions/v1/notify-customer-booking`, {
@@ -99,15 +95,8 @@ serve(async (req) => {
         headers,
         body: JSON.stringify({
           customerEmail: email,
-          customerName: row.guest_name ?? undefined,
-          listingTitle,
           bookingId: row.id,
-          bookingNumber: row.booking_number ?? undefined,
-          bookingDate: row.booking_date ?? undefined,
-          guests: row.guests ?? undefined,
           emailKind: 'experience_reminder',
-          listingKind,
-          meetingPoint: meetingPoint || undefined,
           fieldDiffs: diffs.length ? diffs : undefined,
           publicSiteUrl: publicSite,
           idempotencyKey: `customer:experience_reminder:${row.id}`,
@@ -146,32 +135,13 @@ serve(async (req) => {
   for (const row of reviewRows ?? []) {
     const email = (row.guest_email ?? '').trim().toLowerCase();
     if (!email) continue;
-    let listingTitle = 'Your experience';
-    let listingKind: 'tour' | 'stay' = 'tour';
-    if (row.listing_id) {
-      const { data: lt } = await admin
-        .from('listings')
-        .select('title, experience_kind, category')
-        .eq('id', row.listing_id)
-        .maybeSingle();
-      if (lt?.title?.trim()) listingTitle = lt.title.trim();
-      const kindRaw = String(lt?.experience_kind ?? lt?.category ?? '').toLowerCase();
-      if (kindRaw.includes('stay') || kindRaw.includes('accommodation') || kindRaw.includes('hotel')) {
-        listingKind = 'stay';
-      }
-    }
     try {
       const res = await fetch(`${supabaseUrl}/functions/v1/notify-customer-booking`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
           customerEmail: email,
-          customerName: row.guest_name ?? undefined,
-          listingTitle,
-          listingKind,
           bookingId: row.id,
-          bookingNumber: row.booking_number ?? undefined,
-          bookingDate: row.booking_date ?? undefined,
           emailKind: 'review_request',
           publicSiteUrl: publicSite,
           idempotencyKey: `customer:review_request:${row.id}`,
@@ -199,6 +169,6 @@ serve(async (req) => {
     yesterdayYmd,
     remindersSent,
     reviewsSent,
-    errors: errors.slice(0, 20),
+    errors: errors.length ? errors : undefined,
   });
 });

@@ -8,6 +8,7 @@
  * anyone citing a real bookingId could email the real guest forged title/date/
  * party/meeting copy. Prefer purchase_snapshot title/meeting when present
  * (historical purchase truth), else live listing/booking columns.
+ * Phase 1060: join snap meetingPoint + pickupInstructions (place + start copy).
  *
  * Deliberately left caller-supplied (same scoping as supplier Phase 579):
  * fieldDiffs, unpaidCheckout, refundStatusNote, paidAtIso, paymentIntentId.
@@ -137,8 +138,11 @@ export function resolveBookingTiedContent(params: {
       ? params.listingRow.title.trim()
       : undefined);
 
-  const meetingPoint =
-    snapshotString(snap, 'meetingPoint') || snapshotString(snap, 'pickupInstructions');
+  // Place + traveler start instructions are distinct snapshot fields (Phase 1059).
+  // Join both for email logistics; do not drop instructions when place is set.
+  const snapPlace = snapshotString(snap, 'meetingPoint');
+  const snapInstructions = snapshotString(snap, 'pickupInstructions');
+  const meetingPoint = [snapPlace, snapInstructions].filter(Boolean).join(' — ') || undefined;
 
   const overrides: CustomerContentOverrides = {};
   if (listingTitle) overrides.listingTitle = listingTitle;
