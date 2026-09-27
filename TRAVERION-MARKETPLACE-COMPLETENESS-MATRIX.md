@@ -44,11 +44,11 @@
 | Search / discovery | PARTIAL | published listings only | Availability-aware search depth |
 | Listing detail | PARTIAL | published listing + options | Snapshot fields at book time already stronger |
 | Quote | TEST-ONLY / STRONG | Edge checkout session quoting | Keep server-authoritative |
-| Checkout | TEST-ONLY / STRONG | Stripe TEST + holds | Concurrency + edge deploy parity |
+| Checkout | TEST-ONLY / STRONG | Stripe TEST + holds; allowlisted returnOrigin | Deployed return-origin fix (865) |
 | Booking snapshots | PARTIAL | `purchase_snapshot` + freezes | Snapshot policy edits impact UX |
 | Booking state machine | PARTIAL→STRONG | pending/confirmed/cancelled + payment_status; mig 100 NOT NULL | Remote-apply 100 + re-run SQL guard |
 | Inventory / concurrency | PARTIAL | `assert_checkout_inventory` + advisory lock | Slot-scoped lock; public remaining spots |
-| Payments | TEST-ONLY | Stripe webhook → payment_status | Never invent paid from redirect |
+| Payments | TEST-ONLY / STRONG | Stripe webhook → payment_status; #39 BROWSER | Never invent paid from redirect |
 | Cancellation | PARTIAL | RPCs + ledger | Traveler/supplier paths exist |
 | Refunds | PARTIAL | Manual Stripe TEST; “Refund due” | Design auto-refund or ops SLA (FOUNDER if product fork) |
 | Messaging | PARTIAL | `booking_messages` | No fake realtime |
@@ -84,7 +84,7 @@
 |------|-----|-----|--------------|
 | 1 | P0 | `bookings.status` nullable bypass | Migration 100 tracked (852); remote apply pending |
 | 2 | P0 | Partner create→publish not mutating-browser-certified | Cert + fix blockers |
-| 3 | P0 | Traveler book UI→Stripe TEST→Trips→partner Bookings E2E | Full tour then stay |
+| 3 | P0 | Traveler book UI→Stripe TEST→Trips→partner Bookings E2E | **Tour path BROWSER-TESTED (865 #39)**; stay E2E + dedicated traveler account next |
 | 4 | P1 | Per-slot public remaining / sell-out honesty | Align public with slot inventory |
 | 5 | P1 | Listing-scoped advisory lock coarseness | Narrow lock key when safe |
 | 6 | P1 | Same-origin session bleed | Document + mitigate localhost |

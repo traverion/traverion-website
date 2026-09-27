@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `ef55529`  
-**Current phase:** 864  
+**Current SHA:** `e8c5e0a`  
+**Current phase:** 865  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -275,6 +275,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 862 | Push migrations 100–102 to linked remote | `ea3f0ad` |
 | 863 | Fix listing editor backdrop click interception | `bc57ddb` |
 | 864 | Browser create tour Basics → Save draft | `ef55529` |
+| 865 | Stripe TEST pay E2E + checkout returnOrigin allowlist | `e8c5e0a` |
 
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
@@ -4415,6 +4416,22 @@ Also removed unused businessComplete local in Listings after 861 gate fix.
 **UX:** Product-type radios were `sr-only` (automation/hit-target fragile) — restored visible radios in Basics.
 
 **Not yet:** full option/schedule/photos → publish → traveler book (continues 865+).
+
+### Phase 865 — Browser Stripe TEST pay + local return-origin fix
+
+**Browser E2E (aurora-ops session as lead guest on demo NL tour `a11ce001-…0101`):**
+- PDP → date 2026-09-28 · Shared option · €101.15 → packages checkout Trip→Contact→Pay
+- Stripe Checkout TEST (`cs_test_…`) with `4242…` → payment succeeded
+- Stripe success_url initially landed on **production** `www.traverion.com/booking-confirmed` (PUBLIC_SITE_URL) — booking truth still correct via webhook
+- Local confirmation with same `session_id`: **Booking confirmed · Ref #39 · €101.15 TEST**
+- Trips: Upcoming shows Guaranteed Northern Lights Tour · Shared group · Confirmed · Paid · Ref #39
+- Partner Bookings page 2: **Alex Traveler · #39 · Mon 28 Sept 2026 · 20:00 · 1 guest · €101.15 · Paid**
+
+**Fix:** Allowlisted `returnOrigin` (client `window.location.origin`) for Stripe success/cancel base URL — localhost/127.0.0.1 Vite (+ preview) always allowed; unlisted origins fall back to `PUBLIC_SITE_URL`. Optional `CHECKOUT_RETURN_ORIGINS`. Deployed `create-booking-checkout-session` with `--use-api`.
+
+**Tests:** `src/lib/checkout-paths.test.ts` (6) — return-origin allow/reject.
+
+**Certification:** tour browse→quote→Stripe TEST→confirm→Trips→partner Bookings = **BROWSER-TESTED** (partner self-book; dedicated traveler account still P1). Create→publish of new inventory still open.
 
 ## Known remaining risks (ranked)
 

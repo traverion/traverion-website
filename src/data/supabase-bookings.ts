@@ -227,6 +227,10 @@ export async function createBookingCheckoutSession(params: {
   if (!appStripeIsTestMode()) {
     return { success: false, error: stripeLivePublishableBlockedMessage() };
   }
+  const returnOrigin =
+    typeof window !== 'undefined' && typeof window.location?.origin === 'string'
+      ? window.location.origin
+      : undefined;
   const { data, error } = await supabase.functions.invoke('create-booking-checkout-session', {
     body: {
       bookingId: params.bookingId,
@@ -245,6 +249,7 @@ export async function createBookingCheckoutSession(params: {
       checkoutDate: params.checkoutDate,
       successPath: params.successPath,
       cancelPath: params.cancelPath,
+      returnOrigin,
     },
   });
   if (error) {
@@ -266,11 +271,16 @@ export async function resumePendingBookingCheckout(params: {
   if (!appStripeIsTestMode()) {
     return { success: false, error: stripeLivePublishableBlockedMessage() };
   }
+  const returnOrigin =
+    typeof window !== 'undefined' && typeof window.location?.origin === 'string'
+      ? window.location.origin
+      : undefined;
   const { data, error } = await supabase.functions.invoke('create-booking-checkout-session', {
     body: {
       bookingId: params.bookingId,
       successPath: '/booking-confirmed',
       cancelPath: '/bookings?payment=cancelled',
+      returnOrigin,
     },
   });
   if (error) {

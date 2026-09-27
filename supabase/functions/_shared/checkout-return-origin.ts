@@ -1,12 +1,9 @@
-/** Same-origin relative paths only. Used for Stripe success/cancel URLs. */
-export function sanitizeCheckoutReturnPath(path: string | undefined, fallback: string): string {
-  const raw = (path ?? '').trim();
-  if (!raw.startsWith('/')) return fallback;
-  if (raw.startsWith('//')) return fallback;
-  if (raw.startsWith('/\\')) return fallback;
-  if (/^[a-z][a-z0-9+.-]*:/i.test(raw.slice(1))) return fallback;
-  return raw;
-}
+/**
+ * Resolve Stripe Checkout success/cancel base URL.
+ * Prefer an allowlisted client `returnOrigin` (local Vite) over PUBLIC_SITE_URL
+ * so sandbox checkouts started on localhost return to localhost, not production.
+ * Keep in sync with src/lib/checkout-paths.ts resolveCheckoutSiteUrl.
+ */
 
 const DEFAULT_LOCAL_CHECKOUT_ORIGINS = [
   'http://localhost:5173',
@@ -15,12 +12,6 @@ const DEFAULT_LOCAL_CHECKOUT_ORIGINS = [
   'http://127.0.0.1:4173',
 ] as const;
 
-/**
- * Resolve Stripe Checkout success/cancel base URL.
- * Prefer an allowlisted client `returnOrigin` (local Vite) over PUBLIC_SITE_URL
- * so sandbox checkouts started on localhost return to localhost, not production.
- * Rejects arbitrary origins (open-redirect / phishing).
- */
 export function resolveCheckoutSiteUrl(opts: {
   publicSiteUrl: string;
   returnOrigin?: string | null;
@@ -53,7 +44,6 @@ export function resolveCheckoutSiteUrl(opts: {
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return fallback;
   if (parsed.username || parsed.password) return fallback;
   if (parsed.search || parsed.hash) return fallback;
-  // Origin only — no path other than empty or /
   if (parsed.pathname !== '/' && parsed.pathname !== '') return fallback;
 
   const origin = `${parsed.protocol}//${parsed.host}`;

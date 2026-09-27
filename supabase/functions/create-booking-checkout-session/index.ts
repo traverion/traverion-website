@@ -14,6 +14,7 @@ import {
   resolveStayFieldsForSnapshot,
 } from '../_shared/purchase-snapshot.ts';
 import { isStripeTestSecretKey, stripeLiveSecretBlockedMessage } from '../_shared/stripe-test-only.ts';
+import { resolveCheckoutSiteUrl } from '../_shared/checkout-return-origin.ts';
 
 type RequestBody = {
   bookingId?: string;
@@ -31,6 +32,8 @@ type RequestBody = {
   checkoutDate?: string;
   successPath?: string;
   cancelPath?: string;
+  /** Browser origin (e.g. http://127.0.0.1:5173). Allowlisted only. */
+  returnOrigin?: string;
   participantMix?: Record<string, number>;
   guestBreakdown?: unknown;
 };
@@ -81,7 +84,11 @@ serve(async (req) => {
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
     const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY');
-    const publicSiteUrl = (Deno.env.get('PUBLIC_SITE_URL') ?? 'http://localhost:5173').replace(/\/$/, '');
+    const publicSiteUrlEnv = (Deno.env.get('PUBLIC_SITE_URL') ?? 'http://localhost:5173').replace(/\/$/, '');
+    const extraReturnOrigins = (Deno.env.get('CHECKOUT_RETURN_ORIGINS') ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
 
     if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
       return json({ success: false, error: 'Supabase env missing' }, 500);
@@ -122,6 +129,11 @@ serve(async (req) => {
     let checkoutDate = String(body.checkoutDate ?? '').trim();
     const successPath = sanitizePath(body.successPath, '/booking-confirmed');
     const cancelPath = sanitizePath(body.cancelPath, '/bookings?payment=cancelled');
+    const publicSiteUrl = resolveCheckoutSiteUrl({
+      publicSiteUrl: publicSiteUrlEnv,
+      returnOrigin: typeof body.returnOrigin === 'string' ? body.returnOrigin : null,
+      extraAllowedOrigins: extraReturnOrigins,
+    });
     const participantMix =
       body.participantMix && typeof body.participantMix === 'object' && !Array.isArray(body.participantMix)
         ? (body.participantMix as Record<string, number>)
