@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `aba9848`  
-**Current phase:** 882  
+**Current SHA:** `0f339c2`  
+**Current phase:** 883  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4621,6 +4621,12 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 **Fix:** Resolve listing timezone and pass `timeZone` into `isDepartureTimeStillBookable` on the PDP calendar.
 
 **Tests:** cutoff suite 11/11; tsc clean.
+
+### Phase 883 — Partner UI for departureTimezone
+
+**Problem:** Timezone lived in extras/quote/cancel but suppliers had no control surface.
+
+**Fix:** Listing editor (schedule details) — Departure timezone select (Helsinki default + common IANA zones); persists via `resolveDepartureTimezone`; cutoff help text references listing timezone.
 
 ## Known remaining risks (ranked)
 

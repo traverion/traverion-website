@@ -82,7 +82,8 @@ import {
   LISTING_PHOTO_MAX,
   LISTING_PHOTO_MIN,
 } from '../../lib/listingPhotoGrid';
-import { getListingPublishBlockers } from '../../lib/listingPublishGate';
+import { getListingPublishBlockers } from '../../lib/listingPublishGate'
+import { resolveDepartureTimezone, TRAVERION_DEPARTURE_TIMEZONE } from '../../lib/tour-departure-cutoff';
 import {
   listingPublishTruth,
   reviewBasicsSummary,
@@ -543,6 +544,8 @@ type ListingFormState = {
   typicalTimelineNotes: string;
   /** Hours before departure when online booking closes; empty = until start. */
   bookingCutoffHoursBeforeStart: string;
+  /** IANA zone for departure wall clock; empty = Europe/Helsinki. */
+  departureTimezone: string;
   accessibilitySummary: string;
   minGuestAge: string;
   venueSetting: VenueSetting;
@@ -642,6 +645,9 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
             Math.floor(Number(form.bookingCutoffHoursBeforeStart))
           ),
         }
+      : {}),
+    ...(form.departureTimezone.trim()
+      ? { departureTimezone: resolveDepartureTimezone(form.departureTimezone) }
       : {}),
     ...(galleryList.length > 0 ? { galleryImageUrls: galleryList } : {}),
     ...(labelsNorm.some((l) => l.trim()) ? { photoSlotLabels: labelsNorm } : {}),
@@ -859,6 +865,7 @@ const emptyForm: ListingFormState = {
   scheduleStyle: 'flexible',
   typicalTimelineNotes: '',
   bookingCutoffHoursBeforeStart: '',
+  departureTimezone: '',
   accessibilitySummary: '',
   minGuestAge: '',
   venueSetting: 'unspecified',
@@ -1337,6 +1344,7 @@ export default function SupplierListingForm({
             extras.bookingCutoffHoursBeforeStart && extras.bookingCutoffHoursBeforeStart > 0
               ? String(extras.bookingCutoffHoursBeforeStart)
               : '',
+          departureTimezone: extras.departureTimezone?.trim() || '',
           accessibilitySummary: extras.accessibilitySummary ?? '',
           minGuestAge: extras.minGuestAge ?? '',
           venueSetting: extras.venueSetting ?? 'unspecified',
@@ -2962,8 +2970,38 @@ export default function SupplierListingForm({
                       inputMode="numeric"
                     />
                     <p className="text-xs text-ink-muted mt-1">
-                      0 or blank = travelers can book until the departure starts (Finland time). Example: 2 closes
-                      booking two hours before start.
+                      0 or blank = travelers can book until the departure starts (in the listing
+                      timezone below). Example: 2 closes booking two hours before start.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-ink mb-1" htmlFor="supplier-departure-timezone">
+                      Departure timezone
+                    </label>
+                    <select
+                      id="supplier-departure-timezone"
+                      value={form.departureTimezone || TRAVERION_DEPARTURE_TIMEZONE}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          departureTimezone: e.target.value,
+                        }))
+                      }
+                      className="tv-input max-w-md"
+                    >
+                      <option value="Europe/Helsinki">Europe/Helsinki (Finland — default)</option>
+                      <option value="Europe/London">Europe/London</option>
+                      <option value="Europe/Paris">Europe/Paris</option>
+                      <option value="Europe/Stockholm">Europe/Stockholm</option>
+                      <option value="America/New_York">America/New_York</option>
+                      <option value="America/Los_Angeles">America/Los_Angeles</option>
+                      <option value="Asia/Tokyo">Asia/Tokyo</option>
+                      <option value="Pacific/Auckland">Pacific/Auckland</option>
+                      <option value="UTC">UTC</option>
+                    </select>
+                    <p className="text-xs text-ink-muted mt-1">
+                      Schedule times are wall clock in this zone. A 20:00 departure stays 20:00 local
+                      for travelers and cancel windows.
                     </p>
                   </div>
                 </div>
