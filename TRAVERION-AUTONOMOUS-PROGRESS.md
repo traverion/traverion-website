@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `4cd165e`  
-**Current phase:** 892  
+**Current SHA:** `bb961f8`  
+**Current phase:** 893  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4695,6 +4695,12 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 **Problem:** `fetchMyBookings` errors cleared `bookings` to `[]`, so a transient failure looked like “no trips”. Auth loading also raced `else setLoading(false)`.
 
 **Fix:** Keep prior trip rows on load error (surface `loadError`); wait for `authLoading` before treating user as signed out / clearing list.
+
+### Phase 893 — Transactional email idempotency verified
+
+**Evidence:** Remote `transactional_email_log` has unique `idempotency_key` (migration 075). Notify edges claim keys before send (`notify-customer-booking`, `notify-supplier-event`, webhook refund keys). Client roles denied by RLS.
+
+**Certification:** email retry safety = **CODE-INSPECTED** + **INTEGRATION** (schema present). Delivery success not re-browser-certified this phase.
 
 ## Known remaining risks (ranked)
 

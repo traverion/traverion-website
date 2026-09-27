@@ -61,7 +61,7 @@
 | Commission / take-rate | NOT REQUIRED YET | Gross earnings only today (889) | Define snapshotted take-rate before LIVE |
 | Payouts | NOT REQUIRED YET / MANUAL | `admin_record_supplier_payout` | No fake auto-payouts |
 | Analytics | STRONG / BROWSER | paid-only aggregates (888) | Views/impressions not claimed |
-| Emails / notifications | PARTIAL | Edge + `transactional_email_log` | Idempotency + delivery cert |
+| Emails / notifications | PARTIAL→STRONG | unique idempotency_key (893) | Reminder cron host + delivery cert |
 | Timezones | STRONG / INTEGRATION | extras + snapshot + cancel + partner UI (883) | Stay-specific TZ polish |
 | Currency | PARTIAL | per-listing currencies, no FX | Keep coherent; no fake multi-FX |
 | i18n | PARTIAL | en/fi strings | Not checkbox i18n platform |
