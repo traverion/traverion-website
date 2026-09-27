@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness** (continuing 1001+)  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `28b7581`  
-**Current phase:** 1032  
+**Current SHA:** `11c11f9`  
+**Current phase:** 1033  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -5343,7 +5343,17 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 
 **Fix:** Required `bookingId` param + early reject; Tour/Stay detail submit buttons gate on `bookingIdForReview`. App tsc clean.
 
-**Certification:** CODE-INSPECTED + tsc clean.
+**Certification:** CODE-INSPECTED + tsc clean. Ending SHA `11c11f9`.
+
+### Phase 1033 — JWT gate supplier_welcome / verification_submitted notify
+
+**Gap:** `notify-supplier-event` open-invoke could trigger welcome/verification emails for any `supplierId` (no booking chain to re-derive).
+
+**Fix:** Require Authorization JWT whose user id matches `payload.supplierId` for those two eventTypes (Phase 580 traveler_welcome shape). Edge deployed. Unit **35/35** including deno mirror sync.
+
+**Defer:** full dual-mode party auth on all booking-tied kinds (higher regression surface).
+
+**Certification:** AUTOMATED-TESTED (35/35) + edge Deployed Functions.
 
 ## Known remaining risks (ranked)
 

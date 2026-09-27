@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  isAuthorizedSupplierSelfNotifyCaller,
   isBookingTiedSupplierEvent,
   isReviewTiedSupplierEvent,
+  isSupplierSelfNotifyEvent,
   resolveSupplierEventContext,
 } from './notify-supplier-event-guard';
 
@@ -301,5 +303,22 @@ describe('resolveSupplierEventContext: events with no booking/review concept', (
         })
       ).toEqual({ ok: true, overrides: {} });
     }
+  });
+});
+
+describe('isAuthorizedSupplierSelfNotifyCaller (Phase 1033)', () => {
+  it('accepts matching user id', () => {
+    expect(isAuthorizedSupplierSelfNotifyCaller(REAL_SUPPLIER, REAL_SUPPLIER)).toBe(true);
+  });
+  it('rejects mismatched or empty ids', () => {
+    expect(isAuthorizedSupplierSelfNotifyCaller('other-user', REAL_SUPPLIER)).toBe(false);
+    expect(isAuthorizedSupplierSelfNotifyCaller(null, REAL_SUPPLIER)).toBe(false);
+    expect(isAuthorizedSupplierSelfNotifyCaller(REAL_SUPPLIER, '')).toBe(false);
+  });
+  it('isSupplierSelfNotifyEvent covers only welcome/verification', () => {
+    expect(isSupplierSelfNotifyEvent('supplier_welcome')).toBe(true);
+    expect(isSupplierSelfNotifyEvent('verification_submitted')).toBe(true);
+    expect(isSupplierSelfNotifyEvent('new_booking')).toBe(false);
+    expect(isSupplierSelfNotifyEvent('new_review')).toBe(false);
   });
 });

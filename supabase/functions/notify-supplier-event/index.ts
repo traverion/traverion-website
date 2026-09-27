@@ -12,7 +12,7 @@ import {
   recordTransactionalSend,
   sendResendEmail,
 } from '../_shared/transactional-email.ts';
-import { isBookingTiedSupplierEvent, isReviewTiedSupplierEvent, resolveSupplierEventContext } from '../_shared/notify-supplier-event-guard.ts';
+import { isBookingTiedSupplierEvent, isReviewTiedSupplierEvent, isAuthorizedSupplierSelfNotifyCaller, isSupplierSelfNotifyEvent, resolveSupplierEventContext } from '../_shared/notify-supplier-event-guard.ts';
 
 type EventType =
   | 'new_booking'
@@ -399,6 +399,29 @@ serve(async (req) => {
     const payload = (await req.json()) as Payload;
     if (!payload?.supplierId || !payload?.eventType) {
       return json({ success: false, error: 'Missing supplierId/eventType' }, 400);
+    }
+
+    // Phase 1033: supplier_welcome / verification_submitted have no booking to
+    // re-derive against. Mirror traveler_welcome (Phase 580): require the
+    // caller's JWT user id to match payload.supplierId. Legitimate callers
+    // (SupplierAuth, Settings) already invoke with the supplier session.
+    // No Stripe/webhook/cron callers use these eventTypes.
+    if (isSupplierSelfNotifyEvent(payload.eventType)) {
+      const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+      const authHeader = req.headers.get('Authorization') ?? '';
+      if (!anonKey) {
+        return json({ success: false, error: 'SUPABASE_ANON_KEY not configured' }, 500);
+      }
+      if (!authHeader) {
+        return json({ success: false, error: 'Missing Authorization header' }, 401);
+      }
+      const authedClient = createClient(supabaseUrl, anonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: authData, error: authError } = await authedClient.auth.getUser();
+      if (authError || !isAuthorizedSupplierSelfNotifyCaller(authData?.user?.id, payload.supplierId)) {
+        return json({ success: false, error: 'Unauthorized' }, 401);
+      }
     }
 
     const admin = createClient(supabaseUrl, serviceRoleKey);

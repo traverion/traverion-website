@@ -188,5 +188,26 @@ export function resolveSupplierEventContext(params: {
   }
 
   // supplier_welcome / verification_submitted: no booking or review to check against.
+  // Caller identity for these kinds is enforced separately in the edge handler
+  // (isAuthorizedSupplierSelfNotifyCaller — Phase 1033).
   return { ok: true, overrides: {} };
+}
+
+/** Event types that have no booking/review to re-derive — require JWT == supplierId. */
+export function isSupplierSelfNotifyEvent(eventType: string): boolean {
+  return eventType === 'supplier_welcome' || eventType === 'verification_submitted';
+}
+
+/**
+ * Phase 1033: supplier_welcome / verification_submitted have no booking ownership
+ * chain. Require the signed-in user id to match payload.supplierId (same shape
+ * as traveler_welcome email match in notify-customer-booking Phase 580).
+ */
+export function isAuthorizedSupplierSelfNotifyCaller(
+  authedUserId: string | null | undefined,
+  supplierId: string
+): boolean {
+  const uid = String(authedUserId ?? '').trim();
+  const sid = String(supplierId ?? '').trim();
+  return uid.length > 0 && uid === sid;
 }
