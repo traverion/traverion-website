@@ -50,14 +50,14 @@
 | Inventory / concurrency | STRONG / BROWSER | Tour seats #41 + stay nights #40 restore | Slot-scoped lock; parallel race re-cert |
 | Payments | TEST-ONLY / STRONG | Stripe webhook → payment_status; #39 BROWSER | Never invent paid from redirect |
 | Cancellation | STRONG / BROWSER | Tour #41 + stay #40 cancel; 24h no-refund honesty | Supplier-initiated cancel path |
-| Refunds | PARTIAL | Manual Stripe TEST; “Refund due” | Design auto-refund or ops SLA (FOUNDER if product fork) |
+| Refunds | PARTIAL / HONEST | Manual Stripe; Refund due #41; no-refund #40 | Auto-refund = FOUNDER if desired |
 | Messaging | PARTIAL | `booking_messages` | No fake realtime |
 | Reviews | PARTIAL→STRONG | ownership SQL guards | Eligibility after completed booking |
 | Wishlist / Saved | PARTIAL | `wishlist` | Thin adversarial coverage |
 | Trips | PARTIAL | `fetchMyBookings` + session guard | Continue honesty |
 | Supplier Bookings / Pickup | PARTIAL→STRONG | partner ops UI; Refund due #41 | Pickup list cert; stay cancel ops |
 | Availability ops | PARTIAL | calendar / capacity | Protect confirmed bookings on edit |
-| Income / earnings | PARTIAL | `booking_earnings` | Manual payouts only — honest |
+| Income / earnings | STRONG / BROWSER | `supplier_ledger_entries`; #40 keep / #41 reverse | Commission snapshot before LIVE |
 | Commission / take-rate | MISSING / unclear | No single snapshotted platform fee model | Define before LIVE |
 | Payouts | NOT REQUIRED YET / MANUAL | `admin_record_supplier_payout` | No fake auto-payouts |
 | Analytics | PARTIAL | real aggregates only | No fake popularity |

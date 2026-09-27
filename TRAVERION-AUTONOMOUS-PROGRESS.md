@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `32784e7`  
-**Current phase:** 875  
+**Current SHA:** `6c0d4f6`  
+**Current phase:** 876  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4544,6 +4544,22 @@ Also removed unused businessComplete local in Listings after 861 gate fix.
 **Certification:** stay cancel + night inventory restore = **BROWSER-TESTED** + **INTEGRATION**. Policy window truth preserved (no fake refund eligibility).
 
 Also amended progress header SHA for Phase 874 (`6a87bfa`) after a blanking glitch.
+
+### Phase 876 — Income ledger truth after tour/stay cancels
+
+**Evidence (remote SQL + partner Income browser):**
+
+| Booking | Cancel policy | Ledger |
+|---------|---------------|--------|
+| #41 tour | Refund due | `booking_earnings` +€119 then `refund` −€119 (“Cancelled booking earnings reversal”) |
+| #40 stay | No refund (within 24h) | `booking_earnings` +€335 **kept** (no reversal) |
+
+Partner Income page:
+- Banner **Refund due · €119 · 1 booking** — “Not in Collected. Stripe refunds are manual”
+- Ledger shows −€119 reversal + €119/#335 earnings lines
+- Collected balance honest (no fake payouts)
+
+**Certification:** cancel→accounting = **BROWSER-TESTED** + **INTEGRATION**. Matches product rule: reverse earnings only when refund path applies.
 
 ## Known remaining risks (ranked)
 
