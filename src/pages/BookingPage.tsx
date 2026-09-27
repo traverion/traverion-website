@@ -725,7 +725,7 @@ export default function BookingPage({
     return [phoneLine, stayLine, rest].filter(Boolean).join('\n\n');
   }, [phone, placeOfStay, specialRequests]);
 
-  const proceedToContactAfterOption = () => {
+  const proceedToContactAfterOption = async () => {
     // Phase 1178: defense in depth — never advance when remaining is unknown/sold out.
     if (capacityUnknown) {
       setError(
@@ -741,6 +741,14 @@ export default function BookingPage({
           : 'This date no longer has enough spots for your party.'
       );
       return;
+    }
+    // Phase 1181: mirror 1179 — block own/team listings before contact from date-guests path.
+    if (isSupabaseConfigured() && userRef.current?.id) {
+      const selfBook = await viewerIsListingSupplierSide(userRef.current.id, tour.supplierId);
+      if (selfBook) {
+        setError(LISTING_SELF_BOOK_BLOCKED);
+        return;
+      }
     }
     saveBookingDraft(tour.id, {
       step: 'date-guests',
@@ -807,7 +815,7 @@ export default function BookingPage({
         slotMaxSpots,
       });
       if (avail.available && avail.options.some((o) => o.selectable)) {
-        proceedToContactAfterOption();
+        void proceedToContactAfterOption();
         return;
       }
       setAvailabilityModalOpen(true);
