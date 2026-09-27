@@ -280,6 +280,13 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     return filterCatalogByFamily(base, 'tour');
   }, [supplierListings]);
 
+  // Phase 1275: chips / languages / JSON-LD must not advertise destinations that only
+  // have season-ended tours (card filter already uses listingHasUpcomingBookableSeason).
+  const seasonLiveListings = useMemo(
+    () => allListings.filter((t) => listingHasUpcomingBookableSeason(t)),
+    [allListings]
+  );
+
   const waitingOnDateCapacity =
     Boolean(filterDate) &&
     /^\d{4}-\d{2}-\d{2}$/.test(filterDate) &&
@@ -408,28 +415,34 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
 
   // SEO: JSON-LD for listings (helps search engines understand tour offerings)
   useEffect(() => {
-    if (allListings.length === 0) return;
+    if (seasonLiveListings.length === 0) return;
     setListingsJsonLd(
-      allListings.slice(0, 20).map((t) => ({
+      seasonLiveListings.slice(0, 20).map((t) => ({
         id: t.id,
         name: t.title,
         description: (t.description || '').slice(0, 500),
         image: t.image,
       }))
     );
-  }, [allListings]);
+  }, [seasonLiveListings]);
 
   const destinationOptions = useMemo(() => {
-    return SHOW_SEED_LISTINGS ? SEED_DESTINATION_OPTIONS : getDestinationsFromListings(allListings);
-  }, [allListings]);
+    return SHOW_SEED_LISTINGS ? SEED_DESTINATION_OPTIONS : getDestinationsFromListings(seasonLiveListings);
+  }, [seasonLiveListings]);
 
   // Real per-listing currency (SUPPORTED_CURRENCIES has 9 codes) — null when the
   // visible catalog spans more than one, so price-chip labels never claim a
   // currency that isn't actually true for every listing they cover.
-  const catalogCurrency = useMemo(() => catalogSharedCurrency(allListings, normalizeCurrency), [allListings]);
+  const catalogCurrency = useMemo(
+    () => catalogSharedCurrency(seasonLiveListings, normalizeCurrency),
+    [seasonLiveListings]
+  );
   const priceChips = useMemo(() => buildPriceChips(catalogCurrency, formatMoney), [catalogCurrency]);
-  const languageOptions = useMemo(() => collectTourLanguages(allListings), [allListings]);
-  const showDurationFilter = useMemo(() => catalogHasParseableDurations(allListings), [allListings]);
+  const languageOptions = useMemo(() => collectTourLanguages(seasonLiveListings), [seasonLiveListings]);
+  const showDurationFilter = useMemo(
+    () => catalogHasParseableDurations(seasonLiveListings),
+    [seasonLiveListings]
+  );
 
   // Hidden filters must not keep filtering — that would be a UI-only illusion.
   useEffect(() => {
