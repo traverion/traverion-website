@@ -389,6 +389,8 @@ serve(async (req) => {
           : null,
       propertyType: stayFields?.propertyType ?? null,
       checkInAddress: stayFields?.checkInAddress ?? null,
+      checkInTime: stayFields?.checkInTime ?? null,
+      checkOutTime: stayFields?.checkOutTime ?? null,
       termsAcceptedAt,
     });
 

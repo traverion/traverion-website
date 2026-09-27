@@ -32,6 +32,10 @@ export type PurchaseSnapshot = {
   propertyType?: string | null;
   /** Stay: exact check-in address frozen at purchase for Trips. */
   checkInAddress?: string | null;
+  /** Stay: house check-in wall clock HH:MM at purchase. */
+  checkInTime?: string | null;
+  /** Stay: house check-out wall clock HH:MM at purchase. */
+  checkOutTime?: string | null;
   /** IANA zone for departure wall clock at purchase. */
   departureTimezone?: string | null;
   /** ISO timestamp when traveler accepted checkout terms (server-stamped). */
@@ -62,6 +66,8 @@ export function buildPurchaseSnapshot(input: {
   nights?: number | null;
   propertyType?: string | null;
   checkInAddress?: string | null;
+  checkInTime?: string | null;
+  checkOutTime?: string | null;
   departureTimezone?: string | null;
   termsAcceptedAt?: string | null;
   capturedAt?: string;
@@ -90,6 +96,8 @@ export function buildPurchaseSnapshot(input: {
       : null;
   const propertyType = (input.propertyType ?? '').trim() || null;
   const checkInAddress = (input.checkInAddress ?? '').trim() || null;
+  const checkInTime = (input.checkInTime ?? '').trim().slice(0, 5) || null;
+  const checkOutTime = (input.checkOutTime ?? '').trim().slice(0, 5) || null;
   const departureTimezone = (input.departureTimezone ?? '').trim() || null;
   const termsAcceptedAt = (input.termsAcceptedAt ?? '').trim() || null;
   const snap: PurchaseSnapshot = {
@@ -112,6 +120,8 @@ export function buildPurchaseSnapshot(input: {
   if (nights != null) snap.nights = nights;
   if (propertyType) snap.propertyType = propertyType;
   if (checkInAddress) snap.checkInAddress = checkInAddress;
+  if (checkInTime) snap.checkInTime = checkInTime;
+  if (checkOutTime) snap.checkOutTime = checkOutTime;
   if (departureTimezone) snap.departureTimezone = departureTimezone;
   if (termsAcceptedAt) snap.termsAcceptedAt = termsAcceptedAt;
   return snap;
@@ -258,6 +268,28 @@ export function displayCheckInAddressFromPurchase(snapshot: unknown): string | n
   if (!isPurchaseSnapshot(snapshot)) return null;
   const addr = (snapshot.checkInAddress ?? '').trim();
   return addr || null;
+}
+
+/** House check-in wall clock from purchase; live only for pre-snapshot rows. */
+export function displayStayCheckInTimeFromPurchase(
+  snapshot: unknown,
+  liveTime: string | null | undefined
+): string {
+  if (isPurchaseSnapshot(snapshot)) {
+    return (snapshot.checkInTime ?? '').trim().slice(0, 5);
+  }
+  return (liveTime ?? '').trim().slice(0, 5);
+}
+
+/** House check-out wall clock from purchase; live only for pre-snapshot rows. */
+export function displayStayCheckOutTimeFromPurchase(
+  snapshot: unknown,
+  liveTime: string | null | undefined
+): string {
+  if (isPurchaseSnapshot(snapshot)) {
+    return (snapshot.checkOutTime ?? '').trim().slice(0, 5);
+  }
+  return (liveTime ?? '').trim().slice(0, 5);
 }
 
 /**

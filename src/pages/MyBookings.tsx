@@ -51,6 +51,8 @@ import {
   displayCancellationPolicyFromPurchase,
   displayCheckInAddressFromPurchase,
   displayFulfillmentFromPurchase,
+  displayStayCheckInTimeFromPurchase,
+  displayStayCheckOutTimeFromPurchase,
 } from '../lib/purchase-snapshot';
 import { TRAVERION_STANDARD_CANCELLATION_POLICY } from '../types/listingExtras';
 import { decrementAvailabilityBooked } from '../data/supabase-availability';
@@ -907,6 +909,27 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         </dd>
                       </div>
                     ) : null}
+                    {isStay &&
+                    (() => {
+                      const inT = displayStayCheckInTimeFromPurchase(b.purchase_snapshot, null);
+                      const outT = displayStayCheckOutTimeFromPurchase(b.purchase_snapshot, null);
+                      if (!inT && !outT) return null;
+                      return (
+                        <div className="sm:col-span-2">
+                          <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
+                            House times
+                          </dt>
+                          <dd className="mt-0.5 text-sm text-ink">
+                            {[
+                              inT ? `Check-in from ${inT}` : null,
+                              outT ? `Check-out by ${outT}` : null,
+                            ]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </dd>
+                        </div>
+                      );
+                    })()}
                     {!isStay && tripMeeting ? (
                       <div className="sm:col-span-2">
                         <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">

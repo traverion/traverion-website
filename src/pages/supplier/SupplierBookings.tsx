@@ -71,7 +71,7 @@ import { formatBookingDateDisplay } from '../../lib/booking-flow';
 import { partnerBookingHasPickupAttention } from '../../lib/pickup-completeness';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 import { comparePartnerBookingsOperational } from '../../lib/partner-bookings-order';
-import { displayListingTitleFromPurchase, displayMeetingPointFromPurchase, displayOptionLabelFromPurchase, displayPickupInstructionsFromPurchase, displayFulfillmentFromPurchase, displayDurationFromPurchase, partnerOpsDepartureDisplay, isPurchaseSnapshot } from '../../lib/purchase-snapshot';
+import { displayListingTitleFromPurchase, displayMeetingPointFromPurchase, displayOptionLabelFromPurchase, displayPickupInstructionsFromPurchase, displayFulfillmentFromPurchase, displayDurationFromPurchase, displayStayCheckInTimeFromPurchase, displayStayCheckOutTimeFromPurchase, partnerOpsDepartureDisplay, isPurchaseSnapshot } from '../../lib/purchase-snapshot';
 
 const BOOKINGS_PAGE_SIZE = 10;
 
@@ -1264,21 +1264,33 @@ export default function SupplierBookings({
                         </dd>
                       </div>
                     ) : null}
-                    {isStay && (meta?.stayCheckInTime || meta?.stayCheckOutTime) ? (
+                    {isStay &&
+                    (() => {
+                      const inT = displayStayCheckInTimeFromPurchase(
+                        booking.purchase_snapshot,
+                        meta?.stayCheckInTime
+                      );
+                      const outT = displayStayCheckOutTimeFromPurchase(
+                        booking.purchase_snapshot,
+                        meta?.stayCheckOutTime
+                      );
+                      if (!inT && !outT) return null;
+                      return (
                       <div className="sm:col-span-2">
                         <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">
                           House times
                         </dt>
                         <dd className="mt-0.5 text-ink">
                           {[
-                            meta?.stayCheckInTime ? `Check-in from ${meta.stayCheckInTime}` : null,
-                            meta?.stayCheckOutTime ? `Check-out by ${meta.stayCheckOutTime}` : null,
+                            inT ? `Check-in from ${inT}` : null,
+                            outT ? `Check-out by ${outT}` : null,
                           ]
                             .filter(Boolean)
                             .join(' · ')}
                         </dd>
                       </div>
-                    ) : null}
+                      );
+                    })()}
                     {!isStay && pickupHm ? (
                       <div>
                         <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Pickup</dt>
