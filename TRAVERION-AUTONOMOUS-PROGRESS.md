@@ -3,13 +3,13 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness** (continuing 1001+)  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `55bcc79`  
-**Current phase:** 1018  
+**Current SHA:** `2e737a3`  
+**Current phase:** 1019  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Local-only (gitignored):** `scripts/cert-transactional-emails.cjs` — must stay untracked; contains service-role secrets when present locally  
-**Remote migration truth (Phase 1018):** Local=Remote through **109** on `xcopqllkulxfkpunetbc`. Stripe: TEST only.  
+**Remote migration truth (Phase 1019):** Local=Remote through **110** on `xcopqllkulxfkpunetbc` (111 applied remote; committing next phase). Stripe: TEST only.  
 
 ## Milestone Phase 513 (inventory band)
 
@@ -5230,6 +5230,14 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 **Gap:** INSERT RLS only checked `supplier_id = auth.uid()`, so any authenticated supplier could plant timeline events on another supplier's booking_id via PostgREST (same class as 099/108).
 
 **Fix:** Migration `109_supplier_booking_events_ownership_guard.sql` — WITH CHECK requires booking→listing owned by row supplier_id. Append-only table (no UPDATE policy). SQL harness + remote db push.
+
+**Certification:** ADVERSARIAL-TESTED (SQL harness authored) + remote applied. Scratch Postgres re-run = host-blocked (no local docker). Ending SHA `2e737a3`.
+
+### Phase 1019 — Guard supplier_booking_messages booking_ids + add UPDATE
+
+**Gap:** INSERT RLS only checked `supplier_id = auth.uid()` while `booking_ids uuid[]` could reference competitor bookings; also no UPDATE policy so delivery status updates always no-op under RLS.
+
+**Fix:** Migration `110_supplier_booking_messages_ownership_guard.sql` — INSERT/UPDATE WITH CHECK requires every booking_ids element → listing owned by row supplier_id (empty arrays OK). Adds missing UPDATE policy for delivery tracking.
 
 **Certification:** ADVERSARIAL-TESTED (SQL harness authored) + remote applied. Scratch Postgres re-run = host-blocked (no local docker).
 
