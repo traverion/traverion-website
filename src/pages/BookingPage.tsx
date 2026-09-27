@@ -853,6 +853,22 @@ export default function BookingPage({
       setError(guestErr);
       return;
     }
+    // Phase 1178: capacity must still be known/enough before confirm (Pay/1174 parity).
+    if (capacityUnknown) {
+      setError(
+        dayCapacityError ||
+          'We could not verify departure capacity. Check your connection and try again.'
+      );
+      return;
+    }
+    if (capacityBlocksPay) {
+      setError(
+        departureTime
+          ? `The ${departureTime} departure no longer has enough spots for your party.`
+          : 'This date no longer has enough spots for your party.'
+      );
+      return;
+    }
     setError(null);
     setStep('confirm');
   };
@@ -868,6 +884,14 @@ export default function BookingPage({
     }
     if (priceInfo.quote && !priceInfo.quote.ok) {
       setError(priceInfo.quote.error);
+      return;
+    }
+    // Phase 1177: unknown remaining must not advance to contact (1174 parity).
+    if (capacityUnknown) {
+      setError(
+        dayCapacityError ||
+          'We could not verify departure capacity. Check your connection and try again.'
+      );
       return;
     }
     setStep('contact');
