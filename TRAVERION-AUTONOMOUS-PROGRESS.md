@@ -3,13 +3,13 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness** (continuing 1001+)  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `5e06f7c`  
-**Current phase:** 1022  
+**Current SHA:** `f3e273f`  
+**Current phase:** 1023  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Local-only (gitignored):** `scripts/cert-transactional-emails.cjs` — must stay untracked; contains service-role secrets when present locally  
-**Remote migration truth (Phase 1021):** Local=Remote through **112** on `xcopqllkulxfkpunetbc`. Stripe: TEST only.  
+**Remote migration truth (Phase 1023):** Local=Remote through **113** on `xcopqllkulxfkpunetbc`. Stripe: TEST only.  
 
 ## Milestone Phase 513 (inventory band)
 
@@ -5261,7 +5261,15 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 
 **Fix:** Completeness matrix marks Messaging/RLS/Wishlist cells for 108–112; ranked gaps 13–14 closed; post-1000 continuum remote through **112**.
 
-**Certification:** CODE-INSPECTED / docs truth.
+**Certification:** CODE-INSPECTED / docs truth. Ending SHA `f3e273f`.
+
+### Phase 1023 — Harden dead cart_items to published-only + prune
+
+**Gap:** `cart_items` INSERT/UPDATE only checked `auth.uid() = user_id` — any signed-in user could plant cart rows on draft listings via PostgREST (UI is dead; API still open). Rows also survived unpublish.
+
+**Fix:** Migration `113_cart_items_published_only_and_prune.sql` — published EXISTS on INSERT/UPDATE; one-shot cleanup; unpublish prune trigger (mirrors wishlist 104/112).
+
+**Certification:** ADVERSARIAL-TESTED (SQL harness authored) + remote applied. Scratch Postgres re-run = host-blocked (no local docker).
 
 ## Known remaining risks (ranked)
 
