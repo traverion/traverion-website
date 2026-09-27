@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { resolveSupplierId } from './supabase-supplier-team';
 
 export type BookingOpsNoteRow = {
   booking_id: string;
@@ -12,10 +13,12 @@ export async function fetchSupplierBookingOpsNotes(
   bookingIds: string[]
 ): Promise<Record<string, { note: string; updatedAt: string }>> {
   if (!supabase || bookingIds.length === 0) return {};
+  // Phase 1199: resolve owner id so team JWTs hit owner-keyed rows after 152.
+  const ownerSupplierId = await resolveSupplierId(supplierId);
   const { data, error } = await supabase
     .from('supplier_booking_ops_notes')
     .select('booking_id, note, updated_at')
-    .eq('supplier_id', supplierId)
+    .eq('supplier_id', ownerSupplierId)
     .in('booking_id', bookingIds);
   if (error) return {};
   const out: Record<string, { note: string; updatedAt: string }> = {};
@@ -31,10 +34,11 @@ export async function upsertSupplierBookingOpsNote(
   note: string
 ): Promise<boolean> {
   if (!supabase) return false;
+  const ownerSupplierId = await resolveSupplierId(supplierId);
   const { error } = await supabase.from('supplier_booking_ops_notes').upsert(
     {
       booking_id: bookingId,
-      supplier_id: supplierId,
+      supplier_id: ownerSupplierId,
       note,
       updated_at: new Date().toISOString(),
     },
@@ -48,11 +52,11 @@ export async function deleteSupplierBookingOpsNote(
   bookingId: string
 ): Promise<boolean> {
   if (!supabase) return false;
+  const ownerSupplierId = await resolveSupplierId(supplierId);
   const { error } = await supabase
     .from('supplier_booking_ops_notes')
     .delete()
-    .eq('supplier_id', supplierId)
+    .eq('supplier_id', ownerSupplierId)
     .eq('booking_id', bookingId);
   return !error;
 }
-
