@@ -4793,6 +4793,13 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 
 **Certification:** listing media auth = **AUTOMATED-TESTED** + **CODE-INSPECTED**. Orphan GC = **NOT BUILT**.
 
+
+### Phase 907 — Booking reminder cron host wiring confirmed
+
+**Evidence:** `.github/workflows/booking-reminders.yml` — dual UTC crons (06:05 / 07:05) gated to Europe/Helsinki hour 9; posts to `send-booking-reminders` with `BOOKING_REMINDER_CRON_SECRET`. Edge function uses `reminder_email_sent_at` + idempotency keys. Delivery success not re-fired this phase (no secret exercise).
+
+**Certification:** reminder cron schedule = **CODE-INSPECTED**. Live delivery = **NOT CERTIFIED** this pass.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.

@@ -61,7 +61,7 @@
 | Commission / take-rate | NOT REQUIRED YET | Gross earnings only today (889) | Define snapshotted take-rate before LIVE |
 | Payouts | NOT REQUIRED YET / MANUAL | `admin_record_supplier_payout` | No fake auto-payouts |
 | Analytics | STRONG / BROWSER | paid-only aggregates (888) | Views/impressions not claimed |
-| Emails / notifications | PARTIAL→STRONG | unique idempotency_key (893) | Reminder cron host + delivery cert |
+| Emails / notifications | PARTIAL→STRONG | idempotency (893); cron wiring (907) | Delivery fire not re-certified |
 | Timezones | STRONG / INTEGRATION | extras + snapshot + cancel + partner UI (883) | Stay-specific TZ polish |
 | Currency | PARTIAL | per-listing currencies, no FX | Keep coherent; no fake multi-FX |
 | i18n | PARTIAL | en/fi strings | Not checkbox i18n platform |
@@ -72,7 +72,7 @@
 | Legal / consent | STRONG / BROWSER | /privacy /terms (894); checkout gate 901 + browser 905 | Server-side acceptance log later |
 | Admin / support | PARTIAL | staff panels + ADMIN_SUPPORT_READINESS (903) | Staff force-unpublish later |
 | Moderation | NOT REQUIRED YET | — | Architecture note only |
-| Cron / jobs | PARTIAL | hold expire + reminders edge (891) | Confirm reminder cron host schedule |
+| Cron / jobs | PARTIAL→STRONG | hold expire + GH Actions reminder cron (907) | Live secret fire not claimed |
 | Observability | PARTIAL | structured logs | Checkout/payment trails |
 | Cart multi-item | DEAD/OBSOLETE path | `cart_items`; `/cart`→Trips | Do not revive without design |
 | Scroll / chrome | COMPLETE+VERIFIED | `overflow-x: clip` on roots | Phase scroll fix `32abd10` |
