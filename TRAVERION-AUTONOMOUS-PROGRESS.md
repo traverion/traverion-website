@@ -3,13 +3,13 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness** (continuing 1001+)  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `8eafbc7`  
-**Current phase:** 1039  
+**Current SHA:** `52a748f`  
+**Current phase:** 1040  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Local-only (gitignored):** `scripts/cert-transactional-emails.cjs` — must stay untracked; contains service-role secrets when present locally  
-**Remote migration truth (Phase 1039):** Local=Remote through **121** on `xcopqllkulxfkpunetbc`. Stripe: TEST only.  
+**Remote migration truth (Phase 1040):** Local=Remote through **122** on `xcopqllkulxfkpunetbc`. Stripe: TEST only.  
 
 ## Milestone Phase 513 (inventory band)
 
@@ -5395,7 +5395,15 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 
 **Fix:** Migration `121_consumer_welcome_email_sent_at_freeze.sql` — once non-null, only service_role/admin may change it; null→stamp still allowed for legitimate client dedupe.
 
-**Certification:** ADVERSARIAL-TESTED (SQL harness authored) + remote applied. Scratch Postgres re-run = host-blocked.
+**Certification:** ADVERSARIAL-TESTED (SQL harness authored) + remote applied. Scratch Postgres re-run = host-blocked. Ending SHA `52a748f`.
+
+### Phase 1040 — Block inventable listings.rating / listings.reviews writes
+
+**Gap:** Client `tourPackageToRow` persisted forgeable rating/reviews columns even though cards use real aggregates.
+
+**Fix:** Always write 0 from client; migration `122_listings_block_client_rating_reviews.sql` forces 0 on non-service insert/update + one-shot zero. App tsc clean.
+
+**Certification:** ADVERSARIAL-TESTED (SQL harness authored) + remote applied + tsc clean.
 
 ## Known remaining risks (ranked)
 

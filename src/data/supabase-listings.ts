@@ -193,8 +193,9 @@ export function tourPackageToRow(tour: Partial<TourPackage> & { title: string; d
     difficulty: tour.difficulty ?? 'Easy',
     group_size: tour.groupSize ?? '2-12 People',
     best_time: tour.bestTime ?? 'Year round',
-    rating: tour.rating ?? 0,
-    reviews: tour.reviews ?? 0,
+    // Always 0 — real scores come from reviews aggregates; DB trigger 122 also forces 0.
+    rating: 0,
+    reviews: 0,
     is_popular: tour.isPopular ?? false,
     city: tour.city ?? null,
     region: tour.region ?? null,
