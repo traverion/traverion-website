@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase';
 import { supplierPortalPublicBaseUrl } from '../lib/partnerHost';
 import { bookingEligibleForReview } from '../lib/review-eligibility';
 import { notifySupplierEvent } from './supabase-supplier-messaging';
+import { resolveSupplierId } from './supabase-supplier-team';
 import { inventoryFamilyFromListing, type InventoryFamily } from '../lib/inventory';
 import { parseListingExtras } from '../types/listingExtras';
 import { reviewHasWrittenFeedback } from '../lib/review-feedback';
@@ -188,15 +189,17 @@ export async function userHasReviewedListing(userId: string, listingId: string):
   return !error && !!data;
 }
 
-/** Fetch all reviews for a supplier's listings (for supplier portal). Throws on Supabase error. */
+/** Fetch all reviews for a supplier's listings (for supplier portal). Throws on Supabase error.
+ * Phase 1157: resolve team JWT → owner supplier_id. */
 export async function fetchReviewsForSupplierListings(
   supplierId: string
 ): Promise<(ReviewDisplay & { listing_title?: string; listing_family?: InventoryFamily })[]> {
   if (!supabase) return [];
+  const ownerSupplierId = await resolveSupplierId(supplierId);
   const { data: listings, error: listErr } = await supabase
     .from('listings')
     .select('id, title, listing_extras')
-    .eq('supplier_id', supplierId);
+    .eq('supplier_id', ownerSupplierId);
   if (listErr) throw new Error(listErr.message);
   const ids = (listings ?? []).map((l: { id: string }) => l.id);
   if (ids.length === 0) return [];
@@ -253,15 +256,16 @@ export async function countUnrepliedWrittenReviewsForSupplier(supplierId: string
   return written.filter((r) => !replies[r.id]).length;
 }
 
-/** Supplier replies to a review (one reply per review). */
+/** Supplier replies to a review (one reply per review). Phase 1157: team writes under owner supplier_id. */
 export async function submitReviewReply(
   reviewId: string,
   supplierId: string,
   replyText: string
 ): Promise<{ success: boolean; error?: string }> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
+  const ownerSupplierId = await resolveSupplierId(supplierId);
   const { error } = await supabase.from('review_replies').upsert(
-    { review_id: reviewId, supplier_id: supplierId, reply_text: replyText },
+    { review_id: reviewId, supplier_id: ownerSupplierId, reply_text: replyText },
     { onConflict: 'review_id' }
   );
   if (error) return { success: false, error: error.message };
