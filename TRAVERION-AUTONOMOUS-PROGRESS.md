@@ -4921,6 +4921,13 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 
 **Certification:** scroll chrome = **AUTOMATED-TESTED** (re-verified).
 
+
+### Phase 925 — i18n readiness blockers (honest)
+
+**Audit:** en/fi string tables exist; date/time/currency formatting largely via locale-aware helpers and listing timezone. **Not** a full translation platform (no ICU message catalogs, no RTL). Addresses/phones stored as free text. Future blockers: message extraction coverage, partner portal locale parity, legal translation.
+
+**Certification:** i18n = **PARTIAL** / **CODE-INSPECTED**. Full i18n platform = **NOT BUILT** (intentional).
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.

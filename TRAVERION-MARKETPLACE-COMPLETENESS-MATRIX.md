@@ -64,7 +64,7 @@
 | Emails / notifications | PARTIAL→STRONG | idempotency (893); cron wiring (907) | Delivery fire not re-certified |
 | Timezones | STRONG / INTEGRATION | extras + snapshot + cancel + partner UI (883) | Stay-specific TZ polish |
 | Currency | PARTIAL→STRONG | per-listing; no FX (912) | Keep coherent |
-| i18n | PARTIAL | en/fi strings | Not checkbox i18n platform |
+| i18n | PARTIAL | en/fi; blockers recorded (925) | Not checkbox i18n platform |
 | SEO | PARTIAL→STRONG | sitemap (896); review schema gated (923) | Automate sitemap on publish |
 | Images / media | PARTIAL→STRONG | folder RLS + client ownership (906) | Batch orphan GC later |
 | RLS / security | STRONG / ADVERSARIAL | traveler deny #41 (880–881); supplier listing isolation 091/910 | Keep expanding adversarial suite |
