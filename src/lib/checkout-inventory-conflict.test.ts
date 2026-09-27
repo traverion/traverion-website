@@ -7,6 +7,7 @@ import {
 describe('isCheckoutInventoryConflictError', () => {
   it('matches inventory assert conflict messages', () => {
     expect(isCheckoutInventoryConflictError('Those nights are already booked.')).toBe(true);
+    expect(isCheckoutInventoryConflictError('Those nights are blocked.')).toBe(true);
     expect(isCheckoutInventoryConflictError('Not enough capacity left for this date.')).toBe(true);
     expect(isCheckoutInventoryConflictError('Not enough capacity left for this departure.')).toBe(true);
     expect(isCheckoutInventoryConflictError('Slot occupied')).toBe(true);
