@@ -3,13 +3,13 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `5b40581`  
-**Current phase:** 877  
+**Current SHA:** `0182c16`  
+**Current phase:** 878  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Local-only (gitignored):** `scripts/cert-transactional-emails.cjs` — must stay untracked; contains service-role secrets when present locally  
-**Remote migration truth (Phase 862):** Local=Remote for **080–102** on `xcopqllkulxfkpunetbc`. Stripe: TEST only.  
+**Remote migration truth (Phase 862):** Local=Remote for **080–103** on `xcopqllkulxfkpunetbc`. Stripe: TEST only.  
 
 ## Milestone Phase 513 (inventory band)
 
@@ -4573,6 +4573,17 @@ Partner Income page:
 **Tests:** tour-departure-cutoff 11/11 (incl. America/New_York wall clock); booking-quote 28/28; tsc clean.
 
 **Remaining:** SQL traveler self-cancel still hardcodes Europe/Helsinki; partner UI to set timezone; snapshot freeze of zone on booking. Default remains Helsinki for Finland inventory.
+
+### Phase 878 — Cancel window uses listing/snapshot IANA timezone
+
+**Problem:** `cancel_booking_as_traveler` hardcoded `Europe/Helsinki` for the 24h free-cancel window even after quote cutoffs gained `departureTimezone`.
+
+**Fix (migration 103, pushed):**
+- `resolve_departure_timezone(text)` — invalid/empty → Helsinki
+- Cancel RPC prefers `purchase_snapshot.departureTimezone`, else `listing_extras.departureTimezone`, else Helsinki
+- Snapshot + checkout edge freeze `departureTimezone` at purchase (deployed)
+
+**Verify:** remote `resolve_departure_timezone` returns Helsinki / Helsinki / America/New_York / Helsinki; purchase-snapshot + cutoff tests green; checkout function redeployed.
 
 ## Known remaining risks (ranked)
 

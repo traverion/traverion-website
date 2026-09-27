@@ -62,7 +62,7 @@
 | Payouts | NOT REQUIRED YET / MANUAL | `admin_record_supplier_payout` | No fake auto-payouts |
 | Analytics | PARTIAL | real aggregates only | No fake popularity |
 | Emails / notifications | PARTIAL | Edge + `transactional_email_log` | Idempotency + delivery cert |
-| Timezones | PARTIAL→STRONG | extras.departureTimezone + quote cutoff | SQL cancel still Helsinki-only |
+| Timezones | STRONG / INTEGRATION | extras + snapshot + cancel RPC (103) | Partner UI to set zone; stay cancel TZ |
 | Currency | PARTIAL | per-listing currencies, no FX | Keep coherent; no fake multi-FX |
 | i18n | PARTIAL | en/fi strings | Not checkbox i18n platform |
 | SEO | PARTIAL | titles/meta | Structured data only if truthful |
@@ -89,7 +89,7 @@
 | 5 | P1 | Listing-scoped advisory lock coarseness | Narrow lock key when safe |
 | 6 | P1 | Same-origin session bleed | Document + mitigate localhost |
 | 7 | P1 | Manual refunds / “Refund due” limbo | #41 proves honesty; auto-refund = FOUNDER if desired |
-| 8 | P1 | SQL cancel still Helsinki-only | Migrate cancel RPC to read departureTimezone |
+| 8 | P2 | Partner UI to set departureTimezone | Optional field in create wizard |
 | 9 | P1 | Commission snapshot model | Define before LIVE |
 | 10 | P1 | Rentals / packages not live | Keep UI honest |
 

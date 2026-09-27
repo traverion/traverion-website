@@ -366,6 +366,11 @@ serve(async (req) => {
       checkIn: stayFields?.checkIn ?? null,
       checkOut: stayFields?.checkOut ?? null,
       nights: stayFields?.nights ?? null,
+      departureTimezone:
+        typeof (listingRow.listing_extras as { departureTimezone?: unknown } | null)?.departureTimezone ===
+        'string'
+          ? ((listingRow.listing_extras as { departureTimezone: string }).departureTimezone || null)
+          : null,
       propertyType: stayFields?.propertyType ?? null,
     });
 

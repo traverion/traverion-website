@@ -20,6 +20,7 @@ export type PurchaseSnapshot = {
   checkOut?: string | null;
   nights?: number | null;
   propertyType?: string | null;
+  departureTimezone?: string | null;
 };
 
 export function buildPurchaseSnapshot(input: {
@@ -39,6 +40,7 @@ export function buildPurchaseSnapshot(input: {
   checkOut?: string | null;
   nights?: number | null;
   propertyType?: string | null;
+  departureTimezone?: string | null;
   capturedAt?: string;
 }): PurchaseSnapshot {
   const title = input.listingTitle.trim() || 'Experience';
@@ -64,6 +66,7 @@ export function buildPurchaseSnapshot(input: {
       ? Math.floor(input.nights)
       : null;
   const propertyType = (input.propertyType ?? '').trim() || null;
+  const departureTimezone = (input.departureTimezone ?? '').trim() || null;
   const snap: PurchaseSnapshot = {
     listingTitle: title,
     optionLabel: option,
@@ -83,6 +86,7 @@ export function buildPurchaseSnapshot(input: {
   if (checkOut) snap.checkOut = checkOut;
   if (nights != null) snap.nights = nights;
   if (propertyType) snap.propertyType = propertyType;
+  if (departureTimezone) snap.departureTimezone = departureTimezone;
   return snap;
 }
 
