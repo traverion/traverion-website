@@ -3,13 +3,13 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness** (continuing 1001+)  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `7cf9340`  
-**Current phase:** 1025  
+**Current SHA:** `9c580fb`  
+**Current phase:** 1026  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Local-only (gitignored):** `scripts/cert-transactional-emails.cjs` — must stay untracked; contains service-role secrets when present locally  
-**Remote migration truth (Phase 1025):** Local=Remote through **115** on `xcopqllkulxfkpunetbc`. Stripe: TEST only.  
+**Remote migration truth (Phase 1026):** Local=Remote through **116** on `xcopqllkulxfkpunetbc`. Stripe: TEST only.  
 
 ## Milestone Phase 513 (inventory band)
 
@@ -5284,6 +5284,14 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 **Gap:** `listing_availability` SELECT used `using (true)` — draft capacity calendars were world-readable by listing UUID (same class as discounts 114).
 
 **Fix:** Migration `115_listing_availability_published_or_owner_select.sql` — SELECT requires parent listing published or owned by reader.
+
+**Certification:** ADVERSARIAL-TESTED (SQL harness authored) + remote applied. Scratch Postgres re-run = host-blocked (no local docker). Ending SHA `9c580fb`.
+
+### Phase 1026 — Require authentic actor_id on supplier ops writes
+
+**Gap:** events/messages/campaigns/export_runs allowed any `actor_id` as long as `supplier_id = auth.uid()`, so suppliers could plant audit rows falsely attributed to other users.
+
+**Fix:** Migration `116_supplier_ops_actor_id_authenticity.sql` — INSERT/UPDATE WITH CHECK requires `actor_id is null or actor_id = auth.uid()` (preserves prior booking ownership checks from 109–111).
 
 **Certification:** ADVERSARIAL-TESTED (SQL harness authored) + remote applied. Scratch Postgres re-run = host-blocked (no local docker).
 
