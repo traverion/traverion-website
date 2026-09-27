@@ -705,10 +705,12 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     if (!tourId || !isSupabaseConfigured()) return;
     setReviewsLoadError(null);
     void fetchReviewsByListingId(tourId)
-      .then(async (rows) => {
+      .then((rows) => {
         setReviews(rows);
-        const replies = await getReviewRepliesByReviewIds(rows.map((r) => r.id));
-        setReviewReplies(replies);
+        // Phase 1175: reply failure must not invent empty reviews.
+        void getReviewRepliesByReviewIds(rows.map((r) => r.id))
+          .then(setReviewReplies)
+          .catch(() => setReviewReplies({}));
       })
       .catch((e) => {
         setReviews([]);

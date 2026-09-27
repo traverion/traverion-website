@@ -160,12 +160,17 @@ export default function StayDetails({ stayId, onBack }: Props) {
     if (!stayId || !isSupabaseConfigured()) return;
     let cancelled = false;
     void fetchReviewsByListingId(stayId)
-      .then(async (rows) => {
+      .then((rows) => {
         if (cancelled) return;
         setReviews(rows);
-        const replies = await getReviewRepliesByReviewIds(rows.map((r) => r.id));
-        if (cancelled) return;
-        setReviewReplies(replies);
+        // Phase 1175: reply failure must not invent empty reviews.
+        void getReviewRepliesByReviewIds(rows.map((r) => r.id))
+          .then((replies) => {
+            if (!cancelled) setReviewReplies(replies);
+          })
+          .catch(() => {
+            if (!cancelled) setReviewReplies({});
+          });
       })
       .catch((e) => {
         if (cancelled) return;
@@ -189,10 +194,12 @@ export default function StayDetails({ stayId, onBack }: Props) {
     if (!stayId || !isSupabaseConfigured()) return;
     setReviewsLoadError(null);
     void fetchReviewsByListingId(stayId)
-      .then(async (rows) => {
+      .then((rows) => {
         setReviews(rows);
-        const replies = await getReviewRepliesByReviewIds(rows.map((r) => r.id));
-        setReviewReplies(replies);
+        // Phase 1175: reply failure must not invent empty reviews.
+        void getReviewRepliesByReviewIds(rows.map((r) => r.id))
+          .then(setReviewReplies)
+          .catch(() => setReviewReplies({}));
       })
       .catch((e) => {
         setReviews([]);
