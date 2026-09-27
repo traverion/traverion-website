@@ -4,6 +4,7 @@ import { snapshotSupplierCancellationPolicy } from '../lib/cancellation-policy';
 import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 import { supplierPortalPublicBaseUrl } from '../lib/partnerHost';
 import { notifySupplierEvent } from './supabase-supplier-messaging';
+import { resolveSupplierId } from './supabase-supplier-team';
 import {
   BOOKING_MESSAGE_SUBMIT_ERROR,
   PARTNER_CANCEL_REQUEST_SUBMIT_ERROR,
@@ -99,10 +100,12 @@ export async function fetchOpenCancellationRequest(
 
 export async function fetchSupplierLedger(supplierId: string): Promise<SupplierLedgerEntry[]> {
   if (!supabase) return [];
+  // Phase 1144: team JWT → owner supplier_id (parity with earnings 1140).
+  const ownerSupplierId = await resolveSupplierId(supplierId);
   const { data, error } = await supabase
     .from('supplier_ledger_entries')
     .select('id, supplier_id, booking_id, kind, amount, currency, reason, source_id, policy_id, created_at')
-    .eq('supplier_id', supplierId)
+    .eq('supplier_id', ownerSupplierId)
     .order('created_at', { ascending: false });
   // Failure must not look like "no ledger adjustments" (Phase 1087).
   return queryRowsOrThrow(data, error) as SupplierLedgerEntry[];
