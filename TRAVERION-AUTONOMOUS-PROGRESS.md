@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness** (continuing 1001+)  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `9fd6835`  
-**Current phase:** 1041  
+**Current SHA:** `e12d8e0`  
+**Current phase:** 1042  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -5411,7 +5411,13 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 
 **Fix:** `.eq('status', 'published')` only.
 
-**Certification:** CODE-INSPECTED.
+**Certification:** CODE-INSPECTED. Ending SHA `e12d8e0`.
+
+### Phase 1042 — Correct remaining docs honesty drift
+
+**Fix:** GAP_ANALYSIS supplier notifications; MIGRATIONS_006_TO_011 supersession + dead cart; GETYOURGUIDE_PARITY trust copy (no false best-price / RNP L claims).
+
+**Certification:** CODE-INSPECTED / docs truth.
 
 ## Known remaining risks (ranked)
 

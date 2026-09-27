@@ -10,7 +10,7 @@ Long-term plan to align Traverion with GYG/TripAdvisor: page-by-page, supplier p
 - [x] Hero with search + country filter
 - [x] Popular experiences (3 hardcoded cards)
 - [x] Listings grid (search-driven)
-- [x] Trust strip: Free cancellation, Best price guarantee, Verified reviews
+- [x] Trust strip: Free cancellation, honest pricing, Verified reviews (not a blanket “best price guarantee”)
 
 ### 1.2 Listings / search (Packages)
 - [x] Keyword search, destination (country) filter
@@ -22,7 +22,7 @@ Long-term plan to align Traverion with GYG/TripAdvisor: page-by-page, supplier p
 ### 1.3 Tour detail page
 - [x] Gallery, title, price, CTA
 - [x] Sticky booking widget (right column)
-- [x] Trust badges under CTA: Free cancellation, Best price guarantee, Reserve now pay later
+- [x] Trust badges under CTA: Free cancellation + honest pricing (not “best price guarantee” / reserve-now-pay-later claims)
 
 ### 1.4 Booking flow (one clean page)
 - [x] Single booking page: date & guests → contact (name, email) → confirm → done

@@ -18,5 +18,7 @@ Run these **in order** in the Supabase SQL Editor (or `supabase db push` if usin
 
 ## After running
 
+App should pick up wishlist, reviews, availability, and (legacy) cart tables. **Superseded later (do not trust this file alone):** reviews require paid booking + published-or-party SELECT (117–120); wishlist/cart published+prune (104/112/113); discounts/availability published-or-owner SELECT (114–115); multi-item cart product UI is dead (`/cart`→Trips). Always prefer current `supabase/migrations/` + completeness matrix.
+
 - **Backend/data layer:** Implement in `src/data/` (e.g. `supabase-reviews.ts`, `supabase-wishlist.ts`, `supabase-cart.ts`, `supabase-availability.ts`), and extend supplier profile fetch/update for payout fields.
-- **Frontend:** Wire reviews (submit + list on tour detail), wishlist (header + page), cart (header + cart page), availability (supplier calendar + consumer check), cancellation policy (listing form + tour detail), payout method (Supplier Settings form).
+- **Frontend:** Reviews (submit + list on tour/stay detail), wishlist Saved, availability (supplier calendar + consumer check), cancellation policy, payout method (Supplier Settings). Multi-item cart UI is obsolete (`/cart`→Trips).

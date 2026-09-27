@@ -118,7 +118,7 @@ Still open vs GYG depth: dedicated traveler session on shared localhost, auto-re
 
 ### 3. **Notifications**
 - **GYG/TripAdvisor:** New booking, cancellation, review, payout emails; in-app or dashboard alerts.
-- **Traverion:** No supplier notifications. Supplier must open dashboard to see new bookings.
+- **Traverion:** Supplier notifications via `notify-supplier-event` (booking/review/welcome; content re-derived). Supplier still uses dashboard for day-to-day ops.
 
 **Gap:** Email (and optionally in-app) for: new booking, booking cancelled, new review; later: payout sent, policy changes.
 
