@@ -49,7 +49,7 @@
 | Booking state machine | STRONG / INTEGRATION | pending/confirmed/cancelled + payment_status NOT NULL (100 remote) | Keep SQL guard in CI |
 | Inventory / concurrency | STRONG / BROWSER | Tour seats #41 + stay nights #40 restore; public remaining + holds (899/105); lock grain 902/106 | Parallel race re-cert optional |
 | Payments | TEST-ONLY / STRONG | Stripe webhook → payment_status; #39 BROWSER | Never invent paid from redirect |
-| Cancellation | STRONG / BROWSER | Tour #41 + stay #40 cancel; 24h no-refund honesty | Supplier-initiated cancel path |
+| Cancellation | STRONG / BROWSER | Traveler cancel browser; supplier path code (926) | Supplier cancel browser cert later |
 | Refunds | PARTIAL / HONEST | Manual Stripe; Refund due #41; no-refund #40 | Auto-refund = FOUNDER if desired |
 | Messaging | PARTIAL→STRONG | `booking_messages`; cross-user deny #41 (885) | No fake realtime; delivery cert |
 | Reviews | STRONG / UNIT | ownership + paid+confirmed+after-start (879) | Supplier response / moderation later |

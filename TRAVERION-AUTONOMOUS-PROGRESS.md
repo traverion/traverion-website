@@ -4928,6 +4928,19 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 
 **Certification:** i18n = **PARTIAL** / **CODE-INSPECTED**. Full i18n platform = **NOT BUILT** (intentional).
 
+
+### Phase 926 — Supplier-initiated cancellation path exists
+
+**Evidence:** Partner Bookings cancel modal → `request_supplier_cancellation` / respond flows (SQL 061+); traveler self-cancel already browser-certified (#41/#40). Supplier cancel is operational UI + RPC — not re-browser-certified this phase.
+
+**Certification:** supplier cancel = **CODE-INSPECTED**. Traveler cancel = **BROWSER-TESTED** (prior).
+
+### Phase 927 — Performance posture (no premature optimization)
+
+**Audit:** No new N+1 hotspots claimed without measurement. Listing browse uses published inventory queries; capacity fetches are listing-scoped. Image weight / waterfalls remain monitoring items, not fake “optimized” claims.
+
+**Certification:** performance = **CODE-INSPECTED** / **PARTIAL**. Device-farm perf = **NOT BUILT**.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.
