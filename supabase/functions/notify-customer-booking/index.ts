@@ -20,6 +20,7 @@ import {
   isBookingTiedEmailKind,
   resolveBookingTiedRecipient,
 } from '../_shared/notify-customer-recipient.ts';
+import { resolveBookingTiedContent } from '../_shared/notify-customer-content.ts';
 
 type EmailKind =
   | 'booking_request'
@@ -256,6 +257,7 @@ serve(async (req) => {
     if (isBookingTiedEmailKind(kind) && !String(body.bookingId ?? '').trim()) {
       return json({ success: false, error: 'bookingId required for this emailKind' }, 400);
     }
+    // Mutable content fields — Phase 1052 overwrites from booking/listing/snapshot.
     // Phase 580: traveler_welcome has no booking to check against -- Phase 578
     // deliberately left it out of the recipient guard above and tracked it as
     // a separate, lower-severity gap: with no caller-identity check at all,
@@ -286,12 +288,16 @@ serve(async (req) => {
         return json({ success: false, error: 'Unauthorized' }, 401);
       }
     }
-    const title = String(body.listingTitle ?? 'Your booking').trim() || 'Your booking';
-    const name = String(body.customerName ?? '').trim();
-    const greeting = name ? `Hi ${name},` : 'Hi,';
+    let title = String(body.listingTitle ?? 'Your booking').trim() || 'Your booking';
+    let name = String(body.customerName ?? '').trim();
     const publicSiteUrl = siteBase(body.publicSiteUrl);
     let currency = String(body.currency ?? 'EUR').trim().toUpperCase() || 'EUR';
-    const refDigits = orderTag(body.bookingNumber);
+    let bookingNumber = body.bookingNumber;
+    let bookingDate = body.bookingDate;
+    let checkOutDate = body.checkOutDate;
+    let guests = body.guests;
+    let listingKind = body.listingKind;
+    let meetingPoint = body.meetingPoint;
     let amount =
       typeof body.totalAmount === 'number' && Number.isFinite(body.totalAmount) && body.totalAmount >= 0
         ? body.totalAmount
@@ -330,11 +336,17 @@ serve(async (req) => {
     // booking to check against (fired on signup) and is intentionally left
     // out of this guard -- a separate, lower-severity gap tracked for a
     // future phase.
+    //
+    // Phase 1052: with recipient fixed, content fields (title/name/date/guests/
+    // booking number/meeting/listingKind) were still caller-trusted — forged
+    // copy to the real guest. Re-derive from booking + listing + purchase_snapshot.
     if (isBookingTiedEmailKind(kind) && admin) {
       const bookingId = String(body.bookingId ?? '').trim();
       const { data: bookingRow } = await admin
         .from('bookings')
-        .select('payment_status, guest_email, amount_paid, total_amount, currency')
+        .select(
+          'payment_status, guest_email, amount_paid, total_amount, currency, guest_name, booking_date, check_out, guests, booking_number, purchase_snapshot, listing_id'
+        )
         .eq('id', bookingId)
         .maybeSingle();
 
@@ -352,7 +364,46 @@ serve(async (req) => {
       to = resolved.to;
       amount = resolved.amount;
       currency = resolved.currency;
+
+      let listingRow: {
+        id?: string | null;
+        title?: string | null;
+        listing_extras?: unknown;
+        experience_kind?: string | null;
+      } | null = null;
+      const listingId = String(bookingRow?.listing_id ?? '').trim();
+      if (listingId) {
+        const { data: listing } = await admin
+          .from('listings')
+          .select('id, title, listing_extras, experience_kind')
+          .eq('id', listingId)
+          .maybeSingle();
+        listingRow = listing;
+      }
+
+      const content = resolveBookingTiedContent({
+        kind,
+        bookingId,
+        bookingRow,
+        listingRow,
+      });
+      if (!content.ok) {
+        return json({ success: false, error: content.error }, content.status);
+      }
+      if (content.overrides.listingTitle) title = content.overrides.listingTitle;
+      if (content.overrides.customerName) name = content.overrides.customerName;
+      if (content.overrides.bookingDate) bookingDate = content.overrides.bookingDate;
+      if (typeof content.overrides.guests === 'number') guests = content.overrides.guests;
+      if (typeof content.overrides.bookingNumber === 'number') {
+        bookingNumber = content.overrides.bookingNumber;
+      }
+      if (content.overrides.listingKind) listingKind = content.overrides.listingKind;
+      if (content.overrides.checkOutDate) checkOutDate = content.overrides.checkOutDate;
+      if (content.overrides.meetingPoint) meetingPoint = content.overrides.meetingPoint;
     }
+
+    const greeting = name ? `Hi ${name},` : 'Hi,';
+    const refDigits = orderTag(bookingNumber);
     const idempotencyKey =
       (typeof body.idempotencyKey === 'string' && body.idempotencyKey.trim()) ||
       (body.bookingId
@@ -399,7 +450,7 @@ serve(async (req) => {
         extraHtml = `<table role="presentation" style="margin:12px 0 0;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px 16px;width:100%;">
 <tr><td style="font-size:12px;color:#166534;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;">Payment receipt</td></tr>
 <tr><td style="font-size:22px;font-weight:700;color:#14532d;padding-top:4px;">${escapeHtml(currency)} ${amount.toFixed(2)}</td></tr>
-<tr><td style="font-size:13px;color:#15803d;padding-top:6px;">${escapeHtml(paidReceiptLine(body.listingKind))}</td></tr>
+<tr><td style="font-size:13px;color:#15803d;padding-top:6px;">${escapeHtml(paidReceiptLine(listingKind))}</td></tr>
 </table>`;
       }
       footerNote =
@@ -463,8 +514,8 @@ serve(async (req) => {
       headline = 'Pickup time confirmed';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your host confirmed the pickup time for this booking. Details below — also visible in Trips.</p>`;
       if (diffs.length) extraHtml = fieldDiffTableHtml(diffs);
-      if (body.meetingPoint?.trim()) {
-        extraHtml += `<p style="margin:12px 0 0;font-size:14px;color:#111827;"><strong>Meeting / pickup place:</strong> ${escapeHtml(body.meetingPoint.trim())}</p>`;
+      if (meetingPoint?.trim()) {
+        extraHtml += `<p style="margin:12px 0 0;font-size:14px;color:#111827;"><strong>Meeting / pickup place:</strong> ${escapeHtml(meetingPoint.trim())}</p>`;
       }
       footerNote = 'Times appear in Trips. Traverion does not treat email delivery as proof you received this update.';
     } else if (kind === 'pickup_changed') {
@@ -486,18 +537,18 @@ serve(async (req) => {
         body.refundStatusNote?.trim() ||
         'Trips shows Refunded for this booking. Traverion does not treat email delivery as proof of bank settlement.';
     } else if (kind === 'experience_reminder') {
-      const isStay = String(body.listingKind ?? '').toLowerCase() === 'stay';
+      const isStay = String(listingKind ?? '').toLowerCase() === 'stay';
       headline = isStay ? 'Your stay is coming up soon' : 'Your tour is coming up soon';
       intro = isStay
         ? `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your stay at <strong>${escapeHtml(title)}</strong> is coming up soon. Details we have on file are below — check Trips for the latest.</p>`
         : `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your tour <strong>${escapeHtml(title)}</strong> is coming up soon. Details we have on file are below — check Trips for the latest.</p>`;
-      if (body.meetingPoint?.trim()) {
-        extraHtml = `<p style="margin:0;font-size:14px;color:#111827;"><strong>Meeting / pickup:</strong> ${escapeHtml(body.meetingPoint.trim())}</p>`;
+      if (meetingPoint?.trim()) {
+        extraHtml = `<p style="margin:0;font-size:14px;color:#111827;"><strong>Meeting / pickup:</strong> ${escapeHtml(meetingPoint.trim())}</p>`;
       }
       if (diffs.length) extraHtml += fieldDiffTableHtml(diffs);
       footerNote = 'Open Trips for pickup, meeting, or host updates.';
     } else if (kind === 'review_request') {
-      const isStay = String(body.listingKind ?? '').toLowerCase() === 'stay';
+      const isStay = String(listingKind ?? '').toLowerCase() === 'stay';
       headline = isStay ? 'How was your stay?' : 'How was your tour?';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Thanks for booking with Traverion. If you enjoyed <strong>${escapeHtml(title)}</strong>, a short review helps other travelers.</p>`;
       footerNote = 'You can leave a review from Trips or the listing page.';
@@ -532,7 +583,18 @@ serve(async (req) => {
           : kind === 'review_request'
             ? 'Open Trips'
             : 'Manage booking';
-    const detailRows = buildDetailRows(body);
+    const detailPayload: Payload = {
+      ...body,
+      listingTitle: title,
+      customerName: name,
+      bookingNumber,
+      bookingDate,
+      checkOutDate,
+      guests,
+      listingKind,
+      meetingPoint,
+    };
+    const detailRows = buildDetailRows(detailPayload);
     const html = wrapCustomerDocument({
       headline,
       intro,
@@ -547,12 +609,12 @@ serve(async (req) => {
     const textParts: string[] = [
       greeting,
       '',
-      subjectForKind(kind, title, refDigits || undefined, body.listingKind),
+      subjectForKind(kind, title, refDigits || undefined, listingKind),
       '',
     ];
     if (refDigits) textParts.push(`Booking #: ${refDigits}`);
-    if (body.bookingDate) textParts.push(`Date: ${body.bookingDate}`);
-    if (typeof body.guests === 'number') textParts.push(`Guests: ${body.guests}`);
+    if (bookingDate) textParts.push(`Date: ${bookingDate}`);
+    if (typeof guests === 'number') textParts.push(`Guests: ${guests}`);
     if (!refDigits && body.bookingId) textParts.push(`Reference: ${body.bookingId}`);
     if (typeof amount === 'number' && kind === 'booking_confirmed_paid') {
       textParts.push('', `Payment receipt: ${currency} ${amount.toFixed(2)}`);
@@ -573,8 +635,8 @@ serve(async (req) => {
           bookingNumber: Number(refDigits),
           guestName: name || undefined,
           listingTitle: title,
-          bookingDate: body.bookingDate,
-          guests: typeof body.guests === 'number' ? body.guests : undefined,
+          bookingDate,
+          guests: typeof guests === 'number' ? guests : undefined,
           amountPaid: amount,
           currency,
           paidAtIso: body.paidAtIso,
@@ -593,7 +655,7 @@ serve(async (req) => {
       apiKey,
       from: fromEmail,
       to: [to],
-      subject: subjectForKind(kind, title, refDigits || undefined, body.listingKind),
+      subject: subjectForKind(kind, title, refDigits || undefined, listingKind),
       text,
       html,
       attachments: attachments.length ? attachments : undefined,

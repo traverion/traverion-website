@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness** (continuing 1001+)  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `893e1c9`  
-**Current phase:** 1051  
+**Current SHA:** `9825e97`  
+**Current phase:** 1052  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -5477,13 +5477,21 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 
 **Certification:** CODE-INSPECTED / INTEGRATION (deploy) / BROWSER-TESTED (traveler home).
 
+### Phase 1052 — Customer booking email content re-derive
+
+**Problem:** After recipient re-derive, title/name/date/guests/meeting/listingKind still trusted from body.
+
+**Fix:** `resolveBookingTiedContent` prefers purchase_snapshot then listing/booking columns; edge applies before HTML/PDF/subject. Vitest 6/6 + mirror sync. Deployed.
+
+**Certification:** AUTOMATED-TESTED / INTEGRATION (deploy).
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.
 2. **P1 — Localhost same-origin auth**: shared Supabase session remains; Phase 904 blocks business-name lead-guest autofill (customer_* / consumer profile only).
 3. **P1 — FOUNDER:** see `docs/FOUNDER_REQUIRED.md` (auto-refund, take-rate; force-unpublish closed).
 4. **P2 — Browser-cert** admin listings moderation on admin host with staff demo.
-5. **P2 — notify-* booking-tied open-invoke residual** — content re-derived; nuisance spam possible with real bookingId (full dual-mode auth deferred).
+5. **P2 — notify-* booking-tied open-invoke residual** — recipient+content re-derived; nuisance spam with real bookingId still possible (full dual-mode auth deferred).
 6. **P2 — LIVE Stripe** intentionally blocked.
 7. **P2 — Service-role JWT briefly tracked** in `scripts/cert-transactional-emails.cjs` (now untracked); rotate when practical.
 

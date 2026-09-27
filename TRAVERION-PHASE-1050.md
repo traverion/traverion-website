@@ -48,8 +48,7 @@ Security / honesty continuum from ops-notes ownership through review experience-
 | P1 | FOUNDER: auto-refund vs Refund due; commission take-rate snapshot; dedicated traveler auth storage |
 | P1 | Same-origin localhost session bleed |
 | P2 | Admin host browser-cert with staff demo |
-| P2 | Full dual-mode auth on booking-tied notify-* (nuisance residual after content re-derive) |
-| P2 | contact_inquiries throttle / notify bind |
+| P2 | Full dual-mode auth on booking-tied notify-* (nuisance residual; recipient+content re-derived through 1052) |
 | P2 | LIVE Stripe (intentionally blocked) |
 
 ---
