@@ -2,7 +2,7 @@ import { supabase } from '../lib/supabase';
 import { isListingUuid } from '../lib/listing-creation-persist';
 import { userFacingError } from '../lib/userFacingError';
 import { TourPackage } from '../types/tour';
-import { listingExtrasToDb, parseListingExtras } from '../types/listingExtras';
+import { listingExtrasToDb, parseListingExtras, stripPublicStayCheckInAddress } from '../types/listingExtras';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 
 export type ListingRow = {
@@ -129,7 +129,9 @@ export function rowToTourPackage(row: ListingRow): TourPackage {
     experienceKind: normalizeExperienceKind(row.experience_kind, row.style),
     listingExtras: (() => {
       const parsed = parseListingExtras(row.listing_extras);
-      return Object.keys(parsed).length > 0 ? parsed : undefined;
+      // Never trust public listing_extras for exact stay address (Phase 1081).
+      const publicSafe = stripPublicStayCheckInAddress(parsed);
+      return publicSafe && Object.keys(publicSafe).length > 0 ? publicSafe : undefined;
     })(),
   };
 }
@@ -221,8 +223,55 @@ export function tourPackageToRow(tour: Partial<TourPackage> & { title: string; d
   };
 }
 
-/**
- * Fetch published listings for the public site (www).
+/** Owner-only: merge listing_stay_private.check_in_address into stay extras for edit UI. */
+async function mergeOwnedStayPrivateAddresses(tours: TourPackage[]): Promise<TourPackage[]> {
+  if (!supabase || tours.length === 0) return tours;
+  const ids = tours.map((t) => t.id).filter(Boolean);
+  if (ids.length === 0) return tours;
+  const { data, error } = await supabase
+    .from('listing_stay_private')
+    .select('listing_id, check_in_address')
+    .in('listing_id', ids);
+  if (error || !data?.length) return tours;
+  const byId = new Map<string, string>();
+  for (const row of data as { listing_id: string; check_in_address: string | null }[]) {
+    const addr = (row.check_in_address ?? '').trim();
+    if (addr) byId.set(row.listing_id, addr.slice(0, 400));
+  }
+  if (byId.size === 0) return tours;
+  return tours.map((t) => {
+    const addr = byId.get(t.id);
+    if (!addr) return t;
+    return {
+      ...t,
+      listingExtras: {
+        ...t.listingExtras,
+        stay: { ...t.listingExtras?.stay, checkInAddress: addr },
+      },
+    };
+  });
+}
+
+async function upsertStayPrivateCheckInAddress(
+  listingId: string,
+  checkInAddress: string | null | undefined
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!supabase) return { ok: false, error: 'Supabase is not configured.' };
+  const trimmed = (checkInAddress ?? '').trim().slice(0, 400);
+  if (!trimmed) {
+    const { error } = await supabase.from('listing_stay_private').delete().eq('listing_id', listingId);
+    if (error) return { ok: false, error: formatSupabaseListingError('Could not clear check-in address', error) };
+    return { ok: true };
+  }
+  const { error } = await supabase.from('listing_stay_private').upsert(
+    { listing_id: listingId, check_in_address: trimmed, updated_at: new Date().toISOString() },
+    { onConflict: 'listing_id' }
+  );
+  if (error) return { ok: false, error: formatSupabaseListingError('Could not save check-in address', error) };
+  return { ok: true };
+}
+
+/** Fetch published listings for the public site (www).
  * Status NOT NULL (mig 092); do not include status.is.null (legacy null bypass).
  */
 export async function fetchAllListings(): Promise<TourPackage[]> {
@@ -247,7 +296,8 @@ export async function fetchMyListings(supplierId: string): Promise<TourPackage[]
     .eq('supplier_id', supplierId)
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
-  return (data as ListingRow[]).map(rowToTourPackage);
+  const tours = (data as ListingRow[]).map(rowToTourPackage);
+  return mergeOwnedStayPrivateAddresses(tours);
 }
 
 export type ListingSaveResult =
@@ -267,6 +317,7 @@ function isUniqueViolation(error: { code?: string; message?: string }): boolean 
 /** Insert a new listing (requires auth; supplier_id = current user). */
 export async function insertListing(tour: TourPackage, supplierId: string): Promise<ListingSaveResult> {
   if (!supabase) return { ok: false, error: 'Supabase is not configured.' };
+  const privateAddress = tour.listingExtras?.stay?.checkInAddress?.trim() || null;
   const row = tourPackageToRow(tour);
   const explicitId = isListingUuid(tour.id) ? tour.id : undefined;
   const { data, error } = await supabase
@@ -281,12 +332,20 @@ export async function insertListing(tour: TourPackage, supplierId: string): Prom
     console.error('Supabase insert listing:', error);
     return { ok: false, error: formatSupabaseListingError('Could not create listing', error) };
   }
-  return { ok: true, tour: rowToTourPackage(data as ListingRow) };
+  const saved = rowToTourPackage(data as ListingRow);
+  const priv = await upsertStayPrivateCheckInAddress(saved.id, privateAddress);
+  if (!priv.ok) return priv;
+  const [merged] = await mergeOwnedStayPrivateAddresses([saved]);
+  return { ok: true, tour: merged ?? saved };
 }
 
 /** Update an existing listing (requires auth; must be owner). */
 export async function updateListing(id: string, tour: Partial<TourPackage>): Promise<ListingSaveResult> {
   if (!supabase) return { ok: false, error: 'Supabase is not configured.' };
+  const privateAddress =
+    tour.listingExtras && 'stay' in (tour.listingExtras ?? {})
+      ? tour.listingExtras?.stay?.checkInAddress?.trim() || null
+      : undefined;
   const row = tourPackageToRow(tour as Parameters<typeof tourPackageToRow>[0]);
   const { data, error } = await supabase
     .from('listings')
@@ -298,7 +357,13 @@ export async function updateListing(id: string, tour: Partial<TourPackage>): Pro
     console.error('Supabase update listing:', error);
     return { ok: false, error: formatSupabaseListingError('Could not update listing', error) };
   }
-  return { ok: true, tour: rowToTourPackage(data as ListingRow) };
+  if (privateAddress !== undefined) {
+    const priv = await upsertStayPrivateCheckInAddress(id, privateAddress);
+    if (!priv.ok) return priv;
+  }
+  const saved = rowToTourPackage(data as ListingRow);
+  const [merged] = await mergeOwnedStayPrivateAddresses([saved]);
+  return { ok: true, tour: merged ?? saved };
 }
 
 /** Delete a listing (requires auth; must be owner). Optionally GC owned listing-images. */
@@ -344,7 +409,11 @@ export async function fetchListingById(id: string): Promise<TourPackage | null> 
     if (error.code === 'PGRST116') return null; // no rows
     throw new Error(error.message);
   }
-  return data ? rowToTourPackage(data as ListingRow) : null;
+  if (!data) return null;
+  const tour = rowToTourPackage(data as ListingRow);
+  // RLS on listing_stay_private returns address only for the supplier owner.
+  const [merged] = await mergeOwnedStayPrivateAddresses([tour]);
+  return merged ?? tour;
 }
 
 /** Fetch listing titles for given ids (public). Returns id -> title map. */

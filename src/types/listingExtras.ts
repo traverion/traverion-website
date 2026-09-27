@@ -178,8 +178,8 @@ export type StayDetails = {
   houseRules?: string;
   /**
    * Exact arrival address for booked guests (street / building / entry notes).
-   * Not shown on the public stay page — frozen onto purchase_snapshot at checkout
-   * and shown in Trips. Prefer city/country for discovery.
+   * Stored in listing_stay_private (owner/service only) — never in public listing_extras.
+   * Frozen onto purchase_snapshot at checkout; shown in Trips. City/country for discovery.
    */
   checkInAddress?: string;
   nightlyPriceUsd?: number;
@@ -653,6 +653,22 @@ export function listingExtrasToDb(extras: ListingExtras | undefined): Record<str
   if (extras.inventoryFamily && extras.inventoryFamily !== 'tour') {
     payload.inventoryFamily = extras.inventoryFamily;
   }
-  if (extras.stay && Object.keys(extras.stay).length > 0) payload.stay = extras.stay;
+  if (extras.stay && Object.keys(extras.stay).length > 0) {
+    // checkInAddress is private (listing_stay_private) — never persist into public JSON.
+    const { checkInAddress: _privateAddr, ...publicStay } = extras.stay;
+    if (Object.keys(publicStay).length > 0) payload.stay = publicStay;
+  }
   return Object.keys(payload).length > 0 ? payload : null;
+}
+
+/** Remove exact stay address from extras used on public catalog / PDP reads. */
+export function stripPublicStayCheckInAddress(extras: ListingExtras | undefined): ListingExtras | undefined {
+  if (!extras?.stay?.checkInAddress) return extras;
+  const { checkInAddress: _drop, ...restStay } = extras.stay;
+  const next: ListingExtras = { ...extras, stay: Object.keys(restStay).length > 0 ? restStay : undefined };
+  if (!next.stay) {
+    const { stay: _s, ...withoutStay } = next;
+    return Object.keys(withoutStay).length > 0 ? withoutStay : undefined;
+  }
+  return next;
 }

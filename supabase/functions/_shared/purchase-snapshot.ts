@@ -286,6 +286,8 @@ export function resolveStayFieldsForSnapshot(input: {
   checkIn?: string | null;
   checkOut?: string | null;
   nights?: number | null;
+  /** Prefer over listing_extras (private table / explicit). */
+  checkInAddressOverride?: string | null;
 }): {
   checkIn: string | null;
   checkOut: string | null;
@@ -303,7 +305,8 @@ export function resolveStayFieldsForSnapshot(input: {
       ? Math.floor(input.nights)
       : null;
   let propertyType: string | null = null;
-  let checkInAddress: string | null = null;
+  let checkInAddress: string | null =
+    (input.checkInAddressOverride ?? '').trim().slice(0, 400) || null;
   let checkInTime: string | null = null;
   let checkOutTime: string | null = null;
   let houseRules: string | null = null;
@@ -323,7 +326,8 @@ export function resolveStayFieldsForSnapshot(input: {
     if (stay && typeof stay.propertyType === 'string' && stay.propertyType.trim()) {
       propertyType = stay.propertyType.trim();
     }
-    if (stay && typeof stay.checkInAddress === 'string' && stay.checkInAddress.trim()) {
+    // Legacy extras may still carry address until migration 128; prefer override.
+    if (!checkInAddress && stay && typeof stay.checkInAddress === 'string' && stay.checkInAddress.trim()) {
       checkInAddress = stay.checkInAddress.trim().slice(0, 400);
     }
     if (stay && typeof stay.checkInTime === 'string' && /^\d{2}:\d{2}/.test(stay.checkInTime.trim())) {

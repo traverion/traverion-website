@@ -353,6 +353,22 @@ serve(async (req) => {
       startTimeHm: startTime || null,
     });
 
+    const stayPrivateAddr =
+      extrasFamily === 'stay'
+        ? await (async () => {
+            const { data: priv } = await admin
+              .from('listing_stay_private')
+              .select('check_in_address')
+              .eq('listing_id', listingId)
+              .maybeSingle();
+            const addr =
+              priv && typeof (priv as { check_in_address?: unknown }).check_in_address === 'string'
+                ? String((priv as { check_in_address: string }).check_in_address).trim()
+                : '';
+            return addr.slice(0, 400) || null;
+          })()
+        : null;
+
     const stayFields =
       extrasFamily === 'stay'
         ? resolveStayFieldsForSnapshot({
@@ -360,6 +376,7 @@ serve(async (req) => {
             checkIn: bookingDate,
             checkOut: checkoutDate || null,
             nights: typeof quote.nights === 'number' ? quote.nights : null,
+            checkInAddressOverride: stayPrivateAddr,
           })
         : null;
 
