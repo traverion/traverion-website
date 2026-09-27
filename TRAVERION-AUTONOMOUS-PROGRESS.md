@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness** (continuing 1001+)  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `52a748f`  
-**Current phase:** 1040  
+**Current SHA:** `9fd6835`  
+**Current phase:** 1041  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -5403,7 +5403,15 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 
 **Fix:** Always write 0 from client; migration `122_listings_block_client_rating_reviews.sql` forces 0 on non-service insert/update + one-shot zero. App tsc clean.
 
-**Certification:** ADVERSARIAL-TESTED (SQL harness authored) + remote applied + tsc clean.
+**Certification:** ADVERSARIAL-TESTED (SQL harness authored) + remote applied + tsc clean. Ending SHA `9fd6835`.
+
+### Phase 1041 — Drop legacy status.is.null from public listings fetch
+
+**Gap:** `fetchAllListings` still used `.or('status.eq.published,status.is.null')` after status NOT NULL (092) — dead null path leftover.
+
+**Fix:** `.eq('status', 'published')` only.
+
+**Certification:** CODE-INSPECTED.
 
 ## Known remaining risks (ranked)
 

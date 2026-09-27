@@ -223,7 +223,7 @@ export function tourPackageToRow(tour: Partial<TourPackage> & { title: string; d
 
 /**
  * Fetch published listings for the public site (www).
- * Query filters draft rows; RLS should also restrict anonymous reads to published (see migration 043).
+ * Status NOT NULL (mig 092); do not include status.is.null (legacy null bypass).
  */
 export async function fetchAllListings(): Promise<TourPackage[]> {
   if (!supabase) return [];
@@ -232,7 +232,7 @@ export async function fetchAllListings(): Promise<TourPackage[]> {
     .select(
       'id, supplier_id, title, destination, duration, style, start_location, end_location, price_starting_from, price_currency, category, tour_type, validity, image, description, highlights, includes, excludes, difficulty, group_size, best_time, rating, reviews, is_popular, city, region, country, tags, status, cancellation_policy, meeting_point, pickup_instructions, default_start_time, pickup_window_minutes_before_min, pickup_window_minutes_before_max, experience_start_style, dropoff_mode, dropoff_location, experience_language, experience_kind, listing_subtitle, listing_extras, created_at, updated_at'
     )
-    .or('status.eq.published,status.is.null')
+    .eq('status', 'published')
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
   return (data as ListingRow[]).map(rowToTourPackage);
