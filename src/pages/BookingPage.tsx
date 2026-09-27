@@ -444,14 +444,17 @@ export default function BookingPage({
       const baseOpt = selectedVariant?.listingOption ?? appliedOption;
       return maxSpotsLeftAcrossDepartures({
         dayIso: day,
-        departures: bookableDepartureTimes.map((time) => {
-          const cap = optionCapacityForDepartureTime(baseOpt, day, time);
-          return {
-            startTimeHm: time,
-            maxSpotsPerSlot: cap.maxSpotsPerSlot,
-            maxPersonsFallback: cap.maxPersons,
-          };
-        }),
+        departures: bookableDepartureTimes
+          .map((time) => {
+            const cap = optionCapacityForDepartureTime(baseOpt, day, time);
+            if (!cap) return null;
+            return {
+              startTimeHm: time,
+              maxSpotsPerSlot: cap.maxSpotsPerSlot,
+              maxPersonsFallback: cap.maxPersons,
+            };
+          })
+          .filter((d): d is NonNullable<typeof d> => d != null),
         paidBySlot: dayCapacitySnap.paidBySlot,
         paidByDay: dayCapacitySnap.paidByDay,
         dayCapOverride: dayCap,

@@ -389,20 +389,21 @@ export function applyScheduleToOption(
 /**
  * Phase 1123: capacity for one departure time on a date — schedule-resolved, not the
  * currently selected schedule's maxSpots (which would mis-label sibling departures).
+ * Phase 1162: when schedules exist but none match date+time, fail closed (null)
+ * — parity with tourDepartureSlotCapacity / assert (no option-level invent).
  */
 export function optionCapacityForDepartureTime(
   option: ListingBookingOption,
   localDateIso: string,
   startTimeHm: string
-): { maxSpotsPerSlot: number; maxPersons: number } {
+): { maxSpotsPerSlot: number; maxPersons: number } | null {
   if (listingOptionHasSchedules(option)) {
     const resolved = resolveScheduleForDate(option, localDateIso, startTimeHm);
-    if (resolved) {
-      return {
-        maxSpotsPerSlot: resolved.maxSpotsPerSlot,
-        maxPersons: resolved.maxPersons,
-      };
-    }
+    if (!resolved) return null;
+    return {
+      maxSpotsPerSlot: resolved.maxSpotsPerSlot,
+      maxPersons: resolved.maxPersons,
+    };
   }
   return {
     maxSpotsPerSlot: option.maxSpotsPerSlot,

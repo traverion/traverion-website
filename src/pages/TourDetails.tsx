@@ -459,14 +459,17 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       const day = bookingDate.trim();
       return maxSpotsLeftAcrossDepartures({
         dayIso: day,
-        departures: departureTimes.map((time) => {
-          const cap = optionCapacityForDepartureTime(selectedOption, day, time);
-          return {
-            startTimeHm: time,
-            maxSpotsPerSlot: cap.maxSpotsPerSlot,
-            maxPersonsFallback: cap.maxPersons,
-          };
-        }),
+        departures: departureTimes
+          .map((time) => {
+            const cap = optionCapacityForDepartureTime(selectedOption, day, time);
+            if (!cap) return null;
+            return {
+              startTimeHm: time,
+              maxSpotsPerSlot: cap.maxSpotsPerSlot,
+              maxPersonsFallback: cap.maxPersons,
+            };
+          })
+          .filter((d): d is NonNullable<typeof d> => d != null),
         paidBySlot: dayCapacitySnap.paidBySlot,
         paidByDay: dayCapacitySnap.paidByDay,
         dayCapOverride: dayCap,
@@ -503,6 +506,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     if (dayCap != null && dayCap < 1) return true;
     return departureTimes.every((time) => {
       const cap = optionCapacityForDepartureTime(selectedOption, day, time);
+      if (!cap) return true; // unresolved = not bookable
       const left = departureSlotSpotsLeft({
         dayIso: day,
         startTimeHm: time,
@@ -1476,6 +1480,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                                       ? dayCapacitySnap.capByDay.get(day)
                                       : undefined;
                                     const cap = optionCapacityForDepartureTime(selectedOption, day, time);
+                                    if (!cap) return 0;
                                     return departureSlotSpotsLeft({
                                       dayIso: day,
                                       startTimeHm: time,
