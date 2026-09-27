@@ -198,6 +198,7 @@ describe('resolveOptionFieldsForSnapshot (checkout freeze helpers)', () => {
                 availabilityDateFrom: '2026-09-01',
                 availabilityDateTo: '2026-09-30',
                 startTime: '20:30',
+                weekdays: [true, true, true, true, true, true, true],
               },
             ],
           },

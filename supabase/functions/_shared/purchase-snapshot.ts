@@ -192,7 +192,17 @@ type RawSchedule = {
   status?: unknown;
   availabilityDateFrom?: unknown;
   availabilityDateTo?: unknown;
+  weekdays?: unknown;
 };
+
+/** Monday-first weekday index for YYYY-MM-DD (assert / quote parity). */
+function weekdayIndexMondayFirst(isoDate: string): number | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) return null;
+  const [y, m, d] = isoDate.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  if (Number.isNaN(dt.getTime())) return null;
+  return (dt.getUTCDay() + 6) % 7;
+}
 
 /** Extract bookable option fields for the purchase freeze. */
 export function resolveOptionFieldsForSnapshot(input: {
@@ -263,6 +273,10 @@ export function resolveOptionFieldsForSnapshot(input: {
       const to = typeof s.availabilityDateTo === 'string' ? s.availabilityDateTo.trim() : '';
       if (!from || date < from) continue;
       if (to && date > to) continue;
+      // Phase 1298: weekday must match (assert 1286 / scheduleAppliesOnDate).
+      const wd = weekdayIndexMondayFirst(date);
+      const weekdays = Array.isArray(s.weekdays) ? s.weekdays : [];
+      if (wd == null || weekdays.length < 7 || weekdays[wd] !== true) continue;
       const st = typeof s.startTime === 'string' ? s.startTime.trim().slice(0, 5) : '';
       if (!st) continue;
       if (time && st !== time) continue;
