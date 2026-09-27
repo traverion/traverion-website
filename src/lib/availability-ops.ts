@@ -62,14 +62,18 @@ export function partnerDepartureRemainingLine(params: {
 export function partnerTourDaySpotDisplay(params: {
   offered: boolean;
   savedCapacity: number | null | undefined;
-  defaultCapacity: number;
+  /** Phase 1281: null = unknown listing spots (do not invent 8). */
+  defaultCapacity: number | null;
   occupyingGuests: number;
 }): { capacity: number | null; remaining: number | null } {
   if (!params.offered) return { capacity: null, remaining: null };
   const capacity =
     typeof params.savedCapacity === 'number' && Number.isFinite(params.savedCapacity)
       ? Math.max(0, Math.floor(params.savedCapacity))
-      : params.defaultCapacity;
+      : typeof params.defaultCapacity === 'number' && params.defaultCapacity >= 1
+        ? Math.min(99, Math.floor(params.defaultCapacity))
+        : null;
+  if (capacity == null) return { capacity: null, remaining: null };
   return {
     capacity,
     remaining: partnerTourRemainingSpots(capacity, params.occupyingGuests),
@@ -84,7 +88,8 @@ export function partnerTourDaySpotDisplay(params: {
 export function partnerTourMonthCellCapacityLabel(params: {
   offered: boolean;
   dayCapacityOverride: number | null | undefined;
-  defaultCapacity: number;
+  /** Phase 1281: null = unknown listing spots (do not invent 8). */
+  defaultCapacity: number | null;
   occupyingGuestsDay: number;
   departures: Array<{ startTimeHm: string; maxSpots: number; occupyingGuests: number }>;
 }): { short: string | null; aria: string | null; tone: 'full' | 'partial' | 'open' | null } {
@@ -136,11 +141,16 @@ export function partnerTourMonthCellCapacityLabel(params: {
       tone: 'open',
     };
   }
-  const remaining = partnerTourRemainingSpots(params.defaultCapacity, params.occupyingGuestsDay);
+  const fallback =
+    typeof params.defaultCapacity === 'number' && params.defaultCapacity >= 1
+      ? Math.min(99, Math.floor(params.defaultCapacity))
+      : null;
+  if (fallback == null) return { short: null, aria: null, tone: null };
+  const remaining = partnerTourRemainingSpots(fallback, params.occupyingGuestsDay);
   if (remaining === 0) return { short: 'Full', aria: 'fully booked this day', tone: 'full' };
   return {
-    short: `${remaining}/${params.defaultCapacity} left`,
-    aria: `${remaining} of ${params.defaultCapacity} spots left`,
+    short: `${remaining}/${fallback} left`,
+    aria: `${remaining} of ${fallback} spots left`,
     tone: 'open',
   };
 }
@@ -173,9 +183,10 @@ export function buildMonthCells(year: number, monthIndex0: number): MonthCell[] 
   return cells;
 }
 
-export function defaultCapacityForOpenDay(maxSpotsPerSlot: number | undefined): number {
-  const n = typeof maxSpotsPerSlot === 'number' && maxSpotsPerSlot >= 1 ? Math.floor(maxSpotsPerSlot) : 8;
-  return Math.min(99, n);
+/** Phase 1281: no invent-8 — unknown option spots → null (partner must set capacity). */
+export function defaultCapacityForOpenDay(maxSpotsPerSlot: number | undefined): number | null {
+  if (typeof maxSpotsPerSlot !== 'number' || maxSpotsPerSlot < 1) return null;
+  return Math.min(99, Math.floor(maxSpotsPerSlot));
 }
 
 /**

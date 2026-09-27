@@ -60,10 +60,10 @@ function enumerateIsoDates(fromIso: string, toIso: string): string[] {
   return out;
 }
 
-function defaultSpots(listing: TourPackage | null): number {
+function defaultSpots(listing: TourPackage | null): number | null {
   const opts = listing ? materializedBookingOptions(listing.listingExtras?.bookingOptions) : [];
   const max = listingTourCapacityFromOptions(capacitySpotsFromBookingOptions(opts));
-  // Supplier form starter only — not public remaining; keep defaultCapacityForOpenDay invent.
+  // Phase 1281: starter from listing spots only — never invent capacity 8.
   return defaultCapacityForOpenDay(max ?? undefined);
 }
 
@@ -734,7 +734,7 @@ export default function SupplierAvailability() {
                     }
                     setEditing({
                       iso: cell.iso,
-                      capacity: String(cap?.capacity ?? defaultSpots(listing)),
+                      capacity: String(cap?.capacity ?? defaultSpots(listing) ?? ''),
                     });
                   }}
                   className={`lux-flat min-h-[3.75rem] sm:min-h-[5rem] rounded-lg p-1 sm:p-1.5 text-left ring-1 transition-[background-color,box-shadow,transform] duration-150 disabled:opacity-40 motion-safe:active:scale-[0.97] ${

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { partnerDepartureRemainingLine, partnerTourMonthCellCapacityLabel } from './availability-ops';
+import {
+  defaultCapacityForOpenDay,
+  partnerDepartureRemainingLine,
+  partnerTourMonthCellCapacityLabel,
+} from './availability-ops';
 
 describe('partnerDepartureRemainingLine', () => {
   it('shows per-departure remaining so morning fill does not mark evening full', () => {
@@ -54,5 +58,18 @@ describe('partnerTourMonthCellCapacityLabel', () => {
       ],
     });
     expect(label.short).toBe('Full');
+  });
+
+  it('Phase 1281: does not invent day capacity when listing spots are unknown', () => {
+    const label = partnerTourMonthCellCapacityLabel({
+      offered: true,
+      dayCapacityOverride: null,
+      defaultCapacity: null,
+      occupyingGuestsDay: 0,
+      departures: [],
+    });
+    expect(label.short).toBeNull();
+    expect(defaultCapacityForOpenDay(undefined)).toBeNull();
+    expect(defaultCapacityForOpenDay(6)).toBe(6);
   });
 });
