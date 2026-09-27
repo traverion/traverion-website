@@ -7,9 +7,6 @@ export function tourSlotMaxSpotsFromOption(option: ListingBookingOption | null |
   if (typeof spots === 'number' && Number.isFinite(spots) && spots >= 1) {
     return Math.min(99, Math.floor(spots));
   }
-  const maxPersons = option.maxPersons;
-  if (typeof maxPersons === 'number' && Number.isFinite(maxPersons) && maxPersons >= 1) {
-    return Math.min(99, Math.floor(maxPersons));
-  }
+  // Phase 1206: parity with tourDepartureSlotCapacity / departure-slot-remaining — no invent from maxPersons.
   return null;
 }
