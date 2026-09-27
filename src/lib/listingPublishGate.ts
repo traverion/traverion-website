@@ -8,6 +8,7 @@ import type { ListingBookingOption } from '../types/listingExtras';
 import { LISTING_PLACEHOLDER_IMAGE, MIN_LISTING_DESCRIPTION_LENGTH } from './listingQualityScore';
 import { priceCategoryValidationMessages } from './price-categories';
 import { experienceTodayIsoForListing } from './booking-quote';
+import { parseGroupSizeRange } from './booking-flow';
 import { optionScheduleManagementIssues } from './listing-schedule-wizard';
 
 function optionPublishIssues(
@@ -152,9 +153,10 @@ export function getListingPublishBlockers(
     out.push('Add both city and country so the listing can be discovered and trusted.');
   }
   if (!isStay) {
+    // Phase 1240: legacy no-option tours need a parseable min–max (quote 1228 parity).
     const groupSize = (listing.groupSize ?? '').trim();
-    if (bookingOptions.length === 0 && groupSize.length < 3) {
-      out.push('Set group size (for example min–max guests or “up to X”) so guests know what to expect.');
+    if (bookingOptions.length === 0 && !parseGroupSizeRange(groupSize)) {
+      out.push('Set group size as a min–max range (for example 1–8 guests) so travelers can book.');
     }
     const meet = (listing.meetingPoint ?? '').trim().length;
     const pickup = (listing.pickupInstructions ?? '').trim().length;
