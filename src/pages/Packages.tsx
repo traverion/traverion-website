@@ -476,7 +476,8 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     let list = exceptCapacity.filter((tour) => {
       if (!(filterDate && dateCapacityByListing)) return true;
       const cap = dateCapacityByListing[tour.id];
-      if (!cap) return true;
+      // Phase 1190: missing cap row while map is loaded → exclude (do not invent open).
+      if (!cap) return false;
       return !tourDateLacksCapacityForParty({
         paidGuestsThatDay: cap.paid,
         dayCapacity: cap.dayCap,

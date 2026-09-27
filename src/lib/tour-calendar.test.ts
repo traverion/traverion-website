@@ -215,6 +215,15 @@ describe('tour calendar states', () => {
         partySize: 1,
       })
     ).toBe(true);
+    // Phase 1189: unknown fallback without day override → lack capacity (fail closed).
+    expect(
+      tourDateLacksCapacityForParty({
+        paidGuestsThatDay: 0,
+        dayCapacity: undefined,
+        fallbackCapacity: null,
+        partySize: 1,
+      })
+    ).toBe(true);
   });
 
   it('catalog date filter uses per-departure remaining when slot data is present', () => {

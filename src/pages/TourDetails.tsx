@@ -1088,6 +1088,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         slotMaxSpots,
       });
       if (!avail.available) {
+        // Phase 1191: load/check errors must not look like sold-out.
+        if (avail.error) {
+          setBookingCardError('Could not verify availability. Check your connection and try again.');
+          return;
+        }
         setBookingCardError(
           avail.remaining !== undefined && avail.remaining === 0
             ? 'This date is fully booked. Try another date or fewer guests.'

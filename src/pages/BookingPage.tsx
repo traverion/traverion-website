@@ -1047,6 +1047,12 @@ export default function BookingPage({
           slotMaxSpots,
         });
         if (!avail.available) {
+          // Phase 1192: load/check errors must not look like sold-out.
+          if (avail.error) {
+            setError('Could not verify availability. Check your connection and try again.');
+            setSubmitting(false);
+            return;
+          }
           setError(
             avail.remaining !== undefined && avail.remaining === 0
               ? departureTime

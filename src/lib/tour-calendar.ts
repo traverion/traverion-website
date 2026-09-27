@@ -100,6 +100,15 @@ export function tourDateLacksCapacityForParty(params: {
   if (dayCap != null) {
     return remainingCapacity(dayCap, params.paidGuestsThatDay) < need;
   }
+  // Phase 1189: unknown listing-wide fallback → lack capacity (Packages date filter / 1163).
+  // Known fallback without a day override: do not hide (avoid false morning-fill sell-outs).
+  if (
+    params.fallbackCapacity == null ||
+    !Number.isFinite(params.fallbackCapacity) ||
+    params.fallbackCapacity < 1
+  ) {
+    return true;
+  }
   return false;
 }
 
