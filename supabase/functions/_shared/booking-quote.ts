@@ -302,9 +302,9 @@ function parsePriceCategories(raw: unknown): PriceCat[] | undefined {
 
 function parseSchedule(raw: Record<string, unknown>, fallbackId: string): OptionSchedule {
   const minP = typeof raw.minPersons === 'number' && raw.minPersons >= 1 ? Math.floor(raw.minPersons) : 1;
-  // Phase 1226: do not invent maxPersons 12 when unset.
+  // Phase 1235: unset maxPersons → 0 (no invent as minPersons; client 1232 parity).
   const maxP =
-    typeof raw.maxPersons === 'number' && raw.maxPersons >= minP ? Math.floor(raw.maxPersons) : minP;
+    typeof raw.maxPersons === 'number' && raw.maxPersons >= minP ? Math.floor(raw.maxPersons) : 0;
   // Phase 1205: never invent slot cap from maxPersons (assert_checkout_inventory only reads maxSpotsPerSlot).
   const spots =
     typeof raw.maxSpotsPerSlot === 'number' && Number.isFinite(raw.maxSpotsPerSlot) && raw.maxSpotsPerSlot >= 1
@@ -421,9 +421,9 @@ function parseOptions(extras: unknown): Option[] {
     if (x == null || typeof x !== 'object') continue;
     const o = x as Record<string, unknown>;
     const minP = typeof o.minPersons === 'number' && o.minPersons >= 1 ? Math.floor(o.minPersons) : 1;
-    // Phase 1226: do not invent maxPersons 12 when unset.
+    // Phase 1235: unset maxPersons → 0 (no invent as minPersons; client 1232 parity).
     const maxP =
-      typeof o.maxPersons === 'number' && o.maxPersons >= minP ? Math.floor(o.maxPersons) : minP;
+      typeof o.maxPersons === 'number' && o.maxPersons >= minP ? Math.floor(o.maxPersons) : 0;
     const cats = parsePriceCategories(o.priceCategories);
     let priceUsd = typeof o.priceUsd === 'number' && !Number.isNaN(o.priceUsd) ? Math.max(0, o.priceUsd) : 0;
     if (o.pricingMode === 'age_dependent' && cats?.length) {
@@ -598,10 +598,11 @@ function coalesceLegacyParticipantTicketOptions(opts: Option[]): Option[] {
   });
 
   const minPersons = Math.min(...opts.map((o) => Math.max(1, o.minPersons || 1)));
+  // Phase 1235: do not invent maxPersons as minPersons when legacy tickets omit a cap.
   const maxPersons =
     typeof anchor.maxPersons === 'number' && Number.isFinite(anchor.maxPersons) && anchor.maxPersons >= 1
       ? Math.floor(anchor.maxPersons)
-      : minPersons;
+      : 0;
   // Phase 1211: parity with client 1208 — do not invent capacity 8 on edge coalesce.
   const spotsRaw = anchor.maxSpotsPerSlot;
   const maxSpotsPerSlot =
@@ -758,6 +759,15 @@ export function quoteListingBooking(input: {
       const resolved = resolveScheduleForDate(option, date, input.startTime);
       if (!resolved) return { ok: false, error: 'Choose a departure time to continue.' };
       option = applyScheduleToOption(option, resolved);
+    }
+
+    // Phase 1235: missing/invalid option maxPersons → fail closed (assert 1233 parity).
+    if (
+      !Number.isFinite(option.maxPersons) ||
+      option.maxPersons < 1 ||
+      option.maxPersons < option.minPersons
+    ) {
+      return { ok: false, error: 'Guest capacity is unavailable for this tour.' };
     }
 
     const departureHm = (input.startTime ?? option.startTime ?? '').trim().slice(0, 5);

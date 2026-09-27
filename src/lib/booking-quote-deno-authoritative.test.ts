@@ -365,6 +365,20 @@ describe('quoteListingBooking (authoritative Deno pricing -- direct execution)',
       expect(res.ok).toBe(false);
       if (!res.ok) expect(res.error).toMatch(/at least 4 guests/i);
     });
+
+    it('Phase 1235: fails closed when option maxPersons is unset (no invent as minPersons)', () => {
+      const { maxPersons: _drop, ...noMax } = option;
+      const res = quoteListingBooking({
+        listing: tourListingWithOption(noMax),
+        discounts: [],
+        bookingDate: '2026-06-10',
+        guests: 1,
+        bookingOptionId: 'opt-1',
+        todayIso: TODAY,
+      });
+      expect(res.ok).toBe(false);
+      if (!res.ok) expect(res.error).toMatch(/guest capacity is unavailable/i);
+    });
   });
 
   describe('tour, private flat-group pricing', () => {
