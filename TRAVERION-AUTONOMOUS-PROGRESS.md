@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `0f339c2`  
-**Current phase:** 883  
+**Current SHA:** `02d44b2`  
+**Current phase:** 884  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4627,6 +4627,12 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 **Problem:** Timezone lived in extras/quote/cancel but suppliers had no control surface.
 
 **Fix:** Listing editor (schedule details) — Departure timezone select (Helsinki default + common IANA zones); persists via `resolveDepartureTimezone`; cutoff help text references listing timezone.
+
+### Phase 884 — Pickup ops exclude cancelled #41
+
+**Browser:** Partner `/partner/pickup` — “11 bookings · 27 guests”; lists paid pickup trips. **#41 Alex Cert cancelled booking not listed** (inventory restored earlier; ops surface honest).
+
+**Certification:** pickup derives from booking truth without a second DB = **BROWSER-TESTED** for cancel exclusion.
 
 ## Known remaining risks (ranked)
 
