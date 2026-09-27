@@ -51,7 +51,7 @@
 | Payments | TEST-ONLY / STRONG | Stripe webhook → payment_status; #39 BROWSER | Never invent paid from redirect |
 | Cancellation | STRONG / BROWSER | Traveler cancel browser; supplier path code (926) | Supplier cancel browser cert later |
 | Refunds | PARTIAL / HONEST | Manual Stripe; Refund due #41; no-refund #40 | Auto-refund = FOUNDER if desired |
-| Messaging | PARTIAL→STRONG | `booking_messages`; cross-user deny #41 (885) | No fake realtime; delivery cert |
+| Messaging | PARTIAL→STRONG | RLS deny (885); no fake realtime (930) | Delivery fire optional |
 | Reviews | STRONG / UNIT | ownership + paid+confirmed+after-start (879) | Supplier response / moderation later |
 | Wishlist / Saved | STRONG / ADVERSARIAL | published-only (104/887); unpublished hidden on Saved page | Soft-delete remove UX optional |
 | Trips | PARTIAL→STRONG | fetch + error≠empty (892) | Dedicated traveler session |

@@ -4960,6 +4960,13 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 
 Until decided: keep current honest behaviors; do not fake.
 
+
+### Phase 930 — Messaging model honesty (no fake realtime)
+
+**Evidence:** `booking_messages` with RLS; traveler↔supplier contextual threads; cross-user deny (885). Delivery via notify edges + idempotency. UI polls/refetch — **not** websocket presence. Do not claim realtime.
+
+**Certification:** messaging = **PARTIAL→STRONG** / **ADVERSARIAL** (authz) + **CODE-INSPECTED** (no fake realtime).
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.
