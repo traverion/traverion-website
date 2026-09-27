@@ -21,6 +21,7 @@ import { fetchPublishedStayOccupiedRanges, fetchPublishedStayBlockedNights } fro
 import type { TourPackage } from '../types/tour';
 import { formatStayNightHuman } from '../lib/stay-calendar';
 import { isSupabaseListingId } from '../lib/discount-display';
+import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
 import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
 import { formatMoney, normalizeCurrency } from '../lib/money';
 import { recordTravelerInterest } from '../lib/traveler-interest';
@@ -136,6 +137,10 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
   > | null>(null);
   const [occupancyLoading, setOccupancyLoading] = useState(false);
   const [occupancyError, setOccupancyError] = useState<string | null>(null);
+  const [discountsByListing, setDiscountsByListing] = useState<Map<
+    string,
+    import('../data/supabase-discounts').ListingDiscount[]
+  > | null>(null);
   const [reviewAggregates, setReviewAggregates] = useState<Map<string, { rating: number; count: number }>>(
     () => new Map()
   );
@@ -278,16 +283,22 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
   useEffect(() => {
     if (!isSupabaseConfigured() || !stayIdsKey) {
       setReviewAggregates(new Map());
+      setDiscountsByListing(null);
       return;
     }
     const ids = stayIdsKey.split(',');
     let cancelled = false;
-    void getReviewAggregatesForListingIds(ids)
-      .then((reviews) => {
-        if (!cancelled) setReviewAggregates(reviews);
+    void Promise.all([getReviewAggregatesForListingIds(ids), fetchDiscountsByListingIds(ids)])
+      .then(([reviews, discounts]) => {
+        if (cancelled) return;
+        setReviewAggregates(reviews);
+        setDiscountsByListing(discounts);
       })
       .catch(() => {
-        // Keep prior map — review load failure must not invent empty ratings.
+        // Phase 1151/1166: empty map → honest list From (not endless "Checking offers…").
+        // Keep prior review map — review load failure must not invent empty ratings.
+        if (cancelled) return;
+        setDiscountsByListing(new Map());
       });
     return () => {
       cancelled = true;
@@ -855,7 +866,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
                   tour={item}
                   index={index}
                   onSelect={() => onStaySelect(item)}
-                  discountsByListing={new Map()}
+                  discountsByListing={discountsByListing}
                   reviewAggregate={reviewAggregates.get(item.id)}
                   tagLabels={{}}
                   showTagPills={false}
