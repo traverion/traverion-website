@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { normalizePhoneNumber } from '../lib/phoneNormalize';
+import { resolveSupplierId } from './supabase-supplier-team';
 
 export type SupplierProfileRow = {
   id: string;
@@ -353,13 +354,15 @@ export async function ensureSupplierProfile(
   return { success: true };
 }
 
-/** Fetch supplier profile (RLS: own row). */
+/** Fetch supplier profile (RLS: account-side after 154). */
 export async function fetchSupplierProfile(userId: string): Promise<SupplierProfileRow | null> {
   if (!supabase) return null;
+  // Phase 1202: team JWT → owner profile id (verification/payout gates).
+  const ownerSupplierId = await resolveSupplierId(userId);
   const { data, error } = await supabase
     .from('supplier_profiles')
     .select('*')
-    .eq('id', userId)
+    .eq('id', ownerSupplierId)
     .maybeSingle();
   if (error || !data) return null;
   return data as SupplierProfileRow;
