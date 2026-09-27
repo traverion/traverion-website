@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { resolveSupplierId } from './supabase-supplier-team';
 
 export type SupplierMessageCampaignRow = {
   id: string;
@@ -35,10 +36,12 @@ export async function fetchSupplierMessageCampaigns(
   supplierId: string
 ): Promise<SupplierMessageCampaignRow[]> {
   if (!supabase) return [];
+  // Phase 1197: resolve owner id so team JWTs hit owner-keyed rows after 150.
+  const ownerSupplierId = await resolveSupplierId(supplierId);
   const { data, error } = await supabase
     .from('supplier_message_campaigns')
     .select('*')
-    .eq('supplier_id', supplierId)
+    .eq('supplier_id', ownerSupplierId)
     .order('created_at', { ascending: false })
     .limit(20);
   if (error) return [];
@@ -49,10 +52,11 @@ export async function fetchSupplierExportRuns(
   supplierId: string
 ): Promise<SupplierExportRunRow[]> {
   if (!supabase) return [];
+  const ownerSupplierId = await resolveSupplierId(supplierId);
   const { data, error } = await supabase
     .from('supplier_export_runs')
     .select('*')
-    .eq('supplier_id', supplierId)
+    .eq('supplier_id', ownerSupplierId)
     .order('created_at', { ascending: false })
     .limit(20);
   if (error) return [];
@@ -69,10 +73,11 @@ export async function insertSupplierMessageCampaign(params: {
   filtersSnapshot?: Record<string, unknown>;
 }): Promise<{ success: boolean; id?: string }> {
   if (!supabase) return { success: false };
+  const ownerSupplierId = await resolveSupplierId(params.supplierId);
   const { data, error } = await supabase
     .from('supplier_message_campaigns')
     .insert({
-      supplier_id: params.supplierId,
+      supplier_id: ownerSupplierId,
       actor_id: params.actorId ?? null,
       subject: params.subject,
       scope: params.scope,
@@ -96,6 +101,7 @@ export async function updateSupplierMessageCampaignStatus(params: {
   failedCount: number;
 }): Promise<boolean> {
   if (!supabase) return false;
+  const ownerSupplierId = await resolveSupplierId(params.supplierId);
   const { error } = await supabase
     .from('supplier_message_campaigns')
     .update({
@@ -105,7 +111,7 @@ export async function updateSupplierMessageCampaignStatus(params: {
       updated_at: new Date().toISOString(),
     })
     .eq('id', params.campaignId)
-    .eq('supplier_id', params.supplierId);
+    .eq('supplier_id', ownerSupplierId);
   return !error;
 }
 
@@ -121,8 +127,9 @@ export async function insertSupplierExportRun(params: {
   filtersSnapshot?: Record<string, unknown>;
 }): Promise<boolean> {
   if (!supabase) return false;
+  const ownerSupplierId = await resolveSupplierId(params.supplierId);
   const { error } = await supabase.from('supplier_export_runs').insert({
-    supplier_id: params.supplierId,
+    supplier_id: ownerSupplierId,
     actor_id: params.actorId ?? null,
     kind: params.kind,
     format: params.format,
@@ -134,4 +141,3 @@ export async function insertSupplierExportRun(params: {
   });
   return !error;
 }
-
