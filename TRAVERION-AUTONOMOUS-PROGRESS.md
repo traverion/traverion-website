@@ -4967,6 +4967,19 @@ Until decided: keep current honest behaviors; do not fake.
 
 **Certification:** messaging = **PARTIAL→STRONG** / **ADVERSARIAL** (authz) + **CODE-INSPECTED** (no fake realtime).
 
+
+### Phase 931 — Schedule/timezone certification reaffirm
+
+**Evidence:** Purchase snapshot + listing `departureTimezone` cancel/quote path (877–883); unit suites for snapshot + slot remaining. Schedule seasons represented as option schedules with date windows (cert tour: Sep–Dec pickup + Oct–Dec meeting).
+
+**Certification:** schedule/timezone = **INTEGRATION** / **AUTOMATED-TESTED** (reaffirmed). Overlap UX = prior partner warnings.
+
+### Phase 932 — Traveler profile persistence honesty
+
+**Evidence:** `consumer_profiles` display_name + contact_phone; checkout autofill prefers these (904). Country field migration where present. No fake preference graphs.
+
+**Certification:** traveler profile = **PARTIAL** / **CODE-INSPECTED**.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.

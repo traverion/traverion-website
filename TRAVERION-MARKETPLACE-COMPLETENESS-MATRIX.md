@@ -33,11 +33,11 @@
 | Domain | Status | Source of truth | Next action |
 |--------|--------|-----------------|-------------|
 | Auth | PARTIAL | Supabase Auth | Autofill harden 904; shared session localhost remains |
-| Traveler profile | PARTIAL | `consumer_profiles` | Country only with real migration; optional phone later |
+| Traveler profile | PARTIAL | consumer_profiles + autofill (904/932) | Optional prefs later |
 | Supplier identity / onboarding | PARTIAL | `supplier_profiles` + verification | Browser-cert create→publish |
 | Tour creation | STRONG / BROWSER | listings + options/schedules; create→LIVE→book **#41** | Field-depth gaps remain; dedicated traveler next |
 | Tour options | STRONG / BROWSER | 2 options LIVE (919); select+€99 quote (921) | Optional Stripe pay second option |
-| Schedules / seasons | PARTIAL | schedule JSON + availability | Overlap/DST/timezone model |
+| Schedules / seasons | PARTIAL→STRONG | seasons + TZ stack (931); multi-option seasons (919) | Overlap UX polish |
 | Stay creation | PARTIAL→STRONG | publish gates 102; book #40 (875); depth inventory 913 | Amenities polish later |
 | Rentals | NOT REQUIRED YET / HONEST | Partner “Not available to list yet” (879) | Keep honest until domain model defined |
 | Packages/experiences families | MISSING / reserved | inventory families | Do not imply live catalogs |
