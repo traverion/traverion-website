@@ -34,7 +34,7 @@ import { setPageMetaWithOg, setTourJsonLd, clearTourJsonLd } from '../lib/seo';
 import { Skeleton } from '../components/ui/Skeleton';
 import { dateNotInPast } from '../lib/validation';
 import { checkAvailability, fetchAvailabilityByListingId, fetchPublishedTourPaidGuests, fetchPublishedTourPaidGuestsBySlot, tourPaidSlotKey } from '../data/supabase-availability';
-import { optionRunsOnDate, formatOptionWeekdays, experienceTodayIsoForListing } from '../lib/booking-quote';
+import { optionRunsOnDate, formatOptionWeekdays, experienceTodayIsoForListing, listingHasUpcomingBookableSeason } from '../lib/booking-quote';
 import { isListingVisibleToTravelers, listingDetailVisibleToTraveler } from '../lib/product-workflows';
 import { listingIsOnTravelerCatalog } from '../lib/inventory';
 import { listingShowsFreeCancellation, publicReviewLabel } from '../lib/listingTruth';
@@ -634,7 +634,9 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
             !listingDetailVisibleToTraveler({
               familyMatches: listingIsOnTravelerCatalog(found),
               status: found.status,
-            })
+            }) ||
+            // Phase 1266: season-ended tours are not a live PDP (catalog 1260 parity).
+            !listingHasUpcomingBookableSeason(found)
           ) {
             setTour(null);
             if (found) setTourLoadError(USER_ERROR.tourMissing);
@@ -657,7 +659,8 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       listingDetailVisibleToTraveler({
         familyMatches: listingIsOnTravelerCatalog(local),
         status: local.status,
-      })
+      }) &&
+      listingHasUpcomingBookableSeason(local)
     ) {
       setTour(local);
     } else {
@@ -1153,7 +1156,8 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
   if (
     !tour ||
-    !listingDetailVisibleToTraveler({ familyMatches: listingIsOnTravelerCatalog(tour), status: tour.status })
+    !listingDetailVisibleToTraveler({ familyMatches: listingIsOnTravelerCatalog(tour), status: tour.status }) ||
+    !listingHasUpcomingBookableSeason(tour)
   ) {
     const isLoading = isSupabaseConfigured() && !tourLoadError && !tour;
     if (isLoading) {
