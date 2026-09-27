@@ -1667,11 +1667,25 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                               }
                               void handleContinueToCheckout();
                             }}
-                            disabled={
-                              variantChecking ||
-                              capacityUnknown ||
-                              (panelQuote != null && !panelQuote.ok)
-                            }
+                            disabled={(() => {
+                              const partyForCap =
+                                usesAgePricing && selectedOptionApplied
+                                  ? Math.max(
+                                      1,
+                                      totalGuestsFromMix(
+                                        buildParticipantMixLines(selectedOptionApplied, participantMix)
+                                      )
+                                    )
+                                  : Math.max(1, guests);
+                              // Phase 1187: match sticky CTA sold-out / party-cap disable (1182 handler parity).
+                              return (
+                                variantChecking ||
+                                capacityUnknown ||
+                                allDeparturesSoldOut ||
+                                (panelQuote != null && !panelQuote.ok) ||
+                                (selectedDaySpotsLeft != null && selectedDaySpotsLeft < partyForCap)
+                              );
+                            })()}
                             aria-describedby={
                               bookingCardError || dayCapacityError || capacityUnknown
                                 ? 'tour-booking-card-error'
