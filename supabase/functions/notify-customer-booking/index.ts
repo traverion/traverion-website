@@ -486,6 +486,9 @@ serve(async (req) => {
         : undefined;
     // Phase 1129: prefer DB payment_status over caller unpaidCheckout flag.
     let unpaidCheckoutFromDb: boolean | null = null;
+    // Phase 1132: receipt PDF metadata from bookings row, not caller body.
+    let paidAtIsoFromDb: string | undefined;
+    let paymentIntentIdFromDb: string | undefined;
 
     // Phase 562/578/1052: recipient + static content re-derived from booking.
     // Phase 1092: anonymous callers never reach this path for booking-tied kinds.
@@ -494,13 +497,19 @@ serve(async (req) => {
       const { data: bookingRow } = await admin
         .from('bookings')
         .select(
-          'payment_status, guest_email, amount_paid, total_amount, currency, guest_name, booking_date, check_out, guests, booking_number, purchase_snapshot, listing_id'
+          'payment_status, guest_email, amount_paid, total_amount, currency, guest_name, booking_date, check_out, guests, booking_number, purchase_snapshot, listing_id, paid_at, payment_intent_id'
         )
         .eq('id', bookingId)
         .maybeSingle();
 
       if (bookingRow) {
         unpaidCheckoutFromDb = notifyUnpaidCheckoutFromPaymentStatus(bookingRow.payment_status);
+        if (typeof bookingRow.paid_at === 'string' && bookingRow.paid_at.trim()) {
+          paidAtIsoFromDb = bookingRow.paid_at.trim();
+        }
+        if (typeof bookingRow.payment_intent_id === 'string' && bookingRow.payment_intent_id.trim()) {
+          paymentIntentIdFromDb = bookingRow.payment_intent_id.trim();
+        }
       }
       const resolved = resolveBookingTiedRecipient({
         kind,
@@ -828,8 +837,8 @@ serve(async (req) => {
           guests: typeof guests === 'number' ? guests : undefined,
           amountPaid: amount,
           currency,
-          paidAtIso: body.paidAtIso,
-          paymentIntentId: body.paymentIntentId,
+          paidAtIso: paidAtIsoFromDb,
+          paymentIntentId: paymentIntentIdFromDb,
         });
         attachments.push({
           filename: `Traverion-receipt-${refDigits}.pdf`,
