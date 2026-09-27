@@ -5080,6 +5080,17 @@ Until decided: keep current honest behaviors; do not fake.
 
 Closing systems/cert band before final report assembly (951–1000). Stripe remains **TEST**.
 
+
+### Phase 951–999 — Phase 1000 report assembly
+
+Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matrix freeze, certification labels, FOUNDER ledger, migrations 100–106, browser journeys, remaining P1s. No empty phase inflation — report is the deliverable.
+
+### Phase 1000 — Marketplace completeness mission report
+
+**Deliverable:** `TRAVERION-PHASE-1000.md`  
+**Stripe:** TEST only.  
+**Verdict:** Coherent smaller marketplace; claimed workflows end-to-end; no fake verticals.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.
