@@ -197,6 +197,36 @@ export function listingHasBookableDepartureOnDate(
   return bookable.length > 0;
 }
 
+/**
+ * Phase 1260: catalog without a date filter must still hide tours whose every
+ * ready season has already ended (publish 1258/1259 parity).
+ */
+export function listingHasUpcomingBookableSeason(
+  tour: QuoteTourSlice,
+  todayIso?: string,
+  nowMs?: number
+): boolean {
+  const extras = parseListingExtras(tour.listingExtras);
+  const today =
+    todayIso ?? experienceTodayIsoForListing(extras.departureTimezone, nowMs);
+  if (!ISO_DATE.test(today)) return true;
+  const opts = materializedBookingOptions(extras.bookingOptions);
+  if (opts.length === 0) return true;
+  for (const o of opts) {
+    if (Array.isArray(o.schedules) && o.schedules.length > 0) {
+      for (const s of o.schedules) {
+        if (s.status === 'draft') continue;
+        const to = (s.availabilityDateTo ?? '').trim();
+        if (!to || to >= today) return true;
+      }
+    } else {
+      const to = (o.availabilityDateTo ?? '').trim();
+      if (!to || to >= today) return true;
+    }
+  }
+  return false;
+}
+
 function money(n: number): number {
   return Math.round(n * 100) / 100;
 }

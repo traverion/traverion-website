@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clientAmountConflictsWithQuote, formatOptionWeekdays, listingHasBookableDepartureOnDate, listingRunsOnDate, quoteBooking, quoteStayNights, stayQuotePriceLines, tourBookableSellingDeparturesOnDate, tourQuotePriceLines, weekdayIndexMondayFirst } from './booking-quote';
+import { clientAmountConflictsWithQuote, formatOptionWeekdays, listingHasBookableDepartureOnDate, listingHasUpcomingBookableSeason, listingRunsOnDate, quoteBooking, quoteStayNights, stayQuotePriceLines, tourBookableSellingDeparturesOnDate, tourQuotePriceLines, weekdayIndexMondayFirst } from './booking-quote';
 import { tourDateLacksCapacityForParty } from './tour-calendar';
 import type { TourPackage } from '../types/tour';
 import type { ListingBookingOption } from '../types/listingExtras';
@@ -455,6 +455,68 @@ describe('listingHasBookableDepartureOnDate (Phase 1057 browse cutoff)', () => {
         }),
         '2026-09-11',
         nowMs
+      )
+    ).toBe(true);
+  });
+});
+
+describe('listingHasUpcomingBookableSeason (Phase 1260)', () => {
+  it('hides tours whose every ready schedule season has already ended', () => {
+    expect(
+      listingHasUpcomingBookableSeason(
+        tour({
+          listingExtras: {
+            departureTimezone: 'Europe/Helsinki',
+            bookingOptions: [
+              option({
+                id: 'ended',
+                name: 'Ended',
+                priceUsd: 99,
+                startTime: '20:00',
+                weekdays: [true, true, true, true, true, true, true],
+                schedules: [
+                  {
+                    id: 'sch-1',
+                    name: 'Past',
+                    availabilityDateFrom: '2020-01-01',
+                    availabilityDateTo: '2020-12-31',
+                    weekdays: [true, true, true, true, true, true, true],
+                    startTime: '20:00',
+                    priceUsd: 99,
+                    minPersons: 1,
+                    maxPersons: 8,
+                    maxSpotsPerSlot: 8,
+                    status: 'ready',
+                  },
+                ],
+              }),
+            ],
+          },
+        }),
+        '2026-09-11'
+      )
+    ).toBe(false);
+  });
+
+  it('keeps tours with an open-ended or future season', () => {
+    expect(
+      listingHasUpcomingBookableSeason(
+        tour({
+          listingExtras: {
+            bookingOptions: [
+              option({
+                id: 'open',
+                name: 'Open',
+                priceUsd: 99,
+                startTime: '20:00',
+                weekdays: [true, true, true, true, true, true, true],
+                availabilityDateFrom: '2026-01-01',
+                availabilityDateTo: '',
+              }),
+            ],
+          },
+        }),
+        '2026-09-11'
       )
     ).toBe(true);
   });

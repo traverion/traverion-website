@@ -13,7 +13,7 @@ import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
 import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
 import { isSupabaseListingId } from '../lib/discount-display';
 import { setListingsJsonLd } from '../lib/seo';
-import { listingHasBookableDepartureOnDate, tourBookableSellingDeparturesOnDate } from '../lib/booking-quote';
+import { listingHasBookableDepartureOnDate, listingHasUpcomingBookableSeason, tourBookableSellingDeparturesOnDate } from '../lib/booking-quote';
 import { getPartySizeBoundsKnown } from '../lib/booking-flow';
 import { tourDateLacksCapacityForParty } from '../lib/tour-calendar';
 import { listingTourCapacityFromOptions, capacitySpotsFromBookingOptions } from '../lib/availability-ops';
@@ -481,7 +481,9 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
         language: languageFilter,
         ratingScore: ratingScoreForFilter(tour),
         partyMax: getPartySizeBoundsKnown(tour)?.max ?? null,
-        runsOnDate: !filterDate || listingHasBookableDepartureOnDate(tour, filterDate),
+        runsOnDate: filterDate
+          ? listingHasBookableDepartureOnDate(tour, filterDate)
+          : listingHasUpcomingBookableSeason(tour),
       });
 
     const exceptCapacity = allListings.filter(matchExceptCapacity);
