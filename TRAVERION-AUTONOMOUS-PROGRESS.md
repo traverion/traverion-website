@@ -3,13 +3,13 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness** (continuing 1001+)  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `b7f16fb`  
-**Current phase:** 1038  
+**Current SHA:** `8eafbc7`  
+**Current phase:** 1039  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Local-only (gitignored):** `scripts/cert-transactional-emails.cjs` — must stay untracked; contains service-role secrets when present locally  
-**Remote migration truth (Phase 1036):** Local=Remote through **120** on `xcopqllkulxfkpunetbc`. Stripe: TEST only.  
+**Remote migration truth (Phase 1039):** Local=Remote through **121** on `xcopqllkulxfkpunetbc`. Stripe: TEST only.  
 
 ## Milestone Phase 513 (inventory band)
 
@@ -5387,7 +5387,15 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 
 **Fix:** `docs/ADMIN_SUPPORT_READINESS.md` cites review write/SELECT gates 117–120 and remote through 120. Vitest honesty band (truth/remaining/consent/snapshot/review/sitemap/scroll) **33/33**.
 
-**Certification:** CODE-INSPECTED + AUTOMATED-TESTED (33/33).
+**Certification:** CODE-INSPECTED + AUTOMATED-TESTED (33/33). Ending SHA `8eafbc7`.
+
+### Phase 1039 — Freeze consumer welcome_email_sent_at once stamped
+
+**Gap:** Consumers could UPDATE `welcome_email_sent_at` to null and re-trigger traveler_welcome spam, or rewrite the stamp.
+
+**Fix:** Migration `121_consumer_welcome_email_sent_at_freeze.sql` — once non-null, only service_role/admin may change it; null→stamp still allowed for legitimate client dedupe.
+
+**Certification:** ADVERSARIAL-TESTED (SQL harness authored) + remote applied. Scratch Postgres re-run = host-blocked.
 
 ## Known remaining risks (ranked)
 
