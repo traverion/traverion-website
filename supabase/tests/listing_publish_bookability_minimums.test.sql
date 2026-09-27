@@ -221,5 +221,11 @@ begin
   ) into v_ok;
   if v_ok then raise exception 'helper flat option without startTime must fail'; end if;
 
+  -- Phase 1257: age-dependent category price counts as bookable.
+  select public.listing_has_bookable_tour_surface(
+    '{"bookingOptions":[{"pickupPlace":"Hotel pickup area","priceUsd":0,"pricingMode":"age_dependent","priceCategories":[{"kind":"adult","priceUsd":99,"notPermitted":false}],"minPersons":1,"maxPersons":8,"maxSpotsPerSlot":8,"startTime":"20:00","weekdays":[true,true,true,true,true,true,true]}]}'::jsonb, 0
+  ) into v_ok;
+  if not v_ok then raise exception 'helper age-dependent flat option should be bookable'; end if;
+
   raise notice 'ALL ASSERTIONS PASSED';
 end $$;
