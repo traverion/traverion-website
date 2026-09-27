@@ -97,6 +97,8 @@
 | 12 | P2 | Sitemap stale after publish | **CLOSED** build-time regen 1002 |
 | 13 | P0-family | Ops notes / events / messages / campaigns cross-supplier plant | **CLOSED** 108–111 (1017–1020) |
 | 14 | P1 | Wishlist rows survive unpublish | **CLOSED** prune trigger 112 (1021) |
+| 15 | P1 | Draft discounts/availability world-readable | **CLOSED** 114–115 (1024–1025) |
+| 16 | P1 | Unverified / unpaid review spam via API | **CLOSED** 117–118 (1029–1030) |
 
 ---
 

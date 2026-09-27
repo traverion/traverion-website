@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness** (continuing 1001+)  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `3c51335`  
-**Current phase:** 1030  
+**Current SHA:** `974f1c8`  
+**Current phase:** 1031  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -5325,7 +5325,17 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 
 **Fix:** Migration `118_reviews_require_paid_booking.sql`. Matrix Reviews cell + continuum through **118**. Focused vitest review-eligibility/purchase-snapshot/scroll **17/17**.
 
-**Certification:** ADVERSARIAL-TESTED (SQL harness authored) + remote applied + AUTOMATED-TESTED (17/17). Scratch Postgres re-run = host-blocked.
+**Certification:** ADVERSARIAL-TESTED (SQL harness authored) + remote applied + AUTOMATED-TESTED (17/17). Scratch Postgres re-run = host-blocked. Ending SHA `974f1c8`.
+
+### Phase 1031 — Security band checkpoint (1017–1030)
+
+**Band shipped:** ops notes/events/messages/campaigns ownership (108–111); wishlist+cart prune (112–113); discounts+availability published-or-owner SELECT (114–115); actor_id authenticity (116); reviews require paid booking (117–118); submitBooking footgun removed; GAP_ANALYSIS cart/payments truth.
+
+**Evidence:** Remote Local=Remote through **118**. Vitest notify+review+purchase suites **60/60**. FOUNDER still open (auto-refund, take-rate, dedicated traveler).
+
+**Next toward 1050:** notify-* caller-auth (careful — client+webhook+cron callers); optional after-start SQL for reviews; admin host browser cert (session-gated).
+
+**Certification:** CODE-INSPECTED + AUTOMATED-TESTED (60/60).
 
 ## Known remaining risks (ranked)
 
