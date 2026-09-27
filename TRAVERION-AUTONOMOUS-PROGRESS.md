@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `9a435a2`  
-**Current phase:** 868  
+**Current SHA:** `9c65220`  
+**Current phase:** 869  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -278,8 +278,8 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 865 | Stripe TEST pay E2E + checkout returnOrigin allowlist | `e8c5e0a` |
 | 866 | Browser Stripe TEST stay pay + returnOrigin verified | `66ce29f` |
 | 867 | Create→publish draft Story+Details filled | `ff5a372` |
-| 868 | Create→publish option+schedule READY | `9a435a2` |
-
+| 868 | Create→publish option+schedule READY | `ceb5401` |
+| 869 | Create→publish photos + Publish LIVE | `9c65220` |\n
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -4462,6 +4462,17 @@ Also removed unused businessComplete local in Listings after 861 gate fix.
 - Finish option → Options list READY · Continue → Photos
 
 **Still open:** 4 photos minimum, Review → Publish, then traveler book of this new inventory.
+
+### Phase 869 — Create→publish: photos + Publish LIVE
+
+**Browser:** Cert draft `1807368c-ae24-4ccd-ba63-2aa72413c2f6`.
+
+- Photos: 8 JPEG uploads via file-input change (canvas blobs) → storage public URLs
+- Review blocker fixed: second inclusion (“Thermal outerwear and hot drinks”)
+- **Publish** succeeded — listings list shows **Live · TOUR · Phase 864 Cert Northern Lights Small Group · From €119**
+- Traveler PDP route opens (`/packages?tour=1807368c-…`)
+
+**Certification:** supplier create (Basics→Details→Options+schedule→Photos→Publish) = **BROWSER-TESTED**. Traveler book of *this* inventory still next (870+).
 
 ## Known remaining risks (ranked)
 
