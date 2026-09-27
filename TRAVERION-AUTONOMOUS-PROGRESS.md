@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `f44e173`  
-**Current phase:** 887  
+**Current SHA:** `b48ddda`  
+**Current phase:** 888  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4659,6 +4659,12 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 **Fix (migration 104, pushed):** insert WITH CHECK requires listing `status=published`; prune non-published wishlist rows.
 
 **Verify:** draft insert → RLS error; published insert OK; Jonas still cannot see Anna rows.
+
+### Phase 888 — Partner Analytics honesty
+
+**Browser:** Analytics — “Paid traveler bookings only — same collected definition as Income. Not estimates, site traffic, or unpaid checkouts.” Metrics: 12 paid / 29 guests / €3,243.15 (matches Income collected). No trending/popularity theater.
+
+**Certification:** analytics truth = **BROWSER-TESTED**.
 
 ## Known remaining risks (ranked)
 

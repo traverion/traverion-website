@@ -60,7 +60,7 @@
 | Income / earnings | STRONG / BROWSER | `supplier_ledger_entries`; #40 keep / #41 reverse | Commission snapshot before LIVE |
 | Commission / take-rate | MISSING / unclear | No single snapshotted platform fee model | Define before LIVE |
 | Payouts | NOT REQUIRED YET / MANUAL | `admin_record_supplier_payout` | No fake auto-payouts |
-| Analytics | PARTIAL | real aggregates only | No fake popularity |
+| Analytics | STRONG / BROWSER | paid-only aggregates (888) | Views/impressions not claimed |
 | Emails / notifications | PARTIAL | Edge + `transactional_email_log` | Idempotency + delivery cert |
 | Timezones | STRONG / INTEGRATION | extras + snapshot + cancel + partner UI (883) | Stay-specific TZ polish |
 | Currency | PARTIAL | per-listing currencies, no FX | Keep coherent; no fake multi-FX |
