@@ -366,7 +366,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
       })
       .catch((e) => {
         if (cancelled) return;
-        setDateCapacityByListing(null);
+        // Phase 1104: keep prior capacity map — null would make every tour look open.
         setDateCapacityError(
           userFacingError(e, 'We could not check tour capacity for that date. Check your connection and try again.')
         );
