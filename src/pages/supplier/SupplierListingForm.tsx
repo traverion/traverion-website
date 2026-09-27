@@ -15,7 +15,7 @@ import {
 import ListingImageFields from '../../components/supplier/ListingImageFields';
 import { useAuth } from '../../contexts/AuthContext';
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
-import { scheduleSpotsBelowSoldWarning, scheduleDepartureTimeMoveWarning } from '../../lib/capacity-reduction-warn';
+import { scheduleSpotsBelowSoldWarning, scheduleDepartureTimeMoveBlockReason } from '../../lib/capacity-reduction-warn';
 import {
   occupyingGuestsForBookingOption,
   occupyingGuestsForOptionDeparture,
@@ -2179,6 +2179,24 @@ export default function SupplierListingForm({
         setScheduleSaveError(listingOccupancyLoadError);
         return;
       }
+      const previousStart = scheduleOpenedStartTimeRef.current;
+      const occupyingPrevious = occupyingGuestsForOptionDeparture({
+        bookings: listingOccupancyBookings,
+        listingId: editingId,
+        optionId: optionModalDraft.id,
+        startTimeHm: previousStart,
+      });
+      // Phase 1100: sold seats stay on the purchased wall-clock — refuse startTime
+      // moves that would open a second full-capacity marketing departure.
+      const moveBlocked = scheduleDepartureTimeMoveBlockReason({
+        previousStartTimeHm: previousStart,
+        nextStartTimeHm: ready.startTime,
+        occupyingGuestsOnPrevious: occupyingPrevious,
+      });
+      if (moveBlocked) {
+        setScheduleSaveError(moveBlocked);
+        return;
+      }
       const occupying = occupyingGuestsForOptionDeparture({
         bookings: listingOccupancyBookings,
         listingId: editingId,
@@ -2190,23 +2208,10 @@ export default function SupplierListingForm({
         occupyingGuests: occupying,
         startTimeHm: ready.startTime,
       });
-      const previousStart = scheduleOpenedStartTimeRef.current;
-      const occupyingPrevious = occupyingGuestsForOptionDeparture({
-        bookings: listingOccupancyBookings,
-        listingId: editingId,
-        optionId: optionModalDraft.id,
-        startTimeHm: previousStart,
-      });
-      const moved = scheduleDepartureTimeMoveWarning({
-        previousStartTimeHm: previousStart,
-        nextStartTimeHm: ready.startTime,
-        occupyingGuestsOnPrevious: occupyingPrevious,
-      });
-      const confirmParts = [moved, underSold].filter(Boolean) as string[];
       if (
-        confirmParts.length > 0 &&
+        underSold &&
         typeof window !== 'undefined' &&
-        !window.confirm(`${confirmParts.join('\n\n')}\n\nSave this schedule anyway?`)
+        !window.confirm(`${underSold}\n\nSave this schedule anyway?`)
       ) {
         return;
       }

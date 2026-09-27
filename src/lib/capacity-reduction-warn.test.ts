@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
 import {
   capacityBelowSoldWarning,
+  scheduleDepartureTimeMoveBlockReason,
   scheduleDepartureTimeMoveWarning,
   scheduleSpotsBelowSoldWarning,
 } from './capacity-reduction-warn';
@@ -27,9 +27,9 @@ describe('scheduleSpotsBelowSoldWarning', () => {
   });
 });
 
-describe('scheduleDepartureTimeMoveWarning', () => {
-  it('warns when sold guests remain on the previous departure (Phase 1077)', () => {
-    const msg = scheduleDepartureTimeMoveWarning({
+describe('scheduleDepartureTimeMoveBlockReason (Phase 1100)', () => {
+  it('blocks when sold guests remain on the previous departure', () => {
+    const msg = scheduleDepartureTimeMoveBlockReason({
       previousStartTimeHm: '08:00',
       nextStartTimeHm: '09:30',
       occupyingGuestsOnPrevious: 4,
@@ -37,23 +37,34 @@ describe('scheduleDepartureTimeMoveWarning', () => {
     expect(msg).toMatch(/08:00/);
     expect(msg).toMatch(/09:30/);
     expect(msg).toMatch(/4 guests/);
-    expect(msg).toMatch(/will not move/);
+    expect(msg).toMatch(/cannot be changed/);
+    expect(msg).toMatch(/separate schedule/);
   });
 
   it('is silent when time unchanged or no occupancy', () => {
     expect(
-      scheduleDepartureTimeMoveWarning({
+      scheduleDepartureTimeMoveBlockReason({
         previousStartTimeHm: '08:00',
         nextStartTimeHm: '08:00',
         occupyingGuestsOnPrevious: 4,
       })
     ).toBeNull();
     expect(
-      scheduleDepartureTimeMoveWarning({
+      scheduleDepartureTimeMoveBlockReason({
         previousStartTimeHm: '08:00',
         nextStartTimeHm: '09:00',
         occupyingGuestsOnPrevious: 0,
       })
     ).toBeNull();
+  });
+
+  it('legacy warning helper delegates to the hard block (Phase 1077 → 1100)', () => {
+    expect(
+      scheduleDepartureTimeMoveWarning({
+        previousStartTimeHm: '08:00',
+        nextStartTimeHm: '09:30',
+        occupyingGuestsOnPrevious: 2,
+      })
+    ).toMatch(/cannot be changed/);
   });
 });
