@@ -683,7 +683,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         setReviewReplies({});
         setReviewsLoadError(userFacingError(e, USER_ERROR.reviews));
       });
-    getReviewAggregateForListing(tourId).then(setReviewAggregate);
+    void getReviewAggregateForListing(tourId)
+      .then(setReviewAggregate)
+      .catch(() => {
+        /* keep prior — failure ≠ zero reviews */
+      });
   }, [tourId]);
 
   useEffect(() => {

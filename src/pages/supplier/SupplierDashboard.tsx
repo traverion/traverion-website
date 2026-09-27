@@ -248,8 +248,8 @@ export default function SupplierDashboard() {
           setRatingCount(0);
         }
       } catch {
-        setRatingAvg(null);
-        setRatingCount(0);
+        // Phase 1097: aggregate load failure ≠ invent a clean partner rating.
+        noteFailure('review_aggregates');
       }
     } else {
       setRatingAvg(null);

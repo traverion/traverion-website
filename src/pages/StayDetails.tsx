@@ -172,9 +172,13 @@ export default function StayDetails({ stayId, onBack }: Props) {
         setReviewReplies({});
         setReviewsLoadError(userFacingError(e, USER_ERROR.reviews));
       });
-    void getReviewAggregateForListing(stayId).then((agg) => {
-      if (!cancelled) setReviewAggregate(agg);
-    });
+    void getReviewAggregateForListing(stayId)
+      .then((agg) => {
+        if (!cancelled) setReviewAggregate(agg);
+      })
+      .catch(() => {
+        /* keep prior aggregate — failure ≠ zero reviews */
+      });
     return () => {
       cancelled = true;
     };
@@ -194,7 +198,11 @@ export default function StayDetails({ stayId, onBack }: Props) {
         setReviewReplies({});
         setReviewsLoadError(userFacingError(e, USER_ERROR.reviews));
       });
-    void getReviewAggregateForListing(stayId).then(setReviewAggregate);
+    void getReviewAggregateForListing(stayId)
+      .then(setReviewAggregate)
+      .catch(() => {
+        /* keep prior — failure ≠ zero reviews */
+      });
   }, [stayId]);
 
   useEffect(() => {

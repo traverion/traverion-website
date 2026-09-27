@@ -54,7 +54,9 @@ export async function getReviewAggregateForListing(listingId: string): Promise<{
     .from('reviews')
     .select('rating')
     .eq('listing_id', listingId);
-  if (error || !data?.length) return { rating: 0, count: 0 };
+  // Phase 1097: query failure ≠ zero reviews.
+  if (error) throw new Error(error.message);
+  if (!data?.length) return { rating: 0, count: 0 };
   const { avg, count } = aggregateReviewRatings(data.map((r: { rating: number }) => r.rating));
   return { rating: avg, count };
 }
@@ -70,7 +72,8 @@ export async function getReviewAggregatesForListingIds(
   for (let i = 0; i < unique.length; i += chunkSize) {
     const chunk = unique.slice(i, i + chunkSize);
     const { data, error } = await supabase.from('reviews').select('listing_id, rating').in('listing_id', chunk);
-    if (error) continue;
+    // Phase 1097: chunk failure must not silently omit ratings (looks like “no reviews”).
+    if (error) throw new Error(error.message);
     const buckets = new Map<string, number[]>();
     for (const row of data ?? []) {
       const lid = String((row as { listing_id: string }).listing_id);
@@ -79,9 +82,14 @@ export async function getReviewAggregatesForListingIds(
       if (!buckets.has(lid)) buckets.set(lid, []);
       buckets.get(lid)!.push(r);
     }
-    for (const [lid, ratings] of buckets) {
-      const { avg, count } = aggregateReviewRatings(ratings);
-      out.set(lid, { rating: avg, count });
+    for (const lid of chunk) {
+      const ratings = buckets.get(lid);
+      if (ratings?.length) {
+        const { avg, count } = aggregateReviewRatings(ratings);
+        out.set(lid, { rating: avg, count });
+      } else {
+        out.set(lid, { rating: 0, count: 0 });
+      }
     }
   }
   return out;

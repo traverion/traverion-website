@@ -282,9 +282,13 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
     }
     const ids = stayIdsKey.split(',');
     let cancelled = false;
-    void getReviewAggregatesForListingIds(ids).then((reviews) => {
-      if (!cancelled) setReviewAggregates(reviews);
-    });
+    void getReviewAggregatesForListingIds(ids)
+      .then((reviews) => {
+        if (!cancelled) setReviewAggregates(reviews);
+      })
+      .catch(() => {
+        // Keep prior map — review load failure must not invent empty ratings.
+      });
     return () => {
       cancelled = true;
     };
