@@ -849,7 +849,7 @@ export default function BookingPage({
   const handleSelectAvailabilityOption = (option: AvailabilityCheckOption) => {
     if (!option.selectable) return;
     closeAvailabilityModal();
-    proceedToContactAfterOption();
+    void proceedToContactAfterOption();
   };
 
   const handleContinueFromContact = () => {

@@ -264,6 +264,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
                 index={index}
                 onSelect={() => onTourSelect(tour)}
                 discountsByListing={discountsByListing}
+                reviewAggregate={reviewAggregates.get(tour.id)}
                 tagLabels={{}}
                 size="compact"
                 wishlist={{
