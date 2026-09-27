@@ -1,10 +1,15 @@
 /**
- * Scheduled job: same daily send for upcoming reminders + post-trip review requests.
- * Timing is calendar-based (day before / day after booking_date), not exact departure clocks.
- * Email copy says “coming up soon” / review ask — not “24 hours”.
+ * Scheduled job: experience-local calendar reminders + post-trip review requests.
  *
- * Title / meeting / start instructions come from purchase_snapshot via
- * notify-customer-booking (Phase 1052 + 1060) — this job must not pass live listing copy.
+ * Phase 1073: do NOT use UTC calendar days. Per booking:
+ *   TZ = purchase_snapshot.departureTimezone (else Europe/Helsinki)
+ *   Reminder: local day before tour departure / stay check-in (booking_date)
+ *   Review:   local day after tour departure, or after stay CHECK-OUT
+ *             (never after check-in alone)
+ *
+ * Title / logistics come from purchase_snapshot via notify-customer-booking.
+ * Idempotency: reminder_email_sent_at / review_request_email_sent_at columns
+ * plus notify idempotencyKey — cron retries cannot double-send.
  *
  * Invoke with cron / GitHub Action:
  * Secrets: RESEND_API_KEY (via notify-customer-booking), SUPABASE_SERVICE_ROLE_KEY,
@@ -12,16 +17,17 @@
  */
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
+import {
+  lifecycleCandidateUtcWindow,
+  shouldSendExperienceReminder,
+  shouldSendReviewRequest,
+} from '../_shared/booking-lifecycle-calendar.ts';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
   });
-}
-
-function ymd(d: Date): string {
-  return d.toISOString().slice(0, 10);
 }
 
 function snapshotStartHm(snapshot: unknown): string | null {
@@ -53,30 +59,33 @@ serve(async (req) => {
   };
 
   const now = new Date();
-  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-  const tomorrowYmd = ymd(tomorrow);
-  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-  const yesterdayYmd = ymd(yesterday);
+  const nowMs = now.getTime();
+  const { fromYmd, toYmd } = lifecycleCandidateUtcWindow(nowMs);
 
   let remindersSent = 0;
   let reviewsSent = 0;
+  let reminderCandidates = 0;
+  let reviewCandidates = 0;
   const errors: string[] = [];
 
-  // ~24h reminders: paid/confirmed tours starting tomorrow
+  // Wide UTC window, then filter per booking experience-local calendar.
   const { data: reminderRows, error: remErr } = await admin
     .from('bookings')
     .select(
-      'id, guest_email, guest_name, booking_date, guests, booking_number, listing_id, pickup_time, start_time, purchase_snapshot, reminder_email_sent_at, status, payment_status'
+      'id, guest_email, guest_name, booking_date, check_out, guests, booking_number, listing_id, pickup_time, start_time, purchase_snapshot, reminder_email_sent_at, status, payment_status'
     )
-    .eq('booking_date', tomorrowYmd)
     .eq('status', 'confirmed')
     .eq('payment_status', 'paid')
     .is('reminder_email_sent_at', null)
-    .limit(200);
+    .gte('booking_date', fromYmd)
+    .lte('booking_date', toYmd)
+    .limit(500);
 
   if (remErr) return json({ error: remErr.message }, 500);
 
   for (const row of reminderRows ?? []) {
+    if (!shouldSendExperienceReminder(row, nowMs)) continue;
+    reminderCandidates += 1;
     const email = (row.guest_email ?? '').trim().toLowerCase();
     if (!email) continue;
     const diffs: { label: string; before: string; after: string }[] = [];
@@ -110,6 +119,13 @@ serve(async (req) => {
           .eq('id', row.id)
           .is('reminder_email_sent_at', null);
         remindersSent += 1;
+      } else if (res.ok && body?.skipped) {
+        // Notify idempotency already claimed — still stamp so we do not retry forever.
+        await admin
+          .from('bookings')
+          .update({ reminder_email_sent_at: now.toISOString() })
+          .eq('id', row.id)
+          .is('reminder_email_sent_at', null);
       } else {
         errors.push(`reminder ${row.id}: ${body?.error ?? res.status}`);
       }
@@ -118,33 +134,62 @@ serve(async (req) => {
     }
   }
 
-  // Review requests: paid bookings whose date was yesterday (genuinely completed day)
-  const { data: reviewRows, error: revErr } = await admin
+  // Reviews: tour completion ≈ booking_date; stay completion = check_out.
+  // Fetch by booking_date window OR check_out window, then filter locally.
+  const { data: reviewByDeparture, error: revErr1 } = await admin
     .from('bookings')
     .select(
-      'id, guest_email, guest_name, booking_date, booking_number, listing_id, review_request_email_sent_at, status, payment_status'
+      'id, guest_email, guest_name, booking_date, check_out, booking_number, listing_id, purchase_snapshot, review_request_email_sent_at, status, payment_status'
     )
-    .eq('booking_date', yesterdayYmd)
     .eq('status', 'confirmed')
     .eq('payment_status', 'paid')
     .is('review_request_email_sent_at', null)
-    .limit(200);
+    .gte('booking_date', fromYmd)
+    .lte('booking_date', toYmd)
+    .limit(500);
 
-  if (revErr) return json({ error: revErr.message }, 500);
+  if (revErr1) return json({ error: revErr1.message }, 500);
 
-  for (const row of reviewRows ?? []) {
-    const email = (row.guest_email ?? '').trim().toLowerCase();
+  const { data: reviewByCheckout, error: revErr2 } = await admin
+    .from('bookings')
+    .select(
+      'id, guest_email, guest_name, booking_date, check_out, booking_number, listing_id, purchase_snapshot, review_request_email_sent_at, status, payment_status'
+    )
+    .eq('status', 'confirmed')
+    .eq('payment_status', 'paid')
+    .is('review_request_email_sent_at', null)
+    .not('check_out', 'is', null)
+    .gte('check_out', fromYmd)
+    .lte('check_out', toYmd)
+    .limit(500);
+
+  if (revErr2) return json({ error: revErr2.message }, 500);
+
+  const reviewById = new Map<string, Record<string, unknown>>();
+  for (const row of [...(reviewByDeparture ?? []), ...(reviewByCheckout ?? [])]) {
+    if (row && typeof row === 'object' && typeof (row as { id?: unknown }).id === 'string') {
+      reviewById.set((row as { id: string }).id, row as Record<string, unknown>);
+    }
+  }
+
+  for (const row of reviewById.values()) {
+    if (!shouldSendReviewRequest(row as Parameters<typeof shouldSendReviewRequest>[0], nowMs)) continue;
+    reviewCandidates += 1;
+    const email = String(row.guest_email ?? '')
+      .trim()
+      .toLowerCase();
     if (!email) continue;
+    const bookingId = String(row.id ?? '');
     try {
       const res = await fetch(`${supabaseUrl}/functions/v1/notify-customer-booking`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
           customerEmail: email,
-          bookingId: row.id,
+          bookingId,
           emailKind: 'review_request',
           publicSiteUrl: publicSite,
-          idempotencyKey: `customer:review_request:${row.id}`,
+          idempotencyKey: `customer:review_request:${bookingId}`,
         }),
       });
       const body = await res.json().catch(() => ({}));
@@ -152,21 +197,28 @@ serve(async (req) => {
         await admin
           .from('bookings')
           .update({ review_request_email_sent_at: now.toISOString() })
-          .eq('id', row.id)
+          .eq('id', bookingId)
           .is('review_request_email_sent_at', null);
         reviewsSent += 1;
+      } else if (res.ok && body?.skipped) {
+        await admin
+          .from('bookings')
+          .update({ review_request_email_sent_at: now.toISOString() })
+          .eq('id', bookingId)
+          .is('review_request_email_sent_at', null);
       } else {
-        errors.push(`review ${row.id}: ${body?.error ?? res.status}`);
+        errors.push(`review ${bookingId}: ${body?.error ?? res.status}`);
       }
     } catch (e) {
-      errors.push(`review ${row.id}: ${e instanceof Error ? e.message : 'fail'}`);
+      errors.push(`review ${bookingId}: ${e instanceof Error ? e.message : 'fail'}`);
     }
   }
 
   return json({
     ok: true,
-    tomorrowYmd,
-    yesterdayYmd,
+    candidateWindow: { fromYmd, toYmd },
+    reminderCandidates,
+    reviewCandidates,
     remindersSent,
     reviewsSent,
     errors: errors.length ? errors : undefined,
