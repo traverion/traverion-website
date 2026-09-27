@@ -177,6 +177,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   useDialogFocus(legalModal !== null, legalSheetRef, closeLegalModal);
   useDialogFocus(galleryLightboxOpen, gallerySheetRef, closeGalleryLightbox);
   const [bookingCardError, setBookingCardError] = useState<string | null>(null);
+  const [selfBookBlocked, setSelfBookBlocked] = useState(false);
   const [bookingVariantsOpen, setBookingVariantsOpen] = useState(() => Boolean(readSearchPrefill().date));
   const [locationSearch, setLocationSearch] = useState(
     () => (typeof window === 'undefined' ? '' : window.location.search)
@@ -701,6 +702,23 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     });
   }, [tour?.supplierId]);
 
+  // Phase 1213: surface self-book block before Continue (StayDetails 1210 parity).
+  useEffect(() => {
+    if (!tour?.supplierId || !isSupabaseConfigured() || !userRef.current?.id) {
+      setSelfBookBlocked(false);
+      return;
+    }
+    let cancelled = false;
+    void viewerIsListingSupplierSide(userRef.current.id, tour.supplierId).then((selfBook) => {
+      if (cancelled) return;
+      setSelfBookBlocked(selfBook);
+      if (selfBook) setBookingCardError(LISTING_SELF_BOOK_BLOCKED);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [tour?.supplierId, user?.id]);
+
   const loadReviews = useCallback(() => {
     if (!tourId || !isSupabaseConfigured()) return;
     setReviewsLoadError(null);
@@ -930,6 +948,10 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   );
 
   const handleStickyBookCta = () => {
+    if (selfBookBlocked) {
+      setBookingCardError(LISTING_SELF_BOOK_BLOCKED);
+      return;
+    }
     if (!bookingDate.trim()) {
       scrollElementIntoView('tour-booking-panel', { behavior: 'smooth', block: 'start' });
       window.requestAnimationFrame(() => {
@@ -991,6 +1013,10 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
   const handleContinueToCheckout = async () => {
     if (!tour || !selectedBookingVariant) return;
+    if (selfBookBlocked) {
+      setBookingCardError(LISTING_SELF_BOOK_BLOCKED);
+      return;
+    }
     if (!isListingVisibleToTravelers(tour.status)) {
       setBookingCardError('This tour is not available to book.');
       return;
@@ -1689,6 +1715,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                               // Phase 1187: match sticky CTA sold-out / party-cap disable (1182 handler parity).
                               return (
                                 variantChecking ||
+                                selfBookBlocked ||
                                 capacityUnknown ||
                                 allDeparturesSoldOut ||
                                 (panelQuote != null && !panelQuote.ok) ||
@@ -1702,7 +1729,9 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                             }
                             className="tv-btn-primary w-full disabled:opacity-60"
                           >
-                            {variantChecking
+                            {selfBookBlocked
+                              ? 'Cannot book own listing'
+                              : variantChecking
                               ? 'Checking…'
                               : departureTimes.length > 1 && !selectedDepartureTime.trim()
                                 ? 'Pick time'
@@ -2010,6 +2039,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                         : Math.max(1, guests);
                     return (
                       variantChecking ||
+                      selfBookBlocked ||
                       capacityUnknown ||
                       allDeparturesSoldOut ||
                       (panelQuote != null && !panelQuote.ok) ||
