@@ -227,5 +227,11 @@ begin
   ) into v_ok;
   if not v_ok then raise exception 'helper age-dependent flat option should be bookable'; end if;
 
+  -- Phase 1259: ended schedule season is not bookable.
+  select public.listing_has_bookable_tour_surface(
+    '{"bookingOptions":[{"pickupPlace":"Hotel pickup area","schedules":[{"status":"ready","priceUsd":10,"minPersons":1,"maxPersons":8,"maxSpotsPerSlot":8,"startTime":"20:00","weekdays":[true,true,true,true,true,true,true],"availabilityDateFrom":"2020-01-01","availabilityDateTo":"2020-12-31"}]}]}'::jsonb, 0
+  ) into v_ok;
+  if v_ok then raise exception 'helper ended schedule season must fail'; end if;
+
   raise notice 'ALL ASSERTIONS PASSED';
 end $$;
