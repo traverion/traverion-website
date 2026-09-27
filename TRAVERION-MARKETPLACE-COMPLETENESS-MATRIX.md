@@ -47,7 +47,7 @@
 | Checkout | TEST-ONLY / STRONG | Stripe TEST + holds; allowlisted returnOrigin | Deployed return-origin fix (865) |
 | Booking snapshots | STRONG / BROWSER | title + totalAmount survive edits (#41) | Cancellation policy already snapshotted |
 | Booking state machine | PARTIAL→STRONG | pending/confirmed/cancelled + payment_status; mig 100 NOT NULL | Remote-apply 100 + re-run SQL guard |
-| Inventory / concurrency | STRONG / BROWSER | Tour seats #41 + stay nights #40 restore; public remaining + holds (899/105) | Slot-scoped lock; parallel race re-cert |
+| Inventory / concurrency | STRONG / BROWSER | Tour seats #41 + stay nights #40 restore; public remaining + holds (899/105); lock grain 902/106 | Parallel race re-cert optional |
 | Payments | TEST-ONLY / STRONG | Stripe webhook → payment_status; #39 BROWSER | Never invent paid from redirect |
 | Cancellation | STRONG / BROWSER | Tour #41 + stay #40 cancel; 24h no-refund honesty | Supplier-initiated cancel path |
 | Refunds | PARTIAL / HONEST | Manual Stripe; Refund due #41; no-refund #40 | Auto-refund = FOUNDER if desired |
@@ -87,7 +87,7 @@
 | 2 | P0 | Partner create→publish not mutating-browser-certified | **CLOSED create→LIVE→book #41 (870)** |
 | 3 | P0 | Traveler book UI→Stripe TEST→Trips→partner Bookings E2E | Tour #39 + stay #40 + **new inventory #41**; dedicated traveler account next |
 | 4 | P1 | Per-slot public remaining / sell-out honesty | **CLOSED 899** (mig 105) |
-| 5 | P1 | Listing-scoped advisory lock coarseness | Narrow lock key when safe |
+| 5 | P1 | Listing-scoped advisory lock coarseness | **CLOSED 902** (mig 106) |
 | 6 | P1 | Same-origin session bleed | Document + mitigate localhost |
 | 7 | P1 | Manual refunds / “Refund due” limbo | #41 proves honesty; auto-refund = FOUNDER if desired |
 | 8 | P2 | Stay cancel TZ + broader zone catalog | Optional; Helsinki default covers FI |

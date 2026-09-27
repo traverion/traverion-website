@@ -4754,12 +4754,21 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 
 **Certification:** checkout consent = **AUTOMATED-TESTED** + **CODE-INSPECTED**. Browser spot-check optional next.
 
+
+### Phase 902 — Narrow checkout advisory locks to inventory grain
+
+**Problem:** `assert_checkout_inventory` used listing-only `pg_advisory_xact_lock`, serializing unrelated departures/dates on the same listing.
+
+**Fix:** Migration **106** — stays keep listing-scoped locks (range overlap); tours lock listing+date (day override / no slot) or listing+date+slot when a start_time scopes capacity. Capacity semantics unchanged from 076.
+
+**Certification:** lock grain = **INTEGRATION** (SQL key harness) + **remotely applied**. Oversell safety still relies on occupancy math + lock (prior browser certs).
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.
 2. **P1 — Localhost same-origin auth**: partner and traveler share one Supabase session; partner login bleeds into traveler lead-guest autofill (seen on StayDetails).
 3. **P1 — Migrations 080–099 now remote-applied** — schema present; adversarial SQL suites not re-run against remote in CI this phase (local SQL tests remain the proof artifacts).
-3. **P1 — Advisory lock listing-scoped** — safe but coarse.
+3. **P1 — Advisory lock** — narrowed in 902/106 (stay listing; tour date/slot).
 4. **P2 — LIVE Stripe** intentionally blocked.
 5. **P2 — Service-role JWT briefly tracked** in `scripts/cert-transactional-emails.cjs` (now untracked); rotate when practical.
 
