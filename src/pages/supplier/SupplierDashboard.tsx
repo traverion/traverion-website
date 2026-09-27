@@ -144,7 +144,7 @@ export default function SupplierDashboard() {
   >([]);
   const [supplierBookings, setSupplierBookings] = useState<BookingRow[]>([]);
   const [profile, setProfile] = useState<Awaited<ReturnType<typeof fetchSupplierProfile>> | null>(null);
-  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+  const [unreadMessageCount, setUnreadMessageCount] = useState<number | null>(0);
   const [firstUnreadBookingId, setFirstUnreadBookingId] = useState<string | null>(null);
   const [unrepliedReviewCount, setUnrepliedReviewCount] = useState<number | null>(0);
   const [ratingAvg, setRatingAvg] = useState<number | null>(null);
@@ -260,6 +260,7 @@ export default function SupplierDashboard() {
     const paidForMsgs = bookingsForUnread
       .filter((b) => bookingPaymentWasCollected(b.payment_status))
       .slice(0, PARTNER_INBOX_MESSAGE_FETCH_CAP);
+    let messagesLoadFailed = false;
     const unreadFlags = await Promise.all(
       paidForMsgs.map(async (b) => {
         try {
@@ -267,14 +268,22 @@ export default function SupplierDashboard() {
           const last = msgs[msgs.length - 1];
           return Boolean(last && last.sender_role === 'traveler' && !last.read_by_supplier_at);
         } catch {
+          // Phase 1099: message load failure ≠ “no unread”.
+          messagesLoadFailed = true;
           return false;
         }
       })
     );
-    const unread = unreadFlags.filter(Boolean).length;
-    const firstUnread = paidForMsgs.find((_, i) => unreadFlags[i])?.id ?? null;
-    setUnreadMessageCount(unread);
-    setFirstUnreadBookingId(firstUnread);
+    if (messagesLoadFailed) {
+      noteFailure('messages');
+      setUnreadMessageCount(null);
+      setFirstUnreadBookingId(null);
+    } else {
+      const unread = unreadFlags.filter(Boolean).length;
+      const firstUnread = paidForMsgs.find((_, i) => unreadFlags[i])?.id ?? null;
+      setUnreadMessageCount(unread);
+      setFirstUnreadBookingId(firstUnread);
+    }
 
     if (failures.length > 0) {
       const critical = failures.includes('bookings');
@@ -387,8 +396,8 @@ export default function SupplierDashboard() {
     pickupGaps.length +
     openCancelCount +
     refundDueCount +
-    unreadMessageCount +
-    unrepliedReviewCount ?? 0;
+    (unreadMessageCount ?? 0) +
+    (unrepliedReviewCount ?? 0);
 
   const todayEmptyCopy = partnerTodayEmptyScheduleCopy(attentionCount);
 
@@ -557,10 +566,14 @@ export default function SupplierDashboard() {
           <p className="text-[12px] font-medium text-slate-500">Unread messages</p>
           <p
             className={`mt-1 text-[1.375rem] font-semibold tabular-nums tracking-tight ${
-              unreadMessageCount > 0 ? 'text-finland' : 'text-slate-900'
+              (unreadMessageCount ?? 0) > 0 ? 'text-finland' : 'text-slate-900'
             }`}
           >
-            {dashboardLoading && publishedListingsCount === null ? '—' : unreadMessageCount}
+            {dashboardLoading && publishedListingsCount === null
+              ? '—'
+              : unreadMessageCount === null
+                ? '—'
+                : unreadMessageCount}
           </p>
         </div>
         <div className="partner-surface-panel px-4 py-3">
@@ -645,7 +658,7 @@ export default function SupplierDashboard() {
                 }
               />
             )}
-            {unreadMessageCount > 0 && (
+            {(unreadMessageCount ?? 0) > 0 && (
               <AttentionItem
                 tone="info"
                 title={
