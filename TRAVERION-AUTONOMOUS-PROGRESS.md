@@ -3,13 +3,13 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness** (continuing 1001+)  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `a368567`  
-**Current phase:** 1029  
+**Current SHA:** `3c51335`  
+**Current phase:** 1030  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Local-only (gitignored):** `scripts/cert-transactional-emails.cjs` — must stay untracked; contains service-role secrets when present locally  
-**Remote migration truth (Phase 1029):** Local=Remote through **117** on `xcopqllkulxfkpunetbc`. Stripe: TEST only.  
+**Remote migration truth (Phase 1030):** Local=Remote through **118** on `xcopqllkulxfkpunetbc`. Stripe: TEST only.  
 
 ## Milestone Phase 513 (inventory band)
 
@@ -5317,7 +5317,15 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 
 **Fix:** Migration `117_reviews_require_booking_id.sql` — INSERT/UPDATE require non-null owned confirmed booking + retain self-supplier block (093). Also clears leftover GAP_ANALYSIS account “cart” wording.
 
-**Certification:** ADVERSARIAL-TESTED (SQL harness authored) + remote applied. Scratch Postgres re-run = host-blocked (no local docker).
+**Certification:** ADVERSARIAL-TESTED (SQL harness authored) + remote applied. Scratch Postgres re-run = host-blocked (no local docker). Ending SHA `3c51335`.
+
+### Phase 1030 — Require paid payment_status on review bookings
+
+**Gap:** After 117, confirmed-but-unpaid bookings could still unlock verified reviews via API; UI `bookingEligibleForReview` already requires paid/complete/succeeded.
+
+**Fix:** Migration `118_reviews_require_paid_booking.sql`. Matrix Reviews cell + continuum through **118**. Focused vitest review-eligibility/purchase-snapshot/scroll **17/17**.
+
+**Certification:** ADVERSARIAL-TESTED (SQL harness authored) + remote applied + AUTOMATED-TESTED (17/17). Scratch Postgres re-run = host-blocked.
 
 ## Known remaining risks (ranked)
 

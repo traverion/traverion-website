@@ -52,7 +52,7 @@
 | Cancellation | STRONG / BROWSER | Traveler cancel; supplier request modal honesty (1007) | Auto-refund = FOUNDER |
 | Refunds | PARTIAL / HONEST | Manual Stripe; Refund due #41; no-refund #40 | Auto-refund = FOUNDER if desired |
 | Messaging | PARTIAL→STRONG | RLS deny (885); booking_ids ownership (110–111); no fake realtime (930) | Delivery fire optional |
-| Reviews | STRONG / UNIT | ownership + paid+confirmed+after-start (879) | Supplier response / moderation later |
+| Reviews | STRONG / ADVERSARIAL | ownership + paid+confirmed (089/093/117/118); after-start client (879) | After-start SQL optional |
 | Wishlist / Saved | STRONG / ADVERSARIAL | published-only insert (104/887); prune on unpublish (112/1021) | — |
 | Trips | PARTIAL→STRONG | fetch + error≠empty (892) | Dedicated traveler session |
 | Supplier Bookings / Pickup | STRONG / BROWSER | Refund due #41 + pickup excludes cancel (884) | Stay reservation pickup N/A |
@@ -102,7 +102,7 @@
 
 ## Post–Phase 1000 continuum (1001+)
 
-Remote migrations through **116**. Ownership band 108–111, wishlist/cart prune 112–113, published-or-owner SELECT 114–115, actor_id authenticity 116. FOUNDER open items: `docs/FOUNDER_REQUIRED.md`.
+Remote migrations through **118**. Ownership band 108–111, wishlist/cart prune 112–113, published-or-owner SELECT 114–115, actor_id authenticity 116, reviews require paid booking 117–118. FOUNDER open items: `docs/FOUNDER_REQUIRED.md`.
 
 ---
 
