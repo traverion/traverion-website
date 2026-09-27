@@ -38,7 +38,7 @@
 | Tour creation | PARTIAL | listings + `listing_extras` options/schedules | Depth gaps 854–858 landed; UI create→publish→book E2E next |
 | Tour options | PARTIAL | `bookingOptions[]` JSON | Cert multi-option publish/book |
 | Schedules / seasons | PARTIAL | schedule JSON + availability | Overlap/DST/timezone model |
-| Stay creation | PARTIAL | stay extras + occupancy quote | Audit 859; check-in/out server 102; address/E2E next |
+| Stay creation | PARTIAL | stay extras + occupancy quote | Audit 859; check-in/out 102; **stay book E2E #40 BROWSER (866)** |
 | Rentals | MISSING | Partner “Not available yet” | Keep honest; no fake vertical |
 | Packages/experiences families | MISSING / reserved | inventory families | Do not imply live catalogs |
 | Search / discovery | PARTIAL | published listings only | Availability-aware search depth |
@@ -84,7 +84,7 @@
 |------|-----|-----|--------------|
 | 1 | P0 | `bookings.status` nullable bypass | Migration 100 tracked (852); remote apply pending |
 | 2 | P0 | Partner create→publish not mutating-browser-certified | Cert + fix blockers |
-| 3 | P0 | Traveler book UI→Stripe TEST→Trips→partner Bookings E2E | **Tour path BROWSER-TESTED (865 #39)**; stay E2E + dedicated traveler account next |
+| 3 | P0 | Traveler book UI→Stripe TEST→Trips→partner Bookings E2E | **Tour #39 + stay #40 BROWSER-TESTED**; dedicated traveler account + create→publish still open |
 | 4 | P1 | Per-slot public remaining / sell-out honesty | Align public with slot inventory |
 | 5 | P1 | Listing-scoped advisory lock coarseness | Narrow lock key when safe |
 | 6 | P1 | Same-origin session bleed | Document + mitigate localhost |
