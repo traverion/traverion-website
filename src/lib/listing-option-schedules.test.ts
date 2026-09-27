@@ -160,6 +160,12 @@ describe('seasonal coverage', () => {
     expect(listingOptionReadySchedules(row)).toHaveLength(0);
     expect(optionScheduleManagementIssues(row)[0]).toMatch(/complete schedule/i);
   });
+
+  it('Phase 1258: rejects when every ready schedule season has already ended', () => {
+    const row = option({ schedules: [september] });
+    expect(optionScheduleManagementIssues(row, '2026-10-15')[0]).toMatch(/already ended/i);
+    expect(optionScheduleManagementIssues(row, '2026-09-15')).toEqual([]);
+  });
 });
 
 describe('overlap detection', () => {

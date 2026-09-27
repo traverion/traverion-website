@@ -55,7 +55,7 @@ function optionPublishIssues(
     );
   }
   if (usesSchedules) {
-    for (const m of optionScheduleManagementIssues(o)) {
+    for (const m of optionScheduleManagementIssues(o, todayIso)) {
       issues.push(`${prefix}${m}`.trim());
     }
   } else {

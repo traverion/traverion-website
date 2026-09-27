@@ -197,13 +197,28 @@ export function scheduleCanSaveReady(
   return { ok: true };
 }
 
-export function optionScheduleManagementIssues(option: ListingBookingOption): string[] {
+export function optionScheduleManagementIssues(
+  option: ListingBookingOption,
+  todayIso?: string
+): string[] {
   if (option.schedules !== undefined) {
     const ready = (option.schedules ?? []).filter(
       (s) => s.status !== 'draft' && scheduleWizardIsComplete(s) && listingShapeHasBookablePrice(s)
     );
     if (ready.length === 0) {
       return ['Add at least one complete schedule before finishing this option.'];
+    }
+    // Phase 1258: reject seasons that already ended (flat-option publish parity).
+    if (todayIso) {
+      const live = ready.filter((s) => {
+        const to = (s.availabilityDateTo ?? '').trim();
+        return !to || to >= todayIso;
+      });
+      if (live.length === 0) {
+        return [
+          'Every schedule season has already ended. Extend an end date or travelers cannot pick a date.',
+        ];
+      }
     }
     return [];
   }
