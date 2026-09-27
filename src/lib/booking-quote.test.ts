@@ -573,6 +573,58 @@ describe('getListingPublishBlockers', () => {
     expect(ended.some((m) => m.toLowerCase().includes('past'))).toBe(true);
   });
 
+  it('season-end “today” uses listing experience timezone, not browser local (Phase 1098)', () => {
+    // 2026-09-15 22:30 UTC = 2026-09-16 in Europe/Helsinki
+    const now = Date.UTC(2026, 8, 15, 22, 30, 0);
+    const base = {
+      subtitle: 'Northern lights by snowmobile with a local guide',
+      description: 'A'.repeat(120),
+      image: 'https://example.com/real.jpg',
+      listingExtras: {
+        departureTimezone: 'Europe/Helsinki',
+        bookingOptions: [
+          option({
+            id: 'opt-small',
+            name: 'Small group',
+            priceUsd: 149,
+            availabilityDateFrom: '2026-01-01',
+            availabilityDateTo: '2026-09-16',
+          }),
+        ],
+        galleryImageUrls: [
+          'https://example.com/2.jpg',
+          'https://example.com/3.jpg',
+          'https://example.com/4.jpg',
+        ],
+      },
+    };
+    const okHelsinki = getListingPublishBlockers(tour(base), undefined, now);
+    expect(okHelsinki.some((m) => m.toLowerCase().includes('past'))).toBe(false);
+    // Same instant, UTC calendar day is still Sep 15 — season ending Sep 15 would be "today" UTC.
+    // If we wrongly used UTC today (Sep 15) against end Sep 14, that would be past; end Sep 16 is fine either way.
+    // Prove Helsinki governs: end day = Helsinki yesterday = Sep 15 → past under Helsinki, not under a west-of-UTC browser.
+    const endedHelsinki = getListingPublishBlockers(
+      tour({
+        ...base,
+        listingExtras: {
+          ...base.listingExtras,
+          bookingOptions: [
+            option({
+              id: 'opt-small',
+              name: 'Small group',
+              priceUsd: 149,
+              availabilityDateFrom: '2026-01-01',
+              availabilityDateTo: '2026-09-15',
+            }),
+          ],
+        },
+      }),
+      undefined,
+      now
+    );
+    expect(endedHelsinki.some((m) => m.toLowerCase().includes('past'))).toBe(true);
+  });
+
   it('publishes a stay without tour meeting points or booking options', () => {
     const stayReady = getListingPublishBlockers(
       tour({

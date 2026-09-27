@@ -7,7 +7,7 @@ import {
 import type { ListingBookingOption } from '../types/listingExtras';
 import { LISTING_PLACEHOLDER_IMAGE, MIN_LISTING_DESCRIPTION_LENGTH } from './listingQualityScore';
 import { priceCategoryValidationMessages } from './price-categories';
-import { localYmd } from './local-ymd';
+import { experienceTodayIsoForListing } from './booking-quote';
 import { optionScheduleManagementIssues } from './listing-schedule-wizard';
 
 function optionPublishIssues(
@@ -75,9 +75,17 @@ function optionPublishIssues(
 
 /**
  * Human-readable blockers before publishing a listing. Keeps the bar reasonable for a first tour.
+ * Phase 1098: season-end “in the past” uses experience-local today (listing departureTimezone),
+ * not the partner’s browser calendar day.
  */
-export function getListingPublishBlockers(listing: TourPackage, todayIso?: string): string[] {
-  const today = todayIso ?? localYmd();
+export function getListingPublishBlockers(
+  listing: TourPackage,
+  todayIso?: string,
+  nowMs: number = Date.now()
+): string[] {
+  const today =
+    todayIso ??
+    experienceTodayIsoForListing(listing.listingExtras?.departureTimezone, nowMs);
   const out: string[] = [];
   const isStay = listing.listingExtras?.inventoryFamily === 'stay';
   const title = listing.title?.trim() ?? '';
@@ -179,9 +187,10 @@ export function getListingPublishBlockers(listing: TourPackage, todayIso?: strin
  */
 export function partnerListingDraftPublishSubtitle(
   listing: TourPackage,
-  todayIso?: string
+  todayIso?: string,
+  nowMs?: number
 ): { blockers: string[]; subtitle: string; readyToPublish: boolean } {
-  const blockers = getListingPublishBlockers(listing, todayIso);
+  const blockers = getListingPublishBlockers(listing, todayIso, nowMs);
   if (blockers.length === 0) {
     return { blockers, subtitle: 'Ready for travelers', readyToPublish: true };
   }
