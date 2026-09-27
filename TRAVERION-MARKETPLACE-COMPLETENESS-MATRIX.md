@@ -38,7 +38,7 @@
 | Tour creation | STRONG / BROWSER | listings + options/schedules; create→LIVE→book **#41** | Field-depth gaps remain; dedicated traveler next |
 | Tour options | PARTIAL | `bookingOptions[]` JSON | Cert multi-option publish/book |
 | Schedules / seasons | PARTIAL | schedule JSON + availability | Overlap/DST/timezone model |
-| Stay creation | PARTIAL | stay extras + occupancy; book #40 + cancel restore (875) | Supplier create→publish stay depth |
+| Stay creation | PARTIAL→STRONG | publish gates 102; book #40 (875); depth inventory 913 | Amenities polish later |
 | Rentals | NOT REQUIRED YET / HONEST | Partner “Not available to list yet” (879) | Keep honest until domain model defined |
 | Packages/experiences families | MISSING / reserved | inventory families | Do not imply live catalogs |
 | Search / discovery | PARTIAL→STRONG | published + date capacity; remaining includes holds (899) | Deeper availability-aware browse polish |
@@ -63,7 +63,7 @@
 | Analytics | STRONG / BROWSER | paid-only aggregates (888) | Views/impressions not claimed |
 | Emails / notifications | PARTIAL→STRONG | idempotency (893); cron wiring (907) | Delivery fire not re-certified |
 | Timezones | STRONG / INTEGRATION | extras + snapshot + cancel + partner UI (883) | Stay-specific TZ polish |
-| Currency | PARTIAL | per-listing currencies, no FX | Keep coherent; no fake multi-FX |
+| Currency | PARTIAL→STRONG | per-listing; no FX (912) | Keep coherent |
 | i18n | PARTIAL | en/fi strings | Not checkbox i18n platform |
 | SEO | PARTIAL→STRONG | published sitemap snapshot (896) | Automate sitemap on publish |
 | Images / media | PARTIAL→STRONG | folder RLS + client ownership (906) | Batch orphan GC later |

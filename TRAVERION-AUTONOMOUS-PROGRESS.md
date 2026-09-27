@@ -4830,6 +4830,19 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 
 **Certification:** legacy tour query alias = **BROWSER-TESTED** + **AUTOMATED-TESTED**.
 
+
+### Phase 912 — Currency architecture honesty
+
+**Evidence:** `normalizeCurrency` / `SUPPORTED_CURRENCIES` (EUR default + 8 others). Per-listing currency on quote/checkout/snapshot. **No FX conversion** — amounts stay in listing currency. Supplier earnings do not blend currencies (888/876 honesty). Multi-currency display coherent; not a fake FX marketplace.
+
+**Certification:** currency architecture = **CODE-INSPECTED**. FX = **NOT BUILT** (intentional).
+
+### Phase 913 — Stay publish depth inventory (single-unit)
+
+**Required to publish (client + SQL 102):** nightly price, maxGuests, check-in/out HH:MM, city/country, real hero photo. Book #40 + cancel restore certified. Optional later (not gate): amenities catalog depth, house rules richness, map pin precision, cleaning fee model. Hotel PMS / multi-unit = **NOT BUILT**.
+
+**Certification:** stay vertical minimum = **STRONG / BROWSER** (book path); creation field-depth = **PARTIAL** (honest single-unit).
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.
