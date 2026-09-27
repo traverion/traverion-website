@@ -51,9 +51,9 @@
 | Payments | TEST-ONLY / STRONG | Stripe webhook → payment_status; #39 BROWSER | Never invent paid from redirect |
 | Cancellation | STRONG / BROWSER | Traveler cancel; supplier request modal honesty (1007) | Auto-refund = FOUNDER |
 | Refunds | PARTIAL / HONEST | Manual Stripe; Refund due #41; no-refund #40 | Auto-refund = FOUNDER if desired |
-| Messaging | PARTIAL→STRONG | RLS deny (885); no fake realtime (930) | Delivery fire optional |
+| Messaging | PARTIAL→STRONG | RLS deny (885); booking_ids ownership (110–111); no fake realtime (930) | Delivery fire optional |
 | Reviews | STRONG / UNIT | ownership + paid+confirmed+after-start (879) | Supplier response / moderation later |
-| Wishlist / Saved | STRONG / ADVERSARIAL | published-only (104/887); unpublished hidden on Saved page | Soft-delete remove UX optional |
+| Wishlist / Saved | STRONG / ADVERSARIAL | published-only insert (104/887); prune on unpublish (112/1021) | — |
 | Trips | PARTIAL→STRONG | fetch + error≠empty (892) | Dedicated traveler session |
 | Supplier Bookings / Pickup | STRONG / BROWSER | Refund due #41 + pickup excludes cancel (884) | Stay reservation pickup N/A |
 | Availability ops | PARTIAL→STRONG | calendar + edit impact notices (909) | Capacity override polish later |
@@ -67,7 +67,7 @@
 | i18n | PARTIAL | en/fi; blockers recorded (925) | Not checkbox i18n platform |
 | SEO | PARTIAL→STRONG | sitemap build-time generate (896/1002); review schema gated (923) | Instant publish→sitemap without redeploy later |
 | Images / media | PARTIAL→STRONG | folder RLS + delete GC owned images (906/1005) | Full bucket orphan sweep later |
-| RLS / security | STRONG / ADVERSARIAL | traveler deny #41 (880–881); supplier listing isolation 091/910 | Keep expanding adversarial suite |
+| RLS / security | STRONG / ADVERSARIAL | traveler deny #41; listing isolation 091/910; vouchers/ops/events/messages/campaigns ownership 099/108–111 | Keep expanding adversarial suite |
 | Privacy | PARTIAL→STRONG | public RPCs no PII; ops surfaces justified (922) | Keep minimizing |
 | Legal / consent | STRONG / BROWSER | UI gate + server requires consent stamp on new checkout (1015) | — |
 | Admin / support | PARTIAL→STRONG | staff panels + force-unpublish (107/1001–1003) | Browser-cert admin host later |
@@ -95,12 +95,14 @@
 | 10 | P1 | Rentals / packages not live | Keep UI honest |
 | 11 | P1 | Staff force-unpublish | **CLOSED** 107/1001–1003 |
 | 12 | P2 | Sitemap stale after publish | **CLOSED** build-time regen 1002 |
+| 13 | P0-family | Ops notes / events / messages / campaigns cross-supplier plant | **CLOSED** 108–111 (1017–1020) |
+| 14 | P1 | Wishlist rows survive unpublish | **CLOSED** prune trigger 112 (1021) |
 
 ---
 
 ## Post–Phase 1000 continuum (1001+)
 
-Remote migrations through **107**. FOUNDER open items: `docs/FOUNDER_REQUIRED.md`.
+Remote migrations through **112**. Ownership band 108–111 + wishlist prune 112. FOUNDER open items: `docs/FOUNDER_REQUIRED.md`.
 
 ---
 

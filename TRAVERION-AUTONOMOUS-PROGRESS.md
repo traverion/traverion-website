@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness** (continuing 1001+)  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `a20b84d`  
-**Current phase:** 1021  
+**Current SHA:** `5e06f7c`  
+**Current phase:** 1022  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -5255,7 +5255,13 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 
 **Fix:** Migration `112_wishlist_prune_on_unpublish.sql` — AFTER UPDATE OF status trigger deletes wishlist rows when status ≠ published; re-runs one-shot cleanup for post-104 orphans.
 
-**Certification:** ADVERSARIAL-TESTED (SQL harness authored) + remote applied. Scratch Postgres re-run = host-blocked (no local docker).
+**Certification:** ADVERSARIAL-TESTED (SQL harness authored) + remote applied. Scratch Postgres re-run = host-blocked (no local docker). Ending SHA `5e06f7c`.
+
+### Phase 1022 — Matrix refresh for ownership + wishlist prune continuum
+
+**Fix:** Completeness matrix marks Messaging/RLS/Wishlist cells for 108–112; ranked gaps 13–14 closed; post-1000 continuum remote through **112**.
+
+**Certification:** CODE-INSPECTED / docs truth.
 
 ## Known remaining risks (ranked)
 
