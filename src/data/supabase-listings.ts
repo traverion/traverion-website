@@ -122,8 +122,13 @@ export function rowToTourPackage(row: ListingRow): TourPackage {
     meetingPoint: row.meeting_point ?? undefined,
     pickupInstructions: row.pickup_instructions ?? undefined,
     defaultStartTime: pgTimeToHm(row.default_start_time ?? null),
-    pickupWindowMinutesBeforeMin: row.pickup_window_minutes_before_min ?? 0,
-    pickupWindowMinutesBeforeMax: row.pickup_window_minutes_before_max ?? 30,
+    // Phase 1253: null pickup window → undefined (no invent 0/30).
+    ...(row.pickup_window_minutes_before_min != null
+      ? { pickupWindowMinutesBeforeMin: row.pickup_window_minutes_before_min }
+      : {}),
+    ...(row.pickup_window_minutes_before_max != null
+      ? { pickupWindowMinutesBeforeMax: row.pickup_window_minutes_before_max }
+      : {}),
     experienceStartStyle: normalizeExperienceStartStyle(row.experience_start_style),
     dropoffMode: normalizeDropoffMode(row.dropoff_mode),
     dropoffLocation: row.dropoff_location ?? undefined,
@@ -211,11 +216,20 @@ export function tourPackageToRow(tour: Partial<TourPackage> & { title: string; d
     meeting_point: tour.meetingPoint ?? null,
     pickup_instructions: tour.pickupInstructions ?? null,
     default_start_time: hmToPgTime(tour.defaultStartTime ?? null),
-    pickup_window_minutes_before_min: tour.pickupWindowMinutesBeforeMin ?? 0,
-    pickup_window_minutes_before_max: Math.max(
-      tour.pickupWindowMinutesBeforeMin ?? 0,
-      tour.pickupWindowMinutesBeforeMax ?? 30
-    ),
+    // Phase 1253: do not invent pickup window 0/30 into DB when unset.
+    pickup_window_minutes_before_min:
+      typeof tour.pickupWindowMinutesBeforeMin === 'number' && Number.isFinite(tour.pickupWindowMinutesBeforeMin)
+        ? Math.max(0, Math.floor(tour.pickupWindowMinutesBeforeMin))
+        : null,
+    pickup_window_minutes_before_max:
+      typeof tour.pickupWindowMinutesBeforeMax === 'number' && Number.isFinite(tour.pickupWindowMinutesBeforeMax)
+        ? Math.max(
+            typeof tour.pickupWindowMinutesBeforeMin === 'number' && Number.isFinite(tour.pickupWindowMinutesBeforeMin)
+              ? Math.floor(tour.pickupWindowMinutesBeforeMin)
+              : 0,
+            Math.floor(tour.pickupWindowMinutesBeforeMax)
+          )
+        : null,
     experience_start_style: tour.experienceStartStyle ?? null,
     dropoff_mode: tour.dropoffMode ?? null,
     dropoff_location: tour.dropoffLocation?.trim() ? tour.dropoffLocation.trim() : null,

@@ -63,4 +63,18 @@ describe('Phase 1236: group_size mapping fail-closed', () => {
     });
     expect(row.group_size).toBeNull();
   });
+
+  it('Phase 1253: does not invent pickup window 0/30 when unset', () => {
+    const tour = rowToTourPackage(minimalRow());
+    expect(tour.pickupWindowMinutesBeforeMin).toBeUndefined();
+    expect(tour.pickupWindowMinutesBeforeMax).toBeUndefined();
+    const row = tourPackageToRow({
+      title: 'Aurora',
+      destination: 'Rovaniemi',
+      duration: '3 hours',
+      price: { startingFrom: 99 },
+    });
+    expect(row.pickup_window_minutes_before_min).toBeNull();
+    expect(row.pickup_window_minutes_before_max).toBeNull();
+  });
 });
