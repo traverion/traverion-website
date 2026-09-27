@@ -29,6 +29,8 @@ type AdminBookingRow = MoneyBookingRow & {
   check_out: string | null;
   nights: number | null;
   booking_number: number | null;
+  checkout_session_id?: string | null;
+  payment_intent_id?: string | null;
   created_at: string;
 };
 
@@ -156,9 +158,9 @@ export default function AdminBookingsPanel() {
               type="search"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Guest name, email, or #booking"
+              placeholder="Guest, email, #, booking UUID, cs_…, or pi_…"
               className="tv-input w-full pl-9 text-sm"
-              aria-label="Search bookings"
+              aria-label="Search bookings by guest, booking id, or Stripe id"
             />
           </div>
           <button
@@ -226,6 +228,11 @@ export default function AdminBookingsPanel() {
                 <p className="mt-1 text-xs text-ink-faint">
                   {b.guest_name?.trim() || b.guest_email || 'Guest'} · {dateLine(b)}
                   {b.guests ? ` · ${b.guests} guest${b.guests === 1 ? '' : 's'}` : ''}
+                </p>
+                <p className="mt-1 font-mono text-[11px] text-ink-faint break-all">
+                  id {b.id}
+                  {b.checkout_session_id ? ` · ${b.checkout_session_id}` : ''}
+                  {b.payment_intent_id ? ` · ${b.payment_intent_id}` : ''}
                 </p>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   <StatusChip tone={toneForPaymentLabel(lifecycle)}>{lifecycle}</StatusChip>

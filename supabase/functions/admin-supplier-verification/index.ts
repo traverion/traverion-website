@@ -289,7 +289,7 @@ serve(async (req) => {
     const BOOKINGS_FETCH_CAP = 500;
     const statusFilter = typeof body.bookingStatus === 'string' ? body.bookingStatus.trim().toLowerCase() : 'all';
     const rawSearch = typeof body.bookingSearch === 'string' ? body.bookingSearch.trim() : '';
-    const safeSearch = rawSearch.replace(/[,()%]/g, '').slice(0, 80);
+    const safeSearch = rawSearch.replace(/[,()%]/g, '').slice(0, 128);
     const supplierFilter = typeof body.bookingSupplierId === 'string' ? body.bookingSupplierId.trim() : '';
 
     let supplierListingIds: string[] | null = null;
@@ -303,7 +303,7 @@ serve(async (req) => {
     }
 
     const bookingCols =
-      'id, listing_id, guest_email, guest_name, guests, booking_date, check_out, nights, status, payment_status, amount_paid, currency, checkout_session_id, refund_choice, booking_number, created_at';
+      'id, listing_id, guest_email, guest_name, guests, booking_date, check_out, nights, status, payment_status, amount_paid, currency, checkout_session_id, payment_intent_id, refund_choice, booking_number, created_at';
 
     let query = admin
       .from('bookings')
@@ -317,10 +317,24 @@ serve(async (req) => {
       query = query.in('listing_id', supplierListingIds);
     }
     if (safeSearch) {
+      // Phase 1053: guest / # / booking UUID / Stripe cs_ / pi_ (mirrors src/lib/admin-booking-search.ts).
       const orParts = [`guest_name.ilike.%${safeSearch}%`, `guest_email.ilike.%${safeSearch}%`];
       const asNumber = Number.parseInt(safeSearch, 10);
       if (Number.isFinite(asNumber) && asNumber > 0 && String(asNumber) === safeSearch) {
         orParts.push(`booking_number.eq.${asNumber}`);
+      }
+      const uuid = safeSearch.replace(/^\{|\}$/g, '');
+      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid)) {
+        orParts.push(`id.eq.${uuid}`);
+      }
+      const lower = safeSearch.toLowerCase();
+      if (lower.startsWith('cs_')) {
+        orParts.push(`checkout_session_id.eq.${safeSearch}`);
+      } else if (lower.startsWith('pi_')) {
+        orParts.push(`payment_intent_id.eq.${safeSearch}`);
+      } else if (safeSearch.length >= 8) {
+        orParts.push(`checkout_session_id.ilike.%${safeSearch}%`);
+        orParts.push(`payment_intent_id.ilike.%${safeSearch}%`);
       }
       query = query.or(orParts.join(','));
     }

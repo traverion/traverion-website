@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness** (continuing 1001+)  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `9825e97`  
-**Current phase:** 1052  
+**Current SHA:** `92ef64c`  
+**Current phase:** 1053  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -5485,15 +5485,25 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 
 **Certification:** AUTOMATED-TESTED / INTEGRATION (deploy).
 
+### Phase 1053 — Admin bookings search by Stripe / UUID
+
+**Problem:** Support cannot find bookings from `cs_` / `pi_` / booking UUID in admin UI.
+
+**Fix:** `bookings_list` search expands; `payment_intent_id` returned; AdminBookingsPanel shows ids; vitest helper. Deployed.
+
+**Certification:** AUTOMATED-TESTED / INTEGRATION (deploy).
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.
 2. **P1 — Localhost same-origin auth**: shared Supabase session remains; Phase 904 blocks business-name lead-guest autofill (customer_* / consumer profile only).
 3. **P1 — FOUNDER:** see `docs/FOUNDER_REQUIRED.md` (auto-refund, take-rate; force-unpublish closed).
-4. **P2 — Browser-cert** admin listings moderation on admin host with staff demo.
-5. **P2 — notify-* booking-tied open-invoke residual** — recipient+content re-derived; nuisance spam with real bookingId still possible (full dual-mode auth deferred).
-6. **P2 — LIVE Stripe** intentionally blocked.
-7. **P2 — Service-role JWT briefly tracked** in `scripts/cert-transactional-emails.cjs` (now untracked); rotate when practical.
+4. **P1 — Stay private check-in address** missing (city-only on Trips).
+5. **P1 — Trips does not surface snapshotted departureTimezone**.
+6. **P2 — Browser-cert** admin listings moderation on admin host with staff demo.
+7. **P2 — notify-* booking-tied open-invoke residual** — recipient+content re-derived; nuisance spam with real bookingId still possible (full dual-mode auth deferred).
+8. **P2 — LIVE Stripe** intentionally blocked.
+9. **P2 — Service-role JWT briefly tracked** in `scripts/cert-transactional-emails.cjs` (now untracked); rotate when practical.
 
 ## Do not
 

@@ -9,8 +9,8 @@
 
 | Need | Why | Current Traverion surface | Status |
 |------|-----|---------------------------|--------|
-| Find booking by id / guest email / date | Support ticket resolution | `AdminBookingsPanel` on `admin.traverion.com` | PARTIAL — exists; not browser-re-certified this pass |
-| Inspect payment / Stripe TEST ids | Reconcile “I paid” vs DB | Booking detail + payment_status / checkout_session_id fields | PARTIAL — fields exist; no Stripe Dashboard deep-link automation |
+| Find booking by id / guest email / date | Support ticket resolution | `AdminBookingsPanel` on `admin.traverion.com` | IMPLEMENTED — Phase 1053 search: guest, `#`, booking UUID, `cs_…`, `pi_…`; ids shown on each row. Browser-cert still open |  
+| Inspect payment / Stripe TEST ids | Reconcile “I paid” vs DB | Booking list shows `checkout_session_id` + `payment_intent_id`; searchable | IMPLEMENTED (TEST) — no Stripe Dashboard deep-link |
 | Inspect listing + publish status | Unsafe/spam listing | Partner listings + publish guards (095/101/102); staff can view via admin supplier detail | PARTIAL |
 | Inspect supplier identity / verification | Onboarding gate | `AdminSupplierVerificationPanel` + edge `admin-supplier-verification` | STRONG / CODE |
 | Record manual payout | Accounting without Connect | `admin_record_supplier_payout` (094) + `AdminFinancePanel` | PARTIAL / MANUAL |
