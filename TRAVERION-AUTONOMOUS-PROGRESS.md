@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `66ce29f`  
-**Current phase:** 866  
+**Current SHA:** `ff5a372`  
+**Current phase:** 867  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -277,6 +277,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 864 | Browser create tour Basics → Save draft | `ef55529` |
 | 865 | Stripe TEST pay E2E + checkout returnOrigin allowlist | `e8c5e0a` |
 | 866 | Browser Stripe TEST stay pay + returnOrigin verified | `66ce29f` |
+| 867 | Create→publish draft Story+Details filled | `ff5a372` |
 
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
@@ -4441,6 +4442,15 @@ Also removed unused businessComplete local in Listings after 861 gate fix.
 **Return URL:** After Phase 865 allowlist deploy, Stripe redirected to **`http://127.0.0.1:5173/booking-confirmed?session_id=…`** (not production). Confirmation: **Ref #40 · Stay · €335 TEST**.
 
 **Certification:** stay browse→dates→quote→Stripe TEST→local confirm = **BROWSER-TESTED**. Occupancy/partner Bookings spot-check next if needed; create→publish still open.
+
+### Phase 867 — Create→publish: draft Story + Details filled
+
+**Browser (aurora-ops):** Resumed draft `1807368c-ae24-4ccd-ba63-2aa72413c2f6` (“Phase 864 Cert Northern Lights Small Group”).
+
+- Basics → Story: description (100+ chars) + highlight; Save draft
+- Advanced to **Details**: inclusions/exclusions, Rovaniemi/Finland destination, itinerary, age 8+, schedule style **fixed_slots**; Save draft
+
+**Still open for publish:** Options (price/capacity/schedules), Photos (4+), Review → Publish. Continues 868+.
 
 ## Known remaining risks (ranked)
 
