@@ -417,6 +417,39 @@ function applyScheduleToOption(option: Option, schedule: OptionSchedule): Option
   };
 }
 
+/**
+ * Phase 1278: catalog/checkout fail-closed when every ready season has ended
+ * (client listingHasUpcomingBookableSeason / publish 1258–1260 parity).
+ */
+export function listingHasUpcomingBookableSeason(
+  listingExtras: unknown,
+  todayIso?: string,
+  nowMs?: number
+): boolean {
+  const extras =
+    listingExtras != null && typeof listingExtras === 'object' && !Array.isArray(listingExtras)
+      ? (listingExtras as Record<string, unknown>)
+      : {};
+  if (extras.inventoryFamily === 'stay') return true;
+  const today = todayIso ?? experienceTodayIsoForListing(extras.departureTimezone, nowMs);
+  if (!ISO_DATE.test(today)) return true;
+  const opts = parseOptions(listingExtras);
+  if (opts.length === 0) return true;
+  for (const o of opts) {
+    if (Array.isArray(o.schedules) && o.schedules.length > 0) {
+      for (const s of o.schedules) {
+        if (s.status === 'draft') continue;
+        const to = (s.availabilityDateTo ?? '').trim();
+        if (!to || to >= today) return true;
+      }
+    } else {
+      const to = (o.availabilityDateTo ?? '').trim();
+      if (!to || to >= today) return true;
+    }
+  }
+  return false;
+}
+
 function parseOptions(extras: unknown): Option[] {
   if (extras == null || typeof extras !== 'object' || Array.isArray(extras)) return [];
   const raw = (extras as { bookingOptions?: unknown }).bookingOptions;

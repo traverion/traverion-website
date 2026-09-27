@@ -2,7 +2,7 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
-import { quoteListingBooking, stayCheckoutNightsAlreadyBooked, stayNightIsOperatorBlocked, stayRangeFromBooking, tourDepartureRemainingSeats, tourDepartureSlotCapacity, type DiscountRow, type ListingQuoteRow, type StayCheckoutOccupancyRow } from '../_shared/booking-quote.ts';
+import { listingHasUpcomingBookableSeason, quoteListingBooking, stayCheckoutNightsAlreadyBooked, stayNightIsOperatorBlocked, stayRangeFromBooking, tourDepartureRemainingSeats, tourDepartureSlotCapacity, type DiscountRow, type ListingQuoteRow, type StayCheckoutOccupancyRow } from '../_shared/booking-quote.ts';
 import { tourCheckoutOccupiedGuests, inventoryStartTimeHmFromBooking, type TourCheckoutOccupancyRow } from '../_shared/booking-hold.ts';
 import { checkoutPaymentStatusCanResume, resumeStayCheckoutDate, checkoutResumeLostRaceToPaid } from '../_shared/checkout-resume.ts';
 import { resumeStayLeadGuestName, stayCheckoutLeadGuestNameReady } from '../_shared/stay-checkout-guest.ts';
@@ -286,6 +286,10 @@ serve(async (req) => {
     // isListingBookable for the full explanation (migration-082
     // verification bypass).
     if (listingStatus !== 'published') {
+      return json({ success: false, error: 'This listing is not available to book.' }, 400);
+    }
+    // Phase 1278: season-ended tours must not reach Stripe (catalog/PDP parity).
+    if (!listingHasUpcomingBookableSeason(listingRow.listing_extras)) {
       return json({ success: false, error: 'This listing is not available to book.' }, 400);
     }
     // Phase 1146: hosts/team must not hold/pay their own inventory (reviews already blocked).
