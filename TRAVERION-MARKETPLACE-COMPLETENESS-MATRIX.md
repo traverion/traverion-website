@@ -67,7 +67,7 @@
 | i18n | PARTIAL | en/fi strings | Not checkbox i18n platform |
 | SEO | PARTIAL | titles/meta | Structured data only if truthful |
 | Images / media | PARTIAL | storage bucket + listing images | Orphan cleanup / auth audit |
-| RLS / security | PARTIAL→STRONG | migrations 080–099 | CI remote adversarial re-run |
+| RLS / security | STRONG / ADVERSARIAL | 080–103; anon REST #41 denied (880) | Authenticated Traveler B when creds available |
 | Privacy | PARTIAL | policies + RLS | Minimize PII on partner surfaces |
 | Admin / support | PARTIAL | staff panels | Minimum intervention map |
 | Moderation | NOT REQUIRED YET | — | Architecture note only |

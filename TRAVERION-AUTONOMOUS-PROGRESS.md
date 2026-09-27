@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `430ba4c`  
-**Current phase:** 879  
+**Current SHA:** `cdd5859`  
+**Current phase:** 880  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4592,6 +4592,18 @@ Partner Income page:
 **Reviews:** Extracted `bookingEligibleForReview` — requires `status=confirmed` **and** paid payment_status; cancelled/unpaid rejected. Wired into `userHasCompletedBookingForListing`. Tests 4/4.
 
 **Certification:** rentals honesty = **BROWSER-TESTED**; review cancel/unpaid gate = **AUTOMATED-TESTED**.
+
+### Phase 880 — Anon adversarial access denied for booking #41
+
+**Attack (live TEST project REST, anon key):**
+1. `GET /bookings?id=eq.#41` → `[]` (no leakage)
+2. `GET /booking_messages?booking_id=eq.#41` → `[]`
+3. `PATCH /bookings?id=eq.#41` status=confirmed → HTTP 200 with `[]` (0 rows updated under RLS)
+4. Remote SQL confirms #41 still `cancelled`
+
+Dedicated Traveler B password not in this environment (`.env.partner-demo.local` absent) — authenticated cross-account SELECT still P1 when credentials available.
+
+**Certification:** anonymous cross-booking isolation = **ADVERSARIAL-TESTED** (live REST).
 
 ## Known remaining risks (ranked)
 
