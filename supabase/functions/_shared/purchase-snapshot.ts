@@ -1,5 +1,17 @@
 /** Mirrors src/lib/purchase-snapshot.ts for Deno edge checkout. */
 
+/** Mirror of TRAVERION_STANDARD_CANCELLATION_POLICY (src/types/listingExtras.ts). */
+export const TRAVERION_STANDARD_CANCELLATION_POLICY =
+  'You may cancel free of charge up to 24 hours before the scheduled start time. After that, guest-initiated cancellations are not available. If the operator cancels or needs to reschedule (for example due to weather or safety), that is handled from your booking details.';
+
+/** Freeze what travelers saw at checkout when the listing column is blank. */
+export function resolveCancellationPolicyForSnapshot(
+  listingCancellationPolicy?: string | null
+): string {
+  const raw = (listingCancellationPolicy ?? '').trim();
+  return raw || TRAVERION_STANDARD_CANCELLATION_POLICY;
+}
+
 export type PurchaseFulfillment = 'pickup' | 'meeting_point';
 
 export type PurchaseSnapshot = {

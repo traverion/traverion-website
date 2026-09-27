@@ -52,6 +52,7 @@ import {
   displayCheckInAddressFromPurchase,
   displayFulfillmentFromPurchase,
 } from '../lib/purchase-snapshot';
+import { TRAVERION_STANDARD_CANCELLATION_POLICY } from '../types/listingExtras';
 import { decrementAvailabilityBooked } from '../data/supabase-availability';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
 import { guestFacingBookingNotes } from '../lib/booking-notes';
@@ -696,7 +697,10 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               const tripFulfillment = displayFulfillmentFromPurchase(b.purchase_snapshot);
               const tripPlaceHeading =
                 tripFulfillment === 'pickup' ? 'Pickup area' : 'Meeting point';
-              const tripCancelPolicy = displayCancellationPolicyFromPurchase(b.purchase_snapshot, null);
+              const tripCancelPolicy = displayCancellationPolicyFromPurchase(
+                b.purchase_snapshot,
+                TRAVERION_STANDARD_CANCELLATION_POLICY
+              );
               const liveTrip = travelerTripIsLive(b);
               const pickupMissing =
                 liveTrip &&

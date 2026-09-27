@@ -17,6 +17,8 @@ import {
 import {
   resolveOptionFieldsForSnapshot,
   resolvePickupInstructionsForSnapshot,
+  resolveCancellationPolicyForSnapshot,
+  TRAVERION_STANDARD_CANCELLATION_POLICY,
 } from '../../supabase/functions/_shared/purchase-snapshot.ts';
 
 describe('purchase-snapshot', () => {
@@ -199,6 +201,12 @@ describe('resolveOptionFieldsForSnapshot (checkout freeze helpers)', () => {
         listingPickupInstructions: 'Listing-level note',
       })
     ).toBe('Van B — look for Traverion');
+  });
+
+  it('freezes STANDARD cancellation when listing column is blank', () => {
+    expect(resolveCancellationPolicyForSnapshot(null)).toBe(TRAVERION_STANDARD_CANCELLATION_POLICY);
+    expect(resolveCancellationPolicyForSnapshot('  ')).toBe(TRAVERION_STANDARD_CANCELLATION_POLICY);
+    expect(resolveCancellationPolicyForSnapshot('Custom non-refundable.')).toBe('Custom non-refundable.');
   });
 
   it('surfaces snapshotted departure timezone for Trips clock copy', () => {

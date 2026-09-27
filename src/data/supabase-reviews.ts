@@ -153,7 +153,9 @@ export async function userHasCompletedBookingForListing(
 
   const { data, error } = await supabase
     .from('bookings')
-    .select('id, status, payment_status, booking_date, start_time, check_out, nights, special_requests')
+    .select(
+      'id, status, payment_status, booking_date, start_time, check_out, nights, special_requests, purchase_snapshot'
+    )
     .eq('listing_id', listingId)
     .eq('guest_email', userEmail)
     .eq('status', 'confirmed')

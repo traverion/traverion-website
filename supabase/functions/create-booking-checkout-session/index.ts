@@ -11,6 +11,7 @@ import {
   resolveMeetingPointForSnapshot,
   resolveOptionFieldsForSnapshot,
   resolvePickupInstructionsForSnapshot,
+  resolveCancellationPolicyForSnapshot,
   resolveStayFieldsForSnapshot,
 } from '../_shared/purchase-snapshot.ts';
 import { isStripeTestSecretKey, stripeLiveSecretBlockedMessage } from '../_shared/stripe-test-only.ts';
@@ -369,10 +370,11 @@ serve(async (req) => {
       startTimeHm: startTime || null,
       duration: optionFields.duration,
       fulfillment: optionFields.fulfillment,
-      cancellationPolicy:
+      cancellationPolicy: resolveCancellationPolicyForSnapshot(
         typeof (listingRow as { cancellation_policy?: unknown }).cancellation_policy === 'string'
           ? (listingRow as { cancellation_policy: string }).cancellation_policy
-          : null,
+          : null
+      ),
       optionId: quote.optionId ?? storedOptionId,
       scheduleId: optionFields.scheduleId,
       currency: quote.currency,
