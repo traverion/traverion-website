@@ -4,12 +4,12 @@
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
 **Current SHA:** `128ad25`  
-**Current phase:** 1016  
+**Current phase:** 1017  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Local-only (gitignored):** `scripts/cert-transactional-emails.cjs` — must stay untracked; contains service-role secrets when present locally  
-**Remote migration truth (Phase 1001):** Local=Remote through **107** on `xcopqllkulxfkpunetbc`. Stripe: TEST only.  
+**Remote migration truth (Phase 1017):** Local=Remote through **108** on `xcopqllkulxfkpunetbc`. Stripe: TEST only.  
 
 ## Milestone Phase 513 (inventory band)
 
@@ -5216,6 +5216,14 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 **Fix:** `checkout-consent.ts` header no longer claims presentation-only; documents Edge requirement + snapshot stamp.
 
 **Certification:** CODE-INSPECTED.
+
+### Phase 1017 — Guard supplier_booking_ops_notes against cross-supplier plant
+
+**Gap:** INSERT/UPDATE RLS only checked `supplier_id = auth.uid()`, so any authenticated supplier could plant an ops note on another supplier's booking_id via PostgREST (same class as vouchers 099).
+
+**Fix:** Migration `108_supplier_booking_ops_notes_ownership_guard.sql` — WITH CHECK requires booking→listing owned by row supplier_id. SQL harness + remote db push. No UI callers today; still P0-family authorization.
+
+**Certification:** ADVERSARIAL-TESTED (SQL harness authored) + remote applied. Scratch Postgres re-run = host-blocked (no local docker).
 
 ## Known remaining risks (ranked)
 
