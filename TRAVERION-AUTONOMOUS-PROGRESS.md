@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `bb961f8`  
-**Current phase:** 893  
+**Current SHA:** `75dd45d`  
+**Current phase:** 894  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4701,6 +4701,12 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 **Evidence:** Remote `transactional_email_log` has unique `idempotency_key` (migration 075). Notify edges claim keys before send (`notify-customer-booking`, `notify-supplier-event`, webhook refund keys). Client roles denied by RLS.
 
 **Certification:** email retry safety = **CODE-INSPECTED** + **INTEGRATION** (schema present). Delivery success not re-browser-certified this phase.
+
+### Phase 894 — Legal / consent surfaces browser-certified
+
+**Browser:** Footer → Privacy (`/privacy`) and General Terms (`/terms`) render real policy articles (last updated 26 March 2026). `/legal` correctly 404s (no invented hub). SPA title/body can briefly desync during client navigation (settles).
+
+**Certification:** platform legal pages = **BROWSER-TESTED**. Not legal advice; content exists as product surfaces.
 
 ## Known remaining risks (ranked)
 
