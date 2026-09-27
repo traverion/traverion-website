@@ -9,6 +9,7 @@ import {
   bookingCutoffTravelerLabel,
   normalizeBookingCutoffHours,
 } from '../../lib/tour-departure-cutoff';
+import { travelerItinerary } from '../../lib/tour-itinerary';
 
 type Legal = {
   operatorName: string;
@@ -25,28 +26,6 @@ type Props = {
   onOpenLegal: (kind: 'privacy' | 'terms') => void;
 };
 
-function itinerarySteps(tour: TourPackage) {
-  const generic = /^(tour|experience|activity)$/i;
-  const steps = (tour.itinerary ?? []).filter(
-    (d) =>
-      String(d.title ?? '').trim() ||
-      String(d.description ?? '').trim() ||
-      (d.activities ?? []).some((a) => String(a).trim())
-  );
-  if (steps.length !== 1) return steps;
-  const only = steps[0];
-  const title = String(only.title ?? '').trim();
-  const titleDup = title.toLowerCase() === String(tour.title ?? '').trim().toLowerCase() || generic.test(title);
-  const stepDesc = String(only.description ?? '').trim().toLowerCase();
-  const tourDesc = String(tour.description ?? '').trim().toLowerCase();
-  const descDup = !stepDesc || stepDesc === tourDesc || generic.test(stepDesc);
-  const activityTexts = (only.activities ?? []).map((a) => String(a).trim()).filter(Boolean);
-  const onlyGenericActivity =
-    activityTexts.length === 0 || activityTexts.every((a) => generic.test(a));
-  if (titleDup && descDup && onlyGenericActivity) return [];
-  return steps;
-}
-
 const sectionClass = 'border-t border-black/[0.06] pt-8';
 const headingClass = 'font-display text-xl text-ink mb-3';
 
@@ -57,7 +36,7 @@ export default function TourListingSections({
   onOpenLegal,
 }: Props) {
   const highlights = tour.highlights.map((h) => String(h).trim()).filter(Boolean);
-  const steps = itinerarySteps(tour);
+  const itinerary = travelerItinerary(tour);
   const includes = tour.includes.map((s) => String(s).trim()).filter(Boolean);
   const excludes = tour.excludes.map((s) => String(s).trim()).filter(Boolean);
   const notes = (tour.price?.importantNotes ?? []).map((n) => String(n).trim()).filter(Boolean);
@@ -87,12 +66,12 @@ export default function TourListingSections({
         </section>
       ) : null}
 
-      {steps.length > 0 ? (
+      {itinerary.kind === 'steps' ? (
         <section className={sectionClass}>
           <h2 className={headingClass}>Itinerary</h2>
           <ol className="space-y-5 border-l border-black/[0.08] pl-5">
-            {steps.map((day, index) => {
-              const multiDay = steps.length > 1;
+            {itinerary.steps.map((day, index) => {
+              const multiDay = itinerary.steps.length > 1;
               const label = multiDay
                 ? `Step ${index + 1}`
                 : day.location?.trim()
@@ -129,6 +108,15 @@ export default function TourListingSections({
               );
             })}
           </ol>
+        </section>
+      ) : null}
+
+      {itinerary.kind === 'notes' ? (
+        <section className={sectionClass}>
+          <h2 className={headingClass}>Itinerary</h2>
+          <p className="max-w-2xl text-[15px] leading-relaxed text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
+            {itinerary.notes}
+          </p>
         </section>
       ) : null}
 

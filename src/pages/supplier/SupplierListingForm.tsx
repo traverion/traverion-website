@@ -25,6 +25,7 @@ import {
 import { optionHeadlineUnitPrice, summarizeOptionPricing } from '../../lib/price-categories';
 import { headlineStartingAmountFromBookingOptions } from '../../lib/headline-price';
 import { listingDurationForPersist } from '../../lib/listing-option-ownership';
+import { itineraryForListingPersist } from '../../lib/tour-itinerary';
 import {
   TOUR_OPTION_SCENE_COUNT,
   TOUR_OPTION_SCENES,
@@ -696,16 +697,13 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
     image: mainImage,
     description: desc,
     highlights: highlightList,
-    itinerary: [
-      {
-        day: 1,
-        title: form.title,
-        description: desc,
-        meals: 'None',
-        location: form.city.trim() || resolvedDestination,
-        activities: ['Tour'],
-      },
-    ],
+    itinerary: itineraryForListingPersist({
+      title: form.title,
+      description: desc,
+      city: form.city,
+      destination: resolvedDestination,
+      typicalTimelineNotes: form.typicalTimelineNotes,
+    }),
     includes: includeList,
     excludes: excludeList,
     hotels: [],

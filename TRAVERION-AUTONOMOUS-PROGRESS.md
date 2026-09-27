@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `68ac29b`  
-**Current phase:** 857  
+**Current SHA:** `1ce2d88`  
+**Current phase:** 858  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -268,6 +268,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 855 | Option-scoped pickup/meeting on tour PDP | `5c5ae05` |
 | 856 | Booking cut-off before departure | `8d817ed` |
 | 857 | Thicker purchase snapshot | `68ac29b` |
+| 858 | Traveler itinerary from typical flow | `1ce2d88` |
 
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
@@ -4319,7 +4320,7 @@ Deep audit of listing → option → schedule ownership vs publish/traveler/snap
 
 **Strengths:** hierarchy, guided scenes, client publish gate, quote schedule resolution, thin purchase freeze.
 
-**P0/P1 gaps ranked for 854+:** server bookability beyond city/hero (095); option-scoped meeting on PDP; booking cut-off; thicker snapshot; itinerary write-only honesty.
+**Next (859+):** create→publish→book E2E certification; stay depth; rentals honesty; inventory concurrency; RLS adversarial; timezone IANA per listing.
 
 **Cert:** code-inspected.
 
@@ -4354,6 +4355,14 @@ Deep audit of listing → option → schedule ownership vs publish/traveler/snap
 **Fix:** Extend `purchase_snapshot` with duration, fulfillment, cancellationPolicy, optionId, scheduleId, currency, totalAmount. Checkout resolves option-scoped place/note + schedule id. Trips shows purchased duration + cancellation terms.
 
 **Cert:** vitest purchase-snapshot 8/8.
+
+### Phase 858 — Traveler itinerary from typical flow notes
+
+**Gap (853):** Partners wrote `typicalTimelineNotes` but travelers never saw them; persist wrote a DayPlan stub that the PDP correctly hid as duplicate.
+
+**Fix:** `travelerItinerary` — real steps win; else show notes. Persist uses `itineraryForListingPersist` (notes → “Typical flow” step, else empty — no stub). Partner field labeled as shown on tour page.
+
+**Cert:** vitest tour-itinerary 4/4.
 
 ## Known remaining risks (ranked)
 
