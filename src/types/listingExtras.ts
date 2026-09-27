@@ -171,6 +171,12 @@ export type StayDetails = {
   checkInTime?: string;
   checkOutTime?: string;
   houseRules?: string;
+  /**
+   * Exact arrival address for booked guests (street / building / entry notes).
+   * Not shown on the public stay page — frozen onto purchase_snapshot at checkout
+   * and shown in Trips. Prefer city/country for discovery.
+   */
+  checkInAddress?: string;
   nightlyPriceUsd?: number;
   minNights?: number;
   maxGuests?: number;
@@ -191,6 +197,9 @@ function normalizeStayDetails(raw: unknown): StayDetails | undefined {
   if (typeof o.checkInTime === 'string' && o.checkInTime.trim()) out.checkInTime = o.checkInTime.trim().slice(0, 5);
   if (typeof o.checkOutTime === 'string' && o.checkOutTime.trim()) out.checkOutTime = o.checkOutTime.trim().slice(0, 5);
   if (typeof o.houseRules === 'string' && o.houseRules.trim()) out.houseRules = o.houseRules.trim().slice(0, 2000);
+  if (typeof o.checkInAddress === 'string' && o.checkInAddress.trim()) {
+    out.checkInAddress = o.checkInAddress.trim().slice(0, 400);
+  }
   if (typeof o.nightlyPriceUsd === 'number' && o.nightlyPriceUsd > 0) out.nightlyPriceUsd = o.nightlyPriceUsd;
   if (typeof o.minNights === 'number' && o.minNights >= 1) out.minNights = Math.floor(o.minNights);
   if (typeof o.maxGuests === 'number' && o.maxGuests >= 1) out.maxGuests = Math.floor(o.maxGuests);

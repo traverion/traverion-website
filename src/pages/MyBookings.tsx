@@ -49,6 +49,7 @@ import {
   formatTripDepartureWithTimezone,
   displayDurationFromPurchase,
   displayCancellationPolicyFromPurchase,
+  displayCheckInAddressFromPurchase,
 } from '../lib/purchase-snapshot';
 import { decrementAvailabilityBooked } from '../data/supabase-availability';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
@@ -699,7 +700,14 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 listingPickupCopyIncomplete(tripMeeting || null, tripPickupInstructions || null) &&
                 !b.pickup_time;
               const thumb = ops?.image ?? null;
-              const placeLine = (ops?.city || ops?.destination || '').trim() || null;
+              const placeLine = (() => {
+                const snapAddr = displayCheckInAddressFromPurchase(b.purchase_snapshot);
+                if (snapAddr) return snapAddr;
+                return (ops?.city || ops?.destination || '').trim() || null;
+              })();
+              const placeLabel = displayCheckInAddressFromPurchase(b.purchase_snapshot)
+                ? 'Check-in address'
+                : 'Place';
               const dateLine = (() => {
                 const out =
                   b.check_out && /^\d{4}-\d{2}-\d{2}$/.test(b.check_out)
@@ -884,9 +892,11 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     {placeLine ? (
                       <div>
                         <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
-                          Location
+                          {placeLabel}
                         </dt>
-                        <dd className="mt-0.5 text-sm text-ink">{placeLine}</dd>
+                        <dd className="mt-0.5 text-sm text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
+                          {placeLine}
+                        </dd>
                       </div>
                     ) : null}
                     {!isStay && tripMeeting ? (

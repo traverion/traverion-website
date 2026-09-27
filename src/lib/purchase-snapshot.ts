@@ -30,6 +30,8 @@ export type PurchaseSnapshot = {
   checkOut?: string | null;
   nights?: number | null;
   propertyType?: string | null;
+  /** Stay: exact check-in address frozen at purchase for Trips. */
+  checkInAddress?: string | null;
   /** IANA zone for departure wall clock at purchase. */
   departureTimezone?: string | null;
   /** ISO timestamp when traveler accepted checkout terms (server-stamped). */
@@ -59,6 +61,7 @@ export function buildPurchaseSnapshot(input: {
   checkOut?: string | null;
   nights?: number | null;
   propertyType?: string | null;
+  checkInAddress?: string | null;
   departureTimezone?: string | null;
   termsAcceptedAt?: string | null;
   capturedAt?: string;
@@ -86,6 +89,7 @@ export function buildPurchaseSnapshot(input: {
       ? Math.floor(input.nights)
       : null;
   const propertyType = (input.propertyType ?? '').trim() || null;
+  const checkInAddress = (input.checkInAddress ?? '').trim() || null;
   const departureTimezone = (input.departureTimezone ?? '').trim() || null;
   const termsAcceptedAt = (input.termsAcceptedAt ?? '').trim() || null;
   const snap: PurchaseSnapshot = {
@@ -107,6 +111,7 @@ export function buildPurchaseSnapshot(input: {
   if (checkOut) snap.checkOut = checkOut;
   if (nights != null) snap.nights = nights;
   if (propertyType) snap.propertyType = propertyType;
+  if (checkInAddress) snap.checkInAddress = checkInAddress;
   if (departureTimezone) snap.departureTimezone = departureTimezone;
   if (termsAcceptedAt) snap.termsAcceptedAt = termsAcceptedAt;
   return snap;
@@ -244,6 +249,13 @@ export function displayStayNightsFromPurchase(
   }
   if (typeof liveNights === 'number' && liveNights >= 1) return Math.floor(liveNights);
   return null;
+}
+
+/** Prefer snapshotted stay check-in address; empty when absent. */
+export function displayCheckInAddressFromPurchase(snapshot: unknown): string | null {
+  if (!isPurchaseSnapshot(snapshot)) return null;
+  const addr = (snapshot.checkInAddress ?? '').trim();
+  return addr || null;
 }
 
 /**

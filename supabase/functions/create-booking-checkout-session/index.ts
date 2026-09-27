@@ -385,6 +385,7 @@ serve(async (req) => {
           ? ((listingRow.listing_extras as { departureTimezone: string }).departureTimezone || null)
           : null,
       propertyType: stayFields?.propertyType ?? null,
+      checkInAddress: stayFields?.checkInAddress ?? null,
       termsAcceptedAt,
     });
 

@@ -20,6 +20,7 @@ export type PurchaseSnapshot = {
   checkOut?: string | null;
   nights?: number | null;
   propertyType?: string | null;
+  checkInAddress?: string | null;
   departureTimezone?: string | null;
   termsAcceptedAt?: string | null;
 };
@@ -41,6 +42,7 @@ export function buildPurchaseSnapshot(input: {
   checkOut?: string | null;
   nights?: number | null;
   propertyType?: string | null;
+  checkInAddress?: string | null;
   departureTimezone?: string | null;
   termsAcceptedAt?: string | null;
   capturedAt?: string;
@@ -68,6 +70,7 @@ export function buildPurchaseSnapshot(input: {
       ? Math.floor(input.nights)
       : null;
   const propertyType = (input.propertyType ?? '').trim() || null;
+  const checkInAddress = (input.checkInAddress ?? '').trim() || null;
   const departureTimezone = (input.departureTimezone ?? '').trim() || null;
   const termsAcceptedAt = (input.termsAcceptedAt ?? '').trim() || null;
   const snap: PurchaseSnapshot = {
@@ -89,6 +92,7 @@ export function buildPurchaseSnapshot(input: {
   if (checkOut) snap.checkOut = checkOut;
   if (nights != null) snap.nights = nights;
   if (propertyType) snap.propertyType = propertyType;
+  if (checkInAddress) snap.checkInAddress = checkInAddress;
   if (departureTimezone) snap.departureTimezone = departureTimezone;
   if (termsAcceptedAt) snap.termsAcceptedAt = termsAcceptedAt;
   return snap;
@@ -223,6 +227,7 @@ export function resolveStayFieldsForSnapshot(input: {
   checkOut: string | null;
   nights: number | null;
   propertyType: string | null;
+  checkInAddress: string | null;
 } {
   const checkIn = (input.checkIn ?? '').trim() || null;
   const checkOut = (input.checkOut ?? '').trim() || null;
@@ -231,12 +236,16 @@ export function resolveStayFieldsForSnapshot(input: {
       ? Math.floor(input.nights)
       : null;
   let propertyType: string | null = null;
+  let checkInAddress: string | null = null;
   const extras = input.listingExtras;
   if (extras && typeof extras === 'object') {
-    const stay = (extras as { stay?: { propertyType?: unknown } }).stay;
+    const stay = (extras as { stay?: { propertyType?: unknown; checkInAddress?: unknown } }).stay;
     if (stay && typeof stay.propertyType === 'string' && stay.propertyType.trim()) {
       propertyType = stay.propertyType.trim();
     }
+    if (stay && typeof stay.checkInAddress === 'string' && stay.checkInAddress.trim()) {
+      checkInAddress = stay.checkInAddress.trim().slice(0, 400);
+    }
   }
-  return { checkIn, checkOut, nights, propertyType };
+  return { checkIn, checkOut, nights, propertyType, checkInAddress };
 }

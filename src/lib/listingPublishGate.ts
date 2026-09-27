@@ -108,6 +108,9 @@ export function getListingPublishBlockers(listing: TourPackage, todayIso?: strin
     if (!/^\d{2}:\d{2}$/.test(checkOut)) {
       out.push('Set a check-out time so guests know when to leave.');
     }
+    if (!(stay?.checkInAddress ?? '').trim()) {
+      out.push('Add the check-in address guests need after they book (street / building / entry).');
+    }
   } else if (bookingOptions.length > 0) {
     for (let i = 0; i < bookingOptions.length; i++) {
       out.push(...optionPublishIssues(bookingOptions[i], i, bookingOptions.length > 1, today));

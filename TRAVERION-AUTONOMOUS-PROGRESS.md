@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness** (continuing 1001+)  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `b26a04c`  
-**Current phase:** 1055  
+**Current SHA:** `23aa017`  
+**Current phase:** 1056  
 **Remote migration truth (Phase 1055):** Local=Remote through **124** on `xcopqllkulxfkpunetbc`. Stripe: TEST only.  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
@@ -5509,12 +5509,20 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 
 **Certification:** AUTOMATED-TESTED / INTEGRATION (db push).
 
+### Phase 1056 — Stay check-in address for Trips
+
+**Problem:** Stay Trips had city-only place; hosts had no field for exact arrival address.
+
+**Fix:** `checkInAddress` on stay extras → purchase_snapshot → Trips; publish/step required; not rendered on public StayDetails. Checkout redeployed.
+
+**Certification:** AUTOMATED-TESTED / INTEGRATION (deploy).
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.
 2. **P1 — Localhost same-origin auth**: shared Supabase session remains; Phase 904 blocks business-name lead-guest autofill (customer_* / consumer profile only).
 3. **P1 — FOUNDER:** see `docs/FOUNDER_REQUIRED.md` (auto-refund, take-rate; force-unpublish closed).
-4. **P1 — Stay private check-in address** missing (city-only on Trips).
+4. **P2 — Stay checkInAddress still in public listing_extras JSON** (UI hidden; column privacy deferred).
 5. **P2 — Browser-cert** admin listings moderation on admin host with staff demo.
 6. **P2 — notify-* booking-tied open-invoke residual** — recipient+content re-derived; nuisance spam with real bookingId still possible (full dual-mode auth deferred).
 7. **P2 — LIVE Stripe** intentionally blocked.

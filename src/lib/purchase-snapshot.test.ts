@@ -7,6 +7,7 @@ import {
   displayStartTimeFromPurchase,
   displayDepartureTimezoneFromPurchase,
   formatTripDepartureWithTimezone,
+  displayCheckInAddressFromPurchase,
   displayDurationFromPurchase,
   displayCancellationPolicyFromPurchase,
   displayFulfillmentFromPurchase,
@@ -199,5 +200,18 @@ describe('resolveOptionFieldsForSnapshot (checkout freeze helpers)', () => {
     );
     expect(formatTripDepartureWithTimezone('20:00', null)).toBe('20:00');
     expect(displayDepartureTimezoneFromPurchase({ listingTitle: 'x', capturedAt: 't' })).toBeNull();
+  });
+
+  it('freezes stay check-in address onto the purchase snapshot for Trips', () => {
+    const snap = buildPurchaseSnapshot({
+      listingTitle: 'Riverside loft',
+      checkIn: '2026-11-01',
+      checkOut: '2026-11-03',
+      nights: 2,
+      checkInAddress: '  Kauppakatu 12 A 4, 96200 Rovaniemi  ',
+      capturedAt: '2026-09-22T00:00:00.000Z',
+    });
+    expect(snap.checkInAddress).toBe('Kauppakatu 12 A 4, 96200 Rovaniemi');
+    expect(displayCheckInAddressFromPurchase(snap)).toBe('Kauppakatu 12 A 4, 96200 Rovaniemi');
   });
 });

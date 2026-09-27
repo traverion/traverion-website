@@ -562,6 +562,7 @@ type ListingFormState = {
   stayCheckOut: string;
   stayAmenities: string;
   stayHouseRules: string;
+  stayCheckInAddress: string;
   stayCleaningFee: string;
 };
 
@@ -667,6 +668,7 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
             checkInTime: form.stayCheckIn.trim() || undefined,
             checkOutTime: form.stayCheckOut.trim() || undefined,
             houseRules: form.stayHouseRules.trim() || undefined,
+            checkInAddress: form.stayCheckInAddress.trim() || undefined,
             nightlyPriceUsd: Number.isFinite(stayNightly) && stayNightly > 0 ? stayNightly : undefined,
             minNights: Number.isFinite(stayMinNights) && stayMinNights >= 1 ? stayMinNights : 1,
             maxGuests: Number.isFinite(stayMaxGuests) && stayMaxGuests >= 1 ? stayMaxGuests : undefined,
@@ -772,7 +774,11 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
   }
   if (idx === 1) {
     if (isStay) {
-      return form.city.trim().length > 0 && form.country.trim().length > 0;
+      return (
+        form.city.trim().length > 0 &&
+        form.country.trim().length > 0 &&
+        form.stayCheckInAddress.trim().length > 0
+      );
     }
     const inc = form.includes.map((s) => s.trim()).filter(Boolean).length;
     const exc = form.excludes.map((s) => s.trim()).filter(Boolean).length;
@@ -882,6 +888,7 @@ const emptyForm: ListingFormState = {
   stayCheckOut: '11:00',
   stayAmenities: '',
   stayHouseRules: '',
+  stayCheckInAddress: '',
   stayCleaningFee: '',
 };
 
@@ -1116,7 +1123,12 @@ export default function SupplierListingForm({
           label: 'Location',
           summary: reviewStayLocationSummary(form.city, form.country),
           ready: isStepSatisfied(1, form),
-          missing: !form.city.trim() || !form.country.trim() ? 'Add city and country.' : null,
+          missing:
+            !form.city.trim() || !form.country.trim()
+              ? 'Add city and country.'
+              : !form.stayCheckInAddress.trim()
+                ? 'Add the check-in address for booked guests.'
+                : null,
         },
         {
           step: 2,
@@ -1361,6 +1373,7 @@ export default function SupplierListingForm({
           stayCheckOut: extras.stay?.checkOutTime ?? '11:00',
           stayAmenities: (extras.stay?.amenities ?? []).join(', '),
           stayHouseRules: extras.stay?.houseRules ?? '',
+          stayCheckInAddress: extras.stay?.checkInAddress ?? '',
           stayCleaningFee: extras.stay?.cleaningFeeUsd != null ? String(extras.stay.cleaningFeeUsd) : '',
         };
         initialFormSnapshotRef.current = serializeListingFormState(next);
@@ -3163,6 +3176,24 @@ export default function SupplierListingForm({
                   />
                   <p className="text-xs text-ink-muted">
                     If you skip this, we use city and country from above.
+                  </p>
+                </div>
+                <div id="supplier-listing-field-stay-check-in-address" className="space-y-2">
+                  <label className="block text-sm font-semibold text-ink" htmlFor="stay-check-in-address">
+                    Check-in address *
+                  </label>
+                  <textarea
+                    id="stay-check-in-address"
+                    value={form.stayCheckInAddress}
+                    onChange={(e) => setForm((f) => ({ ...f, stayCheckInAddress: e.target.value }))}
+                    className="tv-input min-h-[4.5rem] resize-y"
+                    placeholder="Street, building, apartment, entry code — for booked guests only"
+                    maxLength={400}
+                    required
+                  />
+                  <p className="text-xs text-ink-muted">
+                    City and country stay on the public listing. This exact address is saved on the booking and shown
+                    in Trips after purchase — not on the public stay page.
                   </p>
                 </div>
               </section>
