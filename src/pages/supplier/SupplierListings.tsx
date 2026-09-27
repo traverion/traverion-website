@@ -51,7 +51,6 @@ import { canManageBookings } from '../../lib/supplierTeamRoles';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { publicStayListingUrl, publicTourListingUrl } from '../../lib/publicSiteUrl';
 import { getListingPublishBlockers, partnerListingCardPresentation, partnerListingDraftPublishSubtitle } from '../../lib/listingPublishGate';
-import { listingHasUpcomingBookableSeason } from '../../lib/booking-quote';
 import {
   PARTNER_LISTINGS_BUSINESS_REVIEW_NOTE,
   PARTNER_LISTINGS_PAYOUT_REVIEW_NOTE,
@@ -1205,11 +1204,9 @@ export default function SupplierListings() {
               const place = [listing.city, listing.country ?? listing.destination].filter(Boolean).join(', ');
               const heroSrc = listingHeroImageSrc(listing.image);
               const draftPublish = !isLive ? partnerListingDraftPublishSubtitle(listing) : null;
-              // Phase 1268: published tours with ended seasons need partner attention.
-              const liveAttention =
-                isLive && !isStay && !listingHasUpcomingBookableSeason(listing)
-                  ? 'Every schedule season has ended. Extend dates or travelers cannot book.'
-                  : null;
+              // Phase 1272: Live cards surface any publish-bar drift (season, capacity, photos…).
+              const liveBlockers = isLive ? getListingPublishBlockers(listing) : [];
+              const liveAttention = liveBlockers[0] ?? null;
               const card = partnerListingCardPresentation({
                 isLive,
                 publishBlockers: draftPublish?.blockers ?? [],

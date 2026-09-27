@@ -85,4 +85,15 @@ describe('partnerListingCardPresentation', () => {
     expect(card.primaryCta).toBe('continue');
     expect(card.primaryCtaLabel).toBe('Edit');
   });
+
+  it('Phase 1272: live attention works for any publish-bar message', () => {
+    const card = partnerListingCardPresentation({
+      isLive: true,
+      publishBlockers: [],
+      accountEligible: true,
+      liveAttention: 'Add at least two “what’s included” items so the offer is clear.',
+    });
+    expect(card.statusLabel).toBe('Needs update');
+    expect(card.publishDisabledReason).toContain('included');
+  });
 });

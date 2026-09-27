@@ -213,7 +213,7 @@ export function partnerListingCardPresentation(args: {
   isLive: boolean;
   publishBlockers: string[];
   accountEligible: boolean;
-  /** Phase 1268: published listing that travelers can no longer book (e.g. ended season). */
+  /** Phase 1268/1272: published listing that fails the publish bar (season, capacity, photos…). */
   liveAttention?: string | null;
 }): {
   statusLabel: string;
