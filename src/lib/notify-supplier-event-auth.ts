@@ -49,3 +49,17 @@ export function supplierEventPartyAllowsNotify(params: {
 
   return false;
 }
+
+/**
+ * Phase 1127: guest JWT may only invoke guest-originated booking events.
+ * Host/ops kinds (host_schedule_updated, new_booking, cancellation_*, …)
+ * require supplier-side or service-role.
+ */
+export function guestMayInvokeSupplierEvent(eventType: string): boolean {
+  const kind = (eventType ?? '').trim();
+  return (
+    kind === 'guest_message' ||
+    kind === 'booking_detail_changed' ||
+    kind === 'booking_cancelled'
+  );
+}

@@ -14,6 +14,7 @@ import {
 } from '../_shared/transactional-email.ts';
 import { isBookingTiedSupplierEvent, isReviewTiedSupplierEvent, isAuthorizedSupplierSelfNotifyCaller, isSupplierSelfNotifyEvent, resolveSupplierEventContext } from '../_shared/notify-supplier-event-guard.ts';
 import {
+  guestMayInvokeSupplierEvent,
   isServiceRoleBearer,
   supplierEventPartyAllowsNotify,
 } from '../_shared/notify-supplier-event-auth.ts';
@@ -435,6 +436,7 @@ serve(async (req) => {
     // Service-role (webhook/promote) or JWT owner/team/guest/review-author only.
     // Recipient remains DB-derived; static fields remain re-derived; this closes
     // the open send gate so fieldDiffs/messagePreview cannot be forged anonymously.
+    // Phase 1127: guest JWT may only invoke guest-originated booking events.
     if (isBookingTiedSupplierEvent(payload.eventType) || isReviewTiedSupplierEvent(payload.eventType)) {
       const authHeader = req.headers.get('Authorization');
       if (!isServiceRoleBearer(authHeader, serviceRoleKey)) {
@@ -521,6 +523,23 @@ serve(async (req) => {
             guestEmail,
             reviewAuthorUserId,
           })
+        ) {
+          return json({ success: false, error: 'Unauthorized' }, 401);
+        }
+
+        const callerIsSupplierSide =
+          (listingSupplierId.length > 0 && callerId === listingSupplierId) || callerIsTeamMember;
+        const callerIsGuest =
+          (guestUserId && callerId === guestUserId) ||
+          (callerEmail &&
+            guestEmail &&
+            callerEmail.trim().toLowerCase() === String(guestEmail).trim().toLowerCase());
+        // Phase 1127: guests must not fire host/ops supplier events.
+        if (
+          callerIsGuest &&
+          !callerIsSupplierSide &&
+          isBookingTiedSupplierEvent(payload.eventType) &&
+          !guestMayInvokeSupplierEvent(payload.eventType)
         ) {
           return json({ success: false, error: 'Unauthorized' }, 401);
         }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  guestMayInvokeSupplierEvent,
   isServiceRoleBearer,
   supplierEventPartyAllowsNotify,
 } from './notify-supplier-event-auth';
@@ -92,5 +93,14 @@ describe('notify-supplier-event auth (Phase 1093)', () => {
         guestEmail: 'g@x.com',
       })
     ).toBe(false);
+  });
+
+  it('Phase 1127: guest may only invoke guest-originated booking events', () => {
+    expect(guestMayInvokeSupplierEvent('guest_message')).toBe(true);
+    expect(guestMayInvokeSupplierEvent('booking_detail_changed')).toBe(true);
+    expect(guestMayInvokeSupplierEvent('booking_cancelled')).toBe(true);
+    expect(guestMayInvokeSupplierEvent('host_schedule_updated')).toBe(false);
+    expect(guestMayInvokeSupplierEvent('new_booking')).toBe(false);
+    expect(guestMayInvokeSupplierEvent('cancellation_accepted')).toBe(false);
   });
 });
