@@ -372,6 +372,8 @@ serve(async (req) => {
 
     const admin = adminClientFromEnv();
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')?.trim() ?? '';
+    // Phase 1126: fieldDiffs are caller-authored copy — only supplier or service-role may set them.
+    let allowCallerFieldDiffs = false;
     // Phase 1092: booking-tied kinds reject anonymous forgery. Service-role
     // (webhook/cron/promote) or JWT guest/supplier party only. Recipient +
     // static fields remain re-derived; this closes the open send gate.
@@ -380,7 +382,9 @@ serve(async (req) => {
         return json({ success: false, error: 'Unauthorized' }, 401);
       }
       const authHeader = req.headers.get('Authorization');
-      if (!isServiceRoleBearer(authHeader, serviceRoleKey)) {
+      if (isServiceRoleBearer(authHeader, serviceRoleKey)) {
+        allowCallerFieldDiffs = true;
+      } else {
         const supabaseUrl = Deno.env.get('SUPABASE_URL');
         const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
         if (!supabaseUrl || !anonKey || !authHeader) {
@@ -427,6 +431,7 @@ serve(async (req) => {
         ) {
           return json({ success: false, error: 'Unauthorized' }, 401);
         }
+        allowCallerFieldDiffs = callerIsListingSupplier;
       }
     }
 
@@ -547,14 +552,16 @@ serve(async (req) => {
       }
     }
 
-    const diffs = Array.isArray(body.fieldDiffs)
-      ? body.fieldDiffs.filter(
-          (d) =>
-            d &&
-            typeof d.label === 'string' &&
-            typeof d.before === 'string' &&
-            typeof d.after === 'string',
-        )
+    const diffs = allowCallerFieldDiffs
+      ? Array.isArray(body.fieldDiffs)
+        ? body.fieldDiffs.filter(
+            (d) =>
+              d &&
+              typeof d.label === 'string' &&
+              typeof d.before === 'string' &&
+              typeof d.after === 'string',
+          )
+        : []
       : [];
 
     let headline = 'Booking update';
