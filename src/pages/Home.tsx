@@ -712,7 +712,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                   tour={item}
                   index={index}
                   onSelect={() => openListing(item)}
-                  discountsByListing={new Map()}
+                  discountsByListing={discountsByListing}
                   reviewAggregate={reviewAggregates.get(item.id)}
                   tagLabels={{}}
                   size="compact"
