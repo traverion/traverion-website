@@ -71,11 +71,32 @@ describe('availability ops', () => {
           {
             maxSpotsPerSlot: 1,
             schedules: [
-              { maxSpotsPerSlot: 8, status: 'ready', availabilityDateFrom: '2026-01-01' },
-              { maxSpotsPerSlot: 12, status: 'ready', availabilityDateFrom: '2026-01-01' },
-              { maxSpotsPerSlot: 99, status: 'draft', availabilityDateFrom: '2026-01-01' },
-              // Phase 1289: ready without from must not inflate fallback caps.
-              { maxSpotsPerSlot: 50, status: 'ready', availabilityDateFrom: '' },
+              {
+                maxSpotsPerSlot: 8,
+                status: 'ready',
+                availabilityDateFrom: '2026-01-01',
+                startTime: '20:00',
+              },
+              {
+                maxSpotsPerSlot: 12,
+                status: 'ready',
+                availabilityDateFrom: '2026-01-01',
+                startTime: '20:00',
+              },
+              {
+                maxSpotsPerSlot: 99,
+                status: 'draft',
+                availabilityDateFrom: '2026-01-01',
+                startTime: '20:00',
+              },
+              // Phase 1289/1293: ready without from/start must not inflate fallback caps.
+              { maxSpotsPerSlot: 50, status: 'ready', availabilityDateFrom: '', startTime: '20:00' },
+              {
+                maxSpotsPerSlot: 40,
+                status: 'ready',
+                availabilityDateFrom: '2026-01-01',
+                startTime: '',
+              },
             ],
           },
         ])

@@ -508,6 +508,41 @@ describe('listingHasUpcomingBookableSeason (Phase 1260)', () => {
     ).toBe(false);
   });
 
+  it('Phase 1292: ignores ready schedules missing startTime', () => {
+    expect(
+      listingHasUpcomingBookableSeason(
+        tour({
+          listingExtras: {
+            bookingOptions: [
+              option({
+                id: 'notime',
+                name: 'No time',
+                priceUsd: 99,
+                weekdays: [true, true, true, true, true, true, true],
+                schedules: [
+                  {
+                    id: 'sch-1',
+                    name: 'No start',
+                    availabilityDateFrom: '2026-01-01',
+                    availabilityDateTo: '',
+                    weekdays: [true, true, true, true, true, true, true],
+                    startTime: '',
+                    priceUsd: 99,
+                    minPersons: 1,
+                    maxPersons: 8,
+                    maxSpotsPerSlot: 8,
+                    status: 'ready',
+                  },
+                ],
+              }),
+            ],
+          },
+        }),
+        '2026-09-11'
+      )
+    ).toBe(false);
+  });
+
   it('Phase 1288: ignores ready schedules missing availabilityDateFrom', () => {
     expect(
       listingHasUpcomingBookableSeason(

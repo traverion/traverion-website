@@ -438,11 +438,11 @@ export function listingHasUpcomingBookableSeason(
   for (const o of opts) {
     if (Array.isArray(o.schedules) && o.schedules.length > 0) {
       for (const s of o.schedules) {
-        // Phase 1288: only ready seasons with a real from date count (publish 1250 / assert 1285–1286).
+        // Phase 1288/1292: ready + from + startTime (scheduleIsBookable / publish parity).
         if (s.status !== 'ready') continue;
         const from = (s.availabilityDateFrom ?? '').trim();
         const to = (s.availabilityDateTo ?? '').trim();
-        if (!from) continue;
+        if (!from || !(s.startTime ?? '').trim()) continue;
         if (!to || to >= today) return true;
       }
     } else {

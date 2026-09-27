@@ -257,14 +257,15 @@ export function resolveOptionFieldsForSnapshot(input: {
     for (const raw of matched.schedules) {
       if (!raw || typeof raw !== 'object') continue;
       const s = raw as RawSchedule;
-      // Phase 1287: only ready schedules with a real from date (assert 1285/1286 parity).
+      // Phase 1287/1294: ready + from + startTime (scheduleIsBookable / assert parity).
       if (String(s.status ?? '').trim() !== 'ready') continue;
       const from = typeof s.availabilityDateFrom === 'string' ? s.availabilityDateFrom.trim() : '';
       const to = typeof s.availabilityDateTo === 'string' ? s.availabilityDateTo.trim() : '';
       if (!from || date < from) continue;
       if (to && date > to) continue;
       const st = typeof s.startTime === 'string' ? s.startTime.trim().slice(0, 5) : '';
-      if (time && st && st !== time) continue;
+      if (!st) continue;
+      if (time && st !== time) continue;
       const sid = typeof s.id === 'string' ? s.id.trim() : '';
       if (sid) {
         scheduleId = sid;
