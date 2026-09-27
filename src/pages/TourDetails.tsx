@@ -39,6 +39,7 @@ import { isListingVisibleToTravelers, listingDetailVisibleToTraveler } from '../
 import { listingIsOnTravelerCatalog } from '../lib/inventory';
 import { listingShowsFreeCancellation, publicReviewLabel } from '../lib/listingTruth';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
+import { LISTING_SELF_BOOK_BLOCKED, viewerIsListingSupplierSide } from '../lib/listing-self-book';
 import { listingTourCapacityFromOptions, remainingCapacity, capacitySpotsFromBookingOptions } from '../lib/availability-ops';
 import { departureSlotSpotsLeft, maxSpotsLeftAcrossDepartures, partyMaxCappedByRemainingSpots } from '../lib/departure-slot-remaining';
 import { tourSoldOutDates } from '../lib/tour-calendar';
@@ -1016,6 +1017,14 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       );
       if (dayErr) {
         setBookingCardError(dayErr);
+        return;
+      }
+    }
+    // Phase 1164: mirror 1147 — block own/team listings before navigating to checkout.
+    if (isSupabaseConfigured() && userRef.current?.id) {
+      const selfBook = await viewerIsListingSupplierSide(userRef.current.id, tour.supplierId);
+      if (selfBook) {
+        setBookingCardError(LISTING_SELF_BOOK_BLOCKED);
         return;
       }
     }
