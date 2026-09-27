@@ -13,6 +13,10 @@ import {
   sendResendEmail,
 } from '../_shared/transactional-email.ts';
 import { isBookingTiedSupplierEvent, isReviewTiedSupplierEvent, isAuthorizedSupplierSelfNotifyCaller, isSupplierSelfNotifyEvent, resolveSupplierEventContext } from '../_shared/notify-supplier-event-guard.ts';
+import {
+  isServiceRoleBearer,
+  supplierEventPartyAllowsNotify,
+} from '../_shared/notify-supplier-event-auth.ts';
 
 type EventType =
   | 'new_booking'
@@ -425,6 +429,101 @@ serve(async (req) => {
     }
 
     const admin = createClient(supabaseUrl, serviceRoleKey);
+
+    // Phase 1093: booking/review-tied kinds reject anonymous forgery (1092 parity).
+    // Service-role (webhook/promote) or JWT owner/team/guest/review-author only.
+    // Recipient remains DB-derived; static fields remain re-derived; this closes
+    // the open send gate so fieldDiffs/messagePreview cannot be forged anonymously.
+    if (isBookingTiedSupplierEvent(payload.eventType) || isReviewTiedSupplierEvent(payload.eventType)) {
+      const authHeader = req.headers.get('Authorization');
+      if (!isServiceRoleBearer(authHeader, serviceRoleKey)) {
+        const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+        if (!anonKey || !authHeader) {
+          return json({ success: false, error: 'Unauthorized' }, 401);
+        }
+        const authedClient = createClient(supabaseUrl, anonKey, {
+          global: { headers: { Authorization: authHeader } },
+        });
+        const { data: authData, error: authError } = await authedClient.auth.getUser();
+        const callerId = authData?.user?.id ?? null;
+        const callerEmail = authData?.user?.email ?? null;
+        if (authError || !callerId) {
+          return json({ success: false, error: 'Unauthorized' }, 401);
+        }
+
+        const listingId = String(payload.listingId ?? '').trim();
+        if (!listingId) {
+          return json({ success: false, error: 'Unauthorized' }, 401);
+        }
+        const { data: listingOwn } = await admin
+          .from('listings')
+          .select('supplier_id')
+          .eq('id', listingId)
+          .maybeSingle();
+        const listingSupplierId = String(listingOwn?.supplier_id ?? '').trim();
+
+        let guestUserId: string | null = null;
+        let guestEmail: string | null = null;
+        let reviewAuthorUserId: string | null = null;
+        let callerIsTeamMember = false;
+
+        if (isBookingTiedSupplierEvent(payload.eventType)) {
+          const bookingId = String(payload.bookingId ?? '').trim();
+          if (!bookingId) {
+            return json({ success: false, error: 'Unauthorized' }, 401);
+          }
+          const { data: partyBooking } = await admin
+            .from('bookings')
+            .select('guest_user_id, guest_email, listing_id')
+            .eq('id', bookingId)
+            .maybeSingle();
+          if (!partyBooking || String(partyBooking.listing_id ?? '').trim() !== listingId) {
+            return json({ success: false, error: 'Unauthorized' }, 401);
+          }
+          guestUserId = partyBooking.guest_user_id ?? null;
+          guestEmail = partyBooking.guest_email ?? null;
+        } else {
+          const reviewId = String(payload.reviewId ?? '').trim();
+          if (!reviewId) {
+            return json({ success: false, error: 'Unauthorized' }, 401);
+          }
+          const { data: partyReview } = await admin
+            .from('reviews')
+            .select('user_id, listing_id')
+            .eq('id', reviewId)
+            .maybeSingle();
+          if (!partyReview || String(partyReview.listing_id ?? '').trim() !== listingId) {
+            return json({ success: false, error: 'Unauthorized' }, 401);
+          }
+          reviewAuthorUserId = partyReview.user_id ?? null;
+        }
+
+        if (callerId !== listingSupplierId) {
+          const { data: teamRow } = await admin
+            .from('supplier_team_members')
+            .select('user_id')
+            .eq('supplier_id', String(payload.supplierId).trim())
+            .eq('user_id', callerId)
+            .maybeSingle();
+          callerIsTeamMember = Boolean(teamRow?.user_id);
+        }
+
+        if (
+          !supplierEventPartyAllowsNotify({
+            callerUserId: callerId,
+            callerEmail,
+            listingSupplierId,
+            claimedSupplierId: payload.supplierId,
+            callerIsTeamMember,
+            guestUserId,
+            guestEmail,
+            reviewAuthorUserId,
+          })
+        ) {
+          return json({ success: false, error: 'Unauthorized' }, 401);
+        }
+      }
+    }
 
     if (payload.eventType === 'supplier_welcome') {
       const { data: prof } = await admin

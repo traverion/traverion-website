@@ -1,0 +1,85 @@
+import { describe, expect, it } from 'vitest';
+import {
+  isServiceRoleBearer,
+  supplierEventPartyAllowsNotify,
+} from './notify-supplier-event-auth';
+
+describe('notify-supplier-event auth (Phase 1093)', () => {
+  it('recognizes the service_role bearer', () => {
+    expect(isServiceRoleBearer('Bearer secret-key', 'secret-key')).toBe(true);
+    expect(isServiceRoleBearer('Bearer other', 'secret-key')).toBe(false);
+  });
+
+  it('requires claimed supplierId to match listing owner', () => {
+    expect(
+      supplierEventPartyAllowsNotify({
+        callerUserId: 'sup',
+        listingSupplierId: 'sup',
+        claimedSupplierId: 'other',
+      })
+    ).toBe(false);
+  });
+
+  it('allows listing owner and team member', () => {
+    expect(
+      supplierEventPartyAllowsNotify({
+        callerUserId: 'sup',
+        listingSupplierId: 'sup',
+        claimedSupplierId: 'sup',
+      })
+    ).toBe(true);
+    expect(
+      supplierEventPartyAllowsNotify({
+        callerUserId: 'teammate',
+        listingSupplierId: 'sup',
+        claimedSupplierId: 'sup',
+        callerIsTeamMember: true,
+      })
+    ).toBe(true);
+  });
+
+  it('allows booking guest and review author', () => {
+    expect(
+      supplierEventPartyAllowsNotify({
+        callerUserId: 'guest',
+        listingSupplierId: 'sup',
+        claimedSupplierId: 'sup',
+        guestUserId: 'guest',
+      })
+    ).toBe(true);
+    expect(
+      supplierEventPartyAllowsNotify({
+        callerEmail: 'G@X.com',
+        listingSupplierId: 'sup',
+        claimedSupplierId: 'sup',
+        guestEmail: 'g@x.com',
+      })
+    ).toBe(true);
+    expect(
+      supplierEventPartyAllowsNotify({
+        callerUserId: 'author',
+        listingSupplierId: 'sup',
+        claimedSupplierId: 'sup',
+        reviewAuthorUserId: 'author',
+      })
+    ).toBe(true);
+  });
+
+  it('rejects anonymous and unrelated callers', () => {
+    expect(
+      supplierEventPartyAllowsNotify({
+        listingSupplierId: 'sup',
+        claimedSupplierId: 'sup',
+      })
+    ).toBe(false);
+    expect(
+      supplierEventPartyAllowsNotify({
+        callerUserId: 'stranger',
+        listingSupplierId: 'sup',
+        claimedSupplierId: 'sup',
+        guestUserId: 'guest',
+        callerIsTeamMember: false,
+      })
+    ).toBe(false);
+  });
+});
