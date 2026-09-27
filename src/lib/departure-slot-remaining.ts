@@ -1,5 +1,6 @@
 import { remainingCapacity } from './availability-ops';
 import { tourPaidSlotKey } from '../data/supabase-availability';
+import { tourDepartureRemainingSeats } from './tour-departure-remaining';
 
 /** Remaining spots for one departure on a day (null when capacity snap unavailable). */
 export function departureSlotSpotsLeft(params: {
@@ -20,14 +21,13 @@ export function departureSlotSpotsLeft(params: {
     typeof spots === 'number' && Number.isFinite(spots) && spots >= 1
       ? Math.min(99, Math.floor(spots))
       : Math.min(99, Math.max(1, params.maxPersonsFallback));
-  // Phase 1112: day override only tightens capacity; occupancy stays slot-scoped.
-  const dayOverride =
-    params.dayCapOverride != null && Number.isFinite(params.dayCapOverride)
-      ? Math.max(0, Math.floor(params.dayCapOverride))
-      : null;
-  const cap = dayOverride != null ? Math.min(slotCap, dayOverride) : slotCap;
-  const paid = params.paidBySlot[tourPaidSlotKey(day, time)] ?? 0;
-  return remainingCapacity(cap, paid);
+  // Phase 1113: slot remaining ∩ day remaining when a day override exists.
+  return tourDepartureRemainingSeats({
+    slotMaxSpots: slotCap,
+    paidGuestsSlot: params.paidBySlot[tourPaidSlotKey(day, time)] ?? 0,
+    dayCapacityOverride: params.dayCapOverride,
+    paidGuestsDay: params.paidByDay[day] ?? 0,
+  });
 }
 
 /**

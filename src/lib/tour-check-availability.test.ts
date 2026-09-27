@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { tourPublicAvailabilityRemaining } from './tour-check-availability';
 
 describe('tourPublicAvailabilityRemaining', () => {
-  it('tightens day override with slot max and keeps slot occupancy (Phase 1112)', () => {
+  it('day override + slot uses min(slot left, day left) (Phase 1113)', () => {
     const r = tourPublicAvailabilityRemaining({
       date: '2026-10-01',
       guests: 2,
@@ -14,11 +14,11 @@ describe('tourPublicAvailabilityRemaining', () => {
       paidGuestsSlot: 0,
     });
     expect(r.scope).toBe('departure');
-    expect(r.available).toBe(true);
-    expect(r.remaining).toBe(6);
+    expect(r.available).toBe(false);
+    expect(r.remaining).toBe(1);
   });
 
-  it('day override above slot max cannot oversell the departure (Phase 1112)', () => {
+  it('day override above slot max cannot oversell the departure (Phase 1112/1113)', () => {
     const r = tourPublicAvailabilityRemaining({
       date: '2026-10-01',
       guests: 1,
@@ -32,6 +32,21 @@ describe('tourPublicAvailabilityRemaining', () => {
     expect(r.scope).toBe('departure');
     expect(r.available).toBe(false);
     expect(r.remaining).toBe(0);
+  });
+
+  it('day budget blocks evening after morning fills day cap (Phase 1113)', () => {
+    const r = tourPublicAvailabilityRemaining({
+      date: '2026-10-01',
+      guests: 1,
+      dayCapacityOverride: 10,
+      paidGuestsDay: 10,
+      fallbackDayCapacity: 16,
+      startTimeHm: '20:00',
+      slotMaxSpots: 8,
+      paidGuestsSlot: 0,
+    });
+    expect(r.remaining).toBe(0);
+    expect(r.available).toBe(false);
   });
 
   it('uses slot paid when no day override and departure is selected', () => {

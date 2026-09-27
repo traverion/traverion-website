@@ -78,8 +78,8 @@ export function partnerTourDaySpotDisplay(params: {
 
 /**
  * Partner month-grid label for multi-departure days.
- * Day overrides only tighten; with ≥1 departure use per-slot remaining under
- * min(slotMax, dayCap) (Phase 1112). Without departures, fall back to day-wide.
+ * With departures: Full when every departure has min(slot_left, day_left) = 0 (Phase 1113).
+ * Without departures, fall back to day-wide remaining.
  */
 export function partnerTourMonthCellCapacityLabel(params: {
   offered: boolean;
@@ -97,9 +97,10 @@ export function partnerTourMonthCellCapacityLabel(params: {
     return { short: 'Full', aria: 'closed this day', tone: 'full' };
   }
   if (params.departures.length >= 1) {
+    const dayLeft = dayCap != null ? Math.max(0, dayCap - params.occupyingGuestsDay) : null;
     const lines = params.departures.map((d) => {
-      const cap = dayCap != null ? Math.min(d.maxSpots, dayCap) : d.maxSpots;
-      return partnerTourRemainingSpots(cap, d.occupyingGuests);
+      const slotLeft = partnerTourRemainingSpots(d.maxSpots, d.occupyingGuests);
+      return dayLeft != null ? Math.min(slotLeft, dayLeft) : slotLeft;
     });
     const anyOpen = lines.some((n) => n > 0);
     if (!anyOpen) return { short: 'Full', aria: 'fully booked this day', tone: 'full' };
@@ -112,9 +113,14 @@ export function partnerTourMonthCellCapacityLabel(params: {
       };
     }
     const left = Math.max(...lines);
-    const capShown = dayCap != null
-      ? Math.min(Math.max(...params.departures.map((d) => d.maxSpots)), dayCap)
-      : Math.max(...params.departures.map((d) => d.maxSpots));
+    if (dayCap != null) {
+      return {
+        short: `${left}/${dayCap} left`,
+        aria: `${left} of ${dayCap} day spots left (best open departure)`,
+        tone: 'open',
+      };
+    }
+    const capShown = Math.max(...params.departures.map((d) => d.maxSpots));
     return {
       short: `${left}/${capShown} left`,
       aria: `${left} of ${capShown} spots left on the fullest open departure`,

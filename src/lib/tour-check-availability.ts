@@ -1,4 +1,5 @@
 import { remainingCapacity } from './availability-ops';
+import { tourDepartureRemainingSeats } from './tour-departure-remaining';
 
 /** Public pre-checkout capacity check (paid + live holds; matches checkout occupancy). */
 export function tourPublicAvailabilityRemaining(params: {
@@ -22,10 +23,14 @@ export function tourPublicAvailabilityRemaining(params: {
     typeof params.slotMaxSpots === 'number' && Number.isFinite(params.slotMaxSpots) && params.slotMaxSpots >= 1
       ? Math.floor(params.slotMaxSpots)
       : null;
-  // Phase 1112: day override only tightens; with a departure keep slot occupancy.
+  // Phase 1113: slot remaining ∩ day remaining when a day override exists.
   if (start && slotCap != null) {
-    const cap = dayOverride != null ? Math.min(slotCap, dayOverride) : slotCap;
-    const remaining = remainingCapacity(cap, params.paidGuestsSlot ?? 0);
+    const remaining = tourDepartureRemainingSeats({
+      slotMaxSpots: slotCap,
+      paidGuestsSlot: params.paidGuestsSlot ?? 0,
+      dayCapacityOverride: dayOverride,
+      paidGuestsDay: params.paidGuestsDay,
+    });
     return { remaining, available: remaining >= guests, scope: 'departure' };
   }
   if (dayOverride != null) {

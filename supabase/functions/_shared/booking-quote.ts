@@ -474,6 +474,29 @@ function parseOptions(extras: unknown): Option[] {
 }
 
 /**
+ * Remaining seats for a departure: slot occupancy always, and when a day override
+ * exists also the shared day-wide budget (Phase 1113).
+ */
+export function tourDepartureRemainingSeats(params: {
+  slotMaxSpots: number;
+  paidGuestsSlot: number;
+  dayCapacityOverride?: number | null;
+  paidGuestsDay?: number;
+}): number {
+  const slotCap = Math.max(0, Math.floor(params.slotMaxSpots));
+  const slotPaid = Math.max(0, Math.floor(params.paidGuestsSlot));
+  const slotLeft = Math.max(0, slotCap - slotPaid);
+  const dayCap =
+    params.dayCapacityOverride != null && Number.isFinite(params.dayCapacityOverride)
+      ? Math.max(0, Math.floor(params.dayCapacityOverride))
+      : null;
+  if (dayCap == null) return slotLeft;
+  const dayPaid = Math.max(0, Math.floor(params.paidGuestsDay ?? 0));
+  const dayLeft = Math.max(0, dayCap - dayPaid);
+  return Math.min(slotLeft, dayLeft);
+}
+
+/**
  * Spots for the traveler's chosen departure (option + date + optional start time).
  * Null when options are missing or the slot cannot be resolved — caller may fall back.
  */

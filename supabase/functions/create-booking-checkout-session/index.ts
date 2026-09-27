@@ -2,7 +2,7 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
-import { quoteListingBooking, stayCheckoutNightsAlreadyBooked, stayNightIsOperatorBlocked, stayRangeFromBooking, tourDepartureSlotCapacity, type DiscountRow, type ListingQuoteRow, type StayCheckoutOccupancyRow } from '../_shared/booking-quote.ts';
+import { quoteListingBooking, stayCheckoutNightsAlreadyBooked, stayNightIsOperatorBlocked, stayRangeFromBooking, tourDepartureRemainingSeats, tourDepartureSlotCapacity, type DiscountRow, type ListingQuoteRow, type StayCheckoutOccupancyRow } from '../_shared/booking-quote.ts';
 import { tourCheckoutOccupiedGuests, inventoryStartTimeHmFromBooking, type TourCheckoutOccupancyRow } from '../_shared/booking-hold.ts';
 import { checkoutPaymentStatusCanResume, resumeStayCheckoutDate, checkoutResumeLostRaceToPaid } from '../_shared/checkout-resume.ts';
 import { resumeStayLeadGuestName, stayCheckoutLeadGuestNameReady } from '../_shared/stay-checkout-guest.ts';
@@ -516,9 +516,10 @@ serve(async (req) => {
         .eq('available_date', bookingDate)
         .maybeSingle();
       // Explicit capacity 0 = partner closed the day. Missing row = option/schedule max.
-      // Phase 1112: day override only tightens; with a startTime keep slot scope + min(day, slot).
+      // Phase 1113: with startTime, remaining = min(slot_left, day_left when override).
       let capacity: number;
       let slotScoped = false;
+      let dayOccupiedForDual: number | null = null;
       const dayOverrideCap =
         capRow != null && Number.isFinite(Number(capRow.capacity)) ? Number(capRow.capacity) : null;
       if (dayOverrideCap != null && dayOverrideCap < 1) {
@@ -531,8 +532,17 @@ serve(async (req) => {
         startTime: startTime || null,
       });
       if (canScopeByStartTime && slotCap != null) {
-        capacity = dayOverrideCap != null ? Math.min(slotCap, dayOverrideCap) : slotCap;
+        capacity = slotCap;
         slotScoped = true;
+        if (dayOverrideCap != null) {
+          dayOccupiedForDual = tourCheckoutOccupiedGuests(
+            tourRows ?? [],
+            bookingDate,
+            targetBookingId,
+            Date.now(),
+            null
+          );
+        }
       } else if (dayOverrideCap != null) {
         capacity = dayOverrideCap;
       } else if (slotCap != null) {
@@ -562,7 +572,6 @@ serve(async (req) => {
           max = Math.max(max, Math.floor(spots));
         }
         capacity = Math.min(99, max >= 1 ? max : 8);
-        if (dayOverrideCap != null) capacity = Math.min(capacity, dayOverrideCap);
       }
       const occupied = tourCheckoutOccupiedGuests(
         tourRows ?? [],
@@ -571,7 +580,16 @@ serve(async (req) => {
         Date.now(),
         slotScoped ? startTime : null
       );
-      if (Math.max(0, capacity - occupied) < guests) {
+      const remaining =
+        slotScoped && dayOverrideCap != null && dayOccupiedForDual != null
+          ? tourDepartureRemainingSeats({
+              slotMaxSpots: capacity,
+              paidGuestsSlot: occupied,
+              dayCapacityOverride: dayOverrideCap,
+              paidGuestsDay: dayOccupiedForDual,
+            })
+          : Math.max(0, capacity - occupied);
+      if (remaining < guests) {
         return json(
           {
             success: false,
