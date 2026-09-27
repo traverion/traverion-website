@@ -558,29 +558,12 @@ serve(async (req) => {
         capacity = slotCap;
         slotScoped = canScopeByStartTime;
       } else {
-        const extras = listingRow.listing_extras as {
-          bookingOptions?: Array<{
-            maxSpotsPerSlot?: unknown;
-            schedules?: Array<{ maxSpotsPerSlot?: unknown; status?: string } | null> | null;
-          }>;
-        } | null;
-        let max = 0;
-        for (const opt of extras?.bookingOptions ?? []) {
-          const schedules = Array.isArray(opt.schedules) ? opt.schedules : null;
-          if (schedules && schedules.length > 0) {
-            for (const s of schedules) {
-              if (!s || s.status === 'draft') continue;
-              const spots = s.maxSpotsPerSlot;
-              if (typeof spots !== 'number' || !Number.isFinite(spots) || spots < 1) continue;
-              max = Math.max(max, Math.floor(spots));
-            }
-            continue;
-          }
-          const spots = opt.maxSpotsPerSlot;
-          if (typeof spots !== 'number' || !Number.isFinite(spots) || spots < 1) continue;
-          max = Math.max(max, Math.floor(spots));
-        }
-        capacity = Math.min(99, max >= 1 ? max : 8);
+        // Phase 1122: unresolved option/schedule cap must not fall back to MAX across
+        // every schedule (that overstated capacity vs assert weekday+option / quote).
+        return json(
+          { success: false, error: 'No bookable capacity for this departure.' },
+          409
+        );
       }
       const occupied = tourCheckoutOccupiedGuests(
         tourRows ?? [],
