@@ -4914,6 +4914,13 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 
 **Certification:** SEO review JSON-LD = **CODE-INSPECTED** (honest gate).
 
+
+### Phase 924 — Scroll regression unit re-verify
+
+**Evidence:** `traveler-document-scroll.test.ts` still green — `overflow-x: clip` contract on document roots (Phase 851/`32abd10` fix).
+
+**Certification:** scroll chrome = **AUTOMATED-TESTED** (re-verified).
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.
