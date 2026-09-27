@@ -65,7 +65,8 @@ export function publicTourPaidGuestsByDeparture(
 
 /** Catalog date filter: hide tours when no capacity remains for the party.
  * Day-level listing_availability overrides stay day-wide.
- * Without a day override and multi-departure data: hide only when every departure lacks party capacity.
+ * With per-departure slot data: hide only when every (bookable) departure lacks party capacity —
+ * including a single remaining departure after cutoff filtering (Phase 1063).
  * Without slot data and no day override: do not hide (avoid false morning-fill sell-outs).
  */
 export function tourDateLacksCapacityForParty(params: {
@@ -81,8 +82,10 @@ export function tourDateLacksCapacityForParty(params: {
   if (typeof params.dayCapacity === 'number' && Number.isFinite(params.dayCapacity)) {
     return remainingCapacity(params.dayCapacity, params.paidGuestsThatDay) < need;
   }
+  // Caller passed an explicit departure list that is empty (e.g. all past cutoff).
+  if (Array.isArray(params.departures) && params.departures.length === 0) return true;
   const deps = params.departures ?? [];
-  if (deps.length >= 2 && params.paidBySlot && params.slotKey) {
+  if (deps.length >= 1 && params.paidBySlot && params.slotKey) {
     const anyOpen = deps.some((d) => {
       const paid = params.paidBySlot![params.slotKey!(d.startTimeHm)] ?? 0;
       return remainingCapacity(d.maxSpots, paid) >= need;
@@ -118,7 +121,7 @@ export function tourSoldOutDates(params: {
     if (params.capByDay.has(day)) continue;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
     const departures = params.departuresForDay?.(day) ?? [];
-    if (departures.length >= 2 && params.paidBySlot && params.slotKey) {
+    if (departures.length >= 1 && params.paidBySlot && params.slotKey) {
       const allFull = departures.every((d) => {
         const paid = params.paidBySlot![params.slotKey!(day, d.startTimeHm)] ?? 0;
         return remainingCapacity(d.maxSpots, paid) < 1;

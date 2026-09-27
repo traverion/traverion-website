@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { clientAmountConflictsWithQuote, formatOptionWeekdays, listingHasBookableDepartureOnDate, listingRunsOnDate, quoteBooking, quoteStayNights, stayQuotePriceLines, tourQuotePriceLines, weekdayIndexMondayFirst } from './booking-quote';
+import { clientAmountConflictsWithQuote, formatOptionWeekdays, listingHasBookableDepartureOnDate, listingRunsOnDate, quoteBooking, quoteStayNights, stayQuotePriceLines, tourBookableSellingDeparturesOnDate, tourQuotePriceLines, weekdayIndexMondayFirst } from './booking-quote';
+import { tourDateLacksCapacityForParty } from './tour-calendar';
 import type { TourPackage } from '../types/tour';
 import type { ListingBookingOption } from '../types/listingExtras';
 import { getListingPublishBlockers, partnerListingDraftPublishSubtitle } from './listingPublishGate';
@@ -437,6 +438,54 @@ describe('listingHasBookableDepartureOnDate (Phase 1057 browse cutoff)', () => {
         '2026-09-11',
         nowMs
       )
+    ).toBe(true);
+  });
+});
+
+describe('tourBookableSellingDeparturesOnDate (Phase 1063 capacity cutoff)', () => {
+  it('excludes past-cutoff morning seats so capacity matches PDP bookable chips', () => {
+    // 19:00 Helsinki: 09:00 is past 2h cutoff; 22:00 remains bookable.
+    const nowMs = Date.UTC(2026, 8, 11, 16, 0, 0);
+    const opts = [
+      option({
+        id: 'morning',
+        name: 'Morning',
+        priceUsd: 99,
+        startTime: '09:00',
+        maxSpotsPerSlot: 8,
+        weekdays: [true, true, true, true, true, false, false],
+      }),
+      option({
+        id: 'late',
+        name: 'Late',
+        priceUsd: 149,
+        startTime: '22:00',
+        maxSpotsPerSlot: 2,
+        weekdays: [true, true, true, true, true, false, false],
+      }),
+    ];
+    const bookable = tourBookableSellingDeparturesOnDate(opts, '2026-09-11', {
+      cutoffHoursBeforeStart: 2,
+      timeZone: 'Europe/Helsinki',
+      nowMs,
+    });
+    expect(bookable.map((d) => d.startTime)).toEqual(['22:00']);
+
+    // Morning still has seats but is past cutoff; late is full for a party of 2.
+    const departures = bookable.map((d) => ({
+      startTimeHm: d.startTime,
+      maxSpots: d.maxSpotsPerSlot,
+    }));
+    expect(
+      tourDateLacksCapacityForParty({
+        paidGuestsThatDay: 2,
+        dayCapacity: undefined,
+        fallbackCapacity: 8,
+        partySize: 2,
+        paidBySlot: { '22:00': 2 },
+        departures,
+        slotKey: (hm) => hm,
+      })
     ).toBe(true);
   });
 });

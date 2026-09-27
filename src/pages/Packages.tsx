@@ -13,13 +13,12 @@ import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
 import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
 import { isSupabaseListingId } from '../lib/discount-display';
 import { setListingsJsonLd } from '../lib/seo';
-import { listingHasBookableDepartureOnDate } from '../lib/booking-quote';
+import { listingHasBookableDepartureOnDate, tourBookableSellingDeparturesOnDate } from '../lib/booking-quote';
 import { getPartySizeBounds } from '../lib/booking-flow';
 import { tourDateLacksCapacityForParty } from '../lib/tour-calendar';
 import { listingTourCapacityFromOptions, capacitySpotsFromBookingOptions } from '../lib/availability-ops';
 import { fetchAvailabilityByListingId, fetchPublishedTourPaidGuests, fetchPublishedTourPaidGuestsBySlot, tourPaidSlotKey } from '../data/supabase-availability';
 import { parseListingExtras, materializedBookingOptions } from '../types/listingExtras';
-import { tourSellingDeparturesOnDate } from '../lib/listing-option-schedules';
 import { SkeletonCardGrid } from '../components/ui/Skeleton';
 import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
 import { MarketplaceBrowseShell, MarketplaceFamilySwitch, MarketplaceSortSelect } from '../components/marketplace/MarketplaceBrowseShell';
@@ -334,7 +333,10 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
           fetchPublishedTourPaidGuestsBySlot(tour.id),
         ]);
         const dayRow = caps.find((r) => String(r.available_date ?? '').slice(0, 10) === filterDate);
-        const departures = tourSellingDeparturesOnDate(opts, filterDate).map((d) => ({
+        const departures = tourBookableSellingDeparturesOnDate(opts, filterDate, {
+          cutoffHoursBeforeStart: extras.bookingCutoffHoursBeforeStart,
+          timeZone: extras.departureTimezone,
+        }).map((d) => ({
           startTimeHm: d.startTime,
           maxSpots: d.maxSpotsPerSlot,
         }));

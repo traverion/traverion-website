@@ -41,6 +41,7 @@ import {
   optionHasScheduleCoverageOnDate,
   resolveScheduleForDate,
   tourSellingDeparturesOnDate,
+  type TourSellingDeparture,
 } from './listing-option-schedules';
 import { optionHeadlineUnitPrice } from './price-categories';
 
@@ -129,6 +130,35 @@ export function listingRunsOnDate(tour: QuoteTourSlice, isoDate: string): boolea
 }
 
 /**
+ * Selling departures that still pass booking cutoff (same set as PDP time chips).
+ * Capacity / sold-out calendars must use this — not raw tourSellingDeparturesOnDate —
+ * or a past-cutoff morning slot with seats can keep a day “open” while evening is sold out.
+ */
+export function tourBookableSellingDeparturesOnDate(
+  options: ListingBookingOption[] | null | undefined,
+  isoDate: string,
+  params: {
+    cutoffHoursBeforeStart?: number | null;
+    timeZone?: string | null;
+    nowMs?: number;
+  } = {}
+): TourSellingDeparture[] {
+  const cutoff = normalizeBookingCutoffHours(params.cutoffHoursBeforeStart);
+  const timeZone = resolveDepartureTimezone(params.timeZone);
+  return tourSellingDeparturesOnDate(options, isoDate).filter((d) => {
+    const hm = d.startTime.trim();
+    if (!hm) return cutoff <= 0;
+    return isDepartureTimeStillBookable({
+      bookingDate: isoDate,
+      startTimeHm: hm,
+      cutoffHoursBeforeStart: cutoff,
+      nowMs: params.nowMs,
+      timeZone,
+    });
+  });
+}
+
+/**
  * Browse/search date filter: listing must run that day AND still have at least one
  * departure that passes booking cutoff in the listing timezone (same rule as TourDetails
  * departure chips). Without this, catalog shows tours that quote then rejects.
@@ -144,21 +174,17 @@ export function listingHasBookableDepartureOnDate(
   const opts = materializedBookingOptions(extras.bookingOptions);
   if (opts.length === 0) return true;
   const cutoff = normalizeBookingCutoffHours(extras.bookingCutoffHoursBeforeStart);
-  const timeZone = resolveDepartureTimezone(extras.departureTimezone);
-  const departures = tourSellingDeparturesOnDate(opts, isoDate).filter((d) => d.startTime.trim());
-  if (departures.length === 0) {
+  const bookable = tourBookableSellingDeparturesOnDate(opts, isoDate, {
+    cutoffHoursBeforeStart: cutoff,
+    timeZone: extras.departureTimezone,
+    nowMs,
+  });
+  const selling = tourSellingDeparturesOnDate(opts, isoDate).filter((d) => d.startTime.trim());
+  if (selling.length === 0) {
     // Weekday/window open but no concrete start times — cutoff cannot be evaluated.
     return cutoff <= 0;
   }
-  return departures.some((d) =>
-    isDepartureTimeStillBookable({
-      bookingDate: isoDate,
-      startTimeHm: d.startTime.trim(),
-      cutoffHoursBeforeStart: cutoff,
-      nowMs,
-      timeZone,
-    })
-  );
+  return bookable.length > 0;
 }
 
 function money(n: number): number {

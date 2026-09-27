@@ -87,8 +87,8 @@ import {
   departureTimesOnDate,
   resolveScheduleForDate,
   applyScheduleToOption,
-  tourSellingDeparturesOnDate,
 } from '../lib/listing-option-schedules';
+import { tourBookableSellingDeparturesOnDate } from '../lib/booking-quote';
 import {
   isDepartureTimeStillBookable,
   normalizeBookingCutoffHours,
@@ -390,7 +390,10 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
             fallbackCapacity: fallbackCap,
             slotKey: tourPaidSlotKey,
             departuresForDay: (day) =>
-              tourSellingDeparturesOnDate(calendarOptions, day).map((d) => ({
+              tourBookableSellingDeparturesOnDate(calendarOptions, day, {
+                cutoffHoursBeforeStart: bookingCutoffHours,
+                timeZone: departureTimezone,
+              }).map((d) => ({
                 startTimeHm: d.startTime,
                 maxSpots: d.maxSpotsPerSlot,
               })),
@@ -408,7 +411,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     return () => {
       cancelled = true;
     };
-  }, [tour?.id, calendarOptions]);
+  }, [tour?.id, calendarOptions, bookingCutoffHours, departureTimezone]);
 
   useEffect(() => {
     return reloadTourDayCapacity();

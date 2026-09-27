@@ -27,14 +27,14 @@ import {
   type TravelerCheckoutAuthMetadata,
 } from '../lib/traveler-checkout-autofill';
 import { getDisplayPriceForBookingVariant } from '../lib/discount-display';
-import { quoteBooking, formatOptionWeekdays, tourQuotePriceLines } from '../lib/booking-quote';
+import { quoteBooking, formatOptionWeekdays, tourQuotePriceLines, tourBookableSellingDeparturesOnDate } from '../lib/booking-quote';
 import {
   listingOptionHasSchedules,
   listingOptionReadySchedules,
   resolveScheduleForDate,
   applyScheduleToOption,
-  tourSellingDeparturesOnDate,
 } from '../lib/listing-option-schedules';
+import { normalizeBookingCutoffHours, resolveDepartureTimezone } from '../lib/tour-departure-cutoff';
 import { localYmd } from '../lib/local-ymd';
 import { formatMoney, normalizeCurrency } from '../lib/money';
 import PriceBreakdown from '../components/PriceBreakdown';
@@ -323,6 +323,11 @@ export default function BookingPage({
       .filter((o): o is NonNullable<typeof o> => Boolean(o));
   }, [selectedVariant, tour]);
 
+  const bookingCutoffHours = normalizeBookingCutoffHours(
+    tour.listingExtras?.bookingCutoffHoursBeforeStart
+  );
+  const departureTimezone = resolveDepartureTimezone(tour.listingExtras?.departureTimezone);
+
   const reloadBookingDayCapacity = useCallback(() => {
     let cancelled = false;
     setDayCapacityError(null);
@@ -349,7 +354,10 @@ export default function BookingPage({
             fallbackCapacity: fallbackCap,
             slotKey: tourPaidSlotKey,
             departuresForDay: (day) =>
-              tourSellingDeparturesOnDate(calendarOptions, day).map((d) => ({
+              tourBookableSellingDeparturesOnDate(calendarOptions, day, {
+                cutoffHoursBeforeStart: bookingCutoffHours,
+                timeZone: departureTimezone,
+              }).map((d) => ({
                 startTimeHm: d.startTime,
                 maxSpots: d.maxSpotsPerSlot,
               })),
@@ -367,7 +375,7 @@ export default function BookingPage({
     return () => {
       cancelled = true;
     };
-  }, [tour.id, calendarOptions]);
+  }, [tour.id, calendarOptions, bookingCutoffHours, departureTimezone]);
 
   useEffect(() => {
     return reloadBookingDayCapacity();
