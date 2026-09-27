@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `cdd5859`  
-**Current phase:** 880  
+**Current SHA:** `b7869ee`  
+**Current phase:** 881  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4604,6 +4604,15 @@ Partner Income page:
 Dedicated Traveler B password not in this environment (`.env.partner-demo.local` absent) — authenticated cross-account SELECT still P1 when credentials available.
 
 **Certification:** anonymous cross-booking isolation = **ADVERSARIAL-TESTED** (live REST).
+
+### Phase 881 — Authenticated Traveler B cannot access #41
+
+**Attack (anon client + demo traveler passwords):**
+- `anna@partner-demo…` and `jonas@partner-demo…` sign-in OK
+- `SELECT` booking #41 → `[]`
+- `UPDATE status=confirmed` → no visible row; remote still `cancelled`
+
+**Certification:** cross-account traveler isolation for paid/cancelled booking = **ADVERSARIAL-TESTED**.
 
 ## Known remaining risks (ranked)
 
