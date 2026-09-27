@@ -257,8 +257,10 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
       })
       .catch((e) => {
         if (cancelled) return;
-        setOccupiedByListing(null);
-        setOccupancyError(userFacingError(e, 'We could not check stay availability. Check your connection and try again.'));
+        // Phase 1188: keep prior occupancy map — null would make every stay look open (Packages 1104).
+        setOccupancyError(
+          userFacingError(e, 'We could not check stay availability. Check your connection and try again.')
+        );
         setOccupancyLoading(false);
       });
     return () => {
