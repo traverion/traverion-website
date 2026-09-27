@@ -760,9 +760,27 @@ export default function BookingPage({
     setAvailabilityModalNote(null);
     setAvailabilityOptions([]);
     try {
+      const startHm = (departureTime ?? '').trim();
+      const optionId =
+        selectedVariant && selectedVariant.id !== '__default__' ? selectedVariant.id : undefined;
+      // Phase 1171: schedule-resolved slot cap for availability check (parity with 1168 / pay 1161).
+      let slotMaxSpots = tourSlotMaxSpotsFromOption(appliedOption);
+      if (startHm) {
+        const slotCap = tourDepartureSlotCapacity({
+          listing_extras: tour.listingExtras,
+          bookingDate: date.trim(),
+          bookingOptionId: optionId,
+          startTime: startHm,
+        });
+        if (slotCap == null) {
+          setError('No bookable capacity for this departure.');
+          return;
+        }
+        slotMaxSpots = slotCap;
+      }
       const avail = await checkAvailability(tour.id, date.trim(), partySizeForCapacity, {
-        startTimeHm: departureTime ?? null,
-        slotMaxSpots: tourSlotMaxSpotsFromOption(appliedOption),
+        startTimeHm: startHm || null,
+        slotMaxSpots,
       });
       if (avail.available && avail.options.some((o) => o.selectable)) {
         proceedToContactAfterOption();
@@ -891,9 +909,28 @@ export default function BookingPage({
     setError(null);
     try {
       if (isSupabaseConfigured()) {
+        const startHm = (departureTime ?? '').trim();
+        const optionIdForCap =
+          selectedVariant && selectedVariant.id !== '__default__' ? selectedVariant.id : undefined;
+        // Phase 1171: schedule-resolved slot cap before occupancy check (parity with 1168).
+        let slotMaxSpots = tourSlotMaxSpotsFromOption(appliedOption);
+        if (startHm) {
+          const slotCap = tourDepartureSlotCapacity({
+            listing_extras: tour.listingExtras,
+            bookingDate: date,
+            bookingOptionId: optionIdForCap,
+            startTime: startHm,
+          });
+          if (slotCap == null) {
+            setError('No bookable capacity for this departure.');
+            setSubmitting(false);
+            return;
+          }
+          slotMaxSpots = slotCap;
+        }
         const avail = await checkAvailability(tour.id, date, partySizeForCapacity, {
-          startTimeHm: departureTime ?? null,
-          slotMaxSpots: tourSlotMaxSpotsFromOption(appliedOption),
+          startTimeHm: startHm || null,
+          slotMaxSpots,
         });
         if (!avail.available) {
           setError(
@@ -927,6 +964,7 @@ export default function BookingPage({
           return;
         }
         // Phase 1161: mirror edge 1122 — unresolved departure capacity must not open Stripe.
+        // (Already gated above for checkAvailability; re-check before quote for defense in depth.)
         if (departureTime) {
           const slotCap = tourDepartureSlotCapacity({
             listing_extras: tour.listingExtras,
