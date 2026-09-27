@@ -682,7 +682,10 @@ serve(async (req) => {
       templateKey: payload.eventType,
       entityType: payload.bookingId ? 'booking' : 'supplier_profile',
       entityId: payload.bookingId ?? payload.supplierId,
-      cooldownSeconds: payload.eventType === 'guest_message' ? 900 : undefined,
+      cooldownSeconds:
+        payload.eventType === 'guest_message' || payload.eventType === 'booking_detail_changed'
+          ? 900
+          : undefined,
     });
     if (claim.action === 'skip') {
       return json({ success: true, skipped: true, reason: claim.reason, notified: 0, idempotencyKey });

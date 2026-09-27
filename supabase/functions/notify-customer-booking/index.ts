@@ -588,7 +588,7 @@ serve(async (req) => {
         templateKey: kind,
         entityType: body.bookingId ? 'booking' : kind === 'traveler_welcome' ? 'consumer' : undefined,
         entityId: body.bookingId ?? (kind === 'traveler_welcome' ? to : undefined),
-        cooldownSeconds: kind === 'new_booking_message' ? 900 : undefined,
+        cooldownSeconds: kind === 'new_booking_message' || kind === 'your_details_updated' ? 900 : undefined,
       });
       if (claim.action === 'skip') {
         return json({ success: true, skipped: true, reason: claim.reason, idempotencyKey });
