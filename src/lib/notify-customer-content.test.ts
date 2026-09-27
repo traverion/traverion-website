@@ -146,4 +146,66 @@ describe('resolveBookingTiedContent (Phase 1052 content-forgery fix)', () => {
     if (!result.ok) return;
     expect(result.overrides.meetingPoint).toBeUndefined();
   });
+
+  it('surfaces stay check-in address and house times from purchase_snapshot (Phase 1066)', () => {
+    const result = resolveBookingTiedContent({
+      kind: 'booking_confirmed_paid',
+      bookingId: BOOKING_ID,
+      bookingRow: {
+        guest_name: 'Miro',
+        booking_date: '2026-12-01',
+        check_out: '2026-12-03',
+        guests: 2,
+        booking_number: 77,
+        purchase_snapshot: {
+          listingTitle: 'River loft',
+          checkInAddress: 'Kauppakatu 1, Rovaniemi',
+          checkInTime: '16:00',
+          checkOutTime: '11:00',
+          checkOut: '2026-12-03',
+          capturedAt: '2026-09-01T12:00:00Z',
+        },
+      },
+      listingRow: {
+        id: 'l1',
+        title: 'RENAMED STAY',
+        listing_extras: { inventoryFamily: 'stay' },
+      },
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.overrides.listingKind).toBe('stay');
+    expect(result.overrides.listingTitle).toBe('River loft');
+    expect(result.overrides.checkInAddress).toBe('Kauppakatu 1, Rovaniemi');
+    expect(result.overrides.checkInTime).toBe('16:00');
+    expect(result.overrides.checkOutTime).toBe('11:00');
+    expect(result.overrides.meetingPoint).toBeUndefined();
+  });
+
+  it('does not put tour meeting copy on stay emails even if snap has meetingPoint', () => {
+    const result = resolveBookingTiedContent({
+      kind: 'experience_reminder',
+      bookingId: BOOKING_ID,
+      bookingRow: {
+        guest_name: 'M',
+        booking_date: '2026-12-01',
+        check_out: '2026-12-02',
+        guests: 1,
+        purchase_snapshot: {
+          listingTitle: 'Cabin',
+          meetingPoint: 'SHOULD NOT APPEAR',
+          pickupInstructions: 'ALSO NOT',
+          checkInAddress: 'Forest Road 9',
+          checkInTime: '15:00',
+          capturedAt: '2026-09-01T12:00:00Z',
+        },
+      },
+      listingRow: { id: 'l1', title: 'Cabin', listing_extras: { inventoryFamily: 'stay' } },
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.overrides.meetingPoint).toBeUndefined();
+    expect(result.overrides.checkInAddress).toBe('Forest Road 9');
+    expect(result.overrides.checkInTime).toBe('15:00');
+  });
 });

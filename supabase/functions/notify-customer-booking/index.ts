@@ -67,6 +67,12 @@ type Payload = {
   idempotencyKey?: string;
   /** Meeting / pickup place label when known (reminder / pickup emails). */
   meetingPoint?: string;
+  /** Stay: purchased check-in address. */
+  checkInAddress?: string;
+  /** Stay: purchased house check-in HH:MM. */
+  checkInTime?: string;
+  /** Stay: purchased house check-out HH:MM. */
+  checkOutTime?: string;
   /** Supplier / operator display name when known. */
   supplierName?: string;
   /** booking_cancelled / refund: truthful refund line for body. */
@@ -174,6 +180,14 @@ function buildDetailRows(p: Payload): string {
     rows.push(detailRow('Date', p.bookingDate));
   }
   if (typeof p.guests === 'number' && p.guests > 0) rows.push(detailRow('Guests', String(p.guests)));
+  if (listingKindIsStay(p.listingKind)) {
+    const addr = String(p.checkInAddress ?? '').trim();
+    if (addr) rows.push(detailRow('Check-in address', addr));
+    const inT = String(p.checkInTime ?? '').trim().slice(0, 5);
+    if (inT) rows.push(detailRow('Check-in from', inT));
+    const outT = String(p.checkOutTime ?? '').trim().slice(0, 5);
+    if (outT) rows.push(detailRow('Check-out by', outT));
+  }
   if (!ref && p.bookingId) rows.push(detailRow('Internal id', p.bookingId));
   return rows.join('');
 }
@@ -298,6 +312,9 @@ serve(async (req) => {
     let guests = body.guests;
     let listingKind = body.listingKind;
     let meetingPoint = body.meetingPoint;
+    let checkInAddress = body.checkInAddress;
+    let checkInTime = body.checkInTime;
+    let checkOutTime = body.checkOutTime;
     let amount =
       typeof body.totalAmount === 'number' && Number.isFinite(body.totalAmount) && body.totalAmount >= 0
         ? body.totalAmount
@@ -402,6 +419,10 @@ serve(async (req) => {
       // Phase 1060: never keep caller-supplied meeting/pickup after re-derivation
       // (empty snap must not resurrect live listing copy from the reminder job).
       meetingPoint = content.overrides.meetingPoint;
+      // Phase 1066: stay arrival logistics from purchase_snapshot only.
+      checkInAddress = content.overrides.checkInAddress;
+      checkInTime = content.overrides.checkInTime;
+      checkOutTime = content.overrides.checkOutTime;
     }
 
     const greeting = name ? `Hi ${name},` : 'Hi,';
@@ -544,11 +565,30 @@ serve(async (req) => {
       intro = isStay
         ? `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your stay at <strong>${escapeHtml(title)}</strong> is coming up soon. Details we have on file are below — check Trips for the latest.</p>`
         : `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your tour <strong>${escapeHtml(title)}</strong> is coming up soon. Details we have on file are below — check Trips for the latest.</p>`;
-      if (meetingPoint?.trim()) {
+      if (isStay) {
+        const stayLines: string[] = [];
+        if (checkInAddress?.trim()) {
+          stayLines.push(
+            `<p style="margin:0 0 8px;font-size:14px;color:#111827;"><strong>Check-in address:</strong> ${escapeHtml(checkInAddress.trim())}</p>`
+          );
+        }
+        const houseBits = [
+          checkInTime?.trim() ? `Check-in from ${checkInTime.trim().slice(0, 5)}` : null,
+          checkOutTime?.trim() ? `Check-out by ${checkOutTime.trim().slice(0, 5)}` : null,
+        ].filter(Boolean);
+        if (houseBits.length) {
+          stayLines.push(
+            `<p style="margin:0;font-size:14px;color:#111827;"><strong>House times:</strong> ${escapeHtml(houseBits.join(' · '))}</p>`
+          );
+        }
+        if (stayLines.length) extraHtml = stayLines.join('');
+      } else if (meetingPoint?.trim()) {
         extraHtml = `<p style="margin:0;font-size:14px;color:#111827;"><strong>Meeting / pickup:</strong> ${escapeHtml(meetingPoint.trim())}</p>`;
       }
       if (diffs.length) extraHtml += fieldDiffTableHtml(diffs);
-      footerNote = 'Open Trips for pickup, meeting, or host updates.';
+      footerNote = isStay
+        ? 'Open Trips for check-in address, house times, or host updates.'
+        : 'Open Trips for pickup, meeting, or host updates.';
     } else if (kind === 'review_request') {
       const isStay = String(listingKind ?? '').toLowerCase() === 'stay';
       headline = isStay ? 'How was your stay?' : 'How was your tour?';
@@ -595,6 +635,9 @@ serve(async (req) => {
       guests,
       listingKind,
       meetingPoint,
+      checkInAddress,
+      checkInTime,
+      checkOutTime,
     };
     const detailRows = buildDetailRows(detailPayload);
     const html = wrapCustomerDocument({

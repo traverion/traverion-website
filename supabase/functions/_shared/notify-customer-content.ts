@@ -1,6 +1,4 @@
 /**
- * Mirror of src/lib/notify-customer-content.ts for Deno edge runtime.
- *
  * Phase 1052: pure content re-derivation for notify-customer-booking.
  * Recipient/amount already re-derived (Phases 562/578/585). Content fields
  * (listingTitle, customerName, bookingDate, guests, bookingNumber, listingKind,
@@ -9,6 +7,7 @@
  * party/meeting copy. Prefer purchase_snapshot title/meeting when present
  * (historical purchase truth), else live listing/booking columns.
  * Phase 1060: join snap meetingPoint + pickupInstructions (place + start copy).
+ * Phase 1066: stay emails get snap checkInAddress + house times (not tour meeting).
  *
  * Deliberately left caller-supplied (same scoping as supplier Phase 579):
  * fieldDiffs, unpaidCheckout, refundStatusNote, paidAtIso, paymentIntentId.
@@ -73,6 +72,12 @@ export type CustomerContentOverrides = {
   listingKind?: string;
   checkOutDate?: string;
   meetingPoint?: string;
+  /** Stay: purchased check-in address. */
+  checkInAddress?: string;
+  /** Stay: purchased house check-in HH:MM. */
+  checkInTime?: string;
+  /** Stay: purchased house check-out HH:MM. */
+  checkOutTime?: string;
 };
 
 export type CustomerContentResolution =
@@ -103,6 +108,8 @@ function resolveListingKind(
   }
   const checkOut = typeof booking?.check_out === 'string' ? booking.check_out.trim() : '';
   if (checkOut && /^\d{4}-\d{2}-\d{2}$/.test(checkOut)) return 'stay';
+  const snapCheckOut = snapshotString(booking?.purchase_snapshot, 'checkOut');
+  if (snapCheckOut && /^\d{4}-\d{2}-\d{2}$/.test(snapCheckOut)) return 'stay';
   const kind = String(listing?.experience_kind ?? '')
     .trim()
     .toLowerCase();
@@ -138,11 +145,26 @@ export function resolveBookingTiedContent(params: {
       ? params.listingRow.title.trim()
       : undefined);
 
-  // Place + traveler start instructions are distinct snapshot fields (Phase 1059).
-  // Join both for email logistics; do not drop instructions when place is set.
+  const listingKind = resolveListingKind(params.listingRow, params.bookingRow);
+  const isStay = listingKind === 'stay';
+
+  // Tours: place + traveler start instructions (Phase 1059/1060).
+  // Stays: do not invent tour meeting copy — use purchased house logistics instead.
   const snapPlace = snapshotString(snap, 'meetingPoint');
   const snapInstructions = snapshotString(snap, 'pickupInstructions');
-  const meetingPoint = [snapPlace, snapInstructions].filter(Boolean).join(' — ') || undefined;
+  const meetingPoint = isStay
+    ? undefined
+    : [snapPlace, snapInstructions].filter(Boolean).join(' — ') || undefined;
+
+  const checkInAddress = isStay ? snapshotString(snap, 'checkInAddress') : undefined;
+  const checkInTimeRaw = isStay ? snapshotString(snap, 'checkInTime') : undefined;
+  const checkOutTimeRaw = isStay ? snapshotString(snap, 'checkOutTime') : undefined;
+  const checkInTime =
+    checkInTimeRaw && /^\d{2}:\d{2}/.test(checkInTimeRaw) ? checkInTimeRaw.slice(0, 5) : undefined;
+  const checkOutTime =
+    checkOutTimeRaw && /^\d{2}:\d{2}/.test(checkOutTimeRaw)
+      ? checkOutTimeRaw.slice(0, 5)
+      : undefined;
 
   const overrides: CustomerContentOverrides = {};
   if (listingTitle) overrides.listingTitle = listingTitle;
@@ -174,7 +196,6 @@ export function resolveBookingTiedContent(params: {
     overrides.bookingNumber = params.bookingRow.booking_number;
   }
 
-  const listingKind = resolveListingKind(params.listingRow, params.bookingRow);
   if (listingKind) overrides.listingKind = listingKind;
 
   const checkOut =
@@ -184,6 +205,9 @@ export function resolveBookingTiedContent(params: {
   if (checkOut && /^\d{4}-\d{2}-\d{2}$/.test(checkOut)) overrides.checkOutDate = checkOut;
 
   if (meetingPoint) overrides.meetingPoint = meetingPoint;
+  if (checkInAddress) overrides.checkInAddress = checkInAddress;
+  if (checkInTime) overrides.checkInTime = checkInTime;
+  if (checkOutTime) overrides.checkOutTime = checkOutTime;
 
   return { ok: true, overrides };
 }
