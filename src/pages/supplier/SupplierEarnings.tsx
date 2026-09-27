@@ -25,6 +25,7 @@ import {
   partnerMoneyCsvHasExportableRows,
 } from '../../lib/partner-money-csv';
 import { csvSafeCell } from '../../lib/csv-export';
+import { displayListingTitleFromPurchase } from '../../lib/purchase-snapshot';
 
 function ledgerKindLabel(kind: string): string {
   const k = kind.trim().toLowerCase();
@@ -234,7 +235,12 @@ export default function SupplierEarnings() {
       filteredEarningsInWindow.length === 0
         ? paidBookingsInWindow.map((b) => ({
             ...b,
-            listing_title: listingTitles[b.listing_id] ?? null,
+            listing_title:
+              displayListingTitleFromPurchase(
+                b.purchase_snapshot,
+                listingTitles[b.listing_id],
+                ''
+              ) || null,
           }))
         : [];
     if (
@@ -513,7 +519,11 @@ export default function SupplierEarnings() {
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-ink truncate">
                             {b.booking_number != null ? `#${b.booking_number} · ` : ''}
-                            {listingTitles[b.listing_id] || b.guest_name?.trim() || 'Guest'}
+                            {displayListingTitleFromPurchase(
+                              b.purchase_snapshot,
+                              listingTitles[b.listing_id],
+                              b.guest_name?.trim() || 'Guest'
+                            )}
                           </p>
                           <p className="mt-0.5 text-xs text-ink-muted truncate">
                             {b.guest_name?.trim() || 'Guest'} ·{' '}

@@ -1,4 +1,3 @@
-import { parseStayCheckOutFromNotes } from './stayOccupancy';
 import { resolveDepartureTimezone, wallTimeInZoneToUtcMs } from './tour-departure-cutoff';
 import { displayDepartureTimezoneFromPurchase, displayStartTimeFromPurchase } from './purchase-snapshot';
 
@@ -12,7 +11,6 @@ export function bookingEligibleForReview(
     booking_date: string | null;
     start_time?: string | null;
     check_out?: string | null;
-    nights?: number | null;
     special_requests?: string | null;
     purchase_snapshot?: unknown;
     /** Optional explicit TZ when snapshot is not attached. */
@@ -28,15 +26,12 @@ export function bookingEligibleForReview(
     displayDepartureTimezoneFromPurchase(b.purchase_snapshot) || b.departureTimezone
   );
 
-  // Match SQL: stay only when check_out is present (not stayRangeFromBooking's invented +1 day).
+  // Stay: only real check_out column (matches SQL booking_experience_started_for_review).
+  // Do not invent checkout from notes — that opened UI while RLS still blocked.
   const checkOutCol = (b.check_out ?? '').trim();
-  const checkOutNotes = parseStayCheckOutFromNotes(b.special_requests);
-  const stayCheckOut =
-    (ISO_DATE.test(checkOutCol) && checkOutCol) ||
-    (checkOutNotes && ISO_DATE.test(checkOutNotes) ? checkOutNotes : null);
-  if (stayCheckOut) {
+  if (ISO_DATE.test(checkOutCol)) {
     const todayLocal = ymdInZone(nowMs, tz);
-    return Boolean(todayLocal && todayLocal >= stayCheckOut);
+    return Boolean(todayLocal && todayLocal >= checkOutCol);
   }
 
   const date = (b.booking_date ?? '').trim();
