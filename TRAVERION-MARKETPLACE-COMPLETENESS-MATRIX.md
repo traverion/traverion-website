@@ -75,7 +75,7 @@
 | Cron / jobs | PARTIAL→STRONG | hold expire + GH Actions reminder cron (907) | Live secret fire not claimed |
 | Observability | PARTIAL | DB audit + edge error logs (914) | APM optional later |
 | Cart multi-item | DEAD/OBSOLETE path | `cart_items`; `/cart`→Trips | Do not revive without design |
-| Scroll / chrome | COMPLETE+VERIFIED | `overflow-x: clip` on roots | Phase scroll fix `32abd10` |
+| Scroll / chrome | COMPLETE+VERIFIED | `overflow-x: clip` on roots; re-cert 1004 | Phase scroll fix `32abd10` |
 
 ---
 
@@ -118,7 +118,7 @@ Remote migrations through **107**. FOUNDER open items: `docs/FOUNDER_REQUIRED.md
 
 ## Scroll regression (Prompt §61)
 
-**Status:** FIXED + browser-verified on Home (`32abd10`).  
+**Status:** FIXED + browser-verified on Home (`32abd10`; re-cert Phase 1004 page scroll).  
 **Cause:** `overflow-x: hidden` → computed `overflow-y: auto` trap on `html`/`body`/`main`.  
 **Fix:** `overflow-x: clip`; retain overscroll-behavior.  
 **Test:** `src/lib/traveler-document-scroll.test.ts`.

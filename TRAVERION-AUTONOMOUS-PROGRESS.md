@@ -4,7 +4,7 @@
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
 **Current SHA:** `a084070`  
-**Current phase:** 1012  
+**Current phase:** 1013  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -5188,6 +5188,12 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 **Fix:** `docs/ADMIN_SUPPORT_READINESS.md` documents UUID search finds drafts after force-unpublish (1011).
 
 **Certification:** CODE-INSPECTED.
+
+### Phase 1013 — Regression unit band (scroll/sitemap/images/unpublish)
+
+**Evidence:** vitest `traveler-document-scroll`, `sitemap-xml`, `supabase-listing-images`, `listing-unpublish-impact` — **11/11** green. Matrix scroll cell notes Phase 1004 re-cert.
+
+**Certification:** AUTOMATED-TESTED.
 
 ## Known remaining risks (ranked)
 
