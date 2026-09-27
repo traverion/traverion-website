@@ -30,18 +30,21 @@ function supplierAddressCompleteFromDraft(d: SupplierBusinessProfileDraft): bool
 /**
  * Human-readable gaps for the business profile (same rules as `isSupplierBusinessProfileComplete` on a row).
  * Use in the supplier portal to explain what still needs filling before submit.
+ * When `requireRegistrationDocument` is false (post-verification publish checks), skip the upload gap.
  */
 export function getSupplierBusinessProfileMissingReasons(
-  d: SupplierBusinessProfileDraft | null | undefined
+  d: SupplierBusinessProfileDraft | null | undefined,
+  opts?: { requireRegistrationDocument?: boolean }
 ): string[] {
   if (!d) return ['Sign in and open Business profile to continue.'];
+  const requireDoc = opts?.requireRegistrationDocument !== false;
   const out: string[] = [];
   if (!d.company_legal_name?.trim()) out.push('Registered legal business name');
   if (!d.business_type) out.push('Business type (company or individual trader)');
   if (!supplierAddressCompleteFromDraft(d)) {
     out.push('Full address: street, city, postal code, and country (as on registration)');
   }
-  if (!d.company_registration_document_path?.trim()) {
+  if (requireDoc && !d.company_registration_document_path?.trim()) {
     out.push('Business registration proof (upload a document)');
   }
   if (d.business_type === 'company' && !d.company_registration_number?.trim()) {
@@ -53,8 +56,11 @@ export function getSupplierBusinessProfileMissingReasons(
   return out;
 }
 
-export function isSupplierBusinessProfileDraftComplete(d: SupplierBusinessProfileDraft | null | undefined): boolean {
-  return getSupplierBusinessProfileMissingReasons(d).length === 0;
+export function isSupplierBusinessProfileDraftComplete(
+  d: SupplierBusinessProfileDraft | null | undefined,
+  opts?: { requireRegistrationDocument?: boolean }
+): boolean {
+  return getSupplierBusinessProfileMissingReasons(d, opts).length === 0;
 }
 
 /** IBAN and BIC on file (bank transfer only; PayPal no longer used in UI). */
@@ -63,13 +69,8 @@ export function isSupplierPayoutConfigured(profile: SupplierProfileRow | null | 
   return Boolean(profile.payout_iban?.trim() && profile.payout_bic?.trim());
 }
 
-/**
- * True only after the supplier has filled real business fields in Settings,
- * uploaded business registration proof, and not just the signup business name copied into company_legal_name.
- */
-export function isSupplierBusinessProfileComplete(profile: SupplierProfileRow | null | undefined): boolean {
-  if (!profile) return false;
-  return isSupplierBusinessProfileDraftComplete({
+function profileDraftFromRow(profile: SupplierProfileRow): SupplierBusinessProfileDraft {
+  return {
     company_legal_name: profile.company_legal_name,
     business_address: profile.business_address,
     address_street: profile.address_street,
@@ -80,7 +81,33 @@ export function isSupplierBusinessProfileComplete(profile: SupplierProfileRow | 
     company_registration_number: profile.company_registration_number,
     tax_id: profile.tax_id,
     company_registration_document_path: profile.company_registration_document_path,
-  });
+  };
+}
+
+/**
+ * True only after the supplier has filled real business fields in Settings,
+ * uploaded business registration proof, and not just the signup business name copied into company_legal_name.
+ */
+export function isSupplierBusinessProfileComplete(profile: SupplierProfileRow | null | undefined): boolean {
+  if (!profile) return false;
+  return isSupplierBusinessProfileDraftComplete(profileDraftFromRow(profile));
+}
+
+/**
+ * Core business identity for publish after Traverion already verified the supplier.
+ * Does not re-require registration document Storage path (admin may have verified offline;
+ * demo / legacy verified rows may lack a path while remaining publishable).
+ */
+export function isSupplierBusinessProfileCompleteForPublish(
+  profile: SupplierProfileRow | null | undefined
+): boolean {
+  if (!profile) return false;
+  if (businessVerified(profile)) {
+    return isSupplierBusinessProfileDraftComplete(profileDraftFromRow(profile), {
+      requireRegistrationDocument: false,
+    });
+  }
+  return isSupplierBusinessProfileComplete(profile);
 }
 
 function payoutVerified(profile: SupplierProfileRow | null | undefined): boolean {
@@ -100,13 +127,13 @@ export function partnerPayoutVerifiedStatusNote(businessIsVerified: boolean): st
 
 /**
  * Can create/publish listings: Traverion has verified business and payout (IBAN/BIC) independently,
- * and required fields are still complete.
+ * and core identity fields remain filled.
  */
 export function isSupplierReadyToPublishTours(profile: SupplierProfileRow | null | undefined): boolean {
   if (!profile) return false;
   if (!businessVerified(profile)) return false;
   if (!payoutVerified(profile)) return false;
-  if (!isSupplierBusinessProfileComplete(profile)) return false;
+  if (!isSupplierBusinessProfileCompleteForPublish(profile)) return false;
   if (!isSupplierPayoutConfigured(profile)) return false;
   return true;
 }

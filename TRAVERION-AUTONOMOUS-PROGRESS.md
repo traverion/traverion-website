@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `3419bdd`  
-**Current phase:** 860  
+**Current SHA:** `aa790e7`  
+**Current phase:** 861  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -271,6 +271,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 858 | Traveler itinerary from typical flow | `1ce2d88` |
 | 859 | Stay audit + check-in/out publish + difficulty honesty | `0d446a3` |
 | 860 | Stay purchase snapshot freeze | `3419bdd` |
+| 861 | Verified publish gate + create wizard browser recon | `aa790e7` |
 
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
@@ -4379,6 +4380,16 @@ Deep audit of listing → option → schedule ownership vs publish/traveler/snap
 **Fix:** Snapshot fields `checkIn`, `checkOut`, `nights`, `propertyType`. Deno stay quote returns `nights`. Checkout `resolveStayFieldsForSnapshot`.
 
 **Cert:** vitest purchase-snapshot + deno quote.
+
+### Phase 861 — Publish gate: verified suppliers + create wizard browser recon
+
+**Browser (localhost, aurora-ops):** `/partner/create` type chooser (tours/stays; rentals absent). Tour wizard opens Basics → product type; overlay click interception flaky (not fully create→publish certified). Listings banner claimed incomplete business profile despite verified+verified payout.
+
+**Root cause:** `isSupplierReadyToPublishTours` required registration document Storage path even after `verification_status=verified`. Demo (and some legacy) verified rows lack the path.
+
+**Fix:** `isSupplierBusinessProfileCompleteForPublish` skips document path when already verified; listings gate uses it. Submit-to-review still requires the upload.
+
+**Cert:** vitest supplierOnboarding 3/3; browser recon noted.
 
 ## Known remaining risks (ranked)
 

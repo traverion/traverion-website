@@ -44,9 +44,11 @@ import {
 import { navigateSupplierUrl, openSupplierListingEditor, openSupplierCalendar } from '../../lib/supplierPortalNavigation';
 import {
   isSupplierBusinessProfileComplete,
+  isSupplierBusinessProfileCompleteForPublish,
   isSupplierPayoutConfigured,
   isSupplierReadyToPublishTours,
 } from '../../lib/supplierOnboarding';
+
 import { canManageBookings } from '../../lib/supplierTeamRoles';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { publicStayListingUrl, publicTourListingUrl } from '../../lib/publicSiteUrl';
@@ -526,20 +528,21 @@ export default function SupplierListings() {
       }
       const profile = await fetchSupplierProfile(user.id);
       const businessComplete = isSupplierBusinessProfileComplete(profile);
+      const businessCompleteForPublish = isSupplierBusinessProfileCompleteForPublish(profile);
       const payoutConfigured = isSupplierPayoutConfigured(profile);
       const v = profile?.verification_status ?? null;
       const pv = profile?.payout_verification_status ?? null;
       setVerificationStatus(v);
       setPayoutVerificationStatus(pv);
-      setMissingBusinessDetails(!businessComplete);
+      setMissingBusinessDetails(!businessCompleteForPublish);
       const businessVerified = v === 'verified';
       const payoutVerified = (pv ?? '').trim().toLowerCase() === 'verified';
       setPayoutOnFile(payoutConfigured);
       setMissingPayoutForPublish(
-        Boolean(businessComplete && businessVerified && (!payoutConfigured || !payoutVerified))
+        Boolean(businessCompleteForPublish && businessVerified && (!payoutConfigured || !payoutVerified))
       );
       setCanPostNewListing(isSupplierReadyToPublishTours(profile));
-      if (!businessComplete) {
+      if (!businessCompleteForPublish) {
         setProfileGateMessage(
           'Complete your business profile in Settings: registered name, address, registration proof, and tax or company identifiers as required. Payout bank details (IBAN and BIC) are verified separately; you can add them anytime. Publishing requires Traverion to approve both business and payout.'
         );
