@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { localYmd } from '../lib/local-ymd';
+import { resolveSupplierId } from './supabase-supplier-team';
 
 export type SupplierBookingVoucherRow = {
   id: string;
@@ -21,10 +22,12 @@ export async function fetchSupplierBookingVouchers(
   supplierId: string
 ): Promise<SupplierBookingVoucherRow[]> {
   if (!supabase) return [];
+  // Phase 1197: resolve owner id so team JWTs hit owner-keyed rows after 151.
+  const ownerSupplierId = await resolveSupplierId(supplierId);
   const { data, error } = await supabase
     .from('supplier_booking_vouchers')
     .select('*')
-    .eq('supplier_id', supplierId)
+    .eq('supplier_id', ownerSupplierId)
     .order('created_at', { ascending: false })
     .limit(200);
   if (error) return [];
@@ -46,10 +49,11 @@ export async function insertSupplierBookingVouchers(
   }>
 ): Promise<boolean> {
   if (!supabase || vouchers.length === 0) return false;
+  const ownerSupplierId = await resolveSupplierId(vouchers[0]!.supplierId);
   const { error } = await supabase.from('supplier_booking_vouchers').insert(
     vouchers.map((v) => ({
       booking_id: v.bookingId,
-      supplier_id: v.supplierId,
+      supplier_id: ownerSupplierId,
       listing_id: v.listingId,
       code: v.code,
       guest_email: v.guestEmail ?? null,
@@ -70,13 +74,14 @@ export async function updateSupplierBookingVoucherStatus(
   status: 'active' | 'redeemed' | 'expired'
 ): Promise<boolean> {
   if (!supabase) return false;
+  const ownerSupplierId = await resolveSupplierId(supplierId);
   const { error } = await supabase
     .from('supplier_booking_vouchers')
     .update({
       status,
       updated_at: new Date().toISOString(),
     })
-    .eq('supplier_id', supplierId)
+    .eq('supplier_id', ownerSupplierId)
     .eq('id', voucherId);
   return !error;
 }
@@ -88,21 +93,22 @@ export async function redeemSupplierBookingVoucherByCode(
   if (!supabase) return { success: false, reason: 'not_found' };
   const normalized = code.trim().toUpperCase();
   if (!normalized) return { success: false, reason: 'not_found' };
+  const ownerSupplierId = await resolveSupplierId(supplierId);
 
   const { data, error } = await supabase
     .from('supplier_booking_vouchers')
     .select('id, status, expires_at')
-    .eq('supplier_id', supplierId)
+    .eq('supplier_id', ownerSupplierId)
     .eq('code', normalized)
     .maybeSingle();
   if (error || !data) return { success: false, reason: 'not_found' };
   if (data.status === 'redeemed') return { success: false, reason: 'already_redeemed', voucherId: data.id as string };
   if (data.expires_at && data.expires_at < localYmd()) {
-    await updateSupplierBookingVoucherStatus(supplierId, data.id as string, 'expired');
+    await updateSupplierBookingVoucherStatus(ownerSupplierId, data.id as string, 'expired');
     return { success: false, reason: 'expired', voucherId: data.id as string };
   }
 
-  const ok = await updateSupplierBookingVoucherStatus(supplierId, data.id as string, 'redeemed');
+  const ok = await updateSupplierBookingVoucherStatus(ownerSupplierId, data.id as string, 'redeemed');
   return ok ? { success: true, voucherId: data.id as string } : { success: false };
 }
 
@@ -110,6 +116,7 @@ export async function expireSupplierBookingVouchers(
   supplierId: string
 ): Promise<boolean> {
   if (!supabase) return false;
+  const ownerSupplierId = await resolveSupplierId(supplierId);
   const today = localYmd();
   const { error } = await supabase
     .from('supplier_booking_vouchers')
@@ -117,9 +124,8 @@ export async function expireSupplierBookingVouchers(
       status: 'expired',
       updated_at: new Date().toISOString(),
     })
-    .eq('supplier_id', supplierId)
+    .eq('supplier_id', ownerSupplierId)
     .eq('status', 'active')
     .lt('expires_at', today);
   return !error;
 }
-
