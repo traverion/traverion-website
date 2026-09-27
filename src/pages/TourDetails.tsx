@@ -776,9 +776,17 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     };
   }, [user?.id, user?.email, tourId]);
 
-  // SEO: tour-specific title, description, OG image, and JSON-LD
+  // SEO: tour-specific title, description, OG image, and JSON-LD.
+  // Phase 1271: do not advertise season-ended / non-catalog tours (sitemap already excludes them).
   useEffect(() => {
-    if (!tour) {
+    const bookable =
+      !!tour &&
+      listingDetailVisibleToTraveler({
+        familyMatches: listingIsOnTravelerCatalog(tour),
+        status: tour.status,
+      }) &&
+      listingHasUpcomingBookableSeason(tour);
+    if (!bookable) {
       clearTourJsonLd();
       setPageMetaWithOg('Tour', 'Book this tour from an independent operator.');
       return;
