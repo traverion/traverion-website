@@ -32,7 +32,7 @@ import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { partnerBookingIsLiveTrip, partnerBookingIsOperatingTrip, partnerBookingNeedsLook } from '../../lib/trip-views';
 import { PARTNER_PICKUP_CSV_HEADER, partnerPickupCsvValues } from '../../lib/partner-pickup-csv';
 import { csvSafeCell } from '../../lib/csv-export';
-import { bookingIsStayNight, bookingNeedsPickupCopy, resolveBookingPickupCopy } from '../../lib/pickup-completeness';
+import { bookingIsStayNight, bookingNeedsPickupCopy, resolvePartnerPickupCopy } from '../../lib/pickup-completeness';
 import { guestFacingBookingNotes } from '../../lib/booking-notes';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
@@ -448,12 +448,13 @@ export default function SupplierPickupPlanner() {
 
   const pickupCopyFor = useCallback(
     (b: BookingRow) =>
-      resolveBookingPickupCopy({
+      resolvePartnerPickupCopy({
+        purchaseSnapshot: b.purchase_snapshot,
         bookingOptionId: b.booking_option_id,
         specialRequests: b.special_requests,
         listingMeetingPoint: meetingPoints[b.listing_id],
         listingPickupInstructions: pickupInstructions[b.listing_id],
-        bookingOptions: optionsByListing[b.listing_id],
+        bookingOptions: isPurchaseSnapshot(b.purchase_snapshot) ? null : optionsByListing[b.listing_id],
       }),
     [meetingPoints, pickupInstructions, optionsByListing]
   );

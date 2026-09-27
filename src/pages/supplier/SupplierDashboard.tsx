@@ -15,7 +15,7 @@ import {
   countUnrepliedWrittenReviewsForSupplier,
   getReviewAggregatesForListingIds,
 } from '../../data/supabase-reviews';
-import { bookingNeedsPickupCopy, bookingIsStayNight, resolveBookingPickupCopy } from '../../lib/pickup-completeness';
+import { bookingNeedsPickupCopy, bookingIsStayNight, resolvePartnerPickupCopy } from '../../lib/pickup-completeness';
 import { bookingPaymentWasCollected, isCollectedBooking, isRefundDueBooking } from '../../lib/payment-states';
 import type { TourPackage } from '../../types/tour';
 import SupplierPortalNoticePanel from '../../components/supplier/SupplierPortalNoticePanel';
@@ -37,7 +37,6 @@ import {
   displayListingTitleFromPurchase,
   displayMeetingPointFromPurchase,
   displayOptionLabelFromPurchase,
-  displayPickupInstructionsFromPurchase,
   displayFulfillmentFromPurchase,
   partnerOpsDepartureDisplay,
   isPurchaseSnapshot,
@@ -350,19 +349,15 @@ export default function SupplierDashboard() {
           : materializedBookingOptions(
               parseListingExtras(listing?.listingExtras as unknown).bookingOptions
             );
-        const copy = resolveBookingPickupCopy({
+        const copy = resolvePartnerPickupCopy({
+          purchaseSnapshot: b.purchase_snapshot,
           bookingOptionId: b.booking_option_id,
           specialRequests: b.special_requests,
           listingMeetingPoint: listing?.meetingPoint,
           listingPickupInstructions: listing?.pickupInstructions,
           bookingOptions: opts,
         });
-        const meeting = displayMeetingPointFromPurchase(b.purchase_snapshot, copy.meetingPoint);
-        const instructions = displayPickupInstructionsFromPurchase(
-          b.purchase_snapshot,
-          copy.pickupInstructions
-        );
-        return bookingNeedsPickupCopy(b, meeting, instructions);
+        return bookingNeedsPickupCopy(b, copy.meetingPoint, copy.pickupInstructions);
       }),
     [supplierBookings, listingsById, todayYmd]
   );

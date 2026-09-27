@@ -5,6 +5,7 @@ import {
   listingPickupCopyIncomplete,
   partnerBookingHasPickupAttention,
   resolveBookingPickupCopy,
+  resolvePartnerPickupCopy,
 } from './pickup-completeness';
 
 describe('pickup completeness', () => {
@@ -149,6 +150,77 @@ describe('pickup completeness', () => {
         'Meet',
         '',
         opts
+      )
+    ).toBe(false);
+  });
+
+  it('prefers purchase snapshot logistics over live listing for partner pickup (Phase 1083)', () => {
+    const snap = {
+      listingTitle: 'Northern Lights Tour',
+      optionLabel: null,
+      meetingPoint: 'Purchased meeting: Arctic City Hotel lobby',
+      pickupInstructions: 'Purchased: wait at lobby door for van A',
+      startTimeHm: '20:00',
+      capturedAt: '2026-01-01T00:00:00.000Z',
+    };
+    const resolved = resolvePartnerPickupCopy({
+      purchaseSnapshot: snap,
+      listingMeetingPoint: 'LIVE meet (edited after purchase)',
+      listingPickupInstructions: 'LIVE pickup (edited)',
+      bookingOptions: [
+        {
+          id: 'opt-1',
+          pickupPlace: 'LIVE option place',
+          travelerStartInstructions: 'LIVE option instructions',
+        },
+      ],
+      bookingOptionId: 'opt-1',
+    });
+    expect(resolved.meetingPoint).toBe('Purchased meeting: Arctic City Hotel lobby');
+    expect(resolved.pickupInstructions).toBe('Purchased: wait at lobby door for van A');
+  });
+
+  it('does not resurrect live listing pickup when snapshot left logistics blank', () => {
+    const snap = {
+      listingTitle: 'Tour',
+      optionLabel: null,
+      meetingPoint: null,
+      pickupInstructions: null,
+      startTimeHm: null,
+      capturedAt: '2026-01-01T00:00:00.000Z',
+    };
+    const resolved = resolvePartnerPickupCopy({
+      purchaseSnapshot: snap,
+      listingMeetingPoint: 'Should not appear',
+      listingPickupInstructions: 'Should not appear either',
+      bookingOptions: [{ id: 'a', pickupPlace: 'Also live' }],
+      bookingOptionId: 'a',
+    });
+    expect(resolved.meetingPoint).toBe('');
+    expect(resolved.pickupInstructions).toBe('');
+  });
+
+  it('partner attention uses snapshot copy when live listing is thin', () => {
+    const snap = {
+      listingTitle: 'Tour',
+      optionLabel: null,
+      meetingPoint: 'Hotel lobby, 07:30, look for the Traverion sign',
+      pickupInstructions: 'Van pickup confirmed at purchase',
+      startTimeHm: '07:30',
+      capturedAt: '2026-01-01T00:00:00.000Z',
+    };
+    expect(
+      partnerBookingHasPickupAttention(
+        {
+          status: 'confirmed',
+          payment_status: 'paid',
+          pickup_time: null,
+          purchase_snapshot: snap,
+          special_requests: null,
+        },
+        'Meet',
+        '',
+        null
       )
     ).toBe(false);
   });

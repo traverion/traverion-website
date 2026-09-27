@@ -4,6 +4,11 @@ import {
   parseBookingMeetingPointOverride,
   parseBookingPickupInstructionsOverride,
 } from './booking-notes';
+import {
+  displayMeetingPointFromPurchase,
+  displayPickupInstructionsFromPurchase,
+  isPurchaseSnapshot,
+} from './purchase-snapshot';
 
 /** Listing-level pickup copy is incomplete when meeting + pickup notes are too thin to operate. */
 export function listingPickupCopyIncomplete(meetingPoint: string | null | undefined, pickupInstructions: string | null | undefined): boolean {
@@ -72,6 +77,35 @@ export function resolveBookingPickupCopy(params: {
   };
 }
 
+/**
+ * Partner ops pickup copy: note override → purchase snapshot → live listing/option.
+ * When a snapshot exists, never resurrect live listing logistics (Phase 1083).
+ */
+export function resolvePartnerPickupCopy(params: {
+  purchaseSnapshot?: unknown;
+  bookingOptionId?: string | null;
+  specialRequests?: string | null;
+  listingMeetingPoint?: string | null;
+  listingPickupInstructions?: string | null;
+  bookingOptions?: Array<{
+    id: string;
+    pickupPlace?: string;
+    optionInfo?: string;
+    travelerStartInstructions?: string;
+  }> | null;
+}): { meetingPoint: string; pickupInstructions: string } {
+  const noteMeeting = parseBookingMeetingPointOverride(params.specialRequests);
+  const noteInstructions = parseBookingPickupInstructionsOverride(params.specialRequests);
+  if (isPurchaseSnapshot(params.purchaseSnapshot)) {
+    return {
+      meetingPoint: noteMeeting || displayMeetingPointFromPurchase(params.purchaseSnapshot, null),
+      pickupInstructions:
+        noteInstructions || displayPickupInstructionsFromPurchase(params.purchaseSnapshot, null),
+    };
+  }
+  return resolveBookingPickupCopy(params);
+}
+
 /** Paid operating tour with missing pickup details — Bookings ops chip / row / detail must match Today. */
 export function partnerBookingHasPickupAttention(
   b: {
@@ -81,6 +115,7 @@ export function partnerBookingHasPickupAttention(
     special_requests?: string | null;
     pickup_time?: string | null;
     booking_option_id?: string | null;
+    purchase_snapshot?: unknown;
   },
   meetingPoint: string | null | undefined,
   pickupInstructions: string | null | undefined,
@@ -94,12 +129,13 @@ export function partnerBookingHasPickupAttention(
   const st = (b.status ?? '').trim().toLowerCase();
   if (st === 'cancelled') return false;
   if (!isPaidPaymentStatus(b.payment_status)) return false;
-  const resolved = resolveBookingPickupCopy({
+  const resolved = resolvePartnerPickupCopy({
+    purchaseSnapshot: b.purchase_snapshot,
     bookingOptionId: b.booking_option_id,
     specialRequests: b.special_requests,
     listingMeetingPoint: meetingPoint,
     listingPickupInstructions: pickupInstructions,
-    bookingOptions,
+    bookingOptions: isPurchaseSnapshot(b.purchase_snapshot) ? null : bookingOptions,
   });
   return bookingNeedsPickupCopy(b, resolved.meetingPoint, resolved.pickupInstructions);
 }
