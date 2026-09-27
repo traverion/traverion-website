@@ -31,7 +31,7 @@ import {
   type TravelerCheckoutAuthMetadata,
 } from '../lib/traveler-checkout-autofill';
 import { getDisplayPriceForBookingVariant } from '../lib/discount-display';
-import { quoteBooking, formatOptionWeekdays, tourQuotePriceLines, tourBookableSellingDeparturesOnDate, experienceTodayIsoForListing } from '../lib/booking-quote';
+import { quoteBooking, formatOptionWeekdays, tourQuotePriceLines, tourBookableSellingDeparturesOnDate, experienceTodayIsoForListing, listingHasUpcomingBookableSeason } from '../lib/booking-quote';
 import {
   listingOptionHasSchedules,
   listingOptionReadySchedules,
@@ -1003,7 +1003,7 @@ export default function BookingPage({
       });
       return;
     }
-    if (!isListingVisibleToTravelers(tour.status)) {
+    if (!isListingVisibleToTravelers(tour.status) || !listingHasUpcomingBookableSeason(tour)) {
       setError('This tour is not available to book.');
       return;
     }
