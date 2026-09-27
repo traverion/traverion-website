@@ -29,7 +29,7 @@ import { isPurchaseSnapshot, displayListingTitleFromPurchase, displayDurationFro
 import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierListSkeleton, SupplierPageHero } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
-import { partnerBookingIsLiveTrip, partnerBookingIsOperatingTrip, partnerBookingNeedsLook, partnerTourMatchesExperienceDayOffset } from '../../lib/trip-views';
+import { partnerBookingIsLiveTrip, partnerBookingIsOperatingTrip, partnerBookingNeedsLook, partnerTourMatchesExperienceDayOffset, pickupMissingIsUrgentSoon } from '../../lib/trip-views';
 import { PARTNER_PICKUP_CSV_HEADER, partnerPickupCsvValues } from '../../lib/partner-pickup-csv';
 import { csvSafeCell } from '../../lib/csv-export';
 import { bookingIsStayNight, bookingNeedsPickupCopy, resolvePartnerPickupCopy } from '../../lib/pickup-completeness';
@@ -74,14 +74,6 @@ function parseYmdLocal(ymd: string): Date | null {
   const [y, m, d] = ymd.split('-').map(Number);
   if (!y || !m || !d) return null;
   return new Date(y, m - 1, d);
-}
-
-/** Hours from now until start of local calendar day for the booking date (negative = past). */
-function hoursUntilBookingDayStart(ymd: string | null | undefined): number | null {
-  if (!ymd) return null;
-  const d = parseYmdLocal(ymd);
-  if (!d) return null;
-  return (d.getTime() - Date.now()) / (1000 * 60 * 60);
 }
 
 function formatPickupSectionDate(ymd: string): string {
@@ -1337,8 +1329,7 @@ export default function SupplierPickupPlanner() {
                     <div className="space-y-2 pt-1">
                       {dayRows.map((b) => {
                         const missing = needsPickupInfo(b);
-                        const hrs = hoursUntilBookingDayStart(b.booking_date);
-                        const urgentSoon = hrs !== null && hrs > 0 && hrs <= 24 && missing;
+                        const urgentSoon = pickupMissingIsUrgentSoon(b, missing);
                         return (
                           <PlannerBookingCard
                             key={b.id}

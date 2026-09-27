@@ -156,6 +156,22 @@ export function partnerTourMatchesExperienceDayOffset(
   return Boolean(tomorrow && bd === tomorrow);
 }
 
+/**
+ * Pickup planner urgency: missing logistics on experience-local today or tomorrow.
+ * Phase 1116 — do not use browser-local midnight hours for this gate.
+ */
+export function pickupMissingIsUrgentSoon(
+  booking: { booking_date?: string | null; purchase_snapshot?: unknown },
+  missing: boolean,
+  nowMs: number = Date.now()
+): boolean {
+  if (!missing) return false;
+  return (
+    partnerTourMatchesExperienceDayOffset(booking, 0, nowMs) ||
+    partnerTourMatchesExperienceDayOffset(booking, 1, nowMs)
+  );
+}
+
 /** Partner Today: occupying operating trips on this local date — not refunded or cancelled.
  * Tours: departure date === today.
  * Stays: today is an occupied night in [checkIn, checkOut), or check-out day (host still has ops).

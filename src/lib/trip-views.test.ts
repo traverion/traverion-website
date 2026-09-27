@@ -17,6 +17,7 @@ import {
   sortTravelerCancelledTrips,
   scheduleTodayIsoForBooking,
   partnerTourMatchesExperienceDayOffset,
+  pickupMissingIsUrgentSoon,
   tripAllowsBrowseLiveListing,
 } from './trip-views';
 
@@ -320,6 +321,27 @@ describe('trip list views', () => {
         nowMs
       )
     ).toBe(true);
+  });
+
+  it('flags pickup urgency on experience-local today/tomorrow, not browser hours (Phase 1116)', () => {
+    const nowMs = Date.parse('2026-09-15T22:30:00.000Z');
+    const snap = {
+      listingTitle: 'Aurora',
+      departureTimezone: 'Europe/Helsinki',
+      capturedAt: 't',
+    };
+    expect(
+      pickupMissingIsUrgentSoon({ booking_date: '2026-09-16', purchase_snapshot: snap }, true, nowMs)
+    ).toBe(true);
+    expect(
+      pickupMissingIsUrgentSoon({ booking_date: '2026-09-17', purchase_snapshot: snap }, true, nowMs)
+    ).toBe(true);
+    expect(
+      pickupMissingIsUrgentSoon({ booking_date: '2026-09-15', purchase_snapshot: snap }, true, nowMs)
+    ).toBe(false);
+    expect(
+      pickupMissingIsUrgentSoon({ booking_date: '2026-09-16', purchase_snapshot: snap }, false, nowMs)
+    ).toBe(false);
   });
 
   it('only offers browse-live from Trips when listing is published (Phase 1086)', () => {
