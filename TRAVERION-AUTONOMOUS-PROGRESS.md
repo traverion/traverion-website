@@ -4941,6 +4941,25 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 
 **Certification:** performance = **CODE-INSPECTED** / **PARTIAL**. Device-farm perf = **NOT BUILT**.
 
+
+### Phase 928 — Account lifecycle honesty
+
+**Audit:** Signup/login/logout via Supabase Auth; email confirmation gates; traveler profile (`consumer_profiles`); supplier onboarding + verification. Password reset supported via Supabase recovery. **Account deletion** with active future bookings is not a casual self-serve destroy — deferred with care (no silent orphan bookings).
+
+**Certification:** account lifecycle = **PARTIAL** / **CODE-INSPECTED**. Destructive delete UX = **NOT BUILT** (intentional caution).
+
+### Phase 929 — FOUNDER_REQUIRED ledger (do not invent)
+
+| Decision | Why FOUNDER |
+|----------|-------------|
+| Auto-refund on eligible cancel | Money automation vs manual Stripe TEST honesty |
+| Commission / take-rate snapshot | LIVE economics not decided (gross-only today) |
+| Dedicated traveler auth host storage | Product/ops choice for localhost vs production hosts |
+| Staff force-unpublish | Moderation policy + audit requirements |
+| Live reminder cron secret fire | Requires hosted secret exercise |
+
+Until decided: keep current honest behaviors; do not fake.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.
