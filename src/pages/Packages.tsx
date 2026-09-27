@@ -457,7 +457,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     [reviewAggregates]
   );
 
-  const { filteredPackages, matchingExceptCapacityCount } = useMemo(() => {
+  const { filteredPackages, matchingExceptCapacityCount, knownSoldOutForDate } = useMemo(() => {
     const guestCount = Number.parseInt(filterGuests, 10);
     const partySize = Number.isFinite(guestCount) && guestCount > 0 ? guestCount : 1;
 
@@ -480,12 +480,13 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
       });
 
     const exceptCapacity = allListings.filter(matchExceptCapacity);
+    let knownSoldOutForDate = 0;
     let list = exceptCapacity.filter((tour) => {
       if (!(filterDate && dateCapacityByListing)) return true;
       const cap = dateCapacityByListing[tour.id];
       // Phase 1190: missing cap row while map is loaded → exclude (do not invent open).
       if (!cap) return false;
-      return !tourDateLacksCapacityForParty({
+      const lacks = tourDateLacksCapacityForParty({
         paidGuestsThatDay: cap.paid,
         dayCapacity: cap.dayCap,
         fallbackCapacity: cap.fallbackCap,
@@ -494,6 +495,8 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
         departures: cap.departures,
         slotKey: (hm) => hm,
       });
+      if (lacks) knownSoldOutForDate += 1;
+      return !lacks;
     });
 
     if (sortBy === 'price-asc') list = [...list].sort((a, b) => listingBrowseAmount(a) - listingBrowseAmount(b));
@@ -501,7 +504,11 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     else if (sortBy === 'rating')
       list = [...list].sort((a, b) => ratingSortScore(b) - ratingSortScore(a));
     else if (sortBy === 'duration') list = [...list].sort((a, b) => durationToMinutes(a.duration) - durationToMinutes(b.duration));
-    return { filteredPackages: list, matchingExceptCapacityCount: exceptCapacity.length };
+    return {
+      filteredPackages: list,
+      matchingExceptCapacityCount: exceptCapacity.length,
+      knownSoldOutForDate,
+    };
   }, [
     allListings,
     destinationOptions,
@@ -521,11 +528,13 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     dateCapacityByListing,
   ]);
 
+  // Phase 1193: “Fully booked” only when known capacity sold out — not all-unknown-cap excludes (1190).
   const emptyDueToSoldOutDate =
     filteredPackages.length === 0 &&
     Boolean(filterDate) &&
     dateCapacityByListing != null &&
-    matchingExceptCapacityCount > 0;
+    matchingExceptCapacityCount > 0 &&
+    knownSoldOutForDate > 0;
 
   const hasActiveFilters =
     searchTerm.trim() !== '' ||

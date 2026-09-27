@@ -165,20 +165,38 @@ export async function checkAvailability(
       ],
     };
   }
-  const paidByDay = await fetchPublishedTourPaidGuests(listingId);
-  const fallbackCap = await fetchTourOptionCapacity(listingId);
+  let paidByDay: Record<string, number>;
+  let fallbackCap: number | null;
+  let paidSlot = 0;
+  const startHm = (opts?.startTimeHm ?? '').trim();
+  try {
+    paidByDay = await fetchPublishedTourPaidGuests(listingId);
+    fallbackCap = await fetchTourOptionCapacity(listingId);
+    // Phase 1112: slot occupancy applies even when a day capacity override exists.
+    if (startHm) {
+      const paidBySlot = await fetchPublishedTourPaidGuestsBySlot(listingId);
+      paidSlot = paidBySlot[tourPaidSlotKey(date, startHm)] ?? 0;
+    }
+  } catch (e) {
+    // Phase 1192: occupancy/capacity RPC failure → error path (not unhandled reject / sold-out UX).
+    const message = e instanceof Error ? e.message : 'Could not check availability';
+    return {
+      available: false,
+      error: message,
+      options: [
+        {
+          id: 'error',
+          title: 'Could not check availability',
+          description: message,
+          selectable: false,
+        },
+      ],
+    };
+  }
   const dayOverride =
     data && typeof data.capacity === 'number' && Number.isFinite(Number(data.capacity))
       ? Number(data.capacity)
       : null;
-
-  let paidSlot = 0;
-  const startHm = (opts?.startTimeHm ?? '').trim();
-  // Phase 1112: slot occupancy applies even when a day capacity override exists.
-  if (startHm) {
-    const paidBySlot = await fetchPublishedTourPaidGuestsBySlot(listingId);
-    paidSlot = paidBySlot[tourPaidSlotKey(date, startHm)] ?? 0;
-  }
 
   const { available, remaining, scope } = tourPublicAvailabilityRemaining({
     date,

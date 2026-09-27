@@ -859,16 +859,8 @@ export default function BookingPage({
       setAvailabilityModalOpen(true);
       setAvailabilityOptions(avail.options);
     } catch {
-      setAvailabilityModalOpen(true);
-      setAvailabilityOptions([
-        {
-          id: 'network',
-          title: 'Could not check availability',
-          description: 'Check your connection and try again in a moment.',
-          selectable: false,
-        },
-      ]);
-      setAvailabilityModalNote(null);
+      // Phase 1191: verify failures stay inline (avail.error parity) — not a sold-out modal.
+      setError('Could not verify availability. Check your connection and try again.');
     } finally {
       setAvailabilityChecking(false);
     }
