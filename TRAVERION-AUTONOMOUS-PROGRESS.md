@@ -4745,6 +4745,15 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 
 **Certification:** stay public occupancy helper = **AUTOMATED-TESTED**.
 
+
+### Phase 901 — Checkout consent gate (tour + stay)
+
+**Problem:** Pay could start without explicit traveler acknowledgment of cancellation policy / Terms.
+
+**Fix:** Required checkbox (`CheckoutConsentCheckbox`) on BookingPage confirm step and StayDetails pay panel; Pay disabled until accepted; Open Terms in new tab. Unit helper `checkoutPayBlockedByConsent`.
+
+**Certification:** checkout consent = **AUTOMATED-TESTED** + **CODE-INSPECTED**. Browser spot-check optional next.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.

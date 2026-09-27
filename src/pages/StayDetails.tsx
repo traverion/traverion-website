@@ -37,6 +37,8 @@ import StayNightPicker from '../components/StayNightPicker';
 import GuestStepper from '../components/booking/GuestStepper';
 import { ListingReviewsModal } from '../components/ListingReviewsModal';
 import NoticeCallout from '../components/NoticeCallout';
+import CheckoutConsentCheckbox from '../components/booking/CheckoutConsentCheckbox';
+import { checkoutPayBlockedByConsent } from '../lib/checkout-consent';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { CHECKOUT_HOLD_MINUTES } from '../lib/booking-hold';
 import { formatOccupiedNightRanges, formatStayNightHuman } from '../lib/stay-calendar';
@@ -86,6 +88,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
   const [checkOut, setCheckOut] = useState(() => readStayPrefill().checkOut);
   const [guests, setGuests] = useState(() => readStayPrefill().guests);
   const [paying, setPaying] = useState(false);
+  const [checkoutConsentAccepted, setCheckoutConsentAccepted] = useState(false);
   const checkoutLockRef = useRef(false);
   const [payError, setPayError] = useState<string | null>(null);
   const [guestName, setGuestName] = useState('');
@@ -421,6 +424,12 @@ export default function StayDetails({ stayId, onBack }: Props) {
 
   const startStayCheckout = async () => {
     if (!stay || !stayQuote?.ok) {
+      document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    if (checkoutPayBlockedByConsent(checkoutConsentAccepted)) {
+      setPayError('Confirm the cancellation policy and Terms before paying.');
+      document.getElementById('stay-checkout-consent')?.focus();
       document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
     }
@@ -1071,10 +1080,25 @@ export default function StayDetails({ stayId, onBack }: Props) {
                   </p>
                 ) : null}
                 {payError ? <p className="mt-3 text-sm text-red-700">{payError}</p> : null}
+                <div className="mt-4">
+                  <CheckoutConsentCheckbox
+                    id="stay-checkout-consent"
+                    checked={checkoutConsentAccepted}
+                    onChange={(next) => {
+                      setCheckoutConsentAccepted(next);
+                      if (next) setPayError(null);
+                    }}
+                  />
+                </div>
                 <button
                   type="button"
                   className="tv-btn-primary w-full mt-4 disabled:opacity-50"
-                  disabled={paying || selectionOccupied || Boolean(occupancyError)}
+                  disabled={
+                    paying ||
+                    selectionOccupied ||
+                    Boolean(occupancyError) ||
+                    checkoutPayBlockedByConsent(checkoutConsentAccepted)
+                  }
                   onClick={() => {
                     if (selectionOccupied || occupancyError) return;
                     if (!quoteOk) {
@@ -1093,6 +1117,8 @@ export default function StayDetails({ stayId, onBack }: Props) {
                     ? 'Dates unavailable'
                     : paying
                       ? TRAVELER_OPENING_CHECKOUT_CTA
+                      : checkoutPayBlockedByConsent(checkoutConsentAccepted)
+                        ? 'Accept terms to pay'
                       : stickyStayCtaLabel === TRAVELER_CONTINUE_TEST_CTA
                         ? TRAVELER_CONTINUE_TEST_CTA
                         : stickyStayCtaLabel}
@@ -1158,7 +1184,12 @@ export default function StayDetails({ stayId, onBack }: Props) {
               <button
                 type="button"
                 className="tv-btn-primary min-h-11 shrink-0 disabled:opacity-50"
-                disabled={paying || selectionOccupied || Boolean(occupancyError)}
+                disabled={
+                  paying ||
+                  selectionOccupied ||
+                  Boolean(occupancyError) ||
+                  (quoteOk && checkoutPayBlockedByConsent(checkoutConsentAccepted))
+                }
                 onClick={() => {
                   if (selectionOccupied || occupancyError) return;
                   if (!quoteOk) {
@@ -1173,7 +1204,9 @@ export default function StayDetails({ stayId, onBack }: Props) {
                   void startStayCheckout();
                 }}
               >
-                {stickyStayCtaLabel}
+                {quoteOk && checkoutPayBlockedByConsent(checkoutConsentAccepted)
+                  ? 'Accept terms'
+                  : stickyStayCtaLabel}
               </button>
             ) : !quoteOk ? (
               <button

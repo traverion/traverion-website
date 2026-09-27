@@ -96,6 +96,8 @@ import {
 } from '../lib/booking-confirmation-copy';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import NoticeCallout from '../components/NoticeCallout';
+import CheckoutConsentCheckbox from '../components/booking/CheckoutConsentCheckbox';
+import { checkoutPayBlockedByConsent } from '../lib/checkout-consent';
 
 interface BookingPageProps {
   tour: TourPackage;
@@ -228,6 +230,7 @@ export default function BookingPage({
   const [placeOfStay, setPlaceOfStay] = useState('');
   const [specialRequests, setSpecialRequests] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [checkoutConsentAccepted, setCheckoutConsentAccepted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [availabilityModalOpen, setAvailabilityModalOpen] = useState(false);
   const [availabilityChecking, setAvailabilityChecking] = useState(false);
@@ -768,6 +771,11 @@ export default function BookingPage({
 
   const handleConfirmBooking = async () => {
     if (submitting) return;
+    if (checkoutPayBlockedByConsent(checkoutConsentAccepted)) {
+      setError('Confirm the cancellation policy and Terms before paying.');
+      document.getElementById('booking-checkout-consent')?.focus();
+      return;
+    }
     if (capacityBlocksPay) {
       setError(
         departureTime
@@ -1476,6 +1484,17 @@ export default function BookingPage({
               </p>
             </div>
 
+            <div className="mb-6">
+              <CheckoutConsentCheckbox
+                id="booking-checkout-consent"
+                checked={checkoutConsentAccepted}
+                onChange={(next) => {
+                  setCheckoutConsentAccepted(next);
+                  if (next) setError(null);
+                }}
+              />
+            </div>
+
             {capacityBlocksPay ? (
               <div className="mb-4">
                 <NoticeCallout title="Not enough spots left" tone="warn">
@@ -1512,7 +1531,11 @@ export default function BookingPage({
                 <button
                   type="button"
                   onClick={handleConfirmBooking}
-                  disabled={submitting || capacityBlocksPay}
+                  disabled={
+                    submitting ||
+                    capacityBlocksPay ||
+                    checkoutPayBlockedByConsent(checkoutConsentAccepted)
+                  }
                   className="tv-btn-primary w-full sm:w-auto whitespace-normal text-center disabled:opacity-50"
                 >
                   {submitting
@@ -1521,6 +1544,8 @@ export default function BookingPage({
                       ? departureTime
                         ? `Sold out · ${departureTime}`
                         : 'Sold out'
+                    : checkoutPayBlockedByConsent(checkoutConsentAccepted)
+                      ? 'Accept terms to pay'
                     : isSupabaseConfigured()
                       ? `Pay with ${STRIPE_TEST_UNTIL_LIVE} · ${formatMoney(total, currency)}`
                       : 'Continue to payment'}
@@ -1581,7 +1606,11 @@ export default function BookingPage({
           <button
             type="button"
             onClick={handleConfirmBooking}
-            disabled={submitting || capacityBlocksPay}
+            disabled={
+              submitting ||
+              capacityBlocksPay ||
+              checkoutPayBlockedByConsent(checkoutConsentAccepted)
+            }
             className="tv-btn-primary w-full whitespace-normal text-center disabled:opacity-50"
           >
             {submitting
@@ -1590,6 +1619,8 @@ export default function BookingPage({
                 ? departureTime
                   ? `Sold out · ${departureTime}`
                   : 'Sold out'
+              : checkoutPayBlockedByConsent(checkoutConsentAccepted)
+                ? 'Accept terms to pay'
               : isSupabaseConfigured()
                 ? `Pay with ${STRIPE_TEST_UNTIL_LIVE} · ${formatMoney(total, currency)}`
                 : 'Continue to payment'}
