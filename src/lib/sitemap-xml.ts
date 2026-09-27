@@ -2,6 +2,8 @@
  * Pure sitemap.xml builders — published inventory only; no drafts/experiences/packages.
  */
 
+import { listingHasUpcomingBookableSeason } from './booking-quote';
+
 export type SitemapListingRow = {
   id: string;
   status?: string | null;
@@ -39,12 +41,23 @@ function familyFromExtras(extras: unknown): string | null {
 }
 
 /** Tour or stay path for a published traveler-catalog listing; null if not indexable. */
-export function sitemapPathForListing(row: SitemapListingRow): string | null {
+export function sitemapPathForListing(row: SitemapListingRow, todayIso?: string): string | null {
   if ((row.status ?? '').trim().toLowerCase() !== 'published') return null;
   if (row.is_holiday_package) return null;
   const family = familyFromExtras(row.listing_extras) ?? 'tour';
   if (family === 'stay') return `/stays/${row.id}`;
-  if (family === 'tour') return `/tours/${row.id}`;
+  if (family === 'tour') {
+    // Phase 1261: do not index tours whose every season has already ended.
+    if (
+      !listingHasUpcomingBookableSeason(
+        { listingExtras: row.listing_extras } as never,
+        todayIso
+      )
+    ) {
+      return null;
+    }
+    return `/tours/${row.id}`;
+  }
   return null;
 }
 

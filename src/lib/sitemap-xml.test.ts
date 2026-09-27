@@ -37,6 +37,33 @@ describe('sitemap-xml', () => {
     ).toBeNull();
   });
 
+  it('Phase 1261: excludes tours whose every schedule season has ended', () => {
+    expect(
+      sitemapPathForListing(
+        {
+          id: 'dead',
+          status: 'published',
+          listing_extras: {
+            inventoryFamily: 'tour',
+            bookingOptions: [
+              {
+                id: 'o1',
+                schedules: [
+                  {
+                    status: 'ready',
+                    availabilityDateFrom: '2020-01-01',
+                    availabilityDateTo: '2020-12-31',
+                  },
+                ],
+              },
+            ],
+          },
+        },
+        '2026-09-27'
+      )
+    ).toBeNull();
+  });
+
   it('builds XML without draft URLs', () => {
     const xml = renderSitemapXml(
       buildSitemapEntries([
