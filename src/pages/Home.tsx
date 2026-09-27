@@ -58,7 +58,10 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
   const [when, setWhen] = useState('');
   const [checkout, setCheckout] = useState('');
   const [who, setWho] = useState('');
-  const [discountsByListing, setDiscountsByListing] = useState<Map<string, import('../data/supabase-discounts').ListingDiscount[]>>(new Map());
+  const [discountsByListing, setDiscountsByListing] = useState<Map<
+    string,
+    import('../data/supabase-discounts').ListingDiscount[]
+  > | null>(null);
   const [reviewAggregates, setReviewAggregates] = useState<Map<string, { rating: number; count: number }>>(
     () => new Map()
   );
@@ -146,7 +149,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
 
   useEffect(() => {
     if (!isSupabaseConfigured() || !displayedIdsKey) {
-      setDiscountsByListing(new Map());
+      setDiscountsByListing(null);
       setReviewAggregates(new Map());
       return;
     }
@@ -607,9 +610,14 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                       {featuredListing.title}
                     </p>
                     {(() => {
+                      if (discountsByListing == null && isSupabaseListingId(featuredListing.id)) {
+                        return (
+                          <p className="mt-2 text-sm sm:text-base font-medium text-white/80">Checking offers…</p>
+                        );
+                      }
                       const { price, qualifier, summary } = getDisplayPriceForTour(
                         featuredListing,
-                        discountsByListing
+                        discountsByListing ?? new Map()
                       );
                       const currency = normalizeCurrency(featuredListing.price?.currency);
                       return (

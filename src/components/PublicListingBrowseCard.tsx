@@ -16,7 +16,7 @@ export type PublicListingBrowseCardProps = {
   tour: TourPackage;
   index: number;
   onSelect: () => void;
-  discountsByListing: Map<string, ListingDiscount[]>;
+  discountsByListing: Map<string, ListingDiscount[]> | null;
   reviewAggregate?: { rating: number; count: number };
   tagLabels: Record<string, string>;
   /** Shorter image for dense rows (e.g. “Recommended”). */
@@ -54,8 +54,11 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
   // Defense in depth: unpublished listings must not appear on traveler browse surfaces.
   if (!isListingVisibleToTravelers(tour.status)) return null;
 
-  const { price, originalPrice, label, qualifier, summary } = getDisplayPriceForTour(tour, discountsByListing);
-  const hasDiscount = Boolean(label && price < originalPrice);
+  // Phase 1107: null map = offers not loaded / load failed — do not invent “no discount”.
+  const offersUnknown = discountsByListing == null && isSupabaseListingId(tour.id);
+  const discountMap = discountsByListing ?? new Map<string, ListingDiscount[]>();
+  const { price, originalPrice, label, qualifier, summary } = getDisplayPriceForTour(tour, discountMap);
+  const hasDiscount = !offersUnknown && Boolean(label && price < originalPrice);
   const fromAmount = hasDiscount ? price : originalPrice;
   const showStrikethrough = hasDiscount && originalPrice > fromAmount;
   const currency = normalizeCurrency(tour.price?.currency);
@@ -98,13 +101,15 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
     tour.tags?.filter((t) => t !== 'free-cancellation' && t !== 'bestseller') ?? [];
   const heroSrc = listingHeroImageSrc(tour.image);
   const showWishlist = Boolean(wishlist && isSupabaseListingId(tour.id));
-  const priceAria = isStay
-    ? stayStayTotal
-      ? `${formatMoney(stayStayTotal.total, stayStayTotal.currency)} total for ${stayStayTotal.nights} nights`
-      : `${formatMoney(stayNightly, currency)} per night`
-    : hasDiscount
-      ? `From ${formatMoney(fromAmount, currency)} ${unitLabel}, ${label}`
-      : `From ${formatMoney(originalPrice, currency)} ${unitLabel}`;
+  const priceAria = offersUnknown
+    ? 'Price pending offer check'
+    : isStay
+      ? stayStayTotal
+        ? `${formatMoney(stayStayTotal.total, stayStayTotal.currency)} total for ${stayStayTotal.nights} nights`
+        : `${formatMoney(stayNightly, currency)} per night`
+      : hasDiscount
+        ? `From ${formatMoney(fromAmount, currency)} ${unitLabel}, ${label}`
+        : `From ${formatMoney(originalPrice, currency)} ${unitLabel}`;
 
   return (
     <article className="group relative">
@@ -202,8 +207,11 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
             className={`mt-2 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 tabular-nums ${
               isStay && stayStayTotal ? 'text-lg' : 'text-base'
             }`}
+            aria-label={priceAria}
           >
-            {isStay && stayStayTotal ? (
+            {offersUnknown ? (
+              <span className="text-[13px] font-medium text-ink-faint">Checking offers…</span>
+            ) : isStay && stayStayTotal ? (
               <>
                 <span className="font-bold tracking-tight text-ink">
                   {formatMoney(stayStayTotal.total, stayStayTotal.currency)}

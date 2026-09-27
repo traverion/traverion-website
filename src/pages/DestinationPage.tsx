@@ -51,8 +51,8 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
     () => new Map()
   );
   const [discountsByListing, setDiscountsByListing] = useState<
-    Map<string, import('../data/supabase-discounts').ListingDiscount[]>
-  >(() => new Map());
+    Map<string, import('../data/supabase-discounts').ListingDiscount[]> | null
+  >(null);
   const allListings = useMemo(() => {
     const base =
       isSupabaseConfigured() && supplierListings !== null
@@ -86,7 +86,7 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
   useEffect(() => {
     if (!isSupabaseConfigured() || !listingIdsForReviewsKey) {
       setReviewAggregates(new Map());
-      setDiscountsByListing(new Map());
+      setDiscountsByListing(null);
       return;
     }
     const ids = listingIdsForReviewsKey.split(',');

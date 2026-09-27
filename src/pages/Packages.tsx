@@ -175,7 +175,10 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
   const { listings: supplierListings, error: listingsLoadError, reload: reloadSupplierListings } =
     usePublishedSupplierListings();
   const catalogLoading = isSupabaseConfigured() && supplierListings === null;
-  const [discountsByListing, setDiscountsByListing] = useState<Map<string, import('../data/supabase-discounts').ListingDiscount[]>>(new Map());
+  const [discountsByListing, setDiscountsByListing] = useState<Map<
+    string,
+    import('../data/supabase-discounts').ListingDiscount[]
+  > | null>(null);
   const [reviewAggregates, setReviewAggregates] = useState<Map<string, { rating: number; count: number }>>(
     () => new Map()
   );
@@ -295,7 +298,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
   useEffect(() => {
     if (!isSupabaseConfigured() || !supabaseListingIdsKey) {
       setReviewAggregates(new Map());
-      setDiscountsByListing(new Map());
+      setDiscountsByListing(null);
       return;
     }
     const ids = supabaseListingIdsKey.split(',');

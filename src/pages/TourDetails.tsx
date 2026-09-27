@@ -155,7 +155,10 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const [profileDisplayName, setProfileDisplayName] = useState('');
   const [bookingDate, setBookingDate] = useState(() => readSearchPrefill().date);
   const [guests, setGuests] = useState(() => readSearchPrefill().guests);
-  const [discountsByListing, setDiscountsByListing] = useState<Map<string, import('../data/supabase-discounts').ListingDiscount[]>>(new Map());
+  const [discountsByListing, setDiscountsByListing] = useState<Map<
+    string,
+    import('../data/supabase-discounts').ListingDiscount[]
+  > | null>(null);
   const [supplierLegal, setSupplierLegal] = useState<{
     operatorName: string;
     business_logo_url: string | null;
@@ -321,7 +324,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       : guests;
     return quoteBooking({
       tour,
-      discounts: discountsByListing.get(tour.id) ?? [],
+      discounts: discountsByListing?.get(tour.id) ?? [],
       bookingDate: bookingDate.trim(),
       guests: guestsForQuote,
       bookingOptionId: optionId,
@@ -738,7 +741,10 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       rating: review.score != null ? Number(review.score) : undefined,
       reviews: review.count > 0 ? review.count : undefined,
       price: tour.price
-        ? { startingFrom: getDisplayPriceForTour(tour, discountsByListing).price, currency: tour.price.currency }
+        ? {
+            startingFrom: getDisplayPriceForTour(tour, discountsByListing ?? new Map()).price,
+            currency: tour.price.currency,
+          }
         : undefined,
     });
     return () => clearTourJsonLd();
@@ -1365,7 +1371,15 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                 ) : (
                   <>
                     {(() => {
-                      const { price, originalPrice, label, qualifier, summary } = getDisplayPriceForTour(tour, discountsByListing);
+                      if (discountsByListing == null) {
+                        return (
+                          <p className="mb-4 text-sm font-medium text-ink-faint">Checking offers…</p>
+                        );
+                      }
+                      const { price, originalPrice, label, qualifier, summary } = getDisplayPriceForTour(
+                        tour,
+                        discountsByListing
+                      );
                       const hasDiscount = label && price < originalPrice;
                       const currency = normalizeCurrency(tour.price?.currency);
                       const unit = qualifier ? `From · per ${qualifier}` : 'From · per person';
@@ -1826,7 +1840,6 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
             <div className="lg:hidden fixed inset-x-0 bottom-0 z-[60] border-t border-black/[0.06] bg-paper-raised/95 backdrop-blur-md px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
               <div className="flex items-center justify-between gap-3">
                 {(() => {
-                  const { price, qualifier } = getDisplayPriceForTour(tour, discountsByListing);
                   const currency = normalizeCurrency(tour.price?.currency);
                   const dateLabel = bookingDate.trim() ? formatTourAvailabilityHeading(bookingDate.trim()) : '';
                   const guestsLine =
@@ -1834,6 +1847,18 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                       ? formatMixSummaryCompact(buildParticipantMixLines(selectedOptionApplied, participantMix)) ||
                         `${guests} ${guests === 1 ? 'guest' : 'guests'}`
                       : `${guests} ${guests === 1 ? 'guest' : 'guests'}`;
+                  if (discountsByListing == null && !(selectedBookingVariant && panelQuote?.ok)) {
+                    return (
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-ink-faint">Checking offers…</p>
+                        <p className="truncate text-xs text-ink-muted">{guestsLine}</p>
+                      </div>
+                    );
+                  }
+                  const { price, qualifier } = getDisplayPriceForTour(
+                    tour,
+                    discountsByListing ?? new Map()
+                  );
                   const priceLine =
                     selectedBookingVariant && panelQuote?.ok
                       ? formatMoney(panelQuote.totalAmount, panelQuote.currency)
