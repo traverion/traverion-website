@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `9c65220`  
-**Current phase:** 869  
+**Current SHA:** `9e89999`  
+**Current phase:** 870  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -280,6 +280,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 867 | Create→publish draft Story+Details filled | `ff5a372` |
 | 868 | Create→publish option+schedule READY | `ceb5401` |
 | 869 | Create→publish photos + Publish LIVE | `9c65220` |\n
+| 870 | Create→publish→book E2E cert tour #41 | `9e89999` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -4474,9 +4475,19 @@ Also removed unused businessComplete local in Listings after 861 gate fix.
 
 **Certification:** supplier create (Basics→Details→Options+schedule→Photos→Publish) = **BROWSER-TESTED**. Traveler book of *this* inventory still next (870+).
 
+### Phase 870 — Create→publish→book E2E on new LIVE inventory
+
+**Browser golden path closed:**
+
+1. Published listing `1807368c-…` (Phase 864–869) Live · €119 · Small group hotel pickup · Autumn schedule
+2. Traveler PDP → Mon 28 Sept → option → packages checkout → Stripe TEST €119
+3. Success return **localhost** · **Booking confirmed Ref #41 · €119 TEST** · option Small group · hotel pickup · 20:00
+
+**Certification:** supplier UI create→publish→traveler Stripe TEST book = **BROWSER-TESTED** (partner session as guest; dedicated traveler account still P1). Stay path already #40.
+
 ## Known remaining risks (ranked)
 
-1. **P1 — Partner create→publish wizard** not browser-certified this pass (ops Home/Bookings/Calendar/Listings **are** localhost-browser certified in Phase 597). Full create→publish still pending.
+1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.
 2. **P1 — Localhost same-origin auth**: partner and traveler share one Supabase session; partner login bleeds into traveler lead-guest autofill (seen on StayDetails).
 3. **P1 — Migrations 080–099 now remote-applied** — schema present; adversarial SQL suites not re-run against remote in CI this phase (local SQL tests remain the proof artifacts).
 3. **P1 — Advisory lock listing-scoped** — safe but coarse.
