@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `5ad1487`  
-**Current phase:** 872  
+**Current SHA:**   
+**Current phase:** 873  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4507,6 +4507,18 @@ Also removed unused businessComplete local in Listings after 861 gate fix.
 **Also:** prior unit coverage `displayListingTitleFromPurchase` in `purchase-snapshot.test.ts`.
 
 **Certification:** snapshot integrity = **BROWSER-TESTED** + **INTEGRATION** (REST read) + **AUTOMATED-TESTED**.
+
+### Phase 873 — Traveler cancel paid #41 + inventory restore
+
+**Browser:** Trips → Cancelled for Ref **#41** (listing snapshotted as Phase 864 Cert…; live title Phase 872 RENAMED…).
+
+1. Cancel booking dialog: **ELIGIBLE FOR REFUND** → Confirm
+2. Banner: **Booking cancelled** · Status **Refund due** until Stripe records a refund (honest — no auto-refund)
+3. Card: **Cancelled** + **Refund due** · €119 TEST · Cancelled tab selected
+4. DB (`supabase db query --linked`): `status=cancelled`, `payment_status=paid`, `cancelled=true`, `snap_title` still **Phase 864 Cert Northern Lights Small Group**
+5. PDP inventory restore: Mon 28 Sept → **8 spots left this day** · option still bookable (capacity 8 after 1-guest cancel)
+
+**Certification:** traveler cancel + seat restore = **BROWSER-TESTED** + **INTEGRATION** (remote SQL). Stripe TEST refund remains manual ops (**Refund due**).
 
 ## Known remaining risks (ranked)
 

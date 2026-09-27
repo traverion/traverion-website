@@ -47,9 +47,9 @@
 | Checkout | TEST-ONLY / STRONG | Stripe TEST + holds; allowlisted returnOrigin | Deployed return-origin fix (865) |
 | Booking snapshots | STRONG / BROWSER | `purchase_snapshot` + freezes; rename #41 | Policy/price edit cases still deepen |
 | Booking state machine | PARTIAL→STRONG | pending/confirmed/cancelled + payment_status; mig 100 NOT NULL | Remote-apply 100 + re-run SQL guard |
-| Inventory / concurrency | PARTIAL | `assert_checkout_inventory` + advisory lock | Slot-scoped lock; public remaining spots |
+| Inventory / concurrency | PARTIAL→STRONG | assert + cancel restore #41 (8 spots) | Slot-scoped lock; stay cancel restore |
 | Payments | TEST-ONLY / STRONG | Stripe webhook → payment_status; #39 BROWSER | Never invent paid from redirect |
-| Cancellation | PARTIAL | RPCs + ledger | Traveler/supplier paths exist |
+| Cancellation | STRONG / BROWSER | RPCs + ledger; traveler cancel #41 | Supplier cancel path; stay cancel restore |
 | Refunds | PARTIAL | Manual Stripe TEST; “Refund due” | Design auto-refund or ops SLA (FOUNDER if product fork) |
 | Messaging | PARTIAL | `booking_messages` | No fake realtime |
 | Reviews | PARTIAL→STRONG | ownership SQL guards | Eligibility after completed booking |
@@ -88,7 +88,7 @@
 | 4 | P1 | Per-slot public remaining / sell-out honesty | Align public with slot inventory |
 | 5 | P1 | Listing-scoped advisory lock coarseness | Narrow lock key when safe |
 | 6 | P1 | Same-origin session bleed | Document + mitigate localhost |
-| 7 | P1 | Manual refunds / “Refund due” limbo | Product decision vs ops honesty |
+| 7 | P1 | Manual refunds / “Refund due” limbo | #41 proves honesty; auto-refund = FOUNDER if desired |
 | 8 | P1 | No listing IANA timezone | Schema + cancel window math |
 | 9 | P1 | Commission snapshot model | Define before LIVE |
 | 10 | P1 | Rentals / packages not live | Keep UI honest |
