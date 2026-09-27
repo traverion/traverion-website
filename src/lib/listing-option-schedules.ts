@@ -402,13 +402,20 @@ export function optionCapacityForDepartureTime(
   if (listingOptionHasSchedules(option)) {
     const resolved = resolveScheduleForDate(option, localDateIso, startTimeHm);
     if (!resolved) return null;
+    const resolvedSpots = resolved.maxSpotsPerSlot;
+    if (typeof resolvedSpots !== 'number' || !Number.isFinite(resolvedSpots) || resolvedSpots < 1) {
+      return null;
+    }
     return {
-      maxSpotsPerSlot: resolved.maxSpotsPerSlot,
+      maxSpotsPerSlot: Math.min(99, Math.floor(resolvedSpots)),
       maxPersons: resolved.maxPersons,
     };
   }
+  // Phase 1207: legacy (no schedules) — require real maxSpotsPerSlot (no invent).
+  const spots = option.maxSpotsPerSlot;
+  if (typeof spots !== 'number' || !Number.isFinite(spots) || spots < 1) return null;
   return {
-    maxSpotsPerSlot: option.maxSpotsPerSlot,
+    maxSpotsPerSlot: Math.min(99, Math.floor(spots)),
     maxPersons: option.maxPersons,
   };
 }

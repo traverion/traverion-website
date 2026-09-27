@@ -14,6 +14,7 @@ import {
   scheduleAppliesOnDate,
   scheduleOverlapMessage,
   scheduleWizardIsComplete,
+  optionCapacityForDepartureTime,
   tourSellingDeparturesOnDate,
   upsertOptionSchedule,
 } from './listing-option-schedules';
@@ -322,5 +323,35 @@ describe('tourSellingDeparturesOnDate', () => {
       pricingMode: 'uniform' as const,
     };
     expect(tourSellingDeparturesOnDate([legacy], '2026-09-15')).toEqual([]);
+  });
+});
+
+describe('optionCapacityForDepartureTime (Phase 1207)', () => {
+  it('fails closed for legacy options without valid maxSpotsPerSlot', () => {
+    const legacy = {
+      id: 'opt-legacy',
+      name: 'Legacy',
+      priceUsd: 100,
+      startTime: '10:00',
+      duration: '2 hours',
+      pickupPlace: '',
+      minPersons: 1,
+      maxPersons: 12,
+      maxSpotsPerSlot: 0,
+      optionInfo: '',
+      weekdays: daily,
+      availabilityDateFrom: '2026-01-01',
+      availabilityDateTo: '2026-12-31',
+      pricingMode: 'uniform' as const,
+    };
+    expect(optionCapacityForDepartureTime(legacy, '2026-09-15', '10:00')).toBeNull();
+  });
+
+  it('returns floored spots when legacy option has a real slot cap', () => {
+    const legacy = option({ startTime: '10:00', maxSpotsPerSlot: 6, maxPersons: 12, schedules: undefined });
+    expect(optionCapacityForDepartureTime(legacy, '2026-09-15', '10:00')).toEqual({
+      maxSpotsPerSlot: 6,
+      maxPersons: 12,
+    });
   });
 });
