@@ -202,5 +202,11 @@ begin
   ) into v_ok;
   if v_ok then raise exception 'helper tour ready schedule without pickupPlace must fail'; end if;
 
+  -- Phase 1249: flat option without weekdays is not bookable.
+  select public.listing_has_bookable_tour_surface(
+    '{"bookingOptions":[{"pickupPlace":"Hotel pickup area","priceUsd":89,"minPersons":1,"maxPersons":8,"maxSpotsPerSlot":8}]}'::jsonb, 0
+  ) into v_ok;
+  if v_ok then raise exception 'helper flat option without weekdays must fail'; end if;
+
   raise notice 'ALL ASSERTIONS PASSED';
 end $$;
