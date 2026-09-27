@@ -4807,6 +4807,13 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 
 **Certification:** booking status null-bypass = **INTEGRATION** + **remotely applied**. Wishlist unpublished UX = **CODE-INSPECTED**.
 
+
+### Phase 909 — Schedule/option edit protects occupying bookings
+
+**Evidence:** `schedule-edit-impact.ts` — partners warned that removing schedules/options with occupying guests does **not** cancel trips; seats retained; departure/option hidden from new travelers. Wired in SupplierListingForm. Unit suite 6/6 pass.
+
+**Certification:** product edit impact notices = **AUTOMATED-TESTED**. Historical booking snapshots remain authority (872).
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.

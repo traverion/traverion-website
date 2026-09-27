@@ -56,7 +56,7 @@
 | Wishlist / Saved | STRONG / ADVERSARIAL | published-only (104/887); unpublished hidden on Saved page | Soft-delete remove UX optional |
 | Trips | PARTIAL→STRONG | fetch + error≠empty (892) | Dedicated traveler session |
 | Supplier Bookings / Pickup | STRONG / BROWSER | Refund due #41 + pickup excludes cancel (884) | Stay reservation pickup N/A |
-| Availability ops | PARTIAL | calendar / capacity | Protect confirmed bookings on edit |
+| Availability ops | PARTIAL→STRONG | calendar + edit impact notices (909) | Capacity override polish later |
 | Income / earnings | STRONG / BROWSER | `supplier_ledger_entries`; #40 keep / #41 reverse | Commission snapshot before LIVE |
 | Commission / take-rate | NOT REQUIRED YET | Gross earnings only today (889) | Define snapshotted take-rate before LIVE |
 | Payouts | NOT REQUIRED YET / MANUAL | `admin_record_supplier_payout` | No fake auto-payouts |
