@@ -3,13 +3,13 @@
   <url><loc>https://traverion.com/</loc><changefreq>weekly</changefreq><priority>1</priority></url>
   <url><loc>https://traverion.com/packages</loc><changefreq>daily</changefreq><priority>0.9</priority></url>
   <url><loc>https://traverion.com/stays</loc><changefreq>daily</changefreq><priority>0.9</priority></url>
-  <!-- Published inventory only (TEST project snapshot 2026-09-27). No drafts. -->
-  <url><loc>https://traverion.com/packages?uuid=a11ce001-d000-4000-8000-000000000101</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://traverion.com/packages?uuid=c2d25217-84f0-46d4-8eaa-83949143fa06</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://traverion.com/packages?uuid=a11ce001-d000-4000-8000-000000000102</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://traverion.com/packages?uuid=1807368c-ae24-4ccd-ba63-2aa72413c2f6</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://traverion.com/packages?uuid=a11ce001-d000-4000-8000-000000000104</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://traverion.com/packages?uuid=a11ce001-d000-4000-8000-000000000103</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <!-- Published inventory only (TEST project snapshot 2026-09-27). Canonical /tours|/stays paths. No drafts. -->
+  <url><loc>https://traverion.com/tours/a11ce001-d000-4000-8000-000000000101</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://traverion.com/tours/c2d25217-84f0-46d4-8eaa-83949143fa06</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://traverion.com/tours/a11ce001-d000-4000-8000-000000000102</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://traverion.com/tours/1807368c-ae24-4ccd-ba63-2aa72413c2f6</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://traverion.com/tours/a11ce001-d000-4000-8000-000000000104</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://traverion.com/tours/a11ce001-d000-4000-8000-000000000103</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
   <url><loc>https://traverion.com/stays/a11ce001-d000-4000-8000-000000000105</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
   <url><loc>https://traverion.com/stays/83f88255-63ef-4824-93a2-89cc13244567</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
   <url><loc>https://traverion.com/about</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
