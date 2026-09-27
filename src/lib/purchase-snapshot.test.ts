@@ -3,6 +3,7 @@ import {
   buildPurchaseSnapshot,
   displayListingTitleFromPurchase,
   displayMeetingPointFromPurchase,
+  displayPickupInstructionsFromPurchase,
   displayOptionLabelFromPurchase,
   displayStartTimeFromPurchase,
   displayDepartureTimezoneFromPurchase,
