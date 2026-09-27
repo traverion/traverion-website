@@ -28,6 +28,8 @@ function option(
     maxPersons: 8,
     maxSpotsPerSlot: 8,
     optionInfo: 'Small group hunt with a local guide',
+    travelerStartInstructions:
+      'Please wait outside the main entrance 10 minutes before pickup. Look for the marked vehicle.',
     weekdays: [true, true, true, true, true, true, true],
     availabilityDateFrom: '',
     availabilityDateTo: '',

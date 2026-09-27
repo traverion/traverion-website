@@ -260,16 +260,17 @@ export function computeListingQuality(listing: TourPackage): {
     if (opts.length > 0) {
       const scores = opts.map((o) => {
         const a = o.pickupPlace?.trim().length ?? 0;
-        const b = o.optionInfo?.trim().length ?? 0;
+        const b =
+          (o.travelerStartInstructions ?? '').trim().length || (o.optionInfo?.trim().length ?? 0);
         return a + b;
       });
       const worst = scores.length ? Math.min(...scores) : 0;
       if (worst >= 20) earned = max;
       else if (worst >= 8) {
         earned = 3;
-        tip = 'Add clearer meeting or pickup notes on each option.';
+        tip = 'Add clearer place and start instructions on each option.';
       } else {
-        tip = 'Each option needs where to meet or how pickup works.';
+        tip = 'Each option needs a place and traveler start instructions.';
       }
     } else {
       const m = listing.meetingPoint?.trim() ?? '';

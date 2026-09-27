@@ -1,5 +1,5 @@
 import type { ListingBookingOption } from '../types/listingExtras';
-import { materializedBookingOptions } from '../types/listingExtras';
+import { materializedBookingOptions, resolveOptionTravelerStartInstructions } from '../types/listingExtras';
 import type { TourPackage } from '../types/tour';
 
 export type TourPickupMeetingDisplay = {
@@ -78,7 +78,8 @@ export function resolveTourPickupMeetingDisplay(
 
   if (selectedOption) {
     const place = selectedOption.pickupPlace.trim() || listingPlace;
-    const instructions = selectedOption.optionInfo.trim() || listingInstructions;
+    const instructions =
+      resolveOptionTravelerStartInstructions(selectedOption) || listingInstructions;
     const modeIntro = optionModeIntro(selectedOption.fulfillment) ?? listingIntro;
     const labeled = placeLabelFor(selectedOption.fulfillment);
     return {

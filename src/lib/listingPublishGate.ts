@@ -1,5 +1,9 @@
 import type { TourPackage } from '../types/tour';
-import { getListingBookingOptionDurationIssue, materializedBookingOptions } from '../types/listingExtras';
+import {
+  getListingBookingOptionDurationIssue,
+  materializedBookingOptions,
+  resolveOptionTravelerStartInstructions,
+} from '../types/listingExtras';
 import type { ListingBookingOption } from '../types/listingExtras';
 import { LISTING_PLACEHOLDER_IMAGE, MIN_LISTING_DESCRIPTION_LENGTH } from './listingQualityScore';
 import { priceCategoryValidationMessages } from './price-categories';
@@ -38,6 +42,12 @@ function optionPublishIssues(
   const info = o.optionInfo?.trim() ?? '';
   if (info.length < 8) {
     issues.push(`${prefix}Add a short note about this option (e.g. private, small group, language).`.trim());
+  }
+  const startIx = resolveOptionTravelerStartInstructions(o);
+  if (startIx.length < 8) {
+    issues.push(
+      `${prefix}Add traveler start instructions (arrive early, wait outside, how to find the guide).`.trim()
+    );
   }
   if (usesSchedules) {
     for (const m of optionScheduleManagementIssues(o)) {

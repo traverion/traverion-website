@@ -49,7 +49,12 @@ export function resolveBookingPickupCopy(params: {
   specialRequests?: string | null;
   listingMeetingPoint?: string | null;
   listingPickupInstructions?: string | null;
-  bookingOptions?: Array<{ id: string; pickupPlace?: string; optionInfo?: string }> | null;
+  bookingOptions?: Array<{
+    id: string;
+    pickupPlace?: string;
+    optionInfo?: string;
+    travelerStartInstructions?: string;
+  }> | null;
 }): { meetingPoint: string; pickupInstructions: string } {
   const noteMeeting = parseBookingMeetingPointOverride(params.specialRequests);
   const noteInstructions = parseBookingPickupInstructionsOverride(params.specialRequests);
@@ -57,7 +62,8 @@ export function resolveBookingPickupCopy(params: {
   const opts = params.bookingOptions ?? [];
   const opt = oid ? opts.find((o) => o.id === oid) : null;
   const optionMeeting = (opt?.pickupPlace ?? '').trim();
-  const optionInstructions = (opt?.optionInfo ?? '').trim();
+  const optionInstructions =
+    (opt?.travelerStartInstructions ?? '').trim() || (opt?.optionInfo ?? '').trim();
   const listingMeeting = (params.listingMeetingPoint ?? '').trim();
   const listingInstructions = (params.listingPickupInstructions ?? '').trim();
   return {
@@ -78,7 +84,12 @@ export function partnerBookingHasPickupAttention(
   },
   meetingPoint: string | null | undefined,
   pickupInstructions: string | null | undefined,
-  bookingOptions?: Array<{ id: string; pickupPlace?: string; optionInfo?: string }> | null
+  bookingOptions?: Array<{
+    id: string;
+    pickupPlace?: string;
+    optionInfo?: string;
+    travelerStartInstructions?: string;
+  }> | null
 ): boolean {
   const st = (b.status ?? '').trim().toLowerCase();
   if (st === 'cancelled') return false;

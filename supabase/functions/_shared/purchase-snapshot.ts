@@ -109,11 +109,17 @@ export function resolveMeetingPointForSnapshot(input: {
   return fromListing || null;
 }
 
-/** Prefer option note, then listing pickup instructions. */
+/**
+ * Prefer option traveler start instructions, then legacy optionInfo,
+ * then listing pickup_instructions denormalization.
+ */
 export function resolvePickupInstructionsForSnapshot(input: {
+  travelerStartInstructions?: string | null;
   optionInfo?: string | null;
   listingPickupInstructions?: string | null;
 }): string | null {
+  const dedicated = (input.travelerStartInstructions ?? '').trim();
+  if (dedicated) return dedicated;
   const fromOption = (input.optionInfo ?? '').trim();
   if (fromOption) return fromOption;
   const fromListing = (input.listingPickupInstructions ?? '').trim();
@@ -124,6 +130,7 @@ type RawOption = {
   id?: unknown;
   pickupPlace?: unknown;
   optionInfo?: unknown;
+  travelerStartInstructions?: unknown;
   duration?: unknown;
   fulfillment?: unknown;
   schedules?: unknown;
@@ -146,6 +153,7 @@ export function resolveOptionFieldsForSnapshot(input: {
 }): {
   pickupPlace: string | null;
   optionInfo: string | null;
+  travelerStartInstructions: string | null;
   duration: string | null;
   fulfillment: PurchaseFulfillment | null;
   scheduleId: string | null;
@@ -153,6 +161,7 @@ export function resolveOptionFieldsForSnapshot(input: {
   const empty = {
     pickupPlace: null as string | null,
     optionInfo: null as string | null,
+    travelerStartInstructions: null as string | null,
     duration: null as string | null,
     fulfillment: null as PurchaseFulfillment | null,
     scheduleId: null as string | null,
@@ -182,6 +191,10 @@ export function resolveOptionFieldsForSnapshot(input: {
   if (!matched) return empty;
   const place = typeof matched.pickupPlace === 'string' ? matched.pickupPlace.trim() : '';
   const info = typeof matched.optionInfo === 'string' ? matched.optionInfo.trim() : '';
+  const startIx =
+    typeof matched.travelerStartInstructions === 'string'
+      ? matched.travelerStartInstructions.trim()
+      : '';
   const duration = typeof matched.duration === 'string' ? matched.duration.trim() : '';
   const fulfillment =
     matched.fulfillment === 'pickup' || matched.fulfillment === 'meeting_point'
@@ -211,6 +224,7 @@ export function resolveOptionFieldsForSnapshot(input: {
   return {
     pickupPlace: place || null,
     optionInfo: info || null,
+    travelerStartInstructions: startIx || null,
     duration: duration || null,
     fulfillment,
     scheduleId,

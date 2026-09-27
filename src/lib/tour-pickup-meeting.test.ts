@@ -55,7 +55,8 @@ describe('resolveTourPickupMeetingDisplay', () => {
       name: 'Hotel pickup',
       fulfillment: 'pickup',
       pickupPlace: 'Santa Claus Village hotel zone',
-      optionInfo: 'Be ready 15 minutes early',
+      optionInfo: 'Includes hotel pickup',
+      travelerStartInstructions: 'Be ready 15 minutes early',
     });
     const meetOpt = option({
       id: 'b',

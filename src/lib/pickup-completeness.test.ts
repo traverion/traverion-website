@@ -57,13 +57,18 @@ describe('pickup completeness', () => {
 
   it('resolves pickup copy from the booked option when present', () => {
     const opts = [
-      { id: 'a', pickupPlace: 'Hotel lobby, 07:30, look for the Traverion sign', optionInfo: 'Van A' },
+      {
+        id: 'a',
+        pickupPlace: 'Hotel lobby, 07:30, look for the Traverion sign',
+        optionInfo: 'Small group',
+        travelerStartInstructions: 'Van A — wait at the lobby door',
+      },
       { id: 'b', pickupPlace: 'Meet', optionInfo: '' },
     ];
     const fromB = resolveBookingPickupCopy({
       bookingOptionId: 'b',
       listingMeetingPoint: opts[0]!.pickupPlace,
-      listingPickupInstructions: opts[0]!.optionInfo,
+      listingPickupInstructions: 'Van',
       bookingOptions: opts,
     });
     expect(fromB.meetingPoint).toBe('Meet');
@@ -76,7 +81,7 @@ describe('pickup completeness', () => {
           booking_option_id: 'b',
         },
         opts[0]!.pickupPlace,
-        opts[0]!.optionInfo,
+        'Van',
         opts
       )
     ).toBe(true);
@@ -95,9 +100,32 @@ describe('pickup completeness', () => {
     ).toBe(false);
   });
 
+  it('prefers travelerStartInstructions over optionInfo for partner pickup copy', () => {
+    const resolved = resolveBookingPickupCopy({
+      bookingOptionId: 'a',
+      listingMeetingPoint: 'Listing meet',
+      listingPickupInstructions: 'Listing note',
+      bookingOptions: [
+        {
+          id: 'a',
+          pickupPlace: 'Arctic City Hotel',
+          optionInfo: 'Includes hotel pickup',
+          travelerStartInstructions: 'Wait outside the main entrance 10 minutes early.',
+        },
+      ],
+    });
+    expect(resolved.meetingPoint).toBe('Arctic City Hotel');
+    expect(resolved.pickupInstructions).toBe('Wait outside the main entrance 10 minutes early.');
+  });
+
   it('prefers per-booking note overrides over option and listing copy', () => {
     const opts = [
-      { id: 'a', pickupPlace: 'Hotel lobby, 07:30, look for the Traverion sign', optionInfo: 'Van A' },
+      {
+        id: 'a',
+        pickupPlace: 'Hotel lobby, 07:30, look for the Traverion sign',
+        optionInfo: 'Small group',
+        travelerStartInstructions: 'Van A — wait at the lobby door',
+      },
     ];
     const notes = 'meeting_point: Private villa gate\npickup_instructions: Call +358 on arrival for the guide';
     const resolved = resolveBookingPickupCopy({

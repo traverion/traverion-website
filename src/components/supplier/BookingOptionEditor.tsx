@@ -145,6 +145,8 @@ export default function BookingOptionEditor({
   const nameInvalid = attempted && !option.name.trim();
   const infoInvalid = attempted && option.optionInfo.trim().length < 3;
   const placeInvalid = attempted && option.pickupPlace.trim().length < 8;
+  const startInstructionsInvalid =
+    attempted && (option.travelerStartInstructions ?? '').trim().length < 8;
   const startInvalid = attempted && !option.startTime.trim();
 
   return (
@@ -272,23 +274,49 @@ export default function BookingOptionEditor({
             })}
           </div>
           {option.fulfillment || option.pickupPlace.trim() ? (
-            <div id="supplier-listing-field-meeting" className="listing-creation-hint">
-              <label htmlFor="booking-option-place" className="mb-1 block text-sm font-semibold text-ink">
-                {option.fulfillment === 'pickup' ? 'Pickup area *' : 'Meeting point *'}
-              </label>
-              <textarea
-                id="booking-option-place"
-                value={option.pickupPlace}
-                onChange={(e) => onChange({ pickupPlace: e.target.value })}
-                rows={3}
-                className="tv-input"
-                placeholder={
-                  option.fulfillment === 'pickup'
-                    ? 'Hotel zone, area, or how pickup is arranged for this option'
-                    : 'Address, landmark, or exact meeting instructions'
-                }
-                aria-invalid={placeInvalid || undefined}
-              />
+            <div id="supplier-listing-field-meeting" className="space-y-4 listing-creation-hint">
+              <div>
+                <label htmlFor="booking-option-place" className="mb-1 block text-sm font-semibold text-ink">
+                  {option.fulfillment === 'pickup' ? 'Pickup place *' : 'Meeting point *'}
+                </label>
+                <textarea
+                  id="booking-option-place"
+                  value={option.pickupPlace}
+                  onChange={(e) => onChange({ pickupPlace: e.target.value })}
+                  rows={2}
+                  className="tv-input"
+                  placeholder={
+                    option.fulfillment === 'pickup'
+                      ? 'e.g. Arctic City Hotel — or city hotel zone for this option'
+                      : 'e.g. Maakuntakatu 29, Rovaniemi — main entrance'
+                  }
+                  aria-invalid={placeInvalid || undefined}
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="booking-option-start-instructions"
+                  className="mb-1 block text-sm font-semibold text-ink"
+                >
+                  Traveler start instructions *
+                </label>
+                <textarea
+                  id="booking-option-start-instructions"
+                  value={option.travelerStartInstructions ?? ''}
+                  onChange={(e) => onChange({ travelerStartInstructions: e.target.value })}
+                  rows={3}
+                  className="tv-input"
+                  placeholder={
+                    option.fulfillment === 'pickup'
+                      ? 'e.g. Please wait outside the main entrance 10 minutes before pickup. The guide will arrive in a marked vehicle.'
+                      : 'e.g. Meet your guide outside the main entrance. Please arrive 15 minutes before departure.'
+                  }
+                  aria-invalid={startInstructionsInvalid || undefined}
+                />
+                <p className="mt-1 text-xs text-ink-muted">
+                  How travelers successfully begin — separate from the place name above.
+                </p>
+              </div>
             </div>
           ) : (
             <div id="supplier-listing-field-meeting" />

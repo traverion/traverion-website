@@ -83,7 +83,13 @@ type ListingBookingMeta = {
   family: ReturnType<typeof inventoryFamilyFromListing>;
   meetingPoint: string | null;
   pickupInstructions: string | null;
-  bookingOptions: Array<{ id: string; name: string; pickupPlace: string; optionInfo: string }>;
+  bookingOptions: Array<{
+    id: string;
+    name: string;
+    pickupPlace: string;
+    optionInfo: string;
+    travelerStartInstructions?: string;
+  }>;
   stayCheckInTime: string | null;
   stayCheckOutTime: string | null;
 };
@@ -101,6 +107,7 @@ function buildListingMeta(listing: TourPackage): ListingBookingMeta {
     name: o.name?.trim() || '',
     pickupPlace: o.pickupPlace,
     optionInfo: o.optionInfo,
+    travelerStartInstructions: o.travelerStartInstructions,
   }));
   return {
     title: listing.title,

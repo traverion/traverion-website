@@ -150,14 +150,15 @@ describe('purchase-snapshot', () => {
 });
 
 describe('resolveOptionFieldsForSnapshot (checkout freeze helpers)', () => {
-  it('prefers option note and resolves schedule id for the date/time', () => {
+  it('prefers traveler start instructions over option blurb for the freeze', () => {
     const fields = resolveOptionFieldsForSnapshot({
       listingExtras: {
         bookingOptions: [
           {
             id: 'opt-a',
             pickupPlace: 'Hotel zone',
-            optionInfo: 'Van B — look for Traverion',
+            optionInfo: 'Small group · English guide',
+            travelerStartInstructions: 'Wait outside the lobby 10 minutes early. Look for Van B.',
             duration: '4 hours',
             fulfillment: 'pickup',
             schedules: [
@@ -179,9 +180,22 @@ describe('resolveOptionFieldsForSnapshot (checkout freeze helpers)', () => {
     expect(fields.duration).toBe('4 hours');
     expect(fields.fulfillment).toBe('pickup');
     expect(fields.scheduleId).toBe('sch-sep');
+    expect(fields.travelerStartInstructions).toBe(
+      'Wait outside the lobby 10 minutes early. Look for Van B.'
+    );
     expect(
       resolvePickupInstructionsForSnapshot({
+        travelerStartInstructions: fields.travelerStartInstructions,
         optionInfo: fields.optionInfo,
+        listingPickupInstructions: 'Listing-level note',
+      })
+    ).toBe('Wait outside the lobby 10 minutes early. Look for Van B.');
+  });
+
+  it('falls back to legacy optionInfo when travelerStartInstructions is absent', () => {
+    expect(
+      resolvePickupInstructionsForSnapshot({
+        optionInfo: 'Van B — look for Traverion',
         listingPickupInstructions: 'Listing-level note',
       })
     ).toBe('Van B — look for Traverion');

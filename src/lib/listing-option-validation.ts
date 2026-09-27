@@ -40,6 +40,16 @@ export function bookingOptionMeetingIssues(option: ListingBookingOption): string
     }
     return ['Describe where guests meet or where you pick them up (at least 8 characters).'];
   }
+  const startInstructions = (option.travelerStartInstructions ?? '').trim();
+  if (startInstructions.length < 8) {
+    if (fulfillment === 'pickup') {
+      return ['Add pickup start instructions (e.g. wait outside, how to spot the vehicle).'];
+    }
+    if (fulfillment === 'meeting_point') {
+      return ['Add meeting start instructions (e.g. arrive 15 minutes early, where to stand).'];
+    }
+    return ['Add traveler start instructions for this option (at least 8 characters).'];
+  }
   return [];
 }
 

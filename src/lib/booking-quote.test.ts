@@ -14,6 +14,7 @@ function option(partial: Partial<ListingBookingOption> & Pick<ListingBookingOpti
     maxPersons: 8,
     maxSpotsPerSlot: 8,
     optionInfo: 'Small group',
+    travelerStartInstructions: 'Meet your guide at the square 15 minutes before departure.',
     weekdays: [true, true, true, true, true, true, true],
     availabilityDateFrom: '',
     availabilityDateTo: '',

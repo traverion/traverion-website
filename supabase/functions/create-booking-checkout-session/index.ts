@@ -361,6 +361,7 @@ serve(async (req) => {
           typeof listingRow.meeting_point === 'string' ? listingRow.meeting_point : null,
       }),
       pickupInstructions: resolvePickupInstructionsForSnapshot({
+        travelerStartInstructions: optionFields.travelerStartInstructions,
         optionInfo: optionFields.optionInfo,
         listingPickupInstructions:
           typeof listingRow.pickup_instructions === 'string' ? listingRow.pickup_instructions : null,

@@ -65,7 +65,7 @@ export interface ListingBookingOption {
   startTime: string;
   /** How long this option runs (e.g. “3 hours”). */
   duration: string;
-  /** Where guests meet or are picked up for this option. */
+  /** Where guests meet or are picked up for this option (place only — not how-to copy). */
   pickupPlace: string;
   /** Optional: meet at a point vs pickup. Omitted on legacy options that only stored pickupPlace. */
   fulfillment?: ListingOptionFulfillment;
@@ -73,8 +73,13 @@ export interface ListingBookingOption {
   maxPersons: number;
   /** Max guests for one departure / start time. */
   maxSpotsPerSlot: number;
-  /** Short note: private, small group, shared bus, language, etc. */
+  /** Short card blurb: private, small group, shared bus, language, etc. Not start instructions. */
   optionInfo: string;
+  /**
+   * How travelers successfully begin this option (arrive early, wait outside, look for vehicle…).
+   * Distinct from pickupPlace / meeting point. Frozen onto purchase_snapshot.pickupInstructions.
+   */
+  travelerStartInstructions?: string;
   /** Mon–Sun; true = offered that day. */
   weekdays: boolean[];
   /** Activity / offer start YYYY-MM-DD; empty = not limited to a fixed start. */
@@ -335,6 +340,14 @@ export function normalizeListingBookingOption(raw: Record<string, unknown>, fall
     availabilityDateFrom: typeof raw.availabilityDateFrom === 'string' ? raw.availabilityDateFrom : '',
     availabilityDateTo: typeof raw.availabilityDateTo === 'string' ? raw.availabilityDateTo : '',
   };
+  if (typeof raw.travelerStartInstructions === 'string') {
+    if (raw.travelerStartInstructions.trim()) {
+      out.travelerStartInstructions = raw.travelerStartInstructions.trim().slice(0, 1000);
+    }
+  } else if (out.optionInfo.trim().length >= 8) {
+    // Pre–Phase-1059 rows stored start copy in optionInfo; promote into the dedicated field.
+    out.travelerStartInstructions = out.optionInfo.trim().slice(0, 1000);
+  }
   if (raw.fulfillment === 'meeting_point' || raw.fulfillment === 'pickup') {
     out.fulfillment = raw.fulfillment;
   }
@@ -433,12 +446,27 @@ export function isListingBookingOptionEffectivelyEmpty(o: ListingBookingOption):
     !o.duration.trim() &&
     !o.pickupPlace.trim() &&
     !o.optionInfo.trim() &&
+    !(o.travelerStartInstructions ?? '').trim() &&
     !o.startTime.trim() &&
     !o.availabilityDateFrom.trim() &&
     !o.availabilityDateTo.trim() &&
     !o.isPrivate &&
     !(o.schedules && o.schedules.length > 0)
   );
+}
+
+/**
+ * Traveler start instructions for an option.
+ * Prefer dedicated field; fall back to optionInfo only for pre–Phase-1059 rows
+ * where optionInfo was denormalized into listing.pickup_instructions.
+ */
+export function resolveOptionTravelerStartInstructions(option: {
+  travelerStartInstructions?: string | null;
+  optionInfo?: string | null;
+}): string {
+  const dedicated = (option.travelerStartInstructions ?? '').trim();
+  if (dedicated) return dedicated;
+  return (option.optionInfo ?? '').trim();
 }
 
 export function materializedBookingOptions(options: ListingBookingOption[] | undefined): ListingBookingOption[] {

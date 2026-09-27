@@ -209,7 +209,15 @@ export default function SupplierPickupPlanner() {
   const [meetingPoints, setMeetingPoints] = useState<Record<string, string>>({});
   const [pickupInstructions, setPickupInstructions] = useState<Record<string, string>>({});
   const [optionsByListing, setOptionsByListing] = useState<
-    Record<string, Array<{ id: string; pickupPlace: string; optionInfo: string }>>
+    Record<
+      string,
+      Array<{
+        id: string;
+        pickupPlace: string;
+        optionInfo: string;
+        travelerStartInstructions?: string;
+      }>
+    >
   >({});
   const [listingGuideMeta, setListingGuideMeta] = useState<Record<string, ListingGuideMeta>>({});
   const [stayListingIds, setStayListingIds] = useState<Set<string>>(() => new Set());
@@ -263,7 +271,15 @@ export default function SupplierPickupPlanner() {
       const titles: Record<string, string> = {};
       const points: Record<string, string> = {};
       const instructions: Record<string, string> = {};
-      const optionsMap: Record<string, Array<{ id: string; pickupPlace: string; optionInfo: string }>> = {};
+      const optionsMap: Record<
+        string,
+        Array<{
+          id: string;
+          pickupPlace: string;
+          optionInfo: string;
+          travelerStartInstructions?: string;
+        }>
+      > = {};
       const guideMeta: Record<string, ListingGuideMeta> = {};
       const stayIds = new Set<string>();
       const absorbListing = (l: {
@@ -284,7 +300,12 @@ export default function SupplierPickupPlanner() {
         instructions[l.id] = l.pickupInstructions?.trim() ?? '';
         optionsMap[l.id] = materializedBookingOptions(
           parseListingExtras(l.listingExtras as unknown).bookingOptions
-        ).map((o) => ({ id: o.id, pickupPlace: o.pickupPlace, optionInfo: o.optionInfo }));
+        ).map((o) => ({
+          id: o.id,
+          pickupPlace: o.pickupPlace,
+          optionInfo: o.optionInfo,
+          travelerStartInstructions: o.travelerStartInstructions,
+        }));
         guideMeta[l.id] = {
           duration: l.duration?.trim() || '—',
           bestTime: l.bestTime?.trim() || '—',
