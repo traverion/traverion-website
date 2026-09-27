@@ -310,7 +310,9 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
         setDiscountsByListing(discounts);
       })
       .catch(() => {
-        // Keep prior maps — discount/review load failure must not invent empty offers.
+        // Phase 1151: empty map → honest list From (not endless "Checking offers…").
+        if (cancelled) return;
+        setDiscountsByListing(new Map());
       });
     return () => {
       cancelled = true;

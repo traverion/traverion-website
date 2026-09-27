@@ -655,7 +655,8 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         if (!cancelled) setDiscountsByListing(map);
       })
       .catch(() => {
-        // Keep prior discounts — failure must not look like zero offers on the PDP.
+        // Phase 1151: empty map → list price on PDP (not stuck loading offers).
+        if (!cancelled) setDiscountsByListing(new Map());
       });
     return () => {
       cancelled = true;

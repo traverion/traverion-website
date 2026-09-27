@@ -162,7 +162,10 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         setReviewAggregates(reviews);
       })
       .catch(() => {
-        // Keep prior maps — discount/review load failure must not invent empty offers.
+        // Phase 1151: empty map → honest list From (not endless "Checking offers…").
+        // Do not invent discount rows; failure means "offers unknown → show base price".
+        if (cancelled) return;
+        setDiscountsByListing(new Map());
       });
     return () => {
       cancelled = true;
