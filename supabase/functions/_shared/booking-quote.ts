@@ -591,13 +591,25 @@ function coalesceLegacyParticipantTicketOptions(opts: Option[]): Option[] {
     };
   });
 
+  const minPersons = Math.min(...opts.map((o) => Math.max(1, o.minPersons || 1)));
+  const maxPersons =
+    typeof anchor.maxPersons === 'number' && Number.isFinite(anchor.maxPersons) && anchor.maxPersons >= 1
+      ? Math.floor(anchor.maxPersons)
+      : minPersons;
+  // Phase 1211: parity with client 1208 — do not invent capacity 8 on edge coalesce.
+  const spotsRaw = anchor.maxSpotsPerSlot;
+  const maxSpotsPerSlot =
+    typeof spotsRaw === 'number' && Number.isFinite(spotsRaw) && spotsRaw >= 1
+      ? Math.floor(spotsRaw)
+      : undefined;
   return [
     {
       ...anchor,
       name: deriveCoalescedName(anchor),
       priceUsd: anchor.priceUsd,
-      minPersons: Math.min(...opts.map((o) => Math.max(1, o.minPersons || 1))),
-      maxPersons: Math.max(1, anchor.maxPersons || 8),
+      minPersons,
+      maxPersons,
+      ...(maxSpotsPerSlot != null ? { maxSpotsPerSlot } : { maxSpotsPerSlot: undefined }),
       pricingMode: 'age_dependent',
       priceCategories,
     },
