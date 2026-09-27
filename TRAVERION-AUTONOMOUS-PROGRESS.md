@@ -4770,10 +4770,19 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 
 **Certification:** admin readiness = **CODE-INSPECTED**.
 
+
+### Phase 904 — Mitigate partner→traveler lead-guest name bleed
+
+**Problem:** On localhost same-origin auth, partner `user_metadata` business names (`display_name` / `full_name` / `name`) could autofill stay checkout lead guest.
+
+**Fix:** `travelerLeadGuestNameFromAuth` / phone helpers — consumer profile + `customer_*` only. Wired into StayDetails + BookingPage.
+
+**Certification:** same-origin autofill harden = **AUTOMATED-TESTED**. Dedicated auth storage per host remains a larger FOUNDER/product follow-up.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.
-2. **P1 — Localhost same-origin auth**: partner and traveler share one Supabase session; partner login bleeds into traveler lead-guest autofill (seen on StayDetails).
+2. **P1 — Localhost same-origin auth**: shared Supabase session remains; Phase 904 blocks business-name lead-guest autofill (customer_* / consumer profile only).
 3. **P1 — Migrations 080–099 now remote-applied** — schema present; adversarial SQL suites not re-run against remote in CI this phase (local SQL tests remain the proof artifacts).
 3. **P1 — Advisory lock** — narrowed in 902/106 (stay listing; tour date/slot).
 4. **P2 — LIVE Stripe** intentionally blocked.

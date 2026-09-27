@@ -21,6 +21,11 @@ import { isSupabaseConfigured } from '../lib/supabase';
 import { createBookingCheckoutSession } from '../data/supabase-bookings';
 import type { ListingDiscount } from '../data/supabase-discounts';
 import { fetchConsumerProfileRow } from '../data/supabase-consumer-profile';
+import {
+  travelerLeadGuestNameFromAuth,
+  travelerLeadGuestPhoneFromAuth,
+  type TravelerCheckoutAuthMetadata,
+} from '../lib/traveler-checkout-autofill';
 import { getDisplayPriceForBookingVariant } from '../lib/discount-display';
 import { quoteBooking, formatOptionWeekdays, tourQuotePriceLines } from '../lib/booking-quote';
 import {
@@ -563,23 +568,21 @@ export default function BookingPage({
     if (!user?.id || !isSupabaseConfigured()) return;
     if (profileHydratedRef.current) return;
     const uid = user.id;
-    const meta = user.user_metadata as {
-      customer_first_name?: string;
-      customer_last_name?: string;
-      customer_phone?: string;
-      phone?: string;
-    };
-    let fn = (meta?.customer_first_name ?? '').trim();
-    let ln = (meta?.customer_last_name ?? '').trim();
+    const meta = user.user_metadata as TravelerCheckoutAuthMetadata | undefined;
     void fetchConsumerProfileRow(uid).then((row) => {
       if (lastHydratedUserIdRef.current !== uid) return;
       if (profileHydratedRef.current) return;
-      if (row?.display_name?.trim() && !fn && !ln) {
-        const parts = row.display_name.trim().split(/\s+/).filter(Boolean);
-        fn = parts[0] ?? '';
-        ln = parts.slice(1).join(' ');
-      }
-      const ph = (row?.contact_phone ?? meta?.customer_phone ?? meta?.phone ?? '').trim();
+      const name = travelerLeadGuestNameFromAuth({
+        consumerDisplayName: row?.display_name,
+        metadata: meta,
+      });
+      const parts = name.split(/\s+/).filter(Boolean);
+      const fn = parts[0] ?? '';
+      const ln = parts.slice(1).join(' ');
+      const ph = travelerLeadGuestPhoneFromAuth({
+        consumerPhone: row?.contact_phone,
+        metadata: meta,
+      });
       setFirstName((prev) => prev.trim() || fn);
       setLastName((prev) => prev.trim() || ln);
       setPhone((prev) => prev.trim() || ph);

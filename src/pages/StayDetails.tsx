@@ -58,6 +58,11 @@ import { listingShowsFreeCancellation, publicReviewLabel } from '../lib/listingT
 import { isSupabaseConfigured } from '../lib/supabase';
 import { isSupabaseListingId } from '../lib/discount-display';
 import { fetchConsumerProfileRow } from '../data/supabase-consumer-profile';
+import {
+  travelerLeadGuestNameFromAuth,
+  travelerLeadGuestPhoneFromAuth,
+  type TravelerCheckoutAuthMetadata,
+} from '../lib/traveler-checkout-autofill';
 import { fetchWishlistListingIds, toggleWishlist } from '../data/supabase-wishlist';
 
 type Props = {
@@ -385,28 +390,22 @@ export default function StayDetails({ stayId, onBack }: Props) {
     lastStayProfileUserIdRef.current = user?.id ?? null;
     if (!user?.id || !isSupabaseConfigured()) return;
     const uid = user.id;
-    const meta = user.user_metadata as {
-      full_name?: string;
-      name?: string;
-      phone?: string;
-      customer_first_name?: string;
-      customer_last_name?: string;
-      customer_phone?: string;
-    } | undefined;
-    const fromMeta = (
-      meta?.full_name ||
-      meta?.name ||
-      [meta?.customer_first_name, meta?.customer_last_name].filter(Boolean).join(' ')
-    ).trim();
+    const meta = user.user_metadata as TravelerCheckoutAuthMetadata | undefined;
     void fetchConsumerProfileRow(uid).then((row) => {
       if (lastStayProfileUserIdRef.current !== uid) return;
-      // Prefer traveler profile / traveler metadata — never invent a name from email
-      // local-part (partner sessions on localhost share the same auth storage).
+      // Prefer traveler profile / customer_* metadata — never partner business display names
+      // (localhost same-origin auth shares storage with partner sessions).
       const fromProfile = (row?.display_name ?? '').trim();
-      const nextName = fromProfile || fromMeta;
+      const nextName = travelerLeadGuestNameFromAuth({
+        consumerDisplayName: fromProfile,
+        metadata: meta,
+      });
       if (fromProfile) setProfileDisplayName(fromProfile);
       if (nextName) setGuestName((prev) => prev.trim() || nextName);
-      const ph = (row?.contact_phone ?? meta?.customer_phone ?? meta?.phone ?? '').trim();
+      const ph = travelerLeadGuestPhoneFromAuth({
+        consumerPhone: row?.contact_phone,
+        metadata: meta,
+      });
       if (ph) setGuestPhone((prev) => prev.trim() || ph);
     });
   }, [user?.id]);

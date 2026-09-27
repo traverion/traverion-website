@@ -32,7 +32,7 @@
 
 | Domain | Status | Source of truth | Next action |
 |--------|--------|-----------------|-------------|
-| Auth | PARTIAL | Supabase Auth | Mitigate same-origin partner/traveler bleed |
+| Auth | PARTIAL | Supabase Auth | Autofill harden 904; shared session localhost remains |
 | Traveler profile | PARTIAL | `consumer_profiles` | Country only with real migration; optional phone later |
 | Supplier identity / onboarding | PARTIAL | `supplier_profiles` + verification | Browser-cert create→publish |
 | Tour creation | STRONG / BROWSER | listings + options/schedules; create→LIVE→book **#41** | Field-depth gaps remain; dedicated traveler next |
@@ -88,7 +88,7 @@
 | 3 | P0 | Traveler book UI→Stripe TEST→Trips→partner Bookings E2E | Tour #39 + stay #40 + **new inventory #41**; dedicated traveler account next |
 | 4 | P1 | Per-slot public remaining / sell-out honesty | **CLOSED 899** (mig 105) |
 | 5 | P1 | Listing-scoped advisory lock coarseness | **CLOSED 902** (mig 106) |
-| 6 | P1 | Same-origin session bleed | Document + mitigate localhost |
+| 6 | P1 | Same-origin session bleed | Autofill harden **904**; separate host storage later |
 | 7 | P1 | Manual refunds / “Refund due” limbo | #41 proves honesty; auto-refund = FOUNDER if desired |
 | 8 | P2 | Stay cancel TZ + broader zone catalog | Optional; Helsinki default covers FI |
 | 9 | P1 | Commission snapshot model | FOUNDER when LIVE economics decided |
