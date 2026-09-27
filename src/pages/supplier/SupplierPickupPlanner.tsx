@@ -60,8 +60,8 @@ type ListingGuideMeta = {
   bestTime: string;
   startLocation: string;
   defaultStartTime?: string;
-  pickupWindowMin: number;
-  pickupWindowMax: number;
+  pickupWindowMin: number | null;
+  pickupWindowMax: number | null;
 };
 
 const CANCELLATION_REASONS = [
@@ -89,7 +89,9 @@ function guideScheduleSummary(meta: ListingGuideMeta | undefined): string {
   if (meta.bestTime && meta.bestTime !== '—') parts.push(meta.bestTime);
   if (meta.defaultStartTime) {
     parts.push(`Start ${meta.defaultStartTime}`);
-    parts.push(`Pickup ${meta.pickupWindowMin}–${meta.pickupWindowMax} min before`);
+    if (meta.pickupWindowMin != null && meta.pickupWindowMax != null) {
+      parts.push(`Pickup ${meta.pickupWindowMin}–${meta.pickupWindowMax} min before`);
+    }
   }
   if (meta.startLocation && meta.startLocation !== '—') parts.push(meta.startLocation);
   return parts.join(' · ');
@@ -308,8 +310,9 @@ export default function SupplierPickupPlanner() {
           bestTime: l.bestTime?.trim() || '—',
           startLocation: l.startLocation?.trim() || '—',
           defaultStartTime: l.defaultStartTime ?? undefined,
-          pickupWindowMin: l.pickupWindowMinutesBeforeMin ?? 0,
-          pickupWindowMax: l.pickupWindowMinutesBeforeMax ?? 30,
+          // Phase 1262: null pickup window stays null (no invent 0/30; map 1253 parity).
+          pickupWindowMin: l.pickupWindowMinutesBeforeMin ?? null,
+          pickupWindowMax: l.pickupWindowMinutesBeforeMax ?? null,
         };
       };
       listings.forEach((l) => {
@@ -847,8 +850,10 @@ export default function SupplierPickupPlanner() {
               )}
               {guideMeta?.defaultStartTime ? (
                 <p className="mt-2 text-xs text-ink-faint">
-                  Listing default start {guideMeta.defaultStartTime}. Assign pickup between {guideMeta.pickupWindowMin}–
-                  {guideMeta.pickupWindowMax} minutes before.
+                  Listing default start {guideMeta.defaultStartTime}
+                  {guideMeta.pickupWindowMin != null && guideMeta.pickupWindowMax != null
+                    ? `. Assign pickup between ${guideMeta.pickupWindowMin}–${guideMeta.pickupWindowMax} minutes before.`
+                    : '.'}
                 </p>
               ) : null}
             </div>
