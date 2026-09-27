@@ -21,6 +21,7 @@ import {
   occupyingGuestsForOptionDeparture,
   removeBookingOptionOccupancyNotice,
   removeScheduleOccupancyNotice,
+  schedulePersistAbandonsOccupiedSlot,
 } from '../../lib/schedule-edit-impact';
 import { optionHeadlineUnitPrice, summarizeOptionPricing } from '../../lib/price-categories';
 import { headlineStartingAmountFromBookingOptions } from '../../lib/headline-price';
@@ -1033,6 +1034,11 @@ export default function SupplierListingForm({
   const scheduleSnapshotRef = useRef<string>('');
   /** Start time when the schedule editor was opened — sold seats stay on this purchased slot. */
   const scheduleOpenedStartTimeRef = useRef('');
+  /**
+   * Phase 1109: first-seen startTime for this schedule id in the edit session.
+   * Survives draft-save + reopen so partners cannot bypass the sold-seat move block.
+   */
+  const scheduleSoldSeatAnchorRef = useRef<{ id: string; startTimeHm: string } | null>(null);
   const scheduleDraftRef = useRef<ListingOptionSchedule | null>(null);
   const addScheduleLockRef = useRef(false);
 
@@ -2031,6 +2037,7 @@ export default function SupplierListingForm({
     const blank = blankOptionSchedule(newListingOptionScheduleId());
     scheduleSessionOpenedAsCreateRef.current = true;
     scheduleOpenedStartTimeRef.current = '';
+    scheduleSoldSeatAnchorRef.current = null;
     scheduleSnapshotRef.current = JSON.stringify(blank);
     setScheduleDraft(blank);
     setScheduleSceneIdx(0);
@@ -2048,7 +2055,14 @@ export default function SupplierListingForm({
       const existing = (prepared.schedules ?? []).find((s) => s.id === scheduleId);
       if (!existing) return;
       scheduleSessionOpenedAsCreateRef.current = false;
-      scheduleOpenedStartTimeRef.current = existing.startTime ?? '';
+      // Phase 1109: lock sold-seat anchor to the first open of this schedule id.
+      if (scheduleSoldSeatAnchorRef.current?.id !== existing.id) {
+        scheduleSoldSeatAnchorRef.current = {
+          id: existing.id,
+          startTimeHm: existing.startTime ?? '',
+        };
+      }
+      scheduleOpenedStartTimeRef.current = scheduleSoldSeatAnchorRef.current.startTimeHm;
       scheduleSnapshotRef.current = JSON.stringify(existing);
       setOptionModalDraft(prepared);
       setScheduleDraft(existing);
@@ -2075,6 +2089,7 @@ export default function SupplierListingForm({
       const copy = duplicateOptionSchedule(source, newListingOptionScheduleId());
       scheduleSessionOpenedAsCreateRef.current = true;
       scheduleOpenedStartTimeRef.current = '';
+      scheduleSoldSeatAnchorRef.current = null;
       scheduleSnapshotRef.current = JSON.stringify(copy);
       const next = upsertOptionSchedule(prepared, copy);
       setOptionModalDraft(next);
@@ -2120,6 +2135,48 @@ export default function SupplierListingForm({
 
   const persistScheduleDraft = useCallback(
     (schedule: ListingOptionSchedule) => {
+      if (editingId && optionModalDraft && !scheduleSessionOpenedAsCreateRef.current) {
+        if (!listingOccupancyReady || listingOccupancyLoadError) {
+          setScheduleSaveError(
+            listingOccupancyLoadError ??
+              'Sold seats are still loading. Wait a moment, then try again.'
+          );
+          return false;
+        }
+        const prepared = ensureExplicitSchedules(optionModalDraft);
+        const schedulesAfter = upsertOptionSchedule(prepared, schedule).schedules ?? [];
+        // Phase 1109: refuse draft/ready persists that abandon an occupied wall-clock
+        // (blocks draft-save + reopen bypass of the Phase 1100 move hard-block).
+        const abandoned = schedulePersistAbandonsOccupiedSlot({
+          bookings: listingOccupancyBookings,
+          listingId: editingId,
+          optionId: optionModalDraft.id,
+          schedulesAfterPersist: schedulesAfter,
+        });
+        if (abandoned) {
+          setScheduleSaveError(abandoned);
+          return false;
+        }
+        const previousStart =
+          scheduleSoldSeatAnchorRef.current?.id === schedule.id
+            ? scheduleSoldSeatAnchorRef.current.startTimeHm
+            : scheduleOpenedStartTimeRef.current;
+        const occupyingPrevious = occupyingGuestsForOptionDeparture({
+          bookings: listingOccupancyBookings,
+          listingId: editingId,
+          optionId: optionModalDraft.id,
+          startTimeHm: previousStart,
+        });
+        const moveBlocked = scheduleDepartureTimeMoveBlockReason({
+          previousStartTimeHm: previousStart,
+          nextStartTimeHm: schedule.startTime,
+          occupyingGuestsOnPrevious: occupyingPrevious,
+        });
+        if (moveBlocked) {
+          setScheduleSaveError(moveBlocked);
+          return false;
+        }
+      }
       try {
         applyScheduleToOptionDraft(schedule, true);
         scheduleSnapshotRef.current = JSON.stringify(schedule);
@@ -2132,7 +2189,14 @@ export default function SupplierListingForm({
         return false;
       }
     },
-    [applyScheduleToOptionDraft]
+    [
+      applyScheduleToOptionDraft,
+      editingId,
+      optionModalDraft,
+      listingOccupancyReady,
+      listingOccupancyLoadError,
+      listingOccupancyBookings,
+    ]
   );
 
   const patchScheduleDraft = useCallback((patch: Partial<ListingOptionSchedule>) => {

@@ -4,6 +4,7 @@ import {
   occupyingGuestsForOptionDeparture,
   removeBookingOptionOccupancyNotice,
   removeScheduleOccupancyNotice,
+  schedulePersistAbandonsOccupiedSlot,
 } from './schedule-edit-impact';
 
 const listingId = 'listing-1';
@@ -163,5 +164,73 @@ describe('removeBookingOptionOccupancyNotice', () => {
   it('warns when option still has guests', () => {
     expect(removeBookingOptionOccupancyNotice(1)).toMatch(/1 guest/);
     expect(removeBookingOptionOccupancyNotice(0)).toBeNull();
+  });
+});
+
+describe('schedulePersistAbandonsOccupiedSlot (Phase 1109)', () => {
+  it('blocks when a ready schedule no longer covers an occupied wall-clock', () => {
+    const msg = schedulePersistAbandonsOccupiedSlot({
+      listingId,
+      optionId,
+      bookings: [
+        {
+          listing_id: listingId,
+          booking_option_id: optionId,
+          start_time: '08:00:00',
+          guests: 4,
+          status: 'confirmed',
+          payment_status: 'paid',
+          purchase_snapshot: { startTimeHm: '08:00' },
+        },
+      ],
+      schedulesAfterPersist: [{ id: 'sch-1', startTime: '09:30', status: 'ready' }],
+    });
+    expect(msg).toMatch(/08:00/);
+    expect(msg).toMatch(/4 guests/);
+    expect(msg).toMatch(/separate schedule/);
+  });
+
+  it('allows when another ready schedule still covers the occupied slot', () => {
+    expect(
+      schedulePersistAbandonsOccupiedSlot({
+        listingId,
+        optionId,
+        bookings: [
+          {
+            listing_id: listingId,
+            booking_option_id: optionId,
+            start_time: '08:00:00',
+            guests: 2,
+            status: 'confirmed',
+            payment_status: 'paid',
+            purchase_snapshot: { startTimeHm: '08:00' },
+          },
+        ],
+        schedulesAfterPersist: [
+          { id: 'sch-1', startTime: '09:30', status: 'ready' },
+          { id: 'sch-2', startTime: '08:00', status: 'ready' },
+        ],
+      })
+    ).toBeNull();
+  });
+
+  it('blocks draft status that leaves occupied slot without ready cover', () => {
+    const msg = schedulePersistAbandonsOccupiedSlot({
+      listingId,
+      optionId,
+      bookings: [
+        {
+          listing_id: listingId,
+          booking_option_id: optionId,
+          start_time: '08:00:00',
+          guests: 1,
+          status: 'confirmed',
+          payment_status: 'paid',
+          purchase_snapshot: { startTimeHm: '08:00' },
+        },
+      ],
+      schedulesAfterPersist: [{ id: 'sch-1', startTime: '09:30', status: 'draft' }],
+    });
+    expect(msg).toMatch(/08:00/);
   });
 });
