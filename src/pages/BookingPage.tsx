@@ -381,8 +381,7 @@ export default function BookingPage({
       })
       .catch((e) => {
         if (cancelled) return;
-        setDayCapacitySnap(null);
-        setSoldOutDates(new Set());
+        // Phase 1103: keep prior sold-out marks — never invent a fully open calendar.
         setDayCapacityError(
           userFacingError(e, 'We could not check departure capacity. Check your connection and try again.')
         );
@@ -474,8 +473,14 @@ export default function BookingPage({
     return Math.max(1, guests);
   }, [appliedOption, participantMix, guests]);
 
-  const capacityBlocksPay =
+  // Phase 1103: capacity load error or unknown remaining must block Pay —
+  // do not invent a payable trip while occupancy is unverified.
+  const capacityUnknown =
+    Boolean(dayCapacityError) ||
+    (Boolean(date.trim()) && selectedDaySpotsLeft == null);
+  const capacitySoldOut =
     selectedDaySpotsLeft != null && selectedDaySpotsLeft < partySizeForCapacity;
+  const capacityBlocksPay = capacityUnknown || capacitySoldOut;
 
   const quoteBlockReason =
     date.trim() && priceInfo.quote && !priceInfo.quote.ok ? priceInfo.quote.error : null;
@@ -833,9 +838,12 @@ export default function BookingPage({
     }
     if (capacityBlocksPay) {
       setError(
-        departureTime
-          ? `The ${departureTime} departure no longer has enough spots for your party.`
-          : 'This date no longer has enough spots for your party.'
+        capacityUnknown
+          ? dayCapacityError ||
+              'We could not verify departure capacity. Check your connection and try again.'
+          : departureTime
+            ? `The ${departureTime} departure no longer has enough spots for your party.`
+            : 'This date no longer has enough spots for your party.'
       );
       return;
     }
@@ -1568,10 +1576,16 @@ export default function BookingPage({
 
             {capacityBlocksPay ? (
               <div className="mb-4">
-                <NoticeCallout title="Not enough spots left" tone="warn">
-                  {departureTime
-                    ? `The ${departureTime} departure no longer has enough space for your party. Go back and choose another time or fewer guests.`
-                    : 'This date no longer has enough space for your party. Go back and choose another date or fewer guests.'}
+                <NoticeCallout
+                  title={capacityUnknown ? 'Capacity unavailable' : 'Not enough spots left'}
+                  tone="warn"
+                >
+                  {capacityUnknown
+                    ? dayCapacityError ||
+                      'We could not verify departure capacity. Check your connection and try again.'
+                    : departureTime
+                      ? `The ${departureTime} departure no longer has enough space for your party. Go back and choose another time or fewer guests.`
+                      : 'This date no longer has enough space for your party. Go back and choose another date or fewer guests.'}
                 </NoticeCallout>
               </div>
             ) : null}
@@ -1611,7 +1625,9 @@ export default function BookingPage({
                 >
                   {submitting
                     ? 'Redirecting to Stripe…'
-                    : capacityBlocksPay
+                    : capacityUnknown
+                      ? 'Capacity unavailable'
+                    : capacitySoldOut
                       ? departureTime
                         ? `Sold out · ${departureTime}`
                         : 'Sold out'
@@ -1686,7 +1702,9 @@ export default function BookingPage({
           >
             {submitting
               ? 'Redirecting to Stripe…'
-              : capacityBlocksPay
+              : capacityUnknown
+                ? 'Capacity unavailable'
+              : capacitySoldOut
                 ? departureTime
                   ? `Sold out · ${departureTime}`
                   : 'Sold out'

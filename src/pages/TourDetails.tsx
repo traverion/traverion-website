@@ -405,8 +405,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       })
       .catch((e) => {
         if (cancelled) return;
-        setDayCapacitySnap(null);
-        setSoldOutDates(new Set());
+        // Phase 1103: keep prior sold-out marks — never invent a fully open calendar.
         setDayCapacityError(
           userFacingError(e, 'We could not check departure capacity. Check your connection and try again.')
         );
@@ -1877,6 +1876,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                         : Math.max(1, guests);
                     return (
                       variantChecking ||
+                      Boolean(dayCapacityError) ||
                       allDeparturesSoldOut ||
                       (panelQuote != null && !panelQuote.ok) ||
                       (Boolean(selectedBookingVariant) &&
