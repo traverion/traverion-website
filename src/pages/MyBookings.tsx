@@ -45,6 +45,8 @@ import {
   displayOptionLabelFromPurchase,
   displayPickupInstructionsFromPurchase,
   displayStartTimeFromPurchase,
+  displayDepartureTimezoneFromPurchase,
+  formatTripDepartureWithTimezone,
   displayDurationFromPurchase,
   displayCancellationPolicyFromPurchase,
 } from '../lib/purchase-snapshot';
@@ -705,7 +707,11 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 if (b.check_out) return null;
                 const live = b.start_time ? pgTimeToHm(b.start_time) : null;
                 const shown = displayStartTimeFromPurchase(b.purchase_snapshot, live);
-                return shown || null;
+                if (!shown) return null;
+                return formatTripDepartureWithTimezone(
+                  shown,
+                  displayDepartureTimezoneFromPurchase(b.purchase_snapshot)
+                );
               })();
               const ref = travelerTripReferenceLabel(b.booking_number);
               const needsPay = travelerBookingNeedsPayNow(b);
@@ -1150,7 +1156,11 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       cancelConfirm.purchase_snapshot,
                       cancelConfirm.start_time ? pgTimeToHm(cancelConfirm.start_time) : null
                     );
-                    return shown ? ` · ${shown}` : null;
+                    if (!shown) return null;
+                    return ` · ${formatTripDepartureWithTimezone(
+                      shown,
+                      displayDepartureTimezoneFromPurchase(cancelConfirm.purchase_snapshot)
+                    )}`;
                   })()}
                   {typeof cancelConfirm.booking_number === 'number' && cancelConfirm.booking_number > 0
                     ? ` · #${cancelConfirm.booking_number}`

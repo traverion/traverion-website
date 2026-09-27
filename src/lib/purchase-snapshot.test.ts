@@ -5,6 +5,8 @@ import {
   displayMeetingPointFromPurchase,
   displayOptionLabelFromPurchase,
   displayStartTimeFromPurchase,
+  displayDepartureTimezoneFromPurchase,
+  formatTripDepartureWithTimezone,
   displayDurationFromPurchase,
   displayCancellationPolicyFromPurchase,
   displayFulfillmentFromPurchase,
@@ -176,9 +178,26 @@ describe('resolveOptionFieldsForSnapshot (checkout freeze helpers)', () => {
     expect(fields.duration).toBe('4 hours');
     expect(fields.fulfillment).toBe('pickup');
     expect(fields.scheduleId).toBe('sch-sep');
-    expect(resolvePickupInstructionsForSnapshot({
-      optionInfo: fields.optionInfo,
-      listingPickupInstructions: 'Listing-level note',
-    })).toBe('Van B — look for Traverion');
+    expect(
+      resolvePickupInstructionsForSnapshot({
+        optionInfo: fields.optionInfo,
+        listingPickupInstructions: 'Listing-level note',
+      })
+    ).toBe('Van B — look for Traverion');
+  });
+
+  it('surfaces snapshotted departure timezone for Trips clock copy', () => {
+    const snap = buildPurchaseSnapshot({
+      listingTitle: 'Aurora',
+      startTimeHm: '20:00',
+      departureTimezone: 'Europe/Helsinki',
+      capturedAt: '2026-09-22T00:00:00.000Z',
+    });
+    expect(displayDepartureTimezoneFromPurchase(snap)).toBe('Europe/Helsinki');
+    expect(formatTripDepartureWithTimezone('20:00', 'Europe/Helsinki')).toBe(
+      '20:00 · Europe/Helsinki local'
+    );
+    expect(formatTripDepartureWithTimezone('20:00', null)).toBe('20:00');
+    expect(displayDepartureTimezoneFromPurchase({ listingTitle: 'x', capturedAt: 't' })).toBeNull();
   });
 });

@@ -169,6 +169,28 @@ export function displayStartTimeFromPurchase(
   return (liveStartTimeHm ?? '').trim();
 }
 
+/** IANA zone frozen at purchase — null when absent (pre-TZ snapshots). */
+export function displayDepartureTimezoneFromPurchase(snapshot: unknown): string | null {
+  if (!isPurchaseSnapshot(snapshot)) return null;
+  const tz = (snapshot.departureTimezone ?? '').trim();
+  return tz || null;
+}
+
+/**
+ * Trip list/detail clock: wall time plus snapshotted IANA zone when present so
+ * "20:00" stays experience-local (e.g. Rovaniemi) rather than the traveler's device TZ.
+ */
+export function formatTripDepartureWithTimezone(
+  startTimeHm: string | null | undefined,
+  timezone: string | null | undefined
+): string {
+  const hm = (startTimeHm ?? '').trim();
+  if (!hm) return '';
+  const tz = (timezone ?? '').trim();
+  if (!tz) return hm;
+  return `${hm} · ${tz} local`;
+}
+
 export function displayDurationFromPurchase(
   snapshot: unknown,
   liveDuration: string | null | undefined

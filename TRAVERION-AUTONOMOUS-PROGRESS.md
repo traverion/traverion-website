@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness** (continuing 1001+)  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `92ef64c`  
-**Current phase:** 1053  
+**Current SHA:** `c447129`  
+**Current phase:** 1054  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -5493,13 +5493,21 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 
 **Certification:** AUTOMATED-TESTED / INTEGRATION (deploy).
 
+### Phase 1054 — Trips shows snapshotted departure timezone
+
+**Problem:** Trips showed wall-clock only; snapshotted IANA zone unused.
+
+**Fix:** `formatTripDepartureWithTimezone` on Trips + confirmation when snapshot has `departureTimezone`.
+
+**Certification:** AUTOMATED-TESTED.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.
 2. **P1 — Localhost same-origin auth**: shared Supabase session remains; Phase 904 blocks business-name lead-guest autofill (customer_* / consumer profile only).
 3. **P1 — FOUNDER:** see `docs/FOUNDER_REQUIRED.md` (auto-refund, take-rate; force-unpublish closed).
 4. **P1 — Stay private check-in address** missing (city-only on Trips).
-5. **P1 — Trips does not surface snapshotted departureTimezone**.
+5. **P1 — Traveler cancel RPC still hardcodes Europe/Helsinki** (listing TZ used elsewhere).
 6. **P2 — Browser-cert** admin listings moderation on admin host with staff demo.
 7. **P2 — notify-* booking-tied open-invoke residual** — recipient+content re-derived; nuisance spam with real bookingId still possible (full dual-mode auth deferred).
 8. **P2 — LIVE Stripe** intentionally blocked.
