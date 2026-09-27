@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `6f7f736`  
-**Current phase:** 891  
+**Current SHA:** `4cd165e`  
+**Current phase:** 892  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4689,6 +4689,12 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 | `send-booking-reminders` | `BOOKING_REMINDER_CRON_SECRET` | Day-before / day-after emails | Calendar-day not exact HH:MM; needs cron wiring |
 
 **Gap:** Reminder cron secret + schedule must be configured in host — not verified as actively firing this phase. Hold expiry is on-demand at checkout (safe).
+
+### Phase 892 — Trips: load failure ≠ empty inbox
+
+**Problem:** `fetchMyBookings` errors cleared `bookings` to `[]`, so a transient failure looked like “no trips”. Auth loading also raced `else setLoading(false)`.
+
+**Fix:** Keep prior trip rows on load error (surface `loadError`); wait for `authLoading` before treating user as signed out / clearing list.
 
 ## Known remaining risks (ranked)
 

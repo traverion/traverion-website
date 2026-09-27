@@ -54,7 +54,7 @@
 | Messaging | PARTIAL→STRONG | `booking_messages`; cross-user deny #41 (885) | No fake realtime; delivery cert |
 | Reviews | STRONG / UNIT | ownership + paid+confirmed+after-start (879) | Supplier response / moderation later |
 | Wishlist / Saved | STRONG / ADVERSARIAL | published-only insert (104/887) | Unpublished soft-delete UX |
-| Trips | PARTIAL | `fetchMyBookings` + session guard | Continue honesty |
+| Trips | PARTIAL→STRONG | fetch + error≠empty (892) | Dedicated traveler session |
 | Supplier Bookings / Pickup | STRONG / BROWSER | Refund due #41 + pickup excludes cancel (884) | Stay reservation pickup N/A |
 | Availability ops | PARTIAL | calendar / capacity | Protect confirmed bookings on edit |
 | Income / earnings | STRONG / BROWSER | `supplier_ledger_entries`; #40 keep / #41 reverse | Commission snapshot before LIVE |

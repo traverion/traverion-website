@@ -163,10 +163,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
       setCancelRequests(open);
     } catch (e) {
       if (gen !== loadGenRef.current) return;
-      setBookings([]);
-      setListingOps({});
-      setTitles({});
-      setCancelRequests({});
+      // Keep prior trips visible — infrastructure failure must not look like an empty account.
       setLoadError(userFacingError(e, USER_ERROR.trips));
     } finally {
       if (gen === loadGenRef.current) setLoading(false);
@@ -292,9 +289,16 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   }, []);
 
   useEffect(() => {
-    if (user) load();
-    else setLoading(false);
-  }, [user, load]);
+    if (authLoading) return;
+    if (user) void load();
+    else {
+      setBookings([]);
+      setListingOps({});
+      setTitles({});
+      setCancelRequests({});
+      setLoading(false);
+    }
+  }, [user, load, authLoading]);
 
   useEffect(() => {
     if (user?.id) clearBookingsUnread(user.id);
