@@ -352,7 +352,11 @@ export function stayMatchesCatalogFilters(tour: TourPackage, input: StayCatalogF
   const extras = parseListingExtras(tour.listingExtras);
   const maxG = extras.stay?.maxGuests;
   const guestN = Number.parseInt(input.guests, 10);
-  if (Number.isFinite(guestN) && guestN > 0 && typeof maxG === 'number' && guestN > maxG) return false;
+  // Phase 1220: guest filter fail-closed when capacity unknown (StayDetails/quote 1216–1217 parity).
+  if (Number.isFinite(guestN) && guestN > 0) {
+    if (typeof maxG !== 'number' || !Number.isFinite(maxG) || maxG < 1) return false;
+    if (guestN > maxG) return false;
+  }
   const wantType = input.propertyType.trim().toLowerCase();
   if (wantType && wantType !== 'all') {
     const have = extras.stay?.propertyType?.trim().toLowerCase() ?? '';

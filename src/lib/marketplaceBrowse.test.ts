@@ -172,6 +172,37 @@ describe('marketplace browse filters', () => {
     ).toBe(false);
   });
 
+  it('Phase 1220: guest filter excludes stays with unknown maxGuests', () => {
+    const unknownCap = stay({
+      listingExtras: {
+        inventoryFamily: 'stay',
+        stay: { propertyType: 'Cabin', nightlyPriceUsd: 189, amenities: ['wifi'] },
+      },
+    });
+    expect(
+      stayMatchesCatalogFilters(unknownCap, {
+        q: '',
+        guests: '2',
+        propertyType: 'all',
+        price: 'all',
+        amenities: [],
+        rating: 'all',
+        ratingScore: null,
+      })
+    ).toBe(false);
+    expect(
+      stayMatchesCatalogFilters(unknownCap, {
+        q: '',
+        guests: '',
+        propertyType: 'all',
+        price: 'all',
+        amenities: [],
+        rating: 'all',
+        ratingScore: null,
+      })
+    ).toBe(true);
+  });
+
   it('filters tours by language codes actually stored on the listing', () => {
     const tour = baseTour({
       experienceLanguage: 'en',
