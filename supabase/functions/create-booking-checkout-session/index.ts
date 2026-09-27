@@ -6,7 +6,12 @@ import { quoteListingBooking, stayCheckoutNightsAlreadyBooked, stayNightIsOperat
 import { tourCheckoutOccupiedGuests, type TourCheckoutOccupancyRow } from '../_shared/booking-hold.ts';
 import { checkoutPaymentStatusCanResume, resumeStayCheckoutDate, checkoutResumeLostRaceToPaid } from '../_shared/checkout-resume.ts';
 import { resumeStayLeadGuestName, stayCheckoutLeadGuestNameReady } from '../_shared/stay-checkout-guest.ts';
-import { buildPurchaseSnapshot, resolveMeetingPointForSnapshot } from '../_shared/purchase-snapshot.ts';
+import {
+  buildPurchaseSnapshot,
+  resolveMeetingPointForSnapshot,
+  resolveOptionFieldsForSnapshot,
+  resolvePickupInstructionsForSnapshot,
+} from '../_shared/purchase-snapshot.ts';
 import { isStripeTestSecretKey, stripeLiveSecretBlockedMessage } from '../_shared/stripe-test-only.ts';
 
 type RequestBody = {
@@ -222,7 +227,7 @@ serve(async (req) => {
     const { data: listingRow, error: listingError } = await admin
       .from('listings')
       .select(
-        'id, title, status, price_starting_from, price_currency, listing_extras, group_size, meeting_point, pickup_instructions'
+        'id, title, status, price_starting_from, price_currency, listing_extras, group_size, meeting_point, pickup_instructions, cancellation_policy'
       )
       .eq('id', listingId)
       .maybeSingle();
@@ -304,35 +309,37 @@ serve(async (req) => {
       guests = quote.guests;
     }
 
-    const optionPickupPlace = (() => {
-      const extras = listingRow.listing_extras;
-      if (!extras || typeof extras !== 'object') return null;
-      const opts = (extras as { bookingOptions?: unknown }).bookingOptions;
-      if (!Array.isArray(opts)) return null;
-      const want = (quote.optionId ?? '').trim();
-      for (const raw of opts) {
-        if (!raw || typeof raw !== 'object') continue;
-        const o = raw as { id?: unknown; pickupPlace?: unknown };
-        if (want && String(o.id ?? '').trim() !== want) continue;
-        if (!want && opts.length !== 1) continue;
-        const place = typeof o.pickupPlace === 'string' ? o.pickupPlace.trim() : '';
-        if (place) return place;
-        if (want) break;
-      }
-      return null;
-    })();
+    const optionFields = resolveOptionFieldsForSnapshot({
+      listingExtras: listingRow.listing_extras,
+      optionId: quote.optionId ?? storedOptionId,
+      bookingDate,
+      startTimeHm: startTime || null,
+    });
 
     const purchaseSnapshot = buildPurchaseSnapshot({
       listingTitle,
       optionLabel: quote.optionLabel ?? null,
       meetingPoint: resolveMeetingPointForSnapshot({
-        optionPickupPlace,
+        optionPickupPlace: optionFields.pickupPlace,
         listingMeetingPoint:
           typeof listingRow.meeting_point === 'string' ? listingRow.meeting_point : null,
       }),
-      pickupInstructions:
-        typeof listingRow.pickup_instructions === 'string' ? listingRow.pickup_instructions : null,
+      pickupInstructions: resolvePickupInstructionsForSnapshot({
+        optionInfo: optionFields.optionInfo,
+        listingPickupInstructions:
+          typeof listingRow.pickup_instructions === 'string' ? listingRow.pickup_instructions : null,
+      }),
       startTimeHm: startTime || null,
+      duration: optionFields.duration,
+      fulfillment: optionFields.fulfillment,
+      cancellationPolicy:
+        typeof (listingRow as { cancellation_policy?: unknown }).cancellation_policy === 'string'
+          ? (listingRow as { cancellation_policy: string }).cancellation_policy
+          : null,
+      optionId: quote.optionId ?? storedOptionId,
+      scheduleId: optionFields.scheduleId,
+      currency: quote.currency,
+      totalAmount: quote.totalAmount,
     });
 
     if (extrasFamily === 'stay' && checkoutDate) {

@@ -1,7 +1,9 @@
 /**
  * Commercial truth captured at checkout so later listing edits cannot silently
- * rewrite what the traveler purchased (title, option, meeting copy).
+ * rewrite what the traveler purchased (title, option, meeting copy, terms).
  */
+
+export type PurchaseFulfillment = 'pickup' | 'meeting_point';
 
 export type PurchaseSnapshot = {
   listingTitle: string;
@@ -10,6 +12,18 @@ export type PurchaseSnapshot = {
   pickupInstructions: string | null;
   startTimeHm: string | null;
   capturedAt: string;
+  /** Option duration at purchase (e.g. "4 hours"). */
+  duration?: string | null;
+  /** How this option starts: pickup vs meeting point. */
+  fulfillment?: PurchaseFulfillment | null;
+  /** Cancellation terms shown at purchase. */
+  cancellationPolicy?: string | null;
+  /** Booked option id when present. */
+  optionId?: string | null;
+  /** Resolved schedule id when seasonal schedules were used. */
+  scheduleId?: string | null;
+  currency?: string | null;
+  totalAmount?: number | null;
 };
 
 export function isPurchaseSnapshot(value: unknown): value is PurchaseSnapshot {
@@ -24,6 +38,13 @@ export function buildPurchaseSnapshot(input: {
   meetingPoint?: string | null;
   pickupInstructions?: string | null;
   startTimeHm?: string | null;
+  duration?: string | null;
+  fulfillment?: PurchaseFulfillment | null;
+  cancellationPolicy?: string | null;
+  optionId?: string | null;
+  scheduleId?: string | null;
+  currency?: string | null;
+  totalAmount?: number | null;
   capturedAt?: string;
 }): PurchaseSnapshot {
   const title = input.listingTitle.trim() || 'Experience';
@@ -31,7 +52,18 @@ export function buildPurchaseSnapshot(input: {
   const meeting = (input.meetingPoint ?? '').trim() || null;
   const pickup = (input.pickupInstructions ?? '').trim() || null;
   const start = (input.startTimeHm ?? '').trim() || null;
-  return {
+  const duration = (input.duration ?? '').trim() || null;
+  const fulfillment =
+    input.fulfillment === 'pickup' || input.fulfillment === 'meeting_point' ? input.fulfillment : null;
+  const cancellation = (input.cancellationPolicy ?? '').trim() || null;
+  const optionId = (input.optionId ?? '').trim() || null;
+  const scheduleId = (input.scheduleId ?? '').trim() || null;
+  const currency = (input.currency ?? '').trim().toUpperCase() || null;
+  const total =
+    typeof input.totalAmount === 'number' && Number.isFinite(input.totalAmount) && input.totalAmount >= 0
+      ? Math.round(input.totalAmount * 100) / 100
+      : null;
+  const snap: PurchaseSnapshot = {
     listingTitle: title,
     optionLabel: option,
     meetingPoint: meeting,
@@ -39,6 +71,14 @@ export function buildPurchaseSnapshot(input: {
     startTimeHm: start,
     capturedAt: input.capturedAt ?? new Date().toISOString(),
   };
+  if (duration) snap.duration = duration;
+  if (fulfillment) snap.fulfillment = fulfillment;
+  if (cancellation) snap.cancellationPolicy = cancellation;
+  if (optionId) snap.optionId = optionId;
+  if (scheduleId) snap.scheduleId = scheduleId;
+  if (currency) snap.currency = currency;
+  if (total != null) snap.totalAmount = total;
+  return snap;
 }
 
 /** Prefer snapshotted title; fall back to live listing title. */
@@ -96,6 +136,34 @@ export function displayStartTimeFromPurchase(
     return snapshot.startTimeHm.trim();
   }
   return (liveStartTimeHm ?? '').trim();
+}
+
+export function displayDurationFromPurchase(
+  snapshot: unknown,
+  liveDuration: string | null | undefined
+): string {
+  if (isPurchaseSnapshot(snapshot) && snapshot.duration?.trim()) {
+    return snapshot.duration.trim();
+  }
+  return (liveDuration ?? '').trim();
+}
+
+export function displayCancellationPolicyFromPurchase(
+  snapshot: unknown,
+  livePolicy: string | null | undefined
+): string {
+  if (isPurchaseSnapshot(snapshot) && snapshot.cancellationPolicy?.trim()) {
+    return snapshot.cancellationPolicy.trim();
+  }
+  return (livePolicy ?? '').trim();
+}
+
+export function displayFulfillmentFromPurchase(snapshot: unknown): PurchaseFulfillment | null {
+  if (!isPurchaseSnapshot(snapshot)) return null;
+  if (snapshot.fulfillment === 'pickup' || snapshot.fulfillment === 'meeting_point') {
+    return snapshot.fulfillment;
+  }
+  return null;
 }
 
 /**

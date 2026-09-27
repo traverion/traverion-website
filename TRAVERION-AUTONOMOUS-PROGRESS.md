@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `8d817ed`  
-**Current phase:** 856  
+**Current SHA:** `68ac29b`  
+**Current phase:** 857  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -267,6 +267,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 854 | Server publish bookability migration 101 | `03a5603` |
 | 855 | Option-scoped pickup/meeting on tour PDP | `5c5ae05` |
 | 856 | Booking cut-off before departure | `8d817ed` |
+| 857 | Thicker purchase snapshot | `68ac29b` |
 
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
@@ -4345,6 +4346,14 @@ Deep audit of listing → option → schedule ownership vs publish/traveler/snap
 **Fix:** `tour-departure-cutoff` (Helsinki wall clock, matching cancel SQL). Listing extras `bookingCutoffHoursBeforeStart`; enforced in client + Deno `quoteListingBooking`; partner field; traveler Good-to-know + PDP departure filter. `todayIso` freezes noon Helsinki for tests when `nowMs` omitted.
 
 **Cert:** vitest cutoff + quote suites 60/60.
+
+### Phase 857 — Thicker purchase snapshot
+
+**Gap (853):** Snapshot froze title/option/meeting/start only; listing edits could rewrite duration, fulfillment, cancellation, and option notes on Trips.
+
+**Fix:** Extend `purchase_snapshot` with duration, fulfillment, cancellationPolicy, optionId, scheduleId, currency, totalAmount. Checkout resolves option-scoped place/note + schedule id. Trips shows purchased duration + cancellation terms.
+
+**Cert:** vitest purchase-snapshot 8/8.
 
 ## Known remaining risks (ranked)
 

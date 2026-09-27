@@ -5,9 +5,16 @@ import {
   displayMeetingPointFromPurchase,
   displayOptionLabelFromPurchase,
   displayStartTimeFromPurchase,
+  displayDurationFromPurchase,
+  displayCancellationPolicyFromPurchase,
+  displayFulfillmentFromPurchase,
   isPurchaseSnapshot,
   partnerOpsDepartureDisplay,
 } from './purchase-snapshot';
+import {
+  resolveOptionFieldsForSnapshot,
+  resolvePickupInstructionsForSnapshot,
+} from '../../supabase/functions/_shared/purchase-snapshot.ts';
 
 describe('purchase-snapshot', () => {
   it('builds a trimmed commercial snapshot', () => {
@@ -28,6 +35,30 @@ describe('purchase-snapshot', () => {
       capturedAt: '2026-09-22T00:00:00.000Z',
     });
     expect(isPurchaseSnapshot(snap)).toBe(true);
+  });
+
+  it('freezes duration, fulfillment, cancellation, and money fields', () => {
+    const snap = buildPurchaseSnapshot({
+      listingTitle: 'NL tour',
+      duration: ' 4 hours ',
+      fulfillment: 'pickup',
+      cancellationPolicy: 'Free cancel 24h before start.',
+      optionId: 'opt-a',
+      scheduleId: 'sch-1',
+      currency: 'eur',
+      totalAmount: 178.5,
+      capturedAt: '2026-09-27T00:00:00.000Z',
+    });
+    expect(snap.duration).toBe('4 hours');
+    expect(snap.fulfillment).toBe('pickup');
+    expect(snap.cancellationPolicy).toMatch(/Free cancel/);
+    expect(snap.optionId).toBe('opt-a');
+    expect(snap.scheduleId).toBe('sch-1');
+    expect(snap.currency).toBe('EUR');
+    expect(snap.totalAmount).toBe(178.5);
+    expect(displayDurationFromPurchase(snap, 'edited live')).toBe('4 hours');
+    expect(displayCancellationPolicyFromPurchase(snap, 'new policy')).toMatch(/Free cancel/);
+    expect(displayFulfillmentFromPurchase(snap)).toBe('pickup');
   });
 
   it('prefers snapshot over live listing rewrites', () => {
@@ -88,5 +119,42 @@ describe('purchase-snapshot', () => {
       displayHm: '08:00',
       purchasedNote: null,
     });
+  });
+});
+
+describe('resolveOptionFieldsForSnapshot (checkout freeze helpers)', () => {
+  it('prefers option note and resolves schedule id for the date/time', () => {
+    const fields = resolveOptionFieldsForSnapshot({
+      listingExtras: {
+        bookingOptions: [
+          {
+            id: 'opt-a',
+            pickupPlace: 'Hotel zone',
+            optionInfo: 'Van B — look for Traverion',
+            duration: '4 hours',
+            fulfillment: 'pickup',
+            schedules: [
+              {
+                id: 'sch-sep',
+                status: 'ready',
+                availabilityDateFrom: '2026-09-01',
+                availabilityDateTo: '2026-09-30',
+                startTime: '20:30',
+              },
+            ],
+          },
+        ],
+      },
+      optionId: 'opt-a',
+      bookingDate: '2026-09-15',
+      startTimeHm: '20:30',
+    });
+    expect(fields.duration).toBe('4 hours');
+    expect(fields.fulfillment).toBe('pickup');
+    expect(fields.scheduleId).toBe('sch-sep');
+    expect(resolvePickupInstructionsForSnapshot({
+      optionInfo: fields.optionInfo,
+      listingPickupInstructions: 'Listing-level note',
+    })).toBe('Van B — look for Traverion');
   });
 });

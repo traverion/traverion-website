@@ -45,6 +45,8 @@ import {
   displayOptionLabelFromPurchase,
   displayPickupInstructionsFromPurchase,
   displayStartTimeFromPurchase,
+  displayDurationFromPurchase,
+  displayCancellationPolicyFromPurchase,
 } from '../lib/purchase-snapshot';
 import { decrementAvailabilityBooked } from '../data/supabase-availability';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
@@ -675,6 +677,8 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 b.purchase_snapshot,
                 ops?.pickup_instructions
               );
+              const tripDuration = displayDurationFromPurchase(b.purchase_snapshot, null);
+              const tripCancelPolicy = displayCancellationPolicyFromPurchase(b.purchase_snapshot, null);
               const liveTrip = travelerTripIsLive(b);
               const pickupMissing =
                 liveTrip &&
@@ -887,6 +891,14 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         </dd>
                       </div>
                     ) : null}
+                    {!isStay && tripDuration ? (
+                      <div>
+                        <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
+                          Duration
+                        </dt>
+                        <dd className="mt-0.5 text-sm text-ink">{tripDuration}</dd>
+                      </div>
+                    ) : null}
                     <div>
                       <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
                         {b.guest_breakdown && b.guest_breakdown.length > 0 ? 'Participants' : 'Guests'}
@@ -902,6 +914,16 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                           Reference
                         </dt>
                         <dd className="mt-0.5 font-mono text-sm font-semibold tracking-wide text-finland">{ref}</dd>
+                      </div>
+                    ) : null}
+                    {tripCancelPolicy ? (
+                      <div className="sm:col-span-2">
+                        <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
+                          Cancellation (at purchase)
+                        </dt>
+                        <dd className="mt-0.5 text-sm text-ink-muted break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
+                          {tripCancelPolicy}
+                        </dd>
                       </div>
                     ) : null}
                   </dl>
