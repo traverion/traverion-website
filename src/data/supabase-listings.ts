@@ -317,15 +317,16 @@ function isUniqueViolation(error: { code?: string; message?: string }): boolean 
   return error.code === '23505' || /duplicate key/i.test(error.message ?? '');
 }
 
-/** Insert a new listing (requires auth; supplier_id = current user). */
+/** Insert a new listing (requires auth). Phase 1143: team JWT writes under owner supplier_id. */
 export async function insertListing(tour: TourPackage, supplierId: string): Promise<ListingSaveResult> {
   if (!supabase) return { ok: false, error: 'Supabase is not configured.' };
+  const ownerSupplierId = await resolveSupplierId(supplierId);
   const privateAddress = tour.listingExtras?.stay?.checkInAddress?.trim() || null;
   const row = tourPackageToRow(tour);
   const explicitId = isListingUuid(tour.id) ? tour.id : undefined;
   const { data, error } = await supabase
     .from('listings')
-    .insert({ ...row, supplier_id: supplierId, ...(explicitId ? { id: explicitId } : {}) })
+    .insert({ ...row, supplier_id: ownerSupplierId, ...(explicitId ? { id: explicitId } : {}) })
     .select()
     .single();
   if (error) {
