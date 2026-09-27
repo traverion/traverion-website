@@ -22,16 +22,19 @@ General **Contact** form (no separate subject field): subject is **`[Traverion �
 
 ## Email to operations (`info@traverion.com`)
 
-The app calls the Edge Function **`notify-contact-inquiry`** after each successful insert into `contact_inquiries`. Configure in Supabase (same project as other functions):
+The app inserts into **`contact_inquiries`**, then calls Edge Function **`notify-contact-inquiry`** with **`{ inquiryId }` only** (Phase 1051). The function loads the row with the service role and builds the ops email from DB truth — request body fields are not trusted for content. Idempotent per inquiry id; same submitter email is cooldown-throttled to one ops notify per 15 minutes.
+
+Configure in Supabase (same project as other functions):
 
 | Secret / env | Purpose |
 |--------------|---------|
 | `RESEND_API_KEY` | Required — same as supplier notification emails |
 | `CONTACT_INQUIRY_TO` | Optional — defaults to **`info@traverion.com`** |
 | `CONTACT_EMAIL_FROM` or `SUPPLIER_EMAIL_FROM` | From header (must be a verified domain in Resend) |
+| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Required — load inquiry row + write `transactional_email_log` |
 
 Deploy: `supabase functions deploy notify-contact-inquiry`  
-CLI: `[functions.notify-contact-inquiry]` has `verify_jwt = false` so the public site can invoke it after form submit (Resend key stays server-side).
+CLI: `[functions.notify-contact-inquiry]` has `verify_jwt = false` so the public site can invoke it after form submit (Resend key stays server-side). Forged content without a real row is rejected (`inquiryId` required + DB re-derive).
 
 The outgoing email uses the row’s **`subject`** as-is and sets **Reply-To** to the submitter’s address.
 

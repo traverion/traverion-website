@@ -104,6 +104,7 @@ export async function sendResendEmail(params: {
   subject: string;
   text: string;
   html: string;
+  replyTo?: string;
   attachments?: { filename: string; content: string }[];
 }): Promise<{ ok: true; id: string | null } | { ok: false; error: string; status: number }> {
   const body: Record<string, unknown> = {
@@ -113,6 +114,7 @@ export async function sendResendEmail(params: {
     text: params.text,
     html: params.html,
   };
+  if (params.replyTo) body.reply_to = params.replyTo;
   if (params.attachments?.length) body.attachments = params.attachments;
 
   const res = await fetch('https://api.resend.com/emails', {

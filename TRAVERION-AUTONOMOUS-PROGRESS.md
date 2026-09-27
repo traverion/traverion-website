@@ -4,7 +4,7 @@
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
 **Current SHA:** `893e1c9`  
-**Current phase:** 1050  
+**Current phase:** 1051  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -5469,6 +5469,14 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 
 **Certification:** CODE-INSPECTED / band report.
 
+### Phase 1051 — Contact notify bind + throttle
+
+**Problem:** `notify-contact-inquiry` trusted forged body fields with `verify_jwt=false`.
+
+**Fix:** require `inquiryId` → service-role load → email from DB only; idempotent per inquiry; 15m cooldown per submitter email (claim/record entity keys aligned); client invoke `{ inquiryId }` only; `replyTo` on shared Resend helper. Vite server bound to `127.0.0.1` for browser reachability. Deployed.
+
+**Certification:** CODE-INSPECTED / INTEGRATION (deploy) / BROWSER-TESTED (traveler home).
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.
@@ -5476,9 +5484,8 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 3. **P1 — FOUNDER:** see `docs/FOUNDER_REQUIRED.md` (auto-refund, take-rate; force-unpublish closed).
 4. **P2 — Browser-cert** admin listings moderation on admin host with staff demo.
 5. **P2 — notify-* booking-tied open-invoke residual** — content re-derived; nuisance spam possible with real bookingId (full dual-mode auth deferred).
-6. **P2 — contact_inquiries / notify-contact-inquiry** — public insert + open notify; throttle/bind optional harden.
-7. **P2 — LIVE Stripe** intentionally blocked.
-8. **P2 — Service-role JWT briefly tracked** in `scripts/cert-transactional-emails.cjs` (now untracked); rotate when practical.
+6. **P2 — LIVE Stripe** intentionally blocked.
+7. **P2 — Service-role JWT briefly tracked** in `scripts/cert-transactional-emails.cjs` (now untracked); rotate when practical.
 
 ## Do not
 
