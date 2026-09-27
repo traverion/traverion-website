@@ -4864,6 +4864,15 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 
 **Certification:** multi-option pricing/capacity model = **AUTOMATED-TESTED**. Multi-option UI publish/book = **PARTIAL** / not browser-certified.
 
+
+### Phase 917 — Partner listings ?edit= deep-link grace period
+
+**Problem:** Opening `/partner/listings?edit=<id>` could strip the query within 200ms when the listing row had not yet appeared in the loaded array, closing the editor before it mounted (blocked multi-option UI work in 916).
+
+**Fix:** Extend edit-not-found close grace from 200ms → **2500ms**; keep existing “found → open form” path.
+
+**Certification:** partner edit deep-link resilience = **CODE-INSPECTED**. Re-browser cert optional next.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.

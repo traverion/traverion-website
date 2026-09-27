@@ -405,6 +405,8 @@ export default function SupplierListings() {
     if (!listDefinitelyLoaded) return;
 
     const editId = edit;
+    // Grace period: first paint after load can race deep-link sync; do not strip ?edit=
+    // before listings have settled (was 200ms — too short on slow networks / cold cache).
     editNotFoundCloseTimerRef.current = setTimeout(() => {
       editNotFoundCloseTimerRef.current = null;
       const p = new URLSearchParams(window.location.search);
@@ -418,7 +420,7 @@ export default function SupplierListings() {
       setFormFocusSection(null);
       canonicalListingIdRef.current = null;
       window.history.replaceState({}, '', `${PARTNER_APP_BASE}/listings`);
-    }, 200);
+    }, 2500);
 
     return () => {
       if (editNotFoundCloseTimerRef.current) {
