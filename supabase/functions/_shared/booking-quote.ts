@@ -302,8 +302,9 @@ function parsePriceCategories(raw: unknown): PriceCat[] | undefined {
 
 function parseSchedule(raw: Record<string, unknown>, fallbackId: string): OptionSchedule {
   const minP = typeof raw.minPersons === 'number' && raw.minPersons >= 1 ? Math.floor(raw.minPersons) : 1;
+  // Phase 1226: do not invent maxPersons 12 when unset.
   const maxP =
-    typeof raw.maxPersons === 'number' && raw.maxPersons >= minP ? Math.floor(raw.maxPersons) : Math.max(minP, 12);
+    typeof raw.maxPersons === 'number' && raw.maxPersons >= minP ? Math.floor(raw.maxPersons) : minP;
   // Phase 1205: never invent slot cap from maxPersons (assert_checkout_inventory only reads maxSpotsPerSlot).
   const spots =
     typeof raw.maxSpotsPerSlot === 'number' && Number.isFinite(raw.maxSpotsPerSlot) && raw.maxSpotsPerSlot >= 1
@@ -420,8 +421,9 @@ function parseOptions(extras: unknown): Option[] {
     if (x == null || typeof x !== 'object') continue;
     const o = x as Record<string, unknown>;
     const minP = typeof o.minPersons === 'number' && o.minPersons >= 1 ? Math.floor(o.minPersons) : 1;
+    // Phase 1226: do not invent maxPersons 12 when unset.
     const maxP =
-      typeof o.maxPersons === 'number' && o.maxPersons >= minP ? Math.floor(o.maxPersons) : Math.max(minP, 12);
+      typeof o.maxPersons === 'number' && o.maxPersons >= minP ? Math.floor(o.maxPersons) : minP;
     const cats = parsePriceCategories(o.priceCategories);
     let priceUsd = typeof o.priceUsd === 'number' && !Number.isNaN(o.priceUsd) ? Math.max(0, o.priceUsd) : 0;
     if (o.pricingMode === 'age_dependent' && cats?.length) {
