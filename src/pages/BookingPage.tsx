@@ -429,11 +429,15 @@ export default function BookingPage({
     const slotSelected = Boolean(departureTime && appliedOption);
     if (soldOutDates.has(day) && !slotSelected) return 0;
     if (slotSelected && departureTime && appliedOption) {
+      // Phase 1170: schedule-resolved cap (parity with multi-departure path / 1162).
+      const baseOpt = selectedVariant?.listingOption ?? appliedOption;
+      const cap = optionCapacityForDepartureTime(baseOpt, day, departureTime);
+      if (!cap) return null;
       return departureSlotSpotsLeft({
         dayIso: day,
         startTimeHm: departureTime,
-        maxSpotsPerSlot: appliedOption.maxSpotsPerSlot,
-        maxPersonsFallback: appliedOption.maxPersons,
+        maxSpotsPerSlot: cap.maxSpotsPerSlot,
+        maxPersonsFallback: cap.maxPersons,
         paidBySlot: dayCapacitySnap.paidBySlot,
         paidByDay: dayCapacitySnap.paidByDay,
         dayCapOverride: dayCap,

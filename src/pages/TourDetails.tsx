@@ -446,11 +446,15 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     const slotSelected = Boolean(selectedOptionApplied && effectiveStart);
     if (soldOutDates.has(day) && !slotSelected) return 0;
     if (slotSelected && selectedOptionApplied && effectiveStart) {
+      // Phase 1170: schedule-resolved cap (parity with departure chips / 1162) — not option headline.
+      const baseOpt = selectedOption ?? selectedOptionApplied;
+      const cap = optionCapacityForDepartureTime(baseOpt, day, effectiveStart);
+      if (!cap) return null;
       return departureSlotSpotsLeft({
         dayIso: day,
         startTimeHm: effectiveStart,
-        maxSpotsPerSlot: selectedOptionApplied.maxSpotsPerSlot,
-        maxPersonsFallback: selectedOptionApplied.maxPersons,
+        maxSpotsPerSlot: cap.maxSpotsPerSlot,
+        maxPersonsFallback: cap.maxPersons,
         paidBySlot: dayCapacitySnap.paidBySlot,
         paidByDay: dayCapacitySnap.paidByDay,
         dayCapOverride: dayCap,
