@@ -91,14 +91,16 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
     }
     const ids = listingIdsForReviewsKey.split(',');
     let cancelled = false;
-    Promise.all([fetchDiscountsByListingIds(ids), getReviewAggregatesForListingIds(ids)]).then(
-      ([discounts, reviews]) => {
+    Promise.all([fetchDiscountsByListingIds(ids), getReviewAggregatesForListingIds(ids)])
+      .then(([discounts, reviews]) => {
         if (!cancelled) {
           setDiscountsByListing(discounts);
           setReviewAggregates(reviews);
         }
-      }
-    );
+      })
+      .catch(() => {
+        // Keep prior maps — discount/review load failure must not invent empty offers.
+      });
     return () => {
       cancelled = true;
     };

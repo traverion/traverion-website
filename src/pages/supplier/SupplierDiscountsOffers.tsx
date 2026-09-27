@@ -111,21 +111,27 @@ export default function SupplierDiscountsOffers() {
     try {
       const data = await fetchMyListings(uid);
       setListings(data);
-      const ids = data.map((l) => l.id);
-      const map = await fetchDiscountsByListingIds(ids);
-      const flat: OfferRow[] = [];
-      for (const listing of data) {
-        const discounts = map.get(listing.id) ?? [];
-        for (const discount of discounts) {
-          flat.push({ discount, listing });
+      try {
+        const ids = data.map((l) => l.id);
+        const map = await fetchDiscountsByListingIds(ids);
+        const flat: OfferRow[] = [];
+        for (const listing of data) {
+          const discounts = map.get(listing.id) ?? [];
+          for (const discount of discounts) {
+            flat.push({ discount, listing });
+          }
         }
+        flat.sort((a, b) => {
+          const af = a.discount.valid_from ?? '';
+          const bf = b.discount.valid_from ?? '';
+          return bf.localeCompare(af);
+        });
+        setRows(flat);
+        setError(null);
+      } catch (offerErr) {
+        // Keep prior offer rows — failure must not look like zero offers.
+        setError(userFacingError(offerErr, USER_ERROR.offers));
       }
-      flat.sort((a, b) => {
-        const af = a.discount.valid_from ?? '';
-        const bf = b.discount.valid_from ?? '';
-        return bf.localeCompare(af);
-      });
-      setRows(flat);
     } catch (e) {
       setError(userFacingError(e, USER_ERROR.offers));
       setListings([]);

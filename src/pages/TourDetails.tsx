@@ -635,7 +635,17 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
   useEffect(() => {
     if (!tour?.id || !isSupabaseListingId(tour.id)) return;
-    fetchDiscountsByListingIds([tour.id]).then(setDiscountsByListing);
+    let cancelled = false;
+    fetchDiscountsByListingIds([tour.id])
+      .then((map) => {
+        if (!cancelled) setDiscountsByListing(map);
+      })
+      .catch(() => {
+        // Keep prior discounts — failure must not look like zero offers on the PDP.
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [tour?.id]);
 
   useEffect(() => {

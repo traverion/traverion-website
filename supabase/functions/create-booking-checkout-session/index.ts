@@ -281,10 +281,14 @@ serve(async (req) => {
     if (listingRow.title?.trim()) listingTitle = listingRow.title.trim();
     await admin.rpc('expire_stale_checkout_holds', { p_listing_id: listingId });
 
-    const { data: discountRows } = await admin
+    const { data: discountRows, error: discountError } = await admin
       .from('listing_discounts')
       .select('type, value, valid_from, valid_until, booking_option_id')
       .eq('listing_id', listingId);
+    // Fail closed: never quote full price because discount rows failed to load (Phase 1088).
+    if (discountError) {
+      return json({ success: false, error: 'Could not load offers for this listing. Try again.' }, 500);
+    }
 
     const listing: ListingQuoteRow = {
       status: listingRow.status ?? null,

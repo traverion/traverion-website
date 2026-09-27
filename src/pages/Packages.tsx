@@ -300,13 +300,15 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     }
     const ids = supabaseListingIdsKey.split(',');
     let cancelled = false;
-    Promise.all([getReviewAggregatesForListingIds(ids), fetchDiscountsByListingIds(ids)]).then(
-      ([reviews, discounts]) => {
+    Promise.all([getReviewAggregatesForListingIds(ids), fetchDiscountsByListingIds(ids)])
+      .then(([reviews, discounts]) => {
         if (cancelled) return;
         setReviewAggregates(reviews);
         setDiscountsByListing(discounts);
-      }
-    );
+      })
+      .catch(() => {
+        // Keep prior maps — discount/review load failure must not invent empty offers.
+      });
     return () => {
       cancelled = true;
     };

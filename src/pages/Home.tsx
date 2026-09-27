@@ -152,13 +152,15 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
     }
     const ids = displayedIdsKey.split(',');
     let cancelled = false;
-    Promise.all([fetchDiscountsByListingIds(ids), getReviewAggregatesForListingIds(ids)]).then(
-      ([discounts, reviews]) => {
+    Promise.all([fetchDiscountsByListingIds(ids), getReviewAggregatesForListingIds(ids)])
+      .then(([discounts, reviews]) => {
         if (cancelled) return;
         setDiscountsByListing(discounts);
         setReviewAggregates(reviews);
-      }
-    );
+      })
+      .catch(() => {
+        // Keep prior maps — discount/review load failure must not invent empty offers.
+      });
     return () => {
       cancelled = true;
     };

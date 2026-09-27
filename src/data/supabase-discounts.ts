@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase';
 import { localYmd } from '../lib/local-ymd';
 import { formatMoney } from '../lib/money';
 import { partnerOfferMayBePersistedForListing } from '../lib/partner-offers-honesty';
+import { queryRowsOrThrow } from '../lib/query-rows-or-throw';
 
 export type ListingDiscount = {
   id: string;
@@ -48,8 +49,8 @@ export async function fetchDiscountsByListingId(listingId: string): Promise<List
     .select('*')
     .eq('listing_id', listingId)
     .order('created_at', { ascending: false });
-  if (error) return [];
-  return (data ?? []).map((r) => rowToDiscount(r as Record<string, unknown>));
+  // Failure must not look like "no offers" (Phase 1088).
+  return queryRowsOrThrow(data, error).map((r) => rowToDiscount(r as Record<string, unknown>));
 }
 
 async function listingAllowsPartnerOffer(listingId: string): Promise<boolean> {
@@ -175,8 +176,8 @@ export async function fetchDiscountsByListingIds(listingIds: string[]): Promise<
     .from('listing_discounts')
     .select('*')
     .in('listing_id', listingIds);
-  if (error) return new Map();
-  const list = (data ?? []).map((r) => rowToDiscount(r as Record<string, unknown>));
+  // Failure must not look like "no offers" (Phase 1088).
+  const list = queryRowsOrThrow(data, error).map((r) => rowToDiscount(r as Record<string, unknown>));
   const map = new Map<string, ListingDiscount[]>();
   for (const d of list) {
     const arr = map.get(d.listing_id) ?? [];
