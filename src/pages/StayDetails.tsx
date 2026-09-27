@@ -478,6 +478,17 @@ export default function StayDetails({ stayId, onBack }: Props) {
       document.getElementById('stay-guest-name')?.focus();
       return;
     }
+    // Phase 1142: tours require sign-in before Stripe; stays must match (edge rejects anon JWT).
+    if (isSupabaseConfigured() && !user) {
+      requestAuth({
+        onSuccess: () => {
+          window.setTimeout(() => {
+            void startStayCheckout();
+          }, 0);
+        },
+      });
+      return;
+    }
     if (checkoutLockRef.current || paying) return;
     checkoutLockRef.current = true;
     setPaying(true);
