@@ -92,6 +92,7 @@ import {
 import {
   isDepartureTimeStillBookable,
   normalizeBookingCutoffHours,
+  resolveDepartureTimezone,
 } from '../lib/tour-departure-cutoff';
 import { formatTourAvailabilityHeading, optionsOnDate } from '../lib/tour-available-options';
 import { tourSlotMaxSpotsFromOption } from '../lib/tour-slot-capacity';
@@ -270,6 +271,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const bookingCutoffHours = normalizeBookingCutoffHours(
     tour?.listingExtras?.bookingCutoffHoursBeforeStart
   );
+  const departureTimezone = resolveDepartureTimezone(tour?.listingExtras?.departureTimezone);
   const departureTimes = useMemo(() => {
     if (!selectedOption || !bookingDate.trim()) return [] as string[];
     const times = departureTimesOnDate(selectedOption, bookingDate.trim());
@@ -278,9 +280,10 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         bookingDate: bookingDate.trim(),
         startTimeHm: time,
         cutoffHoursBeforeStart: bookingCutoffHours,
+        timeZone: departureTimezone,
       })
     );
-  }, [selectedOption, bookingDate, bookingCutoffHours]);
+  }, [selectedOption, bookingDate, bookingCutoffHours, departureTimezone]);
 
   useEffect(() => {
     if (departureTimes.length === 1) {

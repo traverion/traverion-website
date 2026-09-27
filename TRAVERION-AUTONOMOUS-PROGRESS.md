@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `b7869ee`  
-**Current phase:** 881  
+**Current SHA:** `aba9848`  
+**Current phase:** 882  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4613,6 +4613,14 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 - `UPDATE status=confirmed` → no visible row; remote still `cancelled`
 
 **Certification:** cross-account traveler isolation for paid/cancelled booking = **ADVERSARIAL-TESTED**.
+
+### Phase 882 — PDP departure filter uses listing timezone
+
+**Problem:** TourDetails filtered bookable departure times with Helsinki default only — ignored `listingExtras.departureTimezone` even after quote/cancel gained it.
+
+**Fix:** Resolve listing timezone and pass `timeZone` into `isDepartureTimeStillBookable` on the PDP calendar.
+
+**Tests:** cutoff suite 11/11; tsc clean.
 
 ## Known remaining risks (ranked)
 

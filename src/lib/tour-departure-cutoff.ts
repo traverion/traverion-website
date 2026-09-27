@@ -125,6 +125,7 @@ export function isDepartureTimeStillBookable(input: {
   startTimeHm: string;
   cutoffHoursBeforeStart?: number;
   nowMs?: number;
+  timeZone?: string;
 }): boolean {
   return assertDepartureStillBookable(input).ok;
 }
