@@ -70,7 +70,7 @@
 | RLS / security | STRONG / ADVERSARIAL | traveler deny #41 (880–881); supplier listing isolation 091/910 | Keep expanding adversarial suite |
 | Privacy | PARTIAL→STRONG | public RPCs no PII; ops surfaces justified (922) | Keep minimizing |
 | Legal / consent | STRONG / BROWSER | /privacy /terms (894); checkout gate 901 + browser 905 | Server-side acceptance log later |
-| Admin / support | PARTIAL→STRONG | staff panels + force-unpublish (107/1001) | Browser-cert admin host later |
+| Admin / support | PARTIAL→STRONG | staff panels + force-unpublish (107/1001–1003) | Browser-cert admin host later |
 | Moderation | NOT REQUIRED YET | — | Architecture note only |
 | Cron / jobs | PARTIAL→STRONG | hold expire + GH Actions reminder cron (907) | Live secret fire not claimed |
 | Observability | PARTIAL | DB audit + edge error logs (914) | APM optional later |
@@ -93,6 +93,14 @@
 | 8 | P2 | Stay cancel TZ + broader zone catalog | Optional; Helsinki default covers FI |
 | 9 | P1 | Commission snapshot model | FOUNDER when LIVE economics decided |
 | 10 | P1 | Rentals / packages not live | Keep UI honest |
+| 11 | P1 | Staff force-unpublish | **CLOSED** 107/1001–1003 |
+| 12 | P2 | Sitemap stale after publish | **CLOSED** build-time regen 1002 |
+
+---
+
+## Post–Phase 1000 continuum (1001+)
+
+Remote migrations through **107**. FOUNDER open items: `docs/FOUNDER_REQUIRED.md`.
 
 ---
 

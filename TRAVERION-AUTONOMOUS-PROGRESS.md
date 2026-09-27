@@ -4,7 +4,7 @@
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
 **Current SHA:** `7c32d9c`  
-**Current phase:** 1009  
+**Current phase:** 1010  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -5168,6 +5168,12 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 **Fix:** Sitemap bullet documents `prebuild` / `sitemap:generate` published-only behavior; customer journey item requires Stripe TEST → Trips (no success-page paid invention).
 
 **Certification:** CODE-INSPECTED / docs truth.
+
+### Phase 1010 — Matrix refresh for 1001–1009 continuum
+
+**Fix:** Completeness matrix marks staff force-unpublish + build-time sitemap closed; admin row cites 107/1001–1003; post-1000 continuum note + FOUNDER doc pointer.
+
+**Certification:** CODE-INSPECTED.
 
 ## Known remaining risks (ranked)
 
