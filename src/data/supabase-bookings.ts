@@ -13,6 +13,7 @@ import {
   TRAVELER_SELF_CANCEL_EMAIL_DIFF_NO_REFUND,
   TRAVELER_CANCEL_UNPAID_CHECKOUT_EMAIL_DIFF,
 } from '../lib/booking-confirmation-copy';
+import { isPurchaseSnapshot } from '../lib/purchase-snapshot';
 
 /** Best-effort: close open Stripe Checkout after unpaid cancel (Phase 134 still refunds late captures). */
 function expireUnpaidCancelledCheckout(bookingId: string): void {
@@ -509,7 +510,9 @@ export async function updateBookingSchedule(
 
   const { data: prior, error: priorErr } = await supabase
     .from('bookings')
-    .select('start_time, pickup_time, guest_email, guest_name, booking_date, listing_id, guests, booking_number, status, payment_status')
+    .select(
+      'start_time, pickup_time, guest_email, guest_name, booking_date, listing_id, guests, booking_number, status, payment_status, purchase_snapshot'
+    )
     .eq('id', bookingId)
     .maybeSingle();
   if (priorErr || !prior) return { ok: false, error: priorErr?.message || 'This booking is not available.' };
@@ -542,10 +545,16 @@ export async function updateBookingSchedule(
 
   if (!startChanged && !pickupChanged) return { ok: true };
 
+  const purchasedStartHm = isPurchaseSnapshot(prior.purchase_snapshot)
+    ? (prior.purchase_snapshot.startTimeHm ?? '').trim()
+    : '';
   const fieldDiffs: { label: string; before: string; after: string }[] = [];
   if (startChanged) {
+    // Phase 1102: bookings.start_time is day-of ops — Trips keep purchase_snapshot.startTimeHm.
     fieldDiffs.push({
-      label: 'Experience start time',
+      label: purchasedStartHm
+        ? `Day-of meeting time (purchased departure stays ${purchasedStartHm})`
+        : 'Day-of meeting time',
       before: timeForEmail(prior.start_time),
       after: timeForEmail(nextStartPg),
     });
