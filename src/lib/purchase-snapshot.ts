@@ -24,6 +24,12 @@ export type PurchaseSnapshot = {
   scheduleId?: string | null;
   currency?: string | null;
   totalAmount?: number | null;
+  /** Stay: check-in date YYYY-MM-DD. */
+  checkIn?: string | null;
+  /** Stay: check-out date YYYY-MM-DD. */
+  checkOut?: string | null;
+  nights?: number | null;
+  propertyType?: string | null;
 };
 
 export function isPurchaseSnapshot(value: unknown): value is PurchaseSnapshot {
@@ -45,6 +51,10 @@ export function buildPurchaseSnapshot(input: {
   scheduleId?: string | null;
   currency?: string | null;
   totalAmount?: number | null;
+  checkIn?: string | null;
+  checkOut?: string | null;
+  nights?: number | null;
+  propertyType?: string | null;
   capturedAt?: string;
 }): PurchaseSnapshot {
   const title = input.listingTitle.trim() || 'Experience';
@@ -63,6 +73,13 @@ export function buildPurchaseSnapshot(input: {
     typeof input.totalAmount === 'number' && Number.isFinite(input.totalAmount) && input.totalAmount >= 0
       ? Math.round(input.totalAmount * 100) / 100
       : null;
+  const checkIn = (input.checkIn ?? '').trim() || null;
+  const checkOut = (input.checkOut ?? '').trim() || null;
+  const nights =
+    typeof input.nights === 'number' && Number.isFinite(input.nights) && input.nights >= 1
+      ? Math.floor(input.nights)
+      : null;
+  const propertyType = (input.propertyType ?? '').trim() || null;
   const snap: PurchaseSnapshot = {
     listingTitle: title,
     optionLabel: option,
@@ -78,6 +95,10 @@ export function buildPurchaseSnapshot(input: {
   if (scheduleId) snap.scheduleId = scheduleId;
   if (currency) snap.currency = currency;
   if (total != null) snap.totalAmount = total;
+  if (checkIn) snap.checkIn = checkIn;
+  if (checkOut) snap.checkOut = checkOut;
+  if (nights != null) snap.nights = nights;
+  if (propertyType) snap.propertyType = propertyType;
   return snap;
 }
 
@@ -163,6 +184,33 @@ export function displayFulfillmentFromPurchase(snapshot: unknown): PurchaseFulfi
   if (snapshot.fulfillment === 'pickup' || snapshot.fulfillment === 'meeting_point') {
     return snapshot.fulfillment;
   }
+  return null;
+}
+
+export function displayStayCheckInFromPurchase(
+  snapshot: unknown,
+  liveCheckIn: string | null | undefined
+): string {
+  if (isPurchaseSnapshot(snapshot) && snapshot.checkIn?.trim()) return snapshot.checkIn.trim();
+  return (liveCheckIn ?? '').trim();
+}
+
+export function displayStayCheckOutFromPurchase(
+  snapshot: unknown,
+  liveCheckOut: string | null | undefined
+): string {
+  if (isPurchaseSnapshot(snapshot) && snapshot.checkOut?.trim()) return snapshot.checkOut.trim();
+  return (liveCheckOut ?? '').trim();
+}
+
+export function displayStayNightsFromPurchase(
+  snapshot: unknown,
+  liveNights: number | null | undefined
+): number | null {
+  if (isPurchaseSnapshot(snapshot) && typeof snapshot.nights === 'number' && snapshot.nights >= 1) {
+    return snapshot.nights;
+  }
+  if (typeof liveNights === 'number' && liveNights >= 1) return Math.floor(liveNights);
   return null;
 }
 

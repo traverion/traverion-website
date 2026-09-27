@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `0d446a3`  
-**Current phase:** 859  
+**Current SHA:** `3419bdd`  
+**Current phase:** 860  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -270,6 +270,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 857 | Thicker purchase snapshot | `68ac29b` |
 | 858 | Traveler itinerary from typical flow | `1ce2d88` |
 | 859 | Stay audit + check-in/out publish + difficulty honesty | `0d446a3` |
+| 860 | Stay purchase snapshot freeze | `3419bdd` |
 
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
@@ -4370,6 +4371,14 @@ Deep audit of listing → option → schedule ownership vs publish/traveler/snap
 **Stay audit:** `TRAVERION-PHASE-859.md` — single-unit stay coherent; address/geo and stay snapshot depth remain gaps; rentals stay honestly unavailable.
 
 **Fix:** Migration `102` — stay publish requires HH:MM check-in/out (closes REST bypass past client gate). Tour PDP Good to know shows Easy/Moderate + accessibility when set (853 P1 #5).
+
+### Phase 860 — Stay purchase snapshot freeze
+
+**Gap (859):** Stay checkout shared tour-thin snapshot; nights/check-out/property type not frozen.
+
+**Fix:** Snapshot fields `checkIn`, `checkOut`, `nights`, `propertyType`. Deno stay quote returns `nights`. Checkout `resolveStayFieldsForSnapshot`.
+
+**Cert:** vitest purchase-snapshot + deno quote.
 
 ## Known remaining risks (ranked)
 

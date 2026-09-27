@@ -86,6 +86,8 @@ export type QuoteOk = {
   optionLabel: string;
   guests?: number;
   guestBreakdown?: { categoryId: string; label: string; kind: string; quantity: number; unitPrice: number }[];
+  /** Stay quotes only. */
+  nights?: number;
 };
 
 export type QuoteErr = { ok: false; error: string };
@@ -229,6 +231,7 @@ function quoteStayListing(input: {
     totalAmount: money(nights * nightly + cleaning),
     optionId: null,
     optionLabel: `${nights} night${nights === 1 ? '' : 's'}`,
+    nights,
   };
 }
 

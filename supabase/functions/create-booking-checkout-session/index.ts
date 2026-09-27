@@ -11,6 +11,7 @@ import {
   resolveMeetingPointForSnapshot,
   resolveOptionFieldsForSnapshot,
   resolvePickupInstructionsForSnapshot,
+  resolveStayFieldsForSnapshot,
 } from '../_shared/purchase-snapshot.ts';
 import { isStripeTestSecretKey, stripeLiveSecretBlockedMessage } from '../_shared/stripe-test-only.ts';
 
@@ -316,6 +317,16 @@ serve(async (req) => {
       startTimeHm: startTime || null,
     });
 
+    const stayFields =
+      extrasFamily === 'stay'
+        ? resolveStayFieldsForSnapshot({
+            listingExtras: listingRow.listing_extras,
+            checkIn: bookingDate,
+            checkOut: checkoutDate || null,
+            nights: typeof quote.nights === 'number' ? quote.nights : null,
+          })
+        : null;
+
     const purchaseSnapshot = buildPurchaseSnapshot({
       listingTitle,
       optionLabel: quote.optionLabel ?? null,
@@ -340,6 +351,10 @@ serve(async (req) => {
       scheduleId: optionFields.scheduleId,
       currency: quote.currency,
       totalAmount: quote.totalAmount,
+      checkIn: stayFields?.checkIn ?? null,
+      checkOut: stayFields?.checkOut ?? null,
+      nights: stayFields?.nights ?? null,
+      propertyType: stayFields?.propertyType ?? null,
     });
 
     if (extrasFamily === 'stay' && checkoutDate) {

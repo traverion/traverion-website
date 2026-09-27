@@ -61,6 +61,21 @@ describe('purchase-snapshot', () => {
     expect(displayFulfillmentFromPurchase(snap)).toBe('pickup');
   });
 
+  it('freezes stay check-in/out, nights, and property type', () => {
+    const snap = buildPurchaseSnapshot({
+      listingTitle: 'Lapland cabin',
+      checkIn: '2026-12-01',
+      checkOut: '2026-12-04',
+      nights: 3,
+      propertyType: 'Cabin',
+      capturedAt: '2026-09-27T00:00:00.000Z',
+    });
+    expect(snap.checkIn).toBe('2026-12-01');
+    expect(snap.checkOut).toBe('2026-12-04');
+    expect(snap.nights).toBe(3);
+    expect(snap.propertyType).toBe('Cabin');
+  });
+
   it('prefers snapshot over live listing rewrites', () => {
     const snap = buildPurchaseSnapshot({
       listingTitle: 'Purchased title',
