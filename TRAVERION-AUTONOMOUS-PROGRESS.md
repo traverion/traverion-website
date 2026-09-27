@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `ea3f0ad`  
-**Current phase:** 862  
+**Current SHA:** `bc57ddb`  
+**Current phase:** 863  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -273,6 +273,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 860 | Stay purchase snapshot freeze | `3419bdd` |
 | 861 | Verified publish gate + create wizard browser recon | `aa790e7` |
 | 862 | Push migrations 100–102 to linked remote | `ea3f0ad` |
+| 863 | Fix listing editor backdrop click interception | `bc57ddb` |
 
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
@@ -4399,6 +4400,12 @@ Deep audit of listing → option → schedule ownership vs publish/traveler/snap
 **Action:** `supabase db push --linked` applied 100–102. Local=Remote through 102.
 
 Also removed unused businessComplete local in Listings after 861 gate fix.
+
+### Phase 863 — Fix listing editor backdrop swallowing clicks
+
+**Gap (861 browser):** Tour create wizard Basics radios/Continue were click-intercepted by a full-viewport backdrop (`z-[80]` sibling + `pointer-events-none` shell).
+
+**Fix:** Backdrop `z-0`; editor shell `z-10` without pointer-events-none/auto dance so form controls receive clicks.
 
 ## Known remaining risks (ranked)
 

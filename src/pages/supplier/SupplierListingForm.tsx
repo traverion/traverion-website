@@ -2278,11 +2278,11 @@ export default function SupplierListingForm({
     >
       <button
         type="button"
-        className="absolute inset-0 z-[80] bg-slate-900/35 backdrop-blur-md motion-safe:animate-fade-in supports-[backdrop-filter]:bg-slate-900/25 cursor-pointer border-0 p-0"
+        className="absolute inset-0 z-0 bg-slate-900/35 backdrop-blur-md motion-safe:animate-fade-in supports-[backdrop-filter]:bg-slate-900/25 cursor-pointer border-0 p-0"
         aria-label={form.inventoryFamily === 'stay' || createFamily === 'stay' ? 'Close stay editor' : 'Close tour editor'}
         onClick={() => void handleCloseIntent()}
       />
-      <div className="relative z-[81] flex h-full min-h-0 w-full flex-1 flex-col justify-stretch px-0 py-0 pointer-events-none">
+      <div className="relative z-10 flex h-full min-h-0 w-full flex-1 flex-col justify-stretch px-0 py-0">
         <form
           onSubmit={handleSubmit}
           onKeyDown={(e) => {
@@ -2293,7 +2293,7 @@ export default function SupplierListingForm({
             e.preventDefault();
           }}
           onClick={(e) => e.stopPropagation()}
-          className="pointer-events-auto relative motion-safe:animate-fade-in motion-reduce:animate-none flex min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden border-0 bg-paper shadow-none h-full rounded-none"
+          className="relative motion-safe:animate-fade-in motion-reduce:animate-none flex min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden border-0 bg-paper shadow-none h-full rounded-none"
         >
         <ListingCreationWorkspace
           title={creationTitle}
