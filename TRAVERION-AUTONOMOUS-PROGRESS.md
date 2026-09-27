@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `94aa6e5`  
-**Current phase:** 889  
+**Current SHA:** `b43d211`  
+**Current phase:** 890  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4671,6 +4671,12 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 **Audit:** `record_paid_booking_earnings` posts **gross booking amount** as `booking_earnings`. Income FEES show €0. No listing commission column; no snapshotted platform take-rate on bookings. Ledger kinds in use: booking_earnings, refund, cancellation_penalty (ops).
 
 **Decision (repo truth, not FOUNDER fork):** Keep honest — **do not invent commission** until a single take-rate model is designed for LIVE. Document as NOT REQUIRED YET / blocker before LIVE payouts.
+
+### Phase 890 — Snapshot totalAmount survives listing price edit
+
+**Proof:** Supplier PATCH cert listing `price_starting_from` 119 → 999. Booking #41 `purchase_snapshot.totalAmount` remains **119**; title snapshot unchanged. Listing price restored to 119 after cert.
+
+**Certification:** money snapshot integrity = **INTEGRATION-TESTED** (extends 872 title proof).
 
 ## Known remaining risks (ranked)
 

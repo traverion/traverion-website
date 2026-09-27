@@ -45,7 +45,7 @@
 | Listing detail | PARTIAL | published listing + options | Snapshot fields at book time already stronger |
 | Quote | TEST-ONLY / STRONG | Edge + client mirror; flat_group ≤0 after discount rejected (874) | Keep server-authoritative |
 | Checkout | TEST-ONLY / STRONG | Stripe TEST + holds; allowlisted returnOrigin | Deployed return-origin fix (865) |
-| Booking snapshots | STRONG / BROWSER | `purchase_snapshot` + freezes; rename #41 | Policy/price edit cases still deepen |
+| Booking snapshots | STRONG / BROWSER | title + totalAmount survive edits (#41) | Cancellation policy already snapshotted |
 | Booking state machine | PARTIAL→STRONG | pending/confirmed/cancelled + payment_status; mig 100 NOT NULL | Remote-apply 100 + re-run SQL guard |
 | Inventory / concurrency | STRONG / BROWSER | Tour seats #41 + stay nights #40 restore | Slot-scoped lock; parallel race re-cert |
 | Payments | TEST-ONLY / STRONG | Stripe webhook → payment_status; #39 BROWSER | Never invent paid from redirect |
