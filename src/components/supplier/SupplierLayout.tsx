@@ -38,7 +38,11 @@ import { formatSupplierBusinessAddressFromParts } from '../../lib/supplierAddres
 import { fetchMyListings } from '../../data/supabase-listings';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
 import { isSupplierBusinessProfileComplete, isSupplierPayoutConfigured } from '../../lib/supplierOnboarding';
-import { supplierOwnsAnyListing, userHasSupplierProfile } from '../../lib/supplierPortalAccess';
+import {
+  supplierOwnsAnyListing,
+  userCanAccessPartnerPortal,
+  userHasSupplierProfile,
+} from '../../lib/supplierPortalAccess';
 import { isPartnerMarketingPathForCurrentHost } from '../../lib/partnerHost';
 import {
   PARTNER_APP_BASE,
@@ -384,7 +388,8 @@ export default function SupplierLayout() {
       let falseStreak = 0;
       const maxPasses = 14;
       for (let attempt = 0; attempt < maxPasses && !stale(); attempt++) {
-        const ok = await userHasSupplierProfile(client, uid);
+        // Phase 1201: allow team JWTs without inventing a supplier_profiles row.
+        const ok = await userCanAccessPartnerPortal(client, uid);
         if (stale()) return;
         if (ok === true) {
           setPartnerProfileGate({ kind: 'resolved', forUserId: uid, allowed: true });
@@ -395,7 +400,7 @@ export default function SupplierLayout() {
           // Avoid flashing traveler on one transient empty read (Strict Mode, cold JWT, etc.)
           if (falseStreak >= 2 && attempt >= 1) {
             await tryRepairPartnerProfileRow();
-            const afterRepair = await userHasSupplierProfile(client, uid);
+            const afterRepair = await userCanAccessPartnerPortal(client, uid);
             if (stale()) return;
             if (afterRepair === true) {
               setPartnerProfileGate({ kind: 'resolved', forUserId: uid, allowed: true });
@@ -411,7 +416,7 @@ export default function SupplierLayout() {
       }
       if (stale()) return;
       await tryRepairPartnerProfileRow();
-      const last = await userHasSupplierProfile(client, uid);
+      const last = await userCanAccessPartnerPortal(client, uid);
       if (stale()) return;
       if (last === true) setPartnerProfileGate({ kind: 'resolved', forUserId: uid, allowed: true });
       else if (last === false) setPartnerProfileGate({ kind: 'resolved', forUserId: uid, allowed: false });
