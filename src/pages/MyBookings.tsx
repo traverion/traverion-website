@@ -50,6 +50,7 @@ import {
   displayDurationFromPurchase,
   displayCancellationPolicyFromPurchase,
   displayCheckInAddressFromPurchase,
+  displayFulfillmentFromPurchase,
 } from '../lib/purchase-snapshot';
 import { decrementAvailabilityBooked } from '../data/supabase-availability';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
@@ -692,6 +693,9 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 ops?.pickup_instructions
               );
               const tripDuration = displayDurationFromPurchase(b.purchase_snapshot, null);
+              const tripFulfillment = displayFulfillmentFromPurchase(b.purchase_snapshot);
+              const tripPlaceHeading =
+                tripFulfillment === 'pickup' ? 'Pickup area' : 'Meeting point';
               const tripCancelPolicy = displayCancellationPolicyFromPurchase(b.purchase_snapshot, null);
               const liveTrip = travelerTripIsLive(b);
               const pickupMissing =
@@ -902,7 +906,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     {!isStay && tripMeeting ? (
                       <div className="sm:col-span-2">
                         <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
-                          Meeting point
+                          {tripPlaceHeading}
                         </dt>
                         <dd className="mt-0.5 text-sm text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{tripMeeting}</dd>
                       </div>

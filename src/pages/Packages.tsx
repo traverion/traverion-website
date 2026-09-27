@@ -13,7 +13,7 @@ import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
 import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
 import { isSupabaseListingId } from '../lib/discount-display';
 import { setListingsJsonLd } from '../lib/seo';
-import { listingRunsOnDate } from '../lib/booking-quote';
+import { listingHasBookableDepartureOnDate } from '../lib/booking-quote';
 import { getPartySizeBounds } from '../lib/booking-flow';
 import { tourDateLacksCapacityForParty } from '../lib/tour-calendar';
 import { listingTourCapacityFromOptions, capacitySpotsFromBookingOptions } from '../lib/availability-ops';
@@ -460,7 +460,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
         language: languageFilter,
         ratingScore: ratingScoreForFilter(tour),
         partyMax: getPartySizeBounds(tour).max,
-        runsOnDate: !filterDate || listingRunsOnDate(tour, filterDate),
+        runsOnDate: !filterDate || listingHasBookableDepartureOnDate(tour, filterDate),
       });
 
     const exceptCapacity = allListings.filter(matchExceptCapacity);

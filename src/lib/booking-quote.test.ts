@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clientAmountConflictsWithQuote, formatOptionWeekdays, listingRunsOnDate, quoteBooking, quoteStayNights, stayQuotePriceLines, tourQuotePriceLines, weekdayIndexMondayFirst } from './booking-quote';
+import { clientAmountConflictsWithQuote, formatOptionWeekdays, listingHasBookableDepartureOnDate, listingRunsOnDate, quoteBooking, quoteStayNights, stayQuotePriceLines, tourQuotePriceLines, weekdayIndexMondayFirst } from './booking-quote';
 import type { TourPackage } from '../types/tour';
 import type { ListingBookingOption } from '../types/listingExtras';
 import { getListingPublishBlockers, partnerListingDraftPublishSubtitle } from './listingPublishGate';
@@ -379,6 +379,67 @@ describe('listingRunsOnDate', () => {
   });
 });
 
+describe('listingHasBookableDepartureOnDate (Phase 1057 browse cutoff)', () => {
+  it('hides a same-day listing whose only departure is already past cutoff', () => {
+    // Friday 2026-09-11 — weekdays Mon–Fri open. 20:00 Helsinki with 2h cutoff
+    // is closed when "now" is 19:00 Helsinki (16:00 UTC in EEST = UTC+3).
+    const nowMs = Date.UTC(2026, 8, 11, 16, 0, 0);
+    expect(
+      listingHasBookableDepartureOnDate(
+        tour({
+          listingExtras: {
+            bookingCutoffHoursBeforeStart: 2,
+            departureTimezone: 'Europe/Helsinki',
+            bookingOptions: [
+              option({
+                id: 'eve',
+                name: 'Evening',
+                priceUsd: 149,
+                startTime: '20:00',
+                weekdays: [true, true, true, true, true, false, false],
+              }),
+            ],
+          },
+        }),
+        '2026-09-11',
+        nowMs
+      )
+    ).toBe(false);
+  });
+
+  it('keeps a listing when a later departure is still bookable', () => {
+    const nowMs = Date.UTC(2026, 8, 11, 16, 0, 0); // 19:00 Helsinki
+    expect(
+      listingHasBookableDepartureOnDate(
+        tour({
+          listingExtras: {
+            bookingCutoffHoursBeforeStart: 2,
+            departureTimezone: 'Europe/Helsinki',
+            bookingOptions: [
+              option({
+                id: 'eve',
+                name: 'Evening',
+                priceUsd: 149,
+                startTime: '20:00',
+                weekdays: [true, true, true, true, true, false, false],
+              }),
+              option({
+                id: 'late',
+                name: 'Late',
+                priceUsd: 149,
+                startTime: '22:00',
+                weekdays: [true, true, true, true, true, false, false],
+              }),
+            ],
+          },
+        }),
+        '2026-09-11',
+        nowMs
+      )
+    ).toBe(true);
+  });
+});
+
 describe('getListingPublishBlockers', () => {
   it('blocks an empty draft and accepts a complete listing', () => {
     const empty = getListingPublishBlockers(
@@ -477,6 +538,7 @@ describe('getListingPublishBlockers', () => {
             maxGuests: 4,
             checkInTime: '16:00',
             checkOutTime: '11:00',
+            checkInAddress: 'Kauppakatu 1, Rovaniemi',
           },
           galleryImageUrls: [
             'https://example.com/2.jpg',

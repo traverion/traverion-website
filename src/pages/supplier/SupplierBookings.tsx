@@ -71,7 +71,7 @@ import { formatBookingDateDisplay } from '../../lib/booking-flow';
 import { partnerBookingHasPickupAttention } from '../../lib/pickup-completeness';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 import { comparePartnerBookingsOperational } from '../../lib/partner-bookings-order';
-import { displayListingTitleFromPurchase, displayMeetingPointFromPurchase, displayOptionLabelFromPurchase, displayPickupInstructionsFromPurchase, partnerOpsDepartureDisplay } from '../../lib/purchase-snapshot';
+import { displayListingTitleFromPurchase, displayMeetingPointFromPurchase, displayOptionLabelFromPurchase, displayPickupInstructionsFromPurchase, displayFulfillmentFromPurchase, displayDurationFromPurchase, partnerOpsDepartureDisplay } from '../../lib/purchase-snapshot';
 
 const BOOKINGS_PAGE_SIZE = 10;
 
@@ -1125,6 +1125,12 @@ export default function SupplierBookings({
               booking.purchase_snapshot,
               meta?.pickupInstructions
             );
+            const fulfillment = displayFulfillmentFromPurchase(booking.purchase_snapshot);
+            const purchasedDuration = displayDurationFromPurchase(
+              booking.purchase_snapshot,
+              meta?.duration ?? null
+            );
+            const placePrefix = fulfillment === 'pickup' ? 'Pickup' : 'Meet';
             const stayOut =
               booking.check_out && /^\d{4}-\d{2}-\d{2}$/.test(booking.check_out)
                 ? booking.check_out
@@ -1187,7 +1193,7 @@ export default function SupplierBookings({
                       ) : null}
                       {meetingPoint && !isStay ? (
                         <p className="mt-0.5 break-words text-xs text-ink-muted [overflow-wrap:anywhere] line-clamp-2">
-                          Meet · {meetingPoint}
+                          {placePrefix} · {meetingPoint}
                         </p>
                       ) : null}
                       {meta ? (
@@ -1196,10 +1202,10 @@ export default function SupplierBookings({
                             <MapPin className="h-3 w-3 shrink-0" aria-hidden />
                             {meta.location}
                           </span>
-                          {!isStay ? (
+                          {!isStay && purchasedDuration ? (
                             <span className="inline-flex items-center gap-1">
                               <Clock className="h-3 w-3 shrink-0" aria-hidden />
-                              {meta.duration}
+                              {purchasedDuration}
                             </span>
                           ) : null}
                         </p>

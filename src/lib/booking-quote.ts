@@ -19,6 +19,7 @@ import { DEFAULT_CURRENCY, normalizeCurrency } from './money';
 import { localYmd } from './local-ymd';
 import {
   assertDepartureStillBookable,
+  isDepartureTimeStillBookable,
   normalizeBookingCutoffHours,
   resolveDepartureTimezone,
   wallTimeInZoneToUtcMs,
@@ -39,6 +40,7 @@ import {
   listingOptionHasSchedules,
   optionHasScheduleCoverageOnDate,
   resolveScheduleForDate,
+  tourSellingDeparturesOnDate,
 } from './listing-option-schedules';
 import { optionHeadlineUnitPrice } from './price-categories';
 
@@ -124,6 +126,39 @@ export function listingRunsOnDate(tour: QuoteTourSlice, isoDate: string): boolea
   const opts = materializedBookingOptions(extras.bookingOptions);
   if (opts.length === 0) return true;
   return opts.some((o) => optionRunsOnDate(o, isoDate) === null);
+}
+
+/**
+ * Browse/search date filter: listing must run that day AND still have at least one
+ * departure that passes booking cutoff in the listing timezone (same rule as TourDetails
+ * departure chips). Without this, catalog shows tours that quote then rejects.
+ */
+export function listingHasBookableDepartureOnDate(
+  tour: QuoteTourSlice,
+  isoDate: string,
+  nowMs?: number
+): boolean {
+  if (!ISO_DATE.test(isoDate)) return true;
+  if (!listingRunsOnDate(tour, isoDate)) return false;
+  const extras = parseListingExtras(tour.listingExtras);
+  const opts = materializedBookingOptions(extras.bookingOptions);
+  if (opts.length === 0) return true;
+  const cutoff = normalizeBookingCutoffHours(extras.bookingCutoffHoursBeforeStart);
+  const timeZone = resolveDepartureTimezone(extras.departureTimezone);
+  const departures = tourSellingDeparturesOnDate(opts, isoDate).filter((d) => d.startTime.trim());
+  if (departures.length === 0) {
+    // Weekday/window open but no concrete start times — cutoff cannot be evaluated.
+    return cutoff <= 0;
+  }
+  return departures.some((d) =>
+    isDepartureTimeStillBookable({
+      bookingDate: isoDate,
+      startTimeHm: d.startTime.trim(),
+      cutoffHoursBeforeStart: cutoff,
+      nowMs,
+      timeZone,
+    })
+  );
 }
 
 function money(n: number): number {

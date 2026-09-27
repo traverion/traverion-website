@@ -37,6 +37,7 @@ import {
   displayListingTitleFromPurchase,
   displayMeetingPointFromPurchase,
   displayOptionLabelFromPurchase,
+  displayFulfillmentFromPurchase,
   partnerOpsDepartureDisplay,
 } from '../../lib/purchase-snapshot';
 
@@ -758,6 +759,8 @@ export default function SupplierDashboard() {
                 b.purchase_snapshot,
                 (liveOpt?.pickupPlace ?? '').trim()
               );
+              const placePrefix =
+                displayFulfillmentFromPurchase(b.purchase_snapshot) === 'pickup' ? 'Pickup' : 'Meet';
               const isLast = idx === todayDepartures.length - 1;
               return (
                 <li key={b.id} className="relative">
@@ -793,7 +796,7 @@ export default function SupplierDashboard() {
                       </span>
                       {meetingPoint ? (
                         <span className="mt-0.5 block text-[12px] text-slate-400 break-words [overflow-wrap:anywhere]">
-                          Meet · {meetingPoint}
+                          {placePrefix} · {meetingPoint}
                         </span>
                       ) : null}
                       {dep.purchasedNote ? (
