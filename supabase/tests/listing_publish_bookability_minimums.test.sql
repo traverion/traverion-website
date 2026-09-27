@@ -140,7 +140,9 @@ begin
               'status', 'ready',
               'priceUsd', 89,
               'startTime', '20:30',
-              'maxPersons', 8
+              'minPersons', 1,
+              'maxPersons', 8,
+              'maxSpotsPerSlot', 8
             )
           )
         )
@@ -170,7 +172,7 @@ begin
   );
 
   select public.listing_has_bookable_tour_surface(
-    '{"bookingOptions":[{"schedules":[{"status":"ready","priceUsd":10,"maxPersons":8}]}]}'::jsonb, 0
+    '{"bookingOptions":[{"schedules":[{"status":"ready","priceUsd":10,"minPersons":1,"maxPersons":8,"maxSpotsPerSlot":8}]}]}'::jsonb, 0
   ) into v_ok;
   if not v_ok then raise exception 'helper tour ready schedule should be bookable'; end if;
 
@@ -179,6 +181,12 @@ begin
     '{"bookingOptions":[{"schedules":[{"status":"ready","priceUsd":10}]}]}'::jsonb, 0
   ) into v_ok;
   if v_ok then raise exception 'helper tour ready schedule without maxPersons must fail'; end if;
+
+  -- Phase 1239: maxPersons without maxSpotsPerSlot is not bookable.
+  select public.listing_has_bookable_tour_surface(
+    '{"bookingOptions":[{"schedules":[{"status":"ready","priceUsd":10,"maxPersons":8}]}]}'::jsonb, 0
+  ) into v_ok;
+  if v_ok then raise exception 'helper tour ready schedule without maxSpotsPerSlot must fail'; end if;
 
   raise notice 'ALL ASSERTIONS PASSED';
 end $$;
