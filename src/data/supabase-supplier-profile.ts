@@ -145,7 +145,9 @@ export async function uploadSupplierVerificationDocument(
         : ext === 'png'
           ? 'image/png'
           : 'image/webp';
-  const path = `${auth.userId}/company-registration.${ext}`;
+  // Phase 1224: store under owner prefix so team uploads match owner profile document paths.
+  const ownerSupplierId = await resolveSupplierId(auth.userId);
+  const path = `${ownerSupplierId}/company-registration.${ext}`;
   const originalName =
     file.name.trim().slice(0, 200) || `company-registration.${ext}`;
 
