@@ -241,18 +241,25 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
     setOccupancyError(null);
     void Promise.all(
       stays.map(async (s) => {
-        const [ranges, blockedNights] = await Promise.all([
-          fetchPublishedStayOccupiedRanges(s.id),
-          fetchPublishedStayBlockedNights(s.id, {
-            fromDate: experienceTodayIsoForListing(parseListingExtras(s.listingExtras).departureTimezone),
-          }),
-        ]);
-        return [s.id, { ranges, blockedNights }] as const;
+        try {
+          const [ranges, blockedNights] = await Promise.all([
+            fetchPublishedStayOccupiedRanges(s.id),
+            fetchPublishedStayBlockedNights(s.id, {
+              fromDate: experienceTodayIsoForListing(parseListingExtras(s.listingExtras).departureTimezone),
+            }),
+          ]);
+          return [s.id, { ranges, blockedNights }] as const;
+        } catch {
+          // Phase 1192: one failed stay must not fail the whole night browse (Packages parity).
+          return null;
+        }
       })
     )
       .then((entries) => {
         if (cancelled) return;
-        setOccupiedByListing(Object.fromEntries(entries));
+        setOccupiedByListing(
+          Object.fromEntries(entries.filter((e): e is NonNullable<typeof e> => e != null))
+        );
         setOccupancyLoading(false);
       })
       .catch((e) => {
@@ -325,7 +332,8 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
     }
   }, [amenityOptions.length, selectedAmenities.length]);
 
-  const filtered = useMemo(() => {
+  const { filtered, knownOccupiedForNights } = useMemo(() => {
+    let knownOccupied = 0;
     let list = stays.filter((s) => {
       const agg = reviewAggregates.get(s.id);
       if (
@@ -348,10 +356,18 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
         if (requestedNights < minN) return false;
       }
       if (dateFilterActive && occupiedByListing) {
-        const pack = occupiedByListing[s.id] ?? { ranges: [], blockedNights: [] };
-        if (!stayAvailableForRequestedNights(checkIn, checkOut, pack.ranges)) return false;
+        const pack = occupiedByListing[s.id];
+        // Phase 1193: missing occupancy row → exclude (do not invent open nights).
+        if (!pack) return false;
+        if (!stayAvailableForRequestedNights(checkIn, checkOut, pack.ranges)) {
+          knownOccupied += 1;
+          return false;
+        }
         const blocked = new Set(pack.blockedNights);
-        if (nightsOccupiedByStay(checkIn, checkOut).some((n) => blocked.has(n))) return false;
+        if (nightsOccupiedByStay(checkIn, checkOut).some((n) => blocked.has(n))) {
+          knownOccupied += 1;
+          return false;
+        }
       }
       return true;
     });
@@ -366,7 +382,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
         return bs - as;
       });
     }
-    return list;
+    return { filtered: list, knownOccupiedForNights: knownOccupied };
   }, [
     stays,
     q,
@@ -420,11 +436,13 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
     reviewAggregates,
   ]);
 
+  // Phase 1194: “Fully booked” only when known night conflicts — not all-unknown excludes (1193).
   const emptyDueToOccupiedNights =
     filtered.length === 0 &&
     dateFilterActive &&
     occupiedByListing != null &&
-    matchingExceptOccupancyCount > 0;
+    matchingExceptOccupancyCount > 0 &&
+    knownOccupiedForNights > 0;
 
   const waitingOnOccupancy =
     dateFilterActive && isSupabaseConfigured() && !occupancyError && (occupancyLoading || occupiedByListing === null);
