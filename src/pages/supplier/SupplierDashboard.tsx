@@ -37,8 +37,10 @@ import {
   displayListingTitleFromPurchase,
   displayMeetingPointFromPurchase,
   displayOptionLabelFromPurchase,
+  displayPickupInstructionsFromPurchase,
   displayFulfillmentFromPurchase,
   partnerOpsDepartureDisplay,
+  isPurchaseSnapshot,
 } from '../../lib/purchase-snapshot';
 
 type AttentionTone = 'danger' | 'warn' | 'info';
@@ -338,9 +340,11 @@ export default function SupplierDashboard() {
         if (!bookingOccupiesInventory(b) || !bookingPaymentWasCollected(b.payment_status)) return false;
         if (!b.booking_date || b.booking_date < todayYmd) return false;
         const listing = listingsById[b.listing_id];
-        const opts = materializedBookingOptions(
-          parseListingExtras(listing?.listingExtras as unknown).bookingOptions
-        );
+        const opts = isPurchaseSnapshot(b.purchase_snapshot)
+          ? null
+          : materializedBookingOptions(
+              parseListingExtras(listing?.listingExtras as unknown).bookingOptions
+            );
         const copy = resolveBookingPickupCopy({
           bookingOptionId: b.booking_option_id,
           specialRequests: b.special_requests,
@@ -348,7 +352,12 @@ export default function SupplierDashboard() {
           listingPickupInstructions: listing?.pickupInstructions,
           bookingOptions: opts,
         });
-        return bookingNeedsPickupCopy(b, copy.meetingPoint, copy.pickupInstructions);
+        const meeting = displayMeetingPointFromPurchase(b.purchase_snapshot, copy.meetingPoint);
+        const instructions = displayPickupInstructionsFromPurchase(
+          b.purchase_snapshot,
+          copy.pickupInstructions
+        );
+        return bookingNeedsPickupCopy(b, meeting, instructions);
       }),
     [supplierBookings, listingsById, todayYmd]
   );

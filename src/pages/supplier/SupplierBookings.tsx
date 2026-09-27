@@ -71,7 +71,7 @@ import { formatBookingDateDisplay } from '../../lib/booking-flow';
 import { partnerBookingHasPickupAttention } from '../../lib/pickup-completeness';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 import { comparePartnerBookingsOperational } from '../../lib/partner-bookings-order';
-import { displayListingTitleFromPurchase, displayMeetingPointFromPurchase, displayOptionLabelFromPurchase, displayPickupInstructionsFromPurchase, displayFulfillmentFromPurchase, displayDurationFromPurchase, partnerOpsDepartureDisplay } from '../../lib/purchase-snapshot';
+import { displayListingTitleFromPurchase, displayMeetingPointFromPurchase, displayOptionLabelFromPurchase, displayPickupInstructionsFromPurchase, displayFulfillmentFromPurchase, displayDurationFromPurchase, partnerOpsDepartureDisplay, isPurchaseSnapshot } from '../../lib/purchase-snapshot';
 
 const BOOKINGS_PAGE_SIZE = 10;
 
@@ -405,12 +405,17 @@ export default function SupplierBookings({
       }
       if (opsFilter === 'pickup') {
         const meta = listingMeta[b.listing_id];
+        const snapMeeting = displayMeetingPointFromPurchase(b.purchase_snapshot, meta?.meetingPoint);
+        const snapInstructions = displayPickupInstructionsFromPurchase(
+          b.purchase_snapshot,
+          meta?.pickupInstructions
+        );
         if (
           !partnerBookingHasPickupAttention(
             b,
-            meta?.meetingPoint,
-            meta?.pickupInstructions,
-            meta?.bookingOptions
+            snapMeeting,
+            snapInstructions,
+            isPurchaseSnapshot(b.purchase_snapshot) ? null : meta?.bookingOptions
           )
         )
           return false;
@@ -930,9 +935,9 @@ export default function SupplierBookings({
               const needsAck = partnerBookingNeedsLook(booking);
               const pickupGap = partnerBookingHasPickupAttention(
                 booking,
-                rowMeeting || meta?.meetingPoint,
-                rowPickupInstructions || meta?.pickupInstructions,
-                meta?.bookingOptions
+                rowMeeting,
+                rowPickupInstructions,
+                isPurchaseSnapshot(booking.purchase_snapshot) ? null : meta?.bookingOptions
               );
               const openCancel = openCancels[booking.id];
               const pay = (booking.payment_status ?? '').trim().toLowerCase();
@@ -1155,9 +1160,9 @@ export default function SupplierBookings({
               !isStay &&
               partnerBookingHasPickupAttention(
                 booking,
-                meetingPoint || meta?.meetingPoint,
-                pickupInstructions || meta?.pickupInstructions,
-                meta?.bookingOptions
+                meetingPoint,
+                pickupInstructions,
+                isPurchaseSnapshot(booking.purchase_snapshot) ? null : meta?.bookingOptions
               );
             const busy = updatingId === booking.id;
             const refLabel =

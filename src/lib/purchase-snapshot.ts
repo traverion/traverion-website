@@ -144,8 +144,10 @@ export function displayMeetingPointFromPurchase(
   snapshot: unknown,
   liveMeeting: string | null | undefined
 ): string {
-  if (isPurchaseSnapshot(snapshot) && snapshot.meetingPoint?.trim()) {
-    return snapshot.meetingPoint.trim();
+  // When a purchase snapshot exists, never resurrect live listing place
+  // (empty snap field = incomplete purchase logistics, not current catalog copy).
+  if (isPurchaseSnapshot(snapshot)) {
+    return (snapshot.meetingPoint ?? '').trim();
   }
   return (liveMeeting ?? '').trim();
 }
@@ -154,8 +156,8 @@ export function displayPickupInstructionsFromPurchase(
   snapshot: unknown,
   livePickup: string | null | undefined
 ): string {
-  if (isPurchaseSnapshot(snapshot) && snapshot.pickupInstructions?.trim()) {
-    return snapshot.pickupInstructions.trim();
+  if (isPurchaseSnapshot(snapshot)) {
+    return (snapshot.pickupInstructions ?? '').trim();
   }
   return (livePickup ?? '').trim();
 }

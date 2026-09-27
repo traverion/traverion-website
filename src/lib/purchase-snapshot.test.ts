@@ -99,6 +99,15 @@ describe('purchase-snapshot', () => {
     expect(displayMeetingPointFromPurchase({}, 'Live meet')).toBe('Live meet');
   });
 
+  it('does not resurrect live meeting/pickup when snapshot exists but fields are empty', () => {
+    const snap = buildPurchaseSnapshot({
+      listingTitle: 'Purchased title',
+      capturedAt: '2026-09-22T00:00:00.000Z',
+    });
+    expect(displayMeetingPointFromPurchase(snap, 'LIVE EDITED DOCK')).toBe('');
+    expect(displayPickupInstructionsFromPurchase(snap, 'LIVE EDITED INSTRUCTIONS')).toBe('');
+  });
+
   it('preserves Unicode titles and option labels', () => {
     const snap = buildPurchaseSnapshot({
       listingTitle: 'オーロラ · Rovaniemi — 北極光',
