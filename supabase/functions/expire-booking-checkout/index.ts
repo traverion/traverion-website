@@ -83,7 +83,18 @@ serve(async (req) => {
         .select('supplier_id')
         .eq('id', booking.listing_id)
         .maybeSingle();
-      ownsAsSupplier = Boolean(listing?.supplier_id) && String(listing?.supplier_id) === user.id;
+      const listingSupplierId = String(listing?.supplier_id ?? '').trim();
+      ownsAsSupplier = Boolean(listingSupplierId) && listingSupplierId === user.id;
+      // Phase 1133: team members may expire unpaid checkout (parity with notify).
+      if (!ownsAsSupplier && listingSupplierId) {
+        const { data: teamRow } = await admin
+          .from('supplier_team_members')
+          .select('user_id')
+          .eq('supplier_id', listingSupplierId)
+          .eq('user_id', user.id)
+          .maybeSingle();
+        ownsAsSupplier = Boolean(teamRow?.user_id);
+      }
     }
 
     if (!ownsByEmail && !ownsByUserId && !ownsAsSupplier) {
