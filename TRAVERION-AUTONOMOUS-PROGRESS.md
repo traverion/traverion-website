@@ -4786,6 +4786,13 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 
 **Certification:** checkout consent = **BROWSER-TESTED**.
 
+
+### Phase 906 — Listing media ownership audit
+
+**Evidence:** Bucket `listing-images` (mig 043) — public read; authenticated insert/update/delete only under `auth.uid()/`. Client `uploadListingImage` paths `${userId}/listing-photos/…`; `removeListingImageIfOwned` no-ops unless path starts with acting user. Unit tests for path parse + ownership prefix. **No** batch orphan GC job (deferred) — deletes on replace in UI only.
+
+**Certification:** listing media auth = **AUTOMATED-TESTED** + **CODE-INSPECTED**. Orphan GC = **NOT BUILT**.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.
