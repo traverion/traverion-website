@@ -15,6 +15,7 @@ import {
   MarketplaceSearchFields,
 } from '../components/marketplace/MarketplaceSearchBar';
 import { HOME_DISCOVERY_GRID_CLASS } from '../lib/marketplaceBrowse';
+import { listingHasUpcomingBookableSeason } from '../lib/booking-quote';
 import { useTravelerWishlist } from '../hooks/useTravelerWishlist';
 import { supplierPortalLandingHref } from '../lib/partnerHost';
 import EmptyState from '../components/EmptyState';
@@ -74,7 +75,14 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
     return base;
   }, [supplierListings]);
 
-  const allListings = useMemo(() => filterCatalogByFamily(catalogBase, 'tour'), [catalogBase]);
+  const allListings = useMemo(
+    () =>
+      filterCatalogByFamily(catalogBase, 'tour').filter((t) =>
+        // Phase 1264: hide season-ended tours (Packages/destination 1260/1263 parity).
+        listingHasUpcomingBookableSeason(t)
+      ),
+    [catalogBase]
+  );
   const stayListings = useMemo(() => filterCatalogByFamily(catalogBase, 'stay'), [catalogBase]);
   const [searchFamily, setSearchFamily] = useState<'tours' | 'stays'>('tours');
   const wishlist = useTravelerWishlist();
