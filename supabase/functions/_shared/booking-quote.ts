@@ -7,6 +7,7 @@ import { bookingOccupiesInventory, type InventoryHoldRow } from './booking-hold.
 import {
   assertDepartureStillBookable,
   normalizeBookingCutoffHours,
+  resolveDepartureTimezone,
   wallTimeInZoneToUtcMs,
 } from './tour-departure-cutoff.ts';
 
@@ -679,6 +680,7 @@ export function quoteListingBooking(input: {
   if (date < today) return { ok: false, error: 'Choose a date that is today or later.' };
 
   const cutoffHours = normalizeBookingCutoffHours(extrasObj?.bookingCutoffHoursBeforeStart);
+  const departureTimezone = resolveDepartureTimezone(extrasObj?.departureTimezone);
   const nowMs =
     input.nowMs ??
     (input.todayIso ? wallTimeInZoneToUtcMs(input.todayIso, '12:00') ?? Date.now() : Date.now());
@@ -713,6 +715,7 @@ export function quoteListingBooking(input: {
         startTimeHm: departureHm,
         cutoffHoursBeforeStart: cutoffHours,
         nowMs,
+        timeZone: departureTimezone,
       });
       if (!cut.ok) return { ok: false, error: cut.error };
     }

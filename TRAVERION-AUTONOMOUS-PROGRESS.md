@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `6c0d4f6`  
-**Current phase:** 876  
+**Current SHA:** `5b40581`  
+**Current phase:** 877  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4560,6 +4560,19 @@ Partner Income page:
 - Collected balance honest (no fake payouts)
 
 **Certification:** cancel→accounting = **BROWSER-TESTED** + **INTEGRATION**. Matches product rule: reverse earnings only when refund path applies.
+
+### Phase 877 — Listing departureTimezone for quote/cutoff
+
+**Problem:** Cutoff/quote always used Europe/Helsinki even when a listing might operate elsewhere; no durable IANA field on extras.
+
+**Fix:**
+- `listingExtras.departureTimezone` (IANA) — parse/persist with Intl validation
+- `resolveDepartureTimezone()` — invalid → Europe/Helsinki
+- Client + Deno `booking-quote` pass zone into `assertDepartureStillBookable`
+
+**Tests:** tour-departure-cutoff 11/11 (incl. America/New_York wall clock); booking-quote 28/28; tsc clean.
+
+**Remaining:** SQL traveler self-cancel still hardcodes Europe/Helsinki; partner UI to set timezone; snapshot freeze of zone on booking. Default remains Helsinki for Finland inventory.
 
 ## Known remaining risks (ranked)
 

@@ -137,10 +137,15 @@ export interface ListingExtras {
   cancellationPreset?: CancellationPreset;
   cancellationExtra?: string;
   /**
-   * Hours before local departure (Europe/Helsinki wall clock) when online booking closes.
+   * Hours before local departure (listing departureTimezone wall clock) when online booking closes.
    * 0 / omitted = bookable until start; after start is always closed.
    */
   bookingCutoffHoursBeforeStart?: number;
+  /**
+   * IANA timezone for schedule wall times (e.g. Europe/Helsinki).
+   * Omitted → platform default Europe/Helsinki. Invalid values are ignored on read.
+   */
+  departureTimezone?: string;
   /** Multiple priced variants under one product (partner Cost & options). */
   bookingOptions?: ListingBookingOption[];
   /**
@@ -544,6 +549,15 @@ export function parseListingExtras(raw: unknown): ListingExtras {
     const n = Number(o.bookingCutoffHoursBeforeStart);
     if (Number.isFinite(n) && n > 0) out.bookingCutoffHoursBeforeStart = Math.min(168, Math.floor(n));
   }
+  if (typeof o.departureTimezone === 'string' && o.departureTimezone.trim()) {
+    const tz = o.departureTimezone.trim();
+    try {
+      Intl.DateTimeFormat(undefined, { timeZone: tz });
+      out.departureTimezone = tz;
+    } catch {
+      /* ignore invalid IANA */
+    }
+  }
   if (Array.isArray(o.galleryImageUrls)) {
     out.galleryImageUrls = o.galleryImageUrls.map((x) => String(x ?? '').trim()).filter(Boolean);
   }
@@ -586,6 +600,15 @@ export function listingExtrasToDb(extras: ListingExtras | undefined): Record<str
   if (extras.typicalTimelineNotes?.trim()) payload.typicalTimelineNotes = extras.typicalTimelineNotes.trim();
   if (typeof extras.bookingCutoffHoursBeforeStart === 'number' && extras.bookingCutoffHoursBeforeStart > 0) {
     payload.bookingCutoffHoursBeforeStart = Math.min(168, Math.floor(extras.bookingCutoffHoursBeforeStart));
+  }
+  if (extras.departureTimezone?.trim()) {
+    const tz = extras.departureTimezone.trim();
+    try {
+      Intl.DateTimeFormat(undefined, { timeZone: tz });
+      payload.departureTimezone = tz;
+    } catch {
+      /* skip invalid */
+    }
   }
   if (extras.galleryImageUrls?.length) payload.galleryImageUrls = extras.galleryImageUrls;
   if (extras.photoSlotLabels?.some((l) => l.trim())) payload.photoSlotLabels = extras.photoSlotLabels;

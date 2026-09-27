@@ -1,16 +1,32 @@
 /**
  * Tour departure bookability cut-off.
  *
- * Wall-clock times on listings are interpreted in Europe/Helsinki — the same
- * zone used by traveler self-cancel SQL (`booking_date + start_time at time zone
- * 'Europe/Helsinki'`). Until listings carry an IANA timezone column, this is the
- * platform departure clock for Finland-first inventory.
+ * Wall-clock times on listings are interpreted in an IANA zone. Default remains
+ * Europe/Helsinki — matching traveler self-cancel SQL until that path also reads
+ * listing `departureTimezone`. When extras carry a valid IANA id, quote/cutoff
+ * use it so a Rovaniemi 20:00 stays 20:00 local regardless of browser TZ.
  */
 
 export const TRAVERION_DEPARTURE_TIMEZONE = 'Europe/Helsinki';
 
 /** Max supplier-configured hours before start (7 days). */
 export const MAX_BOOKING_CUTOFF_HOURS = 168;
+
+/**
+ * Resolve listing departure timezone. Invalid / empty → platform default.
+ * Uses Intl so bogus strings cannot shift cancel/book windows silently.
+ */
+export function resolveDepartureTimezone(raw: unknown): string {
+  const candidate = typeof raw === 'string' ? raw.trim() : '';
+  if (!candidate) return TRAVERION_DEPARTURE_TIMEZONE;
+  try {
+    // Throws RangeError for unknown IANA ids in modern engines.
+    Intl.DateTimeFormat(undefined, { timeZone: candidate });
+    return candidate;
+  } catch {
+    return TRAVERION_DEPARTURE_TIMEZONE;
+  }
+}
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const HM = /^\d{2}:\d{2}$/;

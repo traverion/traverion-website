@@ -20,6 +20,7 @@ import { localYmd } from './local-ymd';
 import {
   assertDepartureStillBookable,
   normalizeBookingCutoffHours,
+  resolveDepartureTimezone,
   wallTimeInZoneToUtcMs,
 } from './tour-departure-cutoff';
 import {
@@ -225,6 +226,7 @@ export function quoteBooking(input: {
 
   const extras = parseListingExtras(input.tour.listingExtras);
   const cutoffHours = normalizeBookingCutoffHours(extras.bookingCutoffHoursBeforeStart);
+  const departureTimezone = resolveDepartureTimezone(extras.departureTimezone);
   const nowMs =
     input.nowMs ??
     (input.todayIso ? wallTimeInZoneToUtcMs(input.todayIso, '12:00') ?? Date.now() : Date.now());
@@ -273,6 +275,7 @@ export function quoteBooking(input: {
         startTimeHm: departureHm,
         cutoffHoursBeforeStart: cutoffHours,
         nowMs,
+        timeZone: departureTimezone,
       });
       if (!cut.ok) {
         return { ok: false, code: 'bad_date', error: cut.error };
