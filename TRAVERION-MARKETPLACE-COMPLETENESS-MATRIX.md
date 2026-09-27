@@ -46,14 +46,14 @@
 | Quote | TEST-ONLY / STRONG | Edge + client mirror; flat_group ≤0 after discount rejected (874) | Keep server-authoritative |
 | Checkout | TEST-ONLY / STRONG | Stripe TEST + holds; allowlisted returnOrigin | Deployed return-origin fix (865) |
 | Booking snapshots | STRONG / BROWSER | title + totalAmount survive edits (#41) | Cancellation policy already snapshotted |
-| Booking state machine | PARTIAL→STRONG | pending/confirmed/cancelled + payment_status; mig 100 NOT NULL | Remote-apply 100 + re-run SQL guard |
+| Booking state machine | STRONG / INTEGRATION | pending/confirmed/cancelled + payment_status NOT NULL (100 remote) | Keep SQL guard in CI |
 | Inventory / concurrency | STRONG / BROWSER | Tour seats #41 + stay nights #40 restore; public remaining + holds (899/105); lock grain 902/106 | Parallel race re-cert optional |
 | Payments | TEST-ONLY / STRONG | Stripe webhook → payment_status; #39 BROWSER | Never invent paid from redirect |
 | Cancellation | STRONG / BROWSER | Tour #41 + stay #40 cancel; 24h no-refund honesty | Supplier-initiated cancel path |
 | Refunds | PARTIAL / HONEST | Manual Stripe; Refund due #41; no-refund #40 | Auto-refund = FOUNDER if desired |
 | Messaging | PARTIAL→STRONG | `booking_messages`; cross-user deny #41 (885) | No fake realtime; delivery cert |
 | Reviews | STRONG / UNIT | ownership + paid+confirmed+after-start (879) | Supplier response / moderation later |
-| Wishlist / Saved | STRONG / ADVERSARIAL | published-only insert (104/887) | Unpublished soft-delete UX |
+| Wishlist / Saved | STRONG / ADVERSARIAL | published-only (104/887); unpublished hidden on Saved page | Soft-delete remove UX optional |
 | Trips | PARTIAL→STRONG | fetch + error≠empty (892) | Dedicated traveler session |
 | Supplier Bookings / Pickup | STRONG / BROWSER | Refund due #41 + pickup excludes cancel (884) | Stay reservation pickup N/A |
 | Availability ops | PARTIAL | calendar / capacity | Protect confirmed bookings on edit |
@@ -83,7 +83,7 @@
 
 | Rank | Pri | Gap | Phase intent |
 |------|-----|-----|--------------|
-| 1 | P0 | `bookings.status` nullable bypass | Migration 100 tracked (852); remote apply pending |
+| 1 | P0 | `bookings.status` nullable bypass | **CLOSED** mig 100 remote (verified through 106) |
 | 2 | P0 | Partner create→publish not mutating-browser-certified | **CLOSED create→LIVE→book #41 (870)** |
 | 3 | P0 | Traveler book UI→Stripe TEST→Trips→partner Bookings E2E | Tour #39 + stay #40 + **new inventory #41**; dedicated traveler account next |
 | 4 | P1 | Per-slot public remaining / sell-out honesty | **CLOSED 899** (mig 105) |

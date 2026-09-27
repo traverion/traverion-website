@@ -4800,6 +4800,13 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 
 **Certification:** reminder cron schedule = **CODE-INSPECTED**. Live delivery = **NOT CERTIFIED** this pass.
 
+
+### Phase 908 — bookings.status NOT NULL remote + wishlist unpublished honesty
+
+**Evidence:** `supabase migration list --linked` shows Local=Remote through **106** including **100** (`bookings.status` NOT NULL). Wishlist Saved page already hides unpublished/gone listings with honest copy (no empty-on-error confusion). Matrix gaps 1 + wishlist next-action closed.
+
+**Certification:** booking status null-bypass = **INTEGRATION** + **remotely applied**. Wishlist unpublished UX = **CODE-INSPECTED**.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.
