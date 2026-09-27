@@ -6,6 +6,7 @@ export function departureSlotSpotsLeft(params: {
   dayIso: string;
   startTimeHm: string;
   maxSpotsPerSlot: number | null | undefined;
+  /** @deprecated Phase 1203: unused — unknown slot cap returns null (no invent from maxPersons). */
   maxPersonsFallback: number;
   paidBySlot: Record<string, number>;
   paidByDay: Record<string, number>;
@@ -17,10 +18,9 @@ export function departureSlotSpotsLeft(params: {
   const time = params.startTimeHm.trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !time) return null;
   const spots = params.maxSpotsPerSlot;
-  const slotCap =
-    typeof spots === 'number' && Number.isFinite(spots) && spots >= 1
-      ? Math.min(99, Math.floor(spots))
-      : Math.min(99, Math.max(1, params.maxPersonsFallback));
+  // Phase 1203: parity with tourPublicAvailabilityRemaining — unknown slot cap is null, not invent.
+  if (typeof spots !== 'number' || !Number.isFinite(spots) || spots < 1) return null;
+  const slotCap = Math.min(99, Math.floor(spots));
   // Phase 1113: slot remaining ∩ day remaining when a day override exists.
   return tourDepartureRemainingSeats({
     slotMaxSpots: slotCap,
@@ -59,7 +59,7 @@ export function maxSpotsLeftAcrossDepartures(params: {
       dayIso: params.dayIso,
       startTimeHm: dep.startTimeHm,
       maxSpotsPerSlot: dep.maxSpotsPerSlot,
-      maxPersonsFallback: dep.maxPersonsFallback ?? 12,
+      maxPersonsFallback: dep.maxPersonsFallback ?? 0,
       paidBySlot: params.paidBySlot,
       paidByDay: params.paidByDay,
       dayCapOverride: params.dayCapOverride,

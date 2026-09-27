@@ -84,6 +84,32 @@ describe('departureSlotSpotsLeft', () => {
     });
     expect(n).toBe(0);
   });
+
+  it('Phase 1203: unknown maxSpotsPerSlot returns null (no invent from maxPersons)', () => {
+    const day = '2026-10-01';
+    expect(
+      departureSlotSpotsLeft({
+        dayIso: day,
+        startTimeHm: '08:00',
+        maxSpotsPerSlot: null,
+        maxPersonsFallback: 12,
+        paidBySlot: {},
+        paidByDay: {},
+        fallbackDayCap: 8,
+      })
+    ).toBeNull();
+    expect(
+      departureSlotSpotsLeft({
+        dayIso: day,
+        startTimeHm: '08:00',
+        maxSpotsPerSlot: undefined,
+        maxPersonsFallback: 12,
+        paidBySlot: {},
+        paidByDay: {},
+        fallbackDayCap: null,
+      })
+    ).toBeNull();
+  });
 });
 
 describe('maxSpotsLeftAcrossDepartures (Phase 1064 / 1123)', () => {
@@ -124,5 +150,30 @@ describe('maxSpotsLeftAcrossDepartures (Phase 1064 / 1123)', () => {
         fallbackDayCap: 16,
       })
     ).toBe(10);
+  });
+
+  it('Phase 1203: skips departures with unknown slot cap (no invent-12)', () => {
+    const day = '2026-10-01';
+    expect(
+      maxSpotsLeftAcrossDepartures({
+        dayIso: day,
+        departures: [
+          { startTimeHm: '08:00', maxSpotsPerSlot: null, maxPersonsFallback: 12 },
+          { startTimeHm: '20:00', maxSpotsPerSlot: 6, maxPersonsFallback: 12 },
+        ],
+        paidBySlot: { [tourPaidSlotKey(day, '20:00')]: 1 },
+        paidByDay: { [day]: 1 },
+        fallbackDayCap: null,
+      })
+    ).toBe(5);
+    expect(
+      maxSpotsLeftAcrossDepartures({
+        dayIso: day,
+        departures: [{ startTimeHm: '08:00', maxPersonsFallback: 12 }],
+        paidBySlot: {},
+        paidByDay: {},
+        fallbackDayCap: 8,
+      })
+    ).toBeNull();
   });
 });
