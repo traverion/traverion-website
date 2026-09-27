@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `f9be710`  
-**Current phase:** 885  
+**Current SHA:** `b5ba987`  
+**Current phase:** 886  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4643,6 +4643,14 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 - Message count remains 1 (system only)
 
 **Certification:** booking message isolation = **ADVERSARIAL-TESTED**.
+
+### Phase 886 — Draft listings invisible to public
+
+**Evidence:**
+- Anon REST: draft `Snowshoe & Campfire` → `[]`; published cert tour → status published
+- Browser: `/packages?uuid=<draft>` does not open draft PDP — catalog shows **6 published** tours only
+
+**Certification:** unpublished exclusion from public catalog/API = **ADVERSARIAL-TESTED** + **BROWSER-TESTED**.
 
 ## Known remaining risks (ranked)
 
