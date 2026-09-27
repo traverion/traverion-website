@@ -3,13 +3,13 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness** (continuing 1001+)  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `f3e273f`  
-**Current phase:** 1023  
+**Current SHA:** `d461e28`  
+**Current phase:** 1024  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Local-only (gitignored):** `scripts/cert-transactional-emails.cjs` — must stay untracked; contains service-role secrets when present locally  
-**Remote migration truth (Phase 1023):** Local=Remote through **113** on `xcopqllkulxfkpunetbc`. Stripe: TEST only.  
+**Remote migration truth (Phase 1024):** Local=Remote through **114** on `xcopqllkulxfkpunetbc`. Stripe: TEST only.  
 
 ## Milestone Phase 513 (inventory band)
 
@@ -5268,6 +5268,14 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 **Gap:** `cart_items` INSERT/UPDATE only checked `auth.uid() = user_id` — any signed-in user could plant cart rows on draft listings via PostgREST (UI is dead; API still open). Rows also survived unpublish.
 
 **Fix:** Migration `113_cart_items_published_only_and_prune.sql` — published EXISTS on INSERT/UPDATE; one-shot cleanup; unpublish prune trigger (mirrors wishlist 104/112).
+
+**Certification:** ADVERSARIAL-TESTED (SQL harness authored) + remote applied. Scratch Postgres re-run = host-blocked (no local docker). Ending SHA `d461e28`.
+
+### Phase 1024 — Gate listing_discounts SELECT to published or owner
+
+**Gap:** `listing_discounts` SELECT used `using (true)` — draft promo codes/values were world-readable by listing UUID while parent listings were already published-or-owner gated (092).
+
+**Fix:** Migration `114_listing_discounts_published_or_owner_select.sql` — SELECT requires parent listing published or owned by reader.
 
 **Certification:** ADVERSARIAL-TESTED (SQL harness authored) + remote applied. Scratch Postgres re-run = host-blocked (no local docker).
 
