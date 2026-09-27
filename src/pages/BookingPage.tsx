@@ -20,6 +20,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { createBookingCheckoutSession } from '../data/supabase-bookings';
 import { LISTING_SELF_BOOK_BLOCKED, viewerIsListingSupplierSide } from '../lib/listing-self-book';
+import { tourDepartureSlotCapacity } from '../../supabase/functions/_shared/booking-quote.ts';
 import type { ListingDiscount } from '../data/supabase-discounts';
 import { fetchDiscountsByListingId } from '../data/supabase-discounts';
 import { payTimeDiscountsOrBlock } from '../lib/pay-time-discounts';
@@ -915,6 +916,20 @@ export default function BookingPage({
           setError('Could not load offers for this tour. Try again.');
           setSubmitting(false);
           return;
+        }
+        // Phase 1161: mirror edge 1122 — unresolved departure capacity must not open Stripe.
+        if (departureTime) {
+          const slotCap = tourDepartureSlotCapacity({
+            listing_extras: tour.listingExtras,
+            bookingDate: date,
+            bookingOptionId: optionId,
+            startTime: departureTime,
+          });
+          if (slotCap == null) {
+            setError('No bookable capacity for this departure.');
+            setSubmitting(false);
+            return;
+          }
         }
         const quoted = quoteBooking({
           tour,
