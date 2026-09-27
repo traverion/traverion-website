@@ -229,7 +229,8 @@ export async function getReviewRepliesByReviewIds(reviewIds: string[]): Promise<
     .from('review_replies')
     .select('*')
     .in('review_id', reviewIds);
-  if (error) return {};
+  // Phase 1094: query failure ≠ empty replies. Callers must not invent “all replied”.
+  if (error) throw new Error(error.message);
   const out: Record<string, ReviewReplyRow> = {};
   (data ?? []).forEach((r: ReviewReplyRow) => { out[r.review_id] = r; });
   return out;

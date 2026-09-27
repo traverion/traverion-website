@@ -146,7 +146,7 @@ export default function SupplierDashboard() {
   const [profile, setProfile] = useState<Awaited<ReturnType<typeof fetchSupplierProfile>> | null>(null);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [firstUnreadBookingId, setFirstUnreadBookingId] = useState<string | null>(null);
-  const [unrepliedReviewCount, setUnrepliedReviewCount] = useState(0);
+  const [unrepliedReviewCount, setUnrepliedReviewCount] = useState<number | null>(0);
   const [ratingAvg, setRatingAvg] = useState<number | null>(null);
   const [ratingCount, setRatingCount] = useState(0);
   const [dashboardLoading, setDashboardLoading] = useState(false);
@@ -227,7 +227,8 @@ export default function SupplierDashboard() {
     if (settled[3].status === 'fulfilled') {
       setUnrepliedReviewCount(settled[3].value);
     } else {
-      setUnrepliedReviewCount(0);
+      noteFailure('review_replies');
+      setUnrepliedReviewCount(null);
     }
 
     if (listingIds.length > 0) {
@@ -387,7 +388,7 @@ export default function SupplierDashboard() {
     openCancelCount +
     refundDueCount +
     unreadMessageCount +
-    unrepliedReviewCount;
+    unrepliedReviewCount ?? 0;
 
   const todayEmptyCopy = partnerTodayEmptyScheduleCopy(attentionCount);
 
@@ -666,7 +667,7 @@ export default function SupplierDashboard() {
                 }
               />
             )}
-            {unrepliedReviewCount > 0 && (
+            {(unrepliedReviewCount ?? 0) > 0 && (
               <AttentionItem
                 tone="info"
                 title={
