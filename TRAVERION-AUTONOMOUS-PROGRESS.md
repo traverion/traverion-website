@@ -4722,6 +4722,13 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 
 **Fix:** Align listing locs with `publicTourPath` (`/tours/{uuid}`) instead of `packages?uuid=` query URLs.
 
+
+### Phase 898 — Canonical /tours/{id} deep-link loads published PDP
+
+**Browser:** Navigated `http://127.0.0.1:5173/tours/1807368c-ae24-4ccd-ba63-2aa72413c2f6` → SPA rewrites to `packages?uuid=…`. Document title and H1 both show live listing title **Phase 872 RENAMED After Purchase** (DB truth, not stale snapshot).
+
+**Certification:** catalog deep-link routing = **BROWSER-TESTED** (aligns with `publicTourPath` / sitemap 897).
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.
