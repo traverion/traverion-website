@@ -398,27 +398,48 @@ function App() {
       return;
     }
 
-    const deepLinkTitle =
-      currentPage === 'tour-details' || currentPage === 'booking'
-        ? selectedTour?.title || 'Tour'
-        : currentPage === 'stay-details'
-          ? selectedTour?.title || 'Stay'
-          : null;
-    if (deepLinkTitle) {
+    // Phase 1282: indexable deep-link head only when the listing is traveler-visible
+    // (and tours still have an upcoming season) — TourDetails 1271 / StayDetails 1273 parity.
+    const stayDeepLinkOk =
+      currentPage === 'stay-details' &&
+      !!selectedTour &&
+      listingDetailVisibleToTraveler({
+        familyMatches: listingIsFamily(selectedTour, 'stay'),
+        status: selectedTour.status,
+      });
+    const tourDeepLinkOk =
+      (currentPage === 'tour-details' || currentPage === 'booking') &&
+      !!selectedTour &&
+      listingDetailVisibleToTraveler({
+        familyMatches: listingIsOnTravelerCatalog(selectedTour),
+        status: selectedTour.status,
+      }) &&
+      listingHasUpcomingBookableSeason(selectedTour);
+    if (stayDeepLinkOk || tourDeepLinkOk) {
+      const deepLinkTitle =
+        currentPage === 'stay-details' ? selectedTour!.title || 'Stay' : selectedTour!.title || 'Tour';
       const desc =
         currentPage === 'stay-details'
           ? 'Apartment or room from an independent operator.'
           : 'Book this tour from an independent operator.';
       setPageMetaWithOg(deepLinkTitle, desc);
       setRobotsNoIndex(false);
-      if (selectedTour?.id) {
-        const path = currentPage === 'stay-details' ? `/stays/${selectedTour.id}` : `/tours/${selectedTour.id}`;
-        setCanonicalUrl(path);
-      } else {
-        const path = currentPage === 'stay-details' ? '/stays' : '/packages';
-        const qs = window.location.search.replace(/^\?/, '');
-        setCanonicalUrl(path, qs || undefined);
-      }
+      const path = currentPage === 'stay-details' ? `/stays/${selectedTour!.id}` : `/tours/${selectedTour!.id}`;
+      setCanonicalUrl(path);
+      return;
+    }
+    if (
+      currentPage === 'tour-details' ||
+      currentPage === 'booking' ||
+      currentPage === 'stay-details'
+    ) {
+      const desc =
+        currentPage === 'stay-details'
+          ? 'Apartment or room from an independent operator.'
+          : 'Book this tour from an independent operator.';
+      setPageMetaWithOg(currentPage === 'stay-details' ? 'Stay' : 'Tour', desc);
+      setRobotsNoIndex(true);
+      removeCanonicalLink();
       return;
     }
 
