@@ -299,6 +299,19 @@ export function quoteBooking(input: {
       const at = new Date(`${date}T12:00:00`);
       const applicable = discountsApplicableToOption(input.discounts as ListingDiscount[], option.id, at);
       const { price: discountedFlat, label } = bestUnitPrice(flat, applicable, currency);
+      // Phase 584 (supabase/functions/_shared/booking-quote.ts) closed this exact
+      // gap in the server-authoritative Deno copy: every sibling pricing branch
+      // (age-dependent categories, the standard per-guest option, the no-option
+      // fallback) re-checks the price for positivity AFTER discounts are applied,
+      // but this client-side display mirror gained its own private flat-group
+      // branch later without carrying that guard over -- a discount that brings
+      // the flat price to zero (100%-off) or negative (a >100%-off misconfiguration;
+      // listing_discounts.value has no upper bound at the schema level) returned
+      // ok: true with a zero/negative totalAmount here, diverging from the
+      // authoritative server quote and showing the traveler a broken price.
+      if (!(discountedFlat > 0)) {
+        return { ok: false, code: 'price', error: 'This tour does not have a bookable price yet.' };
+      }
       return {
         ok: true,
         currency,

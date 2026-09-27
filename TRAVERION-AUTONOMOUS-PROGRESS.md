@@ -4,7 +4,7 @@
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
 **Current SHA:**   
-**Current phase:** 873  
+**Current phase:** 874  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4519,6 +4519,18 @@ Also removed unused businessComplete local in Listings after 861 gate fix.
 5. PDP inventory restore: Mon 28 Sept → **8 spots left this day** · option still bookable (capacity 8 after 1-guest cancel)
 
 **Certification:** traveler cancel + seat restore = **BROWSER-TESTED** + **INTEGRATION** (remote SQL). Stripe TEST refund remains manual ops (**Refund due**).
+
+### Phase 874 — Client quote rejects zero/negative private flat after discount
+
+**Problem:** Server `booking-quote` (Phase 584) rejects private `flat_group` totals ≤0 after discounts; client `src/lib/booking-quote.ts` mirror lacked the post-discount positivity check → traveler UI could show ok with €0 / negative while checkout would reject.
+
+**Fix:** After `bestUnitPrice` on flat group price, require `discountedFlat > 0` (same error as siblings).
+
+**Tests:** `booking-quote.test.ts` — 100%-off reject, >100%-off reject, 25%-off → €300 (28/28).
+
+**Also (browser):** Partner Bookings → filter **Refund due** → **#41** Alex Cert · Phase 864 Cert Northern Lights Small Group (snapshot title) · Mon 28 Sept · €119 · Refund due. Live rename does not rewrite partner cancelled row title.
+
+**Certification:** client/server quote parity for private flat after discount = **AUTOMATED-TESTED**; supplier cancel ops surface = **BROWSER-TESTED**.
 
 ## Known remaining risks (ranked)
 

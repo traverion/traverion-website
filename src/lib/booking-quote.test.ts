@@ -572,3 +572,94 @@ describe('quote price lines', () => {
     ).toEqual([{ label: 'Adult × 2', amount: 378 }]);
   });
 });
+
+describe('quoteBooking — private flat-group pricing after discounts', () => {
+  const today = '2026-09-04';
+
+  function privateOptionTour(): TourPackage {
+    return tour({
+      listingExtras: {
+        bookingOptions: [
+          option({
+            id: 'opt-private',
+            name: 'Private group tour',
+            priceUsd: 0,
+            isPrivate: true,
+            privatePricing: 'flat_group',
+            privateGroupPriceUsd: 400,
+            minPersons: 1,
+            maxPersons: 10,
+          }),
+        ],
+      },
+    });
+  }
+
+  it('rejects a 100%-off discount that reduces the flat group price to zero', () => {
+    const q = quoteBooking({
+      tour: privateOptionTour(),
+      discounts: [
+        {
+          type: 'percent',
+          value: 100,
+          valid_from: null,
+          valid_until: null,
+          booking_option_id: 'opt-private',
+        },
+      ],
+      bookingDate: '2026-09-10',
+      guests: 4,
+      bookingOptionId: 'opt-private',
+      todayIso: today,
+    });
+    expect(q.ok).toBe(false);
+    if (q.ok) return;
+    expect(q.code).toBe('price');
+    expect(q.error).toMatch(/does not have a bookable price/i);
+  });
+
+  it('rejects a misconfigured >100%-off discount that would make the flat group price negative', () => {
+    const q = quoteBooking({
+      tour: privateOptionTour(),
+      discounts: [
+        {
+          type: 'percent',
+          value: 150,
+          valid_from: null,
+          valid_until: null,
+          booking_option_id: 'opt-private',
+        },
+      ],
+      bookingDate: '2026-09-10',
+      guests: 4,
+      bookingOptionId: 'opt-private',
+      todayIso: today,
+    });
+    expect(q.ok).toBe(false);
+    if (q.ok) return;
+    expect(q.code).toBe('price');
+    expect(q.error).toMatch(/does not have a bookable price/i);
+  });
+
+  it('still applies a legitimate partial discount to the flat group price', () => {
+    const q = quoteBooking({
+      tour: privateOptionTour(),
+      discounts: [
+        {
+          type: 'percent',
+          value: 25,
+          valid_from: null,
+          valid_until: null,
+          booking_option_id: 'opt-private',
+        },
+      ],
+      bookingDate: '2026-09-10',
+      guests: 4,
+      bookingOptionId: 'opt-private',
+      todayIso: today,
+    });
+    expect(q.ok).toBe(true);
+    if (!q.ok) return;
+    expect(q.totalAmount).toBe(300);
+  });
+});

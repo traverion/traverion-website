@@ -43,7 +43,7 @@
 | Packages/experiences families | MISSING / reserved | inventory families | Do not imply live catalogs |
 | Search / discovery | PARTIAL | published listings only | Availability-aware search depth |
 | Listing detail | PARTIAL | published listing + options | Snapshot fields at book time already stronger |
-| Quote | TEST-ONLY / STRONG | Edge checkout session quoting | Keep server-authoritative |
+| Quote | TEST-ONLY / STRONG | Edge + client mirror; flat_group ≤0 after discount rejected (874) | Keep server-authoritative |
 | Checkout | TEST-ONLY / STRONG | Stripe TEST + holds; allowlisted returnOrigin | Deployed return-origin fix (865) |
 | Booking snapshots | STRONG / BROWSER | `purchase_snapshot` + freezes; rename #41 | Policy/price edit cases still deepen |
 | Booking state machine | PARTIAL→STRONG | pending/confirmed/cancelled + payment_status; mig 100 NOT NULL | Remote-apply 100 + re-run SQL guard |
@@ -55,7 +55,7 @@
 | Reviews | PARTIAL→STRONG | ownership SQL guards | Eligibility after completed booking |
 | Wishlist / Saved | PARTIAL | `wishlist` | Thin adversarial coverage |
 | Trips | PARTIAL | `fetchMyBookings` + session guard | Continue honesty |
-| Supplier Bookings / Pickup | PARTIAL | partner ops UI | Cert against demo + create flow |
+| Supplier Bookings / Pickup | PARTIAL→STRONG | partner ops UI; Refund due #41 | Pickup list cert; stay cancel ops |
 | Availability ops | PARTIAL | calendar / capacity | Protect confirmed bookings on edit |
 | Income / earnings | PARTIAL | `booking_earnings` | Manual payouts only — honest |
 | Commission / take-rate | MISSING / unclear | No single snapshotted platform fee model | Define before LIVE |
