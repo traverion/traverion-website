@@ -75,13 +75,24 @@ export function openSupplierInbox(bookingId?: string, opts?: { unreadOnly?: bool
 /** Open pickup planner and optionally open a booking detail. */
 export function openSupplierPickup(
   bookingId?: string,
-  opts?: { from?: string; to?: string; needsOnly?: boolean; listingId?: string }
+  opts?: {
+    from?: string;
+    to?: string;
+    needsOnly?: boolean;
+    listingId?: string;
+    /** Experience-local day preset (Phase 1085) — preferred over absolute from/to for Today. */
+    day?: 'today' | 'tomorrow';
+  }
 ): void {
   const path = `${PARTNER_APP_BASE}/pickup`;
   const q = new URLSearchParams();
   if (bookingId) q.set('booking', bookingId);
-  if (opts?.from) q.set('from', opts.from);
-  if (opts?.to) q.set('to', opts.to);
+  if (opts?.day === 'today' || opts?.day === 'tomorrow') {
+    q.set('day', opts.day);
+  } else {
+    if (opts?.from) q.set('from', opts.from);
+    if (opts?.to) q.set('to', opts.to);
+  }
   if (opts?.listingId) q.set('listing', opts.listingId);
   if (opts?.needsOnly) q.set('needs', '1');
   const qs = q.toString();

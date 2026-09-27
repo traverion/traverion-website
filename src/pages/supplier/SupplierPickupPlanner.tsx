@@ -29,7 +29,7 @@ import { isPurchaseSnapshot, displayListingTitleFromPurchase, displayDurationFro
 import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierListSkeleton, SupplierPageHero } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
-import { partnerBookingIsLiveTrip, partnerBookingIsOperatingTrip, partnerBookingNeedsLook } from '../../lib/trip-views';
+import { partnerBookingIsLiveTrip, partnerBookingIsOperatingTrip, partnerBookingNeedsLook, partnerTourMatchesExperienceDayOffset } from '../../lib/trip-views';
 import { PARTNER_PICKUP_CSV_HEADER, partnerPickupCsvValues } from '../../lib/partner-pickup-csv';
 import { csvSafeCell } from '../../lib/csv-export';
 import { bookingIsStayNight, bookingNeedsPickupCopy, resolvePartnerPickupCopy } from '../../lib/pickup-completeness';
@@ -232,6 +232,11 @@ export default function SupplierPickupPlanner() {
     const d = (new URLSearchParams(window.location.search).get('to') ?? '').trim();
     return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : '';
   });
+  const [dayPreset, setDayPreset] = useState<'today' | 'tomorrow' | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const d = (new URLSearchParams(window.location.search).get('day') ?? '').trim();
+    return d === 'today' || d === 'tomorrow' ? d : null;
+  });
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
@@ -248,7 +253,7 @@ export default function SupplierPickupPlanner() {
   const [showSearch, setShowSearch] = useState(() => {
     if (typeof window === 'undefined') return false;
     const p = new URLSearchParams(window.location.search);
-    return Boolean(p.get('from') || p.get('to') || p.get('listing') || p.get('needs'));
+    return Boolean(p.get('from') || p.get('to') || p.get('listing') || p.get('needs') || p.get('day'));
   });
   const [dateSectionOpen, setDateSectionOpen] = useState<Record<string, boolean>>({});
   const [scheduleDraft, setScheduleDraft] = useState({ start: '', pickup: '' });
@@ -356,13 +361,17 @@ export default function SupplierPickupPlanner() {
       const params = new URLSearchParams(window.location.search);
       const id = params.get('booking');
       setSelectedBookingId(id && id.length > 0 ? id : null);
+      const day = (params.get('day') ?? '').trim();
+      const scheduleDay = day === 'today' || day === 'tomorrow' ? day : null;
+      setDayPreset(scheduleDay);
       const from = (params.get('from') ?? '').trim();
       const to = (params.get('to') ?? '').trim();
-      setDateFrom(/^\d{4}-\d{2}-\d{2}$/.test(from) ? from : '');
-      setDateTo(/^\d{4}-\d{2}-\d{2}$/.test(to) ? to : '');
+      // Absolute from/to only apply when not on an experience-day preset.
+      setDateFrom(!scheduleDay && /^\d{4}-\d{2}-\d{2}$/.test(from) ? from : '');
+      setDateTo(!scheduleDay && /^\d{4}-\d{2}-\d{2}$/.test(to) ? to : '');
       setListingFilterId((params.get('listing') ?? '').trim());
       setNeedsPickupOnly(params.get('needs') === '1');
-      if (params.get('from') || params.get('to') || params.get('listing') || params.get('needs')) {
+      if (params.get('from') || params.get('to') || params.get('listing') || params.get('needs') || params.get('day')) {
         setShowSearch(true);
       }
     };
@@ -377,16 +386,26 @@ export default function SupplierPickupPlanner() {
       to?: string;
       listingId?: string;
       needsOnly?: boolean;
+      day?: 'today' | 'tomorrow' | '';
     }) => {
-      const from = patch.from !== undefined ? patch.from : dateFrom;
-      const to = patch.to !== undefined ? patch.to : dateTo;
+      const day =
+        patch.day !== undefined
+          ? patch.day === 'today' || patch.day === 'tomorrow'
+            ? patch.day
+            : null
+          : dayPreset;
+      const from = day ? '' : patch.from !== undefined ? patch.from : dateFrom;
+      const to = day ? '' : patch.to !== undefined ? patch.to : dateTo;
       const listingId = patch.listingId !== undefined ? patch.listingId : listingFilterId;
       const needsOnly = patch.needsOnly !== undefined ? patch.needsOnly : needsPickupOnly;
-      if (patch.from !== undefined) setDateFrom(patch.from);
-      if (patch.to !== undefined) setDateTo(patch.to);
+      if (patch.day !== undefined) setDayPreset(day);
+      if (patch.from !== undefined || day) setDateFrom(from);
+      if (patch.to !== undefined || day) setDateTo(to);
       if (patch.listingId !== undefined) setListingFilterId(patch.listingId);
       if (patch.needsOnly !== undefined) setNeedsPickupOnly(patch.needsOnly);
       const url = new URL(window.location.href);
+      if (!day) url.searchParams.delete('day');
+      else url.searchParams.set('day', day);
       if (!from) url.searchParams.delete('from');
       else url.searchParams.set('from', from);
       if (!to) url.searchParams.delete('to');
@@ -397,7 +416,7 @@ export default function SupplierPickupPlanner() {
       else url.searchParams.set('needs', '1');
       window.history.replaceState({}, '', `${url.pathname}${url.search}`);
     },
-    [dateFrom, dateTo, listingFilterId, needsPickupOnly]
+    [dateFrom, dateTo, dayPreset, listingFilterId, needsPickupOnly]
   );
 
   const setSelectedBookingAndUrl = useCallback((id: string | null) => {
@@ -408,26 +427,19 @@ export default function SupplierPickupPlanner() {
     window.history.replaceState({}, '', `${url.pathname}${url.search}`);
   }, []);
 
-  const todayYmd = toYmd(new Date());
-  const tomorrowYmd = (() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    return toYmd(d);
-  })();
-  const dayPreset =
-    dateFrom && dateFrom === dateTo
-      ? dateFrom === todayYmd
-        ? 'today'
-        : dateFrom === tomorrowYmd
-          ? 'tomorrow'
-          : null
-      : null;
-
   /** Tour pickup work only: hide stays, cancelled, refunded, and failed checkouts. */
   const filtered = useMemo(() => {
+    const nowMs = Date.now();
     return bookings.filter((b) => {
       if (!partnerBookingIsOperatingTrip(b)) return false;
       if (bookingIsStayNight(b) || stayListingIds.has(b.listing_id)) return false;
+
+      if (dayPreset === 'today') {
+        return partnerTourMatchesExperienceDayOffset(b, 0, nowMs);
+      }
+      if (dayPreset === 'tomorrow') {
+        return partnerTourMatchesExperienceDayOffset(b, 1, nowMs);
+      }
 
       const bd = b.booking_date;
       if (dateFrom && bd && bd < dateFrom) return false;
@@ -435,7 +447,7 @@ export default function SupplierPickupPlanner() {
       if ((dateFrom || dateTo) && !bd) return false;
       return true;
     });
-  }, [bookings, dateFrom, dateTo, stayListingIds]);
+  }, [bookings, dateFrom, dateTo, dayPreset, stayListingIds]);
 
   const sorted = useMemo(
     () =>
@@ -748,7 +760,7 @@ export default function SupplierPickupPlanner() {
 
   if (!user) return null;
 
-  const filtersOn = Boolean(dateFrom || dateTo || listingFilterId || needsPickupOnly);
+  const filtersOn = Boolean(dateFrom || dateTo || dayPreset || listingFilterId || needsPickupOnly);
   const activeBookingsCount = bookings.filter((b) => partnerBookingIsOperatingTrip(b)).length;
 
   if (selectedBooking) {
@@ -1107,15 +1119,19 @@ export default function SupplierPickupPlanner() {
               ] as const
             ).map((tab) => {
               const selected =
-                tab.id === 'all' ? !dateFrom && !dateTo : tab.id === 'today' ? dayPreset === 'today' : dayPreset === 'tomorrow';
+                tab.id === 'all'
+                  ? !dateFrom && !dateTo && !dayPreset
+                  : tab.id === 'today'
+                    ? dayPreset === 'today'
+                    : dayPreset === 'tomorrow';
               return (
                 <button
                   key={tab.id}
                   type="button"
                   onClick={() => {
-                    if (tab.id === 'all') writePickupFiltersToUrl({ from: '', to: '' });
-                    else if (tab.id === 'today') writePickupFiltersToUrl({ from: todayYmd, to: todayYmd });
-                    else writePickupFiltersToUrl({ from: tomorrowYmd, to: tomorrowYmd });
+                    if (tab.id === 'all') writePickupFiltersToUrl({ day: '', from: '', to: '' });
+                    else if (tab.id === 'today') writePickupFiltersToUrl({ day: 'today' });
+                    else writePickupFiltersToUrl({ day: 'tomorrow' });
                   }}
                   className={`lux-flat rounded-md px-3 py-1.5 text-xs font-semibold ring-1 transition-colors ${
                     selected
@@ -1166,7 +1182,7 @@ export default function SupplierPickupPlanner() {
                     <input
                       type="date"
                       value={dateFrom}
-                      onChange={(e) => writePickupFiltersToUrl({ from: e.target.value })}
+                      onChange={(e) => writePickupFiltersToUrl({ day: '', from: e.target.value })}
                       className="tv-input w-[9.25rem]"
                       aria-label="Activity date from"
                     />
@@ -1174,7 +1190,7 @@ export default function SupplierPickupPlanner() {
                     <input
                       type="date"
                       value={dateTo}
-                      onChange={(e) => writePickupFiltersToUrl({ to: e.target.value })}
+                      onChange={(e) => writePickupFiltersToUrl({ day: '', to: e.target.value })}
                       className="tv-input w-[9.25rem]"
                       aria-label="Activity date to"
                     />
@@ -1206,7 +1222,7 @@ export default function SupplierPickupPlanner() {
                   <button
                     type="button"
                     onClick={() => {
-                      writePickupFiltersToUrl({ from: '', to: '', listingId: '', needsOnly: false });
+                      writePickupFiltersToUrl({ day: '', from: '', to: '', listingId: '', needsOnly: false });
                       setSortDate('asc');
                     }}
                     className="tv-btn-ghost"
@@ -1268,7 +1284,7 @@ export default function SupplierPickupPlanner() {
             <button
               type="button"
               onClick={() => {
-                writePickupFiltersToUrl({ from: '', to: '', listingId: '', needsOnly: false });
+                writePickupFiltersToUrl({ day: '', from: '', to: '', listingId: '', needsOnly: false });
                 setSortDate('asc');
               }}
               className="tv-btn-primary"

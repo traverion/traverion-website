@@ -294,9 +294,6 @@ export default function SupplierDashboard() {
     return () => document.removeEventListener('visibilitychange', onVis);
   }, [reloadDashboard]);
 
-  const now = new Date();
-  const todayYmd = localYmd(now);
-
   const todayDepartures = useMemo(() => {
     const nowMs = Date.now();
     return supplierBookings
@@ -351,7 +348,8 @@ export default function SupplierDashboard() {
     () =>
       supplierBookings.filter((b) => {
         if (!bookingOccupiesInventory(b) || !bookingPaymentWasCollected(b.payment_status)) return false;
-        if (!b.booking_date || b.booking_date < todayYmd) return false;
+        const experienceToday = scheduleTodayIsoForBooking(b);
+        if (!b.booking_date || b.booking_date < experienceToday) return false;
         const listing = listingsById[b.listing_id];
         const opts = isPurchaseSnapshot(b.purchase_snapshot)
           ? null
@@ -368,7 +366,7 @@ export default function SupplierDashboard() {
         });
         return bookingNeedsPickupCopy(b, copy.meetingPoint, copy.pickupInstructions);
       }),
-    [supplierBookings, listingsById, todayYmd]
+    [supplierBookings, listingsById]
   );
 
   const openCancelCount = openCancels.length;
@@ -404,7 +402,7 @@ export default function SupplierDashboard() {
 
   const firstName =
     (profile?.display_name || profile?.company_legal_name || '').trim().split(/\s+/)[0] || null;
-  const dateLabel = now
+  const dateLabel = new Date()
     .toLocaleDateString('en-GB', {
       weekday: 'long',
       day: 'numeric',
@@ -443,7 +441,7 @@ export default function SupplierDashboard() {
     return [...map.entries()];
   }, [upcoming]);
 
-  const hour = now.getHours();
+  const hour = new Date().getHours();
   const hello = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
   const todayGuestTotal = todayDepartures.reduce((s, b) => s + (b.guests ?? 0), 0);
@@ -640,8 +638,7 @@ export default function SupplierDashboard() {
                 }
                 onClick={() =>
                   openSupplierPickup(pickupGaps[0]?.id, {
-                    from: todayYmd,
-                    to: todayYmd,
+                    day: 'today',
                     needsOnly: true,
                   })
                 }
@@ -754,14 +751,15 @@ export default function SupplierDashboard() {
             {todayDepartures.map((b, idx) => {
               const isStay = bookingIsStayNight(b);
               const stay = isStay ? stayRangeFromBooking(b) : null;
+              const experienceToday = scheduleTodayIsoForBooking(b);
               const opsHm = pgTimeToHm(b.start_time) || pgTimeToHm(b.pickup_time) || null;
               const dep = partnerOpsDepartureDisplay(b.purchase_snapshot, opsHm);
               const startHm = dep.displayHm || null;
               const pickupMissing = pickupGaps.some((g) => g.id === b.id);
               const timeLabel = isStay
-                ? stay && stay.checkIn === todayYmd
+                ? stay && stay.checkIn === experienceToday
                   ? 'In'
-                  : stay && stay.checkOut === todayYmd
+                  : stay && stay.checkOut === experienceToday
                     ? 'Out'
                     : 'Stay'
                 : (startHm ?? '—');

@@ -3,7 +3,7 @@ import { bookingOccupiesInventory, partnerUnpaidCheckoutHoldsInventory } from '.
 import { checkoutPaymentStatusCanResume } from './checkout-resume';
 import { bookingIsStayNight } from './pickup-completeness';
 import { nightsOccupiedByStay, stayRangeFromBooking } from './stayOccupancy';
-import { resolveLifecycleTimezone, ymdInTimeZone } from './booking-lifecycle-calendar';
+import { resolveLifecycleTimezone, ymdInTimeZone, addCalendarDaysYmd } from './booking-lifecycle-calendar';
 import { localYmd } from './local-ymd';
 
 /** Collapsed Trips row — booking reference for support/receipt matching without expand. */
@@ -132,6 +132,23 @@ export function scheduleTodayIsoForBooking(
 ): string {
   const tz = resolveLifecycleTimezone(b.purchase_snapshot);
   return ymdInTimeZone(nowMs, tz) ?? localYmd(new Date(nowMs));
+}
+
+/**
+ * Tour pickup date matches experience-local today (offset 0) or tomorrow (offset 1).
+ * Used by partner Pickup Today/Tomorrow presets so browser TZ cannot redefine the day.
+ */
+export function partnerTourMatchesExperienceDayOffset(
+  b: { booking_date?: string | null; purchase_snapshot?: unknown },
+  dayOffset: 0 | 1,
+  nowMs: number = Date.now()
+): boolean {
+  const bd = (b.booking_date ?? '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(bd)) return false;
+  const experienceToday = scheduleTodayIsoForBooking(b, nowMs);
+  if (dayOffset === 0) return bd === experienceToday;
+  const tomorrow = addCalendarDaysYmd(experienceToday, 1);
+  return Boolean(tomorrow && bd === tomorrow);
 }
 
 /** Partner Today: occupying operating trips on this local date — not refunded or cancelled.

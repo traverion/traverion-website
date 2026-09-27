@@ -16,6 +16,7 @@ import {
   partnerBookingShowsCancelAction,
   sortTravelerCancelledTrips,
   scheduleTodayIsoForBooking,
+  partnerTourMatchesExperienceDayOffset,
 } from './trip-views';
 
 const today = '2026-09-08';
@@ -286,6 +287,37 @@ describe('trip list views', () => {
     expect(bookingMatchesTripView(helsinkiTour, 'past', undefined, nowMs)).toBe(false);
     expect(
       partnerBookingIsTodaySchedule(helsinkiTour, scheduleTodayIsoForBooking(helsinkiTour, nowMs), nowMs)
+    ).toBe(true);
+  });
+
+  it('matches pickup Today/Tomorrow to experience-local day, not browser UTC (Phase 1085)', () => {
+    // 22:30 UTC = already 01:30 next calendar day in Helsinki.
+    const nowMs = Date.parse('2026-09-15T22:30:00.000Z');
+    const snap = {
+      listingTitle: 'Aurora',
+      departureTimezone: 'Europe/Helsinki',
+      capturedAt: 't',
+    };
+    expect(
+      partnerTourMatchesExperienceDayOffset(
+        { booking_date: '2026-09-16', purchase_snapshot: snap },
+        0,
+        nowMs
+      )
+    ).toBe(true);
+    expect(
+      partnerTourMatchesExperienceDayOffset(
+        { booking_date: '2026-09-15', purchase_snapshot: snap },
+        0,
+        nowMs
+      )
+    ).toBe(false);
+    expect(
+      partnerTourMatchesExperienceDayOffset(
+        { booking_date: '2026-09-17', purchase_snapshot: snap },
+        1,
+        nowMs
+      )
     ).toBe(true);
   });
 });
