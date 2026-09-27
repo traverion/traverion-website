@@ -106,7 +106,8 @@ export function rowToTourPackage(row: ListingRow): TourPackage {
     excludes: Array.isArray(row.excludes) ? row.excludes : defaultExcludes,
     hotels: [],
     difficulty: (row.difficulty as TourPackage['difficulty']) ?? 'Easy',
-    groupSize: row.group_size ?? '2-12 People',
+    // Phase 1236: null group_size → empty (no invent 2–12; edge quote 1228 parity).
+    groupSize: row.group_size?.trim() || '',
     bestTime: row.best_time ?? 'Year round',
     rating: Number(row.rating),
     reviews: Number(row.reviews),
@@ -194,7 +195,8 @@ export function tourPackageToRow(tour: Partial<TourPackage> & { title: string; d
     includes: Array.isArray(tour.includes) ? tour.includes : defaultIncludes,
     excludes: Array.isArray(tour.excludes) ? tour.excludes : defaultExcludes,
     difficulty: tour.difficulty ?? 'Easy',
-    group_size: tour.groupSize ?? '2-12 People',
+    // Phase 1236: do not invent 2–12 People into DB when supplier left group size blank.
+    group_size: tour.groupSize?.trim() || null,
     best_time: tour.bestTime ?? 'Year round',
     // Always 0 — real scores come from reviews aggregates; DB trigger 122 also forces 0.
     rating: 0,
