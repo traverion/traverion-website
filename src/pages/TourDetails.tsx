@@ -203,7 +203,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const userRef = useRef(user);
   userRef.current = user;
 
-  const partyBounds = useMemo(() => (tour ? getPartySizeBounds(tour) : { min: 1, max: 12 }), [tour]);
+  const partyBounds = useMemo(() => (tour ? getPartySizeBounds(tour) : { min: 1, max: 0 }), [tour]);
   const canBook = Boolean(tour && isListingVisibleToTravelers(tour.status));
   const tourVariants = useMemo(() => (tour ? getTourBookingVariants(tour) : []), [tour]);
   const checkoutFromUrl = useMemo(() => parseTourCheckoutSearch(locationSearch), [locationSearch]);

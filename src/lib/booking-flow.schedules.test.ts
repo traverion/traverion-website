@@ -101,6 +101,11 @@ describe('getTourBookingVariants with schedules', () => {
     expect(variants[0].pricePerPerson).toBe(119);
     expect(variants[0].subtitle).toMatch(/From 19:00|Starts/);
     expect(getPartySizeBounds(tourWithOption(option))).toEqual({ min: 2, max: 8 });
+    // Phase 1229: unknown bounds fail closed (max 0), no invent-12.
+    expect(getPartySizeBounds({ id: 'x', title: 't', listingExtras: { bookingOptions: [] } } as never)).toEqual({
+      min: 1,
+      max: 0,
+    });
   });
 
   it('resolves party bounds from the schedule that applies on the chosen date', () => {

@@ -88,9 +88,12 @@ export function getPartySizeBoundsKnown(tour: TourPackage): { min: number; max: 
   return null;
 }
 
-/** Min/max party size from listing booking options, group size text, or defaults. */
+/**
+ * Min/max party size from listing booking options or group size text.
+ * Phase 1229: unknown → max 0 (fail-closed steppers; no invent-12).
+ */
 export function getPartySizeBounds(tour: TourPackage): { min: number; max: number } {
-  return getPartySizeBoundsKnown(tour) ?? { min: 1, max: 12 };
+  return getPartySizeBoundsKnown(tour) ?? { min: 1, max: 0 };
 }
 
 /** Min/max for a specific bookable option; falls back to listing-wide bounds. */
