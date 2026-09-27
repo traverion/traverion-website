@@ -755,6 +755,14 @@ export default function BookingPage({
       setError(priceInfo.quote.error);
       return;
     }
+    // Phase 1174: mirror Pay/PDP — unknown remaining must not advance to contact.
+    if (capacityUnknown) {
+      setError(
+        dayCapacityError ||
+          'We could not verify departure capacity. Check your connection and try again.'
+      );
+      return;
+    }
     setError(null);
     setAvailabilityChecking(true);
     setAvailabilityModalNote(null);
