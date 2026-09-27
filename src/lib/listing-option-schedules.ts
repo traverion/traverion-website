@@ -150,8 +150,9 @@ export function scheduleIsBookable(s: ListingOptionSchedule): boolean {
   const to = listingLocalDateKey(s.availabilityDateTo);
   if (to && !from) return false;
   if (from && to && from > to) return false;
-  if (!isImplicitScheduleId(s.id) && !from) return false;
-  if (!isImplicitScheduleId(s.id) && !s.startTime.trim()) return false;
+  // Phase 1291: require from + startTime for all schedules (edge quote parity; no implicit invent).
+  if (!from) return false;
+  if (!s.startTime.trim()) return false;
   if (!scheduleCapacityValid(s)) return false;
   return true;
 }

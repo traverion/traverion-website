@@ -202,8 +202,9 @@ export function optionScheduleManagementIssues(
   todayIso?: string
 ): string[] {
   if (option.schedules !== undefined) {
+    // Phase 1290: only status=ready counts as a live season (catalog/assert 1288 parity).
     const ready = (option.schedules ?? []).filter(
-      (s) => s.status !== 'draft' && scheduleWizardIsComplete(s) && listingShapeHasBookablePrice(s)
+      (s) => s.status === 'ready' && scheduleWizardIsComplete(s) && listingShapeHasBookablePrice(s)
     );
     if (ready.length === 0) {
       return ['Add at least one complete schedule before finishing this option.'];
