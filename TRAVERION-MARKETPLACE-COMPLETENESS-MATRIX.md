@@ -38,7 +38,7 @@
 | Tour creation | STRONG / BROWSER | listings + options/schedules; create→LIVE→book **#41** | Field-depth gaps remain; dedicated traveler next |
 | Tour options | PARTIAL | `bookingOptions[]` JSON | Cert multi-option publish/book |
 | Schedules / seasons | PARTIAL | schedule JSON + availability | Overlap/DST/timezone model |
-| Stay creation | PARTIAL | stay extras + occupancy quote | Audit 859; check-in/out 102; **stay book E2E #40 BROWSER (866)** |
+| Stay creation | PARTIAL | stay extras + occupancy; book #40 + cancel restore (875) | Supplier create→publish stay depth |
 | Rentals | MISSING | Partner “Not available yet” | Keep honest; no fake vertical |
 | Packages/experiences families | MISSING / reserved | inventory families | Do not imply live catalogs |
 | Search / discovery | PARTIAL | published listings only | Availability-aware search depth |
@@ -47,9 +47,9 @@
 | Checkout | TEST-ONLY / STRONG | Stripe TEST + holds; allowlisted returnOrigin | Deployed return-origin fix (865) |
 | Booking snapshots | STRONG / BROWSER | `purchase_snapshot` + freezes; rename #41 | Policy/price edit cases still deepen |
 | Booking state machine | PARTIAL→STRONG | pending/confirmed/cancelled + payment_status; mig 100 NOT NULL | Remote-apply 100 + re-run SQL guard |
-| Inventory / concurrency | PARTIAL→STRONG | assert + cancel restore #41 (8 spots) | Slot-scoped lock; stay cancel restore |
+| Inventory / concurrency | STRONG / BROWSER | Tour seats #41 + stay nights #40 restore | Slot-scoped lock; parallel race re-cert |
 | Payments | TEST-ONLY / STRONG | Stripe webhook → payment_status; #39 BROWSER | Never invent paid from redirect |
-| Cancellation | STRONG / BROWSER | RPCs + ledger; traveler cancel #41 | Supplier cancel path; stay cancel restore |
+| Cancellation | STRONG / BROWSER | Tour #41 + stay #40 cancel; 24h no-refund honesty | Supplier-initiated cancel path |
 | Refunds | PARTIAL | Manual Stripe TEST; “Refund due” | Design auto-refund or ops SLA (FOUNDER if product fork) |
 | Messaging | PARTIAL | `booking_messages` | No fake realtime |
 | Reviews | PARTIAL→STRONG | ownership SQL guards | Eligibility after completed booking |

@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:**   
-**Current phase:** 874  
+**Current SHA:** `32784e7`  
+**Current phase:** 875  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4531,6 +4531,19 @@ Also removed unused businessComplete local in Listings after 861 gate fix.
 **Also (browser):** Partner Bookings → filter **Refund due** → **#41** Alex Cert · Phase 864 Cert Northern Lights Small Group (snapshot title) · Mon 28 Sept · €119 · Refund due. Live rename does not rewrite partner cancelled row title.
 
 **Certification:** client/server quote parity for private flat after discount = **AUTOMATED-TESTED**; supplier cancel ops surface = **BROWSER-TESTED**.
+
+### Phase 875 — Stay cancel #40 + occupancy restore
+
+**Browser:** Trips Ref **#40** Riverside Apartment · 28→30 Sept · €335 TEST → Cancel booking.
+
+1. Dialog honesty: **No refund** — check-in within 24 hours (traveler-initiated)
+2. Banner: Booking cancelled. No refund applies…
+3. DB: `status=cancelled`, `payment_status=paid`, `cancelled=true`
+4. Stay PDP calendar: **2026-09-28/29/30 available** again (host-blocked 27 still occupied)
+
+**Certification:** stay cancel + night inventory restore = **BROWSER-TESTED** + **INTEGRATION**. Policy window truth preserved (no fake refund eligibility).
+
+Also amended progress header SHA for Phase 874 (`6a87bfa`) after a blanking glitch.
 
 ## Known remaining risks (ranked)
 
