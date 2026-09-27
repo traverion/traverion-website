@@ -308,16 +308,18 @@ export function tourSellingDeparturesOnDate(
       continue;
     }
     // Legacy option without schedules: use option-level window.
+    // Phase 1293: require from + startTime (scheduleIsBookable / season 1292 parity).
     const from = listingLocalDateKey(option.availabilityDateFrom ?? '');
     const to = listingLocalDateKey(option.availabilityDateTo ?? '');
     const key = listingLocalDateKey(localDateIso);
-    if (from && key < from) continue;
+    const start = (option.startTime ?? '').trim();
+    if (!from || !start) continue;
+    if (key < from) continue;
     if (to && key > to) continue;
     const wd = scheduleWeekdayIndexMondayFirst(key);
     if (wd == null) continue;
     const weekdays = Array.isArray(option.weekdays) ? option.weekdays : [];
-    if (weekdays.length >= 7 && !weekdays[wd]) continue;
-    const start = (option.startTime ?? '').trim();
+    if (weekdays.length < 7 || !weekdays[wd]) continue;
     // Phase 1173/1212: require real maxSpotsPerSlot — never invent from maxPersons (1207 parity).
     const spots =
       typeof option.maxSpotsPerSlot === 'number' && Number.isFinite(option.maxSpotsPerSlot) && option.maxSpotsPerSlot >= 1
