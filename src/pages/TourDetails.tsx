@@ -1045,6 +1045,15 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       );
       return;
     }
+    // Phase 1182: sold-out / undersized remaining must not navigate (BookingPage 1178 parity).
+    if (selectedDaySpotsLeft != null && selectedDaySpotsLeft < partySize) {
+      setBookingCardError(
+        selectedDaySpotsLeft === 0
+          ? 'This date is fully booked. Try another date or fewer guests.'
+          : 'Not enough capacity left for your party. Adjust guests or pick another date.'
+      );
+      return;
+    }
     // Phase 1164: mirror 1147 — block own/team listings before navigating to checkout.
     if (isSupabaseConfigured() && userRef.current?.id) {
       const selfBook = await viewerIsListingSupplierSide(userRef.current.id, tour.supplierId);
