@@ -706,10 +706,16 @@ export default function SupplierListings() {
   const confirmDeleteListing = async () => {
     if (!listingPendingDelete || !canEditListings) return;
     const id = listingPendingDelete.id;
+    const pending = listingPendingDelete;
     setDeleteBusy(true);
     try {
       if (isSupabase) {
-        await deleteListing(id);
+        const { collectListingStorageImageUrls } = await import('../../data/supabase-listing-images');
+        const imageUrls = collectListingStorageImageUrls(pending);
+        await deleteListing(id, {
+          ownerUserId: user?.id,
+          imageUrls,
+        });
         refresh();
         setListingPendingDelete(null);
       } else {

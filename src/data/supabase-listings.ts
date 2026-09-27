@@ -300,13 +300,20 @@ export async function updateListing(id: string, tour: Partial<TourPackage>): Pro
   return { ok: true, tour: rowToTourPackage(data as ListingRow) };
 }
 
-/** Delete a listing (requires auth; must be owner). */
-export async function deleteListing(id: string): Promise<boolean> {
+/** Delete a listing (requires auth; must be owner). Optionally GC owned listing-images. */
+export async function deleteListing(
+  id: string,
+  opts?: { ownerUserId?: string; imageUrls?: string[] }
+): Promise<boolean> {
   if (!supabase) return false;
   const { error } = await supabase.from('listings').delete().eq('id', id);
   if (error) {
     console.error('Supabase delete listing:', error);
     return false;
+  }
+  if (opts?.ownerUserId && opts.imageUrls?.length) {
+    const { removeOwnedListingImagesAfterDelete } = await import('./supabase-listing-images');
+    await removeOwnedListingImagesAfterDelete(opts.ownerUserId, opts.imageUrls);
   }
   return true;
 }

@@ -4,7 +4,7 @@
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
 **Current SHA:** `aba3e57`  
-**Current phase:** 1004  
+**Current phase:** 1005  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -5128,6 +5128,14 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 **Multi-option:** Cert tour `1807368c-…` — Oct 1 shows **€119 pickup** + **€99 meeting point**; selecting meeting option updates pickup section to Santa Claus Village, sidebar Total **€99**, CTA **Continue · test mode**, URL `option=535fb60f-…`. Full Stripe TEST pay of second option still optional residual (session may be partner-bleed).
 
 **Certification:** BROWSER-TESTED (scroll + option select/quote). Stripe pay of €99 option = NOT claimed this phase.
+
+### Phase 1005 — Delete listing GCs owned listing-images
+
+**Gap:** Deleting a listing removed the DB row but left `listing-images` objects orphaned.
+
+**Fix:** `collectListingStorageImageUrls` + `removeOwnedListingImagesAfterDelete`; `deleteListing` accepts optional owner + URLs; partner Listings confirm-delete passes them. External/non-bucket URLs ignored. Unit tests cover collect/dedupe.
+
+**Certification:** AUTOMATED-TESTED. Browser delete + storage proof = NOT claimed (would mutate demo inventory).
 
 ## Known remaining risks (ranked)
 

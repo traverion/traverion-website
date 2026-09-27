@@ -31,6 +31,25 @@ export function isListingImageStoragePublicUrl(url: string): boolean {
   return listingImagePathFromPublicUrl(url) != null;
 }
 
+/** Hero + gallery URLs that live in the listing-images bucket (deduped). */
+export function collectListingStorageImageUrls(listing: {
+  image?: string | null;
+  listingExtras?: { galleryImageUrls?: string[] | null } | null;
+}): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const push = (raw: string | null | undefined) => {
+    const u = (raw ?? '').trim();
+    if (!u || seen.has(u)) return;
+    if (!isListingImageStoragePublicUrl(u)) return;
+    seen.add(u);
+    out.push(u);
+  };
+  push(listing.image);
+  for (const g of listing.listingExtras?.galleryImageUrls ?? []) push(g);
+  return out;
+}
+
 export async function uploadListingImage(
   userId: string,
   file: File
@@ -59,4 +78,19 @@ export async function removeListingImageIfOwned(userId: string, publicUrl: strin
   const path = listingImagePathFromPublicUrl(publicUrl);
   if (!path || !path.startsWith(`${userId}/`)) return;
   await supabase.storage.from(BUCKET).remove([path]);
+}
+
+/** Best-effort cleanup after a listing row is deleted. Never throws. */
+export async function removeOwnedListingImagesAfterDelete(
+  userId: string,
+  imageUrls: string[]
+): Promise<void> {
+  if (!userId || imageUrls.length === 0) return;
+  for (const url of imageUrls) {
+    try {
+      await removeListingImageIfOwned(userId, url);
+    } catch {
+      // Storage GC is best-effort; listing row delete already succeeded.
+    }
+  }
 }
