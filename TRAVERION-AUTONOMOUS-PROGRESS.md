@@ -3,13 +3,13 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness** (continuing 1001+)  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `128ad25`  
-**Current phase:** 1017  
+**Current SHA:** `55bcc79`  
+**Current phase:** 1018  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Local-only (gitignored):** `scripts/cert-transactional-emails.cjs` — must stay untracked; contains service-role secrets when present locally  
-**Remote migration truth (Phase 1017):** Local=Remote through **108** on `xcopqllkulxfkpunetbc`. Stripe: TEST only.  
+**Remote migration truth (Phase 1018):** Local=Remote through **109** on `xcopqllkulxfkpunetbc`. Stripe: TEST only.  
 
 ## Milestone Phase 513 (inventory band)
 
@@ -5222,6 +5222,14 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 **Gap:** INSERT/UPDATE RLS only checked `supplier_id = auth.uid()`, so any authenticated supplier could plant an ops note on another supplier's booking_id via PostgREST (same class as vouchers 099).
 
 **Fix:** Migration `108_supplier_booking_ops_notes_ownership_guard.sql` — WITH CHECK requires booking→listing owned by row supplier_id. SQL harness + remote db push. No UI callers today; still P0-family authorization.
+
+**Certification:** ADVERSARIAL-TESTED (SQL harness authored) + remote applied. Scratch Postgres re-run = host-blocked (no local docker). Ending SHA `55bcc79`.
+
+### Phase 1018 — Guard supplier_booking_events against cross-supplier plant
+
+**Gap:** INSERT RLS only checked `supplier_id = auth.uid()`, so any authenticated supplier could plant timeline events on another supplier's booking_id via PostgREST (same class as 099/108).
+
+**Fix:** Migration `109_supplier_booking_events_ownership_guard.sql` — WITH CHECK requires booking→listing owned by row supplier_id. Append-only table (no UPDATE policy). SQL harness + remote db push.
 
 **Certification:** ADVERSARIAL-TESTED (SQL harness authored) + remote applied. Scratch Postgres re-run = host-blocked (no local docker).
 
