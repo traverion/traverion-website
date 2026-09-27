@@ -4,7 +4,7 @@
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
 **Current SHA:** `7599ec1`  
-**Current phase:** 1013  
+**Current phase:** 1014  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -5194,6 +5194,14 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 **Evidence:** vitest `traveler-document-scroll`, `sitemap-xml`, `supabase-listing-images`, `listing-unpublish-impact` — **11/11** green. Matrix scroll cell notes Phase 1004 re-cert.
 
 **Certification:** AUTOMATED-TESTED.
+
+### Phase 1014 — Remove stale `patch_progress.py` debris + FOUNDER gate
+
+**Cleanup:** Deleted untracked obsolete `patch_progress.py` (phase-815 progress patcher) — was never meant to stay in the tree.
+
+**FOUNDER_REQUIRED (remaining P1):** Auto-refund vs manual; commission take-rate snapshot; dedicated traveler auth storage — see `docs/FOUNDER_REQUIRED.md`. Autonomous band continues on non-FOUNDER P2 work only until those decisions land.
+
+**Certification:** working tree clean (no untracked junk).
 
 ## Known remaining risks (ranked)
 
