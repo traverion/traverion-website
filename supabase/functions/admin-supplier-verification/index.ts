@@ -510,19 +510,23 @@ serve(async (req) => {
 
   if (body.action === 'listings_moderation_list') {
     const q = typeof body.listingSearch === 'string' ? body.listingSearch.trim() : '';
+    const uuidRe =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const byUuid = Boolean(q && uuidRe.test(q));
+
     let listingQuery = admin
       .from('listings')
       .select('id, title, status, style, experience_kind, city, country, supplier_id, updated_at')
-      .eq('status', 'published')
       .order('updated_at', { ascending: false })
       .limit(80);
 
-    if (q) {
-      const uuidRe =
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-      if (uuidRe.test(q)) {
-        listingQuery = listingQuery.eq('id', q);
-      } else {
+    // Default browse: published only. Exact UUID lookup includes drafts so staff can
+    // confirm a force-unpublish already took effect or inspect an unpublished row.
+    if (byUuid) {
+      listingQuery = listingQuery.eq('id', q);
+    } else {
+      listingQuery = listingQuery.eq('status', 'published');
+      if (q) {
         const safe = q.replace(/%/g, '').replace(/,/g, ' ').slice(0, 80);
         listingQuery = listingQuery.or(
           `title.ilike.%${safe}%,city.ilike.%${safe}%,country.ilike.%${safe}%`

@@ -151,7 +151,7 @@ export default function AdminListingsModerationPanel() {
             type="search"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Search by title, city, or listing UUID"
+            placeholder="Search by title, city, or listing UUID (UUID finds drafts too)"
             className="tv-input w-full pl-9"
           />
         </label>
@@ -194,30 +194,44 @@ export default function AdminListingsModerationPanel() {
                   </p>
                   <p className="text-[11px] text-ink-faint mt-1 font-mono break-all">{row.id}</p>
                 </div>
-                <span className="text-xs font-medium uppercase tracking-wide text-emerald-800 bg-emerald-50 ring-1 ring-emerald-200/70 rounded-md px-2 py-1 h-fit">
+                <span
+                  className={`text-xs font-medium uppercase tracking-wide rounded-md px-2 py-1 h-fit ring-1 ${
+                    (row.status ?? '').toLowerCase() === 'published'
+                      ? 'text-emerald-800 bg-emerald-50 ring-emerald-200/70'
+                      : 'text-ink-muted bg-paper ring-black/[0.08]'
+                  }`}
+                >
                   {row.status ?? '—'}
                 </span>
               </div>
-              <label className="block text-sm">
-                <span className="text-xs text-ink-muted">Moderation reason (required)</span>
-                <input
-                  type="text"
-                  value={reasonById[row.id] ?? ''}
-                  onChange={(e) => setReasonById((prev) => ({ ...prev, [row.id]: e.target.value }))}
-                  disabled={busy}
-                  placeholder="e.g. Unsafe content / spam / policy violation"
-                  className="tv-input w-full mt-1"
-                />
-              </label>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void forceUnpublish(row.id)}
-                className="tv-btn-secondary text-sm inline-flex items-center gap-2 text-amber-900 disabled:opacity-50"
-              >
-                {busy ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden /> : <ShieldOff className="w-4 h-4" aria-hidden />}
-                Force unpublish
-              </button>
+              {(row.status ?? '').toLowerCase() === 'published' ? (
+                <>
+                  <label className="block text-sm">
+                    <span className="text-xs text-ink-muted">Moderation reason (required)</span>
+                    <input
+                      type="text"
+                      value={reasonById[row.id] ?? ''}
+                      onChange={(e) => setReasonById((prev) => ({ ...prev, [row.id]: e.target.value }))}
+                      disabled={busy}
+                      placeholder="e.g. Unsafe content / spam / policy violation"
+                      className="tv-input w-full mt-1"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void forceUnpublish(row.id)}
+                    className="tv-btn-secondary text-sm inline-flex items-center gap-2 text-amber-900 disabled:opacity-50"
+                  >
+                    {busy ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden /> : <ShieldOff className="w-4 h-4" aria-hidden />}
+                    Force unpublish
+                  </button>
+                </>
+              ) : (
+                <p className="text-sm text-ink-muted">
+                  Already unpublished (draft). Travelers cannot discover it. Force-unpublish is only for published rows.
+                </p>
+              )}
             </li>
           );
         })}
