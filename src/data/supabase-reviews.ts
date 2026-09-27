@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { supplierPortalPublicBaseUrl } from '../lib/partnerHost';
-import { stayRangeFromBooking } from '../lib/stayOccupancy';
+import { bookingEligibleForReview } from '../lib/review-eligibility';
 import { notifySupplierEvent } from './supabase-supplier-messaging';
 import { inventoryFamilyFromListing, type InventoryFamily } from '../lib/inventory';
 import { parseListingExtras } from '../types/listingExtras';
@@ -146,21 +146,10 @@ export async function userHasCompletedBookingForListing(
 ): Promise<{ canReview: boolean; bookingId?: string }> {
   if (!supabase) return { canReview: false };
   const nowMs = Date.now();
-  const toStartMs = (bookingDate: string | null, startTime: string | null): number | null => {
-    const date = (bookingDate ?? '').trim();
-    if (!date) return null;
-    const t = (startTime ?? '').trim();
-    const hhmm = /^(\d{1,2}):(\d{2})/.exec(t);
-    const hh = hhmm ? hhmm[1].padStart(2, '0') : '23';
-    const mm = hhmm ? hhmm[2] : '59';
-    const d = new Date(`${date}T${hh}:${mm}:00`);
-    const ms = d.getTime();
-    return Number.isFinite(ms) ? ms : null;
-  };
 
   const { data, error } = await supabase
     .from('bookings')
-    .select('id, booking_date, start_time, check_out, nights, special_requests')
+    .select('id, status, payment_status, booking_date, start_time, check_out, nights, special_requests')
     .eq('listing_id', listingId)
     .eq('guest_email', userEmail)
     .eq('status', 'confirmed')
@@ -168,25 +157,7 @@ export async function userHasCompletedBookingForListing(
     .limit(50);
   if (error || !data?.length) return { canReview: false };
 
-  const eligible = data.find(
-    (b: {
-      id: string;
-      booking_date: string | null;
-      start_time?: string | null;
-      check_out?: string | null;
-      nights?: number | null;
-      special_requests?: string | null;
-    }) => {
-      const stay = stayRangeFromBooking(b);
-      if (stay) {
-        // Stay: eligible after checkout day begins (local date boundary).
-        const checkoutMs = new Date(`${stay.checkOut}T00:00:00`).getTime();
-        return Number.isFinite(checkoutMs) && nowMs >= checkoutMs;
-      }
-      const startMs = toStartMs(b.booking_date, b.start_time ?? null);
-      return startMs != null && nowMs > startMs;
-    }
-  );
+  const eligible = data.find((b) => bookingEligibleForReview(b, nowMs));
   if (!eligible) return { canReview: false };
   return { canReview: true, bookingId: eligible.id };
 }

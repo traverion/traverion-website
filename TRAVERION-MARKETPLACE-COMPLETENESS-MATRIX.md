@@ -39,7 +39,7 @@
 | Tour options | PARTIAL | `bookingOptions[]` JSON | Cert multi-option publish/book |
 | Schedules / seasons | PARTIAL | schedule JSON + availability | Overlap/DST/timezone model |
 | Stay creation | PARTIAL | stay extras + occupancy; book #40 + cancel restore (875) | Supplier create→publish stay depth |
-| Rentals | MISSING | Partner “Not available yet” | Keep honest; no fake vertical |
+| Rentals | NOT REQUIRED YET / HONEST | Partner “Not available to list yet” (879) | Keep honest until domain model defined |
 | Packages/experiences families | MISSING / reserved | inventory families | Do not imply live catalogs |
 | Search / discovery | PARTIAL | published listings only | Availability-aware search depth |
 | Listing detail | PARTIAL | published listing + options | Snapshot fields at book time already stronger |
@@ -52,7 +52,7 @@
 | Cancellation | STRONG / BROWSER | Tour #41 + stay #40 cancel; 24h no-refund honesty | Supplier-initiated cancel path |
 | Refunds | PARTIAL / HONEST | Manual Stripe; Refund due #41; no-refund #40 | Auto-refund = FOUNDER if desired |
 | Messaging | PARTIAL | `booking_messages` | No fake realtime |
-| Reviews | PARTIAL→STRONG | ownership SQL guards | Eligibility after completed booking |
+| Reviews | STRONG / UNIT | ownership + paid+confirmed+after-start (879) | Supplier response / moderation later |
 | Wishlist / Saved | PARTIAL | `wishlist` | Thin adversarial coverage |
 | Trips | PARTIAL | `fetchMyBookings` + session guard | Continue honesty |
 | Supplier Bookings / Pickup | PARTIAL→STRONG | partner ops UI; Refund due #41 | Pickup list cert; stay cancel ops |

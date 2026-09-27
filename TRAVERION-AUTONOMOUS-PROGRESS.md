@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `0182c16`  
-**Current phase:** 878  
+**Current SHA:** `430ba4c`  
+**Current phase:** 879  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4584,6 +4584,14 @@ Partner Income page:
 - Snapshot + checkout edge freeze `departureTimezone` at purchase (deployed)
 
 **Verify:** remote `resolve_departure_timezone` returns Helsinki / Helsinki / America/New_York / Helsinki; purchase-snapshot + cutoff tests green; checkout function redeployed.
+
+### Phase 879 — Rentals honesty + review eligibility paid gate
+
+**Rentals (browser):** Partner Create → **Rentals** card: “Cars, campervans…” · **Not available to list yet** (no fake form). Tours/Stays remain the only create paths.
+
+**Reviews:** Extracted `bookingEligibleForReview` — requires `status=confirmed` **and** paid payment_status; cancelled/unpaid rejected. Wired into `userHasCompletedBookingForListing`. Tests 4/4.
+
+**Certification:** rentals honesty = **BROWSER-TESTED**; review cancel/unpaid gate = **AUTOMATED-TESTED**.
 
 ## Known remaining risks (ranked)
 
