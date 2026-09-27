@@ -18,7 +18,7 @@ import { formatMoney } from '../../lib/money';
 import { isPaidPaymentStatus, partnerPaymentLabel, partnerCollectedAmountCaption, bookingPaymentWasCollected, isRefundDueBooking, REFUND_DUE_MANUAL_COPY } from '../../lib/payment-states';
 import { PARTNER_BOOKINGS_CSV_HEADER, partnerBookingCsvValues } from '../../lib/partner-bookings-csv';
 import { csvSafeCell } from '../../lib/csv-export';
-import { localYmd, localYmdPlusDays } from '../../lib/local-ymd';
+import { localYmd } from '../../lib/local-ymd';
 import { guestFacingBookingNotes } from '../../lib/booking-notes';
 import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
 import {
@@ -64,7 +64,8 @@ import { navigateSupplierUrl, openSupplierInbox, openSupplierPickup } from '../.
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { parseStayCheckOutFromNotes, nightsOccupiedByStay, stayRangeFromBooking } from '../../lib/stayOccupancy';
-import { partnerBookingIsLiveTrip, partnerBookingIsOperatingTrip, partnerBookingNeedsLook, partnerBookingIsUnpaidCheckout, partnerBookingIsActiveUnpaidCheckout, partnerBookingShowsCancelAction, partnerBookingIsPastSchedule, partnerStayTouchesScheduleDay } from '../../lib/trip-views';
+import { partnerBookingIsLiveTrip, partnerBookingIsOperatingTrip, partnerBookingNeedsLook, partnerBookingIsUnpaidCheckout, partnerBookingIsActiveUnpaidCheckout, partnerBookingShowsCancelAction, partnerBookingIsPastSchedule, partnerStayTouchesScheduleDay, scheduleTodayIsoForBooking } from '../../lib/trip-views';
+import { addCalendarDaysYmd } from '../../lib/booking-lifecycle-calendar';
 import { formatPartnerCheckoutHoldLabel, partnerUnpaidCheckoutHoldsInventory } from '../../lib/booking-hold';
 import { formatStayNightHuman } from '../../lib/stay-calendar';
 import { formatBookingDateDisplay } from '../../lib/booking-flow';
@@ -365,18 +366,18 @@ export default function SupplierBookings({
     window.history.replaceState({}, '', `${url.pathname}${url.search}`);
   }, []);
 
-  const todayIso = localYmd();
-  const tomorrowIso = localYmdPlusDays(1);
-
   const filteredBookings = useMemo(() => {
     const q = filterQuery.trim().toLowerCase();
+    const nowMs = Date.now();
     const rows = bookings.filter((b) => {
       if (!partnerBookingIsLiveTrip(b)) return false;
       const meta = listingMeta[b.listing_id];
       const isStay = meta?.family === 'stay' || Boolean(b.check_out);
       const stayRange = isStay ? stayRangeFromBooking(b) : null;
+      const experienceToday = scheduleTodayIsoForBooking(b, nowMs);
+      const experienceTomorrow = addCalendarDaysYmd(experienceToday, 1) ?? experienceToday;
       if (view === 'today' || view === 'tomorrow') {
-        const dayIso = view === 'today' ? todayIso : tomorrowIso;
+        const dayIso = view === 'today' ? experienceToday : experienceTomorrow;
         if (opsFilter === 'refund_due' || opsFilter === 'unpaid' || opsFilter === 'cancel') {
           /* Ops filters are money/hold/cancel work — not schedule-scoped. */
         } else if (!partnerBookingIsOperatingTrip(b)) {
@@ -393,15 +394,15 @@ export default function SupplierBookings({
         } else if (!partnerBookingIsOperatingTrip(b)) {
           return false;
         } else if (stayRange) {
-          if (stayRange.checkIn <= todayIso) return false;
-        } else if (!b.booking_date || b.booking_date <= todayIso) {
+          if (stayRange.checkIn <= experienceToday) return false;
+        } else if (!b.booking_date || b.booking_date <= experienceToday) {
           return false;
         }
       }
       if (view === 'past') {
         if (opsFilter === 'refund_due' || opsFilter === 'unpaid' || opsFilter === 'cancel') {
           /* keep */
-        } else if (!partnerBookingIsPastSchedule(b, todayIso)) {
+        } else if (!partnerBookingIsPastSchedule(b, experienceToday)) {
           return false;
         }
       }
@@ -485,7 +486,7 @@ export default function SupplierBookings({
       );
     }
     return rows;
-  }, [bookings, filterDateFrom, filterDateTo, filterListingId, filterQuery, listingMeta, todayIso, tomorrowIso, view, opsFilter, openCancels, inventoryFamily, highlightBookingId]);
+  }, [bookings, filterDateFrom, filterDateTo, filterListingId, filterQuery, listingMeta, view, opsFilter, openCancels, inventoryFamily, highlightBookingId]);
 
   const totalPages = Math.max(1, Math.ceil(filteredBookings.length / BOOKINGS_PAGE_SIZE));
   const safePage = Math.min(Math.max(bookingsListPage, 1), totalPages);
@@ -928,7 +929,13 @@ export default function SupplierBookings({
                 meta?.family === 'stay' || Boolean(booking.check_out)
                   ? stayRangeFromBooking(booking)
                   : null;
-              const scheduleDayIso = view === 'today' ? todayIso : view === 'tomorrow' ? tomorrowIso : null;
+              const experienceToday = scheduleTodayIsoForBooking(booking);
+              const scheduleDayIso =
+                view === 'today'
+                  ? experienceToday
+                  : view === 'tomorrow'
+                    ? addCalendarDaysYmd(experienceToday, 1)
+                    : null;
               const stayDayChip =
                 stayRangeForChip && scheduleDayIso
                   ? stayRangeForChip.checkIn === scheduleDayIso

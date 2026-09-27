@@ -135,6 +135,18 @@ describe('purchase-snapshot', () => {
     });
     expect(displayStartTimeFromPurchase(snap, '09:30')).toBe('08:00');
     expect(displayStartTimeFromPurchase(null, '09:30')).toBe('09:30');
+    expect(
+      displayStartTimeFromPurchase(
+        { listingTitle: 'Tour', capturedAt: 't', startTimeHm: '' },
+        '09:30'
+      )
+    ).toBe('');
+    expect(
+      displayDurationFromPurchase({ listingTitle: 'Tour', capturedAt: 't' }, 'edited live')
+    ).toBe('');
+    expect(
+      displayOptionLabelFromPurchase({ listingTitle: 'Tour', capturedAt: 't' }, 'Live option')
+    ).toBe('');
   });
 
   it('partner ops display prefers live start and notes purchased when different', () => {

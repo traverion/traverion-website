@@ -177,8 +177,8 @@ export function displayOptionLabelFromPurchase(
   snapshot: unknown,
   liveOptionLabel: string | null | undefined
 ): string {
-  if (isPurchaseSnapshot(snapshot) && snapshot.optionLabel?.trim()) {
-    return snapshot.optionLabel.trim();
+  if (isPurchaseSnapshot(snapshot)) {
+    return (snapshot.optionLabel ?? '').trim();
   }
   return (liveOptionLabel ?? '').trim();
 }
@@ -213,8 +213,10 @@ export function displayStartTimeFromPurchase(
   snapshot: unknown,
   liveStartTimeHm: string | null | undefined
 ): string {
-  if (isPurchaseSnapshot(snapshot) && snapshot.startTimeHm?.trim()) {
-    return snapshot.startTimeHm.trim();
+  // When a purchase snapshot exists, never resurrect live/ops start_time
+  // (empty snap field = incomplete purchase clock, not current ops edit).
+  if (isPurchaseSnapshot(snapshot)) {
+    return (snapshot.startTimeHm ?? '').trim();
   }
   return (liveStartTimeHm ?? '').trim();
 }
@@ -245,8 +247,8 @@ export function displayDurationFromPurchase(
   snapshot: unknown,
   liveDuration: string | null | undefined
 ): string {
-  if (isPurchaseSnapshot(snapshot) && snapshot.duration?.trim()) {
-    return snapshot.duration.trim();
+  if (isPurchaseSnapshot(snapshot)) {
+    return (snapshot.duration ?? '').trim();
   }
   return (liveDuration ?? '').trim();
 }
@@ -255,8 +257,8 @@ export function displayCancellationPolicyFromPurchase(
   snapshot: unknown,
   livePolicy: string | null | undefined
 ): string {
-  if (isPurchaseSnapshot(snapshot) && snapshot.cancellationPolicy?.trim()) {
-    return snapshot.cancellationPolicy.trim();
+  if (isPurchaseSnapshot(snapshot)) {
+    return (snapshot.cancellationPolicy ?? '').trim();
   }
   return (livePolicy ?? '').trim();
 }
