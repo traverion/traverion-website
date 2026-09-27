@@ -4738,6 +4738,13 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 
 **Certification:** public tour remaining honesty = **INTEGRATION-TESTED** (unit) + **remotely applied** (105).
 
+
+### Phase 900 — Public stay calendar helper matches hold occupancy
+
+**Fix:** `bookingOccupiesPublicStayCalendar` now delegates to `bookingOccupiesInventory` (paid + live holds), matching SQL `published_stay_occupied_ranges` (079). Unit tests updated.
+
+**Certification:** stay public occupancy helper = **AUTOMATED-TESTED**.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.

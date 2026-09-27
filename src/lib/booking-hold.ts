@@ -22,11 +22,12 @@ export function bookingOccupiesInventory(row: InventoryHoldRow, nowMs: number = 
   return Number.isFinite(created) && created > nowMs - CHECKOUT_HOLD_MINUTES * 60 * 1000;
 }
 
-/** Public stay calendar: only collected paid nights, never unpaid or failed checkouts. */
-export function bookingOccupiesPublicStayCalendar(row: InventoryHoldRow): boolean {
-  if ((row.status ?? '').trim().toLowerCase() === 'cancelled') return false;
-  const pay = (row.payment_status ?? '').trim().toLowerCase();
-  return pay === 'paid' || pay === 'complete' || pay === 'succeeded';
+/**
+ * Public stay calendar occupancy — same rule as checkout and published_stay_occupied_ranges (079):
+ * paid + live holds. Failed, expired, refunded, cancelled do not block nights.
+ */
+export function bookingOccupiesPublicStayCalendar(row: InventoryHoldRow, nowMs: number = Date.now()): boolean {
+  return bookingOccupiesInventory(row, nowMs);
 }
 
 export type TourCheckoutOccupancyRow = InventoryHoldRow & {

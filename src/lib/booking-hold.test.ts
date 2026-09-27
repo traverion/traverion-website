@@ -187,21 +187,39 @@ describe('booking inventory holds', () => {
     ).toBe(false);
   });
 
-  it('does not paint unpaid, failed, or refunded bookings on the public stay calendar', () => {
+  it('public stay calendar matches checkout occupancy (paid + live holds)', () => {
+    const now = Date.parse('2026-09-27T12:00:00.000Z');
     expect(
-      bookingOccupiesPublicStayCalendar({ status: 'pending', payment_status: 'pending' })
-    ).toBe(false);
-    expect(
-      bookingOccupiesPublicStayCalendar({ status: 'pending', payment_status: 'failed' })
-    ).toBe(false);
-    expect(
-      bookingOccupiesPublicStayCalendar({ status: 'confirmed', payment_status: 'paid' })
+      bookingOccupiesPublicStayCalendar(
+        {
+          status: 'pending',
+          payment_status: 'pending',
+          hold_expires_at: '2026-09-27T12:20:00.000Z',
+        },
+        now
+      )
     ).toBe(true);
     expect(
-      bookingOccupiesPublicStayCalendar({ status: 'cancelled', payment_status: 'paid' })
+      bookingOccupiesPublicStayCalendar(
+        {
+          status: 'pending',
+          payment_status: 'pending',
+          hold_expires_at: '2026-09-27T11:59:00.000Z',
+        },
+        now
+      )
     ).toBe(false);
     expect(
-      bookingOccupiesPublicStayCalendar({ status: 'confirmed', payment_status: 'refunded' })
+      bookingOccupiesPublicStayCalendar({ status: 'pending', payment_status: 'failed' }, now)
+    ).toBe(false);
+    expect(
+      bookingOccupiesPublicStayCalendar({ status: 'confirmed', payment_status: 'paid' }, now)
+    ).toBe(true);
+    expect(
+      bookingOccupiesPublicStayCalendar({ status: 'cancelled', payment_status: 'paid' }, now)
+    ).toBe(false);
+    expect(
+      bookingOccupiesPublicStayCalendar({ status: 'confirmed', payment_status: 'refunded' }, now)
     ).toBe(false);
   });
 });
