@@ -8,8 +8,29 @@ import { listingIsFamily } from './inventory';
 import { listingTourMatchesBrowseTag } from './listingTruth';
 import { formatStayAmenityLabel, stayAmenityDisplayList } from './stay-amenities';
 import { addCalendarDays } from './stayOccupancy';
+import { addCalendarDaysYmd, ymdInTimeZone } from './booking-lifecycle-calendar';
 import { materializedBookingOptions, parseListingExtras } from '../types/listingExtras';
 import type { TourPackage } from '../types/tour';
+
+/**
+ * Destination-unaware browse date floor (Phase 1095).
+ * Do not use browser-local “today”: a traveler west of UTC would block an
+ * experience-local today that is still bookable in Rovaniemi, and a traveler
+ * east of UTC would advertise a day that has already ended in destination TZ.
+ * Floor at UTC yesterday so any listing still on its local “today” remains selectable;
+ * PDP/Pay continue to enforce experienceTodayIsoForListing.
+ */
+export function marketplaceSearchMinSelectableIso(nowMs: number = Date.now()): string {
+  const utcToday = ymdInTimeZone(nowMs, 'UTC');
+  if (!utcToday) {
+    const d = new Date(nowMs);
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+  return addCalendarDaysYmd(utcToday, -1) ?? utcToday;
+}
 
 export type MarketplaceSearchFamily = 'tours' | 'stays';
 

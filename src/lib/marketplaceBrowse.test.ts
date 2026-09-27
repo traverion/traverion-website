@@ -11,6 +11,7 @@ import {
   matchesRatingFilter,
   nextStayDatePatch,
   marketplaceFamilySwitchPath,
+  marketplaceSearchMinSelectableIso,
   parseMarketplaceSort,
   parsePriceChipId,
   stayHasAmenity,
@@ -19,6 +20,7 @@ import {
   tourMatchesCatalogFilters,
 } from './marketplaceBrowse';
 import type { TourPackage } from '../types/tour';
+import { ymdInTimeZone, addCalendarDaysYmd } from './booking-lifecycle-calendar';
 
 function baseTour(overrides: Partial<TourPackage> = {}): TourPackage {
   return {
@@ -232,5 +234,14 @@ describe('marketplace browse filters', () => {
       marketplaceFamilySwitchPath('tours', { q: 'Rovaniemi', date: '2026-09-22', checkout: '2026-09-25', guests: '2' })
     ).toBe('/packages?q=Rovaniemi&date=2026-09-22&guests=2');
     expect(marketplaceFamilySwitchPath('tours', {})).toBe('/packages');
+  });
+
+  it('browse date floor is UTC-yesterday, not browser-local today (Phase 1095)', () => {
+    // 2026-09-15 22:30 UTC → UTC today Sep 15 → floor Sep 14
+    const now = Date.UTC(2026, 8, 15, 22, 30, 0);
+    const utcToday = ymdInTimeZone(now, 'UTC');
+    expect(utcToday).toBe('2026-09-15');
+    expect(marketplaceSearchMinSelectableIso(now)).toBe(addCalendarDaysYmd('2026-09-15', -1));
+    expect(marketplaceSearchMinSelectableIso(now)).toBe('2026-09-14');
   });
 });

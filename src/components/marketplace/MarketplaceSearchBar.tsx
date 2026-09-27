@@ -3,6 +3,7 @@ import { Search } from 'lucide-react';
 import { addCalendarDays } from '../../lib/stayOccupancy';
 import {
   nextStayDatePatch,
+  marketplaceSearchMinSelectableIso,
   type MarketplaceSearchFamily,
   type MarketplaceSearchValues,
 } from '../../lib/marketplaceBrowse';
@@ -43,6 +44,7 @@ export function MarketplaceSearchFields({
   stacked = false,
 }: Pick<Props, 'family' | 'values' | 'onChange' | 'idPrefix' | 'stacked'>) {
   const isStay = family === 'stays';
+  const searchMinIso = marketplaceSearchMinSelectableIso();
   return (
     <>
       <FieldShell stacked={stacked}>
@@ -67,6 +69,7 @@ export function MarketplaceSearchFields({
           label={isStay ? 'Check-in' : 'Date'}
           value={values.date}
           placeholder={isStay ? 'Add date' : 'Any date'}
+          minIso={searchMinIso}
           onChange={(next) => {
             onChange(isStay ? nextStayDatePatch(values, next) : { date: next });
           }}
@@ -79,7 +82,7 @@ export function MarketplaceSearchFields({
             label="Check-out"
             value={values.checkout}
             placeholder="Add date"
-            minIso={values.date ? addCalendarDays(values.date, 1) : undefined}
+            minIso={values.date ? addCalendarDays(values.date, 1) : searchMinIso}
             onChange={(next) => onChange({ checkout: next })}
           />
         </FieldShell>
