@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { catalogHeadlineAmount, getDisplayPriceForTour } from './discount-display';
+import { catalogHeadlineAmount, catalogOfferTodayIso, getDisplayPriceForTour } from './discount-display';
 import type { TourPackage } from '../types/tour';
 import type { ListingBookingOption } from '../types/listingExtras';
+import type { ListingDiscount } from '../data/supabase-discounts';
 
 function option(partial: Partial<ListingBookingOption> & Pick<ListingBookingOption, 'id' | 'name' | 'priceUsd'>): ListingBookingOption {
   return {
@@ -119,5 +120,60 @@ describe('stay money truth vs leftover listing discounts', () => {
     expect(shown.price).toBe(200);
     expect(shown.originalPrice).toBe(200);
     expect(shown.label).toBeUndefined();
+  });
+});
+
+describe('catalog offer today is experience-local (Phase 1091)', () => {
+  it('uses listing departureTimezone for catalog “today” near UTC midnight', () => {
+    const nowMs = Date.parse('2026-09-15T22:30:00.000Z'); // already 16 Sep in Helsinki
+    const t = tour({
+      listingExtras: {
+        departureTimezone: 'Europe/Helsinki',
+        bookingOptions: [
+          option({ id: 'adult', name: 'Adult', priceUsd: 189 }),
+        ],
+      },
+    });
+    expect(catalogOfferTodayIso(t, nowMs)).toBe('2026-09-16');
+  });
+
+  it('applies an offer that starts on experience-local today even if browser UTC is still yesterday', () => {
+    const now = new Date('2026-09-15T22:30:00.000Z');
+    const t = tour({
+      listingExtras: {
+        departureTimezone: 'Europe/Helsinki',
+        bookingOptions: [],
+      },
+      price: {
+        startingFrom: 200,
+        currency: 'EUR',
+        perPerson: true,
+        twinOccupancy: false,
+        customQuote: false,
+        singleSupplement: 0,
+        validity: 'Year round',
+      },
+    });
+    const discounts = new Map<string, ListingDiscount[]>([
+      [
+        t.id,
+        [
+          {
+            id: 'disc-1',
+            listing_id: t.id,
+            type: 'percent',
+            value: 10,
+            code: null,
+            valid_from: '2026-09-16',
+            valid_until: '2026-09-30',
+            booking_option_id: null,
+            created_at: '2026-01-01T00:00:00Z',
+          },
+        ],
+      ],
+    ]);
+    const shown = getDisplayPriceForTour(t, discounts, now);
+    expect(shown.price).toBe(180);
+    expect(shown.label).toMatch(/10%/);
   });
 });

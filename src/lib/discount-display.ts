@@ -9,6 +9,7 @@ import {
 import { participantPriceSummaryFromBookingOptions, pickHeadlineOption, pricedNamesFromBookingOptions } from './headline-price';
 import { formatMoney, normalizeCurrency } from './money';
 import { localYmd } from './local-ymd';
+import { experienceTodayIsoForListing } from './booking-quote';
 import { listingIsFamily } from './inventory';
 import {
   listingOptionHasSchedules,
@@ -28,11 +29,21 @@ function activeOnCalendarDay(d: ListingDiscount, day: string): boolean {
 }
 
 /** Discounts that apply to the listing “from” price when there are no structured booking options (legacy). */
-function listingWideActiveDiscounts(discounts: ListingDiscount[], at: Date): ListingDiscount[] {
-  const day = localYmd(at);
+function listingWideActiveDiscounts(discounts: ListingDiscount[], dayIso: string): ListingDiscount[] {
   return discounts.filter(
-    (d) => activeOnCalendarDay(d, day) && !(d.booking_option_id && d.booking_option_id.trim())
+    (d) => activeOnCalendarDay(d, dayIso) && !(d.booking_option_id && d.booking_option_id.trim())
   );
+}
+
+/** Catalog “today” for offer badges — experience-local when the listing has a departure timezone. */
+export function catalogOfferTodayIso(tour: TourPackage, nowMs: number = Date.now()): string {
+  const tz = parseListingExtras(tour.listingExtras as unknown).departureTimezone;
+  return experienceTodayIsoForListing(tz, nowMs);
+}
+
+function catalogOfferAnchorDate(tour: TourPackage, at: Date): Date {
+  const day = catalogOfferTodayIso(tour, at.getTime());
+  return new Date(`${day}T12:00:00`);
 }
 
 function bestDiscountedPrice(
@@ -117,9 +128,12 @@ export function getDisplayPriceForTour(
     qualifier: null as string | null,
     summary: participantPriceSummaryFromBookingOptions(opts, (n) => formatMoney(n, currency)),
   };
+  // Catalog “from” / offer badges use experience-local today, not the browser calendar day.
+  const offerAt = catalogOfferAnchorDate(tour, at);
+  const offerDayIso = catalogOfferTodayIso(tour, at.getTime());
 
   if (opts.length === 0) {
-    const applicable = listingWideActiveDiscounts(discounts, at);
+    const applicable = listingWideActiveDiscounts(discounts, offerDayIso);
     const { price, label } = bestDiscountedPrice(fallbackBase, applicable, currency);
     return { price, originalPrice: fallbackBase, label, ...emptyMeta };
   }
@@ -156,7 +170,7 @@ export function getDisplayPriceForTour(
       tour,
       { id: host.id, name: picked.option.name, priceUsd: picked.option.priceUsd },
       discounts,
-      at,
+      offerAt,
       fallbackBase
     );
   }
@@ -172,7 +186,7 @@ export function getDisplayPriceForTour(
             .map((s) => optionHeadlineUnitPrice(s))
             .filter((n) => n > 0)
         : [typeof opt.priceUsd === 'number' && opt.priceUsd > 0 ? opt.priceUsd : fallbackBase];
-    const applicable = discountsApplicableToOption(discounts, opt.id, at);
+    const applicable = discountsApplicableToOption(discounts, opt.id, offerAt);
     for (const base of bases) {
       const { price, label } = bestDiscountedPrice(base, applicable, currency);
       if (price < bestPrice) {
@@ -233,7 +247,7 @@ export function getDisplayPriceForBookingVariant(
     const { price, label } = bestDiscountedPrice(base, applicable, currency);
     return { price, originalPrice: base, label };
   }
-  const applicable = listingWideActiveDiscounts(discounts, at);
+  const applicable = listingWideActiveDiscounts(discounts, day);
   const { price, label } = bestDiscountedPrice(base, applicable, currency);
   return { price, originalPrice: base, label };
 }

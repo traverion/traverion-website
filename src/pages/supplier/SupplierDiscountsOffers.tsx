@@ -24,6 +24,7 @@ import {
 } from '../../components/supplier/supplierUi';
 import { formatMoney } from '../../lib/money';
 import { localYmd } from '../../lib/local-ymd';
+import { catalogOfferTodayIso } from '../../lib/discount-display';
 import StatusChip from '../../components/StatusChip';
 import NoticeCallout from '../../components/NoticeCallout';
 import { listingIsFamily } from '../../lib/inventory';
@@ -50,8 +51,10 @@ function formatDate(iso: string | null): string {
   });
 }
 
-function offerStatus(d: ListingDiscount): 'upcoming' | 'active' | 'ended' {
-  const t = localYmd();
+function offerStatus(d: ListingDiscount, listing?: TourPackage): 'upcoming' | 'active' | 'ended' {
+  const t = listing
+    ? catalogOfferTodayIso(listing)
+    : localYmd();
   if (d.valid_until && t > d.valid_until) return 'ended';
   if (d.valid_from && t < d.valid_from) return 'upcoming';
   return 'active';
@@ -181,7 +184,7 @@ export default function SupplierDiscountsOffers() {
   const activeTourOffers = useMemo(
     () =>
       rows.filter((r) =>
-        partnerOfferCountsAsActiveNow({ listing: r.listing, status: offerStatus(r.discount) })
+        partnerOfferCountsAsActiveNow({ listing: r.listing, status: offerStatus(r.discount, r.listing) })
       ).length,
     [rows]
   );
@@ -195,7 +198,7 @@ export default function SupplierDiscountsOffers() {
       const stayUnsupported = partnerOfferListingIsStayUnsupported(listing);
       if (statusFilter === 'unsupported') return stayUnsupported;
       if (stayUnsupported) return statusFilter === 'all';
-      const st = offerStatus(discount);
+      const st = offerStatus(discount, listing);
       if (statusFilter === 'all') return true;
       return st === statusFilter;
     });
@@ -344,7 +347,7 @@ export default function SupplierDiscountsOffers() {
               <div className="space-y-2">
                 {filteredRows.map(({ discount: d, listing }) => {
                   const stayUnsupported = partnerOfferListingIsStayUnsupported(listing);
-                  const st = offerStatus(d);
+                  const st = offerStatus(d, listing);
                   const statusLabel = stayUnsupported
                     ? 'Not on checkout'
                     : st === 'active'
