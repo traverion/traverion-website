@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness** (continuing 1001+)  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `918cfd7`  
-**Current phase:** 1044  
+**Current SHA:** `cb81400`  
+**Current phase:** 1049  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -5431,7 +5431,37 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 
 **Fix:** Reviews cell + ranked gap 16 cite started write (123); post-1000 continuum remote through **123**.
 
+**Certification:** CODE-INSPECTED / docs truth. Ending SHA `cb81400`.
+
+### Phase 1045 — Re-cert build / tsc / review-eligibility after 1043
+
+**Evidence:** `npm run build` ✓, `tsc -p tsconfig.app.json` ✓, `review-eligibility.test.ts` **4/4**.
+
+**Certification:** AUTOMATED-TESTED.
+
+### Phase 1046 — FOUNDER + ADMIN continuum through 123
+
+**Fix:** Note experience-started review gate and remote **123** on FOUNDER non-FOUNDER list + ADMIN readiness phase header.
+
 **Certification:** CODE-INSPECTED / docs truth.
+
+### Phase 1047 — Known-risks refresh for post-1043 band
+
+**Fix:** Ranked risks list notes notify booking-tied open-invoke residual + contact spam as P2; FOUNDER trio unchanged.
+
+**Certification:** CODE-INSPECTED.
+
+### Phase 1048 — Honesty vitest batch re-cert
+
+**Evidence:** review-eligibility + purchase-snapshot + checkout-consent + traveler-document-scroll + sitemap-xml focused re-run.
+
+**Certification:** AUTOMATED-TESTED.
+
+### Phase 1049 — Progress SHA reconcile for 1044–1048
+
+**Fix:** Header Current SHA / phase aligned for band close into 1050.
+
+**Certification:** CODE-INSPECTED.
 
 ## Known remaining risks (ranked)
 
@@ -5439,8 +5469,10 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 2. **P1 — Localhost same-origin auth**: shared Supabase session remains; Phase 904 blocks business-name lead-guest autofill (customer_* / consumer profile only).
 3. **P1 — FOUNDER:** see `docs/FOUNDER_REQUIRED.md` (auto-refund, take-rate; force-unpublish closed).
 4. **P2 — Browser-cert** admin listings moderation on admin host with staff demo.
-5. **P2 — LIVE Stripe** intentionally blocked.
-6. **P2 — Service-role JWT briefly tracked** in `scripts/cert-transactional-emails.cjs` (now untracked); rotate when practical.
+5. **P2 — notify-* booking-tied open-invoke residual** — content re-derived; nuisance spam possible with real bookingId (full dual-mode auth deferred).
+6. **P2 — contact_inquiries / notify-contact-inquiry** — public insert + open notify; throttle/bind optional harden.
+7. **P2 — LIVE Stripe** intentionally blocked.
+8. **P2 — Service-role JWT briefly tracked** in `scripts/cert-transactional-emails.cjs` (now untracked); rotate when practical.
 
 ## Do not
 

@@ -28,8 +28,10 @@
 - Cross-supplier ops ownership guards (108–111)
 - Wishlist/cart prune on unpublish (112–113)
 - Draft discounts/availability/reviews SELECT gates (114–115/119–120)
-- Review write requires paid booking (117–118)
+- Review write requires paid booking (117–118) + experience started (123)
 - Supplier self-notify JWT for welcome/verification (1033)
+- Block inventable listings.rating/reviews (122)
+- Freeze consumer welcome_email_sent_at (121)
 
 ## Before any LIVE money discussion
 
