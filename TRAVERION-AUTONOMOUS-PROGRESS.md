@@ -4893,6 +4893,13 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 
 **Certification:** multi-option traveler surface = **BROWSER-TESTED**.
 
+
+### Phase 921 — Select second option; traveler quote shows €99 meeting-point
+
+**Browser:** Oct 1 → Choose **Meeting point · no pickup** (`option=535fb60f-…`). Sticky shows €99 total, meet Santa Claus Village main gate, 12 spots at 20:00, CTA **Continue · test mode**. Pickup section switches to meeting-point copy.
+
+**Certification:** multi-option select + price truth = **BROWSER-TESTED**. Stripe pay of this option = optional follow-up (prior Stripe path already certified).
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.
