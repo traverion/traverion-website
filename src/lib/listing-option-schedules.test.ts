@@ -302,4 +302,25 @@ describe('tourSellingDeparturesOnDate', () => {
     expect(oct[0]?.startTime).toBe('19:00');
     expect(tourSellingDeparturesOnDate([opt], '2026-11-15')).toEqual([]);
   });
+
+  it('does not invent capacity 8 for legacy options without spots (Phase 1173)', () => {
+    // Bypass normalizeListingBookingOption — it backfills maxPersons/spots for editor forms.
+    const legacy = {
+      id: 'opt-legacy',
+      name: 'Legacy',
+      priceUsd: 100,
+      startTime: '10:00',
+      duration: '2 hours',
+      pickupPlace: '',
+      minPersons: 1,
+      maxPersons: 0,
+      maxSpotsPerSlot: 0,
+      optionInfo: '',
+      weekdays: [true, true, true, true, true, true, true],
+      availabilityDateFrom: '2026-01-01',
+      availabilityDateTo: '2026-12-31',
+      pricingMode: 'uniform' as const,
+    };
+    expect(tourSellingDeparturesOnDate([legacy], '2026-09-15')).toEqual([]);
+  });
 });

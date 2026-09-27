@@ -317,12 +317,14 @@ export function tourSellingDeparturesOnDate(
     const weekdays = Array.isArray(option.weekdays) ? option.weekdays : [];
     if (weekdays.length >= 7 && !weekdays[wd]) continue;
     const start = (option.startTime ?? '').trim();
+    // Phase 1173: do not invent capacity 8 for legacy options without configured spots.
     const spots =
       typeof option.maxSpotsPerSlot === 'number' && option.maxSpotsPerSlot >= 1
         ? Math.floor(option.maxSpotsPerSlot)
         : typeof option.maxPersons === 'number' && option.maxPersons >= 1
           ? Math.floor(option.maxPersons)
-          : 8;
+          : null;
+    if (spots == null) continue;
     out.push({
       optionId: option.id,
       optionName,
