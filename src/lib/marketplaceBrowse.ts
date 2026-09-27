@@ -293,7 +293,8 @@ export type TourCatalogFilterInput = {
   duration: DurationFilterId;
   language: string;
   ratingScore: number | null;
-  partyMax: number;
+  /** Phase 1223: null = unknown capacity — guest filter fails closed. */
+  partyMax: number | null;
   runsOnDate: boolean;
 };
 
@@ -313,7 +314,10 @@ export function tourMatchesCatalogFilters(tour: TourPackage, input: TourCatalogF
   const matchesDate = !input.date || input.runsOnDate;
   const guestCount = Number.parseInt(input.guests, 10);
   const matchesGuests =
-    !input.guests || !Number.isFinite(guestCount) || guestCount < 1 || guestCount <= input.partyMax;
+    !input.guests ||
+    !Number.isFinite(guestCount) ||
+    guestCount < 1 ||
+    (input.partyMax != null && guestCount <= input.partyMax);
   const matchesPrivate = !input.privateOnly || listingIsPrivateOnly(tour);
   const matchesRating = matchesRatingFilter(input.ratingScore, input.rating);
   const matchesDuration = matchesDurationFilter(tour.duration || '', input.duration);

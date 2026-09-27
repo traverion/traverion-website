@@ -172,6 +172,27 @@ describe('marketplace browse filters', () => {
     ).toBe(false);
   });
 
+  it('Phase 1223: tour guest filter excludes unknown partyMax', () => {
+    expect(
+      tourMatchesCatalogFilters(baseTour({ groupSize: undefined, listingExtras: { bookingOptions: [] } }), {
+        q: '',
+        destinationId: 'all',
+        destinationOptions: [],
+        tags: [],
+        price: 'all',
+        date: '',
+        guests: '2',
+        privateOnly: false,
+        rating: 'all',
+        duration: 'all',
+        language: 'all',
+        ratingScore: null,
+        partyMax: null,
+        runsOnDate: true,
+      })
+    ).toBe(false);
+  });
+
   it('Phase 1220: guest filter excludes stays with unknown maxGuests', () => {
     const unknownCap = stay({
       listingExtras: {

@@ -14,7 +14,7 @@ import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
 import { isSupabaseListingId } from '../lib/discount-display';
 import { setListingsJsonLd } from '../lib/seo';
 import { listingHasBookableDepartureOnDate, tourBookableSellingDeparturesOnDate } from '../lib/booking-quote';
-import { getPartySizeBounds } from '../lib/booking-flow';
+import { getPartySizeBoundsKnown } from '../lib/booking-flow';
 import { tourDateLacksCapacityForParty } from '../lib/tour-calendar';
 import { listingTourCapacityFromOptions, capacitySpotsFromBookingOptions } from '../lib/availability-ops';
 import { fetchAvailabilityByListingId, fetchPublishedTourPaidGuests, fetchPublishedTourPaidGuestsBySlot, tourPaidSlotKey } from '../data/supabase-availability';
@@ -480,7 +480,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
         duration: durationFilter,
         language: languageFilter,
         ratingScore: ratingScoreForFilter(tour),
-        partyMax: getPartySizeBounds(tour).max,
+        partyMax: getPartySizeBoundsKnown(tour)?.max ?? null,
         runsOnDate: !filterDate || listingHasBookableDepartureOnDate(tour, filterDate),
       });
 

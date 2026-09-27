@@ -46,8 +46,11 @@ export function parseGroupSizeRange(groupSize: string | undefined): { min: numbe
   return { min, max: Math.min(max, 99) };
 }
 
-/** Min/max party size from listing booking options, group size text, or defaults. */
-export function getPartySizeBounds(tour: TourPackage): { min: number; max: number } {
+/**
+ * Party bounds when listing data defines them; null when unknown (no invent-12).
+ * Phase 1223: catalog guest filters must fail closed on null.
+ */
+export function getPartySizeBoundsKnown(tour: TourPackage): { min: number; max: number } | null {
   const opts = materializedBookingOptions(tour.listingExtras?.bookingOptions);
   if (opts.length > 0) {
     const mins: number[] = [];
@@ -82,7 +85,12 @@ export function getPartySizeBounds(tour: TourPackage): { min: number; max: numbe
       max: Math.min(99, Math.max(parsed.min, parsed.max)),
     };
   }
-  return { min: 1, max: 12 };
+  return null;
+}
+
+/** Min/max party size from listing booking options, group size text, or defaults. */
+export function getPartySizeBounds(tour: TourPackage): { min: number; max: number } {
+  return getPartySizeBoundsKnown(tour) ?? { min: 1, max: 12 };
 }
 
 /** Min/max for a specific bookable option; falls back to listing-wide bounds. */
