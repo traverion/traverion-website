@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   bookingPartyAllowsCustomerNotify,
+  customerEmailKindRequiresServiceRole,
   guestMayInvokeCustomerEmailKind,
   isServiceRoleBearer,
 } from './notify-customer-booking-auth';
@@ -72,5 +73,14 @@ describe('notify-customer-booking auth (Phase 1092)', () => {
     expect(guestMayInvokeCustomerEmailKind('pickup_confirmed')).toBe(false);
     expect(guestMayInvokeCustomerEmailKind('cancellation_requested_by_supplier')).toBe(false);
     expect(guestMayInvokeCustomerEmailKind('review_request')).toBe(false);
+  });
+
+  it('Phase 1131: paid/refund/reminder kinds require service-role', () => {
+    expect(customerEmailKindRequiresServiceRole('booking_confirmed_paid')).toBe(true);
+    expect(customerEmailKindRequiresServiceRole('refund_completed')).toBe(true);
+    expect(customerEmailKindRequiresServiceRole('experience_reminder')).toBe(true);
+    expect(customerEmailKindRequiresServiceRole('review_request')).toBe(true);
+    expect(customerEmailKindRequiresServiceRole('host_updated_schedule')).toBe(false);
+    expect(customerEmailKindRequiresServiceRole('booking_cancelled')).toBe(false);
   });
 });

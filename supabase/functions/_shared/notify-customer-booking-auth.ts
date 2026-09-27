@@ -43,3 +43,17 @@ export function guestMayInvokeCustomerEmailKind(emailKind: string): boolean {
   const kind = (emailKind ?? '').trim();
   return kind === 'your_details_updated' || kind === 'booking_cancelled';
 }
+
+/**
+ * Phase 1131: webhook/cron/promote kinds must use service-role bearer.
+ * Listing-owner/team JWTs cannot fire paid confirmation, refund, or reminder mail.
+ */
+export function customerEmailKindRequiresServiceRole(emailKind: string): boolean {
+  const kind = (emailKind ?? '').trim();
+  return (
+    kind === 'booking_confirmed_paid' ||
+    kind === 'refund_completed' ||
+    kind === 'experience_reminder' ||
+    kind === 'review_request'
+  );
+}

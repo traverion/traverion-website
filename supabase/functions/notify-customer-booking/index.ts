@@ -23,6 +23,7 @@ import {
 import { resolveBookingTiedContent } from '../_shared/notify-customer-content.ts';
 import {
   bookingPartyAllowsCustomerNotify,
+  customerEmailKindRequiresServiceRole,
   guestMayInvokeCustomerEmailKind,
   isServiceRoleBearer,
 } from '../_shared/notify-customer-booking-auth.ts';
@@ -387,6 +388,9 @@ serve(async (req) => {
       if (isServiceRoleBearer(authHeader, serviceRoleKey)) {
         allowCallerFieldDiffs = true;
       } else {
+        if (customerEmailKindRequiresServiceRole(kind)) {
+          return json({ success: false, error: 'Unauthorized' }, 401);
+        }
         const supabaseUrl = Deno.env.get('SUPABASE_URL');
         const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
         if (!supabaseUrl || !anonKey || !authHeader) {
