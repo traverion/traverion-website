@@ -11,6 +11,7 @@ import {
 } from './cancelled-booking-checkout.ts';
 import { paidPromotionShouldRefuseFullyRefundedCharge } from './stripe-charge-refund.ts';
 import { inventoryStartTimeHmFromBooking } from './booking-hold.ts';
+import { listingHasUpcomingBookableSeason } from './booking-quote.ts';
 
 function listingKindFromExtras(extras: unknown): 'stay' | 'tour' {
   if (extras && typeof extras === 'object') {
@@ -526,6 +527,66 @@ export async function promotePaidFromCheckoutSession(params: {
   const bookingOptionId =
     String(existingBooking?.booking_option_id ?? '').trim() || snapOptionId || '';
   if (listingId && bookingDate && Number.isFinite(guests) && guests >= 1) {
+    // Phase 1284: stale Stripe completion must not promote after unpublish / season end
+    // (create-booking-checkout-session 1278 parity).
+    const { data: listingGate } = await admin
+      .from('listings')
+      .select('status, listing_extras')
+      .eq('id', listingId)
+      .maybeSingle();
+    const listingStatus = String(listingGate?.status ?? '').trim();
+    const seasonBookable = listingHasUpcomingBookableSeason(listingGate?.listing_extras);
+    const listingStillBookable = listingStatus === 'published' && seasonBookable;
+    if (!listingStillBookable) {
+      let listingGateRefunded = false;
+      if (
+        rejectedCheckoutCaptureShouldRefund({
+          sessionPaymentStatus: session.payment_status,
+          paymentIntentId,
+        })
+      ) {
+        try {
+          await stripe.refunds.create(
+            {
+              payment_intent: paymentIntentId as string,
+              reason: 'duplicate',
+            },
+            { idempotencyKey: `listing-unavailable-checkout-refund:${session.id}` }
+          );
+          listingGateRefunded = true;
+          await admin.from('booking_payment_events').insert({
+            booking_id: bookingId,
+            event_id: event.id,
+            event_type: 'listing_unavailable_checkout_refund',
+            payment_intent_id: paymentIntentId,
+            checkout_session_id: session.id,
+            amount: amountPaid,
+            currency,
+            payload: {
+              reason: 'listing_unavailable_on_paid_promotion',
+              listingStatus: listingStatus || null,
+              seasonBookable,
+              stripeEventType: event.type,
+            },
+          });
+        } catch (refundErr) {
+          const msg = refundErr instanceof Error ? refundErr.message : String(refundErr);
+          if (!/already.?been.?refunded|charge_already_refunded/i.test(msg)) {
+            throw refundErr;
+          }
+        }
+      }
+      await markProcessed('processed');
+      return json({
+        success: true,
+        ignored: true,
+        reason: 'listing unavailable on checkout.session.completed',
+        inventoryRefunded: listingGateRefunded,
+        eventId: event.id,
+        bookingId,
+      });
+    }
+
     const { error: inventoryErr } = await admin.rpc('assert_checkout_inventory', {
       p_listing_id: listingId,
       p_check_in: bookingDate,
