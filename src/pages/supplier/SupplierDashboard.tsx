@@ -23,7 +23,7 @@ import { navigateSupplierUrl, openSupplierCalendar, openSupplierInbox, openSuppl
 import { PARTNER_APP_BASE, PARTNER_CREATE_PATH } from '../../lib/partnerPortalPaths';
 import { formatMoney, normalizeCurrency } from '../../lib/money';
 import { bookingOccupiesInventory } from '../../lib/booking-hold';
-import { partnerBookingIsOperatingTrip, partnerBookingIsTodaySchedule, partnerBookingIsUpcomingSchedule, partnerBookingIsActiveUnpaidCheckout } from '../../lib/trip-views';
+import { partnerBookingIsOperatingTrip, partnerBookingIsTodaySchedule, partnerBookingIsUpcomingSchedule, partnerBookingIsActiveUnpaidCheckout, scheduleTodayIsoForBooking } from '../../lib/trip-views';
 import { partnerTodayEmptyScheduleCopy } from '../../lib/partner-today-copy';
 import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
 import { pgTimeToHm } from '../../data/supabase-listings';
@@ -290,14 +290,15 @@ export default function SupplierDashboard() {
   const todayYmd = localYmd(now);
 
   const todayDepartures = useMemo(() => {
+    const nowMs = Date.now();
     return supplierBookings
-      .filter((b) => partnerBookingIsTodaySchedule(b, todayYmd))
+      .filter((b) => partnerBookingIsTodaySchedule(b, scheduleTodayIsoForBooking(b, nowMs), nowMs))
       .sort((a, b) => {
         const ta = (a.start_time ?? a.pickup_time ?? '').toString();
         const tb = (b.start_time ?? b.pickup_time ?? '').toString();
         return ta.localeCompare(tb) || (a.created_at ?? '').localeCompare(b.created_at ?? '');
       });
-  }, [supplierBookings, todayYmd]);
+  }, [supplierBookings]);
 
   const todayScheduleRows = useMemo(() => {
     const byListing = new Map<string, { bookings: number; guests: number }>();
@@ -408,19 +409,21 @@ export default function SupplierDashboard() {
     .toUpperCase();
 
   const weekAhead = useMemo(() => {
-    const [y, m, d] = todayYmd.split('-').map(Number);
-    const end = new Date(y!, m! - 1, d!);
-    end.setDate(end.getDate() + 7);
-    const endYmd = localYmd(end);
+    const nowMs = Date.now();
     return supplierBookings
       .filter((b) => {
-        if (!partnerBookingIsUpcomingSchedule(b, todayYmd)) return false;
+        const todayLocal = scheduleTodayIsoForBooking(b, nowMs);
+        if (!partnerBookingIsUpcomingSchedule(b, todayLocal, nowMs)) return false;
         const bd = b.booking_date ?? '';
-        return bd > todayYmd && bd <= endYmd;
+        const [y, m, d] = todayLocal.split('-').map(Number);
+        const end = new Date(y!, m! - 1, d!);
+        end.setDate(end.getDate() + 7);
+        const endYmd = localYmd(end);
+        return bd > todayLocal && bd <= endYmd;
       })
       .sort((a, b) => (a.booking_date ?? '').localeCompare(b.booking_date ?? ''))
       .slice(0, 8);
-  }, [supplierBookings, todayYmd]);
+  }, [supplierBookings]);
 
   const upcoming = weekAhead.slice(0, 6);
 

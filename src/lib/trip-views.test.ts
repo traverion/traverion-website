@@ -15,6 +15,7 @@ import {
   partnerBookingIsActiveUnpaidCheckout,
   partnerBookingShowsCancelAction,
   sortTravelerCancelledTrips,
+  scheduleTodayIsoForBooking,
 } from './trip-views';
 
 const today = '2026-09-08';
@@ -266,5 +267,25 @@ describe('trip list views', () => {
       '2026-12-01',
       '2026-10-01',
     ]);
+  });
+
+  it('buckets trips with experience-local today when snapshot TZ differs from UTC (Phase 1074)', () => {
+    const nowMs = Date.parse('2026-09-15T22:30:00.000Z');
+    const helsinkiTour = {
+      status: 'confirmed',
+      payment_status: 'paid',
+      booking_date: '2026-09-16',
+      purchase_snapshot: {
+        listingTitle: 'Aurora',
+        departureTimezone: 'Europe/Helsinki',
+        capturedAt: 't',
+      },
+    };
+    expect(scheduleTodayIsoForBooking(helsinkiTour, nowMs)).toBe('2026-09-16');
+    expect(bookingMatchesTripView(helsinkiTour, 'upcoming', undefined, nowMs)).toBe(true);
+    expect(bookingMatchesTripView(helsinkiTour, 'past', undefined, nowMs)).toBe(false);
+    expect(
+      partnerBookingIsTodaySchedule(helsinkiTour, scheduleTodayIsoForBooking(helsinkiTour, nowMs), nowMs)
+    ).toBe(true);
   });
 });

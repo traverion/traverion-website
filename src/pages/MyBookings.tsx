@@ -8,7 +8,6 @@ import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { travelerLoginHref } from '../lib/travelerAuthLinks';
-import { localYmd } from '../lib/local-ymd';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import { SkeletonListItem, SkeletonConsumerPage } from '../components/ui/Skeleton';
 import { useAuth } from '../contexts/AuthContext';
@@ -140,13 +139,18 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
 
   const getRefundChoiceForCancel = useCallback((b: BookingRow): 'full_refund' | 'no_refund' => {
     const snapTz = displayDepartureTimezoneFromPurchase(b.purchase_snapshot);
-    const startHm = displayStartTimeFromPurchase(
-      b.purchase_snapshot,
-      b.start_time ? pgTimeToHm(b.start_time) : null
-    );
+    const isStay =
+      Boolean(b.check_out && /^\d{4}-\d{2}-\d{2}$/.test(b.check_out)) ||
+      Boolean(parseStayCheckOutFromNotes(b.special_requests));
+    const startHm = isStay
+      ? displayStayCheckInTimeFromPurchase(b.purchase_snapshot, null) || '16:00'
+      : displayStartTimeFromPurchase(
+          b.purchase_snapshot,
+          b.start_time ? pgTimeToHm(b.start_time) : null
+        ) || '00:00';
     return travelerSelfCancelRefundChoice({
       bookingDate: b.booking_date,
-      startTimeHm: startHm || '00:00',
+      startTimeHm: startHm,
       departureTimezone: snapTz,
       paymentStatus: b.payment_status,
     });
@@ -330,9 +334,8 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
     if (!openTripId || bookings.length === 0) return;
     const b = bookings.find((row) => row.id === openTripId);
     if (!b) return;
-    const today = localYmd();
-    if (bookingMatchesTripView(b, 'cancelled', today)) setTripView('cancelled');
-    else if (bookingMatchesTripView(b, 'past', today)) setTripView('past');
+    if (bookingMatchesTripView(b, 'cancelled')) setTripView('cancelled');
+    else if (bookingMatchesTripView(b, 'past')) setTripView('past');
     else setTripView('upcoming');
   }, [openTripId, bookings]);
 
@@ -369,13 +372,12 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
     window.history.replaceState({}, '', next);
   }, []);
 
-  const todayIso = localYmd();
   const refundDueCount = useMemo(() => bookings.filter(isRefundDueBooking).length, [bookings]);
   const visibleBookings = useMemo(() => {
-    const rows = bookings.filter((b) => bookingMatchesTripView(b, tripView, todayIso));
+    const rows = bookings.filter((b) => bookingMatchesTripView(b, tripView));
     if (tripView !== 'cancelled') return rows;
     return sortTravelerCancelledTrips(rows);
-  }, [bookings, todayIso, tripView]);
+  }, [bookings, tripView]);
 
   if (!isSupabaseConfigured()) {
     return (

@@ -3,6 +3,8 @@ import { bookingOccupiesInventory, partnerUnpaidCheckoutHoldsInventory } from '.
 import { checkoutPaymentStatusCanResume } from './checkout-resume';
 import { bookingIsStayNight } from './pickup-completeness';
 import { nightsOccupiedByStay, stayRangeFromBooking } from './stayOccupancy';
+import { resolveLifecycleTimezone, ymdInTimeZone } from './booking-lifecycle-calendar';
+import { localYmd } from './local-ymd';
 
 /** Collapsed Trips row — booking reference for support/receipt matching without expand. */
 export function travelerTripReferenceLabel(bookingNumber: number | null | undefined): string | null {
@@ -117,7 +119,20 @@ type PartnerScheduleBooking = {
   special_requests?: string | null;
   hold_expires_at?: string | null;
   created_at?: string | null;
+  purchase_snapshot?: unknown;
 };
+
+/**
+ * Experience-local calendar "today" for trip/ops schedule bucketing.
+ * Prefer purchase_snapshot.departureTimezone; fall back to browser localYmd.
+ */
+export function scheduleTodayIsoForBooking(
+  b: { purchase_snapshot?: unknown },
+  nowMs: number = Date.now()
+): string {
+  const tz = resolveLifecycleTimezone(b.purchase_snapshot);
+  return ymdInTimeZone(nowMs, tz) ?? localYmd(new Date(nowMs));
+}
 
 /** Partner Today: occupying operating trips on this local date — not refunded or cancelled.
  * Tours: departure date === today.
@@ -182,10 +197,13 @@ export function bookingMatchesTripView(
     check_out?: string | null;
     nights?: number | null;
     special_requests?: string | null;
+    purchase_snapshot?: unknown;
   },
   view: TripListView,
-  todayIso: string
+  todayIso?: string,
+  nowMs: number = Date.now()
 ): boolean {
+  const day = todayIso ?? scheduleTodayIsoForBooking(b, nowMs);
   const cancelled = bookingIsCancelledTrip(b);
   if (view === 'cancelled') return cancelled;
   if (cancelled) return false;
@@ -193,12 +211,12 @@ export function bookingMatchesTripView(
   if (bookingIsStayNight(b)) {
     const stay = stayRangeFromBooking(b);
     if (!stay) return view === 'upcoming';
-    const past = stay.checkOut < todayIso;
+    const past = stay.checkOut < day;
     return view === 'past' ? past : !past;
   }
   const date = (b.booking_date ?? '').trim();
-  if (view === 'past') return Boolean(date) && date < todayIso;
-  return !date || date >= todayIso;
+  if (view === 'past') return Boolean(date) && date < day;
+  return !date || date >= day;
 }
 
 /** Cancelled tab: Refund due first, then newest booking date. */

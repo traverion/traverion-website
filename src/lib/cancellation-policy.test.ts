@@ -79,6 +79,30 @@ describe('supplier cancellation policy', () => {
     ).toBe('no_refund');
   });
 
+  it('stay free-cancel window uses check-in wall clock not midnight (Phase 1074)', () => {
+    // Check-in 16:00 Helsinki on 2026-09-10 = 13:00 UTC.
+    const checkInUtc = Date.parse('2026-09-10T13:00:00.000Z');
+    expect(
+      travelerSelfCancelRefundChoice({
+        bookingDate: '2026-09-10',
+        startTimeHm: '16:00',
+        departureTimezone: 'Europe/Helsinki',
+        nowMs: checkInUtc - 25 * 60 * 60 * 1000,
+        paymentStatus: 'paid',
+      })
+    ).toBe('full_refund');
+    // 12h before check-in — no free cancel (midnight-based would still be full_refund).
+    expect(
+      travelerSelfCancelRefundChoice({
+        bookingDate: '2026-09-10',
+        startTimeHm: '16:00',
+        departureTimezone: 'Europe/Helsinki',
+        nowMs: checkInUtc - 12 * 60 * 60 * 1000,
+        paymentStatus: 'paid',
+      })
+    ).toBe('no_refund');
+  });
+
   it('never offers a refund for unpaid or failed checkouts', () => {
     const start = Date.parse('2026-09-10T18:00:00');
     expect(
