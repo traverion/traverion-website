@@ -386,6 +386,30 @@ export function applyScheduleToOption(
   };
 }
 
+/**
+ * Phase 1123: capacity for one departure time on a date — schedule-resolved, not the
+ * currently selected schedule's maxSpots (which would mis-label sibling departures).
+ */
+export function optionCapacityForDepartureTime(
+  option: ListingBookingOption,
+  localDateIso: string,
+  startTimeHm: string
+): { maxSpotsPerSlot: number; maxPersons: number } {
+  if (listingOptionHasSchedules(option)) {
+    const resolved = resolveScheduleForDate(option, localDateIso, startTimeHm);
+    if (resolved) {
+      return {
+        maxSpotsPerSlot: resolved.maxSpotsPerSlot,
+        maxPersons: resolved.maxPersons,
+      };
+    }
+  }
+  return {
+    maxSpotsPerSlot: option.maxSpotsPerSlot,
+    maxPersons: option.maxPersons,
+  };
+}
+
 export function syncOptionHeadlineFromSchedules(option: ListingBookingOption): ListingBookingOption {
   const ready = listingOptionReadySchedules(option);
   if (ready.length === 0) return option;

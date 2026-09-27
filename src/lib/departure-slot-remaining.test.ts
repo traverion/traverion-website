@@ -86,15 +86,16 @@ describe('departureSlotSpotsLeft', () => {
   });
 });
 
-describe('maxSpotsLeftAcrossDepartures (Phase 1064)', () => {
+describe('maxSpotsLeftAcrossDepartures (Phase 1064 / 1123)', () => {
   it('does not treat a full morning as day sold-out when evening still has seats', () => {
     const day = '2026-10-01';
     expect(
       maxSpotsLeftAcrossDepartures({
         dayIso: day,
-        departureTimes: ['08:00', '20:00'],
-        maxSpotsPerSlot: 8,
-        maxPersonsFallback: 12,
+        departures: [
+          { startTimeHm: '08:00', maxSpotsPerSlot: 8, maxPersonsFallback: 12 },
+          { startTimeHm: '20:00', maxSpotsPerSlot: 8, maxPersonsFallback: 12 },
+        ],
         paidBySlot: {
           [tourPaidSlotKey(day, '08:00')]: 8,
           [tourPaidSlotKey(day, '20:00')]: 2,
@@ -103,5 +104,25 @@ describe('maxSpotsLeftAcrossDepartures (Phase 1064)', () => {
         fallbackDayCap: 16,
       })
     ).toBe(6);
+  });
+
+  it('uses each departure’s own maxSpots (Phase 1123)', () => {
+    const day = '2026-10-01';
+    // Morning cap 4 fully sold; evening cap 12 with 2 booked → 10 left (not 4-2).
+    expect(
+      maxSpotsLeftAcrossDepartures({
+        dayIso: day,
+        departures: [
+          { startTimeHm: '08:00', maxSpotsPerSlot: 4, maxPersonsFallback: 12 },
+          { startTimeHm: '20:00', maxSpotsPerSlot: 12, maxPersonsFallback: 12 },
+        ],
+        paidBySlot: {
+          [tourPaidSlotKey(day, '08:00')]: 4,
+          [tourPaidSlotKey(day, '20:00')]: 2,
+        },
+        paidByDay: { [day]: 6 },
+        fallbackDayCap: 16,
+      })
+    ).toBe(10);
   });
 });

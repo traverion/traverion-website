@@ -36,6 +36,7 @@ import {
   resolveScheduleForDate,
   applyScheduleToOption,
   departureTimesOnDate,
+  optionCapacityForDepartureTime,
 } from '../lib/listing-option-schedules';
 import { normalizeBookingCutoffHours, resolveDepartureTimezone, isDepartureTimeStillBookable } from '../lib/tour-departure-cutoff';
 import { formatMoney, normalizeCurrency } from '../lib/money';
@@ -438,11 +439,17 @@ export default function BookingPage({
       });
     }
     if (appliedOption && bookableDepartureTimes.length >= 1) {
+      const baseOpt = selectedVariant?.listingOption ?? appliedOption;
       return maxSpotsLeftAcrossDepartures({
         dayIso: day,
-        departureTimes: bookableDepartureTimes,
-        maxSpotsPerSlot: appliedOption.maxSpotsPerSlot,
-        maxPersonsFallback: appliedOption.maxPersons,
+        departures: bookableDepartureTimes.map((time) => {
+          const cap = optionCapacityForDepartureTime(baseOpt, day, time);
+          return {
+            startTimeHm: time,
+            maxSpotsPerSlot: cap.maxSpotsPerSlot,
+            maxPersonsFallback: cap.maxPersons,
+          };
+        }),
         paidBySlot: dayCapacitySnap.paidBySlot,
         paidByDay: dayCapacitySnap.paidByDay,
         dayCapOverride: dayCap,
@@ -454,7 +461,7 @@ export default function BookingPage({
     }
     const cap = dayCapacitySnap.fallback;
     return remainingCapacity(cap, dayCapacitySnap.paidByDay[day] ?? 0);
-  }, [date, dayCapacitySnap, soldOutDates, departureTime, appliedOption, bookableDepartureTimes]);
+  }, [date, dayCapacitySnap, soldOutDates, departureTime, appliedOption, bookableDepartureTimes, selectedVariant]);
 
   const spotsLeftIsDepartureCapacity = Boolean(departureTime) && Boolean(appliedOption);
 

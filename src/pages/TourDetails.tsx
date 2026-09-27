@@ -87,6 +87,7 @@ import {
   departureTimesOnDate,
   resolveScheduleForDate,
   applyScheduleToOption,
+  optionCapacityForDepartureTime,
 } from '../lib/listing-option-schedules';
 import { tourBookableSellingDeparturesOnDate } from '../lib/booking-quote';
 import {
@@ -454,12 +455,18 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         fallbackDayCap: dayCapacitySnap.fallback,
       });
     }
-    if (selectedOptionApplied && departureTimes.length >= 1) {
+    if (selectedOptionApplied && departureTimes.length >= 1 && selectedOption) {
+      const day = bookingDate.trim();
       return maxSpotsLeftAcrossDepartures({
         dayIso: day,
-        departureTimes,
-        maxSpotsPerSlot: selectedOptionApplied.maxSpotsPerSlot,
-        maxPersonsFallback: selectedOptionApplied.maxPersons,
+        departures: departureTimes.map((time) => {
+          const cap = optionCapacityForDepartureTime(selectedOption, day, time);
+          return {
+            startTimeHm: time,
+            maxSpotsPerSlot: cap.maxSpotsPerSlot,
+            maxPersonsFallback: cap.maxPersons,
+          };
+        }),
         paidBySlot: dayCapacitySnap.paidBySlot,
         paidByDay: dayCapacitySnap.paidByDay,
         dayCapOverride: dayCap,
@@ -476,6 +483,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     dayCapacitySnap,
     soldOutDates,
     selectedOptionApplied,
+    selectedOption,
     departureTimes,
     selectedDepartureTime,
   ]);
@@ -487,18 +495,19 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
   const allDeparturesSoldOut = useMemo(() => {
     const day = bookingDate.trim();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !dayCapacitySnap || !selectedOptionApplied) return false;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !dayCapacitySnap || !selectedOption) return false;
     if (departureTimes.length < 1) return false;
     const dayCap = dayCapacitySnap.capByDay.has(day)
       ? (dayCapacitySnap.capByDay.get(day) ?? dayCapacitySnap.fallback)
       : undefined;
     if (dayCap != null && dayCap < 1) return true;
     return departureTimes.every((time) => {
+      const cap = optionCapacityForDepartureTime(selectedOption, day, time);
       const left = departureSlotSpotsLeft({
         dayIso: day,
         startTimeHm: time,
-        maxSpotsPerSlot: selectedOptionApplied.maxSpotsPerSlot,
-        maxPersonsFallback: selectedOptionApplied.maxPersons,
+        maxSpotsPerSlot: cap.maxSpotsPerSlot,
+        maxPersonsFallback: cap.maxPersons,
         paidBySlot: dayCapacitySnap.paidBySlot,
         paidByDay: dayCapacitySnap.paidByDay,
         dayCapOverride: dayCap,
@@ -506,7 +515,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       });
       return left != null && left < 1;
     });
-  }, [bookingDate, dayCapacitySnap, selectedOptionApplied, departureTimes]);
+  }, [bookingDate, dayCapacitySnap, selectedOption, departureTimes]);
 
   useEffect(() => {
     if (!selectedDepartureTime.trim() || selectedDaySpotsLeft == null) return;
@@ -1461,15 +1470,16 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                                   const selected = selectedDepartureTime === time;
                                   const day = bookingDate.trim();
                                   const slotSpotsLeft = (() => {
-                                    if (!dayCapacitySnap || !selectedOptionApplied) return null;
+                                    if (!dayCapacitySnap || !selectedOption) return null;
                                     const dayCap = dayCapacitySnap.capByDay.has(day)
                                       ? dayCapacitySnap.capByDay.get(day)
                                       : undefined;
+                                    const cap = optionCapacityForDepartureTime(selectedOption, day, time);
                                     return departureSlotSpotsLeft({
                                       dayIso: day,
                                       startTimeHm: time,
-                                      maxSpotsPerSlot: selectedOptionApplied.maxSpotsPerSlot,
-                                      maxPersonsFallback: selectedOptionApplied.maxPersons,
+                                      maxSpotsPerSlot: cap.maxSpotsPerSlot,
+                                      maxPersonsFallback: cap.maxPersons,
                                       paidBySlot: dayCapacitySnap.paidBySlot,
                                       paidByDay: dayCapacitySnap.paidByDay,
                                       dayCapOverride: dayCap,

@@ -34,27 +34,31 @@ export function departureSlotSpotsLeft(params: {
  * Best remaining capacity across still-bookable departures on a day.
  * Used when no departure is selected yet — day-total paid seats must not treat a
  * full morning as “fully booked this day” while evening still has seats.
+ *
+ * Phase 1123: each departure carries its own maxSpotsPerSlot (schedule-resolved).
  */
 export function maxSpotsLeftAcrossDepartures(params: {
   dayIso: string;
-  departureTimes: string[];
-  maxSpotsPerSlot: number | null | undefined;
-  maxPersonsFallback: number;
+  departures: Array<{
+    startTimeHm: string;
+    maxSpotsPerSlot?: number | null;
+    maxPersonsFallback?: number;
+  }>;
   paidBySlot: Record<string, number>;
   paidByDay: Record<string, number>;
   dayCapOverride?: number;
   fallbackDayCap: number;
 }): number | null {
-  const times = params.departureTimes.map((t) => t.trim()).filter(Boolean);
-  if (times.length < 1) return null;
+  const deps = params.departures.filter((d) => d.startTimeHm.trim());
+  if (deps.length < 1) return null;
   let maxLeft = 0;
   let saw = false;
-  for (const time of times) {
+  for (const dep of deps) {
     const left = departureSlotSpotsLeft({
       dayIso: params.dayIso,
-      startTimeHm: time,
-      maxSpotsPerSlot: params.maxSpotsPerSlot,
-      maxPersonsFallback: params.maxPersonsFallback,
+      startTimeHm: dep.startTimeHm,
+      maxSpotsPerSlot: dep.maxSpotsPerSlot,
+      maxPersonsFallback: dep.maxPersonsFallback ?? 12,
       paidBySlot: params.paidBySlot,
       paidByDay: params.paidByDay,
       dayCapOverride: params.dayCapOverride,
