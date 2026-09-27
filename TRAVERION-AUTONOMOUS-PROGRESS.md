@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness** (continuing 1001+)  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `974f1c8`  
-**Current phase:** 1031  
+**Current SHA:** `28b7581`  
+**Current phase:** 1032  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -5335,7 +5335,15 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 
 **Next toward 1050:** notify-* caller-auth (careful — client+webhook+cron callers); optional after-start SQL for reviews; admin host browser cert (session-gated).
 
-**Certification:** CODE-INSPECTED + AUTOMATED-TESTED (60/60).
+**Certification:** CODE-INSPECTED + AUTOMATED-TESTED (60/60). Ending SHA `28b7581`.
+
+### Phase 1032 — Client submitReview requires bookingId
+
+**Gap:** `submitReview` still typed `bookingId?` and upserted null, lagging RLS 117/118.
+
+**Fix:** Required `bookingId` param + early reject; Tour/Stay detail submit buttons gate on `bookingIdForReview`. App tsc clean.
+
+**Certification:** CODE-INSPECTED + tsc clean.
 
 ## Known remaining risks (ranked)
 

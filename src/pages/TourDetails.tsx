@@ -1734,6 +1734,10 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     disabled={reviewSubmitting || !reviewComment.trim()}
                     aria-busy={reviewSubmitting || undefined}
                     onClick={async () => {
+                      if (!bookingIdForReview) {
+                        setReviewError('A completed booking is required to leave a review.');
+                        return;
+                      }
                       setReviewSubmitting(true);
                       setReviewError(null);
                       const res = await submitReview({

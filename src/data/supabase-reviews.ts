@@ -87,7 +87,7 @@ export async function getReviewAggregatesForListingIds(
   return out;
 }
 
-/** Submit a review (user must be logged in). Optionally link booking_id for "verified" badge. */
+/** Submit a review (user must be logged in). Requires a paid completed booking id (RLS 117/118). */
 export async function submitReview(params: {
   listingId: string;
   userId: string;
@@ -95,9 +95,13 @@ export async function submitReview(params: {
   rating: number;
   title?: string;
   comment: string;
-  bookingId?: string;
+  bookingId: string;
 }): Promise<{ success: boolean; error?: string }> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
+  const bookingId = (params.bookingId ?? '').trim();
+  if (!bookingId) {
+    return { success: false, error: 'A completed booking is required to leave a review.' };
+  }
   // Phase 579: capture the real row id so notify-supplier-event can re-derive
   // rating/title/guest name from the actual reviews row instead of trusting
   // this call's params verbatim (see supabase/functions/_shared/notify-supplier-event-guard.ts).
@@ -111,7 +115,7 @@ export async function submitReview(params: {
         rating: params.rating,
         title: params.title ?? null,
         comment: params.comment,
-        booking_id: params.bookingId ?? null,
+        booking_id: bookingId,
       },
       { onConflict: 'listing_id,user_id' }
     )
