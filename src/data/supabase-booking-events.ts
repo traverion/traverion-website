@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { resolveSupplierId } from './supabase-supplier-team';
 
 export type SupplierBookingEventType =
   | 'booking_created'
@@ -38,10 +39,12 @@ export async function fetchSupplierBookingEvents(
   bookingIds: string[]
 ): Promise<SupplierBookingEventRow[]> {
   if (!supabase || bookingIds.length === 0) return [];
+  // Phase 1150: team JWT → owner supplier_id.
+  const ownerSupplierId = await resolveSupplierId(supplierId);
   const { data, error } = await supabase
     .from('supplier_booking_events')
     .select('*')
-    .eq('supplier_id', supplierId)
+    .eq('supplier_id', ownerSupplierId)
     .in('booking_id', bookingIds)
     .order('created_at', { ascending: true });
   if (error) return [];
@@ -56,9 +59,10 @@ export async function insertSupplierBookingEvent(params: {
   details?: string;
 }): Promise<boolean> {
   if (!supabase) return false;
+  const ownerSupplierId = await resolveSupplierId(params.supplierId);
   const { error } = await supabase.from('supplier_booking_events').insert({
     booking_id: params.bookingId,
-    supplier_id: params.supplierId,
+    supplier_id: ownerSupplierId,
     actor_id: params.actorId ?? null,
     event_type: params.eventType,
     details: params.details ?? null,
@@ -70,10 +74,11 @@ export async function fetchSupplierBookingMessages(
   supplierId: string
 ): Promise<SupplierBookingMessageRow[]> {
   if (!supabase) return [];
+  const ownerSupplierId = await resolveSupplierId(supplierId);
   const { data, error } = await supabase
     .from('supplier_booking_messages')
     .select('*')
-    .eq('supplier_id', supplierId)
+    .eq('supplier_id', ownerSupplierId)
     .order('created_at', { ascending: false })
     .limit(50);
   if (error) return [];
@@ -94,10 +99,11 @@ export async function insertSupplierBookingMessage(params: {
   errorMessage?: string;
 }): Promise<{ success: boolean; id?: string }> {
   if (!supabase) return { success: false };
+  const ownerSupplierId = await resolveSupplierId(params.supplierId);
   const { data, error } = await supabase
     .from('supplier_booking_messages')
     .insert({
-    supplier_id: params.supplierId,
+    supplier_id: ownerSupplierId,
     actor_id: params.actorId ?? null,
     campaign_id: params.campaignId ?? null,
     subject: params.subject,
