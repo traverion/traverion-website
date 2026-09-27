@@ -3,13 +3,13 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness** (continuing 1001+)  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `00e4c77`  
-**Current phase:** 1028  
+**Current SHA:** `a368567`  
+**Current phase:** 1029  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Local-only (gitignored):** `scripts/cert-transactional-emails.cjs` — must stay untracked; contains service-role secrets when present locally  
-**Remote migration truth (Phase 1026):** Local=Remote through **116** on `xcopqllkulxfkpunetbc`. Stripe: TEST only.  
+**Remote migration truth (Phase 1029):** Local=Remote through **117** on `xcopqllkulxfkpunetbc`. Stripe: TEST only.  
 
 ## Milestone Phase 513 (inventory band)
 
@@ -5309,7 +5309,15 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 
 **Fix:** Doc now matches Stripe TEST checkout, wishlist-only Saved, dead cart → Trips; matrix continuum through **116**.
 
-**Certification:** CODE-INSPECTED / docs truth.
+**Certification:** CODE-INSPECTED / docs truth. Ending SHA `a368567`.
+
+### Phase 1029 — Require booking_id for every review write
+
+**Gap:** RLS still allowed `booking_id is null` unverified reviews via PostgREST while product UI only offers reviews after a completed booking.
+
+**Fix:** Migration `117_reviews_require_booking_id.sql` — INSERT/UPDATE require non-null owned confirmed booking + retain self-supplier block (093). Also clears leftover GAP_ANALYSIS account “cart” wording.
+
+**Certification:** ADVERSARIAL-TESTED (SQL harness authored) + remote applied. Scratch Postgres re-run = host-blocked (no local docker).
 
 ## Known remaining risks (ranked)
 

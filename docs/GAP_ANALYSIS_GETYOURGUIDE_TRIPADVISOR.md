@@ -60,7 +60,7 @@ Still open vs GYG depth: dedicated traveler session on shared localhost, auto-re
 
 ### 6. **Customer account & history**
 - **GYG/TripAdvisor:** Profile: past bookings, reviews written, wishlist, payment methods, preferences.
-- **Traverion (current):** **`/account`** hub linking bookings, wishlist, cart; **My bookings** still directly reachable. No saved payment methods; **My reviews** not wired in hub yet (placeholder tile).
+- **Traverion (current):** **`/account`** hub linking bookings and wishlist; **My bookings** still directly reachable. No saved payment methods; **My reviews** not wired in hub yet (placeholder tile).
 
 **Gap:** “My reviews” list + saved payments/preferences when you add Stripe and review history.
 
