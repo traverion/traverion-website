@@ -4886,6 +4886,13 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 
 **Certification:** multi-option publish = **BROWSER-TESTED**. Traveler book of second option = next.
 
+
+### Phase 920 — Traveler PDP shows both options after multi-option publish
+
+**Browser:** `/tours/1807368c-…` → October 1 available → page text includes **Small group** and **Meeting point**, plus €119 and €99.
+
+**Certification:** multi-option traveler surface = **BROWSER-TESTED**.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.
