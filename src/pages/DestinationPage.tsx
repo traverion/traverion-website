@@ -91,17 +91,21 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
     }
     const ids = listingIdsForReviewsKey.split(',');
     let cancelled = false;
-    Promise.all([fetchDiscountsByListingIds(ids), getReviewAggregatesForListingIds(ids)])
-      .then(([discounts, reviews]) => {
-        if (!cancelled) {
-          setDiscountsByListing(discounts);
-          setReviewAggregates(reviews);
-        }
+    // Phase 1193: decouple offers vs reviews — one RPC failure must not block the other.
+    void fetchDiscountsByListingIds(ids)
+      .then((discounts) => {
+        if (!cancelled) setDiscountsByListing(discounts);
       })
       .catch(() => {
         // Phase 1151: empty map → honest list From (not endless "Checking offers…").
-        if (cancelled) return;
-        setDiscountsByListing(new Map());
+        if (!cancelled) setDiscountsByListing(new Map());
+      });
+    void getReviewAggregatesForListingIds(ids)
+      .then((reviews) => {
+        if (!cancelled) setReviewAggregates(reviews);
+      })
+      .catch(() => {
+        // Keep prior map — review load failure must not invent empty ratings.
       });
     return () => {
       cancelled = true;
