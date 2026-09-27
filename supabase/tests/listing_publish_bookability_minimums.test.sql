@@ -215,5 +215,11 @@ begin
   ) into v_ok;
   if v_ok then raise exception 'helper ready schedule without start date must fail'; end if;
 
+  -- Phase 1254: flat option without startTime is not bookable.
+  select public.listing_has_bookable_tour_surface(
+    '{"bookingOptions":[{"pickupPlace":"Hotel pickup area","priceUsd":89,"minPersons":1,"maxPersons":8,"maxSpotsPerSlot":8,"weekdays":[true,true,true,true,true,true,true]}]}'::jsonb, 0
+  ) into v_ok;
+  if v_ok then raise exception 'helper flat option without startTime must fail'; end if;
+
   raise notice 'ALL ASSERTIONS PASSED';
 end $$;
