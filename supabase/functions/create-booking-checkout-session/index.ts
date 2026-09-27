@@ -17,6 +17,7 @@ import {
 } from '../_shared/purchase-snapshot.ts';
 import { isStripeTestSecretKey, stripeLiveSecretBlockedMessage } from '../_shared/stripe-test-only.ts';
 import { resolveCheckoutSiteUrl } from '../_shared/checkout-return-origin.ts';
+import { isMissingPostgresFunctionError } from '../_shared/checkout-inventory-conflict.ts';
 
 type RequestBody = {
   bookingId?: string;
@@ -621,8 +622,10 @@ serve(async (req) => {
       if (claimed.error) {
         const conflict = /already booked|not enough capacity|occupied/i.test(claimed.error.message);
         if (conflict) return json({ success: false, error: claimed.error.message }, 409);
-        const missingFn = /could not find the function|schema cache/i.test(claimed.error.message);
+        const missingFn = isMissingPostgresFunctionError(claimed.error.message);
         if (!missingFn) return json({ success: false, error: claimed.error.message }, 500);
+        // Legacy fallback when claim RPC is absent: assert then bare insert.
+        // Phase 1096: if assert is also missing, refuse — never insert unguarded.
         const { error: inventoryErr } = await admin.rpc('assert_checkout_inventory', {
           p_listing_id: listingId,
           p_check_in: bookingDate,
@@ -631,7 +634,13 @@ serve(async (req) => {
           p_exclude_booking_id: null,
           p_start_time: startTime || null,
         });
-        if (inventoryErr && !/could not find the function|schema cache/i.test(inventoryErr.message)) {
+        if (inventoryErr) {
+          if (isMissingPostgresFunctionError(inventoryErr.message)) {
+            return json(
+              { success: false, error: 'Checkout inventory guard unavailable. Try again later.' },
+              500
+            );
+          }
           const invConflict = /already booked|not enough capacity|occupied/i.test(inventoryErr.message);
           return json({ success: false, error: inventoryErr.message }, invConflict ? 409 : 500);
         }
@@ -690,7 +699,14 @@ serve(async (req) => {
         p_exclude_booking_id: targetBookingId,
         p_start_time: startTime || null,
       });
-      if (inventoryErr && !/could not find the function|schema cache/i.test(inventoryErr.message)) {
+      if (inventoryErr) {
+        // Phase 1096: missing assert must not resume Pay as if inventory were free.
+        if (isMissingPostgresFunctionError(inventoryErr.message)) {
+          return json(
+            { success: false, error: 'Checkout inventory guard unavailable. Try again later.' },
+            500
+          );
+        }
         const conflict = /already booked|not enough capacity|occupied/i.test(inventoryErr.message);
         return json({ success: false, error: inventoryErr.message }, conflict ? 409 : 500);
       }

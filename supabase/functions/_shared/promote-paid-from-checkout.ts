@@ -2,7 +2,7 @@
 import { type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
 import { staleCheckoutFailureShouldApply, stripeWebhookCanMarkPaidFrom } from './checkout-resume.ts';
-import { isCheckoutInventoryConflictError } from './checkout-inventory-conflict.ts';
+import { isCheckoutInventoryConflictError, isMissingPostgresFunctionError } from './checkout-inventory-conflict.ts';
 import { checkoutPaidAmountAcceptable, checkoutPaidCurrencyMatches, rejectedCheckoutCaptureShouldRefund, unpromotedCheckoutCaptureShouldRefund } from './checkout-paid-amount.ts';
 import { orphanSupersededCheckoutShouldRefund } from './orphan-checkout-refund.ts';
 import {
@@ -527,7 +527,7 @@ export async function promotePaidFromCheckoutSession(params: {
     });
     if (
       inventoryErr &&
-      !/could not find the function|schema cache/i.test(inventoryErr.message) &&
+      !isMissingPostgresFunctionError(inventoryErr.message) &&
       isCheckoutInventoryConflictError(inventoryErr.message)
     ) {
       let inventoryRefunded = false;
@@ -577,12 +577,15 @@ export async function promotePaidFromCheckoutSession(params: {
         bookingId,
       });
     }
-    if (
-      inventoryErr &&
-      !/could not find the function|schema cache/i.test(inventoryErr.message) &&
-      !isCheckoutInventoryConflictError(inventoryErr.message)
-    ) {
-      throw new Error(inventoryErr.message);
+    // Phase 1096: missing assert must not promote paid (oversell). Other assert
+    // errors also fail closed so webhook can retry after repair.
+    if (inventoryErr) {
+      if (isMissingPostgresFunctionError(inventoryErr.message)) {
+        throw new Error('Checkout inventory guard unavailable');
+      }
+      if (!isCheckoutInventoryConflictError(inventoryErr.message)) {
+        throw new Error(inventoryErr.message);
+      }
     }
   }
 
