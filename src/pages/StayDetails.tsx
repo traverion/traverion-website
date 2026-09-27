@@ -386,7 +386,11 @@ export default function StayDetails({ stayId, onBack }: Props) {
   const nightly = stayQuote?.ok ? stayQuote.nightlyPrice : s?.nightlyPriceUsd && s.nightlyPriceUsd > 0 ? s.nightlyPriceUsd : stay?.price.startingFrom ?? 0;
   const nights = stayQuote?.ok ? stayQuote.nights : null;
   const minNights = s?.minNights ?? 1;
-  const maxGuests = s?.maxGuests ?? 12;
+  // Phase 1216: do not invent party max 12 when stay.maxGuests is unset (publish requires it).
+  const maxGuests =
+    typeof s?.maxGuests === 'number' && Number.isFinite(s.maxGuests) && s.maxGuests >= 1
+      ? Math.floor(s.maxGuests)
+      : null;
   const quoteOk = stayQuote?.ok === true;
   const total = stayQuote?.ok ? stayQuote.totalAmount : 0;
   const currency = normalizeCurrency(stay?.price.currency);
@@ -403,6 +407,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
   const hero = stay ? listingHeroImageSrc(stay.image) : undefined;
 
   useEffect(() => {
+    if (maxGuests == null) return;
     setGuests((g) => Math.min(maxGuests, Math.max(1, g)));
   }, [maxGuests]);
 
@@ -1069,13 +1074,16 @@ export default function StayDetails({ stayId, onBack }: Props) {
                 id="stay-guests"
                 value={guests}
                 min={1}
-                max={maxGuests}
+                max={maxGuests ?? 0}
                 onChange={(next) => {
                   setGuests(next);
                   setPayError(null);
                 }}
                 label="Guests"
               />
+              {maxGuests == null ? (
+                <p className="mt-2 text-sm text-red-700">Guest capacity is unavailable for this stay.</p>
+              ) : null}
             </div>
             {nights != null && nights < minNights ? (
               <div className="mt-3">
@@ -1165,10 +1173,11 @@ export default function StayDetails({ stayId, onBack }: Props) {
                     selectionOccupied ||
                     Boolean(occupancyError) ||
                     selfBookBlocked ||
+                    maxGuests == null ||
                     checkoutPayBlockedByConsent(checkoutConsentAccepted)
                   }
                   onClick={() => {
-                    if (selectionOccupied || occupancyError || selfBookBlocked) return;
+                    if (selectionOccupied || occupancyError || selfBookBlocked || maxGuests == null) return;
                     if (!quoteOk) {
                       document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                       window.requestAnimationFrame(() => {
@@ -1259,10 +1268,11 @@ export default function StayDetails({ stayId, onBack }: Props) {
                   selectionOccupied ||
                   Boolean(occupancyError) ||
                   selfBookBlocked ||
+                  maxGuests == null ||
                   (quoteOk && checkoutPayBlockedByConsent(checkoutConsentAccepted))
                 }
                 onClick={() => {
-                  if (selectionOccupied || occupancyError || selfBookBlocked) return;
+                  if (selectionOccupied || occupancyError || selfBookBlocked || maxGuests == null) return;
                   if (!quoteOk) {
                     document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     window.requestAnimationFrame(() => {
