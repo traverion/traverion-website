@@ -13,6 +13,7 @@ import {
   resolvePickupInstructionsForSnapshot,
   resolveCancellationPolicyForSnapshot,
   resolveStayFieldsForSnapshot,
+  normalizePurchaseStringList,
 } from '../_shared/purchase-snapshot.ts';
 import { isStripeTestSecretKey, stripeLiveSecretBlockedMessage } from '../_shared/stripe-test-only.ts';
 import { resolveCheckoutSiteUrl } from '../_shared/checkout-return-origin.ts';
@@ -254,7 +255,7 @@ serve(async (req) => {
     const { data: listingRow, error: listingError } = await admin
       .from('listings')
       .select(
-        'id, title, status, price_starting_from, price_currency, listing_extras, group_size, meeting_point, pickup_instructions, cancellation_policy'
+        'id, title, status, price_starting_from, price_currency, listing_extras, group_size, meeting_point, pickup_instructions, cancellation_policy, includes, excludes'
       )
       .eq('id', listingId)
       .maybeSingle();
@@ -392,6 +393,12 @@ serve(async (req) => {
       checkInTime: stayFields?.checkInTime ?? null,
       checkOutTime: stayFields?.checkOutTime ?? null,
       houseRules: stayFields?.houseRules ?? null,
+      includes: normalizePurchaseStringList(
+        (listingRow as { includes?: unknown }).includes
+      ),
+      excludes: normalizePurchaseStringList(
+        (listingRow as { excludes?: unknown }).excludes
+      ),
       termsAcceptedAt,
     });
 

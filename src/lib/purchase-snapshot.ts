@@ -38,6 +38,10 @@ export type PurchaseSnapshot = {
   checkOutTime?: string | null;
   /** Stay: house rules text frozen at purchase. */
   houseRules?: string | null;
+  /** Included items frozen at purchase. */
+  includes?: string[] | null;
+  /** Excluded items frozen at purchase. */
+  excludes?: string[] | null;
   /** IANA zone for departure wall clock at purchase. */
   departureTimezone?: string | null;
   /** ISO timestamp when traveler accepted checkout terms (server-stamped). */
@@ -48,6 +52,24 @@ export function isPurchaseSnapshot(value: unknown): value is PurchaseSnapshot {
   if (!value || typeof value !== 'object') return false;
   const v = value as Record<string, unknown>;
   return typeof v.listingTitle === 'string' && typeof v.capturedAt === 'string';
+}
+
+/** Cap inclusion/exclusion lists frozen at purchase. */
+export function normalizePurchaseStringList(
+  raw: unknown,
+  maxItems = 40,
+  maxLen = 200
+): string[] | null {
+  if (!Array.isArray(raw)) return null;
+  const out: string[] = [];
+  for (const item of raw) {
+    if (typeof item !== 'string') continue;
+    const t = item.trim().slice(0, maxLen);
+    if (!t) continue;
+    out.push(t);
+    if (out.length >= maxItems) break;
+  }
+  return out.length ? out : null;
 }
 
 export function buildPurchaseSnapshot(input: {
@@ -71,6 +93,8 @@ export function buildPurchaseSnapshot(input: {
   checkInTime?: string | null;
   checkOutTime?: string | null;
   houseRules?: string | null;
+  includes?: string[] | null;
+  excludes?: string[] | null;
   departureTimezone?: string | null;
   termsAcceptedAt?: string | null;
   capturedAt?: string;
@@ -102,6 +126,8 @@ export function buildPurchaseSnapshot(input: {
   const checkInTime = (input.checkInTime ?? '').trim().slice(0, 5) || null;
   const checkOutTime = (input.checkOutTime ?? '').trim().slice(0, 5) || null;
   const houseRules = (input.houseRules ?? '').trim().slice(0, 2000) || null;
+  const includes = normalizePurchaseStringList(input.includes);
+  const excludes = normalizePurchaseStringList(input.excludes);
   const departureTimezone = (input.departureTimezone ?? '').trim() || null;
   const termsAcceptedAt = (input.termsAcceptedAt ?? '').trim() || null;
   const snap: PurchaseSnapshot = {
@@ -127,6 +153,8 @@ export function buildPurchaseSnapshot(input: {
   if (checkInTime) snap.checkInTime = checkInTime;
   if (checkOutTime) snap.checkOutTime = checkOutTime;
   if (houseRules) snap.houseRules = houseRules;
+  if (includes) snap.includes = includes;
+  if (excludes) snap.excludes = excludes;
   if (departureTimezone) snap.departureTimezone = departureTimezone;
   if (termsAcceptedAt) snap.termsAcceptedAt = termsAcceptedAt;
   return snap;
@@ -302,6 +330,18 @@ export function displayStayHouseRulesFromPurchase(snapshot: unknown): string | n
   if (!isPurchaseSnapshot(snapshot)) return null;
   const rules = (snapshot.houseRules ?? '').trim();
   return rules || null;
+}
+
+/** Included items from purchase; null when no snap (caller may use live). Empty array when snap has none. */
+export function displayIncludesFromPurchase(snapshot: unknown): string[] | null {
+  if (!isPurchaseSnapshot(snapshot)) return null;
+  return normalizePurchaseStringList(snapshot.includes) ?? [];
+}
+
+/** Excluded items from purchase; null when no snap. Empty array when snap has none. */
+export function displayExcludesFromPurchase(snapshot: unknown): string[] | null {
+  if (!isPurchaseSnapshot(snapshot)) return null;
+  return normalizePurchaseStringList(snapshot.excludes) ?? [];
 }
 
 /**

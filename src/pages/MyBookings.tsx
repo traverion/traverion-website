@@ -54,6 +54,8 @@ import {
   displayStayCheckInTimeFromPurchase,
   displayStayCheckOutTimeFromPurchase,
   displayStayHouseRulesFromPurchase,
+  displayIncludesFromPurchase,
+  displayExcludesFromPurchase,
 } from '../lib/purchase-snapshot';
 import { TRAVERION_STANDARD_CANCELLATION_POLICY } from '../types/listingExtras';
 import { decrementAvailabilityBooked } from '../data/supabase-availability';
@@ -938,6 +940,34 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         </dt>
                         <dd className="mt-0.5 text-sm text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
                           {displayStayHouseRulesFromPurchase(b.purchase_snapshot)}
+                        </dd>
+                      </div>
+                    ) : null}
+                    {!isStay && (displayIncludesFromPurchase(b.purchase_snapshot)?.length ?? 0) > 0 ? (
+                      <div className="sm:col-span-2">
+                        <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
+                          Included (when you booked)
+                        </dt>
+                        <dd className="mt-0.5 text-sm text-ink">
+                          <ul className="list-disc space-y-1 pl-4">
+                            {displayIncludesFromPurchase(b.purchase_snapshot)!.map((line) => (
+                              <li key={line}>{line}</li>
+                            ))}
+                          </ul>
+                        </dd>
+                      </div>
+                    ) : null}
+                    {!isStay && (displayExcludesFromPurchase(b.purchase_snapshot)?.length ?? 0) > 0 ? (
+                      <div className="sm:col-span-2">
+                        <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
+                          Not included (when you booked)
+                        </dt>
+                        <dd className="mt-0.5 text-sm text-ink">
+                          <ul className="list-disc space-y-1 pl-4">
+                            {displayExcludesFromPurchase(b.purchase_snapshot)!.map((line) => (
+                              <li key={line}>{line}</li>
+                            ))}
+                          </ul>
                         </dd>
                       </div>
                     ) : null}

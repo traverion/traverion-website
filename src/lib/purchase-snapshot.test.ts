@@ -22,6 +22,8 @@ import {
   displayStayCheckInTimeFromPurchase,
   displayStayCheckOutTimeFromPurchase,
   displayStayHouseRulesFromPurchase,
+  displayIncludesFromPurchase,
+  displayExcludesFromPurchase,
   isPurchaseSnapshot,
   partnerOpsDepartureDisplay,
 } from './purchase-snapshot';
@@ -280,5 +282,19 @@ describe('resolveOptionFieldsForSnapshot (checkout freeze helpers)', () => {
     expect(displayStayCheckInTimeFromPurchase(snap, '18:00')).toBe('16:00');
     expect(displayStayCheckOutTimeFromPurchase(snap, '10:00')).toBe('11:00');
     expect(displayStayHouseRulesFromPurchase(snap)).toMatch(/No parties/);
+  });
+
+  it('freezes includes and excludes so listing edits cannot rewrite Trips', () => {
+    const snap = buildPurchaseSnapshot({
+      listingTitle: 'Aurora',
+      includes: ['  Hot drink  ', '', 'Guide'],
+      excludes: ['Hotel pickup'],
+      capturedAt: '2026-09-22T00:00:00.000Z',
+    });
+    expect(snap.includes).toEqual(['Hot drink', 'Guide']);
+    expect(snap.excludes).toEqual(['Hotel pickup']);
+    expect(displayIncludesFromPurchase(snap)).toEqual(['Hot drink', 'Guide']);
+    expect(displayExcludesFromPurchase(snap)).toEqual(['Hotel pickup']);
+    expect(displayIncludesFromPurchase({ listingTitle: 'x', capturedAt: 't' })).toEqual([]);
   });
 });
