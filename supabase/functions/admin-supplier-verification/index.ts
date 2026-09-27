@@ -11,6 +11,7 @@
 // deno-lint-ignore-file no-explicit-any
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
+import { authUserVerifiedEmail } from '../_shared/auth-verified-email.ts';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -198,9 +199,14 @@ async function assertAdmin(
   if (!isAdminUser(userData.user)) {
     return json({ error: 'Forbidden: Traverion admin role required (see grant_traverion_admin.sql).' }, 403);
   }
-  const block = await assertSoleAdminRowEmail(admin, userData.user.email);
+  // Phase 1125: admin email ownership requires a confirmed address (parity with jwt_verified_email).
+  const verifiedEmail = authUserVerifiedEmail(userData.user);
+  if (!verifiedEmail) {
+    return json({ error: 'Forbidden: confirm your email before using the admin API.' }, 403);
+  }
+  const block = await assertSoleAdminRowEmail(admin, verifiedEmail);
   if (block) return block;
-  return { admin, userId: userData.user.id, email: userData.user.email?.trim() ?? null };
+  return { admin, userId: userData.user.id, email: verifiedEmail };
 }
 
 async function signedUrlForPath(
