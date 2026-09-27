@@ -1027,6 +1027,8 @@ export default function SupplierListingForm({
   const [pendingScheduleDeleteId, setPendingScheduleDeleteId] = useState<string | null>(null);
   const [listingOccupancyBookings, setListingOccupancyBookings] = useState<BookingRow[]>([]);
   const [listingOccupancyLoadError, setListingOccupancyLoadError] = useState<string | null>(null);
+  /** Phase 1108: [] before first successful fetch must not mean “no sold seats”. */
+  const [listingOccupancyReady, setListingOccupancyReady] = useState(false);
   const scheduleSessionOpenedAsCreateRef = useRef(false);
   const scheduleSnapshotRef = useRef<string>('');
   /** Start time when the schedule editor was opened — sold seats stay on this purchased slot. */
@@ -1038,18 +1040,22 @@ export default function SupplierListingForm({
     if (!user?.id || !editingId) {
       setListingOccupancyBookings([]);
       setListingOccupancyLoadError(null);
+      setListingOccupancyReady(false);
       return;
     }
     let cancelled = false;
+    setListingOccupancyReady(false);
     void fetchBookingsForSupplier(user.id)
       .then((rows) => {
         if (cancelled) return;
         setListingOccupancyBookings(rows.filter((b) => b.listing_id === editingId));
         setListingOccupancyLoadError(null);
+        setListingOccupancyReady(true);
       })
       .catch((e) => {
         if (cancelled) return;
         // Keep prior occupancy; never pretend sold seats are zero.
+        setListingOccupancyReady(false);
         setListingOccupancyLoadError(
           userFacingError(e, 'Could not verify sold seats for this listing. Reload before changing schedules.')
         );
@@ -2086,8 +2092,11 @@ export default function SupplierListingForm({
   const deleteSchedule = useCallback(
     (scheduleId: string) => {
       if (!optionModalDraft) return;
-      if (listingOccupancyLoadError) {
-        setScheduleSaveError(listingOccupancyLoadError);
+      if (editingId && (!listingOccupancyReady || listingOccupancyLoadError)) {
+        setScheduleSaveError(
+          listingOccupancyLoadError ??
+            'Sold seats are still loading. Wait a moment, then try again.'
+        );
         return;
       }
       if (pendingScheduleDeleteId !== scheduleId) {
@@ -2099,7 +2108,14 @@ export default function SupplierListingForm({
       persistOptionDraftToForm(next);
       setPendingScheduleDeleteId(null);
     },
-    [optionModalDraft, pendingScheduleDeleteId, persistOptionDraftToForm, listingOccupancyLoadError]
+    [
+      optionModalDraft,
+      pendingScheduleDeleteId,
+      persistOptionDraftToForm,
+      listingOccupancyLoadError,
+      listingOccupancyReady,
+      editingId,
+    ]
   );
 
   const persistScheduleDraft = useCallback(
@@ -2175,8 +2191,11 @@ export default function SupplierListingForm({
       return;
     }
     if (editingId) {
-      if (listingOccupancyLoadError) {
-        setScheduleSaveError(listingOccupancyLoadError);
+      if (!listingOccupancyReady || listingOccupancyLoadError) {
+        setScheduleSaveError(
+          listingOccupancyLoadError ??
+            'Sold seats are still loading. Wait a moment, then try again.'
+        );
         return;
       }
       const previousStart = scheduleOpenedStartTimeRef.current;
@@ -2220,7 +2239,7 @@ export default function SupplierListingForm({
     setScheduleDraft(null);
     setScheduleLeaveOpen(false);
     scheduleSessionOpenedAsCreateRef.current = false;
-  }, [scheduleDraft, optionModalDraft, persistScheduleDraft, editingId, listingOccupancyBookings, listingOccupancyLoadError]);
+  }, [scheduleDraft, optionModalDraft, persistScheduleDraft, editingId, listingOccupancyBookings, listingOccupancyLoadError, listingOccupancyReady]);
 
   const occupancyNoticeForSchedule = useCallback(
     (schedule: ListingOptionSchedule) => {
