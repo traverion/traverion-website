@@ -69,7 +69,7 @@
 | Images / media | PARTIAL | storage bucket + listing images | Orphan cleanup / auth audit |
 | RLS / security | STRONG / ADVERSARIAL | anon + Traveler B (anna/jonas) denied #41 (880–881) | Supplier B listing isolation re-cert |
 | Privacy | PARTIAL | policies + RLS | Minimize PII on partner surfaces |
-| Legal / consent | PARTIAL→STRONG | /privacy /terms /cookies (894); checkout gate (901) | Record acceptance server-side later |
+| Legal / consent | STRONG / BROWSER | /privacy /terms (894); checkout gate 901 + browser 905 | Server-side acceptance log later |
 | Admin / support | PARTIAL | staff panels + ADMIN_SUPPORT_READINESS (903) | Staff force-unpublish later |
 | Moderation | NOT REQUIRED YET | — | Architecture note only |
 | Cron / jobs | PARTIAL | hold expire + reminders edge (891) | Confirm reminder cron host schedule |

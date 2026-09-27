@@ -4779,6 +4779,13 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 
 **Certification:** same-origin autofill harden = **AUTOMATED-TESTED**. Dedicated auth storage per host remains a larger FOUNDER/product follow-up.
 
+
+### Phase 905 — Checkout consent browser-certified (tour)
+
+**Browser:** Cert tour `1807368c-…` → date 2026-09-28 → Go to checkout → Contact → Pay. `#booking-checkout-consent` present; Pay shows **Accept terms to pay** (disabled) until checked; after check unlocks **Pay with test-mode payment · €119**. Did not start Stripe this phase.
+
+**Certification:** checkout consent = **BROWSER-TESTED**.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.
