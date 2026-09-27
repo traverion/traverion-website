@@ -104,8 +104,8 @@ export async function fetchSupplierLedger(supplierId: string): Promise<SupplierL
     .select('id, supplier_id, booking_id, kind, amount, currency, reason, source_id, policy_id, created_at')
     .eq('supplier_id', supplierId)
     .order('created_at', { ascending: false });
-  if (error) return [];
-  return (data ?? []) as SupplierLedgerEntry[];
+  // Failure must not look like "no ledger adjustments" (Phase 1087).
+  return queryRowsOrThrow(data, error) as SupplierLedgerEntry[];
 }
 
 export async function postBookingMessage(bookingId: string, body: string): Promise<{ ok: boolean; error?: string }> {

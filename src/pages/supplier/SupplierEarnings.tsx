@@ -49,6 +49,7 @@ export default function SupplierEarnings() {
   const [profile, setProfile] = useState<Awaited<ReturnType<typeof fetchSupplierProfile>>>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [ledgerError, setLedgerError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'paid'>(() => {
     if (typeof window === 'undefined') return 'all';
     const s = new URLSearchParams(window.location.search).get('status');
@@ -98,13 +99,20 @@ export default function SupplierEarnings() {
     }
     setLoading(true);
     setError(null);
-    Promise.all([fetchSupplierEarnings(uid), fetchBookingsForSupplier(uid), fetchMyListings(uid), fetchSupplierLedger(uid)])
-      .then(([data, bookings, listings, ledgerRows]) => {
+    setLedgerError(null);
+    Promise.all([fetchSupplierEarnings(uid), fetchBookingsForSupplier(uid), fetchMyListings(uid)])
+      .then(async ([data, bookings, listings]) => {
         setEarnings(data);
         setListingTitles(Object.fromEntries(listings.map((l) => [l.id, l.title])));
         setPaidBookings(bookings.filter(isCollectedBooking));
         setRefundDueBookings(bookings.filter(isRefundDueBooking));
-        setLedger(ledgerRows);
+        try {
+          setLedger(await fetchSupplierLedger(uid));
+          setLedgerError(null);
+        } catch (ledgerErr) {
+          // Keep prior ledger — failure must not look like zero adjustments.
+          setLedgerError(userFacingError(ledgerErr, USER_ERROR.money));
+        }
         setLoading(false);
       })
       .catch((e) => {
@@ -306,6 +314,16 @@ export default function SupplierEarnings() {
           }
         />
       )}
+      {!error && ledgerError ? (
+        <div className="mb-5 max-w-lg">
+          <NoticeCallout title="Ledger adjustments unavailable" tone="warn">
+            <p>{ledgerError}</p>
+            <button type="button" onClick={() => void load()} className="tv-btn-ghost mt-3 -ml-2">
+              Retry
+            </button>
+          </NoticeCallout>
+        </div>
+      ) : null}
 
       {loading ? (
         <SupplierListSkeleton rows={3} />
