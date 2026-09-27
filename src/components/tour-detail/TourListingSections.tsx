@@ -41,9 +41,10 @@ export default function TourListingSections({
   const excludes = tour.excludes.map((s) => String(s).trim()).filter(Boolean);
   const notes = (tour.price?.importantNotes ?? []).map((n) => String(n).trim()).filter(Boolean);
   const showImportant =
-    tour.difficulty === 'Challenging' ||
+    Boolean(tour.difficulty) ||
     notes.length > 0 ||
     Boolean(tour.listingExtras?.minGuestAge?.trim()) ||
+    Boolean(tour.listingExtras?.accessibilitySummary?.trim()) ||
     normalizeBookingCutoffHours(tour.listingExtras?.bookingCutoffHoursBeforeStart) > 0;
   const pickup = resolveTourPickupMeetingDisplay(tour, selectedOption);
   const cutoffLabel = bookingCutoffTravelerLabel(
@@ -187,9 +188,16 @@ export default function TourListingSections({
         <section className={sectionClass}>
           <h2 className={headingClass}>Good to know</h2>
           <ul className="max-w-2xl space-y-2 text-[15px] text-ink">
+            {tour.difficulty === 'Easy' ? <li>Difficulty: Easy.</li> : null}
+            {tour.difficulty === 'Moderate' ? <li>Difficulty: Moderate.</li> : null}
             {tour.difficulty === 'Challenging' ? <li>This tour is marked challenging.</li> : null}
             {tour.listingExtras?.minGuestAge?.trim() ? (
               <li>Minimum age: {tour.listingExtras.minGuestAge.trim()}</li>
+            ) : null}
+            {tour.listingExtras?.accessibilitySummary?.trim() ? (
+              <li className="break-words [overflow-wrap:anywhere]">
+                {tour.listingExtras.accessibilitySummary.trim()}
+              </li>
             ) : null}
             {cutoffLabel ? <li>{cutoffLabel}.</li> : null}
             {notes.map((n) => (

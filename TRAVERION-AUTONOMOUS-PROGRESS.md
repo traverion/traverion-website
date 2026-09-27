@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `1ce2d88`  
-**Current phase:** 858  
+**Current SHA:** `0d446a3`  
+**Current phase:** 859  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -269,6 +269,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 856 | Booking cut-off before departure | `8d817ed` |
 | 857 | Thicker purchase snapshot | `68ac29b` |
 | 858 | Traveler itinerary from typical flow | `1ce2d88` |
+| 859 | Stay audit + check-in/out publish + difficulty honesty | `0d446a3` |
 
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
@@ -4363,6 +4364,12 @@ Deep audit of listing → option → schedule ownership vs publish/traveler/snap
 **Fix:** `travelerItinerary` — real steps win; else show notes. Persist uses `itineraryForListingPersist` (notes → “Typical flow” step, else empty — no stub). Partner field labeled as shown on tour page.
 
 **Cert:** vitest tour-itinerary 4/4.
+
+### Phase 859 — Stay audit + check-in/out publish gate + constraint honesty
+
+**Stay audit:** `TRAVERION-PHASE-859.md` — single-unit stay coherent; address/geo and stay snapshot depth remain gaps; rentals stay honestly unavailable.
+
+**Fix:** Migration `102` — stay publish requires HH:MM check-in/out (closes REST bypass past client gate). Tour PDP Good to know shows Easy/Moderate + accessibility when set (853 P1 #5).
 
 ## Known remaining risks (ranked)
 

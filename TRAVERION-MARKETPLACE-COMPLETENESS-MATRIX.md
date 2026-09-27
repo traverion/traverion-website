@@ -38,7 +38,7 @@
 | Tour creation | PARTIAL | listings + `listing_extras` options/schedules | Depth gaps 854–858 landed; UI create→publish→book E2E next |
 | Tour options | PARTIAL | `bookingOptions[]` JSON | Cert multi-option publish/book |
 | Schedules / seasons | PARTIAL | schedule JSON + availability | Overlap/DST/timezone model |
-| Stay creation | PARTIAL | listings stay branch + nights | Shallower than tours; deepen + E2E |
+| Stay creation | PARTIAL | stay extras + occupancy quote | Audit 859; check-in/out server 102; address/E2E next |
 | Rentals | MISSING | Partner “Not available yet” | Keep honest; no fake vertical |
 | Packages/experiences families | MISSING / reserved | inventory families | Do not imply live catalogs |
 | Search / discovery | PARTIAL | published listings only | Availability-aware search depth |
