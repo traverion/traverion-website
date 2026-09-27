@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, type ReactNode } from 'react';
 import { SUPPLIER_PAGE_CLASS, SupplierListSkeleton } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
+import NoticeCallout from '../../components/NoticeCallout';
 import { USER_ERROR } from '../../lib/userFacingError';
 import { ChevronRight, Star } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
@@ -150,6 +151,7 @@ export default function SupplierDashboard() {
   const [ratingCount, setRatingCount] = useState(0);
   const [dashboardLoading, setDashboardLoading] = useState(false);
   const [dashboardError, setDashboardError] = useState<string | null>(null);
+  const [cancelRequestsError, setCancelRequestsError] = useState<string | null>(null);
 
   const reloadDashboard = useCallback(async () => {
     const uid = user?.id;
@@ -167,11 +169,13 @@ export default function SupplierDashboard() {
       setRatingAvg(null);
       setRatingCount(0);
       setDashboardError(null);
+      setCancelRequestsError(null);
       setDashboardLoading(false);
       return;
     }
     setDashboardLoading(true);
     setDashboardError(null);
+    setCancelRequestsError(null);
     const settled = await Promise.allSettled([
       fetchMyListings(uid),
       fetchBookingsForSupplier(uid),
@@ -202,8 +206,13 @@ export default function SupplierDashboard() {
       setSupplierBookings(settled[1].value);
       bookingsForUnread = settled[1].value;
       const ids = settled[1].value.map((b) => b.id);
-      const reqs = await fetchCancellationRequestsForBookings(ids);
-      setOpenCancels(reqs.filter((r) => r.status === 'requested'));
+      try {
+        const reqs = await fetchCancellationRequestsForBookings(ids);
+        setOpenCancels(reqs.filter((r) => r.status === 'requested'));
+      } catch {
+        // Keep prior openCancels — failure must not look like zero open cancels.
+        setCancelRequestsError(USER_ERROR.bookings);
+      }
     } else {
       noteFailure('bookings');
       setSupplierBookings([]);
@@ -521,6 +530,16 @@ export default function SupplierDashboard() {
           }
         />
       )}
+      {!dashboardError && cancelRequestsError ? (
+        <div className="mb-5 max-w-lg">
+          <NoticeCallout title="Cancellation status unavailable" tone="warn">
+            <p>{cancelRequestsError}</p>
+            <button type="button" onClick={() => void reloadDashboard()} className="tv-btn-ghost mt-3 -ml-2">
+              Retry
+            </button>
+          </NoticeCallout>
+        </div>
+      ) : null}
 
       <section className="partner-metric-grid mb-6">
         <div className="partner-surface-panel px-4 py-3">

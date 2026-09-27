@@ -215,6 +215,7 @@ export default function SupplierBookings({
   const [listingMeta, setListingMeta] = useState<Record<string, ListingBookingMeta>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [cancelRequestsError, setCancelRequestsError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const [view, setView] = useState<BookingView>(() => {
@@ -262,6 +263,7 @@ export default function SupplierBookings({
     }
     setLoading(true);
     setError(null);
+    setCancelRequestsError(null);
     try {
       const [bookingsList, myListings] = await Promise.all([
         fetchBookingsForSupplier(uid),
@@ -273,12 +275,18 @@ export default function SupplierBookings({
       });
       setBookings(bookingsList.filter(partnerBookingIsLiveTrip));
       setListingMeta(meta);
-      const reqs = await fetchCancellationRequestsForBookings(bookingsList.map((b) => b.id));
-      const open: Record<string, CancellationRequestRow> = {};
-      for (const r of reqs) {
-        if (r.status === 'requested' && !open[r.booking_id]) open[r.booking_id] = r;
+      try {
+        const reqs = await fetchCancellationRequestsForBookings(bookingsList.map((b) => b.id));
+        const open: Record<string, CancellationRequestRow> = {};
+        for (const r of reqs) {
+          if (r.status === 'requested' && !open[r.booking_id]) open[r.booking_id] = r;
+        }
+        setOpenCancels(open);
+        setCancelRequestsError(null);
+      } catch (cancelErr) {
+        // Keep prior open-cancel map — do not pretend there are zero open cancels.
+        setCancelRequestsError(userFacingError(cancelErr, USER_ERROR.bookings));
       }
-      setOpenCancels(open);
     } catch (e) {
       setError(userFacingError(e, USER_ERROR.bookings));
     } finally {
@@ -834,6 +842,16 @@ export default function SupplierBookings({
           }
         />
       )}
+      {!error && cancelRequestsError ? (
+        <div className="mb-5 max-w-lg">
+          <NoticeCallout title="Cancellation status unavailable" tone="warn">
+            <p>{cancelRequestsError}</p>
+            <button type="button" onClick={() => void load()} className="tv-btn-ghost mt-3 -ml-2">
+              Retry
+            </button>
+          </NoticeCallout>
+        </div>
+      ) : null}
 
       {loading ? (
         <div className="space-y-3">

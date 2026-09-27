@@ -8,6 +8,7 @@ import {
   BOOKING_MESSAGE_SUBMIT_ERROR,
   PARTNER_CANCEL_REQUEST_SUBMIT_ERROR,
 } from '../lib/booking-confirmation-copy';
+import { queryRowsOrThrow } from '../lib/query-rows-or-throw';
 
 export type BookingMessageRow = {
   id: string;
@@ -85,8 +86,8 @@ export async function fetchCancellationRequestsForBookings(
     )
     .in('booking_id', bookingIds)
     .order('created_at', { ascending: false });
-  if (error) return [];
-  return (data ?? []) as CancellationRequestRow[];
+  // Failure must not look like "no open cancels" (Phase 1084).
+  return queryRowsOrThrow(data, error) as CancellationRequestRow[];
 }
 
 export async function fetchOpenCancellationRequest(

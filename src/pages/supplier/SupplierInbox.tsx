@@ -64,6 +64,9 @@ export default function SupplierInbox() {
   const [listingsById, setListingsById] = useState<Record<string, TourPackage>>({});
   const [lastByBooking, setLastByBooking] = useState<Record<string, BookingMessageRow>>({});
   const [openCancelIds, setOpenCancelIds] = useState<Set<string>>(new Set());
+  const openCancelIdsRef = useRef(openCancelIds);
+  openCancelIdsRef.current = openCancelIds;
+  const [cancelRequestsError, setCancelRequestsError] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(() => readBookingIdFromUrl());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -95,6 +98,7 @@ export default function SupplierInbox() {
     const gen = ++loadGenRef.current;
     setLoading(true);
     setError(null);
+    setCancelRequestsError(null);
     try {
       const deepLinkId = readBookingIdFromUrl();
       const [rows, listings] = await Promise.all([fetchBookingsForSupplier(uid), fetchMyListings(uid)]);
@@ -102,10 +106,18 @@ export default function SupplierInbox() {
       const collected = rows.filter((b) => bookingPaymentWasCollected(b.payment_status));
       setTitles(Object.fromEntries(listings.map((l) => [l.id, l.title])));
       setListingsById(Object.fromEntries(listings.map((l) => [l.id, l])));
-      const cancels = await fetchCancellationRequestsForBookings(collected.map((b) => b.id));
-      if (gen !== loadGenRef.current) return;
-      const openIds = new Set(cancels.filter((c) => c.status === 'requested').map((c) => c.booking_id));
-      setOpenCancelIds(openIds);
+      let openIds = new Set<string>();
+      try {
+        const cancels = await fetchCancellationRequestsForBookings(collected.map((b) => b.id));
+        if (gen !== loadGenRef.current) return;
+        openIds = new Set(cancels.filter((c) => c.status === 'requested').map((c) => c.booking_id));
+        setOpenCancelIds(openIds);
+      } catch (cancelErr) {
+        if (gen !== loadGenRef.current) return;
+        // Keep prior openCancelIds — failure must not drop cancel threads from the list.
+        openIds = openCancelIdsRef.current;
+        setCancelRequestsError(userFacingError(cancelErr, USER_ERROR.bookings));
+      }
       const lasts: Record<string, BookingMessageRow> = {};
       const withMessagesFetched = collected.slice(0, PARTNER_INBOX_MESSAGE_FETCH_CAP);
       // Always fetch the deep-linked booking so Today → Inbox ?booking= works beyond the cap.
@@ -151,7 +163,7 @@ export default function SupplierInbox() {
       }
     } catch (e) {
       if (gen !== loadGenRef.current) return;
-      setBookings([]);
+      // Keep prior threads — bookings/listings failure must not look like an empty Inbox.
       setError(userFacingError(e, USER_ERROR.bookings));
     } finally {
       if (gen === loadGenRef.current) setLoading(false);
@@ -370,6 +382,14 @@ export default function SupplierInbox() {
           }
         />
       ) : null}
+      {!error && cancelRequestsError ? (
+        <NoticeCallout title="Cancellation status unavailable" tone="warn">
+          <p>{cancelRequestsError}</p>
+          <button type="button" onClick={() => void load()} className="tv-btn-ghost mt-3 -ml-2">
+            Retry
+          </button>
+        </NoticeCallout>
+      ) : null}
       {!loading && deepLinkMissing && openId ? (
         <NoticeCallout title="Booking not in Inbox" tone="warn">
           <p>
@@ -383,7 +403,8 @@ export default function SupplierInbox() {
       ) : null}
       {loading ? (
         <SupplierListSkeleton rows={4} />
-      ) : error ? null : threads.length === 0 ? (
+      ) : threads.length === 0 ? (
+        error ? null : (
         <SupplierEmptyState
           icon={MessageSquare}
           title="No booking conversations yet"
@@ -394,6 +415,7 @@ export default function SupplierInbox() {
             </button>
           }
         />
+        )
       ) : visibleThreads.length === 0 ? (
         <SupplierEmptyState
           icon={MessageSquare}

@@ -117,6 +117,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   const [titles, setTitles] = useState<Record<string, string>>({});
   const [listingOps, setListingOps] = useState<Record<string, ListingOpsMeta>>({});
   const [cancelRequests, setCancelRequests] = useState<Record<string, CancellationRequestRow>>({});
+  const [cancelRequestsError, setCancelRequestsError] = useState<string | null>(null);
   const [respondingId, setRespondingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -165,6 +166,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
     const gen = ++loadGenRef.current;
     setLoading(true);
     setLoadError(null);
+    setCancelRequestsError(null);
     try {
       const list = await fetchMyBookings();
       if (gen !== loadGenRef.current) return;
@@ -174,13 +176,20 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
       if (gen !== loadGenRef.current) return;
       setListingOps(ops);
       setTitles(Object.fromEntries(Object.entries(ops).map(([id, v]) => [id, v.title])));
-      const reqs = await fetchCancellationRequestsForBookings(list.map((b) => b.id));
-      if (gen !== loadGenRef.current) return;
-      const open: Record<string, CancellationRequestRow> = {};
-      for (const r of reqs) {
-        if (r.status === 'requested' && !open[r.booking_id]) open[r.booking_id] = r;
+      try {
+        const reqs = await fetchCancellationRequestsForBookings(list.map((b) => b.id));
+        if (gen !== loadGenRef.current) return;
+        const open: Record<string, CancellationRequestRow> = {};
+        for (const r of reqs) {
+          if (r.status === 'requested' && !open[r.booking_id]) open[r.booking_id] = r;
+        }
+        setCancelRequests(open);
+        setCancelRequestsError(null);
+      } catch (cancelErr) {
+        if (gen !== loadGenRef.current) return;
+        // Keep prior open-cancel map — infrastructure failure must not hide Accept/Decline.
+        setCancelRequestsError(userFacingError(cancelErr, USER_ERROR.trips));
       }
-      setCancelRequests(open);
     } catch (e) {
       if (gen !== loadGenRef.current) return;
       // Keep prior trips visible — infrastructure failure must not look like an empty account.
@@ -506,6 +515,16 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
             }
           />
         )}
+        {!loadError && cancelRequestsError ? (
+          <div className="mb-5 max-w-lg">
+            <NoticeCallout title="Cancellation status unavailable" tone="warn">
+              <p>{cancelRequestsError}</p>
+              <button type="button" onClick={() => void load()} className="tv-btn-ghost mt-3 -ml-2">
+                Retry
+              </button>
+            </NoticeCallout>
+          </div>
+        ) : null}
         {actionError ? (
           <div className="mb-5 max-w-lg">
             <NoticeCallout title="Could not complete that action" tone="danger">
