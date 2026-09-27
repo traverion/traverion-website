@@ -51,7 +51,7 @@
 | Payments | TEST-ONLY / STRONG | Stripe webhook → payment_status; #39 BROWSER | Never invent paid from redirect |
 | Cancellation | STRONG / BROWSER | Tour #41 + stay #40 cancel; 24h no-refund honesty | Supplier-initiated cancel path |
 | Refunds | PARTIAL / HONEST | Manual Stripe; Refund due #41; no-refund #40 | Auto-refund = FOUNDER if desired |
-| Messaging | PARTIAL | `booking_messages` | No fake realtime |
+| Messaging | PARTIAL→STRONG | `booking_messages`; cross-user deny #41 (885) | No fake realtime; delivery cert |
 | Reviews | STRONG / UNIT | ownership + paid+confirmed+after-start (879) | Supplier response / moderation later |
 | Wishlist / Saved | PARTIAL | `wishlist` | Thin adversarial coverage |
 | Trips | PARTIAL | `fetchMyBookings` + session guard | Continue honesty |

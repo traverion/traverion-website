@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `02d44b2`  
-**Current phase:** 884  
+**Current SHA:** `f9be710`  
+**Current phase:** 885  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4633,6 +4633,16 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 **Browser:** Partner `/partner/pickup` — “11 bookings · 27 guests”; lists paid pickup trips. **#41 Alex Cert cancelled booking not listed** (inventory restored earlier; ops surface honest).
 
 **Certification:** pickup derives from booking truth without a second DB = **BROWSER-TESTED** for cancel exclusion.
+
+### Phase 885 — Messaging RLS: Traveler B blocked on #41 thread
+
+**Attack:** Booking #41 has 1 system cancel message (remote count).
+- Anon SELECT messages → `[]`
+- Anna SELECT → `[]`
+- Anna INSERT → RLS violation
+- Message count remains 1 (system only)
+
+**Certification:** booking message isolation = **ADVERSARIAL-TESTED**.
 
 ## Known remaining risks (ranked)
 
