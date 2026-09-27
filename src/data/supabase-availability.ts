@@ -60,7 +60,7 @@ export function tourPaidSlotKey(dayIso: string, startTimeHm?: string | null): st
   return `${day}|${hm[1].padStart(2, '0')}:${hm[2]}`;
 }
 
-/** Occupying guests per date+startTime (paid + live holds). Falls back to empty when RPC is missing. */
+/** Occupying guests per date+startTime (paid + live holds). */
 export async function fetchPublishedTourPaidGuestsBySlot(
   listingId: string
 ): Promise<Record<string, number>> {
@@ -68,11 +68,8 @@ export async function fetchPublishedTourPaidGuestsBySlot(
   const { data, error } = await supabase.rpc('published_tour_paid_guests_by_slot', {
     p_listing_id: listingId,
   });
-  if (error) {
-    // Older projects may lack the slot RPC — treat as no per-slot paid counts, not unlimited capacity.
-    if (/could not find the function|PGRST202/i.test(error.message ?? '')) return {};
-    throw new Error(error.message);
-  }
+  // Phase 1101: missing/failed slot RPC ≠ empty occupancy (every departure looked open).
+  if (error) throw new Error(error.message);
   if (!Array.isArray(data)) return {};
   const out: Record<string, number> = {};
   for (const row of data as { departure?: unknown; start_time_hm?: unknown; paid_guests?: unknown }[]) {
