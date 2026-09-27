@@ -82,4 +82,15 @@ describe('notify-supplier-event auth (Phase 1093)', () => {
       })
     ).toBe(false);
   });
+
+  it('rejects email ownership when callerEmail is empty (confirmed email only — Phase 1120)', () => {
+    expect(
+      supplierEventPartyAllowsNotify({
+        callerEmail: null,
+        listingSupplierId: 'sup',
+        claimedSupplierId: 'sup',
+        guestEmail: 'g@x.com',
+      })
+    ).toBe(false);
+  });
 });

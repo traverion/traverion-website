@@ -39,15 +39,17 @@ describe('notify-customer-booking auth (Phase 1092)', () => {
     ).toBe(true);
   });
 
-  it('rejects anonymous and unrelated callers', () => {
-    expect(bookingPartyAllowsCustomerNotify({})).toBe(false);
+  it('rejects email ownership when callerEmail is empty (callers must pass confirmed email only — Phase 1120)', () => {
     expect(
       bookingPartyAllowsCustomerNotify({
-        callerUserId: 'stranger',
-        guestUserId: 'guest',
-        guestEmail: 'g@x.com',
-        callerEmail: 's@x.com',
-        callerIsListingSupplier: false,
+        callerEmail: null,
+        guestEmail: 'a@b.com',
+      })
+    ).toBe(false);
+    expect(
+      bookingPartyAllowsCustomerNotify({
+        callerEmail: '',
+        guestEmail: 'a@b.com',
       })
     ).toBe(false);
   });

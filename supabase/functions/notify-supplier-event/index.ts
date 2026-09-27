@@ -17,6 +17,7 @@ import {
   isServiceRoleBearer,
   supplierEventPartyAllowsNotify,
 } from '../_shared/notify-supplier-event-auth.ts';
+import { authUserVerifiedEmail } from '../_shared/auth-verified-email.ts';
 
 type EventType =
   | 'new_booking'
@@ -446,7 +447,8 @@ serve(async (req) => {
         });
         const { data: authData, error: authError } = await authedClient.auth.getUser();
         const callerId = authData?.user?.id ?? null;
-        const callerEmail = authData?.user?.email ?? null;
+        // Phase 1120: guest-email party match requires confirmed email.
+        const callerEmail = authUserVerifiedEmail(authData?.user);
         if (authError || !callerId) {
           return json({ success: false, error: 'Unauthorized' }, 401);
         }

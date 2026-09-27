@@ -25,6 +25,7 @@ import {
   bookingPartyAllowsCustomerNotify,
   isServiceRoleBearer,
 } from '../_shared/notify-customer-booking-auth.ts';
+import { authUserVerifiedEmail } from '../_shared/auth-verified-email.ts';
 
 type EmailKind =
   | 'booking_request'
@@ -360,7 +361,11 @@ serve(async (req) => {
       }
       const authedClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } });
       const { data: authData, error: authError } = await authedClient.auth.getUser();
-      if (authError || !isAuthorizedTravelerWelcomeRecipient(authData?.user?.email, to)) {
+      // Phase 1120: welcome self-send requires confirmed email (parity with jwt_verified_email).
+      if (
+        authError ||
+        !isAuthorizedTravelerWelcomeRecipient(authUserVerifiedEmail(authData?.user), to)
+      ) {
         return json({ success: false, error: 'Unauthorized' }, 401);
       }
     }
@@ -386,7 +391,8 @@ serve(async (req) => {
         });
         const { data: authData, error: authError } = await authedClient.auth.getUser();
         const callerId = authData?.user?.id ?? null;
-        const callerEmail = authData?.user?.email ?? null;
+        // Phase 1120: guest-email party match requires confirmed email.
+        const callerEmail = authUserVerifiedEmail(authData?.user);
         if (authError || !callerId) {
           return json({ success: false, error: 'Unauthorized' }, 401);
         }
