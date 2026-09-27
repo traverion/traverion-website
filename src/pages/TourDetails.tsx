@@ -34,7 +34,7 @@ import { setPageMetaWithOg, setTourJsonLd, clearTourJsonLd } from '../lib/seo';
 import { Skeleton } from '../components/ui/Skeleton';
 import { dateNotInPast } from '../lib/validation';
 import { checkAvailability, fetchAvailabilityByListingId, fetchPublishedTourPaidGuests, fetchPublishedTourPaidGuestsBySlot, tourPaidSlotKey } from '../data/supabase-availability';
-import { optionRunsOnDate, formatOptionWeekdays } from '../lib/booking-quote';
+import { optionRunsOnDate, formatOptionWeekdays, experienceTodayIsoForListing } from '../lib/booking-quote';
 import { isListingVisibleToTravelers, listingDetailVisibleToTraveler } from '../lib/product-workflows';
 import { listingIsOnTravelerCatalog } from '../lib/inventory';
 import { listingShowsFreeCancellation, publicReviewLabel } from '../lib/listingTruth';
@@ -272,6 +272,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     tour?.listingExtras?.bookingCutoffHoursBeforeStart
   );
   const departureTimezone = resolveDepartureTimezone(tour?.listingExtras?.departureTimezone);
+  const experienceTodayIso = experienceTodayIsoForListing(departureTimezone);
   const departureTimes = useMemo(() => {
     if (!selectedOption || !bookingDate.trim()) return [] as string[];
     const times = departureTimesOnDate(selectedOption, bookingDate.trim());
@@ -326,6 +327,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       bookingOptionId: optionId,
       participantMix: usesAgePricing ? participantMix : null,
       startTime: selectedDepartureTime || undefined,
+      todayIso: experienceTodayIso,
     });
   }, [
     tour,
@@ -337,6 +339,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     guests,
     discountsByListing,
     selectedDepartureTime,
+    experienceTodayIso,
   ]);
 
   const scrollToOptionsSection = useCallback(() => {
@@ -368,7 +371,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     let cancelled = false;
     setDayCapacityError(null);
     void Promise.all([
-      fetchAvailabilityByListingId(tour.id),
+      fetchAvailabilityByListingId(tour.id, { fromDate: experienceTodayIso }),
       fetchPublishedTourPaidGuests(tour.id),
       fetchPublishedTourPaidGuestsBySlot(tour.id),
     ])
@@ -411,7 +414,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     return () => {
       cancelled = true;
     };
-  }, [tour?.id, calendarOptions, bookingCutoffHours, departureTimezone]);
+  }, [tour?.id, calendarOptions, bookingCutoffHours, departureTimezone, experienceTodayIso]);
 
   useEffect(() => {
     return reloadTourDayCapacity();
@@ -935,7 +938,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       setBookingCardError('This tour is not available to book.');
       return;
     }
-    const dateCheck = dateNotInPast(bookingDate.trim());
+    const dateCheck = dateNotInPast(bookingDate.trim(), experienceTodayIso);
     if (!dateCheck.valid) {
       setBookingCardError(dateCheck.message ?? 'Please select a date');
       return;
@@ -1375,7 +1378,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                           setBookingCardError(null);
                           setSelectedBookingVariant(null);
                           setSelectedDepartureTime('');
-                          const dateCheck = dateNotInPast(next.trim());
+                          const dateCheck = dateNotInPast(next.trim(), experienceTodayIso);
                           if (dateCheck.valid && isListingVisibleToTravelers(tour.status)) {
                             setBookingVariantsOpen(true);
                             scrollToOptionsSection();
@@ -1385,6 +1388,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                         }}
                         options={calendarOptions}
                         soldOutDates={soldOutDates}
+                        todayIso={experienceTodayIso}
                         hint={weekdayHint}
                       />
                       {selectedDaySpotsLeft != null ? (

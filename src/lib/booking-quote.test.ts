@@ -774,4 +774,74 @@ describe('quoteBooking — private flat-group pricing after discounts', () => {
     if (!q.ok) return;
     expect(q.totalAmount).toBe(300);
   });
+
+  it('defaults past-date gate to listing departureTimezone, not UTC (Phase 1076)', () => {
+    // 22:00 UTC on 27 Sep = 01:00 next calendar day in Europe/Helsinki (EEST).
+    const nowMs = Date.UTC(2026, 8, 27, 22, 0, 0);
+    const base = tour({
+      listingExtras: {
+        departureTimezone: 'Europe/Helsinki',
+        bookingOptions: [
+          option({ id: 'opt-small', name: 'Small group', priceUsd: 149 }),
+        ],
+      },
+    });
+    const past = quoteBooking({
+      tour: base,
+      discounts: [],
+      bookingDate: '2026-09-27',
+      guests: 2,
+      bookingOptionId: 'opt-small',
+      nowMs,
+    });
+    expect(past.ok).toBe(false);
+    if (!past.ok) expect(past.code).toBe('bad_date');
+
+    const ok = quoteBooking({
+      tour: base,
+      discounts: [],
+      bookingDate: '2026-09-28',
+      guests: 2,
+      bookingOptionId: 'opt-small',
+      nowMs,
+    });
+    expect(ok.ok).toBe(true);
+  });
+});
+
+describe('quoteStayNights experience-local today', () => {
+  it('rejects check-in that is already yesterday in the stay timezone (Phase 1076)', () => {
+    // 22:00 UTC on 27 Sep = 01:00 next calendar day in Europe/Helsinki (EEST).
+    const nowMs = Date.UTC(2026, 8, 27, 22, 0, 0);
+    const stayTour = tour({
+      listingExtras: {
+        inventoryFamily: 'stay',
+        departureTimezone: 'Europe/Helsinki',
+        stay: {
+          nightlyPriceUsd: 100,
+          cleaningFeeUsd: 0,
+          minNights: 1,
+          maxGuests: 4,
+        },
+      },
+    });
+    const past = quoteStayNights({
+      tour: stayTour,
+      checkIn: '2026-09-27',
+      checkOut: '2026-09-29',
+      guests: 2,
+      nowMs,
+    });
+    expect(past.ok).toBe(false);
+    if (!past.ok) expect(past.code).toBe('bad_date');
+
+    const ok = quoteStayNights({
+      tour: stayTour,
+      checkIn: '2026-09-28',
+      checkOut: '2026-09-30',
+      guests: 2,
+      nowMs,
+    });
+    expect(ok.ok).toBe(true);
+  });
 });

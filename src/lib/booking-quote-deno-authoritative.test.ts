@@ -497,4 +497,51 @@ describe('quoteListingBooking (authoritative Deno pricing -- direct execution)',
       if (!res.ok) expect(res.error).toMatch(/at least one participant/i);
     });
   });
+
+  describe('experience-local today (Phase 1076)', () => {
+    it('defaults past-date gate to listing departureTimezone, not UTC', () => {
+      // 22:00 UTC on 27 Sep = 01:00 next calendar day in Europe/Helsinki (EEST).
+      const nowMs = Date.UTC(2026, 8, 27, 22, 0, 0);
+      const listingHelsinki: ListingQuoteRow = {
+        status: 'published',
+        price_starting_from: 0,
+        price_currency: 'USD',
+        group_size: null,
+        listing_extras: {
+          departureTimezone: 'Europe/Helsinki',
+          bookingOptions: [
+            {
+              id: 'opt-1',
+              name: 'Standard',
+              priceUsd: 100,
+              startTime: '12:00',
+              minPersons: 1,
+              maxPersons: 8,
+              weekdays: [true, true, true, true, true, true, true],
+            },
+          ],
+        },
+      };
+      const past = quoteListingBooking({
+        listing: listingHelsinki,
+        discounts: [],
+        bookingDate: '2026-09-27',
+        guests: 2,
+        bookingOptionId: 'opt-1',
+        nowMs,
+      });
+      expect(past.ok).toBe(false);
+      if (!past.ok) expect(past.error).toMatch(/today or later/i);
+
+      const ok = quoteListingBooking({
+        listing: listingHelsinki,
+        discounts: [],
+        bookingDate: '2026-09-28',
+        guests: 2,
+        bookingOptionId: 'opt-1',
+        nowMs,
+      });
+      expect(ok.ok).toBe(true);
+    });
+  });
 });

@@ -8,8 +8,7 @@ import { listingIsFamily } from '../lib/inventory';
 import { listingDetailVisibleToTraveler } from '../lib/product-workflows';
 import { useAuth } from '../contexts/AuthContext';
 import { rememberTravelerReturnStay, travelerLoginHref } from '../lib/travelerAuthLinks';
-import { quoteStayNights, stayQuotePriceLines } from '../lib/booking-quote';
-import { localYmd } from '../lib/local-ymd';
+import { quoteStayNights, stayQuotePriceLines, experienceTodayIsoForListing } from '../lib/booking-quote';
 import { stayDateRangesOverlap, occupiedNightsFromStayRanges, nightsOccupiedByStay } from '../lib/stayOccupancy';
 import {
   createBookingCheckoutSession,
@@ -347,6 +346,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
 
   const extras = stay ? parseListingExtras(stay.listingExtras) : {};
   const s = extras.stay;
+  const experienceTodayIso = experienceTodayIsoForListing(extras.departureTimezone);
   const amenities = stayAmenityDisplayList(s?.amenities);
   const gallery = (extras.galleryImageUrls ?? []).map((u) => String(u).trim()).filter(Boolean);
   const stayQuote = stay
@@ -355,6 +355,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
         checkIn,
         checkOut,
         guests,
+        todayIso: experienceTodayIso,
       })
     : null;
   const nightly = stayQuote?.ok ? stayQuote.nightlyPrice : s?.nightlyPriceUsd && s.nightlyPriceUsd > 0 ? s.nightlyPriceUsd : stay?.price.startingFrom ?? 0;
@@ -987,7 +988,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
                 checkIn={checkIn}
                 checkOut={checkOut}
                 occupiedNights={occupiedNights}
-                todayIso={localYmd()}
+                todayIso={experienceTodayIso}
                 minNights={minNights}
                 onChange={(a, b) => {
                   setCheckIn(a);

@@ -27,7 +27,7 @@ import {
   type TravelerCheckoutAuthMetadata,
 } from '../lib/traveler-checkout-autofill';
 import { getDisplayPriceForBookingVariant } from '../lib/discount-display';
-import { quoteBooking, formatOptionWeekdays, tourQuotePriceLines, tourBookableSellingDeparturesOnDate } from '../lib/booking-quote';
+import { quoteBooking, formatOptionWeekdays, tourQuotePriceLines, tourBookableSellingDeparturesOnDate, experienceTodayIsoForListing } from '../lib/booking-quote';
 import {
   listingOptionHasSchedules,
   listingOptionReadySchedules,
@@ -36,7 +36,6 @@ import {
   departureTimesOnDate,
 } from '../lib/listing-option-schedules';
 import { normalizeBookingCutoffHours, resolveDepartureTimezone, isDepartureTimeStillBookable } from '../lib/tour-departure-cutoff';
-import { localYmd } from '../lib/local-ymd';
 import { formatMoney, normalizeCurrency } from '../lib/money';
 import PriceBreakdown from '../components/PriceBreakdown';
 import { CHECKOUT_HOLD_MINUTES } from '../lib/booking-hold';
@@ -259,16 +258,18 @@ export default function BookingPage({
   const currency = normalizeCurrency(tour.price?.currency);
   const fallbackBasePrice = tour.price?.startingFrom ?? 0;
   const departureTime = (initialStartTime ?? '').trim() || undefined;
+  const departureTimezone = resolveDepartureTimezone(tour.listingExtras?.departureTimezone);
+  const experienceTodayIso = experienceTodayIsoForListing(departureTimezone);
   const appliedOption = useMemo(() => {
     const opt = selectedVariant?.listingOption ?? null;
     if (!opt) return null;
     if (!listingOptionHasSchedules(opt)) return opt;
-    const day = date.trim() || localYmd();
+    const day = date.trim() || experienceTodayIso;
     const resolved = resolveScheduleForDate(opt, day, departureTime);
     return resolved ? applyScheduleToOption(opt, resolved) : opt;
-  }, [selectedVariant, date, departureTime]);
+  }, [selectedVariant, date, departureTime, experienceTodayIso]);
   const priceInfo = useMemo(() => {
-    const day = date.trim() || localYmd();
+    const day = date.trim() || experienceTodayIso;
     const optionId =
       selectedVariant && selectedVariant.id !== '__default__' ? selectedVariant.id : undefined;
     const quoted = quoteBooking({
@@ -279,6 +280,7 @@ export default function BookingPage({
       bookingOptionId: optionId,
       participantMix: Object.keys(participantMix).length > 0 ? participantMix : null,
       startTime: departureTime,
+      todayIso: experienceTodayIso,
     });
     if (quoted.ok) {
       return {
@@ -295,7 +297,18 @@ export default function BookingPage({
       };
     }
     return { price: fallbackBasePrice, originalPrice: fallbackBasePrice, label: undefined as string | undefined, quote: quoted };
-  }, [presentation, selectedVariant, tour, date, guests, discountsByListing, fallbackBasePrice, participantMix, departureTime]);
+  }, [
+    presentation,
+    selectedVariant,
+    tour,
+    date,
+    guests,
+    discountsByListing,
+    fallbackBasePrice,
+    participantMix,
+    departureTime,
+    experienceTodayIso,
+  ]);
 
   const pricePerPerson = priceInfo.price;
   const quoted = priceInfo.quote && priceInfo.quote.ok ? priceInfo.quote : null;
@@ -327,13 +340,12 @@ export default function BookingPage({
   const bookingCutoffHours = normalizeBookingCutoffHours(
     tour.listingExtras?.bookingCutoffHoursBeforeStart
   );
-  const departureTimezone = resolveDepartureTimezone(tour.listingExtras?.departureTimezone);
 
   const reloadBookingDayCapacity = useCallback(() => {
     let cancelled = false;
     setDayCapacityError(null);
     void Promise.all([
-      fetchAvailabilityByListingId(tour.id),
+      fetchAvailabilityByListingId(tour.id, { fromDate: experienceTodayIso }),
       fetchPublishedTourPaidGuests(tour.id),
       fetchPublishedTourPaidGuestsBySlot(tour.id),
     ])
@@ -376,7 +388,7 @@ export default function BookingPage({
     return () => {
       cancelled = true;
     };
-  }, [tour.id, calendarOptions, bookingCutoffHours, departureTimezone]);
+  }, [tour.id, calendarOptions, bookingCutoffHours, departureTimezone, experienceTodayIso]);
 
   useEffect(() => {
     return reloadBookingDayCapacity();
@@ -704,7 +716,7 @@ export default function BookingPage({
   };
 
   const handleCheckAvailability = async () => {
-    const dateCheck = dateNotInPast(date.trim());
+    const dateCheck = dateNotInPast(date.trim(), experienceTodayIso);
     if (!dateCheck.valid) {
       setError(dateCheck.message ?? 'Please select a date');
       return;
@@ -1063,6 +1075,7 @@ export default function BookingPage({
                 onChange={setDate}
                 options={calendarOptions}
                 soldOutDates={soldOutDates}
+                todayIso={experienceTodayIso}
                 hint={weekdayHint}
               />
               {selectedDaySpotsLeft != null ? (

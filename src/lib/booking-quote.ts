@@ -16,6 +16,7 @@ import { getPartySizeBounds, getPartySizeBoundsForVariant, guestCountValidationE
 import { listingCanUseTravelerQuote } from './inventory';
 import { travelerFacingBookingOptions } from './legacy-participant-options';
 import { DEFAULT_CURRENCY, normalizeCurrency } from './money';
+import { ymdInTimeZone } from './booking-lifecycle-calendar';
 import { localYmd } from './local-ymd';
 import {
   assertDepartureStillBookable,
@@ -24,6 +25,15 @@ import {
   resolveDepartureTimezone,
   wallTimeInZoneToUtcMs,
 } from './tour-departure-cutoff';
+
+/** Calendar “today” for quote past-date gates — listing departure TZ, not browser/UTC. */
+export function experienceTodayIsoForListing(
+  departureTimezone: unknown,
+  nowMs: number = Date.now()
+): string {
+  const tz = resolveDepartureTimezone(departureTimezone);
+  return ymdInTimeZone(nowMs, tz) ?? localYmd(new Date(nowMs));
+}
 import {
   buildParticipantMixLines,
   guestBreakdownFromLines,
@@ -263,12 +273,11 @@ export function quoteBooking(input: {
   participantMix?: ParticipantMixSelection | null;
   /** Local departure HH:MM when an option has more than one time on this date. */
   startTime?: string | null;
-  /** YYYY-MM-DD; defaults to the operator’s local calendar day. */
+  /** YYYY-MM-DD; defaults to experience-local today (listing departureTimezone). */
   todayIso?: string;
   /** Epoch ms for cut-off tests; defaults to Date.now(). */
   nowMs?: number;
 }): BookingQuoteResult {
-  const today = input.todayIso ?? localYmd();
   const date = (input.bookingDate ?? '').trim();
   let guests = Number(input.guests);
 
@@ -278,12 +287,6 @@ export function quoteBooking(input: {
   if (!listingCanUseTravelerQuote(input.tour)) {
     return { ok: false, code: 'inventory', error: 'This listing is not available to book yet.' };
   }
-  if (!ISO_DATE.test(date)) {
-    return { ok: false, code: 'bad_date', error: 'Choose a valid date.' };
-  }
-  if (!isIsoDateNotInPast(date, today)) {
-    return { ok: false, code: 'bad_date', error: 'Choose a date that is today or later.' };
-  }
 
   const extras = parseListingExtras(input.tour.listingExtras);
   const cutoffHours = normalizeBookingCutoffHours(extras.bookingCutoffHoursBeforeStart);
@@ -291,6 +294,13 @@ export function quoteBooking(input: {
   const nowMs =
     input.nowMs ??
     (input.todayIso ? wallTimeInZoneToUtcMs(input.todayIso, '12:00') ?? Date.now() : Date.now());
+  const today = input.todayIso ?? experienceTodayIsoForListing(departureTimezone, nowMs);
+  if (!ISO_DATE.test(date)) {
+    return { ok: false, code: 'bad_date', error: 'Choose a valid date.' };
+  }
+  if (!isIsoDateNotInPast(date, today)) {
+    return { ok: false, code: 'bad_date', error: 'Choose a date that is today or later.' };
+  }
   const opts = travelerFacingBookingOptions(extras.bookingOptions);
   const fallbackBase = Number(input.tour.price?.startingFrom ?? 0);
   const currency = normalizeCurrency(input.tour.price?.currency ?? DEFAULT_CURRENCY);
@@ -537,8 +547,8 @@ export function quoteStayNights(input: {
   checkOut: string;
   guests: number;
   todayIso?: string;
+  nowMs?: number;
 }): StayQuoteResult {
-  const today = input.todayIso ?? localYmd();
   if (!isListingBookable(input.tour.status)) {
     return { ok: false, code: 'unpublished', error: 'This stay is not available to book.' };
   }
@@ -546,6 +556,8 @@ export function quoteStayNights(input: {
   if (extras.inventoryFamily !== 'stay') {
     return { ok: false, code: 'inventory', error: 'This listing is not a stay.' };
   }
+  const today =
+    input.todayIso ?? experienceTodayIsoForListing(extras.departureTimezone, input.nowMs ?? Date.now());
   const stay = extras.stay;
   const checkIn = (input.checkIn ?? '').trim();
   const checkOut = (input.checkOut ?? '').trim();

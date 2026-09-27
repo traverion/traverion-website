@@ -328,7 +328,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
         const opts = materializedBookingOptions(extras.bookingOptions ?? []);
         const fallbackCap = listingTourCapacityFromOptions(capacitySpotsFromBookingOptions(opts));
         const [caps, paidByDay, paidBySlot] = await Promise.all([
-          fetchAvailabilityByListingId(tour.id),
+          fetchAvailabilityByListingId(tour.id, { fromDate: filterDate }),
           fetchPublishedTourPaidGuests(tour.id),
           fetchPublishedTourPaidGuestsBySlot(tour.id),
         ]);

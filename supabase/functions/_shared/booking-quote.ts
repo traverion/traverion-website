@@ -4,12 +4,19 @@
  */
 
 import { bookingOccupiesInventory, type InventoryHoldRow } from './booking-hold.ts';
+import { ymdInTimeZone } from './booking-lifecycle-calendar.ts';
 import {
   assertDepartureStillBookable,
   normalizeBookingCutoffHours,
   resolveDepartureTimezone,
   wallTimeInZoneToUtcMs,
 } from './tour-departure-cutoff.ts';
+
+/** Calendar “today” for quote past-date gates — listing departure TZ, not UTC. */
+function experienceTodayIsoForListing(departureTimezone: unknown, nowMs: number = Date.now()): string {
+  const tz = resolveDepartureTimezone(departureTimezone);
+  return ymdInTimeZone(nowMs, tz) ?? new Date(nowMs).toISOString().slice(0, 10);
+}
 
 export type DiscountRow = {
   type: string;
@@ -645,7 +652,6 @@ export function quoteListingBooking(input: {
   startTime?: string | null;
   nowMs?: number;
 }): QuoteOk | QuoteErr {
-  const today = input.todayIso ?? new Date().toISOString().slice(0, 10);
   const date = (input.bookingDate ?? '').trim();
   let guests = Number(input.guests);
   const status = (input.listing.status ?? '').trim();
@@ -661,12 +667,18 @@ export function quoteListingBooking(input: {
           inventoryFamily?: unknown;
           stay?: Record<string, unknown>;
           bookingCutoffHoursBeforeStart?: unknown;
+          departureTimezone?: unknown;
         })
       : null;
   const family = extrasObj?.inventoryFamily;
   if (family === 'experience' || family === 'package') {
     return { ok: false, error: 'This listing is not available to book yet.' };
   }
+  const departureTimezone = resolveDepartureTimezone(extrasObj?.departureTimezone);
+  const nowMs =
+    input.nowMs ??
+    (input.todayIso ? wallTimeInZoneToUtcMs(input.todayIso, '12:00') ?? Date.now() : Date.now());
+  const today = input.todayIso ?? experienceTodayIsoForListing(departureTimezone, nowMs);
   if (family === 'stay') {
     return quoteStayListing({
       listing: input.listing,
@@ -680,10 +692,6 @@ export function quoteListingBooking(input: {
   if (date < today) return { ok: false, error: 'Choose a date that is today or later.' };
 
   const cutoffHours = normalizeBookingCutoffHours(extrasObj?.bookingCutoffHoursBeforeStart);
-  const departureTimezone = resolveDepartureTimezone(extrasObj?.departureTimezone);
-  const nowMs =
-    input.nowMs ??
-    (input.todayIso ? wallTimeInZoneToUtcMs(input.todayIso, '12:00') ?? Date.now() : Date.now());
   const opts = parseOptions(input.listing.listing_extras);
   const fallbackBase = Number(input.listing.price_starting_from ?? 0);
   const currency = (input.listing.price_currency ?? 'EUR').trim().toUpperCase() || 'EUR';
