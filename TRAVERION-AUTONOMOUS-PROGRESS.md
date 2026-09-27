@@ -5025,6 +5025,61 @@ Until decided: keep current honest behaviors; do not fake.
 
 **Stripe:** TEST only. **Migrations:** Local=Remote through **106**. **Working tree:** clean except optional `patch_progress.py` untracked. Highest remaining: dedicated traveler session, FOUNDER money decisions, optional second-option Stripe pay, staff force-unpublish.
 
+
+### Phase 941 — Accessibility functional focus (forms/dialogs)
+
+**Evidence:** Dialog focus hooks (`useDialogFocus`), booking consent checkbox labeled, calendar aria-labels on tour days, sticky CTAs with disabled reasons. Full WCAG device-farm = **NOT BUILT**.
+
+**Certification:** a11y core flows = **PARTIAL** / **CODE-INSPECTED** + prior mobile dialog use.
+
+### Phase 942 — Concurrency inventory math reaffirm
+
+**Evidence:** `assert_checkout_inventory` + narrow locks (106); public remaining includes holds (105); prior oversell browser certs on tour/stay. Parallel race optional re-cert.
+
+**Certification:** concurrency = **STRONG** / **INTEGRATION** + prior **BROWSER**.
+
+### Phase 943 — Idempotency surfaces inventory
+
+**Evidence:** Checkout claim, Stripe webhook handlers, `transactional_email_log` unique keys (893), reminder markers, refund webhook keys. Cron GH Actions concurrency group.
+
+**Certification:** idempotency = **CODE-INSPECTED** / **INTEGRATION** (schema).
+
+### Phase 944 — Failure recovery posture
+
+**Evidence:** Holds expire; unpaid checkout cancel restores inventory; webhook promotion path; success page never invents paid. Email failure does not rewrite booking proof (Trips is proof).
+
+**Certification:** failure recovery = **CODE-INSPECTED**. Chaos drill = **NOT BUILT**.
+
+### Phase 945 — Mobile traveler chrome (prior + 915)
+
+**Evidence:** Mobile consent (915); hamburger nav; sticky book CTAs. Core book path usable on 390×844.
+
+**Certification:** mobile = **MOBILE-BROWSER-TESTED** (partial flows).
+
+### Phase 946 — Clean-tree drift check
+
+**Evidence:** Autonomous loop commits leave only optional untracked `patch_progress.py` (not secrets). No LIVE Stripe enablement.
+
+### Phase 947 — Supplier onboarding gates remain
+
+**Evidence:** Verification + payout verification gate publish; admin verification panel. Business identity on listing/booking UIs.
+
+**Certification:** supplier onboarding = **PARTIAL→STRONG** / **CODE-INSPECTED**.
+
+### Phase 948 — Quote→checkout→snapshot chain
+
+**Evidence:** Server quote authority; flat_group guard (874); purchase_snapshot title/total/policy/timezone freeze (872/890).
+
+**Certification:** quote chain = **STRONG** / **BROWSER** + **AUTOMATED**.
+
+### Phase 949 — Matrix freeze prep for Phase 1000
+
+**Evidence:** Completeness matrix updated through 940s; remaining FOUNDER items listed in 929.
+
+### Phase 950 — Band close 851→950
+
+Closing systems/cert band before final report assembly (951–1000). Stripe remains **TEST**.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.
