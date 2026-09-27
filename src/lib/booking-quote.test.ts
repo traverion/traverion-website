@@ -247,6 +247,24 @@ describe('quoteBooking', () => {
     expect(q.totalAmount).toBe(340);
   });
 
+  it('Phase 1217: fails closed when stay maxGuests is unset (no invent-99)', () => {
+    const q = quoteStayNights({
+      tour: tour({
+        listingExtras: {
+          inventoryFamily: 'stay',
+          stay: { nightlyPriceUsd: 100, minNights: 1, cleaningFeeUsd: 0 },
+          bookingOptions: [],
+        },
+      }),
+      checkIn: '2026-09-10',
+      checkOut: '2026-09-12',
+      guests: 2,
+      todayIso: today,
+    });
+    expect(q.ok).toBe(false);
+    if (!q.ok) expect(q.code).toBe('party');
+  });
+
   it('stay checkout amount does not take listing_discounts — leftover stay offers cannot change Stripe TEST', () => {
     const stayTour = tour({
       listingExtras: {

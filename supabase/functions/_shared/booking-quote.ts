@@ -218,7 +218,11 @@ function quoteStayListing(input: {
   if (nights < minNights) {
     return { ok: false, error: `Minimum stay is ${minNights} night${minNights === 1 ? '' : 's'}.` };
   }
-  const maxGuests = typeof stay.maxGuests === 'number' && stay.maxGuests >= 1 ? Math.floor(stay.maxGuests) : 99;
+  // Phase 1217: unknown maxGuests → fail closed (no invent-99; StayDetails 1216 parity).
+  if (typeof stay.maxGuests !== 'number' || !Number.isFinite(stay.maxGuests) || stay.maxGuests < 1) {
+    return { ok: false, error: 'Guest capacity is unavailable for this stay.' };
+  }
+  const maxGuests = Math.floor(stay.maxGuests);
   if (!Number.isFinite(input.guests) || input.guests < 1) {
     return { ok: false, error: 'Enter how many guests will stay.' };
   }
