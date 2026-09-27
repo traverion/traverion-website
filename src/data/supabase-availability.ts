@@ -192,6 +192,31 @@ export async function checkAvailability(
   });
 
   if (!available) {
+    // Phase 1190: unknown listing-wide fallback is not “fully booked” (1163 / 1191–1192).
+    const slotResolved =
+      Boolean(startHm) &&
+      typeof opts?.slotMaxSpots === 'number' &&
+      Number.isFinite(opts.slotMaxSpots) &&
+      opts.slotMaxSpots >= 1;
+    const capacityUnknown =
+      dayOverride == null &&
+      !slotResolved &&
+      (fallbackCap == null || !Number.isFinite(fallbackCap) || fallbackCap < 1);
+    if (capacityUnknown) {
+      return {
+        available: false,
+        remaining: 0,
+        error: 'Listing capacity is not configured.',
+        options: [
+          {
+            id: 'capacity-unknown',
+            title: 'Could not verify capacity',
+            description: 'This tour does not have a configured capacity for this date. Try another date or contact the operator.',
+            selectable: false,
+          },
+        ],
+      };
+    }
     const msg = tourAvailabilityCheckMessages(remaining, guests, scope, startHm || null);
     return {
       available: false,

@@ -851,11 +851,13 @@ export default function BookingPage({
         void proceedToContactAfterOption();
         return;
       }
+      // Phase 1191: verify errors stay inline (Pay 1192 parity) — do not open a sold-out-style modal.
+      if (avail.error && !avail.available) {
+        setError('Could not verify availability. Check your connection and try again.');
+        return;
+      }
       setAvailabilityModalOpen(true);
       setAvailabilityOptions(avail.options);
-      if (avail.error && !avail.available) {
-        setAvailabilityModalNote('We could not verify capacity for this date.');
-      }
     } catch {
       setAvailabilityModalOpen(true);
       setAvailabilityOptions([

@@ -331,42 +331,49 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     setDateCapacityError(null);
     void Promise.all(
       allListings.map(async (tour) => {
-        const extras = parseListingExtras(tour.listingExtras);
-        const opts = materializedBookingOptions(extras.bookingOptions ?? []);
-        const fallbackCap = listingTourCapacityFromOptions(capacitySpotsFromBookingOptions(opts));
-        const [caps, paidByDay, paidBySlot] = await Promise.all([
-          fetchAvailabilityByListingId(tour.id, { fromDate: filterDate }),
-          fetchPublishedTourPaidGuests(tour.id),
-          fetchPublishedTourPaidGuestsBySlot(tour.id),
-        ]);
-        const dayRow = caps.find((r) => String(r.available_date ?? '').slice(0, 10) === filterDate);
-        const departures = tourBookableSellingDeparturesOnDate(opts, filterDate, {
-          cutoffHoursBeforeStart: extras.bookingCutoffHoursBeforeStart,
-          timeZone: extras.departureTimezone,
-        }).map((d) => ({
-          startTimeHm: d.startTime,
-          maxSpots: d.maxSpotsPerSlot,
-        }));
-        const slotForDay: Record<string, number> = {};
-        for (const d of departures) {
-          const key = tourPaidSlotKey(filterDate, d.startTimeHm);
-          slotForDay[d.startTimeHm] = paidBySlot[key] ?? 0;
+        try {
+          const extras = parseListingExtras(tour.listingExtras);
+          const opts = materializedBookingOptions(extras.bookingOptions ?? []);
+          const fallbackCap = listingTourCapacityFromOptions(capacitySpotsFromBookingOptions(opts));
+          const [caps, paidByDay, paidBySlot] = await Promise.all([
+            fetchAvailabilityByListingId(tour.id, { fromDate: filterDate }),
+            fetchPublishedTourPaidGuests(tour.id),
+            fetchPublishedTourPaidGuestsBySlot(tour.id),
+          ]);
+          const dayRow = caps.find((r) => String(r.available_date ?? '').slice(0, 10) === filterDate);
+          const departures = tourBookableSellingDeparturesOnDate(opts, filterDate, {
+            cutoffHoursBeforeStart: extras.bookingCutoffHoursBeforeStart,
+            timeZone: extras.departureTimezone,
+          }).map((d) => ({
+            startTimeHm: d.startTime,
+            maxSpots: d.maxSpotsPerSlot,
+          }));
+          const slotForDay: Record<string, number> = {};
+          for (const d of departures) {
+            const key = tourPaidSlotKey(filterDate, d.startTimeHm);
+            slotForDay[d.startTimeHm] = paidBySlot[key] ?? 0;
+          }
+          return [
+            tour.id,
+            {
+              paid: paidByDay[filterDate] ?? 0,
+              dayCap: dayRow ? dayRow.capacity : undefined,
+              fallbackCap,
+              paidBySlot: slotForDay,
+              departures,
+            },
+          ] as const;
+        } catch {
+          // Phase 1192: one failed listing must not fail the whole date browse (1190 exclude).
+          return null;
         }
-        return [
-          tour.id,
-          {
-            paid: paidByDay[filterDate] ?? 0,
-            dayCap: dayRow ? dayRow.capacity : undefined,
-            fallbackCap,
-            paidBySlot: slotForDay,
-            departures,
-          },
-        ] as const;
       })
     )
       .then((entries) => {
         if (cancelled) return;
-        setDateCapacityByListing(Object.fromEntries(entries));
+        setDateCapacityByListing(
+          Object.fromEntries(entries.filter((e): e is NonNullable<typeof e> => e != null))
+        );
         setDateCapacityLoading(false);
       })
       .catch((e) => {
