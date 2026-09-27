@@ -85,7 +85,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
     }
   }, [user, load]);
 
-  // Phase 1156/1183: wishlist cards need live offer From prices and review aggregates (browse parity).
+  // Phase 1156/1183/1194: wishlist cards need live offers and reviews (decoupled browse parity).
   useEffect(() => {
     const ids = listings.map((t) => t.id).filter(isSupabaseListingId);
     if (!isSupabaseConfigured() || ids.length === 0) {
@@ -94,16 +94,20 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
       return;
     }
     let cancelled = false;
-    void Promise.all([fetchDiscountsByListingIds(ids), getReviewAggregatesForListingIds(ids)])
-      .then(([discounts, reviews]) => {
-        if (cancelled) return;
-        setDiscountsByListing(discounts);
-        setReviewAggregates(reviews);
+    void fetchDiscountsByListingIds(ids)
+      .then((discounts) => {
+        if (!cancelled) setDiscountsByListing(discounts);
       })
       .catch(() => {
-        // Phase 1151: empty map → honest list From; keep prior reviews (failure ≠ zero ratings).
-        if (cancelled) return;
-        setDiscountsByListing(new Map());
+        // Phase 1151: empty map → honest list From.
+        if (!cancelled) setDiscountsByListing(new Map());
+      });
+    void getReviewAggregatesForListingIds(ids)
+      .then((reviews) => {
+        if (!cancelled) setReviewAggregates(reviews);
+      })
+      .catch(() => {
+        // Keep prior reviews — failure ≠ zero ratings.
       });
     return () => {
       cancelled = true;

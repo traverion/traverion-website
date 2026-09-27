@@ -297,17 +297,21 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
     }
     const ids = stayIdsKey.split(',');
     let cancelled = false;
-    void Promise.all([getReviewAggregatesForListingIds(ids), fetchDiscountsByListingIds(ids)])
-      .then(([reviews, discounts]) => {
-        if (cancelled) return;
-        setReviewAggregates(reviews);
-        setDiscountsByListing(discounts);
+    // Phase 1194: decouple offers vs reviews (Home/Destination 1193 parity).
+    void fetchDiscountsByListingIds(ids)
+      .then((discounts) => {
+        if (!cancelled) setDiscountsByListing(discounts);
       })
       .catch(() => {
         // Phase 1151/1166: empty map → honest list From (not endless "Checking offers…").
-        // Keep prior review map — review load failure must not invent empty ratings.
-        if (cancelled) return;
-        setDiscountsByListing(new Map());
+        if (!cancelled) setDiscountsByListing(new Map());
+      });
+    void getReviewAggregatesForListingIds(ids)
+      .then((reviews) => {
+        if (!cancelled) setReviewAggregates(reviews);
+      })
+      .catch(() => {
+        // Keep prior map — review load failure must not invent empty ratings.
       });
     return () => {
       cancelled = true;
