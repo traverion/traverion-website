@@ -82,13 +82,23 @@ export function coalesceLegacyParticipantTicketOptions(
   const priceCategories = ordered.map(categoryFromLegacyOption);
   const minPersons = Math.min(...opts.map((o) => Math.max(1, o.minPersons || 1)));
 
+  const maxPersons =
+    typeof anchor.maxPersons === 'number' && Number.isFinite(anchor.maxPersons) && anchor.maxPersons >= 1
+      ? Math.floor(anchor.maxPersons)
+      : minPersons;
+  const spotsRaw = anchor.maxSpotsPerSlot;
+  // Phase 1208: do not invent capacity 8 when legacy tickets omit spots (0 = unknown / fail-closed).
+  const maxSpotsPerSlot =
+    typeof spotsRaw === 'number' && Number.isFinite(spotsRaw) && spotsRaw >= 1
+      ? Math.floor(spotsRaw)
+      : 0;
   const coalesced: ListingBookingOption = {
     ...anchor,
     name: deriveCoalescedOptionName(anchor),
     priceUsd: anchor.priceUsd,
     minPersons,
-    maxPersons: Math.max(1, anchor.maxPersons || 8),
-    maxSpotsPerSlot: Math.max(1, anchor.maxSpotsPerSlot || anchor.maxPersons || 8),
+    maxPersons,
+    maxSpotsPerSlot,
     pricingMode: 'age_dependent',
     priceCategories,
     optionInfo:

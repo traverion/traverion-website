@@ -66,6 +66,47 @@ describe('legacy Adult/Child options → age-dependent option', () => {
     expect(coalesceLegacyParticipantTicketOptions(opts)).toHaveLength(2);
   });
 
+  it('Phase 1208: does not invent capacity 8 when legacy tickets omit spots', () => {
+    const opts = [
+      {
+        id: 'opt-adult',
+        name: 'Adult',
+        priceUsd: 189,
+        startTime: '20:00',
+        duration: '5 hours',
+        pickupPlace: 'Hotel pickup',
+        minPersons: 1,
+        maxPersons: 0,
+        maxSpotsPerSlot: 0,
+        optionInfo: '',
+        weekdays: [true, true, true, true, true, true, true],
+        availabilityDateFrom: '',
+        availabilityDateTo: '',
+        pricingMode: 'uniform' as const,
+      },
+      {
+        id: 'opt-child',
+        name: 'Child',
+        priceUsd: 149,
+        startTime: '20:00',
+        duration: '5 hours',
+        pickupPlace: 'Hotel pickup',
+        minPersons: 1,
+        maxPersons: 0,
+        maxSpotsPerSlot: 0,
+        optionInfo: '',
+        weekdays: [true, true, true, true, true, true, true],
+        availabilityDateFrom: '',
+        availabilityDateTo: '',
+        pricingMode: 'uniform' as const,
+      },
+    ];
+    const coalesced = coalesceLegacyParticipantTicketOptions(opts);
+    expect(coalesced).toHaveLength(1);
+    expect(coalesced[0].maxSpotsPerSlot).toBe(0);
+    expect(coalesced[0].maxPersons).toBe(1);
+  });
+
   it('traveler variants expose one Hotel pickup option with age mix quote', () => {
     const tour = {
       id: 'tour-1',
