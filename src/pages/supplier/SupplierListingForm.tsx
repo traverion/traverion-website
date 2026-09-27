@@ -1809,10 +1809,27 @@ export default function SupplierListingForm({
     }));
   };
 
-  const removeBookingOption = useCallback((optionId: string) => {
-    setForm((f) => ({ ...f, bookingOptions: f.bookingOptions.filter((o) => o.id !== optionId) }));
-    setOptionPendingDeleteId(null);
-  }, []);
+  const removeBookingOption = useCallback(
+    (optionId: string) => {
+      if (editingId && (!listingOccupancyReady || listingOccupancyLoadError)) {
+        return;
+      }
+      if (editingId && listingOccupancyReady) {
+        const sold = occupyingGuestsForBookingOption({
+          bookings: listingOccupancyBookings,
+          listingId: editingId,
+          optionId,
+        });
+        // Phase 1110: refuse option delete while purchased seats remain on any slot.
+        if (sold >= 1) {
+          return;
+        }
+      }
+      setForm((f) => ({ ...f, bookingOptions: f.bookingOptions.filter((o) => o.id !== optionId) }));
+      setOptionPendingDeleteId(null);
+    },
+    [editingId, listingOccupancyReady, listingOccupancyLoadError, listingOccupancyBookings]
+  );
 
   const duplicateOption = useCallback((optionId: string) => {
     setForm((f) => {
@@ -2114,6 +2131,22 @@ export default function SupplierListingForm({
         );
         return;
       }
+      if (editingId && listingOccupancyReady) {
+        const prepared = ensureExplicitSchedules(optionModalDraft);
+        const schedulesAfter = (prepared.schedules ?? []).filter((s) => s.id !== scheduleId);
+        // Phase 1110: refuse deletes that abandon an occupied purchased wall-clock.
+        const abandoned = schedulePersistAbandonsOccupiedSlot({
+          bookings: listingOccupancyBookings,
+          listingId: editingId,
+          optionId: optionModalDraft.id,
+          schedulesAfterPersist: schedulesAfter,
+        });
+        if (abandoned) {
+          setScheduleSaveError(abandoned);
+          setPendingScheduleDeleteId(null);
+          return;
+        }
+      }
       if (pendingScheduleDeleteId !== scheduleId) {
         setPendingScheduleDeleteId(scheduleId);
         return;
@@ -2122,6 +2155,10 @@ export default function SupplierListingForm({
       setOptionModalDraft(next);
       persistOptionDraftToForm(next);
       setPendingScheduleDeleteId(null);
+      if (scheduleSoldSeatAnchorRef.current?.id === scheduleId) {
+        scheduleSoldSeatAnchorRef.current = null;
+        scheduleOpenedStartTimeRef.current = '';
+      }
     },
     [
       optionModalDraft,
@@ -2129,6 +2166,7 @@ export default function SupplierListingForm({
       persistOptionDraftToForm,
       listingOccupancyLoadError,
       listingOccupancyReady,
+      listingOccupancyBookings,
       editingId,
     ]
   );
@@ -3634,7 +3672,25 @@ export default function SupplierListingForm({
                             </button>
                             <button
                               type="button"
-                              onClick={() => removeBookingOption(opt.id)}
+                              onClick={() => {
+                                if (editingId && listingOccupancyReady) {
+                                  const sold = occupyingGuestsForBookingOption({
+                                    bookings: listingOccupancyBookings,
+                                    listingId: editingId,
+                                    optionId: opt.id,
+                                  });
+                                  if (sold >= 1) {
+                                    // Phase 1110: hard-refuse option delete with sold seats.
+                                    window.alert(
+                                      removeBookingOptionOccupancyNotice(sold) ??
+                                        'This option still has booked guests and cannot be deleted.'
+                                    );
+                                    setOptionPendingDeleteId(null);
+                                    return;
+                                  }
+                                }
+                                removeBookingOption(opt.id);
+                              }}
                               className="lc-btn-danger inline-flex min-h-[44px] items-center rounded-lg px-3 py-2 text-xs font-medium"
                             >
                               Delete option
