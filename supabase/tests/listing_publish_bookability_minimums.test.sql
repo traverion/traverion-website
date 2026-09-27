@@ -134,6 +134,7 @@ begin
           'id', 'o1',
           'name', 'Shared',
           'priceUsd', 89,
+          'pickupPlace', 'Hotel pickup in Rovaniemi',
           'schedules', jsonb_build_array(
             jsonb_build_object(
               'id', 's1',
@@ -173,27 +174,33 @@ begin
   );
 
   select public.listing_has_bookable_tour_surface(
-    '{"bookingOptions":[{"schedules":[{"status":"ready","priceUsd":10,"minPersons":1,"maxPersons":8,"maxSpotsPerSlot":8,"startTime":"20:00","weekdays":[true,true,true,true,true,true,true]}]}]}'::jsonb, 0
+    '{"bookingOptions":[{"pickupPlace":"Hotel pickup area","schedules":[{"status":"ready","priceUsd":10,"minPersons":1,"maxPersons":8,"maxSpotsPerSlot":8,"startTime":"20:00","weekdays":[true,true,true,true,true,true,true]}]}]}'::jsonb, 0
   ) into v_ok;
   if not v_ok then raise exception 'helper tour ready schedule should be bookable'; end if;
 
   -- Phase 1238: priced ready schedule without maxPersons is not bookable.
   select public.listing_has_bookable_tour_surface(
-    '{"bookingOptions":[{"schedules":[{"status":"ready","priceUsd":10}]}]}'::jsonb, 0
+    '{"bookingOptions":[{"pickupPlace":"Hotel pickup area","schedules":[{"status":"ready","priceUsd":10}]}]}'::jsonb, 0
   ) into v_ok;
   if v_ok then raise exception 'helper tour ready schedule without maxPersons must fail'; end if;
 
   -- Phase 1239: maxPersons without maxSpotsPerSlot is not bookable.
   select public.listing_has_bookable_tour_surface(
-    '{"bookingOptions":[{"schedules":[{"status":"ready","priceUsd":10,"maxPersons":8}]}]}'::jsonb, 0
+    '{"bookingOptions":[{"pickupPlace":"Hotel pickup area","schedules":[{"status":"ready","priceUsd":10,"maxPersons":8}]}]}'::jsonb, 0
   ) into v_ok;
   if v_ok then raise exception 'helper tour ready schedule without maxSpotsPerSlot must fail'; end if;
 
   -- Phase 1247: capacity without weekday/startTime is not bookable.
   select public.listing_has_bookable_tour_surface(
-    '{"bookingOptions":[{"schedules":[{"status":"ready","priceUsd":10,"minPersons":1,"maxPersons":8,"maxSpotsPerSlot":8}]}]}'::jsonb, 0
+    '{"bookingOptions":[{"pickupPlace":"Hotel pickup area","schedules":[{"status":"ready","priceUsd":10,"minPersons":1,"maxPersons":8,"maxSpotsPerSlot":8}]}]}'::jsonb, 0
   ) into v_ok;
   if v_ok then raise exception 'helper tour ready schedule without weekday/start must fail'; end if;
+
+  -- Phase 1248: bookable schedule without pickupPlace is not bookable.
+  select public.listing_has_bookable_tour_surface(
+    '{"bookingOptions":[{"schedules":[{"status":"ready","priceUsd":10,"minPersons":1,"maxPersons":8,"maxSpotsPerSlot":8,"startTime":"20:00","weekdays":[true,true,true,true,true,true,true]}]}]}'::jsonb, 0
+  ) into v_ok;
+  if v_ok then raise exception 'helper tour ready schedule without pickupPlace must fail'; end if;
 
   raise notice 'ALL ASSERTIONS PASSED';
 end $$;
