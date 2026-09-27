@@ -178,14 +178,21 @@ export function defaultCapacityForOpenDay(maxSpotsPerSlot: number | undefined): 
   return Math.min(99, n);
 }
 
-/** Listing-wide tour cap when listing_availability has no row for the departure. */
-export function listingTourCapacityFromOptions(spots: Array<number | undefined | null>): number {
+/**
+ * Listing-wide tour cap when listing_availability has no row for the departure.
+ * Phase 1163: do not invent capacity 8 when no option/schedule spots are configured —
+ * return null so callers fail closed (unknown remaining) instead of fake open seats.
+ */
+export function listingTourCapacityFromOptions(
+  spots: Array<number | undefined | null>
+): number | null {
   let max = 0;
   for (const raw of spots) {
     if (typeof raw !== 'number' || !Number.isFinite(raw) || raw < 1) continue;
     max = Math.max(max, Math.floor(raw));
   }
-  return Math.min(99, max >= 1 ? max : 8);
+  if (max < 1) return null;
+  return Math.min(99, max);
 }
 
 /** Flatten option- and schedule-level maxSpotsPerSlot for listing-wide fallback capacity. */

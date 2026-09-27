@@ -187,7 +187,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     {
       paid: number;
       dayCap?: number;
-      fallbackCap: number;
+      fallbackCap: number | null;
       paidBySlot: Record<string, number>;
       departures: Array<{ startTimeHm: string; maxSpots: number }>;
     }

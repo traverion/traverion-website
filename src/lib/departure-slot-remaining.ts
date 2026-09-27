@@ -1,4 +1,3 @@
-import { remainingCapacity } from './availability-ops';
 import { tourPaidSlotKey } from '../data/supabase-availability';
 import { tourDepartureRemainingSeats } from './tour-departure-remaining';
 
@@ -10,8 +9,9 @@ export function departureSlotSpotsLeft(params: {
   maxPersonsFallback: number;
   paidBySlot: Record<string, number>;
   paidByDay: Record<string, number>;
-  dayCapOverride?: number;
-  fallbackDayCap: number;
+  dayCapOverride?: number | null;
+  /** Phase 1163: unused for slot math; typed nullable so callers can pass unknown listing fallback. */
+  fallbackDayCap: number | null;
 }): number | null {
   const day = params.dayIso.trim().slice(0, 10);
   const time = params.startTimeHm.trim();
@@ -46,8 +46,9 @@ export function maxSpotsLeftAcrossDepartures(params: {
   }>;
   paidBySlot: Record<string, number>;
   paidByDay: Record<string, number>;
-  dayCapOverride?: number;
-  fallbackDayCap: number;
+  dayCapOverride?: number | null;
+  /** Phase 1163: nullable listing-wide fallback (passed through to slot helper). */
+  fallbackDayCap: number | null;
 }): number | null {
   const deps = params.departures.filter((d) => d.startTimeHm.trim());
   if (deps.length < 1) return null;

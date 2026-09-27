@@ -63,7 +63,8 @@ function enumerateIsoDates(fromIso: string, toIso: string): string[] {
 function defaultSpots(listing: TourPackage | null): number {
   const opts = listing ? materializedBookingOptions(listing.listingExtras?.bookingOptions) : [];
   const max = listingTourCapacityFromOptions(capacitySpotsFromBookingOptions(opts));
-  return defaultCapacityForOpenDay(max);
+  // Supplier form starter only — not public remaining; keep defaultCapacityForOpenDay invent.
+  return defaultCapacityForOpenDay(max ?? undefined);
 }
 
 export default function SupplierAvailability() {

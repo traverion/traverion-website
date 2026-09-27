@@ -193,7 +193,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     paidByDay: Record<string, number>;
     paidBySlot: Record<string, number>;
     capByDay: Map<string, number>;
-    fallback: number;
+    fallback: number | null;
   } | null>(null);
   const [dayCapacityError, setDayCapacityError] = useState<string | null>(null);
   const optionsSectionRef = useRef<HTMLDivElement>(null);
@@ -480,6 +480,8 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       return remainingCapacity(dayCap, dayCapacitySnap.paidByDay[day] ?? 0);
     }
     const cap = dayCapacitySnap.fallback;
+    // Phase 1163: unknown listing-wide fallback → null remaining (fail closed).
+    if (cap == null) return null;
     return remainingCapacity(cap, dayCapacitySnap.paidByDay[day] ?? 0);
   }, [
     bookingDate,

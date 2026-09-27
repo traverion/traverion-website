@@ -8,7 +8,8 @@ export function tourPublicAvailabilityRemaining(params: {
   /** listing_availability row for this date */
   dayCapacityOverride: number | null;
   paidGuestsDay: number;
-  fallbackDayCapacity: number;
+  /** Phase 1163: null = unknown listing-wide fallback (do not invent 8). */
+  fallbackDayCapacity: number | null;
   startTimeHm?: string | null;
   slotMaxSpots?: number | null;
   paidGuestsSlot?: number;
@@ -36,6 +37,14 @@ export function tourPublicAvailabilityRemaining(params: {
   if (dayOverride != null) {
     const remaining = remainingCapacity(dayOverride, params.paidGuestsDay);
     return { remaining, available: remaining >= guests, scope: 'day' };
+  }
+  // Phase 1163: unknown fallback → not available (fail closed; no invent-8).
+  if (
+    params.fallbackDayCapacity == null ||
+    !Number.isFinite(params.fallbackDayCapacity) ||
+    params.fallbackDayCapacity < 1
+  ) {
+    return { remaining: 0, available: false, scope: 'day' };
   }
   const remaining = remainingCapacity(params.fallbackDayCapacity, params.paidGuestsDay);
   return { remaining, available: remaining >= guests, scope: 'day' };

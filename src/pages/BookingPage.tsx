@@ -251,7 +251,7 @@ export default function BookingPage({
     paidByDay: Record<string, number>;
     paidBySlot: Record<string, number>;
     capByDay: Map<string, number>;
-    fallback: number;
+    fallback: number | null;
   } | null>(null);
   const [dayCapacityError, setDayCapacityError] = useState<string | null>(null);
 
@@ -465,6 +465,8 @@ export default function BookingPage({
       return remainingCapacity(dayCap, dayCapacitySnap.paidByDay[day] ?? 0);
     }
     const cap = dayCapacitySnap.fallback;
+    // Phase 1163: unknown listing-wide fallback → null remaining (fail closed).
+    if (cap == null) return null;
     return remainingCapacity(cap, dayCapacitySnap.paidByDay[day] ?? 0);
   }, [date, dayCapacitySnap, soldOutDates, departureTime, appliedOption, bookableDepartureTimes, selectedVariant]);
 

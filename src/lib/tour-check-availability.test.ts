@@ -78,4 +78,17 @@ describe('tourPublicAvailabilityRemaining', () => {
     });
     expect(r.available).toBe(true);
   });
+
+  it('fails closed when listing-wide fallback is unknown (Phase 1163)', () => {
+    const r = tourPublicAvailabilityRemaining({
+      date: '2026-10-01',
+      guests: 1,
+      dayCapacityOverride: null,
+      paidGuestsDay: 0,
+      fallbackDayCapacity: null,
+    });
+    expect(r.available).toBe(false);
+    expect(r.remaining).toBe(0);
+    expect(r.scope).toBe('day');
+  });
 });

@@ -59,10 +59,12 @@ describe('availability ops', () => {
 
   it('falls back to option spots when a tour has no availability row', () => {
     expect(listingTourCapacityFromOptions([8, 12])).toBe(12);
-    expect(listingTourCapacityFromOptions([])).toBe(8);
-    expect(remainingCapacity(listingTourCapacityFromOptions([8, 12]), 1)).toBe(11);
-    expect(remainingCapacity(listingTourCapacityFromOptions([8, 12]), 1) >= 12).toBe(false);
-    expect(remainingCapacity(listingTourCapacityFromOptions([8, 12]), 0) >= 12).toBe(true);
+    // Phase 1163: empty spots must not invent capacity 8.
+    expect(listingTourCapacityFromOptions([])).toBeNull();
+    expect(listingTourCapacityFromOptions([null, undefined])).toBeNull();
+    expect(remainingCapacity(listingTourCapacityFromOptions([8, 12])!, 1)).toBe(11);
+    expect(remainingCapacity(listingTourCapacityFromOptions([8, 12])!, 1) >= 12).toBe(false);
+    expect(remainingCapacity(listingTourCapacityFromOptions([8, 12])!, 0) >= 12).toBe(true);
     expect(
       listingTourCapacityFromOptions(
         capacitySpotsFromBookingOptions([

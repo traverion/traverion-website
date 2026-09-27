@@ -71,7 +71,8 @@ export function publicTourPaidGuestsByDeparture(
 export function tourDateLacksCapacityForParty(params: {
   paidGuestsThatDay: number;
   dayCapacity: number | undefined;
-  fallbackCapacity: number;
+  /** Phase 1163: null = unknown listing-wide fallback (unused when day/slot data exists). */
+  fallbackCapacity: number | null;
   partySize?: number;
   paidBySlot?: Record<string, number>;
   departures?: Array<{ startTimeHm: string; maxSpots: number }>;
@@ -110,7 +111,8 @@ export function tourDateLacksCapacityForParty(params: {
 export function tourSoldOutDates(params: {
   paidByDay: Record<string, number>;
   capByDay: Map<string, number>;
-  fallbackCapacity: number;
+  /** Phase 1163: null = unknown listing-wide fallback (do not invent 8). */
+  fallbackCapacity: number | null;
   paidBySlot?: Record<string, number>;
   departuresForDay?: (day: string) => Array<{ startTimeHm: string; maxSpots: number }>;
   slotKey?: (day: string, startTimeHm: string) => string;
@@ -148,7 +150,15 @@ export function tourSoldOutDates(params: {
       if (remainingCapacity(dayCap, params.paidByDay[day] ?? 0) < 1) next.add(day);
       continue;
     }
-    if (remainingCapacity(params.fallbackCapacity, params.paidByDay[day] ?? 0) < 1) next.add(day);
+    // Phase 1163: no day row and no known fallback → do not invent sold-out from cap 8.
+    if (
+      params.fallbackCapacity != null &&
+      Number.isFinite(params.fallbackCapacity) &&
+      params.fallbackCapacity >= 1 &&
+      remainingCapacity(params.fallbackCapacity, params.paidByDay[day] ?? 0) < 1
+    ) {
+      next.add(day);
+    }
   }
   return next;
 }

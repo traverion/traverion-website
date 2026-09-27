@@ -89,7 +89,7 @@ export async function fetchPublishedTourPaidGuestsBySlot(
   return out;
 }
 
-async function fetchTourOptionCapacity(listingId: string): Promise<number> {
+async function fetchTourOptionCapacity(listingId: string): Promise<number | null> {
   if (!supabase) throw new Error('Supabase not configured');
   const { data, error } = await supabase
     .from('listings')
@@ -105,6 +105,7 @@ async function fetchTourOptionCapacity(listingId: string): Promise<number> {
       schedules?: Array<{ maxSpotsPerSlot?: unknown; status?: string } | null> | null;
     }>;
   } | null;
+  // Phase 1163: empty option spots → null (callers fail closed; no invent-8).
   return listingTourCapacityFromOptions(capacitySpotsFromBookingOptions(extras?.bookingOptions ?? []));
 }
 
