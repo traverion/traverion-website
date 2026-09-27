@@ -88,6 +88,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (gen === gateGen.current) setUser(null);
         return;
       }
+      // Phase 1159: unconfirmed sessions must not look signed-in (checkout requires verified email).
+      if (!next.email_confirmed_at && !isTraverionAdminUser(next)) {
+        if (supabase) await supabase.auth.signOut({ scope: 'local' });
+        if (gen === gateGen.current) setUser(null);
+        return;
+      }
       const allowed = await travelerUserAllowed(next);
       if (gen !== gateGen.current) return;
       if (!allowed) {
