@@ -214,7 +214,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
       return;
     }
     let cancelled = false;
-    void userHasCompletedBookingForListing(user.email, stayId).then(({ canReview, bookingId }) => {
+    void userHasCompletedBookingForListing(user.id, user.email, stayId).then(({ canReview, bookingId }) => {
       if (cancelled) return;
       setCanLeaveReview(canReview);
       setBookingIdForReview(bookingId);

@@ -152,24 +152,36 @@ export async function submitReview(params: {
   return { success: true };
 }
 
-/** Check if the current user has a confirmed/completed booking for this listing (for "can leave review"). */
+/** Check if the current user has a confirmed/completed booking for this listing (for "can leave review").
+ * Phase 1160: match guest_user_id or guest_email (parity with booking RLS). */
 export async function userHasCompletedBookingForListing(
+  userId: string,
   userEmail: string,
   listingId: string
 ): Promise<{ canReview: boolean; bookingId?: string }> {
   if (!supabase) return { canReview: false };
   const nowMs = Date.now();
+  const uid = (userId ?? '').trim();
+  const email = (userEmail ?? '').trim().toLowerCase();
+  if (!uid && !email) return { canReview: false };
 
-  const { data, error } = await supabase
+  let q = supabase
     .from('bookings')
     .select(
       'id, status, payment_status, booking_date, start_time, check_out, nights, special_requests, purchase_snapshot'
     )
     .eq('listing_id', listingId)
-    .eq('guest_email', userEmail)
     .eq('status', 'confirmed')
     .order('booking_date', { ascending: false })
     .limit(50);
+  if (uid && email) {
+    q = q.or(`guest_user_id.eq.${uid},guest_email.eq.${email}`);
+  } else if (uid) {
+    q = q.eq('guest_user_id', uid);
+  } else {
+    q = q.eq('guest_email', email);
+  }
+  const { data, error } = await q;
   if (error || !data?.length) return { canReview: false };
 
   const eligible = data.find((b) => bookingEligibleForReview(b, nowMs));

@@ -715,7 +715,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     setHasReviewed(false);
     if (!user?.id || !user?.email || !tourId || !isSupabaseConfigured()) return;
     let cancelled = false;
-    userHasCompletedBookingForListing(user.email, tourId).then(({ canReview, bookingId }) => {
+    userHasCompletedBookingForListing(user.id, user.email, tourId).then(({ canReview, bookingId }) => {
       if (cancelled) return;
       setCanLeaveReview(canReview);
       setBookingIdForReview(bookingId);
