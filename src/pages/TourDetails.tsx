@@ -1178,7 +1178,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         tour={tour}
         presentation="page"
         selectedVariant={checkoutVariant}
-        discountsByListing={discountsByListing}
+        discountsByListing={discountsByListing ?? undefined}
         initialDate={checkoutFromUrl.date}
         initialGuests={Math.max(1, checkoutFromUrl.guests)}
         initialStartTime={checkoutFromUrl.startTime}
