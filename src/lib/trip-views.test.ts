@@ -17,6 +17,7 @@ import {
   sortTravelerCancelledTrips,
   scheduleTodayIsoForBooking,
   partnerTourMatchesExperienceDayOffset,
+  tripAllowsBrowseLiveListing,
 } from './trip-views';
 
 const today = '2026-09-08';
@@ -319,5 +320,12 @@ describe('trip list views', () => {
         nowMs
       )
     ).toBe(true);
+  });
+
+  it('only offers browse-live from Trips when listing is published (Phase 1086)', () => {
+    expect(tripAllowsBrowseLiveListing({ status: 'published' })).toBe(true);
+    expect(tripAllowsBrowseLiveListing({ status: 'draft' })).toBe(false);
+    expect(tripAllowsBrowseLiveListing({ status: null })).toBe(false);
+    expect(tripAllowsBrowseLiveListing(undefined)).toBe(false);
   });
 });

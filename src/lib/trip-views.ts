@@ -14,6 +14,11 @@ export function travelerTripReferenceLabel(bookingNumber: number | null | undefi
   return `Ref #${Math.floor(bookingNumber)}`;
 }
 
+/** Live marketplace browse from Trips — only when the listing is still published (Phase 1086). */
+export function tripAllowsBrowseLiveListing(ops: { status?: string | null } | null | undefined): boolean {
+  return (ops?.status ?? '').trim().toLowerCase() === 'published';
+}
+
 export type TripListView = 'upcoming' | 'past' | 'cancelled';
 
 export function bookingIsCancelledTrip(b: {

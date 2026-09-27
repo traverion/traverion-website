@@ -60,7 +60,7 @@ import { TRAVERION_STANDARD_CANCELLATION_POLICY } from '../types/listingExtras';
 import { decrementAvailabilityBooked } from '../data/supabase-availability';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
 import { guestFacingBookingNotes } from '../lib/booking-notes';
-import { bookingMatchesTripView, travelerTripIsLive, travelerBookingNeedsPayNow, travelerTripReferenceLabel, sortTravelerCancelledTrips } from '../lib/trip-views';
+import { bookingMatchesTripView, travelerTripIsLive, travelerBookingNeedsPayNow, travelerTripReferenceLabel, sortTravelerCancelledTrips, tripAllowsBrowseLiveListing } from '../lib/trip-views';
 import {
   BOOKING_CONFIRMATION_EMAIL_DISCLAIMER,
   BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE,
@@ -1131,13 +1131,10 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     </div>
                   )}
                   <div className="flex flex-wrap gap-2">
-                    {onTourSelect && (
+                    {onTourSelect && tripAllowsBrowseLiveListing(ops) && (
                       <button
                         type="button"
                         onClick={() => {
-                          const isStay = Boolean(
-                            b.check_out || parseStayCheckOutFromNotes(b.special_requests)
-                          );
                           onTourSelect({
                             id: b.listing_id,
                             ...(isStay
@@ -1146,10 +1143,9 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                           });
                         }}
                         className="tv-btn-ghost"
+                        title="Opens the live marketplace page. Details above are what you booked."
                       >
-                        {b.check_out || parseStayCheckOutFromNotes(b.special_requests)
-                          ? 'View listing'
-                          : 'View tour'}
+                        {isStay ? 'Browse current listing' : 'Browse current tour'}
                       </button>
                     )}
                     {liveTrip && travelerBookingNeedsPayNow(b) && (
