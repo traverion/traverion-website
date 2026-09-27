@@ -142,7 +142,8 @@ begin
               'startTime', '20:30',
               'minPersons', 1,
               'maxPersons', 8,
-              'maxSpotsPerSlot', 8
+              'maxSpotsPerSlot', 8,
+              'weekdays', jsonb_build_array(true, true, true, true, true, true, true)
             )
           )
         )
@@ -172,7 +173,7 @@ begin
   );
 
   select public.listing_has_bookable_tour_surface(
-    '{"bookingOptions":[{"schedules":[{"status":"ready","priceUsd":10,"minPersons":1,"maxPersons":8,"maxSpotsPerSlot":8}]}]}'::jsonb, 0
+    '{"bookingOptions":[{"schedules":[{"status":"ready","priceUsd":10,"minPersons":1,"maxPersons":8,"maxSpotsPerSlot":8,"startTime":"20:00","weekdays":[true,true,true,true,true,true,true]}]}]}'::jsonb, 0
   ) into v_ok;
   if not v_ok then raise exception 'helper tour ready schedule should be bookable'; end if;
 
@@ -187,6 +188,12 @@ begin
     '{"bookingOptions":[{"schedules":[{"status":"ready","priceUsd":10,"maxPersons":8}]}]}'::jsonb, 0
   ) into v_ok;
   if v_ok then raise exception 'helper tour ready schedule without maxSpotsPerSlot must fail'; end if;
+
+  -- Phase 1247: capacity without weekday/startTime is not bookable.
+  select public.listing_has_bookable_tour_surface(
+    '{"bookingOptions":[{"schedules":[{"status":"ready","priceUsd":10,"minPersons":1,"maxPersons":8,"maxSpotsPerSlot":8}]}]}'::jsonb, 0
+  ) into v_ok;
+  if v_ok then raise exception 'helper tour ready schedule without weekday/start must fail'; end if;
 
   raise notice 'ALL ASSERTIONS PASSED';
 end $$;
