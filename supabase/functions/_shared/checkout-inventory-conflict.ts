@@ -2,7 +2,9 @@
  * Mirror of src/lib/checkout-inventory-conflict.ts for Deno edge runtime.
  */
 export function isCheckoutInventoryConflictError(message: string | null | undefined): boolean {
-  return /already booked|not enough capacity|occupied|nights are blocked/i.test(String(message ?? ''));
+  return /already booked|not enough capacity|occupied|nights are blocked|no bookable capacity/i.test(
+    String(message ?? '')
+  );
 }
 
 /** Phase 1096: required inventory RPC missing — fail closed, never oversell. */

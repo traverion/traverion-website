@@ -189,12 +189,12 @@ export async function promotePaidFromCheckoutSession(params: {
   const withStay = await admin
     .from('bookings')
     .select(
-      'id, status, payment_status, currency, total_amount, checkout_session_id, payment_intent_id, listing_id, booking_date, guests, check_out, start_time, purchase_snapshot'
+      'id, status, payment_status, currency, total_amount, checkout_session_id, payment_intent_id, listing_id, booking_date, guests, check_out, start_time, purchase_snapshot, booking_option_id'
     )
     .eq('id', bookingId)
     .maybeSingle();
   let existingBooking = withStay.data as Record<string, unknown> | null;
-  if (withStay.error && /check_out|start_time|purchase_snapshot/i.test(withStay.error.message)) {
+  if (withStay.error && /check_out|start_time|purchase_snapshot|booking_option_id/i.test(withStay.error.message)) {
     const fallback = await admin
       .from('bookings')
       .select(
@@ -516,6 +516,15 @@ export async function promotePaidFromCheckoutSession(params: {
       start_time: typeof existingBooking?.start_time === 'string' ? existingBooking.start_time : null,
       purchase_snapshot: existingBooking?.purchase_snapshot,
     }) || '';
+  const snapOptionId =
+    existingBooking?.purchase_snapshot &&
+    typeof existingBooking.purchase_snapshot === 'object' &&
+    existingBooking.purchase_snapshot !== null &&
+    typeof (existingBooking.purchase_snapshot as { optionId?: unknown }).optionId === 'string'
+      ? String((existingBooking.purchase_snapshot as { optionId: string }).optionId).trim()
+      : '';
+  const bookingOptionId =
+    String(existingBooking?.booking_option_id ?? '').trim() || snapOptionId || '';
   if (listingId && bookingDate && Number.isFinite(guests) && guests >= 1) {
     const { error: inventoryErr } = await admin.rpc('assert_checkout_inventory', {
       p_listing_id: listingId,
@@ -524,6 +533,7 @@ export async function promotePaidFromCheckoutSession(params: {
       p_check_out: checkOutRaw || null,
       p_exclude_booking_id: bookingId,
       p_start_time: startTimeHm || null,
+      p_booking_option_id: bookingOptionId || null,
     });
     if (
       inventoryErr &&

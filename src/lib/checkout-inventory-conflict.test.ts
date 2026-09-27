@@ -11,6 +11,7 @@ describe('isCheckoutInventoryConflictError', () => {
     expect(isCheckoutInventoryConflictError('Not enough capacity left for this date.')).toBe(true);
     expect(isCheckoutInventoryConflictError('Not enough capacity left for this departure.')).toBe(true);
     expect(isCheckoutInventoryConflictError('Slot occupied')).toBe(true);
+    expect(isCheckoutInventoryConflictError('No bookable capacity for this departure.')).toBe(true);
   });
 
   it('ignores unrelated errors', () => {

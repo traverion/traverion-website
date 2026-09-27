@@ -3,7 +3,9 @@
  * another booking already holds the inventory (soft-expired hold race).
  */
 export function isCheckoutInventoryConflictError(message: string | null | undefined): boolean {
-  return /already booked|not enough capacity|occupied|nights are blocked/i.test(String(message ?? ''));
+  return /already booked|not enough capacity|occupied|nights are blocked|no bookable capacity/i.test(
+    String(message ?? '')
+  );
 }
 
 /**

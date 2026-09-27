@@ -652,7 +652,9 @@ serve(async (req) => {
       };
       const claimed = await admin.rpc('claim_pending_checkout_booking', claimArgs);
       if (claimed.error) {
-        const conflict = /already booked|not enough capacity|occupied|nights are blocked/i.test(claimed.error.message);
+        const conflict = /already booked|not enough capacity|occupied|nights are blocked|no bookable capacity/i.test(
+          claimed.error.message
+        );
         if (conflict) return json({ success: false, error: claimed.error.message }, 409);
         const missingFn = isMissingPostgresFunctionError(claimed.error.message);
         if (!missingFn) return json({ success: false, error: claimed.error.message }, 500);
@@ -665,6 +667,7 @@ serve(async (req) => {
           p_check_out: extrasFamily === 'stay' && checkoutDate ? checkoutDate : null,
           p_exclude_booking_id: null,
           p_start_time: startTime || null,
+          p_booking_option_id: quote.optionId || null,
         });
         if (inventoryErr) {
           if (isMissingPostgresFunctionError(inventoryErr.message)) {
@@ -673,7 +676,9 @@ serve(async (req) => {
               500
             );
           }
-          const invConflict = /already booked|not enough capacity|occupied|nights are blocked/i.test(inventoryErr.message);
+          const invConflict = /already booked|not enough capacity|occupied|nights are blocked|no bookable capacity/i.test(
+            inventoryErr.message
+          );
           return json({ success: false, error: inventoryErr.message }, invConflict ? 409 : 500);
         }
         const insertBase: Record<string, unknown> = {
@@ -730,6 +735,7 @@ serve(async (req) => {
         p_check_out: extrasFamily === 'stay' && checkoutDate ? checkoutDate : null,
         p_exclude_booking_id: targetBookingId,
         p_start_time: startTime || null,
+        p_booking_option_id: quote.optionId || storedOptionId || null,
       });
       if (inventoryErr) {
         // Phase 1096: missing assert must not resume Pay as if inventory were free.
@@ -739,7 +745,9 @@ serve(async (req) => {
             500
           );
         }
-        const conflict = /already booked|not enough capacity|occupied|nights are blocked/i.test(inventoryErr.message);
+        const conflict = /already booked|not enough capacity|occupied|nights are blocked|no bookable capacity/i.test(
+          inventoryErr.message
+        );
         return json({ success: false, error: inventoryErr.message }, conflict ? 409 : 500);
       }
       // Defer total_amount / payment_status write until the new Checkout session is
