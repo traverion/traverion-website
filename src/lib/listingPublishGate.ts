@@ -39,6 +39,10 @@ function optionPublishIssues(
       issues.push(`${prefix}Set minimum and maximum guests per booking (max ≥ min).`.trim());
     }
     if (o.maxSpotsPerSlot < 1) issues.push(`${prefix}Set how many spots you offer per start time.`.trim());
+    // Phase 1255: flat options need a departure time (SQL 1254 parity).
+    if (!(o.startTime ?? '').trim()) {
+      issues.push(`${prefix}Set a start time for this option.`.trim());
+    }
   }
   const info = o.optionInfo?.trim() ?? '';
   if (info.length < 8) {
