@@ -3,13 +3,13 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness** (continuing 1001+)  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `d461e28`  
-**Current phase:** 1024  
+**Current SHA:** `7cf9340`  
+**Current phase:** 1025  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Local-only (gitignored):** `scripts/cert-transactional-emails.cjs` — must stay untracked; contains service-role secrets when present locally  
-**Remote migration truth (Phase 1024):** Local=Remote through **114** on `xcopqllkulxfkpunetbc`. Stripe: TEST only.  
+**Remote migration truth (Phase 1025):** Local=Remote through **115** on `xcopqllkulxfkpunetbc`. Stripe: TEST only.  
 
 ## Milestone Phase 513 (inventory band)
 
@@ -5276,6 +5276,14 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 **Gap:** `listing_discounts` SELECT used `using (true)` — draft promo codes/values were world-readable by listing UUID while parent listings were already published-or-owner gated (092).
 
 **Fix:** Migration `114_listing_discounts_published_or_owner_select.sql` — SELECT requires parent listing published or owned by reader.
+
+**Certification:** ADVERSARIAL-TESTED (SQL harness authored) + remote applied. Scratch Postgres re-run = host-blocked (no local docker). Ending SHA `7cf9340`.
+
+### Phase 1025 — Gate listing_availability SELECT to published or owner
+
+**Gap:** `listing_availability` SELECT used `using (true)` — draft capacity calendars were world-readable by listing UUID (same class as discounts 114).
+
+**Fix:** Migration `115_listing_availability_published_or_owner_select.sql` — SELECT requires parent listing published or owned by reader.
 
 **Certification:** ADVERSARIAL-TESTED (SQL harness authored) + remote applied. Scratch Postgres re-run = host-blocked (no local docker).
 
