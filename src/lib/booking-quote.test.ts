@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clientAmountConflictsWithQuote, formatOptionWeekdays, listingHasBookableDepartureOnDate, listingHasUpcomingBookableSeason, listingRunsOnDate, quoteBooking, quoteStayNights, stayQuotePriceLines, tourBookableSellingDeparturesOnDate, tourQuotePriceLines, weekdayIndexMondayFirst } from './booking-quote';
+import { clientAmountConflictsWithQuote, experienceTodayIsoForListing, formatOptionWeekdays, listingHasBookableDepartureOnDate, listingHasUpcomingBookableSeason, listingRunsOnDate, quoteBooking, quoteStayNights, stayQuotePriceLines, tourBookableSellingDeparturesOnDate, tourQuotePriceLines, weekdayIndexMondayFirst } from './booking-quote';
 import { tourDateLacksCapacityForParty } from './tour-calendar';
 import type { TourPackage } from '../types/tour';
 import type { ListingBookingOption } from '../types/listingExtras';
@@ -457,6 +457,16 @@ describe('listingHasBookableDepartureOnDate (Phase 1057 browse cutoff)', () => {
         nowMs
       )
     ).toBe(true);
+  });
+});
+
+describe('experienceTodayIsoForListing (Phase 1274)', () => {
+  it('uses listing TZ, with Helsinki as the platform fallback path', () => {
+    // 2026-09-15 22:30 UTC = 2026-09-16 in Europe/Helsinki
+    const now = Date.UTC(2026, 8, 15, 22, 30, 0);
+    expect(experienceTodayIsoForListing('Europe/Helsinki', now)).toBe('2026-09-16');
+    expect(experienceTodayIsoForListing('', now)).toBe('2026-09-16');
+    expect(experienceTodayIsoForListing('Not/AZone', now)).toBe('2026-09-16');
   });
 });
 

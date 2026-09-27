@@ -23,6 +23,7 @@ import {
   isDepartureTimeStillBookable,
   normalizeBookingCutoffHours,
   resolveDepartureTimezone,
+  TRAVERION_DEPARTURE_TIMEZONE,
   wallTimeInZoneToUtcMs,
 } from './tour-departure-cutoff';
 
@@ -32,7 +33,12 @@ export function experienceTodayIsoForListing(
   nowMs: number = Date.now()
 ): string {
   const tz = resolveDepartureTimezone(departureTimezone);
-  return ymdInTimeZone(nowMs, tz) ?? localYmd(new Date(nowMs));
+  // Phase 1274: platform Helsinki before browser-local — matches edge checkout quote.
+  return (
+    ymdInTimeZone(nowMs, tz) ??
+    ymdInTimeZone(nowMs, TRAVERION_DEPARTURE_TIMEZONE) ??
+    localYmd(new Date(nowMs))
+  );
 }
 import {
   buildParticipantMixLines,

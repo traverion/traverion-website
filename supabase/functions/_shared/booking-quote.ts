@@ -9,13 +9,19 @@ import {
   assertDepartureStillBookable,
   normalizeBookingCutoffHours,
   resolveDepartureTimezone,
+  TRAVERION_DEPARTURE_TIMEZONE,
   wallTimeInZoneToUtcMs,
 } from './tour-departure-cutoff.ts';
 
 /** Calendar “today” for quote past-date gates — listing departure TZ, not UTC. */
 function experienceTodayIsoForListing(departureTimezone: unknown, nowMs: number = Date.now()): string {
   const tz = resolveDepartureTimezone(departureTimezone);
-  return ymdInTimeZone(nowMs, tz) ?? new Date(nowMs).toISOString().slice(0, 10);
+  // Phase 1274: platform Helsinki before UTC — matches client booking-quote.
+  return (
+    ymdInTimeZone(nowMs, tz) ??
+    ymdInTimeZone(nowMs, TRAVERION_DEPARTURE_TIMEZONE) ??
+    new Date(nowMs).toISOString().slice(0, 10)
+  );
 }
 
 export type DiscountRow = {
