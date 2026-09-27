@@ -4857,6 +4857,13 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 
 **Certification:** checkout consent mobile = **MOBILE-BROWSER-TESTED**.
 
+
+### Phase 916 — Multi-option / multi-departure model certification
+
+**Evidence:** Cert LIVE listing `1807368c` currently has **1** option (Small group · hotel pickup). Multi-departure inventory suite + booking-quote option resolution remain green. Partner Edit→form open for adding a second option did not reliably mount from listings list this pass (query `?edit=` also no-op) — **browser multi-option publish deferred**.
+
+**Certification:** multi-option pricing/capacity model = **AUTOMATED-TESTED**. Multi-option UI publish/book = **PARTIAL** / not browser-certified.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.

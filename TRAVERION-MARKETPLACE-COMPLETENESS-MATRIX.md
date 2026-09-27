@@ -36,7 +36,7 @@
 | Traveler profile | PARTIAL | `consumer_profiles` | Country only with real migration; optional phone later |
 | Supplier identity / onboarding | PARTIAL | `supplier_profiles` + verification | Browser-cert create→publish |
 | Tour creation | STRONG / BROWSER | listings + options/schedules; create→LIVE→book **#41** | Field-depth gaps remain; dedicated traveler next |
-| Tour options | PARTIAL | `bookingOptions[]` JSON | Cert multi-option publish/book |
+| Tour options | PARTIAL | JSON model + unit cert (916); cert listing 1 option | Browser multi-option publish deferred |
 | Schedules / seasons | PARTIAL | schedule JSON + availability | Overlap/DST/timezone model |
 | Stay creation | PARTIAL→STRONG | publish gates 102; book #40 (875); depth inventory 913 | Amenities polish later |
 | Rentals | NOT REQUIRED YET / HONEST | Partner “Not available to list yet” (879) | Keep honest until domain model defined |
