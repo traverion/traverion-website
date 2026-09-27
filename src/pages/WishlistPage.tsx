@@ -17,7 +17,7 @@ import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
 import { isListingVisibleToTravelers } from '../lib/product-workflows';
 import { MARKETPLACE_BROWSE_GRID_CLASS } from '../lib/marketplaceBrowse';
 import { fetchDiscountsByListingIds, type ListingDiscount } from '../data/supabase-discounts';
-import { isSupabaseListingId } from '../lib/listing-creation-persist';
+import { isSupabaseListingId } from '../lib/discount-display';
 
 interface WishlistPageProps {
   onNavigate: (page: string) => void;
