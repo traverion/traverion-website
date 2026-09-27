@@ -4,7 +4,7 @@
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
 **Current SHA:** `289f924`  
-**Current phase:** 1006  
+**Current phase:** 1007  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -5144,6 +5144,14 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 **Fix:** Use `body`. `tsc -p tsconfig.app.json` clean.
 
 **Certification:** CODE-INSPECTED / typecheck.
+
+### Phase 1007 — Supplier cancel request modal browser-certified (no submit)
+
+**Browser (partner demo):** Bookings → Upcoming → #39 Paid → Request cancellation.
+
+**Observed (no mutation):** Modal states traveler must accept; Consequences show full refund becomes **Refund due** until Stripe Refunded (no auto-refund); Fee €0 force majeure recorded on accept; Submit disabled until explanation; Keep booking closes.
+
+**Certification:** supplier cancel UI = **BROWSER-TESTED** (open/honesty only). End-to-end accept/refund = prior traveler cancel + FOUNDER auto-refund.
 
 ## Known remaining risks (ranked)
 
