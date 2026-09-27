@@ -3,7 +3,7 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
 import { quoteListingBooking, stayCheckoutNightsAlreadyBooked, stayNightIsOperatorBlocked, stayRangeFromBooking, tourDepartureSlotCapacity, type DiscountRow, type ListingQuoteRow, type StayCheckoutOccupancyRow } from '../_shared/booking-quote.ts';
-import { tourCheckoutOccupiedGuests, type TourCheckoutOccupancyRow } from '../_shared/booking-hold.ts';
+import { tourCheckoutOccupiedGuests, inventoryStartTimeHmFromBooking, type TourCheckoutOccupancyRow } from '../_shared/booking-hold.ts';
 import { checkoutPaymentStatusCanResume, resumeStayCheckoutDate, checkoutResumeLostRaceToPaid } from '../_shared/checkout-resume.ts';
 import { resumeStayLeadGuestName, stayCheckoutLeadGuestNameReady } from '../_shared/stay-checkout-guest.ts';
 import {
@@ -138,7 +138,7 @@ serve(async (req) => {
     const specialRequests = String(body.specialRequests ?? '').trim();
     const requestedOptionId = String(body.bookingOptionId ?? '').trim();
     const startTimeRaw = String((body as { startTime?: unknown }).startTime ?? '').trim();
-    const startTime = /^\d{1,2}:\d{2}$/.test(startTimeRaw)
+    let startTime = /^\d{1,2}:\d{2}$/.test(startTimeRaw)
       ? startTimeRaw.padStart(5, '0')
       : '';
     let checkoutDate = String(body.checkoutDate ?? '').trim();
@@ -174,7 +174,7 @@ serve(async (req) => {
       const withOption = await admin
         .from('bookings')
         .select(
-          'id, listing_id, guest_email, guest_user_id, guest_name, guests, booking_date, check_out, nights, status, payment_status, total_amount, currency, special_requests, booking_option_id, checkout_session_id'
+          'id, listing_id, guest_email, guest_user_id, guest_name, guests, booking_date, check_out, nights, status, payment_status, total_amount, currency, special_requests, booking_option_id, checkout_session_id, start_time, purchase_snapshot'
         )
         .eq('id', targetBookingId)
         .maybeSingle();
@@ -183,7 +183,7 @@ serve(async (req) => {
         const fallback = await admin
           .from('bookings')
           .select(
-            'id, listing_id, guest_email, guest_user_id, guest_name, guests, booking_date, status, payment_status, total_amount, currency, special_requests, checkout_session_id'
+            'id, listing_id, guest_email, guest_user_id, guest_name, guests, booking_date, status, payment_status, total_amount, currency, special_requests, checkout_session_id, start_time'
           )
           .eq('id', targetBookingId)
           .maybeSingle();
@@ -235,6 +235,15 @@ serve(async (req) => {
         optionIdFromNotes(row.special_requests) ||
         requestedOptionId ||
         null;
+      // Sold seat = purchase_snapshot.startTimeHm, else bookings.start_time (Phase 1080).
+      // Trips Pay now only sends bookingId — must restore departure before quote + assert.
+      if (!startTime) {
+        const purchased = inventoryStartTimeHmFromBooking({
+          start_time: typeof row.start_time === 'string' ? row.start_time : null,
+          purchase_snapshot: row.purchase_snapshot,
+        });
+        if (purchased) startTime = purchased;
+      }
     } else {
       if (!listingId) return json({ success: false, error: 'listingId is required' }, 400);
       if (!bookingDate || !/^\d{4}-\d{2}-\d{2}$/.test(bookingDate)) {

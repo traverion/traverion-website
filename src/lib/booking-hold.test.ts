@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { bookingOccupiesInventory, bookingOccupiesPublicStayCalendar, CHECKOUT_HOLD_MINUTES, tourCheckoutOccupiedGuests, formatPartnerCheckoutHoldLabel } from './booking-hold';
+import { bookingOccupiesInventory, bookingOccupiesPublicStayCalendar, CHECKOUT_HOLD_MINUTES, tourCheckoutOccupiedGuests, formatPartnerCheckoutHoldLabel, inventoryStartTimeHmFromBooking } from './booking-hold';
 import { partnerTourRemainingSpots } from './availability-ops';
-import { bookingOccupiesInventory as checkoutSessionOccupiesInventory, tourCheckoutOccupiedGuests as checkoutTourOccupiedGuests } from '../../supabase/functions/_shared/booking-hold';
+import { bookingOccupiesInventory as checkoutSessionOccupiesInventory, tourCheckoutOccupiedGuests as checkoutTourOccupiedGuests, inventoryStartTimeHmFromBooking as denoInventoryStartTimeHmFromBooking } from '../../supabase/functions/_shared/booking-hold';
 
 describe('booking inventory holds', () => {
   const now = Date.parse('2026-09-08T12:00:00.000Z');
@@ -86,6 +86,16 @@ describe('booking inventory holds', () => {
     expect(tourCheckoutOccupiedGuests(rows, '2026-09-15', null, now, '09:00')).toBe(4);
     expect(tourCheckoutOccupiedGuests(rows, '2026-09-15', null, now, '14:00')).toBe(0);
     expect(checkoutTourOccupiedGuests(rows, '2026-09-15', null, now, '09:00')).toBe(4);
+  });
+
+  it('inventoryStartTimeHmFromBooking prefers snapshot for resume/promote assert (Phase 1080)', () => {
+    const row = {
+      start_time: '14:00:00',
+      purchase_snapshot: { listingTitle: 'Aurora', startTimeHm: '09:00' },
+    };
+    expect(inventoryStartTimeHmFromBooking(row)).toBe('09:00');
+    expect(denoInventoryStartTimeHmFromBooking(row)).toBe('09:00');
+    expect(inventoryStartTimeHmFromBooking({ start_time: '08:30:00' })).toBe('08:30');
   });
 
   it('keeps checkout-session occupancy in sync with the app helper', () => {

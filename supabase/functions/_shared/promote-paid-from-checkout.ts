@@ -10,6 +10,7 @@ import {
   cancelledUnpaidBookingBlocksCheckoutPaid,
 } from './cancelled-booking-checkout.ts';
 import { paidPromotionShouldRefuseFullyRefundedCharge } from './stripe-charge-refund.ts';
+import { inventoryStartTimeHmFromBooking } from './booking-hold.ts';
 
 function listingKindFromExtras(extras: unknown): 'stay' | 'tour' {
   if (extras && typeof extras === 'object') {
@@ -188,16 +189,16 @@ export async function promotePaidFromCheckoutSession(params: {
   const withStay = await admin
     .from('bookings')
     .select(
-      'id, status, payment_status, currency, total_amount, checkout_session_id, payment_intent_id, listing_id, booking_date, guests, check_out, start_time'
+      'id, status, payment_status, currency, total_amount, checkout_session_id, payment_intent_id, listing_id, booking_date, guests, check_out, start_time, purchase_snapshot'
     )
     .eq('id', bookingId)
     .maybeSingle();
   let existingBooking = withStay.data as Record<string, unknown> | null;
-  if (withStay.error && /check_out|start_time/i.test(withStay.error.message)) {
+  if (withStay.error && /check_out|start_time|purchase_snapshot/i.test(withStay.error.message)) {
     const fallback = await admin
       .from('bookings')
       .select(
-        'id, status, payment_status, currency, total_amount, checkout_session_id, payment_intent_id, listing_id, booking_date, guests'
+        'id, status, payment_status, currency, total_amount, checkout_session_id, payment_intent_id, listing_id, booking_date, guests, check_out, start_time'
       )
       .eq('id', bookingId)
       .maybeSingle();
@@ -508,10 +509,13 @@ export async function promotePaidFromCheckoutSession(params: {
   const bookingDate = String(existingBooking?.booking_date ?? '').trim();
   const guests = Number(existingBooking?.guests ?? 0);
   const checkOutRaw = String(existingBooking?.check_out ?? '').trim();
-  const startTimeRaw = String(existingBooking?.start_time ?? '').trim();
-  const startTimeHm = /^\d{1,2}:\d{2}/.test(startTimeRaw)
-    ? startTimeRaw.slice(0, 5).padStart(5, '0')
-    : '';
+  // Occupancy counting prefers purchase_snapshot.startTimeHm (mig 126). Assert must use the
+  // same purchased slot — live start_time may have been ops-edited (Phase 1080).
+  const startTimeHm =
+    inventoryStartTimeHmFromBooking({
+      start_time: typeof existingBooking?.start_time === 'string' ? existingBooking.start_time : null,
+      purchase_snapshot: existingBooking?.purchase_snapshot,
+    }) || '';
   if (listingId && bookingDate && Number.isFinite(guests) && guests >= 1) {
     const { error: inventoryErr } = await admin.rpc('assert_checkout_inventory', {
       p_listing_id: listingId,
