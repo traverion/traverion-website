@@ -40,7 +40,10 @@ export async function fetchPublishedTourPaidGuests(
     p_listing_id: listingId,
   });
   if (error) throw new Error(error.message);
-  if (!Array.isArray(data)) return {};
+  // Phase 1105: non-array payload ≠ empty occupancy (would invent open seats).
+  if (!Array.isArray(data)) {
+    throw new Error('Unexpected occupancy response from published_tour_paid_guests');
+  }
   const out: Record<string, number> = {};
   for (const row of data as { departure?: unknown; paid_guests?: unknown }[]) {
     const day = String(row.departure ?? '').slice(0, 10);
@@ -70,7 +73,10 @@ export async function fetchPublishedTourPaidGuestsBySlot(
   });
   // Phase 1101: missing/failed slot RPC ≠ empty occupancy (every departure looked open).
   if (error) throw new Error(error.message);
-  if (!Array.isArray(data)) return {};
+  // Phase 1105: non-array payload ≠ empty occupancy.
+  if (!Array.isArray(data)) {
+    throw new Error('Unexpected occupancy response from published_tour_paid_guests_by_slot');
+  }
   const out: Record<string, number> = {};
   for (const row of data as { departure?: unknown; start_time_hm?: unknown; paid_guests?: unknown }[]) {
     const day = String(row.departure ?? '').slice(0, 10);
@@ -84,9 +90,16 @@ export async function fetchPublishedTourPaidGuestsBySlot(
 }
 
 async function fetchTourOptionCapacity(listingId: string): Promise<number> {
-  if (!supabase) return listingTourCapacityFromOptions([]);
-  const { data } = await supabase.from('listings').select('listing_extras').eq('id', listingId).maybeSingle();
-  const extras = data?.listing_extras as {
+  if (!supabase) throw new Error('Supabase not configured');
+  const { data, error } = await supabase
+    .from('listings')
+    .select('listing_extras')
+    .eq('id', listingId)
+    .maybeSingle();
+  // Phase 1105: listing load failure must not invent default capacity 8.
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error('Listing not found');
+  const extras = data.listing_extras as {
     bookingOptions?: Array<{
       maxSpotsPerSlot?: unknown;
       schedules?: Array<{ maxSpotsPerSlot?: unknown; status?: string } | null> | null;
