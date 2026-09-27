@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `1aa9ba4`  
-**Current phase:** 871  
+**Current SHA:** `5ad1487`  
+**Current phase:** 872  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -282,6 +282,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 869 | Create→publish photos + Publish LIVE | `9c65220` |\n
 | 870 | Create→publish→book E2E cert tour #41 | `9e89999` |
 | 871 | START fact from option fulfillment | `1aa9ba4` |
+| 872 | Snapshot integrity after listing rename #41 | `5ad1487` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -4493,6 +4494,19 @@ Also removed unused businessComplete local in Listings after 861 gate fix.
 **Fix:** When listing `experienceStartStyle` is unspecified, derive Start from option `fulfillment` (all pickup → Pickup included; all meet → Meeting point; mixed → Pickup or meet). Listing-level style still wins when set.
 
 **Tests:** `tour-quick-facts.test.ts` (4).
+
+### Phase 872 — Historical purchase snapshot survives listing rename
+
+**Proof:** After booking #41 on “Phase 864 Cert Northern Lights Small Group”:
+
+1. Renamed live listing title → **Phase 872 RENAMED After Purchase** (supplier JWT PATCH)
+2. DB: `bookings.purchase_snapshot.listingTitle` for #41 remains **Phase 864 Cert Northern Lights Small Group**
+3. Trips UI: Ref #41 still shows purchased title (not RENAMED)
+4. PDP live page H1 shows **Phase 872 RENAMED After Purchase**
+
+**Also:** prior unit coverage `displayListingTitleFromPurchase` in `purchase-snapshot.test.ts`.
+
+**Certification:** snapshot integrity = **BROWSER-TESTED** + **INTEGRATION** (REST read) + **AUTOMATED-TESTED**.
 
 ## Known remaining risks (ranked)
 

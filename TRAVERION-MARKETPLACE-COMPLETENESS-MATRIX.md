@@ -45,7 +45,7 @@
 | Listing detail | PARTIAL | published listing + options | Snapshot fields at book time already stronger |
 | Quote | TEST-ONLY / STRONG | Edge checkout session quoting | Keep server-authoritative |
 | Checkout | TEST-ONLY / STRONG | Stripe TEST + holds; allowlisted returnOrigin | Deployed return-origin fix (865) |
-| Booking snapshots | PARTIAL | `purchase_snapshot` + freezes | Snapshot policy edits impact UX |
+| Booking snapshots | STRONG / BROWSER | `purchase_snapshot` + freezes; rename #41 | Policy/price edit cases still deepen |
 | Booking state machine | PARTIAL→STRONG | pending/confirmed/cancelled + payment_status; mig 100 NOT NULL | Remote-apply 100 + re-run SQL guard |
 | Inventory / concurrency | PARTIAL | `assert_checkout_inventory` + advisory lock | Slot-scoped lock; public remaining spots |
 | Payments | TEST-ONLY / STRONG | Stripe webhook → payment_status; #39 BROWSER | Never invent paid from redirect |
