@@ -432,6 +432,9 @@ serve(async (req) => {
     }
 
     const admin = createClient(supabaseUrl, serviceRoleKey);
+    // Phase 1139: fieldDiffs/changeSummary only from supplier-side or service-role
+    // (guest_message / booking_detail_changed may still carry guest-authored copy).
+    let allowCallerFieldDiffs = false;
 
     // Phase 1093: booking/review-tied kinds reject anonymous forgery (1092 parity).
     // Service-role (webhook/promote) or JWT owner/team/guest/review-author only.
@@ -440,7 +443,9 @@ serve(async (req) => {
     // Phase 1127: guest JWT may only invoke guest-originated booking events.
     if (isBookingTiedSupplierEvent(payload.eventType) || isReviewTiedSupplierEvent(payload.eventType)) {
       const authHeader = req.headers.get('Authorization');
-      if (!isServiceRoleBearer(authHeader, serviceRoleKey)) {
+      if (isServiceRoleBearer(authHeader, serviceRoleKey)) {
+        allowCallerFieldDiffs = true;
+      } else {
         const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
         if (!anonKey || !authHeader) {
           return json({ success: false, error: 'Unauthorized' }, 401);
@@ -544,6 +549,7 @@ serve(async (req) => {
         ) {
           return json({ success: false, error: 'Unauthorized' }, 401);
         }
+        allowCallerFieldDiffs = callerIsSupplierSide;
       }
     }
 
@@ -648,6 +654,20 @@ serve(async (req) => {
     // Phase 1129: cancel unpaid copy from booking payment_status, not caller flag.
     if (effectivePayload.eventType === 'booking_cancelled' && bookingRow) {
       effectivePayload.unpaidCheckout = notifyUnpaidCheckoutFromPaymentStatus(bookingRow.payment_status);
+    }
+    // Phase 1139: guests may not forge cancel fieldDiffs; rebuild from unpaid truth.
+    if (effectivePayload.eventType === 'booking_cancelled' && !allowCallerFieldDiffs) {
+      const unpaid = effectivePayload.unpaidCheckout === true;
+      effectivePayload.changeSummary = undefined;
+      effectivePayload.fieldDiffs = [
+        {
+          label: 'Cancellation & refund',
+          before: unpaid ? 'Unpaid checkout' : 'Active booking',
+          after: unpaid
+            ? 'Unpaid checkout cancelled — no payment collected'
+            : 'Cancelled — refund status follows Trips / Stripe',
+        },
+      ];
     }
 
     const idempotencyKey =
