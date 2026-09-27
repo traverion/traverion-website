@@ -53,7 +53,7 @@
 | Refunds | PARTIAL / HONEST | Manual Stripe; Refund due #41; no-refund #40 | Auto-refund = FOUNDER if desired |
 | Messaging | PARTIAL→STRONG | `booking_messages`; cross-user deny #41 (885) | No fake realtime; delivery cert |
 | Reviews | STRONG / UNIT | ownership + paid+confirmed+after-start (879) | Supplier response / moderation later |
-| Wishlist / Saved | PARTIAL | `wishlist` | Thin adversarial coverage |
+| Wishlist / Saved | STRONG / ADVERSARIAL | published-only insert (104/887) | Unpublished soft-delete UX |
 | Trips | PARTIAL | `fetchMyBookings` + session guard | Continue honesty |
 | Supplier Bookings / Pickup | STRONG / BROWSER | Refund due #41 + pickup excludes cancel (884) | Stay reservation pickup N/A |
 | Availability ops | PARTIAL | calendar / capacity | Protect confirmed bookings on edit |

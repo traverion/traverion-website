@@ -3,13 +3,13 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `b5ba987`  
-**Current phase:** 886  
+**Current SHA:** `f44e173`  
+**Current phase:** 887  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Local-only (gitignored):** `scripts/cert-transactional-emails.cjs` — must stay untracked; contains service-role secrets when present locally  
-**Remote migration truth (Phase 862):** Local=Remote for **080–103** on `xcopqllkulxfkpunetbc`. Stripe: TEST only.  
+**Remote migration truth (Phase 862):** Local=Remote for **080–104** on `xcopqllkulxfkpunetbc`. Stripe: TEST only.  
 
 ## Milestone Phase 513 (inventory band)
 
@@ -4651,6 +4651,14 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 - Browser: `/packages?uuid=<draft>` does not open draft PDP — catalog shows **6 published** tours only
 
 **Certification:** unpublished exclusion from public catalog/API = **ADVERSARIAL-TESTED** + **BROWSER-TESTED**.
+
+### Phase 887 — Wishlist cannot save draft listings
+
+**Bug:** INSERT wishlist only checked `auth.uid()=user_id` — Anna could save draft Snowshoe listing.
+
+**Fix (migration 104, pushed):** insert WITH CHECK requires listing `status=published`; prune non-published wishlist rows.
+
+**Verify:** draft insert → RLS error; published insert OK; Jonas still cannot see Anna rows.
 
 ## Known remaining risks (ranked)
 
