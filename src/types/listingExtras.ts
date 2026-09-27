@@ -295,7 +295,8 @@ function syncHeadlinePriceFromCategories(
 
 export function normalizeListingBookingOption(raw: Record<string, unknown>, fallbackId: string): ListingBookingOption {
   const minP = typeof raw.minPersons === 'number' && raw.minPersons >= 1 ? Math.floor(raw.minPersons) : 1;
-  const maxP = typeof raw.maxPersons === 'number' && raw.maxPersons >= minP ? Math.floor(raw.maxPersons) : Math.max(minP, 12);
+  // Phase 1227: do not invent maxPersons 12 when unset (edge 1226 parity).
+  const maxP = typeof raw.maxPersons === 'number' && raw.maxPersons >= minP ? Math.floor(raw.maxPersons) : minP;
   // Phase 1225: never invent slot cap from maxPersons (parity with edge parseSchedule 1205).
   const spots =
     typeof raw.maxSpotsPerSlot === 'number' && Number.isFinite(raw.maxSpotsPerSlot) && raw.maxSpotsPerSlot >= 1
@@ -370,8 +371,9 @@ export function normalizeListingOptionSchedule(
   fallbackId: string
 ): ListingOptionSchedule {
   const minP = typeof raw.minPersons === 'number' && raw.minPersons >= 1 ? Math.floor(raw.minPersons) : 1;
+  // Phase 1227: do not invent maxPersons 12 when unset.
   const maxP =
-    typeof raw.maxPersons === 'number' && raw.maxPersons >= minP ? Math.floor(raw.maxPersons) : Math.max(minP, 12);
+    typeof raw.maxPersons === 'number' && raw.maxPersons >= minP ? Math.floor(raw.maxPersons) : minP;
   // Phase 1225: never invent schedule slot cap from maxPersons.
   const spots =
     typeof raw.maxSpotsPerSlot === 'number' && Number.isFinite(raw.maxSpotsPerSlot) && raw.maxSpotsPerSlot >= 1
