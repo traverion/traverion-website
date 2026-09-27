@@ -49,6 +49,7 @@ export function parseGroupSizeRange(groupSize: string | undefined): { min: numbe
 /**
  * Party bounds when listing data defines them; null when unknown (no invent-12).
  * Phase 1223: catalog guest filters must fail closed on null.
+ * Phase 1232: option/schedule maxPersons below 1 (or below min) → unknown (no invent as minPersons).
  */
 export function getPartySizeBoundsKnown(tour: TourPackage): { min: number; max: number } | null {
   const opts = materializedBookingOptions(tour.listingExtras?.bookingOptions);
@@ -60,12 +61,14 @@ export function getPartySizeBoundsKnown(tour: TourPackage): { min: number; max: 
         const ready = listingOptionReadySchedules(o);
         if (ready.length > 0) {
           for (const s of ready) {
+            if (s.maxPersons < 1 || s.maxPersons < s.minPersons) return null;
             mins.push(s.minPersons);
             maxes.push(s.maxPersons);
           }
           continue;
         }
       }
+      if (o.maxPersons < 1 || o.maxPersons < o.minPersons) return null;
       mins.push(o.minPersons);
       maxes.push(o.maxPersons);
     }
@@ -111,20 +114,24 @@ export function getPartySizeBoundsForVariant(
         const resolved = resolveScheduleForDate(opt, day, startTime?.trim() || undefined);
         if (resolved) {
           const min = Math.max(1, Math.floor(resolved.minPersons));
-          const max = Math.min(99, Math.max(min, Math.floor(resolved.maxPersons)));
-          return { min, max };
+          const maxRaw = Math.floor(resolved.maxPersons);
+          // Phase 1232: missing/invalid maxPersons → fail-closed (no invent as min).
+          if (!Number.isFinite(maxRaw) || maxRaw < 1 || maxRaw < min) return { min: 1, max: 0 };
+          return { min, max: Math.min(99, maxRaw) };
         }
       }
       const ready = listingOptionReadySchedules(opt);
       if (ready.length > 0) {
         const min = Math.max(1, Math.min(...ready.map((s) => Math.floor(s.minPersons))));
-        const max = Math.min(99, Math.max(min, Math.max(...ready.map((s) => Math.floor(s.maxPersons)))));
-        return { min, max };
+        const maxRaw = Math.max(...ready.map((s) => Math.floor(s.maxPersons)));
+        if (!Number.isFinite(maxRaw) || maxRaw < 1 || maxRaw < min) return { min: 1, max: 0 };
+        return { min, max: Math.min(99, maxRaw) };
       }
     }
     const min = Math.max(1, Math.floor(opt.minPersons));
-    const max = Math.min(99, Math.max(min, Math.floor(opt.maxPersons)));
-    return { min, max };
+    const maxRaw = Math.floor(opt.maxPersons);
+    if (!Number.isFinite(maxRaw) || maxRaw < 1 || maxRaw < min) return { min: 1, max: 0 };
+    return { min, max: Math.min(99, maxRaw) };
   }
   return getPartySizeBounds(tour);
 }

@@ -104,7 +104,8 @@ describe('legacy Adult/Child options → age-dependent option', () => {
     const coalesced = coalesceLegacyParticipantTicketOptions(opts);
     expect(coalesced).toHaveLength(1);
     expect(coalesced[0].maxSpotsPerSlot).toBe(0);
-    expect(coalesced[0].maxPersons).toBe(1);
+    // Phase 1232: no invent maxPersons as minPersons when tickets omit a cap.
+    expect(coalesced[0].maxPersons).toBe(0);
   });
 
   it('traveler variants expose one Hotel pickup option with age mix quote', () => {

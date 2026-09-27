@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { TourPackage } from '../types/tour';
 import type { ListingBookingOption } from '../types/listingExtras';
-import { getPartySizeBounds, getPartySizeBoundsForVariant, getTourBookingVariants } from './booking-flow';
+import {
+  getPartySizeBounds,
+  getPartySizeBoundsForVariant,
+  getPartySizeBoundsKnown,
+  getTourBookingVariants,
+} from './booking-flow';
 import { defaultAgeDependentCategories } from './price-categories';
+import { normalizeListingBookingOption } from '../types/listingExtras';
 
 const daily = [true, true, true, true, true, true, true];
 
@@ -160,5 +166,25 @@ describe('getTourBookingVariants with schedules', () => {
     const variant = getTourBookingVariants(tour)[0];
     expect(getPartySizeBoundsForVariant(tour, variant, '2026-09-15', '20:00')).toEqual({ min: 2, max: 8 });
     expect(getPartySizeBoundsForVariant(tour, variant, '2026-10-15', '19:00')).toEqual({ min: 4, max: 6 });
+  });
+
+  it('Phase 1232: unset option maxPersons fails closed (no invent as minPersons)', () => {
+    const option = normalizeListingBookingOption(
+      {
+        id: 'opt-1',
+        name: 'Small group',
+        priceUsd: 99,
+        startTime: '10:00',
+        duration: '3 hours',
+        pickupPlace: 'Hotel',
+        minPersons: 2,
+        maxSpotsPerSlot: 8,
+        weekdays: daily,
+      },
+      'opt-1'
+    );
+    expect(option.maxPersons).toBe(0);
+    expect(getPartySizeBoundsKnown(tourWithOption(option))).toBeNull();
+    expect(getPartySizeBounds(tourWithOption(option))).toEqual({ min: 1, max: 0 });
   });
 });
