@@ -55,8 +55,10 @@ export type RecipientResolution =
   | { ok: true; to: string; amount: number | undefined; currency: string }
   | { ok: false; error: string; status: number };
 
+/** Phase 1134: accept paid/complete/succeeded (parity with payment-states). */
 function paidConfirmationMaySend(paymentStatus: string | null | undefined): boolean {
-  return String(paymentStatus ?? '').trim().toLowerCase() === 'paid';
+  const pay = String(paymentStatus ?? '').trim().toLowerCase();
+  return pay === 'paid' || pay === 'complete' || pay === 'succeeded';
 }
 
 // Phase 585: refund_completed is only ever sent after Stripe confirms a FULL

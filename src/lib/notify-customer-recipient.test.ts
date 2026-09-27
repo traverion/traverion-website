@@ -140,6 +140,20 @@ describe('resolveBookingTiedRecipient (Phase 578 arbitrary-recipient fix)', () =
     expect(result).toEqual({ ok: true, to: REAL_GUEST_EMAIL, amount: 199.5, currency: 'USD' });
   });
 
+  it('Phase 1134: booking_confirmed_paid accepts complete/succeeded payment_status', () => {
+    for (const payment_status of ['complete', 'succeeded'] as const) {
+      const result = resolveBookingTiedRecipient({
+        kind: 'booking_confirmed_paid',
+        bookingId: REAL_BOOKING_ID,
+        bookingRow: { ...paidRow, payment_status },
+        callerEmail: REAL_GUEST_EMAIL,
+        callerAmount: undefined,
+        callerCurrency: 'EUR',
+      });
+      expect(result).toEqual({ ok: true, to: REAL_GUEST_EMAIL, amount: 199.5, currency: 'USD' });
+    }
+  });
+
   // Phase 585: refund_completed is the one other kind notify-customer-booking
   // trusts a caller-supplied amount for. It is only ever triggered
   // server-side (stripe-webhook, after Stripe confirms a FULL refund), and
