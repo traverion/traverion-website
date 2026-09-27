@@ -448,18 +448,29 @@ serve(async (req) => {
       {
         const withTime = await admin
           .from('bookings')
-          .select('id, booking_date, guests, status, payment_status, hold_expires_at, created_at, start_time')
+          .select('id, booking_date, guests, status, payment_status, hold_expires_at, created_at, start_time, purchase_snapshot')
           .eq('listing_id', listingId)
           .eq('booking_date', bookingDate);
-        if (withTime.error && /start_time/i.test(withTime.error.message)) {
+        if (withTime.error && /start_time|purchase_snapshot/i.test(withTime.error.message)) {
           const fallback = await admin
             .from('bookings')
-            .select('id, booking_date, guests, status, payment_status, hold_expires_at, created_at')
+            .select('id, booking_date, guests, status, payment_status, hold_expires_at, created_at, start_time')
             .eq('listing_id', listingId)
             .eq('booking_date', bookingDate);
-          if (fallback.error) return json({ success: false, error: fallback.error.message }, 500);
-          tourRows = (fallback.data ?? []) as TourCheckoutOccupancyRow[];
-          canScopeByStartTime = false;
+          if (fallback.error && /start_time/i.test(fallback.error.message)) {
+            const bare = await admin
+              .from('bookings')
+              .select('id, booking_date, guests, status, payment_status, hold_expires_at, created_at')
+              .eq('listing_id', listingId)
+              .eq('booking_date', bookingDate);
+            if (bare.error) return json({ success: false, error: bare.error.message }, 500);
+            tourRows = (bare.data ?? []) as TourCheckoutOccupancyRow[];
+            canScopeByStartTime = false;
+          } else if (fallback.error) {
+            return json({ success: false, error: fallback.error.message }, 500);
+          } else {
+            tourRows = (fallback.data ?? []) as TourCheckoutOccupancyRow[];
+          }
         } else if (withTime.error) {
           return json({ success: false, error: withTime.error.message }, 500);
         } else {

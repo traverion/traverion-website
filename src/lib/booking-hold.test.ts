@@ -67,6 +67,27 @@ describe('booking inventory holds', () => {
     expect(checkoutTourOccupiedGuests(rows, '2026-09-15', null, now, '09:00')).toBe(4);
   });
 
+  it('keeps occupancy on purchased departure when ops edits start_time (Phase 1072)', () => {
+    const rows = [
+      {
+        id: 'moved',
+        status: 'confirmed',
+        payment_status: 'paid',
+        booking_date: '2026-09-15',
+        guests: 4,
+        start_time: '14:00:00',
+        purchase_snapshot: {
+          listingTitle: 'Aurora',
+          startTimeHm: '09:00',
+          capturedAt: '2026-09-01T00:00:00.000Z',
+        },
+      },
+    ];
+    expect(tourCheckoutOccupiedGuests(rows, '2026-09-15', null, now, '09:00')).toBe(4);
+    expect(tourCheckoutOccupiedGuests(rows, '2026-09-15', null, now, '14:00')).toBe(0);
+    expect(checkoutTourOccupiedGuests(rows, '2026-09-15', null, now, '09:00')).toBe(4);
+  });
+
   it('keeps checkout-session occupancy in sync with the app helper', () => {
     const rows = [
       { status: 'confirmed', payment_status: 'paid' },

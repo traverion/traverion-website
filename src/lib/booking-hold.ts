@@ -35,6 +35,8 @@ export type TourCheckoutOccupancyRow = InventoryHoldRow & {
   booking_date?: string | null;
   guests?: number | null;
   start_time?: string | null;
+  /** When present, inventory seats stay on purchased departure even if start_time was ops-edited. */
+  purchase_snapshot?: unknown;
 };
 
 /** Normalize HH:MM / HH:MM:SS to HH:MM for departure-slot matching. */
@@ -46,9 +48,29 @@ export function normalizeTourStartTimeHm(raw: string | null | undefined): string
 }
 
 /**
+ * Inventory departure slot for a booking row.
+ * Prefer purchase_snapshot.startTimeHm (sold seat); fall back to live start_time.
+ */
+export function inventoryStartTimeHmFromBooking(row: {
+  start_time?: string | null;
+  purchase_snapshot?: unknown;
+}): string {
+  const snap = row.purchase_snapshot;
+  if (snap && typeof snap === 'object') {
+    const hm = (snap as { startTimeHm?: unknown }).startTimeHm;
+    if (typeof hm === 'string') {
+      const fromSnap = normalizeTourStartTimeHm(hm);
+      if (fromSnap) return fromSnap;
+    }
+  }
+  return normalizeTourStartTimeHm(row.start_time);
+}
+
+/**
  * Checkout tour occupancy: paid + live holds.
  * Refunded, cancelled, and failed bookings must not fill capacity.
  * When startTime is set, only count bookings on that departure slot (multi-schedule same day).
+ * Slot match uses purchased startTimeHm when present so ops edits cannot move sold seats.
  */
 export function tourCheckoutOccupiedGuests(
   rows: TourCheckoutOccupancyRow[],
@@ -64,7 +86,7 @@ export function tourCheckoutOccupiedGuests(
     if (!bookingOccupiesInventory(row, nowMs)) continue;
     if (String(row.booking_date ?? '').slice(0, 10) !== departure) continue;
     if (slot) {
-      const rowSlot = normalizeTourStartTimeHm(row.start_time);
+      const rowSlot = inventoryStartTimeHmFromBooking(row);
       if (rowSlot !== slot) continue;
     }
     const g = Math.floor(Number(row.guests ?? 0));

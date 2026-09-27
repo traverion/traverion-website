@@ -1,9 +1,10 @@
-import { bookingOccupiesInventory, normalizeTourStartTimeHm } from './booking-hold';
+import { bookingOccupiesInventory, inventoryStartTimeHmFromBooking, normalizeTourStartTimeHm } from './booking-hold';
 
 export type ScheduleOccupancyBooking = {
   listing_id?: string | null;
   booking_option_id?: string | null;
   start_time?: string | null;
+  purchase_snapshot?: unknown;
   guests?: number | null;
   status?: string | null;
   payment_status?: string | null;
@@ -14,6 +15,7 @@ export type ScheduleOccupancyBooking = {
 /**
  * Occupying guests for one booking option + departure time across all dates.
  * Used when a partner lowers schedule max spots or removes a schedule.
+ * Matches inventory on purchased startTimeHm when present (ops edits do not move seats).
  */
 export function occupyingGuestsForOptionDeparture(params: {
   bookings: ScheduleOccupancyBooking[];
@@ -31,7 +33,7 @@ export function occupyingGuestsForOptionDeparture(params: {
   for (const row of params.bookings) {
     if (String(row.listing_id ?? '').trim() !== listingId) continue;
     if (String(row.booking_option_id ?? '').trim() !== optionId) continue;
-    if (normalizeTourStartTimeHm(row.start_time) !== slot) continue;
+    if (inventoryStartTimeHmFromBooking(row) !== slot) continue;
     if (!bookingOccupiesInventory(row, nowMs)) continue;
     const g = Math.floor(Number(row.guests ?? 0));
     if (Number.isFinite(g) && g >= 1) n += g;

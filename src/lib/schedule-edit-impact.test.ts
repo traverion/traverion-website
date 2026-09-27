@@ -45,6 +45,52 @@ describe('occupyingGuestsForOptionDeparture', () => {
     expect(n).toBe(3);
   });
 
+  it('keeps occupancy on purchased departure when ops edited start_time (Phase 1072)', () => {
+    const n = occupyingGuestsForOptionDeparture({
+      listingId,
+      optionId,
+      startTimeHm: '08:00',
+      bookings: [
+        {
+          listing_id: listingId,
+          booking_option_id: optionId,
+          start_time: '14:00:00',
+          purchase_snapshot: {
+            listingTitle: 'Tour',
+            startTimeHm: '08:00',
+            capturedAt: '2026-09-01T00:00:00.000Z',
+          },
+          guests: 3,
+          status: 'confirmed',
+          payment_status: 'paid',
+        },
+      ],
+    });
+    expect(n).toBe(3);
+    expect(
+      occupyingGuestsForOptionDeparture({
+        listingId,
+        optionId,
+        startTimeHm: '14:00',
+        bookings: [
+          {
+            listing_id: listingId,
+            booking_option_id: optionId,
+            start_time: '14:00:00',
+            purchase_snapshot: {
+              listingTitle: 'Tour',
+              startTimeHm: '08:00',
+              capturedAt: '2026-09-01T00:00:00.000Z',
+            },
+            guests: 3,
+            status: 'confirmed',
+            payment_status: 'paid',
+          },
+        ],
+      })
+    ).toBe(0);
+  });
+
   it('ignores cancelled and non-occupying payment states', () => {
     const n = occupyingGuestsForOptionDeparture({
       listingId,

@@ -1,8 +1,4 @@
-/**
- * Deno copy of src/lib/booking-hold.ts occupancy — keep algorithms in sync.
- * Checkout stay overlap MUST use this; SQL assert_checkout_inventory is still the lock.
- */
-
+/** Pending Stripe checkout occupies inventory until this many minutes after claim. Matches Stripe Checkout min expires_at. */
 export const CHECKOUT_HOLD_MINUTES = 30;
 
 export type InventoryHoldRow = {
@@ -26,11 +22,21 @@ export function bookingOccupiesInventory(row: InventoryHoldRow, nowMs: number = 
   return Number.isFinite(created) && created > nowMs - CHECKOUT_HOLD_MINUTES * 60 * 1000;
 }
 
+/**
+ * Public stay calendar occupancy — same rule as checkout and published_stay_occupied_ranges (079):
+ * paid + live holds. Failed, expired, refunded, cancelled do not block nights.
+ */
+export function bookingOccupiesPublicStayCalendar(row: InventoryHoldRow, nowMs: number = Date.now()): boolean {
+  return bookingOccupiesInventory(row, nowMs);
+}
+
 export type TourCheckoutOccupancyRow = InventoryHoldRow & {
   id?: string | null;
   booking_date?: string | null;
   guests?: number | null;
   start_time?: string | null;
+  /** When present, inventory seats stay on purchased departure even if start_time was ops-edited. */
+  purchase_snapshot?: unknown;
 };
 
 /** Normalize HH:MM / HH:MM:SS to HH:MM for departure-slot matching. */
@@ -42,9 +48,29 @@ export function normalizeTourStartTimeHm(raw: string | null | undefined): string
 }
 
 /**
+ * Inventory departure slot for a booking row.
+ * Prefer purchase_snapshot.startTimeHm (sold seat); fall back to live start_time.
+ */
+export function inventoryStartTimeHmFromBooking(row: {
+  start_time?: string | null;
+  purchase_snapshot?: unknown;
+}): string {
+  const snap = row.purchase_snapshot;
+  if (snap && typeof snap === 'object') {
+    const hm = (snap as { startTimeHm?: unknown }).startTimeHm;
+    if (typeof hm === 'string') {
+      const fromSnap = normalizeTourStartTimeHm(hm);
+      if (fromSnap) return fromSnap;
+    }
+  }
+  return normalizeTourStartTimeHm(row.start_time);
+}
+
+/**
  * Checkout tour occupancy: paid + live holds.
  * Refunded, cancelled, and failed bookings must not fill capacity.
  * When startTime is set, only count bookings on that departure slot (multi-schedule same day).
+ * Slot match uses purchased startTimeHm when present so ops edits cannot move sold seats.
  */
 export function tourCheckoutOccupiedGuests(
   rows: TourCheckoutOccupancyRow[],
@@ -60,11 +86,57 @@ export function tourCheckoutOccupiedGuests(
     if (!bookingOccupiesInventory(row, nowMs)) continue;
     if (String(row.booking_date ?? '').slice(0, 10) !== departure) continue;
     if (slot) {
-      const rowSlot = normalizeTourStartTimeHm(row.start_time);
+      const rowSlot = inventoryStartTimeHmFromBooking(row);
       if (rowSlot !== slot) continue;
     }
     const g = Math.floor(Number(row.guests ?? 0));
     if (Number.isFinite(g) && g >= 1) n += g;
   }
   return n;
+}
+
+export function checkoutHoldExpiresAtIso(fromMs: number = Date.now()): string {
+  return new Date(fromMs + CHECKOUT_HOLD_MINUTES * 60 * 1000).toISOString();
+}
+
+export function checkoutHoldExpiresAtUnix(fromMs: number = Date.now()): number {
+  return Math.floor(fromMs / 1000) + CHECKOUT_HOLD_MINUTES * 60;
+}
+
+/** Pending unpaid checkout that still blocks tour spots / stay nights. */
+export function partnerUnpaidCheckoutHoldsInventory(
+  row: InventoryHoldRow,
+  nowMs: number = Date.now()
+): boolean {
+  if ((row.status ?? '').trim().toLowerCase() === 'cancelled') return false;
+  const pay = (row.payment_status ?? 'pending').trim().toLowerCase();
+  if (pay !== 'pending') return false;
+  return bookingOccupiesInventory(row, nowMs);
+}
+
+/**
+ * Partner-facing hold line for Calendar day sheet / Bookings detail.
+ * Null when the row is not an unpaid pending checkout.
+ */
+export function formatPartnerCheckoutHoldLabel(
+  row: InventoryHoldRow,
+  nowMs: number = Date.now()
+): string | null {
+  if ((row.status ?? '').trim().toLowerCase() === 'cancelled') return null;
+  const pay = (row.payment_status ?? 'pending').trim().toLowerCase();
+  if (pay !== 'pending') return null;
+  if (partnerUnpaidCheckoutHoldsInventory(row, nowMs)) {
+    if (row.hold_expires_at) {
+      const exp = Date.parse(row.hold_expires_at);
+      if (Number.isFinite(exp) && exp > nowMs) {
+        const until = new Date(exp).toLocaleTimeString(undefined, {
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+        return `Checkout hold · until ${until}`;
+      }
+    }
+    return 'Checkout hold · still holding spots';
+  }
+  return 'Hold expired · inventory released';
 }
