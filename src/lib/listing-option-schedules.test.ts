@@ -324,6 +324,26 @@ describe('tourSellingDeparturesOnDate', () => {
     };
     expect(tourSellingDeparturesOnDate([legacy], '2026-09-15')).toEqual([]);
   });
+
+  it('Phase 1212: does not treat maxPersons as slot cap for legacy departures', () => {
+    const legacy = {
+      id: 'opt-legacy',
+      name: 'Legacy',
+      priceUsd: 100,
+      startTime: '10:00',
+      duration: '2 hours',
+      pickupPlace: '',
+      minPersons: 1,
+      maxPersons: 12,
+      maxSpotsPerSlot: 0,
+      optionInfo: '',
+      weekdays: daily,
+      availabilityDateFrom: '2026-01-01',
+      availabilityDateTo: '2026-12-31',
+      pricingMode: 'uniform' as const,
+    };
+    expect(tourSellingDeparturesOnDate([legacy], '2026-09-15')).toEqual([]);
+  });
 });
 
 describe('optionCapacityForDepartureTime (Phase 1207)', () => {
