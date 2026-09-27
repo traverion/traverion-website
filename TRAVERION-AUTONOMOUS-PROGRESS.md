@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `ff5a372`  
-**Current phase:** 867  
+**Current SHA:** `9a435a2`  
+**Current phase:** 868  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -278,6 +278,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 865 | Stripe TEST pay E2E + checkout returnOrigin allowlist | `e8c5e0a` |
 | 866 | Browser Stripe TEST stay pay + returnOrigin verified | `66ce29f` |
 | 867 | Create→publish draft Story+Details filled | `ff5a372` |
+| 868 | Create→publish option+schedule READY | `9a435a2` |
 
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
@@ -4451,6 +4452,16 @@ Also removed unused businessComplete local in Listings after 861 gate fix.
 - Advanced to **Details**: inclusions/exclusions, Rovaniemi/Finland destination, itinerary, age 8+, schedule style **fixed_slots**; Save draft
 
 **Still open for publish:** Options (price/capacity/schedules), Photos (4+), Review → Publish. Continues 868+.
+
+### Phase 868 — Create→publish: complete bookable option + schedule
+
+**Browser:** Draft `1807368c-…` Options step.
+
+- Option **Small group · hotel pickup**: 4h, pickup “Your Rovaniemi hotel or Airbnb within city center”
+- Schedule **Autumn aurora**: 28 Sept–31 Dec · Mon–Sat · 20:00 · **€119**/person · max 8 · status READY
+- Finish option → Options list READY · Continue → Photos
+
+**Still open:** 4 photos minimum, Review → Publish, then traveler book of this new inventory.
 
 ## Known remaining risks (ranked)
 
