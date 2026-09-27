@@ -4814,6 +4814,13 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 
 **Certification:** product edit impact notices = **AUTOMATED-TESTED**. Historical booking snapshots remain authority (872).
 
+
+### Phase 910 — Supplier B cannot reassign / edit Supplier A listings
+
+**Evidence:** Migration **091** + `listings_supplier_id_immutable.test.sql` — supplier cannot change `supplier_id`; cannot UPDATE another supplier’s listing; own title edits still work. Hardens implicit Postgres WITH CHECK reuse.
+
+**Certification:** supplier listing isolation = **ADVERSARIAL-TESTED** (SQL harness) + **CODE-INSPECTED**.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.

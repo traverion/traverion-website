@@ -67,7 +67,7 @@
 | i18n | PARTIAL | en/fi strings | Not checkbox i18n platform |
 | SEO | PARTIAL→STRONG | published sitemap snapshot (896) | Automate sitemap on publish |
 | Images / media | PARTIAL→STRONG | folder RLS + client ownership (906) | Batch orphan GC later |
-| RLS / security | STRONG / ADVERSARIAL | anon + Traveler B (anna/jonas) denied #41 (880–881) | Supplier B listing isolation re-cert |
+| RLS / security | STRONG / ADVERSARIAL | traveler deny #41 (880–881); supplier listing isolation 091/910 | Keep expanding adversarial suite |
 | Privacy | PARTIAL | policies + RLS | Minimize PII on partner surfaces |
 | Legal / consent | STRONG / BROWSER | /privacy /terms (894); checkout gate 901 + browser 905 | Server-side acceptance log later |
 | Admin / support | PARTIAL | staff panels + ADMIN_SUPPORT_READINESS (903) | Staff force-unpublish later |
