@@ -16,6 +16,8 @@ import { TourPackage } from '../types/tour';
 import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
 import { isListingVisibleToTravelers } from '../lib/product-workflows';
 import { MARKETPLACE_BROWSE_GRID_CLASS } from '../lib/marketplaceBrowse';
+import { fetchDiscountsByListingIds, type ListingDiscount } from '../data/supabase-discounts';
+import { isSupabaseListingId } from '../lib/listing-creation-persist';
 
 interface WishlistPageProps {
   onNavigate: (page: string) => void;
@@ -28,6 +30,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
   const [unavailableCount, setUnavailableCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [discountsByListing, setDiscountsByListing] = useState<Map<string, ListingDiscount[]> | null>(null);
   const loadGenRef = useRef(0);
 
   const load = useCallback(async () => {
@@ -77,6 +80,26 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
       setUnavailableCount(0);
     }
   }, [user, load]);
+
+  // Phase 1156: wishlist cards need live offer From prices (parity with browse).
+  useEffect(() => {
+    const ids = listings.map((t) => t.id).filter(isSupabaseListingId);
+    if (!isSupabaseConfigured() || ids.length === 0) {
+      setDiscountsByListing(new Map());
+      return;
+    }
+    let cancelled = false;
+    fetchDiscountsByListingIds(ids)
+      .then((map) => {
+        if (!cancelled) setDiscountsByListing(map);
+      })
+      .catch(() => {
+        if (!cancelled) setDiscountsByListing(new Map());
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [listings]);
 
   const handleRemove = async (listingId: string) => {
     if (!user) return;
@@ -231,7 +254,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
                 tour={tour}
                 index={index}
                 onSelect={() => onTourSelect(tour)}
-                discountsByListing={new Map()}
+                discountsByListing={discountsByListing}
                 tagLabels={{}}
                 size="compact"
                 wishlist={{
