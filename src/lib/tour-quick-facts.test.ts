@@ -72,4 +72,68 @@ describe('tourQuickFacts', () => {
       ])
     );
   });
+
+  it('derives Start from option fulfillment when listing style is unspecified', () => {
+    const pickupOnly = tourQuickFacts(
+      tour({
+        experienceStartStyle: 'unspecified',
+        meetingPoint: 'Your Rovaniemi hotel',
+        listingExtras: {
+          bookingOptions: [
+            {
+              id: 'o1',
+              name: 'Small group',
+              priceUsd: 119,
+              duration: '4 hours',
+              fulfillment: 'pickup',
+              pickupPlace: 'Your Rovaniemi hotel',
+              optionInfo: 'Hotel pickup',
+              minPersons: 1,
+              maxPersons: 8,
+              maxSpotsPerSlot: 8,
+              schedules: [],
+            },
+          ],
+        },
+      })
+    );
+    expect(pickupOnly.find((f) => f.label === 'Start')?.value).toBe('Pickup included');
+
+    const mixed = tourQuickFacts(
+      tour({
+        experienceStartStyle: undefined,
+        listingExtras: {
+          bookingOptions: [
+            {
+              id: 'a',
+              name: 'Pickup',
+              priceUsd: 100,
+              duration: '3 hours',
+              fulfillment: 'pickup',
+              pickupPlace: 'Hotel zone',
+              optionInfo: 'Pickup',
+              minPersons: 1,
+              maxPersons: 8,
+              maxSpotsPerSlot: 8,
+              schedules: [],
+            },
+            {
+              id: 'b',
+              name: 'Meet',
+              priceUsd: 90,
+              duration: '3 hours',
+              fulfillment: 'meeting_point',
+              pickupPlace: 'City square',
+              optionInfo: 'Meet',
+              minPersons: 1,
+              maxPersons: 12,
+              maxSpotsPerSlot: 12,
+              schedules: [],
+            },
+          ],
+        },
+      })
+    );
+    expect(mixed.find((f) => f.label === 'Start')?.value).toBe('Pickup or meet');
+  });
 });

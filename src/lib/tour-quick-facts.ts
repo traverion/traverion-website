@@ -1,5 +1,5 @@
 import type { TourPackage } from '../types/tour';
-import { formatTourDurationDisplay } from '../types/listingExtras';
+import { formatTourDurationDisplay, materializedBookingOptions } from '../types/listingExtras';
 import { listingShowsFreeCancellation } from './listingTruth';
 
 const LANGUAGE_LABELS: Record<string, string> = {
@@ -31,10 +31,29 @@ export function tourKindLabel(kind: TourPackage['experienceKind']): string {
   return 'Tour';
 }
 
-function pickupFact(tour: TourPackage): string | null {
+/**
+ * START fact for the PDP strip.
+ * Prefer explicit listing start style; otherwise derive from option fulfillment
+ * so a pickup-only option is never labeled “Meeting point” merely because a
+ * place string was denormalized onto the listing.
+ */
+export function pickupFact(tour: TourPackage): string | null {
   if (tour.experienceStartStyle === 'operator_pickup') return 'Pickup included';
   if (tour.experienceStartStyle === 'fixed_meeting_place') return 'Meeting point';
   if (tour.experienceStartStyle === 'either_available') return 'Pickup or meet';
+
+  const options = materializedBookingOptions(tour.listingExtras?.bookingOptions);
+  const fulfillments = options
+    .map((o) => o.fulfillment)
+    .filter((f): f is 'pickup' | 'meeting_point' => f === 'pickup' || f === 'meeting_point');
+  if (fulfillments.length > 0) {
+    const allPickup = fulfillments.every((f) => f === 'pickup');
+    const allMeet = fulfillments.every((f) => f === 'meeting_point');
+    if (allPickup) return 'Pickup included';
+    if (allMeet) return 'Meeting point';
+    return 'Pickup or meet';
+  }
+
   if (tour.meetingPoint?.trim()) return 'Meeting point';
   return null;
 }

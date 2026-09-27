@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `9e89999`  
-**Current phase:** 870  
+**Current SHA:** `1aa9ba4`  
+**Current phase:** 871  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -281,6 +281,7 @@ Browser golden journeys still **not** certified (partner session blocker).
 | 868 | Create→publish option+schedule READY | `ceb5401` |
 | 869 | Create→publish photos + Publish LIVE | `9c65220` |\n
 | 870 | Create→publish→book E2E cert tour #41 | `9e89999` |
+| 871 | START fact from option fulfillment | `1aa9ba4` |
 ### Phase 498–499 — stay sticky CTA
 `stayStickyBookCtaLabel` mirrors tour sticky honesty: occupied dates never say Continue · TEST. Tests 4/4.
 
@@ -4484,6 +4485,14 @@ Also removed unused businessComplete local in Listings after 861 gate fix.
 3. Success return **localhost** · **Booking confirmed Ref #41 · €119 TEST** · option Small group · hotel pickup · 20:00
 
 **Certification:** supplier UI create→publish→traveler Stripe TEST book = **BROWSER-TESTED** (partner session as guest; dedicated traveler account still P1). Stay path already #40.
+
+### Phase 871 — START fact honors option pickup fulfillment
+
+**Bug (870 PDP):** Cert tour with pickup-only option showed START **Meeting point** because `pickupFact` fell through to `meetingPoint` string denormalized from the option place.
+
+**Fix:** When listing `experienceStartStyle` is unspecified, derive Start from option `fulfillment` (all pickup → Pickup included; all meet → Meeting point; mixed → Pickup or meet). Listing-level style still wins when set.
+
+**Tests:** `tour-quick-facts.test.ts` (4).
 
 ## Known remaining risks (ranked)
 
