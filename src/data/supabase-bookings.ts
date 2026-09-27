@@ -937,7 +937,10 @@ export async function fetchPublishedStayOccupiedRanges(
     p_listing_id: listingId,
   });
   if (error) throw new Error(error.message);
-  if (!Array.isArray(data)) return [];
+  // Phase 1106: non-array ≠ empty occupancy (every night looked open).
+  if (!Array.isArray(data)) {
+    throw new Error('Unexpected occupancy response from published_stay_occupied_ranges');
+  }
   return (data as { check_in: string; check_out: string }[])
     .map((row) => ({
       checkIn: String(row.check_in ?? '').slice(0, 10),
@@ -963,7 +966,10 @@ export async function fetchPublishedStayBlockedNights(
     .gte('available_date', today)
     .lte('capacity', 0);
   if (error) throw new Error(error.message);
-  if (!Array.isArray(data)) return [];
+  // Phase 1106: non-array ≠ empty blocked nights.
+  if (!Array.isArray(data)) {
+    throw new Error('Unexpected response from listing_availability blocked nights');
+  }
   return (data as { available_date: string; capacity: number }[])
     .map((row) => String(row.available_date ?? '').slice(0, 10))
     .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d));
