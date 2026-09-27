@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness** (continuing 1001+)  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `b4f96f6`  
-**Current phase:** 1036  
+**Current SHA:** `269b335`  
+**Current phase:** 1037  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -5375,7 +5375,13 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 
 **Fix:** Migration `120_review_replies_published_or_party_select.sql` — published OR listing supplier OR review author.
 
-**Certification:** ADVERSARIAL-TESTED (SQL harness authored) + remote applied. Scratch Postgres re-run = host-blocked.
+**Certification:** ADVERSARIAL-TESTED (SQL harness authored) + remote applied. Scratch Postgres re-run = host-blocked. Ending SHA `269b335`.
+
+### Phase 1037 — Matrix + FOUNDER ledger refresh through 120
+
+**Fix:** Completeness matrix Reviews/continuum through **120**; `docs/FOUNDER_REQUIRED.md` lists closed non-FOUNDER ownership/SELECT/review/notify items so agents do not re-open them.
+
+**Certification:** CODE-INSPECTED / docs truth.
 
 ## Known remaining risks (ranked)
 

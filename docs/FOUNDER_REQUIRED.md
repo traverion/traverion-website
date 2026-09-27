@@ -2,7 +2,7 @@
 
 **Purpose:** Product/money decisions the autonomous mission must not invent.  
 **Stripe:** TEST only until LIVE is explicitly enabled.  
-**Updated:** Phase 1007 band (post Phase 1000 report).
+**Updated:** Phase 1036 band (post Phase 1000; remote through 120).
 
 ## Open (do not implement unilaterally)
 
@@ -25,6 +25,11 @@
 - Supplier cancel UI honesty cert (1007)
 - Rentals/packages honesty (keep non-live)
 - SEO/review schema gated on real counts
+- Cross-supplier ops ownership guards (108–111)
+- Wishlist/cart prune on unpublish (112–113)
+- Draft discounts/availability/reviews SELECT gates (114–115/119–120)
+- Review write requires paid booking (117–118)
+- Supplier self-notify JWT for welcome/verification (1033)
 
 ## Before any LIVE money discussion
 
