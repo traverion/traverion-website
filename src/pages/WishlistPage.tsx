@@ -15,6 +15,8 @@ import { fetchListingById } from '../data/supabase-listings';
 import { TourPackage } from '../types/tour';
 import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
 import { isListingVisibleToTravelers } from '../lib/product-workflows';
+import { listingIsFamily } from '../lib/inventory';
+import { listingHasUpcomingBookableSeason } from '../lib/booking-quote';
 import { MARKETPLACE_BROWSE_GRID_CLASS } from '../lib/marketplaceBrowse';
 import { fetchDiscountsByListingIds, type ListingDiscount } from '../data/supabase-discounts';
 import { isSupabaseListingId } from '../lib/discount-display';
@@ -57,7 +59,11 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
           hidden += 1;
           continue;
         }
-        if (isListingVisibleToTravelers(t.status)) {
+        if (
+          isListingVisibleToTravelers(t.status) &&
+          // Phase 1265: season-ended tours are unavailable (catalog 1260 parity).
+          (listingIsFamily(t, 'stay') || listingHasUpcomingBookableSeason(t))
+        ) {
           visible.push(t);
         } else {
           hidden += 1;
