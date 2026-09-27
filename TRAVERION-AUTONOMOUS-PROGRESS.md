@@ -3,13 +3,13 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness** (continuing 1001+)  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `e12d8e0`  
-**Current phase:** 1042  
+**Current SHA:** `c75dfcc`  
+**Current phase:** 1043  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Local-only (gitignored):** `scripts/cert-transactional-emails.cjs` — must stay untracked; contains service-role secrets when present locally  
-**Remote migration truth (Phase 1040):** Local=Remote through **122** on `xcopqllkulxfkpunetbc`. Stripe: TEST only.  
+**Remote migration truth (Phase 1043):** Local=Remote through **123** on `xcopqllkulxfkpunetbc`. Stripe: TEST only.  
 
 ## Milestone Phase 513 (inventory band)
 
@@ -5417,7 +5417,15 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 
 **Fix:** GAP_ANALYSIS supplier notifications; MIGRATIONS_006_TO_011 supersession + dead cart; GETYOURGUIDE_PARITY trust copy (no false best-price / RNP L claims).
 
-**Certification:** CODE-INSPECTED / docs truth.
+**Certification:** CODE-INSPECTED / docs truth. Ending SHA `c75dfcc`.
+
+### Phase 1043 — Require experience started for review writes
+
+**Gap:** Paid+confirmed booking could unlock a verified review via API before tour start / stay checkout (UI already gated).
+
+**Fix:** Migration `123_reviews_require_experience_started.sql` — `booking_experience_started_for_review` using listing TZ (snapshot/extras/Helsinki). Stay: local date ≥ check_out; tour: local now > date+start_time.
+
+**Certification:** CODE-INSPECTED + remote applied. Scratch Postgres full harness = host-blocked; client mirror covered by review-eligibility unit tests.
 
 ## Known remaining risks (ranked)
 
