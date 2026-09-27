@@ -53,6 +53,7 @@ import {
   displayFulfillmentFromPurchase,
   displayStayCheckInTimeFromPurchase,
   displayStayCheckOutTimeFromPurchase,
+  displayStayHouseRulesFromPurchase,
 } from '../lib/purchase-snapshot';
 import { TRAVERION_STANDARD_CANCELLATION_POLICY } from '../types/listingExtras';
 import { decrementAvailabilityBooked } from '../data/supabase-availability';
@@ -930,6 +931,16 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         </div>
                       );
                     })()}
+                    {isStay && displayStayHouseRulesFromPurchase(b.purchase_snapshot) ? (
+                      <div className="sm:col-span-2">
+                        <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
+                          House rules (when you booked)
+                        </dt>
+                        <dd className="mt-0.5 text-sm text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
+                          {displayStayHouseRulesFromPurchase(b.purchase_snapshot)}
+                        </dd>
+                      </div>
+                    ) : null}
                     {!isStay && tripMeeting ? (
                       <div className="sm:col-span-2">
                         <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
@@ -1086,7 +1097,9 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         }}
                         className="tv-btn-ghost"
                       >
-                        {b.check_out || parseStayCheckOutFromNotes(b.special_requests) ? 'View stay' : 'View tour'}
+                        {b.check_out || parseStayCheckOutFromNotes(b.special_requests)
+                          ? 'View listing'
+                          : 'View tour'}
                       </button>
                     )}
                     {liveTrip && travelerBookingNeedsPayNow(b) && (

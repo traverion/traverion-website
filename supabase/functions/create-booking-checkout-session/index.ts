@@ -391,6 +391,7 @@ serve(async (req) => {
       checkInAddress: stayFields?.checkInAddress ?? null,
       checkInTime: stayFields?.checkInTime ?? null,
       checkOutTime: stayFields?.checkOutTime ?? null,
+      houseRules: stayFields?.houseRules ?? null,
       termsAcceptedAt,
     });
 

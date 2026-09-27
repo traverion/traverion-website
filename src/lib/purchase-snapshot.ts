@@ -36,6 +36,8 @@ export type PurchaseSnapshot = {
   checkInTime?: string | null;
   /** Stay: house check-out wall clock HH:MM at purchase. */
   checkOutTime?: string | null;
+  /** Stay: house rules text frozen at purchase. */
+  houseRules?: string | null;
   /** IANA zone for departure wall clock at purchase. */
   departureTimezone?: string | null;
   /** ISO timestamp when traveler accepted checkout terms (server-stamped). */
@@ -68,6 +70,7 @@ export function buildPurchaseSnapshot(input: {
   checkInAddress?: string | null;
   checkInTime?: string | null;
   checkOutTime?: string | null;
+  houseRules?: string | null;
   departureTimezone?: string | null;
   termsAcceptedAt?: string | null;
   capturedAt?: string;
@@ -98,6 +101,7 @@ export function buildPurchaseSnapshot(input: {
   const checkInAddress = (input.checkInAddress ?? '').trim() || null;
   const checkInTime = (input.checkInTime ?? '').trim().slice(0, 5) || null;
   const checkOutTime = (input.checkOutTime ?? '').trim().slice(0, 5) || null;
+  const houseRules = (input.houseRules ?? '').trim().slice(0, 2000) || null;
   const departureTimezone = (input.departureTimezone ?? '').trim() || null;
   const termsAcceptedAt = (input.termsAcceptedAt ?? '').trim() || null;
   const snap: PurchaseSnapshot = {
@@ -122,6 +126,7 @@ export function buildPurchaseSnapshot(input: {
   if (checkInAddress) snap.checkInAddress = checkInAddress;
   if (checkInTime) snap.checkInTime = checkInTime;
   if (checkOutTime) snap.checkOutTime = checkOutTime;
+  if (houseRules) snap.houseRules = houseRules;
   if (departureTimezone) snap.departureTimezone = departureTimezone;
   if (termsAcceptedAt) snap.termsAcceptedAt = termsAcceptedAt;
   return snap;
@@ -290,6 +295,13 @@ export function displayStayCheckOutTimeFromPurchase(
     return (snapshot.checkOutTime ?? '').trim().slice(0, 5);
   }
   return (liveTime ?? '').trim().slice(0, 5);
+}
+
+/** House rules from purchase; null when snap exists without rules or no snap. */
+export function displayStayHouseRulesFromPurchase(snapshot: unknown): string | null {
+  if (!isPurchaseSnapshot(snapshot)) return null;
+  const rules = (snapshot.houseRules ?? '').trim();
+  return rules || null;
 }
 
 /**

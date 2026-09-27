@@ -21,6 +21,7 @@ import {
   displayFulfillmentFromPurchase,
   displayStayCheckInTimeFromPurchase,
   displayStayCheckOutTimeFromPurchase,
+  displayStayHouseRulesFromPurchase,
   isPurchaseSnapshot,
   partnerOpsDepartureDisplay,
 } from './purchase-snapshot';
@@ -257,6 +258,7 @@ describe('resolveOptionFieldsForSnapshot (checkout freeze helpers)', () => {
           checkInTime: '16:00',
           checkOutTime: '11:00',
           checkInAddress: 'Kauppakatu 1',
+          houseRules: 'No parties after 22:00. Quiet hours apply.',
         },
       },
       checkIn: '2026-12-01',
@@ -265,15 +267,18 @@ describe('resolveOptionFieldsForSnapshot (checkout freeze helpers)', () => {
     });
     expect(fields.checkInTime).toBe('16:00');
     expect(fields.checkOutTime).toBe('11:00');
+    expect(fields.houseRules).toMatch(/No parties/);
     const snap = buildPurchaseSnapshot({
       listingTitle: 'Cabin',
       checkIn: fields.checkIn,
       checkOut: fields.checkOut,
       checkInTime: fields.checkInTime,
       checkOutTime: fields.checkOutTime,
+      houseRules: fields.houseRules,
       capturedAt: '2026-09-22T00:00:00.000Z',
     });
     expect(displayStayCheckInTimeFromPurchase(snap, '18:00')).toBe('16:00');
     expect(displayStayCheckOutTimeFromPurchase(snap, '10:00')).toBe('11:00');
+    expect(displayStayHouseRulesFromPurchase(snap)).toMatch(/No parties/);
   });
 });

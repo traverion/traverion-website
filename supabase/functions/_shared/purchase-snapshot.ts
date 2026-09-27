@@ -35,6 +35,7 @@ export type PurchaseSnapshot = {
   checkInAddress?: string | null;
   checkInTime?: string | null;
   checkOutTime?: string | null;
+  houseRules?: string | null;
   departureTimezone?: string | null;
   termsAcceptedAt?: string | null;
 };
@@ -59,6 +60,7 @@ export function buildPurchaseSnapshot(input: {
   checkInAddress?: string | null;
   checkInTime?: string | null;
   checkOutTime?: string | null;
+  houseRules?: string | null;
   departureTimezone?: string | null;
   termsAcceptedAt?: string | null;
   capturedAt?: string;
@@ -89,6 +91,7 @@ export function buildPurchaseSnapshot(input: {
   const checkInAddress = (input.checkInAddress ?? '').trim() || null;
   const checkInTime = (input.checkInTime ?? '').trim().slice(0, 5) || null;
   const checkOutTime = (input.checkOutTime ?? '').trim().slice(0, 5) || null;
+  const houseRules = (input.houseRules ?? '').trim().slice(0, 2000) || null;
   const departureTimezone = (input.departureTimezone ?? '').trim() || null;
   const termsAcceptedAt = (input.termsAcceptedAt ?? '').trim() || null;
   const snap: PurchaseSnapshot = {
@@ -113,6 +116,7 @@ export function buildPurchaseSnapshot(input: {
   if (checkInAddress) snap.checkInAddress = checkInAddress;
   if (checkInTime) snap.checkInTime = checkInTime;
   if (checkOutTime) snap.checkOutTime = checkOutTime;
+  if (houseRules) snap.houseRules = houseRules;
   if (departureTimezone) snap.departureTimezone = departureTimezone;
   if (termsAcceptedAt) snap.termsAcceptedAt = termsAcceptedAt;
   return snap;
@@ -264,6 +268,7 @@ export function resolveStayFieldsForSnapshot(input: {
   checkInAddress: string | null;
   checkInTime: string | null;
   checkOutTime: string | null;
+  houseRules: string | null;
 } {
   const checkIn = (input.checkIn ?? '').trim() || null;
   const checkOut = (input.checkOut ?? '').trim() || null;
@@ -275,6 +280,7 @@ export function resolveStayFieldsForSnapshot(input: {
   let checkInAddress: string | null = null;
   let checkInTime: string | null = null;
   let checkOutTime: string | null = null;
+  let houseRules: string | null = null;
   const extras = input.listingExtras;
   if (extras && typeof extras === 'object') {
     const stay = (
@@ -284,6 +290,7 @@ export function resolveStayFieldsForSnapshot(input: {
           checkInAddress?: unknown;
           checkInTime?: unknown;
           checkOutTime?: unknown;
+          houseRules?: unknown;
         };
       }
     ).stay;
@@ -299,6 +306,18 @@ export function resolveStayFieldsForSnapshot(input: {
     if (stay && typeof stay.checkOutTime === 'string' && /^\d{2}:\d{2}/.test(stay.checkOutTime.trim())) {
       checkOutTime = stay.checkOutTime.trim().slice(0, 5);
     }
+    if (stay && typeof stay.houseRules === 'string' && stay.houseRules.trim()) {
+      houseRules = stay.houseRules.trim().slice(0, 2000);
+    }
   }
-  return { checkIn, checkOut, nights, propertyType, checkInAddress, checkInTime, checkOutTime };
+  return {
+    checkIn,
+    checkOut,
+    nights,
+    propertyType,
+    checkInAddress,
+    checkInTime,
+    checkOutTime,
+    houseRules,
+  };
 }
