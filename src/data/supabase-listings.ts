@@ -324,7 +324,14 @@ export async function insertListing(tour: TourPackage, supplierId: string): Prom
   if (!supabase) return { ok: false, error: 'Supabase is not configured.' };
   const ownerSupplierId = await resolveSupplierId(supplierId);
   const privateAddress = tour.listingExtras?.stay?.checkInAddress?.trim() || null;
-  const row = tourPackageToRow(tour);
+  const isStay = tour.listingExtras?.inventoryFamily === 'stay';
+  // Phase 1252: stays that should go live insert as draft first so listing_stay_private
+  // exists before publish (SQL requires address on any published stay row).
+  const wantPublished = (tour.status ?? 'published') === 'published';
+  const row = tourPackageToRow({
+    ...tour,
+    status: isStay && wantPublished ? 'draft' : tour.status,
+  });
   const explicitId = isListingUuid(tour.id) ? tour.id : undefined;
   const { data, error } = await supabase
     .from('listings')
@@ -338,9 +345,14 @@ export async function insertListing(tour: TourPackage, supplierId: string): Prom
     console.error('Supabase insert listing:', error);
     return { ok: false, error: formatSupabaseListingError('Could not create listing', error) };
   }
-  const saved = rowToTourPackage(data as ListingRow);
+  let saved = rowToTourPackage(data as ListingRow);
   const priv = await upsertStayPrivateCheckInAddress(saved.id, privateAddress);
   if (!priv.ok) return priv;
+  if (isStay && wantPublished) {
+    const published = await updateListingStatus(saved.id, 'published');
+    if (!published.ok) return published;
+    saved = { ...saved, status: 'published' };
+  }
   const [merged] = await mergeOwnedStayPrivateAddresses([saved]);
   return { ok: true, tour: merged ?? saved };
 }
