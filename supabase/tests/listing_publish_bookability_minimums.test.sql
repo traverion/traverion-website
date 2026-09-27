@@ -135,7 +135,13 @@ begin
           'name', 'Shared',
           'priceUsd', 89,
           'schedules', jsonb_build_array(
-            jsonb_build_object('id', 's1', 'status', 'ready', 'priceUsd', 89, 'startTime', '20:30')
+            jsonb_build_object(
+              'id', 's1',
+              'status', 'ready',
+              'priceUsd', 89,
+              'startTime', '20:30',
+              'maxPersons', 8
+            )
           )
         )
       )
@@ -164,9 +170,15 @@ begin
   );
 
   select public.listing_has_bookable_tour_surface(
-    '{"bookingOptions":[{"schedules":[{"status":"ready","priceUsd":10}]}]}'::jsonb, 0
+    '{"bookingOptions":[{"schedules":[{"status":"ready","priceUsd":10,"maxPersons":8}]}]}'::jsonb, 0
   ) into v_ok;
   if not v_ok then raise exception 'helper tour ready schedule should be bookable'; end if;
+
+  -- Phase 1238: priced ready schedule without maxPersons is not bookable.
+  select public.listing_has_bookable_tour_surface(
+    '{"bookingOptions":[{"schedules":[{"status":"ready","priceUsd":10}]}]}'::jsonb, 0
+  ) into v_ok;
+  if v_ok then raise exception 'helper tour ready schedule without maxPersons must fail'; end if;
 
   raise notice 'ALL ASSERTIONS PASSED';
 end $$;
