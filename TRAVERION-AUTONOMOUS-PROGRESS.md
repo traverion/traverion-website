@@ -4,7 +4,7 @@
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
 **Current SHA:** `3a232e2`  
-**Current phase:** 1008  
+**Current phase:** 1009  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -5158,6 +5158,14 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 **Gap:** Phase 929 FOUNDER table lived only in the progress journal; staff force-unpublish was still listed open after it shipped.
 
 **Fix:** `docs/FOUNDER_REQUIRED.md` — open decisions only (auto-refund, take-rate, dedicated traveler storage); mark force-unpublish closed; list safe continuation work.
+
+**Certification:** CODE-INSPECTED / docs truth.
+
+### Phase 1009 — Launch checklist truth for sitemap + checkout
+
+**Gap:** `LAUNCH_CHECKLIST.md` still said “Booking request submits” and did not mention build-time sitemap regen.
+
+**Fix:** Sitemap bullet documents `prebuild` / `sitemap:generate` published-only behavior; customer journey item requires Stripe TEST → Trips (no success-page paid invention).
 
 **Certification:** CODE-INSPECTED / docs truth.
 

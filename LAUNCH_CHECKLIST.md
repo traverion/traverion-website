@@ -1,6 +1,6 @@
 # TRAVERION Launch Checklist
 
-Last updated: 2026-03-27
+Last updated: 2026-09-27
 Owner: Launch lead
 
 Use this as a strict go/no-go checklist.  
@@ -10,6 +10,7 @@ Mark each item `[x]` only after verifying in production.
 
 - [ ] Production domain is connected and HTTPS is active (`https://traverion.com`).
 - [ ] `robots.txt` and `sitemap.xml` are live and accessible.
+  - Sitemap is regenerated on `npm run build` (`prebuild` → `npm run sitemap:generate`) from **published** tour/stay inventory via anon+RLS. Soft-fails without Supabase env so deploys never break. Manual: `npm run sitemap:generate`.
 - [ ] Vercel env vars are set:
   - [ ] `VITE_SUPABASE_URL`
   - [ ] `VITE_SUPABASE_ANON_KEY`
@@ -25,7 +26,7 @@ Mark each item `[x]` only after verifying in production.
 - [ ] Home page loads cleanly on desktop and mobile.
 - [ ] Packages search + filters + sorting work.
 - [ ] Listing detail page renders correctly.
-- [ ] Booking request submits successfully.
+- [ ] Stripe TEST checkout completes and Trips shows the paid booking (never invent paid from the success page).
 - [ ] Auth works (sign up + sign in + sign out).
 - [ ] Account hub (`/account`) shows cards/counts.
 - [ ] Wishlist/cart/bookings pages open and empty states are clear.
