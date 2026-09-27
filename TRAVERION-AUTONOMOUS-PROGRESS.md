@@ -4,7 +4,7 @@
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
 **Current SHA:** `5b34a35`  
-**Current phase:** 1005  
+**Current phase:** 1006  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -5136,6 +5136,14 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 **Fix:** `collectListingStorageImageUrls` + `removeOwnedListingImagesAfterDelete`; `deleteListing` accepts optional owner + URLs; partner Listings confirm-delete passes them. External/non-bucket URLs ignored. Unit tests cover collect/dedupe.
 
 **Certification:** AUTOMATED-TESTED. Browser delete + storage proof = NOT claimed (would mutate demo inventory).
+
+### Phase 1006 — Admin listings EmptyState prop + tsc clean
+
+**Gap:** `AdminListingsModerationPanel` passed `description` to `EmptyState`, which expects `body` — `tsc` failed.
+
+**Fix:** Use `body`. `tsc -p tsconfig.app.json` clean.
+
+**Certification:** CODE-INSPECTED / typecheck.
 
 ## Known remaining risks (ranked)
 

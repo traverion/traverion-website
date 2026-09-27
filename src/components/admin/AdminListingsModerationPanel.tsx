@@ -176,7 +176,7 @@ export default function AdminListingsModerationPanel() {
       {!loading && !error && items.length === 0 ? (
         <EmptyState
           title="No published listings match"
-          description="Try another search, or all published inventory may already be draft."
+          body="Try another search, or all published inventory may already be draft."
         />
       ) : null}
 
