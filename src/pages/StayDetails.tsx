@@ -96,6 +96,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
   const [checkoutConsentAccepted, setCheckoutConsentAccepted] = useState(false);
   const checkoutLockRef = useRef(false);
   const [payError, setPayError] = useState<string | null>(null);
+  const [selfBookBlocked, setSelfBookBlocked] = useState(false);
   const [guestName, setGuestName] = useState('');
   const [profileDisplayName, setProfileDisplayName] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
@@ -434,6 +435,23 @@ export default function StayDetails({ stayId, onBack }: Props) {
       if (ph) setGuestPhone((prev) => prev.trim() || ph);
     });
   }, [user?.id]);
+
+  // Phase 1210: surface self-book block before Pay (BookingPage 1186 / TourDetails 1164 parity).
+  useEffect(() => {
+    if (!stay?.supplierId || !isSupabaseConfigured() || !userRef.current?.id) {
+      setSelfBookBlocked(false);
+      return;
+    }
+    let cancelled = false;
+    void viewerIsListingSupplierSide(userRef.current.id, stay.supplierId).then((selfBook) => {
+      if (cancelled) return;
+      setSelfBookBlocked(selfBook);
+      if (selfBook) setPayError(LISTING_SELF_BOOK_BLOCKED);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [stay?.supplierId, user?.id]);
 
   const stickyStayCtaLabel = stayStickyBookCtaLabel({
     selectionOccupied,
@@ -1146,10 +1164,11 @@ export default function StayDetails({ stayId, onBack }: Props) {
                     paying ||
                     selectionOccupied ||
                     Boolean(occupancyError) ||
+                    selfBookBlocked ||
                     checkoutPayBlockedByConsent(checkoutConsentAccepted)
                   }
                   onClick={() => {
-                    if (selectionOccupied || occupancyError) return;
+                    if (selectionOccupied || occupancyError || selfBookBlocked) return;
                     if (!quoteOk) {
                       document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                       window.requestAnimationFrame(() => {
@@ -1164,6 +1183,8 @@ export default function StayDetails({ stayId, onBack }: Props) {
                 >
                   {selectionOccupied
                     ? 'Dates unavailable'
+                    : selfBookBlocked
+                      ? 'Cannot book own listing'
                     : paying
                       ? TRAVELER_OPENING_CHECKOUT_CTA
                       : checkoutPayBlockedByConsent(checkoutConsentAccepted)
@@ -1237,10 +1258,11 @@ export default function StayDetails({ stayId, onBack }: Props) {
                   paying ||
                   selectionOccupied ||
                   Boolean(occupancyError) ||
+                  selfBookBlocked ||
                   (quoteOk && checkoutPayBlockedByConsent(checkoutConsentAccepted))
                 }
                 onClick={() => {
-                  if (selectionOccupied || occupancyError) return;
+                  if (selectionOccupied || occupancyError || selfBookBlocked) return;
                   if (!quoteOk) {
                     document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     window.requestAnimationFrame(() => {
@@ -1253,7 +1275,9 @@ export default function StayDetails({ stayId, onBack }: Props) {
                   void startStayCheckout();
                 }}
               >
-                {quoteOk && checkoutPayBlockedByConsent(checkoutConsentAccepted)
+                {selfBookBlocked
+                  ? 'Cannot book own listing'
+                  : quoteOk && checkoutPayBlockedByConsent(checkoutConsentAccepted)
                   ? 'Accept terms'
                   : stickyStayCtaLabel}
               </button>
