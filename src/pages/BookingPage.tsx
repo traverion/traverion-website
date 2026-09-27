@@ -624,6 +624,22 @@ export default function BookingPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- user is read once for initial email/draft sanitize
   }, [tour.id, initialDate, initialGuests, presentation, selectedVariant?.id]);
 
+  // Phase 1186: URL/draft restore must not land on contact/confirm for own/team listings.
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    if (step !== 'contact' && step !== 'confirm') return;
+    if (!isSupabaseConfigured() || !userRef.current?.id) return;
+    let cancelled = false;
+    void viewerIsListingSupplierSide(userRef.current.id, tour.supplierId).then((selfBook) => {
+      if (cancelled || !selfBook) return;
+      setError(LISTING_SELF_BOOK_BLOCKED);
+      setStep(presentation === 'modal' || selectedVariant ? 'review' : 'date-guests');
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [step, tour.supplierId, presentation, selectedVariant]);
+
   useEffect(() => {
     const opt = appliedOption;
     if (!opt || !optionUsesAgePricing(opt)) return;
