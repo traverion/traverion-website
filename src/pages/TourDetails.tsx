@@ -524,6 +524,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     });
   }, [bookingDate, dayCapacitySnap, selectedOption, departureTimes]);
 
+  // Phase 1167: mirror BookingPage 1103 — unknown remaining must not open checkout.
+  const capacityUnknown =
+    Boolean(dayCapacityError) ||
+    (Boolean(bookingDate.trim()) && selectedDaySpotsLeft == null);
+
   useEffect(() => {
     if (!selectedDepartureTime.trim() || selectedDaySpotsLeft == null) return;
     if (selectedDaySpotsLeft < 1) {
@@ -1019,6 +1024,17 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         setBookingCardError(dayErr);
         return;
       }
+    }
+    // Phase 1167: unknown remaining must not navigate to checkout (BookingPage 1103 parity).
+    if (
+      Boolean(dayCapacityError) ||
+      (Boolean(bookingDate.trim()) && selectedDaySpotsLeft == null)
+    ) {
+      setBookingCardError(
+        dayCapacityError ||
+          'We could not verify departure capacity. Check your connection and try again.'
+      );
+      return;
     }
     // Phase 1164: mirror 1147 — block own/team listings before navigating to checkout.
     if (isSupabaseConfigured() && userRef.current?.id) {
@@ -1617,11 +1633,13 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                             }}
                             disabled={
                               variantChecking ||
-                              Boolean(dayCapacityError) ||
+                              capacityUnknown ||
                               (panelQuote != null && !panelQuote.ok)
                             }
                             aria-describedby={
-                              bookingCardError || dayCapacityError ? 'tour-booking-card-error' : undefined
+                              bookingCardError || dayCapacityError || capacityUnknown
+                                ? 'tour-booking-card-error'
+                                : undefined
                             }
                             className="tv-btn-primary w-full disabled:opacity-60"
                           >
@@ -1640,9 +1658,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                         </p>
                       )}
                       <div id="tour-booking-card-error" className="min-h-[1.25rem]">
-                        {dayCapacityError ? (
+                        {dayCapacityError ||
+                        (capacityUnknown && !bookingCardError) ? (
                           <NoticeCallout title="Capacity unavailable" tone="danger">
-                            {dayCapacityError}{' '}
+                            {dayCapacityError ||
+                              'We could not verify departure capacity. Check your connection and try again.'}{' '}
                             <button
                               type="button"
                               className="font-semibold text-finland hover:underline"
@@ -1931,7 +1951,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                         : Math.max(1, guests);
                     return (
                       variantChecking ||
-                      Boolean(dayCapacityError) ||
+                      capacityUnknown ||
                       allDeparturesSoldOut ||
                       (panelQuote != null && !panelQuote.ok) ||
                       (Boolean(selectedBookingVariant) &&
