@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `75dd45d`  
-**Current phase:** 894  
+**Current SHA:** `1769662`  
+**Current phase:** 895  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4707,6 +4707,12 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 **Browser:** Footer → Privacy (`/privacy`) and General Terms (`/terms`) render real policy articles (last updated 26 March 2026). `/legal` correctly 404s (no invented hub). SPA title/body can briefly desync during client navigation (settles).
 
 **Certification:** platform legal pages = **BROWSER-TESTED**. Not legal advice; content exists as product surfaces.
+
+### Phase 895 — robots.txt partner paths + sitemap honesty
+
+**Evidence:** HTML `/sitemap` lists main/nav pages only (no draft inventory). Static `public/sitemap.xml` has no draft URLs (good) but is **stale** vs live catalog IDs (P2 regenerate).
+
+**Fix:** `robots.txt` also Disallow `/partner`, `/log-in`, `/saved` so localhost partner app paths are not invited for crawl.
 
 ## Known remaining risks (ranked)
 

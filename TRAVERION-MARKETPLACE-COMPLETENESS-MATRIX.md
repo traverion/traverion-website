@@ -65,7 +65,7 @@
 | Timezones | STRONG / INTEGRATION | extras + snapshot + cancel + partner UI (883) | Stay-specific TZ polish |
 | Currency | PARTIAL | per-listing currencies, no FX | Keep coherent; no fake multi-FX |
 | i18n | PARTIAL | en/fi strings | Not checkbox i18n platform |
-| SEO | PARTIAL | titles/meta; drafts not public (886) | Structured data only if truthful |
+| SEO | PARTIAL | drafts excluded; robots partner deny (895) | Regenerate static sitemap.xml from published |
 | Images / media | PARTIAL | storage bucket + listing images | Orphan cleanup / auth audit |
 | RLS / security | STRONG / ADVERSARIAL | anon + Traveler B (anna/jonas) denied #41 (880–881) | Supplier B listing isolation re-cert |
 | Privacy | PARTIAL | policies + RLS | Minimize PII on partner surfaces |
