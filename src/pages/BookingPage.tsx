@@ -523,8 +523,13 @@ export default function BookingPage({
     });
   }, [presentation, tour.id, step, date, guests, leadGuestName, email, placeOfStay, specialRequests]);
 
+  // Phase 1283: do not advertise book OG for season-ended / unpublished tours.
   useEffect(() => {
     if (presentation === 'modal') return;
+    if (!isListingVisibleToTravelers(tour.status) || !listingHasUpcomingBookableSeason(tour)) {
+      setPageMetaWithOg('Tour', 'Book this tour from an independent operator.');
+      return;
+    }
     const fromLabel = optionUsesAgePricing(appliedOption) ? 'per adult' : 'per person';
     setPageMetaWithOg(
       `Book: ${tour.title}`,
@@ -540,6 +545,8 @@ export default function BookingPage({
     tour.id,
     tour.title,
     tour.image,
+    tour.status,
+    tour.listingExtras,
     fallbackBasePrice,
     currency,
     selectedVariant?.listingOption,

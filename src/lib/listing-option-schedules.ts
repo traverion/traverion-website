@@ -488,8 +488,9 @@ export function blankOptionSchedule(id: string): ListingOptionSchedule {
     pricingMode: 'uniform',
     priceUsd: 0,
     minPersons: 1,
-    maxPersons: 8,
-    maxSpotsPerSlot: 8,
+    // Phase 1283: do not invent capacity 8 — partner must set max persons / spots.
+    maxPersons: 0,
+    maxSpotsPerSlot: 0,
     status: 'draft',
   };
 }
