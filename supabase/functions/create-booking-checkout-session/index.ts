@@ -274,7 +274,7 @@ serve(async (req) => {
     const { data: listingRow, error: listingError } = await admin
       .from('listings')
       .select(
-        'id, title, status, price_starting_from, price_currency, listing_extras, group_size, meeting_point, pickup_instructions, cancellation_policy, includes, excludes'
+        'id, title, status, price_starting_from, price_currency, listing_extras, group_size, meeting_point, pickup_instructions, cancellation_policy, includes, excludes, supplier_id'
       )
       .eq('id', listingId)
       .maybeSingle();
@@ -287,6 +287,22 @@ serve(async (req) => {
     // verification bypass).
     if (listingStatus !== 'published') {
       return json({ success: false, error: 'This listing is not available to book.' }, 400);
+    }
+    // Phase 1146: hosts/team must not hold/pay their own inventory (reviews already blocked).
+    const listingSupplierId = String(listingRow.supplier_id ?? '').trim();
+    if (listingSupplierId && listingSupplierId === user.id) {
+      return json({ success: false, error: 'You cannot book your own listing.' }, 403);
+    }
+    if (listingSupplierId) {
+      const { data: teamSelf } = await admin
+        .from('supplier_team_members')
+        .select('user_id')
+        .eq('supplier_id', listingSupplierId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (teamSelf?.user_id) {
+        return json({ success: false, error: 'You cannot book a listing for your supplier account.' }, 403);
+      }
     }
     if (listingRow.title?.trim()) listingTitle = listingRow.title.trim();
     await admin.rpc('expire_stale_checkout_holds', { p_listing_id: listingId });
