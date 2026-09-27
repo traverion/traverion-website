@@ -4980,6 +4980,51 @@ Until decided: keep current honest behaviors; do not fake.
 
 **Certification:** traveler profile = **PARTIAL** / **CODE-INSPECTED**.
 
+
+### Phase 933 — Dead cart path remains retired
+
+**Evidence:** `/cart` maps to Trips; `cart_items` not revived. Multi-item cart = **DEAD/OBSOLETE**.
+
+### Phase 934 — Trips empty≠error already certified
+
+**Evidence:** Phase 892 — fetch failure keeps prior rows / surfaces error. Upcoming/Past/Cancelled groupings in trip-views.
+
+**Certification:** Trips error honesty = **AUTOMATED-TESTED** (prior) + **CODE-INSPECTED**.
+
+### Phase 935 — Listing lifecycle draft/published/unpublished
+
+**Evidence:** Publish content/bookability gates (095/101/102); draft invisible publicly (886); wishlist published-only (104). Unpublished listings drop from search; historical bookings retain snapshots.
+
+**Certification:** listing lifecycle = **STRONG** / **INTEGRATION** + prior browser publish cert.
+
+### Phase 936 — Payment lifecycle Stripe TEST only
+
+**Evidence:** Checkout session → webhook → payment_status; success page does not invent paid. LIVE blocked client+edge. Cert #39/#41.
+
+**Certification:** payment lifecycle = **TEST-ONLY** / **BROWSER-TESTED** (prior).
+
+### Phase 937 — Income vs payouts distinction
+
+**Evidence:** `supplier_ledger_entries` gross; Refund due / reverse on cancel; `admin_record_supplier_payout` manual. No fake auto-payouts (889).
+
+**Certification:** earnings accounting = **STRONG** / **BROWSER**; payouts = **NOT REQUIRED YET** / MANUAL.
+
+### Phase 938 — Analytics paid-only honesty
+
+**Evidence:** Phase 888 — partner analytics from paid aggregates only; no fake views/trending.
+
+**Certification:** analytics = **STRONG** / **BROWSER** (prior).
+
+### Phase 939 — Rentals vertical remains honest
+
+**Evidence:** Partner “Not available to list yet” (879). No fake rentals catalog.
+
+**Certification:** rentals = **NOT REQUIRED YET** / **HONEST**.
+
+### Phase 940 — Mission mid-band checkpoint (851→940)
+
+**Stripe:** TEST only. **Migrations:** Local=Remote through **106**. **Working tree:** clean except optional `patch_progress.py` untracked. Highest remaining: dedicated traveler session, FOUNDER money decisions, optional second-option Stripe pay, staff force-unpublish.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.
