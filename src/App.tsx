@@ -37,6 +37,7 @@ import {
 } from './lib/adminHost';
 import { getListingByIdAsync } from './data/listings';
 import { listingIsFamily, listingIsOnTravelerCatalog } from './lib/inventory';
+import { listingHasUpcomingBookableSeason } from './lib/booking-quote';
 import { listingDetailVisibleToTraveler } from './lib/product-workflows';
 import { isPartnerMarketingPathForCurrentHost, isPartnerPortalPathForCurrentHost } from './lib/partnerHost';
 import { rememberProductReturn, isStaticConsumerPage } from './lib/navReturn';
@@ -216,7 +217,8 @@ function App() {
           !listingDetailVisibleToTraveler({
             familyMatches: listingIsOnTravelerCatalog(t),
             status: t.status,
-          })
+          }) ||
+          !listingHasUpcomingBookableSeason(t)
         ) {
           return;
         }
@@ -558,7 +560,8 @@ function App() {
           !listingDetailVisibleToTraveler({
             familyMatches: listingIsOnTravelerCatalog(full),
             status: full.status,
-          })
+          }) ||
+          !listingHasUpcomingBookableSeason(full)
         ) {
           return;
         }
@@ -571,7 +574,8 @@ function App() {
       !listingDetailVisibleToTraveler({
         familyMatches: listingIsOnTravelerCatalog(tour),
         status: tour.status,
-      })
+      }) ||
+      !listingHasUpcomingBookableSeason(tour)
     ) {
       return;
     }
