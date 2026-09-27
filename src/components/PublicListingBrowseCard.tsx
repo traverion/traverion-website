@@ -7,6 +7,7 @@ import { getDisplayPriceForTour, isSupabaseListingId } from '../lib/discount-dis
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 import { listingShowsFreeCancellation } from '../lib/listingTruth';
 import { formatTourDurationDisplay, materializedBookingOptions, parseListingExtras } from '../types/listingExtras';
+import { listingHasUpcomingBookableSeason } from '../lib/booking-quote';
 import { listingIsFamily } from '../lib/inventory';
 import { formatMoney, normalizeCurrency } from '../lib/money';
 import { isListingVisibleToTravelers } from '../lib/product-workflows';
@@ -53,6 +54,9 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
 }: PublicListingBrowseCardProps) {
   // Defense in depth: unpublished listings must not appear on traveler browse surfaces.
   if (!isListingVisibleToTravelers(tour.status)) return null;
+  const isStay = listingIsFamily(tour, 'stay');
+  // Phase 1276: season-ended tours must not render even if a parent list missed the filter.
+  if (!isStay && !listingHasUpcomingBookableSeason(tour)) return null;
 
   // Phase 1107: null map = offers not loaded / load failed — do not invent “no discount”.
   const offersUnknown = discountsByListing == null && isSupabaseListingId(tour.id);
@@ -62,7 +66,6 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
   const fromAmount = hasDiscount ? price : originalPrice;
   const showStrikethrough = hasDiscount && originalPrice > fromAmount;
   const currency = normalizeCurrency(tour.price?.currency);
-  const isStay = listingIsFamily(tour, 'stay');
   const extras = parseListingExtras(tour.listingExtras);
   const stay = isStay ? extras.stay : undefined;
   const stayNightly = stay?.nightlyPriceUsd && stay.nightlyPriceUsd > 0 ? stay.nightlyPriceUsd : fromAmount;
