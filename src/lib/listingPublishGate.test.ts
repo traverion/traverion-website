@@ -73,4 +73,16 @@ describe('partnerListingCardPresentation', () => {
     expect(card.primaryCta).toBe('publish');
     expect(card.publishDisabledReason).toBeNull();
   });
+
+  it('Phase 1268: flags live listings that need season updates', () => {
+    const card = partnerListingCardPresentation({
+      isLive: true,
+      publishBlockers: [],
+      accountEligible: true,
+      liveAttention: 'Every schedule season has ended. Extend dates or travelers cannot book.',
+    });
+    expect(card.statusLabel).toBe('Needs update');
+    expect(card.primaryCta).toBe('continue');
+    expect(card.primaryCtaLabel).toBe('Edit');
+  });
 });

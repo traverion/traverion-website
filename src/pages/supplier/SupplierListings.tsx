@@ -51,6 +51,7 @@ import { canManageBookings } from '../../lib/supplierTeamRoles';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { publicStayListingUrl, publicTourListingUrl } from '../../lib/publicSiteUrl';
 import { getListingPublishBlockers, partnerListingCardPresentation, partnerListingDraftPublishSubtitle } from '../../lib/listingPublishGate';
+import { listingHasUpcomingBookableSeason } from '../../lib/booking-quote';
 import {
   PARTNER_LISTINGS_BUSINESS_REVIEW_NOTE,
   PARTNER_LISTINGS_PAYOUT_REVIEW_NOTE,
@@ -1204,10 +1205,16 @@ export default function SupplierListings() {
               const place = [listing.city, listing.country ?? listing.destination].filter(Boolean).join(', ');
               const heroSrc = listingHeroImageSrc(listing.image);
               const draftPublish = !isLive ? partnerListingDraftPublishSubtitle(listing) : null;
+              // Phase 1268: published tours with ended seasons need partner attention.
+              const liveAttention =
+                isLive && !isStay && !listingHasUpcomingBookableSeason(listing)
+                  ? 'Every schedule season has ended. Extend dates or travelers cannot book.'
+                  : null;
               const card = partnerListingCardPresentation({
                 isLive,
                 publishBlockers: draftPublish?.blockers ?? [],
                 accountEligible: canPostNewListing,
+                liveAttention,
               });
               const readinessLine = !isLive
                 ? card.draftStateLabel === 'Incomplete'
@@ -1215,12 +1222,14 @@ export default function SupplierListings() {
                   : card.draftStateLabel === 'Ready to publish' && !canPostNewListing
                     ? 'Listing is complete. Verification is required before it can go live.'
                     : 'Ready to publish'
-                : null;
+                : liveAttention;
               const cardAccent = !isLive
                 ? card.draftStateLabel === 'Incomplete'
                   ? 'border-l-[3px] border-l-amber-500'
                   : 'border-l-[3px] border-l-slate-400'
-                : 'border-l-[3px] border-l-finland';
+                : liveAttention
+                  ? 'border-l-[3px] border-l-amber-500'
+                  : 'border-l-[3px] border-l-finland';
               return (
                 <article
                   key={listing.id}

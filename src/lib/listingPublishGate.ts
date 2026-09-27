@@ -213,6 +213,8 @@ export function partnerListingCardPresentation(args: {
   isLive: boolean;
   publishBlockers: string[];
   accountEligible: boolean;
+  /** Phase 1268: published listing that travelers can no longer book (e.g. ended season). */
+  liveAttention?: string | null;
 }): {
   statusLabel: string;
   draftStateLabel: string | null;
@@ -221,6 +223,15 @@ export function partnerListingCardPresentation(args: {
   publishDisabledReason: string | null;
 } {
   if (args.isLive) {
+    if (args.liveAttention) {
+      return {
+        statusLabel: 'Needs update',
+        draftStateLabel: args.liveAttention,
+        primaryCta: 'continue',
+        primaryCtaLabel: 'Edit',
+        publishDisabledReason: args.liveAttention,
+      };
+    }
     return {
       statusLabel: 'Live',
       draftStateLabel: null,
