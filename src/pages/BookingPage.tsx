@@ -20,6 +20,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { createBookingCheckoutSession } from '../data/supabase-bookings';
 import type { ListingDiscount } from '../data/supabase-discounts';
+import { fetchDiscountsByListingId } from '../data/supabase-discounts';
+import { payTimeDiscountsOrBlock } from '../lib/pay-time-discounts';
 import { fetchConsumerProfileRow } from '../data/supabase-consumer-profile';
 import {
   travelerLeadGuestNameFromAuth,
@@ -876,9 +878,23 @@ export default function BookingPage({
       if (isSupabaseConfigured()) {
         const optionId =
           selectedVariant && selectedVariant.id !== '__default__' ? selectedVariant.id : undefined;
+        // Refetch offers at pay time so a failed browse load cannot invent a full-price quote
+        // while Stripe still applies discounts (or the reverse). Aligns with checkout fail-closed (1088/1090).
+        let offerLoad: { ok: true; discounts: ListingDiscount[] } | { ok: false };
+        try {
+          offerLoad = { ok: true, discounts: await fetchDiscountsByListingId(tour.id) };
+        } catch {
+          offerLoad = { ok: false };
+        }
+        const offerGate = payTimeDiscountsOrBlock(offerLoad);
+        if (!offerGate.proceed) {
+          setError('Could not load offers for this tour. Try again.');
+          setSubmitting(false);
+          return;
+        }
         const quoted = quoteBooking({
           tour,
-          discounts: discountsByListing?.get(tour.id) ?? [],
+          discounts: offerGate.discounts,
           bookingDate: date,
           guests,
           bookingOptionId: optionId,
