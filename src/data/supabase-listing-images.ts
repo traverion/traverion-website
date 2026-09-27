@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { resolveSupplierId } from './supabase-supplier-team';
 
 const BUCKET = 'listing-images';
 export const LISTING_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
@@ -60,8 +61,10 @@ export async function uploadListingImage(
     return { publicUrl: null, error: 'Use JPEG, PNG, WebP, or GIF.' };
   }
 
+  // Phase 1215: store under owner prefix so team uploads match owner gallery GC.
+  const ownerSupplierId = await resolveSupplierId(userId);
   const ext = extForMime(file.type);
-  const path = `${userId}/listing-photos/${crypto.randomUUID()}.${ext}`;
+  const path = `${ownerSupplierId}/listing-photos/${crypto.randomUUID()}.${ext}`;
 
   const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, file, {
     contentType: file.type,
@@ -75,8 +78,9 @@ export async function uploadListingImage(
 
 export async function removeListingImageIfOwned(userId: string, publicUrl: string): Promise<void> {
   if (!supabase || !userId || !publicUrl.trim()) return;
+  const ownerSupplierId = await resolveSupplierId(userId);
   const path = listingImagePathFromPublicUrl(publicUrl);
-  if (!path || !path.startsWith(`${userId}/`)) return;
+  if (!path || !path.startsWith(`${ownerSupplierId}/`)) return;
   await supabase.storage.from(BUCKET).remove([path]);
 }
 
