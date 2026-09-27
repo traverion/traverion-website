@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness** (continuing 1001+)  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `11c11f9`  
-**Current phase:** 1033  
+**Current SHA:** `c3355d3`  
+**Current phase:** 1034  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -5353,7 +5353,13 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 
 **Defer:** full dual-mode party auth on all booking-tied kinds (higher regression surface).
 
-**Certification:** AUTOMATED-TESTED (35/35) + edge Deployed Functions.
+**Certification:** AUTOMATED-TESTED (35/35) + edge Deployed Functions. Ending SHA `c3355d3`.
+
+### Phase 1034 — Production build clean after 1017–1033 band
+
+**Evidence:** `npm run build` ✓. Matrix Messaging cell notes supplier self-notify JWT (1033).
+
+**Certification:** AUTOMATED-TESTED (production build).
 
 ## Known remaining risks (ranked)
 
