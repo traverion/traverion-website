@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
 import { promotePaidFromCheckoutSession } from '../_shared/promote-paid-from-checkout.ts';
 import { isStripeTestSecretKey, stripeLiveSecretBlockedMessage } from '../_shared/stripe-test-only.ts';
+import { authUserVerifiedEmail } from '../_shared/auth-verified-email.ts';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -47,7 +48,8 @@ serve(async (req) => {
     const { data: authData, error: authError } = await authed.auth.getUser();
     if (authError || !authData?.user) return json({ success: false, error: 'Unauthorized' }, 401);
     const user = authData.user;
-    const email = user.email?.trim().toLowerCase() ?? '';
+    // Email ownership requires confirmed address (parity with jwt_verified_email). guest_user_id still applies.
+    const email = authUserVerifiedEmail(user) ?? '';
 
     const body = (await req.json()) as { sessionId?: string };
     const sessionId = String(body.sessionId ?? '').trim();

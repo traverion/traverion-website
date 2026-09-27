@@ -16,6 +16,7 @@ import {
   normalizePurchaseStringList,
 } from '../_shared/purchase-snapshot.ts';
 import { isStripeTestSecretKey, stripeLiveSecretBlockedMessage } from '../_shared/stripe-test-only.ts';
+import { authUserVerifiedEmail } from '../_shared/auth-verified-email.ts';
 import { resolveCheckoutSiteUrl } from '../_shared/checkout-return-origin.ts';
 import { isMissingPostgresFunctionError } from '../_shared/checkout-inventory-conflict.ts';
 
@@ -114,8 +115,16 @@ serve(async (req) => {
       return json({ success: false, error: 'Unauthorized' }, 401);
     }
     const user = authData.user;
-    const email = user.email?.trim().toLowerCase() ?? '';
-    if (!email) return json({ success: false, error: 'Signed-in account has no email' }, 400);
+    const email = authUserVerifiedEmail(user);
+    if (!email) {
+      return json(
+        {
+          success: false,
+          error: 'Confirm your email before checkout. Check your inbox for a confirmation link.',
+        },
+        403
+      );
+    }
 
     const body = (await req.json()) as Partial<RequestBody>;
     const bookingId = String(body.bookingId ?? '').trim();
