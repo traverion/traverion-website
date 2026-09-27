@@ -135,6 +135,15 @@ describe('purchase-snapshot', () => {
       purchasedNote: null,
     });
   });
+
+  it('records termsAcceptedAt when provided at checkout', () => {
+    const snap = buildPurchaseSnapshot({
+      listingTitle: 'Tour',
+      termsAcceptedAt: '2026-09-27T12:00:00.000Z',
+      capturedAt: '2026-09-27T12:00:00.000Z',
+    });
+    expect(snap.termsAcceptedAt).toBe('2026-09-27T12:00:00.000Z');
+  });
 });
 
 describe('resolveOptionFieldsForSnapshot (checkout freeze helpers)', () => {

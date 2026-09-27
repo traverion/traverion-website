@@ -476,6 +476,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
       customerName: name,
       customerPhone: guestPhone.trim() || undefined,
       currency: stayQuote.currency,
+      checkoutConsentAccepted: true,
       successPath: '/booking-confirmed',
       cancelPath: '/bookings?payment=cancelled',
     }).then((res) => {

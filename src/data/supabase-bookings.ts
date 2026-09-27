@@ -222,6 +222,8 @@ export async function createBookingCheckoutSession(params: {
   checkoutDate?: string;
   successPath?: string;
   cancelPath?: string;
+  /** Traveler checked checkout consent (required for new sessions). */
+  checkoutConsentAccepted?: boolean;
 }): Promise<{ success: boolean; checkoutUrl?: string; bookingId?: string; error?: string }> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
   if (!appStripeIsTestMode()) {
@@ -250,6 +252,7 @@ export async function createBookingCheckoutSession(params: {
       successPath: params.successPath,
       cancelPath: params.cancelPath,
       returnOrigin,
+      checkoutConsentAccepted: params.checkoutConsentAccepted === true,
     },
   });
   if (error) {

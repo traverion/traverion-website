@@ -32,6 +32,8 @@ export type PurchaseSnapshot = {
   propertyType?: string | null;
   /** IANA zone for departure wall clock at purchase. */
   departureTimezone?: string | null;
+  /** ISO timestamp when traveler accepted checkout terms (server-stamped). */
+  termsAcceptedAt?: string | null;
 };
 
 export function isPurchaseSnapshot(value: unknown): value is PurchaseSnapshot {
@@ -58,6 +60,7 @@ export function buildPurchaseSnapshot(input: {
   nights?: number | null;
   propertyType?: string | null;
   departureTimezone?: string | null;
+  termsAcceptedAt?: string | null;
   capturedAt?: string;
 }): PurchaseSnapshot {
   const title = input.listingTitle.trim() || 'Experience';
@@ -84,6 +87,7 @@ export function buildPurchaseSnapshot(input: {
       : null;
   const propertyType = (input.propertyType ?? '').trim() || null;
   const departureTimezone = (input.departureTimezone ?? '').trim() || null;
+  const termsAcceptedAt = (input.termsAcceptedAt ?? '').trim() || null;
   const snap: PurchaseSnapshot = {
     listingTitle: title,
     optionLabel: option,
@@ -104,6 +108,7 @@ export function buildPurchaseSnapshot(input: {
   if (nights != null) snap.nights = nights;
   if (propertyType) snap.propertyType = propertyType;
   if (departureTimezone) snap.departureTimezone = departureTimezone;
+  if (termsAcceptedAt) snap.termsAcceptedAt = termsAcceptedAt;
   return snap;
 }
 

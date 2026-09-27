@@ -859,6 +859,7 @@ export default function BookingPage({
           guestBreakdown: quoted.guestBreakdown,
           participantMix: Object.keys(participantMix).length > 0 ? participantMix : undefined,
           currency: quoted.currency,
+          checkoutConsentAccepted: true,
           successPath: '/booking-confirmed',
           cancelPath: selectedVariant
             ? tourCheckoutCancelPath(tour.id, {

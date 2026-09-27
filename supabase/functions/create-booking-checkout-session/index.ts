@@ -36,6 +36,8 @@ type RequestBody = {
   returnOrigin?: string;
   participantMix?: Record<string, number>;
   guestBreakdown?: unknown;
+  /** Must be true for new checkout holds; resume by bookingId may omit. */
+  checkoutConsentAccepted?: boolean;
 };
 
 function json(body: unknown, status = 200): Response {
@@ -114,6 +116,17 @@ serve(async (req) => {
 
     const body = (await req.json()) as Partial<RequestBody>;
     const bookingId = String(body.bookingId ?? '').trim();
+    const isResumeOnly = Boolean(bookingId) && !String(body.listingId ?? '').trim();
+    if (!isResumeOnly && body.checkoutConsentAccepted !== true) {
+      return json(
+        {
+          success: false,
+          error: 'Accept the cancellation policy and Terms of Service before checkout.',
+        },
+        400
+      );
+    }
+    const termsAcceptedAt = new Date().toISOString();
     let listingId = String(body.listingId ?? '').trim();
     let listingTitle = String(body.listingTitle ?? 'Experience').trim() || 'Experience';
     let bookingDate = String(body.bookingDate ?? '').trim();
@@ -372,6 +385,7 @@ serve(async (req) => {
           ? ((listingRow.listing_extras as { departureTimezone: string }).departureTimezone || null)
           : null,
       propertyType: stayFields?.propertyType ?? null,
+      termsAcceptedAt,
     });
 
     if (extrasFamily === 'stay' && checkoutDate) {

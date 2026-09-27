@@ -69,7 +69,7 @@
 | Images / media | PARTIAL→STRONG | folder RLS + delete GC owned images (906/1005) | Full bucket orphan sweep later |
 | RLS / security | STRONG / ADVERSARIAL | traveler deny #41 (880–881); supplier listing isolation 091/910 | Keep expanding adversarial suite |
 | Privacy | PARTIAL→STRONG | public RPCs no PII; ops surfaces justified (922) | Keep minimizing |
-| Legal / consent | STRONG / BROWSER | /privacy /terms (894); checkout gate 901 + browser 905 | Server-side acceptance log later |
+| Legal / consent | STRONG / BROWSER | UI gate + server requires consent stamp on new checkout (1015) | — |
 | Admin / support | PARTIAL→STRONG | staff panels + force-unpublish (107/1001–1003) | Browser-cert admin host later |
 | Moderation | NOT REQUIRED YET | — | Architecture note only |
 | Cron / jobs | PARTIAL→STRONG | hold expire + GH Actions reminder cron (907) | Live secret fire not claimed |
