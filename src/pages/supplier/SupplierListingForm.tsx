@@ -15,7 +15,7 @@ import {
 import ListingImageFields from '../../components/supplier/ListingImageFields';
 import { useAuth } from '../../contexts/AuthContext';
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
-import { scheduleSpotsBelowSoldWarning } from '../../lib/capacity-reduction-warn';
+import { scheduleSpotsBelowSoldWarning, scheduleDepartureTimeMoveWarning } from '../../lib/capacity-reduction-warn';
 import {
   occupyingGuestsForBookingOption,
   occupyingGuestsForOptionDeparture,
@@ -1028,6 +1028,8 @@ export default function SupplierListingForm({
   const [listingOccupancyBookings, setListingOccupancyBookings] = useState<BookingRow[]>([]);
   const scheduleSessionOpenedAsCreateRef = useRef(false);
   const scheduleSnapshotRef = useRef<string>('');
+  /** Start time when the schedule editor was opened — sold seats stay on this purchased slot. */
+  const scheduleOpenedStartTimeRef = useRef('');
   const scheduleDraftRef = useRef<ListingOptionSchedule | null>(null);
   const addScheduleLockRef = useRef(false);
 
@@ -2015,6 +2017,7 @@ export default function SupplierListingForm({
     if (prepared !== optionModalDraft) setOptionModalDraft(prepared);
     const blank = blankOptionSchedule(newListingOptionScheduleId());
     scheduleSessionOpenedAsCreateRef.current = true;
+    scheduleOpenedStartTimeRef.current = '';
     scheduleSnapshotRef.current = JSON.stringify(blank);
     setScheduleDraft(blank);
     setScheduleSceneIdx(0);
@@ -2032,6 +2035,7 @@ export default function SupplierListingForm({
       const existing = (prepared.schedules ?? []).find((s) => s.id === scheduleId);
       if (!existing) return;
       scheduleSessionOpenedAsCreateRef.current = false;
+      scheduleOpenedStartTimeRef.current = existing.startTime ?? '';
       scheduleSnapshotRef.current = JSON.stringify(existing);
       setOptionModalDraft(prepared);
       setScheduleDraft(existing);
@@ -2057,6 +2061,7 @@ export default function SupplierListingForm({
       if (!source) return;
       const copy = duplicateOptionSchedule(source, newListingOptionScheduleId());
       scheduleSessionOpenedAsCreateRef.current = true;
+      scheduleOpenedStartTimeRef.current = '';
       scheduleSnapshotRef.current = JSON.stringify(copy);
       const next = upsertOptionSchedule(prepared, copy);
       setOptionModalDraft(next);
@@ -2170,7 +2175,24 @@ export default function SupplierListingForm({
         occupyingGuests: occupying,
         startTimeHm: ready.startTime,
       });
-      if (underSold && typeof window !== 'undefined' && !window.confirm(`${underSold}\n\nSave this capacity anyway?`)) {
+      const previousStart = scheduleOpenedStartTimeRef.current;
+      const occupyingPrevious = occupyingGuestsForOptionDeparture({
+        bookings: listingOccupancyBookings,
+        listingId: editingId,
+        optionId: optionModalDraft.id,
+        startTimeHm: previousStart,
+      });
+      const moved = scheduleDepartureTimeMoveWarning({
+        previousStartTimeHm: previousStart,
+        nextStartTimeHm: ready.startTime,
+        occupyingGuestsOnPrevious: occupyingPrevious,
+      });
+      const confirmParts = [moved, underSold].filter(Boolean) as string[];
+      if (
+        confirmParts.length > 0 &&
+        typeof window !== 'undefined' &&
+        !window.confirm(`${confirmParts.join('\n\n')}\n\nSave this schedule anyway?`)
+      ) {
         return;
       }
     }

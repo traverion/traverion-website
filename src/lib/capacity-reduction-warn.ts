@@ -4,6 +4,8 @@
  * sales but must surface a clear warning — paid bookings keep their seats.
  */
 
+import { normalizeTourStartTimeHm } from './booking-hold';
+
 export function capacityBelowSoldWarning(params: {
   newCapacity: number;
   occupyingGuests: number;
@@ -30,4 +32,21 @@ export function scheduleSpotsBelowSoldWarning(params: {
     occupyingGuests: params.occupyingGuests,
     scopeLabel: scope,
   });
+}
+
+/**
+ * Changing a schedule’s start time does not move purchased seats.
+ * Warn when the previous departure still has occupying guests.
+ */
+export function scheduleDepartureTimeMoveWarning(params: {
+  previousStartTimeHm: string | null | undefined;
+  nextStartTimeHm: string | null | undefined;
+  occupyingGuestsOnPrevious: number;
+}): string | null {
+  const prev = normalizeTourStartTimeHm(params.previousStartTimeHm);
+  const next = normalizeTourStartTimeHm(params.nextStartTimeHm);
+  if (!prev || !next || prev === next) return null;
+  const sold = Math.max(0, Math.floor(params.occupyingGuestsOnPrevious));
+  if (sold < 1) return null;
+  return `You already have ${sold} guest${sold === 1 ? '' : 's'} booked on the ${prev} departure. Changing this schedule to ${next} will not move those trips — travelers keep ${prev}. New travelers will see ${next} instead.`;
 }
