@@ -4873,6 +4873,19 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 
 **Certification:** partner edit deep-link resilience = **CODE-INSPECTED**. Re-browser cert optional next.
 
+
+### Phase 918 — Partner ?edit= deep-link opens listing editor (browser)
+
+**Browser:** After Phase 917 grace fix, `/partner/listings?edit=1807368c-…` keeps `edit=` and opens the listing editor dialog.
+
+**Certification:** partner edit deep-link = **BROWSER-TESTED**.
+
+### Phase 919 — Multi-option added on LIVE cert tour (UI)
+
+**Browser:** On cert listing, Options → Add option → **Meeting point · no pickup** (meet Santa Claus Village main gate) + schedule Oct–Dec 20:00 €99 max 12 → Finish option → **Save changes**. Remote `listing_extras.bookingOptions` now **2** options (pickup €119 + meeting €99). Listing remains **published**.
+
+**Certification:** multi-option publish = **BROWSER-TESTED**. Traveler book of second option = next.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.
