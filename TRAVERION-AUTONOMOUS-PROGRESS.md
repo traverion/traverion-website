@@ -4,7 +4,7 @@
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
 **Current SHA:** `a123eb2`  
-**Current phase:** 1007  
+**Current phase:** 1008  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -5153,11 +5153,19 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 
 **Certification:** supplier cancel UI = **BROWSER-TESTED** (open/honesty only). End-to-end accept/refund = prior traveler cancel + FOUNDER auto-refund.
 
+### Phase 1008 — FOUNDER_REQUIRED ledger file (post-1000)
+
+**Gap:** Phase 929 FOUNDER table lived only in the progress journal; staff force-unpublish was still listed open after it shipped.
+
+**Fix:** `docs/FOUNDER_REQUIRED.md` — open decisions only (auto-refund, take-rate, dedicated traveler storage); mark force-unpublish closed; list safe continuation work.
+
+**Certification:** CODE-INSPECTED / docs truth.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.
 2. **P1 — Localhost same-origin auth**: shared Supabase session remains; Phase 904 blocks business-name lead-guest autofill (customer_* / consumer profile only).
-3. **P1 — FOUNDER:** auto-refund vs manual; commission snapshot before any LIVE discussion.
+3. **P1 — FOUNDER:** see `docs/FOUNDER_REQUIRED.md` (auto-refund, take-rate; force-unpublish closed).
 4. **P2 — Browser-cert** admin listings moderation on admin host with staff demo.
 5. **P2 — LIVE Stripe** intentionally blocked.
 6. **P2 — Service-role JWT briefly tracked** in `scripts/cert-transactional-emails.cjs` (now untracked); rotate when practical.
