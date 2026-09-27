@@ -25,7 +25,7 @@ import { openSupplierListingEditor, openSupplierBooking, openSupplierInbox } fro
 import { decrementAvailabilityBooked } from '../../data/supabase-availability';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
-import { isPurchaseSnapshot } from '../../lib/purchase-snapshot';
+import { isPurchaseSnapshot, displayListingTitleFromPurchase, displayDurationFromPurchase } from '../../lib/purchase-snapshot';
 import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierListSkeleton, SupplierPageHero } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
@@ -635,7 +635,7 @@ export default function SupplierPickupPlanner() {
       const copy = pickupCopyFor(b);
       return partnerPickupCsvValues(
         b,
-        listingTitles[b.listing_id] ?? '',
+        displayListingTitleFromPurchase(b.purchase_snapshot, listingTitles[b.listing_id], ''),
         b.start_time ? pgTimeToHm(b.start_time) ?? '' : '',
         b.pickup_time ? pgTimeToHm(b.pickup_time) ?? '' : '',
         copy.meetingPoint,
@@ -751,8 +751,16 @@ export default function SupplierPickupPlanner() {
   const activeBookingsCount = bookings.filter((b) => partnerBookingIsOperatingTrip(b)).length;
 
   if (selectedBooking) {
-    const listingTitle = listingTitles[selectedBooking.listing_id] ?? 'Listing';
+    const listingTitle = displayListingTitleFromPurchase(
+      selectedBooking.purchase_snapshot,
+      listingTitles[selectedBooking.listing_id],
+      'Listing'
+    );
     const guideMeta = listingGuideMeta[selectedBooking.listing_id];
+    const purchasedDuration = displayDurationFromPurchase(
+      selectedBooking.purchase_snapshot,
+      guideMeta?.duration ?? null
+    );
     const activityDate = selectedBooking.booking_date
       ? formatPickupSectionDate(selectedBooking.booking_date)
       : 'No activity date';
@@ -814,21 +822,25 @@ export default function SupplierPickupPlanner() {
             </p>
           </div>
 
-          {guideMeta ? (
+          {guideMeta || purchasedDuration ? (
             <div>
               <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Listing timing</h2>
-              {guideScheduleSummary(guideMeta) ? (
+              {purchasedDuration || guideScheduleSummary(guideMeta) ? (
                 <div className="space-y-1 text-sm text-ink">
-                  <p>Duration: {guideMeta.duration}</p>
-                  <p>Typical time / season: {guideMeta.bestTime}</p>
-                  <p>Start location: {guideMeta.startLocation}</p>
+                  {purchasedDuration ? <p>Duration: {purchasedDuration}</p> : null}
+                  {guideMeta?.bestTime && guideMeta.bestTime !== '—' ? (
+                    <p>Typical time / season: {guideMeta.bestTime}</p>
+                  ) : null}
+                  {guideMeta?.startLocation && guideMeta.startLocation !== '—' ? (
+                    <p>Start location: {guideMeta.startLocation}</p>
+                  ) : null}
                 </div>
               ) : (
                 <p className="text-sm text-ink-muted">
                   Add duration, typical time, and start location on the listing for clearer timing context.
                 </p>
               )}
-              {guideMeta.defaultStartTime ? (
+              {guideMeta?.defaultStartTime ? (
                 <p className="mt-2 text-xs text-ink-faint">
                   Listing default start {guideMeta.defaultStartTime}. Assign pickup between {guideMeta.pickupWindowMin}–
                   {guideMeta.pickupWindowMax} minutes before.
@@ -1314,7 +1326,11 @@ export default function SupplierPickupPlanner() {
                           <PlannerBookingCard
                             key={b.id}
                             booking={b}
-                            listingTitle={listingTitles[b.listing_id] ?? 'Listing'}
+                            listingTitle={displayListingTitleFromPurchase(
+                              b.purchase_snapshot,
+                              listingTitles[b.listing_id],
+                              'Listing'
+                            )}
                             guideMeta={listingGuideMeta[b.listing_id]}
                             missingPickup={missing}
                             urgentSoon={urgentSoon}
@@ -1366,7 +1382,11 @@ export default function SupplierPickupPlanner() {
                       <PlannerBookingCard
                         key={b.id}
                         booking={b}
-                        listingTitle={listingTitles[b.listing_id] ?? 'Listing'}
+                        listingTitle={displayListingTitleFromPurchase(
+                          b.purchase_snapshot,
+                          listingTitles[b.listing_id],
+                          'Listing'
+                        )}
                         guideMeta={listingGuideMeta[b.listing_id]}
                         missingPickup={needsPickupInfo(b)}
                         selected={selectedBookingId === b.id}

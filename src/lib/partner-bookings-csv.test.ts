@@ -82,4 +82,24 @@ describe('partner bookings CSV', () => {
     expect(values[PARTNER_BOOKINGS_CSV_HEADER.indexOf('pickup_time')]).toBe('08:30');
     expect(values[PARTNER_BOOKINGS_CSV_HEADER.indexOf('nights')]).toBe('');
   });
+
+  it('listing_title column carries purchased title when caller prefers snapshot (Phase 1069)', () => {
+    const values = partnerBookingCsvValues(
+      {
+        id: 't2',
+        listing_id: 'tour',
+        booking_number: 2,
+        status: 'confirmed',
+        payment_status: 'paid',
+        amount_paid: 120,
+        currency: 'EUR',
+        booking_date: '2026-12-01',
+        guests: 1,
+      },
+      'Purchased Aurora Walk',
+      '20:00',
+      '19:30'
+    );
+    expect(values[PARTNER_BOOKINGS_CSV_HEADER.indexOf('listing_title')]).toBe('Purchased Aurora Walk');
+  });
 });

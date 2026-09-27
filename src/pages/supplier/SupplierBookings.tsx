@@ -71,7 +71,7 @@ import { formatBookingDateDisplay } from '../../lib/booking-flow';
 import { partnerBookingHasPickupAttention } from '../../lib/pickup-completeness';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 import { comparePartnerBookingsOperational } from '../../lib/partner-bookings-order';
-import { displayListingTitleFromPurchase, displayMeetingPointFromPurchase, displayOptionLabelFromPurchase, displayPickupInstructionsFromPurchase, displayFulfillmentFromPurchase, displayDurationFromPurchase, displayStayCheckInTimeFromPurchase, displayStayCheckOutTimeFromPurchase, partnerOpsDepartureDisplay, isPurchaseSnapshot } from '../../lib/purchase-snapshot';
+import { displayListingTitleFromPurchase, displayMeetingPointFromPurchase, displayOptionLabelFromPurchase, displayPickupInstructionsFromPurchase, displayFulfillmentFromPurchase, displayDurationFromPurchase, displayStayCheckInTimeFromPurchase, displayStayCheckOutTimeFromPurchase, displayCheckInAddressFromPurchase, displayStayHouseRulesFromPurchase, partnerOpsDepartureDisplay, isPurchaseSnapshot } from '../../lib/purchase-snapshot';
 
 const BOOKINGS_PAGE_SIZE = 10;
 
@@ -174,9 +174,14 @@ function downloadBookingsCsv(
     const isStay = meta?.family === 'stay' || Boolean(b.check_out);
     const stayRange = isStay ? stayRangeFromBooking(b) : null;
     const nights = stayRange ? nightsOccupiedByStay(stayRange.checkIn, stayRange.checkOut).length : 0;
+    const listingTitle = displayListingTitleFromPurchase(
+      b.purchase_snapshot,
+      meta?.title,
+      ''
+    );
     return partnerBookingCsvValues(
       b,
-      meta?.title ?? '',
+      listingTitle,
       b.start_time ? pgTimeToHm(b.start_time) ?? '' : '',
       b.pickup_time ? pgTimeToHm(b.pickup_time) ?? '' : '',
       { inventory: isStay ? 'stay' : 'tour', nights: nights > 0 ? nights : null }
@@ -592,7 +597,11 @@ export default function SupplierBookings({
       void notifyTravelerCancellationRequest({
         customerEmail: email,
         customerName: cancelModal.guest_name,
-        listingTitle: listingMeta[cancelModal.listing_id]?.title ?? 'Booking',
+        listingTitle: displayListingTitleFromPurchase(
+          cancelModal.purchase_snapshot,
+          listingMeta[cancelModal.listing_id]?.title,
+          'Booking'
+        ),
         bookingId: cancelModal.id,
         bookingNumber: typeof cancelModal.booking_number === 'number' ? cancelModal.booking_number : undefined,
         bookingDate: cancelModal.booking_date,
@@ -1291,6 +1300,26 @@ export default function SupplierBookings({
                       </div>
                       );
                     })()}
+                    {isStay && displayCheckInAddressFromPurchase(booking.purchase_snapshot) ? (
+                      <div className="sm:col-span-2">
+                        <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">
+                          Check-in address (when booked)
+                        </dt>
+                        <dd className="mt-0.5 break-words [overflow-wrap:anywhere] whitespace-pre-wrap text-ink">
+                          {displayCheckInAddressFromPurchase(booking.purchase_snapshot)}
+                        </dd>
+                      </div>
+                    ) : null}
+                    {isStay && displayStayHouseRulesFromPurchase(booking.purchase_snapshot) ? (
+                      <div className="sm:col-span-2">
+                        <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">
+                          House rules (when booked)
+                        </dt>
+                        <dd className="mt-0.5 break-words [overflow-wrap:anywhere] whitespace-pre-wrap text-ink">
+                          {displayStayHouseRulesFromPurchase(booking.purchase_snapshot)}
+                        </dd>
+                      </div>
+                    ) : null}
                     {!isStay && pickupHm ? (
                       <div>
                         <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Pickup</dt>
@@ -1523,7 +1552,7 @@ export default function SupplierBookings({
                         : 'unpaid'
                     }
                     viewerRole="supplier"
-                    listingTitle={listingMeta[booking.listing_id]?.title ?? 'Listing'}
+                    listingTitle={listingTitle}
                     listingId={booking.listing_id}
                     supplierId={user?.id}
                     customerEmail={booking.guest_email}
