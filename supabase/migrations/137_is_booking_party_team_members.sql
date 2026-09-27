@@ -21,7 +21,7 @@ as $$
         or exists (
           select 1
           from public.supplier_team_members stm
-          where stm.supplier_id = l.supplier_id
+          where stm.supplier_id = l.supplier_id::text
             and stm.user_id = auth.uid()
         )
         or b.guest_user_id = auth.uid()
