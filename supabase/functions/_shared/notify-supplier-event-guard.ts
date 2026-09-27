@@ -147,8 +147,10 @@ export function resolveSupplierEventContext(params: {
           : undefined,
     };
     if (eventType === 'new_booking') {
+      // Phase 1135: map collected statuses (paid/complete/succeeded) to paid copy.
       const status = String(bookingRow.payment_status ?? '').trim().toLowerCase();
-      overrides.bookingPaymentStatus = status === 'paid' ? 'paid' : status ? 'pending' : 'none';
+      const collected = status === 'paid' || status === 'complete' || status === 'succeeded';
+      overrides.bookingPaymentStatus = collected ? 'paid' : status ? 'pending' : 'none';
     }
     return { ok: true, overrides };
   }

@@ -188,6 +188,22 @@ describe('resolveSupplierEventContext: booking-tied events (Phase 579 content-fo
     expect(none.ok && none.overrides.bookingPaymentStatus).toBe('none');
   });
 
+  it('Phase 1135: new_booking maps complete/succeeded payment_status to paid', () => {
+    for (const payment_status of ['complete', 'succeeded'] as const) {
+      const result = resolveSupplierEventContext({
+        eventType: 'new_booking',
+        supplierId: REAL_SUPPLIER,
+        bookingId: REAL_BOOKING,
+        listingId: REAL_LISTING,
+        reviewId: undefined,
+        listingRow,
+        bookingRow: { ...bookingRow, payment_status },
+        reviewRow: undefined,
+      });
+      expect(result.ok && result.overrides.bookingPaymentStatus).toBe('paid');
+    }
+  });
+
   it('non-new_booking events never set bookingPaymentStatus', () => {
     const result = resolveSupplierEventContext({
       eventType: 'guest_message',
