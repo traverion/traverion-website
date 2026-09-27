@@ -262,7 +262,9 @@ export async function uploadSupplierBusinessLogo(
         : mime === 'image/webp'
           ? 'webp'
           : 'gif';
-  const path = `${auth.userId}/business-logo.${ext}`;
+  // Phase 1218: store under owner prefix so team uploads match owner profile logo URL.
+  const ownerSupplierId = await resolveSupplierId(auth.userId);
+  const path = `${ownerSupplierId}/business-logo.${ext}`;
 
   const { error: upErr } = await supabase.storage
     .from(SUPPLIER_LOGO_BUCKET)
@@ -279,9 +281,10 @@ export async function uploadSupplierBusinessLogo(
 /** Remove all files in the supplier's logo folder (e.g. before clearing profile URL). */
 export async function removeSupplierBusinessLogoFiles(userId: string): Promise<void> {
   if (!supabase) return;
-  const { data: files } = await supabase.storage.from(SUPPLIER_LOGO_BUCKET).list(userId);
+  const ownerSupplierId = await resolveSupplierId(userId);
+  const { data: files } = await supabase.storage.from(SUPPLIER_LOGO_BUCKET).list(ownerSupplierId);
   if (!files?.length) return;
-  const paths = files.map((f) => `${userId}/${f.name}`);
+  const paths = files.map((f) => `${ownerSupplierId}/${f.name}`);
   await supabase.storage.from(SUPPLIER_LOGO_BUCKET).remove(paths);
 }
 
