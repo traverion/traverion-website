@@ -298,95 +298,19 @@ export async function resumePendingBookingCheckout(params: {
   };
 }
 
+/**
+ * @deprecated Client INSERT into public.bookings is closed (migration 086).
+ * Paid booking creation must go through createBookingCheckoutSession /
+ * create-booking-checkout-session. Kept as an explicit failure so any stale
+ * caller cannot silently appear to succeed.
+ */
 export async function submitBooking(
-  data: Omit<Booking, 'id' | 'created_at' | 'updated_at'>
+  _data: Omit<Booking, 'id' | 'created_at' | 'updated_at'>
 ): Promise<{ success: boolean; error?: string }> {
-  if (!supabase) {
-    return { success: false, error: 'Supabase not configured' };
-  }
-  const totalAmount = (data.total_price != null ? data.total_price : undefined) as number | undefined;
-  const { data: listingData } = await supabase
-    .from('listings')
-    .select('supplier_id, title')
-    .eq('id', data.tour_id)
-    .maybeSingle();
-
-  const formEmailNorm = (data.customer_email ?? '').trim().toLowerCase() || null;
-  const { data: authData } = await supabase.auth.getUser();
-  const sessionUser = authData?.user;
-  const sessionEmail = sessionUser?.email?.trim().toLowerCase() ?? '';
-
-  /** Logged-in travelers: row always uses account email + user id (RLS + transactional mail). */
-  let guestEmailNorm: string | null = null;
-  let guest_user_id: string | null = null;
-  if (sessionUser?.id && sessionEmail) {
-    guestEmailNorm = sessionEmail;
-    guest_user_id = sessionUser.id;
-  } else if (formEmailNorm) {
-    guestEmailNorm = formEmailNorm;
-    guest_user_id = null;
-  }
-
-  if (!guestEmailNorm) {
-    return { success: false, error: 'Sign in to book, or provide a valid email address.' };
-  }
-
-  let special_requests = data.special_requests ?? null;
-  if (sessionEmail && formEmailNorm && formEmailNorm !== sessionEmail) {
-    const line = `Contact email entered on form: ${formEmailNorm}`;
-    special_requests = special_requests?.trim() ? `${line}\n\n${special_requests}` : line;
-  }
-
-  const { data: inserted, error } = await supabase.from('bookings').insert({
-    listing_id: data.tour_id,
-    guest_email: guestEmailNorm,
-    guest_name: data.customer_name ?? null,
-    guests: data.travelers ?? 1,
-    booking_date: data.departure_date || null,
-    status: data.status ?? 'confirmed',
-    special_requests,
-    total_amount: totalAmount ?? null,
-    currency: data.currency ?? 'EUR',
-    guest_user_id,
-  }).select('id, booking_number').maybeSingle();
-  if (error) return { success: false, error: error.message };
-  const orderNum =
-    typeof inserted?.booking_number === 'number' && Number.isFinite(inserted.booking_number)
-      ? Math.floor(inserted.booking_number)
-      : undefined;
-  if (listingData?.supplier_id) {
-    void notifySupplierEvent({
-      supplierId: listingData.supplier_id,
-      eventType: 'new_booking',
-      listingId: data.tour_id,
-      listingTitle: listingData.title ?? data.tour_title ?? undefined,
-      bookingId: inserted?.id,
-      bookingDate: data.departure_date,
-      guests: data.travelers,
-      guestName: data.customer_name,
-      portalBaseUrl: supplierPortalPublicBaseUrl(),
-      bookingPaymentStatus: 'none',
-      bookingNumber: orderNum,
-    });
-  }
-  if (guestEmailNorm) {
-    void supabase.functions.invoke('notify-customer-booking', {
-      body: {
-        customerEmail: guestEmailNorm,
-        customerName: data.customer_name ?? undefined,
-        listingTitle: listingData?.title ?? data.tour_title ?? 'Listing',
-        bookingId: inserted?.id,
-        bookingNumber: orderNum,
-        bookingDate: data.departure_date ?? undefined,
-        guests: data.travelers ?? undefined,
-        totalAmount: totalAmount ?? undefined,
-        currency: data.currency ?? 'EUR',
-        emailKind: 'booking_request',
-        publicSiteUrl: publicSiteBaseUrl(),
-      },
-    });
-  }
-  return { success: true };
+  return {
+    success: false,
+    error: 'Direct booking insert is disabled. Use Stripe TEST checkout (createBookingCheckoutSession).',
+  };
 }
 
 /**

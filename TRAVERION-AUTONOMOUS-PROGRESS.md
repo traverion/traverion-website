@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness** (continuing 1001+)  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `9c580fb`  
-**Current phase:** 1026  
+**Current SHA:** `79739df`  
+**Current phase:** 1027  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -5293,7 +5293,15 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 
 **Fix:** Migration `116_supplier_ops_actor_id_authenticity.sql` — INSERT/UPDATE WITH CHECK requires `actor_id is null or actor_id = auth.uid()` (preserves prior booking ownership checks from 109–111).
 
-**Certification:** ADVERSARIAL-TESTED (SQL harness authored) + remote applied. Scratch Postgres re-run = host-blocked (no local docker).
+**Certification:** ADVERSARIAL-TESTED (SQL harness authored) + remote applied. Scratch Postgres re-run = host-blocked (no local docker). Ending SHA `79739df`.
+
+### Phase 1027 — Remove dead submitBooking client insert footgun
+
+**Gap:** `submitBooking()` still attempted a direct `bookings` INSERT (blocked by mig 086) and could confuse future callers / imply a working unpaid-request path.
+
+**Fix:** Replace body with an explicit failure pointing at `createBookingCheckoutSession`. No UI callers.
+
+**Certification:** CODE-INSPECTED.
 
 ## Known remaining risks (ranked)
 
