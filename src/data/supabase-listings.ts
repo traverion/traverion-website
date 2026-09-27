@@ -464,13 +464,17 @@ export type ListingOpsMeta = {
   city: string | null;
   /** Publish state — Trips must not offer “browse live” for unpublished rows. */
   status: string | null;
+  /** Phase 1277: season / family for Trips “browse live” honesty. */
+  listing_extras: unknown;
 };
 
 export async function fetchListingOpsByIds(ids: string[]): Promise<Record<string, ListingOpsMeta>> {
   if (!supabase || ids.length === 0) return {};
   const { data, error } = await supabase
     .from('listings')
-    .select('id, title, supplier_id, meeting_point, pickup_instructions, image, destination, city, status')
+    .select(
+      'id, title, supplier_id, meeting_point, pickup_instructions, image, destination, city, status, listing_extras'
+    )
     .in('id', ids);
   // Failure must not look like "listings have no ops meta" (Phase 1089).
   if (error) throw new Error(error.message);
@@ -485,6 +489,7 @@ export async function fetchListingOpsByIds(ids: string[]): Promise<Record<string
       destination: typeof r.destination === 'string' ? r.destination : null,
       city: typeof r.city === 'string' ? r.city : null,
       status: typeof r.status === 'string' ? r.status : null,
+      listing_extras: r.listing_extras ?? null,
     };
   }
   return map;

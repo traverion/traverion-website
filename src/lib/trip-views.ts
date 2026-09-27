@@ -5,6 +5,8 @@ import { bookingIsStayNight } from './pickup-completeness';
 import { nightsOccupiedByStay, stayRangeFromBooking } from './stayOccupancy';
 import { resolveLifecycleTimezone, ymdInTimeZone, addCalendarDaysYmd } from './booking-lifecycle-calendar';
 import { localYmd } from './local-ymd';
+import { listingHasUpcomingBookableSeason } from './booking-quote';
+import { parseListingExtras } from '../types/listingExtras';
 
 /** Collapsed Trips row — booking reference for support/receipt matching without expand. */
 export function travelerTripReferenceLabel(bookingNumber: number | null | undefined): string | null {
@@ -14,9 +16,20 @@ export function travelerTripReferenceLabel(bookingNumber: number | null | undefi
   return `Ref #${Math.floor(bookingNumber)}`;
 }
 
-/** Live marketplace browse from Trips — only when the listing is still published (Phase 1086). */
-export function tripAllowsBrowseLiveListing(ops: { status?: string | null } | null | undefined): boolean {
-  return (ops?.status ?? '').trim().toLowerCase() === 'published';
+/**
+ * Live marketplace browse from Trips — published only (Phase 1086).
+ * Phase 1277: tours also need an upcoming bookable season (App/PDP parity).
+ */
+export function tripAllowsBrowseLiveListing(
+  ops: { status?: string | null; listing_extras?: unknown } | null | undefined
+): boolean {
+  if ((ops?.status ?? '').trim().toLowerCase() !== 'published') return false;
+  const extras = parseListingExtras(ops?.listing_extras);
+  if (extras.inventoryFamily === 'stay') return true;
+  return listingHasUpcomingBookableSeason({
+    status: ops?.status,
+    listingExtras: ops?.listing_extras,
+  });
 }
 
 export type TripListView = 'upcoming' | 'past' | 'cancelled';

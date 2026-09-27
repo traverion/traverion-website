@@ -350,4 +350,46 @@ describe('trip list views', () => {
     expect(tripAllowsBrowseLiveListing({ status: null })).toBe(false);
     expect(tripAllowsBrowseLiveListing(undefined)).toBe(false);
   });
+
+  it('hides browse-live for published tours with ended seasons (Phase 1277)', () => {
+    expect(
+      tripAllowsBrowseLiveListing({
+        status: 'published',
+        listing_extras: {
+          inventoryFamily: 'tour',
+          departureTimezone: 'Europe/Helsinki',
+          bookingOptions: [
+            {
+              id: 'ended',
+              name: 'Ended',
+              priceUsd: 99,
+              startTime: '20:00',
+              weekdays: [true, true, true, true, true, true, true],
+              schedules: [
+                {
+                  id: 'sch-1',
+                  name: 'Past',
+                  availabilityDateFrom: '2020-01-01',
+                  availabilityDateTo: '2020-12-31',
+                  weekdays: [true, true, true, true, true, true, true],
+                  startTime: '20:00',
+                  priceUsd: 99,
+                  minPersons: 1,
+                  maxPersons: 8,
+                  maxSpotsPerSlot: 8,
+                  status: 'ready',
+                },
+              ],
+            },
+          ],
+        },
+      })
+    ).toBe(false);
+    expect(
+      tripAllowsBrowseLiveListing({
+        status: 'published',
+        listing_extras: { inventoryFamily: 'stay' },
+      })
+    ).toBe(true);
+  });
 });
