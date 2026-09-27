@@ -4900,6 +4900,13 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 
 **Certification:** multi-option select + price truth = **BROWSER-TESTED**. Stripe pay of this option = optional follow-up (prior Stripe path already certified).
 
+
+### Phase 922 — Privacy / PII operational exposure honesty
+
+**Evidence:** Guest name/email/phone appear on partner Bookings + Pickup for operational fulfillment (expected). Public RPCs (`published_tour_paid_guests*`, stay occupied ranges) return counts/ranges only — no guest PII. Cross-account booking SELECT denied (880–881). Traveler B messaging deny (885).
+
+**Certification:** PII boundary = **CODE-INSPECTED** + prior **ADVERSARIAL**. No new public PII leak found this pass.
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.

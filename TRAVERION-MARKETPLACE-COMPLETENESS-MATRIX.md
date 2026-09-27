@@ -68,7 +68,7 @@
 | SEO | PARTIAL→STRONG | published sitemap snapshot (896) | Automate sitemap on publish |
 | Images / media | PARTIAL→STRONG | folder RLS + client ownership (906) | Batch orphan GC later |
 | RLS / security | STRONG / ADVERSARIAL | traveler deny #41 (880–881); supplier listing isolation 091/910 | Keep expanding adversarial suite |
-| Privacy | PARTIAL | policies + RLS | Minimize PII on partner surfaces |
+| Privacy | PARTIAL→STRONG | public RPCs no PII; ops surfaces justified (922) | Keep minimizing |
 | Legal / consent | STRONG / BROWSER | /privacy /terms (894); checkout gate 901 + browser 905 | Server-side acceptance log later |
 | Admin / support | PARTIAL | staff panels + ADMIN_SUPPORT_READINESS (903) | Staff force-unpublish later |
 | Moderation | NOT REQUIRED YET | — | Architecture note only |
