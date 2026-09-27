@@ -144,7 +144,8 @@ begin
               'minPersons', 1,
               'maxPersons', 8,
               'maxSpotsPerSlot', 8,
-              'weekdays', jsonb_build_array(true, true, true, true, true, true, true)
+              'weekdays', jsonb_build_array(true, true, true, true, true, true, true),
+              'availabilityDateFrom', '2026-01-01'
             )
           )
         )
@@ -174,7 +175,7 @@ begin
   );
 
   select public.listing_has_bookable_tour_surface(
-    '{"bookingOptions":[{"pickupPlace":"Hotel pickup area","schedules":[{"status":"ready","priceUsd":10,"minPersons":1,"maxPersons":8,"maxSpotsPerSlot":8,"startTime":"20:00","weekdays":[true,true,true,true,true,true,true]}]}]}'::jsonb, 0
+    '{"bookingOptions":[{"pickupPlace":"Hotel pickup area","schedules":[{"status":"ready","priceUsd":10,"minPersons":1,"maxPersons":8,"maxSpotsPerSlot":8,"startTime":"20:00","weekdays":[true,true,true,true,true,true,true],"availabilityDateFrom":"2026-01-01"}]}]}'::jsonb, 0
   ) into v_ok;
   if not v_ok then raise exception 'helper tour ready schedule should be bookable'; end if;
 
@@ -207,6 +208,12 @@ begin
     '{"bookingOptions":[{"pickupPlace":"Hotel pickup area","priceUsd":89,"minPersons":1,"maxPersons":8,"maxSpotsPerSlot":8}]}'::jsonb, 0
   ) into v_ok;
   if v_ok then raise exception 'helper flat option without weekdays must fail'; end if;
+
+  -- Phase 1250: ready schedule without availabilityDateFrom is not bookable.
+  select public.listing_has_bookable_tour_surface(
+    '{"bookingOptions":[{"pickupPlace":"Hotel pickup area","schedules":[{"status":"ready","priceUsd":10,"minPersons":1,"maxPersons":8,"maxSpotsPerSlot":8,"startTime":"20:00","weekdays":[true,true,true,true,true,true,true]}]}]}'::jsonb, 0
+  ) into v_ok;
+  if v_ok then raise exception 'helper ready schedule without start date must fail'; end if;
 
   raise notice 'ALL ASSERTIONS PASSED';
 end $$;
