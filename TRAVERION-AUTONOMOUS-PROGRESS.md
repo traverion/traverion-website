@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness** (continuing 1001+)  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `d6bb44f`  
-**Current phase:** 1015  
+**Current SHA:** `0a64978`  
+**Current phase:** 1016  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -5202,6 +5202,20 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 **FOUNDER_REQUIRED (remaining P1):** Auto-refund vs manual; commission take-rate snapshot; dedicated traveler auth storage — see `docs/FOUNDER_REQUIRED.md`. Autonomous band continues on non-FOUNDER P2 work only until those decisions land.
 
 **Certification:** working tree clean (no untracked junk).
+
+### Phase 1015 — Server requires checkout consent + stamps purchase_snapshot
+
+**Gap:** Consent was UI-only; a crafted Edge call could start Stripe TEST checkout without accepting terms.
+
+**Fix:** `create-booking-checkout-session` rejects new sessions unless `checkoutConsentAccepted: true` (resume-by-bookingId exempt). Stamps `purchase_snapshot.termsAcceptedAt` (frozen with commercial snapshot). Tour/stay clients pass consent after UI gate. Unit test for stamp field. Edge deployed.
+
+**Certification:** AUTOMATED-TESTED + CODE-INSPECTED. Browser re-pay not claimed this phase.
+
+### Phase 1016 — Checkout consent module docs match server gate
+
+**Fix:** `checkout-consent.ts` header no longer claims presentation-only; documents Edge requirement + snapshot stamp.
+
+**Certification:** CODE-INSPECTED.
 
 ## Known remaining risks (ranked)
 
