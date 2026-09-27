@@ -296,10 +296,11 @@ function syncHeadlinePriceFromCategories(
 export function normalizeListingBookingOption(raw: Record<string, unknown>, fallbackId: string): ListingBookingOption {
   const minP = typeof raw.minPersons === 'number' && raw.minPersons >= 1 ? Math.floor(raw.minPersons) : 1;
   const maxP = typeof raw.maxPersons === 'number' && raw.maxPersons >= minP ? Math.floor(raw.maxPersons) : Math.max(minP, 12);
+  // Phase 1225: never invent slot cap from maxPersons (parity with edge parseSchedule 1205).
   const spots =
-    typeof raw.maxSpotsPerSlot === 'number' && raw.maxSpotsPerSlot >= 1
+    typeof raw.maxSpotsPerSlot === 'number' && Number.isFinite(raw.maxSpotsPerSlot) && raw.maxSpotsPerSlot >= 1
       ? Math.floor(raw.maxSpotsPerSlot)
-      : maxP;
+      : 0;
   const pricingMode: ListingPricingMode | undefined =
     raw.pricingMode === 'age_dependent' ? 'age_dependent' : raw.pricingMode === 'uniform' ? 'uniform' : undefined;
   const priceCategories = normalizePriceCategories(raw.priceCategories);
@@ -334,7 +335,7 @@ export function normalizeListingBookingOption(raw: Record<string, unknown>, fall
     pickupPlace: typeof raw.pickupPlace === 'string' ? raw.pickupPlace : '',
     minPersons: minP,
     maxPersons: maxP,
-    maxSpotsPerSlot: Math.max(1, spots),
+    maxSpotsPerSlot: spots,
     optionInfo: typeof raw.optionInfo === 'string' ? raw.optionInfo : '',
     weekdays: normalizeWeekdays(raw.weekdays),
     availabilityDateFrom: typeof raw.availabilityDateFrom === 'string' ? raw.availabilityDateFrom : '',
@@ -371,10 +372,11 @@ export function normalizeListingOptionSchedule(
   const minP = typeof raw.minPersons === 'number' && raw.minPersons >= 1 ? Math.floor(raw.minPersons) : 1;
   const maxP =
     typeof raw.maxPersons === 'number' && raw.maxPersons >= minP ? Math.floor(raw.maxPersons) : Math.max(minP, 12);
+  // Phase 1225: never invent schedule slot cap from maxPersons.
   const spots =
-    typeof raw.maxSpotsPerSlot === 'number' && raw.maxSpotsPerSlot >= 1
+    typeof raw.maxSpotsPerSlot === 'number' && Number.isFinite(raw.maxSpotsPerSlot) && raw.maxSpotsPerSlot >= 1
       ? Math.floor(raw.maxSpotsPerSlot)
-      : maxP;
+      : 0;
   const pricingMode: ListingPricingMode | undefined =
     raw.pricingMode === 'age_dependent' ? 'age_dependent' : raw.pricingMode === 'uniform' ? 'uniform' : undefined;
   const priceCategories = normalizePriceCategories(raw.priceCategories);
@@ -410,7 +412,7 @@ export function normalizeListingOptionSchedule(
     priceUsd,
     minPersons: minP,
     maxPersons: maxP,
-    maxSpotsPerSlot: Math.max(1, spots),
+    maxSpotsPerSlot: spots,
   };
   if (pricingMode) out.pricingMode = pricingMode;
   if (priceCategories) out.priceCategories = priceCategories;
