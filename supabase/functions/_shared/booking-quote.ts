@@ -300,10 +300,11 @@ function parseSchedule(raw: Record<string, unknown>, fallbackId: string): Option
   const minP = typeof raw.minPersons === 'number' && raw.minPersons >= 1 ? Math.floor(raw.minPersons) : 1;
   const maxP =
     typeof raw.maxPersons === 'number' && raw.maxPersons >= minP ? Math.floor(raw.maxPersons) : Math.max(minP, 12);
+  // Phase 1205: never invent slot cap from maxPersons (assert_checkout_inventory only reads maxSpotsPerSlot).
   const spots =
-    typeof raw.maxSpotsPerSlot === 'number' && raw.maxSpotsPerSlot >= 1
+    typeof raw.maxSpotsPerSlot === 'number' && Number.isFinite(raw.maxSpotsPerSlot) && raw.maxSpotsPerSlot >= 1
       ? Math.floor(raw.maxSpotsPerSlot)
-      : maxP;
+      : 0;
   const cats = parsePriceCategories(raw.priceCategories);
   let priceUsd = typeof raw.priceUsd === 'number' && !Number.isNaN(raw.priceUsd) ? Math.max(0, raw.priceUsd) : 0;
   if (raw.pricingMode === 'age_dependent' && cats?.length) {
@@ -332,7 +333,7 @@ function parseSchedule(raw: Record<string, unknown>, fallbackId: string): Option
     priceUsd,
     minPersons: minP,
     maxPersons: maxP,
-    maxSpotsPerSlot: Math.max(1, spots),
+    maxSpotsPerSlot: spots,
   };
   if (raw.pricingMode === 'age_dependent' || raw.pricingMode === 'uniform') out.pricingMode = String(raw.pricingMode);
   if (cats) out.priceCategories = cats;
@@ -528,7 +529,8 @@ export function tourDepartureSlotCapacity(input: {
   if (typeof spots === 'number' && Number.isFinite(spots) && spots >= 1) {
     return Math.min(99, Math.floor(spots));
   }
-  return Math.min(99, Math.max(1, option.maxPersons));
+  // Phase 1205: unknown legacy slot cap → null (no invent from maxPersons).
+  return null;
 }
 
 function legacyParticipantKind(name: string): 'adult' | 'reduced' | 'other' {
