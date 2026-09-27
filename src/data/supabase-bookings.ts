@@ -692,10 +692,12 @@ export async function batchCancelBookings(
   }
 ): Promise<{ count: number; error?: string }> {
   if (!supabase) return { count: 0, error: 'Supabase not configured' };
+  // Phase 1200: resolve owner id so team JWTs see owner listings (parity with fetchBookingsForSupplier).
+  const ownerSupplierId = await resolveSupplierId(supplierId);
   const { data: myListings } = await supabase
     .from('listings')
     .select('id')
-    .eq('supplier_id', supplierId)
+    .eq('supplier_id', ownerSupplierId)
     .in('id', params.listingIds);
   const ids = (myListings ?? []).map((r: { id: string }) => r.id);
   if (ids.length === 0) return { count: 0 };
