@@ -3,13 +3,13 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness** (continuing 1001+)  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `c3355d3`  
-**Current phase:** 1034  
+**Current SHA:** `8b47ec5`  
+**Current phase:** 1035  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Local-only (gitignored):** `scripts/cert-transactional-emails.cjs` — must stay untracked; contains service-role secrets when present locally  
-**Remote migration truth (Phase 1030):** Local=Remote through **118** on `xcopqllkulxfkpunetbc`. Stripe: TEST only.  
+**Remote migration truth (Phase 1035):** Local=Remote through **119** on `xcopqllkulxfkpunetbc`. Stripe: TEST only.  
 
 ## Milestone Phase 513 (inventory band)
 
@@ -5359,7 +5359,15 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 
 **Evidence:** `npm run build` ✓. Matrix Messaging cell notes supplier self-notify JWT (1033).
 
-**Certification:** AUTOMATED-TESTED (production build).
+**Certification:** AUTOMATED-TESTED (production build). Ending SHA `8b47ec5`.
+
+### Phase 1035 — Gate reviews SELECT to published or party
+
+**Gap:** `reviews` SELECT used `using (true)` — draft listing reviews (guest_name/comment) were world-readable by listing UUID after unpublish.
+
+**Fix:** Migration `119_reviews_published_or_party_select.sql` — published OR listing supplier OR review author.
+
+**Certification:** ADVERSARIAL-TESTED (SQL harness authored) + remote applied. Scratch Postgres re-run = host-blocked.
 
 ## Known remaining risks (ranked)
 
