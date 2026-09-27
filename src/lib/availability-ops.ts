@@ -210,6 +210,8 @@ export function listingTourCapacityFromOptions(
 export function capacitySpotsFromBookingOptions(
   options: Array<{
     maxSpotsPerSlot?: number | null | unknown;
+    availabilityDateFrom?: string | null;
+    startTime?: string | null;
     schedules?: Array<{
       maxSpotsPerSlot?: number | null | unknown;
       status?: string;
@@ -232,6 +234,9 @@ export function capacitySpotsFromBookingOptions(
       }
       continue;
     }
+    // Phase 1297: flat options need from + startTime (season 1296 / departures 1293).
+    if (!(o.availabilityDateFrom ?? '').trim()) continue;
+    if (!(o.startTime ?? '').trim()) continue;
     spots.push(typeof o.maxSpotsPerSlot === 'number' ? o.maxSpotsPerSlot : null);
   }
   return spots;

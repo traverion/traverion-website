@@ -438,15 +438,16 @@ export function listingHasUpcomingBookableSeason(
   for (const o of opts) {
     if (Array.isArray(o.schedules) && o.schedules.length > 0) {
       for (const s of o.schedules) {
-        // Phase 1288/1292: ready + from + startTime (scheduleIsBookable / publish parity).
-        if (s.status !== 'ready') continue;
-        const from = (s.availabilityDateFrom ?? '').trim();
+        // Phase 1295: full scheduleIsBookable + not-ended (client listingHasUpcomingBookableSeason).
+        if (s.status !== 'ready' || !scheduleIsBookable(s)) continue;
         const to = (s.availabilityDateTo ?? '').trim();
-        if (!from || !(s.startTime ?? '').trim()) continue;
         if (!to || to >= today) return true;
       }
     } else {
+      // Phase 1296: flat options need from + startTime (tourSellingDeparturesOnDate 1293).
+      const from = (o.availabilityDateFrom ?? '').trim();
       const to = (o.availabilityDateTo ?? '').trim();
+      if (!from || !(o.startTime ?? '').trim()) continue;
       if (!to || to >= today) return true;
     }
   }

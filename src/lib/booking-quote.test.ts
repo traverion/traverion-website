@@ -17,7 +17,8 @@ function option(partial: Partial<ListingBookingOption> & Pick<ListingBookingOpti
     optionInfo: 'Small group',
     travelerStartInstructions: 'Meet your guide at the square 15 minutes before departure.',
     weekdays: [true, true, true, true, true, true, true],
-    availabilityDateFrom: '',
+    // Phase 1293+: flat options need a real from date for selling departures / season gates.
+    availabilityDateFrom: '2020-01-01',
     availabilityDateTo: '',
     ...partial,
   };
