@@ -4,7 +4,7 @@
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
 **Current SHA:** `a4caea1`  
-**Current phase:** 1003  
+**Current phase:** 1004  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -5120,6 +5120,14 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 **Evidence:** `supabase/tests/admin_force_unpublish_remote_probe.sql` against linked project: insert published probe listing + paid future booking → `admin_force_unpublish_listing` → listing `draft`, booking still `confirmed`/`paid`, upcoming_paid≥1, cleanup deleted probe rows.
 
 **Certification:** ADVERSARIAL-TESTED / INTEGRATION-TESTED (remote).
+
+### Phase 1004 — Homepage scroll + second-option quote re-cert (browser)
+
+**Scroll:** `/` page scroll by (0,460) without header-only restriction; `html overflow-x: clip`, body overscroll contain; `scrollIntoView` to main content reached scrollY≈891. Regression remains closed.
+
+**Multi-option:** Cert tour `1807368c-…` — Oct 1 shows **€119 pickup** + **€99 meeting point**; selecting meeting option updates pickup section to Santa Claus Village, sidebar Total **€99**, CTA **Continue · test mode**, URL `option=535fb60f-…`. Full Stripe TEST pay of second option still optional residual (session may be partner-bleed).
+
+**Certification:** BROWSER-TESTED (scroll + option select/quote). Stripe pay of €99 option = NOT claimed this phase.
 
 ## Known remaining risks (ranked)
 
