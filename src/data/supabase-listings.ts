@@ -440,7 +440,8 @@ export async function fetchListingOpsByIds(ids: string[]): Promise<Record<string
     .from('listings')
     .select('id, title, supplier_id, meeting_point, pickup_instructions, image, destination, city, status')
     .in('id', ids);
-  if (error) return {};
+  // Failure must not look like "listings have no ops meta" (Phase 1089).
+  if (error) throw new Error(error.message);
   const map: Record<string, ListingOpsMeta> = {};
   for (const r of data ?? []) {
     map[r.id] = {

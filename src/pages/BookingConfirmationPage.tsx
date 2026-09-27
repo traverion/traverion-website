@@ -120,28 +120,45 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
       }
       setBooking(row);
       if (row.listing_id) {
-        const ops = await fetchListingOpsByIds([row.listing_id]);
-        if (gen !== loadGenRef.current) return;
-        const meta = ops[row.listing_id];
-        setListingTitle(
-          displayListingTitleFromPurchase(
+        try {
+          const ops = await fetchListingOpsByIds([row.listing_id]);
+          if (gen !== loadGenRef.current) return;
+          const meta = ops[row.listing_id];
+          setListingTitle(
+            displayListingTitleFromPurchase(
+              row.purchase_snapshot,
+              meta?.title,
+              row.check_out ? 'Your stay' : 'Your tour'
+            )
+          );
+          const stay = Boolean(row.check_out);
+          const snapMeeting = displayMeetingPointFromPurchase(
             row.purchase_snapshot,
-            meta?.title,
-            row.check_out ? 'Your stay' : 'Your tour'
-          )
-        );
-        const stay = Boolean(row.check_out);
-        const snapMeeting = displayMeetingPointFromPurchase(
-          row.purchase_snapshot,
-          meta?.meeting_point
-        );
-        const snapPickup = displayPickupInstructionsFromPurchase(
-          row.purchase_snapshot,
-          meta?.pickup_instructions
-        );
-        setPickupPending(
-          !stay && listingPickupCopyIncomplete(snapMeeting || null, snapPickup || null) && !row.pickup_time
-        );
+            meta?.meeting_point
+          );
+          const snapPickup = displayPickupInstructionsFromPurchase(
+            row.purchase_snapshot,
+            meta?.pickup_instructions
+          );
+          setPickupPending(
+            !stay && listingPickupCopyIncomplete(snapMeeting || null, snapPickup || null) && !row.pickup_time
+          );
+        } catch {
+          if (gen !== loadGenRef.current) return;
+          setListingTitle(
+            displayListingTitleFromPurchase(
+              row.purchase_snapshot,
+              '',
+              row.check_out ? 'Your stay' : 'Your tour'
+            )
+          );
+          const stay = Boolean(row.check_out);
+          const snapMeeting = displayMeetingPointFromPurchase(row.purchase_snapshot, null);
+          const snapPickup = displayPickupInstructionsFromPurchase(row.purchase_snapshot, null);
+          setPickupPending(
+            !stay && listingPickupCopyIncomplete(snapMeeting || null, snapPickup || null) && !row.pickup_time
+          );
+        }
         try {
           const listing = await fetchListingById(row.listing_id);
           if (gen !== loadGenRef.current) return;

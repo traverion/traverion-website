@@ -172,10 +172,15 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
       if (gen !== loadGenRef.current) return;
       setBookings(list);
       const ids = [...new Set(list.map((b) => b.listing_id))];
-      const ops = await fetchListingOpsByIds(ids);
-      if (gen !== loadGenRef.current) return;
-      setListingOps(ops);
-      setTitles(Object.fromEntries(Object.entries(ops).map(([id, v]) => [id, v.title])));
+      try {
+        const ops = await fetchListingOpsByIds(ids);
+        if (gen !== loadGenRef.current) return;
+        setListingOps(ops);
+        setTitles(Object.fromEntries(Object.entries(ops).map(([id, v]) => [id, v.title])));
+      } catch {
+        if (gen !== loadGenRef.current) return;
+        // Keep prior ops/titles — purchased snap titles still render on Trips cards.
+      }
       try {
         const reqs = await fetchCancellationRequestsForBookings(list.map((b) => b.id));
         if (gen !== loadGenRef.current) return;
