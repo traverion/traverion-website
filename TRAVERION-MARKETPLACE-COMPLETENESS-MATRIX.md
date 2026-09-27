@@ -58,7 +58,7 @@
 | Supplier Bookings / Pickup | STRONG / BROWSER | Refund due #41 + pickup excludes cancel (884) | Stay reservation pickup N/A |
 | Availability ops | PARTIAL | calendar / capacity | Protect confirmed bookings on edit |
 | Income / earnings | STRONG / BROWSER | `supplier_ledger_entries`; #40 keep / #41 reverse | Commission snapshot before LIVE |
-| Commission / take-rate | MISSING / unclear | No single snapshotted platform fee model | Define before LIVE |
+| Commission / take-rate | NOT REQUIRED YET | Gross earnings only today (889) | Define snapshotted take-rate before LIVE |
 | Payouts | NOT REQUIRED YET / MANUAL | `admin_record_supplier_payout` | No fake auto-payouts |
 | Analytics | STRONG / BROWSER | paid-only aggregates (888) | Views/impressions not claimed |
 | Emails / notifications | PARTIAL | Edge + `transactional_email_log` | Idempotency + delivery cert |
@@ -90,7 +90,7 @@
 | 6 | P1 | Same-origin session bleed | Document + mitigate localhost |
 | 7 | P1 | Manual refunds / “Refund due” limbo | #41 proves honesty; auto-refund = FOUNDER if desired |
 | 8 | P2 | Stay cancel TZ + broader zone catalog | Optional; Helsinki default covers FI |
-| 9 | P1 | Commission snapshot model | Define before LIVE |
+| 9 | P1 | Commission snapshot model | FOUNDER when LIVE economics decided |
 | 10 | P1 | Rentals / packages not live | Keep UI honest |
 
 ---

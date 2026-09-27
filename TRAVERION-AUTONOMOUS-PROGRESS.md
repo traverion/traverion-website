@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `b48ddda`  
-**Current phase:** 888  
+**Current SHA:** `94aa6e5`  
+**Current phase:** 889  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4665,6 +4665,12 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 **Browser:** Analytics — “Paid traveler bookings only — same collected definition as Income. Not estimates, site traffic, or unpaid checkouts.” Metrics: 12 paid / 29 guests / €3,243.15 (matches Income collected). No trending/popularity theater.
 
 **Certification:** analytics truth = **BROWSER-TESTED**.
+
+### Phase 889 — Commission architecture truth (no fake fees)
+
+**Audit:** `record_paid_booking_earnings` posts **gross booking amount** as `booking_earnings`. Income FEES show €0. No listing commission column; no snapshotted platform take-rate on bookings. Ledger kinds in use: booking_earnings, refund, cancellation_penalty (ops).
+
+**Decision (repo truth, not FOUNDER fork):** Keep honest — **do not invent commission** until a single take-rate model is designed for LIVE. Document as NOT REQUIRED YET / blocker before LIVE payouts.
 
 ## Known remaining risks (ranked)
 
