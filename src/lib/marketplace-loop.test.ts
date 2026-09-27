@@ -71,9 +71,11 @@ describe('availability ops', () => {
           {
             maxSpotsPerSlot: 1,
             schedules: [
-              { maxSpotsPerSlot: 8, status: 'ready' },
-              { maxSpotsPerSlot: 12, status: 'ready' },
-              { maxSpotsPerSlot: 99, status: 'draft' },
+              { maxSpotsPerSlot: 8, status: 'ready', availabilityDateFrom: '2026-01-01' },
+              { maxSpotsPerSlot: 12, status: 'ready', availabilityDateFrom: '2026-01-01' },
+              { maxSpotsPerSlot: 99, status: 'draft', availabilityDateFrom: '2026-01-01' },
+              // Phase 1289: ready without from must not inflate fallback caps.
+              { maxSpotsPerSlot: 50, status: 'ready', availabilityDateFrom: '' },
             ],
           },
         ])

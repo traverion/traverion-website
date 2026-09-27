@@ -210,7 +210,11 @@ export function listingTourCapacityFromOptions(
 export function capacitySpotsFromBookingOptions(
   options: Array<{
     maxSpotsPerSlot?: number | null | unknown;
-    schedules?: Array<{ maxSpotsPerSlot?: number | null | unknown; status?: string } | null> | null;
+    schedules?: Array<{
+      maxSpotsPerSlot?: number | null | unknown;
+      status?: string;
+      availabilityDateFrom?: string | null;
+    } | null> | null;
   } | null | undefined>
 ): Array<number | null> {
   const spots: Array<number | null> = [];
@@ -219,7 +223,9 @@ export function capacitySpotsFromBookingOptions(
     const schedules = Array.isArray(o.schedules) ? o.schedules : null;
     if (schedules && schedules.length > 0) {
       for (const s of schedules) {
-        if (!s || s.status === 'draft') continue;
+        // Phase 1289: only ready schedules with a real from date (assert 1285–1286 / season 1288).
+        if (!s || s.status !== 'ready') continue;
+        if (!(s.availabilityDateFrom ?? '').trim()) continue;
         spots.push(typeof s.maxSpotsPerSlot === 'number' ? s.maxSpotsPerSlot : null);
       }
       continue;
