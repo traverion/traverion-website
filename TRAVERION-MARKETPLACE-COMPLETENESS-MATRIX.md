@@ -52,7 +52,7 @@
 | Cancellation | STRONG / BROWSER | Traveler cancel; supplier request modal honesty (1007) | Auto-refund = FOUNDER |
 | Refunds | PARTIAL / HONEST | Manual Stripe; Refund due #41; no-refund #40 | Auto-refund = FOUNDER if desired |
 | Messaging | PARTIAL→STRONG | RLS deny (885); booking_ids ownership (110–111); supplier self-notify JWT (1033); no fake realtime (930) | Full notify party auth optional |
-| Reviews | STRONG / ADVERSARIAL | ownership + paid (117/118); SELECT published-or-party (119–120); after-start client | After-start SQL optional |
+| Reviews | STRONG / ADVERSARIAL | paid+owned+started write (117/118/123); SELECT published-or-party (119–120) | Staff moderate UI later |
 | Wishlist / Saved | STRONG / ADVERSARIAL | published-only insert (104/887); prune on unpublish (112/1021) | — |
 | Trips | PARTIAL→STRONG | fetch + error≠empty (892) | Dedicated traveler session |
 | Supplier Bookings / Pickup | STRONG / BROWSER | Refund due #41 + pickup excludes cancel (884) | Stay reservation pickup N/A |
@@ -98,13 +98,13 @@
 | 13 | P0-family | Ops notes / events / messages / campaigns cross-supplier plant | **CLOSED** 108–111 (1017–1020) |
 | 14 | P1 | Wishlist rows survive unpublish | **CLOSED** prune trigger 112 (1021) |
 | 15 | P1 | Draft discounts/availability world-readable | **CLOSED** 114–115 (1024–1025) |
-| 16 | P1 | Unverified / unpaid review spam via API | **CLOSED** 117–118 (1029–1030) |
+| 16 | P1 | Unverified / unpaid / pre-start review spam via API | **CLOSED** 117–118/123 (1029–1030/1043) |
 
 ---
 
 ## Post–Phase 1000 continuum (1001+)
 
-Remote migrations through **120**. Ownership 108–111; wishlist/cart prune 112–113; published-or-owner SELECT 114–115/119–120; actor_id 116; reviews require paid booking 117–118; supplier self-notify JWT 1033. FOUNDER open: `docs/FOUNDER_REQUIRED.md`.
+Remote migrations through **123**. Ownership 108–111; wishlist/cart prune 112–113; published-or-owner SELECT 114–115/119–120; actor_id 116; reviews paid+started 117–118/123; rating forge block 122; supplier self-notify JWT 1033. FOUNDER open: `docs/FOUNDER_REQUIRED.md`.
 
 ---
 

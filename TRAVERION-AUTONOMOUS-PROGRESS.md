@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness** (continuing 1001+)  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `c75dfcc`  
-**Current phase:** 1043  
+**Current SHA:** `918cfd7`  
+**Current phase:** 1044  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -5425,7 +5425,13 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 
 **Fix:** Migration `123_reviews_require_experience_started.sql` — `booking_experience_started_for_review` using listing TZ (snapshot/extras/Helsinki). Stay: local date ≥ check_out; tour: local now > date+start_time.
 
-**Certification:** CODE-INSPECTED + remote applied. Scratch Postgres full harness = host-blocked; client mirror covered by review-eligibility unit tests.
+**Certification:** CODE-INSPECTED + remote applied. Scratch Postgres full harness = host-blocked; client mirror covered by review-eligibility unit tests. Ending SHA `918cfd7`.
+
+### Phase 1044 — Matrix continuum through migration 123
+
+**Fix:** Reviews cell + ranked gap 16 cite started write (123); post-1000 continuum remote through **123**.
+
+**Certification:** CODE-INSPECTED / docs truth.
 
 ## Known remaining risks (ranked)
 
