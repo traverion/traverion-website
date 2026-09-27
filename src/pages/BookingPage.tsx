@@ -787,6 +787,23 @@ export default function BookingPage({
       );
       return;
     }
+    // Phase 1185: sold-out must not open availability modal / advance (1180 parity).
+    if (capacityBlocksPay) {
+      setError(
+        departureTime
+          ? `The ${departureTime} departure no longer has enough spots for your party.`
+          : 'This date no longer has enough spots for your party.'
+      );
+      return;
+    }
+    // Phase 1187: block own/team listings before availability UI (1181 upstream).
+    if (isSupabaseConfigured() && userRef.current?.id) {
+      const selfBook = await viewerIsListingSupplierSide(userRef.current.id, tour.supplierId);
+      if (selfBook) {
+        setError(LISTING_SELF_BOOK_BLOCKED);
+        return;
+      }
+    }
     setError(null);
     setAvailabilityChecking(true);
     setAvailabilityModalNote(null);
@@ -852,7 +869,7 @@ export default function BookingPage({
     void proceedToContactAfterOption();
   };
 
-  const handleContinueFromContact = () => {
+  const handleContinueFromContact = async () => {
     const fnCheck = required(firstName, 1);
     if (!fnCheck.valid) {
       setError(fnCheck.message ?? 'First name is required');
@@ -892,6 +909,14 @@ export default function BookingPage({
           : 'This date no longer has enough spots for your party.'
       );
       return;
+    }
+    // Phase 1186: mirror 1179 — block own/team listings before confirm/Pay.
+    if (isSupabaseConfigured() && userRef.current?.id) {
+      const selfBook = await viewerIsListingSupplierSide(userRef.current.id, tour.supplierId);
+      if (selfBook) {
+        setError(LISTING_SELF_BOOK_BLOCKED);
+        return;
+      }
     }
     setError(null);
     setStep('confirm');
