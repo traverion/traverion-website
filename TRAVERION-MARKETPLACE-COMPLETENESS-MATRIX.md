@@ -71,7 +71,7 @@
 | Privacy | PARTIAL | policies + RLS | Minimize PII on partner surfaces |
 | Admin / support | PARTIAL | staff panels | Minimum intervention map |
 | Moderation | NOT REQUIRED YET | — | Architecture note only |
-| Cron / jobs | PARTIAL | hold expiry etc. | Inventory + idempotency |
+| Cron / jobs | PARTIAL | hold expire + reminders edge (891) | Confirm reminder cron host schedule |
 | Observability | PARTIAL | structured logs | Checkout/payment trails |
 | Cart multi-item | DEAD/OBSOLETE path | `cart_items`; `/cart`→Trips | Do not revive without design |
 | Scroll / chrome | COMPLETE+VERIFIED | `overflow-x: clip` on roots | Phase scroll fix `32abd10` |

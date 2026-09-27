@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `b43d211`  
-**Current phase:** 890  
+**Current SHA:** `6f7f736`  
+**Current phase:** 891  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4677,6 +4677,18 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 **Proof:** Supplier PATCH cert listing `price_starting_from` 119 → 999. Booking #41 `purchase_snapshot.totalAmount` remains **119**; title snapshot unchanged. Listing price restored to 119 after cert.
 
 **Certification:** money snapshot integrity = **INTEGRATION-TESTED** (extends 872 title proof).
+
+### Phase 891 — Background jobs inventory (truth)
+
+| Job | Auth | Purpose | Notes |
+|-----|------|---------|-------|
+| `expire_stale_checkout_holds` RPC | service / checkout edge | Release expired holds | Called on new checkout; remote present |
+| `expire-booking-checkout` edge | JWT + service | Expire unpaid checkout in Stripe TEST | LIVE secret blocked |
+| `reconcile-checkout-session` | service | Align Stripe session ↔ booking | Idempotent path |
+| `stripe-webhook` | Stripe sig | Payment truth | TEST only |
+| `send-booking-reminders` | `BOOKING_REMINDER_CRON_SECRET` | Day-before / day-after emails | Calendar-day not exact HH:MM; needs cron wiring |
+
+**Gap:** Reminder cron secret + schedule must be configured in host — not verified as actively firing this phase. Hold expiry is on-demand at checkout (safe).
 
 ## Known remaining risks (ranked)
 
