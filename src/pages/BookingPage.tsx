@@ -889,7 +889,7 @@ export default function BookingPage({
     setStep('confirm');
   };
 
-  const handleContinueFromReview = () => {
+  const handleContinueFromReview = async () => {
     setError(null);
     if (usesAgePricingOnVariant && appliedOption) {
       const mixErr = validateParticipantMix(appliedOption, participantMix);
@@ -909,6 +909,14 @@ export default function BookingPage({
           'We could not verify departure capacity. Check your connection and try again.'
       );
       return;
+    }
+    // Phase 1179: mirror TourDetails 1164 — block own/team listings before contact/Pay.
+    if (isSupabaseConfigured() && userRef.current?.id) {
+      const selfBook = await viewerIsListingSupplierSide(userRef.current.id, tour.supplierId);
+      if (selfBook) {
+        setError(LISTING_SELF_BOOK_BLOCKED);
+        return;
+      }
     }
     setStep('contact');
   };
