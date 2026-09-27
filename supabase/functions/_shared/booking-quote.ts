@@ -674,12 +674,13 @@ function optionRunsOnDate(option: Option, isoDate: string, startTime?: string | 
   return null;
 }
 
-function parseGroupSize(groupSize: string | null): { min: number; max: number } {
+/** Phase 1228: null when group_size cannot be parsed — no invent 1–12. */
+function parseGroupSize(groupSize: string | null): { min: number; max: number } | null {
   const m = (groupSize ?? '').match(/(\d+)\s*[-–]\s*(\d+)/);
-  if (!m) return { min: 1, max: 12 };
+  if (!m) return null;
   const min = Number.parseInt(m[1], 10);
   const max = Number.parseInt(m[2], 10);
-  if (!Number.isFinite(min) || !Number.isFinite(max) || min < 1 || max < min) return { min: 1, max: 12 };
+  if (!Number.isFinite(min) || !Number.isFinite(max) || min < 1 || max < min) return null;
   return { min: Math.max(1, min), max: Math.min(99, max) };
 }
 
@@ -893,6 +894,9 @@ export function quoteListingBooking(input: {
     return { ok: false, error: 'Guest count must be between 1 and 99.' };
   }
   const bounds = parseGroupSize(input.listing.group_size);
+  if (!bounds) {
+    return { ok: false, error: 'Guest capacity is unavailable for this tour.' };
+  }
   if (guests < bounds.min) {
     return { ok: false, error: `At least ${bounds.min} guests are required for this tour.` };
   }

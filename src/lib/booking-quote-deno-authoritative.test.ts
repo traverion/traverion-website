@@ -225,7 +225,7 @@ describe('quoteListingBooking (authoritative Deno pricing -- direct execution)',
   describe('tour, no booking options configured', () => {
     it('charges price_starting_from * guests', () => {
       const res = quoteListingBooking({
-        listing: tourListingNoOptions(),
+        listing: tourListingNoOptions({ group_size: '1-12' }),
         discounts: [],
         bookingDate: '2026-06-10',
         guests: 3,
@@ -238,21 +238,33 @@ describe('quoteListingBooking (authoritative Deno pricing -- direct execution)',
       }
     });
 
-    it('rejects a guest count outside the default 1-12 group-size bounds', () => {
+    it('Phase 1228: fails closed when group_size is missing (no invent 1-12)', () => {
       const res = quoteListingBooking({
         listing: tourListingNoOptions(),
         discounts: [],
         bookingDate: '2026-06-10',
-        guests: 13,
+        guests: 2,
         todayIso: TODAY,
       });
       expect(res.ok).toBe(false);
-      if (!res.ok) expect(res.error).toMatch(/no more than 12 guests/i);
+      if (!res.ok) expect(res.error).toMatch(/guest capacity is unavailable/i);
+    });
+
+    it('rejects a guest count outside parsed group-size bounds', () => {
+      const res = quoteListingBooking({
+        listing: tourListingNoOptions({ group_size: '1-8' }),
+        discounts: [],
+        bookingDate: '2026-06-10',
+        guests: 9,
+        todayIso: TODAY,
+      });
+      expect(res.ok).toBe(false);
+      if (!res.ok) expect(res.error).toMatch(/no more than 8 guests/i);
     });
 
     it('rejects a listing with no bookable price', () => {
       const res = quoteListingBooking({
-        listing: tourListingNoOptions({ price_starting_from: 0 }),
+        listing: tourListingNoOptions({ price_starting_from: 0, group_size: '1-12' }),
         discounts: [],
         bookingDate: '2026-06-10',
         guests: 1,
