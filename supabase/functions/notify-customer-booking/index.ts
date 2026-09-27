@@ -21,6 +21,10 @@ import {
   resolveBookingTiedRecipient,
 } from '../_shared/notify-customer-recipient.ts';
 import { resolveBookingTiedContent } from '../_shared/notify-customer-content.ts';
+import {
+  bookingPartyAllowsCustomerNotify,
+  isServiceRoleBearer,
+} from '../_shared/notify-customer-booking-auth.ts';
 
 type EmailKind =
   | 'booking_request'
@@ -360,6 +364,66 @@ serve(async (req) => {
         return json({ success: false, error: 'Unauthorized' }, 401);
       }
     }
+
+    const admin = adminClientFromEnv();
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')?.trim() ?? '';
+    // Phase 1092: booking-tied kinds reject anonymous forgery. Service-role
+    // (webhook/cron/promote) or JWT guest/supplier party only. Recipient +
+    // static fields remain re-derived; this closes the open send gate.
+    if (isBookingTiedEmailKind(kind)) {
+      if (!admin) {
+        return json({ success: false, error: 'Unauthorized' }, 401);
+      }
+      const authHeader = req.headers.get('Authorization');
+      if (!isServiceRoleBearer(authHeader, serviceRoleKey)) {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL');
+        const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+        if (!supabaseUrl || !anonKey || !authHeader) {
+          return json({ success: false, error: 'Unauthorized' }, 401);
+        }
+        const authedClient = createClient(supabaseUrl, anonKey, {
+          global: { headers: { Authorization: authHeader } },
+        });
+        const { data: authData, error: authError } = await authedClient.auth.getUser();
+        const callerId = authData?.user?.id ?? null;
+        const callerEmail = authData?.user?.email ?? null;
+        if (authError || !callerId) {
+          return json({ success: false, error: 'Unauthorized' }, 401);
+        }
+        const bookingId = String(body.bookingId ?? '').trim();
+        const { data: partyBooking } = await admin
+          .from('bookings')
+          .select('guest_user_id, guest_email, listing_id')
+          .eq('id', bookingId)
+          .maybeSingle();
+        if (!partyBooking) {
+          return json({ success: false, error: 'Unauthorized' }, 401);
+        }
+        let callerIsListingSupplier = false;
+        const listingId = String(partyBooking.listing_id ?? '').trim();
+        if (listingId) {
+          const { data: listingOwn } = await admin
+            .from('listings')
+            .select('supplier_id')
+            .eq('id', listingId)
+            .maybeSingle();
+          callerIsListingSupplier =
+            String(listingOwn?.supplier_id ?? '').trim() === callerId;
+        }
+        if (
+          !bookingPartyAllowsCustomerNotify({
+            callerUserId: callerId,
+            callerEmail,
+            guestUserId: partyBooking.guest_user_id,
+            guestEmail: partyBooking.guest_email,
+            callerIsListingSupplier,
+          })
+        ) {
+          return json({ success: false, error: 'Unauthorized' }, 401);
+        }
+      }
+    }
+
     let title = String(body.listingTitle ?? 'Your booking').trim() || 'Your booking';
     let name = String(body.customerName ?? '').trim();
     const publicSiteUrl = siteBase(body.publicSiteUrl);
@@ -381,43 +445,8 @@ serve(async (req) => {
         ? body.totalAmount
         : undefined;
 
-    const admin = adminClientFromEnv();
-    // Phase 562: this endpoint has no caller-identity check of its own, so a
-    // client-submitted customerEmail/totalAmount/currency used to be trusted
-    // verbatim -- anyone could send a real-looking "your booking is
-    // confirmed" or "refund completed" email, citing a real bookingId, to any
-    // address they chose, with any amount they chose. For booking_confirmed_paid
-    // there is exactly one correct amount/currency per booking (what was
-    // actually charged), so both the recipient and the amount/currency were
-    // re-derived from the bookings row rather than trusted from the request.
-    // refund_completed is only ever triggered server-side today (stripe-webhook,
-    // after a verified Stripe refund event), and its totalAmount is the actual
-    // Stripe refund amount -- which can be a *partial* refund with no single
-    // corresponding column on bookings -- so only its recipient is re-derived
-    // here; the amount/currency still come from the (currently trusted-only)
-    // caller. A full amount re-derivation for refund_completed, once a
-    // per-refund ledger value is available to check it against, is a
-    // reasonable target for a future phase.
-    //
-    // Phase 578: Phase 562 only closed this for booking_confirmed_paid and
-    // refund_completed. Every other booking-tied emailKind (booking_request,
-    // your_details_updated, host_updated_schedule, pickup_confirmed,
-    // pickup_changed, booking_cancelled, cancellation_requested_by_supplier,
-    // cancellation_accepted, cancellation_declined, new_booking_message,
-    // pickup_action_required, experience_reminder, review_request) still
-    // trusted body.customerEmail verbatim, with zero caller-identity check --
-    // so an unauthenticated caller could send any of those (several
-    // safety/trust-relevant: pickup changes, cancellations, "new message on
-    // your booking") to any address of their choosing, just by citing any
-    // real bookingId. Recipient re-derivation now applies to every
-    // booking-tied kind, not just the original two. traveler_welcome has no
-    // booking to check against (fired on signup) and is intentionally left
-    // out of this guard -- a separate, lower-severity gap tracked for a
-    // future phase.
-    //
-    // Phase 1052: with recipient fixed, content fields (title/name/date/guests/
-    // booking number/meeting/listingKind) were still caller-trusted — forged
-    // copy to the real guest. Re-derive from booking + listing + purchase_snapshot.
+    // Phase 562/578/1052: recipient + static content re-derived from booking.
+    // Phase 1092: anonymous callers never reach this path for booking-tied kinds.
     if (isBookingTiedEmailKind(kind) && admin) {
       const bookingId = String(body.bookingId ?? '').trim();
       const { data: bookingRow } = await admin
