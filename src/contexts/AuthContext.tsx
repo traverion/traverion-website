@@ -18,6 +18,7 @@ import { PARTNER_LOGIN_PATH } from '../lib/partnerPortalPaths';
 import { clearSupabaseAuthStorage } from '../lib/clearSupabaseAuthStorage';
 import { sanitizeAuthRedirectTo } from '../lib/authRedirect';
 import { sanitizeTravelerAuthNext } from '../lib/travelerAuthLinks';
+import { travelerSessionIsPartnerOnly } from '../lib/traveler-session-authority';
 
 type AuthContextValue = {
   user: User | null;
@@ -45,23 +46,66 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+async function clearPartnerOnlyTravelerSession(): Promise<void> {
+  if (!supabase) return;
+  try {
+    await supabase.auth.signOut({ scope: 'local' });
+  } catch {
+    /* still clear storage */
+  }
+  clearSupabaseAuthStorage();
+}
+
+/** Reject restored partner-only sessions on traveler surfaces (localhost same-origin bleed). */
+async function travelerUserAllowed(user: User): Promise<boolean> {
+  if (isTraverionAdminUser(user)) return true;
+  const [supplierRow, consumerRow] = await Promise.all([
+    fetchSupplierProfile(user.id),
+    fetchConsumerProfile(user.id),
+  ]);
+  return !travelerSessionIsPartnerOnly({
+    hasSupplierProfile: Boolean(supplierRow),
+    hasConsumerProfile: Boolean(consumerRow),
+  });
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const pendingOnSuccess = useRef<(() => void) | null>(null);
+  const gateGen = useRef(0);
 
   useEffect(() => {
     if (!isSupabaseConfigured() || !supabase) {
       setLoading(false);
       return;
     }
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+
+    const applySessionUser = async (next: User | null) => {
+      const gen = ++gateGen.current;
+      if (!next) {
+        if (gen === gateGen.current) setUser(null);
+        return;
+      }
+      const allowed = await travelerUserAllowed(next);
+      if (gen !== gateGen.current) return;
+      if (!allowed) {
+        await clearPartnerOnlyTravelerSession();
+        if (gen === gateGen.current) setUser(null);
+        return;
+      }
+      setUser(next);
+    };
+
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      await applySessionUser(session?.user ?? null);
       setLoading(false);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      void applySessionUser(session?.user ?? null);
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -80,7 +124,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         fetchSupplierProfile(data.user.id),
         fetchConsumerProfile(data.user.id),
       ]);
-      if (supplierRow && !consumerRow) {
+      if (
+        travelerSessionIsPartnerOnly({
+          hasSupplierProfile: Boolean(supplierRow),
+          hasConsumerProfile: Boolean(consumerRow),
+        })
+      ) {
         await supabase.auth.signOut();
         const partnerLoginUrl = `${supplierPortalPublicBaseUrl()}${PARTNER_LOGIN_PATH}`;
         return { error: customerSignInPartnerOnlyMessage(partnerLoginUrl) };

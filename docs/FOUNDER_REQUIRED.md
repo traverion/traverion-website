@@ -10,7 +10,7 @@
 |----------|-------------------------|------------------|
 | Auto-refund on eligible cancel | Status **Refund due**; manual Stripe TEST refund docs | Wrong money movement; webhook races |
 | Commission / take-rate snapshot | Gross `booking_earnings` only; no fake take-rate UI | Historical bookings rewritten; supplier trust |
-| Dedicated traveler auth storage on shared localhost | Autofill harden (904); partner/traveler may share Supabase session on `127.0.0.1` | Cross-role cert pollution; not production host layout |
+| Dedicated traveler auth storage on shared localhost | Autofill harden (904); traveler session restore clears partner-only (1082); partner/traveler may still share Supabase storage on `127.0.0.1` | Cross-role cert pollution; not production host layout |
 
 ## Closed since Phase 929 ledger
 
