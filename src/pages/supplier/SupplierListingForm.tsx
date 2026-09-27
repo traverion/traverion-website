@@ -734,8 +734,7 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
     pickupInstructions:
       (first?.travelerStartInstructions ?? '').trim() || first?.optionInfo.trim() || undefined,
     defaultStartTime: first?.startTime.trim() || undefined,
-    pickupWindowMinutesBeforeMin: 0,
-    pickupWindowMinutesBeforeMax: 30,
+    // Phase 1267: do not invent pickup window 0/30 on create (map 1253 / planner 1262).
     experienceStartStyle: form.experienceStartStyle,
     dropoffMode: 'same_as_pickup',
     dropoffLocation: undefined,
