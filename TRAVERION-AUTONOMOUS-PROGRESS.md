@@ -4907,6 +4907,13 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 
 **Certification:** PII boundary = **CODE-INSPECTED** + prior **ADVERSARIAL**. No new public PII leak found this pass.
 
+
+### Phase 923 — SEO review schema honesty
+
+**Evidence:** `setTourJsonLd` emits `aggregateRating` only when `reviews > 0` and rating present. TourDetails passes `reviewAggregate` from real DB counts — never invents stars. Cert listing with zero reviews shows empty-reviews copy (no fake schema).
+
+**Certification:** SEO review JSON-LD = **CODE-INSPECTED** (honest gate).
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.

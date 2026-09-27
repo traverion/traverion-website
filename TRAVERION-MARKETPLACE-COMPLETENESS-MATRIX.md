@@ -65,7 +65,7 @@
 | Timezones | STRONG / INTEGRATION | extras + snapshot + cancel + partner UI (883) | Stay-specific TZ polish |
 | Currency | PARTIAL→STRONG | per-listing; no FX (912) | Keep coherent |
 | i18n | PARTIAL | en/fi strings | Not checkbox i18n platform |
-| SEO | PARTIAL→STRONG | published sitemap snapshot (896) | Automate sitemap on publish |
+| SEO | PARTIAL→STRONG | sitemap (896); review schema gated (923) | Automate sitemap on publish |
 | Images / media | PARTIAL→STRONG | folder RLS + client ownership (906) | Batch orphan GC later |
 | RLS / security | STRONG / ADVERSARIAL | traveler deny #41 (880–881); supplier listing isolation 091/910 | Keep expanding adversarial suite |
 | Privacy | PARTIAL→STRONG | public RPCs no PII; ops surfaces justified (922) | Keep minimizing |
