@@ -4,7 +4,7 @@
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
 **Current SHA:** `787e7ab`  
-**Current phase:** 1002  
+**Current phase:** 1003  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -5114,6 +5114,12 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 - Regenerated `public/sitemap.xml` from live published rows (8).
 
 **Certification:** AUTOMATED-TESTED (unit) + INTEGRATION (live fetch regenerate). Instant publish→CDN without redeploy = NOT BUILT (static host constraint; honest).
+
+### Phase 1003 — Force-unpublish preserves paid bookings (remote)
+
+**Evidence:** `supabase/tests/admin_force_unpublish_remote_probe.sql` against linked project: insert published probe listing + paid future booking → `admin_force_unpublish_listing` → listing `draft`, booking still `confirmed`/`paid`, upcoming_paid≥1, cleanup deleted probe rows.
+
+**Certification:** ADVERSARIAL-TESTED / INTEGRATION-TESTED (remote).
 
 ## Known remaining risks (ranked)
 
