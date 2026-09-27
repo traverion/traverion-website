@@ -1,6 +1,6 @@
 import { remainingCapacity } from './availability-ops';
 
-/** Public pre-checkout capacity check (paid guests only; holds enforced at edge). */
+/** Public pre-checkout capacity check (paid + live holds; matches checkout occupancy). */
 export function tourPublicAvailabilityRemaining(params: {
   date: string;
   guests: number;

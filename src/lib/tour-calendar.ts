@@ -1,7 +1,7 @@
 import type { ListingBookingOption } from '../types/listingExtras';
 import { optionRunsOnDate } from './booking-quote';
 import { remainingCapacity } from './availability-ops';
-import { bookingOccupiesPublicStayCalendar, type InventoryHoldRow } from './booking-hold';
+import { bookingOccupiesInventory, type InventoryHoldRow } from './booking-hold';
 
 export type TourDayState = 'past' | 'closed' | 'full' | 'available' | 'selected';
 
@@ -42,17 +42,18 @@ export function tourMonthAvailabilityNote(states: TourDayState[]): string | null
   return null;
 }
 
-/** Public tour sold-out counts collected paid guests only. Refunded, failed, and cancelled do not fill a day. */
-export function bookingCountsTowardPublicTourSoldOut(row: InventoryHoldRow): boolean {
-  return bookingOccupiesPublicStayCalendar(row);
+/** Public tour sold-out: paid + live checkout holds (matches RPC / assert_checkout_inventory). Refunded, failed, expired, cancelled do not fill a day. */
+export function bookingCountsTowardPublicTourSoldOut(row: InventoryHoldRow, nowMs: number = Date.now()): boolean {
+  return bookingOccupiesInventory(row, nowMs);
 }
 
 export function publicTourPaidGuestsByDeparture(
-  rows: Array<InventoryHoldRow & { booking_date?: string | null; guests?: number | null }>
+  rows: Array<InventoryHoldRow & { booking_date?: string | null; guests?: number | null }>,
+  nowMs: number = Date.now()
 ): Record<string, number> {
   const out: Record<string, number> = {};
   for (const row of rows) {
-    if (!bookingCountsTowardPublicTourSoldOut(row)) continue;
+    if (!bookingCountsTowardPublicTourSoldOut(row, nowMs)) continue;
     const day = String(row.booking_date ?? '').slice(0, 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
     const n = Math.floor(Number(row.guests ?? 0));

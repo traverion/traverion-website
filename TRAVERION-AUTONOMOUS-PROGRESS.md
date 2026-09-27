@@ -4729,6 +4729,15 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 
 **Certification:** catalog deep-link routing = **BROWSER-TESTED** (aligns with `publicTourPath` / sitemap 897).
 
+
+### Phase 899 — Public tour remaining includes live checkout holds
+
+**Problem:** Public tour sold-out RPCs (`published_tour_paid_guests` / `_by_slot`) counted paid guests only, while checkout `assert_checkout_inventory` and stay public calendar (079) count paid + live holds. Travelers could see available seats that checkout would 409.
+
+**Fix:** Migration **105** — both RPCs filter with `booking_occupies_inventory`. Client `bookingCountsTowardPublicTourSoldOut` now uses `bookingOccupiesInventory`. Unit tests + SQL scratch test. Remote push applied.
+
+**Certification:** public tour remaining honesty = **INTEGRATION-TESTED** (unit) + **remotely applied** (105).
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.

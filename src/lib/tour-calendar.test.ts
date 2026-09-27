@@ -144,6 +144,51 @@ describe('tour calendar states', () => {
     ).toBe(true);
   });
 
+  it('counts live checkout holds toward public tour sold-out (matches checkout inventory)', () => {
+    const now = Date.parse('2026-09-27T12:00:00.000Z');
+    expect(
+      bookingCountsTowardPublicTourSoldOut(
+        {
+          status: 'pending',
+          payment_status: 'pending',
+          hold_expires_at: '2026-09-27T12:20:00.000Z',
+        },
+        now
+      )
+    ).toBe(true);
+    expect(
+      bookingCountsTowardPublicTourSoldOut(
+        {
+          status: 'pending',
+          payment_status: 'pending',
+          hold_expires_at: '2026-09-27T11:59:00.000Z',
+        },
+        now
+      )
+    ).toBe(false);
+    expect(
+      publicTourPaidGuestsByDeparture(
+        [
+          {
+            status: 'pending',
+            payment_status: 'pending',
+            hold_expires_at: '2026-09-27T12:20:00.000Z',
+            booking_date: '2026-10-01',
+            guests: 8,
+          },
+          {
+            status: 'pending',
+            payment_status: 'pending',
+            hold_expires_at: '2026-09-27T11:59:00.000Z',
+            booking_date: '2026-10-02',
+            guests: 8,
+          },
+        ],
+        now
+      )
+    ).toEqual({ '2026-10-01': 8 });
+  });
+
   it('catalog date filter hides tours only when a day-level capacity override is exhausted', () => {
     expect(
       tourDateLacksCapacityForParty({

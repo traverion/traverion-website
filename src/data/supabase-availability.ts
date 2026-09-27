@@ -31,7 +31,7 @@ export async function fetchAvailabilityByListingId(
   return (data ?? []) as AvailabilityRow[];
 }
 
-/** Paid guest counts per departure date. Failed, unpaid, and refunded bookings are omitted. */
+/** Inventory-occupying guest counts per departure date (paid + live holds). Failed, expired, and refunded are omitted. */
 export async function fetchPublishedTourPaidGuests(
   listingId: string
 ): Promise<Record<string, number>> {
@@ -60,7 +60,7 @@ export function tourPaidSlotKey(dayIso: string, startTimeHm?: string | null): st
   return `${day}|${hm[1].padStart(2, '0')}:${hm[2]}`;
 }
 
-/** Paid guests per date+startTime. Falls back to empty when RPC is missing. */
+/** Occupying guests per date+startTime (paid + live holds). Falls back to empty when RPC is missing. */
 export async function fetchPublishedTourPaidGuestsBySlot(
   listingId: string
 ): Promise<Record<string, number>> {
@@ -105,7 +105,7 @@ export type AvailabilityCheckOption = {
   selectable: boolean;
 };
 
-/** Check if a date has capacity. Public remaining uses paid guests; checkout still holds live pending sessions. */
+/** Check if a date has capacity. Public remaining matches checkout: paid + live pending holds. */
 export async function checkAvailability(
   listingId: string,
   date: string,
