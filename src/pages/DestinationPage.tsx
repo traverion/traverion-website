@@ -12,8 +12,9 @@ import { TourPackage } from '../types/tour';
 import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
 import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
 import { isSupabaseListingId } from '../lib/discount-display';
-import { filterCatalogByFamily } from '../lib/inventory';
+import { filterCatalogByFamily, inventoryFamilyFromListing } from '../lib/inventory';
 import { isListingVisibleToTravelers } from '../lib/product-workflows';
+import { listingHasUpcomingBookableSeason } from '../lib/booking-quote';
 import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
 import { MARKETPLACE_GRID_CLASS } from '../lib/marketplaceBrowse';
 import { useTravelerWishlist } from '../hooks/useTravelerWishlist';
@@ -66,6 +67,13 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
     const labelFromSlug = slugToLabel(slug);
     const list = allListings.filter(t => {
       if (!isListingVisibleToTravelers(t.status)) return false;
+      // Phase 1263: hide season-ended tours (Packages/sitemap 1260/1261 parity).
+      if (
+        inventoryFamilyFromListing(t) !== 'stay' &&
+        !listingHasUpcomingBookableSeason(t)
+      ) {
+        return false;
+      }
       const countryMatch = (t.country ?? '').toLowerCase().replace(/\s+/g, '-') === slug;
       const cityMatch = (t.city ?? '').toLowerCase().replace(/\s+/g, '-') === slug;
       return countryMatch || cityMatch;
