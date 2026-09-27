@@ -531,8 +531,10 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   }, [bookingDate, dayCapacitySnap, selectedOption, departureTimes]);
 
   // Phase 1167: mirror BookingPage 1103 — unknown remaining must not open checkout.
+  // Phase 1230: unknown party bounds (1229) also block Continue.
   const capacityUnknown =
     Boolean(dayCapacityError) ||
+    partyBounds.max < 1 ||
     (Boolean(bookingDate.trim()) && selectedDaySpotsLeft == null);
 
   useEffect(() => {

@@ -493,8 +493,10 @@ export default function BookingPage({
 
   // Phase 1103: capacity load error or unknown remaining must block Pay —
   // do not invent a payable trip while occupancy is unverified.
+  // Phase 1230: unknown party bounds (1229) also block Pay.
   const capacityUnknown =
     Boolean(dayCapacityError) ||
+    partyBounds.max < 1 ||
     (Boolean(date.trim()) && selectedDaySpotsLeft == null);
   const capacitySoldOut =
     selectedDaySpotsLeft != null && selectedDaySpotsLeft < partySizeForCapacity;
