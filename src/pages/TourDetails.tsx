@@ -257,7 +257,8 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     else if (optionStartTimes.length > 1) {
       lines.push(`Set start times: ${optionStartTimes.slice(0, 3).join(', ')}${optionStartTimes.length > 3 ? '…' : ''}.`);
     } else if (x?.scheduleStyle === 'on_request') {
-      lines.push('Timing is arranged with the host after booking.');
+      // Phase 1118: checkout is still fixed date/slot — do not claim post-book arrangement.
+      lines.push('Host notes flexible timing — still choose an available date when you book.');
     }
     if (x?.venueSetting === 'indoor') lines.push('Mostly indoor.');
     else if (x?.venueSetting === 'outdoor') lines.push('Mostly outdoor.');

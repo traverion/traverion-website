@@ -486,7 +486,7 @@ function ProgressiveLinesEditor({
 const SCHEDULE_STYLE_OPTIONS: { value: ScheduleStyle; label: string; hint: string }[] = [
   { value: 'flexible', label: 'Flexible timing', hint: 'Start time can vary or you confirm after booking.' },
   { value: 'fixed_slots', label: 'Fixed daily start', hint: 'You usually run at set times (set start time on each booking option).' },
-  { value: 'on_request', label: 'On request / private', hint: 'Guests arrange timing with you directly.' },
+  { value: 'on_request', label: 'Flexible / private-style', hint: 'You prefer flexible timing — travelers still pick a bookable date and time from your schedules.' },
 ];
 
 const VENUE_SETTING_OPTIONS: { value: VenueSetting; label: string }[] = [
