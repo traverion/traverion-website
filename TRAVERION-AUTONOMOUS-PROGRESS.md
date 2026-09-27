@@ -3,8 +3,8 @@
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `1769662`  
-**Current phase:** 895  
+**Current SHA:** `f76abca`  
+**Current phase:** 896  
 **Branch:** `reconstruction/phase-0-audit`  
 **Commits this mission:** ~190  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
@@ -4713,6 +4713,10 @@ Dedicated Traveler B password not in this environment (`.env.partner-demo.local`
 **Evidence:** HTML `/sitemap` lists main/nav pages only (no draft inventory). Static `public/sitemap.xml` has no draft URLs (good) but is **stale** vs live catalog IDs (P2 regenerate).
 
 **Fix:** `robots.txt` also Disallow `/partner`, `/log-in`, `/saved` so localhost partner app paths are not invited for crawl.
+
+### Phase 896 — Regenerate sitemap.xml from published listings
+
+**Fix:** `public/sitemap.xml` rewritten from remote published inventory (6 tours + 2 stays). No drafts. Static snapshot dated 2026-09-27 — still not auto-generated on publish (P2 automation later).
 
 ## Known remaining risks (ranked)
 
