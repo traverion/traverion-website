@@ -19,6 +19,7 @@ import { TourPackage } from '../types/tour';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { createBookingCheckoutSession } from '../data/supabase-bookings';
+import { LISTING_SELF_BOOK_BLOCKED, viewerIsListingSupplierSide } from '../lib/listing-self-book';
 import type { ListingDiscount } from '../data/supabase-discounts';
 import { fetchDiscountsByListingId } from '../data/supabase-discounts';
 import { payTimeDiscountsOrBlock } from '../lib/pay-time-discounts';
@@ -867,6 +868,14 @@ export default function BookingPage({
     if (!isListingVisibleToTravelers(tour.status)) {
       setError('This tour is not available to book.');
       return;
+    }
+    // Phase 1147: mirror checkout edge — don't open Stripe for own/team listings.
+    if (isSupabaseConfigured() && userRef.current?.id) {
+      const selfBook = await viewerIsListingSupplierSide(userRef.current.id, tour.supplierId);
+      if (selfBook) {
+        setError(LISTING_SELF_BOOK_BLOCKED);
+        return;
+      }
     }
     setSubmitting(true);
     setError(null);

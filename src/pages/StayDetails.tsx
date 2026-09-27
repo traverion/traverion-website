@@ -7,6 +7,7 @@ import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 import { listingIsFamily } from '../lib/inventory';
 import { listingDetailVisibleToTraveler } from '../lib/product-workflows';
 import { useAuth } from '../contexts/AuthContext';
+import { LISTING_SELF_BOOK_BLOCKED, viewerIsListingSupplierSide } from '../lib/listing-self-book';
 import { rememberTravelerReturnStay, travelerLoginHref } from '../lib/travelerAuthLinks';
 import { quoteStayNights, stayQuotePriceLines, experienceTodayIsoForListing } from '../lib/booking-quote';
 import { stayDateRangesOverlap, occupiedNightsFromStayRanges, nightsOccupiedByStay } from '../lib/stayOccupancy';
@@ -488,6 +489,15 @@ export default function StayDetails({ stayId, onBack }: Props) {
         },
       });
       return;
+    }
+    // Phase 1147: mirror checkout edge — don't open Stripe for own/team listings.
+    if (isSupabaseConfigured() && user?.id) {
+      const selfBook = await viewerIsListingSupplierSide(user.id, stay.supplierId);
+      if (selfBook) {
+        setPayError(LISTING_SELF_BOOK_BLOCKED);
+        document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
     }
     if (checkoutLockRef.current || paying) return;
     checkoutLockRef.current = true;
