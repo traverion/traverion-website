@@ -123,7 +123,9 @@ type Body = {
     | 'finance_summary'
     | 'record_supplier_payout'
     | 'list_contact_inquiries'
-    | 'update_contact_inquiry_status';
+    | 'update_contact_inquiry_status'
+    | 'listings_moderation_list'
+    | 'force_unpublish_listing';
   supplierId?: string;
   feedback?: string | null;
   notificationTitle?: string;
@@ -144,6 +146,9 @@ type Body = {
   payoutPeriodEnd?: string;
   payoutStatus?: string;
   payoutNote?: string | null;
+  listingId?: string;
+  listingSearch?: string;
+  moderationReason?: string;
 };
 
 function isAdminUser(user: { app_metadata?: Record<string, unknown> } | null): boolean {
@@ -179,7 +184,7 @@ async function assertAdmin(
   req: Request,
   serviceKey: string,
   url: string
-): Promise<{ admin: ReturnType<typeof createClient>; userId: string } | Response> {
+): Promise<{ admin: ReturnType<typeof createClient>; userId: string; email: string | null } | Response> {
   const authHeader = req.headers.get('Authorization')?.trim();
   if (!authHeader?.toLowerCase().startsWith('bearer ')) {
     return json({ error: 'Missing or invalid Authorization' }, 401);
@@ -195,7 +200,7 @@ async function assertAdmin(
   }
   const block = await assertSoleAdminRowEmail(admin, userData.user.email);
   if (block) return block;
-  return { admin, userId: userData.user.id };
+  return { admin, userId: userData.user.id, email: userData.user.email?.trim() ?? null };
 }
 
 async function signedUrlForPath(
@@ -221,7 +226,7 @@ serve(async (req) => {
 
   const gate = await assertAdmin(req, serviceKey, url);
   if (gate instanceof Response) return gate;
-  const { admin, userId: adminUserId } = gate;
+  const { admin, userId: adminUserId, email: adminEmail } = gate;
 
   let body: Body;
   try {
@@ -501,6 +506,160 @@ serve(async (req) => {
     const result = rpcData as { ok: boolean; error?: string; id?: string } | null;
     if (!result?.ok) return json({ error: result?.error ?? 'Could not record payout' }, 400);
     return json({ ok: true, id: result.id });
+  }
+
+  if (body.action === 'listings_moderation_list') {
+    const q = typeof body.listingSearch === 'string' ? body.listingSearch.trim() : '';
+    let listingQuery = admin
+      .from('listings')
+      .select('id, title, status, style, experience_kind, city, country, supplier_id, updated_at')
+      .eq('status', 'published')
+      .order('updated_at', { ascending: false })
+      .limit(80);
+
+    if (q) {
+      const uuidRe =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (uuidRe.test(q)) {
+        listingQuery = listingQuery.eq('id', q);
+      } else {
+        const safe = q.replace(/%/g, '').replace(/,/g, ' ').slice(0, 80);
+        listingQuery = listingQuery.or(
+          `title.ilike.%${safe}%,city.ilike.%${safe}%,country.ilike.%${safe}%`
+        );
+      }
+    }
+
+    const { data: listingRows, error: listingErr } = await listingQuery;
+    if (listingErr) return json({ error: listingErr.message }, 500);
+
+    const supplierIds = [
+      ...new Set(
+        (listingRows ?? [])
+          .map((r: { supplier_id?: string | null }) => r.supplier_id)
+          .filter((id): id is string => Boolean(id))
+      ),
+    ];
+    const nameBySupplier = new Map<string, string>();
+    if (supplierIds.length > 0) {
+      const { data: profiles } = await admin
+        .from('supplier_profiles')
+        .select('id, display_name, company_legal_name')
+        .in('id', supplierIds);
+      for (const p of profiles ?? []) {
+        const name =
+          (typeof p.company_legal_name === 'string' && p.company_legal_name.trim()) ||
+          (typeof p.display_name === 'string' && p.display_name.trim()) ||
+          null;
+        if (name) nameBySupplier.set(p.id, name);
+      }
+    }
+
+    const items = (listingRows ?? []).map(
+      (r: {
+        id: string;
+        title: string | null;
+        status: string | null;
+        style: string | null;
+        experience_kind: string | null;
+        city: string | null;
+        country: string | null;
+        supplier_id: string | null;
+        updated_at: string | null;
+      }) => ({
+        id: r.id,
+        title: r.title,
+        status: r.status,
+        type: r.experience_kind || r.style || null,
+        city: r.city,
+        country: r.country,
+        supplier_id: r.supplier_id,
+        updated_at: r.updated_at,
+        supplier_name: r.supplier_id ? nameBySupplier.get(r.supplier_id) ?? null : null,
+      })
+    );
+
+    const { data: eventRows, error: eventErr } = await admin
+      .from('admin_listing_moderation_events')
+      .select(
+        'id, listing_id, supplier_id, action, previous_status, new_status, reason, actor_email, upcoming_paid_bookings, created_at'
+      )
+      .order('created_at', { ascending: false })
+      .limit(40);
+    if (eventErr) return json({ error: eventErr.message }, 500);
+
+    const eventListingIds = [
+      ...new Set((eventRows ?? []).map((e: { listing_id: string }) => e.listing_id)),
+    ];
+    const titleByListing = new Map<string, string>();
+    if (eventListingIds.length > 0) {
+      const { data: titles } = await admin.from('listings').select('id, title').in('id', eventListingIds);
+      for (const t of titles ?? []) {
+        if (typeof t.title === 'string' && t.title.trim()) titleByListing.set(t.id, t.title.trim());
+      }
+    }
+
+    const events = (eventRows ?? []).map(
+      (e: {
+        id: string;
+        listing_id: string;
+        supplier_id: string | null;
+        action: string;
+        previous_status: string | null;
+        new_status: string;
+        reason: string;
+        actor_email: string | null;
+        upcoming_paid_bookings: number;
+        created_at: string;
+      }) => ({
+        ...e,
+        listing_title: titleByListing.get(e.listing_id) ?? null,
+      })
+    );
+
+    return json({ items, events });
+  }
+
+  if (body.action === 'force_unpublish_listing') {
+    const listingId = typeof body.listingId === 'string' ? body.listingId.trim() : '';
+    const reason =
+      typeof body.moderationReason === 'string' ? body.moderationReason.trim() : '';
+    if (!listingId) return json({ error: 'listingId required' }, 400);
+    if (reason.length < 3) return json({ error: 'moderationReason must be at least 3 characters' }, 400);
+
+    const { data: rpcData, error: rpcError } = await admin.rpc('admin_force_unpublish_listing', {
+      p_listing_id: listingId,
+      p_reason: reason,
+      p_actor_id: adminUserId,
+      p_actor_email: adminEmail,
+    });
+    if (rpcError) return json({ error: rpcError.message }, 500);
+    const result = rpcData as {
+      ok: boolean;
+      error?: string;
+      skipped?: boolean;
+      listing_id?: string;
+      supplier_id?: string | null;
+      title?: string | null;
+      upcoming_paid_bookings?: number;
+      new_status?: string;
+      event_id?: string;
+    } | null;
+    if (!result?.ok) return json({ error: result?.error ?? 'Could not force-unpublish' }, 400);
+
+    // Notify the supplier once when a published listing was actually taken down.
+    if (!result.skipped && result.supplier_id) {
+      const title = (result.title ?? 'Your listing').slice(0, 120);
+      await admin.from('supplier_portal_notifications').insert({
+        title: 'Listing unpublished by Traverion',
+        body: `“${title}” was removed from traveler discovery by Traverion staff. Existing confirmed bookings stay valid. Contact support if you need clarification.`,
+        variant: 'warning',
+        audience: 'supplier',
+        supplier_user_id: result.supplier_id,
+      });
+    }
+
+    return json(result);
   }
 
   if (body.action === 'list_contact_inquiries') {

@@ -1,15 +1,15 @@
 # TRAVERION-AUTONOMOUS-PROGRESS
 
-**Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness**  
+**Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness** (continuing 1001+)  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
-**Current SHA:** `9ba96ef`  
-**Current phase:** 897  
+**Current SHA:** _(pending 1001 commit)_  
+**Current phase:** 1001  
 **Branch:** `reconstruction/phase-0-audit`  
-**Commits this mission:** ~190  
+**Commits this mission:** ~400+  
 **Stripe:** TEST — edge rejects `sk_live_`; client rejects non-`pk_test_`  
 **Local-only (gitignored):** `scripts/cert-transactional-emails.cjs` — must stay untracked; contains service-role secrets when present locally  
-**Remote migration truth (Phase 862):** Local=Remote for **080–104** on `xcopqllkulxfkpunetbc`. Stripe: TEST only.  
+**Remote migration truth (Phase 1001):** Local=Remote through **107** on `xcopqllkulxfkpunetbc`. Stripe: TEST only.  
 
 ## Milestone Phase 513 (inventory band)
 
@@ -5091,14 +5091,27 @@ Assembled marketplace completeness evidence into `TRAVERION-PHASE-1000.md`: matr
 **Stripe:** TEST only.  
 **Verdict:** Coherent smaller marketplace; claimed workflows end-to-end; no fake verticals.
 
+### Phase 1001 — Staff force-unpublish (audited)
+
+**Gap:** Admin readiness map listed staff suspend/unpublish as MISSING while partner Deactivate existed.
+
+**Fix:**
+- Migration `107_admin_force_unpublish_listing.sql`: `admin_force_unpublish_listing` (service_role only) + `admin_listing_moderation_events` audit; published→draft; does not cancel bookings; counts upcoming paid; idempotent skip when already draft.
+- Edge actions `listings_moderation_list` + `force_unpublish_listing` on `admin-supplier-verification` (assertAdmin); supplier portal warning notice on real take-down.
+- `AdminListingsModerationPanel` + Admin Dashboard **Listings** tab.
+- Remote: db push 107 + function deploy. Smoke: draft skip ok on remote. `tsc` clean.
+- Docs: `ADMIN_SUPPORT_READINESS.md` updated.
+
+**Certification:** IMPLEMENTED + remote smoke INTEGRATION; full scratch SQL harness authored (local Postgres unavailable this host); admin UI CODE-INSPECTED (staff host browser cert deferred).
+
 ## Known remaining risks (ranked)
 
 1. **P1 — Dedicated traveler account** — create→publish→book certified on partner-demo session (#41); same-origin session bleed still applies.
 2. **P1 — Localhost same-origin auth**: shared Supabase session remains; Phase 904 blocks business-name lead-guest autofill (customer_* / consumer profile only).
-3. **P1 — Migrations 080–099 now remote-applied** — schema present; adversarial SQL suites not re-run against remote in CI this phase (local SQL tests remain the proof artifacts).
-3. **P1 — Advisory lock** — narrowed in 902/106 (stay listing; tour date/slot).
-4. **P2 — LIVE Stripe** intentionally blocked.
-5. **P2 — Service-role JWT briefly tracked** in `scripts/cert-transactional-emails.cjs` (now untracked); rotate when practical.
+3. **P1 — FOUNDER:** auto-refund vs manual; commission snapshot before any LIVE discussion.
+4. **P2 — Browser-cert** admin listings moderation on admin host with staff demo.
+5. **P2 — LIVE Stripe** intentionally blocked.
+6. **P2 — Service-role JWT briefly tracked** in `scripts/cert-transactional-emails.cjs` (now untracked); rotate when practical.
 
 ## Do not
 

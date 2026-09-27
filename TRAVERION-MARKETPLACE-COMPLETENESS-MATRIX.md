@@ -70,7 +70,7 @@
 | RLS / security | STRONG / ADVERSARIAL | traveler deny #41 (880–881); supplier listing isolation 091/910 | Keep expanding adversarial suite |
 | Privacy | PARTIAL→STRONG | public RPCs no PII; ops surfaces justified (922) | Keep minimizing |
 | Legal / consent | STRONG / BROWSER | /privacy /terms (894); checkout gate 901 + browser 905 | Server-side acceptance log later |
-| Admin / support | PARTIAL | staff panels + ADMIN_SUPPORT_READINESS (903) | Staff force-unpublish later |
+| Admin / support | PARTIAL→STRONG | staff panels + force-unpublish (107/1001) | Browser-cert admin host later |
 | Moderation | NOT REQUIRED YET | — | Architecture note only |
 | Cron / jobs | PARTIAL→STRONG | hold expire + GH Actions reminder cron (907) | Live secret fire not claimed |
 | Observability | PARTIAL | DB audit + edge error logs (914) | APM optional later |
