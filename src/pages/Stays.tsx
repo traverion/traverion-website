@@ -8,7 +8,7 @@ import { getAllListings } from '../data/listings';
 import { filterCatalogByFamily } from '../lib/inventory';
 import { parseListingExtras } from '../types/listingExtras';
 import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
-import { quoteStayNights } from '../lib/booking-quote';
+import { quoteStayNights, experienceTodayIsoForListing } from '../lib/booking-quote';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import NoticeCallout from '../components/NoticeCallout';
@@ -238,7 +238,9 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
       stays.map(async (s) => {
         const [ranges, blockedNights] = await Promise.all([
           fetchPublishedStayOccupiedRanges(s.id),
-          fetchPublishedStayBlockedNights(s.id),
+          fetchPublishedStayBlockedNights(s.id, {
+            fromDate: experienceTodayIsoForListing(parseListingExtras(s.listingExtras).departureTimezone),
+          }),
         ]);
         return [s.id, { ranges, blockedNights }] as const;
       })

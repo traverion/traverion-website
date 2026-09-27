@@ -1,5 +1,5 @@
 import { isPaidPaymentStatus } from './payment-states';
-import { partnerBookingIsPastSchedule } from './trip-views';
+import { partnerBookingIsPastSchedule, scheduleTodayIsoForBooking } from './trip-views';
 
 /** Upcoming paid trips for a listing — used when unpublishing. */
 export function countUpcomingPaidTripsForListing(
@@ -11,16 +11,20 @@ export function countUpcomingPaidTripsForListing(
     check_out?: string | null;
     nights?: number | null;
     special_requests?: string | null;
+    purchase_snapshot?: unknown;
   }>,
   listingId: string,
-  todayIso: string
+  /** Fixed calendar day (tests) or omit to use each booking’s experience-local today. */
+  todayIso?: string,
+  nowMs: number = Date.now()
 ): number {
   let n = 0;
   for (const b of bookings) {
     if (b.listing_id !== listingId) continue;
     if ((b.status ?? '').toLowerCase() === 'cancelled') continue;
     if (!isPaidPaymentStatus(b.payment_status)) continue;
-    if (partnerBookingIsPastSchedule(b, todayIso)) continue;
+    const day = todayIso ?? scheduleTodayIsoForBooking(b, nowMs);
+    if (partnerBookingIsPastSchedule(b, day)) continue;
     n += 1;
   }
   return n;

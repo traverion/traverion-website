@@ -313,7 +313,14 @@ export default function StayDetails({ stayId, onBack }: Props) {
     }
     let cancelled = false;
     setOccupancyError(null);
-    void Promise.all([fetchPublishedStayOccupiedRanges(stay.id), fetchPublishedStayBlockedNights(stay.id)])
+    void Promise.all([
+      fetchPublishedStayOccupiedRanges(stay.id),
+      fetchPublishedStayBlockedNights(stay.id, {
+        fromDate: experienceTodayIsoForListing(
+          parseListingExtras(stay.listingExtras).departureTimezone
+        ),
+      }),
+    ])
       .then(([ranges, nights]) => {
         if (cancelled) return;
         setOccupiedRanges(ranges);
@@ -321,8 +328,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
       })
       .catch((e) => {
         if (cancelled) return;
-        setOccupiedRanges([]);
-        setBlockedNights([]);
+        // Keep prior occupancy; never flash empty as “fully open”.
         setOccupancyError(
           userFacingError(e, 'We could not check stay availability. Check your connection and try again.')
         );
@@ -330,7 +336,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [stay?.id]);
+  }, [stay?.id, stay?.listingExtras]);
 
   useEffect(() => {
     return reloadStayOccupancy();
@@ -439,7 +445,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
     try {
       [freshRanges, freshBlocked] = await Promise.all([
         fetchPublishedStayOccupiedRanges(stay.id),
-        fetchPublishedStayBlockedNights(stay.id),
+        fetchPublishedStayBlockedNights(stay.id, { fromDate: experienceTodayIso }),
       ]);
     } catch (e) {
       setPayError(userFacingError(e, 'We could not re-check availability. Try again before paying.'));

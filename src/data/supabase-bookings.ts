@@ -941,9 +941,12 @@ export async function fetchPublishedStayOccupiedRanges(
  * Partner-closed stay nights (listing_availability.capacity <= 0).
  * Public SELECT is allowed; merge into traveler calendars so blocked nights are not pickable.
  */
-export async function fetchPublishedStayBlockedNights(listingId: string): Promise<string[]> {
+export async function fetchPublishedStayBlockedNights(
+  listingId: string,
+  opts?: { fromDate?: string }
+): Promise<string[]> {
   if (!supabase) return [];
-  const today = localYmd();
+  const today = opts?.fromDate ?? localYmd();
   const { data, error } = await supabase
     .from('listing_availability')
     .select('available_date, capacity')

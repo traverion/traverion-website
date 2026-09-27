@@ -24,7 +24,6 @@ import {
   deleteListing,
 } from '../../data/supabase-listings';
 import { fetchBookingsForSupplier } from '../../data/supabase-bookings';
-import { localYmd } from '../../lib/local-ymd';
 import {
   countUpcomingPaidTripsForListing,
   unpublishUpcomingBookingsNotice,
@@ -1435,9 +1434,7 @@ export default function SupplierListings() {
                         const listingId = menuListing.id;
                         void fetchBookingsForSupplier(user.id)
                           .then((rows) => {
-                            setDeactivateUpcomingPaid(
-                              countUpcomingPaidTripsForListing(rows, listingId, localYmd())
-                            );
+                            setDeactivateUpcomingPaid(countUpcomingPaidTripsForListing(rows, listingId));
                           })
                           .catch(() => setDeactivateUpcomingPaid(null));
                       }
