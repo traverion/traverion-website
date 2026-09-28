@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { supplierPortalPublicBaseUrl } from '../lib/partnerHost';
 import { bookingEligibleForReview } from '../lib/review-eligibility';
+import { redactUnpaidStayCheckInAddress } from '../lib/purchase-snapshot';
 import { notifySupplierEvent } from './supabase-supplier-messaging';
 import { resolveSupplierId } from './supabase-supplier-team';
 import { inventoryFamilyFromListing, type InventoryFamily } from '../lib/inventory';
@@ -188,7 +189,15 @@ export async function userHasCompletedBookingForListing(
   if (error) throw new Error(error.message);
   if (!data?.length) return { canReview: false };
 
-  const eligible = data.find((b) => bookingEligibleForReview(b, nowMs));
+  // Phase 1359: same unpaid checkInAddress strip as Trips fetches (1358).
+  const rows = (data as Array<{
+    id: string;
+    payment_status?: string | null;
+    purchase_snapshot?: unknown;
+    [key: string]: unknown;
+  }>).map((row) => redactUnpaidStayCheckInAddress(row));
+
+  const eligible = rows.find((b) => bookingEligibleForReview(b, nowMs));
   if (!eligible) return { canReview: false };
   return { canReview: true, bookingId: eligible.id };
 }
