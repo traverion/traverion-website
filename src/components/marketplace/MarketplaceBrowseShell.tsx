@@ -75,7 +75,7 @@ export function MarketplaceBrowseShell({
 
         {activeChips}
 
-        <div className="min-w-0">
+        <section className="min-w-0" aria-labelledby={headingId}>
           <div className="mb-5 relative z-10 flex flex-wrap items-center justify-between gap-3">
             <h1 id={headingId} className="font-display text-xl sm:text-2xl text-ink tracking-tight">
               {resultTitle}
@@ -83,7 +83,7 @@ export function MarketplaceBrowseShell({
             {!desktopFilters ? <div className="hidden lg:block shrink-0">{sortControl}</div> : null}
           </div>
           {children}
-        </div>
+        </section>
       </div>
 
       {filtersOpen ? (
