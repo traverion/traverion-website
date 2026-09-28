@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   CheckCircle,
   ChevronLeft,
@@ -255,12 +255,16 @@ export default function SupplierBookings({
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [openCancels, setOpenCancels] = useState<Record<string, CancellationRequestRow>>({});
 
+  const loadGenRef = useRef(0);
+  const bookingsHubUserIdRef = useRef<string | null>(null);
+
   const load = useCallback(async () => {
     const uid = user?.id;
     if (!isSupabase || !uid) {
       setLoading(false);
       return;
     }
+    const gen = ++loadGenRef.current;
     setLoading(true);
     setError(null);
     setCancelRequestsError(null);
@@ -269,6 +273,7 @@ export default function SupplierBookings({
         fetchBookingsForSupplier(uid),
         fetchMyListings(uid),
       ]);
+      if (gen !== loadGenRef.current) return;
       const meta: Record<string, ListingBookingMeta> = {};
       myListings.forEach((listing) => {
         meta[listing.id] = buildListingMeta(listing);
@@ -277,6 +282,7 @@ export default function SupplierBookings({
       setListingMeta(meta);
       try {
         const reqs = await fetchCancellationRequestsForBookings(bookingsList.map((b) => b.id));
+        if (gen !== loadGenRef.current) return;
         const open: Record<string, CancellationRequestRow> = {};
         for (const r of reqs) {
           if (r.status === 'requested' && !open[r.booking_id]) open[r.booking_id] = r;
@@ -284,15 +290,42 @@ export default function SupplierBookings({
         setOpenCancels(open);
         setCancelRequestsError(null);
       } catch (cancelErr) {
+        if (gen !== loadGenRef.current) return;
         // Keep prior open-cancel map — do not pretend there are zero open cancels.
         setCancelRequestsError(userFacingError(cancelErr, USER_ERROR.bookings));
       }
     } catch (e) {
+      if (gen !== loadGenRef.current) return;
       setError(userFacingError(e, USER_ERROR.bookings));
     } finally {
-      setLoading(false);
+      if (gen === loadGenRef.current) setLoading(false);
     }
   }, [isSupabase, user?.id]);
+
+  useEffect(() => {
+    const clearBookingsPartnerWorkspace = () => {
+      setBookings([]);
+      setListingMeta({});
+      setOpenCancels({});
+      setError(null);
+      setCancelRequestsError(null);
+      setCancelModal(null);
+      setUpdatingId(null);
+    };
+    if (!user?.id) {
+      bookingsHubUserIdRef.current = null;
+      loadGenRef.current += 1;
+      clearBookingsPartnerWorkspace();
+      setLoading(false);
+      return;
+    }
+    // Phase 1384: clear prior partner bookings before loading the next account (Account hub 1378 parity).
+    if (bookingsHubUserIdRef.current !== user.id) {
+      bookingsHubUserIdRef.current = user.id;
+      loadGenRef.current += 1;
+      clearBookingsPartnerWorkspace();
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     void load();
