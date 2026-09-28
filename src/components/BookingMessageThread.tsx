@@ -177,7 +177,8 @@ export default function BookingMessageThread({
                 </p>
                 <button
                   type="button"
-                  className="mt-3 text-xs font-semibold text-finland hover:underline"
+                  // Phase 1626: real tap target — match other empty-state CTAs on mobile.
+                  className="tv-btn-secondary mt-3 min-h-11"
                   onClick={() => document.getElementById(`msg-${bookingId}`)?.focus()}
                 >
                   Write first message
