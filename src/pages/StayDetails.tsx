@@ -105,6 +105,8 @@ export default function StayDetails({ stayId, onBack }: Props) {
   const [occupiedRanges, setOccupiedRanges] = useState<{ checkIn: string; checkOut: string }[]>([]);
   const [blockedNights, setBlockedNights] = useState<string[]>([]);
   const [occupancyError, setOccupancyError] = useState<string | null>(null);
+  /** True after a successful occupancy fetch for the current stay — empty nights ≠ “fully open” until then. */
+  const [occupancyLoaded, setOccupancyLoaded] = useState(false);
   const [savedToWishlist, setSavedToWishlist] = useState(false);
   const [wishlistHeartKnown, setWishlistHeartKnown] = useState(false);
   const [wishlistBusy, setWishlistBusy] = useState(false);
@@ -128,6 +130,10 @@ export default function StayDetails({ stayId, onBack }: Props) {
     let cancelled = false;
     setError(null);
     setStay(null);
+    setOccupiedRanges([]);
+    setBlockedNights([]);
+    setOccupancyError(null);
+    setOccupancyLoaded(false);
     void getListingByIdAsync(stayId)
       .then((row) => {
         if (cancelled) return;
@@ -352,6 +358,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
       setOccupiedRanges([]);
       setBlockedNights([]);
       setOccupancyError(null);
+      setOccupancyLoaded(false);
       return () => {};
     }
     let cancelled = false;
@@ -368,6 +375,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
         if (cancelled) return;
         setOccupiedRanges(ranges);
         setBlockedNights(nights);
+        setOccupancyLoaded(true);
       })
       .catch((e) => {
         if (cancelled) return;
@@ -858,10 +866,16 @@ export default function StayDetails({ stayId, onBack }: Props) {
                   {blockedNights.length > 24 ? '…' : ''}
                 </p>
               ) : null}
-              {bookedNights.length === 0 && blockedNights.length === 0 ? (
+              {occupancyLoaded && !occupancyError && bookedNights.length === 0 && blockedNights.length === 0 ? (
                 <p className="mt-3 text-sm text-ink-muted">
                   No nights are taken yet. Choose check-in and check-out on the booking panel.
                 </p>
+              ) : occupancyError && bookedNights.length === 0 && blockedNights.length === 0 ? (
+                <p className="mt-3 text-sm text-ink-muted">
+                  We could not verify which nights are taken. Use Try again in the booking panel before you pay.
+                </p>
+              ) : !occupancyLoaded && !occupancyError && isSupabaseConfigured() ? (
+                <p className="mt-3 text-sm text-ink-muted">Checking which nights are taken…</p>
               ) : null}
             </div>
             <div>
