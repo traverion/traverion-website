@@ -136,9 +136,8 @@ export default function SupplierDiscountsOffers() {
         setError(userFacingError(offerErr, USER_ERROR.offers));
       }
     } catch (e) {
+      // Phase 1305: keep prior listings/offers — load failure ≠ zero offers.
       setError(userFacingError(e, USER_ERROR.offers));
-      setListings([]);
-      setRows([]);
     } finally {
       setLoading(false);
     }
@@ -247,18 +246,7 @@ export default function SupplierDiscountsOffers() {
 
       {loading ? (
         <SupplierListSkeleton rows={3} />
-      ) : error ? null : listings.length === 0 ? (
-        <SupplierEmptyState
-          icon={MapPin}
-          title="No listings yet"
-          body="Offers attach to a published tour with booking options. You have no listings yet, so this page is empty. That is expected until you create one."
-          action={
-            <button type="button" onClick={goToListings} className="tv-btn-primary">
-              Open listings
-            </button>
-          }
-        />
-      ) : (
+      ) : listings.length > 0 || rows.length > 0 ? (
         <>
           {publishedCount === 0 && canEdit ? (
             <NoticeCallout title="Publish a tour first" tone="warn">
@@ -450,6 +438,17 @@ export default function SupplierDiscountsOffers() {
             )}
           </div>
         </>
+      ) : error ? null : (
+        <SupplierEmptyState
+          icon={MapPin}
+          title="No listings yet"
+          body="Offers attach to a published tour with booking options. You have no listings yet, so this page is empty. That is expected until you create one."
+          action={
+            <button type="button" onClick={goToListings} className="tv-btn-primary">
+              Open listings
+            </button>
+          }
+        />
       )}
 
       <DiscountOfferWizardModal
