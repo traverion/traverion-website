@@ -2178,14 +2178,18 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     discountsByListing ?? new Map()
                   );
                   // Phase 1547: with option selected, never invent catalog From when quote failed (1545/1546 parity).
+                  // Phase 1604: mobile sticky says “Price unavailable” (not em dash) + short error in subline.
+                  const quoteFailed = Boolean(selectedBookingVariant && panelQuote && !panelQuote.ok);
                   const priceLine =
                     selectedBookingVariant && panelQuote?.ok
                       ? formatMoney(panelQuote.totalAmount, panelQuote.currency)
-                      : selectedBookingVariant && panelQuote && !panelQuote.ok
-                        ? '—'
+                      : quoteFailed
+                        ? 'Price unavailable'
                         : `From ${formatMoney(Number(price), currency)}`;
                   const subLine =
-                    selectedBookingVariant
+                    quoteFailed
+                      ? (panelQuote?.error?.trim().slice(0, 72) || 'Adjust date, guests, or option')
+                      : selectedBookingVariant
                       ? [
                           selectedBookingVariant.label,
                           selectedDepartureTime || (departureTimes.length === 1 ? departureTimes[0] : null),
