@@ -1,4 +1,3 @@
-import { parseStayCheckOutFromNotes } from './stayOccupancy';
 import { isPaidPaymentStatus } from './payment-states';
 import {
   parseBookingMeetingPointOverride,
@@ -21,19 +20,25 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
  * Stay nights are check-in/out, not tour pickup.
- * Canonical shape matches SQL stay_booking_check_out / stayRangeFromBooking:
- * check_out column → check_out: notes → nights >= 1.
+ * Phase 1523: column / nights / purchased snapshot only — never notes-only check_out:
+ * (planted keys must not flip tour cancel/refund to stay check-in math).
  */
 export function bookingIsStayNight(b: {
   check_out?: string | null;
   special_requests?: string | null;
   nights?: number | null;
+  purchase_snapshot?: unknown;
 }): boolean {
   const col = (b.check_out ?? '').trim();
   if (ISO_DATE.test(col)) return true;
-  if (parseStayCheckOutFromNotes(b.special_requests)) return true;
   const nights = Math.floor(Number(b.nights ?? 0));
-  return Number.isFinite(nights) && nights >= 1;
+  if (Number.isFinite(nights) && nights >= 1) return true;
+  const snap =
+    b.purchase_snapshot && typeof b.purchase_snapshot === 'object'
+      ? (b.purchase_snapshot as { checkOut?: unknown }).checkOut
+      : null;
+  const snapOut = typeof snap === 'string' ? snap.trim() : '';
+  return ISO_DATE.test(snapOut);
 }
 
 /**

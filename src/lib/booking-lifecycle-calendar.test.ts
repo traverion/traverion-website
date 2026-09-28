@@ -122,6 +122,14 @@ describe('booking-lifecycle-calendar', () => {
     };
     expect(lifecycleBookingIsStay(stay)).toBe(true);
     expect(lifecycleReviewCompletionYmd(stay)).toBe('2026-09-13');
+    // Phase 1523: notes-only check_out: must not classify as stay
+    expect(
+      lifecycleBookingIsStay({
+        ...stay,
+        nights: null,
+        special_requests: 'check_out: 2026-09-13',
+      })
+    ).toBe(false);
     // Day after check-in — must NOT review (tour path would fire here).
     expect(shouldSendReviewRequest(stay, Date.parse('2026-09-10T21:30:00.000Z'))).toBe(false);
     expect(shouldSendReviewRequest(stay, Date.parse('2026-09-13T21:30:00.000Z'))).toBe(true);

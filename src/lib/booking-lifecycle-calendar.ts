@@ -96,8 +96,8 @@ function parseStayCheckOutFromNotes(notes: string | null | undefined): string | 
 }
 
 /**
- * Stay shape parity with bookingIsStayNight / SQL booking_is_stay_night (Phase 1332):
- * check_out column, purchased checkOut, nights >= 1, or check_out: notes.
+ * Stay shape parity with bookingIsStayNight / SQL booking_is_stay_night (Phase 1523):
+ * check_out column, purchased checkOut, or nights >= 1 — never notes-only check_out:.
  */
 export function lifecycleBookingIsStay(b: LifecycleBookingRow): boolean {
   if (isoDay(b.check_out)) return true;
@@ -105,7 +105,7 @@ export function lifecycleBookingIsStay(b: LifecycleBookingRow): boolean {
   if (snapOut && ISO_DATE.test(snapOut)) return true;
   const nights = Math.floor(Number(b.nights ?? 0));
   if (Number.isFinite(nights) && nights >= 1) return true;
-  return Boolean(parseStayCheckOutFromNotes(b.special_requests));
+  return false;
 }
 
 /**

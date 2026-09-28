@@ -18,11 +18,18 @@ describe('pickup completeness', () => {
 
   it('does not treat stay nights as pickup work', () => {
     const stayCol = { check_out: '2026-09-22', special_requests: null };
-    const stayNotes = { check_out: null, special_requests: 'check_out: 2026-09-22' };
+    const stayNotesOnly = { check_out: null, special_requests: 'check_out: 2026-09-22' };
+    const staySnap = {
+      check_out: null,
+      special_requests: null,
+      purchase_snapshot: { checkOut: '2026-09-22' },
+    };
     const stayNightsOnly = { check_out: null, special_requests: null, nights: 3 };
     const tour = { check_out: null, special_requests: 'Guest phone: +358' };
     expect(bookingIsStayNight(stayCol)).toBe(true);
-    expect(bookingIsStayNight(stayNotes)).toBe(true);
+    // Phase 1523: notes-only check_out: must not flip tour→stay
+    expect(bookingIsStayNight(stayNotesOnly)).toBe(false);
+    expect(bookingIsStayNight(staySnap)).toBe(true);
     expect(bookingIsStayNight(stayNightsOnly)).toBe(true);
     expect(bookingIsStayNight({ ...tour, nights: 0 })).toBe(false);
     expect(bookingIsStayNight(tour)).toBe(false);
