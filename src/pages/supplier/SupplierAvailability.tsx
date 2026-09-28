@@ -36,7 +36,7 @@ import { formatPartnerCheckoutHoldLabel, tourCheckoutOccupiedGuests, normalizeTo
 import { bulkCapacityBelowSoldWarning, capacityBelowSoldWarning } from '../../lib/capacity-reduction-warn';
 import { experienceTodayIsoForListing } from '../../lib/booking-quote';
 import { navigateSupplierUrl, openSupplierBooking } from '../../lib/supplierPortalNavigation';
-import { PARTNER_CREATE_PATH } from '../../lib/partnerPortalPaths';
+import { PARTNER_CREATE_PATH, PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import {
   SUPPLIER_PAGE_CLASS,
   SupplierEmptyState,
@@ -541,13 +541,23 @@ export default function SupplierAvailability() {
           title="Create a listing first"
           body="Calendar shows departures and nights after you have a tour or stay. You have none yet — that is the first step, not a broken calendar."
           action={
-            <button
-              type="button"
-              onClick={() => navigateSupplierUrl(PARTNER_CREATE_PATH)}
-              className="tv-btn-primary"
-            >
-              New listing
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => navigateSupplierUrl(PARTNER_CREATE_PATH)}
+                className="tv-btn-primary"
+              >
+                New listing
+              </button>
+              {/* Phase 1670: Inbox/Money/Pickup parity — listings escape when calendar is empty. */}
+              <button
+                type="button"
+                onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings`)}
+                className="tv-btn-ghost"
+              >
+                Your listings
+              </button>
+            </div>
           }
         />
       ) : (
