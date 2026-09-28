@@ -483,10 +483,7 @@ export default function BookingPage({
 
   const partySizeForCapacity = useMemo(() => {
     if (optionUsesAgePricing(appliedOption) && appliedOption) {
-      return Math.max(
-        1,
-        totalGuestsFromMix(buildParticipantMixLines(appliedOption, participantMix))
-      );
+      return totalGuestsFromMix(buildParticipantMixLines(appliedOption, participantMix));
     }
     return Math.max(1, guests);
   }, [appliedOption, participantMix, guests]);
@@ -811,6 +808,13 @@ export default function BookingPage({
       setError(dateCheck.message ?? 'Please select a date');
       return;
     }
+    if (appliedOption && optionUsesAgePricing(appliedOption)) {
+      const mixErr = validateParticipantMix(appliedOption, participantMix);
+      if (mixErr) {
+        setError(mixErr);
+        return;
+      }
+    }
     const guestErr = guestCountValidationError(partySizeForCapacity, partyBounds);
     if (guestErr) {
       setError(guestErr);
@@ -929,7 +933,14 @@ export default function BookingPage({
       setError(emailCheck.message ?? 'Valid email is required');
       return;
     }
-    const guestErr = guestCountValidationError(guests, partyBounds);
+    if (appliedOption && optionUsesAgePricing(appliedOption)) {
+      const mixErr = validateParticipantMix(appliedOption, participantMix);
+      if (mixErr) {
+        setError(mixErr);
+        return;
+      }
+    }
+    const guestErr = guestCountValidationError(partySizeForCapacity, partyBounds);
     if (guestErr) {
       setError(guestErr);
       return;
