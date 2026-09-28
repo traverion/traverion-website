@@ -53,8 +53,10 @@ export function staleCheckoutFailureShouldApply(params: {
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
- * Pay now resume must reuse the stay check-out stored on the booking when the
- * client only sends bookingId (Trips does not resend nights).
+ * Pay now resume must freeze stay nights to the claimed booking.
+ * Client checkoutDate must not extend/shorten inventory or Stripe total vs
+ * bookings.check_out / promote column occupancy.
+ * Body is only a fallback when the booking cannot resolve a check-out.
  */
 export function resumeStayCheckoutDate(params: {
   bodyCheckoutDate?: string | null;
@@ -69,14 +71,14 @@ export function resumeStayCheckoutDate(params: {
     special_requests?: string | null;
   }) => { checkIn: string; checkOut: string } | null;
 }): string | null {
-  const fromBody = String(params.bodyCheckoutDate ?? '').trim();
-  if (ISO_DATE.test(fromBody)) return fromBody;
   const range = params.resolveFromBooking({
     booking_date: params.bookingDate ?? null,
     check_out: params.bookingCheckOut ?? null,
     nights: params.bookingNights ?? null,
     special_requests: params.specialRequests ?? null,
   });
-  const out = range?.checkOut?.trim() ?? '';
-  return ISO_DATE.test(out) ? out : null;
+  const fromBooking = range?.checkOut?.trim() ?? '';
+  if (ISO_DATE.test(fromBooking)) return fromBooking;
+  const fromBody = String(params.bodyCheckoutDate ?? '').trim();
+  return ISO_DATE.test(fromBody) ? fromBody : null;
 }

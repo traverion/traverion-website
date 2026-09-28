@@ -174,7 +174,7 @@ serve(async (req) => {
       returnOrigin: typeof body.returnOrigin === 'string' ? body.returnOrigin : null,
       extraAllowedOrigins: extraReturnOrigins,
     });
-    const participantMix =
+    let participantMix =
       body.participantMix && typeof body.participantMix === 'object' && !Array.isArray(body.participantMix)
         ? (body.participantMix as Record<string, number>)
         : null;
@@ -262,21 +262,24 @@ serve(async (req) => {
         typeof row.checkout_session_id === 'string' && row.checkout_session_id.trim()
           ? row.checkout_session_id.trim()
           : null;
+      // Phase 1501: Pay now resume must not accept client option/slot/nights.
+      // Column + notes (written at claim) only — never body bookingOptionId.
       storedOptionId =
         (typeof (row as { booking_option_id?: string }).booking_option_id === 'string' &&
           (row as { booking_option_id?: string }).booking_option_id?.trim()) ||
         optionIdFromNotes(row.special_requests) ||
-        requestedOptionId ||
         null;
       // Sold seat = purchase_snapshot.startTimeHm, else bookings.start_time (Phase 1080).
-      // Trips Pay now only sends bookingId — must restore departure before quote + assert.
-      if (!startTime) {
+      // Ignore body startTime on resume so travelers cannot migrate the hold to another departure.
+      {
         const purchased = inventoryStartTimeHmFromBooking({
           start_time: typeof row.start_time === 'string' ? row.start_time : null,
           purchase_snapshot: row.purchase_snapshot,
         });
-        if (purchased) startTime = purchased;
+        startTime = purchased || '';
       }
+      // Drop client participant mix — guests already restored from the booking row.
+      participantMix = null;
     } else {
       if (!listingId) return json({ success: false, error: 'listingId is required' }, 400);
       if (!bookingDate || !/^\d{4}-\d{2}-\d{2}$/.test(bookingDate)) {

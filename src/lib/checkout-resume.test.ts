@@ -76,7 +76,7 @@ describe('staleCheckoutFailureShouldApply', () => {
 });
 
 describe('resumeStayCheckoutDate', () => {
-  it('prefers the client checkoutDate when present', () => {
+  it('ignores client checkoutDate when the booking already has check-out', () => {
     expect(
       resumeStayCheckoutDate({
         bodyCheckoutDate: '2026-11-05',
@@ -85,7 +85,19 @@ describe('resumeStayCheckoutDate', () => {
         bookingNights: 3,
         resolveFromBooking: stayRangeFromBooking,
       })
-    ).toBe('2026-11-05');
+    ).toBe('2026-11-04');
+  });
+
+  it('ignores a shorter client checkoutDate that would underpay vs claimed nights', () => {
+    expect(
+      resumeStayCheckoutDate({
+        bodyCheckoutDate: '2026-11-02',
+        bookingCheckOut: '2026-11-04',
+        bookingDate: '2026-11-01',
+        bookingNights: 3,
+        resolveFromBooking: stayRangeFromBooking,
+      })
+    ).toBe('2026-11-04');
   });
 
   it('restores multi-night check-out from the booking on Trips Pay now', () => {
@@ -107,5 +119,17 @@ describe('resumeStayCheckoutDate', () => {
         resolveFromBooking: stayRangeFromBooking,
       })
     ).toBe('2026-11-04');
+  });
+
+  it('uses body checkoutDate only when the booking cannot resolve check-out', () => {
+    expect(
+      resumeStayCheckoutDate({
+        bodyCheckoutDate: '2026-11-05',
+        bookingCheckOut: null,
+        bookingDate: null,
+        bookingNights: null,
+        resolveFromBooking: () => null,
+      })
+    ).toBe('2026-11-05');
   });
 });
