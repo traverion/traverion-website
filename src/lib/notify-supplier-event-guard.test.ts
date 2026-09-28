@@ -252,6 +252,28 @@ describe('resolveSupplierEventContext: booking-tied events (Phase 579 content-fo
     expect(result.overrides.checkOutDate).toBe('2026-12-04');
   });
 
+  it('Phase 1556: longer snapshot beats stale short nights for supplier checkOutDate', () => {
+    const result = resolveSupplierEventContext({
+      eventType: 'new_booking',
+      supplierId: REAL_SUPPLIER,
+      bookingId: REAL_BOOKING,
+      listingId: REAL_LISTING,
+      reviewId: undefined,
+      listingRow,
+      bookingRow: {
+        ...bookingRow,
+        check_out: null,
+        nights: 2,
+        payment_status: 'paid',
+        purchase_snapshot: { checkOut: '2026-12-05' },
+      },
+      reviewRow: undefined,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.overrides.checkOutDate).toBe('2026-12-05');
+  });
+
   it('non-new_booking events never set bookingPaymentStatus', () => {
     const result = resolveSupplierEventContext({
       eventType: 'guest_message',

@@ -82,6 +82,24 @@ describe('resolveBookingTiedContent (Phase 1052 content-forgery fix)', () => {
     if (!byNights.ok) return;
     expect(byNights.overrides.listingKind).toBe('stay');
     expect(byNights.overrides.checkOutDate).toBe('2026-12-04');
+
+    // Phase 1556: longer snapshot beats stale short nights when check_out null
+    const bySnap = resolveBookingTiedContent({
+      kind: 'experience_reminder',
+      bookingId: BOOKING_ID,
+      bookingRow: {
+        guest_name: 'M',
+        booking_date: '2026-12-01',
+        nights: 2,
+        guests: 2,
+        payment_status: 'paid',
+        purchase_snapshot: { checkOut: '2026-12-05' },
+      },
+      listingRow: { id: 'l1', title: 'Cabin' },
+    });
+    expect(bySnap.ok).toBe(true);
+    if (!bySnap.ok) return;
+    expect(bySnap.overrides.checkOutDate).toBe('2026-12-05');
   });
 
   it('rejects booking-tied kind without bookingId', () => {

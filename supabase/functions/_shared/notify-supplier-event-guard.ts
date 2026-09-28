@@ -107,7 +107,7 @@ function supplierBookingIsStay(booking: NonNullable<BookingRowForSupplierEvent>)
   return Boolean(snapshotCheckOut(booking.purchase_snapshot));
 }
 
-/** Phase 1524/1528: exclusive stay check-out = column → nights → snap. */
+/** Phase 1524/1556: exclusive stay check-out = column → max(nights, snap). */
 function supplierStayCheckOutDate(booking: NonNullable<BookingRowForSupplierEvent>): string | undefined {
   const checkIn =
     typeof booking.booking_date === 'string' && booking.booking_date.trim()
@@ -119,16 +119,18 @@ function supplierStayCheckOutDate(booking: NonNullable<BookingRowForSupplierEven
     return fromColumn;
   }
   const nights = Math.floor(Number(booking.nights ?? 0));
+  let fromNights: string | undefined;
   if (checkIn && /^\d{4}-\d{2}-\d{2}$/.test(checkIn) && Number.isFinite(nights) && nights >= 1) {
     const [y, m, d] = checkIn.split('-').map(Number);
     const dt = new Date(Date.UTC(y, m - 1, d + nights));
-    return dt.toISOString().slice(0, 10);
+    fromNights = dt.toISOString().slice(0, 10);
   }
   const fromSnap = snapshotCheckOut(booking.purchase_snapshot);
-  if (fromSnap) {
-    if (!checkIn || fromSnap > checkIn) return fromSnap;
-    return fromSnap;
-  }
+  const snapOk = fromSnap && (!checkIn || fromSnap > checkIn) ? fromSnap : undefined;
+  // Phase 1556: later of nights-derived vs snapshot when column missing (1554 parity).
+  if (fromNights && snapOk) return fromNights > snapOk ? fromNights : snapOk;
+  if (fromNights) return fromNights;
+  if (snapOk) return snapOk;
   return undefined;
 }
 

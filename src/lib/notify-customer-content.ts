@@ -154,7 +154,7 @@ function resolveListingKind(
   return undefined;
 }
 
-/** Phase 1524/1525: exclusive stay check-out = column → nights → snap → undefined (never notes). */
+/** Phase 1524/1556: exclusive stay check-out = column → max(nights, snap) (never notes). */
 function resolveStayCheckOutDate(booking: BookingRowForContent): string | undefined {
   if (!booking) return undefined;
   const checkIn =
@@ -170,16 +170,24 @@ function resolveStayCheckOutDate(booking: BookingRowForContent): string | undefi
     return fromColumn;
   }
   const nights = Math.floor(Number(booking.nights ?? 0));
+  let fromNights: string | undefined;
   if (checkIn && /^\d{4}-\d{2}-\d{2}$/.test(checkIn) && Number.isFinite(nights) && nights >= 1) {
     const [y, m, d] = checkIn.split('-').map(Number);
     const dt = new Date(Date.UTC(y, m - 1, d + nights));
-    return dt.toISOString().slice(0, 10);
+    fromNights = dt.toISOString().slice(0, 10);
   }
-  const fromSnap = snapshotString(booking.purchase_snapshot, 'checkOut');
-  if (fromSnap && /^\d{4}-\d{2}-\d{2}$/.test(fromSnap)) {
-    if (!checkIn || fromSnap > checkIn) return fromSnap;
-    return fromSnap;
-  }
+  const fromSnapRaw = snapshotString(booking.purchase_snapshot, 'checkOut');
+  const fromSnap =
+    fromSnapRaw && /^\d{4}-\d{2}-\d{2}$/.test(fromSnapRaw)
+      ? !checkIn || fromSnapRaw > checkIn
+        ? fromSnapRaw
+        : fromSnapRaw
+      : undefined;
+  const snapOk = fromSnap && (!checkIn || fromSnap > checkIn) ? fromSnap : undefined;
+  // Phase 1556: later of nights-derived vs snapshot when column missing (1554 parity).
+  if (fromNights && snapOk) return fromNights > snapOk ? fromNights : snapOk;
+  if (fromNights) return fromNights;
+  if (snapOk) return snapOk;
   return undefined;
 }
 
