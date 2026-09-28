@@ -763,14 +763,23 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     setHasReviewed(false);
     if (!user?.id || !user?.email || !tourId || !isSupabaseConfigured()) return;
     let cancelled = false;
-    userHasCompletedBookingForListing(user.id, user.email, tourId).then(({ canReview, bookingId }) => {
-      if (cancelled) return;
-      setCanLeaveReview(canReview);
-      setBookingIdForReview(bookingId);
-    });
-    userHasReviewedListing(user.id, tourId).then((reviewed) => {
-      if (!cancelled) setHasReviewed(reviewed);
-    });
+    void userHasCompletedBookingForListing(user.id, user.email, tourId)
+      .then(({ canReview, bookingId }) => {
+        if (cancelled) return;
+        setCanLeaveReview(canReview);
+        setBookingIdForReview(bookingId);
+      })
+      .catch(() => {
+        // Keep canLeaveReview false — failure ≠ invent eligibility.
+      });
+    void userHasReviewedListing(user.id, tourId)
+      .then((reviewed) => {
+        if (!cancelled) setHasReviewed(reviewed);
+      })
+      .catch(() => {
+        // Phase 1303: eligibility failure ≠ “not reviewed” — hide Leave review.
+        if (!cancelled) setHasReviewed(true);
+      });
     return () => {
       cancelled = true;
     };

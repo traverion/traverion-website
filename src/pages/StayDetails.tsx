@@ -224,14 +224,23 @@ export default function StayDetails({ stayId, onBack }: Props) {
       return;
     }
     let cancelled = false;
-    void userHasCompletedBookingForListing(user.id, user.email, stayId).then(({ canReview, bookingId }) => {
-      if (cancelled) return;
-      setCanLeaveReview(canReview);
-      setBookingIdForReview(bookingId);
-    });
-    void userHasReviewedListing(user.id, stayId).then((done) => {
-      if (!cancelled) setHasReviewed(done);
-    });
+    void userHasCompletedBookingForListing(user.id, user.email, stayId)
+      .then(({ canReview, bookingId }) => {
+        if (cancelled) return;
+        setCanLeaveReview(canReview);
+        setBookingIdForReview(bookingId);
+      })
+      .catch(() => {
+        // Keep canLeaveReview false — failure ≠ invent eligibility.
+      });
+    void userHasReviewedListing(user.id, stayId)
+      .then((done) => {
+        if (!cancelled) setHasReviewed(done);
+      })
+      .catch(() => {
+        // Phase 1303: eligibility failure ≠ “not reviewed” — hide Leave review.
+        if (!cancelled) setHasReviewed(true);
+      });
     return () => {
       cancelled = true;
     };

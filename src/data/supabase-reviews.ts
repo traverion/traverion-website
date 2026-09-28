@@ -189,7 +189,11 @@ export async function userHasCompletedBookingForListing(
   return { canReview: true, bookingId: eligible.id };
 }
 
-/** Check if the current user has already reviewed this listing. */
+/**
+ * Check if the current user has already reviewed this listing.
+ * Phase 1303: throw on Supabase error — callers must not treat infrastructure
+ * failure as “not reviewed” (would invent a Leave review CTA).
+ */
 export async function userHasReviewedListing(userId: string, listingId: string): Promise<boolean> {
   if (!supabase) return false;
   const { data, error } = await supabase
@@ -198,7 +202,8 @@ export async function userHasReviewedListing(userId: string, listingId: string):
     .eq('user_id', userId)
     .eq('listing_id', listingId)
     .maybeSingle();
-  return !error && !!data;
+  if (error) throw new Error(error.message);
+  return !!data;
 }
 
 /** Fetch all reviews for a supplier's listings (for supplier portal). Throws on Supabase error.
