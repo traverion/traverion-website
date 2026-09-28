@@ -27,3 +27,14 @@ describe('TourAvailableOptions quote honesty (Phase 1560)', () => {
     );
   });
 });
+
+describe('TourDetails desktop panel quoted hero (Phase 1561)', () => {
+  const details = readFileSync(join(here, '../pages/TourDetails.tsx'), 'utf8');
+
+  it('shows panelQuote total as hero when quote ok', () => {
+    expect(details).toContain('Phase 1561');
+    expect(details).toMatch(
+      /selectedBookingVariant && panelQuote\?\.ok[\s\S]*formatMoney\(panelQuote\.totalAmount, panelQuote\.currency\)/
+    );
+  });
+});

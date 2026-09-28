@@ -20,9 +20,8 @@ describe('TourDetails desktop PriceHero honesty (Phase 1550)', () => {
   const src = readFileSync(join(here, '../pages/TourDetails.tsx'), 'utf8');
 
   it('hides catalog PriceHero when option selected and panelQuote failed', () => {
-    expect(src).toContain('Phase 1550');
     expect(src).toMatch(
-      /Phase 1550[\s\S]*selectedBookingVariant && panelQuote && !panelQuote\.ok[\s\S]*tabular-nums text-ink">—</
+      /selectedBookingVariant && panelQuote && !panelQuote\.ok[\s\S]*tabular-nums text-ink">—</
     );
   });
 });

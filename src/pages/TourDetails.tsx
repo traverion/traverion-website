@@ -1604,12 +1604,20 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                       if (selectedBookingVariant && panelQuote && !panelQuote.ok) {
                         return <p className="mb-4 text-lg font-semibold tabular-nums text-ink">—</p>;
                       }
+                      // Phase 1561: successful quote is the hero total (sticky parity — not catalog From).
+                      if (selectedBookingVariant && panelQuote?.ok) {
+                        return (
+                          <p className="mb-4 text-lg font-semibold tabular-nums text-ink">
+                            {formatMoney(panelQuote.totalAmount, panelQuote.currency)}
+                          </p>
+                        );
+                      }
+                      // Phase 1561: catalog From only before a live quote (ok/fail already returned above).
                       if (discountsByListing == null) {
                         return (
                           <p className="mb-4 text-sm font-medium text-ink-faint">Checking offers…</p>
                         );
                       }
-                      // Phase 1550: option selected + failed quote — do not invent catalog From (1547/1548).
                       const { price, originalPrice, label, qualifier, summary } = getDisplayPriceForTour(
                         tour,
                         discountsByListing
