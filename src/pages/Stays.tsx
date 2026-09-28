@@ -75,10 +75,13 @@ const STAY_SORT_OPTIONS = [
 function parseStaysSearch(search: string) {
   const p = new URLSearchParams(search);
   const amenities = (p.get('amenities') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  const checkIn = p.get('date') ?? '';
+  const checkOutRaw = p.get('checkout') ?? '';
+  const checkOut = checkIn && checkOutRaw ? checkOutRaw : '';
   return {
     q: p.get('q') ?? '',
-    checkIn: p.get('date') ?? '',
-    checkOut: p.get('checkout') ?? '',
+    checkIn,
+    checkOut,
     guests: p.get('guests') ?? '',
     propertyType: p.get('type') ?? 'all',
     price: parsePriceChipId(p.get('price')),
@@ -176,7 +179,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
     const p = new URLSearchParams();
     if (q.trim()) p.set('q', q.trim());
     if (checkIn) p.set('date', checkIn);
-    if (checkOut) p.set('checkout', checkOut);
+    if (checkOut && checkIn) p.set('checkout', checkOut);
     if (guests) p.set('guests', guests);
     if (propertyType && propertyType !== 'all') p.set('type', propertyType);
     if (priceRange !== 'all') p.set('price', priceRange);
@@ -224,6 +227,8 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
       nextOut = addCalendarDays(nextIn, 1);
     } else if (nextIn && !nextOut) {
       nextOut = addCalendarDays(nextIn, 1);
+    } else if (!nextIn && nextOut) {
+      nextOut = '';
     }
     setQ(draftWhere);
     setCheckIn(nextIn);
@@ -801,6 +806,8 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
                   onRemove={() => {
                     setCheckIn('');
                     setDraftCheckIn('');
+                    setCheckOut('');
+                    setDraftCheckOut('');
                   }}
                 />
               ) : null}

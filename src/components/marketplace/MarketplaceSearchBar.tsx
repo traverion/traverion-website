@@ -83,7 +83,14 @@ export function MarketplaceSearchFields({
             value={values.checkout}
             placeholder="Add date"
             minIso={values.date ? addCalendarDays(values.date, 1) : searchMinIso}
-            onChange={(next) => onChange({ checkout: next })}
+            onChange={(next) => {
+              // Layer B: orphan check-out without check-in confuses stay browse + URL state (1435 parity).
+              if (!values.date.trim()) {
+                if (!next.trim()) onChange({ checkout: next });
+                return;
+              }
+              onChange({ checkout: next });
+            }}
           />
         </FieldShell>
       ) : null}
