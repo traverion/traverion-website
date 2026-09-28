@@ -702,7 +702,10 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           <div className="space-y-3">
             {visibleBookings.map((b) => {
               const open = openTripId === b.id;
-              const lifecycle = bookingLifecycleLabel(b.status, b.payment_status);
+              const lifecycle = bookingLifecycleLabel(b.status, b.payment_status, {
+                hold_expires_at: b.hold_expires_at,
+                created_at: b.created_at,
+              });
               const payLabel = travelerPaymentLabel(b);
               const guestNotes = guestFacingBookingNotes(b.special_requests);
               const openCancel = cancelRequests[b.id];

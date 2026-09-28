@@ -28,6 +28,8 @@ export function toneForPaymentLabel(label: string): Tone {
   if (l === 'refunded') return 'info';
   if (l === 'refund due') return 'warn';
   if (l === 'no refund') return 'neutral';
+  // Phase 1312: hold expiry is amber attention, not neutral.
+  if (l === 'hold expired' || l === 'checkout hold') return 'warn';
   if (l.includes('pending')) return 'warn';
   if (l.includes('fail') || (l.includes('cancel') && !l.includes('none'))) return 'bad';
   if (l.includes('refund')) return 'info';
