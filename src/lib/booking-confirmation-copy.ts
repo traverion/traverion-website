@@ -439,9 +439,10 @@ export function paidConfirmationReceiptLine(listingKind?: string | null): string
  * range was healed longer than the Stripe charge.
  */
 export function stayConfirmationPaidNightlyBreakdown(params: {
-  amountPaid: number | null | undefined;
-  nightlyAmount: number | null | undefined;
-  cleaningFee?: number | null;
+  /** MoneyBookingRow may store amount_paid as string from PostgREST. */
+  amountPaid: number | string | null | undefined;
+  nightlyAmount: number | string | null | undefined;
+  cleaningFee?: number | string | null;
   /** Prefer column/snapshot nights that reconcile; occupancy nights are last resort. */
   candidateNights: Array<number | null | undefined>;
 }): { nights: number } | null {
@@ -481,9 +482,10 @@ export function confirmationStayNightCount(params: {
  * Trips, partner Bookings meta) — 1579 reconcile + 1580 omit-on-mismatch.
  */
 export function stayPaidAdjacentNightCount(params: {
-  amountPaid: number | null | undefined;
-  nightlyAmount: number | null | undefined;
-  cleaningFee?: number | null;
+  /** MoneyBookingRow may store amount_paid as string from PostgREST. */
+  amountPaid: number | string | null | undefined;
+  nightlyAmount: number | string | null | undefined;
+  cleaningFee?: number | string | null;
   /** True when payment was collected (paid / complete / succeeded). */
   paymentCollected: boolean;
   columnNights?: number | null;
