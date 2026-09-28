@@ -75,9 +75,28 @@ export type BookingRowForSupplierEvent =
       guests?: number | null;
       booking_number?: number | null;
       payment_status?: string | null;
+      purchase_snapshot?: unknown;
     }
   | null
   | undefined;
+
+function purchasedListingTitleFromSnapshot(snapshot: unknown): string | undefined {
+  if (!snapshot || typeof snapshot !== 'object') return undefined;
+  const title = (snapshot as { listingTitle?: unknown }).listingTitle;
+  if (typeof title !== 'string') return undefined;
+  const trimmed = title.trim();
+  return trimmed || undefined;
+}
+
+/** Phase 1479: booking-tied supplier emails name what was purchased, not a later rename. */
+function listingTitleForBookingTiedSupplierEvent(
+  bookingRow: NonNullable<BookingRowForSupplierEvent>,
+  listingRow: NonNullable<ListingRowForSupplierEvent>
+): string | undefined {
+  const purchased = purchasedListingTitleFromSnapshot(bookingRow.purchase_snapshot);
+  if (purchased) return purchased;
+  return typeof listingRow.title === 'string' && listingRow.title.trim() ? listingRow.title.trim() : undefined;
+}
 
 export type ReviewRowForSupplierEvent =
   | { id?: string | null; listing_id?: string | null; rating?: number | null; title?: string | null; guest_name?: string | null }
@@ -132,8 +151,7 @@ export function resolveSupplierEventContext(params: {
     }
 
     const overrides: SupplierEventFieldOverrides = {
-      listingTitle:
-        typeof listingRow.title === 'string' && listingRow.title.trim() ? listingRow.title.trim() : undefined,
+      listingTitle: listingTitleForBookingTiedSupplierEvent(bookingRow, listingRow),
       guestName:
         typeof bookingRow.guest_name === 'string' && bookingRow.guest_name.trim()
           ? bookingRow.guest_name.trim()

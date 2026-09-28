@@ -625,7 +625,9 @@ serve(async (req) => {
         if (bookingId) {
           const { data } = await admin
             .from('bookings')
-            .select('id, listing_id, guest_name, booking_date, guests, booking_number, payment_status')
+            .select(
+              'id, listing_id, guest_name, booking_date, guests, booking_number, payment_status, purchase_snapshot'
+            )
             .eq('id', bookingId)
             .maybeSingle();
           bookingRow = data;

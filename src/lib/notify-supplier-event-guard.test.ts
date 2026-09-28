@@ -66,6 +66,31 @@ describe('resolveSupplierEventContext: booking-tied events (Phase 579 content-fo
     'cancellation_declined',
   ] as const;
 
+  it('Phase 1479: prefers purchase_snapshot listing title over live listings.title after partner rename', () => {
+    const renamedListing = { ...listingRow, title: 'Renamed marketing title' };
+    const bookedRow = {
+      ...bookingRow,
+      purchase_snapshot: {
+        listingTitle: 'Purchased Northern Lights Tour',
+        capturedAt: '2026-01-01T00:00:00.000Z',
+      },
+    };
+    const result = resolveSupplierEventContext({
+      eventType: 'guest_message',
+      supplierId: REAL_SUPPLIER,
+      bookingId: REAL_BOOKING,
+      listingId: REAL_LISTING,
+      reviewId: undefined,
+      listingRow: renamedListing,
+      bookingRow: bookedRow,
+      reviewRow: undefined,
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.overrides.listingTitle).toBe('Purchased Northern Lights Tour');
+    }
+  });
+
   it.each(bookingTiedKinds)(
     'closes the content-forgery gap for %s: real booking/listing -> real field values, not caller-fabricated ones',
     (eventType) => {
