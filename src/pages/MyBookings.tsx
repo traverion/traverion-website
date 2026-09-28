@@ -61,6 +61,7 @@ import { decrementAvailabilityBooked } from '../data/supabase-availability';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
 import { guestFacingBookingNotes } from '../lib/booking-notes';
 import { bookingMatchesTripView, travelerTripIsLive, travelerBookingNeedsPayNow, travelerTripReferenceLabel, sortTravelerCancelledTrips, tripAllowsBrowseLiveListing } from '../lib/trip-views';
+import { partnerBookingNumberMatchesFilterQuery } from '../lib/partner-bookings-search';
 import {
   BOOKING_CONFIRMATION_EMAIL_DISCLAIMER,
   BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE,
@@ -142,6 +143,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
     typeof window === 'undefined' ? null : readStripeCheckoutReturnBanner(window.location.search)
   );
   const [tripView, setTripView] = useState<'upcoming' | 'past' | 'cancelled'>('upcoming');
+  const [tripSearchQuery, setTripSearchQuery] = useState('');
   const [openTripId, setOpenTripId] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<{ title: string; body: string } | null>(null);
   const loadGenRef = useRef(0);
@@ -355,6 +357,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
       setActionError(null);
       setActionSuccess(null);
       setCancelConfirm(null);
+      setTripSearchQuery('');
     }
   }, [user?.id]);
 
@@ -457,11 +460,31 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   );
 
   const refundDueCount = useMemo(() => bookings.filter(isRefundDueBooking).length, [bookings]);
-  const visibleBookings = useMemo(() => {
+  const tripViewBookings = useMemo(() => {
     const rows = bookings.filter((b) => bookingMatchesTripView(b, tripView));
     if (tripView !== 'cancelled') return rows;
     return sortTravelerCancelledTrips(rows);
   }, [bookings, tripView]);
+
+  const visibleBookings = useMemo(() => {
+    const q = tripSearchQuery.trim();
+    if (!q) return tripViewBookings;
+    const qLower = q.toLowerCase();
+    return tripViewBookings.filter((b) => {
+      const isStay = bookingIsStayNight(b);
+      const ops = listingOps[b.listing_id];
+      const title = displayListingTitleFromPurchase(
+        b.purchase_snapshot,
+        titles[b.listing_id] || ops?.title,
+        isStay ? 'Stay' : 'Tour'
+      ).toLowerCase();
+      // Phase 1486: desk parity — match Ref # on collapsed cards (Partner Bookings 1484 / admin 1053).
+      return (
+        partnerBookingNumberMatchesFilterQuery(q, b.booking_number) ||
+        title.includes(qLower)
+      );
+    });
+  }, [tripViewBookings, tripSearchQuery, listingOps, titles]);
 
   if (!isSupabaseConfigured()) {
     return (
@@ -710,6 +733,19 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           />
         ) : (
           <div className="space-y-4">
+            <div className="max-w-md">
+              <label htmlFor="trips-search" className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">
+                Search
+              </label>
+              <input
+                id="trips-search"
+                type="search"
+                value={tripSearchQuery}
+                onChange={(e) => setTripSearchQuery(e.target.value)}
+                placeholder="Trip name or booking #"
+                className="tv-input mt-1"
+              />
+            </div>
             <div
               className="flex gap-1 rounded-full bg-paper-raised p-1 w-fit shadow-soft ring-1 ring-black/[0.06]"
               role="tablist"
@@ -748,6 +784,19 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               aria-labelledby={tripsTabId(tripView)}
             >
             {visibleBookings.length === 0 ? (
+              tripSearchQuery.trim() && tripViewBookings.length > 0 ? (
+                <EmptyState
+                  icon={CalendarDays}
+                  className="py-8"
+                  title="No trips match your search"
+                  body="Try the booking number from your confirmation (for example #42) or a word from the trip name."
+                  action={
+                    <button type="button" onClick={() => setTripSearchQuery('')} className="tv-btn-secondary">
+                      Clear search
+                    </button>
+                  }
+                />
+              ) : (
               <EmptyState
                 icon={CalendarDays}
                 className="py-8"
@@ -778,6 +827,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   ) : undefined
                 }
               />
+              )
             ) : (
           <div className="space-y-4">
             {tripView === 'cancelled' && refundDueCount > 0 ? (
