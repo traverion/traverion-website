@@ -341,6 +341,8 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     let cancelled = false;
     setDateCapacityLoading(true);
     setDateCapacityError(null);
+    // Phase 1341: invalidate prior map so a failed reload cannot filter with stale capacity.
+    setDateCapacityByListing(null);
     void Promise.all(
       allListings.map(async (tour) => {
         try {
@@ -1060,7 +1062,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
         ) : null}
         {showCatalogLoading ? (
           <SkeletonCardGrid count={6} />
-        ) : allListings.length > 0 && filteredPackages.length > 0 ? (
+        ) : dateCapacityError && filterDate ? null : allListings.length > 0 && filteredPackages.length > 0 ? (
           <>
             <div className={MARKETPLACE_BROWSE_GRID_CLASS}>
               {filteredPackages.map((tour, index) => (

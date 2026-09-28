@@ -239,6 +239,8 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
     let cancelled = false;
     setOccupancyLoading(true);
     setOccupancyError(null);
+    // Phase 1341: invalidate prior map so a failed reload cannot filter with stale nights.
+    setOccupiedByListing(null);
     void Promise.all(
       stays.map(async (s) => {
         try {
@@ -844,7 +846,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
         ) : null}
         {catalogLoading || waitingOnOccupancy ? (
           <SkeletonCardGrid count={6} />
-        ) : filtered.length > 0 ? (
+        ) : occupancyError && dateFilterActive ? null : filtered.length > 0 ? (
           <div className={MARKETPLACE_BROWSE_GRID_CLASS}>
             {filtered.map((item, index) => {
               const guestN = Number.parseInt(guests, 10) || 1;
