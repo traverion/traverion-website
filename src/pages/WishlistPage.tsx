@@ -42,6 +42,8 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
   const { user, loading: authLoading } = useAuth();
   const [listings, setListings] = useState<TourPackage[]>([]);
   const [unavailableCount, setUnavailableCount] = useState(0);
+  const [unavailableIds, setUnavailableIds] = useState<string[]>([]);
+  const [clearingUnavailable, setClearingUnavailable] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [discountsByListing, setDiscountsByListing] = useState<Map<string, ListingDiscount[]> | null>(null);
@@ -66,6 +68,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
       setLoading(false);
       setListings([]);
       setUnavailableCount(0);
+      setUnavailableIds([]);
       return;
     }
     const gen = ++loadGenRef.current;
@@ -76,11 +79,11 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
       const hydrated = await fetchListingsByIds(ids);
       const byId = new Map(hydrated.map((t) => [t.id, t]));
       const visible: TourPackage[] = [];
-      let hidden = 0;
+      const hiddenIds: string[] = [];
       for (const id of ids) {
         const t = byId.get(id);
         if (!t) {
-          hidden += 1;
+          hiddenIds.push(id);
           continue;
         }
         if (
@@ -90,12 +93,13 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
         ) {
           visible.push(t);
         } else {
-          hidden += 1;
+          hiddenIds.push(id);
         }
       }
       if (gen !== loadGenRef.current) return;
       setListings(visible);
-      setUnavailableCount(hidden);
+      setUnavailableCount(hiddenIds.length);
+      setUnavailableIds(hiddenIds);
     } catch (e) {
       if (gen !== loadGenRef.current) return;
       // Phase 1301: keep prior Saved cards — load failure ≠ empty wishlist.
@@ -111,12 +115,14 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
       wishlistUserIdRef.current = null;
       setListings([]);
       setUnavailableCount(0);
+      setUnavailableIds([]);
       return;
     }
     if (wishlistUserIdRef.current !== user.id) {
       wishlistUserIdRef.current = user.id;
       setListings([]);
       setUnavailableCount(0);
+      setUnavailableIds([]);
     }
   }, [user?.id]);
 
@@ -171,6 +177,20 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
     const ok = await removeFromWishlist(user.id, listingId);
     if (ok) {
       setListings((prev) => prev.filter((t) => t.id !== listingId));
+    }
+  };
+
+  // Phase 1665: clear orphan saves travelers cannot reopen from this empty grid.
+  const handleClearUnavailable = async () => {
+    if (!user?.id || unavailableIds.length === 0 || clearingUnavailable) return;
+    setClearingUnavailable(true);
+    try {
+      await Promise.all(unavailableIds.map((id) => removeFromWishlist(user.id, id)));
+      setUnavailableIds([]);
+      setUnavailableCount(0);
+      await load();
+    } finally {
+      setClearingUnavailable(false);
     }
   };
 
@@ -302,10 +322,20 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
         ) : listings.length > 0 ? (
           <>
             {unavailableCount > 0 ? (
-              <p className="mb-4 text-sm text-ink-muted">
-                {unavailableCount} saved listing{unavailableCount === 1 ? '' : 's'} no longer available — hidden from
-                this grid.
-              </p>
+              <div className="mb-4 flex flex-wrap items-center gap-3">
+                <p className="text-sm text-ink-muted">
+                  {unavailableCount} saved listing{unavailableCount === 1 ? '' : 's'} no longer available — hidden from
+                  this grid.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void handleClearUnavailable()}
+                  disabled={clearingUnavailable}
+                  className="tv-btn-ghost text-sm"
+                >
+                  {clearingUnavailable ? 'Clearing…' : 'Clear unavailable'}
+                </button>
+              </div>
             ) : null}
             <div className={MARKETPLACE_BROWSE_GRID_CLASS} aria-busy={loading || undefined}>
               {listings.map((tour, index) => (
@@ -333,12 +363,22 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
             title={unavailableCount > 0 ? 'No bookable saved listings' : 'Nothing saved yet'}
             body={
               unavailableCount > 0
-                ? `${unavailableCount} saved listing${unavailableCount === 1 ? '' : 's'} are unpublished or gone, so they are not shown as bookable. Browse for something new or remove saves from listing pages when you reopen them.`
+                ? `${unavailableCount} saved listing${unavailableCount === 1 ? '' : 's'} are unpublished or gone, so they are not shown as bookable. Clear them here or browse for something new.`
                 : 'You have not saved a tour or stay yet. Save one while browsing and it will show up here.'
             }
             action={
               <div className="flex flex-wrap gap-2">
-                <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-primary">
+                {unavailableCount > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => void handleClearUnavailable()}
+                    disabled={clearingUnavailable}
+                    className="tv-btn-primary"
+                  >
+                    {clearingUnavailable ? 'Clearing…' : 'Clear unavailable'}
+                  </button>
+                ) : null}
+                <button type="button" onClick={() => onNavigate('packages')} className={unavailableCount > 0 ? 'tv-btn-ghost' : 'tv-btn-primary'}>
                   Browse tours
                 </button>
                 <button type="button" onClick={() => onNavigate('stays')} className="tv-btn-ghost">
