@@ -26,6 +26,7 @@ import {
 import { fetchBookingsForSupplier } from '../../data/supabase-bookings';
 import {
   countUpcomingPaidTripsForListing,
+  unpublishUpcomingBookingsCheckFailedNotice,
   unpublishUpcomingBookingsNotice,
 } from '../../lib/listing-unpublish-impact';
 import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
@@ -114,6 +115,7 @@ export default function SupplierListings() {
   const [listingPendingDelete, setListingPendingDelete] = useState<TourPackage | null>(null);
   const [listingPendingDeactivate, setListingPendingDeactivate] = useState<TourPackage | null>(null);
   const [deactivateUpcomingPaid, setDeactivateUpcomingPaid] = useState<number | null>(null);
+  const [deactivateUpcomingPaidCheckFailed, setDeactivateUpcomingPaidCheckFailed] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deactivateBusy, setDeactivateBusy] = useState(false);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
@@ -159,6 +161,7 @@ export default function SupplierListings() {
     if (!deactivateBusy) {
       setListingPendingDeactivate(null);
       setDeactivateUpcomingPaid(null);
+      setDeactivateUpcomingPaidCheckFailed(false);
     }
   });
 
@@ -466,6 +469,7 @@ export default function SupplierListings() {
       setListingPendingDelete(null);
       setListingPendingDeactivate(null);
       setDeactivateUpcomingPaid(null);
+      setDeactivateUpcomingPaidCheckFailed(false);
       setDeleteBusy(false);
       setDeactivateBusy(false);
       setDuplicatingId(null);
@@ -1509,13 +1513,19 @@ export default function SupplierListings() {
                       closeListingActionsMenu();
                       setListingPendingDeactivate(menuListing);
                       setDeactivateUpcomingPaid(null);
+                      setDeactivateUpcomingPaidCheckFailed(false);
                       if (isSupabase && user?.id) {
                         const listingId = menuListing.id;
                         void fetchBookingsForSupplier(user.id)
                           .then((rows) => {
+                            setDeactivateUpcomingPaidCheckFailed(false);
                             setDeactivateUpcomingPaid(countUpcomingPaidTripsForListing(rows, listingId));
                           })
-                          .catch(() => setDeactivateUpcomingPaid(null));
+                          .catch(() => {
+                            // Phase 1471: fetch failure ≠ zero upcoming paid trips.
+                            setDeactivateUpcomingPaid(null);
+                            setDeactivateUpcomingPaidCheckFailed(true);
+                          });
                       }
                     }}
                   >
@@ -1609,6 +1619,7 @@ export default function SupplierListings() {
                   if (deactivateBusy) return;
                   setListingPendingDeactivate(null);
                   setDeactivateUpcomingPaid(null);
+                  setDeactivateUpcomingPaidCheckFailed(false);
                 }}
               />
               <aside
@@ -1627,6 +1638,7 @@ export default function SupplierListings() {
                       : () => {
                           setListingPendingDeactivate(null);
                           setDeactivateUpcomingPaid(null);
+                          setDeactivateUpcomingPaidCheckFailed(false);
                         }
                   }
                 />
@@ -1638,12 +1650,18 @@ export default function SupplierListings() {
                     ? ' New stay checkouts stop until you publish it again.'
                     : ' New checkouts stop until you publish it again.'}
                 </p>
-                {(() => {
-                  const notice = unpublishUpcomingBookingsNotice(deactivateUpcomingPaid ?? 0);
-                  return notice ? (
-                    <p className="mt-3 text-sm font-medium text-ink leading-relaxed">{notice}</p>
-                  ) : null;
-                })()}
+                {deactivateUpcomingPaidCheckFailed ? (
+                  <p className="mt-3 text-sm font-medium text-amber-900 leading-relaxed">
+                    {unpublishUpcomingBookingsCheckFailedNotice()}
+                  </p>
+                ) : deactivateUpcomingPaid !== null ? (
+                  (() => {
+                    const notice = unpublishUpcomingBookingsNotice(deactivateUpcomingPaid);
+                    return notice ? (
+                      <p className="mt-3 text-sm font-medium text-ink leading-relaxed">{notice}</p>
+                    ) : null;
+                  })()
+                ) : null}
                 <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                   <button
                     type="button"
@@ -1652,6 +1670,7 @@ export default function SupplierListings() {
                     onClick={() => {
                       setListingPendingDeactivate(null);
                       setDeactivateUpcomingPaid(null);
+                      setDeactivateUpcomingPaidCheckFailed(false);
                     }}
                   >
                     Keep published

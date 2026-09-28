@@ -37,3 +37,8 @@ export function unpublishUpcomingBookingsNotice(count: number): string | null {
   }
   return `${count} upcoming paid bookings remain on your Bookings calendar — travelers keep their trips.`;
 }
+
+/** Shown when the partner deactivate sheet cannot verify upcoming paid trips (fail closed). */
+export function unpublishUpcomingBookingsCheckFailedNotice(): string {
+  return 'We could not load your Bookings calendar. Check Bookings for upcoming paid trips before taking this listing offline.';
+}

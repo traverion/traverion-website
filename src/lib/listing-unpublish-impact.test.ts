@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { countUpcomingPaidTripsForListing, unpublishUpcomingBookingsNotice } from './listing-unpublish-impact';
+import {
+  countUpcomingPaidTripsForListing,
+  unpublishUpcomingBookingsCheckFailedNotice,
+  unpublishUpcomingBookingsNotice,
+} from './listing-unpublish-impact';
 
 describe('listing-unpublish-impact', () => {
   const today = '2026-09-22';
@@ -38,6 +42,7 @@ describe('listing-unpublish-impact', () => {
     expect(n).toBe(1);
     expect(unpublishUpcomingBookingsNotice(1)).toMatch(/1 upcoming paid booking/);
     expect(unpublishUpcomingBookingsNotice(0)).toBeNull();
+    expect(unpublishUpcomingBookingsCheckFailedNotice()).toMatch(/could not load/i);
   });
 
   it('uses experience-local today per booking when todayIso omitted (Phase 1079)', () => {
