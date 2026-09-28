@@ -1981,7 +1981,7 @@ export default function BookingPage({
                 id="booking-flow-modal-title"
                 className="truncate text-base font-semibold text-ink sm:text-lg"
               >
-                Book this tour
+                Book: {tour.title}
               </h2>
             </div>
             <button
