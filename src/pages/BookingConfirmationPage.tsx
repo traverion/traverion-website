@@ -20,7 +20,7 @@ import { parseStayCheckOutFromNotes, nightsOccupiedByStay, stayRangeFromBooking 
 import { formatMoney, isStripeTestCheckoutSession, appStripeIsTestMode } from '../lib/money';
 import NoticeCallout from '../components/NoticeCallout';
 import StatusChip, { toneForPaymentLabel } from '../components/StatusChip';
-import { listingPickupCopyIncomplete } from '../lib/pickup-completeness';
+import { bookingIsStayNight, listingPickupCopyIncomplete } from '../lib/pickup-completeness';
 import {
   displayListingTitleFromPurchase,
   displayMeetingPointFromPurchase,
@@ -128,10 +128,10 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
             displayListingTitleFromPurchase(
               row.purchase_snapshot,
               meta?.title,
-              row.check_out ? 'Your stay' : 'Your tour'
+              bookingIsStayNight(row) ? 'Your stay' : 'Your tour'
             )
           );
-          const stay = Boolean(row.check_out);
+          const stay = bookingIsStayNight(row);
           const snapMeeting = displayMeetingPointFromPurchase(
             row.purchase_snapshot,
             meta?.meeting_point
@@ -149,10 +149,10 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
             displayListingTitleFromPurchase(
               row.purchase_snapshot,
               '',
-              row.check_out ? 'Your stay' : 'Your tour'
+              bookingIsStayNight(row) ? 'Your stay' : 'Your tour'
             )
           );
-          const stay = Boolean(row.check_out);
+          const stay = bookingIsStayNight(row);
           const snapMeeting = displayMeetingPointFromPurchase(row.purchase_snapshot, null);
           const snapPickup = displayPickupInstructionsFromPurchase(row.purchase_snapshot, null);
           setPickupPending(
@@ -233,10 +233,9 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
     };
   }, [canQuery, sessionId, booking, pollCount, reconcileAttempted, load]);
 
-  const stayCheckOut =
-    (booking?.check_out && /^\d{4}-\d{2}-\d{2}$/.test(booking.check_out) ? booking.check_out : null) ??
-    (booking ? parseStayCheckOutFromNotes(booking.special_requests) : null);
-  const stayRange = stayCheckOut && booking ? stayRangeFromBooking(booking) : null;
+  const isStayBooking = booking ? bookingIsStayNight(booking) : false;
+  const stayRange = isStayBooking && booking ? stayRangeFromBooking(booking) : null;
+  const stayCheckOut = stayRange?.checkOut ?? null;
   const stayNights = stayRange ? nightsOccupiedByStay(stayRange.checkIn, stayRange.checkOut).length : null;
 
   const dateLabel = useMemo(() => {

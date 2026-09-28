@@ -69,7 +69,7 @@ import { addCalendarDaysYmd } from '../../lib/booking-lifecycle-calendar';
 import { formatPartnerCheckoutHoldLabel, partnerUnpaidCheckoutHoldsInventory } from '../../lib/booking-hold';
 import { formatStayNightHuman } from '../../lib/stay-calendar';
 import { formatBookingDateDisplay } from '../../lib/booking-flow';
-import { partnerBookingHasPickupAttention } from '../../lib/pickup-completeness';
+import { bookingIsStayNight, partnerBookingHasPickupAttention } from '../../lib/pickup-completeness';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 import { comparePartnerBookingsOperational } from '../../lib/partner-bookings-order';
 import { displayListingTitleFromPurchase, displayMeetingPointFromPurchase, displayOptionLabelFromPurchase, displayPickupInstructionsFromPurchase, displayFulfillmentFromPurchase, displayDurationFromPurchase, displayStayCheckInTimeFromPurchase, displayStayCheckOutTimeFromPurchase, displayCheckInAddressFromPurchase, displayStayHouseRulesFromPurchase, partnerOpsDepartureDisplay, isPurchaseSnapshot } from '../../lib/purchase-snapshot';
@@ -172,7 +172,7 @@ function downloadBookingsCsv(
 ): void {
   const lines = rows.map((b) => {
     const meta = listingMeta[b.listing_id];
-    const isStay = meta?.family === 'stay' || Boolean(b.check_out);
+    const isStay = meta?.family === 'stay' || bookingIsStayNight(b);
     const stayRange = isStay ? stayRangeFromBooking(b) : null;
     const nights = stayRange ? nightsOccupiedByStay(stayRange.checkIn, stayRange.checkOut).length : 0;
     const listingTitle = displayListingTitleFromPurchase(
@@ -380,7 +380,7 @@ export default function SupplierBookings({
     const rows = bookings.filter((b) => {
       if (!partnerBookingIsLiveTrip(b)) return false;
       const meta = listingMeta[b.listing_id];
-      const isStay = meta?.family === 'stay' || Boolean(b.check_out);
+      const isStay = meta?.family === 'stay' || bookingIsStayNight(b);
       const stayRange = isStay ? stayRangeFromBooking(b) : null;
       const experienceToday = scheduleTodayIsoForBooking(b, nowMs);
       const experienceTomorrow = addCalendarDaysYmd(experienceToday, 1) ?? experienceToday;
@@ -944,7 +944,7 @@ export default function SupplierBookings({
                   ? booking.check_out
                   : parseStayCheckOutFromNotes(booking.special_requests);
               const stayRangeForChip =
-                meta?.family === 'stay' || Boolean(booking.check_out)
+                meta?.family === 'stay' || bookingIsStayNight(booking)
                   ? stayRangeFromBooking(booking)
                   : null;
               const experienceToday = scheduleTodayIsoForBooking(booking);
@@ -1035,7 +1035,7 @@ export default function SupplierBookings({
                         {dep.purchasedNote ? ` · ${dep.purchasedNote}` : ''}
                         {' · '}
                         {formatBookingParticipantsLabel(booking)}
-                        {meta?.family === 'stay' || Boolean(booking.check_out)
+                        {meta?.family === 'stay' || bookingIsStayNight(booking)
                           ? (() => {
                               const range = stayRangeFromBooking(booking);
                               if (!range) return '';
@@ -1143,7 +1143,7 @@ export default function SupplierBookings({
             const startHm = dep.displayHm || null;
             const pickupHm = booking.pickup_time ? pgTimeToHm(booking.pickup_time) ?? null : null;
             const meta = listingMeta[booking.listing_id];
-            const isStay = meta?.family === 'stay' || Boolean(booking.check_out);
+            const isStay = meta?.family === 'stay' || bookingIsStayNight(booking);
             const liveOptionLabel =
               booking.booking_option_id && meta?.bookingOptions?.length
                 ? meta.bookingOptions.find((o) => o.id === booking.booking_option_id)?.name?.trim() || ''
