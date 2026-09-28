@@ -22,6 +22,8 @@ function adultChildOpts() {
         maxPersons: 8,
         maxSpotsPerSlot: 8,
         weekdays: [true, true, true, true, true, false, true],
+        availabilityDateFrom: '2026-09-01',
+        availabilityDateTo: '2027-03-31',
       },
       'opt-adult'
     ),
@@ -37,6 +39,8 @@ function adultChildOpts() {
         maxPersons: 12,
         maxSpotsPerSlot: 12,
         weekdays: [true, true, true, true, true, false, true],
+        availabilityDateFrom: '2026-09-01',
+        availabilityDateTo: '2027-03-31',
       },
       'opt-child'
     ),
