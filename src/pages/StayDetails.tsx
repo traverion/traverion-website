@@ -109,6 +109,8 @@ export default function StayDetails({ stayId, onBack }: Props) {
   const [occupancyError, setOccupancyError] = useState<string | null>(null);
   /** True after a successful occupancy fetch for the current stay — empty nights ≠ “fully open” until then. */
   const [occupancyLoaded, setOccupancyLoaded] = useState(false);
+  /** Overlapping occupancy reloads (tab visibility, stay change) must not commit stale nights. */
+  const occupancyReloadGenRef = useRef(0);
   const [savedToWishlist, setSavedToWishlist] = useState(false);
   const [wishlistHeartKnown, setWishlistHeartKnown] = useState(false);
   const [wishlistBusy, setWishlistBusy] = useState(false);
@@ -339,6 +341,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
       setOccupancyLoaded(false);
       return () => {};
     }
+    const reloadGen = ++occupancyReloadGenRef.current;
     let cancelled = false;
     setOccupancyError(null);
     void Promise.all([
@@ -350,13 +353,13 @@ export default function StayDetails({ stayId, onBack }: Props) {
       }),
     ])
       .then(([ranges, nights]) => {
-        if (cancelled) return;
+        if (cancelled || reloadGen !== occupancyReloadGenRef.current) return;
         setOccupiedRanges(ranges);
         setBlockedNights(nights);
         setOccupancyLoaded(true);
       })
       .catch((e) => {
-        if (cancelled) return;
+        if (cancelled || reloadGen !== occupancyReloadGenRef.current) return;
         // Keep prior occupancy; never flash empty as “fully open”.
         setOccupancyError(
           userFacingError(e, 'We could not check stay availability. Check your connection and try again.')
