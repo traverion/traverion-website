@@ -1140,6 +1140,11 @@ export default function StayDetails({ stayId, onBack }: Props) {
             {/* Phase 1548: dates selected + failed quote — do not invent catalog nightly (1546 sticky parity). */}
             {checkIn && checkOut && stayQuote && !stayQuote.ok ? (
               <p className="text-lg font-semibold tabular-nums text-ink">—</p>
+            ) : quoteOk && stayQuote?.ok ? (
+              // Phase 1562: successful quote is the hero total (Tour 1561 / sticky 1546 parity — not catalog nightly).
+              <p className="text-lg font-semibold tabular-nums text-ink">
+                {formatMoney(stayQuote.totalAmount, stayQuote.currency)}
+              </p>
             ) : nightly > 0 ? (
               <PriceHero
                 amount={nightly}

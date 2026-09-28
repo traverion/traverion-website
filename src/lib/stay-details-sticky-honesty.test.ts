@@ -41,3 +41,14 @@ describe('StayDetails page hero honesty (Phase 1557)', () => {
     );
   });
 });
+
+describe('StayDetails desktop panel quoted hero (Phase 1562)', () => {
+  const src = readFileSync(join(here, '../pages/StayDetails.tsx'), 'utf8');
+
+  it('shows stayQuote total as panel hero when quote ok', () => {
+    expect(src).toContain('Phase 1562');
+    expect(src).toMatch(
+      /quoteOk && stayQuote\?\.ok[\s\S]*formatMoney\(stayQuote\.totalAmount, stayQuote\.currency\)/
+    );
+  });
+});
