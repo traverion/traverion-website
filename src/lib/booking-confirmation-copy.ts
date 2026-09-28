@@ -180,6 +180,10 @@ export const TRAVELER_OPENING_CHECKOUT_CTA = 'Opening checkout…';
 /** Traveler Trips / confirmation — pay CTA while Stripe is still in TEST mode. */
 export const TRAVELER_PAY_NOW_TEST_CTA = 'Pay now · test mode';
 
+/** Traveler Trips — Pay now after the inventory hold timed out. */
+export const TRAVELER_HOLD_EXPIRED_PAY_NOW_NOTE =
+  'Your checkout hold ended, so those spots may no longer be reserved. Pay now opens a new checkout if capacity is still available.';
+
 /** Tour / stay sticky + booking card — continue into test-mode Stripe checkout. */
 export const TRAVELER_CONTINUE_TEST_CTA = 'Continue · test mode';
 

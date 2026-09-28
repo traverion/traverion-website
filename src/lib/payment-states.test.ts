@@ -21,14 +21,24 @@ describe('payment states', () => {
         checkout_session_id: 'cs_test_abc',
       })
     ).toBe(false);
+    const now = Date.now();
     expect(
       travelerPaymentLabel({
         status: 'pending',
         payment_status: 'pending',
         checkout_session_id: 'cs_test_abc',
+        created_at: new Date(now - 5 * 60 * 1000).toISOString(),
+        hold_expires_at: new Date(now + 20 * 60 * 1000).toISOString(),
       })
     ).toBe('Payment pending');
-    const now = Date.now();
+    expect(
+      travelerPaymentLabel({
+        status: 'pending',
+        payment_status: 'pending',
+        created_at: new Date(now - 60 * 60 * 1000).toISOString(),
+        hold_expires_at: new Date(now - 10 * 60 * 1000).toISOString(),
+      })
+    ).toBe('Hold expired');
     expect(
       partnerPaymentLabel({
         status: 'pending',

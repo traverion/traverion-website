@@ -56,15 +56,20 @@ export function travelerPaymentLabel(b: MoneyBookingRow): string {
   if (cancelled) return 'Cancelled';
   if (pay === 'failed') return 'Payment failed';
   if (isPaidPaymentStatus(pay)) return 'Paid';
-  if (pay === 'pending' || b.checkout_session_id) return 'Payment pending';
+  if (pay === 'pending' || b.checkout_session_id) {
+    // Phase 1311: mirror partner hold truth — expired holds are not still “pending payment”.
+    if (pay === 'pending' && !partnerUnpaidCheckoutHoldsInventory(b)) {
+      return 'Hold expired';
+    }
+    return 'Payment pending';
+  }
   return 'Unpaid';
 }
 
 export function partnerPaymentLabel(b: MoneyBookingRow): string {
   const base = travelerPaymentLabel(b);
-  if (base !== 'Payment pending') return base;
-  if (partnerUnpaidCheckoutHoldsInventory(b)) return 'Checkout hold';
-  return 'Hold expired';
+  if (base === 'Payment pending' && partnerUnpaidCheckoutHoldsInventory(b)) return 'Checkout hold';
+  return base;
 }
 
 /**

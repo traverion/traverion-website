@@ -81,6 +81,7 @@ import {
   TRAVELER_DECLINE_CANCEL_SUCCESS,
   TRAVELER_OPENING_CHECKOUT_CTA,
   TRAVELER_PAY_NOW_TEST_CTA,
+  TRAVELER_HOLD_EXPIRED_PAY_NOW_NOTE,
   readStripeCheckoutReturnBanner,
 } from '../lib/booking-confirmation-copy';
 
@@ -1153,6 +1154,11 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         {isStay ? 'Browse current listing' : 'Browse current tour'}
                       </button>
                     )}
+                    {liveTrip && payLabel === 'Hold expired' && travelerBookingNeedsPayNow(b) ? (
+                      <NoticeCallout title="Hold expired" tone="warn">
+                        {TRAVELER_HOLD_EXPIRED_PAY_NOW_NOTE}
+                      </NoticeCallout>
+                    ) : null}
                     {liveTrip && travelerBookingNeedsPayNow(b) && (
                       <button
                         type="button"
