@@ -332,6 +332,21 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
                   ))}
                 </div>
               </section>
+            ) : tourListings.length === 0 && stayListings.length > 0 ? (
+              // Phase 1613: destination has stays only — still name Tours so shoppers know the gap.
+              <section aria-labelledby="destination-tours-heading" className="rounded-2xl bg-paper-raised px-5 py-6 ring-1 ring-black/[0.06]">
+                <h2 id="destination-tours-heading" className="font-display text-xl text-ink tracking-tight">
+                  Tours
+                </h2>
+                <p className="mt-2 text-sm text-ink-muted max-w-lg">
+                  No tours are published in {label} yet. Stays below are available, or browse all tours.
+                </p>
+                {onNavigate ? (
+                  <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-ghost mt-3">
+                    Browse all tours
+                  </button>
+                ) : null}
+              </section>
             ) : null}
             {stayListings.length > 0 ? (
               <section aria-labelledby="destination-stays-heading">
@@ -367,6 +382,21 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
                     />
                   ))}
                 </div>
+              </section>
+            ) : stayListings.length === 0 && tourListings.length > 0 ? (
+              // Phase 1613: destination has tours only — name Stays with a clear path out.
+              <section aria-labelledby="destination-stays-heading" className="rounded-2xl bg-paper-raised px-5 py-6 ring-1 ring-black/[0.06]">
+                <h2 id="destination-stays-heading" className="font-display text-xl text-ink tracking-tight">
+                  Stays
+                </h2>
+                <p className="mt-2 text-sm text-ink-muted max-w-lg">
+                  No stays are published in {label} yet. Browse all stays, or keep exploring tours above.
+                </p>
+                {onNavigate ? (
+                  <button type="button" onClick={() => onNavigate('stays')} className="tv-btn-ghost mt-3">
+                    Browse all stays
+                  </button>
+                ) : null}
               </section>
             ) : null}
           </div>
