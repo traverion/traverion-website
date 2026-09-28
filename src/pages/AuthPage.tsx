@@ -374,11 +374,15 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                     : 'Save trips and book tours or stays. Takes under a minute.'}
               </p>
               {/* Phase 1611: deep-link next destination so login intent is clear. */}
-              {!passwordResetPanel && (nextPage === 'wishlist' || nextPage === 'bookings') ? (
+              {/* Phase 1638: also explain next=account (Sitemap / Account deep links). */}
+              {!passwordResetPanel &&
+              (nextPage === 'wishlist' || nextPage === 'bookings' || nextPage === 'account') ? (
                 <p className="text-sm text-finland mb-2 leading-relaxed">
                   {nextPage === 'wishlist'
                     ? 'After you log in, we will take you to Saved.'
-                    : 'After you log in, we will take you to Trips.'}
+                    : nextPage === 'bookings'
+                      ? 'After you log in, we will take you to Trips.'
+                      : 'After you log in, we will take you to Account.'}
                 </p>
               ) : null}
               <p className="text-xs text-ink-faint mb-5">
