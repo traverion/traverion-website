@@ -12,7 +12,11 @@ import { TourPackage } from '../types/tour';
 import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
 import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
 import { isSupabaseListingId } from '../lib/discount-display';
-import { filterCatalogByFamily, inventoryFamilyFromListing } from '../lib/inventory';
+import {
+  filterCatalogByFamily,
+  inventoryFamilyFromListing,
+  listingIsOnTravelerCatalog,
+} from '../lib/inventory';
 import { isListingVisibleToTravelers } from '../lib/product-workflows';
 import { listingHasUpcomingBookableSeason } from '../lib/booking-quote';
 import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
@@ -68,6 +72,8 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
     const labelFromSlug = slugToLabel(slug);
     const list = allListings.filter(t => {
       if (!isListingVisibleToTravelers(t.status)) return false;
+      // Layer B: experience/package rows must not inflate hero counts while rendering zero sections.
+      if (!listingIsOnTravelerCatalog(t)) return false;
       // Phase 1263: hide season-ended tours (Packages/sitemap 1260/1261 parity).
       if (
         inventoryFamilyFromListing(t) !== 'stay' &&
@@ -198,8 +204,23 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
                 >
                   Stays
                 </button>
+                <span className="text-white/50" aria-hidden>
+                  /
+                </span>
+                <span className="rounded-full px-2 py-1 font-medium text-white" aria-current="page">
+                  {label}
+                </span>
               </>
-            ) : null}
+            ) : (
+              <>
+                <span className="text-white/50" aria-hidden>
+                  /
+                </span>
+                <span className="rounded-full px-2 py-1 font-medium text-white" aria-current="page">
+                  {label}
+                </span>
+              </>
+            )}
           </nav>
           <p className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/80 mb-2">
             <MapPin className="h-3.5 w-3.5" aria-hidden />
