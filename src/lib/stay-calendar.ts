@@ -33,6 +33,17 @@ export function formatOccupiedNightRanges(nights: string[]): string {
     .join('; ');
 }
 
+/**
+ * Phase 1512: Availability copy should list nights that still affect booking,
+ * not historical stays that already ended. Calendar still uses full occupancy.
+ */
+export function upcomingOccupiedNights(nights: string[], todayIso: string): string[] {
+  const today = (todayIso ?? '').trim();
+  const valid = nights.filter((n) => ISO.test((n ?? '').trim())).map((n) => n.trim());
+  if (!ISO.test(today)) return [...valid].sort();
+  return valid.filter((n) => n >= today).sort();
+}
+
 export function stayNightState(params: {
   iso: string;
   todayIso: string;

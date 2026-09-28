@@ -42,7 +42,7 @@ import CheckoutConsentCheckbox from '../components/booking/CheckoutConsentCheckb
 import { checkoutPayBlockedByConsent } from '../lib/checkout-consent';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { CHECKOUT_HOLD_MINUTES } from '../lib/booking-hold';
-import { formatOccupiedNightRanges, formatStayNightHuman } from '../lib/stay-calendar';
+import { formatOccupiedNightRanges, formatStayNightHuman, upcomingOccupiedNights } from '../lib/stay-calendar';
 import { stayAmenityDisplayList } from '../lib/stay-amenities';
 import { stayStickyBookCtaLabel } from '../lib/stay-sticky-cta';
 import { stayCheckoutLeadGuestNameReady } from '../lib/stay-checkout-guest';
@@ -412,6 +412,15 @@ export default function StayDetails({ stayId, onBack }: Props) {
   const occupiedNights = useMemo(
     () => [...new Set([...bookedNights, ...blockedNights])],
     [bookedNights, blockedNights]
+  );
+  // Phase 1512: Availability prose lists only nights still bookable against.
+  const upcomingBookedNights = useMemo(
+    () => upcomingOccupiedNights(bookedNights, experienceTodayIso),
+    [bookedNights, experienceTodayIso]
+  );
+  const upcomingBlockedNights = useMemo(
+    () => upcomingOccupiedNights(blockedNights, experienceTodayIso),
+    [blockedNights, experienceTodayIso]
   );
   const selectionOccupied =
     checkIn && checkOut
@@ -841,23 +850,23 @@ export default function StayDetails({ stayId, onBack }: Props) {
                 {typeof s?.maxGuests === 'number' ? ` · up to ${s.maxGuests} guests` : ''}.
                 Checkout night is not occupied. If you pick nights that are already taken, booking is refused.
               </p>
-              {bookedNights.length > 0 ? (
+              {upcomingBookedNights.length > 0 ? (
                 <p className="mt-3 text-sm text-ink">
-                  Booked: {formatOccupiedNightRanges(bookedNights.slice(0, 24))}
-                  {bookedNights.length > 24 ? '…' : ''}
+                  Booked: {formatOccupiedNightRanges(upcomingBookedNights.slice(0, 24))}
+                  {upcomingBookedNights.length > 24 ? '…' : ''}
                 </p>
               ) : null}
-              {blockedNights.length > 0 ? (
-                <p className={`text-sm text-ink ${bookedNights.length > 0 ? 'mt-1.5' : 'mt-3'}`}>
-                  Host blocked: {formatOccupiedNightRanges(blockedNights.slice(0, 24))}
-                  {blockedNights.length > 24 ? '…' : ''}
+              {upcomingBlockedNights.length > 0 ? (
+                <p className={`text-sm text-ink ${upcomingBookedNights.length > 0 ? 'mt-1.5' : 'mt-3'}`}>
+                  Host blocked: {formatOccupiedNightRanges(upcomingBlockedNights.slice(0, 24))}
+                  {upcomingBlockedNights.length > 24 ? '…' : ''}
                 </p>
               ) : null}
-              {occupancyLoaded && !occupancyError && bookedNights.length === 0 && blockedNights.length === 0 ? (
+              {occupancyLoaded && !occupancyError && upcomingBookedNights.length === 0 && upcomingBlockedNights.length === 0 ? (
                 <p className="mt-3 text-sm text-ink-muted">
                   No nights are taken yet. Choose check-in and check-out on the booking panel.
                 </p>
-              ) : occupancyError && bookedNights.length === 0 && blockedNights.length === 0 ? (
+              ) : occupancyError && upcomingBookedNights.length === 0 && upcomingBlockedNights.length === 0 ? (
                 <p className="mt-3 text-sm text-ink-muted">
                   We could not verify which nights are taken. Use Try again in the booking panel before you pay.
                 </p>

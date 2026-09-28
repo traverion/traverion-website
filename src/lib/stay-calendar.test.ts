@@ -1,10 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { formatOccupiedNightRanges, stayNightState } from './stay-calendar';
+import { formatOccupiedNightRanges, stayNightState, upcomingOccupiedNights } from './stay-calendar';
 
 describe('stay calendar language', () => {
   it('groups consecutive occupied nights', () => {
     expect(formatOccupiedNightRanges(['2026-09-20', '2026-09-21'])).toMatch(/20/);
     expect(formatOccupiedNightRanges(['2026-09-20', '2026-09-22'])).toContain(';');
+  });
+
+  it('Phase 1512: Availability copy drops nights before listing today', () => {
+    expect(
+      upcomingOccupiedNights(['2026-09-22', '2026-09-23', '2026-10-01'], '2026-09-28')
+    ).toEqual(['2026-10-01']);
+    expect(upcomingOccupiedNights(['2026-09-22', '2026-09-23'], '2026-09-28')).toEqual([]);
+    expect(upcomingOccupiedNights(['2026-09-28'], '2026-09-28')).toEqual(['2026-09-28']);
   });
 
   it('classifies past, occupied, selected, available', () => {
