@@ -186,7 +186,7 @@ export default function BookingMessageThread({
           {error}
         </NoticeCallout>
       ) : null}
-      {canCompose && !loadError ? (
+      {canCompose && !loadError && !loading ? (
         <div>
           <label htmlFor={`msg-${bookingId}`} className="sr-only">
             Message about this booking
@@ -216,13 +216,13 @@ export default function BookingMessageThread({
         </div>
       ) : canCompose && loadError ? (
         <p className="text-xs text-ink-faint">Reload messages to continue this conversation.</p>
-      ) : (
+      ) : !canCompose ? (
         <p className="text-xs text-ink-faint">
           {composeBlock === 'closed'
             ? 'This booking is closed. You can still read earlier messages.'
             : 'Chat is limited to paid bookings you are part of.'}
         </p>
-      )}
+      ) : null}
     </div>
   );
 }
