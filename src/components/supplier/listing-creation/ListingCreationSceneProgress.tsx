@@ -4,12 +4,14 @@ export function ListingCreationSceneProgress({
   index,
   total,
   labels,
+  ariaLabel,
   canSelect,
   onSelect,
 }: {
   index: number;
   total: number;
   labels: readonly string[];
+  ariaLabel: string;
   canSelect?: (index: number) => boolean;
   onSelect?: (index: number) => void;
 }) {
@@ -18,7 +20,7 @@ export function ListingCreationSceneProgress({
       <p className="text-[11px] font-medium tabular-nums tracking-wide text-ink-muted">
         {listingCreationSceneCopy(index, total)}
       </p>
-      <ol className="flex items-center gap-1.5" aria-label="Basics scenes">
+      <ol className="flex items-center gap-1.5" aria-label={ariaLabel}>
         {Array.from({ length: total }, (_, i) => {
           const current = i === index;
           const selectable = canSelect?.(i) ?? true;

@@ -8,6 +8,7 @@ export function ListingCreationSceneFrame({
   sceneIndex,
   sceneTotal,
   sceneLabels,
+  sceneProgressAriaLabel,
   canSelectScene,
   onSelectScene,
   direction,
@@ -20,6 +21,7 @@ export function ListingCreationSceneFrame({
   sceneIndex: number;
   sceneTotal: number;
   sceneLabels: readonly string[];
+  sceneProgressAriaLabel: string;
   canSelectScene?: (index: number) => boolean;
   onSelectScene?: (index: number) => void;
   direction: ListingCreationSceneDirection;
@@ -47,6 +49,7 @@ export function ListingCreationSceneFrame({
           index={sceneIndex}
           total={sceneTotal}
           labels={sceneLabels}
+          ariaLabel={sceneProgressAriaLabel}
           canSelect={canSelectScene}
           onSelect={onSelectScene}
         />

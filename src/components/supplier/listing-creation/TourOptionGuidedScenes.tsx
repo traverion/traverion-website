@@ -86,6 +86,7 @@ export function TourOptionGuidedScenes({
       sceneIndex={sceneIndex}
       sceneTotal={TOUR_OPTION_SCENE_COUNT}
       sceneLabels={TOUR_OPTION_SCENES.map((item) => item.label)}
+      sceneProgressAriaLabel="Option setup scenes"
       canSelectScene={canSelectScene}
       onSelectScene={onSelectScene}
       direction={direction}

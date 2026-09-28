@@ -73,6 +73,7 @@ export function TourBasicsGuidedScenes({
       sceneIndex={sceneIndex}
       sceneTotal={TOUR_BASICS_SCENE_COUNT}
       sceneLabels={sceneLabels}
+      sceneProgressAriaLabel="Tour basics scenes"
       canSelectScene={(index) =>
         canSelectTourBasicsScene(index, sceneIndex, form, allowDirectSceneAccess)
       }
