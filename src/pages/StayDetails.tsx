@@ -1005,9 +1005,15 @@ export default function StayDetails({ stayId, onBack }: Props) {
                 ))}
               </div>
               {canLeaveReview && !hasReviewed && !showReviewForm ? (
-                <button type="button" onClick={() => setShowReviewForm(true)} className="tv-btn-secondary">
-                  Leave a review
-                </button>
+                <div className="space-y-2">
+                  {/* Phase 1656: eligibility microcopy (Tour 1655 parity). */}
+                  <p className="text-sm text-ink-muted max-w-xl">
+                    Reviews are for guests who completed this paid stay.
+                  </p>
+                  <button type="button" onClick={() => setShowReviewForm(true)} className="tv-btn-secondary">
+                    Leave a review
+                  </button>
+                </div>
               ) : null}
               {showReviewForm && user ? (
                 <div className="max-w-xl">
@@ -1017,6 +1023,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
                       <label id="stay-review-rating-label" className="block text-sm font-medium text-ink mb-1">
                         Rating
                       </label>
+                      <p className="text-xs text-ink-muted mb-1.5">Tap to rate</p>
                       <div className="flex gap-1" role="group" aria-labelledby="stay-review-rating-label">
                         {[1, 2, 3, 4, 5].map((i) => (
                           <button
