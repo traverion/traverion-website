@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Tag, MapPin, Pencil, Trash2 } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchMyListings } from '../../data/supabase-listings';
@@ -83,6 +83,8 @@ export default function SupplierDiscountsOffers() {
     if (typeof window === 'undefined') return 'all';
     return parseOfferStatusFilter(new URLSearchParams(window.location.search).get('status'));
   });
+  const loadGenRef = useRef(0);
+  const offersHubUserIdRef = useRef<string | null>(null);
 
   const setStatusFilterAndUrl = useCallback((next: OfferStatusFilter) => {
     setStatusFilter(next);
@@ -109,13 +111,16 @@ export default function SupplierDiscountsOffers() {
       setLoading(false);
       return;
     }
+    const gen = ++loadGenRef.current;
     setLoading(true);
     setError(null);
     try {
       const data = await fetchMyListings(uid);
+      if (gen !== loadGenRef.current) return;
       try {
         const ids = data.map((l) => l.id);
         const map = await fetchDiscountsByListingIds(ids);
+        if (gen !== loadGenRef.current) return;
         const flat: OfferRow[] = [];
         for (const listing of data) {
           const discounts = map.get(listing.id) ?? [];
@@ -133,16 +138,41 @@ export default function SupplierDiscountsOffers() {
         setRows(flat);
         setError(null);
       } catch (offerErr) {
+        if (gen !== loadGenRef.current) return;
         // Keep prior listings/offer rows — partial reload must not mix new listings with stale discounts.
         setError(userFacingError(offerErr, USER_ERROR.offers));
       }
     } catch (e) {
+      if (gen !== loadGenRef.current) return;
       // Phase 1305: keep prior listings/offers — load failure ≠ zero offers.
       setError(userFacingError(e, USER_ERROR.offers));
     } finally {
-      setLoading(false);
+      if (gen === loadGenRef.current) setLoading(false);
     }
   }, [isSupabase, user?.id]);
+
+  useEffect(() => {
+    const clearOffersPartnerWorkspace = () => {
+      setListings([]);
+      setRows([]);
+      setError(null);
+      setWizardOpen(false);
+      setEditingDiscount(null);
+    };
+    if (!user?.id) {
+      offersHubUserIdRef.current = null;
+      loadGenRef.current += 1;
+      clearOffersPartnerWorkspace();
+      setLoading(false);
+      return;
+    }
+    // Phase 1401: clear prior partner offers before loading the next account (Listings 1389 parity).
+    if (offersHubUserIdRef.current !== user.id) {
+      offersHubUserIdRef.current = user.id;
+      loadGenRef.current += 1;
+      clearOffersPartnerWorkspace();
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     void loadAll();
