@@ -194,7 +194,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
   > | null>(null);
   const [dateCapacityLoading, setDateCapacityLoading] = useState(false);
   const [dateCapacityError, setDateCapacityError] = useState<string | null>(null);
-  /** Paid/cap snapshot is for one tour date — must not filter a newly picked date after a failed reload. */
+  /** Paid/cap snapshot is for one catalog + date — not a prior catalog while the same date reloads (Stays 1432 parity). */
   const [dateCapacityLoadedFor, setDateCapacityLoadedFor] = useState<string | null>(null);
 
   const deferredSearch = useDeferredValue(searchTerm);
@@ -292,6 +292,17 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     [allListings]
   );
 
+  const supabaseListingIds = useMemo(
+    () => allListings.map((t) => t.id).filter(isSupabaseListingId),
+    [allListings]
+  );
+  const supabaseListingIdsKey = useMemo(() => supabaseListingIds.join(','), [supabaseListingIds]);
+
+  const dateCapacityBrowseKey = useMemo(() => {
+    if (!filterDate || !/^\d{4}-\d{2}-\d{2}$/.test(filterDate)) return '';
+    return `${supabaseListingIdsKey}|${filterDate}`;
+  }, [filterDate, supabaseListingIdsKey]);
+
   const waitingOnDateCapacity =
     Boolean(filterDate) &&
     /^\d{4}-\d{2}-\d{2}$/.test(filterDate) &&
@@ -300,19 +311,13 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     !dateCapacityError &&
     (dateCapacityLoading ||
       dateCapacityByListing === null ||
-      dateCapacityLoadedFor !== filterDate);
+      dateCapacityLoadedFor !== dateCapacityBrowseKey);
   const showCatalogLoading = catalogLoading || waitingOnDateCapacity;
 
   const dateCapacityForActiveFilter = useMemo(() => {
-    if (!filterDate || dateCapacityLoadedFor !== filterDate) return null;
+    if (!dateCapacityBrowseKey || dateCapacityLoadedFor !== dateCapacityBrowseKey) return null;
     return dateCapacityByListing;
-  }, [filterDate, dateCapacityLoadedFor, dateCapacityByListing]);
-
-  const supabaseListingIds = useMemo(
-    () => allListings.map((t) => t.id).filter(isSupabaseListingId),
-    [allListings]
-  );
-  const supabaseListingIdsKey = useMemo(() => supabaseListingIds.join(','), [supabaseListingIds]);
+  }, [dateCapacityBrowseKey, dateCapacityLoadedFor, dateCapacityByListing]);
 
   useEffect(() => {
     if (!isSupabaseConfigured() || !supabaseListingIdsKey) {
@@ -351,6 +356,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
       setDateCapacityError(null);
       return () => {};
     }
+    const browseKeyAtStart = `${supabaseListingIdsKey}|${filterDate}`;
     let cancelled = false;
     setDateCapacityLoading(true);
     setDateCapacityError(null);
@@ -401,7 +407,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
         setDateCapacityByListing(
           Object.fromEntries(entries.filter((e): e is NonNullable<typeof e> => e != null))
         );
-        setDateCapacityLoadedFor(filterDate);
+        setDateCapacityLoadedFor(browseKeyAtStart);
         setDateCapacityLoading(false);
       })
       .catch((e) => {
@@ -415,7 +421,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     return () => {
       cancelled = true;
     };
-  }, [filterDate, allListings]);
+  }, [filterDate, allListings, supabaseListingIdsKey]);
 
   useEffect(() => {
     return reloadDateCapacity();
@@ -1092,7 +1098,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
         ) : null}
         {showCatalogLoading ? (
           <SkeletonCardGrid count={6} />
-        ) : dateCapacityError && filterDate && dateCapacityLoadedFor !== filterDate ? null : allListings.length > 0 &&
+        ) : dateCapacityError && filterDate && dateCapacityLoadedFor !== dateCapacityBrowseKey ? null : allListings.length > 0 &&
           filteredPackages.length > 0 ? (
           <>
             <div className={MARKETPLACE_BROWSE_GRID_CLASS}>
