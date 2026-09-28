@@ -1751,17 +1751,8 @@ export default function SupplierListingForm({
           const blockers = getListingPublishBlockers(listing);
           if (blockers.length > 0) {
             setPublishBlockers(blockers);
-            const photosRelated = blockers.some((b) =>
-              /image|photo|gallery|hero|placeholder/i.test(b)
-            );
-            const photosStep = form.inventoryFamily === 'stay' ? 4 : 3;
-            const go = photosRelated
-              ? photosStep
-              : form.inventoryFamily === 'stay'
-                ? 5
-                : 4;
-            writeWizardStepToStorage(editingId, go, form.inventoryFamily === 'stay');
-            setStepIdx(go);
+            const first = blockers[0];
+            if (first) jumpToPublishBlocker(first);
             return;
           }
         }
@@ -1786,7 +1777,7 @@ export default function SupplierListingForm({
         submitInFlightRef.current = false;
       }
     },
-    [form, editingId, onSave, stepIdx, lastStepSubmitArmed, steps.length, canPostNewListing]
+    [form, editingId, onSave, stepIdx, lastStepSubmitArmed, steps.length, canPostNewListing, jumpToPublishBlocker]
   );
 
   const handleSubmit = (e: React.FormEvent) => {
