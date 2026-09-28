@@ -5,7 +5,7 @@ import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
 import { listingHasUpcomingBookableSeason, quoteListingBooking, resolveTourDepartureHmForCutoff, stayCheckoutNightsAlreadyBooked, stayNightIsOperatorBlocked, stayRangeFromBooking, tourDepartureRemainingSeats, tourDepartureSlotCapacity, type DiscountRow, type ListingQuoteRow, type StayCheckoutOccupancyRow } from '../_shared/booking-quote.ts';
 import { tourCheckoutOccupiedGuests, inventoryStartTimeHmFromBooking, type TourCheckoutOccupancyRow } from '../_shared/booking-hold.ts';
 import { checkoutPaymentStatusCanResume, resumeStayCheckoutDate, checkoutResumeLostRaceToPaid, resumeListingIdMismatch, resumeStoredOptionId } from '../_shared/checkout-resume.ts';
-import { resumeStayLeadGuestName, stayCheckoutLeadGuestNameReady } from '../_shared/stay-checkout-guest.ts';
+import { resumeStayLeadGuestName, stayCheckoutLeadGuestNameReady, stayBookingColumnsForCheckoutUpdate } from '../_shared/stay-checkout-guest.ts';
 import {
   buildPurchaseSnapshot,
   resolveMeetingPointForSnapshot,
@@ -669,20 +669,23 @@ serve(async (req) => {
       checkOutDate: checkoutDate || null,
     });
 
+    // Phase 1541: stay columns for claim + session update (heal snapshot-only rows on Pay-now).
+    const stayColumns = stayBookingColumnsForCheckoutUpdate({
+      inventoryFamily: extrasFamily === 'stay' ? 'stay' : null,
+      bookingDate,
+      checkoutDate,
+      quoteNights: quote.nights,
+    });
+
     if (!targetBookingId) {
-      const stayNights =
-        extrasFamily === 'stay' && checkoutDate
-          ? Math.round(
-              (Date.parse(`${checkoutDate}T12:00:00Z`) - Date.parse(`${bookingDate}T12:00:00Z`)) / 86400000
-            )
-          : null;
+      const stayNights = stayColumns?.nights ?? null;
       const claimArgs = {
         p_listing_id: listingId,
         p_guest_email: email,
         p_guest_name: effectiveGuestName || null,
         p_guests: guests,
         p_booking_date: bookingDate,
-        p_check_out: extrasFamily === 'stay' && checkoutDate ? checkoutDate : null,
+        p_check_out: stayColumns?.check_out ?? null,
         p_special_requests: claimSpecialRequests,
         p_total_amount: totalAmount,
         p_currency: currency,
@@ -809,6 +812,8 @@ serve(async (req) => {
         ? new Date(session.expires_at * 1000).toISOString()
         : holdExpiresAtIso,
       purchase_snapshot: purchaseSnapshot,
+      // Phase 1541: backfill check_out/nights so resume does not leave snapshot-only stays.
+      ...(stayColumns ?? {}),
       ...(quote.guestBreakdown?.length ? { guest_breakdown: quote.guestBreakdown } : {}),
       ...(resumeQuoteSync
         ? {
