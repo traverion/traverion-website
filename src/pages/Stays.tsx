@@ -846,7 +846,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
         ) : null}
         {catalogLoading || waitingOnOccupancy ? (
           <SkeletonCardGrid count={6} />
-        ) : occupancyError && dateFilterActive ? null : filtered.length > 0 ? (
+        ) : filtered.length > 0 ? (
           <div className={MARKETPLACE_BROWSE_GRID_CLASS}>
             {filtered.map((item, index) => {
               const guestN = Number.parseInt(guests, 10) || 1;
