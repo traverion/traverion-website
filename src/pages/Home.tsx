@@ -446,7 +446,8 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
             <div className="mb-4">{familyTabs('sheet')}</div>
             <form onSubmit={submitSearch} className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
               <div className="space-y-1 rounded-2xl bg-black/[0.02] p-1 ring-1 ring-black/[0.04]">{searchFields('home-sheet', true)}</div>
-              <div className="mt-auto pt-5 space-y-2">
+              <div className="mt-auto pt-5 space-y-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+                {/* Phase 1653: safe-area padding for home mobile search actions. */}
                 <button type="submit" className="tv-btn-primary w-full h-12">
                   Search {searchFamily === 'stays' ? 'stays' : 'tours'}
                 </button>
