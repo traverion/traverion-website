@@ -152,6 +152,10 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
     return ranked.slice(0, 8);
   }, [stayListings, interestSignals]);
   const staysSectionTitle = interestPlace ? `More stays near ${interestPlace}` : 'Where to stay';
+  const staysSectionEyebrow = interestPlace ? 'For you' : 'Stays';
+  const staysSectionSubtitle = interestPlace
+    ? 'Ranked from your recent browsing on this device — still only published stays.'
+    : 'Nights from operators — separate from tour departures.';
   const featuredListing = displayedListings[0];
   const featuredSrc = featuredListing ? listingHeroImageSrc(featuredListing.image) : undefined;
 
@@ -705,9 +709,12 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         <div className="tv-content">
           <div className="flex items-end justify-between gap-3 mb-5">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Stays</p>
+              {/* Phase 1680: stays personalization eyebrow/subtitle match tours For you honesty. */}
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">
+                {staysSectionEyebrow}
+              </p>
               <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">{staysSectionTitle}</h2>
-              <p className="mt-2 text-sm text-ink-muted">Nights from operators — separate from tour departures.</p>
+              <p className="mt-2 text-sm text-ink-muted">{staysSectionSubtitle}</p>
             </div>
             {!catalogLoading && stayListings.length > 0 ? (
               <button type="button" onClick={() => goToStays()} className="lux-flat text-sm font-semibold text-finland">
