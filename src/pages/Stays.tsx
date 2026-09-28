@@ -148,6 +148,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
   const [occupancyError, setOccupancyError] = useState<string | null>(null);
   /** Occupancy snapshot is for one browse night range + catalog — not a prior range after reload fails (Packages 1432 parity). */
   const [occupancyLoadedForBrowseKey, setOccupancyLoadedForBrowseKey] = useState<string | null>(null);
+  const occupancyReloadGenRef = useRef(0);
   const [discountsByListing, setDiscountsByListing] = useState<Map<
     string,
     import('../data/supabase-discounts').ListingDiscount[]
@@ -271,6 +272,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
       return () => {};
     }
     const browseKeyAtStart = `${stayIdsKey}|${checkIn}|${checkOut}`;
+    const reloadGen = ++occupancyReloadGenRef.current;
     let cancelled = false;
     setOccupancyLoading(true);
     setOccupancyError(null);
@@ -293,15 +295,22 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
       })
     )
       .then((entries) => {
-        if (cancelled) return;
-        setOccupiedByListing(
-          Object.fromEntries(entries.filter((e): e is NonNullable<typeof e> => e != null))
-        );
+        if (cancelled || reloadGen !== occupancyReloadGenRef.current) return;
+        const ok = entries.filter((e): e is NonNullable<typeof e> => e != null);
+        // Phase 1192 allows partial maps; zero successes must not mark browse loaded (invent “fully booked”).
+        if (ok.length === 0 && stays.length > 0) {
+          setOccupancyError(
+            'We could not check stay availability. Check your connection and try again.'
+          );
+          setOccupancyLoading(false);
+          return;
+        }
+        setOccupiedByListing(Object.fromEntries(ok));
         setOccupancyLoadedForBrowseKey(browseKeyAtStart);
         setOccupancyLoading(false);
       })
       .catch((e) => {
-        if (cancelled) return;
+        if (cancelled || reloadGen !== occupancyReloadGenRef.current) return;
         // Phase 1188/1350: keep prior occupancy map — null would make every stay look open.
         setOccupancyError(
           userFacingError(e, 'We could not check stay availability. Check your connection and try again.')
