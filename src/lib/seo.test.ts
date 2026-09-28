@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_PUBLIC_DOCUMENT_TITLE, publicStayPath, publicTourPath } from './seo';
 
@@ -14,5 +16,13 @@ describe('public listing SEO paths', () => {
   it('names the public marketplace as tours and stays, not tours-only', () => {
     expect(DEFAULT_PUBLIC_DOCUMENT_TITLE).toBe('Traverion – Tours and stays');
     expect(DEFAULT_PUBLIC_DOCUMENT_TITLE.toLowerCase()).toContain('stays');
+  });
+
+  it('clears browse listings JSON-LD on leave (parity with tour/stay PDP)', () => {
+    const seo = readFileSync(resolve(process.cwd(), 'src/lib/seo.ts'), 'utf8');
+    expect(seo).toMatch(/export function clearListingsJsonLd/);
+    const packages = readFileSync(resolve(process.cwd(), 'src/pages/Packages.tsx'), 'utf8');
+    expect(packages).toMatch(/return \(\) => clearListingsJsonLd\(\)/);
+    expect(packages).toMatch(/seasonLiveListings\.length === 0[\s\S]*clearListingsJsonLd\(\)/);
   });
 });

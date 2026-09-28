@@ -236,6 +236,11 @@ export function clearStayJsonLd() {
   if (script) script.remove();
 }
 
+export function clearListingsJsonLd() {
+  const script = document.getElementById('traverion-listings-jsonld');
+  if (script) script.remove();
+}
+
 /** Set canonical URL for the current page (helps SEO avoid duplicate content). */
 export function setCanonicalUrl(path: string, search?: string) {
   if (typeof document === 'undefined') return;

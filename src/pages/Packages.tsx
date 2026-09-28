@@ -12,7 +12,7 @@ import { TourPackage } from '../types/tour';
 import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
 import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
 import { isSupabaseListingId } from '../lib/discount-display';
-import { setListingsJsonLd } from '../lib/seo';
+import { clearListingsJsonLd, setListingsJsonLd } from '../lib/seo';
 import { listingHasBookableDepartureOnDate, listingHasUpcomingBookableSeason, tourBookableSellingDeparturesOnDate } from '../lib/booking-quote';
 import { getPartySizeBoundsKnown } from '../lib/booking-flow';
 import { tourDateLacksCapacityForParty } from '../lib/tour-calendar';
@@ -417,7 +417,10 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
 
   // SEO: JSON-LD for listings (helps search engines understand tour offerings)
   useEffect(() => {
-    if (seasonLiveListings.length === 0) return;
+    if (seasonLiveListings.length === 0) {
+      clearListingsJsonLd();
+      return;
+    }
     setListingsJsonLd(
       seasonLiveListings.slice(0, 20).map((t) => ({
         id: t.id,
@@ -426,6 +429,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
         image: t.image,
       }))
     );
+    return () => clearListingsJsonLd();
   }, [seasonLiveListings]);
 
   const destinationOptions = useMemo(() => {
