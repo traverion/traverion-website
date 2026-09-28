@@ -486,10 +486,12 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
   const waitingOnOccupancy =
     dateFilterActive &&
     isSupabaseConfigured() &&
+    stays.length > 0 &&
+    Boolean(occupancyBrowseKey) &&
     !occupancyError &&
     (occupancyLoading ||
       occupiedByListing === null ||
-      (occupancyBrowseKey !== '' && occupancyLoadedForBrowseKey !== occupancyBrowseKey));
+      occupancyLoadedForBrowseKey !== occupancyBrowseKey);
 
   const searchValues: MarketplaceSearchValues = useMemo(
     () => ({ where: draftWhere, date: draftCheckIn, checkout: draftCheckOut, guests: draftGuests }),
