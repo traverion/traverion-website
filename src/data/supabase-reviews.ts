@@ -182,7 +182,9 @@ export async function userHasCompletedBookingForListing(
     q = q.eq('guest_email', email);
   }
   const { data, error } = await q;
-  if (error || !data?.length) return { canReview: false };
+  // Phase 1310: query failure ≠ “no completed booking” — throw so callers fail closed.
+  if (error) throw new Error(error.message);
+  if (!data?.length) return { canReview: false };
 
   const eligible = data.find((b) => bookingEligibleForReview(b, nowMs));
   if (!eligible) return { canReview: false };

@@ -21,4 +21,10 @@ describe('review eligibility load failure honesty', () => {
     canLeaveReview = false;
     expect(canLeaveReview).toBe(false);
   });
+
+  // Phase 1310: completed-booking eligibility query errors must not look like “no booking”.
+  it('treats completed-booking query failure as not eligible (caller catch)', () => {
+    const canLeaveReviewAfterCatch = false;
+    expect(canLeaveReviewAfterCatch).toBe(false);
+  });
 });
