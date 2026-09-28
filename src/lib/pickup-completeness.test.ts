@@ -19,11 +19,15 @@ describe('pickup completeness', () => {
   it('does not treat stay nights as pickup work', () => {
     const stayCol = { check_out: '2026-09-22', special_requests: null };
     const stayNotes = { check_out: null, special_requests: 'check_out: 2026-09-22' };
+    const stayNightsOnly = { check_out: null, special_requests: null, nights: 3 };
     const tour = { check_out: null, special_requests: 'Guest phone: +358' };
     expect(bookingIsStayNight(stayCol)).toBe(true);
     expect(bookingIsStayNight(stayNotes)).toBe(true);
+    expect(bookingIsStayNight(stayNightsOnly)).toBe(true);
+    expect(bookingIsStayNight({ ...tour, nights: 0 })).toBe(false);
     expect(bookingIsStayNight(tour)).toBe(false);
     expect(bookingNeedsPickupCopy(stayCol, '', '')).toBe(false);
+    expect(bookingNeedsPickupCopy(stayNightsOnly, 'Meet', '')).toBe(false);
     expect(bookingNeedsPickupCopy(tour, 'Meet', '')).toBe(true);
   });
 

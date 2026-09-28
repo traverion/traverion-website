@@ -20,7 +20,7 @@ import {
   type BookingRow,
 } from '../data/supabase-bookings';
 import { fetchListingOpsByIds, pgTimeToHm, type ListingOpsMeta } from '../data/supabase-listings';
-import { parseStayCheckOutFromNotes } from '../lib/stayOccupancy';
+import { stayRangeFromBooking } from '../lib/stayOccupancy';
 import { formatMoney, isStripeTestCheckoutSession, appStripeIsTestMode } from '../lib/money';
 import { travelerPaymentLabel, REFUND_DUE_MANUAL_COPY, bookingPaymentWasCollected, isRefundDueBooking } from '../lib/payment-states';
 import { formatBookingParticipantsLabel } from '../lib/participant-mix';
@@ -37,7 +37,7 @@ import {
 import BookingMessageThread from '../components/BookingMessageThread';
 import StatusChip, { toneForPaymentLabel } from '../components/StatusChip';
 import NoticeCallout from '../components/NoticeCallout';
-import { listingPickupCopyIncomplete } from '../lib/pickup-completeness';
+import { bookingIsStayNight, listingPickupCopyIncomplete } from '../lib/pickup-completeness';
 import {
   displayListingTitleFromPurchase,
   displayMeetingPointFromPurchase,
@@ -141,9 +141,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
 
   const getRefundChoiceForCancel = useCallback((b: BookingRow): 'full_refund' | 'no_refund' => {
     const snapTz = displayDepartureTimezoneFromPurchase(b.purchase_snapshot);
-    const isStay =
-      Boolean(b.check_out && /^\d{4}-\d{2}-\d{2}$/.test(b.check_out)) ||
-      Boolean(parseStayCheckOutFromNotes(b.special_requests));
+    const isStay = bookingIsStayNight(b);
     const startHm = isStay
       ? displayStayCheckInTimeFromPurchase(b.purchase_snapshot, null) || '16:00'
       : displayStartTimeFromPurchase(
@@ -575,7 +573,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           <div className="mb-5 max-w-lg">
             <h2 className="font-display text-2xl text-ink">Payment not completed</h2>
             <p className="mt-2 text-sm text-ink-muted">
-              {pendingPayBookings.some((b) => Boolean(b.check_out))
+              {pendingPayBookings.some((b) => bookingIsStayNight(b))
                 ? STRIPE_CHECKOUT_CANCELLED_STAY_COPY
                 : STRIPE_CHECKOUT_CANCELLED_TOUR_COPY}
             </p>
@@ -709,9 +707,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               const payLabel = travelerPaymentLabel(b);
               const guestNotes = guestFacingBookingNotes(b.special_requests);
               const openCancel = cancelRequests[b.id];
-              const isStay = Boolean(
-                (b.check_out && /^\d{4}-\d{2}-\d{2}$/.test(b.check_out)) || parseStayCheckOutFromNotes(b.special_requests)
-              );
+              const isStay = bookingIsStayNight(b);
               const ops = listingOps[b.listing_id];
               const tripTitle = displayListingTitleFromPurchase(
                 b.purchase_snapshot,
@@ -751,17 +747,16 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 ? 'Check-in address'
                 : 'Place';
               const dateLine = (() => {
-                const out =
-                  b.check_out && /^\d{4}-\d{2}-\d{2}$/.test(b.check_out)
-                    ? b.check_out
-                    : parseStayCheckOutFromNotes(b.special_requests);
-                if (out && b.booking_date) {
-                  return `${formatBookingDateDisplay(b.booking_date)} → ${formatBookingDateDisplay(out)}`;
+                if (isStay) {
+                  const stay = stayRangeFromBooking(b);
+                  if (stay) {
+                    return `${formatBookingDateDisplay(stay.checkIn)} → ${formatBookingDateDisplay(stay.checkOut)}`;
+                  }
                 }
                 return b.booking_date ? formatBookingDateDisplay(b.booking_date) : 'Date TBC';
               })();
               const timeBit = (() => {
-                if (b.check_out) return null;
+                if (isStay) return null;
                 const live = b.start_time ? pgTimeToHm(b.start_time) : null;
                 const shown = displayStartTimeFromPurchase(b.purchase_snapshot, live);
                 if (!shown) return null;
@@ -1110,8 +1105,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   ) : null}
                   {liveTrip &&
                     (b.status === 'pending' || b.status === 'confirmed') &&
-                    !b.check_out &&
-                    !parseStayCheckOutFromNotes(b.special_requests) && (
+                    !isStay && (
                     <div className="max-w-lg">
                       <label htmlFor={`stay-${b.id}`} className="block text-xs font-medium text-ink-muted mb-1">
                         Place of stay
@@ -1258,21 +1252,18 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 </p>
                 <p className="mt-1 text-sm text-ink-muted">
                   {(() => {
-                    const out =
-                      cancelConfirm.check_out && /^\d{4}-\d{2}-\d{2}$/.test(cancelConfirm.check_out)
-                        ? cancelConfirm.check_out
-                        : parseStayCheckOutFromNotes(cancelConfirm.special_requests);
-                    if (out && cancelConfirm.booking_date) {
-                      return `${formatBookingDateDisplay(cancelConfirm.booking_date)} → ${formatBookingDateDisplay(out)}`;
+                    if (bookingIsStayNight(cancelConfirm)) {
+                      const stay = stayRangeFromBooking(cancelConfirm);
+                      if (stay) {
+                        return `${formatBookingDateDisplay(stay.checkIn)} → ${formatBookingDateDisplay(stay.checkOut)}`;
+                      }
                     }
                     return cancelConfirm.booking_date
                       ? formatBookingDateDisplay(cancelConfirm.booking_date)
                       : 'Date TBC';
                   })()}
                   {(() => {
-                    if (cancelConfirm.check_out || parseStayCheckOutFromNotes(cancelConfirm.special_requests)) {
-                      return null;
-                    }
+                    if (bookingIsStayNight(cancelConfirm)) return null;
                     const shown = displayStartTimeFromPurchase(
                       cancelConfirm.purchase_snapshot,
                       cancelConfirm.start_time ? pgTimeToHm(cancelConfirm.start_time) : null
@@ -1303,9 +1294,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   </p>
                   <p className="mt-1.5 text-sm text-ink leading-relaxed">
                     More than 24 hours before scheduled{' '}
-                    {cancelConfirm.check_out || parseStayCheckOutFromNotes(cancelConfirm.special_requests)
-                      ? 'check-in'
-                      : 'start'}
+                    {bookingIsStayNight(cancelConfirm) ? 'check-in' : 'start'}
                     . {TRAVELER_SELF_CANCEL_FULL_REFUND_POLICY}
                   </p>
                 </div>
@@ -1316,9 +1305,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   </p>
                   <p className="mt-1.5 text-sm text-ink leading-relaxed">
                     This{' '}
-                    {cancelConfirm.check_out || parseStayCheckOutFromNotes(cancelConfirm.special_requests)
-                      ? 'check-in is'
-                      : 'start is'}{' '}
+                    {bookingIsStayNight(cancelConfirm) ? 'check-in is' : 'start is'}{' '}
                     within 24 hours. No refund applies for a traveler-initiated cancellation.
                   </p>
                 </div>

@@ -252,6 +252,24 @@ describe('trip list views', () => {
     expect(bookingMatchesTripView(stay, 'past', '2026-09-24')).toBe(true);
   });
 
+  it('classifies nights-only stays as stays for Trips Upcoming/Past (Phase 1324)', () => {
+    const stayNightsOnly = {
+      status: 'confirmed',
+      payment_status: 'paid',
+      booking_date: '2026-09-18',
+      check_out: null as string | null,
+      nights: 5,
+      special_requests: null as string | null,
+    };
+    // check-out derived as 2026-09-23; mid-stay must stay Upcoming
+    expect(bookingMatchesTripView(stayNightsOnly, 'upcoming', '2026-09-20')).toBe(true);
+    expect(bookingMatchesTripView(stayNightsOnly, 'past', '2026-09-20')).toBe(false);
+    expect(bookingMatchesTripView(stayNightsOnly, 'upcoming', '2026-09-23')).toBe(true);
+    expect(bookingMatchesTripView(stayNightsOnly, 'past', '2026-09-24')).toBe(true);
+    expect(partnerBookingIsTodaySchedule(stayNightsOnly, '2026-09-20')).toBe(true);
+    expect(partnerBookingIsPastSchedule(stayNightsOnly, '2026-09-20')).toBe(false);
+  });
+
   it('sorts Refund due cancelled trips before other cancelled rows', () => {
     const sorted = sortTravelerCancelledTrips([
       { status: 'cancelled', payment_status: 'refunded', booking_date: '2026-12-01' },

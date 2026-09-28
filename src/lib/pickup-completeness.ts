@@ -19,14 +19,21 @@ export function listingPickupCopyIncomplete(meetingPoint: string | null | undefi
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** Stay nights are check-in/out, not tour pickup. */
+/**
+ * Stay nights are check-in/out, not tour pickup.
+ * Canonical shape matches SQL stay_booking_check_out / stayRangeFromBooking:
+ * check_out column → check_out: notes → nights >= 1.
+ */
 export function bookingIsStayNight(b: {
   check_out?: string | null;
   special_requests?: string | null;
+  nights?: number | null;
 }): boolean {
   const col = (b.check_out ?? '').trim();
   if (ISO_DATE.test(col)) return true;
-  return Boolean(parseStayCheckOutFromNotes(b.special_requests));
+  if (parseStayCheckOutFromNotes(b.special_requests)) return true;
+  const nights = Math.floor(Number(b.nights ?? 0));
+  return Number.isFinite(nights) && nights >= 1;
 }
 
 /**
@@ -38,6 +45,7 @@ export function bookingNeedsPickupCopy(
   b: {
     check_out?: string | null;
     special_requests?: string | null;
+    nights?: number | null;
     pickup_time?: string | null;
   },
   meetingPoint: string | null | undefined,
