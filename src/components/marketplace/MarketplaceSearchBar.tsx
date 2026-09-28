@@ -1,4 +1,5 @@
 import type { FormEvent, ReactNode } from 'react';
+import { useId } from 'react';
 import { Search } from 'lucide-react';
 import { addCalendarDays } from '../../lib/stayOccupancy';
 import {
@@ -36,6 +37,49 @@ function FieldShell({ stacked, children }: { stacked?: boolean; children: ReactN
   );
 }
 
+/** Layer C: Where field accessible name includes label + current text (date/guest picker parity). */
+export function MarketplaceDestinationField({
+  id,
+  family,
+  value,
+  onChange,
+  stacked,
+}: {
+  id: string;
+  family: MarketplaceSearchFamily;
+  value: string;
+  onChange: (next: string) => void;
+  stacked?: boolean;
+}) {
+  const isStay = family === 'stays';
+  const labelId = useId();
+  const valueId = useId();
+  const placeholder = isStay ? 'City or stay' : 'City or tour';
+  const spokenValue = value.trim() || placeholder;
+  return (
+    <FieldShell stacked={stacked}>
+      <span id={labelId} className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
+        Where
+      </span>
+      <span id={valueId} className="sr-only">
+        {spokenValue}
+      </span>
+      <div className="relative">
+        <Search className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint pointer-events-none" aria-hidden />
+        <input
+          id={id}
+          type="search"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          aria-labelledby={`${labelId} ${valueId}`}
+          className="w-full h-9 pl-6 pr-2 border-0 text-ink placeholder:text-ink-muted focus:ring-0 text-[15px] bg-transparent"
+        />
+      </div>
+    </FieldShell>
+  );
+}
+
 export function MarketplaceSearchFields({
   family,
   values,
@@ -47,22 +91,13 @@ export function MarketplaceSearchFields({
   const searchMinIso = marketplaceSearchMinSelectableIso();
   return (
     <>
-      <FieldShell stacked={stacked}>
-        <label htmlFor={`${idPrefix}-where`} className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-          Where
-        </label>
-        <div className="relative">
-          <Search className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint pointer-events-none" />
-          <input
-            id={`${idPrefix}-where`}
-            type="search"
-            value={values.where}
-            onChange={(e) => onChange({ where: e.target.value })}
-            placeholder={isStay ? 'City or stay' : 'City or tour'}
-            className="w-full h-9 pl-6 pr-2 border-0 text-ink placeholder:text-ink-muted focus:ring-0 text-[15px] bg-transparent"
-          />
-        </div>
-      </FieldShell>
+      <MarketplaceDestinationField
+        id={`${idPrefix}-where`}
+        family={family}
+        value={values.where}
+        onChange={(next) => onChange({ where: next })}
+        stacked={stacked}
+      />
       <FieldShell stacked={stacked}>
         <TraverionSingleDateField
           id={`${idPrefix}-date`}
@@ -152,11 +187,14 @@ export function MarketplaceMobileSearchTrigger({
   expanded?: boolean;
   controlsId?: string;
 }) {
+  const ariaLabel = `Search, ${where}, ${whenLabel}, ${whoLabel}`;
+
   return (
     <button
       type="button"
       onClick={onClick}
       className="sm:hidden w-full flex items-center gap-3 rounded-2xl bg-paper-raised text-ink px-4 py-3.5 shadow-soft-lg ring-1 ring-black/[0.06] text-left active:scale-[0.99] transition-transform"
+      aria-label={ariaLabel}
       aria-haspopup="dialog"
       aria-expanded={expanded}
       aria-controls={controlsId}

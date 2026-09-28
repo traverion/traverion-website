@@ -48,6 +48,17 @@ export type MarketplaceSortOption = 'recommended' | 'price-asc' | 'price-desc' |
 
 export type DestOption = { id: string; label: string; type: 'world' | 'region' | 'city' };
 
+/** Layer B: URL/chip destination filter must show in the shared Where field (not blank “Anywhere”). */
+export function marketplaceWhereDisplay(
+  whereDraft: string,
+  destinationId: string,
+  destinationOptions: Pick<DestOption, 'id' | 'label'>[]
+): string {
+  if (whereDraft.trim()) return whereDraft;
+  if (destinationId === 'all') return '';
+  return destinationOptions.find((c) => c.id === destinationId)?.label ?? destinationId;
+}
+
 export const MARKETPLACE_LANGUAGE_LABELS: Record<string, string> = {
   en: 'English',
   es: 'Spanish',

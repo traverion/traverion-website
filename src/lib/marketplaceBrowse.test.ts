@@ -13,6 +13,7 @@ import {
   failCloseOrphanStayCheckout,
   marketplaceFamilySwitchPath,
   marketplaceSearchMinSelectableIso,
+  marketplaceWhereDisplay,
   parseMarketplaceSort,
   parsePriceChipId,
   stayHasAmenity,
@@ -329,6 +330,17 @@ describe('marketplace browse filters', () => {
       marketplaceFamilySwitchPath('tours', { q: 'Rovaniemi', date: '2026-09-22', checkout: '2026-09-25', guests: '2' })
     ).toBe('/packages?q=Rovaniemi&date=2026-09-22&guests=2');
     expect(marketplaceFamilySwitchPath('tours', {})).toBe('/packages');
+  });
+
+  it('marketplaceWhereDisplay prefers draft text, else destination chip label', () => {
+    const opts = [
+      { id: 'rovaniemi', label: 'Rovaniemi', type: 'city' as const },
+      { id: 'finland', label: 'Finland', type: 'region' as const },
+    ];
+    expect(marketplaceWhereDisplay('', 'all', opts)).toBe('');
+    expect(marketplaceWhereDisplay('', 'rovaniemi', opts)).toBe('Rovaniemi');
+    expect(marketplaceWhereDisplay('  aurora ', 'rovaniemi', opts)).toBe('  aurora ');
+    expect(marketplaceWhereDisplay('', 'unknown-slug', opts)).toBe('unknown-slug');
   });
 
   it('browse date floor is UTC-yesterday, not browser-local today (Phase 1095)', () => {

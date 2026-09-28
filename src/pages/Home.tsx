@@ -353,6 +353,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
               onClick={() => setMobileSearchOpen(true)}
               onPointerEnter={prefetchPackagesPage}
               className="w-full flex items-center gap-3 rounded-2xl bg-paper-raised text-ink px-4 py-3.5 shadow-soft-xl ring-1 ring-black/[0.06] text-left active:scale-[0.99] transition-transform"
+              aria-label={`Search, ${mobileSearchSummary.where}, ${mobileSearchSummary.whenLabel}, ${mobileSearchSummary.whoLabel}`}
               aria-haspopup="dialog"
               aria-expanded={mobileSearchOpen}
               aria-controls="home-mobile-search-dialog"

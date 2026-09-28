@@ -53,6 +53,7 @@ import {
   listingBrowseAmount,
   MARKETPLACE_BROWSE_GRID_CLASS,
   marketplaceFamilySwitchPath,
+  marketplaceWhereDisplay,
   parseDurationFilterId,
   parseMarketplaceSort,
   parsePriceChipId,
@@ -641,6 +642,19 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     }
   }, [draftWhere, draftDate, draftGuests]);
 
+  const patchDraftSearch = useCallback(
+    (patch: Partial<{ where: string; date: string; guests: string }>) => {
+      if (patch.where !== undefined) {
+        const destOnly = !draftWhere.trim() && selectedDestination !== 'all';
+        setDraftWhere(patch.where);
+        if (!patch.where.trim() || destOnly) setSelectedDestination('all');
+      }
+      if (patch.date !== undefined) setDraftDate(patch.date);
+      if (patch.guests !== undefined) setDraftGuests(patch.guests);
+    },
+    [draftWhere, selectedDestination]
+  );
+
   const toggleTag = (tagId: string) => {
     setSelectedTags(prev => prev.includes(tagId) ? prev.filter(t => t !== tagId) : [...prev, tagId]);
   };
@@ -660,18 +674,24 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     (languageFilter && languageFilter !== 'all' ? 1 : 0);
 
   const searchValues = useMemo(
-    () => ({ where: draftWhere, date: draftDate, checkout: '', guests: draftGuests }),
-    [draftWhere, draftDate, draftGuests]
+    () => ({
+      where: marketplaceWhereDisplay(draftWhere, selectedDestination, destinationOptions),
+      date: draftDate,
+      checkout: '',
+      guests: draftGuests,
+    }),
+    [draftWhere, selectedDestination, destinationOptions, draftDate, draftGuests]
   );
 
   const mobileSearchSummary = useMemo(() => {
-    const where = draftWhere.trim() || 'Anywhere';
+    const where =
+      marketplaceWhereDisplay(draftWhere, selectedDestination, destinationOptions).trim() || 'Anywhere';
     const whenLabel = draftDate || 'Any date';
     const whoLabel = draftGuests.trim()
       ? `${draftGuests} ${Number(draftGuests) === 1 ? 'traveler' : 'travelers'}`
       : 'Add travelers';
     return { where, whenLabel, whoLabel };
-  }, [draftWhere, draftDate, draftGuests]);
+  }, [draftWhere, selectedDestination, destinationOptions, draftDate, draftGuests]);
 
   const destLabel =
     selectedDestination !== 'all'
@@ -941,11 +961,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
           <MarketplaceSearchPill
             family="tours"
             values={searchValues}
-            onChange={(patch) => {
-              if (patch.where !== undefined) setDraftWhere(patch.where);
-              if (patch.date !== undefined) setDraftDate(patch.date);
-              if (patch.guests !== undefined) setDraftGuests(patch.guests);
-            }}
+            onChange={patchDraftSearch}
             onSubmit={(e) => {
               e.preventDefault();
               applyPrimarySearch();
@@ -1203,17 +1219,19 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
               <MarketplaceSearchFields
                 family="tours"
                 values={searchValues}
-                onChange={(patch) => {
-                  if (patch.where !== undefined) setDraftWhere(patch.where);
-                  if (patch.date !== undefined) setDraftDate(patch.date);
-                  if (patch.guests !== undefined) setDraftGuests(patch.guests);
-                }}
+                onChange={patchDraftSearch}
                 idPrefix="tours-sheet"
                 stacked
               />
             </div>
             <div className="mt-5 flex gap-2 shrink-0">
-              {draftWhere || draftDate || draftGuests || searchTerm || filterDate || filterGuests ? (
+              {draftWhere ||
+              draftDate ||
+              draftGuests ||
+              searchTerm ||
+              filterDate ||
+              filterGuests ||
+              selectedDestination !== 'all' ? (
                 <button
                   type="button"
                   onClick={() => {
@@ -1223,6 +1241,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
                     setSearchTerm('');
                     setFilterDate('');
                     setFilterGuests('');
+                    setSelectedDestination('all');
                   }}
                   className="tv-btn-secondary flex-1"
                 >
