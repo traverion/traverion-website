@@ -18,6 +18,7 @@ import { travelerFacingBookingOptions } from './legacy-participant-options';
 import { DEFAULT_CURRENCY, normalizeCurrency } from './money';
 import { ymdInTimeZone } from './booking-lifecycle-calendar';
 import { localYmd } from './local-ymd';
+import { STAY_MAX_OCCUPIED_NIGHTS } from './stayOccupancy';
 import {
   assertDepartureStillBookable,
   isDepartureTimeStillBookable,
@@ -619,6 +620,13 @@ export function quoteStayNights(input: {
       ok: false,
       code: 'bad_date',
       error: `Minimum stay is ${minNights} night${minNights === 1 ? '' : 's'}.`,
+    };
+  }
+  if (nights > STAY_MAX_OCCUPIED_NIGHTS) {
+    return {
+      ok: false,
+      code: 'bad_date',
+      error: `This stay can be booked for up to ${STAY_MAX_OCCUPIED_NIGHTS} nights at a time.`,
     };
   }
   // Phase 1217: unknown maxGuests → fail closed (no invent-99; StayDetails 1216 parity).

@@ -4,6 +4,9 @@ import { bookingOccupiesInventory, type InventoryHoldRow } from './booking-hold'
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
+/** Hard cap for night iteration — picker, quotes, and browse must stay aligned (no silent truncate). */
+export const STAY_MAX_OCCUPIED_NIGHTS = 400;
+
 export function addCalendarDays(iso: string, days: number): string {
   const [y, m, d] = iso.split('-').map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d + days));
@@ -26,7 +29,7 @@ export function nightsOccupiedByStay(checkIn: string, checkOut: string): string[
   while (cur < checkOut) {
     out.push(cur);
     cur = addCalendarDays(cur, 1);
-    if (out.length > 400) break;
+    if (out.length > STAY_MAX_OCCUPIED_NIGHTS) break;
   }
   return out;
 }

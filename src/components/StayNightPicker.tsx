@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { monthGrid, stayNightState } from '../lib/stay-calendar';
-import { addCalendarDays } from '../lib/stayOccupancy';
+import { addCalendarDays, STAY_MAX_OCCUPIED_NIGHTS } from '../lib/stayOccupancy';
 import {
   TraverionCalendarDayButton,
   TraverionCalendarMonth,
@@ -72,6 +72,7 @@ export default function StayNightPicker({
     }
     if (nights.some((n) => occupied.has(n))) return;
     if (nights.length < minNights) return;
+    if (nights.length > STAY_MAX_OCCUPIED_NIGHTS) return;
     onChange(checkIn, iso);
   };
 

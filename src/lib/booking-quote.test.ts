@@ -5,6 +5,7 @@ import type { TourPackage } from '../types/tour';
 import type { ListingBookingOption } from '../types/listingExtras';
 import { getListingPublishBlockers, partnerListingDraftPublishSubtitle } from './listingPublishGate';
 import { parsePathname } from './appRouting';
+import { addCalendarDays } from './stayOccupancy';
 
 function option(partial: Partial<ListingBookingOption> & Pick<ListingBookingOption, 'id' | 'name' | 'priceUsd'>): ListingBookingOption {
   return {
@@ -246,6 +247,26 @@ describe('quoteBooking', () => {
     if (!q.ok) return;
     expect(q.nights).toBe(3);
     expect(q.totalAmount).toBe(340);
+  });
+
+  it('Layer A/B: fails closed when stay exceeds STAY_MAX_OCCUPIED_NIGHTS (occupancy iteration cap)', () => {
+    const checkIn = '2026-09-10';
+    const checkOut = addCalendarDays(checkIn, 401);
+    const q = quoteStayNights({
+      tour: tour({
+        listingExtras: {
+          inventoryFamily: 'stay',
+          stay: { nightlyPriceUsd: 100, maxGuests: 4, minNights: 1, cleaningFeeUsd: 0 },
+          bookingOptions: [],
+        },
+      }),
+      checkIn,
+      checkOut,
+      guests: 2,
+      todayIso: today,
+    });
+    expect(q.ok).toBe(false);
+    if (!q.ok) expect(q.code).toBe('bad_date');
   });
 
   it('Phase 1217: fails closed when stay maxGuests is unset (no invent-99)', () => {

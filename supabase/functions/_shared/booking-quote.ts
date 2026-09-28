@@ -225,6 +225,13 @@ function quoteStayListing(input: {
   if (nights < minNights) {
     return { ok: false, error: `Minimum stay is ${minNights} night${minNights === 1 ? '' : 's'}.` };
   }
+  const STAY_MAX_OCCUPIED_NIGHTS = 400;
+  if (nights > STAY_MAX_OCCUPIED_NIGHTS) {
+    return {
+      ok: false,
+      error: `This stay can be booked for up to ${STAY_MAX_OCCUPIED_NIGHTS} nights at a time.`,
+    };
+  }
   // Phase 1217: unknown maxGuests → fail closed (no invent-99; StayDetails 1216 parity).
   if (typeof stay.maxGuests !== 'number' || !Number.isFinite(stay.maxGuests) || stay.maxGuests < 1) {
     return { ok: false, error: 'Guest capacity is unavailable for this stay.' };
