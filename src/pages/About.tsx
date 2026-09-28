@@ -54,6 +54,13 @@ export default function About({ onNavigate }: AboutProps) {
     }
   };
 
+  const goSaved = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (onNavigate) {
+      e.preventDefault();
+      onNavigate('wishlist');
+    }
+  };
+
   return (
     <LegalPageShell
       eyebrow="Company"
@@ -97,6 +104,10 @@ export default function About({ onNavigate }: AboutProps) {
               {/* Phase 1624: Trips entry next to browse — matches footer/nav wayfinding. */}
               <a href="/bookings" onClick={goTrips} className="tv-btn-ghost text-sm">
                 Your trips
+              </a>
+              {/* Phase 1675: Saved beside Trips — Footer 1664 / primary-nav parity. */}
+              <a href="/wishlist" onClick={goSaved} className="tv-btn-ghost text-sm">
+                Saved
               </a>
             </div>
           </div>
