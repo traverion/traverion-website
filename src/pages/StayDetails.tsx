@@ -531,7 +531,8 @@ export default function StayDetails({ stayId, onBack }: Props) {
       return;
     }
     if (checkoutPayBlockedByConsent(checkoutConsentAccepted)) {
-      setPayError('Confirm the cancellation policy and Terms before paying.');
+      // Phase 1662: sticky “Accept terms” should guide calmly — no red pay error flash.
+      setPayError(null);
       document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       window.requestAnimationFrame(() => {
         document.getElementById('stay-checkout-consent')?.focus();

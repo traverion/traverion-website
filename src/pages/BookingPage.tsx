@@ -1050,7 +1050,8 @@ export default function BookingPage({
   const handleConfirmBooking = async () => {
     if (submitting) return;
     if (checkoutPayBlockedByConsent(checkoutConsentAccepted)) {
-      setError('Confirm the cancellation policy and Terms before paying.');
+      // Phase 1662: “Accept terms to pay” focuses the checkbox without a red error flash.
+      setError(null);
       document.getElementById('booking-checkout-consent')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       window.requestAnimationFrame(() => {
         document.getElementById('booking-checkout-consent')?.focus();
