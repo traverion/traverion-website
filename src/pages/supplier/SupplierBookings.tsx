@@ -181,11 +181,10 @@ function downloadBookingsCsv(
   rows: BookingRow[],
   listingMeta: Record<string, ListingBookingMeta>
 ): void {
+  // Phase 1592: nights come from partnerBookingCsvValues (1573/1591) — do not invent opts.nights.
   const lines = rows.map((b) => {
     const meta = listingMeta[b.listing_id];
     const isStay = meta?.family === 'stay' || bookingIsStayNight(b);
-    const stayRange = isStay ? stayRangeFromBooking(b) : null;
-    const nights = stayRange ? nightsOccupiedByStay(stayRange.checkIn, stayRange.checkOut).length : 0;
     const listingTitle = displayListingTitleFromPurchase(
       b.purchase_snapshot,
       meta?.title,
@@ -196,7 +195,7 @@ function downloadBookingsCsv(
       listingTitle,
       b.start_time ? pgTimeToHm(b.start_time) ?? '' : '',
       b.pickup_time ? pgTimeToHm(b.pickup_time) ?? '' : '',
-      { inventory: isStay ? 'stay' : 'tour', nights: nights > 0 ? nights : null }
+      { inventory: isStay ? 'stay' : 'tour' }
     )
       .map(csvSafeCell)
       .join(',');

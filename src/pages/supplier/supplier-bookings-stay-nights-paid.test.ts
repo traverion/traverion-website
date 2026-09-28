@@ -30,3 +30,15 @@ describe('SupplierBookings detail Nights field (Phase 1590)', () => {
     );
   });
 });
+
+describe('SupplierBookings CSV download nights (Phase 1592)', () => {
+  const src = readFileSync(join(here, 'SupplierBookings.tsx'), 'utf8');
+
+  it('downloadBookingsCsv does not invent opts.nights — csv helper owns nights (1591)', () => {
+    expect(src).toContain('Phase 1592');
+    expect(src).toMatch(
+      /Phase 1592: nights come from partnerBookingCsvValues[\s\S]*\{ inventory: isStay \? 'stay' : 'tour' \}/
+    );
+    expect(src).not.toMatch(/nights: nights > 0 \? nights : null/);
+  });
+});
