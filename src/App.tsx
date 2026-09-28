@@ -41,6 +41,7 @@ import { listingHasUpcomingBookableSeason } from './lib/booking-quote';
 import { listingDetailVisibleToTraveler } from './lib/product-workflows';
 import { isPartnerMarketingPathForCurrentHost, isPartnerPortalPathForCurrentHost } from './lib/partnerHost';
 import { rememberProductReturn, isStaticConsumerPage } from './lib/navReturn';
+import { failCloseOrphanStayCheckout } from './lib/marketplaceBrowse';
 import { takeTravelerReturnStay } from './lib/travelerAuthLinks';
 import type { TourPackage as TourPackageType } from './types/tour';
 import { SkeletonCardGrid, SkeletonPageHero } from './components/ui/Skeleton';
@@ -515,8 +516,11 @@ function App() {
       if (returnStay) {
         const params = new URLSearchParams();
         params.set('stay', returnStay.id);
-        if (returnStay.checkIn) params.set('date', returnStay.checkIn);
-        if (returnStay.checkOut) params.set('checkout', returnStay.checkOut);
+        const stayDates = failCloseOrphanStayCheckout(returnStay.checkIn ?? '', returnStay.checkOut ?? '');
+        if (stayDates.checkIn) {
+          params.set('date', stayDates.checkIn);
+          if (stayDates.checkOut) params.set('checkout', stayDates.checkOut);
+        }
         if (returnStay.guests) params.set('guests', String(returnStay.guests));
         window.history.replaceState({}, '', `/stays?${params.toString()}`);
         void getListingByIdAsync(returnStay.id).then((t) => {

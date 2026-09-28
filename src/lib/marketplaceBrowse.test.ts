@@ -10,6 +10,7 @@ import {
   matchesPriceChip,
   matchesRatingFilter,
   nextStayDatePatch,
+  failCloseOrphanStayCheckout,
   marketplaceFamilySwitchPath,
   marketplaceSearchMinSelectableIso,
   parseMarketplaceSort,
@@ -304,6 +305,19 @@ describe('marketplace browse filters', () => {
     expect(nextStayDatePatch({ date: '2026-09-20', checkout: '2026-09-25' }, '')).toEqual({
       date: '',
       checkout: '',
+    });
+  });
+
+  it('fail-closes orphan or inverted stay check-out (Home / PDP / login return parity)', () => {
+    expect(failCloseOrphanStayCheckout('', '2026-09-25')).toEqual({ checkIn: '', checkOut: '' });
+    expect(failCloseOrphanStayCheckout('2026-09-20', '')).toEqual({ checkIn: '2026-09-20', checkOut: '' });
+    expect(failCloseOrphanStayCheckout('2026-09-20', '2026-09-20')).toEqual({
+      checkIn: '2026-09-20',
+      checkOut: '',
+    });
+    expect(failCloseOrphanStayCheckout('2026-09-22', '2026-09-25')).toEqual({
+      checkIn: '2026-09-22',
+      checkOut: '2026-09-25',
     });
   });
 

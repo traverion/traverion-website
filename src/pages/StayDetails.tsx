@@ -9,6 +9,7 @@ import { listingDetailVisibleToTraveler } from '../lib/product-workflows';
 import { useAuth } from '../contexts/AuthContext';
 import { LISTING_SELF_BOOK_BLOCKED, LISTING_SELF_BOOK_CHECK_FAILED, viewerIsListingSupplierSide } from '../lib/listing-self-book';
 import { rememberTravelerReturnStay, travelerLoginHref } from '../lib/travelerAuthLinks';
+import { failCloseOrphanStayCheckout } from '../lib/marketplaceBrowse';
 import { quoteStayNights, stayQuotePriceLines, experienceTodayIsoForListing } from '../lib/booking-quote';
 import { stayDateRangesOverlap, occupiedNightsFromStayRanges, nightsOccupiedByStay } from '../lib/stayOccupancy';
 import {
@@ -73,12 +74,13 @@ type Props = {
 function readStayPrefill(): { checkIn: string; checkOut: string; guests: number } {
   if (typeof window === 'undefined') return { checkIn: '', checkOut: '', guests: 2 };
   const p = new URLSearchParams(window.location.search);
-  const checkIn = (p.get('date') ?? p.get('checkIn') ?? '').trim();
-  const checkOut = (p.get('checkout') ?? p.get('checkOut') ?? '').trim();
+  const rawIn = (p.get('date') ?? p.get('checkIn') ?? '').trim();
+  const rawOut = (p.get('checkout') ?? p.get('checkOut') ?? '').trim();
+  const { checkIn, checkOut } = failCloseOrphanStayCheckout(rawIn, rawOut);
   const g = Number.parseInt(p.get('guests') ?? '', 10);
   return {
-    checkIn: /^\d{4}-\d{2}-\d{2}$/.test(checkIn) ? checkIn : '',
-    checkOut: /^\d{4}-\d{2}-\d{2}$/.test(checkOut) ? checkOut : '',
+    checkIn,
+    checkOut,
     guests: Number.isFinite(g) && g >= 1 ? Math.min(99, Math.floor(g)) : 2,
   };
 }

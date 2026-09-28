@@ -14,7 +14,7 @@ import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
 import {
   MarketplaceSearchFields,
 } from '../components/marketplace/MarketplaceSearchBar';
-import { HOME_DISCOVERY_GRID_CLASS } from '../lib/marketplaceBrowse';
+import { failCloseOrphanStayCheckout, HOME_DISCOVERY_GRID_CLASS } from '../lib/marketplaceBrowse';
 import { listingHasUpcomingBookableSeason } from '../lib/booking-quote';
 import { useTravelerWishlist } from '../hooks/useTravelerWishlist';
 import { supplierPortalLandingHref } from '../lib/partnerHost';
@@ -212,9 +212,11 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
     if (!onNavigate) return;
     const params = new URLSearchParams();
     const q = (extra?.q ?? searchTerm).trim();
-    const date = (extra?.date ?? when).trim();
-    const out = (extra?.checkout ?? checkout).trim();
+    const normalized = failCloseOrphanStayCheckout(extra?.date ?? when, extra?.checkout ?? checkout);
+    const date = normalized.checkIn;
+    const out = normalized.checkOut;
     const guests = (extra?.guests ?? who).trim();
+    if (!date && checkout.trim()) setCheckout('');
     if (q) params.set('q', q);
     if (date) {
       params.set('date', date);

@@ -280,6 +280,20 @@ export function nextStayDatePatch(
   return patch;
 }
 
+const STAY_ISO = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Layer B: check-out without check-in (or inverted range) must not stick in URL or booking prefill. */
+export function failCloseOrphanStayCheckout(
+  checkIn: string,
+  checkOut: string
+): { checkIn: string; checkOut: string } {
+  const inVal = checkIn.trim();
+  const outVal = checkOut.trim();
+  if (!inVal || !STAY_ISO.test(inVal)) return { checkIn: '', checkOut: '' };
+  if (!outVal || !STAY_ISO.test(outVal) || outVal <= inVal) return { checkIn: inVal, checkOut: '' };
+  return { checkIn: inVal, checkOut: outVal };
+}
+
 export function catalogSharedCurrency(listings: TourPackage[], normalizeCurrency: (raw?: string) => string): string | null {
   if (listings.length === 0) return null;
   const codes = new Set(listings.map((t) => normalizeCurrency(t.price?.currency)));
