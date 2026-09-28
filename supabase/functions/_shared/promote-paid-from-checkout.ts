@@ -672,12 +672,25 @@ export async function promotePaidFromCheckoutSession(params: {
     let isSelfBook =
       listingSupplierId.length > 0 && listingSupplierId === guestUserId;
     if (!isSelfBook && listingSupplierId) {
-      const { data: teamSelf } = await admin
+      const { data: teamSelf, error: teamSelfErr } = await admin
         .from('supplier_team_members')
         .select('user_id')
         .eq('supplier_id', listingSupplierId)
         .eq('user_id', guestUserId)
         .maybeSingle();
+      // Phase 1308: team check failure must not promote a possible self-book to paid.
+      if (teamSelfErr) {
+        return json(
+          {
+            success: false,
+            error: 'Could not verify self-book eligibility',
+            reason: 'self_book_team_check_failed',
+            eventId: event.id,
+            bookingId,
+          },
+          500
+        );
+      }
       isSelfBook = Boolean(teamSelf?.user_id);
     }
     if (isSelfBook) {

@@ -298,12 +298,16 @@ serve(async (req) => {
       return json({ success: false, error: 'You cannot book your own listing.' }, 403);
     }
     if (listingSupplierId) {
-      const { data: teamSelf } = await admin
+      const { data: teamSelf, error: teamSelfErr } = await admin
         .from('supplier_team_members')
         .select('user_id')
         .eq('supplier_id', listingSupplierId)
         .eq('user_id', user.id)
         .maybeSingle();
+      // Phase 1308: team check failure ≠ “not a team member” (client 1307 parity).
+      if (teamSelfErr) {
+        return json({ success: false, error: 'Could not verify booking eligibility. Try again.' }, 500);
+      }
       if (teamSelf?.user_id) {
         return json({ success: false, error: 'You cannot book a listing for your supplier account.' }, 403);
       }
