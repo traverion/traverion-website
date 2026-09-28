@@ -33,6 +33,7 @@ import {
 import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import SupplierListingForm, { type ListingEditorSaveResult } from './SupplierListingForm';
+import NoticeCallout from '../../components/NoticeCallout';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { PARTNER_APP_BASE, PARTNER_CREATE_PATH } from '../../lib/partnerPortalPaths';
 import {
@@ -1111,37 +1112,30 @@ export default function SupplierListings() {
       )}
 
       {publishGate && (
-        <div className="mb-4 rounded-lg border border-black/[0.06] border-l-[3px] border-l-amber-500 bg-paper px-3.5 py-3 text-sm text-ink">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0">
-              <p className="font-semibold text-ink">Complete these before publishing “{publishGate.title}”</p>
-              <ul className="mt-1.5 list-disc list-inside space-y-0.5 text-xs text-ink-muted">
-                {publishGate.blockers.map((line) => (
-                  <li key={line}>{line}</li>
-                ))}
-              </ul>
-            </div>
-            <div className="flex flex-wrap gap-2 shrink-0">
+        // Phase 1644: warn callout + keep gate while editing (do not clear on Edit listing).
+        <div className="mb-4" role="status" aria-live="polite">
+          <NoticeCallout title={`Complete these before publishing “${publishGate.title}”`} tone="warn">
+            <ul className="mt-1.5 list-disc list-inside space-y-0.5 text-xs">
+              {publishGate.blockers.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+            <div className="mt-3 flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={() => {
                   openSupplierListingEditor(publishGate.listingId);
-                  setPublishGate(null);
                 }}
                 className="tv-btn-primary"
               >
                 <Pencil className="w-4 h-4" />
                 Edit listing
               </button>
-              <button
-                type="button"
-                onClick={() => setPublishGate(null)}
-                className="tv-btn-ghost"
-              >
+              <button type="button" onClick={() => setPublishGate(null)} className="tv-btn-ghost">
                 Dismiss
               </button>
             </div>
-          </div>
+          </NoticeCallout>
         </div>
       )}
 
