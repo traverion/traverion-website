@@ -153,6 +153,9 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
     string,
     import('../data/supabase-discounts').ListingDiscount[]
   > | null>(null);
+  /** Offers map is only for this catalog id key — not a prior fetch while ids change (Packages 1472 parity). */
+  const [discountsLoadedForKey, setDiscountsLoadedForKey] = useState<string | null>(null);
+  const discountsLoadGenRef = useRef(0);
   const [reviewAggregates, setReviewAggregates] = useState<Map<string, { rating: number; count: number }>>(
     () => new Map()
   );
@@ -257,6 +260,8 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
   }, [draftWhere, draftCheckIn, draftCheckOut, draftGuests]);
 
   const stayIdsKey = useMemo(() => stays.map((s) => s.id).filter(isSupabaseListingId).join(','), [stays]);
+  const discountsForDisplayedCatalog =
+    discountsLoadedForKey === stayIdsKey ? discountsByListing : null;
 
   const occupancyBrowseKey = useMemo(() => {
     if (!dateFilterActive || !checkIn || !checkOut || !stayIdsKey) return '';
@@ -344,18 +349,27 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
     if (!isSupabaseConfigured() || !stayIdsKey) {
       setReviewAggregates(new Map());
       setDiscountsByListing(null);
+      setDiscountsLoadedForKey(null);
       return;
     }
     const ids = stayIdsKey.split(',');
+    const keyAtStart = stayIdsKey;
+    const gen = ++discountsLoadGenRef.current;
+    setDiscountsByListing(null);
+    setDiscountsLoadedForKey(null);
     let cancelled = false;
     // Phase 1194: decouple offers vs reviews (Home/Destination 1193 parity).
     void fetchDiscountsByListingIds(ids)
       .then((discounts) => {
-        if (!cancelled) setDiscountsByListing(discounts);
+        if (cancelled || gen !== discountsLoadGenRef.current) return;
+        setDiscountsByListing(discounts);
+        setDiscountsLoadedForKey(keyAtStart);
       })
       .catch(() => {
         // Phase 1151/1166: empty map → honest list From (not endless "Checking offers…").
-        if (!cancelled) setDiscountsByListing(new Map());
+        if (cancelled || gen !== discountsLoadGenRef.current) return;
+        setDiscountsByListing(new Map());
+        setDiscountsLoadedForKey(keyAtStart);
       });
     void getReviewAggregatesForListingIds(ids)
       .then((reviews) => {
@@ -959,7 +973,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
                   tour={item}
                   index={index}
                   onSelect={() => onStaySelect(item)}
-                  discountsByListing={discountsByListing}
+                  discountsByListing={discountsForDisplayedCatalog}
                   reviewAggregate={reviewAggregates.get(item.id)}
                   tagLabels={{}}
                   showTagPills={false}
