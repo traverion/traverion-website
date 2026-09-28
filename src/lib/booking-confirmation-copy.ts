@@ -433,6 +433,32 @@ export function paidConfirmationReceiptLine(listingKind?: string | null): string
     : BOOKING_CONFIRMED_PAID_RECEIPT_LINE;
 }
 
+/**
+ * Phase 1579: paid stay × nightly caption only when nights × nightly (+ cleaning)
+ * reconciles to amount_paid. Do not use 1564 occupancy nights for money copy when
+ * range was healed longer than the Stripe charge.
+ */
+export function stayConfirmationPaidNightlyBreakdown(params: {
+  amountPaid: number | null | undefined;
+  nightlyAmount: number | null | undefined;
+  cleaningFee?: number | null;
+  /** Prefer column/snapshot nights that reconcile; occupancy nights are last resort. */
+  candidateNights: Array<number | null | undefined>;
+}): { nights: number } | null {
+  const paid = Number(params.amountPaid);
+  const nightly = Number(params.nightlyAmount);
+  if (!Number.isFinite(paid) || paid < 0 || !Number.isFinite(nightly) || nightly <= 0) return null;
+  const cleaning = Number(params.cleaningFee ?? 0);
+  const cleaningOk = Number.isFinite(cleaning) && cleaning >= 0 ? cleaning : 0;
+  for (const raw of params.candidateNights) {
+    const nights = Math.floor(Number(raw ?? NaN));
+    if (!Number.isFinite(nights) || nights < 1) continue;
+    const expected = Math.round((nightly * nights + cleaningOk) * 100) / 100;
+    if (Math.abs(expected - paid) <= 0.02) return { nights };
+  }
+  return null;
+}
+
 /** Keep in sync with notify-customer-booking detail row label. */
 export function confirmationEmailListingLabel(listingKind?: string | null): string {
   return String(listingKind ?? '').trim().toLowerCase() === 'stay' ? 'Stay' : 'Tour';

@@ -29,6 +29,7 @@ import {
   displayStartTimeFromPurchase,
   displayDepartureTimezoneFromPurchase,
   formatTripDepartureWithTimezone,
+  type PurchaseSnapshot,
 } from '../lib/purchase-snapshot';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
 import {
@@ -44,6 +45,7 @@ import {
   TRAVELER_HOLD_EXPIRED_PAY_NOW_NOTE,
   TRAVELER_OPENING_CHECKOUT_CTA,
   TRAVELER_PAY_NOW_TEST_CTA,
+  stayConfirmationPaidNightlyBreakdown,
 } from '../lib/booking-confirmation-copy';
 import { formatBookingParticipantsLabel } from '../lib/participant-mix';
 import { formatBookingDateDisplay } from '../lib/booking-flow';
@@ -295,6 +297,20 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
   const cancelled = phase === 'cancelled';
   const payLabel = booking ? travelerPaymentLabel(booking) : '';
   const collected = booking ? bookingPaymentWasCollected(booking.payment_status) : false;
+  // Phase 1579: × nightly money copy only when it reconciles to amount_paid (range may be longer than charge).
+  const paidNightlyBreakdown =
+    stayCheckOut && booking && paidActive && booking.amount_paid != null && booking.nightly_amount != null
+      ? stayConfirmationPaidNightlyBreakdown({
+          amountPaid: booking.amount_paid,
+          nightlyAmount: booking.nightly_amount,
+          cleaningFee: booking.cleaning_fee,
+          candidateNights: [
+            booking.nights,
+            (booking.purchase_snapshot as PurchaseSnapshot | null | undefined)?.nights,
+            stayNights,
+          ],
+        })
+      : null;
   const stalledConfirming = confirmationStillWaitingAfterReconcile({
     phase,
     reconcileAttempted,
@@ -636,9 +652,9 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
 
               {collected && booking.amount_paid != null && (
                 <div className="rounded-xl bg-ink/[0.03] px-4 py-3.5 ring-1 ring-black/[0.05]">
-                  {stayCheckOut && stayNights != null && stayNights >= 1 && booking.nightly_amount != null && paidActive ? (
+                  {paidNightlyBreakdown ? (
                     <p className="text-sm text-ink-muted mb-1">
-                      {stayNights} night{stayNights === 1 ? '' : 's'} ×{' '}
+                      {paidNightlyBreakdown.nights} night{paidNightlyBreakdown.nights === 1 ? '' : 's'} ×{' '}
                       {formatMoney(Number(booking.nightly_amount), booking.currency)}
                       {booking.cleaning_fee != null && Number(booking.cleaning_fee) > 0
                         ? ` + ${formatMoney(Number(booking.cleaning_fee), booking.currency)} cleaning`

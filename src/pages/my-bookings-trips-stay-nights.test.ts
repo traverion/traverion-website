@@ -28,11 +28,15 @@ describe('Trips stay nights from purchased range (Phase 1551)', () => {
   });
 });
 
-describe('Confirmation paid breakdown nights (Phase 1551)', () => {
+describe('Confirmation paid breakdown nights (Phase 1579)', () => {
   const src = readFileSync(join(here, 'BookingConfirmationPage.tsx'), 'utf8');
 
-  it('uses stayNights from range for × nightly line', () => {
-    expect(src).toMatch(/stayNights != null && stayNights >= 1 && booking\.nightly_amount/);
-    expect(src).not.toMatch(/stayCheckOut && booking\.nights && booking\.nightly_amount/);
+  it('gates × nightly on stayConfirmationPaidNightlyBreakdown (not raw range nights)', () => {
+    expect(src).toContain('Phase 1579');
+    expect(src).toContain('stayConfirmationPaidNightlyBreakdown');
+    expect(src).toContain('paidNightlyBreakdown');
+    expect(src).not.toMatch(
+      /stayCheckOut && stayNights != null && stayNights >= 1 && booking\.nightly_amount != null && paidActive/
+    );
   });
 });

@@ -52,6 +52,7 @@ import {
   paidConfirmationReceiptLine,
   confirmationEmailListingLabel,
   paidConfirmationEmailMaySend,
+  stayConfirmationPaidNightlyBreakdown,
   BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE,
   PARTNER_MONEY_COLLECTED_TO_DATE_NOTE,
   PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE,
@@ -635,5 +636,40 @@ describe('booking confirmation copy', () => {
     });
     expect(unpaidNext.toLowerCase()).not.toContain('refund due');
     expect(unpaidNext.toLowerCase()).toContain('no payment was collected');
+  });
+});
+
+describe('stayConfirmationPaidNightlyBreakdown (Phase 1579)', () => {
+  it('prefers column nights that reconcile over longer occupancy nights', () => {
+    expect(
+      stayConfirmationPaidNightlyBreakdown({
+        amountPaid: 300,
+        nightlyAmount: 100,
+        cleaningFee: 0,
+        candidateNights: [3, 5],
+      })
+    ).toEqual({ nights: 3 });
+  });
+
+  it('returns null when no candidate reconciles to amount_paid', () => {
+    expect(
+      stayConfirmationPaidNightlyBreakdown({
+        amountPaid: 250,
+        nightlyAmount: 100,
+        cleaningFee: 0,
+        candidateNights: [3, 5],
+      })
+    ).toBeNull();
+  });
+
+  it('includes cleaning fee in reconciliation', () => {
+    expect(
+      stayConfirmationPaidNightlyBreakdown({
+        amountPaid: 350,
+        nightlyAmount: 100,
+        cleaningFee: 50,
+        candidateNights: [5, 3],
+      })
+    ).toEqual({ nights: 3 });
   });
 });
