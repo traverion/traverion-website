@@ -991,6 +991,14 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     if (next) url.searchParams.set('booking', next);
                     else url.searchParams.delete('booking');
                     window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+                    // Phase 1629: keep expanded trip details on-screen on mobile (Inbox parity).
+                    if (next) {
+                      window.requestAnimationFrame(() => {
+                        document
+                          .getElementById(`trip-panel-${next}`)
+                          ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                      });
+                    }
                   }}
                   className="lux-flat flex w-full items-start gap-3 p-3 sm:gap-3.5 sm:p-3.5 text-left"
                 >
