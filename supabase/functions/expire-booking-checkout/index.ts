@@ -4,6 +4,7 @@ import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
 import { unpaidCancelShouldExpireCheckout } from '../_shared/cancelled-booking-checkout.ts';
 import { isStripeTestSecretKey, stripeLiveSecretBlockedMessage } from '../_shared/stripe-test-only.ts';
 import { authUserVerifiedEmail } from '../_shared/auth-verified-email.ts';
+import { travelerOwnsCheckoutBooking } from '../_shared/booking-traveler-ownership.ts';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -69,12 +70,12 @@ serve(async (req) => {
     if (bookingErr) return json({ success: false, error: bookingErr.message }, 500);
     if (!booking) return json({ success: false, error: 'Booking not found' }, 404);
 
-    const ownerEmail = String(booking.guest_email ?? '')
-      .trim()
-      .toLowerCase();
-    const ownsByEmail = Boolean(email) && ownerEmail === email;
-    const ownsByUserId =
-      typeof booking.guest_user_id === 'string' && booking.guest_user_id === user.id;
+    const ownsAsTraveler = travelerOwnsCheckoutBooking({
+      authUserId: user.id,
+      verifiedEmail: email,
+      guestUserId: typeof booking.guest_user_id === 'string' ? booking.guest_user_id : null,
+      guestEmail: typeof booking.guest_email === 'string' ? booking.guest_email : null,
+    });
 
     let ownsAsSupplier = false;
     if (booking.listing_id) {
@@ -104,7 +105,7 @@ serve(async (req) => {
       }
     }
 
-    if (!ownsByEmail && !ownsByUserId && !ownsAsSupplier) {
+    if (!ownsAsTraveler && !ownsAsSupplier) {
       return json({ success: false, error: 'Not allowed to expire this checkout' }, 403);
     }
 

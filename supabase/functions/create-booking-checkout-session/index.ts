@@ -19,6 +19,10 @@ import { isStripeTestSecretKey, stripeLiveSecretBlockedMessage } from '../_share
 import { authUserVerifiedEmail } from '../_shared/auth-verified-email.ts';
 import { resolveCheckoutSiteUrl } from '../_shared/checkout-return-origin.ts';
 import { isMissingPostgresFunctionError } from '../_shared/checkout-inventory-conflict.ts';
+import {
+  travelerCheckoutIdentitySyncPatch,
+  travelerOwnsCheckoutBooking,
+} from '../_shared/booking-traveler-ownership.ts';
 
 type RequestBody = {
   bookingId?: string;
@@ -212,19 +216,27 @@ serve(async (req) => {
         row = fallback.data as Record<string, unknown> | null;
       }
       if (!row) return json({ success: false, error: 'Booking not found' }, 404);
-      const ownerEmail = (row.guest_email ?? '').trim().toLowerCase();
-      const ownsByEmail = ownerEmail.length > 0 && ownerEmail === email;
-      const ownsByUserId = typeof row.guest_user_id === 'string' && row.guest_user_id === user.id;
-      if (!ownsByEmail && !ownsByUserId) {
+      if (
+        !travelerOwnsCheckoutBooking({
+          authUserId: user.id,
+          verifiedEmail: email,
+          guestUserId: typeof row.guest_user_id === 'string' ? row.guest_user_id : null,
+          guestEmail: typeof row.guest_email === 'string' ? row.guest_email : null,
+        })
+      ) {
         return json({ success: false, error: 'You can only pay your own booking' }, 403);
       }
       if (email) {
-        const shouldSyncEmail = ownerEmail.length === 0 || ownerEmail !== email;
-        const shouldSyncUserId = !row.guest_user_id || String(row.guest_user_id) !== user.id;
-        if (shouldSyncEmail || shouldSyncUserId) {
+        const syncPatch = travelerCheckoutIdentitySyncPatch({
+          authUserId: user.id,
+          verifiedEmail: email,
+          guestUserId: typeof row.guest_user_id === 'string' ? row.guest_user_id : null,
+          guestEmail: typeof row.guest_email === 'string' ? row.guest_email : null,
+        });
+        if (syncPatch) {
           const { error: syncErr } = await admin
             .from('bookings')
-            .update({ guest_email: email, guest_user_id: user.id })
+            .update(syncPatch)
             .eq('id', targetBookingId);
           if (syncErr) return json({ success: false, error: syncErr.message }, 500);
         }

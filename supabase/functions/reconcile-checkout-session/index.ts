@@ -4,6 +4,7 @@ import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
 import { promotePaidFromCheckoutSession } from '../_shared/promote-paid-from-checkout.ts';
 import { isStripeTestSecretKey, stripeLiveSecretBlockedMessage } from '../_shared/stripe-test-only.ts';
 import { authUserVerifiedEmail } from '../_shared/auth-verified-email.ts';
+import { travelerOwnsCheckoutBooking } from '../_shared/booking-traveler-ownership.ts';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -64,13 +65,14 @@ serve(async (req) => {
     if (bookingErr) return json({ success: false, error: bookingErr.message }, 500);
     if (!booking) return json({ success: false, error: 'Booking not found for this checkout' }, 404);
 
-    const ownerEmail = String(booking.guest_email ?? '')
-      .trim()
-      .toLowerCase();
-    const ownsByEmail = Boolean(email) && ownerEmail === email;
-    const ownsByUserId =
-      typeof booking.guest_user_id === 'string' && booking.guest_user_id === user.id;
-    if (!ownsByEmail && !ownsByUserId) {
+    if (
+      !travelerOwnsCheckoutBooking({
+        authUserId: user.id,
+        verifiedEmail: email,
+        guestUserId: typeof booking.guest_user_id === 'string' ? booking.guest_user_id : null,
+        guestEmail: typeof booking.guest_email === 'string' ? booking.guest_email : null,
+      })
+    ) {
       return json({ success: false, error: 'Not allowed to reconcile this checkout' }, 403);
     }
 
