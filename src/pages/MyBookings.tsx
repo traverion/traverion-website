@@ -561,16 +561,25 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
             title="Log in to see your trips"
             body="Bookings are tied to your traveler account. You have not signed in, so there is nothing to show."
             action={
-              <button
-                type="button"
-                onClick={() => {
-                  window.history.pushState({}, '', travelerLoginHref('bookings'));
-                  onNavigate('auth');
-                }}
-                className="tv-btn-primary"
-              >
-                Log in
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.history.pushState({}, '', travelerLoginHref('bookings'));
+                    onNavigate('auth');
+                  }}
+                  className="tv-btn-primary"
+                >
+                  Log in
+                </button>
+                {/* Phase 1612: Wishlist parity — browse while logged out. */}
+                <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-ghost">
+                  Browse tours
+                </button>
+                <button type="button" onClick={() => onNavigate('stays')} className="tv-btn-ghost">
+                  Browse stays
+                </button>
+              </div>
             }
           />
           </section>
