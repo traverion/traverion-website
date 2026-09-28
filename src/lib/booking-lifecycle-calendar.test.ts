@@ -4,6 +4,7 @@ import {
   lifecycleBookingIsStay,
   lifecycleReminderAnchorYmd,
   lifecycleReviewCompletionYmd,
+  lifecycleStayCheckOutYmd,
   resolveLifecycleTimezone,
   shouldSendExperienceReminder,
   shouldSendReviewRequest,
@@ -133,6 +134,23 @@ describe('booking-lifecycle-calendar', () => {
     // Day after check-in — must NOT review (tour path would fire here).
     expect(shouldSendReviewRequest(stay, Date.parse('2026-09-10T21:30:00.000Z'))).toBe(false);
     expect(shouldSendReviewRequest(stay, Date.parse('2026-09-13T21:30:00.000Z'))).toBe(true);
+  });
+
+  it('Phase 1555: longer snapshot beats stale short nights for review completion', () => {
+    const stay = {
+      status: 'confirmed',
+      payment_status: 'paid',
+      booking_date: '2026-12-01',
+      check_out: null as string | null,
+      nights: 2,
+      purchase_snapshot: {
+        checkOut: '2026-12-05',
+        departureTimezone: 'Europe/Helsinki',
+        capturedAt: 't',
+      },
+    };
+    expect(lifecycleStayCheckOutYmd(stay)).toBe('2026-12-05');
+    expect(lifecycleReviewCompletionYmd(stay)).toBe('2026-12-05');
   });
 
   it('stay reminder is day before check-in', () => {

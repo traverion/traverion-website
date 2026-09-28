@@ -100,7 +100,7 @@ export function lifecycleBookingIsStay(b: LifecycleBookingRow): boolean {
 }
 
 /**
- * Stay check-out day: column → nights → snap (Phase 1524). Never notes-only check_out:.
+ * Stay check-out day: column → max(nights, snap) (Phase 1524/1554). Never notes-only.
  */
 export function lifecycleStayCheckOutYmd(b: LifecycleBookingRow): string | null {
   const checkIn = isoDay(b.booking_date);
@@ -108,11 +108,14 @@ export function lifecycleStayCheckOutYmd(b: LifecycleBookingRow): string | null 
   if (fromColumn && checkIn && fromColumn > checkIn) return fromColumn;
   if (fromColumn) return fromColumn;
   const nights = Math.floor(Number(b.nights ?? 0));
-  if (checkIn && Number.isFinite(nights) && nights >= 1) {
-    return addCalendarDaysYmd(checkIn, nights);
-  }
+  const fromNights =
+    checkIn && Number.isFinite(nights) && nights >= 1 ? addCalendarDaysYmd(checkIn, nights) : null;
   const fromSnap = isoDay(snapshotString(b.purchase_snapshot, 'checkOut'));
-  if (fromSnap && (!checkIn || fromSnap > checkIn)) return fromSnap;
+  const snapOk = fromSnap && (!checkIn || fromSnap > checkIn) ? fromSnap : null;
+  // Phase 1555: later of nights-derived vs snapshot when column missing (1554 parity).
+  if (fromNights && snapOk) return fromNights > snapOk ? fromNights : snapOk;
+  if (fromNights) return fromNights;
+  if (snapOk) return snapOk;
   return null;
 }
 
