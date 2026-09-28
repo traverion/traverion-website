@@ -1410,6 +1410,16 @@ export default function SupplierListings() {
                           Publish
                         </button>
                       ) : null}
+                      {/* Phase 1672: incomplete drafts get a primary continue Edit (gate already sets continue). */}
+                      {canEditListings && card.primaryCta === 'continue' ? (
+                        <button
+                          type="button"
+                          onClick={() => openSupplierListingEditor(listing.id)}
+                          className="lux-flat inline-flex min-h-11 items-center justify-center rounded-full bg-finland px-3.5 text-xs font-semibold text-white hover:bg-finland/90"
+                        >
+                          {card.primaryCtaLabel}
+                        </button>
+                      ) : null}
                       {isSupabase && canEditListings && card.primaryCta === 'verify' ? (
                         <button
                           type="button"
@@ -1430,7 +1440,7 @@ export default function SupplierListings() {
                           View
                         </a>
                       ) : null}
-                      {canEditListings ? (
+                      {canEditListings && card.primaryCta !== 'continue' ? (
                         <button
                           type="button"
                           onClick={() => openSupplierListingEditor(listing.id)}
