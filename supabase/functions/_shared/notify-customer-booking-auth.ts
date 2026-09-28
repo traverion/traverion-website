@@ -1,7 +1,9 @@
 /**
  * Mirror of src/lib/notify-customer-booking-auth.ts for Deno edge runtime.
- * Phase 1092: caller authorization for notify-customer-booking.
+ * Phase 1092 / 1349: bound guest_user_id blocks recycled-email party claims.
  */
+
+import { travelerOwnsCheckoutBooking } from './booking-traveler-ownership.ts';
 
 export function isServiceRoleBearer(
   authHeader: string | null | undefined,
@@ -22,17 +24,14 @@ export function bookingPartyAllowsCustomerNotify(params: {
   callerIsListingSupplier?: boolean;
   callerIsSupplierTeamMember?: boolean;
 }): boolean {
-  const uid = (params.callerUserId ?? '').trim();
-  const guestUid = (params.guestUserId ?? '').trim();
-  if (uid && guestUid && uid === guestUid) return true;
-
-  const email = (params.callerEmail ?? '').trim().toLowerCase();
-  const guestEmail = (params.guestEmail ?? '').trim().toLowerCase();
-  if (email && guestEmail && email === guestEmail) return true;
-
   if (params.callerIsListingSupplier) return true;
   if (params.callerIsSupplierTeamMember) return true;
-  return false;
+  return travelerOwnsCheckoutBooking({
+    authUserId: params.callerUserId ?? '',
+    verifiedEmail: params.callerEmail ?? '',
+    guestUserId: params.guestUserId,
+    guestEmail: params.guestEmail,
+  });
 }
 
 /**

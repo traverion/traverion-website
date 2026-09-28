@@ -1,7 +1,9 @@
 /**
  * Mirror of src/lib/notify-supplier-event-auth.ts for Deno edge runtime.
- * Phase 1093: caller authorization for notify-supplier-event.
+ * Phase 1093 / 1349: bound guest_user_id blocks recycled-email party claims.
  */
+
+import { travelerOwnsCheckoutBooking } from './booking-traveler-ownership.ts';
 
 export function isServiceRoleBearer(
   authHeader: string | null | undefined,
@@ -32,12 +34,16 @@ export function supplierEventPartyAllowsNotify(params: {
   if (uid && uid === listingSupplier) return true;
   if (params.callerIsTeamMember) return true;
 
-  const guestUid = (params.guestUserId ?? '').trim();
-  if (uid && guestUid && uid === guestUid) return true;
-
-  const email = (params.callerEmail ?? '').trim().toLowerCase();
-  const guestEmail = (params.guestEmail ?? '').trim().toLowerCase();
-  if (email && guestEmail && email === guestEmail) return true;
+  if (
+    travelerOwnsCheckoutBooking({
+      authUserId: uid,
+      verifiedEmail: params.callerEmail ?? '',
+      guestUserId: params.guestUserId,
+      guestEmail: params.guestEmail,
+    })
+  ) {
+    return true;
+  }
 
   const author = (params.reviewAuthorUserId ?? '').trim();
   if (uid && author && uid === author) return true;

@@ -54,6 +54,7 @@ describe('notify-supplier-event auth (Phase 1093)', () => {
         listingSupplierId: 'sup',
         claimedSupplierId: 'sup',
         guestEmail: 'g@x.com',
+        guestUserId: null,
       })
     ).toBe(true);
     expect(
@@ -64,6 +65,19 @@ describe('notify-supplier-event auth (Phase 1093)', () => {
         reviewAuthorUserId: 'author',
       })
     ).toBe(true);
+  });
+
+  it('Phase 1349: rejects recycled email when guest_user_id is bound', () => {
+    expect(
+      supplierEventPartyAllowsNotify({
+        callerUserId: 'attacker',
+        callerEmail: 'g@x.com',
+        listingSupplierId: 'sup',
+        claimedSupplierId: 'sup',
+        guestUserId: 'victim',
+        guestEmail: 'g@x.com',
+      })
+    ).toBe(false);
   });
 
   it('rejects anonymous and unrelated callers', () => {

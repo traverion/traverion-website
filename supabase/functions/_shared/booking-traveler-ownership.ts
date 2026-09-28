@@ -13,12 +13,11 @@ export function travelerOwnsCheckoutBooking(opts: {
   guestEmail: string | null | undefined;
 }): boolean {
   const authUserId = String(opts.authUserId ?? '').trim();
-  if (!authUserId) return false;
 
   const boundUid =
     typeof opts.guestUserId === 'string' ? opts.guestUserId.trim() : '';
   if (boundUid) {
-    return boundUid === authUserId;
+    return Boolean(authUserId) && boundUid === authUserId;
   }
 
   const ownerEmail = String(opts.guestEmail ?? '')

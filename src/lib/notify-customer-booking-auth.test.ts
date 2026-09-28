@@ -15,7 +15,7 @@ describe('notify-customer-booking auth (Phase 1092)', () => {
     expect(isServiceRoleBearer('Bearer secret-key', '')).toBe(false);
   });
 
-  it('allows the booking guest by user id or email', () => {
+  it('allows the booking guest by user id or unbound email', () => {
     expect(
       bookingPartyAllowsCustomerNotify({
         callerUserId: 'u1',
@@ -27,8 +27,20 @@ describe('notify-customer-booking auth (Phase 1092)', () => {
       bookingPartyAllowsCustomerNotify({
         callerEmail: 'A@B.com',
         guestEmail: 'a@b.com',
+        guestUserId: null,
       })
     ).toBe(true);
+  });
+
+  it('Phase 1349: rejects recycled email when guest_user_id is bound to someone else', () => {
+    expect(
+      bookingPartyAllowsCustomerNotify({
+        callerUserId: 'attacker',
+        callerEmail: 'a@b.com',
+        guestUserId: 'victim',
+        guestEmail: 'a@b.com',
+      })
+    ).toBe(false);
   });
 
   it('allows the listing supplier owner', () => {

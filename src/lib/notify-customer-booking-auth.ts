@@ -1,7 +1,10 @@
 /**
  * Phase 1092: caller authorization for notify-customer-booking.
  * verify_jwt is off; booking-tied kinds must still reject anonymous forgery.
+ * Phase 1349: guest email match only when guest_user_id is unbound.
  */
+
+import { travelerOwnsCheckoutBooking } from '../../supabase/functions/_shared/booking-traveler-ownership.ts';
 
 export function isServiceRoleBearer(
   authHeader: string | null | undefined,
@@ -26,17 +29,14 @@ export function bookingPartyAllowsCustomerNotify(params: {
   callerIsListingSupplier?: boolean;
   callerIsSupplierTeamMember?: boolean;
 }): boolean {
-  const uid = (params.callerUserId ?? '').trim();
-  const guestUid = (params.guestUserId ?? '').trim();
-  if (uid && guestUid && uid === guestUid) return true;
-
-  const email = (params.callerEmail ?? '').trim().toLowerCase();
-  const guestEmail = (params.guestEmail ?? '').trim().toLowerCase();
-  if (email && guestEmail && email === guestEmail) return true;
-
   if (params.callerIsListingSupplier) return true;
   if (params.callerIsSupplierTeamMember) return true;
-  return false;
+  return travelerOwnsCheckoutBooking({
+    authUserId: params.callerUserId ?? '',
+    verifiedEmail: params.callerEmail ?? '',
+    guestUserId: params.guestUserId,
+    guestEmail: params.guestEmail,
+  });
 }
 
 /**
