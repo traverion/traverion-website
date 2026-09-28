@@ -4,6 +4,7 @@ import {
   promotePaidRequiresAtomicAssertUpdate,
   paidPromotionShouldRefusePastDepartureCutoff,
   promotePaidAssertStartTimeHm,
+  promotePaidStayColumnBackfill,
 } from './promote-paid-checkout';
 
 describe('promotePaidCheckoutOutcome', () => {
@@ -90,5 +91,40 @@ describe('promotePaidAssertStartTimeHm', () => {
         resolvedCutoffStartTimeHm: '09:00',
       })
     ).toBe('14:00');
+  });
+});
+
+describe('promotePaidStayColumnBackfill', () => {
+  it('Phase 1542: snapshot-only stay gets check_out and nights', () => {
+    expect(
+      promotePaidStayColumnBackfill({
+        isStayNight: true,
+        existingCheckOut: null,
+        existingNights: null,
+        stayExclusiveCheckOut: '2026-12-05',
+        bookingDate: '2026-12-01',
+      })
+    ).toEqual({ check_out: '2026-12-05', nights: 4 });
+  });
+
+  it('Phase 1542: keeps existing columns; tours unchanged', () => {
+    expect(
+      promotePaidStayColumnBackfill({
+        isStayNight: true,
+        existingCheckOut: '2026-12-04',
+        existingNights: 3,
+        stayExclusiveCheckOut: '2026-12-10',
+        bookingDate: '2026-12-01',
+      })
+    ).toEqual({ check_out: '2026-12-04', nights: 3 });
+    expect(
+      promotePaidStayColumnBackfill({
+        isStayNight: false,
+        existingCheckOut: null,
+        existingNights: null,
+        stayExclusiveCheckOut: '2026-12-05',
+        bookingDate: '2026-12-01',
+      })
+    ).toEqual({ check_out: null, nights: null });
   });
 });

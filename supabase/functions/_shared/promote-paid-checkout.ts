@@ -100,3 +100,42 @@ export function promotePaidAssertStartTimeHm(params: {
   if (frozen) return frozen;
   return String(params.resolvedCutoffStartTimeHm ?? '').trim().slice(0, 5);
 }
+
+/**
+ * Phase 1542: paid promote backfills null stay check_out/nights from exclusive range.
+ * Tours leave columns unchanged. Existing column values win over resolved.
+ */
+export function promotePaidStayColumnBackfill(params: {
+  isStayNight: boolean;
+  existingCheckOut?: string | null;
+  existingNights?: number | null;
+  stayExclusiveCheckOut?: string | null;
+  bookingDate?: string | null;
+}): { check_out: string | null; nights: number | null } {
+  const existingOut = String(params.existingCheckOut ?? '').trim();
+  const existingNights = Math.floor(Number(params.existingNights ?? NaN));
+  const keepNights =
+    Number.isFinite(existingNights) && existingNights >= 1 ? existingNights : null;
+
+  if (!params.isStayNight) {
+    return {
+      check_out: /^\d{4}-\d{2}-\d{2}$/.test(existingOut) ? existingOut : null,
+      nights: keepNights,
+    };
+  }
+
+  const resolvedOut = /^\d{4}-\d{2}-\d{2}$/.test(existingOut)
+    ? existingOut
+    : String(params.stayExclusiveCheckOut ?? '').trim();
+  const checkOut = /^\d{4}-\d{2}-\d{2}$/.test(resolvedOut) ? resolvedOut : null;
+  if (keepNights != null) return { check_out: checkOut, nights: keepNights };
+
+  const checkIn = String(params.bookingDate ?? '').trim();
+  if (checkOut && /^\d{4}-\d{2}-\d{2}$/.test(checkIn) && checkOut > checkIn) {
+    const nights = Math.round(
+      (Date.parse(`${checkOut}T12:00:00Z`) - Date.parse(`${checkIn}T12:00:00Z`)) / 86400000
+    );
+    return { check_out: checkOut, nights: nights >= 1 ? nights : null };
+  }
+  return { check_out: checkOut, nights: null };
+}
