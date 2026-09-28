@@ -39,6 +39,13 @@ export type PartnerMoneyLedgerCsvInput = {
 export type PartnerMoneyRefundDueCsvInput = MoneyBookingRow & {
   id: string;
   booking_number?: number | null;
+  booking_date?: string | null;
+  check_out?: string | null;
+  nights?: number | null;
+  purchase_snapshot?: unknown;
+  guest_name?: string | null;
+  listing_title?: string | null;
+  checkout_session_id?: string | null;
 };
 
 export type PartnerMoneyCollectedCsvInput = MoneyBookingRow & {
@@ -100,6 +107,14 @@ export function buildPartnerMoneyCsvRows(input: {
     ]);
   }
   for (const b of input.refundDue) {
+    // Phase 1577: Refund due detail includes who + purchased stay range (1575 collected parity).
+    const who = (b.listing_title ?? b.guest_name ?? 'Guest').trim() || 'Guest';
+    const detailBits = [
+      who,
+      partnerMoneyCollectedDateLine(b),
+      isStripeTestCheckoutSession(b.checkout_session_id) ? 'Stripe TEST' : '',
+      'Not in Collected — Traverion does not send Stripe refunds automatically',
+    ].filter(Boolean);
     rows.push([
       'refund_due',
       '',
@@ -109,7 +124,7 @@ export function buildPartnerMoneyCsvRows(input: {
       b.amount_paid != null ? String(b.amount_paid) : '',
       b.currency ?? '',
       partnerPaymentLabel(b),
-      'Not in Collected — Traverion does not send Stripe refunds automatically',
+      detailBits.join(' · '),
       '',
     ]);
   }

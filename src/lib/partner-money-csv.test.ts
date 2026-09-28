@@ -52,6 +52,33 @@ describe('partner money CSV', () => {
     expect(rows[2]![7]).toBe('Cancellation fee');
   });
 
+  it('Phase 1577: refund_due detail includes exclusive stay range like collected', () => {
+    const rows = buildPartnerMoneyCsvRows({
+      payouts: [],
+      refundDue: [
+        {
+          id: 'rd1',
+          booking_number: 9,
+          status: 'cancelled',
+          payment_status: 'paid',
+          amount_paid: 400,
+          currency: 'EUR',
+          booking_date: '2026-12-01',
+          check_out: '2026-12-03',
+          nights: 2,
+          purchase_snapshot: { checkOut: '2026-12-06' },
+          guest_name: 'Mira',
+          listing_title: 'Cabin',
+        },
+      ],
+      ledger: [],
+      ledgerKindLabel: (k) => k,
+    });
+    expect(rows[0]![0]).toBe('refund_due');
+    expect(rows[0]![8]).toContain('2026-12-01 → 2026-12-06');
+    expect(rows[0]![8].toLowerCase()).toContain('does not send stripe refunds automatically');
+  });
+
   it('exports collected bookings when payout periods are empty so Export matches the UI list', () => {
     expect(
       partnerMoneyCsvHasExportableRows({

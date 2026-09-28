@@ -326,7 +326,15 @@ export default function SupplierEarnings() {
     }
     const body = buildPartnerMoneyCsvRows({
       payouts: filteredEarningsInWindow,
-      refundDue: refundDueBookingsInWindow,
+      refundDue: refundDueBookingsInWindow.map((b) => ({
+        ...b,
+        listing_title:
+          displayListingTitleFromPurchase(
+            b.purchase_snapshot,
+            listingTitles[b.listing_id],
+            ''
+          ) || null,
+      })),
       collected: collectedForExport,
       ledger: ledgerInWindow,
       ledgerKindLabel,
