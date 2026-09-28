@@ -146,7 +146,14 @@ export default function SupplierListings() {
   const editorSessionTokenRef = useRef<string | null>(null);
   const loadGenRef = useRef(0);
   const profileGateGenRef = useRef(0);
+  const deactivateUpcomingGenRef = useRef(0);
+  const deleteUpcomingGenRef = useRef(0);
+  const listingPendingDeactivateRef = useRef<TourPackage | null>(null);
+  const listingPendingDeleteRef = useRef<TourPackage | null>(null);
   const listingsHubUserIdRef = useRef<string | null>(null);
+
+  listingPendingDeactivateRef.current = listingPendingDeactivate;
+  listingPendingDeleteRef.current = listingPendingDelete;
 
   const bumpEditorInstanceIfOpening = useCallback(() => {
     if (!showFormRef.current) setEditorInstanceKey((n) => n + 1);
@@ -158,6 +165,7 @@ export default function SupplierListings() {
   useDialogFocus(showCreateChooser, createChooserRef, closeCreateChooser);
   useDialogFocus(listingPendingDelete !== null, deleteSheetRef, () => {
     if (!deleteBusy) {
+      deleteUpcomingGenRef.current += 1;
       setListingPendingDelete(null);
       setDeleteUpcomingPaid(null);
       setDeleteUpcomingPaidCheckFailed(false);
@@ -165,6 +173,7 @@ export default function SupplierListings() {
   });
   useDialogFocus(listingPendingDeactivate !== null, deactivateSheetRef, () => {
     if (!deactivateBusy) {
+      deactivateUpcomingGenRef.current += 1;
       setListingPendingDeactivate(null);
       setDeactivateUpcomingPaid(null);
       setDeactivateUpcomingPaidCheckFailed(false);
@@ -472,6 +481,8 @@ export default function SupplierListings() {
       setError(null);
       setListingActionsMenuId(null);
       setListingActionsMenuBox(null);
+      deactivateUpcomingGenRef.current += 1;
+      deleteUpcomingGenRef.current += 1;
       setListingPendingDelete(null);
       setDeleteUpcomingPaid(null);
       setDeleteUpcomingPaidCheckFailed(false);
@@ -1532,12 +1543,18 @@ export default function SupplierListings() {
                       setDeactivateUpcomingPaidCheckFailed(false);
                       if (isSupabase && user?.id) {
                         const listingId = menuListing.id;
+                        const gen = ++deactivateUpcomingGenRef.current;
                         void fetchBookingsForSupplier(user.id)
                           .then((rows) => {
+                            // Phase 1489: stale fetch must not paint another listing's upcoming-paid count.
+                            if (gen !== deactivateUpcomingGenRef.current) return;
+                            if (listingPendingDeactivateRef.current?.id !== listingId) return;
                             setDeactivateUpcomingPaidCheckFailed(false);
                             setDeactivateUpcomingPaid(countUpcomingPaidTripsForListing(rows, listingId));
                           })
                           .catch(() => {
+                            if (gen !== deactivateUpcomingGenRef.current) return;
+                            if (listingPendingDeactivateRef.current?.id !== listingId) return;
                             // Phase 1471: fetch failure ≠ zero upcoming paid trips.
                             setDeactivateUpcomingPaid(null);
                             setDeactivateUpcomingPaidCheckFailed(true);
@@ -1560,12 +1577,18 @@ export default function SupplierListings() {
                     setDeleteUpcomingPaidCheckFailed(false);
                     if (isSupabase && user?.id) {
                       const listingId = menuListing.id;
+                      const gen = ++deleteUpcomingGenRef.current;
                       void fetchBookingsForSupplier(user.id)
                         .then((rows) => {
+                          // Phase 1489: stale fetch must not paint another listing's upcoming-paid count.
+                          if (gen !== deleteUpcomingGenRef.current) return;
+                          if (listingPendingDeleteRef.current?.id !== listingId) return;
                           setDeleteUpcomingPaidCheckFailed(false);
                           setDeleteUpcomingPaid(countUpcomingPaidTripsForListing(rows, listingId));
                         })
                         .catch(() => {
+                          if (gen !== deleteUpcomingGenRef.current) return;
+                          if (listingPendingDeleteRef.current?.id !== listingId) return;
                           // Phase 1471: fetch failure ≠ zero upcoming paid trips.
                           setDeleteUpcomingPaid(null);
                           setDeleteUpcomingPaidCheckFailed(true);
