@@ -30,6 +30,14 @@ interface WishlistPageProps {
 /** Layer C: named Saved region (MyBookings Trips landmark parity). */
 const WISHLIST_HEADING_ID = 'wishlist-heading';
 
+// Phase 1607: same marketplace tag labels as Home / Packages / Destination.
+const TAG_LABELS: Record<string, string> = {
+  'free-cancellation': 'Free cancellation',
+  'small-group': 'Small group',
+  'pickup-available': 'Pickup available',
+  'mobile-ticket': 'Mobile ticket',
+};
+
 export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageProps) {
   const { user, loading: authLoading } = useAuth();
   const [listings, setListings] = useState<TourPackage[]>([]);
@@ -304,8 +312,9 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
                   onSelect={() => onTourSelect(tour)}
                   discountsByListing={discountsForWishlistCatalog}
                   reviewAggregate={reviewAggregates.get(tour.id)}
-                  tagLabels={{}}
+                  tagLabels={TAG_LABELS}
                   size="compact"
+                  showTagPills
                   wishlist={{
                     saved: true,
                     onToggle: () => void handleRemove(tour.id),
