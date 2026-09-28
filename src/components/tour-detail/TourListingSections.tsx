@@ -152,7 +152,16 @@ export default function TourListingSections({
             ) : null}
           </div>
         </section>
-      ) : null}
+      ) : (
+        // Phase 1603: empty inclusions — do not vanish; travelers need an honest signal.
+        <section className={sectionClass}>
+          <h2 className={headingClass}>What’s included</h2>
+          <p className="max-w-2xl text-[15px] leading-relaxed text-ink-muted">
+            This operator has not listed inclusions yet. Confirm details with them after booking, or check your
+            confirmation.
+          </p>
+        </section>
+      )}
 
       {pickup.visible ? (
         <section className={sectionClass}>
