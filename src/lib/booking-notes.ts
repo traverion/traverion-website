@@ -13,6 +13,40 @@ export function guestFacingBookingNotes(raw: string | null | undefined): string 
     .trim();
 }
 
+/**
+ * Phase 1522: client phone/notes must not plant machine keys (check_out:, meeting_point:, …)
+ * that flip tour→stay cancel windows or partner Pickup copy. Only server may append those lines.
+ */
+export function sanitizeCheckoutGuestPhone(raw: string | null | undefined): string {
+  return guestFacingBookingNotes(raw)
+    .replace(/\n+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 80);
+}
+
+export function buildCheckoutClaimSpecialRequests(params: {
+  customerPhone?: string | null;
+  specialRequests?: string | null;
+  /** Server-derived option id only. */
+  optionId?: string | null;
+  /** Server-derived stay check-out ISO date only. */
+  checkOutDate?: string | null;
+}): string | null {
+  const phone = sanitizeCheckoutGuestPhone(params.customerPhone);
+  const guestNotes = guestFacingBookingNotes(params.specialRequests);
+  const optionId = (params.optionId ?? '').trim();
+  const checkOut = (params.checkOutDate ?? '').trim();
+  const parts = [
+    phone ? `Guest phone: ${phone}` : '',
+    guestNotes,
+    optionId ? `booking_option_id: ${optionId}` : '',
+    /^\d{4}-\d{2}-\d{2}$/.test(checkOut) ? `check_out: ${checkOut}` : '',
+  ].filter(Boolean);
+  const joined = parts.join('\n\n').trim();
+  return joined.length > 0 ? joined : null;
+}
+
 function readKeyedNoteLine(notes: string | null | undefined, key: string): string | null {
   if (!notes) return null;
   const re = new RegExp(`^${key}\\s*:\\s*(.+)$`, 'i');

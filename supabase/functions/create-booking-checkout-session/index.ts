@@ -23,6 +23,7 @@ import {
   travelerCheckoutIdentitySyncPatch,
   travelerOwnsCheckoutBooking,
 } from '../_shared/booking-traveler-ownership.ts';
+import { buildCheckoutClaimSpecialRequests } from '../_shared/booking-notes.ts';
 
 type RequestBody = {
   bookingId?: string;
@@ -646,12 +647,14 @@ serve(async (req) => {
     const currency = quote.currency;
     const holdExpiresAtUnix = Math.floor(Date.now() / 1000) + 30 * 60;
     const holdExpiresAtIso = new Date(holdExpiresAtUnix * 1000).toISOString();
-    const notesParts = [
-      customerPhone ? `Guest phone: ${customerPhone}` : '',
+    // Phase 1522: strip client-planted machine keys (check_out:, meeting_point:, …)
+    // before claim; only server-derived optionId / checkoutDate may append those lines.
+    const claimSpecialRequests = buildCheckoutClaimSpecialRequests({
+      customerPhone,
       specialRequests,
-      quote.optionId ? `booking_option_id: ${quote.optionId}` : '',
-      checkoutDate ? `check_out: ${checkoutDate}` : '',
-    ].filter(Boolean);
+      optionId: quote.optionId,
+      checkOutDate: checkoutDate || null,
+    });
 
     if (!targetBookingId) {
       const stayNights =
@@ -667,7 +670,7 @@ serve(async (req) => {
         p_guests: guests,
         p_booking_date: bookingDate,
         p_check_out: extrasFamily === 'stay' && checkoutDate ? checkoutDate : null,
-        p_special_requests: notesParts.join('\n\n') || null,
+        p_special_requests: claimSpecialRequests,
         p_total_amount: totalAmount,
         p_currency: currency,
         p_guest_user_id: user.id,

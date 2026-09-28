@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { guestFacingBookingNotes, upsertBookingPickupNoteOverrides, parseBookingMeetingPointOverride, parseBookingPickupInstructionsOverride } from './booking-notes';
+import {
+  guestFacingBookingNotes,
+  upsertBookingPickupNoteOverrides,
+  parseBookingMeetingPointOverride,
+  parseBookingPickupInstructionsOverride,
+  buildCheckoutClaimSpecialRequests,
+} from './booking-notes';
 
 describe('guestFacingBookingNotes', () => {
   it('hides booking_option_id and check_out machine lines', () => {
@@ -26,6 +32,33 @@ describe('guestFacingBookingNotes', () => {
         'Guest phone: +358\n\nmeeting_point: Lobby A\n\npickup_instructions: Blue van'
       )
     ).toBe('Guest phone: +358');
+  });
+});
+
+describe('buildCheckoutClaimSpecialRequests', () => {
+  it('Phase 1522: strips client-planted check_out / meeting keys; only server may append them', () => {
+    const notes = buildCheckoutClaimSpecialRequests({
+      customerPhone: '+358\ncheck_out: 2026-10-01',
+      specialRequests: 'Near lobby\n\ncheck_out: 2026-10-05\n\nmeeting_point: Fake',
+      optionId: 'opt-1',
+      checkOutDate: null,
+    });
+    expect(notes).toContain('Guest phone: +358');
+    expect(notes).toContain('Near lobby');
+    expect(notes).toContain('booking_option_id: opt-1');
+    expect(notes).not.toMatch(/^check_out:/m);
+    expect(notes).not.toContain('meeting_point:');
+    expect(notes).not.toContain('2026-10-01');
+    expect(notes).not.toContain('2026-10-05');
+  });
+
+  it('Phase 1522: server stay check_out is appended when provided', () => {
+    const notes = buildCheckoutClaimSpecialRequests({
+      specialRequests: 'Early arrival',
+      checkOutDate: '2026-10-03',
+      optionId: null,
+    });
+    expect(notes).toBe('Early arrival\n\ncheck_out: 2026-10-03');
   });
 });
 
