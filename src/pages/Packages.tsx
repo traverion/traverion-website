@@ -60,6 +60,7 @@ import {
   parseRatingFilterId,
   RATING_FILTER_CHIPS,
   tourMatchesCatalogFilters,
+  toursBrowseFilteredEmptyBody,
   type DurationFilterId,
   type MarketplaceSortOption,
   type PriceChipId,
@@ -1163,7 +1164,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
                 body={
                   emptyDueToSoldOutDate
                     ? 'Tours that match your other filters are sold out or do not have enough spots left for your party. Try another date or fewer guests.'
-                    : 'Nothing fits this search. Try another place, date, or clear filters to see live tours again.'
+                    : toursBrowseFilteredEmptyBody(searchTerm.trim() !== '')
                 }
                 action={
                   hasActiveFilters ? (

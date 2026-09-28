@@ -11,6 +11,7 @@ import {
   matchesRatingFilter,
   nextStayDatePatch,
   failCloseOrphanStayCheckout,
+  toursBrowseFilteredEmptyBody,
   marketplaceFamilySwitchPath,
   marketplaceSearchMinSelectableIso,
   marketplaceWhereDisplay,
@@ -353,6 +354,12 @@ describe('marketplace browse filters', () => {
       date: '',
       checkout: '',
     });
+  });
+
+  it('tours browse empty body distinguishes text search from chip-only filters', () => {
+    expect(toursBrowseFilteredEmptyBody(true)).toContain('this search');
+    expect(toursBrowseFilteredEmptyBody(false)).toContain('these filters');
+    expect(toursBrowseFilteredEmptyBody(false)).not.toContain('this search');
   });
 
   it('fail-closes orphan or inverted stay check-out (Home / PDP / login return parity)', () => {

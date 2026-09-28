@@ -305,6 +305,14 @@ export function failCloseOrphanStayCheckout(
   return { checkIn: inVal, checkOut: outVal };
 }
 
+/** Layer B: chip/URL filters without `q` must not claim an empty text search failed. */
+export function toursBrowseFilteredEmptyBody(hasTextSearch: boolean): string {
+  if (hasTextSearch) {
+    return 'Nothing fits this search. Try another place, date, or clear filters to see live tours again.';
+  }
+  return 'Nothing matches these filters. Try another place, date, or clear filters to see live tours again.';
+}
+
 export function catalogSharedCurrency(listings: TourPackage[], normalizeCurrency: (raw?: string) => string): string | null {
   if (listings.length === 0) return null;
   const codes = new Set(listings.map((t) => normalizeCurrency(t.price?.currency)));
