@@ -17,11 +17,12 @@ export default function Cookies({ onNavigate }: CookiesProps) {
       onNavigate={onNavigate}
       toc={[
         { id: 'what', label: 'What are cookies?' },
-        { id: 'how', label: 'How we use them' },
+        // Phase 1640: TOC labels match section headings for predictable in-page nav.
+        { id: 'how', label: 'How we use cookies' },
         { id: 'preferences', label: 'Preference center' },
         { id: 'managing', label: 'Managing cookies' },
-        { id: 'third-party', label: 'Third parties' },
-        { id: 'contact', label: 'Contact' },
+        { id: 'third-party', label: 'Third-party tools & retention' },
+        { id: 'contact', label: 'Contact us' },
       ]}
     >
       <section>
