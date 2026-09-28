@@ -1,7 +1,7 @@
 /**
  * Supplier: view all reviews for my listings and reply.
  */
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
 import { Star, MessageSquare, Check } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import {
@@ -57,6 +57,7 @@ export default function SupplierReviews() {
   const [filterReply, setFilterReply] = useState<'all' | 'unreplied' | 'replied'>('all');
   const [editingReplyIds, setEditingReplyIds] = useState<Set<string>>(new Set());
   const loadGenRef = useRef(0);
+  const reviewsHubUserIdRef = useRef<string | null>(null);
 
   const load = useCallback(async () => {
     const uid = user?.id;
@@ -95,6 +96,31 @@ export default function SupplierReviews() {
       if (gen === loadGenRef.current) setLoading(false);
     }
   }, [isSupabase, user?.id]);
+
+  // Phase 1476 + layout: clear prior partner reviews before paint on account switch (Bookings 1384 parity).
+  useLayoutEffect(() => {
+    const clearReviewsPartnerWorkspace = () => {
+      setReviews([]);
+      setReplies({});
+      setReplyText({});
+      setReplyingId(null);
+      setEditingReplyIds(new Set());
+      setError(null);
+      setReplyError(null);
+    };
+    if (!user?.id) {
+      reviewsHubUserIdRef.current = null;
+      loadGenRef.current += 1;
+      clearReviewsPartnerWorkspace();
+      setLoading(false);
+      return;
+    }
+    if (reviewsHubUserIdRef.current !== user.id) {
+      reviewsHubUserIdRef.current = user.id;
+      loadGenRef.current += 1;
+      clearReviewsPartnerWorkspace();
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     load();

@@ -18,4 +18,14 @@ describe('SupplierReviews load honesty (Phase 1475)', () => {
       /fetchReviewsForSupplierListings\(uid\);\s*\n\s*setReviews\(list\);/
     );
   });
+
+  it('clears prior partner review PII before paint on account switch', () => {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const src = readFileSync(join(here, 'SupplierReviews.tsx'), 'utf8');
+    expect(src).toMatch(/useLayoutEffect/);
+    expect(src).toMatch(/reviewsHubUserIdRef/);
+    expect(src).toMatch(/clear prior partner reviews before paint on account switch/);
+    expect(src).toMatch(/setReviews\(\[\]\)/);
+    expect(src).toMatch(/setReplies\(\{\}\)/);
+  });
 });
