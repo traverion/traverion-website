@@ -225,7 +225,15 @@ export default function SupplierDashboard() {
       try {
         const reqs = await fetchCancellationRequestsForBookings(ids);
         if (gen !== dashboardLoadGenRef.current) return;
-        setOpenCancels(reqs.filter((r) => r.status === 'requested'));
+        const bookingById = Object.fromEntries(settled[1].value.map((b) => [b.id, b]));
+        setOpenCancels(
+          reqs.filter((r) => {
+            if (r.status !== 'requested') return false;
+            const booking = bookingById[r.booking_id];
+            if (!booking) return true;
+            return (booking.status ?? '').trim().toLowerCase() !== 'cancelled';
+          })
+        );
       } catch {
         // Keep prior openCancels — failure must not look like zero open cancels.
         setCancelRequestsError(USER_ERROR.bookings);

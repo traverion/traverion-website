@@ -27,6 +27,7 @@ import { formatBookingParticipantsLabel } from '../lib/participant-mix';
 import { formatBookingDateDisplay } from '../lib/booking-flow';
 import { bookingLifecycleLabel } from '../lib/status-language';
 import { travelerSelfCancelRefundChoice, supplierCancellationReasonLabel, travelerSelfCancelBlock, travelerSelfCancelError, travelerSelfCancelIsUnpaidCheckout } from '../lib/cancellation-policy';
+import { openHostCancelRequestVisible } from '../lib/host-cancel-request-visibility';
 import {
   messagingComposeBlock,
   fetchCancellationRequestsForBookings,
@@ -845,7 +846,15 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               });
               const payLabel = travelerPaymentLabel(b);
               const guestNotes = guestFacingBookingNotes(b.special_requests);
-              const openCancel = cancelRequests[b.id];
+              const openCancelRaw = cancelRequests[b.id];
+              const openCancel =
+                openCancelRaw &&
+                openHostCancelRequestVisible({
+                  bookingStatus: b.status,
+                  requestStatus: openCancelRaw.status,
+                })
+                  ? openCancelRaw
+                  : undefined;
               const isStay = bookingIsStayNight(b);
               const ops = listingOps[b.listing_id];
               const tripTitle = displayListingTitleFromPurchase(

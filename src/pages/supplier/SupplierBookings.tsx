@@ -28,6 +28,7 @@ import {
   supplierCancellationFeeEur,
   supplierCancellationReasonLabel,
 } from '../../lib/cancellation-policy';
+import { openHostCancelRequestVisible } from '../../lib/host-cancel-request-visibility';
 import {
   bookingAllowsMessaging,
   messagingComposeBlock,
@@ -475,7 +476,13 @@ export default function SupplierBookings({
           return false;
       }
       if (opsFilter === 'cancel') {
-        if (!openCancels[b.id]) return false;
+        if (
+          !openHostCancelRequestVisible({
+            bookingStatus: b.status,
+            requestStatus: openCancels[b.id]?.status,
+          })
+        )
+          return false;
       }
       if (opsFilter === 'refund_due') {
         if (!isRefundDueBooking(b)) return false;
@@ -1028,7 +1035,15 @@ export default function SupplierBookings({
                 rowPickupInstructions,
                 isPurchaseSnapshot(booking.purchase_snapshot) ? null : meta?.bookingOptions
               );
-              const openCancel = openCancels[booking.id];
+              const openCancelRaw = openCancels[booking.id];
+              const openCancel =
+                openCancelRaw &&
+                openHostCancelRequestVisible({
+                  bookingStatus: booking.status,
+                  requestStatus: openCancelRaw.status,
+                })
+                  ? openCancelRaw
+                  : undefined;
               const pay = (booking.payment_status ?? '').trim().toLowerCase();
               const statusAccent =
                 openCancel || pickupGap || needsAck
@@ -1496,7 +1511,7 @@ export default function SupplierBookings({
                       ) : null}
                       <button
                         type="button"
-                        disabled={busy || Boolean(openCancels[booking.id])}
+                        disabled={busy || Boolean(openCancel)}
                         onClick={() => {
                           setCancelError(null);
                           setCancelReasonText('');
@@ -1506,12 +1521,13 @@ export default function SupplierBookings({
                         className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
                       >
                         <Trash2 className="h-4 w-4" aria-hidden />
-                        {openCancels[booking.id] ? 'Awaiting traveler' : 'Request cancellation'}
+                        {openCancel ? 'Awaiting traveler' : 'Request cancellation'}
                       </button>
                     </div>
                   ) : null}
                   {canEditBookings && partnerBookingIsUnpaidCheckout(booking) ? (
                     <div className="flex flex-wrap gap-2 pt-1">
+
                       <NoticeCallout
                         title={
                           partnerUnpaidCheckoutHoldsInventory(booking)
@@ -1540,23 +1556,23 @@ export default function SupplierBookings({
                       </button>
                     </div>
                   ) : null}
-                  {openCancels[booking.id] ? (
+                  {openCancel ? (
                     <NoticeCallout
                       title={
-                        openCancels[booking.id]!.expires_at &&
-                        new Date(openCancels[booking.id]!.expires_at!).getTime() < Date.now()
+                        openCancel.expires_at &&
+                        new Date(openCancel.expires_at).getTime() < Date.now()
                           ? 'Review window passed — still waiting'
                           : 'Waiting for the traveler'
                       }
                       tone="warn"
                     >
                       Requested{' '}
-                      {new Date(openCancels[booking.id]!.created_at).toLocaleString(undefined, {
+                      {new Date(openCancel.created_at).toLocaleString(undefined, {
                         dateStyle: 'medium',
                         timeStyle: 'short',
                       })}
-                      {openCancels[booking.id]!.expires_at
-                        ? ` · noted until ${new Date(openCancels[booking.id]!.expires_at!).toLocaleString(undefined, {
+                      {openCancel.expires_at
+                        ? ` · noted until ${new Date(openCancel.expires_at).toLocaleString(undefined, {
                             dateStyle: 'medium',
                             timeStyle: 'short',
                           })}`
@@ -1606,10 +1622,10 @@ export default function SupplierBookings({
                         </li>
                       ) : null}
                       {pickupHm && !isStay ? <li>Pickup set · {pickupHm}</li> : null}
-                      {openCancels[booking.id] ? (
+                      {openCancel ? (
                         <li>
                           Cancellation requested{' '}
-                          {new Date(openCancels[booking.id]!.created_at).toLocaleString(undefined, {
+                          {new Date(openCancel.created_at).toLocaleString(undefined, {
                             dateStyle: 'medium',
                             timeStyle: 'short',
                           })}
@@ -1626,13 +1642,13 @@ export default function SupplierBookings({
                     canCompose={bookingAllowsMessaging({
                       status: booking.status,
                       payment_status: booking.payment_status,
-                      openCancellation: Boolean(openCancels[booking.id]),
+                      openCancellation: Boolean(openCancel),
                     })}
                     composeBlock={
                       messagingComposeBlock({
                         status: booking.status,
                         payment_status: booking.payment_status,
-                        openCancellation: Boolean(openCancels[booking.id]),
+                        openCancellation: Boolean(openCancel),
                       }) === 'closed'
                         ? 'closed'
                         : 'unpaid'
