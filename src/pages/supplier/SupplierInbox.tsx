@@ -378,7 +378,7 @@ export default function SupplierInbox() {
             : `Messages about paid bookings. Closed and Refund due trips stay here if they already have a thread. ${PARTNER_INBOX_MESSAGE_DELIVERY_NOTE}`
         }
       />
-      {threads.length > 0 && !loading ? (
+      {threads.length > 0 ? (
         <div className="mb-4 flex flex-wrap gap-1.5" role="tablist" aria-label="Inbox filter">
           <button
             type="button"
@@ -447,7 +447,7 @@ export default function SupplierInbox() {
           </button>
         </NoticeCallout>
       ) : null}
-      {loading ? (
+      {loading && threads.length === 0 ? (
         <SupplierListSkeleton rows={4} />
       ) : threads.length === 0 ? (
         error ? null : (
@@ -474,7 +474,10 @@ export default function SupplierInbox() {
           }
         />
       ) : (
-        <ul className="divide-y divide-slate-100 rounded-lg bg-white ring-1 ring-slate-200/90 overflow-hidden">
+        <ul
+          className="divide-y divide-slate-100 rounded-lg bg-white ring-1 ring-slate-200/90 overflow-hidden"
+          aria-busy={loading || undefined}
+        >
           {visibleThreads.map((b) => {
             const open = openId === b.id;
             const last = lastByBooking[b.id];
