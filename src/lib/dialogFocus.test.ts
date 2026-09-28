@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { contrastRatio, tabWrapTarget } from './dialogFocus';
+import { contrastRatio, shouldRestoreFocusAfterDialogClose, tabWrapTarget } from './dialogFocus';
 
 describe('tabWrapTarget', () => {
   it('wraps from last to first on Tab', () => {
@@ -48,6 +48,28 @@ describe('tabWrapTarget', () => {
         activeOutside: true,
       }),
     ).toBe('first');
+  });
+});
+
+describe('shouldRestoreFocusAfterDialogClose', () => {
+  it('restores when focus is still inside the closing surface or lost entirely', () => {
+    const previous = { tagName: 'BUTTON' } as HTMLElement;
+    const inside = { tagName: 'BUTTON' } as HTMLElement;
+    const root = { contains: (node: Node) => node === inside } as unknown as HTMLElement;
+    expect(shouldRestoreFocusAfterDialogClose(previous, root, inside)).toBe(true);
+    expect(shouldRestoreFocusAfterDialogClose(previous, root, null)).toBe(true);
+  });
+
+  it('does not restore when the user already focused another control', () => {
+    const previous = { tagName: 'BUTTON' } as HTMLElement;
+    const elsewhere = { tagName: 'INPUT' } as HTMLElement;
+    const root = { contains: () => false } as unknown as HTMLElement;
+    expect(shouldRestoreFocusAfterDialogClose(previous, root, elsewhere)).toBe(false);
+  });
+
+  it('does not restore when focus is already on the trigger', () => {
+    const previous = { tagName: 'BUTTON' } as HTMLElement;
+    expect(shouldRestoreFocusAfterDialogClose(previous, null, previous)).toBe(false);
   });
 });
 

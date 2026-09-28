@@ -1,5 +1,5 @@
 import { useEffect, useRef, type RefObject } from 'react';
-import { getDialogFocusable, handleDialogTab } from '../lib/dialogFocus';
+import { getDialogFocusable, handleDialogTab, shouldRestoreFocusAfterDialogClose } from '../lib/dialogFocus';
 
 const dialogStack: Array<() => void> = [];
 
@@ -58,7 +58,10 @@ export function useDialogFocus(
       document.removeEventListener('keydown', onKeyDown);
       const idx = dialogStack.lastIndexOf(close);
       if (idx >= 0) dialogStack.splice(idx, 1);
-      previous?.focus?.();
+      const root = containerRef.current;
+      if (shouldRestoreFocusAfterDialogClose(previous, root, document.activeElement)) {
+        previous?.focus?.();
+      }
     };
   }, [open, containerRef]);
 }

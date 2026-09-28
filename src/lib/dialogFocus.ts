@@ -28,6 +28,22 @@ export function getDialogFocusable(root: HTMLElement): HTMLElement[] {
   });
 }
 
+/**
+ * When a popover/dialog closes, restore focus to the trigger only if focus did not
+ * intentionally move elsewhere (e.g. user clicked another search field while the guest picker was open).
+ */
+export function shouldRestoreFocusAfterDialogClose(
+  previous: HTMLElement | null,
+  root: HTMLElement | null,
+  active: Element | null,
+): boolean {
+  if (!previous) return false;
+  if (active === previous) return false;
+  if (root && active && root.contains(active as Node)) return true;
+  if (!active || (typeof document !== 'undefined' && active === document.body)) return true;
+  return false;
+}
+
 export function handleDialogTab(event: KeyboardEvent, root: HTMLElement): void {
   if (event.key !== 'Tab') return;
   const items = getDialogFocusable(root);
