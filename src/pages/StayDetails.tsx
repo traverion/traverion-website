@@ -48,7 +48,6 @@ import { stayQuoteFailureFocusTarget } from '../lib/stay-quote-failure-focus';
 import { stayCheckoutLeadGuestNameReady } from '../lib/stay-checkout-guest';
 import { travelerDisplayNameFromSources } from '../lib/traveler-display-name';
 import {
-  BOOKING_CONFIRMATION_EMAIL_DISCLAIMER,
   STAY_LISTING_CONFIRMATION_NOTE,
   stayCheckInOutMissingCopy,
   LISTING_REVIEWS_EMPTY_COPY,
@@ -1320,7 +1319,8 @@ export default function StayDetails({ stayId, onBack }: Props) {
               </button>
             )}
             <p className="mt-3 text-xs text-ink-muted leading-relaxed">
-              {STAY_LISTING_CONFIRMATION_NOTE} {BOOKING_CONFIRMATION_EMAIL_DISCLAIMER} {STRIPE_TEST_UNTIL_LIVE}.
+              {/* Phase 1586: STAY_LISTING already includes Trips disclaimer (1585) — do not duplicate. */}
+              {STAY_LISTING_CONFIRMATION_NOTE} {STRIPE_TEST_UNTIL_LIVE}.
             </p>
           </aside>
         </div>
