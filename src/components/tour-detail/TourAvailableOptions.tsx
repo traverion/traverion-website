@@ -17,6 +17,11 @@ type Props = {
   selectedId: string | null;
   guestsLabel: string;
   currency: string;
+  /**
+   * Phase 1560: selected option + failed panel quote — hide catalog price on that row
+   * (PriceHero 1550 / sticky 1547 parity).
+   */
+  hideSelectedCatalogPrice?: boolean;
   onChoose: (variant: TourBookingVariant) => void;
   onChangeDate: () => void;
   onChangeGuests?: () => void;
@@ -29,6 +34,7 @@ export default function TourAvailableOptions({
   selectedId,
   guestsLabel,
   currency,
+  hideSelectedCatalogPrice = false,
   onChoose,
   onChangeDate,
   onChangeGuests,
@@ -79,6 +85,7 @@ export default function TourAvailableOptions({
             variant={available[0]}
             selected={selectedId === available[0].id}
             currency={currency}
+            hideCatalogPrice={hideSelectedCatalogPrice && selectedId === available[0].id}
             compact
             onChoose={onChoose}
           />
@@ -93,6 +100,7 @@ export default function TourAvailableOptions({
                 variant={variant}
                 selected={selectedId === variant.id}
                 currency={currency}
+                hideCatalogPrice={hideSelectedCatalogPrice && selectedId === variant.id}
                 onChoose={onChoose}
               />
             </li>
@@ -107,22 +115,27 @@ function OptionRow({
   variant,
   selected,
   currency,
+  hideCatalogPrice,
   compact,
   onChoose,
 }: {
   variant: TourBookingVariant;
   selected: boolean;
   currency: string;
+  hideCatalogPrice?: boolean;
   compact?: boolean;
   onChoose: (variant: TourBookingVariant) => void;
 }) {
   const opt = variant.listingOption;
   const meta = optionMetaParts(variant);
-  const priceLine = optionUsesAgePricing(opt)
-    ? summarizeOptionPricing(opt!, (n) => formatMoney(n, currency))
-    : `${formatMoney(variant.pricePerPerson, currency)} ${
-        optionUsesPrivateFlatPrice(opt) ? 'private group' : 'per person'
-      }`;
+  // Phase 1560: selected + failed quote — do not invent catalog money on the option row.
+  const priceLine = hideCatalogPrice
+    ? '—'
+    : optionUsesAgePricing(opt)
+      ? summarizeOptionPricing(opt!, (n) => formatMoney(n, currency))
+      : `${formatMoney(variant.pricePerPerson, currency)} ${
+          optionUsesPrivateFlatPrice(opt) ? 'private group' : 'per person'
+        }`;
   return (
     <div
       className={`flex flex-col gap-3 py-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6 ${

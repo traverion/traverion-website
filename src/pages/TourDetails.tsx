@@ -1555,6 +1555,9 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                         : `${guests} ${guests === 1 ? 'guest' : 'guests'}`
                     }
                     currency={normalizeCurrency(tour.price?.currency)}
+                    hideSelectedCatalogPrice={Boolean(
+                      selectedBookingVariant && panelQuote && !panelQuote.ok
+                    )}
                     onChoose={handleSelectTourVariant}
                     onChangeDate={() => {
                       scrollElementIntoView('tour-booking-date-input', { behavior: 'smooth', block: 'center' });
@@ -1597,15 +1600,16 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                 ) : (
                   <>
                     {(() => {
+                      // Phase 1560: failed quote beats “Checking offers…” (sticky parity).
+                      if (selectedBookingVariant && panelQuote && !panelQuote.ok) {
+                        return <p className="mb-4 text-lg font-semibold tabular-nums text-ink">—</p>;
+                      }
                       if (discountsByListing == null) {
                         return (
                           <p className="mb-4 text-sm font-medium text-ink-faint">Checking offers…</p>
                         );
                       }
                       // Phase 1550: option selected + failed quote — do not invent catalog From (1547/1548).
-                      if (selectedBookingVariant && panelQuote && !panelQuote.ok) {
-                        return <p className="mb-4 text-lg font-semibold tabular-nums text-ink">—</p>;
-                      }
                       const { price, originalPrice, label, qualifier, summary } = getDisplayPriceForTour(
                         tour,
                         discountsByListing
@@ -2152,7 +2156,8 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                       ? formatMixSummaryCompact(buildParticipantMixLines(selectedOptionApplied, participantMix)) ||
                         `${guests} ${guests === 1 ? 'guest' : 'guests'}`
                       : `${guests} ${guests === 1 ? 'guest' : 'guests'}`;
-                  if (discountsByListing == null && !(selectedBookingVariant && panelQuote?.ok)) {
+                  // Phase 1560: once panelQuote exists (ok or fail), never stall on “Checking offers…”.
+                  if (discountsByListing == null && !(selectedBookingVariant && panelQuote)) {
                     return (
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-ink-faint">Checking offers…</p>
