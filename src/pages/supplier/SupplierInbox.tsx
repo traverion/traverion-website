@@ -33,6 +33,7 @@ import { PARTNER_INBOX_MESSAGE_FETCH_CAP } from '../../lib/partner-inbox-cap';
 import { formatStayNightHuman } from '../../lib/stay-calendar';
 import { formatBookingDateDisplay } from '../../lib/booking-flow';
 import { displayListingTitleFromPurchase, displayOptionLabelFromPurchase, partnerOpsDepartureDisplay } from '../../lib/purchase-snapshot';
+import { partnerBookingNumberMatchesFilterQuery } from '../../lib/partner-bookings-search';
 import { bookingIsStayNight } from '../../lib/pickup-completeness';
 import { stayRangeFromBooking } from '../../lib/stayOccupancy';
 import { materializedBookingOptions, parseListingExtras } from '../../types/listingExtras';
@@ -88,6 +89,7 @@ export default function SupplierInbox() {
     if (typeof window === 'undefined') return false;
     return new URLSearchParams(window.location.search).get('unread') === '1';
   });
+  const [filterQuery, setFilterQuery] = useState('');
   const [mobileSheet, setMobileSheet] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)').matches : false
   );
@@ -203,6 +205,7 @@ export default function SupplierInbox() {
       setOlderConversationsHidden(false);
       setError(null);
       setCancelRequestsError(null);
+      setFilterQuery('');
     };
     if (!user?.id) {
       inboxHubUserIdRef.current = null;
@@ -279,9 +282,42 @@ export default function SupplierInbox() {
   const unreadCount = useMemo(() => threads.filter(isUnreadThread).length, [threads, isUnreadThread]);
 
   const visibleThreads = useMemo(() => {
-    if (!unreadOnly) return threads;
-    return threads.filter(isUnreadThread);
-  }, [threads, unreadOnly, isUnreadThread]);
+    const qRaw = filterQuery.trim();
+    const qLower = qRaw.toLowerCase();
+    let rows = threads;
+    if (qLower) {
+      rows = rows.filter((b) => {
+        // Phase 1487: desk parity — match collapsed card labels (Bookings 1481/1484), not live renames.
+        const title = displayListingTitleFromPurchase(
+          b.purchase_snapshot,
+          titles[b.listing_id],
+          'Listing'
+        ).toLowerCase();
+        const listing = listingsById[b.listing_id];
+        const liveOption =
+          b.booking_option_id && listing
+            ? materializedBookingOptions(parseListingExtras(listing.listingExtras).bookingOptions).find(
+                (o) => o.id === b.booking_option_id
+              )?.name?.trim() || ''
+            : '';
+        const option = displayOptionLabelFromPurchase(b.purchase_snapshot, liveOption).toLowerCase();
+        const guestName = (b.guest_name ?? '').toLowerCase();
+        const guestEmail = (b.guest_email ?? '').toLowerCase();
+        const lastBody = (lastByBooking[b.id]?.body ?? '').toLowerCase();
+        return (
+          title.includes(qLower) ||
+          option.includes(qLower) ||
+          partnerBookingNumberMatchesFilterQuery(qRaw, b.booking_number) ||
+          b.id.toLowerCase().includes(qLower) ||
+          guestName.includes(qLower) ||
+          guestEmail.includes(qLower) ||
+          lastBody.includes(qLower)
+        );
+      });
+    }
+    if (!unreadOnly) return rows;
+    return rows.filter(isUnreadThread);
+  }, [threads, filterQuery, unreadOnly, isUnreadThread, titles, listingsById, lastByBooking]);
 
   const openBooking = useMemo(
     () => (openId ? threads.find((b) => b.id === openId) ?? null : null),
@@ -385,6 +421,28 @@ export default function SupplierInbox() {
         }
       />
       {threads.length > 0 ? (
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-x-3 sm:gap-y-2">
+          <div className="flex min-w-[min(100%,14rem)] flex-1 flex-col gap-1">
+            <label htmlFor="partner-inbox-search" className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">
+              Search
+            </label>
+            <input
+              id="partner-inbox-search"
+              type="search"
+              value={filterQuery}
+              onChange={(e) => setFilterQuery(e.target.value)}
+              placeholder="Guest, purchased title, or booking #"
+              className="tv-input"
+            />
+          </div>
+          {filterQuery.trim() ? (
+            <button type="button" className="tv-btn-ghost shrink-0" onClick={() => setFilterQuery('')}>
+              Clear search
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+      {threads.length > 0 ? (
         <div className="mb-4 flex flex-wrap gap-1.5" role="tablist" aria-label="Inbox filter">
           <button
             type="button"
@@ -479,6 +537,18 @@ export default function SupplierInbox() {
           aria-labelledby={partnerInboxTabId(unreadOnly)}
         >
         {visibleThreads.length === 0 ? (
+        filterQuery.trim() ? (
+          <SupplierEmptyState
+            icon={MessageSquare}
+            title="No conversations match your search"
+            body="Try another guest name, purchased listing title, or booking number."
+            action={
+              <button type="button" className="tv-btn-secondary" onClick={() => setFilterQuery('')}>
+                Clear search
+              </button>
+            }
+          />
+        ) : (
         <SupplierEmptyState
           icon={MessageSquare}
           title="No unread messages"
@@ -489,6 +559,7 @@ export default function SupplierInbox() {
             </button>
           }
         />
+        )
       ) : (
         <ul
           className="divide-y divide-slate-100 rounded-lg bg-white ring-1 ring-slate-200/90 overflow-hidden"
