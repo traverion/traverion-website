@@ -317,7 +317,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
             className="absolute inset-0 bg-gradient-to-t from-finland-dark/85 via-finland/35 to-ink/20 lg:bg-gradient-to-br lg:from-finland-dark/75 lg:via-finland/30 lg:to-ink/25"
             aria-hidden
           />
-          <div className="relative z-10 flex h-full flex-col justify-between p-5 sm:p-8 lg:p-10">
+          <div className="relative z-10 flex h-full flex-col justify-between p-5 pt-[max(1.25rem,env(safe-area-inset-top))] sm:p-8 lg:p-10">
             <a
               href="/"
               onClick={(e) => {
@@ -375,14 +375,26 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
               </p>
               {/* Phase 1611: deep-link next destination so login intent is clear. */}
               {/* Phase 1638: also explain next=account (Sitemap / Account deep links). */}
+              {/* Phase 1685: packages / stays / contact next= hints (wishlist/trips/account parity). */}
               {!passwordResetPanel &&
-              (nextPage === 'wishlist' || nextPage === 'bookings' || nextPage === 'account') ? (
+              (nextPage === 'wishlist' ||
+                nextPage === 'bookings' ||
+                nextPage === 'account' ||
+                nextPage === 'packages' ||
+                nextPage === 'stays' ||
+                nextPage === 'contact') ? (
                 <p className="text-sm text-finland mb-2 leading-relaxed">
                   {nextPage === 'wishlist'
                     ? 'After you log in, we will take you to Saved.'
                     : nextPage === 'bookings'
                       ? 'After you log in, we will take you to Trips.'
-                      : 'After you log in, we will take you to Account.'}
+                      : nextPage === 'account'
+                        ? 'After you log in, we will take you to Account.'
+                        : nextPage === 'packages'
+                          ? 'After you log in, we will take you back to Tours.'
+                          : nextPage === 'stays'
+                            ? 'After you log in, we will take you back to Stays.'
+                            : 'After you log in, we will take you to Contact.'}
                 </p>
               ) : null}
               <p className="text-xs text-ink-faint mb-5">
