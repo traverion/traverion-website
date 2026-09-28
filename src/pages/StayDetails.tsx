@@ -1229,7 +1229,8 @@ export default function StayDetails({ stayId, onBack }: Props) {
                   currency={stayQuote.currency}
                   lines={stayQuotePriceLines(stayQuote)}
                   total={stayQuote.totalAmount}
-                  holdNote={`Nights are held for ${CHECKOUT_HOLD_MINUTES} minutes after you continue to Stripe.`}
+                  // Phase 1657: release-on-expiry parity with tour checkout hold note.
+                  holdNote={`Nights are held for ${CHECKOUT_HOLD_MINUTES} minutes after you continue to Stripe. If checkout expires, the hold is released.`}
                 />
               </div>
             ) : null}
