@@ -245,17 +245,17 @@ export default function SupplierInbox() {
     window.history.replaceState({}, '', `${url.pathname}${url.search}`);
   }, []);
 
-  const setOpenBookingId = useCallback((id: string | null, opts?: { markReadLocal?: boolean }) => {
+  const markInboxThreadRead = useCallback((bookingId: string) => {
+    // Phase 1500: only after mark_booking_messages_read succeeds (BookingMessageThread).
+    setLastByBooking((prev) => {
+      const cur = prev[bookingId];
+      if (!cur || cur.sender_role !== 'traveler' || cur.read_by_supplier_at) return prev;
+      return { ...prev, [bookingId]: { ...cur, read_by_supplier_at: new Date().toISOString() } };
+    });
+  }, []);
+
+  const setOpenBookingId = useCallback((id: string | null) => {
     setOpenId(id);
-    if (opts?.markReadLocal && id) {
-      // Opening a thread fires markBookingMessagesRead (see BookingMessageThread).
-      // Clear the Unread chip locally now so it doesn't wait for a full reload.
-      setLastByBooking((prev) => {
-        const cur = prev[id];
-        if (!cur || cur.sender_role !== 'traveler' || cur.read_by_supplier_at) return prev;
-        return { ...prev, [id]: { ...cur, read_by_supplier_at: new Date().toISOString() } };
-      });
-    }
     const url = new URL(window.location.href);
     if (id) url.searchParams.set('booking', id);
     else url.searchParams.delete('booking');
@@ -404,6 +404,7 @@ export default function SupplierInbox() {
           customerName={b.guest_name}
           bookingNumber={typeof b.booking_number === 'number' ? b.booking_number : undefined}
           bookingDate={b.booking_date}
+          onMarkedRead={() => markInboxThreadRead(b.id)}
         />
       </>
     );
@@ -590,7 +591,7 @@ export default function SupplierInbox() {
                   aria-expanded={open}
                   onClick={() => {
                     const opening = !open;
-                    setOpenBookingId(opening ? b.id : null, { markReadLocal: opening });
+                    setOpenBookingId(opening ? b.id : null);
                   }}
                 >
                   <div className="flex items-start justify-between gap-3">

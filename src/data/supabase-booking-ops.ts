@@ -120,9 +120,16 @@ export async function postBookingMessage(bookingId: string, body: string): Promi
   return parseRpc(data, error?.message, BOOKING_MESSAGE_SUBMIT_ERROR);
 }
 
-export async function markBookingMessagesRead(bookingId: string): Promise<void> {
-  if (!supabase) return;
-  await supabase.rpc('mark_booking_messages_read', { p_booking_id: bookingId });
+export async function markBookingMessagesRead(
+  bookingId: string
+): Promise<{ ok: boolean; error?: string }> {
+  if (!supabase) {
+    return { ok: false, error: 'Could not mark messages as read.' };
+  }
+  const { data, error } = await supabase.rpc('mark_booking_messages_read', {
+    p_booking_id: bookingId,
+  });
+  return parseRpc(data, error?.message, 'Could not mark messages as read.');
 }
 
 export async function requestSupplierCancellation(params: {

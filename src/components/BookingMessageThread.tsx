@@ -28,7 +28,24 @@ type Props = {
   customerName?: string | null;
   bookingNumber?: number;
   bookingDate?: string | null;
+  /** Fires only after mark_booking_messages_read succeeds (Phase 1500). */
+  onMarkedRead?: () => void;
 };
+
+function stampInboundMessagesRead(
+  rows: BookingMessageRow[],
+  viewerRole: 'traveler' | 'supplier'
+): BookingMessageRow[] {
+  const now = new Date().toISOString();
+  return rows.map((m) => {
+    if (viewerRole === 'supplier') {
+      if (m.sender_role !== 'traveler' || m.read_by_supplier_at) return m;
+      return { ...m, read_by_supplier_at: now };
+    }
+    if (m.sender_role === 'traveler' || m.read_by_traveler_at) return m;
+    return { ...m, read_by_traveler_at: now };
+  });
+}
 
 function roleLabel(role: string, viewer: 'traveler' | 'supplier'): string {
   if (role === 'system') return 'Traverion';
@@ -49,6 +66,7 @@ export default function BookingMessageThread({
   customerName,
   bookingNumber,
   bookingDate,
+  onMarkedRead,
 }: Props) {
   const [rows, setRows] = useState<BookingMessageRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,25 +74,36 @@ export default function BookingMessageThread({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [markReadError, setMarkReadError] = useState<string | null>(null);
   const loadGenRef = useRef(0);
 
   const load = useCallback(async () => {
     const gen = ++loadGenRef.current;
     setLoading(true);
     setLoadError(null);
+    setMarkReadError(null);
     try {
       const list = await fetchBookingMessages(bookingId);
       if (gen !== loadGenRef.current) return;
       setRows(list);
-      await markBookingMessagesRead(bookingId);
     } catch (e) {
       if (gen !== loadGenRef.current) return;
       // Phase 1340: keep prior thread visible — load failure ≠ empty conversation.
       setLoadError(userFacingError(e, 'We could not load messages. Check your connection and try again.'));
+      return;
     } finally {
       if (gen === loadGenRef.current) setLoading(false);
     }
-  }, [bookingId]);
+    const marked = await markBookingMessagesRead(bookingId);
+    if (gen !== loadGenRef.current) return;
+    if (!marked.ok) {
+      // Phase 1500: load success ≠ read — do not clear Unread until RPC ok.
+      setMarkReadError(userFacingError(marked.error, 'We could not mark messages as read. Try again.'));
+      return;
+    }
+    onMarkedRead?.();
+    setRows((prev) => stampInboundMessagesRead(prev, viewerRole));
+  }, [bookingId, onMarkedRead, viewerRole]);
 
   useEffect(() => {
     setRows([]);
@@ -117,6 +146,14 @@ export default function BookingMessageThread({
       {loadError ? (
         <NoticeCallout title="Messages unavailable" tone="warn">
           <p className="text-sm text-ink-muted">{loadError}</p>
+          <button type="button" className="mt-2 text-xs font-semibold text-finland hover:underline" onClick={() => void load()}>
+            Try again
+          </button>
+        </NoticeCallout>
+      ) : null}
+      {markReadError ? (
+        <NoticeCallout title="Still marked unread" tone="warn">
+          <p className="text-sm text-ink-muted">{markReadError}</p>
           <button type="button" className="mt-2 text-xs font-semibold text-finland hover:underline" onClick={() => void load()}>
             Try again
           </button>
