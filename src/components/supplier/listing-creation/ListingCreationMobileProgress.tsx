@@ -54,7 +54,11 @@ export function ListingCreationMobileProgress({
         {progressCopy ? <p className="text-xs text-ink-muted">{progressCopy}</p> : null}
       </div>
       <nav aria-label={navLabel} className="mt-2">
-        <ol className="grid grid-cols-5 gap-0.5">
+        {/* Phase 1615: column count follows step count (stay wizard has 6; tours 5). */}
+        <ol
+          className="grid gap-0.5"
+          style={{ gridTemplateColumns: `repeat(${Math.max(items.length, 1)}, minmax(0, 1fr))` }}
+        >
           {items.map((item, index) => (
             <li key={item.id} className="min-w-0">
               <ListingCreationNavButton compact item={item} onClick={() => onSelectIndex(index)} />
