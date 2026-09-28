@@ -25,3 +25,33 @@ export function tourQuoteFailureFocusTarget(params: {
   }
   return { scrollId: 'tour-booking-panel' };
 }
+
+/**
+ * Phase 1545: BookingPage deep-link checkout uses booking-flow-* ids (not tour-*).
+ */
+export function bookingPageQuoteFailureFocusTarget(params: {
+  quoteError?: string | null;
+  quoteCode?: string | null;
+}): { scrollId: string; focusSelector?: string } {
+  const code = String(params.quoteCode ?? '').trim().toLowerCase();
+  const err = String(params.quoteError ?? '');
+  if (code === 'party' || /guest count|guests|party|age mix|participant/i.test(err)) {
+    return { scrollId: 'booking-flow-guests', focusSelector: '#booking-flow-guests button:not([disabled])' };
+  }
+  if (
+    code === 'bad_date' ||
+    code === 'weekday' ||
+    code === 'season' ||
+    /choose a (valid )?date|today or later|season|cutoff|no longer bookable|not offered/i.test(err)
+  ) {
+    return {
+      scrollId: 'booking-flow-date-input',
+      focusSelector: '#booking-flow-date-input button:not([disabled])',
+    };
+  }
+  // Option / time / other — land on trip panel date control (BookingPage has no option dock ids).
+  return {
+    scrollId: 'booking-flow-date-input',
+    focusSelector: '#booking-flow-date-input button:not([disabled])',
+  };
+}

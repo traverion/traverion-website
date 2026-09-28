@@ -109,6 +109,8 @@ import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import NoticeCallout from '../components/NoticeCallout';
 import CheckoutConsentCheckbox from '../components/booking/CheckoutConsentCheckbox';
 import { checkoutPayBlockedByConsent } from '../lib/checkout-consent';
+import { tourStickyBookCtaLabel } from '../lib/tour-sticky-cta';
+import { bookingPageQuoteFailureFocusTarget } from '../lib/tour-quote-failure-focus';
 
 interface BookingPageProps {
   tour: TourPackage;
@@ -320,7 +322,10 @@ export default function BookingPage({
 
   const pricePerPerson = priceInfo.price;
   const quoted = priceInfo.quote && priceInfo.quote.ok ? priceInfo.quote : null;
-  const total = quoted ? quoted.totalAmount : pricePerPerson * guests;
+  // Phase 1545: never invent catalog×guests totals when quoteBooking failed (TourDetails 1529 parity).
+  const quoteFailed = Boolean(priceInfo.quote && !priceInfo.quote.ok);
+  const total = quoted ? quoted.totalAmount : quoteFailed ? null : pricePerPerson * guests;
+  const totalLabel = total == null ? '—' : formatMoney(total, currency);
   const cancellationText =
     tour.cancellationPolicy?.trim() || TRAVERION_STANDARD_CANCELLATION_POLICY;
 
@@ -826,6 +831,19 @@ export default function BookingPage({
     }
     if (priceInfo.quote && !priceInfo.quote.ok) {
       setError(priceInfo.quote.error);
+      // Phase 1545: keep CTA tappable — scroll/focus the fixable control (TourDetails 1529).
+      const focus = bookingPageQuoteFailureFocusTarget({
+        quoteError: priceInfo.quote.error,
+        quoteCode: priceInfo.quote.code,
+      });
+      const el = document.getElementById(focus.scrollId);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (focus.focusSelector) {
+        window.requestAnimationFrame(() => {
+          const target = document.querySelector(focus.focusSelector!) as HTMLElement | null;
+          target?.focus();
+        });
+      }
       return;
     }
     // Phase 1174: mirror Pay/PDP — unknown remaining must not advance to contact.
@@ -1318,6 +1336,8 @@ export default function BookingPage({
                   discountLabel={quoted.discountLabel}
                   footnote={`${quoted.optionLabel} · ${participantsSummary}`}
                 />
+              ) : quoteFailed && priceInfo.quote && !priceInfo.quote.ok ? (
+                <p className="text-sm text-red-700">{priceInfo.quote.error}</p>
               ) : (
                 <div className="flex justify-between text-sm text-ink-muted">
                   <span>
@@ -1326,7 +1346,7 @@ export default function BookingPage({
                       <span className="block text-xs text-green-600 mt-1">{priceInfo.label}</span>
                     ) : null}
                   </span>
-                  <span className="font-medium text-ink">{formatMoney(total, currency)}</span>
+                  <span className="font-medium text-ink">{totalLabel}</span>
                 </div>
               )}
             </div>
@@ -1448,7 +1468,7 @@ export default function BookingPage({
                 <p>
                   <span className="text-ink-faint">Total</span>{' '}
                   <strong className="text-ink">
-                    {quoteBlockReason ? '—' : formatMoney(total, currency)}
+                    {totalLabel}
                   </strong>
                 </p>
                 <p className="text-xs text-ink-faint mt-0.5">
@@ -1460,10 +1480,22 @@ export default function BookingPage({
               <button
                 type="button"
                 onClick={handleCheckAvailability}
-                disabled={availabilityChecking || availabilityModalOpen || Boolean(quoteBlockReason)}
+                disabled={availabilityChecking || availabilityModalOpen}
                 className="w-full sm:w-auto px-6 py-2.5 rounded-lg bg-finland text-white font-medium hover:bg-finland-dark disabled:opacity-60 transition-all duration-200 ease-smooth active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
               >
-                {availabilityChecking ? 'Checking…' : 'See options'}
+                {tourStickyBookCtaLabel({
+                  hasDate: Boolean(date.trim()),
+                  // Page deep-link may quote without a modal variant — still show Fix date/guests.
+                  hasOption: Boolean(selectedVariant) || Boolean(date.trim()),
+                  needsDeparture: false,
+                  checking: availabilityChecking,
+                  quoteInvalid: Boolean(quoteBlockReason),
+                  quoteError:
+                    priceInfo.quote && !priceInfo.quote.ok ? priceInfo.quote.error : null,
+                  quoteCode: priceInfo.quote && !priceInfo.quote.ok ? priceInfo.quote.code : null,
+                  soldOut: capacitySoldOut,
+                  capacityUnknown,
+                })}
               </button>
             </div>
             ) : null}
@@ -1527,7 +1559,7 @@ export default function BookingPage({
                   ) : null}
                   <div className="flex justify-between gap-3 pt-1 border-t border-finland/15">
                     <dt className="text-ink-faint">Total</dt>
-                    <dd className="font-semibold text-ink tabular-nums">{formatMoney(total, currency)}</dd>
+                    <dd className="font-semibold text-ink tabular-nums">{totalLabel}</dd>
                   </div>
                 </dl>
               </div>
@@ -1698,7 +1730,7 @@ export default function BookingPage({
               <ClipboardList className="w-4 h-4 text-finland shrink-0 mt-0.5" aria-hidden />
               <span>
                 {isSupabaseConfigured()
-                  ? `Confirm the details below, then pay ${formatMoney(total, currency)} on ${STRIPE_TEST_UNTIL_LIVE}. Your spots are held for ${CHECKOUT_HOLD_MINUTES} minutes while you check out.`
+                  ? `Confirm the details below, then pay ${totalLabel} on ${STRIPE_TEST_UNTIL_LIVE}. Your spots are held for ${CHECKOUT_HOLD_MINUTES} minutes while you check out.`
                   : 'Live card checkout is not configured in this environment. We will not pretend a payment succeeded.'}
               </span>
             </p>
@@ -1812,7 +1844,7 @@ export default function BookingPage({
                         ? ` · ${formatMoney(pricePerPerson, currency)} each`
                         : ''}
                     </span>
-                    <span className="font-medium">{formatMoney(total, currency)}</span>
+                    <span className="font-medium">{totalLabel}</span>
                   </div>
                   <p className="text-xs text-ink-muted mt-2">This is the amount you pay at checkout.</p>
                 </>
@@ -1901,7 +1933,7 @@ export default function BookingPage({
                     : checkoutPayBlockedByConsent(checkoutConsentAccepted)
                       ? 'Accept terms to pay'
                     : isSupabaseConfigured()
-                      ? `Pay with ${STRIPE_TEST_UNTIL_LIVE} · ${formatMoney(total, currency)}`
+                      ? `Pay with ${STRIPE_TEST_UNTIL_LIVE} · ${totalLabel}`
                       : 'Continue to payment'}
                 </button>
               </div>
@@ -1924,16 +1956,27 @@ export default function BookingPage({
           <p className="truncate text-sm text-ink-muted">
             <span className="text-ink-faint">Total</span>{' '}
             <strong className="font-semibold tabular-nums text-ink">
-              {quoteBlockReason ? '—' : formatMoney(total, currency)}
+              {totalLabel}
             </strong>
           </p>
           <button
             type="button"
             onClick={handleCheckAvailability}
-            disabled={availabilityChecking || availabilityModalOpen || Boolean(quoteBlockReason)}
+            disabled={availabilityChecking || availabilityModalOpen}
             className="tv-btn-primary w-full disabled:opacity-60"
           >
-            {availabilityChecking ? 'Checking…' : 'See options'}
+            {tourStickyBookCtaLabel({
+              hasDate: Boolean(date.trim()),
+              hasOption: Boolean(selectedVariant) || Boolean(date.trim()),
+              needsDeparture: false,
+              checking: availabilityChecking,
+              quoteInvalid: Boolean(quoteBlockReason),
+              quoteError:
+                priceInfo.quote && !priceInfo.quote.ok ? priceInfo.quote.error : null,
+              quoteCode: priceInfo.quote && !priceInfo.quote.ok ? priceInfo.quote.code : null,
+              soldOut: capacitySoldOut,
+              capacityUnknown,
+            })}
           </button>
         </div>
       ) : null}
@@ -1979,7 +2022,7 @@ export default function BookingPage({
               : checkoutPayBlockedByConsent(checkoutConsentAccepted)
                 ? 'Accept terms to pay'
               : isSupabaseConfigured()
-                ? `Pay with ${STRIPE_TEST_UNTIL_LIVE} · ${formatMoney(total, currency)}`
+                ? `Pay with ${STRIPE_TEST_UNTIL_LIVE} · ${totalLabel}`
                 : 'Continue to payment'}
           </button>
         </div>
