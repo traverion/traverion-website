@@ -113,6 +113,34 @@ export function emptyMixSelection(option: ListingBookingOption): ParticipantMixS
   return sel;
 }
 
+/**
+ * Per-category stepper ceiling when inventory has limited spots left.
+ * Each category shares one capacity pool (partyMax), not independent caps.
+ */
+export function participantCategoryQuantityMax(params: {
+  option: ListingBookingOption;
+  categoryId: string;
+  selection: ParticipantMixSelection;
+  partyMax: number;
+}): number {
+  const { option, categoryId, selection, partyMax } = params;
+  const cat = activePriceCategories(option).find((c) => c.id === categoryId);
+  if (!cat) return 0;
+  const lines = buildParticipantMixLines(option, selection);
+  const otherCapacity = lines
+    .filter((l) => l.categoryId !== categoryId && l.countsTowardCapacity)
+    .reduce((sum, l) => sum + l.quantity, 0);
+  const otherHeadcount = lines
+    .filter((l) => l.categoryId !== categoryId)
+    .reduce((sum, l) => sum + l.quantity, 0);
+  if (cat.countsTowardCapacity === false) {
+    return Math.max(0, Math.floor(option.maxPersons - otherHeadcount));
+  }
+  const roomInventory = Math.floor(partyMax) - otherCapacity;
+  const roomOption = Math.floor(option.maxPersons) - otherCapacity;
+  return Math.max(0, Math.min(roomInventory, roomOption));
+}
+
 export function validateParticipantMix(
   option: ListingBookingOption,
   selection: ParticipantMixSelection

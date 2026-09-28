@@ -92,6 +92,7 @@ import {
   formatMixSummaryCompact,
   formatParticipantQuantityLabel,
   optionUsesAgePricing,
+  participantCategoryQuantityMax,
   totalGuestsFromMix,
   validateParticipantMix,
 } from '../lib/participant-mix';
@@ -1283,18 +1284,23 @@ export default function BookingPage({
               <div className="mb-6 space-y-2">
                 <p className="text-sm font-medium text-ink">Adjust participants</p>
                 {activePriceCategories(appliedOption).map((cat) => (
-                  <ParticipantCategoryStepper
-                    key={cat.id}
-                    category={cat}
-                    quantity={participantMix[cat.id] ?? 0}
-                    currency={currency}
-                    max={appliedOption.maxPersons}
-                    onChange={(qty) => {
-                      setParticipantMix((prev) => ({ ...prev, [cat.id]: qty }));
-                      setError(null);
-                    }}
-                    onBoundaryAttempt={setError}
-                  />
+                    <ParticipantCategoryStepper
+                      key={cat.id}
+                      category={cat}
+                      quantity={participantMix[cat.id] ?? 0}
+                      currency={currency}
+                      max={participantCategoryQuantityMax({
+                        option: appliedOption,
+                        categoryId: cat.id,
+                        selection: participantMix,
+                        partyMax: partyMaxForSelectedDay,
+                      })}
+                      onChange={(qty) => {
+                        setParticipantMix((prev) => ({ ...prev, [cat.id]: qty }));
+                        setError(null);
+                      }}
+                      onBoundaryAttempt={setError}
+                    />
                 ))}
               </div>
             ) : null}
@@ -1381,7 +1387,12 @@ export default function BookingPage({
                       category={cat}
                       quantity={participantMix[cat.id] ?? 0}
                       currency={currency}
-                      max={Math.min(appliedOption.maxPersons, partyMaxForSelectedDay)}
+                      max={participantCategoryQuantityMax({
+                        option: appliedOption,
+                        categoryId: cat.id,
+                        selection: participantMix,
+                        partyMax: partyMaxForSelectedDay,
+                      })}
                       onChange={(qty) => {
                         setParticipantMix((prev) => ({ ...prev, [cat.id]: qty }));
                         setError(null);
