@@ -4,7 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
 import { listingHasUpcomingBookableSeason, quoteListingBooking, resolveTourDepartureHmForCutoff, stayCheckoutNightsAlreadyBooked, stayNightIsOperatorBlocked, stayRangeFromBooking, tourDepartureRemainingSeats, tourDepartureSlotCapacity, type DiscountRow, type ListingQuoteRow, type StayCheckoutOccupancyRow } from '../_shared/booking-quote.ts';
 import { tourCheckoutOccupiedGuests, inventoryStartTimeHmFromBooking, type TourCheckoutOccupancyRow } from '../_shared/booking-hold.ts';
-import { checkoutPaymentStatusCanResume, resumeStayCheckoutDate, checkoutResumeLostRaceToPaid, resumeListingIdMismatch } from '../_shared/checkout-resume.ts';
+import { checkoutPaymentStatusCanResume, resumeStayCheckoutDate, checkoutResumeLostRaceToPaid, resumeListingIdMismatch, resumeStoredOptionId } from '../_shared/checkout-resume.ts';
 import { resumeStayLeadGuestName, stayCheckoutLeadGuestNameReady } from '../_shared/stay-checkout-guest.ts';
 import {
   buildPurchaseSnapshot,
@@ -77,17 +77,6 @@ function appendBookingParam(path: string, bookingId: string): string {
   if (!id || !BOOKING_UUID_RE.test(id)) return path;
   if (/[?&]booking=/i.test(path)) return path;
   return `${path}${path.includes('?') ? '&' : '?'}booking=${encodeURIComponent(id)}`;
-}
-
-function optionIdFromNotes(notes: unknown): string | null {
-  if (typeof notes !== 'string') return null;
-  const line = notes
-    .split(/\n+/)
-    .map((l) => l.trim())
-    .find((l) => /^booking_option_id:/i.test(l));
-  if (!line) return null;
-  const id = line.replace(/^booking_option_id:/i, '').trim();
-  return id || null;
 }
 
 serve(async (req) => {
@@ -275,13 +264,12 @@ serve(async (req) => {
         typeof row.checkout_session_id === 'string' && row.checkout_session_id.trim()
           ? row.checkout_session_id.trim()
           : null;
-      // Phase 1501: Pay now resume must not accept client option/slot/nights.
-      // Column + notes (written at claim) only — never body bookingOptionId.
-      storedOptionId =
-        (typeof (row as { booking_option_id?: string }).booking_option_id === 'string' &&
-          (row as { booking_option_id?: string }).booking_option_id?.trim()) ||
-        optionIdFromNotes(row.special_requests) ||
-        null;
+      // Phase 1501/1536: Pay now resume must not accept client option/slot/nights.
+      // Column + purchase_snapshot.optionId only — never body or notes-planted keys.
+      storedOptionId = resumeStoredOptionId({
+        bookingOptionId: (row as { booking_option_id?: string }).booking_option_id,
+        purchaseSnapshot: row.purchase_snapshot,
+      });
       // Sold seat = purchase_snapshot.startTimeHm, else bookings.start_time (Phase 1080).
       // Ignore body startTime on resume so travelers cannot migrate the hold to another departure.
       {

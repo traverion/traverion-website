@@ -1,5 +1,8 @@
 /**
  * Mirror of src/lib/checkout-resume.ts for Deno edge runtime.
+ * Resume checkout / webhook paid promotion must accept pending holds and
+ * failed holds that were expired mid-Pay-now (or abandoned), so Stripe money
+ * can still confirm the booking.
  */
 export function checkoutPaymentStatusCanResume(paymentStatus: string | null | undefined): boolean {
   const pay = String(paymentStatus ?? 'pending')
@@ -12,7 +15,10 @@ export function stripeWebhookCanMarkPaidFrom(paymentStatus: string | null | unde
   return checkoutPaymentStatusCanResume(paymentStatus);
 }
 
-/** Concurrent webhook paid/refunded the booking while Pay now created a new session. */
+/**
+ * After Stripe creates a new Checkout, the booking write must not demote a row
+ * that a concurrent webhook already marked paid/refunded.
+ */
 export function checkoutResumeLostRaceToPaid(paymentStatus: string | null | undefined): boolean {
   const pay = String(paymentStatus ?? '')
     .trim()
@@ -20,7 +26,10 @@ export function checkoutResumeLostRaceToPaid(paymentStatus: string | null | unde
   return pay === 'paid' || pay === 'refunded';
 }
 
-/** Late expire/fail/completed from a superseded session/PI must not apply. */
+/**
+ * After Pay now opens a new Checkout, late events from an older session/PI
+ * must not flip the booking (expire/fail → failed, or completed → paid).
+ */
 export function staleCheckoutFailureShouldApply(params: {
   eventCheckoutSessionId?: string | null;
   eventPaymentIntentId?: string | null;
@@ -45,8 +54,10 @@ export function staleCheckoutFailureShouldApply(params: {
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
- * Mirror of src/lib/checkout-resume.ts — freeze stay nights to the booking on
- * Pay now resume; client checkoutDate must not diverge from check_out.
+ * Pay now resume must freeze stay nights to the claimed booking.
+ * Client checkoutDate must not extend/shorten inventory or Stripe total vs
+ * bookings.check_out / promote column occupancy.
+ * Body is only a fallback when the booking cannot resolve a check-out.
  */
 export function resumeStayCheckoutDate(params: {
   bodyCheckoutDate?: string | null;
@@ -82,4 +93,21 @@ export function resumeListingIdMismatch(params: {
   const row = String(params.bookingListingId ?? '').trim();
   if (!body || !row) return false;
   return body !== row;
+}
+
+/**
+ * Phase 1536: resume option = column → purchase_snapshot.optionId — never notes.
+ */
+export function resumeStoredOptionId(params: {
+  bookingOptionId?: string | null;
+  purchaseSnapshot?: unknown;
+}): string | null {
+  const col = String(params.bookingOptionId ?? '').trim();
+  if (col) return col;
+  const snap = params.purchaseSnapshot;
+  if (snap && typeof snap === 'object') {
+    const id = (snap as { optionId?: unknown }).optionId;
+    if (typeof id === 'string' && id.trim()) return id.trim();
+  }
+  return null;
 }

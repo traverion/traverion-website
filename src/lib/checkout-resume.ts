@@ -93,3 +93,20 @@ export function resumeListingIdMismatch(params: {
   if (!body || !row) return false;
   return body !== row;
 }
+
+/**
+ * Phase 1536: resume option = column → purchase_snapshot.optionId — never notes.
+ */
+export function resumeStoredOptionId(params: {
+  bookingOptionId?: string | null;
+  purchaseSnapshot?: unknown;
+}): string | null {
+  const col = String(params.bookingOptionId ?? '').trim();
+  if (col) return col;
+  const snap = params.purchaseSnapshot;
+  if (snap && typeof snap === 'object') {
+    const id = (snap as { optionId?: unknown }).optionId;
+    if (typeof id === 'string' && id.trim()) return id.trim();
+  }
+  return null;
+}

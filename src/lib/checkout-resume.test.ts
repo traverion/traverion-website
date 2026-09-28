@@ -3,6 +3,7 @@ import {
   checkoutPaymentStatusCanResume,
   resumeStayCheckoutDate,
   resumeListingIdMismatch,
+  resumeStoredOptionId,
   staleCheckoutFailureShouldApply,
   stripeWebhookCanMarkPaidFrom,
   checkoutResumeLostRaceToPaid,
@@ -158,5 +159,28 @@ describe('resumeListingIdMismatch', () => {
         bookingListingId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
       })
     ).toBe(false);
+  });
+});
+
+describe('resumeStoredOptionId', () => {
+  it('Phase 1536: prefers column then snapshot; ignores notes-only plant', () => {
+    expect(
+      resumeStoredOptionId({
+        bookingOptionId: 'col-opt',
+        purchaseSnapshot: { optionId: 'snap-opt' },
+      })
+    ).toBe('col-opt');
+    expect(
+      resumeStoredOptionId({
+        bookingOptionId: null,
+        purchaseSnapshot: { optionId: 'snap-opt' },
+      })
+    ).toBe('snap-opt');
+    expect(
+      resumeStoredOptionId({
+        bookingOptionId: '',
+        purchaseSnapshot: null,
+      })
+    ).toBeNull();
   });
 });
