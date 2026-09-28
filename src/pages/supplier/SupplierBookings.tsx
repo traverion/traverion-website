@@ -1610,7 +1610,8 @@ export default function SupplierBookings({
                           : ''}
                       </li>
                       {bookingPaymentWasCollected(booking.payment_status) ? (
-                        <li>Paid</li>
+                        // Phase 1549: History must match amount caption — never hardcode Paid on Refund due.
+                        <li>{partnerCollectedAmountCaption(booking)}</li>
                       ) : null}
                       {booking.acknowledged_at ? (
                         <li>
@@ -1632,9 +1633,6 @@ export default function SupplierBookings({
                         </li>
                       ) : null}
                       {booking.status === 'cancelled' ? <li>Cancelled</li> : null}
-                      {partnerPaymentLabel(booking) === 'Refund due' ? <li>Refund due</li> : null}
-                      {partnerPaymentLabel(booking) === 'No refund' ? <li>No refund</li> : null}
-                      {booking.payment_status === 'refunded' ? <li>Refunded</li> : null}
                     </ol>
                   </div>
                   <BookingMessageThread
