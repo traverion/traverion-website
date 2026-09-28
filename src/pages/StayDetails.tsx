@@ -97,6 +97,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
   const checkoutLockRef = useRef(false);
   const [payError, setPayError] = useState<string | null>(null);
   const [selfBookBlocked, setSelfBookBlocked] = useState(false);
+  const [selfBookCheckFailed, setSelfBookCheckFailed] = useState(false);
   const [guestName, setGuestName] = useState('');
   const [profileDisplayName, setProfileDisplayName] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
@@ -461,6 +462,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
   useEffect(() => {
     if (!stay?.supplierId || !isSupabaseConfigured() || !userRef.current?.id) {
       setSelfBookBlocked(false);
+      setSelfBookCheckFailed(false);
       return;
     }
     let cancelled = false;
@@ -468,12 +470,14 @@ export default function StayDetails({ stayId, onBack }: Props) {
       .then((selfBook) => {
         if (cancelled) return;
         setSelfBookBlocked(selfBook);
+        setSelfBookCheckFailed(false);
         if (selfBook) setPayError(LISTING_SELF_BOOK_BLOCKED);
       })
       .catch(() => {
         // Phase 1307: eligibility failure ≠ “not supplier side” — block book.
         if (cancelled) return;
         setSelfBookBlocked(true);
+        setSelfBookCheckFailed(true);
         setPayError(LISTING_SELF_BOOK_CHECK_FAILED);
       });
     return () => {
@@ -1316,7 +1320,9 @@ export default function StayDetails({ stayId, onBack }: Props) {
                   void startStayCheckout();
                 }}
               >
-                {selfBookBlocked
+                {selfBookCheckFailed
+                  ? 'Eligibility unavailable'
+                  : selfBookBlocked
                   ? 'Cannot book own listing'
                   : quoteOk && checkoutPayBlockedByConsent(checkoutConsentAccepted)
                   ? 'Accept terms'

@@ -29,5 +29,13 @@ describe('tourStickyBookCtaLabel', () => {
         selfBookBlocked: true,
       })
     ).toBe('Cannot book own listing');
+    expect(
+      tourStickyBookCtaLabel({
+        hasDate: true,
+        hasOption: true,
+        needsDeparture: false,
+        selfBookCheckFailed: true,
+      })
+    ).toBe('Eligibility unavailable');
   });
 });

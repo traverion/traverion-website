@@ -178,6 +178,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   useDialogFocus(galleryLightboxOpen, gallerySheetRef, closeGalleryLightbox);
   const [bookingCardError, setBookingCardError] = useState<string | null>(null);
   const [selfBookBlocked, setSelfBookBlocked] = useState(false);
+  const [selfBookCheckFailed, setSelfBookCheckFailed] = useState(false);
   const [bookingVariantsOpen, setBookingVariantsOpen] = useState(() => Boolean(readSearchPrefill().date));
   const [locationSearch, setLocationSearch] = useState(
     () => (typeof window === 'undefined' ? '' : window.location.search)
@@ -711,6 +712,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   useEffect(() => {
     if (!tour?.supplierId || !isSupabaseConfigured() || !userRef.current?.id) {
       setSelfBookBlocked(false);
+      setSelfBookCheckFailed(false);
       return;
     }
     let cancelled = false;
@@ -718,12 +720,14 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       .then((selfBook) => {
         if (cancelled) return;
         setSelfBookBlocked(selfBook);
+        setSelfBookCheckFailed(false);
         if (selfBook) setBookingCardError(LISTING_SELF_BOOK_BLOCKED);
       })
       .catch(() => {
         // Phase 1307: eligibility failure ≠ “not supplier side” — block book.
         if (cancelled) return;
         setSelfBookBlocked(true);
+        setSelfBookCheckFailed(true);
         setBookingCardError(LISTING_SELF_BOOK_CHECK_FAILED);
       });
     return () => {
@@ -1764,7 +1768,9 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                             }
                             className="tv-btn-primary w-full disabled:opacity-60"
                           >
-                            {selfBookBlocked
+                            {selfBookCheckFailed
+                              ? 'Eligibility unavailable'
+                              : selfBookBlocked
                               ? 'Cannot book own listing'
                               : variantChecking
                               ? 'Checking…'
@@ -2114,6 +2120,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     })(),
                     quoteInvalid: Boolean(selectedBookingVariant && panelQuote != null && !panelQuote.ok),
                     selfBookBlocked,
+                    selfBookCheckFailed,
                   })}
                 </button>
               </div>
