@@ -140,6 +140,8 @@ export default function SupplierListings() {
   const showFormRef = useRef(false);
   const editorHistoryPushedRef = useRef(false);
   const editorSessionTokenRef = useRef<string | null>(null);
+  const loadGenRef = useRef(0);
+  const listingsHubUserIdRef = useRef<string | null>(null);
 
   const bumpEditorInstanceIfOpening = useCallback(() => {
     if (!showFormRef.current) setEditorInstanceKey((n) => n + 1);
@@ -432,22 +434,72 @@ export default function SupplierListings() {
   const loadListings = useCallback(() => {
     const uid = user?.id;
     if (isSupabase && uid) {
+      const gen = ++loadGenRef.current;
       setLoading(true);
       setError(null);
       fetchMyListings(uid)
         .then((data) => {
+          if (gen !== loadGenRef.current) return;
           setListings(data);
-          setLoading(false);
         })
         .catch((e) => {
+          if (gen !== loadGenRef.current) return;
           setError(userFacingError(e, USER_ERROR.listings));
-          setLoading(false);
+        })
+        .finally(() => {
+          if (gen === loadGenRef.current) setLoading(false);
         });
     } else {
+      loadGenRef.current += 1;
       setListings(getSupplierListings());
       setLoading(false);
     }
   }, [isSupabase, user?.id]);
+
+  useEffect(() => {
+    const clearListingsPartnerWorkspace = () => {
+      setListings([]);
+      setError(null);
+      setListingActionsMenuId(null);
+      setListingActionsMenuBox(null);
+      setListingPendingDelete(null);
+      setListingPendingDeactivate(null);
+      setDeactivateUpcomingPaid(null);
+      setDeleteBusy(false);
+      setDeactivateBusy(false);
+      setDuplicatingId(null);
+      setPublishGate(null);
+      setJustPublishedId(null);
+      setJustDuplicatedId(null);
+      setShowCreateChooser(false);
+      showFormRef.current = false;
+      setShowForm(false);
+      setEditingId(null);
+      setFormFocusSection(null);
+      editorSessionTokenRef.current = null;
+      canonicalListingIdRef.current = null;
+      setCanPostNewListing(false);
+      setProfileGateMessage(null);
+      setMissingBusinessDetails(false);
+      setMissingPayoutForPublish(false);
+      setVerificationStatus(null);
+      setPayoutVerificationStatus(null);
+      setPayoutOnFile(false);
+    };
+    if (!user?.id) {
+      listingsHubUserIdRef.current = null;
+      loadGenRef.current += 1;
+      clearListingsPartnerWorkspace();
+      setLoading(false);
+      return;
+    }
+    // Phase 1389: clear prior partner listings before loading the next account (Bookings 1384 parity).
+    if (listingsHubUserIdRef.current !== user.id) {
+      listingsHubUserIdRef.current = user.id;
+      loadGenRef.current += 1;
+      clearListingsPartnerWorkspace();
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     loadListings();
