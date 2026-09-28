@@ -35,7 +35,7 @@ import {
   type CancellationRequestRow,
 } from '../data/supabase-booking-ops';
 import BookingMessageThread from '../components/BookingMessageThread';
-import StatusChip, { toneForPaymentLabel } from '../components/StatusChip';
+import StatusChip, { toneForPaymentLabel, toneForTravelerTripCard } from '../components/StatusChip';
 import NoticeCallout from '../components/NoticeCallout';
 import { bookingIsStayNight, listingPickupCopyIncomplete } from '../lib/pickup-completeness';
 import {
@@ -819,7 +819,9 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               })();
               const ref = travelerTripReferenceLabel(b.booking_number);
               const needsPay = travelerBookingNeedsPayNow(b);
-              const statusTone = openCancel ? 'warn' : toneForPaymentLabel(lifecycle);
+              const statusTone = toneForTravelerTripCard(lifecycle, payLabel, {
+                hostCancellation: Boolean(openCancel),
+              });
               const statusAccent =
                 statusTone === 'good'
                   ? 'border-l-[3px] border-l-emerald-500'
