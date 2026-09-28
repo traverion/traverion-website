@@ -974,15 +974,17 @@ export default function StayDetails({ stayId, onBack }: Props) {
                     <div className="flex items-center gap-3 mb-2">
                       <span className="font-medium text-ink">{r.guest_name}</span>
                       {r.verified ? (
-                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Verified</span>
+                        <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">Verified</span>
                       ) : null}
                       <span className="text-sm text-ink-muted">{new Date(r.created_at).toLocaleDateString()}</span>
                     </div>
-                    <div className="flex gap-1 mb-1">
+                    {/* Phase 1620: announce rating to assistive tech (Tour / reviews modal parity). */}
+                    <div className="flex gap-1 mb-1" aria-label={`${r.rating} out of 5 stars`}>
                       {[1, 2, 3, 4, 5].map((i) => (
                         <Star
                           key={i}
                           size={16}
+                          aria-hidden
                           className={i <= r.rating ? 'text-finland fill-finland' : 'text-ink-faint'}
                         />
                       ))}
