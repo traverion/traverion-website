@@ -71,10 +71,7 @@ export default function StayNightPicker({
       cur = addCalendarDays(cur, 1);
     }
     if (nights.some((n) => occupied.has(n))) return;
-    if (nights.length < minNights) {
-      onChange(checkIn, iso);
-      return;
-    }
+    if (nights.length < minNights) return;
     onChange(checkIn, iso);
   };
 
