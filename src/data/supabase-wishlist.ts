@@ -6,7 +6,8 @@ export async function fetchWishlistListingIds(userId: string): Promise<string[]>
   const { data, error } = await supabase
     .from('wishlist')
     .select('listing_id')
-    .eq('user_id', userId);
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
   return (data ?? []).map((r: { listing_id: string }) => r.listing_id);
 }
