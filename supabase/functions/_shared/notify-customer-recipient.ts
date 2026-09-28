@@ -1,6 +1,4 @@
 /**
- * Mirror of src/lib/notify-customer-recipient.ts for Deno edge runtime.
- *
  * Phase 578: pure recipient/amount re-derivation for notify-customer-booking.
  * notify-customer-booking has no caller-identity check of its own (verify_jwt
  * is off and there is no bearer-token check), so a client-submitted
@@ -15,6 +13,12 @@
  * real amount/currency), or an error to return instead of sending. Extracted
  * as a pure function (no Supabase client, no Deno globals) so it can be
  * unit-tested directly instead of only through a duplicated-logic harness.
+ *
+ * Mirrored at supabase/functions/_shared/notify-customer-recipient.ts for the
+ * Deno edge runtime, which cannot import from src/ and has no test runner of
+ * its own in this repo -- covered automatically by
+ * edge-function-deno-mirror-sync.test.ts (keep both copies identical,
+ * comments/formatting aside).
  */
 
 export type NotifyCustomerBookingKind =
@@ -55,7 +59,7 @@ export type RecipientResolution =
   | { ok: true; to: string; amount: number | undefined; currency: string }
   | { ok: false; error: string; status: number };
 
-/** Phase 1134: accept paid/complete/succeeded (parity with payment-states). */
+/** Phase 1134/1331: accept paid/complete/succeeded (self-contained for Deno mirror). */
 function paidConfirmationMaySend(paymentStatus: string | null | undefined): boolean {
   const pay = String(paymentStatus ?? '').trim().toLowerCase();
   return pay === 'paid' || pay === 'complete' || pay === 'succeeded';
