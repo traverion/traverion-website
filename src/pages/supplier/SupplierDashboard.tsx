@@ -512,6 +512,8 @@ export default function SupplierDashboard() {
   const hello = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
   const todayGuestTotal = todayDepartures.reduce((s, b) => s + (b.guests ?? 0), 0);
+  /** Bookings batch failed — empty schedule metrics must not look like a quiet day (Trips 659 parity). */
+  const bookingsLoadFailed = dashboardError === USER_ERROR.bookings;
 
   const performance30d = useMemo(() => {
     const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
@@ -547,8 +549,9 @@ export default function SupplierDashboard() {
   const firstRefund = supplierBookings.find(isRefundDueBooking);
   const firstPending = pendingBookings[0];
 
-  const greetingSub =
-    attentionCount > 0
+  const greetingSub = bookingsLoadFailed
+    ? 'Bookings could not load — retry when your connection is back.'
+    : attentionCount > 0
       ? `Here's what needs your attention today.`
       : todayDepartures.length > 0
         ? `${todayDepartures.length} booking${todayDepartures.length === 1 ? '' : 's'} · ${todayGuestTotal} guest${todayGuestTotal === 1 ? '' : 's'} on the schedule.`
@@ -610,13 +613,21 @@ export default function SupplierDashboard() {
         <div className="partner-surface-panel px-4 py-3">
           <p className="text-[12px] font-medium text-slate-500">Today’s bookings</p>
           <p className="mt-1 text-[1.375rem] font-semibold tabular-nums tracking-tight text-slate-900">
-            {dashboardLoading && publishedListingsCount === null ? '—' : todayDepartures.length}
+            {dashboardLoading && publishedListingsCount === null
+              ? '—'
+              : bookingsLoadFailed
+                ? '—'
+                : todayDepartures.length}
           </p>
         </div>
         <div className="partner-surface-panel px-4 py-3">
           <p className="text-[12px] font-medium text-slate-500">Today’s guests</p>
           <p className="mt-1 text-[1.375rem] font-semibold tabular-nums tracking-tight text-slate-900">
-            {dashboardLoading && publishedListingsCount === null ? '—' : todayGuestTotal}
+            {dashboardLoading && publishedListingsCount === null
+              ? '—'
+              : bookingsLoadFailed
+                ? '—'
+                : todayGuestTotal}
           </p>
         </div>
         <div className="partner-surface-panel px-4 py-3">
@@ -806,7 +817,7 @@ export default function SupplierDashboard() {
         />
         {dashboardLoading && publishedListingsCount === null ? (
           <SupplierListSkeleton rows={3} />
-        ) : todayDepartures.length === 0 ? (
+        ) : bookingsLoadFailed ? null : todayDepartures.length === 0 ? (
           <div className="partner-surface-panel flex flex-wrap items-center justify-between gap-3 px-5 py-4">
             <div className="min-w-0">
               <p className="text-[15px] font-semibold text-slate-800">{todayEmptyCopy.title}</p>
@@ -1002,7 +1013,7 @@ export default function SupplierDashboard() {
               <TextLink onClick={() => openSupplierCalendar()}>Availability →</TextLink>
             }
           />
-          {upcomingByDate.length === 0 ? (
+          {bookingsLoadFailed ? null : upcomingByDate.length === 0 ? (
             <div className="rounded-md border border-dashed border-slate-200 bg-white/60 px-4 py-5">
               <p className="text-[14px] text-slate-500">No confirmed departures in the next week.</p>
             </div>
