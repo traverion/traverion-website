@@ -2,6 +2,7 @@
  * Commercial truth captured at checkout so later listing edits cannot silently
  * rewrite what the traveler purchased (title, option, meeting copy, terms).
  */
+import { bookingPaymentWasCollected } from './payment-states';
 
 export type PurchaseFulfillment = 'pickup' | 'meeting_point';
 
@@ -30,7 +31,7 @@ export type PurchaseSnapshot = {
   checkOut?: string | null;
   nights?: number | null;
   propertyType?: string | null;
-  /** Stay: exact check-in address frozen at purchase for Trips. */
+  /** Stay: exact check-in address frozen when payment is collected (not on pending holds). */
   checkInAddress?: string | null;
   /** Stay: house check-in wall clock HH:MM at purchase. */
   checkInTime?: string | null;
@@ -298,8 +299,15 @@ export function displayStayNightsFromPurchase(
   return null;
 }
 
-/** Prefer snapshotted stay check-in address; empty when absent. */
-export function displayCheckInAddressFromPurchase(snapshot: unknown): string | null {
+/**
+ * Prefer snapshotted stay check-in address after payment is collected.
+ * Pending/failed/expired holds must not reveal listing_stay_private (Phase 1325).
+ */
+export function displayCheckInAddressFromPurchase(
+  snapshot: unknown,
+  paymentStatus: string | null | undefined
+): string | null {
+  if (!bookingPaymentWasCollected(paymentStatus)) return null;
   if (!isPurchaseSnapshot(snapshot)) return null;
   const addr = (snapshot.checkInAddress ?? '').trim();
   return addr || null;

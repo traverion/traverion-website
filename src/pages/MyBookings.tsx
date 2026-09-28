@@ -739,11 +739,17 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 !b.pickup_time;
               const thumb = ops?.image ?? null;
               const placeLine = (() => {
-                const snapAddr = displayCheckInAddressFromPurchase(b.purchase_snapshot);
+                const snapAddr = displayCheckInAddressFromPurchase(
+                  b.purchase_snapshot,
+                  b.payment_status
+                );
                 if (snapAddr) return snapAddr;
                 return (ops?.city || ops?.destination || '').trim() || null;
               })();
-              const placeLabel = displayCheckInAddressFromPurchase(b.purchase_snapshot)
+              const placeLabel = displayCheckInAddressFromPurchase(
+                b.purchase_snapshot,
+                b.payment_status
+              )
                 ? 'Check-in address'
                 : 'Place';
               const dateLine = (() => {

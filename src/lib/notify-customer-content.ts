@@ -9,6 +9,7 @@
  * Phase 1060: join snap meetingPoint + pickupInstructions (place + start copy).
  * Phase 1066: stay emails get snap checkInAddress + house times (not tour meeting).
  * Phase 1070: stay houseRules + tour includes/excludes from purchase_snapshot.
+ * Phase 1325: checkInAddress only when payment was collected (not pending holds).
  *
  * Deliberately left caller-supplied (same scoping as supplier Phase 579):
  * fieldDiffs, unpaidCheckout, refundStatusNote, paidAtIso, paymentIntentId.
@@ -50,9 +51,17 @@ export type BookingRowForContent =
       booking_number?: number | null;
       purchase_snapshot?: unknown;
       listing_id?: string | null;
+      payment_status?: string | null;
     }
   | null
   | undefined;
+
+function paymentWasCollectedForContent(raw: unknown): boolean {
+  const pay = String(raw ?? '')
+    .trim()
+    .toLowerCase();
+  return pay === 'paid' || pay === 'refunded';
+}
 
 export type ListingRowForContent =
   | {
@@ -179,7 +188,10 @@ export function resolveBookingTiedContent(params: {
     ? undefined
     : [snapPlace, snapInstructions].filter(Boolean).join(' — ') || undefined;
 
-  const checkInAddress = isStay ? snapshotString(snap, 'checkInAddress') : undefined;
+  const checkInAddress =
+    isStay && paymentWasCollectedForContent(params.bookingRow.payment_status)
+      ? snapshotString(snap, 'checkInAddress')
+      : undefined;
   const checkInTimeRaw = isStay ? snapshotString(snap, 'checkInTime') : undefined;
   const checkOutTimeRaw = isStay ? snapshotString(snap, 'checkOutTime') : undefined;
   const checkInTime =

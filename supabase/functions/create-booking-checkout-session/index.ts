@@ -391,22 +391,8 @@ serve(async (req) => {
       startTimeHm: startTime || null,
     });
 
-    const stayPrivateAddr =
-      extrasFamily === 'stay'
-        ? await (async () => {
-            const { data: priv } = await admin
-              .from('listing_stay_private')
-              .select('check_in_address')
-              .eq('listing_id', listingId)
-              .maybeSingle();
-            const addr =
-              priv && typeof (priv as { check_in_address?: unknown }).check_in_address === 'string'
-                ? String((priv as { check_in_address: string }).check_in_address).trim()
-                : '';
-            return addr.slice(0, 400) || null;
-          })()
-        : null;
-
+    // Phase 1325: do not freeze listing_stay_private onto pending holds.
+    // promote-paid-from-checkout merges checkInAddress when payment is collected.
     const stayFields =
       extrasFamily === 'stay'
         ? resolveStayFieldsForSnapshot({
@@ -414,7 +400,7 @@ serve(async (req) => {
             checkIn: bookingDate,
             checkOut: checkoutDate || null,
             nights: typeof quote.nights === 'number' ? quote.nights : null,
-            checkInAddressOverride: stayPrivateAddr,
+            checkInAddressOverride: null,
           })
         : null;
 
@@ -453,7 +439,7 @@ serve(async (req) => {
           ? ((listingRow.listing_extras as { departureTimezone: string }).departureTimezone || null)
           : null,
       propertyType: stayFields?.propertyType ?? null,
-      checkInAddress: stayFields?.checkInAddress ?? null,
+      checkInAddress: null,
       checkInTime: stayFields?.checkInTime ?? null,
       checkOutTime: stayFields?.checkOutTime ?? null,
       houseRules: stayFields?.houseRules ?? null,

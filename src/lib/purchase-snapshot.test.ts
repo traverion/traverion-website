@@ -288,7 +288,11 @@ describe('resolveOptionFieldsForSnapshot (checkout freeze helpers)', () => {
       capturedAt: '2026-09-22T00:00:00.000Z',
     });
     expect(snap.checkInAddress).toBe('Kauppakatu 12 A 4, 96200 Rovaniemi');
-    expect(displayCheckInAddressFromPurchase(snap)).toBe('Kauppakatu 12 A 4, 96200 Rovaniemi');
+    expect(displayCheckInAddressFromPurchase(snap, 'paid')).toBe(
+      'Kauppakatu 12 A 4, 96200 Rovaniemi'
+    );
+    expect(displayCheckInAddressFromPurchase(snap, 'pending')).toBeNull();
+    expect(displayCheckInAddressFromPurchase(snap, 'failed')).toBeNull();
   });
 
   it('freezes stay house check-in/out times onto the purchase snapshot', () => {

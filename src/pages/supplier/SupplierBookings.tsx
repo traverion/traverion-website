@@ -1325,13 +1325,20 @@ export default function SupplierBookings({
                       </div>
                       );
                     })()}
-                    {isStay && displayCheckInAddressFromPurchase(booking.purchase_snapshot) ? (
+                    {isStay &&
+                    displayCheckInAddressFromPurchase(
+                      booking.purchase_snapshot,
+                      booking.payment_status
+                    ) ? (
                       <div className="sm:col-span-2">
                         <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">
                           Check-in address (when booked)
                         </dt>
                         <dd className="mt-0.5 break-words [overflow-wrap:anywhere] whitespace-pre-wrap text-ink">
-                          {displayCheckInAddressFromPurchase(booking.purchase_snapshot)}
+                          {displayCheckInAddressFromPurchase(
+                            booking.purchase_snapshot,
+                            booking.payment_status
+                          )}
                         </dd>
                       </div>
                     ) : null}

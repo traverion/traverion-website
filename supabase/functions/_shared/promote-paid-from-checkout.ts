@@ -755,18 +755,59 @@ export async function promotePaidFromCheckoutSession(params: {
     }
   }
 
+  // Phase 1325: freeze private stay check-in address only once payment is collected.
+  let purchaseSnapshotForPaid: Record<string, unknown> | null = null;
+  const existingSnap = existingBooking?.purchase_snapshot;
+  if (existingSnap && typeof existingSnap === 'object' && existingSnap !== null && listingId) {
+    const snapObj = { ...(existingSnap as Record<string, unknown>) };
+    const already = typeof snapObj.checkInAddress === 'string' ? snapObj.checkInAddress.trim() : '';
+    if (!already) {
+      const { data: listingForAddr } = await admin
+        .from('listings')
+        .select('listing_extras')
+        .eq('id', listingId)
+        .maybeSingle();
+      const family =
+        listingForAddr?.listing_extras &&
+        typeof listingForAddr.listing_extras === 'object' &&
+        (listingForAddr.listing_extras as { inventoryFamily?: unknown }).inventoryFamily === 'stay'
+          ? 'stay'
+          : listingKindFromExtras(listingForAddr?.listing_extras);
+      if (family === 'stay') {
+        const { data: priv } = await admin
+          .from('listing_stay_private')
+          .select('check_in_address')
+          .eq('listing_id', listingId)
+          .maybeSingle();
+        const addr =
+          priv && typeof (priv as { check_in_address?: unknown }).check_in_address === 'string'
+            ? String((priv as { check_in_address: string }).check_in_address).trim().slice(0, 400)
+            : '';
+        if (addr) {
+          snapObj.checkInAddress = addr;
+          purchaseSnapshotForPaid = snapObj;
+        }
+      }
+    }
+  }
+
+  const paidPatch: Record<string, unknown> = {
+    status: 'confirmed',
+    payment_status: 'paid',
+    payment_provider: 'stripe',
+    checkout_session_id: session.id,
+    payment_intent_id: paymentIntentId,
+    amount_paid: amountPaid,
+    currency,
+    paid_at: new Date().toISOString(),
+  };
+  if (purchaseSnapshotForPaid) {
+    paidPatch.purchase_snapshot = purchaseSnapshotForPaid;
+  }
+
   let paidUpdate = admin
     .from('bookings')
-    .update({
-      status: 'confirmed',
-      payment_status: 'paid',
-      payment_provider: 'stripe',
-      checkout_session_id: session.id,
-      payment_intent_id: paymentIntentId,
-      amount_paid: amountPaid,
-      currency,
-      paid_at: new Date().toISOString(),
-    })
+    .update(paidPatch)
     .eq('id', bookingId)
     .in('payment_status', ['pending', 'failed'])
     .neq('status', 'cancelled');

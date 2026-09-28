@@ -157,6 +157,7 @@ describe('resolveBookingTiedContent (Phase 1052 content-forgery fix)', () => {
         check_out: '2026-12-03',
         guests: 2,
         booking_number: 77,
+        payment_status: 'paid',
         purchase_snapshot: {
           listingTitle: 'River loft',
           checkInAddress: 'Kauppakatu 1, Rovaniemi',
@@ -182,6 +183,35 @@ describe('resolveBookingTiedContent (Phase 1052 content-forgery fix)', () => {
     expect(result.overrides.meetingPoint).toBeUndefined();
   });
 
+  it('does not email stay check-in address while payment is pending (Phase 1325)', () => {
+    const result = resolveBookingTiedContent({
+      kind: 'booking_request',
+      bookingId: BOOKING_ID,
+      bookingRow: {
+        guest_name: 'Miro',
+        booking_date: '2026-12-01',
+        check_out: '2026-12-03',
+        guests: 2,
+        payment_status: 'pending',
+        purchase_snapshot: {
+          listingTitle: 'River loft',
+          checkInAddress: 'Kauppakatu 1, Rovaniemi',
+          checkInTime: '16:00',
+          capturedAt: '2026-09-01T12:00:00Z',
+        },
+      },
+      listingRow: {
+        id: 'l1',
+        title: 'River loft',
+        listing_extras: { inventoryFamily: 'stay' },
+      },
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.overrides.checkInAddress).toBeUndefined();
+    expect(result.overrides.checkInTime).toBe('16:00');
+  });
+
   it('surfaces stay houseRules and tour includes/excludes from purchase_snapshot (Phase 1070)', () => {
     const stay = resolveBookingTiedContent({
       kind: 'experience_reminder',
@@ -191,6 +221,7 @@ describe('resolveBookingTiedContent (Phase 1052 content-forgery fix)', () => {
         booking_date: '2026-12-01',
         check_out: '2026-12-02',
         guests: 1,
+        payment_status: 'paid',
         purchase_snapshot: {
           listingTitle: 'Cabin',
           houseRules: 'Quiet after 22:00',
@@ -241,6 +272,7 @@ describe('resolveBookingTiedContent (Phase 1052 content-forgery fix)', () => {
         booking_date: '2026-12-01',
         check_out: '2026-12-02',
         guests: 1,
+        payment_status: 'paid',
         purchase_snapshot: {
           listingTitle: 'Cabin',
           meetingPoint: 'SHOULD NOT APPEAR',
