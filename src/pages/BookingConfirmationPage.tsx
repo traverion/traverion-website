@@ -93,8 +93,21 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
   const [payNowError, setPayNowError] = useState<string | null>(null);
   const [copiedRef, setCopiedRef] = useState(false);
   const loadGenRef = useRef(0);
+  const confirmationUserIdRef = useRef<string | null>(null);
 
   const canQuery = Boolean(user?.id && sessionId && isSupabaseConfigured());
+
+  const resetConfirmationBookingState = useCallback(() => {
+    setBooking(null);
+    setListingTitle('');
+    setOptionLabel('');
+    setPickupPending(false);
+    setError(null);
+    setPollCount(0);
+    setReconcileAttempted(false);
+    setReconciling(false);
+    setPayNowError(null);
+  }, []);
 
   const load = useCallback(async () => {
     if (!sessionId) {
@@ -185,6 +198,22 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
       setError(userFacingError(e, USER_ERROR.booking));
     }
   }, [sessionId, user?.id]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user?.id) {
+      confirmationUserIdRef.current = null;
+      loadGenRef.current += 1;
+      resetConfirmationBookingState();
+      return;
+    }
+    // Phase 1380: clear prior account booking before load (Trips 1379 / loadGen parity).
+    if (confirmationUserIdRef.current !== user.id) {
+      confirmationUserIdRef.current = user.id;
+      loadGenRef.current += 1;
+      resetConfirmationBookingState();
+    }
+  }, [user?.id, authLoading, resetConfirmationBookingState]);
 
   useEffect(() => {
     if (!canQuery) return;
