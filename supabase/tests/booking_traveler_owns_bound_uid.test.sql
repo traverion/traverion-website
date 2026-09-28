@@ -4,7 +4,7 @@ begin;
 
 create extension if not exists pgtap;
 
-select plan(4);
+select plan(5);
 
 -- Helper pure cases via set_config simulation is hard; assert function exists +
 -- is_booking_party definition references booking_traveler_owns.
@@ -28,6 +28,11 @@ select ok(
 select ok(
   position('booking_traveler_owns' in pg_get_functiondef('public.update_guest_booking_special_requests(uuid, text)'::regprocedure)) > 0,
   'update_guest_booking_special_requests uses booking_traveler_owns'
+);
+
+select ok(
+  position('booking_traveler_owns' in pg_get_functiondef('public.respond_cancellation_request(uuid, boolean)'::regprocedure)) > 0,
+  'respond_cancellation_request uses booking_traveler_owns'
 );
 
 select * from finish();
