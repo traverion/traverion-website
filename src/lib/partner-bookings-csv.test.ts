@@ -178,6 +178,58 @@ describe('partner bookings CSV', () => {
     expect(values[PARTNER_BOOKINGS_CSV_HEADER.indexOf('nights')]).toBe('5');
   });
 
+  it('Phase 1591: paid+nightly nights column reconciles to amount_paid (check_out stays range)', () => {
+    const values = partnerBookingCsvValues(
+      {
+        id: 'stay-paid-nights',
+        listing_id: 'prop',
+        booking_number: 12,
+        status: 'confirmed',
+        payment_status: 'paid',
+        amount_paid: 300,
+        nightly_amount: 100,
+        cleaning_fee: 0,
+        currency: 'EUR',
+        booking_date: '2026-12-01',
+        check_out: '2026-12-03',
+        nights: 3,
+        guests: 2,
+        purchase_snapshot: { checkOut: '2026-12-06', nights: 3 },
+      },
+      'Cabin',
+      '',
+      '',
+      { inventory: 'stay' }
+    );
+    expect(values[PARTNER_BOOKINGS_CSV_HEADER.indexOf('check_out')]).toBe('2026-12-06');
+    expect(values[PARTNER_BOOKINGS_CSV_HEADER.indexOf('nights')]).toBe('3');
+  });
+
+  it('Phase 1591: omit nights when paid+nightly cannot reconcile to amount_paid', () => {
+    const values = partnerBookingCsvValues(
+      {
+        id: 'stay-mismatch',
+        listing_id: 'prop',
+        booking_number: 13,
+        status: 'confirmed',
+        payment_status: 'paid',
+        amount_paid: 250,
+        nightly_amount: 100,
+        currency: 'EUR',
+        booking_date: '2026-12-01',
+        nights: 3,
+        guests: 2,
+        purchase_snapshot: { checkOut: '2026-12-06' },
+      },
+      'Cabin',
+      '',
+      '',
+      { inventory: 'stay' }
+    );
+    expect(values[PARTNER_BOOKINGS_CSV_HEADER.indexOf('check_out')]).toBe('2026-12-06');
+    expect(values[PARTNER_BOOKINGS_CSV_HEADER.indexOf('nights')]).toBe('');
+  });
+
   it('listing_title column carries purchased title when caller prefers snapshot (Phase 1069)', () => {
     const values = partnerBookingCsvValues(
       {

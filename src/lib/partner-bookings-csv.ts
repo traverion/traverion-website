@@ -1,6 +1,8 @@
-import { partnerPaymentLabel, normalizePaymentStatus, type MoneyBookingRow } from './payment-states';
+import { partnerPaymentLabel, normalizePaymentStatus, bookingPaymentWasCollected, type MoneyBookingRow } from './payment-states';
 import { bookingIsStayNight } from './pickup-completeness';
 import { nightsOccupiedByStay, stayRangeFromBooking } from './stayOccupancy';
+import { stayPaidAdjacentNightCount } from './booking-confirmation-copy';
+import type { PurchaseSnapshot } from './purchase-snapshot';
 
 export type PartnerBookingCsvRow = MoneyBookingRow & {
   id: string;
@@ -12,6 +14,8 @@ export type PartnerBookingCsvRow = MoneyBookingRow & {
   booking_date?: string | null;
   check_out?: string | null;
   nights?: number | null;
+  nightly_amount?: number | null;
+  cleaning_fee?: number | null;
   start_time?: string | null;
   pickup_time?: string | null;
   acknowledged_at?: string | null;
@@ -74,14 +78,34 @@ export function partnerBookingCsvValues(
       : null;
   // Phase 1552/1573: purchased range nights beat opts override and stale row nights
   // (opts must not invent short nights beside 1564 exclusive check_out).
-  const nights =
-    nightsFromRange >= 1
-      ? String(nightsFromRange)
-      : nightsFromOpts != null
-        ? String(nightsFromOpts)
-        : nightsFromRow != null
-          ? String(nightsFromRow)
-          : '';
+  const occupancyNights =
+    nightsFromRange >= 1 ? nightsFromRange : nightsFromOpts != null ? nightsFromOpts : nightsFromRow;
+  // Phase 1591: when paid+nightly, nights column reconciles to amount_paid (1588 / Bookings UI parity).
+  // check_out stays exclusive occupancy range; omit nights when paid+nightly cannot reconcile.
+  const paidWithNightly =
+    inventory === 'stay' &&
+    bookingPaymentWasCollected(b.payment_status) &&
+    b.amount_paid != null &&
+    Number(b.amount_paid) > 0 &&
+    b.nightly_amount != null;
+  const paidAdjacent = paidWithNightly
+    ? stayPaidAdjacentNightCount({
+        amountPaid: b.amount_paid,
+        nightlyAmount: b.nightly_amount,
+        cleaningFee: b.cleaning_fee,
+        paymentCollected: true,
+        columnNights: b.nights,
+        snapshotNights: (b.purchase_snapshot as PurchaseSnapshot | null | undefined)?.nights,
+        occupancyNights,
+      })
+    : null;
+  const nights = paidWithNightly
+    ? paidAdjacent != null
+      ? String(paidAdjacent)
+      : ''
+    : occupancyNights != null && occupancyNights >= 1
+      ? String(occupancyNights)
+      : '';
   return [
     b.id,
     typeof b.booking_number === 'number' ? String(b.booking_number) : '',
