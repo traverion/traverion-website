@@ -636,9 +636,9 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
 
               {collected && booking.amount_paid != null && (
                 <div className="rounded-xl bg-ink/[0.03] px-4 py-3.5 ring-1 ring-black/[0.05]">
-                  {stayCheckOut && booking.nights && booking.nightly_amount != null && paidActive ? (
+                  {stayCheckOut && stayNights != null && stayNights >= 1 && booking.nightly_amount != null && paidActive ? (
                     <p className="text-sm text-ink-muted mb-1">
-                      {booking.nights} night{booking.nights === 1 ? '' : 's'} ×{' '}
+                      {stayNights} night{stayNights === 1 ? '' : 's'} ×{' '}
                       {formatMoney(Number(booking.nightly_amount), booking.currency)}
                       {booking.cleaning_fee != null && Number(booking.cleaning_fee) > 0
                         ? ` + ${formatMoney(Number(booking.cleaning_fee), booking.currency)} cleaning`

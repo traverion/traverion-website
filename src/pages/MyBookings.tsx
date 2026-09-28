@@ -20,7 +20,7 @@ import {
   type BookingRow,
 } from '../data/supabase-bookings';
 import { fetchListingOpsByIds, pgTimeToHm, type ListingOpsMeta } from '../data/supabase-listings';
-import { stayRangeFromBooking } from '../lib/stayOccupancy';
+import { stayRangeFromBooking, nightsOccupiedByStay } from '../lib/stayOccupancy';
 import { formatMoney, isStripeTestCheckoutSession, appStripeIsTestMode } from '../lib/money';
 import { travelerPaymentLabel, REFUND_DUE_MANUAL_COPY, bookingPaymentWasCollected, isRefundDueBooking } from '../lib/payment-states';
 import { formatBookingParticipantsLabel } from '../lib/participant-mix';
@@ -909,6 +909,14 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 }
                 return b.booking_date ? formatBookingDateDisplay(b.booking_date) : 'Date TBC';
               })();
+              // Phase 1551: nights from stayRangeFromBooking (1524), not column alone (partner Bookings parity).
+              const stayNightsSuffix = (() => {
+                if (!isStay) return '';
+                const stay = stayRangeFromBooking(b);
+                if (!stay) return '';
+                const n = nightsOccupiedByStay(stay.checkIn, stay.checkOut).length;
+                return n > 0 ? ` · ${n === 1 ? '1 night' : `${n} nights`}` : '';
+              })();
               const timeBit = (() => {
                 if (isStay) return null;
                 const live = b.start_time ? pgTimeToHm(b.start_time) : null;
@@ -1013,7 +1021,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       ) : null}
                       <span>
                         {formatBookingParticipantsLabel(b)}
-                        {b.nights ? ` · ${b.nights === 1 ? '1 night' : `${b.nights} nights`}` : ''}
+                        {stayNightsSuffix}
                       </span>
                     </div>
                     <p className="mt-1.5 text-sm text-ink-muted">
@@ -1184,7 +1192,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       </dt>
                       <dd className="mt-0.5 text-sm text-ink">
                         {formatBookingParticipantsLabel(b)}
-                        {b.nights ? ` · ${b.nights === 1 ? '1 night' : `${b.nights} nights`}` : ''}
+                        {stayNightsSuffix}
                       </dd>
                     </div>
                     {ref ? (
