@@ -968,7 +968,21 @@ export default function SupplierBookings({
               >
                 Show all bookings
               </button>
-            ) : undefined
+            ) : (
+              // Phase 1609: filtered empty — same reset as toolbar Clear (search/ops/date/listing).
+              <button
+                type="button"
+                onClick={() => {
+                  writeBookingsSearchToUrl({ view: 'all', listingId: '', from: '', to: '' });
+                  setOpsFilterAndUrl('all');
+                  setFilterQuery('');
+                  setBookingsListPage(1);
+                }}
+                className="tv-btn-secondary"
+              >
+                Clear filters
+              </button>
+            )
           }
         />
       ) : (
