@@ -341,8 +341,8 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     let cancelled = false;
     setDateCapacityLoading(true);
     setDateCapacityError(null);
-    // Phase 1341: invalidate prior map so a failed reload cannot filter with stale capacity.
-    setDateCapacityByListing(null);
+    // Phase 1350: keep prior map while reloading — clearing to null made a failed
+    // reload treat every tour as open under the Capacity unavailable banner (1341/1344).
     void Promise.all(
       allListings.map(async (tour) => {
         try {
@@ -504,7 +504,9 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     const exceptCapacity = allListings.filter(matchExceptCapacity);
     let knownSoldOutForDate = 0;
     let list = exceptCapacity.filter((tour) => {
-      if (!(filterDate && dateCapacityByListing)) return true;
+      if (!filterDate) return true;
+      // Phase 1350: unknown capacity must not invent open seats (null map).
+      if (dateCapacityByListing == null) return false;
       const cap = dateCapacityByListing[tour.id];
       // Phase 1190: missing cap row while map is loaded → exclude (do not invent open).
       if (!cap) return false;
@@ -1062,7 +1064,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
         ) : null}
         {showCatalogLoading ? (
           <SkeletonCardGrid count={6} />
-        ) : allListings.length > 0 && filteredPackages.length > 0 ? (
+        ) : dateCapacityError && filterDate && dateCapacityByListing == null ? null : allListings.length > 0 && filteredPackages.length > 0 ? (
           <>
             <div className={MARKETPLACE_BROWSE_GRID_CLASS}>
               {filteredPackages.map((tour, index) => (

@@ -239,8 +239,8 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
     let cancelled = false;
     setOccupancyLoading(true);
     setOccupancyError(null);
-    // Phase 1341: invalidate prior map so a failed reload cannot filter with stale nights.
-    setOccupiedByListing(null);
+    // Phase 1350: keep prior map while reloading — clearing to null made a failed
+    // reload treat every stay as open under the Capacity unavailable banner (1341/1344).
     void Promise.all(
       stays.map(async (s) => {
         try {
@@ -266,7 +266,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
       })
       .catch((e) => {
         if (cancelled) return;
-        // Phase 1188: keep prior occupancy map — null would make every stay look open (Packages 1104).
+        // Phase 1188/1350: keep prior occupancy map — null would make every stay look open.
         setOccupancyError(
           userFacingError(e, 'We could not check stay availability. Check your connection and try again.')
         );
@@ -361,7 +361,9 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
         const minN = extras.stay?.minNights ?? 1;
         if (requestedNights < minN) return false;
       }
-      if (dateFilterActive && occupiedByListing) {
+      if (dateFilterActive) {
+        // Phase 1350: unknown occupancy must not invent open nights (null map).
+        if (occupiedByListing == null) return false;
         const pack = occupiedByListing[s.id];
         // Phase 1193: missing occupancy row → exclude (do not invent open nights).
         if (!pack) return false;
@@ -846,7 +848,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
         ) : null}
         {catalogLoading || waitingOnOccupancy ? (
           <SkeletonCardGrid count={6} />
-        ) : filtered.length > 0 ? (
+        ) : occupancyError && dateFilterActive && occupiedByListing == null ? null : filtered.length > 0 ? (
           <div className={MARKETPLACE_BROWSE_GRID_CLASS}>
             {filtered.map((item, index) => {
               const guestN = Number.parseInt(guests, 10) || 1;
