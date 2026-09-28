@@ -3,7 +3,7 @@
  * Stripe redirects here with ?session_id=cs_…; we resolve the row via RLS.
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle, Calendar, Users, Loader2, LogIn, Copy, Check } from 'lucide-react';
+import { CheckCircle, Calendar, Users, Loader2, LogIn, Copy, Check, Printer } from 'lucide-react';
 import { Skeleton } from '../components/ui/Skeleton';
 import ErrorState from '../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
@@ -617,15 +617,27 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                       #{booking.booking_number}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={copyBookingRef}
-                    className="tv-btn-ghost text-sm shrink-0"
-                    aria-label="Copy booking reference"
-                  >
-                    {copiedRef ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                    {copiedRef ? 'Copied' : 'Copy'}
-                  </button>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={copyBookingRef}
+                      className="tv-btn-ghost text-sm"
+                      aria-label="Copy booking reference"
+                    >
+                      {copiedRef ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                      {copiedRef ? 'Copied' : 'Copy'}
+                    </button>
+                    {/* Phase 1674: printable receipt beside Copy for offline voucher use. */}
+                    <button
+                      type="button"
+                      onClick={() => window.print()}
+                      className="tv-btn-ghost text-sm print:hidden"
+                      aria-label="Print booking confirmation"
+                    >
+                      <Printer className="w-4 h-4" aria-hidden />
+                      Print
+                    </button>
+                  </div>
                 </div>
               ) : null}
 
