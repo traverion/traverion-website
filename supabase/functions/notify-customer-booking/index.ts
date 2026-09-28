@@ -30,6 +30,7 @@ import {
 import { authUserVerifiedEmail } from '../_shared/auth-verified-email.ts';
 import { notifyUnpaidCheckoutFromPaymentStatus } from '../_shared/notify-unpaid-checkout.ts';
 import { travelerOwnsCheckoutBooking } from '../_shared/booking-traveler-ownership.ts';
+import { resolveCustomerEmailIdempotencyKey } from '../_shared/transactional-idempotency-key.ts';
 
 type EmailKind =
   | 'booking_request'
@@ -584,11 +585,14 @@ serve(async (req) => {
 
     const greeting = name ? `Hi ${name},` : 'Hi,';
     const refDigits = orderTag(bookingNumber);
-    const idempotencyKey =
-      (typeof body.idempotencyKey === 'string' && body.idempotencyKey.trim()) ||
-      (body.bookingId
-        ? `customer:${kind}:${body.bookingId}`
-        : `customer:${kind}:${to}`);
+    // Phase 1510: client idempotencyKey may only extend customer:${kind}:… —
+    // never overwrite a different template's slot (paid/refund poison).
+    const idempotencyKey = resolveCustomerEmailIdempotencyKey({
+      kind,
+      bookingId: body.bookingId,
+      email: to,
+      clientKey: typeof body.idempotencyKey === 'string' ? body.idempotencyKey : null,
+    });
 
     if (admin) {
       const claim = await claimTransactionalSend(admin, {

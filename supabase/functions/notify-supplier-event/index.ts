@@ -21,6 +21,7 @@ import {
 import { authUserVerifiedEmail } from '../_shared/auth-verified-email.ts';
 import { notifyUnpaidCheckoutFromPaymentStatus } from '../_shared/notify-unpaid-checkout.ts';
 import { travelerOwnsCheckoutBooking } from '../_shared/booking-traveler-ownership.ts';
+import { resolveSupplierEmailIdempotencyKey } from '../_shared/transactional-idempotency-key.ts';
 
 type EventType =
   | 'new_booking'
@@ -678,11 +679,13 @@ serve(async (req) => {
       ];
     }
 
-    const idempotencyKey =
-      (typeof payload.idempotencyKey === 'string' && payload.idempotencyKey.trim()) ||
-      (payload.bookingId
-        ? `supplier:${payload.eventType}:${payload.bookingId}`
-        : `supplier:${payload.eventType}:${payload.supplierId}`);
+    // Phase 1510: client idempotencyKey may only extend supplier:${eventType}:…
+    const idempotencyKey = resolveSupplierEmailIdempotencyKey({
+      eventType: payload.eventType,
+      supplierId: payload.supplierId,
+      bookingId: payload.bookingId,
+      clientKey: typeof payload.idempotencyKey === 'string' ? payload.idempotencyKey : null,
+    });
 
     const claim = await claimTransactionalSend(admin, {
       idempotencyKey,
