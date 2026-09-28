@@ -8,6 +8,9 @@ import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 import { supabase } from '../lib/supabase';
 import { establishPasswordRecoverySession } from '../lib/passwordRecoveryFlow';
 import { resolvePasswordRecoveryPortal } from '../lib/recoveryPortal';
+import { isPublicTraverionMarketingHost } from '../lib/adminHost';
+import { partnerPortalAuthRedirectUrl } from '../lib/partnerHost';
+import { PARTNER_RESET_PASSWORD_PATH } from '../lib/partnerPortalPaths';
 
 interface ResetPasswordPageProps {
   onNavigate: (page: string) => void;
@@ -53,7 +56,17 @@ export default function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps
         return;
       }
       const resolved = await resolvePasswordRecoveryPortal(session.user.id);
-      if (!cancelled) setPortal(resolved);
+      if (cancelled) return;
+      // Partner recovery on www /set-password: move to partner host so success
+      // lands on partner login, not traveler /login marketing alias.
+      if (resolved === 'partner' && isPublicTraverionMarketingHost()) {
+        const { search, hash } = window.location;
+        window.location.replace(
+          `${partnerPortalAuthRedirectUrl(PARTNER_RESET_PASSWORD_PATH)}${search}${hash}`
+        );
+        return;
+      }
+      setPortal(resolved);
     })();
 
     return () => {

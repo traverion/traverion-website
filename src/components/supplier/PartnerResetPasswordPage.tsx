@@ -1,15 +1,18 @@
 import SetNewPasswordForm from '../auth/SetNewPasswordForm';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
 import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
+import { partnerPortalAuthRedirectUrl } from '../../lib/partnerHost';
 import { PARTNER_LOGIN_PATH } from '../../lib/partnerPortalPaths';
 
 export default function PartnerResetPasswordPage() {
   const mainSiteUrl = publicSiteBaseUrl();
+  // Absolute partner login — relative /login on www is traveler marketing, not supplier portal.
+  const partnerLoginHref = partnerPortalAuthRedirectUrl(PARTNER_LOGIN_PATH);
 
   return (
     <div className="min-h-[100dvh] bg-paper text-ink flex flex-col">
       <header className="flex items-center justify-between px-5 sm:px-8 py-5">
-        <a href={PARTNER_LOGIN_PATH} className="flex items-center gap-2.5 text-ink">
+        <a href={partnerLoginHref} className="flex items-center gap-2.5 text-ink">
           <img src={BRAND_LOGO_SRC} alt="" className="h-10 w-10 object-contain" />
           <span className="font-sans text-sm font-semibold tracking-[0.18em]">TRAVERION</span>
         </a>
@@ -29,9 +32,9 @@ export default function PartnerResetPasswordPage() {
             minPasswordLength={8}
             description="Enter a new password for your partner account. When you are done, sign in to the supplier portal."
             onSuccess={() => {
-              window.location.replace(PARTNER_LOGIN_PATH);
+              window.location.replace(partnerLoginHref);
             }}
-            loginHref={PARTNER_LOGIN_PATH}
+            loginHref={partnerLoginHref}
             loginLabel="Back to partner log in"
             successHint="Sign in to the supplier portal with your new password."
           />
