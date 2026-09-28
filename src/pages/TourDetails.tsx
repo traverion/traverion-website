@@ -101,6 +101,7 @@ import { formatTourAvailabilityHeading, optionsOnDate } from '../lib/tour-availa
 import { tourSlotMaxSpotsFromOption } from '../lib/tour-slot-capacity';
 import { tourDepartureSlotCapacity } from '../../supabase/functions/_shared/booking-quote.ts';
 import { tourStickyBookCtaLabel } from '../lib/tour-sticky-cta';
+import { tourQuoteFailureFocusTarget } from '../lib/tour-quote-failure-focus';
 import { travelerDisplayNameFromSources } from '../lib/traveler-display-name';
 import { fetchWishlistListingIds, toggleWishlist } from '../data/supabase-wishlist';
 import { formatMoney, normalizeCurrency } from '../lib/money';
@@ -1061,6 +1062,21 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       });
       return;
     }
+    // Phase 1529: quote failure — scroll/focus the fixable control (Stay 1521 parity).
+    if (selectedBookingVariant && panelQuote != null && !panelQuote.ok) {
+      const focus = tourQuoteFailureFocusTarget({
+        quoteError: panelQuote.error,
+        quoteCode: panelQuote.code,
+      });
+      scrollElementIntoView(focus.scrollId, { behavior: 'smooth', block: 'center' });
+      if (focus.focusSelector) {
+        window.requestAnimationFrame(() => {
+          const el = document.querySelector(focus.focusSelector!) as HTMLElement | null;
+          el?.focus();
+        });
+      }
+      return;
+    }
     if (selectedBookingVariant && !checkoutFromUrl) {
       void handleContinueToCheckout();
       return;
@@ -1785,6 +1801,25 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                           <button
                             type="button"
                             onClick={() => {
+                              if (panelQuote != null && !panelQuote.ok) {
+                                const focus = tourQuoteFailureFocusTarget({
+                                  quoteError: panelQuote.error,
+                                  quoteCode: panelQuote.code,
+                                });
+                                scrollElementIntoView(focus.scrollId, {
+                                  behavior: 'smooth',
+                                  block: 'center',
+                                });
+                                if (focus.focusSelector) {
+                                  window.requestAnimationFrame(() => {
+                                    const el = document.querySelector(
+                                      focus.focusSelector!
+                                    ) as HTMLElement | null;
+                                    el?.focus();
+                                  });
+                                }
+                                return;
+                              }
                               if (departureTimes.length > 1 && !selectedDepartureTime.trim()) {
                                 setBookingCardError('Choose a departure time to continue.');
                                 scrollElementIntoView('tour-departure-times', {
@@ -1814,13 +1849,12 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                                       )
                                     )
                                   : Math.max(1, guests);
-                              // Phase 1187: match sticky CTA sold-out / party-cap disable (1182 handler parity).
+                              // Phase 1529: quote failure stays tappable so CTA can focus the fix.
                               return (
                                 variantChecking ||
                                 selfBookBlocked ||
                                 capacityUnknown ||
                                 allDeparturesSoldOut ||
-                                (panelQuote != null && !panelQuote.ok) ||
                                 (selectedDaySpotsLeft != null && selectedDaySpotsLeft < partyForCap)
                               );
                             })()}
@@ -1831,15 +1865,36 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                             }
                             className="tv-btn-primary w-full disabled:opacity-60"
                           >
-                            {selfBookCheckFailed
-                              ? 'Eligibility unavailable'
-                              : selfBookBlocked
-                              ? 'Cannot book own listing'
-                              : variantChecking
-                              ? 'Checking…'
-                              : departureTimes.length > 1 && !selectedDepartureTime.trim()
-                                ? 'Pick time'
-                                : TRAVELER_CONTINUE_TEST_CTA}
+                            {tourStickyBookCtaLabel({
+                              hasDate: Boolean(bookingDate.trim()),
+                              hasOption: Boolean(selectedBookingVariant),
+                              needsDeparture:
+                                departureTimes.length > 1 &&
+                                !selectedDepartureTime.trim() &&
+                                !allDeparturesSoldOut,
+                              checking: variantChecking,
+                              soldOut: (() => {
+                                const partyForCap =
+                                  usesAgePricing && selectedOptionApplied
+                                    ? Math.max(
+                                        1,
+                                        totalGuestsFromMix(
+                                          buildParticipantMixLines(selectedOptionApplied, participantMix)
+                                        )
+                                      )
+                                    : Math.max(1, guests);
+                                return (
+                                  allDeparturesSoldOut ||
+                                  (selectedDaySpotsLeft != null && selectedDaySpotsLeft < partyForCap)
+                                );
+                              })(),
+                              quoteInvalid: Boolean(panelQuote != null && !panelQuote.ok),
+                              quoteError: panelQuote && !panelQuote.ok ? panelQuote.error : null,
+                              quoteCode: panelQuote && !panelQuote.ok ? panelQuote.code : null,
+                              selfBookBlocked,
+                              selfBookCheckFailed,
+                              capacityUnknown,
+                            })}
                           </button>
                         </div>
                       ) : (
@@ -2145,11 +2200,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                             )
                           )
                         : Math.max(1, guests);
+                    // Phase 1529: quote failure stays tappable for focus (Stay 1521 parity).
                     return (
                       variantChecking ||
                       selfBookBlocked ||
                       allDeparturesSoldOut ||
-                      (panelQuote != null && !panelQuote.ok) ||
                       (Boolean(selectedBookingVariant) &&
                         selectedDaySpotsLeft != null &&
                         selectedDaySpotsLeft < partyForCap)
@@ -2185,6 +2240,8 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                       );
                     })(),
                     quoteInvalid: Boolean(selectedBookingVariant && panelQuote != null && !panelQuote.ok),
+                    quoteError: panelQuote && !panelQuote.ok ? panelQuote.error : null,
+                    quoteCode: panelQuote && !panelQuote.ok ? panelQuote.code : null,
                     selfBookBlocked,
                     selfBookCheckFailed,
                     capacityUnknown,
