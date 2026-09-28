@@ -63,6 +63,7 @@ import {
   type TravelerCheckoutAuthMetadata,
 } from '../lib/traveler-checkout-autofill';
 import { fetchWishlistListingIds, toggleWishlist } from '../data/supabase-wishlist';
+import { useDialogFocus } from '../hooks/useDialogFocus';
 
 type Props = {
   stayId: string;
@@ -127,6 +128,12 @@ export default function StayDetails({ stayId, onBack }: Props) {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewTitle, setReviewTitle] = useState('');
   const [reviewComment, setReviewComment] = useState('');
+  // Phase 1668: Tour-parity photo lightbox for stay galleries.
+  const gallerySheetRef = useRef<HTMLDivElement>(null);
+  const [galleryLightboxOpen, setGalleryLightboxOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(0);
+  const closeGalleryLightbox = useCallback(() => setGalleryLightboxOpen(false), []);
+  useDialogFocus(galleryLightboxOpen, gallerySheetRef, closeGalleryLightbox);
 
   useEffect(() => {
     let cancelled = false;
@@ -426,6 +433,13 @@ export default function StayDetails({ stayId, onBack }: Props) {
         nightsOccupiedByStay(checkIn, checkOut).some((n) => blockedNights.includes(n))
       : false;
   const hero = stay ? listingHeroImageSrc(stay.image) : undefined;
+  const stayGalleryImages = useMemo(() => {
+    const urls = [hero, ...gallery.map((u) => listingHeroImageSrc(u) ?? u)].filter(
+      (u, i, arr): u is string => Boolean(u) && arr.indexOf(u) === i
+    );
+    return urls;
+  }, [hero, gallery]);
+  const hasStayGallery = stayGalleryImages.length > 0;
 
   useEffect(() => {
     if (maxGuests == null) return;
@@ -717,43 +731,73 @@ export default function StayDetails({ stayId, onBack }: Props) {
         </div>
 
         <div className="mb-6 sm:mb-8">
-          {hero || gallery.length > 0 ? (
+          {hasStayGallery ? (
             <div className="grid grid-cols-1 gap-2 sm:gap-3 lg:grid-cols-4 lg:grid-rows-2 lg:min-h-[26rem]">
               {hero ? (
-                <div className="relative overflow-hidden rounded-2xl bg-ink/10 lg:col-span-2 lg:row-span-2 aspect-[4/3] lg:aspect-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedImage(0);
+                    setGalleryLightboxOpen(true);
+                  }}
+                  className="relative overflow-hidden rounded-2xl bg-ink/10 lg:col-span-2 lg:row-span-2 aspect-[4/3] lg:aspect-auto text-left"
+                  aria-label={`Photo 1 of ${stayGalleryImages.length}`}
+                >
                   <img
                     src={hero}
                     alt=""
                     className="absolute inset-0 h-full w-full object-cover"
                   />
-                </div>
+                </button>
               ) : null}
-              {(hero ? gallery : gallery.slice(1)).slice(0, hero ? 4 : 5).map((url) => (
-                <div
-                  key={url}
-                  className="relative hidden overflow-hidden rounded-xl bg-ink/10 aspect-[4/3] lg:block"
-                >
-                  <img
-                    src={listingHeroImageSrc(url) ?? url}
-                    alt=""
-                    className="absolute inset-0 h-full w-full object-cover"
-                  />
-                </div>
-              ))}
+              {(hero ? gallery : gallery.slice(1)).slice(0, hero ? 4 : 5).map((url, i) => {
+                const src = listingHeroImageSrc(url) ?? url;
+                const index = stayGalleryImages.indexOf(src);
+                const photoIndex = index >= 0 ? index : i + (hero ? 1 : 0);
+                return (
+                  <button
+                    key={url}
+                    type="button"
+                    onClick={() => {
+                      setSelectedImage(photoIndex);
+                      setGalleryLightboxOpen(true);
+                    }}
+                    className="relative hidden overflow-hidden rounded-xl bg-ink/10 aspect-[4/3] lg:block text-left"
+                    aria-label={`Photo ${photoIndex + 1} of ${stayGalleryImages.length}`}
+                  >
+                    <img
+                      src={src}
+                      alt=""
+                      className="absolute inset-0 h-full w-full object-cover"
+                    />
+                  </button>
+                );
+              })}
               {gallery.length > 0 ? (
                 <div className="flex gap-2 overflow-x-auto pb-1 lg:hidden -mx-1 px-1 snap-x snap-mandatory">
-                  {gallery.slice(0, 6).map((url) => (
-                    <div
-                      key={`m-${url}`}
-                      className="relative w-[42%] shrink-0 snap-start overflow-hidden rounded-xl aspect-[4/3]"
-                    >
-                      <img
-                        src={listingHeroImageSrc(url) ?? url}
-                        alt=""
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-                  ))}
+                  {gallery.slice(0, 6).map((url, index) => {
+                    const src = listingHeroImageSrc(url) ?? url;
+                    const photoIndex = stayGalleryImages.indexOf(src);
+                    const safeIndex = photoIndex >= 0 ? photoIndex : index + (hero ? 1 : 0);
+                    return (
+                      <button
+                        key={`m-${url}`}
+                        type="button"
+                        onClick={() => {
+                          setSelectedImage(safeIndex);
+                          setGalleryLightboxOpen(true);
+                        }}
+                        className="relative w-[42%] shrink-0 snap-start overflow-hidden rounded-xl aspect-[4/3] text-left"
+                        aria-label={`Photo ${safeIndex + 1} of ${stayGalleryImages.length}`}
+                      >
+                        <img
+                          src={src}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      </button>
+                    );
+                  })}
                 </div>
               ) : null}
             </div>
@@ -762,6 +806,23 @@ export default function StayDetails({ stayId, onBack }: Props) {
               <p className="px-4 text-center text-sm text-ink-muted">No photos yet for this stay</p>
             </div>
           )}
+          {hasStayGallery ? (
+            <div className="mt-2 flex items-center justify-between gap-3">
+              <p className="text-xs text-ink-muted tabular-nums">
+                {stayGalleryImages.length} {stayGalleryImages.length === 1 ? 'photo' : 'photos'}
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedImage(0);
+                  setGalleryLightboxOpen(true);
+                }}
+                className="text-xs font-semibold text-finland hover:underline"
+              >
+                View all photos
+              </button>
+            </div>
+          ) : null}
         </div>
 
         <header className="mb-6 max-w-3xl">
@@ -1410,6 +1471,54 @@ export default function StayDetails({ stayId, onBack }: Props) {
         replies={reviewReplies}
         listingTitle={stay.title}
       />
+
+      {galleryLightboxOpen && hasStayGallery ? (
+        <div
+          ref={gallerySheetRef}
+          className="fixed inset-0 z-[80] flex flex-col bg-ink/90"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Photo gallery"
+        >
+          <div className="flex items-center justify-between gap-3 px-4 py-3 text-white">
+            <p className="text-sm tabular-nums">
+              {Math.min(selectedImage, stayGalleryImages.length - 1) + 1} / {stayGalleryImages.length}
+            </p>
+            <button
+              type="button"
+              className="tv-btn-ghost text-white hover:bg-white/10"
+              onClick={closeGalleryLightbox}
+            >
+              Close
+            </button>
+          </div>
+          <div className="relative flex flex-1 items-center justify-center px-4 pb-6">
+            <img
+              src={stayGalleryImages[Math.min(selectedImage, stayGalleryImages.length - 1)]}
+              alt=""
+              className="max-h-[min(78vh,900px)] max-w-full rounded-lg object-contain"
+            />
+          </div>
+          {stayGalleryImages.length > 1 ? (
+            <div className="flex justify-center gap-2 overflow-x-auto px-4 pb-6">
+              {stayGalleryImages.map((img, index) => (
+                <button
+                  key={`lb-${index}`}
+                  type="button"
+                  onClick={() => setSelectedImage(index)}
+                  aria-label={`Photo ${index + 1}`}
+                  aria-current={selectedImage === index ? 'true' : undefined}
+                  className={`h-14 w-14 shrink-0 overflow-hidden rounded-lg ring-2 ${
+                    selectedImage === index ? 'ring-white' : 'ring-transparent opacity-70 hover:opacity-100'
+                  }`}
+                >
+                  <img src={img} alt="" className="h-full w-full object-cover" />
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
