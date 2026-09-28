@@ -269,6 +269,10 @@ export function nextStayDatePatch(
   current: Pick<MarketplaceSearchValues, 'date' | 'checkout'>,
   nextCheckIn: string
 ): Partial<MarketplaceSearchValues> {
+  if (!nextCheckIn.trim()) {
+    // Layer B: orphan check-out without check-in confuses stay browse + URL state.
+    return { date: '', checkout: '' };
+  }
   const patch: Partial<MarketplaceSearchValues> = { date: nextCheckIn };
   if (current.checkout && nextCheckIn && current.checkout <= nextCheckIn) {
     patch.checkout = addCalendarDays(nextCheckIn, 1);

@@ -300,6 +300,13 @@ describe('marketplace browse filters', () => {
     });
   });
 
+  it('clears check-out when check-in is cleared (no orphan stay dates)', () => {
+    expect(nextStayDatePatch({ date: '2026-09-20', checkout: '2026-09-25' }, '')).toEqual({
+      date: '',
+      checkout: '',
+    });
+  });
+
   it('carries where/when/who when switching browse families', () => {
     expect(
       marketplaceFamilySwitchPath('stays', { q: 'Rovaniemi', date: '2026-09-22', guests: '2' })
