@@ -63,5 +63,14 @@ describe('paidPromotionShouldRefusePastDepartureCutoff', () => {
         cutoffStillBookable: false,
       })
     ).toBe(false);
+    // Phase 1533: option.startTime fills empty frozen HM
+    expect(
+      paidPromotionShouldRefusePastDepartureCutoff({
+        isStay: false,
+        startTimeHm: '',
+        optionStartTimeHm: '20:00',
+        cutoffStillBookable: false,
+      })
+    ).toBe(true);
   });
 });

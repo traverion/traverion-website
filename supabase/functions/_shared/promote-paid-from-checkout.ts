@@ -12,7 +12,7 @@ import {
 } from './cancelled-booking-checkout.ts';
 import { paidPromotionShouldRefuseFullyRefundedCharge } from './stripe-charge-refund.ts';
 import { inventoryStartTimeHmFromBooking } from './booking-hold.ts';
-import { listingHasUpcomingBookableSeason } from './booking-quote.ts';
+import { listingHasUpcomingBookableSeason, resolveTourDepartureHmForCutoff } from './booking-quote.ts';
 import {
   assertDepartureStillBookable,
   normalizeBookingCutoffHours,
@@ -592,10 +592,16 @@ export async function promotePaidFromCheckoutSession(params: {
       });
     }
 
-    // Phase 1532: hold can outlive departure cutoff — re-assert before paid promote
-    // (1531 live-clock parity with quote/claim). Stays have no tour departure cutoff.
+    // Phase 1532/1533: hold can outlive departure cutoff — re-assert before paid promote
+    // (1531 live-clock parity with quote). Resolve option.startTime when snapshot omitted time.
     const isStayListing = listingKindFromExtras(listingGate?.listing_extras) === 'stay';
-    if (!isStayListing && startTimeHm) {
+    const cutoffStartTimeHm = resolveTourDepartureHmForCutoff({
+      listingExtras: listingGate?.listing_extras,
+      bookingDate,
+      bookingOptionId,
+      frozenStartTimeHm: startTimeHm,
+    });
+    if (!isStayListing && cutoffStartTimeHm) {
       const extras =
         listingGate?.listing_extras && typeof listingGate.listing_extras === 'object'
           ? (listingGate.listing_extras as {
@@ -605,7 +611,7 @@ export async function promotePaidFromCheckoutSession(params: {
           : null;
       const cut = assertDepartureStillBookable({
         bookingDate,
-        startTimeHm,
+        startTimeHm: cutoffStartTimeHm,
         cutoffHoursBeforeStart: normalizeBookingCutoffHours(extras?.bookingCutoffHoursBeforeStart),
         nowMs: Date.now(),
         timeZone: resolveDepartureTimezone(extras?.departureTimezone),
@@ -638,7 +644,7 @@ export async function promotePaidFromCheckoutSession(params: {
               payload: {
                 reason: 'departure_cutoff_on_paid_promotion',
                 bookingDate,
-                startTimeHm,
+                startTimeHm: cutoffStartTimeHm,
                 cutoffError: cut.error,
                 stripeEventType: event.type,
               },

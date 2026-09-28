@@ -744,6 +744,34 @@ function parseGroupSize(groupSize: string | null): { min: number; max: number } 
   return { min: Math.max(1, min), max: Math.min(99, max) };
 }
 
+/**
+ * Phase 1533: departure HM for paid-promote cutoff — frozen snapshot/start_time first,
+ * else quote parity (option.startTime after schedule resolve when body omitted time).
+ */
+export function resolveTourDepartureHmForCutoff(input: {
+  listingExtras: unknown;
+  bookingDate: string;
+  bookingOptionId?: string | null;
+  frozenStartTimeHm?: string | null;
+}): string {
+  const frozen = (input.frozenStartTimeHm ?? '').trim().slice(0, 5);
+  if (frozen) return frozen;
+  const date = (input.bookingDate ?? '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return '';
+  const opts = parseOptions(input.listingExtras);
+  if (opts.length === 0) return '';
+  const requestedId = (input.bookingOptionId ?? '').trim();
+  let option: Option | undefined;
+  if (requestedId) option = opts.find((o) => o.id === requestedId);
+  else if (opts.length === 1) option = opts[0];
+  if (!option) return '';
+  if (option.schedules && option.schedules.length > 0) {
+    const resolved = resolveScheduleForDate(option, date, null);
+    if (resolved) option = applyScheduleToOption(option, resolved);
+  }
+  return (option.startTime ?? '').trim().slice(0, 5);
+}
+
 export function quoteListingBooking(input: {
   listing: ListingQuoteRow;
   discounts: DiscountRow[];

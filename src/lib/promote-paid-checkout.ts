@@ -70,15 +70,20 @@ export function promotePaidAssertCheckOut(params: {
 }
 
 /**
- * Phase 1532: paid promote must refuse tour departures past live cutoff
+ * Phase 1532/1533: paid promote must refuse tour departures past live cutoff
  * (hold can outlive claim-time quote). Stays skip this gate.
+ * Empty frozen HM still refuses when quote-resolved optionStartTimeHm is set.
  */
 export function paidPromotionShouldRefusePastDepartureCutoff(params: {
   isStay: boolean;
   startTimeHm?: string | null;
+  /** Phase 1533: option.startTime when snapshot omitted time. */
+  optionStartTimeHm?: string | null;
   cutoffStillBookable: boolean;
 }): boolean {
   if (params.isStay) return false;
-  if (!String(params.startTimeHm ?? '').trim()) return false;
+  const hm =
+    String(params.startTimeHm ?? '').trim() || String(params.optionStartTimeHm ?? '').trim();
+  if (!hm) return false;
   return params.cutoffStillBookable !== true;
 }
