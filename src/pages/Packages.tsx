@@ -194,6 +194,8 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
   > | null>(null);
   const [dateCapacityLoading, setDateCapacityLoading] = useState(false);
   const [dateCapacityError, setDateCapacityError] = useState<string | null>(null);
+  /** Paid/cap snapshot is for one tour date — must not filter a newly picked date after a failed reload. */
+  const [dateCapacityLoadedFor, setDateCapacityLoadedFor] = useState<string | null>(null);
 
   const deferredSearch = useDeferredValue(searchTerm);
 
@@ -299,6 +301,11 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     (dateCapacityLoading || dateCapacityByListing === null);
   const showCatalogLoading = catalogLoading || waitingOnDateCapacity;
 
+  const dateCapacityForActiveFilter = useMemo(() => {
+    if (!filterDate || dateCapacityLoadedFor !== filterDate) return null;
+    return dateCapacityByListing;
+  }, [filterDate, dateCapacityLoadedFor, dateCapacityByListing]);
+
   const supabaseListingIds = useMemo(
     () => allListings.map((t) => t.id).filter(isSupabaseListingId),
     [allListings]
@@ -337,6 +344,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
   const reloadDateCapacity = useCallback(() => {
     if (!filterDate || !/^\d{4}-\d{2}-\d{2}$/.test(filterDate) || !isSupabaseConfigured() || allListings.length === 0) {
       setDateCapacityByListing(null);
+      setDateCapacityLoadedFor(null);
       setDateCapacityLoading(false);
       setDateCapacityError(null);
       return () => {};
@@ -391,6 +399,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
         setDateCapacityByListing(
           Object.fromEntries(entries.filter((e): e is NonNullable<typeof e> => e != null))
         );
+        setDateCapacityLoadedFor(filterDate);
         setDateCapacityLoading(false);
       })
       .catch((e) => {
@@ -523,8 +532,8 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     let list = exceptCapacity.filter((tour) => {
       if (!filterDate) return true;
       // Phase 1350: unknown capacity must not invent open seats (null map).
-      if (dateCapacityByListing == null) return false;
-      const cap = dateCapacityByListing[tour.id];
+      if (dateCapacityForActiveFilter == null) return false;
+      const cap = dateCapacityForActiveFilter[tour.id];
       // Phase 1190: missing cap row while map is loaded → exclude (do not invent open).
       if (!cap) return false;
       const lacks = tourDateLacksCapacityForParty({
@@ -566,14 +575,14 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     languageFilter,
     ratingSortScore,
     ratingScoreForFilter,
-    dateCapacityByListing,
+    dateCapacityForActiveFilter,
   ]);
 
   // Phase 1193: “Fully booked” only when known capacity sold out — not all-unknown-cap excludes (1190).
   const emptyDueToSoldOutDate =
     filteredPackages.length === 0 &&
     Boolean(filterDate) &&
-    dateCapacityByListing != null &&
+    dateCapacityForActiveFilter != null &&
     matchingExceptCapacityCount > 0 &&
     knownSoldOutForDate > 0;
 
@@ -1081,7 +1090,8 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
         ) : null}
         {showCatalogLoading ? (
           <SkeletonCardGrid count={6} />
-        ) : dateCapacityError && filterDate && dateCapacityByListing == null ? null : allListings.length > 0 && filteredPackages.length > 0 ? (
+        ) : dateCapacityError && filterDate && dateCapacityLoadedFor !== filterDate ? null : allListings.length > 0 &&
+          filteredPackages.length > 0 ? (
           <>
             <div className={MARKETPLACE_BROWSE_GRID_CLASS}>
               {filteredPackages.map((tour, index) => (
