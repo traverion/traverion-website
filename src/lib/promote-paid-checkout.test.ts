@@ -119,6 +119,18 @@ describe('promotePaidStayColumnBackfill', () => {
     ).toEqual({ check_out: '2026-12-05', nights: 4 });
   });
 
+  it('Phase 1564: short column yields to longer exclusive check-out', () => {
+    expect(
+      promotePaidStayColumnBackfill({
+        isStayNight: true,
+        existingCheckOut: '2026-12-03',
+        existingNights: 2,
+        stayExclusiveCheckOut: '2026-12-05',
+        bookingDate: '2026-12-01',
+      })
+    ).toEqual({ check_out: '2026-12-05', nights: 4 });
+  });
+
   it('Phase 1542: tours unchanged', () => {
     expect(
       promotePaidStayColumnBackfill({

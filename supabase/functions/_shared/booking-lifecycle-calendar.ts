@@ -101,23 +101,22 @@ export function lifecycleBookingIsStay(b: LifecycleBookingRow): boolean {
 }
 
 /**
- * Stay check-out day: column → max(nights, snap) (Phase 1524/1554). Never notes-only.
+ * Stay check-out day: latest of column / nights / snap (Phase 1524/1554/1564). Never notes-only.
  */
 export function lifecycleStayCheckOutYmd(b: LifecycleBookingRow): string | null {
   const checkIn = isoDay(b.booking_date);
   const fromColumn = isoDay(b.check_out);
-  if (fromColumn && checkIn && fromColumn > checkIn) return fromColumn;
-  if (fromColumn) return fromColumn;
   const nights = Math.floor(Number(b.nights ?? 0));
   const fromNights =
     checkIn && Number.isFinite(nights) && nights >= 1 ? addCalendarDaysYmd(checkIn, nights) : null;
   const fromSnap = isoDay(snapshotString(b.purchase_snapshot, 'checkOut'));
-  const snapOk = fromSnap && (!checkIn || fromSnap > checkIn) ? fromSnap : null;
-  // Phase 1555: later of nights-derived vs snapshot when column missing (1554 parity).
-  if (fromNights && snapOk) return fromNights > snapOk ? fromNights : snapOk;
-  if (fromNights) return fromNights;
-  if (snapOk) return snapOk;
-  return null;
+  const columnOk = fromColumn && checkIn && fromColumn > checkIn ? fromColumn : null;
+  const nightsOk = fromNights && checkIn && fromNights > checkIn ? fromNights : null;
+  const snapOk = fromSnap && checkIn && fromSnap > checkIn ? fromSnap : null;
+  // Phase 1564: later of all signals (stale short column must not win).
+  const candidates = [columnOk, nightsOk, snapOk].filter((d): d is string => Boolean(d));
+  if (candidates.length > 0) return candidates.reduce((a, b) => (a > b ? a : b));
+  return fromColumn;
 }
 
 /**

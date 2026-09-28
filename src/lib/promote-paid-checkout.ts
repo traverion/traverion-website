@@ -124,11 +124,21 @@ export function promotePaidStayColumnBackfill(params: {
     };
   }
 
-  const resolvedOut = /^\d{4}-\d{2}-\d{2}$/.test(existingOut)
-    ? existingOut
-    : String(params.stayExclusiveCheckOut ?? '').trim();
-  const checkOut = /^\d{4}-\d{2}-\d{2}$/.test(resolvedOut) ? resolvedOut : null;
   const checkIn = String(params.bookingDate ?? '').trim();
+  const exclusiveRaw = String(params.stayExclusiveCheckOut ?? '').trim();
+  const exclusiveOk =
+    /^\d{4}-\d{2}-\d{2}$/.test(exclusiveRaw) && (!checkIn || exclusiveRaw > checkIn)
+      ? exclusiveRaw
+      : null;
+  const existingOk =
+    /^\d{4}-\d{2}-\d{2}$/.test(existingOut) && (!checkIn || existingOut > checkIn) ? existingOut : null;
+  // Phase 1564: longer of column vs exclusive (stale short check_out must not win).
+  const checkOut =
+    exclusiveOk && existingOk
+      ? exclusiveOk > existingOk
+        ? exclusiveOk
+        : existingOk
+      : exclusiveOk ?? existingOk;
   if (checkOut && /^\d{4}-\d{2}-\d{2}$/.test(checkIn) && checkOut > checkIn) {
     const nights = Math.round(
       (Date.parse(`${checkOut}T12:00:00Z`) - Date.parse(`${checkIn}T12:00:00Z`)) / 86400000

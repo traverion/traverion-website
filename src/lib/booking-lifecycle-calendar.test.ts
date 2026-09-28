@@ -153,6 +153,23 @@ describe('booking-lifecycle-calendar', () => {
     expect(lifecycleReviewCompletionYmd(stay)).toBe('2026-12-05');
   });
 
+  it('Phase 1564: longer snapshot beats stale short check_out column', () => {
+    const stay = {
+      status: 'confirmed',
+      payment_status: 'paid',
+      booking_date: '2026-12-01',
+      check_out: '2026-12-03' as string | null,
+      nights: 2,
+      purchase_snapshot: {
+        checkOut: '2026-12-05',
+        departureTimezone: 'Europe/Helsinki',
+        capturedAt: 't',
+      },
+    };
+    expect(lifecycleStayCheckOutYmd(stay)).toBe('2026-12-05');
+    expect(lifecycleReviewCompletionYmd(stay)).toBe('2026-12-05');
+  });
+
   it('stay reminder is day before check-in', () => {
     const stay = {
       status: 'confirmed',

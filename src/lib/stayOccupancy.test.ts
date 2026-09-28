@@ -238,4 +238,25 @@ describe('stay occupancy', () => {
     expect(stayCheckoutNightsAlreadyBooked(stayBookings, '2026-12-05', '2026-12-07', null, now)).toBe(false);
     expect(checkoutStayNightsAlreadyBooked(stayBookings, '2026-12-03', '2026-12-06', null, now)).toBe(true);
   });
+
+  it('Phase 1564: short column + long snapshot occupies full paid range', () => {
+    const now = Date.parse('2026-09-09T12:00:00.000Z');
+    const stayBookings = [
+      {
+        id: 'short-col',
+        status: 'confirmed',
+        payment_status: 'paid',
+        booking_date: '2026-12-01',
+        check_out: '2026-12-03',
+        nights: 2,
+        purchase_snapshot: { checkOut: '2026-12-05' },
+      },
+    ];
+    expect(stayRangeFromBooking(stayBookings[0])).toEqual({
+      checkIn: '2026-12-01',
+      checkOut: '2026-12-05',
+    });
+    expect(stayCheckoutNightsAlreadyBooked(stayBookings, '2026-12-03', '2026-12-06', null, now)).toBe(true);
+    expect(stayCheckoutNightsAlreadyBooked(stayBookings, '2026-12-05', '2026-12-07', null, now)).toBe(false);
+  });
 });

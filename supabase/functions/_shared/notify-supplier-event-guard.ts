@@ -107,17 +107,15 @@ function supplierBookingIsStay(booking: NonNullable<BookingRowForSupplierEvent>)
   return Boolean(snapshotCheckOut(booking.purchase_snapshot));
 }
 
-/** Phase 1524/1556: exclusive stay check-out = column → max(nights, snap). */
+/** Phase 1524/1556/1564: exclusive stay check-out = latest of column / nights / snap. */
 function supplierStayCheckOutDate(booking: NonNullable<BookingRowForSupplierEvent>): string | undefined {
   const checkIn =
     typeof booking.booking_date === 'string' && booking.booking_date.trim()
       ? booking.booking_date.trim()
       : '';
   const fromColumn = typeof booking.check_out === 'string' ? booking.check_out.trim() : '';
-  if (/^\d{4}-\d{2}-\d{2}$/.test(fromColumn)) {
-    if (!checkIn || fromColumn > checkIn) return fromColumn;
-    return fromColumn;
-  }
+  const columnOk =
+    /^\d{4}-\d{2}-\d{2}$/.test(fromColumn) && (!checkIn || fromColumn > checkIn) ? fromColumn : undefined;
   const nights = Math.floor(Number(booking.nights ?? 0));
   let fromNights: string | undefined;
   if (checkIn && /^\d{4}-\d{2}-\d{2}$/.test(checkIn) && Number.isFinite(nights) && nights >= 1) {
@@ -125,12 +123,13 @@ function supplierStayCheckOutDate(booking: NonNullable<BookingRowForSupplierEven
     const dt = new Date(Date.UTC(y, m - 1, d + nights));
     fromNights = dt.toISOString().slice(0, 10);
   }
+  const nightsOk = fromNights && (!checkIn || fromNights > checkIn) ? fromNights : undefined;
   const fromSnap = snapshotCheckOut(booking.purchase_snapshot);
   const snapOk = fromSnap && (!checkIn || fromSnap > checkIn) ? fromSnap : undefined;
-  // Phase 1556: later of nights-derived vs snapshot when column missing (1554 parity).
-  if (fromNights && snapOk) return fromNights > snapOk ? fromNights : snapOk;
-  if (fromNights) return fromNights;
-  if (snapOk) return snapOk;
+  // Phase 1564: later of all signals (stale short column must not win).
+  const candidates = [columnOk, nightsOk, snapOk].filter((d): d is string => Boolean(d));
+  if (candidates.length > 0) return candidates.reduce((a, b) => (a > b ? a : b));
+  if (/^\d{4}-\d{2}-\d{2}$/.test(fromColumn)) return fromColumn;
   return undefined;
 }
 

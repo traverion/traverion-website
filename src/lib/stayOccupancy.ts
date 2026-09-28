@@ -69,20 +69,15 @@ export function stayRangeFromBooking(booking: {
       : null;
   const fromSnap = typeof snap === 'string' ? snap.trim() : '';
   const snapOk = fromSnap && ISO_DATE.test(fromSnap) && fromSnap > checkIn ? fromSnap : null;
-  // Phase 1524/1554: column wins; else later of nights-derived vs snapshot (stale short
-  // nights must not beat purchase_snapshot.checkOut). Notes never expand range.
+  const columnOk = fromColumn && fromColumn > checkIn ? fromColumn : null;
+  const nightsOk = fromNights && fromNights > checkIn ? fromNights : null;
+  // Phase 1564: exclusive check-out = latest of column, nights-derived, snapshot
+  // (stale short column must not under-count paid purchase_snapshot / nights).
+  const candidates = [columnOk, nightsOk, snapOk].filter((d): d is string => Boolean(d));
   const checkOut =
-    fromColumn && fromColumn > checkIn
-      ? fromColumn
-      : fromNights && fromNights > checkIn && snapOk
-        ? fromNights > snapOk
-          ? fromNights
-          : snapOk
-        : fromNights && fromNights > checkIn
-          ? fromNights
-          : snapOk
-            ? snapOk
-            : addCalendarDays(checkIn, 1);
+    candidates.length > 0
+      ? candidates.reduce((a, b) => (a > b ? a : b))
+      : addCalendarDays(checkIn, 1);
   return { checkIn, checkOut };
 }
 
