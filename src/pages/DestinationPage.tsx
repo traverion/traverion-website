@@ -216,9 +216,9 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
       </section>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 pb-12 motion-safe:animate-fade-in">
-        {listingsError && supplierListings === null ? (
+        {listingsError ? (
           <ErrorState
-            className="py-8"
+            className="mb-6 py-6"
             title="Destination unavailable"
             body={userFacingError(listingsError, USER_ERROR.listings)}
             retry={{ onClick: () => reloadCatalog() }}
@@ -235,11 +235,12 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
               )
             }
           />
-        ) : catalogLoading ? (
+        ) : null}
+        {catalogLoading && listings.length === 0 ? (
           <div aria-busy="true" aria-label="Loading destination">
             <SkeletonCardGrid count={6} />
           </div>
-        ) : listings.length === 0 ? (
+        ) : listings.length === 0 && !listingsError ? (
           <EmptyState
             className="py-10 sm:py-12 max-w-lg"
             icon={MapPin}
@@ -258,7 +259,7 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
               </div>
             }
           />
-        ) : (
+        ) : listings.length > 0 ? (
           <div className="space-y-12">
             {tourListings.length > 0 ? (
               <section>
@@ -329,7 +330,7 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
               </section>
             ) : null}
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );
