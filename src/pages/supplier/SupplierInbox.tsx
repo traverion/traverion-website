@@ -75,6 +75,7 @@ export default function SupplierInbox() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const loadGenRef = useRef(0);
+  const inboxHubUserIdRef = useRef<string | null>(null);
   const [olderConversationsHidden, setOlderConversationsHidden] = useState(false);
   const [deepLinkMissing, setDeepLinkMissing] = useState(false);
   const [unreadOnly, setUnreadOnly] = useState(() => {
@@ -182,6 +183,34 @@ export default function SupplierInbox() {
       if (gen === loadGenRef.current) setLoading(false);
     }
   }, [isSupabase, user?.id]);
+
+  useEffect(() => {
+    const clearInboxPartnerWorkspace = () => {
+      setBookings([]);
+      setTitles({});
+      setListingsById({});
+      setLastByBooking({});
+      setOpenCancelIds(new Set());
+      setOpenId(null);
+      setDeepLinkMissing(false);
+      setOlderConversationsHidden(false);
+      setError(null);
+      setCancelRequestsError(null);
+    };
+    if (!user?.id) {
+      inboxHubUserIdRef.current = null;
+      loadGenRef.current += 1;
+      clearInboxPartnerWorkspace();
+      setLoading(false);
+      return;
+    }
+    // Phase 1387: clear prior partner inbox before loading the next account (Bookings 1384 parity).
+    if (inboxHubUserIdRef.current !== user.id) {
+      inboxHubUserIdRef.current = user.id;
+      loadGenRef.current += 1;
+      clearInboxPartnerWorkspace();
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     void load();
