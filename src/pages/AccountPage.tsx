@@ -197,7 +197,8 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
               Account
             </h1>
             <p className="mt-2 text-sm text-ink-muted">
-              Log in to manage trips, wishlist, and your traveler profile.
+              {/* Phase 1634: Saved — match Wishlist page / hub tile wording. */}
+              Log in to manage trips, Saved, and your traveler profile.
             </p>
           </header>
           <section aria-labelledby={ACCOUNT_HEADING_ID}>
