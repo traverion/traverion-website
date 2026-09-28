@@ -11,6 +11,8 @@ export type GuestStepperProps = {
   label?: string;
   id?: string;
   className?: string;
+  /** Phase 1320: null hides the hint (e.g. stay capacity unknown — not “no seats left”). */
+  hint?: string | null;
 };
 
 export default function GuestStepper({
@@ -22,6 +24,7 @@ export default function GuestStepper({
   label = 'Guests',
   id,
   className = '',
+  hint,
 }: GuestStepperProps) {
   const generatedId = useId();
   const labelId = id ?? generatedId;
@@ -43,6 +46,8 @@ export default function GuestStepper({
     }
     onChange(Math.min(max, value + 1));
   };
+
+  const hintText = hint === null ? null : (hint ?? formatPartySizeHint({ min, max }));
 
   return (
     <div className={className}>
@@ -82,7 +87,7 @@ export default function GuestStepper({
           <Plus className="h-4 w-4 stroke-[2.5]" aria-hidden />
         </button>
       </div>
-      <p className="mt-1.5 text-xs text-ink-faint">{formatPartySizeHint({ min, max })}</p>
+      {hintText ? <p className="mt-1.5 text-xs text-ink-faint">{hintText}</p> : null}
     </div>
   );
 }
