@@ -1949,8 +1949,14 @@ export default function BookingPage({
   const checkoutDockInner = (
     <>
       {step === 'review' ? (
-        <button type="button" onClick={handleContinueFromReview} className="tv-btn-primary w-full">
-          Go to checkout
+        <button
+          type="button"
+          onClick={handleContinueFromReview}
+          // Phase 1631: do not invite checkout when the quote already failed (handler also blocks).
+          disabled={quoteFailed}
+          className="tv-btn-primary w-full disabled:opacity-60"
+        >
+          {quoteFailed ? 'Price unavailable' : 'Go to checkout'}
         </button>
       ) : null}
       {step === 'date-guests' ? (
