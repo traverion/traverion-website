@@ -1307,7 +1307,7 @@ export default function SupplierPickupPlanner() {
 
       {loading ? (
         <SupplierListSkeleton rows={3} />
-      ) : activeBookingsCount === 0 ? (
+      ) : error ? null : activeBookingsCount === 0 ? (
         <SupplierEmptyState
           icon={CalendarDays}
           title="No bookings yet"
