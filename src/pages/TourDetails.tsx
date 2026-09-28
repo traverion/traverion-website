@@ -2056,7 +2056,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       {canBook && !checkoutFromUrl
         ? createPortal(
             <div className="lg:hidden fixed inset-x-0 bottom-0 z-[60] border-t border-black/[0.06] bg-paper-raised/95 backdrop-blur-md px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-              <div className="flex items-center justify-between gap-3">
+              <div className="mx-auto flex w-full min-w-0 max-w-5xl items-center justify-between gap-3">
                 {(() => {
                   const currency = normalizeCurrency(tour.price?.currency);
                   const dateLabel = bookingDate.trim() ? formatTourAvailabilityHeading(bookingDate.trim()) : '';
@@ -2067,8 +2067,8 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                       : `${guests} ${guests === 1 ? 'guest' : 'guests'}`;
                   if (discountsByListing == null && !(selectedBookingVariant && panelQuote?.ok)) {
                     return (
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-ink-faint">Checking offers…</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-ink-faint">Checking offers…</p>
                         <p className="truncate text-xs text-ink-muted">{guestsLine}</p>
                       </div>
                     );
@@ -2098,8 +2098,8 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                             ? `From · per ${qualifier}`
                             : 'From · per person';
                   return (
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold tabular-nums text-ink">{priceLine}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold tabular-nums text-ink">{priceLine}</p>
                       <p className="truncate text-xs text-ink-muted">{subLine}</p>
                     </div>
                   );

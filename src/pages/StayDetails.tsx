@@ -1328,15 +1328,15 @@ export default function StayDetails({ stayId, onBack }: Props) {
       </div>
       {createPortal(
         <div className="lg:hidden fixed inset-x-0 bottom-0 z-[60] border-t border-black/[0.06] bg-paper-raised/95 backdrop-blur-md px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-          <div className="flex items-center justify-between gap-3 max-w-5xl mx-auto">
-            <div className="min-w-0">
-              <p className="text-sm text-ink">
-                <span className="font-semibold">
+          <div className="mx-auto flex w-full min-w-0 max-w-5xl items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm text-ink">
+                <span className="font-semibold tabular-nums">
                   {quoteOk ? formatMoney(total, currency) : nightly > 0 ? formatMoney(nightly, currency) : '—'}
                 </span>
                 <span className="text-ink-muted"> {quoteOk ? 'total' : 'per night'}</span>
               </p>
-              <p className="text-xs text-ink-muted">
+              <p className="truncate text-xs text-ink-muted">
                 {listingShowsFreeCancellation(stay)
                   ? `Free cancellation · ${STRIPE_TEST_UNTIL_LIVE}`
                   : `Pay via ${STRIPE_TEST_UNTIL_LIVE}`}
