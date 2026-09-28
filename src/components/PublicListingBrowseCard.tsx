@@ -28,6 +28,11 @@ export type PublicListingBrowseCardProps = {
   showViewDetailsHint?: boolean;
   /** When stay dates are selected, show nights × total instead of only nightly. */
   stayStayTotal?: { nights: number; total: number; currency: string } | null;
+  /**
+   * Phase 1559: browse has check-in/out selected but quoteStayNights failed —
+   * do not invent catalog nightly (StayDetails 1557 / BookingPage 1558).
+   */
+  stayDatesSelected?: boolean;
   /** Real persisted wishlist. Omit when the listing cannot be saved. */
   wishlist?: {
     saved: boolean;
@@ -50,6 +55,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
   showTagPills = false,
   showViewDetailsHint = false,
   stayStayTotal = null,
+  stayDatesSelected = false,
   wishlist = null,
 }: PublicListingBrowseCardProps) {
   // Defense in depth: unpublished listings must not appear on traveler browse surfaces.
@@ -104,15 +110,19 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
     tour.tags?.filter((t) => t !== 'free-cancellation' && t !== 'bestseller') ?? [];
   const heroSrc = listingHeroImageSrc(tour.image);
   const showWishlist = Boolean(wishlist && isSupabaseListingId(tour.id));
+  // Phase 1559: dates selected + no successful stay total → hide catalog nightly.
+  const stayQuoteUnavailable = isStay && stayDatesSelected && !stayStayTotal;
   const priceAria = offersUnknown
     ? 'Price pending offer check'
-    : isStay
-      ? stayStayTotal
-        ? `${formatMoney(stayStayTotal.total, stayStayTotal.currency)} total for ${stayStayTotal.nights} nights`
-        : `${formatMoney(stayNightly, currency)} per night`
-      : hasDiscount
-        ? `From ${formatMoney(fromAmount, currency)} ${unitLabel}, ${label}`
-        : `From ${formatMoney(originalPrice, currency)} ${unitLabel}`;
+    : stayQuoteUnavailable
+      ? 'Price unavailable for these dates'
+      : isStay
+        ? stayStayTotal
+          ? `${formatMoney(stayStayTotal.total, stayStayTotal.currency)} total for ${stayStayTotal.nights} nights`
+          : `${formatMoney(stayNightly, currency)} per night`
+        : hasDiscount
+          ? `From ${formatMoney(fromAmount, currency)} ${unitLabel}, ${label}`
+          : `From ${formatMoney(originalPrice, currency)} ${unitLabel}`;
 
   return (
     <article className="group relative">
@@ -226,6 +236,8 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
                   {formatMoney(stayNightly, currency)} per night
                 </span>
               </>
+            ) : stayQuoteUnavailable ? (
+              <span className="font-bold tracking-tight text-ink">—</span>
             ) : (
               <>
                 {isStay ? null : (

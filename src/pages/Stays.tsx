@@ -978,6 +978,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
                   tagLabels={{}}
                   showTagPills={false}
                   size="compact"
+                  stayDatesSelected={dateFilterActive}
                   stayStayTotal={
                     stayQuote?.ok
                       ? { nights: stayQuote.nights, total: stayQuote.totalAmount, currency: stayQuote.currency }
