@@ -13,6 +13,7 @@ import { bookingLifecycleLabel } from '../../lib/status-language';
 import NoticeCallout from '../NoticeCallout';
 import StatusChip, { toneForPaymentLabel } from '../StatusChip';
 import EmptyState from '../EmptyState';
+import { adminBookingDateLine } from '../../lib/admin-bookings-date-line';
 
 type AdminBookingRow = MoneyBookingRow & {
   id: string;
@@ -28,6 +29,7 @@ type AdminBookingRow = MoneyBookingRow & {
   booking_date: string | null;
   check_out: string | null;
   nights: number | null;
+  purchase_snapshot?: unknown;
   booking_number: number | null;
   checkout_session_id?: string | null;
   payment_intent_id?: string | null;
@@ -36,13 +38,6 @@ type AdminBookingRow = MoneyBookingRow & {
 };
 
 type StatusFilter = 'all' | 'pending' | 'confirmed' | 'cancelled';
-
-function dateLine(b: AdminBookingRow): string {
-  if (b.check_out && b.booking_date) {
-    return `${b.booking_date} → ${b.check_out}`;
-  }
-  return b.booking_date ?? 'Date TBC';
-}
 
 export default function AdminBookingsPanel() {
   const [items, setItems] = useState<AdminBookingRow[]>([]);
@@ -230,7 +225,7 @@ export default function AdminBookingsPanel() {
                   {b.listing_city ? ` · ${b.listing_city}` : ''}
                 </p>
                 <p className="mt-1 text-xs text-ink-faint">
-                  {b.guest_name?.trim() || b.guest_email || 'Guest'} · {dateLine(b)}
+                  {b.guest_name?.trim() || b.guest_email || 'Guest'} · {adminBookingDateLine(b)}
                   {b.guests ? ` · ${b.guests} guest${b.guests === 1 ? '' : 's'}` : ''}
                 </p>
                 <p className="mt-1 font-mono text-[11px] text-ink-faint break-all">
