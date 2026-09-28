@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ListingBookingOption } from '../types/listingExtras';
 import { tourDayState, publicTourPaidGuestsByDeparture, bookingCountsTowardPublicTourSoldOut, tourSoldOutDates, tourDateLacksCapacityForParty, tourMonthAvailabilityNote } from './tour-calendar';
 
-function option(weekdays: boolean[], from = '', to = ''): ListingBookingOption {
+function option(weekdays: boolean[], from = '2026-01-01', to = ''): ListingBookingOption {
   return {
     id: 'opt',
     name: 'Adult',
@@ -54,6 +54,17 @@ describe('tour calendar states', () => {
         options: [option(WEEKDAYS)],
       })
     ).toBe('available');
+  });
+
+  it('closes days when the option is missing a season start date', () => {
+    expect(
+      tourDayState({
+        iso: '2026-09-14',
+        todayIso: '2026-09-08',
+        selected: '',
+        options: [option(WEEKDAYS, '')],
+      })
+    ).toBe('closed');
   });
 
   it('marks the selected day', () => {

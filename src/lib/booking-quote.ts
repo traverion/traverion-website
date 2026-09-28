@@ -126,6 +126,11 @@ export function optionRunsOnDate(option: ListingBookingOption, isoDate: string, 
   }
   const from = option.availabilityDateFrom?.trim() ?? '';
   const to = option.availabilityDateTo?.trim() ?? '';
+  // Phase 1507: empty season start must not open the traveler calendar — departureTimesOnDate
+  // already requires scheduleIsBookable (from + startTime); optionRunsOnDate must match.
+  if (!from) {
+    return 'This option is missing a season start date and cannot be booked.';
+  }
   if (from && isoDate < from) {
     return 'This option is not available yet on that date.';
   }

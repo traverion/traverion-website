@@ -721,6 +721,8 @@ function optionRunsOnDate(option: Option, isoDate: string, startTime?: string | 
   }
   const from = option.availabilityDateFrom.trim();
   const to = option.availabilityDateTo.trim();
+  // Phase 1507: empty season start must not quote (parity with scheduleIsBookable / traveler calendar).
+  if (!from) return 'This option is missing a season start date and cannot be booked.';
   if (from && isoDate < from) return 'This option is not available yet on that date.';
   if (to && isoDate > to) return 'This option is no longer available on that date.';
   return null;

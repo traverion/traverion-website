@@ -1854,7 +1854,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                         (capacityUnknown && !bookingCardError) ? (
                           <NoticeCallout title="Capacity unavailable" tone="danger">
                             {dayCapacityError ||
-                              'We could not verify departure capacity. Check your connection and try again.'}{' '}
+                              (bookingDate.trim() &&
+                              selectedBookingVariant &&
+                              departureTimes.length === 0
+                                ? 'No bookable departure on this date. The season start may be missing, or the departure has already passed its cutoff.'
+                                : 'We could not verify departure capacity. Check your connection and try again.')}{' '}
                             <button
                               type="button"
                               className="font-semibold text-finland hover:underline"
