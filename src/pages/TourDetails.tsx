@@ -1746,6 +1746,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                               }}
                               onBoundaryAttempt={(message) => setBookingCardError(message)}
                               label={usesPrivateFlat ? 'Group size' : 'Guests'}
+                              ariaDescribedBy={bookingCardError ? 'tour-booking-card-error' : undefined}
                             />
                           )}
                           {panelQuote?.ok ? (
