@@ -899,13 +899,13 @@ export default function StayDetails({ stayId, onBack }: Props) {
                 {s?.checkInTime ? <li>Check-in from {s.checkInTime}</li> : null}
                 {s?.checkOutTime ? <li>Check-out by {s.checkOutTime}</li> : null}
                 {(() => {
+                  // Phase 1587: only times / missing-time honesty here — Trips email note lives on booking panel (1585/1586).
                   const missing = stayCheckInOutMissingCopy({
                     checkInTime: s?.checkInTime,
                     checkOutTime: s?.checkOutTime,
                   });
                   return missing ? <li>{missing}</li> : null;
                 })()}
-                <li>{STAY_LISTING_CONFIRMATION_NOTE}</li>
               </ul>
             </div>
             {s?.houseRules ? (
