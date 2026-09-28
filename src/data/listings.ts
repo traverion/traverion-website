@@ -35,7 +35,9 @@ export function getAllListings(options: {
 
 const PUBLISHED_CATALOG_TTL_MS = 45_000;
 let publishedCatalogCache: { at: number; data: TourPackage[] } | null = null;
-let publishedCatalogInflight: Promise<TourPackage[]> | null = null;
+/** Bumped on invalidate — stale in-flight fetches must not repopulate cache (Phase 1474). */
+let publishedCatalogGeneration = 0;
+let publishedCatalogInflight: { gen: number; promise: Promise<TourPackage[]> } | null = null;
 
 export function peekPublishedListingsCache(): TourPackage[] | null {
   if (!publishedCatalogCache) return null;
@@ -46,6 +48,7 @@ export function peekPublishedListingsCache(): TourPackage[] | null {
 export function invalidatePublishedListingsCache() {
   publishedCatalogCache = null;
   publishedCatalogInflight = null;
+  publishedCatalogGeneration += 1;
 }
 
 if (typeof window !== 'undefined') {
@@ -64,17 +67,23 @@ export async function getAllListingsAsync(options: {
   if (usePublishedCache) {
     const hit = peekPublishedListingsCache();
     if (hit) return hit;
-    if (publishedCatalogInflight) return publishedCatalogInflight;
-    publishedCatalogInflight = fetchAllListings()
+    if (publishedCatalogInflight) return publishedCatalogInflight.promise;
+    const genAtStart = publishedCatalogGeneration;
+    const promise = fetchAllListings()
       .then((data) => {
         const next = filterTravelerCatalog(data);
-        publishedCatalogCache = { at: Date.now(), data: next };
+        if (genAtStart === publishedCatalogGeneration) {
+          publishedCatalogCache = { at: Date.now(), data: next };
+        }
         return next;
       })
       .finally(() => {
-        publishedCatalogInflight = null;
+        if (publishedCatalogInflight?.gen === genAtStart) {
+          publishedCatalogInflight = null;
+        }
       });
-    return publishedCatalogInflight;
+    publishedCatalogInflight = { gen: genAtStart, promise };
+    return promise;
   }
   let base: TourPackage[];
   if (isSupabaseConfigured()) {

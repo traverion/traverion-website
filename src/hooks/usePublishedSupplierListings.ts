@@ -27,18 +27,22 @@ export function usePublishedSupplierListings(options?: Options): {
   );
   const [error, setError] = useState<string | null>(null);
   const lastReloadAt = useRef(0);
+  const catalogLoadGenRef = useRef(0);
 
   const canLoadCatalog = isSupabaseConfigured() || SHOW_SEED_LISTINGS;
 
   const reload = useCallback(() => {
     if (!canLoadCatalog) return;
     lastReloadAt.current = Date.now();
+    const gen = ++catalogLoadGenRef.current;
     getAllListingsAsync({ includeSeed: SHOW_SEED_LISTINGS, includeHolidayPackages: false })
       .then((data) => {
+        if (gen !== catalogLoadGenRef.current) return;
         setListings(data);
         setError(null);
       })
       .catch((e) => {
+        if (gen !== catalogLoadGenRef.current) return;
         setError(userFacingError(e, USER_ERROR.tours));
         if (emptyOnFirstError) {
           setListings((prev) => (prev === null ? [] : prev));
