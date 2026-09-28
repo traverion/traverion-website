@@ -169,14 +169,22 @@ export default function Contact({ onNavigate }: ContactProps) {
               {CONTACT_FORM_THANK_YOU}
             </NoticeCallout>
           </div>
-          {/* Phase 1619: allow another message without a full page reload. */}
-          <button
-            type="button"
-            onClick={() => setIsSubmitted(false)}
-            className="tv-btn-secondary"
-          >
-            Send another message
-          </button>
+          {/* Phase 1661: success is not a dead end — offer another message / browse / home. */}
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setIsSubmitted(false)}
+              className="tv-btn-secondary"
+            >
+              Send another message
+            </button>
+            <button type="button" onClick={() => onNavigate?.('packages')} className="tv-btn-ghost">
+              Browse tours
+            </button>
+            <button type="button" onClick={() => onNavigate?.('home')} className="tv-btn-ghost">
+              Back to home
+            </button>
+          </div>
         </div>
       ) : (
         <>
