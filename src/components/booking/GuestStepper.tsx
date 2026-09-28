@@ -13,6 +13,8 @@ export type GuestStepperProps = {
   className?: string;
   /** Phase 1320: null hides the hint (e.g. stay capacity unknown — not “no seats left”). */
   hint?: string | null;
+  /** Extra ids (e.g. stay capacity error) merged into the stepper group description. */
+  ariaDescribedBy?: string;
 };
 
 export default function GuestStepper({
@@ -25,9 +27,11 @@ export default function GuestStepper({
   id,
   className = '',
   hint,
+  ariaDescribedBy,
 }: GuestStepperProps) {
   const generatedId = useId();
   const labelId = id ?? generatedId;
+  const hintId = useId();
   const atMin = value <= min || max < 1;
   const atMax = value >= max || max < 1;
 
@@ -48,6 +52,8 @@ export default function GuestStepper({
   };
 
   const hintText = hint === null ? null : (hint ?? formatPartySizeHint({ min, max }));
+  const groupDescribedBy =
+    [hintText ? hintId : null, ariaDescribedBy?.trim() || null].filter(Boolean).join(' ') || undefined;
 
   return (
     <div className={className}>
@@ -58,6 +64,7 @@ export default function GuestStepper({
         className="flex overflow-hidden rounded-xl bg-paper-raised shadow-[0_0_0_1px_rgba(28,25,23,0.08)] transition-[box-shadow] duration-150 focus-within:shadow-[0_0_0_2px_rgba(0,53,128,0.35)]"
         role="group"
         aria-labelledby={labelId}
+        aria-describedby={groupDescribedBy}
       >
         <button
           type="button"
@@ -87,7 +94,11 @@ export default function GuestStepper({
           <Plus className="h-4 w-4 stroke-[2.5]" aria-hidden />
         </button>
       </div>
-      {hintText ? <p className="mt-1.5 text-xs text-ink-faint">{hintText}</p> : null}
+      {hintText ? (
+        <p id={hintId} className="mt-1.5 text-xs text-ink-faint">
+          {hintText}
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -1162,6 +1162,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
                 max={maxGuests ?? 0}
                 // Phase 1320: unknown stay capacity ≠ “No seats left on this departure”.
                 hint={maxGuests == null ? null : undefined}
+                ariaDescribedBy={maxGuests == null ? 'stay-guest-capacity-unavailable' : undefined}
                 onChange={(next) => {
                   setGuests(next);
                   setPayError(null);
@@ -1169,7 +1170,9 @@ export default function StayDetails({ stayId, onBack }: Props) {
                 label="Guests"
               />
               {maxGuests == null ? (
-                <p className="mt-2 text-sm text-red-700">Guest capacity is unavailable for this stay.</p>
+                <p id="stay-guest-capacity-unavailable" className="mt-2 text-sm text-red-700">
+                  Guest capacity is unavailable for this stay.
+                </p>
               ) : null}
             </div>
             {nights != null && nights < minNights ? (
