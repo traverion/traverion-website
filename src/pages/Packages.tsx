@@ -198,6 +198,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
   const [dateCapacityError, setDateCapacityError] = useState<string | null>(null);
   /** Paid/cap snapshot is for one catalog + date — not a prior catalog while the same date reloads (Stays 1432 parity). */
   const [dateCapacityLoadedFor, setDateCapacityLoadedFor] = useState<string | null>(null);
+  const dateCapacityReloadGenRef = useRef(0);
 
   const deferredSearch = useDeferredValue(searchTerm);
 
@@ -366,6 +367,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
       return () => {};
     }
     const browseKeyAtStart = `${supabaseListingIdsKey}|${filterDate}`;
+    const reloadGen = ++dateCapacityReloadGenRef.current;
     let cancelled = false;
     setDateCapacityLoading(true);
     setDateCapacityError(null);
@@ -412,7 +414,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
       })
     )
       .then((entries) => {
-        if (cancelled) return;
+        if (cancelled || reloadGen !== dateCapacityReloadGenRef.current) return;
         const ok = entries.filter((e): e is NonNullable<typeof e> => e != null);
         // Phase 1192 allows partial maps; zero successes must not mark browse loaded (invent “fully booked”).
         if (ok.length === 0 && allListings.length > 0) {
@@ -427,7 +429,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
         setDateCapacityLoading(false);
       })
       .catch((e) => {
-        if (cancelled) return;
+        if (cancelled || reloadGen !== dateCapacityReloadGenRef.current) return;
         // Phase 1104: keep prior capacity map — null would make every tour look open.
         setDateCapacityError(
           userFacingError(e, 'We could not check tour capacity for that date. Check your connection and try again.')
