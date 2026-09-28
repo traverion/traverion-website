@@ -59,6 +59,12 @@ function readBookingIdFromUrl(): string | null {
   return id && id.length > 0 ? id : null;
 }
 
+const PARTNER_INBOX_TABPANEL_ID = 'partner-inbox-tabpanel';
+
+function partnerInboxTabId(unreadOnly: boolean): string {
+  return unreadOnly ? 'partner-inbox-tab-unread' : 'partner-inbox-tab-all';
+}
+
 export default function SupplierInbox() {
   const { user, isSupabase } = useSupplierAuth();
   const [bookings, setBookings] = useState<BookingRow[]>([]);
@@ -383,6 +389,8 @@ export default function SupplierInbox() {
           <button
             type="button"
             role="tab"
+            id={partnerInboxTabId(false)}
+            aria-controls={PARTNER_INBOX_TABPANEL_ID}
             aria-selected={!unreadOnly}
             onClick={() => setUnreadOnlyAndUrl(false)}
             className={`lux-flat rounded-md px-3 py-1.5 text-xs font-semibold ring-1 transition-colors ${
@@ -396,6 +404,8 @@ export default function SupplierInbox() {
           <button
             type="button"
             role="tab"
+            id={partnerInboxTabId(true)}
+            aria-controls={PARTNER_INBOX_TABPANEL_ID}
             aria-selected={unreadOnly}
             onClick={() => setUnreadOnlyAndUrl(true)}
             className={`lux-flat rounded-md px-3 py-1.5 text-xs font-semibold ring-1 transition-colors ${
@@ -462,7 +472,13 @@ export default function SupplierInbox() {
           }
         />
         )
-      ) : visibleThreads.length === 0 ? (
+      ) : (
+        <div
+          id={PARTNER_INBOX_TABPANEL_ID}
+          role="tabpanel"
+          aria-labelledby={partnerInboxTabId(unreadOnly)}
+        >
+        {visibleThreads.length === 0 ? (
         <SupplierEmptyState
           icon={MessageSquare}
           title="No unread messages"
@@ -570,6 +586,8 @@ export default function SupplierInbox() {
             );
           })}
         </ul>
+      )}
+        </div>
       )}
       {mobileSheet && openBooking ? (
         <SupplierModalShell onClose={() => setOpenBookingId(null)} maxWidth="lg">
