@@ -67,8 +67,14 @@ export default function ParticipantCategoryStepper({
         >
           <Minus className="h-4 w-4 stroke-[2.5]" aria-hidden />
         </button>
-        <div className="flex min-w-[2.75rem] items-center justify-center border-x border-black/[0.06] text-sm font-semibold tabular-nums text-ink">
-          {quantity}
+        <div
+          className="flex min-w-[2.75rem] items-center justify-center border-x border-black/[0.06] text-sm font-semibold tabular-nums text-ink"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          <span key={quantity} className="tv-tick">
+            {quantity}
+          </span>
         </div>
         <button
           type="button"
