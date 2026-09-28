@@ -21,7 +21,8 @@ import {
 } from '../../data/supabase-bookings';
 import { fetchMyListings, fetchListingById, pgTimeToHm } from '../../data/supabase-listings';
 import type { BookingRow } from '../../data/supabase-bookings';
-import { openSupplierListingEditor, openSupplierBooking, openSupplierInbox } from '../../lib/supplierPortalNavigation';
+import { openSupplierListingEditor, openSupplierBooking, openSupplierInbox, navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
+import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { decrementAvailabilityBooked } from '../../data/supabase-availability';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
@@ -1354,6 +1355,25 @@ export default function SupplierPickupPlanner() {
           icon={CalendarDays}
           title="No bookings yet"
           body="Pickup times show up after a traveler books a tour. Stay nights are on Reservations."
+          // Phase 1651: empty Pickup needs an ops path.
+          action={
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="tv-btn-primary"
+                onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings`)}
+              >
+                Open bookings
+              </button>
+              <button
+                type="button"
+                className="tv-btn-ghost"
+                onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings`)}
+              >
+                Your listings
+              </button>
+            </div>
+          }
         />
       ) : listBookings.length === 0 ? (
         <SupplierEmptyState
