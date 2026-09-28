@@ -2160,10 +2160,13 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     tour,
                     discountsByListing ?? new Map()
                   );
+                  // Phase 1547: with option selected, never invent catalog From when quote failed (1545/1546 parity).
                   const priceLine =
                     selectedBookingVariant && panelQuote?.ok
                       ? formatMoney(panelQuote.totalAmount, panelQuote.currency)
-                      : `From ${formatMoney(Number(price), currency)}`;
+                      : selectedBookingVariant && panelQuote && !panelQuote.ok
+                        ? '—'
+                        : `From ${formatMoney(Number(price), currency)}`;
                   const subLine =
                     selectedBookingVariant
                       ? [
