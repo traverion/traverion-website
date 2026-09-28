@@ -453,6 +453,27 @@ export async function fetchListingById(id: string): Promise<TourPackage | null> 
   return merged ?? tour;
 }
 
+/**
+ * Batch hydrate listings by id (Wishlist / Saved). Preserves caller id order.
+ * Missing ids are omitted — callers count unavailable separately.
+ */
+export async function fetchListingsByIds(ids: string[]): Promise<TourPackage[]> {
+  if (!supabase || ids.length === 0) return [];
+  const unique = [...new Set(ids.map((id) => String(id ?? '').trim()).filter(Boolean))];
+  if (unique.length === 0) return [];
+  const { data, error } = await supabase.from('listings').select('*').in('id', unique);
+  if (error) throw new Error(error.message);
+  const tours = (data ?? []).map((row) => rowToTourPackage(row as ListingRow));
+  const merged = await mergeOwnedStayPrivateAddresses(tours);
+  const byId = new Map(merged.map((t) => [t.id, t]));
+  const ordered: TourPackage[] = [];
+  for (const id of ids) {
+    const t = byId.get(id);
+    if (t) ordered.push(t);
+  }
+  return ordered;
+}
+
 /** Fetch listing titles for given ids (public). Returns id -> title map. */
 export async function fetchListingTitlesByIds(ids: string[]): Promise<Record<string, string>> {
   const ops = await fetchListingOpsByIds(ids);

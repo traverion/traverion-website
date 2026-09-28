@@ -11,7 +11,7 @@ import { travelerLoginHref } from '../lib/travelerAuthLinks';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { fetchWishlistListingIds, removeFromWishlist } from '../data/supabase-wishlist';
-import { fetchListingById } from '../data/supabase-listings';
+import { fetchListingsByIds } from '../data/supabase-listings';
 import { TourPackage } from '../types/tour';
 import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
 import { isListingVisibleToTravelers } from '../lib/product-workflows';
@@ -51,10 +51,12 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
     setError(null);
     try {
       const ids = await fetchWishlistListingIds(user.id);
+      const hydrated = await fetchListingsByIds(ids);
+      const byId = new Map(hydrated.map((t) => [t.id, t]));
       const visible: TourPackage[] = [];
       let hidden = 0;
       for (const id of ids) {
-        const t = await fetchListingById(id);
+        const t = byId.get(id);
         if (!t) {
           hidden += 1;
           continue;
