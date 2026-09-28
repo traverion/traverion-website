@@ -16,6 +16,11 @@ import type { TourPackage } from '../../types/tour';
 import { listingRunsOnDate } from '../../lib/booking-quote';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { nightsOccupiedByStay, stayRangeFromBooking, partnerStayDayKind, partnerStayCalendarOccupiesNight, addCalendarDays } from '../../lib/stayOccupancy';
+import {
+  accumulatePartnerStayCheckOutsByDate,
+  accumulatePartnerStayGuestsByDate,
+  partnerAvailabilityTreatAsStay,
+} from '../../lib/partner-availability-stay-maps';
 import { displayListingTitleFromPurchase, partnerOpsDepartureDisplay } from '../../lib/purchase-snapshot';
 import {
   buildMonthCells,
@@ -109,48 +114,24 @@ export default function SupplierAvailability() {
   const cells = useMemo(() => buildMonthCells(year, monthIndex0), [year, monthIndex0]);
   const rowByDate = useMemo(() => new Map(rows.map((r) => [r.available_date, r])), [rows]);
   const guestsByDate = useMemo(() => {
-    const map = new Map<string, { guests: number; count: number }>();
     const listingById = new Map(listings.map((l) => [l.id, l]));
-    for (const b of bookings) {
-      if (!partnerStayCalendarOccupiesNight(b)) continue;
-      if (!viewingAll && b.listing_id !== listingId) continue;
-      if (!b.booking_date) continue;
-      const item = listingById.get(b.listing_id);
-      const isStay = item ? inventoryFamilyFromListing(item) === 'stay' : false;
-      const nights = isStay
-        ? (() => {
-            const range = stayRangeFromBooking(b);
-            return range ? nightsOccupiedByStay(range.checkIn, range.checkOut) : [b.booking_date];
-          })()
-        : [b.booking_date];
-      for (const iso of nights) {
-        const cur = map.get(iso) ?? { guests: 0, count: 0 };
-        cur.guests += b.guests ?? 0;
-        cur.count += 1;
-        map.set(iso, cur);
-      }
-    }
-    return map;
+    return accumulatePartnerStayGuestsByDate({
+      bookings,
+      listingById,
+      listingIdFilter: listingId,
+      viewingAll,
+    });
   }, [bookings, listingId, viewingAll, listings]);
 
   /** Ops-only: check-out mornings (inventory stays [checkIn, checkOut)). */
   const checkOutsByDate = useMemo(() => {
-    const map = new Map<string, { guests: number; count: number }>();
     const listingById = new Map(listings.map((l) => [l.id, l]));
-    for (const b of bookings) {
-      if (!partnerStayCalendarOccupiesNight(b)) continue;
-      if (!viewingAll && b.listing_id !== listingId) continue;
-      const item = listingById.get(b.listing_id);
-      const isStay = item ? inventoryFamilyFromListing(item) === 'stay' : Boolean(b.check_out);
-      if (!isStay) continue;
-      const range = stayRangeFromBooking(b);
-      if (!range) continue;
-      const cur = map.get(range.checkOut) ?? { guests: 0, count: 0 };
-      cur.guests += b.guests ?? 0;
-      cur.count += 1;
-      map.set(range.checkOut, cur);
-    }
-    return map;
+    return accumulatePartnerStayCheckOutsByDate({
+      bookings,
+      listingById,
+      listingIdFilter: listingId,
+      viewingAll,
+    });
   }, [bookings, listingId, viewingAll, listings]);
 
   const dayBookings = useMemo(() => {
@@ -159,7 +140,7 @@ export default function SupplierAvailability() {
       if (!partnerStayCalendarOccupiesNight(b)) return false;
       if (!viewingAll && b.listing_id !== listingId) return false;
       const item = listings.find((l) => l.id === b.listing_id);
-      const isStay = item ? inventoryFamilyFromListing(item) === 'stay' : false;
+      const isStay = partnerAvailabilityTreatAsStay(item, b);
       if (isStay) {
         const range = stayRangeFromBooking(b);
         if (!range) return false;
