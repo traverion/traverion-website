@@ -153,6 +153,31 @@ describe('partner bookings CSV', () => {
     expect(values[PARTNER_BOOKINGS_CSV_HEADER.indexOf('nights')]).toBe('4');
   });
 
+  it('Phase 1573: range nights beat stale opts.nights beside longer snap check_out', () => {
+    const values = partnerBookingCsvValues(
+      {
+        id: 'stay-opts',
+        listing_id: 'prop',
+        booking_number: 11,
+        status: 'confirmed',
+        payment_status: 'paid',
+        amount_paid: 500,
+        currency: 'EUR',
+        booking_date: '2026-12-01',
+        check_out: '2026-12-03',
+        nights: 2,
+        guests: 2,
+        purchase_snapshot: { checkOut: '2026-12-06' },
+      },
+      'Cabin',
+      '',
+      '',
+      { inventory: 'stay', nights: 2 }
+    );
+    expect(values[PARTNER_BOOKINGS_CSV_HEADER.indexOf('check_out')]).toBe('2026-12-06');
+    expect(values[PARTNER_BOOKINGS_CSV_HEADER.indexOf('nights')]).toBe('5');
+  });
+
   it('listing_title column carries purchased title when caller prefers snapshot (Phase 1069)', () => {
     const values = partnerBookingCsvValues(
       {
