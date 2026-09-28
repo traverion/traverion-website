@@ -1410,11 +1410,14 @@ export default function BookingPage({
                   max={partyMaxForSelectedDay}
                   onChange={setGuests}
                   onBoundaryAttempt={setError}
+                  ariaDescribedBy={
+                    error || quoteBlockReason || dayCapacityError ? 'booking-flow-guests-error' : undefined
+                  }
                 />
               )}
             </div>
             {(error || quoteBlockReason || dayCapacityError) ? (
-              <div className="mt-3">
+              <div id="booking-flow-guests-error" className="mt-3">
                 <NoticeCallout
                   title={dayCapacityError ? 'Capacity unavailable' : error ? 'Could not continue' : 'Pricing unavailable'}
                   tone="danger"
