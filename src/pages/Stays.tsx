@@ -89,7 +89,9 @@ function parseStaysSearch(search: string) {
 }
 
 export default function Stays({ onStaySelect, onNavigate }: Props) {
-  const { listings: supplierListings, error, reload } = usePublishedSupplierListings();
+  const { listings: supplierListings, error, reload } = usePublishedSupplierListings({
+    emptyOnFirstError: false,
+  });
   const wishlist = useTravelerWishlist();
   const initial = parseStaysSearch(typeof window === 'undefined' ? '' : window.location.search);
   const [paymentBanner] = useState<'cancelled' | null>(() =>
@@ -186,11 +188,15 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
   }, [q, checkIn, checkOut, guests, propertyType, priceRange, selectedAmenities, sortBy, ratingFilter]);
 
   const stays = useMemo(() => {
-    const base =
-      isSupabaseConfigured() && supplierListings !== null
-        ? supplierListings
-        : getAllListings({ includeSeed: false, includeHolidayPackages: false });
-    return filterCatalogByFamily(base, 'stay');
+    if (isSupabaseConfigured()) {
+      // Phase 1356 / Stays parity: never invent browse catalog from localStorage while live fetch is pending or failed.
+      if (supplierListings !== null) return filterCatalogByFamily(supplierListings, 'stay');
+      return [];
+    }
+    return filterCatalogByFamily(
+      getAllListings({ includeSeed: false, includeHolidayPackages: false }),
+      'stay'
+    );
   }, [supplierListings]);
 
   const dateFilterActive = Boolean(checkIn && checkOut && checkOut > checkIn);
