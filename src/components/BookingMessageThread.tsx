@@ -237,7 +237,13 @@ export default function BookingMessageThread({
             maxLength={4000}
             placeholder="Write a message about this booking"
             className="tv-input min-h-[5.5rem]"
+            aria-describedby={`msg-hint-${bookingId}`}
           />
+          {/* Phase 1671: calm 4000-char limit hint while composing. */}
+          <p id={`msg-hint-${bookingId}`} className="mt-1.5 text-xs text-ink-faint">
+            Up to 4000 characters
+            {draft.length > 0 ? ` · ${draft.length} used` : ''}.
+          </p>
           <button
             type="button"
             onClick={() => void send()}
