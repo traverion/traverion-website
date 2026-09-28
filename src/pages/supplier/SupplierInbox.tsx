@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { MessageSquare } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
@@ -184,7 +184,8 @@ export default function SupplierInbox() {
     }
   }, [isSupabase, user?.id]);
 
-  useEffect(() => {
+  // Phase 1387 + layout: clear prior partner inbox before paint on account switch (useEffect ran one frame too late).
+  useLayoutEffect(() => {
     const clearInboxPartnerWorkspace = () => {
       setBookings([]);
       setTitles({});
@@ -204,7 +205,6 @@ export default function SupplierInbox() {
       setLoading(false);
       return;
     }
-    // Phase 1387: clear prior partner inbox before loading the next account (Bookings 1384 parity).
     if (inboxHubUserIdRef.current !== user.id) {
       inboxHubUserIdRef.current = user.id;
       loadGenRef.current += 1;
