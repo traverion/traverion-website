@@ -1,8 +1,7 @@
 /**
  * Mirror of src/lib/promote-paid-checkout.ts for Deno edge runtime.
  * Phase 1513: interpret promote_paid_checkout_booking RPC results.
- * Phase 1526: stay assert check-out parity helper.
- * Phase 1532: departure cutoff refuse helper.
+ * Phase 1526/1532/1533/1535: stay assert + departure cutoff helpers.
  */
 
 export type PromotePaidCheckoutResult = {
@@ -88,4 +87,16 @@ export function paidPromotionShouldRefusePastDepartureCutoff(params: {
     String(params.startTimeHm ?? '').trim() || String(params.optionStartTimeHm ?? '').trim();
   if (!hm) return false;
   return params.cutoffStillBookable !== true;
+}
+
+/**
+ * Phase 1535: assert start time prefers frozen HM, else quote-resolved option HM.
+ */
+export function promotePaidAssertStartTimeHm(params: {
+  frozenStartTimeHm?: string | null;
+  resolvedCutoffStartTimeHm?: string | null;
+}): string {
+  const frozen = String(params.frozenStartTimeHm ?? '').trim().slice(0, 5);
+  if (frozen) return frozen;
+  return String(params.resolvedCutoffStartTimeHm ?? '').trim().slice(0, 5);
 }

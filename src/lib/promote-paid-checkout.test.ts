@@ -3,6 +3,7 @@ import {
   promotePaidCheckoutOutcome,
   promotePaidRequiresAtomicAssertUpdate,
   paidPromotionShouldRefusePastDepartureCutoff,
+  promotePaidAssertStartTimeHm,
 } from './promote-paid-checkout';
 
 describe('promotePaidCheckoutOutcome', () => {
@@ -72,5 +73,22 @@ describe('paidPromotionShouldRefusePastDepartureCutoff', () => {
         cutoffStillBookable: false,
       })
     ).toBe(true);
+  });
+});
+
+describe('promotePaidAssertStartTimeHm', () => {
+  it('Phase 1535: prefers frozen HM, else resolved option HM', () => {
+    expect(
+      promotePaidAssertStartTimeHm({
+        frozenStartTimeHm: '',
+        resolvedCutoffStartTimeHm: '09:00',
+      })
+    ).toBe('09:00');
+    expect(
+      promotePaidAssertStartTimeHm({
+        frozenStartTimeHm: '14:00',
+        resolvedCutoffStartTimeHm: '09:00',
+      })
+    ).toBe('14:00');
   });
 });

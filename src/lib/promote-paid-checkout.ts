@@ -87,3 +87,15 @@ export function paidPromotionShouldRefusePastDepartureCutoff(params: {
   if (!hm) return false;
   return params.cutoffStillBookable !== true;
 }
+
+/**
+ * Phase 1535: assert start time prefers frozen HM, else quote-resolved option HM.
+ */
+export function promotePaidAssertStartTimeHm(params: {
+  frozenStartTimeHm?: string | null;
+  resolvedCutoffStartTimeHm?: string | null;
+}): string {
+  const frozen = String(params.frozenStartTimeHm ?? '').trim().slice(0, 5);
+  if (frozen) return frozen;
+  return String(params.resolvedCutoffStartTimeHm ?? '').trim().slice(0, 5);
+}

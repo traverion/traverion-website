@@ -531,6 +531,8 @@ export async function promotePaidFromCheckoutSession(params: {
       : '';
   const bookingOptionId =
     String(existingBooking?.booking_option_id ?? '').trim() || snapOptionId || '';
+  // Phase 1535: may be upgraded to quote-resolved option HM inside listing gate.
+  let assertStartTimeHm = startTimeHm;
   if (listingId && bookingDate && Number.isFinite(guests) && guests >= 1) {
     // Phase 1284: stale Stripe completion must not promote after unpublish / season end
     // (create-booking-checkout-session 1278 parity).
@@ -601,6 +603,8 @@ export async function promotePaidFromCheckoutSession(params: {
       bookingOptionId,
       frozenStartTimeHm: startTimeHm,
     });
+    // Phase 1535: inventory assert must use the same HM as cutoff (not day-wide null).
+    if (cutoffStartTimeHm) assertStartTimeHm = cutoffStartTimeHm;
     if (!isStayListing && cutoffStartTimeHm) {
       const extras =
         listingGate?.listing_extras && typeof listingGate.listing_extras === 'object'
@@ -767,10 +771,18 @@ export async function promotePaidFromCheckoutSession(params: {
   }
 
   // Phase 1325: freeze private stay check-in address only once payment is collected.
+  // Phase 1535: also backfill missing purchase_snapshot.startTimeHm from assert HM.
   let purchaseSnapshotForPaid: Record<string, unknown> | null = null;
   const existingSnap = existingBooking?.purchase_snapshot;
   if (existingSnap && typeof existingSnap === 'object' && existingSnap !== null && listingId) {
     const snapObj = { ...(existingSnap as Record<string, unknown>) };
+    let snapDirty = false;
+    const alreadyHm =
+      typeof snapObj.startTimeHm === 'string' ? snapObj.startTimeHm.trim().slice(0, 5) : '';
+    if (!alreadyHm && assertStartTimeHm) {
+      snapObj.startTimeHm = assertStartTimeHm;
+      snapDirty = true;
+    }
     const already = typeof snapObj.checkInAddress === 'string' ? snapObj.checkInAddress.trim() : '';
     if (!already) {
       const { data: listingForAddr } = await admin
@@ -796,13 +808,15 @@ export async function promotePaidFromCheckoutSession(params: {
             : '';
         if (addr) {
           snapObj.checkInAddress = addr;
-          purchaseSnapshotForPaid = snapObj;
+          snapDirty = true;
         }
       }
     }
+    if (snapDirty) purchaseSnapshotForPaid = snapObj;
   }
 
   // Phase 1513: assert inventory + mark paid in one DB transaction.
+  // Phase 1535: p_assert_start_time uses quote-resolved HM when snapshot omitted time.
   const { data: promoteData, error: promoteErr } = await admin.rpc('promote_paid_checkout_booking', {
     p_booking_id: bookingId,
     p_checkout_session_id: session.id,
@@ -811,7 +825,7 @@ export async function promotePaidFromCheckoutSession(params: {
     p_currency: currency,
     p_paid_at: new Date().toISOString(),
     p_purchase_snapshot: purchaseSnapshotForPaid ?? null,
-    p_assert_start_time: startTimeHm || null,
+    p_assert_start_time: assertStartTimeHm || null,
     p_assert_booking_option_id: bookingOptionId || null,
   });
 
