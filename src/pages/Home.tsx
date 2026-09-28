@@ -563,7 +563,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                   : 'Tours published by operators on Traverion.'}
               </p>
             </div>
-            {!catalogLoading && !listingsError && allListings.length > 0 ? (
+            {!catalogLoading && allListings.length > 0 ? (
               <button
                 type="button"
                 onClick={() => goToPackages()}
@@ -574,9 +574,9 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
               </button>
             ) : null}
           </div>
-          {listingsError && supplierListings === null ? (
+          {listingsError ? (
             <ErrorState
-              className="py-8"
+              className="mb-6 py-6"
               title="Tours unavailable"
               body={userFacingError(listingsError, USER_ERROR.tours)}
               retry={{ onClick: () => reloadCatalog() }}
@@ -586,12 +586,13 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                 </a>
               }
             />
-          ) : catalogLoading ? (
+          ) : null}
+          {catalogLoading && allListings.length === 0 ? (
             <div aria-busy="true" aria-label="Loading tours">
               <SkeletonFeaturedHero />
               <SkeletonCardGrid count={3} />
             </div>
-          ) : allListings.length === 0 ? (
+          ) : allListings.length === 0 && !listingsError ? (
             <EmptyState
               icon={Compass}
               title="No tours published yet"
@@ -602,7 +603,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                 </a>
               }
             />
-          ) : (
+          ) : allListings.length > 0 ? (
             <>
               {featuredListing ? (
                 <button
@@ -673,7 +674,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                 ))}
               </div>
             </>
-          )}
+          ) : null}
         </div>
       </section>
 
@@ -685,7 +686,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
               <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">{staysSectionTitle}</h2>
               <p className="mt-2 text-sm text-ink-muted">Nights from operators — separate from tour departures.</p>
             </div>
-            {!catalogLoading && !listingsError && stayListings.length > 0 ? (
+            {!catalogLoading && stayListings.length > 0 ? (
               <button type="button" onClick={() => goToStays()} className="lux-flat text-sm font-semibold text-finland">
                 All stays <ArrowRight className="w-4 h-4 inline" />
               </button>
@@ -693,7 +694,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
           </div>
           {listingsError ? (
             <ErrorState
-              className="py-8"
+              className="mb-6 py-6"
               title="Stays unavailable"
               body={userFacingError(listingsError, USER_ERROR.stays)}
               retry={{ onClick: () => reloadCatalog() }}
@@ -703,9 +704,10 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                 </a>
               }
             />
-          ) : catalogLoading ? (
+          ) : null}
+          {catalogLoading && stayListings.length === 0 ? (
             <SkeletonCardGrid count={3} />
-          ) : stayListings.length === 0 ? (
+          ) : stayListings.length === 0 && !listingsError ? (
             <EmptyState
               icon={Compass}
               title="No stays published yet"
@@ -716,7 +718,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                 </a>
               }
             />
-          ) : (
+          ) : stayListings.length > 0 ? (
             <div className={HOME_DISCOVERY_GRID_CLASS}>
               {displayedStayListings.map((item, index) => (
                 <PublicListingBrowseCard
@@ -741,7 +743,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                 />
               ))}
             </div>
-          )}
+          ) : null}
         </div>
       </section>
 
