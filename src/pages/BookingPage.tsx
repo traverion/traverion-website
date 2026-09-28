@@ -676,25 +676,29 @@ export default function BookingPage({
     if (profileHydratedRef.current) return;
     const uid = user.id;
     const meta = user.user_metadata as TravelerCheckoutAuthMetadata | undefined;
-    void fetchConsumerProfileRow(uid).then((row) => {
-      if (lastHydratedUserIdRef.current !== uid) return;
-      if (profileHydratedRef.current) return;
-      const name = travelerLeadGuestNameFromAuth({
-        consumerDisplayName: row?.display_name,
-        metadata: meta,
+    void fetchConsumerProfileRow(uid)
+      .then((row) => {
+        if (lastHydratedUserIdRef.current !== uid) return;
+        if (profileHydratedRef.current) return;
+        const name = travelerLeadGuestNameFromAuth({
+          consumerDisplayName: row?.display_name,
+          metadata: meta,
+        });
+        const parts = name.split(/\s+/).filter(Boolean);
+        const fn = parts[0] ?? '';
+        const ln = parts.slice(1).join(' ');
+        const ph = travelerLeadGuestPhoneFromAuth({
+          consumerPhone: row?.contact_phone,
+          metadata: meta,
+        });
+        setFirstName((prev) => prev.trim() || fn);
+        setLastName((prev) => prev.trim() || ln);
+        setPhone((prev) => prev.trim() || ph);
+        profileHydratedRef.current = true;
+      })
+      .catch(() => {
+        /* keep auth metadata autofill on profile load failure */
       });
-      const parts = name.split(/\s+/).filter(Boolean);
-      const fn = parts[0] ?? '';
-      const ln = parts.slice(1).join(' ');
-      const ph = travelerLeadGuestPhoneFromAuth({
-        consumerPhone: row?.contact_phone,
-        metadata: meta,
-      });
-      setFirstName((prev) => prev.trim() || fn);
-      setLastName((prev) => prev.trim() || ln);
-      setPhone((prev) => prev.trim() || ph);
-      profileHydratedRef.current = true;
-    });
   }, [user?.id]);
 
   useEffect(() => {

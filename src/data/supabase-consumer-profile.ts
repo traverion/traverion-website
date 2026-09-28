@@ -57,7 +57,8 @@ export async function fetchConsumerProfileRow(userId: string): Promise<ConsumerP
     .select('id, display_name, contact_phone')
     .eq('id', userId)
     .maybeSingle();
-  if (error || !data) return null;
+  if (error) throw error;
+  if (!data) return null;
   return data as ConsumerProfileRow;
 }
 

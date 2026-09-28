@@ -38,6 +38,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
   const [displayName, setDisplayName] = useState('');
   const [phone, setPhone] = useState('');
   const [profileLoading, setProfileLoading] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMessage, setProfileMessage] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const statsGenRef = useRef(0);
@@ -86,6 +87,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
     const gen = ++profileGenRef.current;
     setProfileLoading(true);
     setProfileMessage(null);
+    setProfileError(null);
     try {
       const row = await fetchConsumerProfileRow(user.id);
       if (gen !== profileGenRef.current) return;
@@ -112,7 +114,13 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
           displayName: fromMeta,
           phone: row?.contact_phone?.trim() || fallbackPhone || '',
         });
-      }    } finally {
+      }
+    } catch (e) {
+      if (gen !== profileGenRef.current) return;
+      setProfileError(
+        userFacingError(e, 'We could not load your profile. Check your connection and try again.')
+      );
+    } finally {
       if (gen === profileGenRef.current) setProfileLoading(false);
     }
   }, [user?.id, user?.email, user?.user_metadata]);
@@ -124,6 +132,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
       setDisplayName('');
       setPhone('');
       setProfileMessage(null);
+      setProfileError(null);
     }
   }, [user, loadProfile]);
 
@@ -331,6 +340,18 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
               >
                 <SkeletonFormFields count={3} />
               </div>
+            ) : profileError ? (
+              <ErrorState
+                className="rounded-2xl bg-paper-raised p-5 sm:p-6 ring-1 ring-black/[0.06]"
+                title="Profile unavailable"
+                body={profileError}
+                retry={{ onClick: () => void loadProfile() }}
+                extra={
+                  <button type="button" onClick={() => onNavigate('contact')} className="tv-btn-ghost">
+                    Contact support
+                  </button>
+                }
+              />
             ) : (
               <form
                 className="space-y-4 rounded-2xl bg-paper-raised p-5 sm:p-6 ring-1 ring-black/[0.06] shadow-soft"

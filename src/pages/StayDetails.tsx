@@ -446,23 +446,27 @@ export default function StayDetails({ stayId, onBack }: Props) {
     if (!user?.id || !isSupabaseConfigured()) return;
     const uid = user.id;
     const meta = user.user_metadata as TravelerCheckoutAuthMetadata | undefined;
-    void fetchConsumerProfileRow(uid).then((row) => {
-      if (lastStayProfileUserIdRef.current !== uid) return;
-      // Prefer traveler profile / customer_* metadata — never partner business display names
-      // (localhost same-origin auth shares storage with partner sessions).
-      const fromProfile = (row?.display_name ?? '').trim();
-      const nextName = travelerLeadGuestNameFromAuth({
-        consumerDisplayName: fromProfile,
-        metadata: meta,
+    void fetchConsumerProfileRow(uid)
+      .then((row) => {
+        if (lastStayProfileUserIdRef.current !== uid) return;
+        // Prefer traveler profile / customer_* metadata — never partner business display names
+        // (localhost same-origin auth shares storage with partner sessions).
+        const fromProfile = (row?.display_name ?? '').trim();
+        const nextName = travelerLeadGuestNameFromAuth({
+          consumerDisplayName: fromProfile,
+          metadata: meta,
+        });
+        if (fromProfile) setProfileDisplayName(fromProfile);
+        if (nextName) setGuestName((prev) => prev.trim() || nextName);
+        const ph = travelerLeadGuestPhoneFromAuth({
+          consumerPhone: row?.contact_phone,
+          metadata: meta,
+        });
+        if (ph) setGuestPhone((prev) => prev.trim() || ph);
+      })
+      .catch(() => {
+        /* keep auth metadata autofill on profile load failure */
       });
-      if (fromProfile) setProfileDisplayName(fromProfile);
-      if (nextName) setGuestName((prev) => prev.trim() || nextName);
-      const ph = travelerLeadGuestPhoneFromAuth({
-        consumerPhone: row?.contact_phone,
-        metadata: meta,
-      });
-      if (ph) setGuestPhone((prev) => prev.trim() || ph);
-    });
   }, [user?.id]);
 
   // Phase 1210: surface self-book block before Pay (BookingPage 1186 / TourDetails 1164 parity).

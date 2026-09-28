@@ -587,9 +587,13 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       return;
     }
     let cancelled = false;
-    void fetchConsumerProfileRow(user.id).then((row) => {
-      if (!cancelled) setProfileDisplayName((row?.display_name ?? '').trim());
-    });
+    void fetchConsumerProfileRow(user.id)
+      .then((row) => {
+        if (!cancelled) setProfileDisplayName((row?.display_name ?? '').trim());
+      })
+      .catch(() => {
+        /* keep auth metadata fallback for review display name */
+      });
     return () => {
       cancelled = true;
     };
