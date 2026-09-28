@@ -59,6 +59,12 @@ function normalize(source: string): string {
   return source
     .replace(/\/\*[\s\S]*?\*\//g, ' ') // block comments (incl. JSDoc)
     .replace(/\/\/[^\n]*/g, ' ') // line comments
+    // Phase 1527: Deno uses ./shared imports; Vitest src twins reach the same
+    // modules via ../../supabase/functions/_shared/ — treat as equivalent.
+    .replace(
+      /from\s+['"]\.\.\/\.\.\/supabase\/functions\/_shared\/([\w.-]+\.ts)['"]/g,
+      "from './$1'"
+    )
     .replace(/\s+/g, ' ')
     .trim();
 }
