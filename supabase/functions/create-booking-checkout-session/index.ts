@@ -4,7 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
 import { listingHasUpcomingBookableSeason, quoteListingBooking, stayCheckoutNightsAlreadyBooked, stayNightIsOperatorBlocked, stayRangeFromBooking, tourDepartureRemainingSeats, tourDepartureSlotCapacity, type DiscountRow, type ListingQuoteRow, type StayCheckoutOccupancyRow } from '../_shared/booking-quote.ts';
 import { tourCheckoutOccupiedGuests, inventoryStartTimeHmFromBooking, type TourCheckoutOccupancyRow } from '../_shared/booking-hold.ts';
-import { checkoutPaymentStatusCanResume, resumeStayCheckoutDate, checkoutResumeLostRaceToPaid } from '../_shared/checkout-resume.ts';
+import { checkoutPaymentStatusCanResume, resumeStayCheckoutDate, checkoutResumeLostRaceToPaid, resumeListingIdMismatch } from '../_shared/checkout-resume.ts';
 import { resumeStayLeadGuestName, stayCheckoutLeadGuestNameReady } from '../_shared/stay-checkout-guest.ts';
 import {
   buildPurchaseSnapshot,
@@ -225,6 +225,18 @@ serve(async (req) => {
         })
       ) {
         return json({ success: false, error: 'You can only pay your own booking' }, 403);
+      }
+      // Phase 1505: resume must not accept a client listingId that disagrees with the row.
+      if (
+        resumeListingIdMismatch({
+          bodyListingId: listingId,
+          bookingListingId: typeof row.listing_id === 'string' ? row.listing_id : null,
+        })
+      ) {
+        return json(
+          { success: false, error: 'This payment link does not match the booking.' },
+          400
+        );
       }
       if (email) {
         const syncPatch = travelerCheckoutIdentitySyncPatch({

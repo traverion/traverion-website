@@ -5,6 +5,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { tourCheckoutOccupiedGuests } from './booking-hold';
+import { tourDepartureRemainingSeats } from './tour-departure-remaining';
 
 /** Mirrors the SQL lock key shape: hashtext(listing_id::text) — listing-scoped. */
 export function checkoutInventoryLockKey(listingId: string): string {
@@ -27,9 +29,29 @@ export function sameInventoryRace(
   return true;
 }
 
+/**
+ * After Traveler A holds the final seat, Traveler B's pre-assert remaining check
+ * (create-booking-checkout-session) must see 0 and 409 — mirrors edge capacity gate.
+ */
+export function lastSeatRemainingAfterHold(params: {
+  capacity: number;
+  occupiedGuests: number;
+  requestingGuests: number;
+}): { remaining: number; allowClaim: boolean } {
+  const remaining = tourDepartureRemainingSeats({
+    slotMaxSpots: params.capacity,
+    paidGuestsSlot: params.occupiedGuests,
+  });
+  return {
+    remaining,
+    allowClaim: remaining >= params.requestingGuests,
+  };
+}
+
 describe('checkout inventory concurrency semantics', () => {
   const listing = '11111111-1111-1111-1111-111111111111';
   const other = '22222222-2222-2222-2222-222222222222';
+  const now = Date.parse('2026-10-01T12:00:00.000Z');
 
   it('same listing last-spot attempts share a lock (serialized)', () => {
     expect(
@@ -57,5 +79,78 @@ describe('checkout inventory concurrency semantics', () => {
         { listingId: listing, date: '2026-10-01', startTimeHm: '20:00' }
       )
     ).toBe(true);
+  });
+
+  it('capacity 1: after A holds 1 seat, B cannot claim the same departure', () => {
+    const rows = [
+      {
+        id: 'aaaa',
+        booking_date: '2026-10-01',
+        guests: 1,
+        status: 'pending',
+        payment_status: 'pending',
+        hold_expires_at: '2026-10-01T13:00:00.000Z',
+        start_time: '09:00:00',
+        purchase_snapshot: { startTimeHm: '09:00' },
+      },
+    ];
+    const occupied = tourCheckoutOccupiedGuests(rows, '2026-10-01', null, now, '09:00');
+    expect(occupied).toBe(1);
+    const forB = lastSeatRemainingAfterHold({
+      capacity: 1,
+      occupiedGuests: occupied,
+      requestingGuests: 1,
+    });
+    expect(forB.remaining).toBe(0);
+    expect(forB.allowClaim).toBe(false);
+  });
+
+  it('capacity 1: excluding A own hold still leaves B blocked when counting A', () => {
+    // B's checkout excludes only B's booking id — A's hold still occupies.
+    const rows = [
+      {
+        id: 'hold-a',
+        booking_date: '2026-10-01',
+        guests: 1,
+        status: 'pending',
+        payment_status: 'pending',
+        hold_expires_at: '2026-10-01T13:00:00.000Z',
+        start_time: '09:00:00',
+        purchase_snapshot: { startTimeHm: '09:00' },
+      },
+    ];
+    const occupiedForB = tourCheckoutOccupiedGuests(rows, '2026-10-01', 'hold-b', now, '09:00');
+    expect(occupiedForB).toBe(1);
+    expect(
+      lastSeatRemainingAfterHold({
+        capacity: 1,
+        occupiedGuests: occupiedForB,
+        requestingGuests: 1,
+      }).allowClaim
+    ).toBe(false);
+  });
+
+  it('capacity N: concurrent requests consuming final N seats — last one fails', () => {
+    const capacity = 3;
+    const rows = [
+      {
+        id: 'a',
+        booking_date: '2026-10-01',
+        guests: 2,
+        status: 'pending',
+        payment_status: 'pending',
+        hold_expires_at: '2026-10-01T13:00:00.000Z',
+        start_time: '10:00:00',
+        purchase_snapshot: { startTimeHm: '10:00' },
+      },
+    ];
+    const occupied = tourCheckoutOccupiedGuests(rows, '2026-10-01', null, now, '10:00');
+    expect(occupied).toBe(2);
+    expect(
+      lastSeatRemainingAfterHold({ capacity, occupiedGuests: occupied, requestingGuests: 1 }).allowClaim
+    ).toBe(true);
+    expect(
+      lastSeatRemainingAfterHold({ capacity, occupiedGuests: occupied, requestingGuests: 2 }).allowClaim
+    ).toBe(false);
   });
 });

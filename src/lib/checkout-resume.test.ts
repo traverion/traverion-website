@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   checkoutPaymentStatusCanResume,
   resumeStayCheckoutDate,
+  resumeListingIdMismatch,
   staleCheckoutFailureShouldApply,
   stripeWebhookCanMarkPaidFrom,
   checkoutResumeLostRaceToPaid,
@@ -131,5 +132,31 @@ describe('resumeStayCheckoutDate', () => {
         resolveFromBooking: () => null,
       })
     ).toBe('2026-11-05');
+  });
+});
+
+describe('resumeListingIdMismatch', () => {
+  it('rejects when client listingId disagrees with the booking row', () => {
+    expect(
+      resumeListingIdMismatch({
+        bodyListingId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        bookingListingId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+      })
+    ).toBe(true);
+  });
+
+  it('allows resume when listing ids match or body omits listingId', () => {
+    expect(
+      resumeListingIdMismatch({
+        bodyListingId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        bookingListingId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+      })
+    ).toBe(false);
+    expect(
+      resumeListingIdMismatch({
+        bodyListingId: '',
+        bookingListingId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+      })
+    ).toBe(false);
   });
 });

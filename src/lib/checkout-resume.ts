@@ -82,3 +82,14 @@ export function resumeStayCheckoutDate(params: {
   const fromBody = String(params.bodyCheckoutDate ?? '').trim();
   return ISO_DATE.test(fromBody) ? fromBody : null;
 }
+
+/** Reject Pay-now resume when client listingId disagrees with the booking row. */
+export function resumeListingIdMismatch(params: {
+  bodyListingId?: string | null;
+  bookingListingId?: string | null;
+}): boolean {
+  const body = String(params.bodyListingId ?? '').trim();
+  const row = String(params.bookingListingId ?? '').trim();
+  if (!body || !row) return false;
+  return body !== row;
+}
