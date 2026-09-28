@@ -75,7 +75,8 @@ const TAG_LABELS: Record<string, string> = {
 };
 
 const TOUR_SORT_OPTIONS = [
-  { id: 'recommended', label: 'Catalog order' },
+  // Phase 1599: traveler-facing sort label (id stays recommended).
+  { id: 'recommended', label: 'Recommended' },
   { id: 'price-asc', label: 'Price: low to high' },
   { id: 'price-desc', label: 'Price: high to low' },
   { id: 'rating', label: 'Guest rating' },
