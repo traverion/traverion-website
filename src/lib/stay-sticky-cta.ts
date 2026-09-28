@@ -28,8 +28,18 @@ export function stayStickyBookCtaLabel(params: {
   if (params.quoteOk && params.leadGuestReady === false) return 'Add guest name';
   if (params.quoteOk) return TRAVELER_CONTINUE_TEST_CTA;
   // Phase 1313: keep quote-error branch readable (was one-line jammed after Continue).
+  // Phase 1520: do not call every quote failure “Fix dates” (Tour capacity parity).
   if (params.checkIn && params.checkOut && params.quoteError) {
     if (/Minimum stay/i.test(params.quoteError)) return `Need ${params.minNights}+ nights`;
+    if (/Guest capacity is unavailable|capacity is unavailable/i.test(params.quoteError)) {
+      return 'Capacity unavailable';
+    }
+    if (/allows up to|how many guests|guest count|guests/i.test(params.quoteError)) {
+      return 'Fix guests';
+    }
+    if (/nightly price|does not have a nightly price|price/i.test(params.quoteError)) {
+      return 'Price unavailable';
+    }
     return 'Fix dates';
   }
   if (params.checkIn && !params.checkOut) return 'Pick check-out';

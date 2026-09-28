@@ -94,7 +94,7 @@ describe('stayStickyBookCtaLabel', () => {
     ).toBe(TRAVELER_OPENING_CHECKOUT_CTA);
   });
 
-  it('names generic quote failures as Fix dates', () => {
+  it('names generic date/booked quote failures as Fix dates', () => {
     expect(
       stayStickyBookCtaLabel({
         selectionOccupied: false,
@@ -105,5 +105,38 @@ describe('stayStickyBookCtaLabel', () => {
         minNights: 1,
       })
     ).toBe('Fix dates');
+  });
+
+  it('Phase 1520: names capacity / guests / price quote failures honestly', () => {
+    expect(
+      stayStickyBookCtaLabel({
+        selectionOccupied: false,
+        quoteOk: false,
+        checkIn: '2026-10-01',
+        checkOut: '2026-10-04',
+        quoteError: 'Guest capacity is unavailable for this stay.',
+        minNights: 1,
+      })
+    ).toBe('Capacity unavailable');
+    expect(
+      stayStickyBookCtaLabel({
+        selectionOccupied: false,
+        quoteOk: false,
+        checkIn: '2026-10-01',
+        checkOut: '2026-10-04',
+        quoteError: 'This stay allows up to 4 guests.',
+        minNights: 1,
+      })
+    ).toBe('Fix guests');
+    expect(
+      stayStickyBookCtaLabel({
+        selectionOccupied: false,
+        quoteOk: false,
+        checkIn: '2026-10-01',
+        checkOut: '2026-10-04',
+        quoteError: 'This stay does not have a nightly price yet.',
+        minNights: 1,
+      })
+    ).toBe('Price unavailable');
   });
 });
