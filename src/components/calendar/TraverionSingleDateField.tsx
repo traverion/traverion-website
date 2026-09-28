@@ -39,6 +39,7 @@ export function TraverionSingleDateField({
   const panelRef = useRef<HTMLDivElement>(null);
   const panelId = useId();
   const labelId = useId();
+  const valueId = useId();
   const todayIso = localYmd();
   const min = minIso ?? todayIso;
 
@@ -85,7 +86,7 @@ export function TraverionSingleDateField({
       <button
         type="button"
         id={id}
-        aria-labelledby={labelId}
+        aria-labelledby={`${labelId} ${valueId}`}
         aria-expanded={open}
         aria-controls={panelId}
         aria-haspopup="dialog"
@@ -93,7 +94,9 @@ export function TraverionSingleDateField({
         className="flex h-9 w-full items-center gap-2 border-0 bg-transparent pr-1 text-left text-[15px] text-ink focus:outline-none focus-visible:ring-0"
       >
         <Calendar className="h-4 w-4 shrink-0 text-ink-faint" aria-hidden />
-        <span className={value.trim() ? 'text-ink' : 'text-ink-muted'}>{display}</span>
+        <span id={valueId} className={value.trim() ? 'text-ink' : 'text-ink-muted'}>
+          {display}
+        </span>
       </button>
       {open ? (
         <div
