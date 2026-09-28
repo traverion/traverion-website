@@ -1731,7 +1731,7 @@ export default function BookingPage({
               <ClipboardList className="w-4 h-4 text-finland shrink-0 mt-0.5" aria-hidden />
               <span>
                 {isSupabaseConfigured()
-                  ? `Confirm the details below, then pay ${totalLabel} on ${STRIPE_TEST_UNTIL_LIVE}. Your spots are held for ${CHECKOUT_HOLD_MINUTES} minutes while you check out.`
+                  ? `Confirm the details below, then pay ${totalLabel} via ${STRIPE_TEST_UNTIL_LIVE}. Your spots are held for ${CHECKOUT_HOLD_MINUTES} minutes while you check out.`
                   : 'Live card checkout is not configured in this environment. We will not pretend a payment succeeded.'}
               </span>
             </p>
@@ -1834,7 +1834,7 @@ export default function BookingPage({
                   originalTotal={quoted.originalUnitPrice * quoted.guests}
                   discountLabel={quoted.discountLabel}
                   holdNote={`Spots are held for ${CHECKOUT_HOLD_MINUTES} minutes after you continue to Stripe. If checkout expires, the hold is released.`}
-                  footnote={`This is the amount ${STRIPE_TEST_UNTIL_LIVE} will charge. Currency matches the listing.`}
+                  footnote={`This is the amount charged via ${STRIPE_TEST_UNTIL_LIVE}. Currency matches the listing.`}
                 />
               ) : (
                 <>

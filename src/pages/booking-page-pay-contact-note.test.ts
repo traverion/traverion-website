@@ -30,3 +30,14 @@ describe('BookingPage review-step Stripe TEST phrasing (Phase 1595)', () => {
     expect(src).not.toMatch(/then pay on\{\s*' '\s*\}\s*\{STRIPE_TEST_UNTIL_LIVE\}/);
   });
 });
+
+describe('BookingPage pay-step Stripe TEST phrasing (Phase 1596)', () => {
+  const src = readFileSync(join(here, 'BookingPage.tsx'), 'utf8');
+
+  it('pay-step copy uses via, not on / will charge with STRIPE_TEST_UNTIL_LIVE', () => {
+    expect(src).toMatch(/then pay \$\{totalLabel\} via \$\{STRIPE_TEST_UNTIL_LIVE\}/);
+    expect(src).toMatch(/amount charged via \$\{STRIPE_TEST_UNTIL_LIVE\}/);
+    expect(src).not.toMatch(/then pay \$\{totalLabel\} on \$\{STRIPE_TEST_UNTIL_LIVE\}/);
+    expect(src).not.toMatch(/amount \$\{STRIPE_TEST_UNTIL_LIVE\} will charge/);
+  });
+});
