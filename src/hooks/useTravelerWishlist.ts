@@ -24,13 +24,20 @@ export function useTravelerWishlist() {
   const [ready, setReady] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const enabled = isSupabaseConfigured();
+  const wishlistUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!enabled || !user?.id) {
+      wishlistUserIdRef.current = null;
       setIds(new Set());
       setReady(false);
       setLoadError(false);
       return;
+    }
+    // Phase 1400: new traveler — do not show the prior account’s hearts while loading (Wishlist page 1377 parity).
+    if (wishlistUserIdRef.current !== user.id) {
+      wishlistUserIdRef.current = user.id;
+      setIds(new Set());
     }
     let cancelled = false;
     setReady(false);

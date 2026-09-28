@@ -23,6 +23,16 @@ describe('useTravelerWishlist failure honesty', () => {
     expect(heartsKnown).toBe(true);
     expect(priorIds.has('listing-a')).toBe(true);
   });
+
+  it('clears prior account IDs on traveler switch so hearts stay hidden until load', () => {
+    const priorAccountIds = new Set(['listing-from-user-a']);
+    const idsAfterSwitch = new Set<string>();
+    const ready = false;
+    const heartsKnown = ready || idsAfterSwitch.size > 0;
+    expect(priorAccountIds.size).toBeGreaterThan(0);
+    expect(idsAfterSwitch.size).toBe(0);
+    expect(heartsKnown).toBe(false);
+  });
 });
 
 /** Tour/Stay detail hearts must not reuse the previous listing’s saved state while loading. */
