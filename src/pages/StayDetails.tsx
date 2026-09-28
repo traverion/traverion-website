@@ -44,6 +44,7 @@ import { CHECKOUT_HOLD_MINUTES } from '../lib/booking-hold';
 import { formatOccupiedNightRanges, formatStayNightHuman, upcomingOccupiedNights } from '../lib/stay-calendar';
 import { stayAmenityDisplayList } from '../lib/stay-amenities';
 import { stayStickyBookCtaLabel } from '../lib/stay-sticky-cta';
+import { stayQuoteFailureFocusTarget } from '../lib/stay-quote-failure-focus';
 import { stayCheckoutLeadGuestNameReady } from '../lib/stay-checkout-guest';
 import { travelerDisplayNameFromSources } from '../lib/traveler-display-name';
 import {
@@ -514,6 +515,18 @@ export default function StayDetails({ stayId, onBack }: Props) {
     selfBookCheckFailed,
     acceptTerms: quoteOk && checkoutPayBlockedByConsent(checkoutConsentAccepted),
   });
+
+  const focusStayQuoteFailure = () => {
+    const quoteError = stayQuote && !stayQuote.ok ? stayQuote.error : null;
+    const target = stayQuoteFailureFocusTarget(quoteError);
+    document.getElementById(target.scrollId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (!target.focusNightPicker) return;
+    window.requestAnimationFrame(() => {
+      const root = document.getElementById('stay-night-picker');
+      const firstOpen = root?.querySelector('button:not([disabled])') as HTMLButtonElement | null;
+      (firstOpen ?? root)?.focus();
+    });
+  };
 
   const startStayCheckout = async () => {
     if (!stay || !stayQuote?.ok) {
@@ -1286,14 +1299,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
               <button
                 type="button"
                 className="tv-btn-primary w-full mt-4"
-                onClick={() => {
-                  document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                  window.requestAnimationFrame(() => {
-                    const root = document.getElementById('stay-night-picker');
-                    const firstOpen = root?.querySelector('button:not([disabled])') as HTMLButtonElement | null;
-                    (firstOpen ?? root)?.focus();
-                  });
-                }}
+                onClick={() => focusStayQuoteFailure()}
               >
                 {stickyStayCtaLabel}
               </button>
@@ -1347,14 +1353,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
               <button
                 type="button"
                 className="tv-btn-primary min-h-11 shrink-0"
-                onClick={() => {
-                  document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                  window.requestAnimationFrame(() => {
-                    const root = document.getElementById('stay-night-picker');
-                    const firstOpen = root?.querySelector('button:not([disabled])') as HTMLButtonElement | null;
-                    (firstOpen ?? root)?.focus();
-                  });
-                }}
+                onClick={() => focusStayQuoteFailure()}
               >
                 {stickyStayCtaLabel}
               </button>
