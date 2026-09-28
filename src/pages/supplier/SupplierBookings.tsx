@@ -72,6 +72,7 @@ import { formatBookingDateDisplay } from '../../lib/booking-flow';
 import { bookingIsStayNight, partnerBookingHasPickupAttention } from '../../lib/pickup-completeness';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 import { comparePartnerBookingsOperational } from '../../lib/partner-bookings-order';
+import { partnerBookingNumberMatchesFilterQuery } from '../../lib/partner-bookings-search';
 import { displayListingTitleFromPurchase, displayMeetingPointFromPurchase, displayOptionLabelFromPurchase, displayPickupInstructionsFromPurchase, displayFulfillmentFromPurchase, displayDurationFromPurchase, displayStayCheckInTimeFromPurchase, displayStayCheckOutTimeFromPurchase, displayCheckInAddressFromPurchase, displayStayHouseRulesFromPurchase, partnerOpsDepartureDisplay, isPurchaseSnapshot, partnerListingFilterLabelFromBookings } from '../../lib/purchase-snapshot';
 
 const BOOKINGS_PAGE_SIZE = 10;
@@ -496,6 +497,7 @@ export default function SupplierBookings({
       if (!q) return true;
 
       // Phase 1481: search must match purchased titles shown on rows, not live listing renames.
+      // Phase 1484: search must match booking # shown on rows (admin 1053 parity).
       const title = displayListingTitleFromPurchase(
         b.purchase_snapshot,
         listingMeta[b.listing_id]?.title,
@@ -506,6 +508,7 @@ export default function SupplierBookings({
       const guestEmail = (b.guest_email ?? '').toLowerCase();
       return (
         title.includes(q) ||
+        partnerBookingNumberMatchesFilterQuery(q, b.booking_number) ||
         idLower.includes(q) ||
         guestName.includes(q) ||
         guestEmail.includes(q)
@@ -849,7 +852,7 @@ export default function SupplierBookings({
                 type="search"
                 value={filterQuery}
                 onChange={(e) => setFilterQuery(e.target.value)}
-                placeholder="Name or email"
+                placeholder="Name, email, or booking #"
                 className="tv-input"
               />
             </div>
