@@ -21,5 +21,13 @@ describe('tourStickyBookCtaLabel', () => {
     expect(
       tourStickyBookCtaLabel({ hasDate: true, hasOption: true, needsDeparture: false, quoteInvalid: true })
     ).toBe('Fix guests');
+    expect(
+      tourStickyBookCtaLabel({
+        hasDate: true,
+        hasOption: true,
+        needsDeparture: false,
+        selfBookBlocked: true,
+      })
+    ).toBe('Cannot book own listing');
   });
 });

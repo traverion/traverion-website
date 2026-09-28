@@ -2113,6 +2113,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                       );
                     })(),
                     quoteInvalid: Boolean(selectedBookingVariant && panelQuote != null && !panelQuote.ok),
+                    selfBookBlocked,
                   })}
                 </button>
               </div>

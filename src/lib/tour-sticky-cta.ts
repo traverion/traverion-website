@@ -12,7 +12,10 @@ export function tourStickyBookCtaLabel(params: {
   soldOut?: boolean;
   /** Age-mix / quote failed — do not imply Continue is ready. */
   quoteInvalid?: boolean;
+  /** Signed-in supplier of this listing — desktop card parity. */
+  selfBookBlocked?: boolean;
 }): string {
+  if (params.selfBookBlocked) return 'Cannot book own listing';
   if (params.checking) return 'Checking…';
   if (!params.hasDate) return 'Pick a date';
   if (params.hasOption && params.needsDeparture) return 'Pick time';
