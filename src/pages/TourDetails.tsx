@@ -2028,13 +2028,19 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
           </div>
 
           {canLeaveReview && !hasReviewed && !showReviewForm && (
-            <button
-              type="button"
-              onClick={() => setShowReviewForm(true)}
-              className="tv-btn-secondary"
-            >
-              Leave a review
-            </button>
+            <div className="space-y-2">
+              {/* Phase 1655: eligibility microcopy before opening the form. */}
+              <p className="text-sm text-ink-muted max-w-xl">
+                Reviews are for guests who completed this paid tour.
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowReviewForm(true)}
+                className="tv-btn-secondary"
+              >
+                Leave a review
+              </button>
+            </div>
           )}
 
           {showReviewForm && user && (
@@ -2045,6 +2051,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                   <label id="tour-review-rating-label" className="block text-sm font-medium text-ink mb-1">
                     Rating
                   </label>
+                  <p className="text-xs text-ink-muted mb-1.5">Tap to rate</p>
                   <div className="flex gap-1" role="group" aria-labelledby="tour-review-rating-label">
                     {[1, 2, 3, 4, 5].map((i) => (
                       <button
