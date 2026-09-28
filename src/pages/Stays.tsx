@@ -106,7 +106,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
     url.searchParams.delete('payment');
     window.history.replaceState({}, '', `${url.pathname}${url.search}`);
   }, []);
-  const catalogLoading = isSupabaseConfigured() && supplierListings === null;
+  const catalogLoading = isSupabaseConfigured() && supplierListings === null && !error;
   const [q, setQ] = useState(initial.q);
   const [checkIn, setCheckIn] = useState(initial.checkIn);
   const [checkOut, setCheckOut] = useState(initial.checkOut);

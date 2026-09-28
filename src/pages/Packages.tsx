@@ -174,7 +174,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
   useDialogFocus(mobileSearchOpen, mobileSearchSheetRef, closeMobileSearch);
   const { listings: supplierListings, error: listingsLoadError, reload: reloadSupplierListings } =
     usePublishedSupplierListings();
-  const catalogLoading = isSupabaseConfigured() && supplierListings === null;
+  const catalogLoading = isSupabaseConfigured() && supplierListings === null && !listingsLoadError;
   const [discountsByListing, setDiscountsByListing] = useState<Map<
     string,
     import('../data/supabase-discounts').ListingDiscount[]
