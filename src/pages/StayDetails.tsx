@@ -1227,6 +1227,8 @@ export default function StayDetails({ stayId, onBack }: Props) {
                 >
                   {selectionOccupied
                     ? 'Dates unavailable'
+                    : selfBookCheckFailed
+                      ? 'Eligibility unavailable'
                     : selfBookBlocked
                       ? 'Cannot book own listing'
                     : paying
