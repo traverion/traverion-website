@@ -113,7 +113,6 @@ export default function SupplierDiscountsOffers() {
     setError(null);
     try {
       const data = await fetchMyListings(uid);
-      setListings(data);
       try {
         const ids = data.map((l) => l.id);
         const map = await fetchDiscountsByListingIds(ids);
@@ -129,10 +128,12 @@ export default function SupplierDiscountsOffers() {
           const bf = b.discount.valid_from ?? '';
           return bf.localeCompare(af);
         });
+        // Phase 1376: commit listings + rows together — discount failure must not refresh listings alone.
+        setListings(data);
         setRows(flat);
         setError(null);
       } catch (offerErr) {
-        // Keep prior offer rows — failure must not look like zero offers.
+        // Keep prior listings/offer rows — partial reload must not mix new listings with stale discounts.
         setError(userFacingError(offerErr, USER_ERROR.offers));
       }
     } catch (e) {
