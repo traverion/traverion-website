@@ -1194,7 +1194,6 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       openCancellation: Boolean(openCancel),
                     };
                     const block = messagingComposeBlock(msg);
-                    if (block === 'unpaid') return null;
                     return (
                     <BookingMessageThread
                       bookingId={b.id}
