@@ -1,7 +1,7 @@
 /**
  * Supplier: view all reviews for my listings and reply.
  */
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Star, MessageSquare, Check } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import {
@@ -56,6 +56,7 @@ export default function SupplierReviews() {
   const [filterRating, setFilterRating] = useState<number | ''>('');
   const [filterReply, setFilterReply] = useState<'all' | 'unreplied' | 'replied'>('all');
   const [editingReplyIds, setEditingReplyIds] = useState<Set<string>>(new Set());
+  const loadGenRef = useRef(0);
 
   const load = useCallback(async () => {
     const uid = user?.id;
@@ -63,24 +64,35 @@ export default function SupplierReviews() {
       setLoading(false);
       return;
     }
+    const gen = ++loadGenRef.current;
     setLoading(true);
     setError(null);
     try {
       const list = await fetchReviewsForSupplierListings(uid);
-      setReviews(list);
-      const ids = list.map((r) => r.id);
-      const replyMap = await getReviewRepliesByReviewIds(ids);
-      setReplies(replyMap);
-      setReplyText(
-        list.reduce<Record<string, string>>((acc, r) => {
-          acc[r.id] = replyMap[r.id]?.reply_text ?? '';
-          return acc;
-        }, {})
-      );
+      if (gen !== loadGenRef.current) return;
+      try {
+        const replyMap = await getReviewRepliesByReviewIds(list.map((r) => r.id));
+        if (gen !== loadGenRef.current) return;
+        // Phase 1475: commit reviews + replies together — reply failure must not refresh reviews with a stale reply map.
+        setReviews(list);
+        setReplies(replyMap);
+        setReplyText(
+          list.reduce<Record<string, string>>((acc, r) => {
+            acc[r.id] = replyMap[r.id]?.reply_text ?? '';
+            return acc;
+          }, {})
+        );
+        setError(null);
+      } catch (replyErr) {
+        if (gen !== loadGenRef.current) return;
+        setError(userFacingError(replyErr, USER_ERROR.reviews));
+      }
     } catch (e) {
+      if (gen !== loadGenRef.current) return;
+      // Keep prior reviews/replies — load failure ≠ empty Reviews.
       setError(userFacingError(e, USER_ERROR.reviews));
     } finally {
-      setLoading(false);
+      if (gen === loadGenRef.current) setLoading(false);
     }
   }, [isSupabase, user?.id]);
 
