@@ -1,5 +1,7 @@
 /**
  * Phase 579: pure content-authenticity guard for notify-supplier-event.
+ * Mirrored at supabase/functions/_shared/notify-supplier-event-guard.ts.
+ *
  * Like notify-customer-booking (Phase 578), this endpoint has no
  * caller-identity check of its own. Its recipient resolution was already
  * safe -- always DB-derived from supplierId via supplier_team_members /
@@ -27,12 +29,6 @@
  * chain now enforced, forging them requires citing a real, existing
  * booking/review that actually belongs to the targeted supplier, not merely
  * a real supplierId.
- *
- * Mirrored at supabase/functions/_shared/notify-supplier-event-guard.ts for
- * the Deno edge runtime, which cannot import from src/ and has no test
- * runner of its own in this repo -- covered automatically by
- * edge-function-deno-mirror-sync.test.ts (keep both copies identical,
- * comments/formatting aside).
  */
 
 export type SupplierEventType =
@@ -76,6 +72,8 @@ export type BookingRowForSupplierEvent =
       listing_id?: string | null;
       guest_name?: string | null;
       booking_date?: string | null;
+      check_out?: string | null;
+      nights?: number | null;
       guests?: number | null;
       booking_number?: number | null;
       payment_status?: string | null;
@@ -90,6 +88,48 @@ function purchasedListingTitleFromSnapshot(snapshot: unknown): string | undefine
   if (typeof title !== 'string') return undefined;
   const trimmed = title.trim();
   return trimmed || undefined;
+}
+
+function snapshotCheckOut(snapshot: unknown): string | undefined {
+  if (!snapshot || typeof snapshot !== 'object') return undefined;
+  const raw = (snapshot as { checkOut?: unknown }).checkOut;
+  if (typeof raw !== 'string') return undefined;
+  const t = raw.trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(t) ? t : undefined;
+}
+
+/** Phase 1523/1528: stay = column / nights / snap — never notes-only check_out:. */
+function supplierBookingIsStay(booking: NonNullable<BookingRowForSupplierEvent>): boolean {
+  const col = typeof booking.check_out === 'string' ? booking.check_out.trim() : '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(col)) return true;
+  const nights = Math.floor(Number(booking.nights ?? 0));
+  if (Number.isFinite(nights) && nights >= 1) return true;
+  return Boolean(snapshotCheckOut(booking.purchase_snapshot));
+}
+
+/** Phase 1524/1528: exclusive stay check-out = column → nights → snap. */
+function supplierStayCheckOutDate(booking: NonNullable<BookingRowForSupplierEvent>): string | undefined {
+  const checkIn =
+    typeof booking.booking_date === 'string' && booking.booking_date.trim()
+      ? booking.booking_date.trim()
+      : '';
+  const fromColumn = typeof booking.check_out === 'string' ? booking.check_out.trim() : '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(fromColumn)) {
+    if (!checkIn || fromColumn > checkIn) return fromColumn;
+    return fromColumn;
+  }
+  const nights = Math.floor(Number(booking.nights ?? 0));
+  if (checkIn && /^\d{4}-\d{2}-\d{2}$/.test(checkIn) && Number.isFinite(nights) && nights >= 1) {
+    const [y, m, d] = checkIn.split('-').map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d + nights));
+    return dt.toISOString().slice(0, 10);
+  }
+  const fromSnap = snapshotCheckOut(booking.purchase_snapshot);
+  if (fromSnap) {
+    if (!checkIn || fromSnap > checkIn) return fromSnap;
+    return fromSnap;
+  }
+  return undefined;
 }
 
 /** Phase 1479: booking-tied supplier emails name what was purchased, not a later rename. */
@@ -111,6 +151,9 @@ export type SupplierEventFieldOverrides = {
   listingTitle?: string;
   guestName?: string;
   bookingDate?: string;
+  /** Phase 1528: exclusive stay check-out when booking_is_stay_night. */
+  checkOutDate?: string;
+  listingKind?: 'stay' | 'tour';
   guests?: number;
   bookingNumber?: number;
   bookingPaymentStatus?: 'paid' | 'pending' | 'none';
@@ -168,6 +211,12 @@ export function resolveSupplierEventContext(params: {
           ? bookingRow.booking_number
           : undefined,
     };
+    // Phase 1528: partner mail shows stay check-out for nights/column/snap stays.
+    if (supplierBookingIsStay(bookingRow)) {
+      overrides.listingKind = 'stay';
+      const checkOut = supplierStayCheckOutDate(bookingRow);
+      if (checkOut) overrides.checkOutDate = checkOut;
+    }
     if (eventType === 'new_booking') {
       // Phase 1135: map collected statuses (paid/complete/succeeded) to paid copy.
       const status = String(bookingRow.payment_status ?? '').trim().toLowerCase();

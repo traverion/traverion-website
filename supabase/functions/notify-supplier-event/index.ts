@@ -47,6 +47,9 @@ type Payload = {
   listingTitle?: string;
   bookingId?: string;
   bookingDate?: string;
+  /** Phase 1528: exclusive stay check-out when listingKind is stay. */
+  checkOutDate?: string;
+  listingKind?: 'stay' | 'tour';
   guests?: number;
   guestName?: string;
   reviewRating?: number;
@@ -188,7 +191,12 @@ function eventBody(payload: Payload): string {
     lines.push(`Booking #: ${payload.bookingNumber}`);
   }
   if (payload.bookingId) lines.push(`Booking id: ${payload.bookingId}`);
-  if (payload.bookingDate) lines.push(`Date: ${payload.bookingDate}`);
+  if (payload.listingKind === 'stay' && payload.bookingDate) {
+    lines.push(`Check-in: ${payload.bookingDate}`);
+    if (payload.checkOutDate) lines.push(`Check-out: ${payload.checkOutDate}`);
+  } else if (payload.bookingDate) {
+    lines.push(`Date: ${payload.bookingDate}`);
+  }
   if (typeof payload.guests === 'number' && payload.guests > 0) lines.push(`Guests: ${payload.guests}`);
   if (payload.guestName) lines.push(`Guest: ${payload.guestName}`);
   if (typeof payload.reviewRating === 'number' && payload.reviewRating > 0) lines.push(`Rating: ${payload.reviewRating}/5`);
@@ -321,9 +329,20 @@ ${bodyText}
     );
   }
   if (payload.bookingDate) {
-    rows.push(
-      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Date</td><td style="padding:6px 0;font-size:14px;color:#111827;">${escapeHtml(payload.bookingDate)}</td></tr>`,
-    );
+    if (payload.listingKind === 'stay') {
+      rows.push(
+        `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Check-in</td><td style="padding:6px 0;font-size:14px;color:#111827;">${escapeHtml(payload.bookingDate)}</td></tr>`,
+      );
+      if (payload.checkOutDate) {
+        rows.push(
+          `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Check-out</td><td style="padding:6px 0;font-size:14px;color:#111827;">${escapeHtml(payload.checkOutDate)}</td></tr>`,
+        );
+      }
+    } else {
+      rows.push(
+        `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Date</td><td style="padding:6px 0;font-size:14px;color:#111827;">${escapeHtml(payload.bookingDate)}</td></tr>`,
+      );
+    }
   }
   if (typeof payload.guests === 'number' && payload.guests > 0) {
     rows.push(
@@ -632,7 +651,7 @@ serve(async (req) => {
           const { data } = await admin
             .from('bookings')
             .select(
-              'id, listing_id, guest_name, booking_date, guests, booking_number, payment_status, status, purchase_snapshot'
+              'id, listing_id, guest_name, booking_date, check_out, nights, guests, booking_number, payment_status, status, purchase_snapshot'
             )
             .eq('id', bookingId)
             .maybeSingle();
