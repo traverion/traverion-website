@@ -27,6 +27,16 @@ describe('Review cron fetch honesty (Phase 1565)', () => {
     );
   });
 
+  it('Phase 1567: reviewByCheckout uses wide stay window not ±3 only', () => {
+    expect(cron).toContain('Phase 1567');
+    expect(cron).toMatch(
+      /Phase 1567[\s\S]*\.gte\('check_out',\s*stayNightsWindow\.fromYmd\)/
+    );
+    expect(cron).not.toMatch(
+      /not\('check_out',\s*'is',\s*null\)[\s\S]*?\.gte\('check_out',\s*fromYmd\)/
+    );
+  });
+
   it('lifecycle completion for short column + long snap is the long date', () => {
     expect(
       lifecycleStayCheckOutYmd({

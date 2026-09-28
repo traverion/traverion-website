@@ -151,6 +151,9 @@ serve(async (req) => {
 
   if (revErr1) return json({ error: revErr1.message }, 500);
 
+  // Phase 1332/1565/1567: wide stay windows for nights + stale short check_out columns.
+  const stayNightsWindow = lifecycleStayNightsCandidateUtcWindow(nowMs);
+
   const { data: reviewByCheckout, error: revErr2 } = await admin
     .from('bookings')
     .select(reviewSelect)
@@ -158,15 +161,16 @@ serve(async (req) => {
     .eq('payment_status', 'paid')
     .is('review_request_email_sent_at', null)
     .not('check_out', 'is', null)
-    .gte('check_out', fromYmd)
-    .lte('check_out', toYmd)
+    // Phase 1567: wide lookback on raw check_out so stale short columns still load
+    // when true completion (1564 max) is in today’s review window.
+    .gte('check_out', stayNightsWindow.fromYmd)
+    .lte('check_out', stayNightsWindow.toYmd)
     .limit(500);
 
   if (revErr2) return json({ error: revErr2.message }, 500);
 
   // Phase 1332/1565: nights stays need a wider check-in window (check-out = booking_date + nights).
   // Phase 1565: do not require check_out IS NULL — stale short column + longer nights must still load.
-  const stayNightsWindow = lifecycleStayNightsCandidateUtcWindow(nowMs);
   const { data: reviewByNights, error: revErr3 } = await admin
     .from('bookings')
     .select(reviewSelect)
