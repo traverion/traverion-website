@@ -4,6 +4,11 @@ export function prefetchPackagesPage() {
   void import('../pages/Packages');
 }
 
+/** Phase 1654: warm Stays browse the same way as Tours. */
+export function prefetchStaysPage() {
+  void import('../pages/Stays');
+}
+
 export function prefetchTourDetailsPage() {
   void import('../pages/TourDetails');
 }

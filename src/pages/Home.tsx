@@ -27,7 +27,7 @@ import ErrorState from '../components/ErrorState';
 import { SkeletonCardGrid, SkeletonFeaturedHero, SkeletonPlaceGrid } from '../components/ui/Skeleton';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { HERO_IMG } from '../lib/heroImages';
-import { prefetchPackagesPage } from '../lib/routePrefetch';
+import { prefetchPackagesPage, prefetchStaysPage } from '../lib/routePrefetch';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 import { addCalendarDays } from '../lib/stayOccupancy';
 import { useDialogFocus } from '../hooks/useDialogFocus';
@@ -369,7 +369,8 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
             <button
               type="button"
               onClick={() => setMobileSearchOpen(true)}
-              onPointerEnter={prefetchPackagesPage}
+              // Phase 1654: prefetch the catalog family that is selected.
+              onPointerEnter={() => (searchFamily === 'stays' ? prefetchStaysPage() : prefetchPackagesPage())}
               className="w-full flex items-center gap-3 rounded-2xl bg-paper-raised text-ink px-4 py-3.5 shadow-soft-xl ring-1 ring-black/[0.06] text-left active:scale-[0.99] transition-transform"
               aria-label={`Search, ${mobileSearchSummary.where}, ${mobileSearchSummary.whenLabel}, ${mobileSearchSummary.whoLabel}`}
               aria-haspopup="dialog"
@@ -397,7 +398,8 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
             {familyTabs('hero')}
             <form
               onSubmit={submitSearch}
-              onPointerEnter={prefetchPackagesPage}
+              // Phase 1654: prefetch Stays when the stays family is selected.
+              onPointerEnter={() => (searchFamily === 'stays' ? prefetchStaysPage() : prefetchPackagesPage())}
               className={`bg-paper-raised text-ink rounded-full p-1.5 grid gap-1 max-w-3xl shadow-soft-xl ring-1 ring-black/[0.06] ${
                 searchFamily === 'stays'
                   ? 'grid-cols-[1.2fr_0.9fr_0.9fr_0.75fr_auto]'
