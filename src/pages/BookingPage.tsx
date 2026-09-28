@@ -323,9 +323,10 @@ export default function BookingPage({
   const pricePerPerson = priceInfo.price;
   const quoted = priceInfo.quote && priceInfo.quote.ok ? priceInfo.quote : null;
   // Phase 1545: never invent catalog×guests totals when quoteBooking failed (TourDetails 1529 parity).
+  // Phase 1622: traveler-facing Price unavailable (Tour/Stay sticky 1604/1606 parity).
   const quoteFailed = Boolean(priceInfo.quote && !priceInfo.quote.ok);
   const total = quoted ? quoted.totalAmount : quoteFailed ? null : pricePerPerson * guests;
-  const totalLabel = total == null ? '—' : formatMoney(total, currency);
+  const totalLabel = total == null ? (quoteFailed ? 'Price unavailable' : '—') : formatMoney(total, currency);
   const cancellationText =
     tour.cancellationPolicy?.trim() || TRAVERION_STANDARD_CANCELLATION_POLICY;
 
@@ -2076,7 +2077,7 @@ export default function BookingPage({
                   {/* Phase 1558: never invent catalog From when quoteBooking failed (1545/1557). */}
                   {formatTourDurationDisplay(tour.duration)}
                   {quoteFailed
-                    ? ' · —'
+                    ? ' · Price unavailable'
                     : ` · From ${formatMoney(pricePerPerson, currency)}/${priceFromQualifier === 'per adult' ? 'adult' : 'person'}`}
                 </p>
               </div>
@@ -2128,7 +2129,7 @@ export default function BookingPage({
                     {/* Phase 1558: never invent catalog From when quoteBooking failed (1545/1557). */}
                     {formatTourDurationDisplay(tour.duration)}
                     {quoteFailed
-                      ? ' · —'
+                      ? ' · Price unavailable'
                       : ` · From ${formatMoney(pricePerPerson, currency)} ${priceFromQualifier}`}
                   </p>
                 </div>
