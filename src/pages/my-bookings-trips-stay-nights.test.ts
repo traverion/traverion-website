@@ -40,3 +40,15 @@ describe('Confirmation paid breakdown nights (Phase 1579)', () => {
     );
   });
 });
+
+describe('Confirmation stay night subtitle (Phase 1580)', () => {
+  const src = readFileSync(join(here, 'BookingConfirmationPage.tsx'), 'utf8');
+
+  it('uses confirmationStayNightCount, not raw stayNights under Stay dates', () => {
+    expect(src).toContain('Phase 1580');
+    expect(src).toContain('confirmationStayNightCount');
+    expect(src).toContain('confirmationNightCount');
+    expect(src).not.toMatch(/\{stayNights \? \(/);
+    expect(src).not.toMatch(/\{stayNights\} night/);
+  });
+});

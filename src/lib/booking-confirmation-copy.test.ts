@@ -53,6 +53,7 @@ import {
   confirmationEmailListingLabel,
   paidConfirmationEmailMaySend,
   stayConfirmationPaidNightlyBreakdown,
+  confirmationStayNightCount,
   BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE,
   PARTNER_MONEY_COLLECTED_TO_DATE_NOTE,
   PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE,
@@ -671,5 +672,37 @@ describe('stayConfirmationPaidNightlyBreakdown (Phase 1579)', () => {
         candidateNights: [5, 3],
       })
     ).toEqual({ nights: 3 });
+  });
+});
+
+describe('confirmationStayNightCount (Phase 1580)', () => {
+  it('uses paid breakdown nights when present', () => {
+    expect(
+      confirmationStayNightCount({
+        paidNightlyBreakdown: { nights: 3 },
+        stayNights: 5,
+        paidWithNightlyPricing: true,
+      })
+    ).toBe(3);
+  });
+
+  it('omits occupancy nights when paid+nightly cannot reconcile', () => {
+    expect(
+      confirmationStayNightCount({
+        paidNightlyBreakdown: null,
+        stayNights: 5,
+        paidWithNightlyPricing: true,
+      })
+    ).toBeNull();
+  });
+
+  it('falls back to stayNights when not paid with nightly pricing', () => {
+    expect(
+      confirmationStayNightCount({
+        paidNightlyBreakdown: null,
+        stayNights: 5,
+        paidWithNightlyPricing: false,
+      })
+    ).toBe(5);
   });
 });

@@ -459,6 +459,23 @@ export function stayConfirmationPaidNightlyBreakdown(params: {
   return null;
 }
 
+/**
+ * Phase 1580: confirmation Stay-dates night subtitle — align with 1579 paid
+ * breakdown when present; omit occupancy nights when paid+nightly cannot
+ * reconcile to amount_paid (do not contradict the money block).
+ */
+export function confirmationStayNightCount(params: {
+  paidNightlyBreakdown: { nights: number } | null;
+  stayNights: number | null | undefined;
+  /** paidActive && amount_paid != null && nightly_amount != null */
+  paidWithNightlyPricing: boolean;
+}): number | null {
+  if (params.paidNightlyBreakdown) return params.paidNightlyBreakdown.nights;
+  if (params.paidWithNightlyPricing) return null;
+  const n = Math.floor(Number(params.stayNights ?? NaN));
+  return Number.isFinite(n) && n >= 1 ? n : null;
+}
+
 /** Keep in sync with notify-customer-booking detail row label. */
 export function confirmationEmailListingLabel(listingKind?: string | null): string {
   return String(listingKind ?? '').trim().toLowerCase() === 'stay' ? 'Stay' : 'Tour';

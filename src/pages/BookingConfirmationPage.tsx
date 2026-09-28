@@ -46,6 +46,7 @@ import {
   TRAVELER_OPENING_CHECKOUT_CTA,
   TRAVELER_PAY_NOW_TEST_CTA,
   stayConfirmationPaidNightlyBreakdown,
+  confirmationStayNightCount,
 } from '../lib/booking-confirmation-copy';
 import { formatBookingParticipantsLabel } from '../lib/participant-mix';
 import { formatBookingDateDisplay } from '../lib/booking-flow';
@@ -311,6 +312,13 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
           ],
         })
       : null;
+  // Phase 1580: Stay-dates night subtitle follows paid breakdown; omit when paid+nightly cannot reconcile.
+  const confirmationNightCount = confirmationStayNightCount({
+    paidNightlyBreakdown,
+    stayNights,
+    paidWithNightlyPricing:
+      paidActive && booking?.amount_paid != null && booking?.nightly_amount != null,
+  });
   const stalledConfirming = confirmationStillWaitingAfterReconcile({
     phase,
     reconcileAttempted,
@@ -631,9 +639,9 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                         {stayCheckOut ? 'Stay dates' : 'Date'}
                       </p>
                       <p className="mt-0.5 font-medium text-ink">{dateLabel}</p>
-                      {stayNights ? (
+                      {confirmationNightCount ? (
                         <p className="text-sm text-ink-muted mt-0.5">
-                          {stayNights} night{stayNights === 1 ? '' : 's'}
+                          {confirmationNightCount} night{confirmationNightCount === 1 ? '' : 's'}
                         </p>
                       ) : startHm ? (
                         <p className="text-sm text-ink-muted mt-0.5">Start {startHm}</p>
