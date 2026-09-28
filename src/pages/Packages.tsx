@@ -181,6 +181,9 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     string,
     import('../data/supabase-discounts').ListingDiscount[]
   > | null>(null);
+  /** Offers map is only for this catalog id key — not a prior fetch while ids change (Phase 1472). */
+  const [discountsLoadedForKey, setDiscountsLoadedForKey] = useState<string | null>(null);
+  const discountsLoadGenRef = useRef(0);
   const [reviewAggregates, setReviewAggregates] = useState<Map<string, { rating: number; count: number }>>(
     () => new Map()
   );
@@ -327,18 +330,27 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     if (!isSupabaseConfigured() || !supabaseListingIdsKey) {
       setReviewAggregates(new Map());
       setDiscountsByListing(null);
+      setDiscountsLoadedForKey(null);
       return;
     }
     const ids = supabaseListingIdsKey.split(',');
+    const keyAtStart = supabaseListingIdsKey;
+    const gen = ++discountsLoadGenRef.current;
+    setDiscountsByListing(null);
+    setDiscountsLoadedForKey(null);
     let cancelled = false;
     // Phase 1194: decouple offers vs reviews (Home/Destination 1193 parity).
     void fetchDiscountsByListingIds(ids)
       .then((discounts) => {
-        if (!cancelled) setDiscountsByListing(discounts);
+        if (cancelled || gen !== discountsLoadGenRef.current) return;
+        setDiscountsByListing(discounts);
+        setDiscountsLoadedForKey(keyAtStart);
       })
       .catch(() => {
         // Phase 1151: empty map → honest list From (not endless "Checking offers…").
-        if (!cancelled) setDiscountsByListing(new Map());
+        if (cancelled || gen !== discountsLoadGenRef.current) return;
+        setDiscountsByListing(new Map());
+        setDiscountsLoadedForKey(keyAtStart);
       });
     void getReviewAggregatesForListingIds(ids)
       .then((reviews) => {
@@ -1142,7 +1154,9 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
                   tour={tour}
                   index={index}
                   onSelect={() => handleTourSelect(tour)}
-                  discountsByListing={discountsByListing}
+                  discountsByListing={
+                    discountsLoadedForKey === supabaseListingIdsKey ? discountsByListing : null
+                  }
                   reviewAggregate={reviewAggregates.get(tour.id)}
                   tagLabels={TAG_LABELS}
                   size="compact"
