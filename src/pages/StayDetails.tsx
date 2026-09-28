@@ -1134,7 +1134,10 @@ export default function StayDetails({ stayId, onBack }: Props) {
             >
               Book this stay
             </p>
-            {nightly > 0 ? (
+            {/* Phase 1548: dates selected + failed quote — do not invent catalog nightly (1546 sticky parity). */}
+            {checkIn && checkOut && stayQuote && !stayQuote.ok ? (
+              <p className="text-lg font-semibold tabular-nums text-ink">—</p>
+            ) : nightly > 0 ? (
               <PriceHero
                 amount={nightly}
                 currency={currency}

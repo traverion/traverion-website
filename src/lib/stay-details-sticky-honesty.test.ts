@@ -19,3 +19,14 @@ describe('StayDetails sticky quote honesty (Phase 1546)', () => {
     );
   });
 });
+
+describe('StayDetails desktop PriceHero honesty (Phase 1548)', () => {
+  const src = readFileSync(join(here, '../pages/StayDetails.tsx'), 'utf8');
+
+  it('hides PriceHero catalog nightly when check-in/out set and quote failed', () => {
+    expect(src).toContain('Phase 1548');
+    expect(src).toMatch(
+      /checkIn && checkOut && stayQuote && !stayQuote\.ok[\s\S]*tabular-nums text-ink">—</
+    );
+  });
+});
