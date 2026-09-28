@@ -43,7 +43,14 @@ const SECTIONS: SitemapSection[] = [
   },
   {
     title: 'Company',
-    items: [{ label: 'About Us', page: 'about' }],
+    // Phase 1679: Footer Company parity — not About-only.
+    items: [
+      { label: 'About Us', page: 'about' },
+      { label: 'Tours', page: 'packages' },
+      { label: 'Stays', page: 'stays' },
+      { label: 'Trips', page: 'bookings' },
+      { label: 'Saved', page: 'wishlist' },
+    ],
   },
   {
     title: 'Work with us',
