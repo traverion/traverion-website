@@ -30,7 +30,6 @@ import { tourSellingDeparturesOnDate } from '../../lib/listing-option-schedules'
 import { formatPartnerCheckoutHoldLabel, tourCheckoutOccupiedGuests, normalizeTourStartTimeHm } from '../../lib/booking-hold';
 import { capacityBelowSoldWarning } from '../../lib/capacity-reduction-warn';
 import { experienceTodayIsoForListing } from '../../lib/booking-quote';
-import { localYmd } from '../../lib/local-ymd';
 import { navigateSupplierUrl, openSupplierBooking } from '../../lib/supplierPortalNavigation';
 import { PARTNER_CREATE_PATH } from '../../lib/partnerPortalPaths';
 import {
@@ -431,9 +430,8 @@ export default function SupplierAvailability() {
     year: 'numeric',
     timeZone: 'UTC',
   });
-  const localTodayIso = listing
-    ? experienceTodayIsoForListing(listing.listingExtras?.departureTimezone)
-    : localYmd();
+  // Phase 1367 / 1314 parity: experience-local today (Helsinki when no listing), not browser localYmd.
+  const localTodayIso = experienceTodayIsoForListing(listing?.listingExtras?.departureTimezone);
 
   return (
     <div className={`${SUPPLIER_PAGE_CLASS} min-h-[70vh]`}>
