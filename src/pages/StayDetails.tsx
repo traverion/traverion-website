@@ -237,7 +237,8 @@ export default function StayDetails({ stayId, onBack }: Props) {
   useEffect(() => {
     if (!user?.id || !stay?.id || !isSupabaseListingId(stay.id) || !isSupabaseConfigured()) {
       setSavedToWishlist(false);
-      setWishlistHeartKnown(false);
+      // Anonymous / unconfigured: heart state is known (not saved) — do not stay aria-busy forever.
+      setWishlistHeartKnown(true);
       return;
     }
     let cancelled = false;

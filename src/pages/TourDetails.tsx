@@ -221,6 +221,21 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     () => tourVariants.map((v) => v.listingOption).filter((o): o is NonNullable<typeof o> => Boolean(o)),
     [tourVariants]
   );
+  // Phase 1506: capacity reload must not cancel on calendarOptions identity churn.
+  const calendarOptionsRef = useRef(calendarOptions);
+  calendarOptionsRef.current = calendarOptions;
+  const calendarOptionsCapacityKey = useMemo(
+    () =>
+      calendarOptions
+        .map((o) => {
+          const sched = Array.isArray(o.schedules)
+            ? o.schedules.map((s) => `${s.id}:${s.maxSpotsPerSlot ?? ''}`).join(',')
+            : '';
+          return `${o.id}:${o.maxSpotsPerSlot ?? ''}:${sched}`;
+        })
+        .join('|'),
+    [calendarOptions]
+  );
   const weekdayHint = useMemo(() => {
     const labels = new Set<string>();
     for (const v of tourVariants) {
@@ -389,6 +404,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       return () => {};
     }
     const reloadGen = ++dayCapacityReloadGenRef.current;
+    const optionsSnapshot = calendarOptionsRef.current;
     let cancelled = false;
     setDayCapacityError(null);
     void Promise.all([
@@ -398,7 +414,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     ])
       .then(([caps, paidByDay, paidBySlot]) => {
         if (cancelled || reloadGen !== dayCapacityReloadGenRef.current) return;
-        const fallbackCap = listingTourCapacityFromOptions(capacitySpotsFromBookingOptions(calendarOptions));
+        const fallbackCap = listingTourCapacityFromOptions(capacitySpotsFromBookingOptions(optionsSnapshot));
         const capByDay = new Map<string, number>();
         for (const row of caps) {
           const day = String(row.available_date ?? '').slice(0, 10);
@@ -414,7 +430,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
             fallbackCapacity: fallbackCap,
             slotKey: tourPaidSlotKey,
             departuresForDay: (day) =>
-              tourBookableSellingDeparturesOnDate(calendarOptions, day, {
+              tourBookableSellingDeparturesOnDate(optionsSnapshot, day, {
                 cutoffHoursBeforeStart: bookingCutoffHours,
                 timeZone: departureTimezone,
               }).map((d) => ({
@@ -434,7 +450,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     return () => {
       cancelled = true;
     };
-  }, [tour?.id, tourId, calendarOptions, bookingCutoffHours, departureTimezone, experienceTodayIso]);
+  }, [tour?.id, tourId, bookingCutoffHours, departureTimezone, experienceTodayIso, calendarOptionsCapacityKey]);
 
   useEffect(() => {
     return reloadTourDayCapacity();
@@ -571,7 +587,8 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   useEffect(() => {
     if (!user?.id || !tour?.id || !isSupabaseListingId(tour.id) || !isSupabaseConfigured()) {
       setSavedToWishlist(false);
-      setWishlistHeartKnown(false);
+      // Anonymous / unconfigured: heart state is known (not saved) — do not stay aria-busy forever.
+      setWishlistHeartKnown(true);
       return;
     }
     let cancelled = false;
