@@ -68,6 +68,11 @@ export default function AvailabilityOptionsModal({
         <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-3">
           {checking ? (
             <p className="text-sm text-ink-muted py-4 text-center">Checking options…</p>
+          ) : options.length === 0 ? (
+            // Phase 1625: empty options — do not leave a blank scroll region.
+            <p className="text-sm text-ink-muted py-4 text-center max-w-sm mx-auto leading-relaxed">
+              No bookable options for this date and party. Try another date or fewer guests.
+            </p>
           ) : (
             options.map((opt) => (
               <button
