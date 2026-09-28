@@ -1,7 +1,7 @@
 /**
  * Supplier: pickup planner – bookings with meeting / pickup, filters, CSV, deep link to edit listing pickup fields.
  */
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   AlertCircle,
   ExternalLink,
@@ -254,12 +254,16 @@ export default function SupplierPickupPlanner() {
   const [pickupCopyDraft, setPickupCopyDraft] = useState({ meeting: '', instructions: '' });
   const [actionFeedback, setActionFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  const loadGenRef = useRef(0);
+  const pickupPlannerHubUserIdRef = useRef<string | null>(null);
+
   const load = useCallback(async () => {
     const uid = user?.id;
     if (!isSupabase || !uid) {
       setLoading(false);
       return;
     }
+    const gen = ++loadGenRef.current;
     setLoading(true);
     setError(null);
     try {
@@ -267,6 +271,7 @@ export default function SupplierPickupPlanner() {
         fetchBookingsForSupplier(uid),
         fetchMyListings(uid),
       ]);
+      if (gen !== loadGenRef.current) return;
       const titles: Record<string, string> = {};
       const points: Record<string, string> = {};
       const instructions: Record<string, string> = {};
@@ -323,11 +328,13 @@ export default function SupplierPickupPlanner() {
       for (const lid of listingIds) {
         if (titles[lid]) continue;
         const listing = await fetchListingById(lid);
+        if (gen !== loadGenRef.current) return;
         if (listing) {
           absorbListing(listing);
           if (inventoryFamilyFromListing(listing) === 'stay') stayIds.add(lid);
         }
       }
+      if (gen !== loadGenRef.current) return;
       setStayListingIds(stayIds);
       setBookings(
         bookingsList.filter(
@@ -341,14 +348,48 @@ export default function SupplierPickupPlanner() {
       setOptionsByListing(optionsMap);
       setListingGuideMeta(guideMeta);
     } catch (e) {
+      if (gen !== loadGenRef.current) return;
       setError(userFacingError(e, USER_ERROR.pickup));
     } finally {
-      setLoading(false);
+      if (gen === loadGenRef.current) setLoading(false);
     }
   }, [isSupabase, user?.id]);
 
   useEffect(() => {
-    load();
+    const clearPickupPlannerPartnerWorkspace = () => {
+      setBookings([]);
+      setListingTitles({});
+      setMeetingPoints({});
+      setPickupInstructions({});
+      setOptionsByListing({});
+      setListingGuideMeta({});
+      setStayListingIds(new Set());
+      setError(null);
+      setSelectedBookingId(null);
+      setUpdatingId(null);
+      setCancelReason('');
+      setScheduleDraft({ start: '', pickup: '' });
+      setPickupCopyDraft({ meeting: '', instructions: '' });
+      setActionFeedback(null);
+      setDateSectionOpen({});
+    };
+    if (!user?.id) {
+      pickupPlannerHubUserIdRef.current = null;
+      loadGenRef.current += 1;
+      clearPickupPlannerPartnerWorkspace();
+      setLoading(false);
+      return;
+    }
+    // Phase 1386: clear prior partner pickup workspace before loading the next account (Bookings 1385 / Today 1384 parity).
+    if (pickupPlannerHubUserIdRef.current !== user.id) {
+      pickupPlannerHubUserIdRef.current = user.id;
+      loadGenRef.current += 1;
+      clearPickupPlannerPartnerWorkspace();
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    void load();
   }, [load]);
 
   useEffect(() => {
