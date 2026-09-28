@@ -83,7 +83,7 @@ import {
   LISTING_PHOTO_MAX,
   LISTING_PHOTO_MIN,
 } from '../../lib/listingPhotoGrid';
-import { getListingPublishBlockers } from '../../lib/listingPublishGate'
+import { getListingPublishBlockers, publishBlockerListingWizardStep } from '../../lib/listingPublishGate';
 import { resolveDepartureTimezone, TRAVERION_DEPARTURE_TIMEZONE } from '../../lib/tour-departure-cutoff';
 import {
   listingPublishTruth,
@@ -1656,21 +1656,14 @@ export default function SupplierListingForm({
   const jumpToPublishBlocker = useCallback(
     (line: string) => {
       const t = line.toLowerCase();
-      const step =
-        /photo|image|gallery|cover/.test(t)
-          ? 3
-          : /price|option|nightly|weekday|spot|guest per|meet or are picked|starting date|ending date/.test(t)
-            ? 2
-            : /city|country|location|destination|include|exclude|accessib|meeting/.test(t)
-              ? 1
-              : 0;
+      const step = publishBlockerListingWizardStep(line, isStayForm);
       setStepIdxPersisted(step);
-      if (step === 0) {
+      if (step === 0 && !isStayForm) {
         const scene = /subtitle|title|language/.test(t) ? 1 : /descri|highlight/.test(t) ? 2 : 0;
         setBasicsSceneIdxPersisted(scene, 'forward');
       }
     },
-    [setStepIdxPersisted, setBasicsSceneIdxPersisted]
+    [isStayForm, setStepIdxPersisted, setBasicsSceneIdxPersisted]
   );
 
   const publishButtonTitle = useMemo(() => {

@@ -268,3 +268,23 @@ export function partnerListingCardPresentation(args: {
     publishDisabledReason: null,
   };
 }
+
+/** Layer B: publish blocker links in the supplier wizard must open the step that owns that field. */
+export function publishBlockerListingWizardStep(blockerLine: string, isStay: boolean): number {
+  const t = blockerLine.toLowerCase();
+  if (isStay) {
+    if (/photo|image|gallery|cover|hero|placeholder/.test(t)) return 4;
+    if (/nightly|check-in time|check-out time/.test(t)) return 3;
+    if (/address|city|country|location|destination/.test(t)) return 1;
+    if (/guest|bedroom|bed|space|host/.test(t)) return 2;
+    return 0;
+  }
+  if (/photo|image|gallery|cover|hero|placeholder/.test(t)) return 3;
+  if (
+    /price|option|nightly|weekday|spot|guest per|meet or are picked|starting date|ending date/.test(t)
+  ) {
+    return 2;
+  }
+  if (/city|country|location|destination|include|exclude|accessib|meeting|pickup/.test(t)) return 1;
+  return 0;
+}

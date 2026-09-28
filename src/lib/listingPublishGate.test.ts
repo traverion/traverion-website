@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { TourPackage } from '../types/tour';
-import { getListingPublishBlockers, partnerListingCardPresentation } from './listingPublishGate';
+import {
+  getListingPublishBlockers,
+  partnerListingCardPresentation,
+  publishBlockerListingWizardStep,
+} from './listingPublishGate';
 
 describe('Phase 1240: legacy group size publish gate', () => {
   it('blocks no-option tours without a parseable min–max group size', () => {
@@ -95,5 +99,29 @@ describe('partnerListingCardPresentation', () => {
     });
     expect(card.statusLabel).toBe('Needs update');
     expect(card.publishDisabledReason).toContain('included');
+  });
+});
+
+/** Layer B: stay wizard has Space + Price steps before Photos — blocker jumps must not use tour indices. */
+describe('publishBlockerListingWizardStep', () => {
+  it('maps stay photo and pricing blockers to Photos (4) and Price (3)', () => {
+    expect(
+      publishBlockerListingWizardStep('Replace the placeholder hero image with a real photo of the property.', true)
+    ).toBe(4);
+    expect(publishBlockerListingWizardStep('Set a nightly price greater than zero.', true)).toBe(3);
+    expect(publishBlockerListingWizardStep('Set how many guests the property can host.', true)).toBe(2);
+    expect(
+      publishBlockerListingWizardStep(
+        'Add the check-in address guests need after they book (street / building / entry).',
+        true
+      )
+    ).toBe(1);
+  });
+
+  it('keeps tour blocker jumps on tour step indices', () => {
+    expect(
+      publishBlockerListingWizardStep('Replace the placeholder hero image with a real photo of your tour.', false)
+    ).toBe(3);
+    expect(publishBlockerListingWizardStep('Add where guests meet or are picked up for this option.', false)).toBe(2);
   });
 });
