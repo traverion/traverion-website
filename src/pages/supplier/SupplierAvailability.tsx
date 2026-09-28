@@ -650,9 +650,15 @@ export default function SupplierAvailability() {
             />
           ) : null}
 
+          {/* Phase 1627: calendar legend must be available to assistive tech (was aria-hidden). */}
           <div
             className="mb-3 flex flex-wrap gap-x-3 gap-y-1.5 rounded-lg border border-black/[0.06] bg-paper px-3 py-2 text-[11px] text-ink-muted"
-            aria-hidden
+            role="group"
+            aria-label={
+              stayCalendar
+                ? 'Calendar legend: Occupied, Check-out, Available, Blocked'
+                : 'Calendar legend: Open, Booked, Full, Closed days'
+            }
           >
             {stayCalendar ? (
               <>
