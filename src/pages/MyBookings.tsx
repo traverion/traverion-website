@@ -2,7 +2,7 @@
  * Consumer: list of the logged-in user's bookings with status.
  * RLS ensures only rows where guest_email = auth user email are returned.
  */
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
 import { LogIn, RefreshCw, ArrowLeft, CalendarDays, MapPin, ChevronDown, X } from 'lucide-react';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
@@ -322,8 +322,8 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
     window.location.assign(res.checkoutUrl);
   }, []);
 
-  useEffect(() => {
-    if (authLoading) return;
+  // Phase 1379 + layout: clear prior traveler trips before paint on account switch (useEffect ran one frame too late).
+  useLayoutEffect(() => {
     if (!user?.id) {
       tripsUserIdRef.current = null;
       loadGenRef.current += 1;
@@ -333,10 +333,8 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
       setCancelRequests({});
       setCancelRequestsError(null);
       setLoadError(null);
-      setLoading(false);
       return;
     }
-    // Phase 1379: clear prior traveler trips before loading the next account (Account hub 1378 parity).
     if (tripsUserIdRef.current !== user.id) {
       tripsUserIdRef.current = user.id;
       loadGenRef.current += 1;
@@ -350,6 +348,14 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
       setActionError(null);
       setActionSuccess(null);
       setCancelConfirm(null);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user?.id) {
+      setLoading(false);
+      return;
     }
     void load();
   }, [user?.id, load, authLoading]);
