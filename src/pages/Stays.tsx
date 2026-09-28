@@ -139,6 +139,8 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
   > | null>(null);
   const [occupancyLoading, setOccupancyLoading] = useState(false);
   const [occupancyError, setOccupancyError] = useState<string | null>(null);
+  /** Occupancy snapshot is for one browse night range + catalog — not a prior range after reload fails (Packages 1432 parity). */
+  const [occupancyLoadedForBrowseKey, setOccupancyLoadedForBrowseKey] = useState<string | null>(null);
   const [discountsByListing, setDiscountsByListing] = useState<Map<
     string,
     import('../data/supabase-discounts').ListingDiscount[]
@@ -235,13 +237,22 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
     }
   }, [draftWhere, draftCheckIn, draftCheckOut, draftGuests]);
 
+  const stayIdsKey = useMemo(() => stays.map((s) => s.id).filter(isSupabaseListingId).join(','), [stays]);
+
+  const occupancyBrowseKey = useMemo(() => {
+    if (!dateFilterActive || !checkIn || !checkOut || !stayIdsKey) return '';
+    return `${stayIdsKey}|${checkIn}|${checkOut}`;
+  }, [dateFilterActive, stayIdsKey, checkIn, checkOut]);
+
   const reloadStayBrowseOccupancy = useCallback(() => {
     if (!dateFilterActive || stays.length === 0 || !isSupabaseConfigured()) {
       setOccupiedByListing(null);
+      setOccupancyLoadedForBrowseKey(null);
       setOccupancyLoading(false);
       setOccupancyError(null);
       return () => {};
     }
+    const browseKeyAtStart = `${stayIdsKey}|${checkIn}|${checkOut}`;
     let cancelled = false;
     setOccupancyLoading(true);
     setOccupancyError(null);
@@ -268,6 +279,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
         setOccupiedByListing(
           Object.fromEntries(entries.filter((e): e is NonNullable<typeof e> => e != null))
         );
+        setOccupancyLoadedForBrowseKey(browseKeyAtStart);
         setOccupancyLoading(false);
       })
       .catch((e) => {
@@ -281,7 +293,13 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [dateFilterActive, stays]);
+  }, [dateFilterActive, stays, stayIdsKey, checkIn, checkOut]);
+
+  const occupancyForActiveBrowse = useMemo(() => {
+    if (!dateFilterActive || !occupancyBrowseKey) return null;
+    if (occupancyLoadedForBrowseKey !== occupancyBrowseKey) return null;
+    return occupiedByListing;
+  }, [dateFilterActive, occupancyBrowseKey, occupancyLoadedForBrowseKey, occupiedByListing]);
 
   useEffect(() => {
     return reloadStayBrowseOccupancy();
@@ -294,8 +312,6 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
     document.addEventListener('visibilitychange', onVis);
     return () => document.removeEventListener('visibilitychange', onVis);
   }, [reloadStayBrowseOccupancy]);
-
-  const stayIdsKey = useMemo(() => stays.map((s) => s.id).filter(isSupabaseListingId).join(','), [stays]);
 
   useEffect(() => {
     if (!isSupabaseConfigured() || !stayIdsKey) {
@@ -378,8 +394,8 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
       }
       if (dateFilterActive) {
         // Phase 1350: unknown occupancy must not invent open nights (null map).
-        if (occupiedByListing == null) return false;
-        const pack = occupiedByListing[s.id];
+        if (occupancyForActiveBrowse == null) return false;
+        const pack = occupancyForActiveBrowse[s.id];
         // Phase 1193: missing occupancy row → exclude (do not invent open nights).
         if (!pack) return false;
         if (!stayAvailableForRequestedNights(checkIn, checkOut, pack.ranges)) {
@@ -415,7 +431,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
     selectedAmenities,
     ratingFilter,
     dateFilterActive,
-    occupiedByListing,
+    occupancyForActiveBrowse,
     checkIn,
     checkOut,
     sortBy,
@@ -463,12 +479,17 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
   const emptyDueToOccupiedNights =
     filtered.length === 0 &&
     dateFilterActive &&
-    occupiedByListing != null &&
+    occupancyForActiveBrowse != null &&
     matchingExceptOccupancyCount > 0 &&
     knownOccupiedForNights > 0;
 
   const waitingOnOccupancy =
-    dateFilterActive && isSupabaseConfigured() && !occupancyError && (occupancyLoading || occupiedByListing === null);
+    dateFilterActive &&
+    isSupabaseConfigured() &&
+    !occupancyError &&
+    (occupancyLoading ||
+      occupiedByListing === null ||
+      (occupancyBrowseKey !== '' && occupancyLoadedForBrowseKey !== occupancyBrowseKey));
 
   const searchValues: MarketplaceSearchValues = useMemo(
     () => ({ where: draftWhere, date: draftCheckIn, checkout: draftCheckOut, guests: draftGuests }),
@@ -863,7 +884,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
         ) : null}
         {catalogLoading || waitingOnOccupancy ? (
           <SkeletonCardGrid count={6} />
-        ) : occupancyError && dateFilterActive && occupiedByListing == null ? null : filtered.length > 0 ? (
+        ) : occupancyError && dateFilterActive && occupancyLoadedForBrowseKey !== occupancyBrowseKey ? null : filtered.length > 0 ? (
           <div className={MARKETPLACE_BROWSE_GRID_CLASS}>
             {filtered.map((item, index) => {
               const guestN = Number.parseInt(guests, 10) || 1;
