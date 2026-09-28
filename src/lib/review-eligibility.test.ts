@@ -96,6 +96,35 @@ describe('bookingEligibleForReview', () => {
     expect(bookingEligibleForReview(row, Date.parse('2026-09-03T12:00:00.000Z'))).toBe(true);
   });
 
+  it('falls back to listing departureTimezone when snapshot lacks TZ (SQL parity)', () => {
+    const row = {
+      status: 'confirmed',
+      payment_status: 'paid',
+      booking_date: '2026-09-01',
+      start_time: '20:00:00',
+      purchase_snapshot: {
+        listingTitle: 'City tour',
+        startTimeHm: '20:00',
+        capturedAt: '2026-08-01T00:00:00.000Z',
+      },
+    };
+    // Legacy default without listing TZ: Europe/Helsinki → 20:00 local = 17:00 UTC.
+    expect(bookingEligibleForReview(row, Date.parse('2026-09-01T17:01:00.000Z'))).toBe(true);
+    // Listing extras TZ must win over Helsinki when snapshot has no departureTimezone.
+    expect(
+      bookingEligibleForReview(
+        { ...row, departureTimezone: 'America/New_York' },
+        Date.parse('2026-09-01T17:01:00.000Z')
+      )
+    ).toBe(false);
+    expect(
+      bookingEligibleForReview(
+        { ...row, departureTimezone: 'America/New_York' },
+        Date.parse('2026-09-02T00:01:00.000Z')
+      )
+    ).toBe(true);
+  });
+
   it('unlocks stay review from check_out: notes when column is null (Phase 1328)', () => {
     const row = {
       status: 'confirmed',

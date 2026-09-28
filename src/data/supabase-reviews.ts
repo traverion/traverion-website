@@ -184,10 +184,19 @@ export async function userHasCompletedBookingForListing(
     // Unbound email-only path — RLS also requires guest_user_id IS NULL.
     q = q.is('guest_user_id', null).eq('guest_email', email);
   }
-  const { data, error } = await q;
+  const listingExtrasQuery = supabase
+    .from('listings')
+    .select('listing_extras')
+    .eq('id', listingId)
+    .maybeSingle();
+  const [{ data, error }, { data: listingRow, error: listingErr }] = await Promise.all([q, listingExtrasQuery]);
   // Phase 1310: query failure ≠ “no completed booking” — throw so callers fail closed.
   if (error) throw new Error(error.message);
+  if (listingErr) throw new Error(listingErr.message);
   if (!data?.length) return { canReview: false };
+
+  const listingDepartureTz =
+    parseListingExtras(listingRow?.listing_extras)?.departureTimezone?.trim() || null;
 
   // Phase 1359: same unpaid checkInAddress strip as Trips fetches (1358).
   const rows = (data as Array<{
@@ -197,7 +206,9 @@ export async function userHasCompletedBookingForListing(
     [key: string]: unknown;
   }>).map((row) => redactUnpaidStayCheckInAddress(row));
 
-  const eligible = rows.find((b) => bookingEligibleForReview(b, nowMs));
+  const eligible = rows.find((b) =>
+    bookingEligibleForReview({ ...b, departureTimezone: listingDepartureTz }, nowMs)
+  );
   if (!eligible) return { canReview: false };
   return { canReview: true, bookingId: eligible.id };
 }
