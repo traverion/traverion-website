@@ -2075,7 +2075,8 @@ export default function BookingPage({
             </button>
           </div>
           <div className="relative mx-4 mt-3 h-20 shrink-0 overflow-hidden rounded-xl shadow-soft ring-1 ring-black/[0.08] sm:mx-5 sm:mt-4 sm:h-32">
-              <img src={tour.image} alt="" className="h-full w-full object-cover" />
+              {/* Phase 1632: checkout hero images describe the listing for assistive tech. */}
+              <img src={tour.image} alt={tour.title} className="h-full w-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/15 to-transparent" />
               <div className="absolute bottom-2 left-3 right-3 text-white">
                 <p className="line-clamp-2 font-display text-base font-semibold leading-tight tracking-tight sm:text-lg">{tour.title}</p>
@@ -2122,7 +2123,8 @@ export default function BookingPage({
             ) : null}
             <div className="overflow-hidden rounded-2xl mb-6 shadow-soft ring-1 ring-black/[0.08]">
               <div className="h-36 sm:h-44 bg-black/10 relative">
-                <img src={tour.image} alt="" className="w-full h-full object-cover" />
+                {/* Phase 1632: checkout hero images describe the listing for assistive tech. */}
+                <img src={tour.image} alt={tour.title} className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/20 to-transparent" />
                 <div className="absolute top-3 left-3">
                   <span className="inline-flex items-center rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-finland shadow-sm ring-1 ring-black/[0.06]">
