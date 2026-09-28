@@ -29,6 +29,18 @@ export default function PartnerHelpPage() {
         </a>
 
         {/* Phase 1648: ops shortcuts named in the Help hero (bookings / payouts). */}
+        {/* Phase 1681: Listings shortcut — hero already names listings first. */}
+        <button
+          type="button"
+          onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings`)}
+          className="partner-surface-panel lux-flat w-full px-4 py-3.5 text-left hover:border-finland/30"
+        >
+          <span className="block text-[14px] font-semibold text-slate-900">Listings</span>
+          <span className="mt-0.5 block text-[13px] text-slate-500">
+            Drafts, published tours and stays, and publish readiness.
+          </span>
+        </button>
+
         <button
           type="button"
           onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings`)}
