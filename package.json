@@ -10,7 +10,7 @@
     "dev": "vite",
     "prebuild": "npm run sitemap:generate",
     "build": "vite build",
-    "sitemap:generate": "node --experimental-strip-types scripts/generate-sitemap.mts",
+    "sitemap:generate": "vite-node scripts/generate-sitemap.mts",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
