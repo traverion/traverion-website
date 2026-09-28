@@ -84,6 +84,7 @@ import {
   LISTING_PHOTO_MIN,
 } from '../../lib/listingPhotoGrid';
 import { getListingPublishBlockers, publishBlockerListingWizardStep } from '../../lib/listingPublishGate';
+import { stayFormCheckInOutFromExtras } from '../../lib/stay-form-check-times';
 import { resolveDepartureTimezone, TRAVERION_DEPARTURE_TIMEZONE } from '../../lib/tour-departure-cutoff';
 import {
   listingPublishTruth,
@@ -1391,8 +1392,8 @@ export default function SupplierListingForm({
           stayMaxGuests: extras.stay?.maxGuests != null ? String(extras.stay.maxGuests) : '4',
           stayNightly: extras.stay?.nightlyPriceUsd != null ? String(extras.stay.nightlyPriceUsd) : '',
           stayMinNights: extras.stay?.minNights != null ? String(extras.stay.minNights) : '1',
-          stayCheckIn: extras.stay?.checkInTime ?? '16:00',
-          stayCheckOut: extras.stay?.checkOutTime ?? '11:00',
+          stayCheckIn: stayFormCheckInOutFromExtras(extras.stay).stayCheckIn,
+          stayCheckOut: stayFormCheckInOutFromExtras(extras.stay).stayCheckOut,
           stayAmenities: (extras.stay?.amenities ?? []).join(', '),
           stayHouseRules: extras.stay?.houseRules ?? '',
           stayCheckInAddress: extras.stay?.checkInAddress ?? '',
