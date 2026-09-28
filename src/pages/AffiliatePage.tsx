@@ -240,8 +240,15 @@ export default function AffiliatePage({ onNavigate }: AffiliatePageProps) {
                 rows={8}
                 className="tv-input min-h-[10rem] resize-y py-3"
                 aria-invalid={fieldErrors.message ? true : undefined}
-                aria-describedby={fieldErrors.message ? 'aff-message-err' : undefined}
+                aria-describedby={
+                  fieldErrors.message ? 'aff-message-err aff-message-hint' : 'aff-message-hint'
+                }
               />
+              {/* Phase 1658: calm limit hint before submit fails at 5000 chars. */}
+              <p id="aff-message-hint" className="mt-1.5 text-xs text-ink-faint">
+                Up to 5000 characters
+                {formData.message.length > 0 ? ` · ${formData.message.length} used` : ''}.
+              </p>
               {fieldErrors.message && (
                 <p id="aff-message-err" className="mt-1.5 text-sm text-red-800" role="alert">
                   {fieldErrors.message}
