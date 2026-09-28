@@ -3,12 +3,13 @@
  * The authoritative lock lives in Postgres assert_checkout_inventory
  * (pg_advisory_xact_lock on listing id) inside claim_pending_checkout_booking
  * and — Phase 1513 / mig 198 — promote_paid_checkout_booking (assert + paid UPDATE).
+ * Phase 1526 / mig 202: stay promote passes stay_booking_check_out (not NULL tour branch).
  */
 
 import { describe, expect, it } from 'vitest';
 import { tourCheckoutOccupiedGuests } from './booking-hold';
 import { tourDepartureRemainingSeats } from './tour-departure-remaining';
-import { promotePaidRequiresAtomicAssertUpdate } from './promote-paid-checkout';
+import { promotePaidRequiresAtomicAssertUpdate, promotePaidAssertCheckOut } from './promote-paid-checkout';
 
 /** Mirrors the SQL lock key shape: hashtext(listing_id::text) — listing-scoped. */
 export function checkoutInventoryLockKey(listingId: string): string {
@@ -164,5 +165,25 @@ describe('checkout inventory concurrency semantics', () => {
     expect(promotePaidRequiresAtomicAssertUpdate({ assertAndUpdateSameTransaction: true })).toBe(
       true
     );
+  });
+
+  it('Phase 1526: nights-only stay promote asserts exclusive check-out, not NULL tour branch', () => {
+    // Column-only (pre-1526) would pass NULL → tour assert; nights-only stay must use
+    // stay_booking_check_out (e.g. 2026-12-01 + 3 nights → 2026-12-04).
+    expect(
+      promotePaidAssertCheckOut({
+        isStayNight: true,
+        stayExclusiveCheckOut: '2026-12-04',
+        checkOutColumn: null,
+        bookingDate: '2026-12-01',
+      })
+    ).toBe('2026-12-04');
+    expect(
+      promotePaidAssertCheckOut({
+        isStayNight: false,
+        checkOutColumn: null,
+        bookingDate: '2026-12-01',
+      })
+    ).toBeNull();
   });
 });

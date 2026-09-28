@@ -47,3 +47,24 @@ export function promotePaidRequiresAtomicAssertUpdate(params: {
 }): boolean {
   return params.assertAndUpdateSameTransaction === true;
 }
+
+/**
+ * Phase 1526: stay promote must pass exclusive check-out into assert (not NULL tour branch).
+ * Mirrors SQL: booking_is_stay_night → stay_booking_check_out; else column-only.
+ */
+export function promotePaidAssertCheckOut(params: {
+  isStayNight: boolean;
+  /** Exclusive check-out from stay_booking_check_out / stayRangeFromBooking. */
+  stayExclusiveCheckOut?: string | null;
+  checkOutColumn?: string | null;
+  bookingDate?: string | null;
+}): string | null {
+  if (params.isStayNight) {
+    const out = String(params.stayExclusiveCheckOut ?? '').trim();
+    return /^\d{4}-\d{2}-\d{2}$/.test(out) ? out : null;
+  }
+  const col = String(params.checkOutColumn ?? '').trim();
+  const checkIn = String(params.bookingDate ?? '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(col) && (!checkIn || col > checkIn)) return col;
+  return null;
+}
