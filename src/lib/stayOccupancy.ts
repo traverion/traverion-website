@@ -55,23 +55,28 @@ export function stayRangeFromBooking(booking: {
   check_out?: string | null;
   nights?: number | null;
   special_requests?: string | null;
+  purchase_snapshot?: unknown;
 }): { checkIn: string; checkOut: string } | null {
   const checkIn = (booking.booking_date ?? '').trim();
   if (!ISO_DATE.test(checkIn)) return null;
   const fromColumn = (booking.check_out ?? '').trim();
-  const fromNotes = parseStayCheckOutFromNotes(booking.special_requests);
   const nights = Math.floor(Number(booking.nights ?? 0));
   const fromNights =
     Number.isFinite(nights) && nights >= 1 ? addCalendarDays(checkIn, nights) : null;
-  // Phase 1330: match SQL stay_booking_check_out — column → nights → notes (legacy) → +1.
-  // Traveler-editable notes must not shrink/expand inventory vs nights.
+  const snap =
+    booking.purchase_snapshot && typeof booking.purchase_snapshot === 'object'
+      ? (booking.purchase_snapshot as { checkOut?: unknown }).checkOut
+      : null;
+  const fromSnap = typeof snap === 'string' ? snap.trim() : '';
+  // Phase 1524: match SQL stay_booking_check_out — column → nights → snapshot → +1.
+  // Notes-only check_out: must not expand inventory (1522/1523 plant path).
   const checkOut =
     fromColumn && fromColumn > checkIn
       ? fromColumn
       : fromNights && fromNights > checkIn
         ? fromNights
-        : fromNotes && fromNotes > checkIn
-          ? fromNotes
+        : fromSnap && ISO_DATE.test(fromSnap) && fromSnap > checkIn
+          ? fromSnap
           : addCalendarDays(checkIn, 1);
   return { checkIn, checkOut };
 }
@@ -111,6 +116,7 @@ export type StayCheckoutOccupancyRow = InventoryHoldRow & {
   check_out?: string | null;
   nights?: number | null;
   special_requests?: string | null;
+  purchase_snapshot?: unknown;
 };
 
 /**
@@ -132,6 +138,7 @@ export function stayCheckoutNightsAlreadyBooked(
       check_out: typeof row.check_out === 'string' ? row.check_out : null,
       nights: row.nights ?? null,
       special_requests: typeof row.special_requests === 'string' ? row.special_requests : null,
+      purchase_snapshot: row.purchase_snapshot,
     });
     if (range && stayDateRangesOverlap(checkIn, checkOut, range.checkIn, range.checkOut)) return true;
   }

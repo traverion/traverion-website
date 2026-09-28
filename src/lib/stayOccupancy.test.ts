@@ -72,7 +72,7 @@ describe('stay occupancy', () => {
     });
   });
 
-  it('uses notes only for legacy rows without nights or check_out column', () => {
+  it('Phase 1524: notes-only check_out: does not expand occupancy (SQL +1 parity)', () => {
     expect(
       stayRangeFromBooking({
         booking_date: '2026-09-10',
@@ -80,7 +80,19 @@ describe('stay occupancy', () => {
       })
     ).toEqual({
       checkIn: '2026-09-10',
-      checkOut: '2026-09-12',
+      checkOut: '2026-09-11',
+    });
+  });
+
+  it('Phase 1524: purchase_snapshot.checkOut used when column and nights missing', () => {
+    expect(
+      stayRangeFromBooking({
+        booking_date: '2026-09-10',
+        purchase_snapshot: { checkOut: '2026-09-14' },
+      })
+    ).toEqual({
+      checkIn: '2026-09-10',
+      checkOut: '2026-09-14',
     });
   });
 

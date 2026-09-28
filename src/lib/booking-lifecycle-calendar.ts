@@ -86,15 +86,6 @@ function snapshotString(snapshot: unknown, key: string): string | null {
   return typeof v === 'string' && v.trim() ? v.trim() : null;
 }
 
-function parseStayCheckOutFromNotes(notes: string | null | undefined): string | null {
-  if (!notes) return null;
-  for (const raw of notes.split(/\n+/)) {
-    const m = raw.trim().match(/^check_out:\s*(\d{4}-\d{2}-\d{2})/i);
-    if (m?.[1] && ISO_DATE.test(m[1])) return m[1];
-  }
-  return null;
-}
-
 /**
  * Stay shape parity with bookingIsStayNight / SQL booking_is_stay_night (Phase 1523):
  * check_out column, purchased checkOut, or nights >= 1 — never notes-only check_out:.
@@ -109,22 +100,19 @@ export function lifecycleBookingIsStay(b: LifecycleBookingRow): boolean {
 }
 
 /**
- * Stay check-out day: column → snap → nights → notes (legacy). Matches stay_booking_check_out /
- * stayRangeFromBooking nights-before-notes precedence for inventory honesty.
+ * Stay check-out day: column → nights → snap (Phase 1524). Never notes-only check_out:.
  */
 export function lifecycleStayCheckOutYmd(b: LifecycleBookingRow): string | null {
   const checkIn = isoDay(b.booking_date);
   const fromColumn = isoDay(b.check_out);
   if (fromColumn && checkIn && fromColumn > checkIn) return fromColumn;
   if (fromColumn) return fromColumn;
-  const fromSnap = isoDay(snapshotString(b.purchase_snapshot, 'checkOut'));
-  if (fromSnap && (!checkIn || fromSnap > checkIn)) return fromSnap;
   const nights = Math.floor(Number(b.nights ?? 0));
   if (checkIn && Number.isFinite(nights) && nights >= 1) {
     return addCalendarDaysYmd(checkIn, nights);
   }
-  const fromNotes = parseStayCheckOutFromNotes(b.special_requests);
-  if (fromNotes && (!checkIn || fromNotes > checkIn)) return fromNotes;
+  const fromSnap = isoDay(snapshotString(b.purchase_snapshot, 'checkOut'));
+  if (fromSnap && (!checkIn || fromSnap > checkIn)) return fromSnap;
   return null;
 }
 
