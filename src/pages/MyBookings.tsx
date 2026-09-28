@@ -829,6 +829,11 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         Browse stays
                       </button>
                     </div>
+                  ) : bookings.length > 0 ? (
+                    // Phase 1610: Past/Cancelled empty but other trips exist — jump to Upcoming.
+                    <button type="button" onClick={() => selectTripView('upcoming')} className="tv-btn-secondary">
+                      View upcoming trips
+                    </button>
                   ) : undefined
                 }
               />
