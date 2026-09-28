@@ -2,7 +2,7 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
-import { listingHasUpcomingBookableSeason, quoteListingBooking, stayCheckoutNightsAlreadyBooked, stayNightIsOperatorBlocked, stayRangeFromBooking, tourDepartureRemainingSeats, tourDepartureSlotCapacity, type DiscountRow, type ListingQuoteRow, type StayCheckoutOccupancyRow } from '../_shared/booking-quote.ts';
+import { listingHasUpcomingBookableSeason, quoteListingBooking, resolveTourDepartureHmForCutoff, stayCheckoutNightsAlreadyBooked, stayNightIsOperatorBlocked, stayRangeFromBooking, tourDepartureRemainingSeats, tourDepartureSlotCapacity, type DiscountRow, type ListingQuoteRow, type StayCheckoutOccupancyRow } from '../_shared/booking-quote.ts';
 import { tourCheckoutOccupiedGuests, inventoryStartTimeHmFromBooking, type TourCheckoutOccupancyRow } from '../_shared/booking-hold.ts';
 import { checkoutPaymentStatusCanResume, resumeStayCheckoutDate, checkoutResumeLostRaceToPaid, resumeListingIdMismatch } from '../_shared/checkout-resume.ts';
 import { resumeStayLeadGuestName, stayCheckoutLeadGuestNameReady } from '../_shared/stay-checkout-guest.ts';
@@ -421,6 +421,18 @@ serve(async (req) => {
     }
     if (typeof quote.guests === 'number' && quote.guests >= 1) {
       guests = quote.guests;
+    }
+
+    // Phase 1534: freeze quote-resolved departure when body omitted startTime
+    // (single-option default / schedule) so capacity assert + snapshot match cutoff.
+    if (!startTime && extrasFamily !== 'stay') {
+      const resolvedHm = resolveTourDepartureHmForCutoff({
+        listingExtras: listingRow.listing_extras,
+        bookingDate,
+        bookingOptionId: quote.optionId ?? storedOptionId,
+        frozenStartTimeHm: null,
+      });
+      if (resolvedHm) startTime = resolvedHm;
     }
 
     const optionFields = resolveOptionFieldsForSnapshot({
