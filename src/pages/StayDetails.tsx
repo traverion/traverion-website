@@ -1104,6 +1104,8 @@ export default function StayDetails({ stayId, onBack }: Props) {
                 value={guests}
                 min={1}
                 max={maxGuests ?? 0}
+                // Phase 1320: unknown stay capacity ≠ “No seats left on this departure”.
+                hint={maxGuests == null ? null : undefined}
                 onChange={(next) => {
                   setGuests(next);
                   setPayError(null);
