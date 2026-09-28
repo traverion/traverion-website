@@ -79,6 +79,12 @@ export default function PartnerPortalFooter() {
                   Stays
                 </a>
               </li>
+              {/* Phase 1633: Trips for operators checking traveler wayfinding. */}
+              <li>
+                <a href={`${traveler}/bookings`} className={linkClass}>
+                  Manage trips
+                </a>
+              </li>
               <li>
                 <a href={`${traveler}/contact`} className={linkClass}>
                   Traveler contact
