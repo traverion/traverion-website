@@ -656,7 +656,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
             <SkeletonListItem />
             <SkeletonListItem />
           </div>
-        ) : loadError ? null : bookings.length === 0 ? (
+        ) : loadError && bookings.length === 0 ? null : bookings.length === 0 ? (
           <EmptyState
             icon={CalendarDays}
             title="No trips yet"
