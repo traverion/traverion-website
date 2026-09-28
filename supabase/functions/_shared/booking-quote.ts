@@ -10,7 +10,6 @@ import {
   normalizeBookingCutoffHours,
   resolveDepartureTimezone,
   TRAVERION_DEPARTURE_TIMEZONE,
-  wallTimeInZoneToUtcMs,
 } from './tour-departure-cutoff.ts';
 
 /** Calendar “today” for quote past-date gates — listing departure TZ, not UTC. */
@@ -780,9 +779,8 @@ export function quoteListingBooking(input: {
     return { ok: false, error: 'This listing is not available to book yet.' };
   }
   const departureTimezone = resolveDepartureTimezone(extrasObj?.departureTimezone);
-  const nowMs =
-    input.nowMs ??
-    (input.todayIso ? wallTimeInZoneToUtcMs(input.todayIso, '12:00') ?? Date.now() : Date.now());
+  // Phase 1531: cutoff uses live clock; todayIso is calendar-day only.
+  const nowMs = input.nowMs ?? Date.now();
   const today = input.todayIso ?? experienceTodayIsoForListing(departureTimezone, nowMs);
   if (family === 'stay') {
     return quoteStayListing({

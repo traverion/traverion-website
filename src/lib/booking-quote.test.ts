@@ -103,7 +103,41 @@ describe('quoteBooking', () => {
     });
     expect(q.ok).toBe(false);
     if (q.ok) return;
+    expect(q.code).toBe('time');
     expect(q.error).toMatch(/2 hours before departure/i);
+  });
+
+  it('Phase 1531: todayIso without nowMs still uses live clock for cutoff (not noon stub)', () => {
+    // Same-day 20:30 with 2h cutoff: wall clock 19:00 Helsinki is past cutoff.
+    // If quote used noon-on-todayIso, this would incorrectly succeed.
+    const nowMs = Date.UTC(2026, 8, 27, 16, 0, 0); // 19:00 Europe/Helsinki (EEST)
+    const q = quoteBooking({
+      tour: tour({
+        listingExtras: {
+          bookingCutoffHoursBeforeStart: 2,
+          departureTimezone: 'Europe/Helsinki',
+          bookingOptions: [
+            option({
+              id: 'opt-small',
+              name: 'Small group',
+              priceUsd: 149,
+              startTime: '20:30',
+            }),
+          ],
+        },
+      }),
+      discounts: [],
+      bookingDate: '2026-09-27',
+      guests: 2,
+      bookingOptionId: 'opt-small',
+      startTime: '20:30',
+      todayIso: '2026-09-27',
+      nowMs,
+    });
+    expect(q.ok).toBe(false);
+    if (q.ok) return;
+    expect(q.code).toBe('time');
+    expect(q.error).toMatch(/before departure/i);
   });
 
   it('Phase 1530: unresolved schedule departure emits code time (not option)', () => {

@@ -25,7 +25,6 @@ import {
   normalizeBookingCutoffHours,
   resolveDepartureTimezone,
   TRAVERION_DEPARTURE_TIMEZONE,
-  wallTimeInZoneToUtcMs,
 } from './tour-departure-cutoff';
 
 /** Calendar “today” for quote past-date gates — listing departure TZ, not browser/UTC. */
@@ -338,9 +337,9 @@ export function quoteBooking(input: {
   const extras = parseListingExtras(input.tour.listingExtras);
   const cutoffHours = normalizeBookingCutoffHours(extras.bookingCutoffHoursBeforeStart);
   const departureTimezone = resolveDepartureTimezone(extras.departureTimezone);
-  const nowMs =
-    input.nowMs ??
-    (input.todayIso ? wallTimeInZoneToUtcMs(input.todayIso, '12:00') ?? Date.now() : Date.now());
+  // Phase 1531: cutoff uses live clock (Date.now), not noon-on-todayIso.
+  // todayIso remains only for calendar "today or later" gates (PDP chip parity).
+  const nowMs = input.nowMs ?? Date.now();
   const today = input.todayIso ?? experienceTodayIsoForListing(departureTimezone, nowMs);
   if (!ISO_DATE.test(date)) {
     return { ok: false, code: 'bad_date', error: 'Choose a valid date.' };
@@ -396,7 +395,8 @@ export function quoteBooking(input: {
         timeZone: departureTimezone,
       });
       if (!cut.ok) {
-        return { ok: false, code: 'bad_date', error: cut.error };
+        // Phase 1531: cutoff/past-start are departure-time failures (sticky Pick time).
+        return { ok: false, code: 'time', error: cut.error };
       }
     }
 
