@@ -76,6 +76,8 @@ describe('weekdayIndexMondayFirst', () => {
 
 describe('quoteBooking', () => {
   const today = '2026-09-04';
+  // Phase 1531: todayIso no longer freezes cutoff at noon — pin wall clock for fixtures.
+  const fixtureNowMs = Date.UTC(2026, 8, 4, 10, 0, 0);
 
   it('rejects a departure inside the listing booking cut-off window', () => {
     const startMs = Date.UTC(2026, 8, 27, 17, 30, 0); // 20:30 Europe/Helsinki (EEST = UTC+3)
@@ -211,6 +213,7 @@ describe('quoteBooking', () => {
       guests: 2,
       bookingOptionId: 'opt-small',
       todayIso: today,
+      nowMs: fixtureNowMs,
     });
     expect(q.ok).toBe(true);
     if (!q.ok) return;
@@ -238,6 +241,7 @@ describe('quoteBooking', () => {
       guests: 1,
       bookingOptionId: 'opt-small',
       todayIso: today,
+      nowMs: fixtureNowMs,
     });
     expect(q.ok).toBe(true);
     if (!q.ok) return;
@@ -252,6 +256,7 @@ describe('quoteBooking', () => {
       guests: 2,
       bookingOptionId: 'opt-small',
       todayIso: today,
+      nowMs: fixtureNowMs,
     });
     expect(honest.ok).toBe(true);
     if (!honest.ok) return;
@@ -267,6 +272,7 @@ describe('quoteBooking', () => {
       guests: 2,
       bookingOptionId: 'opt-small',
       todayIso: today,
+      nowMs: fixtureNowMs,
     });
     expect(q.ok).toBe(false);
     if (!q.ok) expect(q.code).toBe('unpublished');
@@ -288,6 +294,7 @@ describe('quoteBooking', () => {
       guests: 2,
       bookingOptionId: 'opt-small',
       todayIso: today,
+      nowMs: fixtureNowMs,
     });
     expect(q.ok).toBe(false);
     if (!q.ok) expect(q.code).toBe('unpublished');
@@ -301,6 +308,7 @@ describe('quoteBooking', () => {
       guests: 2,
       bookingOptionId: 'opt-small',
       todayIso: today,
+      nowMs: fixtureNowMs,
     });
     expect(q.ok).toBe(false);
     if (!q.ok) expect(q.code).toBe('unpublished');
@@ -313,6 +321,7 @@ describe('quoteBooking', () => {
       bookingDate: '2026-09-10',
       guests: 2,
       todayIso: today,
+      nowMs: fixtureNowMs,
     });
     expect(q.ok).toBe(false);
     if (!q.ok) expect(q.code).toBe('inventory');
@@ -331,6 +340,7 @@ describe('quoteBooking', () => {
       checkOut: '2026-09-13',
       guests: 2,
       todayIso: today,
+      nowMs: fixtureNowMs,
     });
     expect(q.ok).toBe(true);
     if (!q.ok) return;
@@ -353,6 +363,7 @@ describe('quoteBooking', () => {
       checkOut,
       guests: 2,
       todayIso: today,
+      nowMs: fixtureNowMs,
     });
     expect(q.ok).toBe(false);
     if (!q.ok) expect(q.code).toBe('bad_date');
@@ -371,6 +382,7 @@ describe('quoteBooking', () => {
       checkOut: '2026-09-12',
       guests: 2,
       todayIso: today,
+      nowMs: fixtureNowMs,
     });
     expect(q.ok).toBe(false);
     if (!q.ok) expect(q.code).toBe('party');
@@ -390,6 +402,7 @@ describe('quoteBooking', () => {
       checkOut: '2026-09-13',
       guests: 2,
       todayIso: today,
+      nowMs: fixtureNowMs,
     });
     expect(q.ok).toBe(true);
     if (!q.ok) return;
@@ -417,6 +430,7 @@ describe('quoteBooking', () => {
       guests: 2,
       bookingOptionId: 'opt-small',
       todayIso: today,
+      nowMs: fixtureNowMs,
     });
     expect(q.ok).toBe(false);
     if (q.ok) return;
@@ -431,6 +445,7 @@ describe('quoteBooking', () => {
       guests: 20,
       bookingOptionId: 'opt-small',
       todayIso: today,
+      nowMs: fixtureNowMs,
     });
     expect(q.ok).toBe(false);
     if (q.ok) return;
@@ -451,6 +466,7 @@ describe('quoteBooking', () => {
       bookingDate: '2026-09-10',
       guests: 2,
       todayIso: today,
+      nowMs: fixtureNowMs,
     });
     expect(q.ok).toBe(false);
     if (q.ok) return;
@@ -1011,6 +1027,7 @@ describe('quote price lines', () => {
 
 describe('quoteBooking — private flat-group pricing after discounts', () => {
   const today = '2026-09-04';
+  const fixtureNowMs = Date.UTC(2026, 8, 4, 10, 0, 0);
 
   function privateOptionTour(): TourPackage {
     return tour({
@@ -1047,6 +1064,7 @@ describe('quoteBooking — private flat-group pricing after discounts', () => {
       guests: 4,
       bookingOptionId: 'opt-private',
       todayIso: today,
+      nowMs: fixtureNowMs,
     });
     expect(q.ok).toBe(false);
     if (q.ok) return;
@@ -1070,6 +1088,7 @@ describe('quoteBooking — private flat-group pricing after discounts', () => {
       guests: 4,
       bookingOptionId: 'opt-private',
       todayIso: today,
+      nowMs: fixtureNowMs,
     });
     expect(q.ok).toBe(false);
     if (q.ok) return;
@@ -1093,6 +1112,7 @@ describe('quoteBooking — private flat-group pricing after discounts', () => {
       guests: 4,
       bookingOptionId: 'opt-private',
       todayIso: today,
+      nowMs: fixtureNowMs,
     });
     expect(q.ok).toBe(true);
     if (!q.ok) return;
