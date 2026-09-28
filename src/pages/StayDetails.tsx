@@ -106,6 +106,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
   const [blockedNights, setBlockedNights] = useState<string[]>([]);
   const [occupancyError, setOccupancyError] = useState<string | null>(null);
   const [savedToWishlist, setSavedToWishlist] = useState(false);
+  const [wishlistHeartKnown, setWishlistHeartKnown] = useState(false);
   const [wishlistBusy, setWishlistBusy] = useState(false);
   const [savePop, setSavePop] = useState(false);
   const [reviews, setReviews] = useState<ReviewDisplay[]>([]);
@@ -250,15 +251,21 @@ export default function StayDetails({ stayId, onBack }: Props) {
   useEffect(() => {
     if (!user?.id || !stay?.id || !isSupabaseListingId(stay.id) || !isSupabaseConfigured()) {
       setSavedToWishlist(false);
+      setWishlistHeartKnown(false);
       return;
     }
     let cancelled = false;
+    setWishlistHeartKnown(false);
     fetchWishlistListingIds(user.id)
       .then((ids) => {
-        if (!cancelled) setSavedToWishlist(ids.includes(stay.id));
+        if (!cancelled) {
+          setSavedToWishlist(ids.includes(stay.id));
+          setWishlistHeartKnown(true);
+        }
       })
       .catch(() => {
-        // Phase 1301: keep prior heart — failure ≠ “not saved”.
+        // Phase 1301/1363: do not show the prior listing’s heart — hide until a successful load.
+        if (!cancelled) setWishlistHeartKnown(false);
       });
     return () => {
       cancelled = true;
@@ -670,14 +677,21 @@ export default function StayDetails({ stayId, onBack }: Props) {
             <button
               type="button"
               className="lux-flat inline-flex h-11 w-11 items-center justify-center rounded-full bg-paper-raised text-ink ring-1 ring-black/[0.06] hover:bg-black/[0.03] disabled:opacity-60"
-              aria-label={savedToWishlist ? 'Remove from saved stays' : 'Save this stay'}
-              aria-pressed={savedToWishlist}
-              disabled={wishlistBusy}
+              aria-label={
+                !wishlistHeartKnown
+                  ? 'Checking saved status'
+                  : savedToWishlist
+                    ? 'Remove from saved stays'
+                    : 'Save this stay'
+              }
+              aria-pressed={wishlistHeartKnown ? savedToWishlist : undefined}
+              aria-busy={!wishlistHeartKnown}
+              disabled={wishlistBusy || !wishlistHeartKnown}
               onClick={handleToggleWishlist}
             >
               <Heart
                 size={18}
-                className={`${savedToWishlist ? 'fill-finland text-finland' : ''} ${savePop ? 'tv-pop' : ''}`}
+                className={`${wishlistHeartKnown && savedToWishlist ? 'fill-finland text-finland' : ''} ${savePop ? 'tv-pop' : ''}`}
               />
             </button>
           ) : null}

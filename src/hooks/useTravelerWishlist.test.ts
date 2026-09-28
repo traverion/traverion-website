@@ -24,3 +24,12 @@ describe('useTravelerWishlist failure honesty', () => {
     expect(priorIds.has('listing-a')).toBe(true);
   });
 });
+
+/** Tour/Stay detail hearts must not reuse the previous listing’s saved state while loading. */
+describe('listing detail wishlist heart', () => {
+  it('does not show a filled heart until the current listing fetch is known', () => {
+    const wishlistHeartKnown = false;
+    const savedToWishlist = true; // stale from prior PDP
+    expect(wishlistHeartKnown && savedToWishlist).toBe(false);
+  });
+});

@@ -189,6 +189,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const [participantMix, setParticipantMix] = useState<ParticipantMixSelection>({});
   const [variantChecking, setVariantChecking] = useState(false);
   const [savedToWishlist, setSavedToWishlist] = useState(false);
+  const [wishlistHeartKnown, setWishlistHeartKnown] = useState(false);
   const [wishlistBusy, setWishlistBusy] = useState(false);
   const [savePop, setSavePop] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
@@ -559,15 +560,21 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   useEffect(() => {
     if (!user?.id || !tour?.id || !isSupabaseListingId(tour.id) || !isSupabaseConfigured()) {
       setSavedToWishlist(false);
+      setWishlistHeartKnown(false);
       return;
     }
     let cancelled = false;
+    setWishlistHeartKnown(false);
     fetchWishlistListingIds(user.id)
       .then((ids) => {
-        if (!cancelled) setSavedToWishlist(ids.includes(tour.id));
+        if (!cancelled) {
+          setSavedToWishlist(ids.includes(tour.id));
+          setWishlistHeartKnown(true);
+        }
       })
       .catch(() => {
-        // Phase 1301: keep prior heart — failure ≠ “not saved”.
+        // Phase 1301/1363: do not show the prior listing’s heart — hide until a successful load.
+        if (!cancelled) setWishlistHeartKnown(false);
       });
     return () => {
       cancelled = true;
@@ -1309,14 +1316,21 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
               <button
                 type="button"
                 className="lux-flat inline-flex h-11 w-11 items-center justify-center rounded-full bg-paper-raised text-ink ring-1 ring-black/[0.06] hover:bg-black/[0.03] disabled:opacity-60"
-                aria-label={savedToWishlist ? 'Remove from saved tours' : 'Save this tour'}
-                aria-pressed={savedToWishlist}
-                disabled={wishlistBusy}
+                aria-label={
+                  !wishlistHeartKnown
+                    ? 'Checking saved status'
+                    : savedToWishlist
+                      ? 'Remove from saved tours'
+                      : 'Save this tour'
+                }
+                aria-pressed={wishlistHeartKnown ? savedToWishlist : undefined}
+                aria-busy={!wishlistHeartKnown}
+                disabled={wishlistBusy || !wishlistHeartKnown}
                 onClick={handleToggleWishlist}
               >
                 <Heart
                   size={18}
-                  className={`${savedToWishlist ? 'fill-finland text-finland' : ''} ${savePop ? 'tv-pop' : ''}`}
+                  className={`${wishlistHeartKnown && savedToWishlist ? 'fill-finland text-finland' : ''} ${savePop ? 'tv-pop' : ''}`}
                 />
               </button>
             ) : null}
