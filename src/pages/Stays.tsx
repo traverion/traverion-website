@@ -325,18 +325,27 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
   const propertyTypes = useMemo(() => collectStayPropertyTypes(stays), [stays]);
   const amenityOptions = useMemo(() => collectStayAmenities(stays), [stays]);
 
-  // Hidden filters must not keep filtering — that would be a UI-only illusion.
+  // Phase 1366: orphan type/amenity URL params must not keep filtering (Packages 1363 parity).
   useEffect(() => {
-    if (propertyTypes.length === 0 && propertyType && propertyType !== 'all') {
+    if (!propertyType || propertyType === 'all') return;
+    if (
+      propertyTypes.length === 0 ||
+      !propertyTypes.some((t) => t.toLowerCase() === propertyType.toLowerCase())
+    ) {
       setPropertyType('all');
     }
-  }, [propertyTypes.length, propertyType]);
+  }, [propertyTypes, propertyType]);
 
   useEffect(() => {
-    if (amenityOptions.length === 0 && selectedAmenities.length > 0) {
+    if (selectedAmenities.length === 0) return;
+    if (amenityOptions.length === 0) {
       setSelectedAmenities([]);
+      return;
     }
-  }, [amenityOptions.length, selectedAmenities.length]);
+    const known = new Set(amenityOptions.map((a) => a.toLowerCase()));
+    const pruned = selectedAmenities.filter((a) => known.has(a.toLowerCase()));
+    if (pruned.length !== selectedAmenities.length) setSelectedAmenities(pruned);
+  }, [amenityOptions, selectedAmenities]);
 
   const { filtered, knownOccupiedForNights } = useMemo(() => {
     let knownOccupied = 0;

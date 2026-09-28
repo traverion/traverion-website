@@ -143,6 +143,20 @@ describe('marketplace browse filters', () => {
     expect(stayHasAmenity(stay(), 'Parking')).toBe(false);
   });
 
+  it('Phase 1366: unknown stay property type matches no listings (fail closed)', () => {
+    expect(
+      stayMatchesCatalogFilters(stay(), {
+        q: '',
+        guests: '',
+        propertyType: 'Castle',
+        price: 'all',
+        amenities: [],
+        rating: 'all',
+        ratingScore: null,
+      })
+    ).toBe(false);
+  });
+
   it('filters stays by guests, type, amenities, and nightly price', () => {
     const cabin = stay();
     expect(
