@@ -511,6 +511,25 @@ export default function SupplierEarnings() {
               icon={Wallet}
               title={PARTNER_MONEY_EMPTY_TITLE}
               body={PARTNER_MONEY_EMPTY_BODY}
+              // Phase 1647: empty Money needs an ops path (Performance / Inbox empty parity).
+              action={
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="tv-btn-primary"
+                    onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings`)}
+                  >
+                    Open bookings
+                  </button>
+                  <button
+                    type="button"
+                    className="tv-btn-ghost"
+                    onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings`)}
+                  >
+                    Your listings
+                  </button>
+                </div>
+              }
             />
           ) : (
           <section>
