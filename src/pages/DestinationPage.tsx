@@ -283,13 +283,19 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
             body={`Nothing is live in ${label} right now. That is normal until an operator lists a tour or stay for this place.`}
             action={
               <div className="flex flex-wrap gap-2">
+                {/* Phase 1669: onBack is home — label truthfully; offer real browse exits. */}
                 <button type="button" onClick={onBack} className="tv-btn-primary">
-                  Browse tours and stays
+                  Back to home
                 </button>
                 {onNavigate ? (
-                  <button type="button" onClick={() => onNavigate('stays')} className="tv-btn-ghost">
-                    Browse stays
-                  </button>
+                  <>
+                    <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-ghost">
+                      Browse tours
+                    </button>
+                    <button type="button" onClick={() => onNavigate('stays')} className="tv-btn-ghost">
+                      Browse stays
+                    </button>
+                  </>
                 ) : null}
               </div>
             }
