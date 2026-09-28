@@ -663,11 +663,24 @@ export async function promotePaidFromCheckoutSession(params: {
   // Phase 1154: never confirm paid self-book (stale session from before 1146/1152).
   const guestUserId = String(existingBooking?.guest_user_id ?? '').trim();
   if (listingId && guestUserId) {
-    const { data: listingOwn } = await admin
+    const { data: listingOwn, error: listingOwnErr } = await admin
       .from('listings')
       .select('supplier_id')
       .eq('id', listingId)
       .maybeSingle();
+    // Phase 1309: listing lookup failure must not skip self-book gates.
+    if (listingOwnErr) {
+      return json(
+        {
+          success: false,
+          error: 'Could not verify self-book eligibility',
+          reason: 'self_book_listing_lookup_failed',
+          eventId: event.id,
+          bookingId,
+        },
+        500
+      );
+    }
     const listingSupplierId = String(listingOwn?.supplier_id ?? '').trim();
     let isSelfBook =
       listingSupplierId.length > 0 && listingSupplierId === guestUserId;
