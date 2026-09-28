@@ -1,5 +1,6 @@
 import LegalPageShell from '../components/LegalPageShell';
 import { supplierPortalLandingHref } from '../lib/partnerHost';
+import { travelerLoginHref } from '../lib/travelerAuthLinks';
 
 const partnerPortalHomeHref = supplierPortalLandingHref();
 
@@ -25,7 +26,7 @@ const SECTIONS: SitemapSection[] = [
   {
     title: 'Account',
     items: [
-      { label: 'Sign in / Sign up', href: '/log-in?next=account' },
+      { label: 'Sign in / Sign up', href: travelerLoginHref('account') },
       { label: 'My account', page: 'account' },
       { label: 'Saved', page: 'wishlist' },
       { label: 'Trips', page: 'bookings' },
@@ -99,6 +100,13 @@ export default function Sitemap({ onNavigate }: SitemapProps) {
                   ) : (
                     <a
                       href={item.href}
+                      // Phase 1643: traveler auth links stay in the SPA when onNavigate is available.
+                      onClick={(e) => {
+                        if (!onNavigate || !item.href?.includes('log-in')) return;
+                        e.preventDefault();
+                        window.history.pushState({}, '', item.href);
+                        onNavigate('auth');
+                      }}
                       className="text-sm font-medium text-finland hover:underline underline-offset-2"
                     >
                       {item.label}
