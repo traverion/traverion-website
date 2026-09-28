@@ -495,7 +495,12 @@ export default function SupplierBookings({
       }
       if (!q) return true;
 
-      const title = (listingMeta[b.listing_id]?.title ?? '').toLowerCase();
+      // Phase 1481: search must match purchased titles shown on rows, not live listing renames.
+      const title = displayListingTitleFromPurchase(
+        b.purchase_snapshot,
+        listingMeta[b.listing_id]?.title,
+        ''
+      ).toLowerCase();
       const idLower = b.id.toLowerCase();
       const guestName = (b.guest_name ?? '').toLowerCase();
       const guestEmail = (b.guest_email ?? '').toLowerCase();
