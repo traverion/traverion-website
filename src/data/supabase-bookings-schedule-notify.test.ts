@@ -19,3 +19,23 @@ describe('updateBookingSchedule notify purchased title (Phase 1477)', () => {
     expect(notifyBlock).not.toMatch(/lt\?\.title\?\.trim\(\)\s*\)\s*listingTitle\s*=/);
   });
 });
+
+/**
+ * Layer B: traveler cancel notify emails must use purchased listing title (Phase 1478),
+ * not live listings.title after a partner rename.
+ */
+describe('cancelBookingAsCustomer notify purchased title (Phase 1478)', () => {
+  it('uses displayListingTitleFromPurchase for customer and supplier cancel emails', () => {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const src = readFileSync(join(here, 'supabase-bookings.ts'), 'utf8');
+    expect(src).toMatch(/Phase 1478/);
+    const fn = src.slice(src.indexOf('export async function cancelBookingAsCustomer'));
+    const notifyBlock = fn.slice(
+      fn.indexOf('let listingTitle = displayListingTitleFromPurchase'),
+      fn.indexOf('const guestEmail =')
+    );
+    expect(notifyBlock).toContain('bookingMeta.purchase_snapshot');
+    expect(notifyBlock).not.toMatch(/listingTitle\s*=\s*listingData\.title/);
+    expect(notifyBlock).not.toMatch(/listingTitle:\s*listingData\.title/);
+  });
+});

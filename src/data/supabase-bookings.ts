@@ -775,11 +775,13 @@ export async function cancelBookingAsCustomer(
       : TRAVELER_SELF_CANCEL_EMAIL_DIFF_NO_REFUND;
   const { data: bookingMeta } = await supabase
     .from('bookings')
-    .select('id, listing_id, booking_date, guests, guest_name, guest_email, refund_choice, booking_number')
+    .select(
+      'id, listing_id, booking_date, guests, guest_name, guest_email, refund_choice, booking_number, purchase_snapshot'
+    )
     .eq('id', bookingId)
     .maybeSingle();
 
-  let listingTitle = 'Listing';
+  let listingTitle = displayListingTitleFromPurchase(bookingMeta?.purchase_snapshot, null, 'Listing');
   const cancelOrd =
     typeof bookingMeta?.booking_number === 'number' && Number.isFinite(bookingMeta.booking_number)
       ? Math.floor(bookingMeta.booking_number)
@@ -790,13 +792,18 @@ export async function cancelBookingAsCustomer(
       .select('supplier_id, title')
       .eq('id', bookingMeta.listing_id)
       .maybeSingle();
-    if (listingData?.title?.trim()) listingTitle = listingData.title.trim();
+    // Phase 1478: cancel emails must name what was purchased, not a later partner rename.
+    listingTitle = displayListingTitleFromPurchase(
+      bookingMeta.purchase_snapshot,
+      listingData?.title?.trim() || null,
+      'Listing'
+    );
     if (listingData?.supplier_id) {
       void notifySupplierEvent({
         supplierId: listingData.supplier_id,
         eventType: 'booking_cancelled',
         listingId: bookingMeta.listing_id,
-        listingTitle: listingData.title ?? undefined,
+        listingTitle,
         bookingId: bookingMeta.id,
         bookingDate: bookingMeta.booking_date ?? undefined,
         guests: Number(bookingMeta.guests ?? 0),
