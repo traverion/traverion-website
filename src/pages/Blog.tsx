@@ -9,6 +9,16 @@ export default function Blog({ onNavigate }: { onNavigate?: (page: string) => vo
     onNavigate?.('packages');
   };
 
+  const goStays = (e: React.MouseEvent) => {
+    e.preventDefault();
+    onNavigate?.('stays');
+  };
+
+  const goContact = (e: React.MouseEvent) => {
+    e.preventDefault();
+    onNavigate?.('contact');
+  };
+
   return (
     <LegalPageShell
       eyebrow="Explore"
@@ -26,15 +36,12 @@ export default function Blog({ onNavigate }: { onNavigate?: (page: string) => vo
             <a href="/packages" onClick={goTours} className="tv-btn-primary">
               Browse tours
             </a>
-            <a
-              href="/stays"
-              onClick={(e) => {
-                e.preventDefault();
-                onNavigate?.('stays');
-              }}
-              className="tv-btn-ghost"
-            >
+            <a href="/stays" onClick={goStays} className="tv-btn-ghost">
               Browse stays
+            </a>
+            {/* Phase 1649: Contact for editorial / partnership questions. */}
+            <a href="/contact" onClick={goContact} className="tv-btn-ghost">
+              Contact us
             </a>
           </div>
         }
