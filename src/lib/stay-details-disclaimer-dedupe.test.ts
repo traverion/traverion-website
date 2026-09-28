@@ -11,7 +11,7 @@ describe('StayDetails sticky disclaimer (Phase 1586)', () => {
   it('does not duplicate BOOKING_CONFIRMATION_EMAIL_DISCLAIMER after STAY_LISTING (1585)', () => {
     expect(src).toContain('Phase 1586');
     expect(src).toMatch(
-      /Phase 1586[\s\S]*\{STAY_LISTING_CONFIRMATION_NOTE\} \{STRIPE_TEST_UNTIL_LIVE\}\./
+      /Phase 1586\/1594[\s\S]*\{STAY_LISTING_CONFIRMATION_NOTE\} Checkout uses \{STRIPE_TEST_UNTIL_LIVE\}\./
     );
     expect(src).not.toMatch(
       /STAY_LISTING_CONFIRMATION_NOTE\} \{BOOKING_CONFIRMATION_EMAIL_DISCLAIMER\}/

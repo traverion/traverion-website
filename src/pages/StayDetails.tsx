@@ -1319,8 +1319,8 @@ export default function StayDetails({ stayId, onBack }: Props) {
               </button>
             )}
             <p className="mt-3 text-xs text-ink-muted leading-relaxed">
-              {/* Phase 1586: STAY_LISTING already includes Trips disclaimer (1585) — do not duplicate. */}
-              {STAY_LISTING_CONFIRMATION_NOTE} {STRIPE_TEST_UNTIL_LIVE}.
+              {/* Phase 1586/1594: STAY_LISTING includes Trips disclaimer; Stripe TEST as its own clause. */}
+              {STAY_LISTING_CONFIRMATION_NOTE} Checkout uses {STRIPE_TEST_UNTIL_LIVE}.
             </p>
           </aside>
         </div>
