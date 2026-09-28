@@ -96,9 +96,9 @@ export function bookingConfirmationCancelledNextStep(b: MoneyBookingRow): string
   return 'Manage this booking from Trips — no payment was collected for a completed booking.';
 }
 
-/** Stay listing / checkout panel: confirmation is Trips, not mail. */
+/** Stay listing / checkout panel: Trips is durable; email may arrive but is not proof (paid notify exists). */
 export const STAY_LISTING_CONFIRMATION_NOTE =
-  'After you pay, the stay appears in Trips. We do not send a confirmation email from this checkout.';
+  `After you pay, the stay appears in Trips. ${BOOKING_CONFIRMATION_EMAIL_DISCLAIMER}`;
 
 /**
  * Phase 1514: Check-in & check-out heading must not imply published times
@@ -118,9 +118,9 @@ export function stayCheckInOutMissingCopy(params: {
   return null;
 }
 
-/** Tour listing booking panel: confirmation is Trips, not mail. */
+/** Tour listing booking panel: Trips is durable; email may arrive but is not proof (paid notify exists). */
 export const TOUR_LISTING_CONFIRMATION_NOTE =
-  'After you pay, the tour appears in Trips. We do not send a confirmation email from this checkout.';
+  `After you pay, the tour appears in Trips. ${BOOKING_CONFIRMATION_EMAIL_DISCLAIMER}`;
 
 /** Checkout contact step: always honest about email, including when not signed in. */
 export function bookingContactIntroCopy(signedInWithEmail: boolean): string {
@@ -133,13 +133,13 @@ export function bookingContactIntroCopy(signedInWithEmail: boolean): string {
 }
 
 export const BOOKING_CONTACT_EMAIL_FIELD_NOTE =
-  'This email is for the booking record. We do not send a confirmation email from this checkout.';
+  `This email is for the booking record. ${BOOKING_CONFIRMATION_EMAIL_DISCLAIMER}`;
 
-/** Checkout pay step: confirmation is Trips / Booking confirmed, not mail. */
+/** Checkout pay step: confirmation is Trips / Booking confirmed; email may arrive but is not proof. */
 export function bookingPayConfirmAfterPayCopy(holdMinutes: number): string {
   return (
     `After Stripe confirms payment, Traverion shows Booking confirmed with your reference. Manage the trip from Trips. ` +
-    `We do not send a confirmation email from this checkout. ${BOOKING_CONFIRMATION_EMAIL_DISCLAIMER} ` +
+    `${BOOKING_CONFIRMATION_EMAIL_DISCLAIMER} ` +
     `If you leave Stripe without paying, the hold expires after ${holdMinutes} minutes and nothing is charged.`
   );
 }
