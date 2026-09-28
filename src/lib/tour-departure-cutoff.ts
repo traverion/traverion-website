@@ -53,6 +53,40 @@ function tzOffsetMs(timeZone: string, instant: Date): number {
   return asUtc - instant.getTime();
 }
 
+/** Local calendar date + HH:MM for an instant in `timeZone`. */
+function wallClockAtInstant(
+  ms: number,
+  timeZone: string
+): { ymd: string; hm: string } | null {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(new Date(ms));
+    const g = (type: string) => parts.find((p) => p.type === type)?.value;
+    const y = g('year');
+    const mo = g('month');
+    const d = g('day');
+    const hRaw = g('hour');
+    const mi = g('minute');
+    if (!y || !mo || !d || !hRaw || !mi) return null;
+    let hour = Number.parseInt(hRaw, 10);
+    if (!Number.isFinite(hour)) return null;
+    if (hour === 24) hour = 0;
+    return {
+      ymd: `${y}-${mo}-${d}`,
+      hm: `${String(hour).padStart(2, '0')}:${mi}`,
+    };
+  } catch {
+    return null;
+  }
+}
+
 /** YYYY-MM-DD + HH:MM as wall time in `timeZone` → UTC epoch ms. */
 export function wallTimeInZoneToUtcMs(
   isoDate: string,
@@ -71,6 +105,10 @@ export function wallTimeInZoneToUtcMs(
     if (next === utc) break;
     utc = next;
   }
+  // Phase 1481: reject DST spring-forward "gap" times (e.g. 03:00 → 02:00) so
+  // cutoff / bookability never treat a nonexistent wall clock as an hour early.
+  const wall = wallClockAtInstant(utc, timeZone);
+  if (!wall || wall.ymd !== date || wall.hm !== hm) return null;
   return utc;
 }
 

@@ -48,6 +48,14 @@ describe('wallTimeInZoneToUtcMs (Europe/Helsinki)', () => {
     const ms = wallTimeInZoneToUtcMs('2026-01-15', '20:00', 'America/New_York');
     expect(ms).toBe(Date.UTC(2026, 0, 16, 1, 0, 0));
   });
+
+  it('Phase 1481: rejects spring-forward gap times that collapse to an earlier hour (Europe/Helsinki)', () => {
+    // 2026-03-29 EU clocks skip 03:00–03:59; naive offset math mapped 03:00 → same instant as 02:00.
+    expect(wallTimeInZoneToUtcMs('2026-03-29', '03:00', 'Europe/Helsinki')).toBeNull();
+    expect(wallTimeInZoneToUtcMs('2026-03-29', '03:30', 'Europe/Helsinki')).toBeNull();
+    expect(wallTimeInZoneToUtcMs('2026-03-29', '02:00', 'Europe/Helsinki')).not.toBeNull();
+    expect(wallTimeInZoneToUtcMs('2026-03-29', '04:00', 'Europe/Helsinki')).not.toBeNull();
+  });
 });
 
 describe('assertDepartureStillBookable', () => {
@@ -87,6 +95,18 @@ describe('assertDepartureStillBookable', () => {
       nowMs: startMs - 3 * 60 * 60 * 1000,
     });
     expect(res.ok).toBe(true);
+  });
+
+  it('Phase 1481: bad_time when departure wall clock does not exist (spring-forward gap)', () => {
+    const res = assertDepartureStillBookable({
+      bookingDate: '2026-03-29',
+      startTimeHm: '03:00',
+      cutoffHoursBeforeStart: 0,
+      nowMs: Date.parse('2026-03-28T12:00:00.000Z'),
+      timeZone: 'Europe/Helsinki',
+    });
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.code).toBe('bad_time');
   });
 
   it('uses listing timezone for cutoff math', () => {
