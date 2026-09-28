@@ -1914,10 +1914,12 @@ export default function BookingPage({
         </button>
       ) : null}
       {step === 'date-guests' ? (
-        <div className="flex flex-col gap-3">
-          <p className="text-sm text-ink-muted">
+        <div className="flex min-w-0 flex-col gap-3">
+          <p className="truncate text-sm text-ink-muted">
             <span className="text-ink-faint">Total</span>{' '}
-            <strong className="text-ink">{quoteBlockReason ? '—' : formatMoney(total, currency)}</strong>
+            <strong className="font-semibold tabular-nums text-ink">
+              {quoteBlockReason ? '—' : formatMoney(total, currency)}
+            </strong>
           </p>
           <button
             type="button"
@@ -1940,7 +1942,7 @@ export default function BookingPage({
         </div>
       ) : null}
       {step === 'confirm' ? (
-        <div className="flex flex-col-reverse gap-2">
+        <div className="flex min-w-0 flex-col-reverse gap-2">
           <button
             type="button"
             onClick={() => setStep(flowMode === 'modal' || selectedVariant ? 'review' : 'date-guests')}
@@ -1958,7 +1960,7 @@ export default function BookingPage({
               submitting ||
               capacityBlocksPay
             }
-            className="tv-btn-primary w-full whitespace-normal text-center disabled:opacity-50"
+            className="tv-btn-primary min-w-0 w-full max-w-full text-center text-sm leading-snug line-clamp-3 disabled:opacity-50"
           >
             {submitting
               ? 'Redirecting to Stripe…'
@@ -2084,7 +2086,7 @@ export default function BookingPage({
       {presentation !== 'modal'
         ? createPortal(
             <div className="lg:hidden fixed inset-x-0 bottom-0 z-[60] border-t border-black/[0.06] bg-paper-raised/95 backdrop-blur-md px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-              {checkoutDockInner}
+              <div className="mx-auto w-full min-w-0 max-w-5xl">{checkoutDockInner}</div>
             </div>,
             document.body
           )
