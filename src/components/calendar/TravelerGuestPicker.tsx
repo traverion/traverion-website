@@ -62,6 +62,7 @@ export function TravelerGuestPicker({
   const panelRef = useRef<HTMLDivElement>(null);
   const panelId = useId();
   const labelId = useId();
+  const summaryId = useId();
   const [counts, setCounts] = useState<TravelerGuestCounts>(() => guestCountsFromTotal(value));
 
   useEffect(() => {
@@ -108,7 +109,7 @@ export function TravelerGuestPicker({
       <button
         type="button"
         id={id}
-        aria-labelledby={labelId}
+        aria-labelledby={`${labelId} ${summaryId}`}
         aria-expanded={open}
         aria-controls={panelId}
         aria-haspopup="dialog"
@@ -116,7 +117,12 @@ export function TravelerGuestPicker({
         className="flex h-9 w-full items-center gap-2 border-0 bg-transparent pr-1 text-left text-[15px] text-ink focus:outline-none"
       >
         <Users className="h-4 w-4 shrink-0 text-ink-faint" aria-hidden />
-        <span className={counts.adults + counts.children > 0 ? 'text-ink' : 'text-ink-muted'}>{summary}</span>
+        <span
+          id={summaryId}
+          className={counts.adults + counts.children > 0 ? 'text-ink' : 'text-ink-muted'}
+        >
+          {summary}
+        </span>
       </button>
       {open ? (
         <div
