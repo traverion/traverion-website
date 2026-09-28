@@ -76,6 +76,21 @@ export function bookingConfirmationCancelledBody(b: MoneyBookingRow): string {
   return 'This booking is cancelled. Open Trips for the current status.';
 }
 
+/** Post-checkout “What happens next” for cancelled bookings — must match payment label, not always Refund due. */
+export function bookingConfirmationCancelledNextStep(b: MoneyBookingRow): string {
+  const pay = travelerPaymentLabel(b);
+  if (pay === 'Refund due') {
+    return 'Manage this booking from Trips — Cancelled shows Refund due until Stripe records a refund.';
+  }
+  if (pay === 'Refunded') {
+    return 'Manage this booking from Trips — Cancelled shows Refunded.';
+  }
+  if (pay === 'No refund') {
+    return 'Manage this booking from Trips — no refund applies for this cancellation.';
+  }
+  return 'Manage this booking from Trips — no payment was collected for a completed booking.';
+}
+
 /** Stay listing / checkout panel: confirmation is Trips, not mail. */
 export const STAY_LISTING_CONFIRMATION_NOTE =
   'After you pay, the stay appears in Trips. We do not send a confirmation email from this checkout.';

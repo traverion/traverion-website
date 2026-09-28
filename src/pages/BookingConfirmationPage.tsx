@@ -37,6 +37,7 @@ import {
   BOOKING_CONFIRMATION_NEEDS_PAY_TITLE,
   bookingConfirmationPhase,
   bookingConfirmationCancelledBody,
+  bookingConfirmationCancelledNextStep,
   BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE,
   STRIPE_TEST_UNTIL_LIVE,
   TRAVELER_HOLD_EXPIRED_PAY_NOW_NOTE,
@@ -651,7 +652,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
               <div className="pt-4 space-y-3">
                 {cancelled ? (
                   <NoticeCallout title="What happens next" tone="info">
-                    Manage this booking from Trips — Cancelled shows Refund due until Stripe records a refund.
+                    {bookingConfirmationCancelledNextStep(booking)}
                   </NoticeCallout>
                 ) : needsPay ? (
                   <NoticeCallout title="What happens next" tone="warn">

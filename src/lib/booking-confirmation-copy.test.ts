@@ -113,6 +113,7 @@ import {
   bookingConfirmationPromisesEmailSent,
   bookingConfirmationPhase,
   bookingConfirmationCancelledBody,
+  bookingConfirmationCancelledNextStep,
   bookingContactIntroCopy,
   bookingPayConfirmAfterPayCopy,
   readStripeCheckoutReturnBanner,
@@ -597,5 +598,28 @@ describe('booking confirmation copy', () => {
     });
     expect(due.toLowerCase()).toContain('refund due');
     expect(bookingConfirmationPromisesEmailSent(due)).toBe(false);
+
+    const dueNext = bookingConfirmationCancelledNextStep({
+      status: 'cancelled',
+      payment_status: 'paid',
+      amount_paid: 189,
+    });
+    expect(dueNext.toLowerCase()).toContain('refund due');
+
+    const noRefundNext = bookingConfirmationCancelledNextStep({
+      status: 'cancelled',
+      payment_status: 'paid',
+      amount_paid: 189,
+      refund_choice: 'no_refund',
+    });
+    expect(noRefundNext.toLowerCase()).not.toContain('refund due');
+    expect(noRefundNext.toLowerCase()).toContain('no refund applies');
+
+    const unpaidNext = bookingConfirmationCancelledNextStep({
+      status: 'cancelled',
+      payment_status: 'pending',
+    });
+    expect(unpaidNext.toLowerCase()).not.toContain('refund due');
+    expect(unpaidNext.toLowerCase()).toContain('no payment was collected');
   });
 });
