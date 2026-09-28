@@ -68,11 +68,12 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
   );
 
   const catalogBase = useMemo(() => {
-    const base =
-      isSupabaseConfigured() && supplierListings !== null
-        ? [...supplierListings]
-        : getAllListings({ includeSeed: false, includeHolidayPackages: false });
-    return base;
+    if (isSupabaseConfigured()) {
+      // Phase 1356: never invent Home catalog from localStorage when live fetch is null/failed.
+      if (supplierListings !== null) return [...supplierListings];
+      return [];
+    }
+    return getAllListings({ includeSeed: false, includeHolidayPackages: false });
   }, [supplierListings]);
 
   const allListings = useMemo(

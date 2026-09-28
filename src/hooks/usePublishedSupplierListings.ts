@@ -7,7 +7,8 @@ import type { TourPackage } from '../types/tour';
 type Options = {
   /**
    * When the first request fails, set listings to [] so the UI can leave a loading skeleton (e.g. Packages).
-   * When false, keep null on first error so callers can fall back to non-Supabase data (Home, Destination).
+   * When false, keep null on first error so Home/Destination can show ErrorState without inventing
+   * localStorage catalog (Phase 1356) — callers must not fall back to getAllListings while configured.
    */
   emptyOnFirstError?: boolean;
 };
