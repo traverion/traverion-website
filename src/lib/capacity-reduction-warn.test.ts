@@ -1,10 +1,30 @@
 import { describe, expect, it } from 'vitest';
 import {
+  bulkCapacityBelowSoldWarning,
   capacityBelowSoldWarning,
   scheduleDepartureTimeMoveBlockReason,
   scheduleDepartureTimeMoveWarning,
   scheduleSpotsBelowSoldWarning,
 } from './capacity-reduction-warn';
+
+describe('bulkCapacityBelowSoldWarning', () => {
+  it('warns when bulk cap is below sold guests on any date in range', () => {
+    const msg = bulkCapacityBelowSoldWarning({
+      newCapacity: 3,
+      dates: ['2026-06-01', '2026-06-02', '2026-06-03'],
+      occupyingGuestsForDate: (iso) => (iso === '2026-06-02' ? 5 : 0),
+    });
+    expect(msg).toMatch(/5 guests/);
+    expect(msg).toMatch(/1 date in this range/);
+    expect(
+      bulkCapacityBelowSoldWarning({
+        newCapacity: 8,
+        dates: ['2026-06-01'],
+        occupyingGuestsForDate: () => 4,
+      })
+    ).toBeNull();
+  });
+});
 
 describe('capacityBelowSoldWarning', () => {
   it('warns when new cap is below occupying guests', () => {

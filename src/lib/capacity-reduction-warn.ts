@@ -18,6 +18,30 @@ export function capacityBelowSoldWarning(params: {
   return `You already have ${sold} guest${sold === 1 ? '' : 's'} on ${scope}. Lowering the cap to ${cap} will not cancel those trips — it only limits new bookings. Existing paid bookings keep their seats.`;
 }
 
+/** Partner bulk tour caps — same honesty as single-day saveCap (SupplierAvailability). */
+export function bulkCapacityBelowSoldWarning(params: {
+  newCapacity: number;
+  dates: string[];
+  occupyingGuestsForDate: (iso: string) => number;
+}): string | null {
+  const cap = Math.max(0, Math.floor(params.newCapacity));
+  let affected = 0;
+  let peakSold = 0;
+  for (const iso of params.dates) {
+    const sold = Math.max(0, Math.floor(params.occupyingGuestsForDate(iso)));
+    if (sold >= 1 && cap < sold) {
+      affected += 1;
+      peakSold = Math.max(peakSold, sold);
+    }
+  }
+  if (affected < 1) return null;
+  const scope =
+    affected === 1 && params.dates.length === 1
+      ? 'this date'
+      : `${affected} date${affected === 1 ? '' : 's'} in this range`;
+  return capacityBelowSoldWarning({ newCapacity: cap, occupyingGuests: peakSold, scopeLabel: scope });
+}
+
 /** Schedule max spots reduced below paid/held occupancy for that departure. */
 export function scheduleSpotsBelowSoldWarning(params: {
   newMaxSpots: number;

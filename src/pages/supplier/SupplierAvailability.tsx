@@ -28,7 +28,7 @@ import {
 } from '../../lib/availability-ops';
 import { tourSellingDeparturesOnDate } from '../../lib/listing-option-schedules';
 import { formatPartnerCheckoutHoldLabel, tourCheckoutOccupiedGuests, normalizeTourStartTimeHm } from '../../lib/booking-hold';
-import { capacityBelowSoldWarning } from '../../lib/capacity-reduction-warn';
+import { bulkCapacityBelowSoldWarning, capacityBelowSoldWarning } from '../../lib/capacity-reduction-warn';
 import { experienceTodayIsoForListing } from '../../lib/booking-quote';
 import { navigateSupplierUrl, openSupplierBooking } from '../../lib/supplierPortalNavigation';
 import { PARTNER_CREATE_PATH } from '../../lib/partnerPortalPaths';
@@ -464,6 +464,16 @@ export default function SupplierAvailability() {
     }
     if (mode === 'clear') removeCapRows(dates);
     else mergeCapRows(dates.map((available_date) => ({ available_date, capacity })));
+    if (mode === 'set' && !stayCalendar) {
+      const underSold = bulkCapacityBelowSoldWarning({
+        newCapacity: capacity,
+        dates,
+        occupyingGuestsForDate: (iso) => guestsByDate.get(iso)?.guests ?? 0,
+      });
+      setSaveNote(underSold);
+    } else {
+      setSaveNote(null);
+    }
     setBulkOpen(false);
     setBulkFrom('');
     setBulkTo('');
@@ -571,6 +581,13 @@ export default function SupplierAvailability() {
               </NoticeCallout>
             </div>
           ) : null}
+          {saveNote && !editing ? (
+            <div className="mb-4">
+              <NoticeCallout title="Capacity saved with bookings on those dates" tone="info">
+                {saveNote}
+              </NoticeCallout>
+            </div>
+          ) : null}
           <div className="flex items-center justify-between gap-3 mb-4">
             <button
               type="button"
@@ -622,6 +639,7 @@ export default function SupplierAvailability() {
                 type="button"
                 onClick={() => {
                   setBulkError(null);
+                  setSaveNote(null);
                   setBulkFrom('');
                   setBulkTo('');
                   setBulkCapacity('0');
@@ -776,6 +794,7 @@ export default function SupplierAvailability() {
                     } else if (!listingId) {
                       return;
                     }
+                    setSaveNote(null);
                     setEditing({
                       iso: cell.iso,
                       capacity: String(cap?.capacity ?? defaultSpots(listing) ?? ''),
@@ -1010,6 +1029,13 @@ export default function SupplierAvailability() {
                       booking — clear the cap or adjust options on the listing.
                     </p>
                   ) : null}
+                  {saveNote ? (
+                    <div className="mt-4">
+                      <NoticeCallout title="Cap saved — existing bookings unchanged" tone="info">
+                        {saveNote}
+                      </NoticeCallout>
+                    </div>
+                  ) : null}
                   <p className="mt-5 text-sm text-ink-muted">
                     Daily cap is optional. Clearing it returns the date to weekday rules.
                   </p>
@@ -1080,6 +1106,23 @@ export default function SupplierAvailability() {
                     <NoticeCallout title="Some nights already have stays" tone="info">
                       {occupiedNights} night{occupiedNights === 1 ? '' : 's'} in this range already have paid
                       guests. Blocking still saves; Occupied labels stay until checkout.
+                    </NoticeCallout>
+                  ) : null;
+                })()
+              : null}
+            {!stayCalendar &&
+            /^\d{4}-\d{2}-\d{2}$/.test(bulkFrom) &&
+            /^\d{4}-\d{2}-\d{2}$/.test(bulkTo) &&
+            bulkFrom <= bulkTo
+              ? (() => {
+                  const underSold = bulkCapacityBelowSoldWarning({
+                    newCapacity: Math.max(0, Math.floor(Number(bulkCapacity) || 0)),
+                    dates: enumerateIsoDates(bulkFrom, bulkTo),
+                    occupyingGuestsForDate: (iso) => guestsByDate.get(iso)?.guests ?? 0,
+                  });
+                  return underSold ? (
+                    <NoticeCallout title="Some dates already have more guests booked" tone="info">
+                      {underSold}
                     </NoticeCallout>
                   ) : null;
                 })()
