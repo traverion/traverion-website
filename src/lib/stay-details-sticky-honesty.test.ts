@@ -26,7 +26,18 @@ describe('StayDetails desktop PriceHero honesty (Phase 1548)', () => {
   it('hides PriceHero catalog nightly when check-in/out set and quote failed', () => {
     expect(src).toContain('Phase 1548');
     expect(src).toMatch(
-      /checkIn && checkOut && stayQuote && !stayQuote\.ok[\s\S]*tabular-nums text-ink">—</
+      /Phase 1548[\s\S]*checkIn && checkOut && stayQuote && !stayQuote\.ok[\s\S]*PriceHero/
+    );
+  });
+});
+
+describe('StayDetails page hero honesty (Phase 1557)', () => {
+  const src = readFileSync(join(here, '../pages/StayDetails.tsx'), 'utf8');
+
+  it('hides header catalog nightly when dates set and quote failed', () => {
+    expect(src).toContain('Phase 1557');
+    expect(src).toMatch(
+      /Phase 1557[\s\S]*checkIn && checkOut && stayQuote && !stayQuote\.ok[\s\S]*per night/
     );
   });
 });

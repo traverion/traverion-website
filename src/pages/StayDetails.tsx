@@ -810,7 +810,10 @@ export default function StayDetails({ stayId, onBack }: Props) {
               </div>
             ) : null}
           </dl>
-          {nightly > 0 ? (
+          {/* Phase 1557: dates + failed quote — do not invent catalog nightly in page hero (1546/1548). */}
+          {checkIn && checkOut && stayQuote && !stayQuote.ok ? (
+            <p className="mt-4 text-lg font-semibold tabular-nums text-ink">—</p>
+          ) : nightly > 0 ? (
             <p className="mt-4 text-lg font-semibold tabular-nums text-ink">
               {formatMoney(nightly, currency)}
               <span className="ml-1 text-sm font-medium text-ink-muted">per night</span>
