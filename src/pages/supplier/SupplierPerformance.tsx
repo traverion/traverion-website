@@ -291,6 +291,15 @@ export default function SupplierPerformance() {
               <button type="button" onClick={() => setWindowAndUrl('all')} className="tv-btn-secondary">
                 Show all time
               </button>
+            ) : bookings.length > 0 ? (
+              // Phase 1652: unpaid/cancelled-only ops — open Bookings when all-time paid is empty.
+              <button
+                type="button"
+                onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings`)}
+                className="tv-btn-secondary"
+              >
+                View bookings
+              </button>
             ) : undefined
           }
         />
