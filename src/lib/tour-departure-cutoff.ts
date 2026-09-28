@@ -136,3 +136,21 @@ export function bookingCutoffTravelerLabel(hours: number): string | null {
   if (n === 1) return 'Book at least 1 hour before departure';
   return `Book at least ${n} hours before departure`;
 }
+
+/**
+ * Phase 1322: 0–23 wall-clock hour in an IANA zone (midnight → 0, not 24).
+ * Used for Partner Home greeting aligned with experience-local today.
+ */
+export function wallHourInTimeZone(nowMs: number = Date.now(), timeZone: string = TRAVERION_DEPARTURE_TIMEZONE): number {
+  const tz = resolveDepartureTimezone(timeZone);
+  const raw = new Intl.DateTimeFormat('en-GB', {
+    hour: 'numeric',
+    hour12: false,
+    timeZone: tz,
+  }).format(new Date(nowMs));
+  let hour = Number.parseInt(String(raw).trim(), 10);
+  if (!Number.isFinite(hour)) hour = 0;
+  if (hour === 24) hour = 0;
+  return Math.min(23, Math.max(0, hour));
+}
+

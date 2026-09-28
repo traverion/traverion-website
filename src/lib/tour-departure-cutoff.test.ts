@@ -4,6 +4,7 @@ import {
   bookingCutoffTravelerLabel,
   normalizeBookingCutoffHours,
   resolveDepartureTimezone,
+  wallHourInTimeZone,
   wallTimeInZoneToUtcMs,
 } from './tour-departure-cutoff';
 
@@ -114,5 +115,14 @@ describe('bookingCutoffTravelerLabel', () => {
     expect(bookingCutoffTravelerLabel(0)).toBeNull();
     expect(bookingCutoffTravelerLabel(1)).toMatch(/1 hour/);
     expect(bookingCutoffTravelerLabel(4)).toMatch(/4 hours/);
+  });
+});
+
+describe('wallHourInTimeZone (Phase 1322)', () => {
+  it('returns 0–23 for Helsinki including midnight', () => {
+    // 2026-01-15 22:00 UTC = 2026-01-16 00:00 Helsinki
+    expect(wallHourInTimeZone(Date.parse('2026-01-15T22:00:00.000Z'), 'Europe/Helsinki')).toBe(0);
+    // 2026-01-15 12:30 UTC = 2026-01-15 14:30 Helsinki
+    expect(wallHourInTimeZone(Date.parse('2026-01-15T12:30:00.000Z'), 'Europe/Helsinki')).toBe(14);
   });
 });
