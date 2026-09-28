@@ -229,6 +229,29 @@ describe('resolveSupplierEventContext: booking-tied events (Phase 579 content-fo
     }
   });
 
+  it('Phase 1528: nights-only stay re-derives checkOutDate and listingKind', () => {
+    const result = resolveSupplierEventContext({
+      eventType: 'new_booking',
+      supplierId: REAL_SUPPLIER,
+      bookingId: REAL_BOOKING,
+      listingId: REAL_LISTING,
+      reviewId: undefined,
+      listingRow,
+      bookingRow: {
+        ...bookingRow,
+        check_out: null,
+        nights: 3,
+        payment_status: 'paid',
+      },
+      reviewRow: undefined,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.overrides.listingKind).toBe('stay');
+    expect(result.overrides.bookingDate).toBe('2026-12-01');
+    expect(result.overrides.checkOutDate).toBe('2026-12-04');
+  });
+
   it('non-new_booking events never set bookingPaymentStatus', () => {
     const result = resolveSupplierEventContext({
       eventType: 'guest_message',
