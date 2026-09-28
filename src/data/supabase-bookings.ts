@@ -346,7 +346,9 @@ export async function updateGuestBookingSpecialRequests(
 
   const { data: row } = await supabase
     .from('bookings')
-    .select('id, listing_id, booking_date, guests, guest_name, guest_email, booking_number')
+    .select(
+      'id, listing_id, booking_date, guests, guest_name, guest_email, booking_number, purchase_snapshot'
+    )
     .eq('id', bookingId)
     .maybeSingle();
   if (!row?.listing_id) return { success: true };
@@ -356,6 +358,13 @@ export async function updateGuestBookingSpecialRequests(
     .select('supplier_id, title')
     .eq('id', row.listing_id)
     .maybeSingle();
+
+  // Phase 1480: details-update emails name what was purchased, not a later partner rename.
+  const listingTitle = displayListingTitleFromPurchase(
+    row.purchase_snapshot,
+    listingData?.title?.trim() || null,
+    'Listing'
+  );
 
   const prevPlace = extractPlaceOfStayFromNotes(prevNotes);
   const nextPlace = extractPlaceOfStayFromNotes(specialRequests);
@@ -389,7 +398,7 @@ export async function updateGuestBookingSpecialRequests(
       supplierId: listingData.supplier_id,
       eventType: 'guest_message',
       listingId: row.listing_id,
-      listingTitle: listingData.title ?? undefined,
+      listingTitle,
       bookingId: row.id,
       bookingDate: row.booking_date ?? undefined,
       guests: Number(row.guests ?? 0),
@@ -411,7 +420,7 @@ export async function updateGuestBookingSpecialRequests(
       body: {
         customerEmail: guestEmail,
         customerName: row.guest_name ?? undefined,
-        listingTitle: listingData?.title ?? 'Listing',
+        listingTitle,
         bookingId: row.id,
         bookingNumber: ord,
         bookingDate: row.booking_date ?? undefined,

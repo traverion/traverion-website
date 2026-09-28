@@ -39,3 +39,21 @@ describe('cancelBookingAsCustomer notify purchased title (Phase 1478)', () => {
     expect(notifyBlock).not.toMatch(/listingTitle:\s*listingData\.title/);
   });
 });
+
+/**
+ * Layer B: traveler special-request / meeting-details updates must use purchased title (Phase 1480),
+ * not live listings.title after a partner rename (1477 schedule / 1478 cancel parity).
+ */
+describe('updateGuestBookingSpecialRequests notify purchased title (Phase 1480)', () => {
+  it('uses displayListingTitleFromPurchase for customer and supplier detail-update emails', () => {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const src = readFileSync(join(here, 'supabase-bookings.ts'), 'utf8');
+    expect(src).toMatch(/Phase 1480/);
+    const fn = src.slice(src.indexOf('export async function updateGuestBookingSpecialRequests'));
+    const notifyStart = fn.indexOf('Phase 1480');
+    const notifyBlock = fn.slice(notifyStart, fn.indexOf('export async function', notifyStart + 1));
+    expect(notifyBlock).toMatch(/displayListingTitleFromPurchase\(\s*row\.purchase_snapshot/);
+    expect(notifyBlock).not.toMatch(/listingTitle:\s*listingData\.title/);
+    expect(notifyBlock).not.toMatch(/listingTitle:\s*listingData\?\.title/);
+  });
+});
