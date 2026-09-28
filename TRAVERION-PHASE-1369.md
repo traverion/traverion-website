@@ -1,7 +1,7 @@
 # Traverion — Phase horizon checkpoint (~1369)
 
 **Branch:** `reconstruction/phase-0-audit`  
-**HEAD:** see `git rev-parse HEAD` (Phase 1369)  
+**HEAD:** see `git rev-parse HEAD` (Phase 1386+)  
 **Remote migrations:** through **196**  
 **Stripe:** TEST only  
 
@@ -10,7 +10,7 @@ This is an interim scenery note while autonomous work continues toward the ~1500
 ## Starting truth (this band)
 
 - Prior band closed ~Phase 1346 (`149ca2c`), migrations through ~192.
-- This band: **1347 → 1369**.
+- This band: **1347 → 1386** (and continuing).
 
 ## What landed (1347–1369) — theme
 
