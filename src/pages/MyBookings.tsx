@@ -138,6 +138,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   const [openTripId, setOpenTripId] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<{ title: string; body: string } | null>(null);
   const loadGenRef = useRef(0);
+  const tripsUserIdRef = useRef<string | null>(null);
 
   const getRefundChoiceForCancel = useCallback((b: BookingRow): 'full_refund' | 'no_refund' => {
     const snapTz = displayDepartureTimezoneFromPurchase(b.purchase_snapshot);
@@ -323,15 +324,35 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
 
   useEffect(() => {
     if (authLoading) return;
-    if (user) void load();
-    else {
+    if (!user?.id) {
+      tripsUserIdRef.current = null;
+      loadGenRef.current += 1;
       setBookings([]);
       setListingOps({});
       setTitles({});
       setCancelRequests({});
+      setCancelRequestsError(null);
+      setLoadError(null);
       setLoading(false);
+      return;
     }
-  }, [user, load, authLoading]);
+    // Phase 1379: clear prior traveler trips before loading the next account (Account hub 1378 parity).
+    if (tripsUserIdRef.current !== user.id) {
+      tripsUserIdRef.current = user.id;
+      loadGenRef.current += 1;
+      setBookings([]);
+      setListingOps({});
+      setTitles({});
+      setCancelRequests({});
+      setCancelRequestsError(null);
+      setLoadError(null);
+      setOpenTripId(null);
+      setActionError(null);
+      setActionSuccess(null);
+      setCancelConfirm(null);
+    }
+    void load();
+  }, [user?.id, load, authLoading]);
 
   useEffect(() => {
     if (user?.id) clearBookingsUnread(user.id);
