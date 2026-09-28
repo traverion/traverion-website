@@ -371,8 +371,15 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     }, 40);
   }, []);
 
+  // Phase 1387: new tour route — drop prior PDP capacity (fail closed until this listing loads).
+  useEffect(() => {
+    setDayCapacitySnap(null);
+    setSoldOutDates(new Set());
+    setDayCapacityError(null);
+  }, [tourId]);
+
   const reloadTourDayCapacity = useCallback(() => {
-    if (!tour?.id) {
+    if (!tour?.id || tour.id !== tourId) {
       setSoldOutDates(new Set());
       setDayCapacitySnap(null);
       setDayCapacityError(null);
@@ -423,7 +430,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     return () => {
       cancelled = true;
     };
-  }, [tour?.id, calendarOptions, bookingCutoffHours, departureTimezone, experienceTodayIso]);
+  }, [tour?.id, tourId, calendarOptions, bookingCutoffHours, departureTimezone, experienceTodayIso]);
 
   useEffect(() => {
     return reloadTourDayCapacity();
