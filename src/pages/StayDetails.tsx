@@ -1316,9 +1316,19 @@ export default function StayDetails({ stayId, onBack }: Props) {
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm text-ink">
                 <span className="font-semibold tabular-nums">
-                  {quoteOk ? formatMoney(total, currency) : nightly > 0 ? formatMoney(nightly, currency) : '—'}
+                  {/* Phase 1546: never invent catalog nightly when quoteStayNights failed (Tour 1545 / Stay 1520 parity). */}
+                  {quoteOk
+                    ? formatMoney(total, currency)
+                    : checkIn && checkOut
+                      ? '—'
+                      : nightly > 0
+                        ? formatMoney(nightly, currency)
+                        : '—'}
                 </span>
-                <span className="text-ink-muted"> {quoteOk ? 'total' : 'per night'}</span>
+                <span className="text-ink-muted">
+                  {' '}
+                  {quoteOk ? 'total' : checkIn && checkOut ? '' : 'per night'}
+                </span>
               </p>
               <p className="truncate text-xs text-ink-muted">
                 {listingShowsFreeCancellation(stay)
