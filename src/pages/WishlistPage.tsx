@@ -74,8 +74,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
       setUnavailableCount(hidden);
     } catch (e) {
       if (gen !== loadGenRef.current) return;
-      setListings([]);
-      setUnavailableCount(0);
+      // Phase 1301: keep prior Saved cards — load failure ≠ empty wishlist.
       setError(userFacingError(e, USER_ERROR.wishlist));
     } finally {
       if (gen === loadGenRef.current) setLoading(false);
@@ -238,7 +237,34 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
           <div aria-busy="true" aria-label="Loading saved listings">
             <SkeletonCardGrid count={8} />
           </div>
-        ) : error ? null : listings.length === 0 ? (
+        ) : listings.length > 0 ? (
+          <>
+            {unavailableCount > 0 ? (
+              <p className="mb-4 text-sm text-ink-muted">
+                {unavailableCount} saved listing{unavailableCount === 1 ? '' : 's'} no longer available — hidden from
+                this grid.
+              </p>
+            ) : null}
+            <div className={MARKETPLACE_BROWSE_GRID_CLASS}>
+              {listings.map((tour, index) => (
+                <PublicListingBrowseCard
+                  key={tour.id}
+                  tour={tour}
+                  index={index}
+                  onSelect={() => onTourSelect(tour)}
+                  discountsByListing={discountsByListing}
+                  reviewAggregate={reviewAggregates.get(tour.id)}
+                  tagLabels={{}}
+                  size="compact"
+                  wishlist={{
+                    saved: true,
+                    onToggle: () => void handleRemove(tour.id),
+                  }}
+                />
+              ))}
+            </div>
+          </>
+        ) : error ? null : (
           <EmptyState
             icon={Heart}
             title={unavailableCount > 0 ? 'No bookable saved listings' : 'Nothing saved yet'}
@@ -258,33 +284,6 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
               </div>
             }
           />
-        ) : (
-          <>
-            {unavailableCount > 0 ? (
-              <p className="mb-4 text-sm text-ink-muted">
-                {unavailableCount} saved listing{unavailableCount === 1 ? '' : 's'} no longer available — hidden from
-                this grid.
-              </p>
-            ) : null}
-          <div className={MARKETPLACE_BROWSE_GRID_CLASS}>
-            {listings.map((tour, index) => (
-              <PublicListingBrowseCard
-                key={tour.id}
-                tour={tour}
-                index={index}
-                onSelect={() => onTourSelect(tour)}
-                discountsByListing={discountsByListing}
-                reviewAggregate={reviewAggregates.get(tour.id)}
-                tagLabels={{}}
-                size="compact"
-                wishlist={{
-                  saved: true,
-                  onToggle: () => void handleRemove(tour.id),
-                }}
-              />
-            ))}
-          </div>
-          </>
         )}
       </div>
     </div>

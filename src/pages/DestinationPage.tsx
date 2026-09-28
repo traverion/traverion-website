@@ -281,7 +281,7 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
                       size="default"
                       showTagPills={false}
                       wishlist={
-                        wishlist.enabled
+                        wishlist.enabled && wishlist.heartsKnown
                           ? {
                               saved: wishlist.isSaved(tour.id),
                               busy: wishlist.busyId === tour.id,
@@ -315,7 +315,7 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
                       size="default"
                       showTagPills={false}
                       wishlist={
-                        wishlist.enabled
+                        wishlist.enabled && wishlist.heartsKnown
                           ? {
                               saved: wishlist.isSaved(stay.id),
                               busy: wishlist.busyId === stay.id,

@@ -566,7 +566,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         if (!cancelled) setSavedToWishlist(ids.includes(tour.id));
       })
       .catch(() => {
-        if (!cancelled) setSavedToWishlist(false);
+        // Phase 1301: keep prior heart — failure ≠ “not saved”.
       });
     return () => {
       cancelled = true;

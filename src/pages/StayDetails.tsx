@@ -248,7 +248,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
         if (!cancelled) setSavedToWishlist(ids.includes(stay.id));
       })
       .catch(() => {
-        if (!cancelled) setSavedToWishlist(false);
+        // Phase 1301: keep prior heart — failure ≠ “not saved”.
       });
     return () => {
       cancelled = true;

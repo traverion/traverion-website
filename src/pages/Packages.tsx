@@ -1075,7 +1075,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
                   size="compact"
                   showTagPills={false}
                   wishlist={
-                    wishlist.enabled
+                    wishlist.enabled && wishlist.heartsKnown
                       ? {
                           saved: wishlist.isSaved(tour.id),
                           busy: wishlist.busyId === tour.id,

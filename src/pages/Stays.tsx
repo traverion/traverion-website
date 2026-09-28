@@ -901,7 +901,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
                       : null
                   }
                   wishlist={
-                    wishlist.enabled
+                    wishlist.enabled && wishlist.heartsKnown
                       ? {
                           saved: wishlist.isSaved(item.id),
                           busy: wishlist.busyId === item.id,

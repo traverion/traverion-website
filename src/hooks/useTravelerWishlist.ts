@@ -8,6 +8,10 @@ import { recordTravelerInterest } from '../lib/traveler-interest';
 /**
  * Persisted traveler wishlist for browse cards. Hearts are omitted when Supabase
  * is not configured so the control is never a decorative no-op.
+ *
+ * Phase 1301: load failure must not invent an empty Saved set (would show every
+ * heart as unsaved). Keep prior IDs; expose ready so callers can hide hearts
+ * until a successful fetch (or until prior IDs exist after a later failure).
  */
 export function useTravelerWishlist() {
   const { user, requestAuth } = useAuth();
@@ -17,20 +21,33 @@ export function useTravelerWishlist() {
   const idsRef = useRef(ids);
   idsRef.current = ids;
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const enabled = isSupabaseConfigured();
 
   useEffect(() => {
     if (!enabled || !user?.id) {
       setIds(new Set());
+      setReady(false);
+      setLoadError(false);
       return;
     }
     let cancelled = false;
+    setReady(false);
+    setLoadError(false);
     void fetchWishlistListingIds(user.id)
       .then((list) => {
-        if (!cancelled) setIds(new Set(list));
+        if (cancelled) return;
+        setIds(new Set(list));
+        setReady(true);
+        setLoadError(false);
       })
       .catch(() => {
-        if (!cancelled) setIds(new Set());
+        // Phase 1301: keep prior IDs — infrastructure failure ≠ “nothing saved”.
+        if (!cancelled) {
+          setLoadError(true);
+          setReady(false);
+        }
       });
     return () => {
       cancelled = true;
@@ -91,8 +108,14 @@ export function useTravelerWishlist() {
     [enabled, requestAuth]
   );
 
+  /** Hearts are trustworthy after a successful load, or when prior IDs survived a failed reload. */
+  const heartsKnown = ready || ids.size > 0;
+
   return {
     enabled,
+    ready,
+    loadError,
+    heartsKnown,
     savedIds: ids,
     busyId,
     toggle,

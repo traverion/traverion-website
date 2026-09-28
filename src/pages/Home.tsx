@@ -661,7 +661,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                     size="compact"
                     showTagPills={false}
                     wishlist={
-                      wishlist.enabled
+                      wishlist.enabled && wishlist.heartsKnown
                         ? {
                             saved: wishlist.isSaved(item.id),
                             busy: wishlist.busyId === item.id,
@@ -730,7 +730,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                   size="compact"
                   showTagPills={false}
                   wishlist={
-                    wishlist.enabled
+                    wishlist.enabled && wishlist.heartsKnown
                       ? {
                           saved: wishlist.isSaved(item.id),
                           busy: wishlist.busyId === item.id,
