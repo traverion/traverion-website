@@ -101,9 +101,20 @@ export default function ContentCreatorPage({ onNavigate }: ContentCreatorPagePro
       onNavigate={onNavigate}
     >
       {isSubmitted ? (
-        <NoticeCallout title={PARTNERSHIP_FORM_SUCCESS_HEADING} tone="success">
-          {PARTNERSHIP_FORM_THANK_YOU}
-        </NoticeCallout>
+        <div className="space-y-4 max-w-lg">
+          <NoticeCallout title={PARTNERSHIP_FORM_SUCCESS_HEADING} tone="success">
+            {PARTNERSHIP_FORM_THANK_YOU}
+          </NoticeCallout>
+          {/* Phase 1646: success next steps (Affiliate 1645 parity). */}
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => onNavigate?.('packages')} className="tv-btn-primary">
+              Browse tours
+            </button>
+            <button type="button" onClick={() => onNavigate?.('home')} className="tv-btn-ghost">
+              Back to home
+            </button>
+          </div>
+        </div>
       ) : (
         <>
           <div className="max-w-lg mb-5 rounded-2xl bg-finland/8 px-3.5 py-2.5 ring-1 ring-finland/15">
