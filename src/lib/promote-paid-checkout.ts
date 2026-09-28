@@ -68,3 +68,17 @@ export function promotePaidAssertCheckOut(params: {
   if (/^\d{4}-\d{2}-\d{2}$/.test(col) && (!checkIn || col > checkIn)) return col;
   return null;
 }
+
+/**
+ * Phase 1532: paid promote must refuse tour departures past live cutoff
+ * (hold can outlive claim-time quote). Stays skip this gate.
+ */
+export function paidPromotionShouldRefusePastDepartureCutoff(params: {
+  isStay: boolean;
+  startTimeHm?: string | null;
+  cutoffStillBookable: boolean;
+}): boolean {
+  if (params.isStay) return false;
+  if (!String(params.startTimeHm ?? '').trim()) return false;
+  return params.cutoffStillBookable !== true;
+}

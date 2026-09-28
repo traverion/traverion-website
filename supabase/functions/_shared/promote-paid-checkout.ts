@@ -2,6 +2,7 @@
  * Mirror of src/lib/promote-paid-checkout.ts for Deno edge runtime.
  * Phase 1513: interpret promote_paid_checkout_booking RPC results.
  * Phase 1526: stay assert check-out parity helper.
+ * Phase 1532: departure cutoff refuse helper.
  */
 
 export type PromotePaidCheckoutResult = {
@@ -68,4 +69,18 @@ export function promotePaidAssertCheckOut(params: {
   const checkIn = String(params.bookingDate ?? '').trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(col) && (!checkIn || col > checkIn)) return col;
   return null;
+}
+
+/**
+ * Phase 1532: paid promote must refuse tour departures past live cutoff
+ * (hold can outlive claim-time quote). Stays skip this gate.
+ */
+export function paidPromotionShouldRefusePastDepartureCutoff(params: {
+  isStay: boolean;
+  startTimeHm?: string | null;
+  cutoffStillBookable: boolean;
+}): boolean {
+  if (params.isStay) return false;
+  if (!String(params.startTimeHm ?? '').trim()) return false;
+  return params.cutoffStillBookable !== true;
 }

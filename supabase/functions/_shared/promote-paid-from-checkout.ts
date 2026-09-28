@@ -13,6 +13,11 @@ import {
 import { paidPromotionShouldRefuseFullyRefundedCharge } from './stripe-charge-refund.ts';
 import { inventoryStartTimeHmFromBooking } from './booking-hold.ts';
 import { listingHasUpcomingBookableSeason } from './booking-quote.ts';
+import {
+  assertDepartureStillBookable,
+  normalizeBookingCutoffHours,
+  resolveDepartureTimezone,
+} from './tour-departure-cutoff.ts';
 
 function listingKindFromExtras(extras: unknown): 'stay' | 'tour' {
   if (extras && typeof extras === 'object') {
@@ -585,6 +590,76 @@ export async function promotePaidFromCheckoutSession(params: {
         eventId: event.id,
         bookingId,
       });
+    }
+
+    // Phase 1532: hold can outlive departure cutoff — re-assert before paid promote
+    // (1531 live-clock parity with quote/claim). Stays have no tour departure cutoff.
+    const isStayListing = listingKindFromExtras(listingGate?.listing_extras) === 'stay';
+    if (!isStayListing && startTimeHm) {
+      const extras =
+        listingGate?.listing_extras && typeof listingGate.listing_extras === 'object'
+          ? (listingGate.listing_extras as {
+              bookingCutoffHoursBeforeStart?: unknown;
+              departureTimezone?: unknown;
+            })
+          : null;
+      const cut = assertDepartureStillBookable({
+        bookingDate,
+        startTimeHm,
+        cutoffHoursBeforeStart: normalizeBookingCutoffHours(extras?.bookingCutoffHoursBeforeStart),
+        nowMs: Date.now(),
+        timeZone: resolveDepartureTimezone(extras?.departureTimezone),
+      });
+      if (!cut.ok) {
+        let cutoffRefunded = false;
+        if (
+          rejectedCheckoutCaptureShouldRefund({
+            sessionPaymentStatus: session.payment_status,
+            paymentIntentId,
+          })
+        ) {
+          try {
+            await stripe.refunds.create(
+              {
+                payment_intent: paymentIntentId as string,
+                reason: 'duplicate',
+              },
+              { idempotencyKey: `departure-cutoff-checkout-refund:${session.id}` }
+            );
+            cutoffRefunded = true;
+            await admin.from('booking_payment_events').insert({
+              booking_id: bookingId,
+              event_id: event.id,
+              event_type: 'departure_cutoff_checkout_refund',
+              payment_intent_id: paymentIntentId,
+              checkout_session_id: session.id,
+              amount: amountPaid,
+              currency,
+              payload: {
+                reason: 'departure_cutoff_on_paid_promotion',
+                bookingDate,
+                startTimeHm,
+                cutoffError: cut.error,
+                stripeEventType: event.type,
+              },
+            });
+          } catch (refundErr) {
+            const msg = refundErr instanceof Error ? refundErr.message : String(refundErr);
+            if (!/already.?been.?refunded|charge_already_refunded/i.test(msg)) {
+              throw refundErr;
+            }
+          }
+        }
+        await markProcessed('processed');
+        return json({
+          success: true,
+          ignored: true,
+          reason: 'departure cutoff on checkout.session.completed',
+          inventoryRefunded: cutoffRefunded,
+          eventId: event.id,
+          bookingId,
+        });
+      }
     }
     // Phase 1513: inventory assert runs inside promote_paid_checkout_booking with the
     // paid UPDATE so claim_pending cannot take the seat between assert and promote.
