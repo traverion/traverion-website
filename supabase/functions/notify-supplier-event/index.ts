@@ -509,12 +509,16 @@ serve(async (req) => {
         }
 
         if (callerId !== listingSupplierId) {
-          const { data: teamRow } = await admin
+          const { data: teamRow, error: teamErr } = await admin
             .from('supplier_team_members')
             .select('user_id')
             .eq('supplier_id', String(payload.supplierId).trim())
             .eq('user_id', callerId)
             .maybeSingle();
+          // Phase 1317: team lookup failure ≠ invent “not a team member”.
+          if (teamErr) {
+            return json({ success: false, error: 'Could not verify authorization. Try again.' }, 500);
+          }
           callerIsTeamMember = Boolean(teamRow?.user_id);
         }
 

@@ -420,21 +420,28 @@ serve(async (req) => {
         const listingId = String(partyBooking.listing_id ?? '').trim();
         let listingSupplierId = '';
         if (listingId) {
-          const { data: listingOwn } = await admin
+          const { data: listingOwn, error: listingOwnErr } = await admin
             .from('listings')
             .select('supplier_id')
             .eq('id', listingId)
             .maybeSingle();
+          // Phase 1317: listing ownership lookup failure ≠ invent “not supplier”.
+          if (listingOwnErr) {
+            return json({ success: false, error: 'Could not verify authorization. Try again.' }, 500);
+          }
           listingSupplierId = String(listingOwn?.supplier_id ?? '').trim();
           callerIsListingSupplier = listingSupplierId.length > 0 && listingSupplierId === callerId;
         }
         if (!callerIsListingSupplier && listingSupplierId) {
-          const { data: teamRow } = await admin
+          const { data: teamRow, error: teamErr } = await admin
             .from('supplier_team_members')
             .select('user_id')
             .eq('supplier_id', listingSupplierId)
             .eq('user_id', callerId)
             .maybeSingle();
+          if (teamErr) {
+            return json({ success: false, error: 'Could not verify authorization. Try again.' }, 500);
+          }
           callerIsSupplierTeamMember = Boolean(teamRow?.user_id);
         }
         if (
