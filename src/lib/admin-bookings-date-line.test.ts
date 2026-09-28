@@ -23,6 +23,17 @@ describe('adminBookingDateLine', () => {
     ).toBe('2026-12-01 → 2026-12-05');
   });
 
+  it('Phase 1578: stale short check_out yields to longer purchase_snapshot (1564)', () => {
+    expect(
+      adminBookingDateLine({
+        booking_date: '2026-12-01',
+        check_out: '2026-12-03',
+        nights: 2,
+        purchase_snapshot: { checkOut: '2026-12-06' },
+      })
+    ).toBe('2026-12-01 → 2026-12-06');
+  });
+
   it('Phase 1544: column stay and tour unchanged', () => {
     expect(
       adminBookingDateLine({

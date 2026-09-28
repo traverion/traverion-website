@@ -2,8 +2,9 @@ import { bookingIsStayNight } from './pickup-completeness';
 import { stayRangeFromBooking } from './stayOccupancy';
 
 /**
- * Phase 1544: admin support date line uses stayRangeFromBooking (1524),
- * not check_out column alone — nights-only / snapshot-only stays show full range.
+ * Phase 1544 / 1578: admin support date line uses stayRangeFromBooking (1524/1564),
+ * not check_out column alone — nights-only / snapshot-only / stale short column
+ * stays show the exclusive purchased range (Money CSV / Trips parity).
  */
 export function adminBookingDateLine(b: {
   booking_date?: string | null;
