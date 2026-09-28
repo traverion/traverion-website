@@ -61,6 +61,7 @@ export default function SupplierEarnings() {
     return w === '30d' || w === '90d' || w === 'all' ? w : 'all';
   });
   const loadGenRef = useRef(0);
+  const earningsHubUserIdRef = useRef<string | null>(null);
 
   const setStatusFilterAndUrl = useCallback((next: 'all' | 'pending' | 'paid') => {
     setStatusFilter(next);
@@ -130,7 +131,31 @@ export default function SupplierEarnings() {
   }, [isSupabase, user?.id]);
 
   useEffect(() => {
-    if (isSupabase && user?.id) load();
+    const clearEarningsPartnerWorkspace = () => {
+      setEarnings([]);
+      setPaidBookings([]);
+      setRefundDueBookings([]);
+      setLedger([]);
+      setListingTitles({});
+      setError(null);
+      setLedgerError(null);
+    };
+    if (!user?.id) {
+      earningsHubUserIdRef.current = null;
+      loadGenRef.current += 1;
+      clearEarningsPartnerWorkspace();
+      setLoading(false);
+      return;
+    }
+    if (earningsHubUserIdRef.current !== user.id) {
+      earningsHubUserIdRef.current = user.id;
+      loadGenRef.current += 1;
+      clearEarningsPartnerWorkspace();
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (isSupabase && user?.id) void load();
     else {
       loadGenRef.current += 1;
       setLoading(false);
