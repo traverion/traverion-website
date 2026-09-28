@@ -360,6 +360,9 @@ describe('trip list views', () => {
     expect(
       pickupMissingIsUrgentSoon({ booking_date: '2026-09-16', purchase_snapshot: snap }, false, nowMs)
     ).toBe(false);
+    expect(
+      pickupMissingIsUrgentSoon({ booking_date: '2026-09-22', purchase_snapshot: snap }, true, nowMs)
+    ).toBe(false);
   });
 
   it('only offers browse-live from Trips when listing is published (Phase 1086)', () => {

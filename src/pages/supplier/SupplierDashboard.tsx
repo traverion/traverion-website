@@ -23,8 +23,15 @@ import SupplierPortalNoticePanel from '../../components/supplier/SupplierPortalN
 import { navigateSupplierUrl, openSupplierCalendar, openSupplierInbox, openSupplierPickup, openSupplierReviews } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE, PARTNER_CREATE_PATH } from '../../lib/partnerPortalPaths';
 import { formatMoney, normalizeCurrency } from '../../lib/money';
-import { bookingOccupiesInventory } from '../../lib/booking-hold';
-import { partnerBookingIsOperatingTrip, partnerBookingIsTodaySchedule, partnerBookingIsUpcomingSchedule, partnerBookingIsActiveUnpaidCheckout, scheduleTodayIsoForBooking } from '../../lib/trip-views';
+import {
+  partnerBookingIsOperatingTrip,
+  partnerBookingIsTodaySchedule,
+  partnerBookingIsUpcomingSchedule,
+  partnerBookingIsActiveUnpaidCheckout,
+  partnerTourMatchesExperienceDayOffset,
+  pickupMissingIsUrgentSoon,
+  scheduleTodayIsoForBooking,
+} from '../../lib/trip-views';
 import { partnerTodayEmptyScheduleCopy } from '../../lib/partner-today-copy';
 import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
 import { pgTimeToHm } from '../../data/supabase-listings';
@@ -358,30 +365,29 @@ export default function SupplierDashboard() {
     return v !== 'verified';
   }, [profile]);
 
-  const pickupGaps = useMemo(
-    () =>
-      supplierBookings.filter((b) => {
-        if (!bookingOccupiesInventory(b) || !bookingPaymentWasCollected(b.payment_status)) return false;
-        const experienceToday = scheduleTodayIsoForBooking(b);
-        if (!b.booking_date || b.booking_date < experienceToday) return false;
-        const listing = listingsById[b.listing_id];
-        const opts = isPurchaseSnapshot(b.purchase_snapshot)
-          ? null
-          : materializedBookingOptions(
-              parseListingExtras(listing?.listingExtras as unknown).bookingOptions
-            );
-        const copy = resolvePartnerPickupCopy({
-          purchaseSnapshot: b.purchase_snapshot,
-          bookingOptionId: b.booking_option_id,
-          specialRequests: b.special_requests,
-          listingMeetingPoint: listing?.meetingPoint,
-          listingPickupInstructions: listing?.pickupInstructions,
-          bookingOptions: opts,
-        });
-        return bookingNeedsPickupCopy(b, copy.meetingPoint, copy.pickupInstructions);
-      }),
-    [supplierBookings, listingsById]
-  );
+  const pickupGaps = useMemo(() => {
+    const nowMs = Date.now();
+    return supplierBookings.filter((b) => {
+      if (!partnerBookingIsOperatingTrip(b)) return false;
+      const listing = listingsById[b.listing_id];
+      const opts = isPurchaseSnapshot(b.purchase_snapshot)
+        ? null
+        : materializedBookingOptions(
+            parseListingExtras(listing?.listingExtras as unknown).bookingOptions
+          );
+      const copy = resolvePartnerPickupCopy({
+        purchaseSnapshot: b.purchase_snapshot,
+        bookingOptionId: b.booking_option_id,
+        specialRequests: b.special_requests,
+        listingMeetingPoint: listing?.meetingPoint,
+        listingPickupInstructions: listing?.pickupInstructions,
+        bookingOptions: opts,
+      });
+      const missing = bookingNeedsPickupCopy(b, copy.meetingPoint, copy.pickupInstructions);
+      // Today attention + Pickup deep link use day=today|tomorrow — not all future departures.
+      return pickupMissingIsUrgentSoon(b, missing, nowMs);
+    });
+  }, [supplierBookings, listingsById]);
 
   const openCancelCount = openCancels.length;
   const overdueCancelCount = openCancels.filter(
@@ -659,12 +665,17 @@ export default function SupplierDashboard() {
                       }`
                     : 'Paid bookings need meeting point or pickup copy'
                 }
-                onClick={() =>
-                  openSupplierPickup(pickupGaps[0]?.id, {
-                    day: 'today',
-                    needsOnly: true,
-                  })
-                }
+                onClick={() => {
+                  const target = pickupGaps[0];
+                  const nowMs = Date.now();
+                  const day =
+                    target && partnerTourMatchesExperienceDayOffset(target, 0, nowMs)
+                      ? 'today'
+                      : target && partnerTourMatchesExperienceDayOffset(target, 1, nowMs)
+                        ? 'tomorrow'
+                        : undefined;
+                  openSupplierPickup(target?.id, { day, needsOnly: true });
+                }}
               />
             )}
             {(unreadMessageCount ?? 0) > 0 && (
