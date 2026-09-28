@@ -65,6 +65,8 @@ export default function SupplierInbox() {
   const [titles, setTitles] = useState<Record<string, string>>({});
   const [listingsById, setListingsById] = useState<Record<string, TourPackage>>({});
   const [lastByBooking, setLastByBooking] = useState<Record<string, BookingMessageRow>>({});
+  const lastByBookingRef = useRef(lastByBooking);
+  lastByBookingRef.current = lastByBooking;
   const [openCancelIds, setOpenCancelIds] = useState<Set<string>>(new Set());
   const openCancelIdsRef = useRef(openCancelIds);
   openCancelIdsRef.current = openCancelIds;
@@ -121,6 +123,7 @@ export default function SupplierInbox() {
         setCancelRequestsError(userFacingError(cancelErr, USER_ERROR.bookings));
       }
       const lasts: Record<string, BookingMessageRow> = {};
+      const failedMessagePrefetch = new Set<string>();
       const withMessagesFetched = collected.slice(0, PARTNER_INBOX_MESSAGE_FETCH_CAP);
       // Always fetch the deep-linked booking so Today → Inbox ?booking= works beyond the cap.
       if (deepLinkId && !withMessagesFetched.some((b) => b.id === deepLinkId)) {
@@ -134,12 +137,20 @@ export default function SupplierInbox() {
             const msgs = await fetchBookingMessages(b.id);
             if (msgs.length) lasts[b.id] = msgs[msgs.length - 1]!;
           } catch {
-            // Per-booking message failure must not empty the whole Inbox.
+            // Phase 1355: keep prior last-message so closed threads do not vanish on blips.
+            failedMessagePrefetch.add(b.id);
           }
         })
       );
       if (gen !== loadGenRef.current) return;
-      setLastByBooking(lasts);
+      const priorLasts = lastByBookingRef.current;
+      const mergedLasts: Record<string, BookingMessageRow> = { ...priorLasts };
+      for (const b of withMessagesFetched) {
+        if (failedMessagePrefetch.has(b.id)) continue;
+        if (lasts[b.id]) mergedLasts[b.id] = lasts[b.id]!;
+        else delete mergedLasts[b.id];
+      }
+      setLastByBooking(mergedLasts);
       const listed = collected.filter((b) =>
         partnerInboxListsBooking(
           {
@@ -147,7 +158,7 @@ export default function SupplierInbox() {
             payment_status: b.payment_status,
             openCancellation: openIds.has(b.id),
           },
-          Boolean(lasts[b.id])
+          Boolean(mergedLasts[b.id])
         )
       );
       // Keep a deep-linked paid booking visible even when it would otherwise be filtered out.
