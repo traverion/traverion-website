@@ -392,6 +392,24 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
     window.history.replaceState({}, '', next);
   }, []);
 
+  const selectTripView = useCallback(
+    (view: 'upcoming' | 'past' | 'cancelled') => {
+      setTripView(view);
+      setOpenTripId((current) => {
+        if (!current) return null;
+        const row = bookings.find((b) => b.id === current);
+        if (row && bookingMatchesTripView(row, view)) return current;
+        if (typeof window !== 'undefined') {
+          const url = new URL(window.location.href);
+          url.searchParams.delete('booking');
+          window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+        }
+        return null;
+      });
+    },
+    [bookings]
+  );
+
   const refundDueCount = useMemo(() => bookings.filter(isRefundDueBooking).length, [bookings]);
   const visibleBookings = useMemo(() => {
     const rows = bookings.filter((b) => bookingMatchesTripView(b, tripView));
@@ -650,7 +668,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   type="button"
                   role="tab"
                   aria-selected={tripView === id}
-                  onClick={() => setTripView(id)}
+                  onClick={() => selectTripView(id)}
                   className={`lux-flat min-h-11 rounded-full px-3.5 py-1.5 text-sm font-medium transition-[background-color,color,box-shadow] duration-150 ${
                     tripView === id
                       ? id === 'cancelled'
