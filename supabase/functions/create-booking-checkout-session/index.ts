@@ -670,12 +670,31 @@ serve(async (req) => {
       checkOutDate: checkoutDate || null,
     });
 
-    // Phase 1541: stay columns for claim + session update (heal snapshot-only rows on Pay-now).
+    // Phase 1541/1572: stay columns for claim + session update.
+    // Phase 1572: merge resume snap BEFORE columns/assert (not only on UPDATE after assert).
+    const purchaseSnapshotForUpdate =
+      targetBookingId && resumePurchaseSnapshot != null
+        ? mergePurchaseSnapshotMaxCheckOut(resumePurchaseSnapshot, purchaseSnapshot)
+        : purchaseSnapshot;
+    const mergedStayOutRaw =
+      typeof purchaseSnapshotForUpdate.checkOut === 'string'
+        ? purchaseSnapshotForUpdate.checkOut.trim()
+        : '';
+    const stayOutCandidates = [checkoutDate, resumeStayCheckOut, mergedStayOutRaw].filter(
+      (d): d is string => Boolean(d && /^\d{4}-\d{2}-\d{2}$/.test(d))
+    );
+    const stayOutForColumns =
+      extrasFamily === 'stay' && stayOutCandidates.length > 0
+        ? stayOutCandidates.reduce((a, b) => (a > b ? a : b))
+        : checkoutDate;
     let stayColumns = stayBookingColumnsForCheckoutUpdate({
       inventoryFamily: extrasFamily === 'stay' ? 'stay' : null,
       bookingDate,
-      checkoutDate,
-      quoteNights: quote.nights,
+      checkoutDate: stayOutForColumns || checkoutDate,
+      quoteNights:
+        typeof purchaseSnapshotForUpdate.nights === 'number' && purchaseSnapshotForUpdate.nights >= 1
+          ? purchaseSnapshotForUpdate.nights
+          : quote.nights,
     });
     // Phase 1570: never shorten check_out/nights vs an already-persisted longer resume column.
     if (stayColumns && resumeStayCheckOut && /^\d{4}-\d{2}-\d{2}$/.test(resumeStayCheckOut)) {
@@ -832,10 +851,8 @@ serve(async (req) => {
         ? new Date(session.expires_at * 1000).toISOString()
         : holdExpiresAtIso,
       // Phase 1570: max-merge checkOut with existing row snap (mig 209 promote parity).
-      purchase_snapshot:
-        targetBookingId && resumePurchaseSnapshot != null
-          ? mergePurchaseSnapshotMaxCheckOut(resumePurchaseSnapshot, purchaseSnapshot)
-          : purchaseSnapshot,
+      // Phase 1572: reuse purchaseSnapshotForUpdate computed before assert.
+      purchase_snapshot: purchaseSnapshotForUpdate,
       // Phase 1541: backfill check_out/nights so resume does not leave snapshot-only stays.
       ...(stayColumns ?? {}),
       ...(quote.guestBreakdown?.length ? { guest_breakdown: quote.guestBreakdown } : {}),
