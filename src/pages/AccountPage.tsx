@@ -27,6 +27,9 @@ interface AccountPageProps {
   onNavigate: (page: string) => void;
 }
 
+/** Layer C: named Account region (MyBookings Trips / Wishlist Saved landmark parity). */
+const ACCOUNT_HEADING_ID = 'account-heading';
+
 type HubStats = { bookings: number; wishlist: number };
 
 export default function AccountPage({ onNavigate }: AccountPageProps) {
@@ -159,19 +162,23 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
         <div className="max-w-xl mx-auto px-4 py-8">
           <header className="mb-5 tv-card p-4 sm:p-5">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Traveler</p>
-            <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Account</h1>
+            <h1 id={ACCOUNT_HEADING_ID} className="font-display text-3xl sm:text-4xl text-ink tracking-tight">
+              Account
+            </h1>
             <p className="mt-2 text-sm text-ink-muted">
               Account features need the live app configuration. You can still browse tours or reach support.
             </p>
           </header>
-          <div className="flex flex-wrap items-center gap-2">
-            <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-primary">
-              Browse tours
-            </button>
-            <button type="button" onClick={() => onNavigate('contact')} className="tv-btn-ghost">
-              Contact support
-            </button>
-          </div>
+          <section aria-labelledby={ACCOUNT_HEADING_ID}>
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-primary">
+                Browse tours
+              </button>
+              <button type="button" onClick={() => onNavigate('contact')} className="tv-btn-ghost">
+                Contact support
+              </button>
+            </div>
+          </section>
         </div>
       </div>
     );
@@ -186,30 +193,34 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
         <div className="max-w-xl mx-auto px-4 py-8">
           <header className="mb-5 tv-card p-4 sm:p-5">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Traveler</p>
-            <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Account</h1>
+            <h1 id={ACCOUNT_HEADING_ID} className="font-display text-3xl sm:text-4xl text-ink tracking-tight">
+              Account
+            </h1>
             <p className="mt-2 text-sm text-ink-muted">
               Log in to manage trips, wishlist, and your traveler profile.
             </p>
           </header>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                window.history.pushState({}, '', travelerLoginHref('account'));
-                onNavigate('auth');
-              }}
-              className="tv-btn-primary"
-            >
-              <LogIn className="w-5 h-5" />
-              Log in
-            </button>
-            <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-ghost">
-              Browse tours
-            </button>
-            <button type="button" onClick={() => onNavigate('stays')} className="tv-btn-ghost">
-              Browse stays
-            </button>
-          </div>
+          <section aria-labelledby={ACCOUNT_HEADING_ID}>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  window.history.pushState({}, '', travelerLoginHref('account'));
+                  onNavigate('auth');
+                }}
+                className="tv-btn-primary"
+              >
+                <LogIn className="w-5 h-5" />
+                Log in
+              </button>
+              <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-ghost">
+                Browse tours
+              </button>
+              <button type="button" onClick={() => onNavigate('stays')} className="tv-btn-ghost">
+                Browse stays
+              </button>
+            </div>
+          </section>
         </div>
       </div>
     );
@@ -249,7 +260,12 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
       <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-14">
         <header className="mb-8 sm:mb-10">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Traveler</p>
-          <h1 className="font-display text-3xl sm:text-4xl lg:text-[2.75rem] text-ink tracking-tight">Account</h1>
+          <h1
+            id={ACCOUNT_HEADING_ID}
+            className="font-display text-3xl sm:text-4xl lg:text-[2.75rem] text-ink tracking-tight"
+          >
+            Account
+          </h1>
           <p className="mt-2 max-w-2xl break-words text-base text-ink-muted [overflow-wrap:anywhere]" title={user.email ?? undefined}>
             {displayName.trim() || user.email}
           </p>
@@ -258,6 +274,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
           ) : null}
         </header>
 
+        <section aria-labelledby={ACCOUNT_HEADING_ID}>
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-12 xl:gap-16">
           <div className="min-w-0 space-y-10">
             <section>
@@ -454,6 +471,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
             )}
           </section>
         </div>
+        </section>
       </div>
     </div>
   );
