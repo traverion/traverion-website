@@ -373,6 +373,14 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                     ? 'Manage trips, confirmations, and bookings.'
                     : 'Save trips and book tours or stays. Takes under a minute.'}
               </p>
+              {/* Phase 1611: deep-link next destination so login intent is clear. */}
+              {!passwordResetPanel && (nextPage === 'wishlist' || nextPage === 'bookings') ? (
+                <p className="text-sm text-finland mb-2 leading-relaxed">
+                  {nextPage === 'wishlist'
+                    ? 'After you log in, we will take you to Saved.'
+                    : 'After you log in, we will take you to Trips.'}
+                </p>
+              ) : null}
               <p className="text-xs text-ink-faint mb-5">
                 Want to list experiences?{' '}
                 <a href={supplierPortalLandingHref()} className="text-finland font-medium hover:underline">
