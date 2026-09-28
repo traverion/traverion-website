@@ -116,6 +116,8 @@ export default function SupplierListings() {
   const [listingPendingDeactivate, setListingPendingDeactivate] = useState<TourPackage | null>(null);
   const [deactivateUpcomingPaid, setDeactivateUpcomingPaid] = useState<number | null>(null);
   const [deactivateUpcomingPaidCheckFailed, setDeactivateUpcomingPaidCheckFailed] = useState(false);
+  const [deleteUpcomingPaid, setDeleteUpcomingPaid] = useState<number | null>(null);
+  const [deleteUpcomingPaidCheckFailed, setDeleteUpcomingPaidCheckFailed] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deactivateBusy, setDeactivateBusy] = useState(false);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
@@ -155,7 +157,11 @@ export default function SupplierListings() {
   }, []);
   useDialogFocus(showCreateChooser, createChooserRef, closeCreateChooser);
   useDialogFocus(listingPendingDelete !== null, deleteSheetRef, () => {
-    if (!deleteBusy) setListingPendingDelete(null);
+    if (!deleteBusy) {
+      setListingPendingDelete(null);
+      setDeleteUpcomingPaid(null);
+      setDeleteUpcomingPaidCheckFailed(false);
+    }
   });
   useDialogFocus(listingPendingDeactivate !== null, deactivateSheetRef, () => {
     if (!deactivateBusy) {
@@ -467,6 +473,8 @@ export default function SupplierListings() {
       setListingActionsMenuId(null);
       setListingActionsMenuBox(null);
       setListingPendingDelete(null);
+      setDeleteUpcomingPaid(null);
+      setDeleteUpcomingPaidCheckFailed(false);
       setListingPendingDeactivate(null);
       setDeactivateUpcomingPaid(null);
       setDeactivateUpcomingPaidCheckFailed(false);
@@ -545,7 +553,11 @@ export default function SupplierListings() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       if (listingPendingDelete) {
-        if (!deleteBusy) setListingPendingDelete(null);
+        if (!deleteBusy) {
+          setListingPendingDelete(null);
+          setDeleteUpcomingPaid(null);
+          setDeleteUpcomingPaidCheckFailed(false);
+        }
         return;
       }
       if (listingPendingDeactivate) {
@@ -794,11 +806,15 @@ export default function SupplierListings() {
         });
         refresh();
         setListingPendingDelete(null);
+        setDeleteUpcomingPaid(null);
+        setDeleteUpcomingPaidCheckFailed(false);
       } else {
         const next = getSupplierListings().filter((t) => t.id !== id);
         setSupplierListings(next);
         refresh();
         setListingPendingDelete(null);
+        setDeleteUpcomingPaid(null);
+        setDeleteUpcomingPaidCheckFailed(false);
       }
     } catch (e) {
       setError(userFacingError(e, 'Could not remove listing. Try again.'));
@@ -1540,6 +1556,21 @@ export default function SupplierListings() {
                   onClick={() => {
                     closeListingActionsMenu();
                     setListingPendingDelete(menuListing);
+                    setDeleteUpcomingPaid(null);
+                    setDeleteUpcomingPaidCheckFailed(false);
+                    if (isSupabase && user?.id) {
+                      const listingId = menuListing.id;
+                      void fetchBookingsForSupplier(user.id)
+                        .then((rows) => {
+                          setDeleteUpcomingPaidCheckFailed(false);
+                          setDeleteUpcomingPaid(countUpcomingPaidTripsForListing(rows, listingId));
+                        })
+                        .catch(() => {
+                          // Phase 1471: fetch failure ≠ zero upcoming paid trips.
+                          setDeleteUpcomingPaid(null);
+                          setDeleteUpcomingPaidCheckFailed(true);
+                        });
+                    }
                   }}
                 >
                   <Trash2 className="h-4 w-4 shrink-0" aria-hidden />
@@ -1559,7 +1590,12 @@ export default function SupplierListings() {
                 className="absolute inset-0"
                 aria-label="Close"
                 disabled={deleteBusy}
-                onClick={() => !deleteBusy && setListingPendingDelete(null)}
+                onClick={() => {
+                  if (deleteBusy) return;
+                  setListingPendingDelete(null);
+                  setDeleteUpcomingPaid(null);
+                  setDeleteUpcomingPaidCheckFailed(false);
+                }}
               />
               <aside
                 role="dialog"
@@ -1571,7 +1607,15 @@ export default function SupplierListings() {
                   icon={Trash2}
                   titleId="supplier-delete-listing-title"
                   title="Remove this listing?"
-                  onClose={deleteBusy ? undefined : () => setListingPendingDelete(null)}
+                  onClose={
+                    deleteBusy
+                      ? undefined
+                      : () => {
+                          setListingPendingDelete(null);
+                          setDeleteUpcomingPaid(null);
+                          setDeleteUpcomingPaidCheckFailed(false);
+                        }
+                  }
                 />
                 <div className="p-4 overflow-y-auto pb-[max(1rem,env(safe-area-inset-bottom))]">
                 <p className="text-sm text-ink-muted leading-snug">
@@ -1582,12 +1626,28 @@ export default function SupplierListings() {
                     : ' Confirmed bookings stay in Bookings.'}{' '}
                   This cannot be undone.
                 </p>
+                {deleteUpcomingPaidCheckFailed ? (
+                  <p className="mt-3 text-sm font-medium text-amber-900 leading-relaxed">
+                    {unpublishUpcomingBookingsCheckFailedNotice()}
+                  </p>
+                ) : deleteUpcomingPaid !== null ? (
+                  (() => {
+                    const notice = unpublishUpcomingBookingsNotice(deleteUpcomingPaid);
+                    return notice ? (
+                      <p className="mt-3 text-sm font-medium text-ink leading-relaxed">{notice}</p>
+                    ) : null;
+                  })()
+                ) : null}
                 <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                   <button
                     type="button"
                     className="tv-btn-ghost"
                     disabled={deleteBusy}
-                    onClick={() => setListingPendingDelete(null)}
+                    onClick={() => {
+                      setListingPendingDelete(null);
+                      setDeleteUpcomingPaid(null);
+                      setDeleteUpcomingPaidCheckFailed(false);
+                    }}
                   >
                     Keep listing
                   </button>
