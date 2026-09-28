@@ -30,6 +30,7 @@ import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
 import { pgTimeToHm } from '../../data/supabase-listings';
 import { stayRangeFromBooking } from '../../lib/stayOccupancy';
 import { formatStayNightHuman } from '../../lib/stay-calendar';
+import { experienceTodayIsoForListing } from '../../lib/booking-quote';
 import { addCalendarDaysYmd } from '../../lib/booking-lifecycle-calendar';
 import { formatBookingDateDisplay } from '../../lib/booking-flow';
 import { PARTNER_INBOX_MESSAGE_FETCH_CAP } from '../../lib/partner-inbox-cap';
@@ -414,11 +415,15 @@ export default function SupplierDashboard() {
 
   const firstName =
     (profile?.display_name || profile?.company_legal_name || '').trim().split(/\s+/)[0] || null;
-  const dateLabel = new Date()
+  // Phase 1314: date strip uses platform experience today (Helsinki default), not browser-local
+  // calendar — aligns with default tour “Today” when partners travel across zones.
+  const partnerOpsTodayIso = experienceTodayIsoForListing(undefined);
+  const dateLabel = new Date(`${partnerOpsTodayIso}T12:00:00Z`)
     .toLocaleDateString('en-GB', {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
+      timeZone: 'UTC',
     })
     .toUpperCase();
 
