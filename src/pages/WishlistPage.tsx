@@ -1,7 +1,7 @@
 /**
  * Consumer: saved listings (wishlist). Requires login when Supabase is configured.
  */
-import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
 import { LogIn, ArrowLeft, Heart } from 'lucide-react';
 import { SkeletonCardGrid, SkeletonConsumerPage } from '../components/ui/Skeleton';
 import EmptyState from '../components/EmptyState';
@@ -37,11 +37,21 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [discountsByListing, setDiscountsByListing] = useState<Map<string, ListingDiscount[]> | null>(null);
+  const [discountsLoadedForKey, setDiscountsLoadedForKey] = useState<string | null>(null);
   const [reviewAggregates, setReviewAggregates] = useState<Map<string, { rating: number; count: number }>>(
     () => new Map()
   );
   const loadGenRef = useRef(0);
+  const discountsLoadGenRef = useRef(0);
   const wishlistUserIdRef = useRef<string | null>(null);
+
+  const wishlistListingIds = useMemo(
+    () => listings.map((t) => t.id).filter(isSupabaseListingId),
+    [listings]
+  );
+  const wishlistListingIdsKey = useMemo(() => wishlistListingIds.join(','), [wishlistListingIds]);
+  const discountsForWishlistCatalog =
+    discountsLoadedForKey === wishlistListingIdsKey ? discountsByListing : null;
 
   const load = useCallback(async () => {
     if (!isSupabaseConfigured() || !user?.id) {
@@ -112,20 +122,29 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
 
   // Phase 1156/1183/1194: wishlist cards need live offers and reviews (decoupled browse parity).
   useEffect(() => {
-    const ids = listings.map((t) => t.id).filter(isSupabaseListingId);
-    if (!isSupabaseConfigured() || ids.length === 0) {
+    if (!isSupabaseConfigured() || !wishlistListingIdsKey) {
       setDiscountsByListing(new Map());
+      setDiscountsLoadedForKey(null);
       setReviewAggregates(new Map());
       return;
     }
+    const ids = wishlistListingIdsKey.split(',');
+    const keyAtStart = wishlistListingIdsKey;
+    const gen = ++discountsLoadGenRef.current;
+    setDiscountsByListing(null);
+    setDiscountsLoadedForKey(null);
     let cancelled = false;
     void fetchDiscountsByListingIds(ids)
       .then((discounts) => {
-        if (!cancelled) setDiscountsByListing(discounts);
+        if (cancelled || gen !== discountsLoadGenRef.current) return;
+        setDiscountsByListing(discounts);
+        setDiscountsLoadedForKey(keyAtStart);
       })
       .catch(() => {
-        // Phase 1151: empty map → honest list From.
-        if (!cancelled) setDiscountsByListing(new Map());
+        // Phase 1151: empty map → honest list From (not endless "Checking offers…").
+        if (cancelled || gen !== discountsLoadGenRef.current) return;
+        setDiscountsByListing(new Map());
+        setDiscountsLoadedForKey(keyAtStart);
       });
     void getReviewAggregatesForListingIds(ids)
       .then((reviews) => {
@@ -137,7 +156,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
     return () => {
       cancelled = true;
     };
-  }, [listings]);
+  }, [wishlistListingIdsKey]);
 
   const handleRemove = async (listingId: string) => {
     if (!user) return;
@@ -283,7 +302,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
                   tour={tour}
                   index={index}
                   onSelect={() => onTourSelect(tour)}
-                  discountsByListing={discountsByListing}
+                  discountsByListing={discountsForWishlistCatalog}
                   reviewAggregate={reviewAggregates.get(tour.id)}
                   tagLabels={{}}
                   size="compact"
