@@ -20,12 +20,15 @@ function dispatchRoleEvent() {
 
 export async function resolveSupplierId(currentUserId: string): Promise<string> {
   if (!supabase) return currentUserId;
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('supplier_team_members')
     .select('supplier_id')
     .eq('user_id', currentUserId)
     .limit(1)
     .maybeSingle();
+  // Phase 1473: team lookup failure must not fall back to the JWT user id — that
+  // scopes every owner-keyed query to empty (Bookings/Today/Listings look “quiet”).
+  if (error) throw new Error(error.message);
   return data?.supplier_id ?? currentUserId;
 }
 
