@@ -79,4 +79,17 @@ describe('stayStickyBookCtaLabel', () => {
       })
     ).toBe(TRAVELER_OPENING_CHECKOUT_CTA);
   });
+
+  it('names generic quote failures as Fix dates', () => {
+    expect(
+      stayStickyBookCtaLabel({
+        selectionOccupied: false,
+        quoteOk: false,
+        checkIn: '2026-10-01',
+        checkOut: '2026-10-04',
+        quoteError: 'Those nights are already booked.',
+        minNights: 1,
+      })
+    ).toBe('Fix dates');
+  });
 });

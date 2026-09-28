@@ -203,7 +203,10 @@ export default function AdminBookingsPanel() {
 
       <div className="space-y-2">
         {visible.map((b) => {
-          const lifecycle = bookingLifecycleLabel(b.status, b.payment_status);
+          const lifecycle = bookingLifecycleLabel(b.status, b.payment_status, {
+            hold_expires_at: b.hold_expires_at,
+            created_at: b.created_at,
+          });
           const payLabel = partnerPaymentLabel(b);
           const collected =
             b.amount_paid != null && Number(b.amount_paid) > 0 && bookingPaymentWasCollected(b.payment_status);
