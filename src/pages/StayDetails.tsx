@@ -813,6 +813,12 @@ export default function StayDetails({ stayId, onBack }: Props) {
           {/* Phase 1557: dates + failed quote — do not invent catalog nightly in page hero (1546/1548). */}
           {checkIn && checkOut && stayQuote && !stayQuote.ok ? (
             <p className="mt-4 text-lg font-semibold tabular-nums text-ink">—</p>
+          ) : quoteOk && stayQuote?.ok ? (
+            // Phase 1563: successful quote is the page hero total (panel 1562 / sticky 1546 parity).
+            <p className="mt-4 text-lg font-semibold tabular-nums text-ink">
+              {formatMoney(stayQuote.totalAmount, stayQuote.currency)}
+              <span className="ml-1 text-sm font-medium text-ink-muted">total</span>
+            </p>
           ) : nightly > 0 ? (
             <p className="mt-4 text-lg font-semibold tabular-nums text-ink">
               {formatMoney(nightly, currency)}

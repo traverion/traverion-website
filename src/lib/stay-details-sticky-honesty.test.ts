@@ -52,3 +52,14 @@ describe('StayDetails desktop panel quoted hero (Phase 1562)', () => {
     );
   });
 });
+
+describe('StayDetails page hero quoted total (Phase 1563)', () => {
+  const src = readFileSync(join(here, '../pages/StayDetails.tsx'), 'utf8');
+
+  it('shows stayQuote total in page header when quote ok', () => {
+    expect(src).toContain('Phase 1563');
+    expect(src).toMatch(
+      /Phase 1563[\s\S]*formatMoney\(stayQuote\.totalAmount, stayQuote\.currency\)[\s\S]*total/
+    );
+  });
+});
