@@ -18,11 +18,10 @@ describe('Phase 1662: Accept terms focuses consent without pay error', () => {
   it('BookingPage clears error and focuses booking-checkout-consent', () => {
     const src = readFileSync(resolve(__dirname, 'BookingPage.tsx'), 'utf8');
     expect(src).toContain('Phase 1662');
-    const block = src.slice(
-      src.indexOf('if (checkoutPayBlockedByConsent(checkoutConsentAccepted))'),
-      src.indexOf('if (capacityBlocksPay)')
-    );
+    const start = src.indexOf('const handleConfirmBooking = async () => {');
+    const block = src.slice(start, src.indexOf('if (capacityBlocksPay)', start));
     expect(block).toContain('setError(null)');
+    expect(block).toContain('booking-checkout-consent');
     expect(block).not.toContain('Confirm the cancellation policy and Terms before paying.');
   });
 });

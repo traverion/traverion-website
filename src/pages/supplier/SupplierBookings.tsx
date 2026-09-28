@@ -813,7 +813,8 @@ export default function SupplierBookings({
           onClick={() => setShowSearch((v) => !v)}
           className="tv-btn-ghost -ml-2"
         >
-          Search{filterQuery || filterListingId || filterDateFrom || filterDateTo ? ' · on' : ''}
+          {/* Phase 1663: ops chips count as active filters in the Search · on cue. */}
+          Search{filterQuery || filterListingId || filterDateFrom || filterDateTo || opsFilter !== 'all' ? ' · on' : ''}
         </button>
         {showSearch && (
         <div className="mt-4 space-y-4 motion-safe:animate-fade-in">
