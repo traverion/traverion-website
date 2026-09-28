@@ -146,6 +146,12 @@ type RefundChoice = 'full_refund' | 'no_refund' | 'reschedule';
 type BookingView = 'today' | 'tomorrow' | 'upcoming' | 'past' | 'all';
 type OpsFilter = 'all' | 'unpaid' | 'pickup' | 'cancel' | 'refund_due';
 
+const PARTNER_BOOKINGS_TABPANEL_ID = 'partner-bookings-tabpanel';
+
+function partnerBookingsTabId(view: BookingView): string {
+  return `partner-bookings-tab-${view}`;
+}
+
 function bookingPaginationRange(totalPages: number, current: number): (number | 'ellipsis')[] {
   if (totalPages <= 1) return [];
   if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
@@ -734,6 +740,8 @@ export default function SupplierBookings({
                 key={id}
                 type="button"
                 role="tab"
+                id={partnerBookingsTabId(id)}
+                aria-controls={PARTNER_BOOKINGS_TABPANEL_ID}
                 aria-selected={view === id}
                 onClick={() => writeBookingsSearchToUrl({ view: id })}
                 className={`lux-flat relative px-3.5 py-2.5 text-sm font-medium transition-colors ${
@@ -912,7 +920,13 @@ export default function SupplierBookings({
             </button>
           }
         />
-      ) : filteredBookings.length === 0 ? (
+      ) : (
+        <div
+          id={PARTNER_BOOKINGS_TABPANEL_ID}
+          role="tabpanel"
+          aria-labelledby={partnerBookingsTabId(view)}
+        >
+        {filteredBookings.length === 0 ? (
         <SupplierEmptyState
           icon={CalendarDays}
           title="Nothing in this view"
@@ -1161,6 +1175,8 @@ export default function SupplierBookings({
               </div>
             ) : null}
           </nav>
+        </div>
+      )}
         </div>
       )}
 
