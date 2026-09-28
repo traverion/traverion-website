@@ -1193,7 +1193,26 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
                     : toursBrowseFilteredEmptyBody(searchTerm.trim() !== '')
                 }
                 action={
-                  hasActiveFilters ? (
+                  emptyDueToSoldOutDate ? (
+                    <div className="flex flex-wrap gap-2">
+                      {/* Phase 1608: sold-out date — clear date first; do not wipe destination/search. */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFilterDate('');
+                          setDraftDate('');
+                        }}
+                        className="tv-btn-primary"
+                      >
+                        Try another date
+                      </button>
+                      {hasActiveFilters ? (
+                        <button type="button" onClick={clearAllFilters} className="tv-btn-ghost">
+                          Clear filters
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : hasActiveFilters ? (
                     <button type="button" onClick={clearAllFilters} className="tv-btn-primary">
                       Clear filters
                     </button>
