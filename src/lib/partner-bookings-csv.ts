@@ -1,4 +1,6 @@
 import { partnerPaymentLabel, normalizePaymentStatus, type MoneyBookingRow } from './payment-states';
+import { bookingIsStayNight } from './pickup-completeness';
+import { stayRangeFromBooking } from './stayOccupancy';
 
 export type PartnerBookingCsvRow = MoneyBookingRow & {
   id: string;
@@ -9,12 +11,14 @@ export type PartnerBookingCsvRow = MoneyBookingRow & {
   guests?: number | null;
   booking_date?: string | null;
   check_out?: string | null;
+  nights?: number | null;
   start_time?: string | null;
   pickup_time?: string | null;
   acknowledged_at?: string | null;
   created_at?: string | null;
   special_requests?: string | null;
   cancellation_reason?: string | null;
+  purchase_snapshot?: unknown;
 };
 
 /** Columns for partner Bookings export — payment_label matches UI honesty (Refund due, etc.). */
@@ -51,11 +55,35 @@ export function partnerBookingCsvValues(
   pickupHm: string,
   opts?: { inventory?: 'tour' | 'stay'; nights?: number | null }
 ): string[] {
-  const inventory = opts?.inventory ?? (b.check_out ? 'stay' : 'tour');
-  const nights =
+  // Phase 1538: stay shape = bookingIsStayNight + stayRangeFromBooking (1524 parity),
+  // not check_out column alone (nights-only / snapshot-only must export check-out).
+  const isStay = opts?.inventory === 'stay' || (opts?.inventory !== 'tour' && bookingIsStayNight(b));
+  const inventory: 'tour' | 'stay' = opts?.inventory ?? (isStay ? 'stay' : 'tour');
+  const range = inventory === 'stay' ? stayRangeFromBooking(b) : null;
+  const checkOut = range?.checkOut ?? (typeof b.check_out === 'string' ? b.check_out.trim() : '');
+  const nightsFromOpts =
     opts?.nights != null && Number.isFinite(opts.nights) && opts.nights > 0
-      ? String(Math.floor(opts.nights))
-      : '';
+      ? Math.floor(opts.nights)
+      : null;
+  const nightsFromRow =
+    b.nights != null && Number.isFinite(Number(b.nights)) && Number(b.nights) >= 1
+      ? Math.floor(Number(b.nights))
+      : null;
+  const nightsFromRange =
+    range && range.checkIn && range.checkOut && range.checkOut > range.checkIn
+      ? Math.round(
+          (Date.parse(`${range.checkOut}T12:00:00Z`) - Date.parse(`${range.checkIn}T12:00:00Z`)) /
+            86400000
+        )
+      : null;
+  const nights =
+    nightsFromOpts != null
+      ? String(nightsFromOpts)
+      : nightsFromRow != null
+        ? String(nightsFromRow)
+        : nightsFromRange != null && nightsFromRange >= 1
+          ? String(nightsFromRange)
+          : '';
   return [
     b.id,
     typeof b.booking_number === 'number' ? String(b.booking_number) : '',
@@ -66,7 +94,7 @@ export function partnerBookingCsvValues(
     b.guest_email ?? '',
     b.guests != null ? String(b.guests) : '',
     b.booking_date ?? '',
-    b.check_out ?? '',
+    checkOut,
     nights,
     startHm,
     inventory === 'stay' ? '' : pickupHm,

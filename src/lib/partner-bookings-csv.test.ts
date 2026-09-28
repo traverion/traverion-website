@@ -83,6 +83,52 @@ describe('partner bookings CSV', () => {
     expect(values[PARTNER_BOOKINGS_CSV_HEADER.indexOf('nights')]).toBe('');
   });
 
+  it('Phase 1538: nights-only stay exports check_out and inventory without column', () => {
+    const values = partnerBookingCsvValues(
+      {
+        id: 'stay-n',
+        listing_id: 'prop',
+        booking_number: 8,
+        status: 'confirmed',
+        payment_status: 'paid',
+        amount_paid: 300,
+        currency: 'EUR',
+        booking_date: '2026-12-01',
+        nights: 3,
+        guests: 2,
+      },
+      'Cabin',
+      '',
+      '08:00'
+    );
+    expect(values[PARTNER_BOOKINGS_CSV_HEADER.indexOf('inventory')]).toBe('stay');
+    expect(values[PARTNER_BOOKINGS_CSV_HEADER.indexOf('check_out')]).toBe('2026-12-04');
+    expect(values[PARTNER_BOOKINGS_CSV_HEADER.indexOf('nights')]).toBe('3');
+    expect(values[PARTNER_BOOKINGS_CSV_HEADER.indexOf('pickup_time')]).toBe('');
+  });
+
+  it('Phase 1538: snapshot-only stay exports check_out from purchase_snapshot', () => {
+    const values = partnerBookingCsvValues(
+      {
+        id: 'stay-s',
+        listing_id: 'prop',
+        booking_number: 9,
+        status: 'confirmed',
+        payment_status: 'paid',
+        amount_paid: 280,
+        currency: 'EUR',
+        booking_date: '2026-12-01',
+        guests: 2,
+        purchase_snapshot: { checkOut: '2026-12-05' },
+      },
+      'Cabin',
+      '',
+      ''
+    );
+    expect(values[PARTNER_BOOKINGS_CSV_HEADER.indexOf('inventory')]).toBe('stay');
+    expect(values[PARTNER_BOOKINGS_CSV_HEADER.indexOf('check_out')]).toBe('2026-12-05');
+  });
+
   it('listing_title column carries purchased title when caller prefers snapshot (Phase 1069)', () => {
     const values = partnerBookingCsvValues(
       {
