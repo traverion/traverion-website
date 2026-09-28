@@ -314,6 +314,8 @@ export default function SupplierLayout() {
   const [unknownPartnerPath, setUnknownPartnerPath] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const mainPaneRef = useRef<HTMLDivElement>(null);
+  const partnerHubUserIdRef = useRef<string | null>(null);
+  const partnerProfileGenRef = useRef(0);
 
   const supplierEmail = typeof user?.email === 'string' ? user.email : '';
   const supplierEmailVerified = Boolean((user as { email_confirmed_at?: string | null } | null)?.email_confirmed_at);
@@ -504,8 +506,62 @@ export default function SupplierLayout() {
   }, [partnerGateView, user?.id, user?.email, signOut]);
 
   useEffect(() => {
+    const clearPartnerWorkspaceProfileState = () => {
+      setProfileDisplayName('');
+      setPayoutIban('');
+      setPayoutBic('');
+      setPayoutVerificationStatus('');
+      setPayoutVerificationSubmittedAt('');
+      setBusinessVerificationFeedback('');
+      setPayoutVerificationFeedback('');
+      setPaymentCycle('');
+      setPayoutThreshold('');
+      setBusinessType('');
+      setBusinessTypeAtLastFetch('');
+      setCompanyLegalName('');
+      setCompanyRegistrationNumber('');
+      setManagingDirectors('');
+      setAddressStreet('');
+      setAddressCountry('');
+      setAddressCity('');
+      setAddressPostalCode('');
+      setTaxId('');
+      setVatId('');
+      setVerificationStatus('');
+      setVerificationSubmittedAt('');
+      setInsurancePolicyNumber('');
+      setInsuranceCoverage('');
+      setInsuranceStart('');
+      setInsuranceEnd('');
+      setInsuranceProvider('');
+      setPrivacyPolicyText('');
+      setTermsConditionsText('');
+      setBusinessLogoUrl('');
+      setCompanyRegistrationPath('');
+      setPayoutMessage(null);
+      setCompanyMessage(null);
+      setLegalMessage(null);
+    };
+    if (!user?.id) {
+      partnerHubUserIdRef.current = null;
+      partnerProfileGenRef.current += 1;
+      clearPartnerWorkspaceProfileState();
+      return;
+    }
+    // Phase 1382: clear prior partner PII before loading the next account (Account hub 1378 parity).
+    if (partnerHubUserIdRef.current !== user.id) {
+      partnerHubUserIdRef.current = user.id;
+      partnerProfileGenRef.current += 1;
+      clearPartnerWorkspaceProfileState();
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
     if ((section !== 'business-profile' && section !== 'account-settings') || !user?.id || !isSupabase) return;
-    fetchSupplierProfile(user.id).then((p) => {
+    const uid = user.id;
+    const gen = partnerProfileGenRef.current;
+    fetchSupplierProfile(uid).then((p) => {
+      if (gen !== partnerProfileGenRef.current) return;
       if (p) {
         setProfileDisplayName(p.display_name ?? '');
         setPayoutIban(p.payout_iban ?? '');
@@ -572,11 +628,14 @@ export default function SupplierLayout() {
       setPayoutVerificationFeedback('');
       return;
     }
+    const uid = user.id;
+    const gen = partnerProfileGenRef.current;
     try {
       const [profile, listings] = await Promise.all([
-        fetchSupplierProfile(user.id),
-        fetchMyListings(user.id),
+        fetchSupplierProfile(uid),
+        fetchMyListings(uid),
       ]);
+      if (gen !== partnerProfileGenRef.current) return;
       setOnboardingListingCount(listings.length);
       setOnboardingHasPayout(isSupplierPayoutConfigured(profile));
       setOnboardingHasCompany(isSupplierBusinessProfileComplete(profile));
@@ -593,6 +652,7 @@ export default function SupplierLayout() {
       setBusinessVerificationFeedback((profile?.business_verification_feedback ?? '').trim());
       setPayoutVerificationFeedback((profile?.payout_verification_feedback ?? '').trim());
     } catch {
+      if (gen !== partnerProfileGenRef.current) return;
       setOnboardingListingCount(null);
     }
   }, [user?.id, isSupabase]);
