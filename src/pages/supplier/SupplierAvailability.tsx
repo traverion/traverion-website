@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, CalendarDays, Ban } from 'lucide-react';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
@@ -285,7 +285,7 @@ export default function SupplierAvailability() {
     }
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const clearAvailabilityPartnerWorkspace = () => {
       setListings([]);
       setBookings([]);

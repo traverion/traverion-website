@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
 import { TrendingUp, Award } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchMyListings } from '../../data/supabase-listings';
@@ -79,7 +79,7 @@ export default function SupplierPerformance() {
     setLoading(false);
   }, [isSupabase, user?.id]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const clearPerformancePartnerWorkspace = () => {
       setListings([]);
       setBookings([]);

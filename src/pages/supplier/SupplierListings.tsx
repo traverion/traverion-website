@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Plus,
@@ -457,7 +457,7 @@ export default function SupplierListings() {
     }
   }, [isSupabase, user?.id]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const clearListingsPartnerWorkspace = () => {
       setListings([]);
       setError(null);

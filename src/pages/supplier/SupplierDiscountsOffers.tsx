@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
 import { Tag, MapPin, Pencil, Trash2 } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchMyListings } from '../../data/supabase-listings';
@@ -151,7 +151,7 @@ export default function SupplierDiscountsOffers() {
     }
   }, [isSupabase, user?.id]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const clearOffersPartnerWorkspace = () => {
       setListings([]);
       setRows([]);

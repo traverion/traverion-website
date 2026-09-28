@@ -1,7 +1,7 @@
 /**
  * Supplier: pickup planner – bookings with meeting / pickup, filters, CSV, deep link to edit listing pickup fields.
  */
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
 import {
   AlertCircle,
   ExternalLink,
@@ -355,7 +355,7 @@ export default function SupplierPickupPlanner() {
     }
   }, [isSupabase, user?.id]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const clearPickupPlannerPartnerWorkspace = () => {
       setBookings([]);
       setListingTitles({});

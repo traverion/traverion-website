@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
 import { Wallet } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchSupplierEarnings, SupplierEarning } from '../../data/supabase-earnings';
@@ -131,7 +131,7 @@ export default function SupplierEarnings() {
       });
   }, [isSupabase, user?.id]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const clearEarningsPartnerWorkspace = () => {
       setEarnings([]);
       setPaidBookings([]);

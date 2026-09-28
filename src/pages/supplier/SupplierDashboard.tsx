@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef, type ReactNode } from 'react';
+import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef, type ReactNode } from 'react';
 import { SUPPLIER_PAGE_CLASS, SupplierListSkeleton } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
 import NoticeCallout from '../../components/NoticeCallout';
@@ -313,7 +313,7 @@ export default function SupplierDashboard() {
     }
   }, [isSupabase, user?.id]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const clearDashboardPartnerWorkspace = () => {
       setPublishedListingsCount(null);
       setDraftListingsCount(null);
