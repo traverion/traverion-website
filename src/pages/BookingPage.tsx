@@ -1840,7 +1840,7 @@ export default function BookingPage({
                   <div className="flex justify-between text-sm text-ink">
                     <span>
                       {participantsSummary}
-                      {!usesAgePricingOnVariant
+                      {!usesAgePricingOnVariant && !quoteFailed
                         ? ` · ${formatMoney(pricePerPerson, currency)} each`
                         : ''}
                     </span>
@@ -2072,7 +2072,11 @@ export default function BookingPage({
               <div className="absolute bottom-2 left-3 right-3 text-white">
                 <p className="line-clamp-2 font-display text-base font-semibold leading-tight tracking-tight sm:text-lg">{tour.title}</p>
                 <p className="text-[11px] text-white/90">
-                  {formatTourDurationDisplay(tour.duration)} · From {formatMoney(pricePerPerson, currency)}/{priceFromQualifier === 'per adult' ? 'adult' : 'person'}
+                  {/* Phase 1558: never invent catalog From when quoteBooking failed (1545/1557). */}
+                  {formatTourDurationDisplay(tour.duration)}
+                  {quoteFailed
+                    ? ' · —'
+                    : ` · From ${formatMoney(pricePerPerson, currency)}/${priceFromQualifier === 'per adult' ? 'adult' : 'person'}`}
                 </p>
               </div>
             </div>
@@ -2120,8 +2124,11 @@ export default function BookingPage({
                 <div className="absolute bottom-3 left-3 right-3 text-white">
                   <h1 className="font-display text-xl sm:text-2xl tracking-tight">{tour.title}</h1>
                   <p className="mt-1 text-sm text-white/90">
-                    {formatTourDurationDisplay(tour.duration)} · From {formatMoney(pricePerPerson, currency)}{' '}
-                    {priceFromQualifier}
+                    {/* Phase 1558: never invent catalog From when quoteBooking failed (1545/1557). */}
+                    {formatTourDurationDisplay(tour.duration)}
+                    {quoteFailed
+                      ? ' · —'
+                      : ` · From ${formatMoney(pricePerPerson, currency)} ${priceFromQualifier}`}
                   </p>
                 </div>
               </div>

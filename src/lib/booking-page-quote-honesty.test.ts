@@ -45,3 +45,15 @@ describe('BookingPage quote-failure honesty (Phase 1545)', () => {
     ).toBe('Fix date');
   });
 });
+
+describe('BookingPage hero quote honesty (Phase 1558)', () => {
+  const src = readFileSync(join(here, '../pages/BookingPage.tsx'), 'utf8');
+
+  it('hero From price gates on quoteFailed', () => {
+    expect(src).toContain('Phase 1558');
+    expect(src).toMatch(/quoteFailed\s*\?\s*' · —'/);
+    expect(src).not.toMatch(
+      /formatTourDurationDisplay\(tour\.duration\) · From \{formatMoney\(pricePerPerson/
+    );
+  });
+});
