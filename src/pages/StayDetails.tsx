@@ -503,8 +503,10 @@ export default function StayDetails({ stayId, onBack }: Props) {
     }
     if (checkoutPayBlockedByConsent(checkoutConsentAccepted)) {
       setPayError('Confirm the cancellation policy and Terms before paying.');
-      document.getElementById('stay-checkout-consent')?.focus();
       document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      window.requestAnimationFrame(() => {
+        document.getElementById('stay-checkout-consent')?.focus();
+      });
       return;
     }
     // Re-fetch inventory so a concurrent hold or fresh host block is visible before Stripe opens.
@@ -1208,8 +1210,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
                     selectionOccupied ||
                     Boolean(occupancyError) ||
                     selfBookBlocked ||
-                    maxGuests == null ||
-                    checkoutPayBlockedByConsent(checkoutConsentAccepted)
+                    maxGuests == null
                   }
                   onClick={() => {
                     if (selectionOccupied || occupancyError || selfBookBlocked || maxGuests == null) return;
@@ -1305,8 +1306,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
                   selectionOccupied ||
                   Boolean(occupancyError) ||
                   selfBookBlocked ||
-                  maxGuests == null ||
-                  (quoteOk && checkoutPayBlockedByConsent(checkoutConsentAccepted))
+                  maxGuests == null
                 }
                 onClick={() => {
                   if (selectionOccupied || occupancyError || selfBookBlocked || maxGuests == null) return;

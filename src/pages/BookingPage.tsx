@@ -1013,7 +1013,10 @@ export default function BookingPage({
     if (submitting) return;
     if (checkoutPayBlockedByConsent(checkoutConsentAccepted)) {
       setError('Confirm the cancellation policy and Terms before paying.');
-      document.getElementById('booking-checkout-consent')?.focus();
+      document.getElementById('booking-checkout-consent')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      window.requestAnimationFrame(() => {
+        document.getElementById('booking-checkout-consent')?.focus();
+      });
       return;
     }
     if (capacityBlocksPay) {
@@ -1851,8 +1854,7 @@ export default function BookingPage({
                   onClick={handleConfirmBooking}
                   disabled={
                     submitting ||
-                    capacityBlocksPay ||
-                    checkoutPayBlockedByConsent(checkoutConsentAccepted)
+                    capacityBlocksPay
                   }
                   className="tv-btn-primary w-full sm:w-auto whitespace-normal text-center disabled:opacity-50"
                 >
@@ -1928,8 +1930,7 @@ export default function BookingPage({
             onClick={handleConfirmBooking}
             disabled={
               submitting ||
-              capacityBlocksPay ||
-              checkoutPayBlockedByConsent(checkoutConsentAccepted)
+              capacityBlocksPay
             }
             className="tv-btn-primary w-full whitespace-normal text-center disabled:opacity-50"
           >
