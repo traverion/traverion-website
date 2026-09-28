@@ -18,3 +18,15 @@ describe('BookingPage pay-step contact review (Phase 1593)', () => {
     expect(fieldNoteJsx.length).toBe(1);
   });
 });
+
+describe('BookingPage review-step Stripe TEST phrasing (Phase 1595)', () => {
+  const src = readFileSync(join(here, 'BookingPage.tsx'), 'utf8');
+
+  it('uses pay via + STRIPE_TEST_UNTIL_LIVE (StayDetails 1594 parity)', () => {
+    expect(src).toContain('Phase 1595');
+    expect(src).toMatch(
+      /Phase 1595: Stripe TEST as a clear clause[\s\S]*then pay via\{\s*' '\s*\}\s*\{STRIPE_TEST_UNTIL_LIVE\}/
+    );
+    expect(src).not.toMatch(/then pay on\{\s*' '\s*\}\s*\{STRIPE_TEST_UNTIL_LIVE\}/);
+  });
+});

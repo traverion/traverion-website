@@ -1272,7 +1272,8 @@ export default function BookingPage({
             <BookingProgress step={step} flow={progressFlow} />
             <h2 className="font-display text-xl text-ink mb-1.5">Trip</h2>
             <p className="text-sm text-ink-muted mb-6">
-              Confirm date, option, and participants. Next you will enter contact details, then pay on{' '}
+              {/* Phase 1595: Stripe TEST as a clear clause (StayDetails 1594 parity). */}
+              Confirm date, option, and participants. Next you will enter contact details, then pay via{' '}
               {STRIPE_TEST_UNTIL_LIVE}.
             </p>
             <div className="space-y-3 text-sm text-ink-muted mb-6 rounded-xl bg-paper px-4 py-3.5 ring-1 ring-black/[0.05]">
