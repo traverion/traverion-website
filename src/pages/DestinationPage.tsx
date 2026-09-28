@@ -284,9 +284,11 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
         ) : listings.length > 0 ? (
           <div className="space-y-12">
             {tourListings.length > 0 ? (
-              <section>
+              <section aria-labelledby="destination-tours-heading">
                 <div className="mb-5 flex flex-wrap items-end justify-between gap-2">
-                  <h2 className="font-display text-2xl sm:text-3xl text-ink tracking-tight">Tours</h2>
+                  <h2 id="destination-tours-heading" className="font-display text-2xl sm:text-3xl text-ink tracking-tight">
+                    Tours
+                  </h2>
                   <p className="text-sm text-ink-muted">
                     {tourListings.length} {tourListings.length === 1 ? 'experience' : 'experiences'} in {label}
                   </p>
@@ -318,9 +320,11 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
               </section>
             ) : null}
             {stayListings.length > 0 ? (
-              <section>
+              <section aria-labelledby="destination-stays-heading">
                 <div className="mb-5 flex flex-wrap items-end justify-between gap-2">
-                  <h2 className="font-display text-2xl sm:text-3xl text-ink tracking-tight">Stays</h2>
+                  <h2 id="destination-stays-heading" className="font-display text-2xl sm:text-3xl text-ink tracking-tight">
+                    Stays
+                  </h2>
                   <p className="text-sm text-ink-muted">
                     {stayListings.length} {stayListings.length === 1 ? 'place' : 'places'} to stay
                   </p>
