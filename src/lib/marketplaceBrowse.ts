@@ -313,6 +313,14 @@ export function toursBrowseFilteredEmptyBody(hasTextSearch: boolean): string {
   return 'Nothing matches these filters. Try another place, date, or clear filters to see live tours again.';
 }
 
+/** Phase 1667: stays browse empty body — distinguish text search vs chips/dates only. */
+export function staysBrowseFilteredEmptyBody(hasTextSearch: boolean): string {
+  if (hasTextSearch) {
+    return 'Nothing fits this search. Try another place, dates, or guest count — or clear filters to see live stays again.';
+  }
+  return 'Try another place, dates, or guest count — or clear filters to see live stays again.';
+}
+
 export function catalogSharedCurrency(listings: TourPackage[], normalizeCurrency: (raw?: string) => string): string | null {
   if (listings.length === 0) return null;
   const codes = new Set(listings.map((t) => normalizeCurrency(t.price?.currency)));

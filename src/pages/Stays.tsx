@@ -56,6 +56,7 @@ import {
   marketplaceWhereDisplay,
   RATING_FILTER_CHIPS,
   stayMatchesCatalogFilters,
+  staysBrowseFilteredEmptyBody,
   type MarketplaceSearchValues,
   type MarketplaceSortOption,
   type PriceChipId,
@@ -1022,7 +1023,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
                     ? 'Stays that match your other filters are occupied or blocked for those nights. Try other dates or clear filters.'
                     : dateFilterActive
                       ? 'No stays are free for those nights — or the stay has a longer minimum. Try other dates or clear filters.'
-                      : 'Try another place, dates, or guest count — or clear filters to see live stays again.'
+                      : staysBrowseFilteredEmptyBody(q.trim() !== '')
                 }
                 action={
                   emptyDueToOccupiedNights || dateFilterActive ? (

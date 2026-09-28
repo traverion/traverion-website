@@ -12,6 +12,7 @@ import {
   nextStayDatePatch,
   failCloseOrphanStayCheckout,
   toursBrowseFilteredEmptyBody,
+  staysBrowseFilteredEmptyBody,
   marketplaceFamilySwitchPath,
   marketplaceSearchMinSelectableIso,
   marketplaceWhereDisplay,
@@ -360,6 +361,12 @@ describe('marketplace browse filters', () => {
     expect(toursBrowseFilteredEmptyBody(true)).toContain('this search');
     expect(toursBrowseFilteredEmptyBody(false)).toContain('these filters');
     expect(toursBrowseFilteredEmptyBody(false)).not.toContain('this search');
+  });
+
+  it('stays browse empty body distinguishes text search from chip-only filters', () => {
+    expect(staysBrowseFilteredEmptyBody(true)).toContain('this search');
+    expect(staysBrowseFilteredEmptyBody(false)).not.toContain('this search');
+    expect(staysBrowseFilteredEmptyBody(false)).toContain('clear filters');
   });
 
   it('fail-closes orphan or inverted stay check-out (Home / PDP / login return parity)', () => {
