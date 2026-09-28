@@ -1,5 +1,5 @@
 import { bookingPaymentWasCollected } from './payment-states';
-import { bookingIsCancelledTrip } from './trip-views';
+import { bookingIsCancelledTrip, bookingIsFailedCheckout } from './trip-views';
 
 /**
  * Product rule for traveler↔supplier chat. SQL RPCs are the authority;
@@ -56,6 +56,8 @@ export function messagingComposeBlock(row: {
 }): MessagingComposeBlock {
   if (bookingAllowsMessaging(row)) return 'none';
   if (bookingPaymentWasCollected(row.payment_status)) return 'closed';
+  // Phase 1357: cancelled / failed checkouts cannot unlock messaging by paying.
+  if (bookingIsCancelledTrip(row) || bookingIsFailedCheckout(row)) return 'closed';
   return 'unpaid';
 }
 

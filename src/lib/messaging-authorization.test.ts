@@ -80,6 +80,8 @@ describe('messaging authorization', () => {
     expect(bookingAllowsMessaging(refunded)).toBe(false);
     expect(messagingComposeBlock(refunded)).toBe('closed');
     expect(messagingComposeBlock({ status: 'pending', payment_status: 'pending' })).toBe('unpaid');
+    expect(messagingComposeBlock({ status: 'cancelled', payment_status: 'pending' })).toBe('closed');
+    expect(messagingComposeBlock({ status: 'pending', payment_status: 'failed' })).toBe('closed');
     expect(
       bookingAllowsMessaging({ status: 'confirmed', payment_status: 'paid' })
     ).toBe(true);
