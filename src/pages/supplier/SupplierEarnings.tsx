@@ -123,6 +123,7 @@ export default function SupplierEarnings() {
       })
       .catch((e) => {
         if (gen !== loadGenRef.current) return;
+        // Keep prior earnings/bookings — reload failure must not look like zero income.
         setError(userFacingError(e, USER_ERROR.money));
       })
       .finally(() => {
@@ -361,9 +362,9 @@ export default function SupplierEarnings() {
         </div>
       ) : null}
 
-      {loading ? (
+      {loading && !hasMoney ? (
         <SupplierListSkeleton rows={3} />
-      ) : error ? null : (
+      ) : error && !hasMoney ? null : (
         <>
           {moneyByCurrency.length === 0 ? (
             <section className="mb-10 pb-6 border-b border-black/[0.06]">
