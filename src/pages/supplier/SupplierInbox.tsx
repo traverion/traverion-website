@@ -525,9 +525,15 @@ export default function SupplierInbox() {
           title="No booking conversations yet"
           body="When a traveler pays for one of your tours or stays, you can message them here about that booking."
           action={
-            <button type="button" className="tv-btn-primary" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings`)}>
-              Open bookings
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className="tv-btn-primary" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings`)}>
+                Open bookings
+              </button>
+              {/* Phase 1641: new suppliers need a path to listings while waiting for paid threads. */}
+              <button type="button" className="tv-btn-ghost" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings`)}>
+                Your listings
+              </button>
+            </div>
           }
         />
         )
