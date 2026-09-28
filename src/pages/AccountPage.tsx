@@ -43,6 +43,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
   const [profileMessage, setProfileMessage] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const statsGenRef = useRef(0);
   const profileGenRef = useRef(0);
+  const hubUserIdRef = useRef<string | null>(null);
 
   const loadStats = useCallback(async () => {
     if (!isSupabaseConfigured() || !user?.id) {
@@ -72,15 +73,6 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
       if (gen === statsGenRef.current) setStatsLoading(false);
     }
   }, [user?.id]);
-
-  useEffect(() => {
-    if (user) loadStats();
-    else {
-      statsGenRef.current += 1;
-      setStats(null);
-      setStatsError(null);
-    }
-  }, [user, loadStats]);
 
   const loadProfile = useCallback(async () => {
     if (!isSupabaseConfigured() || !user?.id) return;
@@ -126,15 +118,34 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
   }, [user?.id, user?.email, user?.user_metadata]);
 
   useEffect(() => {
-    if (user) void loadProfile();
-    else {
+    if (!user?.id) {
+      hubUserIdRef.current = null;
+      statsGenRef.current += 1;
       profileGenRef.current += 1;
+      setStats(null);
+      setStatsError(null);
+      setStatsLoading(false);
+      setDisplayName('');
+      setPhone('');
+      setProfileMessage(null);
+      setProfileError(null);
+      return;
+    }
+    // Phase 1378 parity: clear prior hub stats/profile before loading the new traveler (incl. failed fetch).
+    if (hubUserIdRef.current !== user.id) {
+      hubUserIdRef.current = user.id;
+      statsGenRef.current += 1;
+      profileGenRef.current += 1;
+      setStats(null);
+      setStatsError(null);
       setDisplayName('');
       setPhone('');
       setProfileMessage(null);
       setProfileError(null);
     }
-  }, [user, loadProfile]);
+    void loadStats();
+    void loadProfile();
+  }, [user?.id, loadStats, loadProfile]);
 
   if (!isSupabaseConfigured()) {
     return (
