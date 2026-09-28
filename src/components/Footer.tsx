@@ -66,6 +66,8 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
               <li><button type="button" onClick={() => nav('stays')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Stays</button></li>
               {/* Phase 1623: Trips beside Tours/Stays — match primary nav wayfinding. */}
               <li><button type="button" onClick={() => nav('bookings')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Trips</button></li>
+              {/* Phase 1664: Saved beside Trips — match primary nav wishlist wayfinding. */}
+              <li><button type="button" onClick={() => nav('wishlist')} className={`${linkClass} text-left bg-transparent border-0 cursor-pointer`}>Saved</button></li>
             </ul>
           </div>
 
