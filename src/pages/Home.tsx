@@ -67,6 +67,8 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
     string,
     import('../data/supabase-discounts').ListingDiscount[]
   > | null>(null);
+  const [discountsLoadedForKey, setDiscountsLoadedForKey] = useState<string | null>(null);
+  const discountsLoadGenRef = useRef(0);
   const [reviewAggregates, setReviewAggregates] = useState<Map<string, { rating: number; count: number }>>(
     () => new Map()
   );
@@ -159,23 +161,34 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
     return [...new Set([...tourIds, ...stayIds])];
   }, [displayedListings, displayedStayListings]);
   const displayedIdsKey = useMemo(() => displayedIds.join(','), [displayedIds]);
+  const discountsForDisplayedCatalog =
+    discountsLoadedForKey === displayedIdsKey ? discountsByListing : null;
 
   useEffect(() => {
     if (!isSupabaseConfigured() || !displayedIdsKey) {
       setDiscountsByListing(null);
+      setDiscountsLoadedForKey(null);
       setReviewAggregates(new Map());
       return;
     }
     const ids = displayedIdsKey.split(',');
+    const keyAtStart = displayedIdsKey;
+    const gen = ++discountsLoadGenRef.current;
+    setDiscountsByListing(null);
+    setDiscountsLoadedForKey(null);
     let cancelled = false;
     // Phase 1193: decouple offers vs reviews — one RPC failure must not block the other.
     void fetchDiscountsByListingIds(ids)
       .then((discounts) => {
-        if (!cancelled) setDiscountsByListing(discounts);
+        if (cancelled || gen !== discountsLoadGenRef.current) return;
+        setDiscountsByListing(discounts);
+        setDiscountsLoadedForKey(keyAtStart);
       })
       .catch(() => {
         // Phase 1151: empty map → honest list From (not endless "Checking offers…").
-        if (!cancelled) setDiscountsByListing(new Map());
+        if (cancelled || gen !== discountsLoadGenRef.current) return;
+        setDiscountsByListing(new Map());
+        setDiscountsLoadedForKey(keyAtStart);
       });
     void getReviewAggregatesForListingIds(ids)
       .then((reviews) => {
@@ -631,14 +644,14 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                       {featuredListing.title}
                     </p>
                     {(() => {
-                      if (discountsByListing == null && isSupabaseListingId(featuredListing.id)) {
+                      if (discountsForDisplayedCatalog == null && isSupabaseListingId(featuredListing.id)) {
                         return (
                           <p className="mt-2 text-sm sm:text-base font-medium text-white/80">Checking offers…</p>
                         );
                       }
                       const { price, qualifier, summary } = getDisplayPriceForTour(
                         featuredListing,
-                        discountsByListing ?? new Map()
+                        discountsForDisplayedCatalog ?? new Map()
                       );
                       const currency = normalizeCurrency(featuredListing.price?.currency);
                       return (
@@ -661,7 +674,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                     tour={item}
                     index={index}
                     onSelect={() => openListing(item)}
-                    discountsByListing={discountsByListing}
+                    discountsByListing={discountsForDisplayedCatalog}
                     reviewAggregate={reviewAggregates.get(item.id)}
                     tagLabels={TAG_LABELS}
                     size="compact"
@@ -731,7 +744,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                   tour={item}
                   index={index}
                   onSelect={() => openListing(item)}
-                  discountsByListing={discountsByListing}
+                  discountsByListing={discountsForDisplayedCatalog}
                   reviewAggregate={reviewAggregates.get(item.id)}
                   tagLabels={{}}
                   size="compact"
