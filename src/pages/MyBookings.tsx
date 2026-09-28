@@ -112,6 +112,13 @@ function mergePlaceOfStayIntoNotes(notes: string | null | undefined, place: stri
   return kept.join('\n');
 }
 
+const TRIPS_HEADING_ID = 'trips-heading';
+const TRIPS_TABPANEL_ID = 'trips-tabpanel';
+
+function tripsTabId(view: 'upcoming' | 'past' | 'cancelled'): string {
+  return `trips-tab-${view}`;
+}
+
 export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps) {
   const { user, loading: authLoading } = useAuth();
   const [bookings, setBookings] = useState<BookingRow[]>([]);
@@ -462,9 +469,12 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
         <div className="mx-auto max-w-[90rem] px-4 sm:px-6 lg:px-8 py-8 pb-12">
           <header className="mb-6 border-b border-black/[0.06] pb-5">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Your travel</p>
-            <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Trips</h1>
+            <h1 id={TRIPS_HEADING_ID} className="font-display text-3xl sm:text-4xl text-ink tracking-tight">
+              Trips
+            </h1>
             <p className="mt-2 text-sm text-ink-muted">Upcoming and past tours and stays you booked.</p>
           </header>
+          <section aria-labelledby={TRIPS_HEADING_ID}>
           <div className="max-w-md tv-card p-5">
             <h2 className="font-display text-2xl text-ink">Bookings unavailable</h2>
             <p className="mt-3 text-sm text-ink-muted">
@@ -494,6 +504,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               </button>
             </div>
           </div>
+          </section>
         </div>
       </div>
     );
@@ -508,11 +519,14 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
         <div className="mx-auto max-w-[90rem] px-4 sm:px-6 lg:px-8 py-8 pb-12">
           <header className="mb-6 border-b border-black/[0.06] pb-5">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Your travel</p>
-            <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Trips</h1>
+            <h1 id={TRIPS_HEADING_ID} className="font-display text-3xl sm:text-4xl text-ink tracking-tight">
+              Trips
+            </h1>
             <p className="mt-2 text-sm text-ink-muted leading-relaxed max-w-xl">
               Manage upcoming, past, and cancelled tours and stays after you sign in.
             </p>
           </header>
+          <section aria-labelledby={TRIPS_HEADING_ID}>
           <EmptyState
             icon={LogIn}
             className="pt-2 pb-0"
@@ -531,6 +545,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               </button>
             }
           />
+          </section>
         </div>
       </div>
     );
@@ -543,7 +558,9 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Your travel</p>
-              <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Trips</h1>
+              <h1 id={TRIPS_HEADING_ID} className="font-display text-3xl sm:text-4xl text-ink tracking-tight">
+                Trips
+              </h1>
               <p className="mt-2 text-sm text-ink-muted max-w-xl leading-relaxed">
                 Manage upcoming, past, and cancelled tours and stays — payment, pickup, and references in one place.
               </p>
@@ -570,6 +587,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           </div>
         </header>
 
+        <section aria-labelledby={TRIPS_HEADING_ID}>
         {loadError && (
           <ErrorState
             className="py-6"
@@ -706,6 +724,8 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   key={id}
                   type="button"
                   role="tab"
+                  id={tripsTabId(id)}
+                  aria-controls={TRIPS_TABPANEL_ID}
                   aria-selected={tripView === id}
                   onClick={() => selectTripView(id)}
                   className={`lux-flat min-h-11 rounded-full px-3.5 py-1.5 text-sm font-medium transition-[background-color,color,box-shadow] duration-150 ${
@@ -722,6 +742,11 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 </button>
               ))}
             </div>
+            <div
+              id={TRIPS_TABPANEL_ID}
+              role="tabpanel"
+              aria-labelledby={tripsTabId(tripView)}
+            >
             {visibleBookings.length === 0 ? (
               <EmptyState
                 icon={CalendarDays}
@@ -1288,8 +1313,10 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           </div>
           </div>
             )}
+            </div>
           </div>
         )}
+        </section>
 
         {cancelConfirm && (
           <div ref={cancelSheetRef} className="tv-sheet-overlay z-50">
