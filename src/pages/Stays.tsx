@@ -1025,7 +1025,28 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
                       : 'Try another place, dates, or guest count — or clear filters to see live stays again.'
                 }
                 action={
-                  hasActiveFilters ? (
+                  emptyDueToOccupiedNights || dateFilterActive ? (
+                    <div className="flex flex-wrap gap-2">
+                      {/* Phase 1614: date-first recovery (Tours 1608 parity). */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCheckIn('');
+                          setCheckOut('');
+                          setDraftCheckIn('');
+                          setDraftCheckOut('');
+                        }}
+                        className="tv-btn-primary"
+                      >
+                        Try other dates
+                      </button>
+                      {hasActiveFilters ? (
+                        <button type="button" onClick={clearAllFilters} className="tv-btn-ghost">
+                          Clear filters
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : hasActiveFilters ? (
                     <button type="button" onClick={clearAllFilters} className="tv-btn-primary">
                       Clear filters
                     </button>
