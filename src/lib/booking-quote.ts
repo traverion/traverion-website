@@ -86,7 +86,7 @@ export type BookingQuoteOk = {
 
 export type BookingQuoteErr = {
   ok: false;
-  code: 'unpublished' | 'bad_date' | 'weekday' | 'season' | 'party' | 'option' | 'price' | 'inventory';
+  code: 'unpublished' | 'bad_date' | 'weekday' | 'season' | 'party' | 'option' | 'time' | 'price' | 'inventory';
   error: string;
 };
 
@@ -379,7 +379,7 @@ export function quoteBooking(input: {
       if (!resolved) {
         return {
           ok: false,
-          code: 'option',
+          code: 'time',
           error: 'Choose a departure time to continue.',
         };
       }

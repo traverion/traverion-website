@@ -80,6 +80,13 @@ describe('tourStickyBookCtaLabel', () => {
     expect(tourQuoteFailureCtaLabel('Choose a booking option to continue.', 'option')).toBe(
       'Choose option'
     );
+    // Phase 1530: departure message must win even if legacy code was option
+    expect(
+      tourQuoteFailureCtaLabel('Choose a departure time to continue.', 'option')
+    ).toBe('Pick time');
+    expect(tourQuoteFailureCtaLabel('Choose a departure time to continue.', 'time')).toBe(
+      'Pick time'
+    );
   });
 });
 

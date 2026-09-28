@@ -48,7 +48,6 @@ import {
   TOUR_LISTING_CONFIRMATION_NOTE,
   LISTING_REVIEWS_EMPTY_COPY,
   STRIPE_TEST_UNTIL_LIVE,
-  TRAVELER_CONTINUE_TEST_CTA,
 } from '../lib/booking-confirmation-copy';
 import {
   getPartySizeBounds,
@@ -1801,6 +1800,24 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                           <button
                             type="button"
                             onClick={() => {
+                              // Phase 1530: match sticky — departure before quote-failure focus.
+                              if (departureTimes.length > 1 && !selectedDepartureTime.trim()) {
+                                setBookingCardError('Choose a departure time to continue.');
+                                scrollElementIntoView('tour-departure-times', {
+                                  behavior: 'smooth',
+                                  block: 'center',
+                                });
+                                window.requestAnimationFrame(() => {
+                                  const firstOpen = document.querySelector(
+                                    '#tour-departure-times button:not([disabled])'
+                                  ) as HTMLButtonElement | null;
+                                  const fallback = document.querySelector(
+                                    '#tour-departure-times button'
+                                  ) as HTMLButtonElement | null;
+                                  (firstOpen ?? fallback)?.focus();
+                                });
+                                return;
+                              }
                               if (panelQuote != null && !panelQuote.ok) {
                                 const focus = tourQuoteFailureFocusTarget({
                                   quoteError: panelQuote.error,
@@ -1818,23 +1835,6 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                                     el?.focus();
                                   });
                                 }
-                                return;
-                              }
-                              if (departureTimes.length > 1 && !selectedDepartureTime.trim()) {
-                                setBookingCardError('Choose a departure time to continue.');
-                                scrollElementIntoView('tour-departure-times', {
-                                  behavior: 'smooth',
-                                  block: 'center',
-                                });
-                                window.requestAnimationFrame(() => {
-                                  const firstOpen = document.querySelector(
-                                    '#tour-departure-times button:not([disabled])'
-                                  ) as HTMLButtonElement | null;
-                                  const fallback = document.querySelector(
-                                    '#tour-departure-times button'
-                                  ) as HTMLButtonElement | null;
-                                  (firstOpen ?? fallback)?.focus();
-                                });
                                 return;
                               }
                               void handleContinueToCheckout();

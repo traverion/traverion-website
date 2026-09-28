@@ -16,11 +16,12 @@ export function tourQuoteFailureCtaLabel(
   if (code === 'price' || /bookable price|does not have a.*price|price/i.test(err)) {
     return 'Price unavailable';
   }
-  if (code === 'option' || /booking option|choose a booking option/i.test(err)) {
-    return 'Choose option';
-  }
+  // Phase 1530: departure-time failures before generic option (quote used to emit option+departure copy).
   if (code === 'time' || /departure time|choose a departure/i.test(err)) {
     return 'Pick time';
+  }
+  if (code === 'option' || /booking option|choose a booking option/i.test(err)) {
+    return 'Choose option';
   }
   if (
     code === 'bad_date' ||

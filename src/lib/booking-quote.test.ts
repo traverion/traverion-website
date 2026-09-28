@@ -106,6 +106,48 @@ describe('quoteBooking', () => {
     expect(q.error).toMatch(/2 hours before departure/i);
   });
 
+  it('Phase 1530: unresolved schedule departure emits code time (not option)', () => {
+    const q = quoteBooking({
+      tour: tour({
+        listingExtras: {
+          bookingOptions: [
+            option({
+              id: 'opt-sched',
+              name: 'Scheduled',
+              priceUsd: 100,
+              startTime: '',
+              schedules: [
+                {
+                  id: 'sch-a',
+                  weekdays: [0, 1, 2, 3, 4, 5, 6],
+                  startTime: '09:00',
+                  status: 'ready',
+                  from: '2026-01-01',
+                },
+                {
+                  id: 'sch-b',
+                  weekdays: [0, 1, 2, 3, 4, 5, 6],
+                  startTime: '14:00',
+                  status: 'ready',
+                  from: '2026-01-01',
+                },
+              ],
+            }),
+          ],
+        },
+      }),
+      discounts: [],
+      bookingDate: '2026-10-10',
+      guests: 2,
+      bookingOptionId: 'opt-sched',
+      todayIso: '2026-09-04',
+    });
+    expect(q.ok).toBe(false);
+    if (q.ok) return;
+    expect(q.code).toBe('time');
+    expect(q.error).toMatch(/departure time/i);
+  });
+
   it('prices option × guests after percent discount', () => {
     const q = quoteBooking({
       tour: tour(),
