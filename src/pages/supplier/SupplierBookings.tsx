@@ -1267,6 +1267,16 @@ export default function SupplierBookings({
                 pickupInstructions,
                 isPurchaseSnapshot(booking.purchase_snapshot) ? null : meta?.bookingOptions
               );
+            // Phase 1582: detail panel must resolve openCancel (list row already did — missing here broke tsc/cancel UI).
+            const openCancelRaw = openCancels[booking.id];
+            const openCancel =
+              openCancelRaw &&
+              openHostCancelRequestVisible({
+                bookingStatus: booking.status,
+                requestStatus: openCancelRaw.status,
+              })
+                ? openCancelRaw
+                : undefined;
             const busy = updatingId === booking.id;
             const refLabel =
               typeof booking.booking_number === 'number' && booking.booking_number > 0
