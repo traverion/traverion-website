@@ -127,6 +127,14 @@ describe('marketplace browse filters', () => {
     expect(matchesDestination(baseTour(), 'finland', opts)).toBe(true);
   });
 
+  it('Phase 1363: unknown destination id does not match every tour', () => {
+    const opts = [
+      { id: 'all', label: 'All', type: 'world' as const },
+      { id: 'finland', label: 'Finland', type: 'region' as const },
+    ];
+    expect(matchesDestination(baseTour(), 'rovaniemi', opts)).toBe(false);
+  });
+
   it('reads stay nightly price and property facts from extras', () => {
     expect(stayNightlyAmount(stay())).toBe(189);
     expect(collectStayPropertyTypes([stay()])).toEqual(['Cabin']);

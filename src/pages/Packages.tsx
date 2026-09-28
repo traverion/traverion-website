@@ -457,6 +457,16 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     }
   }, [languageOptions.length, languageFilter]);
 
+  // Phase 1363: hidden destination chips must not keep filtering (language/duration parity).
+  useEffect(() => {
+    if (
+      selectedDestination !== 'all' &&
+      !destinationOptions.some((c) => c.id === selectedDestination)
+    ) {
+      setSelectedDestination('all');
+    }
+  }, [destinationOptions, selectedDestination]);
+
   const ratingScoreForFilter = useCallback(
     (tour: TourPackage) => {
       if (!isSupabaseListingId(tour.id)) return null;

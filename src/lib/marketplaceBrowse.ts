@@ -248,7 +248,9 @@ export function stayHasAmenity(tour: TourPackage, amenityLabel: string): boolean
 export function matchesDestination(tour: TourPackage, destId: string, destinationOptions: DestOption[]): boolean {
   if (destId === 'all' || !destId) return true;
   const opt = destinationOptions.find((d) => d.id === destId);
-  if (!opt) return true;
+  // Phase 1363: orphan URL/chip ids must fail closed — returning true showed the full catalog
+  // while Applied filters still claimed a destination (1275 season-live chips).
+  if (!opt) return false;
   if (opt.type === 'region') return (tour.country?.toLowerCase() ?? '') === opt.label.toLowerCase();
   if (opt.type === 'city') {
     const cityNorm = (tour.city ?? '').toLowerCase().replace(/\s+/g, '-');
