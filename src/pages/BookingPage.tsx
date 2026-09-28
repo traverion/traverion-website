@@ -1820,7 +1820,7 @@ export default function BookingPage({
                   </div>
                 ) : null}
               </dl>
-              <p className="mt-2 text-xs text-ink-muted">{BOOKING_CONTACT_EMAIL_FIELD_NOTE}</p>
+              {/* Phase 1593: Trips email honesty lives in After you pay (bookingPayConfirmAfterPayCopy) — do not repeat field note here. */}
             </section>
 
             <section className="mb-6 border-t border-black/[0.06] pt-5">
