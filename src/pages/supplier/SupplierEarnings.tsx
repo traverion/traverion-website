@@ -26,7 +26,8 @@ import {
 } from '../../lib/partner-money-csv';
 import { csvSafeCell } from '../../lib/csv-export';
 import { displayListingTitleFromPurchase } from '../../lib/purchase-snapshot';
-import { bookingIsStayNight, stayRangeFromBooking } from '../../lib/stayOccupancy';
+import { bookingIsStayNight } from '../../lib/pickup-completeness';
+import { stayRangeFromBooking } from '../../lib/stayOccupancy';
 
 function ledgerKindLabel(kind: string): string {
   const k = kind.trim().toLowerCase();

@@ -1,7 +1,8 @@
 import { partnerPaymentLabel, type MoneyBookingRow } from './payment-states';
 import { PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL } from './booking-confirmation-copy';
 import { isStripeTestCheckoutSession } from './money';
-import { bookingIsStayNight, stayRangeFromBooking } from './stayOccupancy';
+import { bookingIsStayNight } from './pickup-completeness';
+import { stayRangeFromBooking } from './stayOccupancy';
 
 export const PARTNER_MONEY_CSV_HEADER = [
   'row_kind',
