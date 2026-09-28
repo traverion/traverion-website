@@ -30,7 +30,7 @@ import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
 import { pgTimeToHm } from '../../data/supabase-listings';
 import { stayRangeFromBooking } from '../../lib/stayOccupancy';
 import { formatStayNightHuman } from '../../lib/stay-calendar';
-import { localYmd } from '../../lib/local-ymd';
+import { addCalendarDaysYmd } from '../../lib/booking-lifecycle-calendar';
 import { formatBookingDateDisplay } from '../../lib/booking-flow';
 import { PARTNER_INBOX_MESSAGE_FETCH_CAP } from '../../lib/partner-inbox-cap';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
@@ -424,13 +424,13 @@ export default function SupplierDashboard() {
     const nowMs = Date.now();
     return supplierBookings
       .filter((b) => {
+        // Phase 1302: week window from experience-local today (+7 calendar days),
+        // not browser-local Date math (SupplierBookings tomorrow parity).
         const todayLocal = scheduleTodayIsoForBooking(b, nowMs);
         if (!partnerBookingIsUpcomingSchedule(b, todayLocal, nowMs)) return false;
         const bd = b.booking_date ?? '';
-        const [y, m, d] = todayLocal.split('-').map(Number);
-        const end = new Date(y!, m! - 1, d!);
-        end.setDate(end.getDate() + 7);
-        const endYmd = localYmd(end);
+        const endYmd = addCalendarDaysYmd(todayLocal, 7);
+        if (!endYmd) return false;
         return bd > todayLocal && bd <= endYmd;
       })
       .sort((a, b) => (a.booking_date ?? '').localeCompare(b.booking_date ?? ''))

@@ -16,6 +16,12 @@ describe('booking-lifecycle-calendar', () => {
     expect(addCalendarDaysYmd('2026-09-15', 1)).toBe('2026-09-16');
   });
 
+  // Phase 1302: partner Home week-ahead uses +7 experience calendar days (not browser Date).
+  it('week-ahead end is seven calendar days after experience today', () => {
+    expect(addCalendarDaysYmd('2026-09-28', 7)).toBe('2026-10-05');
+    expect(addCalendarDaysYmd('2026-12-28', 7)).toBe('2027-01-04');
+  });
+
   it('resolves snapshot timezone with Helsinki fallback', () => {
     expect(
       resolveLifecycleTimezone({
