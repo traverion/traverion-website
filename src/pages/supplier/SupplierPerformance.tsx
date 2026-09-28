@@ -17,6 +17,7 @@ import { formatMoney, normalizeCurrency } from '../../lib/money';
 import { navigateSupplierUrl, openSupplierCalendar } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE, PARTNER_CREATE_PATH } from '../../lib/partnerPortalPaths';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
+import { displayListingTitleFromPurchase } from '../../lib/purchase-snapshot';
 
 const PERFORMANCE_LOAD_ERROR =
   'We could not load analytics. Check your connection and try again.';
@@ -152,7 +153,11 @@ export default function SupplierPerformance() {
       const key = `${b.listing_id}::${currency}`;
       const cur = byKey.get(key) ?? {
         listingId: b.listing_id,
-        title: titleByListingId[b.listing_id] ?? 'Removed listing',
+        title: displayListingTitleFromPurchase(
+          b.purchase_snapshot,
+          titleByListingId[b.listing_id],
+          'Removed listing'
+        ),
         bookingsCount: 0,
         guestsCount: 0,
         revenue: 0,
