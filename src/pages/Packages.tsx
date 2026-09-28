@@ -1060,7 +1060,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
         ) : null}
         {showCatalogLoading ? (
           <SkeletonCardGrid count={6} />
-        ) : listingsLoadError || dateCapacityError ? null : allListings.length > 0 && filteredPackages.length > 0 ? (
+        ) : allListings.length > 0 && filteredPackages.length > 0 ? (
           <>
             <div className={MARKETPLACE_BROWSE_GRID_CLASS}>
               {filteredPackages.map((tour, index) => (
@@ -1090,7 +1090,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
               Showing published tours from independent operators.
             </p>
           </>
-        ) : (
+        ) : listingsLoadError || dateCapacityError ? null : (
           <div className="rounded-2xl bg-paper-raised px-6 py-2 shadow-soft ring-1 ring-black/[0.06] sm:px-8">
             {allListings.length > 0 ? (
               <EmptyState

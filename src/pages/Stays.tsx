@@ -818,6 +818,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
         ) : null}
         {error ? (
           <ErrorState
+            className="mb-6"
             title="Stays unavailable"
             body={userFacingError(error, USER_ERROR.stays)}
             retry={{ onClick: () => reload() }}
@@ -827,8 +828,10 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
               </a>
             }
           />
-        ) : occupancyError && dateFilterActive ? (
+        ) : null}
+        {occupancyError && dateFilterActive ? (
           <ErrorState
+            className="mb-6"
             title="Capacity unavailable"
             body={occupancyError}
             retry={{ onClick: () => reloadStayBrowseOccupancy() }}
@@ -838,45 +841,10 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
               </a>
             }
           />
-        ) : catalogLoading || waitingOnOccupancy ? (
+        ) : null}
+        {catalogLoading || waitingOnOccupancy ? (
           <SkeletonCardGrid count={6} />
-        ) : filtered.length === 0 ? (
-          <div className="rounded-2xl bg-paper-raised px-6 py-2 shadow-soft ring-1 ring-black/[0.06] sm:px-8">
-            {stays.length === 0 ? (
-              <EmptyState
-                className="py-8 sm:py-10 max-w-lg"
-                icon={Compass}
-                title="No stays published yet"
-                body="When an operator publishes a stay, it appears here. Traverion does not invent sample apartments."
-                action={
-                  <a href={supplierPortalLandingHref()} className="tv-btn-primary inline-flex">
-                    List a stay
-                  </a>
-                }
-              />
-            ) : (
-              <EmptyState
-                className="py-8 sm:py-10 max-w-lg"
-                icon={Search}
-                title={emptyDueToOccupiedNights ? 'Fully booked for those nights' : 'No stays match'}
-                body={
-                  emptyDueToOccupiedNights
-                    ? 'Stays that match your other filters are occupied or blocked for those nights. Try other dates or clear filters.'
-                    : dateFilterActive
-                      ? 'No stays are free for those nights — or the stay has a longer minimum. Try other dates or clear filters.'
-                      : 'Try another place, dates, or guest count — or clear filters to see live stays again.'
-                }
-                action={
-                  hasActiveFilters ? (
-                    <button type="button" onClick={clearAllFilters} className="tv-btn-primary">
-                      Clear filters
-                    </button>
-                  ) : undefined
-                }
-              />
-            )}
-          </div>
-        ) : (
+        ) : filtered.length > 0 ? (
           <div className={MARKETPLACE_BROWSE_GRID_CLASS}>
             {filtered.map((item, index) => {
               const guestN = Number.parseInt(guests, 10) || 1;
@@ -912,6 +880,42 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
                 />
               );
             })}
+          </div>
+        ) : error || (occupancyError && dateFilterActive) ? null : (
+          <div className="rounded-2xl bg-paper-raised px-6 py-2 shadow-soft ring-1 ring-black/[0.06] sm:px-8">
+            {stays.length === 0 ? (
+              <EmptyState
+                className="py-8 sm:py-10 max-w-lg"
+                icon={Compass}
+                title="No stays published yet"
+                body="When an operator publishes a stay, it appears here. Traverion does not invent sample apartments."
+                action={
+                  <a href={supplierPortalLandingHref()} className="tv-btn-primary inline-flex">
+                    List a stay
+                  </a>
+                }
+              />
+            ) : (
+              <EmptyState
+                className="py-8 sm:py-10 max-w-lg"
+                icon={Search}
+                title={emptyDueToOccupiedNights ? 'Fully booked for those nights' : 'No stays match'}
+                body={
+                  emptyDueToOccupiedNights
+                    ? 'Stays that match your other filters are occupied or blocked for those nights. Try other dates or clear filters.'
+                    : dateFilterActive
+                      ? 'No stays are free for those nights — or the stay has a longer minimum. Try other dates or clear filters.'
+                      : 'Try another place, dates, or guest count — or clear filters to see live stays again.'
+                }
+                action={
+                  hasActiveFilters ? (
+                    <button type="button" onClick={clearAllFilters} className="tv-btn-primary">
+                      Clear filters
+                    </button>
+                  ) : undefined
+                }
+              />
+            )}
           </div>
         )}
       </MarketplaceBrowseShell>
