@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Wallet } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchSupplierEarnings, SupplierEarning } from '../../data/supabase-earnings';
@@ -60,6 +60,7 @@ export default function SupplierEarnings() {
     const w = new URLSearchParams(window.location.search).get('window');
     return w === '30d' || w === '90d' || w === 'all' ? w : 'all';
   });
+  const loadGenRef = useRef(0);
 
   const setStatusFilterAndUrl = useCallback((next: 'all' | 'pending' | 'paid') => {
     setStatusFilter(next);
@@ -97,33 +98,43 @@ export default function SupplierEarnings() {
       setLoading(false);
       return;
     }
+    const gen = ++loadGenRef.current;
     setLoading(true);
     setError(null);
     setLedgerError(null);
     Promise.all([fetchSupplierEarnings(uid), fetchBookingsForSupplier(uid), fetchMyListings(uid)])
       .then(async ([data, bookings, listings]) => {
+        if (gen !== loadGenRef.current) return;
         setEarnings(data);
         setListingTitles(Object.fromEntries(listings.map((l) => [l.id, l.title])));
         setPaidBookings(bookings.filter(isCollectedBooking));
         setRefundDueBookings(bookings.filter(isRefundDueBooking));
         try {
-          setLedger(await fetchSupplierLedger(uid));
+          const ledgerRows = await fetchSupplierLedger(uid);
+          if (gen !== loadGenRef.current) return;
+          setLedger(ledgerRows);
           setLedgerError(null);
         } catch (ledgerErr) {
+          if (gen !== loadGenRef.current) return;
           // Keep prior ledger — failure must not look like zero adjustments.
           setLedgerError(userFacingError(ledgerErr, USER_ERROR.money));
         }
-        setLoading(false);
       })
       .catch((e) => {
+        if (gen !== loadGenRef.current) return;
         setError(userFacingError(e, USER_ERROR.money));
-        setLoading(false);
+      })
+      .finally(() => {
+        if (gen === loadGenRef.current) setLoading(false);
       });
   }, [isSupabase, user?.id]);
 
   useEffect(() => {
     if (isSupabase && user?.id) load();
-    else setLoading(false);
+    else {
+      loadGenRef.current += 1;
+      setLoading(false);
+    }
   }, [isSupabase, user?.id, load]);
 
   useEffect(() => {
