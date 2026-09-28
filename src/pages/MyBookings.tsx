@@ -373,6 +373,18 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
     else setTripView('upcoming');
   }, [openTripId, bookings]);
 
+  useEffect(() => {
+    if (loading || !openTripId) return;
+    if (bookings.some((b) => b.id === openTripId)) return;
+    // Phase 1369/1379: foreign or stale ?booking= must not stick after account switch or a failed load.
+    setOpenTripId(null);
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    if (!url.searchParams.get('booking')) return;
+    url.searchParams.delete('booking');
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+  }, [bookings, loading, openTripId]);
+
   /** Webhook may lag a few seconds behind the redirect — refresh once more after payment. */
   useEffect(() => {
     if (paymentBanner !== 'success') return;
