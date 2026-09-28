@@ -54,7 +54,7 @@ describe('stayStickyBookCtaLabel', () => {
     ).toBe('Need 2+ nights');
   });
 
-  it('only says Continue · test mode when quote is ok and lead guest is ready', () => {
+  it('only says Continue to checkout when quote is ok and lead guest is ready', () => {
     expect(
       stayStickyBookCtaLabel({
         selectionOccupied: false,

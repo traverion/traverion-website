@@ -235,8 +235,8 @@ export const TRAVELER_PAY_NOW_TEST_CTA = 'Pay now · test mode';
 export const TRAVELER_HOLD_EXPIRED_PAY_NOW_NOTE =
   'Your checkout hold ended, so those spots may no longer be reserved. Pay now opens a new checkout if capacity is still available.';
 
-/** Tour / stay sticky + booking card — continue into test-mode Stripe checkout. */
-export const TRAVELER_CONTINUE_TEST_CTA = 'Continue · test mode';
+/** Tour / stay sticky + booking card — continue into checkout (Stripe TEST disclosed beside CTA). */
+export const TRAVELER_CONTINUE_TEST_CTA = 'Continue to checkout';
 
 /** Traveler Trips — self-cancel is immediate, not a host-approval “request”. */
 export const TRAVELER_SELF_CANCEL_CTA = 'Cancel booking';
