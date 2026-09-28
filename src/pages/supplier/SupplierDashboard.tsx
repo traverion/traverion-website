@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, type ReactNode } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, type ReactNode } from 'react';
 import { SUPPLIER_PAGE_CLASS, SupplierListSkeleton } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
 import NoticeCallout from '../../components/NoticeCallout';
@@ -152,6 +152,10 @@ export default function SupplierDashboard() {
   const [dashboardLoading, setDashboardLoading] = useState(false);
   const [dashboardError, setDashboardError] = useState<string | null>(null);
   const [cancelRequestsError, setCancelRequestsError] = useState<string | null>(null);
+  const supplierBookingsRef = useRef(supplierBookings);
+  supplierBookingsRef.current = supplierBookings;
+  const listingsByIdRef = useRef(listingsById);
+  listingsByIdRef.current = listingsById;
 
   const reloadDashboard = useCallback(async () => {
     const uid = user?.id;
@@ -195,11 +199,9 @@ export default function SupplierDashboard() {
       setListingsById(Object.fromEntries(listings.map((t) => [t.id, t])));
       listingIds = listings.map((t) => t.id);
     } else {
+      // Phase 1306: keep prior listing maps — failure ≠ zero live listings.
       noteFailure('listings');
-      setPublishedListingsCount(null);
-      setDraftListingsCount(null);
-      setListingTitlesById({});
-      setListingsById({});
+      listingIds = Object.keys(listingsByIdRef.current);
     }
     let bookingsForUnread: BookingRow[] = [];
     if (settled[1].status === 'fulfilled') {
@@ -214,9 +216,9 @@ export default function SupplierDashboard() {
         setCancelRequestsError(USER_ERROR.bookings);
       }
     } else {
+      // Phase 1306: keep prior bookings — failure ≠ empty Today schedule.
       noteFailure('bookings');
-      setSupplierBookings([]);
-      setOpenCancels([]);
+      bookingsForUnread = supplierBookingsRef.current;
     }
     if (settled[2].status === 'fulfilled') {
       setProfile(settled[2].value);
