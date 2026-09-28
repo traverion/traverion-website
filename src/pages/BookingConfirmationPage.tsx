@@ -503,7 +503,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
             title="Could not load this booking"
             body={userFacingError(error, USER_ERROR.booking)}
             retry={{ onClick: () => void load() }}
-            back={{ onClick: goToBookings, label: 'Manage booking' }}
+            back={{ onClick: goToBookings, label: 'Open Trips' }}
             extra={
               <button type="button" onClick={() => onNavigate('contact')} className="tv-btn-ghost">
                 Contact support
@@ -740,7 +740,8 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                   onClick={goToBookings}
                   className={needsPay ? 'tv-btn-secondary w-full' : 'tv-btn-primary w-full'}
                 >
-                  Manage booking
+                  {/* Phase 1616: align CTA with “Open Trips” copy used elsewhere on this page. */}
+                  Open Trips
                 </button>
                 <button
                   type="button"
