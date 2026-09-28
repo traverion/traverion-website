@@ -7,7 +7,7 @@ import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 import { listingIsFamily } from '../lib/inventory';
 import { listingDetailVisibleToTraveler } from '../lib/product-workflows';
 import { useAuth } from '../contexts/AuthContext';
-import { LISTING_SELF_BOOK_BLOCKED, viewerIsListingSupplierSide } from '../lib/listing-self-book';
+import { LISTING_SELF_BOOK_BLOCKED, LISTING_SELF_BOOK_CHECK_FAILED, viewerIsListingSupplierSide } from '../lib/listing-self-book';
 import { rememberTravelerReturnStay, travelerLoginHref } from '../lib/travelerAuthLinks';
 import { quoteStayNights, stayQuotePriceLines, experienceTodayIsoForListing } from '../lib/booking-quote';
 import { stayDateRangesOverlap, occupiedNightsFromStayRanges, nightsOccupiedByStay } from '../lib/stayOccupancy';
@@ -464,11 +464,18 @@ export default function StayDetails({ stayId, onBack }: Props) {
       return;
     }
     let cancelled = false;
-    void viewerIsListingSupplierSide(userRef.current.id, stay.supplierId).then((selfBook) => {
-      if (cancelled) return;
-      setSelfBookBlocked(selfBook);
-      if (selfBook) setPayError(LISTING_SELF_BOOK_BLOCKED);
-    });
+    void viewerIsListingSupplierSide(userRef.current.id, stay.supplierId)
+      .then((selfBook) => {
+        if (cancelled) return;
+        setSelfBookBlocked(selfBook);
+        if (selfBook) setPayError(LISTING_SELF_BOOK_BLOCKED);
+      })
+      .catch(() => {
+        // Phase 1307: eligibility failure ≠ “not supplier side” — block book.
+        if (cancelled) return;
+        setSelfBookBlocked(true);
+        setPayError(LISTING_SELF_BOOK_CHECK_FAILED);
+      });
     return () => {
       cancelled = true;
     };
@@ -540,9 +547,15 @@ export default function StayDetails({ stayId, onBack }: Props) {
     }
     // Phase 1147: mirror checkout edge — don't open Stripe for own/team listings.
     if (isSupabaseConfigured() && user?.id) {
-      const selfBook = await viewerIsListingSupplierSide(user.id, stay.supplierId);
-      if (selfBook) {
-        setPayError(LISTING_SELF_BOOK_BLOCKED);
+      try {
+        const selfBook = await viewerIsListingSupplierSide(user.id, stay.supplierId);
+        if (selfBook) {
+          setPayError(LISTING_SELF_BOOK_BLOCKED);
+          document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          return;
+        }
+      } catch {
+        setPayError(LISTING_SELF_BOOK_CHECK_FAILED);
         document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         return;
       }

@@ -19,7 +19,7 @@ import { TourPackage } from '../types/tour';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { createBookingCheckoutSession } from '../data/supabase-bookings';
-import { LISTING_SELF_BOOK_BLOCKED, viewerIsListingSupplierSide } from '../lib/listing-self-book';
+import { LISTING_SELF_BOOK_BLOCKED, LISTING_SELF_BOOK_CHECK_FAILED, viewerIsListingSupplierSide } from '../lib/listing-self-book';
 import { tourDepartureSlotCapacity } from '../../supabase/functions/_shared/booking-quote.ts';
 import type { ListingDiscount } from '../data/supabase-discounts';
 import { fetchDiscountsByListingId } from '../data/supabase-discounts';
@@ -639,11 +639,18 @@ export default function BookingPage({
     if (step !== 'contact' && step !== 'confirm') return;
     if (!isSupabaseConfigured() || !userRef.current?.id) return;
     let cancelled = false;
-    void viewerIsListingSupplierSide(userRef.current.id, tour.supplierId).then((selfBook) => {
-      if (cancelled || !selfBook) return;
-      setError(LISTING_SELF_BOOK_BLOCKED);
-      setStep(presentation === 'modal' || selectedVariant ? 'review' : 'date-guests');
-    });
+    void viewerIsListingSupplierSide(userRef.current.id, tour.supplierId)
+      .then((selfBook) => {
+        if (cancelled || !selfBook) return;
+        setError(LISTING_SELF_BOOK_BLOCKED);
+        setStep(presentation === 'modal' || selectedVariant ? 'review' : 'date-guests');
+      })
+      .catch(() => {
+        // Phase 1307: eligibility failure ≠ allow contact/confirm.
+        if (cancelled) return;
+        setError(LISTING_SELF_BOOK_CHECK_FAILED);
+        setStep(presentation === 'modal' || selectedVariant ? 'review' : 'date-guests');
+      });
     return () => {
       cancelled = true;
     };
@@ -769,9 +776,14 @@ export default function BookingPage({
     }
     // Phase 1181: mirror 1179 — block own/team listings before contact from date-guests path.
     if (isSupabaseConfigured() && userRef.current?.id) {
-      const selfBook = await viewerIsListingSupplierSide(userRef.current.id, tour.supplierId);
-      if (selfBook) {
-        setError(LISTING_SELF_BOOK_BLOCKED);
+      try {
+        const selfBook = await viewerIsListingSupplierSide(userRef.current.id, tour.supplierId);
+        if (selfBook) {
+          setError(LISTING_SELF_BOOK_BLOCKED);
+          return;
+        }
+      } catch {
+        setError(LISTING_SELF_BOOK_CHECK_FAILED);
         return;
       }
     }
@@ -823,9 +835,14 @@ export default function BookingPage({
     }
     // Phase 1187: block own/team listings before availability UI (1181 upstream).
     if (isSupabaseConfigured() && userRef.current?.id) {
-      const selfBook = await viewerIsListingSupplierSide(userRef.current.id, tour.supplierId);
-      if (selfBook) {
-        setError(LISTING_SELF_BOOK_BLOCKED);
+      try {
+        const selfBook = await viewerIsListingSupplierSide(userRef.current.id, tour.supplierId);
+        if (selfBook) {
+          setError(LISTING_SELF_BOOK_BLOCKED);
+          return;
+        }
+      } catch {
+        setError(LISTING_SELF_BOOK_CHECK_FAILED);
         return;
       }
     }
@@ -931,9 +948,14 @@ export default function BookingPage({
     }
     // Phase 1186: mirror 1179 — block own/team listings before confirm/Pay.
     if (isSupabaseConfigured() && userRef.current?.id) {
-      const selfBook = await viewerIsListingSupplierSide(userRef.current.id, tour.supplierId);
-      if (selfBook) {
-        setError(LISTING_SELF_BOOK_BLOCKED);
+      try {
+        const selfBook = await viewerIsListingSupplierSide(userRef.current.id, tour.supplierId);
+        if (selfBook) {
+          setError(LISTING_SELF_BOOK_BLOCKED);
+          return;
+        }
+      } catch {
+        setError(LISTING_SELF_BOOK_CHECK_FAILED);
         return;
       }
     }
@@ -973,9 +995,14 @@ export default function BookingPage({
     }
     // Phase 1179: mirror TourDetails 1164 — block own/team listings before contact/Pay.
     if (isSupabaseConfigured() && userRef.current?.id) {
-      const selfBook = await viewerIsListingSupplierSide(userRef.current.id, tour.supplierId);
-      if (selfBook) {
-        setError(LISTING_SELF_BOOK_BLOCKED);
+      try {
+        const selfBook = await viewerIsListingSupplierSide(userRef.current.id, tour.supplierId);
+        if (selfBook) {
+          setError(LISTING_SELF_BOOK_BLOCKED);
+          return;
+        }
+      } catch {
+        setError(LISTING_SELF_BOOK_CHECK_FAILED);
         return;
       }
     }
@@ -1016,9 +1043,14 @@ export default function BookingPage({
     }
     // Phase 1147: mirror checkout edge — don't open Stripe for own/team listings.
     if (isSupabaseConfigured() && userRef.current?.id) {
-      const selfBook = await viewerIsListingSupplierSide(userRef.current.id, tour.supplierId);
-      if (selfBook) {
-        setError(LISTING_SELF_BOOK_BLOCKED);
+      try {
+        const selfBook = await viewerIsListingSupplierSide(userRef.current.id, tour.supplierId);
+        if (selfBook) {
+          setError(LISTING_SELF_BOOK_BLOCKED);
+          return;
+        }
+      } catch {
+        setError(LISTING_SELF_BOOK_CHECK_FAILED);
         return;
       }
     }

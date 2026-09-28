@@ -39,7 +39,7 @@ import { isListingVisibleToTravelers, listingDetailVisibleToTraveler } from '../
 import { listingIsOnTravelerCatalog } from '../lib/inventory';
 import { listingShowsFreeCancellation, publicReviewLabel } from '../lib/listingTruth';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
-import { LISTING_SELF_BOOK_BLOCKED, viewerIsListingSupplierSide } from '../lib/listing-self-book';
+import { LISTING_SELF_BOOK_BLOCKED, LISTING_SELF_BOOK_CHECK_FAILED, viewerIsListingSupplierSide } from '../lib/listing-self-book';
 import { listingTourCapacityFromOptions, remainingCapacity, capacitySpotsFromBookingOptions } from '../lib/availability-ops';
 import { departureSlotSpotsLeft, maxSpotsLeftAcrossDepartures, partyMaxCappedByRemainingSpots } from '../lib/departure-slot-remaining';
 import { tourSoldOutDates } from '../lib/tour-calendar';
@@ -714,11 +714,18 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       return;
     }
     let cancelled = false;
-    void viewerIsListingSupplierSide(userRef.current.id, tour.supplierId).then((selfBook) => {
-      if (cancelled) return;
-      setSelfBookBlocked(selfBook);
-      if (selfBook) setBookingCardError(LISTING_SELF_BOOK_BLOCKED);
-    });
+    void viewerIsListingSupplierSide(userRef.current.id, tour.supplierId)
+      .then((selfBook) => {
+        if (cancelled) return;
+        setSelfBookBlocked(selfBook);
+        if (selfBook) setBookingCardError(LISTING_SELF_BOOK_BLOCKED);
+      })
+      .catch(() => {
+        // Phase 1307: eligibility failure ≠ “not supplier side” — block book.
+        if (cancelled) return;
+        setSelfBookBlocked(true);
+        setBookingCardError(LISTING_SELF_BOOK_CHECK_FAILED);
+      });
     return () => {
       cancelled = true;
     };
@@ -1108,9 +1115,14 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     }
     // Phase 1164: mirror 1147 — block own/team listings before navigating to checkout.
     if (isSupabaseConfigured() && userRef.current?.id) {
-      const selfBook = await viewerIsListingSupplierSide(userRef.current.id, tour.supplierId);
-      if (selfBook) {
-        setBookingCardError(LISTING_SELF_BOOK_BLOCKED);
+      try {
+        const selfBook = await viewerIsListingSupplierSide(userRef.current.id, tour.supplierId);
+        if (selfBook) {
+          setBookingCardError(LISTING_SELF_BOOK_BLOCKED);
+          return;
+        }
+      } catch {
+        setBookingCardError(LISTING_SELF_BOOK_CHECK_FAILED);
         return;
       }
     }
