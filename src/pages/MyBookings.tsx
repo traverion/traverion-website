@@ -3,7 +3,7 @@
  * RLS ensures only rows where guest_email = auth user email are returned.
  */
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
-import { LogIn, RefreshCw, ArrowLeft, CalendarDays, MapPin, ChevronDown, X } from 'lucide-react';
+import { LogIn, RefreshCw, ArrowLeft, CalendarDays, MapPin, ChevronDown, X, Copy, Check, Printer } from 'lucide-react';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
@@ -66,6 +66,7 @@ import { decrementAvailabilityBooked } from '../data/supabase-availability';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
 import { guestFacingBookingNotes } from '../lib/booking-notes';
 import { bookingMatchesTripView, travelerTripIsLive, travelerBookingNeedsPayNow, travelerTripReferenceLabel, sortTravelerCancelledTrips, tripAllowsBrowseLiveListing } from '../lib/trip-views';
+import { bookingEligibleForReview } from '../lib/review-eligibility';
 import { partnerBookingNumberMatchesFilterQuery } from '../lib/partner-bookings-search';
 import {
   BOOKING_CONFIRMATION_EMAIL_DISCLAIMER,
@@ -151,6 +152,8 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   const [tripSearchQuery, setTripSearchQuery] = useState('');
   const [openTripId, setOpenTripId] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<{ title: string; body: string } | null>(null);
+  // Phase 1677: copy feedback for expanded trip reference.
+  const [copiedTripRefId, setCopiedTripRefId] = useState<string | null>(null);
   const loadGenRef = useRef(0);
   const tripsUserIdRef = useRef<string | null>(null);
 
@@ -1235,7 +1238,39 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
                           Reference
                         </dt>
-                        <dd className="mt-0.5 font-mono text-sm font-semibold tracking-wide text-finland">{ref}</dd>
+                        <dd className="mt-0.5 flex flex-wrap items-center gap-2">
+                          <span className="font-mono text-sm font-semibold tracking-wide text-finland">{ref}</span>
+                          {/* Phase 1677: Copy/Print parity with booking confirmation. */}
+                          <button
+                            type="button"
+                            className="tv-btn-ghost text-xs min-h-9 px-2 print:hidden"
+                            aria-label="Copy booking reference"
+                            onClick={() => {
+                              void navigator.clipboard?.writeText(ref).then(() => {
+                                setCopiedTripRefId(b.id);
+                                window.setTimeout(() => {
+                                  setCopiedTripRefId((cur) => (cur === b.id ? null : cur));
+                                }, 2000);
+                              });
+                            }}
+                          >
+                            {copiedTripRefId === b.id ? (
+                              <Check className="w-3.5 h-3.5" aria-hidden />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" aria-hidden />
+                            )}
+                            {copiedTripRefId === b.id ? 'Copied' : 'Copy'}
+                          </button>
+                          <button
+                            type="button"
+                            className="tv-btn-ghost text-xs min-h-9 px-2 print:hidden"
+                            aria-label="Print trip details"
+                            onClick={() => window.print()}
+                          >
+                            <Printer className="w-3.5 h-3.5" aria-hidden />
+                            Print
+                          </button>
+                        </dd>
                       </div>
                     ) : null}
                     {tripCancelPolicy ? (
@@ -1333,7 +1368,29 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     </div>
                   )}
                   <div className="flex flex-wrap gap-2">
-                    {onTourSelect && tripAllowsBrowseLiveListing(ops) && (
+                    {/* Phase 1678: review-request email opens Trips — Leave a review on eligible past trips. */}
+                    {onTourSelect &&
+                    tripView === 'past' &&
+                    tripAllowsBrowseLiveListing(ops) &&
+                    bookingEligibleForReview(b) ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onTourSelect({
+                            id: b.listing_id,
+                            ...(isStay
+                              ? { listingExtras: { inventoryFamily: 'stay' as const } }
+                              : {}),
+                          });
+                        }}
+                        className="tv-btn-secondary"
+                      >
+                        Leave a review
+                      </button>
+                    ) : null}
+                    {onTourSelect &&
+                    tripAllowsBrowseLiveListing(ops) &&
+                    !(tripView === 'past' && bookingEligibleForReview(b)) && (
                       <button
                         type="button"
                         onClick={() => {
