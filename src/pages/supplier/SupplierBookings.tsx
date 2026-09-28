@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   CheckCircle,
   ChevronLeft,
@@ -302,7 +302,8 @@ export default function SupplierBookings({
     }
   }, [isSupabase, user?.id]);
 
-  useEffect(() => {
+  // Phase 1384 + layout: clear prior partner bookings before paint on account switch (useEffect ran one frame too late).
+  useLayoutEffect(() => {
     const clearBookingsPartnerWorkspace = () => {
       setBookings([]);
       setListingMeta({});
@@ -319,7 +320,6 @@ export default function SupplierBookings({
       setLoading(false);
       return;
     }
-    // Phase 1384: clear prior partner bookings before loading the next account (Account hub 1378 parity).
     if (bookingsHubUserIdRef.current !== user.id) {
       bookingsHubUserIdRef.current = user.id;
       loadGenRef.current += 1;
