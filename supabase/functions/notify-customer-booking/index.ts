@@ -859,7 +859,20 @@ serve(async (req) => {
       '',
     ];
     if (refDigits) textParts.push(`Booking #: ${refDigits}`);
-    if (bookingDate) textParts.push(`Date: ${bookingDate}`);
+    // Phase 1576: stay text mirrors HTML Check-in / Check-out (not Date alone).
+    {
+      const checkOut = String(checkOutDate ?? '').trim();
+      if (
+        listingKindIsStay(listingKind) &&
+        bookingDate &&
+        /^\d{4}-\d{2}-\d{2}$/.test(checkOut)
+      ) {
+        textParts.push(`Check-in: ${bookingDate}`);
+        textParts.push(`Check-out: ${checkOut}`);
+      } else if (bookingDate) {
+        textParts.push(`Date: ${bookingDate}`);
+      }
+    }
     if (typeof guests === 'number') textParts.push(`Guests: ${guests}`);
     if (!refDigits && body.bookingId) textParts.push(`Reference: ${body.bookingId}`);
     if (typeof amount === 'number' && kind === 'booking_confirmed_paid') {
@@ -882,6 +895,8 @@ serve(async (req) => {
           guestName: name || undefined,
           listingTitle: title,
           bookingDate,
+          checkOutDate,
+          listingKind,
           guests: typeof guests === 'number' ? guests : undefined,
           amountPaid: amount,
           currency,

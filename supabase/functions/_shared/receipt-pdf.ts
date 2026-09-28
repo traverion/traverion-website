@@ -6,6 +6,9 @@ export type ReceiptPdfInput = {
   guestName?: string;
   listingTitle: string;
   bookingDate?: string;
+  /** Phase 1576: exclusive stay check-out when listingKind is stay. */
+  checkOutDate?: string;
+  listingKind?: string;
   guests?: number;
   amountPaid: number;
   currency: string;
@@ -42,7 +45,15 @@ export async function buildReceiptPdfBytes(input: ReceiptPdfInput): Promise<Uint
   if (name) draw(`Guest: ${clip(name, 70)}`, 11);
 
   draw(`Experience: ${clip(input.listingTitle, 72)}`, 11);
-  if (input.bookingDate) draw(`Date: ${input.bookingDate}`, 11);
+  // Phase 1576: stays print Check-in / Check-out (HTML email parity); tours keep Date.
+  const checkOut = String(input.checkOutDate ?? '').trim();
+  const isStay = String(input.listingKind ?? '').toLowerCase() === 'stay';
+  if (isStay && input.bookingDate && /^\d{4}-\d{2}-\d{2}$/.test(checkOut)) {
+    draw(`Check-in: ${input.bookingDate}`, 11);
+    draw(`Check-out: ${checkOut}`, 11);
+  } else if (input.bookingDate) {
+    draw(`Date: ${input.bookingDate}`, 11);
+  }
   if (typeof input.guests === 'number' && input.guests > 0) draw(`Guests: ${input.guests}`, 11);
 
   y -= 10;
