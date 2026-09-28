@@ -205,6 +205,17 @@ export default function SupplierEarnings() {
     });
   }, [paidBookings, listWindow]);
 
+  // Phase 1574: list/export Refund due respect the same window as collected/ledger (hero stays all-time).
+  const refundDueBookingsInWindow = useMemo(() => {
+    const days = listWindow === '30d' ? 30 : listWindow === '90d' ? 90 : null;
+    if (days == null) return refundDueBookings;
+    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+    return refundDueBookings.filter((b) => {
+      const t = b.created_at ? new Date(b.created_at).getTime() : NaN;
+      return Number.isFinite(t) && t >= cutoff;
+    });
+  }, [refundDueBookings, listWindow]);
+
   const ledgerInWindow = useMemo(() => {
     const days = listWindow === '30d' ? 30 : listWindow === '90d' ? 90 : null;
     if (days == null) return ledger;
@@ -304,7 +315,7 @@ export default function SupplierEarnings() {
     if (
       !partnerMoneyCsvHasExportableRows({
         payouts: filteredEarningsInWindow,
-        refundDue: refundDueBookings,
+        refundDue: refundDueBookingsInWindow,
         collected: collectedForExport,
         ledger: ledgerInWindow,
       })
@@ -313,7 +324,7 @@ export default function SupplierEarnings() {
     }
     const body = buildPartnerMoneyCsvRows({
       payouts: filteredEarningsInWindow,
-      refundDue: refundDueBookings,
+      refundDue: refundDueBookingsInWindow,
       collected: collectedForExport,
       ledger: ledgerInWindow,
       ledgerKindLabel,
@@ -332,7 +343,7 @@ export default function SupplierEarnings() {
 
   const canExportMoney = partnerMoneyCsvHasExportableRows({
     payouts: filteredEarningsInWindow,
-    refundDue: refundDueBookings,
+    refundDue: refundDueBookingsInWindow,
     collected: filteredEarningsInWindow.length === 0 ? paidBookingsInWindow : [],
     ledger: ledgerInWindow,
   });
