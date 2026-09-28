@@ -4,6 +4,7 @@
  */
 
 import { bookingIsCancelledTrip, travelerBookingNeedsPayNow } from './trip-views';
+import { partnerUnpaidCheckoutHoldsInventory } from './booking-hold';
 import {
   isPaidPaymentStatus,
   normalizePaymentStatus,
@@ -34,13 +35,25 @@ export type BookingConfirmationPhase =
   | 'received';
 
 /** Post-checkout screen phase — cancelled must never read as Booking confirmed. */
-export function bookingConfirmationPhase(b: MoneyBookingRow): BookingConfirmationPhase {
+export function bookingConfirmationPhase(
+  b: MoneyBookingRow,
+  nowMs: number = Date.now()
+): BookingConfirmationPhase {
   if (bookingIsCancelledTrip(b)) return 'cancelled';
   if (isPaidPaymentStatus(b.payment_status)) return 'confirmed';
+
+  // Phase 1335: expired pending holds are Pay now (Trips parity), not “still confirming”.
+  // Live unpaid holds stay confirming (Stripe success redirect; webhook may lag).
+  if (travelerBookingNeedsPayNow(b)) {
+    const pay = normalizePaymentStatus(b.payment_status);
+    if ((pay === 'pending' || pay === '') && partnerUnpaidCheckoutHoldsInventory(b, nowMs)) {
+      return 'confirming';
+    }
+    return 'needs_pay';
+  }
+
   const pay = normalizePaymentStatus(b.payment_status);
   if (pay === 'pending' || pay === '') return 'confirming';
-  // Failed/expired Checkout that Trips can still Pay now — not “still processing”.
-  if (travelerBookingNeedsPayNow(b)) return 'needs_pay';
   return 'received';
 }
 

@@ -570,6 +570,26 @@ describe('booking confirmation copy', () => {
     expect(
       bookingConfirmationPhase({ status: 'pending', payment_status: 'failed' })
     ).toBe('needs_pay');
+    expect(
+      bookingConfirmationPhase(
+        {
+          status: 'pending',
+          payment_status: 'pending',
+          hold_expires_at: '2026-09-01T10:00:00.000Z',
+        },
+        Date.parse('2026-09-01T12:00:00.000Z')
+      )
+    ).toBe('needs_pay');
+    expect(
+      bookingConfirmationPhase(
+        {
+          status: 'pending',
+          payment_status: 'pending',
+          hold_expires_at: '2026-09-01T12:20:00.000Z',
+        },
+        Date.parse('2026-09-01T12:00:00.000Z')
+      )
+    ).toBe('confirming');
     const due = bookingConfirmationCancelledBody({
       status: 'cancelled',
       payment_status: 'paid',
