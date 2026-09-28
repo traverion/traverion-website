@@ -77,6 +77,7 @@ import {
   optionUsesAgePricing,
   optionUsesPrivateFlatPrice,
   totalGuestsFromMix,
+  participantCategoryQuantityMax,
   validateParticipantMix,
   type ParticipantMixSelection,
 } from '../lib/participant-mix';
@@ -1712,7 +1713,12 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                                   category={cat}
                                   quantity={participantMix[cat.id] ?? 0}
                                   currency={normalizeCurrency(tour.price?.currency)}
-                                  max={Math.min(selectedOptionApplied.maxPersons, partyMaxForSelectedDay)}
+                                  max={participantCategoryQuantityMax({
+                                    option: selectedOptionApplied,
+                                    categoryId: cat.id,
+                                    selection: participantMix,
+                                    partyMax: partyMaxForSelectedDay,
+                                  })}
                                   onChange={(qty) => {
                                     setParticipantMix((prev) => ({ ...prev, [cat.id]: qty }));
                                     setBookingCardError(null);
