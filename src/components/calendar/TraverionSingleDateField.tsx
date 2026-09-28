@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Calendar } from 'lucide-react';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { monthGrid } from '../../lib/stay-calendar';
 import { formatBookingDateDisplay } from '../../lib/booking-flow';
 import { localYmd } from '../../lib/local-ymd';
@@ -35,6 +36,7 @@ export function TraverionSingleDateField({
 }: Props) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const panelId = useId();
   const labelId = useId();
   const todayIso = localYmd();
@@ -53,21 +55,15 @@ export function TraverionSingleDateField({
   }, [open, value]);
 
   const close = useCallback(() => setOpen(false), []);
+  useDialogFocus(open, panelRef, close);
 
   useEffect(() => {
     if (!open) return;
     const onPointer = (e: MouseEvent) => {
       if (!rootRef.current?.contains(e.target as Node)) close();
     };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') close();
-    };
     document.addEventListener('mousedown', onPointer);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onPointer);
-      document.removeEventListener('keydown', onKey);
-    };
+    return () => document.removeEventListener('mousedown', onPointer);
   }, [open, close]);
 
   const cells = useMemo(() => monthGrid(cursor.y, cursor.m), [cursor.y, cursor.m]);
@@ -101,8 +97,10 @@ export function TraverionSingleDateField({
       </button>
       {open ? (
         <div
+          ref={panelRef}
           id={panelId}
           role="dialog"
+          aria-modal="true"
           aria-label={label}
           className="absolute left-0 top-[calc(100%+0.5rem)] z-50 w-[min(20.5rem,calc(100vw-2rem))] motion-safe:animate-fade-in"
         >

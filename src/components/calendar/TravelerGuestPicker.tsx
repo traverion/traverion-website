@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Minus, Plus, Users } from 'lucide-react';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 export type TravelerGuestCounts = {
   adults: number;
@@ -58,6 +59,7 @@ export function TravelerGuestPicker({
 }: Props) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const panelId = useId();
   const labelId = useId();
   const [counts, setCounts] = useState<TravelerGuestCounts>(() => guestCountsFromTotal(value));
@@ -67,21 +69,15 @@ export function TravelerGuestPicker({
   }, [value]);
 
   const close = useCallback(() => setOpen(false), []);
+  useDialogFocus(open, panelRef, close);
 
   useEffect(() => {
     if (!open) return;
     const onPointer = (e: MouseEvent) => {
       if (!rootRef.current?.contains(e.target as Node)) close();
     };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') close();
-    };
     document.addEventListener('mousedown', onPointer);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onPointer);
-      document.removeEventListener('keydown', onKey);
-    };
+    return () => document.removeEventListener('mousedown', onPointer);
   }, [open, close]);
 
   const commit = (next: TravelerGuestCounts) => {
@@ -124,8 +120,10 @@ export function TravelerGuestPicker({
       </button>
       {open ? (
         <div
+          ref={panelRef}
           id={panelId}
           role="dialog"
+          aria-modal="true"
           aria-label={label}
           className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-[min(18rem,calc(100vw-2rem))] rounded-2xl bg-paper-raised p-4 shadow-soft-lg ring-1 ring-black/[0.08] motion-safe:animate-fade-in"
         >
