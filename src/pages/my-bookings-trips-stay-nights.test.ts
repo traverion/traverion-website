@@ -28,6 +28,19 @@ describe('Trips stay nights from purchased range (Phase 1551)', () => {
   });
 });
 
+describe('Trips stay night suffix paid reconciliation (Phase 1581)', () => {
+  const src = readFileSync(join(here, 'MyBookings.tsx'), 'utf8');
+
+  it('gates stayNightsSuffix through confirmationStayNightCount when paid+nightly', () => {
+    expect(src).toContain('Phase 1551/1581');
+    expect(src).toContain('stayConfirmationPaidNightlyBreakdown');
+    expect(src).toContain('confirmationStayNightCount');
+    expect(src).not.toMatch(
+      /const n = nightsOccupiedByStay\(stay\.checkIn, stay\.checkOut\)\.length;\s*return n > 0 \?/
+    );
+  });
+});
+
 describe('Confirmation paid breakdown nights (Phase 1579)', () => {
   const src = readFileSync(join(here, 'BookingConfirmationPage.tsx'), 'utf8');
 
