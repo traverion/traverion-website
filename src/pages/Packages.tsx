@@ -949,6 +949,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
               if (!onNavigate) return;
               const next = marketplaceFamilySwitchPath('stays', {
                 q: searchTerm,
+                destination: selectedDestination !== 'all' ? selectedDestination : undefined,
                 date: filterDate,
                 guests: filterGuests,
               });

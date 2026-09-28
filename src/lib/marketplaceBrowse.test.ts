@@ -149,6 +149,8 @@ describe('marketplace browse filters', () => {
     expect(
       stayMatchesCatalogFilters(stay(), {
         q: '',
+        destinationId: 'all',
+        destinationOptions: [],
         guests: '',
         propertyType: 'Castle',
         price: 'all',
@@ -164,6 +166,8 @@ describe('marketplace browse filters', () => {
     expect(
       stayMatchesCatalogFilters(cabin, {
         q: 'arctic',
+        destinationId: 'all',
+        destinationOptions: [],
         guests: '4',
         propertyType: 'Cabin',
         price: '100-500',
@@ -175,6 +179,8 @@ describe('marketplace browse filters', () => {
     expect(
       stayMatchesCatalogFilters(cabin, {
         q: '',
+        destinationId: 'all',
+        destinationOptions: [],
         guests: '8',
         propertyType: 'all',
         price: 'all',
@@ -186,8 +192,44 @@ describe('marketplace browse filters', () => {
     expect(
       stayMatchesCatalogFilters(cabin, {
         q: '',
+        destinationId: 'all',
+        destinationOptions: [],
         guests: '',
         propertyType: 'Dome',
+        price: 'all',
+        amenities: [],
+        rating: 'all',
+        ratingScore: null,
+      })
+    ).toBe(false);
+  });
+
+  it('filters stays by destination chip id (Packages ↔ Stays parity)', () => {
+    const cabin = stay();
+    const opts = [
+      { id: 'rovaniemi', label: 'Rovaniemi', type: 'city' as const },
+      { id: 'finland', label: 'Finland', type: 'region' as const },
+    ];
+    expect(
+      stayMatchesCatalogFilters(cabin, {
+        q: '',
+        destinationId: 'rovaniemi',
+        destinationOptions: opts,
+        guests: '',
+        propertyType: 'all',
+        price: 'all',
+        amenities: [],
+        rating: 'all',
+        ratingScore: null,
+      })
+    ).toBe(true);
+    expect(
+      stayMatchesCatalogFilters(cabin, {
+        q: '',
+        destinationId: 'helsinki',
+        destinationOptions: opts,
+        guests: '',
+        propertyType: 'all',
         price: 'all',
         amenities: [],
         rating: 'all',
@@ -227,6 +269,8 @@ describe('marketplace browse filters', () => {
     expect(
       stayMatchesCatalogFilters(unknownCap, {
         q: '',
+        destinationId: 'all',
+        destinationOptions: [],
         guests: '2',
         propertyType: 'all',
         price: 'all',
@@ -238,6 +282,8 @@ describe('marketplace browse filters', () => {
     expect(
       stayMatchesCatalogFilters(unknownCap, {
         q: '',
+        destinationId: 'all',
+        destinationOptions: [],
         guests: '',
         propertyType: 'all',
         price: 'all',
@@ -326,6 +372,9 @@ describe('marketplace browse filters', () => {
     expect(
       marketplaceFamilySwitchPath('stays', { q: 'Rovaniemi', date: '2026-09-22', guests: '2' })
     ).toBe('/stays?q=Rovaniemi&date=2026-09-22&checkout=2026-09-23&guests=2');
+    expect(
+      marketplaceFamilySwitchPath('stays', { destination: 'rovaniemi', date: '2026-09-22', guests: '2' })
+    ).toBe('/stays?destination=rovaniemi&date=2026-09-22&checkout=2026-09-23&guests=2');
     expect(
       marketplaceFamilySwitchPath('tours', { q: 'Rovaniemi', date: '2026-09-22', checkout: '2026-09-25', guests: '2' })
     ).toBe('/packages?q=Rovaniemi&date=2026-09-22&guests=2');

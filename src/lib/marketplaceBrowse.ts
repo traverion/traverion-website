@@ -370,6 +370,8 @@ export function tourMatchesCatalogFilters(tour: TourPackage, input: TourCatalogF
 
 export type StayCatalogFilterInput = {
   q: string;
+  destinationId: string;
+  destinationOptions: DestOption[];
   guests: string;
   propertyType: string;
   price: PriceChipId;
@@ -379,6 +381,7 @@ export type StayCatalogFilterInput = {
 };
 
 export function stayMatchesCatalogFilters(tour: TourPackage, input: StayCatalogFilterInput): boolean {
+  if (!matchesDestination(tour, input.destinationId, input.destinationOptions)) return false;
   const query = input.q.trim().toLowerCase();
   if (query) {
     const hay = `${tour.title} ${tour.city ?? ''} ${tour.country ?? ''} ${tour.destination}`.toLowerCase();
@@ -414,11 +417,13 @@ export const MARKETPLACE_BROWSE_GRID_CLASS =
 /** Carry where/when/who when switching Tours ↔ Stays browse without inventing extra filters. */
 export function marketplaceFamilySwitchPath(
   target: MarketplaceSearchFamily,
-  values: { q?: string; date?: string; checkout?: string; guests?: string }
+  values: { q?: string; destination?: string; date?: string; checkout?: string; guests?: string }
 ): string {
   const p = new URLSearchParams();
   const q = values.q?.trim();
   if (q) p.set('q', q);
+  const dest = values.destination?.trim();
+  if (dest && dest !== 'all') p.set('destination', dest);
   if (values.date) p.set('date', values.date);
   if (target === 'stays' && values.date) {
     const out =

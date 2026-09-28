@@ -5,6 +5,7 @@ import { usePublishedSupplierListings } from '../hooks/usePublishedSupplierListi
 import { useTravelerWishlist } from '../hooks/useTravelerWishlist';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { getAllListings } from '../data/listings';
+import { getDestinationsFromListings } from '../data/catalogMeta';
 import { filterCatalogByFamily } from '../lib/inventory';
 import { parseListingExtras } from '../types/listingExtras';
 import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
@@ -52,6 +53,7 @@ import {
   parseMarketplaceSort,
   parsePriceChipId,
   parseRatingFilterId,
+  marketplaceWhereDisplay,
   RATING_FILTER_CHIPS,
   stayMatchesCatalogFilters,
   type MarketplaceSearchValues,
@@ -80,6 +82,7 @@ function parseStaysSearch(search: string) {
   const checkOut = checkIn && checkOutRaw ? checkOutRaw : '';
   return {
     q: p.get('q') ?? '',
+    destination: p.get('destination') ?? 'all',
     checkIn,
     checkOut,
     guests: p.get('guests') ?? '',
@@ -113,6 +116,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
   }, []);
   const catalogLoading = isSupabaseConfigured() && supplierListings === null && !error;
   const [q, setQ] = useState(initial.q);
+  const [selectedDestination, setSelectedDestination] = useState(initial.destination);
   const [checkIn, setCheckIn] = useState(initial.checkIn);
   const [checkOut, setCheckOut] = useState(initial.checkOut);
   const [guests, setGuests] = useState(initial.guests);
@@ -156,6 +160,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
     const parsed = parseStaysSearch(window.location.search);
     setQ(parsed.q);
     setDraftWhere(parsed.q);
+    setSelectedDestination(parsed.destination);
     setCheckIn(parsed.checkIn);
     setDraftCheckIn(parsed.checkIn);
     setCheckOut(parsed.checkOut);
@@ -178,6 +183,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
   useEffect(() => {
     const p = new URLSearchParams();
     if (q.trim()) p.set('q', q.trim());
+    if (selectedDestination !== 'all') p.set('destination', selectedDestination);
     if (checkIn) p.set('date', checkIn);
     if (checkOut && checkIn) p.set('checkout', checkOut);
     if (guests) p.set('guests', guests);
@@ -190,7 +196,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
     if (window.location.pathname + window.location.search !== next) {
       window.history.replaceState({}, '', next);
     }
-  }, [q, checkIn, checkOut, guests, propertyType, priceRange, selectedAmenities, sortBy, ratingFilter]);
+  }, [q, selectedDestination, checkIn, checkOut, guests, propertyType, priceRange, selectedAmenities, sortBy, ratingFilter]);
 
   const stays = useMemo(() => {
     if (isSupabaseConfigured()) {
@@ -213,12 +219,19 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
     }
   }, [checkIn, checkOut]);
 
-  const patchDraftSearch = useCallback((patch: Partial<MarketplaceSearchValues>) => {
-    if (patch.where !== undefined) setDraftWhere(patch.where);
-    if (patch.date !== undefined) setDraftCheckIn(patch.date);
-    if (patch.checkout !== undefined) setDraftCheckOut(patch.checkout);
-    if (patch.guests !== undefined) setDraftGuests(patch.guests);
-  }, []);
+  const patchDraftSearch = useCallback(
+    (patch: Partial<MarketplaceSearchValues>) => {
+      if (patch.where !== undefined) {
+        const destOnly = !draftWhere.trim() && selectedDestination !== 'all';
+        setDraftWhere(patch.where);
+        if (!patch.where.trim() || destOnly) setSelectedDestination('all');
+      }
+      if (patch.date !== undefined) setDraftCheckIn(patch.date);
+      if (patch.checkout !== undefined) setDraftCheckOut(patch.checkout);
+      if (patch.guests !== undefined) setDraftGuests(patch.guests);
+    },
+    [draftWhere, selectedDestination]
+  );
 
   const applyPrimarySearch = useCallback(() => {
     let nextIn = draftCheckIn;
@@ -351,6 +364,17 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
   const priceChips = useMemo(() => buildPriceChips(catalogCurrency, formatMoney), [catalogCurrency]);
   const propertyTypes = useMemo(() => collectStayPropertyTypes(stays), [stays]);
   const amenityOptions = useMemo(() => collectStayAmenities(stays), [stays]);
+  const destinationOptions = useMemo(() => getDestinationsFromListings(stays), [stays]);
+
+  // Phase 1363: orphan destination URL must not keep filtering (Packages parity).
+  useEffect(() => {
+    if (
+      selectedDestination !== 'all' &&
+      !destinationOptions.some((c) => c.id === selectedDestination)
+    ) {
+      setSelectedDestination('all');
+    }
+  }, [destinationOptions, selectedDestination]);
 
   // Phase 1366: orphan type/amenity URL params must not keep filtering (Packages 1363 parity).
   useEffect(() => {
@@ -381,6 +405,8 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
       if (
         !stayMatchesCatalogFilters(s, {
           q,
+          destinationId: selectedDestination,
+          destinationOptions,
           guests,
           propertyType,
           price: priceRange,
@@ -430,6 +456,8 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
   }, [
     stays,
     q,
+    selectedDestination,
+    destinationOptions,
     guests,
     propertyType,
     priceRange,
@@ -450,6 +478,8 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
       if (
         !stayMatchesCatalogFilters(s, {
           q,
+          destinationId: selectedDestination,
+          destinationOptions,
           guests,
           propertyType,
           price: priceRange,
@@ -469,6 +499,8 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
   }, [
     stays,
     q,
+    selectedDestination,
+    destinationOptions,
     guests,
     propertyType,
     priceRange,
@@ -499,32 +531,39 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
       occupancyLoadedForBrowseKey !== occupancyBrowseKey);
 
   const searchValues: MarketplaceSearchValues = useMemo(
-    () => ({ where: draftWhere, date: draftCheckIn, checkout: draftCheckOut, guests: draftGuests }),
-    [draftWhere, draftCheckIn, draftCheckOut, draftGuests]
+    () => ({
+      where: marketplaceWhereDisplay(draftWhere, selectedDestination, destinationOptions),
+      date: draftCheckIn,
+      checkout: draftCheckOut,
+      guests: draftGuests,
+    }),
+    [draftWhere, selectedDestination, destinationOptions, draftCheckIn, draftCheckOut, draftGuests]
   );
 
   const mobileSearchSummary = useMemo(() => {
-    const where = draftWhere.trim() || 'Anywhere';
+    const where =
+      marketplaceWhereDisplay(draftWhere, selectedDestination, destinationOptions).trim() || 'Anywhere';
     let whenLabel = 'Any dates';
     if (draftCheckIn && draftCheckOut) whenLabel = `${formatStayNightHuman(draftCheckIn)} → ${formatStayNightHuman(draftCheckOut)}`;
     else if (draftCheckIn) whenLabel = formatStayNightHuman(draftCheckIn);
     const guestN = Number.parseInt(draftGuests, 10);
     const whoLabel = draftGuests.trim() ? `${draftGuests} ${guestN === 1 ? 'guest' : 'guests'}` : 'Add guests';
     return { where, whenLabel, whoLabel };
-  }, [draftWhere, draftCheckIn, draftCheckOut, draftGuests]);
+  }, [draftWhere, selectedDestination, destinationOptions, draftCheckIn, draftCheckOut, draftGuests]);
 
   const extraFilterCount =
+    (selectedDestination !== 'all' ? 1 : 0) +
     (propertyType !== 'all' && propertyType ? 1 : 0) +
     (priceRange !== 'all' ? 1 : 0) +
     selectedAmenities.length +
     (ratingFilter !== 'all' ? 1 : 0);
 
-  const hasActiveFilters =
-    Boolean(q.trim() || checkIn || checkOut || guests) || extraFilterCount > 0;
+  const hasActiveFilters = Boolean(q.trim() || checkIn || checkOut || guests) || extraFilterCount > 0;
 
   const clearAllFilters = () => {
     setQ('');
     setDraftWhere('');
+    setSelectedDestination('all');
     setCheckIn('');
     setDraftCheckIn('');
     setCheckOut('');
@@ -542,7 +581,10 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
     setSelectedAmenities((prev) => (prev.includes(label) ? prev.filter((x) => x !== label) : [...prev, label]));
   };
 
-  const destLabel = q.trim() || null;
+  const destLabel =
+    selectedDestination !== 'all'
+      ? destinationOptions.find((c) => c.id === selectedDestination)?.label ?? selectedDestination
+      : q.trim() || null;
   const resultTitle =
     catalogLoading || waitingOnOccupancy ? (
       <span className="inline-block h-6 w-40 rounded bg-black/[0.06] animate-pulse align-middle" aria-hidden />
@@ -719,6 +761,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
               if (!onNavigate) return;
               const next = marketplaceFamilySwitchPath('tours', {
                 q,
+                destination: selectedDestination !== 'all' ? selectedDestination : undefined,
                 date: checkIn,
                 guests,
               });
@@ -1005,7 +1048,15 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
               />
             </div>
             <div className="mt-5 flex gap-2 shrink-0">
-              {draftWhere.trim() || draftCheckIn || draftCheckOut || draftGuests || q.trim() || checkIn || checkOut || guests ? (
+              {draftWhere.trim() ||
+              draftCheckIn ||
+              draftCheckOut ||
+              draftGuests ||
+              selectedDestination !== 'all' ||
+              q.trim() ||
+              checkIn ||
+              checkOut ||
+              guests ? (
                 <button
                   type="button"
                   onClick={() => {
@@ -1013,6 +1064,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
                     setDraftCheckIn('');
                     setDraftCheckOut('');
                     setDraftGuests('');
+                    setSelectedDestination('all');
                     setQ('');
                     setCheckIn('');
                     setCheckOut('');
