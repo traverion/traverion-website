@@ -141,6 +141,7 @@ export default function SupplierListings() {
   const editorHistoryPushedRef = useRef(false);
   const editorSessionTokenRef = useRef<string | null>(null);
   const loadGenRef = useRef(0);
+  const profileGateGenRef = useRef(0);
   const listingsHubUserIdRef = useRef<string | null>(null);
 
   const bumpEditorInstanceIfOpening = useCallback(() => {
@@ -489,6 +490,7 @@ export default function SupplierListings() {
     if (!user?.id) {
       listingsHubUserIdRef.current = null;
       loadGenRef.current += 1;
+      profileGateGenRef.current += 1;
       clearListingsPartnerWorkspace();
       setLoading(false);
       return;
@@ -497,6 +499,7 @@ export default function SupplierListings() {
     if (listingsHubUserIdRef.current !== user.id) {
       listingsHubUserIdRef.current = user.id;
       loadGenRef.current += 1;
+      profileGateGenRef.current += 1;
       clearListingsPartnerWorkspace();
     }
   }, [user?.id]);
@@ -578,7 +581,25 @@ export default function SupplierListings() {
         setPayoutOnFile(false);
         return;
       }
-      const profile = await fetchSupplierProfile(user.id);
+      const uid = user.id;
+      const gen = ++profileGateGenRef.current;
+      let profile: Awaited<ReturnType<typeof fetchSupplierProfile>>;
+      try {
+        profile = await fetchSupplierProfile(uid, { throwOnError: true });
+      } catch (e) {
+        if (gen !== profileGateGenRef.current) return;
+        setCanPostNewListing(false);
+        setProfileGateMessage(
+          userFacingError(e, 'We could not load your verification status. Check your connection and try again.')
+        );
+        setMissingBusinessDetails(false);
+        setMissingPayoutForPublish(false);
+        setVerificationStatus(null);
+        setPayoutVerificationStatus(null);
+        setPayoutOnFile(false);
+        return;
+      }
+      if (gen !== profileGateGenRef.current) return;
       const businessCompleteForPublish = isSupplierBusinessProfileCompleteForPublish(profile);
       const payoutConfigured = isSupplierPayoutConfigured(profile);
       const v = profile?.verification_status ?? null;

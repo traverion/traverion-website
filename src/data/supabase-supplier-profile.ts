@@ -360,7 +360,10 @@ export async function ensureSupplierProfile(
 }
 
 /** Fetch supplier profile (RLS: account-side after 154). */
-export async function fetchSupplierProfile(userId: string): Promise<SupplierProfileRow | null> {
+export async function fetchSupplierProfile(
+  userId: string,
+  opts?: { throwOnError?: boolean }
+): Promise<SupplierProfileRow | null> {
   if (!supabase) return null;
   // Phase 1202: team JWT → owner profile id (verification/payout gates).
   const ownerSupplierId = await resolveSupplierId(userId);
@@ -369,7 +372,11 @@ export async function fetchSupplierProfile(userId: string): Promise<SupplierProf
     .select('*')
     .eq('id', ownerSupplierId)
     .maybeSingle();
-  if (error || !data) return null;
+  if (error) {
+    if (opts?.throwOnError) throw new Error(error.message);
+    return null;
+  }
+  if (!data) return null;
   return data as SupplierProfileRow;
 }
 
