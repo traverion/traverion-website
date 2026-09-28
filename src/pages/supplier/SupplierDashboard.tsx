@@ -165,6 +165,8 @@ export default function SupplierDashboard() {
   supplierBookingsRef.current = supplierBookings;
   const listingsByIdRef = useRef(listingsById);
   listingsByIdRef.current = listingsById;
+  const dashboardHubUserIdRef = useRef<string | null>(null);
+  const dashboardLoadGenRef = useRef(0);
 
   const reloadDashboard = useCallback(async () => {
     const uid = user?.id;
@@ -186,15 +188,18 @@ export default function SupplierDashboard() {
       setDashboardLoading(false);
       return;
     }
+    const gen = ++dashboardLoadGenRef.current;
     setDashboardLoading(true);
     setDashboardError(null);
     setCancelRequestsError(null);
+    try {
     const settled = await Promise.allSettled([
       fetchMyListings(uid),
       fetchBookingsForSupplier(uid),
       fetchSupplierProfile(uid),
       countUnrepliedWrittenReviewsForSupplier(uid),
     ]);
+    if (gen !== dashboardLoadGenRef.current) return;
     const failures: string[] = [];
     const noteFailure = (key: string) => {
       failures.push(key);
@@ -219,6 +224,7 @@ export default function SupplierDashboard() {
       const ids = settled[1].value.map((b) => b.id);
       try {
         const reqs = await fetchCancellationRequestsForBookings(ids);
+        if (gen !== dashboardLoadGenRef.current) return;
         setOpenCancels(reqs.filter((r) => r.status === 'requested'));
       } catch {
         // Keep prior openCancels — failure must not look like zero open cancels.
@@ -245,6 +251,7 @@ export default function SupplierDashboard() {
     if (listingIds.length > 0) {
       try {
         const aggs = await getReviewAggregatesForListingIds(listingIds);
+        if (gen !== dashboardLoadGenRef.current) return;
         let sum = 0;
         let count = 0;
         for (const v of aggs.values()) {
@@ -285,6 +292,7 @@ export default function SupplierDashboard() {
         }
       })
     );
+    if (gen !== dashboardLoadGenRef.current) return;
     if (messagesLoadFailed) {
       noteFailure('messages');
       setUnreadMessageCount(null);
@@ -300,8 +308,42 @@ export default function SupplierDashboard() {
       const critical = failures.includes('bookings');
       setDashboardError(critical ? USER_ERROR.bookings : USER_ERROR.today);
     }
-    setDashboardLoading(false);
+    } finally {
+      if (gen === dashboardLoadGenRef.current) setDashboardLoading(false);
+    }
   }, [isSupabase, user?.id]);
+
+  useEffect(() => {
+    const clearDashboardPartnerWorkspace = () => {
+      setPublishedListingsCount(null);
+      setDraftListingsCount(null);
+      setListingTitlesById({});
+      setListingsById({});
+      setSupplierBookings([]);
+      setOpenCancels([]);
+      setProfile(null);
+      setUnreadMessageCount(0);
+      setFirstUnreadBookingId(null);
+      setUnrepliedReviewCount(0);
+      setRatingAvg(null);
+      setRatingCount(0);
+      setDashboardError(null);
+      setCancelRequestsError(null);
+    };
+    if (!user?.id) {
+      dashboardHubUserIdRef.current = null;
+      dashboardLoadGenRef.current += 1;
+      clearDashboardPartnerWorkspace();
+      setDashboardLoading(false);
+      return;
+    }
+    // Phase 1383: clear prior partner bookings/listings before loading the next account (Account hub 1378 parity).
+    if (dashboardHubUserIdRef.current !== user.id) {
+      dashboardHubUserIdRef.current = user.id;
+      dashboardLoadGenRef.current += 1;
+      clearDashboardPartnerWorkspace();
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     void reloadDashboard();
