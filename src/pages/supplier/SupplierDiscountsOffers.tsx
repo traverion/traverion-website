@@ -5,7 +5,7 @@ import { fetchMyListings } from '../../data/supabase-listings';
 import { TourPackage } from '../../types/tour';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
-import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
+import { PARTNER_APP_BASE, PARTNER_CREATE_PATH } from '../../lib/partnerPortalPaths';
 import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import {
   fetchDiscountsByListingIds,
@@ -244,9 +244,19 @@ export default function SupplierDiscountsOffers() {
         actions={
           canEdit ? (
             listings.length === 0 ? (
-              <button type="button" onClick={goToListings} className="tv-btn-primary">
-                Create a listing
-              </button>
+              <div className="flex flex-wrap gap-2">
+                {/* Phase 1682: Calendar dual-CTA parity — create vs open listings. */}
+                <button
+                  type="button"
+                  onClick={() => navigateSupplierUrl(PARTNER_CREATE_PATH)}
+                  className="tv-btn-primary"
+                >
+                  New listing
+                </button>
+                <button type="button" onClick={goToListings} className="tv-btn-ghost">
+                  Your listings
+                </button>
+              </div>
             ) : publishedCount === 0 ? (
               <button type="button" onClick={goToListings} className="tv-btn-primary">
                 Publish a tour
@@ -340,9 +350,18 @@ export default function SupplierDiscountsOffers() {
                 action={
                   canEdit ? (
                     publishedCount === 0 ? (
-                      <button type="button" onClick={goToListings} className="tv-btn-primary">
-                        Open listings
-                      </button>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => navigateSupplierUrl(PARTNER_CREATE_PATH)}
+                          className="tv-btn-primary"
+                        >
+                          New listing
+                        </button>
+                        <button type="button" onClick={goToListings} className="tv-btn-ghost">
+                          Your listings
+                        </button>
+                      </div>
                     ) : (
                       <button type="button" onClick={openNew} className="tv-btn-primary">
                         New offer
