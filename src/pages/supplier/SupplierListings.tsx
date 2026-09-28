@@ -1142,7 +1142,7 @@ export default function SupplierListings() {
           <SkeletonListItem />
           <SkeletonListItem />
         </div>
-      ) : listings.length === 0 && !showForm ? (
+      ) : listings.length === 0 && !showForm && !error ? (
         <SupplierEmptyState
           icon={Map}
           title="No listings yet"
