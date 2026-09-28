@@ -10,7 +10,7 @@ import {
   scheduleOverlapMessage,
   scheduleWizardIsComplete,
 } from './listing-option-schedules';
-import { listingShapeHasBookablePrice, optionPricingMode, priceCategoryValidationMessages } from './price-categories';
+import { optionPricingMode, priceCategoryValidationMessages } from './price-categories';
 
 export const TOUR_SCHEDULE_SCENES = [
   { id: 'when', label: 'When', question: 'When does this schedule apply?' },

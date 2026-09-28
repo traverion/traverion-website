@@ -229,7 +229,7 @@ export function displayListingTitleFromPurchase(
 export function partnerListingFilterLabelFromBookings(
   listingId: string,
   liveTitle: string | null | undefined,
-  bookings: ReadonlyArray<{ listing_id: string; created_at: string; purchase_snapshot: unknown }>,
+  bookings: ReadonlyArray<{ listing_id: string; created_at: string; purchase_snapshot?: unknown }>,
   fallback = 'Listing'
 ): string {
   const live = (liveTitle ?? '').trim() || fallback;

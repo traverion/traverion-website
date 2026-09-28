@@ -53,8 +53,6 @@ import {
   stayCheckInOutMissingCopy,
   LISTING_REVIEWS_EMPTY_COPY,
   STRIPE_TEST_UNTIL_LIVE,
-  TRAVELER_OPENING_CHECKOUT_CTA,
-  TRAVELER_CONTINUE_TEST_CTA,
 } from '../lib/booking-confirmation-copy';
 import { listingShowsFreeCancellation, publicReviewLabel } from '../lib/listingTruth';
 import { isSupabaseConfigured } from '../lib/supabase';

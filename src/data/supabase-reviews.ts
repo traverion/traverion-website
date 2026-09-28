@@ -198,12 +198,17 @@ export async function userHasCompletedBookingForListing(
   const listingDepartureTz =
     parseListingExtras(listingRow?.listing_extras)?.departureTimezone?.trim() || null;
 
-  // Phase 1359: same unpaid checkInAddress strip as Trips fetches (1358).
+  // Phase 1359/1583: same unpaid checkInAddress strip as Trips; keep stay review fields typed.
   const rows = (data as Array<{
     id: string;
+    status?: string | null;
     payment_status?: string | null;
+    booking_date: string | null;
+    start_time?: string | null;
+    check_out?: string | null;
+    nights?: number | null;
+    special_requests?: string | null;
     purchase_snapshot?: unknown;
-    [key: string]: unknown;
   }>).map((row) => redactUnpaidStayCheckInAddress(row));
 
   const eligible = rows.find((b) =>
