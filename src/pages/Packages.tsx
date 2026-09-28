@@ -273,10 +273,13 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
   }, [searchTerm, selectedDestination, selectedTags, sortBy, priceRange, filterDate, filterGuests, privateOnly, ratingFilter, durationFilter, languageFilter]);
 
   const allListings = useMemo(() => {
-    const base =
-      isSupabaseConfigured() && supplierListings !== null
-        ? [...supplierListings]
-        : [...getAllListings({ includeSeed: false, includeHolidayPackages: false })];
+    let base;
+    if (isSupabaseConfigured()) {
+      // Phase 1356 / Stays parity: never invent browse catalog from localStorage while live fetch is pending or failed.
+      base = supplierListings !== null ? [...supplierListings] : [];
+    } else {
+      base = [...getAllListings({ includeSeed: false, includeHolidayPackages: false })];
+    }
     return filterCatalogByFamily(base, 'tour');
   }, [supplierListings]);
 
