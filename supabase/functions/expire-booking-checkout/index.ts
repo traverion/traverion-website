@@ -78,21 +78,28 @@ serve(async (req) => {
 
     let ownsAsSupplier = false;
     if (booking.listing_id) {
-      const { data: listing } = await admin
+      const { data: listing, error: listingErr } = await admin
         .from('listings')
         .select('supplier_id')
         .eq('id', booking.listing_id)
         .maybeSingle();
+      // Phase 1315: ownership lookup failure ≠ “not the supplier” when guest match also fails.
+      if (listingErr) {
+        return json({ success: false, error: 'Could not verify ownership. Try again.' }, 500);
+      }
       const listingSupplierId = String(listing?.supplier_id ?? '').trim();
       ownsAsSupplier = Boolean(listingSupplierId) && listingSupplierId === user.id;
       // Phase 1133: team members may expire unpaid checkout (parity with notify).
       if (!ownsAsSupplier && listingSupplierId) {
-        const { data: teamRow } = await admin
+        const { data: teamRow, error: teamErr } = await admin
           .from('supplier_team_members')
           .select('user_id')
           .eq('supplier_id', listingSupplierId)
           .eq('user_id', user.id)
           .maybeSingle();
+        if (teamErr) {
+          return json({ success: false, error: 'Could not verify ownership. Try again.' }, 500);
+        }
         ownsAsSupplier = Boolean(teamRow?.user_id);
       }
     }
