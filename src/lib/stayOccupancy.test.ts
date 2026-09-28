@@ -96,6 +96,31 @@ describe('stay occupancy', () => {
     });
   });
 
+  it('Phase 1554: longer snapshot beats stale short nights when check_out null', () => {
+    expect(
+      stayRangeFromBooking({
+        booking_date: '2026-12-01',
+        check_out: null,
+        nights: 2,
+        purchase_snapshot: { checkOut: '2026-12-05' },
+      })
+    ).toEqual({
+      checkIn: '2026-12-01',
+      checkOut: '2026-12-05',
+    });
+    // Longer nights still win when snapshot is shorter.
+    expect(
+      stayRangeFromBooking({
+        booking_date: '2026-12-01',
+        nights: 5,
+        purchase_snapshot: { checkOut: '2026-12-03' },
+      })
+    ).toEqual({
+      checkIn: '2026-12-01',
+      checkOut: '2026-12-06',
+    });
+  });
+
   it('treats capacity 0 as an operator block, not listing_availability.booked', () => {
     expect(stayNightIsOperatorBlocked(0)).toBe(true);
     expect(stayNightIsOperatorBlocked(1)).toBe(false);

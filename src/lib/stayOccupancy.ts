@@ -68,16 +68,21 @@ export function stayRangeFromBooking(booking: {
       ? (booking.purchase_snapshot as { checkOut?: unknown }).checkOut
       : null;
   const fromSnap = typeof snap === 'string' ? snap.trim() : '';
-  // Phase 1524: match SQL stay_booking_check_out — column → nights → snapshot → +1.
-  // Notes-only check_out: must not expand inventory (1522/1523 plant path).
+  const snapOk = fromSnap && ISO_DATE.test(fromSnap) && fromSnap > checkIn ? fromSnap : null;
+  // Phase 1524/1554: column wins; else later of nights-derived vs snapshot (stale short
+  // nights must not beat purchase_snapshot.checkOut). Notes never expand range.
   const checkOut =
     fromColumn && fromColumn > checkIn
       ? fromColumn
-      : fromNights && fromNights > checkIn
-        ? fromNights
-        : fromSnap && ISO_DATE.test(fromSnap) && fromSnap > checkIn
-          ? fromSnap
-          : addCalendarDays(checkIn, 1);
+      : fromNights && fromNights > checkIn && snapOk
+        ? fromNights > snapOk
+          ? fromNights
+          : snapOk
+        : fromNights && fromNights > checkIn
+          ? fromNights
+          : snapOk
+            ? snapOk
+            : addCalendarDays(checkIn, 1);
   return { checkIn, checkOut };
 }
 
