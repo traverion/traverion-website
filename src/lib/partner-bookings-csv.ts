@@ -72,11 +72,13 @@ export function partnerBookingCsvValues(
     b.nights != null && Number.isFinite(Number(b.nights)) && Number(b.nights) >= 1
       ? Math.floor(Number(b.nights))
       : null;
+  // Phase 1552/1573: purchased range nights beat opts override and stale row nights
+  // (opts must not invent short nights beside 1564 exclusive check_out).
   const nights =
-    nightsFromOpts != null
-      ? String(nightsFromOpts)
-      : nightsFromRange >= 1
-        ? String(nightsFromRange)
+    nightsFromRange >= 1
+      ? String(nightsFromRange)
+      : nightsFromOpts != null
+        ? String(nightsFromOpts)
         : nightsFromRow != null
           ? String(nightsFromRow)
           : '';
