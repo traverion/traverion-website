@@ -413,9 +413,16 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     )
       .then((entries) => {
         if (cancelled) return;
-        setDateCapacityByListing(
-          Object.fromEntries(entries.filter((e): e is NonNullable<typeof e> => e != null))
-        );
+        const ok = entries.filter((e): e is NonNullable<typeof e> => e != null);
+        // Phase 1192 allows partial maps; zero successes must not mark browse loaded (invent “fully booked”).
+        if (ok.length === 0 && allListings.length > 0) {
+          setDateCapacityError(
+            'We could not check tour capacity for that date. Check your connection and try again.'
+          );
+          setDateCapacityLoading(false);
+          return;
+        }
+        setDateCapacityByListing(Object.fromEntries(ok));
         setDateCapacityLoadedFor(browseKeyAtStart);
         setDateCapacityLoading(false);
       })
