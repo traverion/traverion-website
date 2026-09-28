@@ -164,46 +164,18 @@ export default function StayDetails({ stayId, onBack }: Props) {
     setShowReviewForm(false);
     setReviewTitle('');
     setReviewComment('');
-    setReviews([]);
-    setReviewsLoadError(null);
+  }, [stayId]);
+
+  useEffect(() => {
     setReviewReplies({});
-    setReviewAggregate(null);
-    if (!stayId || !isSupabaseConfigured()) return;
-    let cancelled = false;
-    void fetchReviewsByListingId(stayId)
-      .then((rows) => {
-        if (cancelled) return;
-        setReviews(rows);
-        // Phase 1175: reply failure must not invent empty reviews.
-        void getReviewRepliesByReviewIds(rows.map((r) => r.id))
-          .then((replies) => {
-            if (!cancelled) setReviewReplies(replies);
-          })
-          .catch(() => {
-            /* Phase 1176: keep prior replies — failure ≠ “no host response” */
-          });
-      })
-      .catch((e) => {
-        if (cancelled) return;
-        setReviews([]);
-        setReviewReplies({});
-        setReviewsLoadError(userFacingError(e, USER_ERROR.reviews));
-      });
-    void getReviewAggregateForListing(stayId)
-      .then((agg) => {
-        if (!cancelled) setReviewAggregate(agg);
-      })
-      .catch(() => {
-        /* keep prior aggregate — failure ≠ zero reviews */
-      });
-    return () => {
-      cancelled = true;
-    };
   }, [stayId]);
 
   const loadReviews = useCallback(() => {
     if (!stayId || !isSupabaseConfigured()) return;
     setReviewsLoadError(null);
+    // Phase 1194: clear prior stay reviews so the previous PDP stars do not flash.
+    setReviews([]);
+    setReviewAggregate(null);
     void fetchReviewsByListingId(stayId)
       .then((rows) => {
         setReviews(rows);
@@ -225,6 +197,10 @@ export default function StayDetails({ stayId, onBack }: Props) {
         /* keep prior — failure ≠ zero reviews */
       });
   }, [stayId]);
+
+  useEffect(() => {
+    loadReviews();
+  }, [loadReviews]);
 
   useEffect(() => {
     setCanLeaveReview(false);
