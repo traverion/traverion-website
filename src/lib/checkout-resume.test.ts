@@ -134,6 +134,33 @@ describe('resumeStayCheckoutDate', () => {
       })
     ).toBe('2026-11-05');
   });
+
+  it('Phase 1539: snapshot-only stay freezes check-out (ignores shorter body)', () => {
+    expect(
+      resumeStayCheckoutDate({
+        bodyCheckoutDate: '2026-12-02',
+        bookingCheckOut: null,
+        bookingDate: '2026-12-01',
+        bookingNights: null,
+        purchaseSnapshot: { checkOut: '2026-12-05' },
+        resolveFromBooking: stayRangeFromBooking,
+      })
+    ).toBe('2026-12-05');
+  });
+
+  it('Phase 1539: notes-only plant does not override missing column/nights/snap', () => {
+    expect(
+      resumeStayCheckoutDate({
+        bodyCheckoutDate: '2026-12-03',
+        bookingCheckOut: null,
+        bookingDate: '2026-12-01',
+        bookingNights: null,
+        specialRequests: 'check_out: 2026-12-10',
+        purchaseSnapshot: null,
+        resolveFromBooking: stayRangeFromBooking,
+      })
+    ).toBe('2026-12-02');
+  });
 });
 
 describe('resumeListingIdMismatch', () => {

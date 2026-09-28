@@ -175,6 +175,7 @@ serve(async (req) => {
     let resumeStayCheckOut: string | null = null;
     let resumeStayNights: number | null = null;
     let resumeStayNotes: string | null = null;
+    let resumePurchaseSnapshot: unknown = null;
     let resumeGuestName: string | null = null;
     let priorCheckoutSessionId: string | null = null;
     let resumeQuoteSync: {
@@ -259,6 +260,7 @@ serve(async (req) => {
       const nightsRaw = Number(row.nights ?? NaN);
       resumeStayNights = Number.isFinite(nightsRaw) && nightsRaw >= 1 ? Math.floor(nightsRaw) : null;
       resumeStayNotes = typeof row.special_requests === 'string' ? row.special_requests : null;
+      resumePurchaseSnapshot = row.purchase_snapshot ?? null;
       resumeGuestName = typeof row.guest_name === 'string' ? row.guest_name.trim() : null;
       priorCheckoutSessionId =
         typeof row.checkout_session_id === 'string' && row.checkout_session_id.trim()
@@ -366,12 +368,14 @@ serve(async (req) => {
         ? (listingRow.listing_extras as { inventoryFamily?: unknown }).inventoryFamily
         : null;
     if (extrasFamily === 'stay' && targetBookingId) {
+      // Phase 1539: column → nights → purchase_snapshot.checkOut (1524 parity with optionId 1536).
       const restored = resumeStayCheckoutDate({
         bodyCheckoutDate: checkoutDate,
         bookingCheckOut: resumeStayCheckOut,
         bookingDate,
         bookingNights: resumeStayNights,
         specialRequests: resumeStayNotes,
+        purchaseSnapshot: resumePurchaseSnapshot,
         resolveFromBooking: stayRangeFromBooking,
       });
       if (restored) checkoutDate = restored;

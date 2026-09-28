@@ -55,7 +55,7 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 /**
  * Pay now resume must freeze stay nights to the claimed booking.
  * Client checkoutDate must not extend/shorten inventory or Stripe total vs
- * bookings.check_out / promote column occupancy.
+ * column → nights → purchase_snapshot.checkOut (1524 / Phase 1539).
  * Body is only a fallback when the booking cannot resolve a check-out.
  */
 export function resumeStayCheckoutDate(params: {
@@ -64,11 +64,14 @@ export function resumeStayCheckoutDate(params: {
   bookingDate?: string | null;
   bookingNights?: number | null;
   specialRequests?: string | null;
+  /** Phase 1539: honor purchase_snapshot.checkOut when column/nights are null. */
+  purchaseSnapshot?: unknown;
   resolveFromBooking: (booking: {
     booking_date: string | null;
     check_out?: string | null;
     nights?: number | null;
     special_requests?: string | null;
+    purchase_snapshot?: unknown;
   }) => { checkIn: string; checkOut: string } | null;
 }): string | null {
   const range = params.resolveFromBooking({
@@ -76,6 +79,7 @@ export function resumeStayCheckoutDate(params: {
     check_out: params.bookingCheckOut ?? null,
     nights: params.bookingNights ?? null,
     special_requests: params.specialRequests ?? null,
+    purchase_snapshot: params.purchaseSnapshot,
   });
   const fromBooking = range?.checkOut?.trim() ?? '';
   if (ISO_DATE.test(fromBooking)) return fromBooking;
