@@ -496,21 +496,30 @@ serve(async (req) => {
     });
 
     if (extrasFamily === 'stay' && checkoutDate) {
+      // Phase 1540: include purchase_snapshot so snapshot-only competitors resolve 1524 ranges
+      // (parity with tour occupancy select and SQL stay_booking_check_out).
       const { data: existingStayBookings, error: stayBusyErr } = await admin
         .from('bookings')
-        .select('id, booking_date, check_out, nights, special_requests, status, payment_status, hold_expires_at, created_at')
+        .select(
+          'id, booking_date, check_out, nights, special_requests, status, payment_status, hold_expires_at, created_at, purchase_snapshot'
+        )
         .eq('listing_id', listingId)
         .neq('status', 'cancelled');
-      const stayRows = stayBusyErr && /check_out|nights/i.test(stayBusyErr.message)
-        ? (
-            await admin
-              .from('bookings')
-              .select('id, booking_date, special_requests, status, payment_status, hold_expires_at, created_at')
-              .eq('listing_id', listingId)
-              .neq('status', 'cancelled')
-          ).data
-        : existingStayBookings;
-      if (stayBusyErr && !/check_out|nights/i.test(stayBusyErr.message)) {
+      const stayRows =
+        stayBusyErr && /check_out|nights|purchase_snapshot/i.test(stayBusyErr.message)
+          ? (
+              await admin
+                .from('bookings')
+                .select(
+                  stayBusyErr.message.match(/purchase_snapshot/i)
+                    ? 'id, booking_date, check_out, nights, special_requests, status, payment_status, hold_expires_at, created_at'
+                    : 'id, booking_date, special_requests, status, payment_status, hold_expires_at, created_at'
+                )
+                .eq('listing_id', listingId)
+                .neq('status', 'cancelled')
+            ).data
+          : existingStayBookings;
+      if (stayBusyErr && !/check_out|nights|purchase_snapshot/i.test(stayBusyErr.message)) {
         return json({ success: false, error: stayBusyErr.message }, 500);
       }
       if (

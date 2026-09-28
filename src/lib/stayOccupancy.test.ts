@@ -194,4 +194,23 @@ describe('stay occupancy', () => {
     expect(stayCheckoutNightsAlreadyBooked(stayBookings, '2026-11-04', '2026-11-05', null, now)).toBe(false);
     expect(checkoutStayNightsAlreadyBooked(stayBookings, '2026-11-02', '2026-11-03', null, now)).toBe(true);
   });
+
+  it('Phase 1540: snapshot-only competitor occupies full purchased range', () => {
+    const now = Date.parse('2026-09-09T12:00:00.000Z');
+    const stayBookings = [
+      {
+        id: 'snap1',
+        status: 'confirmed',
+        payment_status: 'paid',
+        booking_date: '2026-12-01',
+        check_out: null,
+        nights: null,
+        purchase_snapshot: { checkOut: '2026-12-05' },
+      },
+    ];
+    // Without snapshot, range would be +1 → 2026-12-02 and miss 12-03..12-04.
+    expect(stayCheckoutNightsAlreadyBooked(stayBookings, '2026-12-03', '2026-12-06', null, now)).toBe(true);
+    expect(stayCheckoutNightsAlreadyBooked(stayBookings, '2026-12-05', '2026-12-07', null, now)).toBe(false);
+    expect(checkoutStayNightsAlreadyBooked(stayBookings, '2026-12-03', '2026-12-06', null, now)).toBe(true);
+  });
 });
