@@ -109,6 +109,12 @@ export function wallTimeInZoneToUtcMs(
   // cutoff / bookability never treat a nonexistent wall clock as an hour early.
   const wall = wallClockAtInstant(utc, timeZone);
   if (!wall || wall.ymd !== date || wall.hm !== hm) return null;
+  // Phase 1482: reject DST fall-back ambiguous times (e.g. 03:30 occurs twice) so
+  // cutoff / cancel windows are not silently pinned to one of two valid instants.
+  for (const deltaMs of [-3_600_000, 3_600_000]) {
+    const alt = wallClockAtInstant(utc + deltaMs, timeZone);
+    if (alt && alt.ymd === date && alt.hm === hm) return null;
+  }
   return utc;
 }
 

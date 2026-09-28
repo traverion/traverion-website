@@ -56,6 +56,14 @@ describe('wallTimeInZoneToUtcMs (Europe/Helsinki)', () => {
     expect(wallTimeInZoneToUtcMs('2026-03-29', '02:00', 'Europe/Helsinki')).not.toBeNull();
     expect(wallTimeInZoneToUtcMs('2026-03-29', '04:00', 'Europe/Helsinki')).not.toBeNull();
   });
+
+  it('Phase 1482: rejects fall-back ambiguous times that occur twice (Europe/Helsinki)', () => {
+    // 2026-10-25 EU fall-back: 03:00–03:59 wall clock maps to two UTC instants.
+    expect(wallTimeInZoneToUtcMs('2026-10-25', '03:00', 'Europe/Helsinki')).toBeNull();
+    expect(wallTimeInZoneToUtcMs('2026-10-25', '03:30', 'Europe/Helsinki')).toBeNull();
+    expect(wallTimeInZoneToUtcMs('2026-10-25', '02:30', 'Europe/Helsinki')).not.toBeNull();
+    expect(wallTimeInZoneToUtcMs('2026-10-25', '04:00', 'Europe/Helsinki')).not.toBeNull();
+  });
 });
 
 describe('assertDepartureStillBookable', () => {
@@ -103,6 +111,18 @@ describe('assertDepartureStillBookable', () => {
       startTimeHm: '03:00',
       cutoffHoursBeforeStart: 0,
       nowMs: Date.parse('2026-03-28T12:00:00.000Z'),
+      timeZone: 'Europe/Helsinki',
+    });
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.code).toBe('bad_time');
+  });
+
+  it('Phase 1482: bad_time when departure wall clock is ambiguous (fall-back repeat)', () => {
+    const res = assertDepartureStillBookable({
+      bookingDate: '2026-10-25',
+      startTimeHm: '03:30',
+      cutoffHoursBeforeStart: 0,
+      nowMs: Date.parse('2026-10-24T12:00:00.000Z'),
       timeZone: 'Europe/Helsinki',
     });
     expect(res.ok).toBe(false);
