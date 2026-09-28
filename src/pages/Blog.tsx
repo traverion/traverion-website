@@ -43,6 +43,19 @@ export default function Blog({ onNavigate }: { onNavigate?: (page: string) => vo
             <a href="/contact" onClick={goContact} className="tv-btn-ghost">
               Contact us
             </a>
+            {/* Phase 1683: Home exit when stories are empty. */}
+            <a
+              href="/"
+              onClick={(e) => {
+                if (onNavigate) {
+                  e.preventDefault();
+                  onNavigate('home');
+                }
+              }}
+              className="tv-btn-ghost"
+            >
+              Back to home
+            </a>
           </div>
         }
       />
