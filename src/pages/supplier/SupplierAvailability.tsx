@@ -564,7 +564,20 @@ export default function SupplierAvailability() {
           ) : null}
           {capsError && listingId ? (
             <div className="mb-4">
-              <NoticeCallout title="Capacity overrides unavailable" tone="warn">
+              {/* Phase 1628: capacity override load failure needs Retry (bookings ErrorState parity). */}
+              <NoticeCallout
+                title="Capacity overrides unavailable"
+                tone="warn"
+                action={
+                  <button
+                    type="button"
+                    onClick={() => void loadCaps(listingId, monthFromIso, monthToIso)}
+                    className="tv-btn-secondary"
+                  >
+                    Retry
+                  </button>
+                }
+              >
                 {capsError}
               </NoticeCallout>
             </div>
