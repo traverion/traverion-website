@@ -1141,8 +1141,9 @@ export default function StayDetails({ stayId, onBack }: Props) {
               Book this stay
             </p>
             {/* Phase 1548: dates selected + failed quote — do not invent catalog nightly (1546 sticky parity). */}
+            {/* Phase 1606: Price unavailable (Tour 1604 parity) instead of an em dash. */}
             {checkIn && checkOut && stayQuote && !stayQuote.ok ? (
-              <p className="text-lg font-semibold tabular-nums text-ink">—</p>
+              <p className="text-lg font-semibold tabular-nums text-ink">Price unavailable</p>
             ) : quoteOk && stayQuote?.ok ? (
               // Phase 1562: successful quote is the hero total (Tour 1561 / sticky 1546 parity — not catalog nightly).
               <p className="text-lg font-semibold tabular-nums text-ink">
@@ -1332,10 +1333,11 @@ export default function StayDetails({ stayId, onBack }: Props) {
               <p className="truncate text-sm text-ink">
                 <span className="font-semibold tabular-nums">
                   {/* Phase 1546: never invent catalog nightly when quoteStayNights failed (Tour 1545 / Stay 1520 parity). */}
+                  {/* Phase 1606: Price unavailable on sticky (Tour 1604 parity). */}
                   {quoteOk
                     ? formatMoney(total, currency)
                     : checkIn && checkOut
-                      ? '—'
+                      ? 'Price unavailable'
                       : nightly > 0
                         ? formatMoney(nightly, currency)
                         : '—'}
@@ -1346,9 +1348,11 @@ export default function StayDetails({ stayId, onBack }: Props) {
                 </span>
               </p>
               <p className="truncate text-xs text-ink-muted">
-                {listingShowsFreeCancellation(stay)
-                  ? `Free cancellation · ${STRIPE_TEST_UNTIL_LIVE}`
-                  : `Pay via ${STRIPE_TEST_UNTIL_LIVE}`}
+                {checkIn && checkOut && stayQuote && !stayQuote.ok
+                  ? stayQuote.error?.trim().slice(0, 72) || 'Adjust your dates or guests'
+                  : listingShowsFreeCancellation(stay)
+                    ? `Free cancellation · ${STRIPE_TEST_UNTIL_LIVE}`
+                    : `Pay via ${STRIPE_TEST_UNTIL_LIVE}`}
               </p>
             </div>
             {quoteOk ? (
