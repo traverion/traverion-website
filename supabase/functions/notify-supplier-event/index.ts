@@ -22,6 +22,10 @@ import { authUserVerifiedEmail } from '../_shared/auth-verified-email.ts';
 import { notifyUnpaidCheckoutFromPaymentStatus } from '../_shared/notify-unpaid-checkout.ts';
 import { travelerOwnsCheckoutBooking } from '../_shared/booking-traveler-ownership.ts';
 import { resolveSupplierEmailIdempotencyKey } from '../_shared/transactional-idempotency-key.ts';
+import {
+  supplierEventRequiresDeclinedCancellation,
+  supplierLifecycleNotifyAllowed,
+} from '../_shared/notify-lifecycle-gate.ts';
 
 type EventType =
   | 'new_booking'
@@ -609,6 +613,7 @@ serve(async (req) => {
           guests?: number | null;
           booking_number?: number | null;
           payment_status?: string | null;
+          status?: string | null;
         }
       | null = null;
     let reviewRow:
@@ -627,7 +632,7 @@ serve(async (req) => {
           const { data } = await admin
             .from('bookings')
             .select(
-              'id, listing_id, guest_name, booking_date, guests, booking_number, payment_status, purchase_snapshot'
+              'id, listing_id, guest_name, booking_date, guests, booking_number, payment_status, status, purchase_snapshot'
             )
             .eq('id', bookingId)
             .maybeSingle();
@@ -659,6 +664,32 @@ serve(async (req) => {
     if (!resolved.ok) {
       return json({ success: false, error: resolved.error }, resolved.status);
     }
+
+    // Phase 1511: cancel/accept/decline supplier mail must match booking truth.
+    let declinedCancellationRequest: boolean | null = null;
+    if (
+      supplierEventRequiresDeclinedCancellation(payload.eventType) &&
+      String(payload.bookingId ?? '').trim()
+    ) {
+      const { data: cancelRows } = await admin
+        .from('cancellation_requests')
+        .select('status')
+        .eq('booking_id', String(payload.bookingId).trim())
+        .order('created_at', { ascending: false })
+        .limit(5);
+      declinedCancellationRequest = (cancelRows ?? []).some(
+        (r: { status?: string }) => String(r.status ?? '').trim().toLowerCase() === 'declined'
+      );
+    }
+    const lifecycleGate = supplierLifecycleNotifyAllowed({
+      eventType: payload.eventType,
+      bookingStatus: bookingRow?.status ?? null,
+      declinedCancellationRequest,
+    });
+    if (!lifecycleGate.ok) {
+      return json({ success: false, error: lifecycleGate.error }, lifecycleGate.status);
+    }
+
     const effectivePayload: Payload = { ...payload, ...resolved.overrides };
     // Phase 1129: cancel unpaid copy from booking payment_status, not caller flag.
     if (effectivePayload.eventType === 'booking_cancelled' && bookingRow) {

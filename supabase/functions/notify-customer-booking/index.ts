@@ -31,6 +31,11 @@ import { authUserVerifiedEmail } from '../_shared/auth-verified-email.ts';
 import { notifyUnpaidCheckoutFromPaymentStatus } from '../_shared/notify-unpaid-checkout.ts';
 import { travelerOwnsCheckoutBooking } from '../_shared/booking-traveler-ownership.ts';
 import { resolveCustomerEmailIdempotencyKey } from '../_shared/transactional-idempotency-key.ts';
+import {
+  customerEmailKindRequiresDeclinedCancellation,
+  customerEmailKindRequiresOpenCancellationRequest,
+  customerLifecycleNotifyAllowed,
+} from '../_shared/notify-lifecycle-gate.ts';
 
 type EmailKind =
   | 'booking_request'
@@ -507,7 +512,7 @@ serve(async (req) => {
       const { data: bookingRow } = await admin
         .from('bookings')
         .select(
-          'payment_status, guest_email, amount_paid, total_amount, currency, guest_name, booking_date, check_out, guests, booking_number, purchase_snapshot, listing_id, paid_at, payment_intent_id'
+          'status, payment_status, guest_email, amount_paid, total_amount, currency, guest_name, booking_date, check_out, guests, booking_number, purchase_snapshot, listing_id, paid_at, payment_intent_id'
         )
         .eq('id', bookingId)
         .maybeSingle();
@@ -520,6 +525,36 @@ serve(async (req) => {
         if (typeof bookingRow.payment_intent_id === 'string' && bookingRow.payment_intent_id.trim()) {
           paymentIntentIdFromDb = bookingRow.payment_intent_id.trim();
         }
+      }
+
+      // Phase 1511: lifecycle templates must match booking / cancellation_request truth.
+      let openCancellationRequest: boolean | null = null;
+      let declinedCancellationRequest: boolean | null = null;
+      if (
+        bookingId &&
+        (customerEmailKindRequiresOpenCancellationRequest(kind) ||
+          customerEmailKindRequiresDeclinedCancellation(kind))
+      ) {
+        const { data: cancelRows } = await admin
+          .from('cancellation_requests')
+          .select('status')
+          .eq('booking_id', bookingId)
+          .order('created_at', { ascending: false })
+          .limit(5);
+        const statuses = (cancelRows ?? []).map((r: { status?: string }) =>
+          String(r.status ?? '').trim().toLowerCase()
+        );
+        openCancellationRequest = statuses.includes('requested');
+        declinedCancellationRequest = statuses.includes('declined');
+      }
+      const lifecycleGate = customerLifecycleNotifyAllowed({
+        kind,
+        bookingStatus: bookingRow?.status ?? null,
+        openCancellationRequest,
+        declinedCancellationRequest,
+      });
+      if (!lifecycleGate.ok) {
+        return json({ success: false, error: lifecycleGate.error }, lifecycleGate.status);
       }
       const resolved = resolveBookingTiedRecipient({
         kind,
