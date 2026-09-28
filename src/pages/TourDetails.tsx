@@ -202,6 +202,8 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     fallback: number | null;
   } | null>(null);
   const [dayCapacityError, setDayCapacityError] = useState<string | null>(null);
+  /** Overlapping capacity reloads (tab visibility, option load) must not commit stale occupancy. */
+  const dayCapacityReloadGenRef = useRef(0);
   const optionsSectionRef = useRef<HTMLDivElement>(null);
   const userRef = useRef(user);
   userRef.current = user;
@@ -386,6 +388,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       setDayCapacityError(null);
       return () => {};
     }
+    const reloadGen = ++dayCapacityReloadGenRef.current;
     let cancelled = false;
     setDayCapacityError(null);
     void Promise.all([
@@ -394,7 +397,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       fetchPublishedTourPaidGuestsBySlot(tour.id),
     ])
       .then(([caps, paidByDay, paidBySlot]) => {
-        if (cancelled) return;
+        if (cancelled || reloadGen !== dayCapacityReloadGenRef.current) return;
         const fallbackCap = listingTourCapacityFromOptions(capacitySpotsFromBookingOptions(calendarOptions));
         const capByDay = new Map<string, number>();
         for (const row of caps) {
@@ -422,7 +425,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         );
       })
       .catch((e) => {
-        if (cancelled) return;
+        if (cancelled || reloadGen !== dayCapacityReloadGenRef.current) return;
         // Phase 1103: keep prior sold-out marks — never invent a fully open calendar.
         setDayCapacityError(
           userFacingError(e, 'We could not check departure capacity. Check your connection and try again.')
