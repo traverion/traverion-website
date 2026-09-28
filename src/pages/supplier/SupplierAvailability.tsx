@@ -16,7 +16,7 @@ import type { TourPackage } from '../../types/tour';
 import { listingRunsOnDate } from '../../lib/booking-quote';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { nightsOccupiedByStay, stayRangeFromBooking, partnerStayDayKind, partnerStayCalendarOccupiesNight, addCalendarDays } from '../../lib/stayOccupancy';
-import { partnerOpsDepartureDisplay } from '../../lib/purchase-snapshot';
+import { displayListingTitleFromPurchase, partnerOpsDepartureDisplay } from '../../lib/purchase-snapshot';
 import {
   buildMonthCells,
   capacitySpotsFromBookingOptions,
@@ -206,6 +206,13 @@ export default function SupplierAvailability() {
     if (pickup) bits.push(`Pickup ${pickup}`);
     return bits.join(' · ');
   };
+
+  const daySheetListingLine = (b: BookingRow) =>
+    displayListingTitleFromPurchase(
+      b.purchase_snapshot,
+      listings.find((l) => l.id === b.listing_id)?.title,
+      'Listing'
+    );
 
 
   const loadListings = useCallback(async () => {
@@ -897,7 +904,7 @@ export default function SupplierAvailability() {
                         <p className="font-semibold text-ink">{b.guest_name?.trim() || 'Guest'}</p>
                         <p className="text-sm text-ink-muted">
                           {viewingAll
-                            ? `${listings.find((l) => l.id === b.listing_id)?.title ?? 'Listing'} · ${b.guests} guest${b.guests === 1 ? '' : 's'}`
+                            ? `${daySheetListingLine(b)} · ${b.guests} guest${b.guests === 1 ? '' : 's'}`
                             : `${b.guests} guest${b.guests === 1 ? '' : 's'}`}
                           {times ? ` · ${times}` : ''}
                           {stayCalendar ? ' · In-house' : ''}
@@ -919,7 +926,7 @@ export default function SupplierAvailability() {
                         <p className="font-semibold text-ink">{b.guest_name?.trim() || 'Guest'}</p>
                         <p className="text-sm text-ink-muted">
                           {viewingAll
-                            ? `${listings.find((l) => l.id === b.listing_id)?.title ?? 'Listing'} · ${b.guests} guest${b.guests === 1 ? '' : 's'}`
+                            ? `${daySheetListingLine(b)} · ${b.guests} guest${b.guests === 1 ? '' : 's'}`
                             : `${b.guests} guest${b.guests === 1 ? '' : 's'}`}
                           {' · Check-out today'}
                         </p>
