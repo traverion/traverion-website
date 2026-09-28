@@ -29,6 +29,7 @@ import {
 } from '../_shared/notify-customer-booking-auth.ts';
 import { authUserVerifiedEmail } from '../_shared/auth-verified-email.ts';
 import { notifyUnpaidCheckoutFromPaymentStatus } from '../_shared/notify-unpaid-checkout.ts';
+import { travelerOwnsCheckoutBooking } from '../_shared/booking-traveler-ownership.ts';
 
 type EmailKind =
   | 'booking_request'
@@ -456,11 +457,12 @@ serve(async (req) => {
         ) {
           return json({ success: false, error: 'Unauthorized' }, 401);
         }
-        const callerIsGuest =
-          (partyBooking.guest_user_id && callerId === partyBooking.guest_user_id) ||
-          (callerEmail &&
-            partyBooking.guest_email &&
-            callerEmail.trim().toLowerCase() === String(partyBooking.guest_email).trim().toLowerCase());
+        const callerIsGuest = travelerOwnsCheckoutBooking({
+          authUserId: callerId,
+          verifiedEmail: callerEmail,
+          guestUserId: partyBooking.guest_user_id,
+          guestEmail: partyBooking.guest_email,
+        });
         const callerIsSupplierSide = callerIsListingSupplier || callerIsSupplierTeamMember;
         // Phase 1128: guests must not fire host/ops/cron customer email kinds.
         if (callerIsGuest && !callerIsSupplierSide && !guestMayInvokeCustomerEmailKind(kind)) {

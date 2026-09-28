@@ -175,11 +175,13 @@ export async function userHasCompletedBookingForListing(
     .order('booking_date', { ascending: false })
     .limit(50);
   if (uid && email) {
-    q = q.or(`guest_user_id.eq.${uid},guest_email.eq.${email}`);
+    // Phase 1352: email match only when guest_user_id is unbound (booking_traveler_owns parity).
+    q = q.or(`guest_user_id.eq.${uid},and(guest_user_id.is.null,guest_email.eq.${email})`);
   } else if (uid) {
     q = q.eq('guest_user_id', uid);
   } else {
-    q = q.eq('guest_email', email);
+    // Unbound email-only path — RLS also requires guest_user_id IS NULL.
+    q = q.is('guest_user_id', null).eq('guest_email', email);
   }
   const { data, error } = await q;
   // Phase 1310: query failure ≠ “no completed booking” — throw so callers fail closed.

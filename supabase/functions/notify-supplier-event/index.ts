@@ -20,6 +20,7 @@ import {
 } from '../_shared/notify-supplier-event-auth.ts';
 import { authUserVerifiedEmail } from '../_shared/auth-verified-email.ts';
 import { notifyUnpaidCheckoutFromPaymentStatus } from '../_shared/notify-unpaid-checkout.ts';
+import { travelerOwnsCheckoutBooking } from '../_shared/booking-traveler-ownership.ts';
 
 type EventType =
   | 'new_booking'
@@ -539,11 +540,12 @@ serve(async (req) => {
 
         const callerIsSupplierSide =
           (listingSupplierId.length > 0 && callerId === listingSupplierId) || callerIsTeamMember;
-        const callerIsGuest =
-          (guestUserId && callerId === guestUserId) ||
-          (callerEmail &&
-            guestEmail &&
-            callerEmail.trim().toLowerCase() === String(guestEmail).trim().toLowerCase());
+        const callerIsGuest = travelerOwnsCheckoutBooking({
+          authUserId: callerId,
+          verifiedEmail: callerEmail,
+          guestUserId,
+          guestEmail,
+        });
         // Phase 1127: guests must not fire host/ops supplier events.
         if (
           callerIsGuest &&
