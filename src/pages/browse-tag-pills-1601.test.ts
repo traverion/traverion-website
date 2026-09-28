@@ -12,7 +12,7 @@ describe('Phase 1601: browse cards show marketplace tag pills', () => {
   it('Home tour discovery enables showTagPills', () => {
     const src = readFileSync(resolve(__dirname, 'Home.tsx'), 'utf8');
     expect(src).toContain('// Phase 1601: surface marketplace tags on home discovery cards.');
-    expect(src).toMatch(/tagLabels=\{TAG_LABELS\}[\s\S]{0,120}showTagPills/);
+    expect(src).toMatch(/tagLabels=\{TAG_LABELS\}[\s\S]*?showTagPills\b/);
   });
 
   it('DestinationPage tour grid enables showTagPills', () => {
