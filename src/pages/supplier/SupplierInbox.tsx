@@ -33,6 +33,8 @@ import { PARTNER_INBOX_MESSAGE_FETCH_CAP } from '../../lib/partner-inbox-cap';
 import { formatStayNightHuman } from '../../lib/stay-calendar';
 import { formatBookingDateDisplay } from '../../lib/booking-flow';
 import { displayListingTitleFromPurchase, displayOptionLabelFromPurchase, partnerOpsDepartureDisplay } from '../../lib/purchase-snapshot';
+import { bookingIsStayNight } from '../../lib/pickup-completeness';
+import { stayRangeFromBooking } from '../../lib/stayOccupancy';
 import { materializedBookingOptions, parseListingExtras } from '../../types/listingExtras';
 import type { TourPackage } from '../../types/tour';
 
@@ -250,7 +252,7 @@ export default function SupplierInbox() {
     const opsHm = pgTimeToHm(b.start_time);
     const dep = partnerOpsDepartureDisplay(b.purchase_snapshot, opsHm);
     const pickupHm = pgTimeToHm(b.pickup_time);
-    const isStay = Boolean(b.check_out && /^\d{4}-\d{2}-\d{2}$/.test(b.check_out));
+    const isStay = bookingIsStayNight(b);
     const timeBits = isStay
       ? null
       : [
@@ -260,11 +262,15 @@ export default function SupplierInbox() {
         ]
           .filter(Boolean)
           .join(' · ');
-    const whenBits = isStay
-      ? `${formatStayNightHuman(b.booking_date ?? '')}${b.check_out ? ` → ${formatStayNightHuman(b.check_out)}` : ''}`
-      : b.booking_date
-        ? formatBookingDateDisplay(b.booking_date)
-        : '';
+    const whenBits = (() => {
+      if (isStay) {
+        const stay = stayRangeFromBooking(b);
+        if (stay) {
+          return `${formatStayNightHuman(stay.checkIn)} → ${formatStayNightHuman(stay.checkOut)}`;
+        }
+      }
+      return b.booking_date ? formatBookingDateDisplay(b.booking_date) : '';
+    })();
     return (
       <>
         <div className="mb-2.5 flex flex-wrap items-start justify-between gap-2">
@@ -485,13 +491,18 @@ export default function SupplierInbox() {
                     </div>
                   </div>
                   <p className="mt-0.5 text-[11px] text-ink-faint pl-4">
-                    {b.check_out && /^\d{4}-\d{2}-\d{2}$/.test(b.check_out)
-                      ? `${formatStayNightHuman(b.booking_date ?? '')} → ${formatStayNightHuman(b.check_out)}`
-                      : b.booking_date
-                        ? formatBookingDateDisplay(b.booking_date)
-                        : 'Date TBC'}
+                    {(() => {
+                      if (bookingIsStayNight(b)) {
+                        const stay = stayRangeFromBooking(b);
+                        if (stay) {
+                          return `${formatStayNightHuman(stay.checkIn)} → ${formatStayNightHuman(stay.checkOut)}`;
+                        }
+                      }
+                      return b.booking_date ? formatBookingDateDisplay(b.booking_date) : 'Date TBC';
+                    })()}
                     {` · ${formatBookingParticipantsLabel(b)}`}
                     {(() => {
+                      if (bookingIsStayNight(b)) return '';
                       const opsHm = pgTimeToHm(b.start_time);
                       const dep = partnerOpsDepartureDisplay(b.purchase_snapshot, opsHm);
                       if (!dep.displayHm) return '';
