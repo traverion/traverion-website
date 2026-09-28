@@ -57,6 +57,10 @@ export default function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps
       }
       const resolved = await resolvePasswordRecoveryPortal(session.user.id);
       if (cancelled) return;
+      if (resolved === 'unavailable') {
+        setPortal('invalid');
+        return;
+      }
       // Partner recovery on www /set-password: move to partner host so success
       // lands on partner login, not traveler /login marketing alias.
       if (resolved === 'partner' && isPublicTraverionMarketingHost()) {
