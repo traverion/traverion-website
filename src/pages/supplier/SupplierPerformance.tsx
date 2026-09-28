@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { TrendingUp, Award } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchMyListings } from '../../data/supabase-listings';
@@ -49,6 +49,8 @@ export default function SupplierPerformance() {
     if (w === '30d' || w === '90d' || w === 'all') return w;
     return '30d';
   });
+  const loadGenRef = useRef(0);
+  const performanceHubUserIdRef = useRef<string | null>(null);
 
   const load = useCallback(async () => {
     const uid = user?.id;
@@ -59,9 +61,11 @@ export default function SupplierPerformance() {
       setLoading(false);
       return;
     }
+    const gen = ++loadGenRef.current;
     setLoading(true);
     setError(null);
     const settled = await Promise.allSettled([fetchMyListings(uid), fetchBookingsForSupplier(uid)]);
+    if (gen !== loadGenRef.current) return;
     // Phase 1304: keep prior listings/bookings on failure — do not invent empty Performance.
     if (settled[0].status === 'fulfilled') {
       setListings(settled[0].value);
@@ -74,6 +78,27 @@ export default function SupplierPerformance() {
     }
     setLoading(false);
   }, [isSupabase, user?.id]);
+
+  useEffect(() => {
+    const clearPerformancePartnerWorkspace = () => {
+      setListings([]);
+      setBookings([]);
+      setError(null);
+    };
+    if (!user?.id) {
+      performanceHubUserIdRef.current = null;
+      loadGenRef.current += 1;
+      clearPerformancePartnerWorkspace();
+      setLoading(false);
+      return;
+    }
+    // Phase 1390: clear prior partner analytics before loading the next account (Earnings 1384 parity).
+    if (performanceHubUserIdRef.current !== user.id) {
+      performanceHubUserIdRef.current = user.id;
+      loadGenRef.current += 1;
+      clearPerformancePartnerWorkspace();
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     void load();
