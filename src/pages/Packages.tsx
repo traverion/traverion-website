@@ -299,7 +299,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
   const supabaseListingIdsKey = useMemo(() => supabaseListingIds.join(','), [supabaseListingIds]);
 
   const dateCapacityBrowseKey = useMemo(() => {
-    if (!filterDate || !/^\d{4}-\d{2}-\d{2}$/.test(filterDate)) return '';
+    if (!filterDate || !/^\d{4}-\d{2}-\d{2}$/.test(filterDate) || !supabaseListingIdsKey) return '';
     return `${supabaseListingIdsKey}|${filterDate}`;
   }, [filterDate, supabaseListingIdsKey]);
 
@@ -308,6 +308,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     /^\d{4}-\d{2}-\d{2}$/.test(filterDate) &&
     isSupabaseConfigured() &&
     allListings.length > 0 &&
+    Boolean(dateCapacityBrowseKey) &&
     !dateCapacityError &&
     (dateCapacityLoading ||
       dateCapacityByListing === null ||
@@ -349,7 +350,13 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
   }, [supabaseListingIdsKey]);
 
   const reloadDateCapacity = useCallback(() => {
-    if (!filterDate || !/^\d{4}-\d{2}-\d{2}$/.test(filterDate) || !isSupabaseConfigured() || allListings.length === 0) {
+    if (
+      !filterDate ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(filterDate) ||
+      !isSupabaseConfigured() ||
+      allListings.length === 0 ||
+      !supabaseListingIdsKey
+    ) {
       setDateCapacityByListing(null);
       setDateCapacityLoadedFor(null);
       setDateCapacityLoading(false);
