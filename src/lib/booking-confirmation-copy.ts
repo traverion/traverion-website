@@ -133,7 +133,7 @@ export function bookingContactIntroCopy(signedInWithEmail: boolean): string {
 }
 
 export const BOOKING_CONTACT_EMAIL_FIELD_NOTE =
-  `This email is for the booking record. ${BOOKING_CONFIRMATION_EMAIL_DISCLAIMER}`;
+  'This email is for the booking record on Trips — not a separate confirmation channel.';
 
 /** Checkout pay step: confirmation is Trips / Booking confirmed; email may arrive but is not proof. */
 export function bookingPayConfirmAfterPayCopy(holdMinutes: number): string {

@@ -162,8 +162,12 @@ describe('booking confirmation copy', () => {
     expect(signedOut.toLowerCase()).not.toContain('email is fixed to your account');
     expect(signedIn.toLowerCase()).toContain('email is fixed to your account');
     expect(bookingConfirmationPromisesEmailSent(BOOKING_CONTACT_EMAIL_FIELD_NOTE)).toBe(false);
-    expect(BOOKING_CONTACT_EMAIL_FIELD_NOTE.toLowerCase()).toContain('does not treat email delivery as booking proof');
+    expect(BOOKING_CONTACT_EMAIL_FIELD_NOTE.toLowerCase()).toContain('booking record');
     expect(BOOKING_CONTACT_EMAIL_FIELD_NOTE.toLowerCase()).not.toContain('do not send a confirmation email');
+    // Phase 1589: field hint stays short — intro already carries Trips email-not-proof disclaimer.
+    expect(BOOKING_CONTACT_EMAIL_FIELD_NOTE.toLowerCase()).not.toContain(
+      'does not treat email delivery as booking proof'
+    );
   });
 
   it('pay-to-confirm copy does not promise a confirmation email was sent (Phase 1585)', () => {
