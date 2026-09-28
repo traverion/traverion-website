@@ -61,6 +61,7 @@ export default function SupplierEarnings() {
     return w === '30d' || w === '90d' || w === 'all' ? w : 'all';
   });
   const loadGenRef = useRef(0);
+  const profileLoadGenRef = useRef(0);
   const earningsHubUserIdRef = useRef<string | null>(null);
 
   const setStatusFilterAndUrl = useCallback((next: 'all' | 'pending' | 'paid') => {
@@ -138,12 +139,14 @@ export default function SupplierEarnings() {
       setRefundDueBookings([]);
       setLedger([]);
       setListingTitles({});
+      setProfile(null);
       setError(null);
       setLedgerError(null);
     };
     if (!user?.id) {
       earningsHubUserIdRef.current = null;
       loadGenRef.current += 1;
+      profileLoadGenRef.current += 1;
       clearEarningsPartnerWorkspace();
       setLoading(false);
       return;
@@ -151,6 +154,7 @@ export default function SupplierEarnings() {
     if (earningsHubUserIdRef.current !== user.id) {
       earningsHubUserIdRef.current = user.id;
       loadGenRef.current += 1;
+      profileLoadGenRef.current += 1;
       clearEarningsPartnerWorkspace();
     }
   }, [user?.id]);
@@ -165,8 +169,17 @@ export default function SupplierEarnings() {
 
   useEffect(() => {
     const uid = user?.id;
-    if (isSupabase && uid) fetchSupplierProfile(uid).then(setProfile);
-    else setProfile(null);
+    if (!isSupabase || !uid) {
+      profileLoadGenRef.current += 1;
+      setProfile(null);
+      return;
+    }
+    const gen = ++profileLoadGenRef.current;
+    void fetchSupplierProfile(uid).then((p) => {
+      // Phase 1488: stale profile fetch must not paint prior partner payout prefs.
+      if (gen !== profileLoadGenRef.current) return;
+      setProfile(p);
+    });
   }, [isSupabase, user?.id]);
 
   /** Kept only as a last-resort currency label for a row missing its own currency. */
