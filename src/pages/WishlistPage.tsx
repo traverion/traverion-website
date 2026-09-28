@@ -219,6 +219,10 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
             <h1 id={WISHLIST_HEADING_ID} className="font-display text-3xl sm:text-4xl text-ink tracking-tight">
               Saved
             </h1>
+            {/* Phase 1637: logged-out Saved header subtitle (Trips / logged-in Saved parity). */}
+            <p className="mt-2 text-sm text-ink-muted leading-relaxed max-w-xl">
+              Keep tours and stays you like — sign in to see them here.
+            </p>
           </header>
           <section aria-labelledby={WISHLIST_HEADING_ID}>
           <EmptyState
