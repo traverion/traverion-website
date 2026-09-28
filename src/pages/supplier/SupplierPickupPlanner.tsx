@@ -1305,7 +1305,7 @@ export default function SupplierPickupPlanner() {
 
       {actionFeedbackBanner}
 
-      {loading ? (
+      {loading && bookings.length === 0 ? (
         <SupplierListSkeleton rows={3} />
       ) : error ? null : activeBookingsCount === 0 ? (
         <SupplierEmptyState
@@ -1332,7 +1332,7 @@ export default function SupplierPickupPlanner() {
           }
         />
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-8" aria-busy={loading || undefined}>
           {bookingsGroupedByDate.orderedKeys.map((ymd) => {
             const sectionOpen = dateSectionOpen[ymd] !== false;
             const dayRows = bookingsGroupedByDate.byDay.get(ymd) ?? [];
