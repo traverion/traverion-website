@@ -1,7 +1,7 @@
 /**
  * Consumer hub: profile, trips, and saved tours and stays.
  */
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import {
   Calendar,
   Heart,
@@ -117,21 +117,20 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
     }
   }, [user?.id, user?.email, user?.user_metadata]);
 
-  useEffect(() => {
+  // Phase 1378 + layout: clear prior hub PII before paint on account switch (useEffect ran one frame too late).
+  useLayoutEffect(() => {
     if (!user?.id) {
       hubUserIdRef.current = null;
       statsGenRef.current += 1;
       profileGenRef.current += 1;
       setStats(null);
       setStatsError(null);
-      setStatsLoading(false);
       setDisplayName('');
       setPhone('');
       setProfileMessage(null);
       setProfileError(null);
       return;
     }
-    // Phase 1378 parity: clear prior hub stats/profile before loading the new traveler (incl. failed fetch).
     if (hubUserIdRef.current !== user.id) {
       hubUserIdRef.current = user.id;
       statsGenRef.current += 1;
@@ -142,6 +141,13 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
       setPhone('');
       setProfileMessage(null);
       setProfileError(null);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setStatsLoading(false);
+      return;
     }
     void loadStats();
     void loadProfile();
