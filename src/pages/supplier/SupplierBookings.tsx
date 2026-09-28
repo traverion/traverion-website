@@ -886,8 +886,8 @@ export default function SupplierBookings({
         </div>
       ) : null}
 
-      {loading ? (
-        <div className="space-y-3">
+      {loading && bookings.length === 0 ? (
+        <div className="space-y-3 animate-fade-in-up" aria-busy="true" aria-label="Loading bookings">
           <SkeletonListItem />
           <SkeletonListItem />
           <SkeletonListItem />
@@ -938,7 +938,7 @@ export default function SupplierBookings({
           }
         />
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-4" aria-busy={loading || undefined}>
           <div className="space-y-3">
             {paginatedBookings.map((booking) => {
               const opsStartHm = booking.start_time ? pgTimeToHm(booking.start_time) ?? null : null;
