@@ -1071,7 +1071,8 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
             <div className="mb-5 flex items-start justify-between gap-3">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">Search</p>
-                <h2 id="stays-mobile-search-title" className="font-display text-xl text-ink tracking-tight mt-1">
+                {/* Phase 1639: match Tours mobile search sheet title scale. */}
+                <h2 id="stays-mobile-search-title" className="font-display text-2xl text-ink tracking-tight mt-1">
                   Find a stay
                 </h2>
               </div>
