@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
 import {
   LayoutDashboard,
   MapPin,
@@ -505,7 +505,7 @@ export default function SupplierLayout() {
     })();
   }, [partnerGateView, user?.id, user?.email, signOut]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const clearPartnerWorkspaceProfileState = () => {
       setProfileDisplayName('');
       setPayoutIban('');
@@ -548,7 +548,7 @@ export default function SupplierLayout() {
       clearPartnerWorkspaceProfileState();
       return;
     }
-    // Phase 1382: clear prior partner PII before loading the next account (Account hub 1378 parity).
+    // Phase 1382 + layout: clear prior partner PII before paint on account switch (Account hub 1378 parity).
     if (partnerHubUserIdRef.current !== user.id) {
       partnerHubUserIdRef.current = user.id;
       partnerProfileGenRef.current += 1;
