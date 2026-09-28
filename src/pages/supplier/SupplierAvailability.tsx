@@ -92,6 +92,8 @@ export default function SupplierAvailability() {
   const [bulkSaving, setBulkSaving] = useState(false);
   const [bulkError, setBulkError] = useState<string | null>(null);
   const daySheetRef = useRef<HTMLDivElement>(null);
+  const loadGenRef = useRef(0);
+  const availabilityHubUserIdRef = useRef<string | null>(null);
   const closeDaySheet = useCallback(() => {
     setEditing(null);
     setSaveNote(null);
@@ -204,16 +206,18 @@ export default function SupplierAvailability() {
 
 
   const loadListings = useCallback(async () => {
-    if (!isSupabase || !user?.id) {
-      setListings([]);
+    const uid = user?.id;
+    if (!isSupabase || !uid) {
       setLoading(false);
       return;
     }
+    const gen = ++loadGenRef.current;
     setLoading(true);
     setError(null);
     setBookingsError(null);
     try {
-      const mine = await fetchMyListings(user.id);
+      const mine = await fetchMyListings(uid);
+      if (gen !== loadGenRef.current) return;
       setListings(mine);
       setListingId((prev) => {
         if (prev && mine.some((l) => l.id === prev)) return prev;
@@ -232,19 +236,22 @@ export default function SupplierAvailability() {
         }
       }
       try {
-        const mineBookings = await fetchBookingsForSupplier(user.id);
+        const mineBookings = await fetchBookingsForSupplier(uid);
+        if (gen !== loadGenRef.current) return;
         setBookings(mineBookings.filter((b) => partnerStayCalendarOccupiesNight(b)));
         setBookingsError(null);
       } catch (e) {
+        if (gen !== loadGenRef.current) return;
         // Do not pretend occupancy is empty — sold-seat warnings would go dark.
         setBookingsError(
           userFacingError(e, 'Could not load bookings for this calendar. Sold seats may be missing until you retry.')
         );
       }
     } catch (e) {
+      if (gen !== loadGenRef.current) return;
       setError(userFacingError(e, USER_ERROR.calendar));
     } finally {
-      setLoading(false);
+      if (gen === loadGenRef.current) setLoading(false);
     }
   }, [isSupabase, user?.id]);
 
@@ -257,20 +264,48 @@ export default function SupplierAvailability() {
       setCapsError(null);
       return;
     }
+    const gen = loadGenRef.current;
     try {
       const data = await fetchAvailabilityByListingId(
         id,
         fromIso && toIso ? { fromDate: fromIso, toDate: toIso } : undefined
       );
+      if (gen !== loadGenRef.current) return;
       setRows(data);
       setCapsError(null);
     } catch (e) {
+      if (gen !== loadGenRef.current) return;
       // Keep prior capacity rows; never flash an empty month as “no overrides”.
       setCapsError(
         userFacingError(e, 'Could not load capacity overrides for this month. Check your connection and try again.')
       );
     }
   }, []);
+
+  useEffect(() => {
+    const clearAvailabilityPartnerWorkspace = () => {
+      setListings([]);
+      setBookings([]);
+      setRows([]);
+      setError(null);
+      setBookingsError(null);
+      setCapsError(null);
+      setEditing(null);
+    };
+    if (!user?.id) {
+      availabilityHubUserIdRef.current = null;
+      loadGenRef.current += 1;
+      clearAvailabilityPartnerWorkspace();
+      setLoading(false);
+      return;
+    }
+    // Phase 1388: clear prior partner calendar before loading the next account (Bookings 1384 parity).
+    if (availabilityHubUserIdRef.current !== user.id) {
+      availabilityHubUserIdRef.current = user.id;
+      loadGenRef.current += 1;
+      clearAvailabilityPartnerWorkspace();
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     void loadListings();
