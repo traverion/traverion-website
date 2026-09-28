@@ -1,4 +1,4 @@
-import { useRef, type ReactNode } from 'react';
+import { createContext, useContext, useId, useRef, type ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { X } from 'lucide-react';
 import EmptyState from '../EmptyState';
@@ -61,14 +61,20 @@ export function SupplierPageHero({ title, description, actions, children, badge 
   );
 }
 
+const SupplierModalTitleIdContext = createContext<string | null>(null);
+
 type SupplierModalHeaderProps = {
   icon: LucideIcon;
   title: string;
   subtitle?: string;
   onClose?: () => void;
+  /** When used outside SupplierModalShell, pass the same id as the dialog’s aria-labelledby. */
+  titleId?: string;
 };
 
-export function SupplierModalHeader({ icon: Icon, title, subtitle, onClose }: SupplierModalHeaderProps) {
+export function SupplierModalHeader({ icon: Icon, title, subtitle, onClose, titleId }: SupplierModalHeaderProps) {
+  const shellTitleId = useContext(SupplierModalTitleIdContext);
+  const headingId = titleId ?? shellTitleId ?? undefined;
   return (
     <div className={`${SUPPLIER_SECTION_HEADER_CLASS} flex items-center justify-between gap-3`}>
       <div className="flex items-center gap-3 min-w-0">
@@ -76,7 +82,9 @@ export function SupplierModalHeader({ icon: Icon, title, subtitle, onClose }: Su
           <Icon className="w-5 h-5 text-finland" aria-hidden />
         </div>
         <div className="min-w-0">
-          <h2 className="text-lg font-semibold text-ink truncate">{title}</h2>
+          <h2 id={headingId} className="text-lg font-semibold text-ink truncate">
+            {title}
+          </h2>
           {subtitle ? <p className="text-xs text-ink-muted mt-0.5">{subtitle}</p> : null}
         </div>
       </div>
@@ -157,20 +165,28 @@ export function SupplierModalShell({ children, onClose, maxWidth = 'md', scrolla
   const widthClass = maxWidth === 'xl' ? 'max-w-xl' : maxWidth === 'lg' ? 'max-w-lg' : 'max-w-md';
   const panelClass = scrollable ? SUPPLIER_MODAL_PANEL_SCROLL_CLASS : SUPPLIER_MODAL_PANEL_CLASS;
   const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
   useDialogFocus(true, panelRef, onClose);
 
   return (
     <div className={SUPPLIER_MODAL_OVERLAY_CLASS}>
       {onClose ? (
-        <button type="button" className="absolute inset-0 cursor-default" aria-label="Close" onClick={onClose} />
+        <button
+          type="button"
+          tabIndex={-1}
+          className="absolute inset-0 cursor-default"
+          aria-label="Close"
+          onClick={onClose}
+        />
       ) : null}
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
+        aria-labelledby={titleId}
         className={`${panelClass} ${widthClass}`}
       >
-        {children}
+        <SupplierModalTitleIdContext.Provider value={titleId}>{children}</SupplierModalTitleIdContext.Provider>
       </div>
     </div>
   );

@@ -1538,6 +1538,7 @@ export default function SupplierListings() {
               >
                 <SupplierModalHeader
                   icon={Trash2}
+                  titleId="supplier-delete-listing-title"
                   title="Remove this listing?"
                   onClose={deleteBusy ? undefined : () => setListingPendingDelete(null)}
                 />
@@ -1597,6 +1598,7 @@ export default function SupplierListings() {
               >
                 <SupplierModalHeader
                   icon={EyeOff}
+                  titleId="supplier-deactivate-listing-title"
                   title="Take this listing offline?"
                   onClose={
                     deactivateBusy
