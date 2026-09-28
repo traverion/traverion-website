@@ -174,6 +174,31 @@ export function displayListingTitleFromPurchase(
   return live || fallback;
 }
 
+/**
+ * Phase 1483: Pickup/Bookings listing filters must label like booking rows — prefer
+ * purchased title from the latest booking on that listing, not a later live rename.
+ */
+export function partnerListingFilterLabelFromBookings(
+  listingId: string,
+  liveTitle: string | null | undefined,
+  bookings: ReadonlyArray<{ listing_id: string; created_at: string; purchase_snapshot: unknown }>,
+  fallback = 'Listing'
+): string {
+  const live = (liveTitle ?? '').trim() || fallback;
+  let latestCreatedAt = '';
+  let latestSnapshot: unknown = null;
+  for (const b of bookings) {
+    if (b.listing_id !== listingId) continue;
+    const created = b.created_at ?? '';
+    if (!latestCreatedAt || created.localeCompare(latestCreatedAt) > 0) {
+      latestCreatedAt = created;
+      latestSnapshot = b.purchase_snapshot;
+    }
+  }
+  if (!latestCreatedAt) return live;
+  return displayListingTitleFromPurchase(latestSnapshot, live, live);
+}
+
 export function displayOptionLabelFromPurchase(
   snapshot: unknown,
   liveOptionLabel: string | null | undefined

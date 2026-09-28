@@ -9,6 +9,7 @@ import {
 import {
   buildPurchaseSnapshot,
   displayListingTitleFromPurchase,
+  partnerListingFilterLabelFromBookings,
   displayMeetingPointFromPurchase,
   displayPickupInstructionsFromPurchase,
   displayOptionLabelFromPurchase,
@@ -99,6 +100,24 @@ describe('purchase-snapshot', () => {
     expect(displayListingTitleFromPurchase(snap, 'Renamed listing')).toBe('Purchased title');
     expect(displayOptionLabelFromPurchase(snap, 'New option name')).toBe('Morning');
     expect(displayMeetingPointFromPurchase(snap, 'New dock')).toBe('Old dock');
+  });
+
+  it('Phase 1483: listing filter labels prefer latest booking purchased title over live rename', () => {
+    const snap = buildPurchaseSnapshot({
+      listingTitle: 'Northern Lights Walk',
+      capturedAt: '2026-09-22T00:00:00.000Z',
+    });
+    const bookings = [
+      {
+        listing_id: 'l1',
+        created_at: '2026-09-20T10:00:00.000Z',
+        purchase_snapshot: snap,
+      },
+    ];
+    expect(partnerListingFilterLabelFromBookings('l1', 'Aurora Hunt (renamed)', bookings)).toBe(
+      'Northern Lights Walk'
+    );
+    expect(partnerListingFilterLabelFromBookings('l2', 'Live only', bookings)).toBe('Live only');
   });
 
   it('falls back to live copy when snapshot missing', () => {

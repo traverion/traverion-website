@@ -25,7 +25,12 @@ import { openSupplierListingEditor, openSupplierBooking, openSupplierInbox } fro
 import { decrementAvailabilityBooked } from '../../data/supabase-availability';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
-import { isPurchaseSnapshot, displayListingTitleFromPurchase, displayDurationFromPurchase } from '../../lib/purchase-snapshot';
+import {
+  isPurchaseSnapshot,
+  displayListingTitleFromPurchase,
+  displayDurationFromPurchase,
+  partnerListingFilterLabelFromBookings,
+} from '../../lib/purchase-snapshot';
 import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierListSkeleton, SupplierPageHero } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
@@ -546,9 +551,12 @@ export default function SupplierPickupPlanner() {
     () =>
       Object.entries(listingTitles)
         .filter(([id]) => !stayListingIds.has(id))
-        .map(([id, title]) => ({ id, title }))
+        .map(([id, title]) => ({
+          id,
+          title: partnerListingFilterLabelFromBookings(id, title, bookings),
+        }))
         .sort((a, b) => a.title.localeCompare(b.title)),
-    [listingTitles, stayListingIds]
+    [listingTitles, stayListingIds, bookings]
   );
 
   const selectedBooking = useMemo(

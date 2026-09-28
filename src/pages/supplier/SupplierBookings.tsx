@@ -72,7 +72,7 @@ import { formatBookingDateDisplay } from '../../lib/booking-flow';
 import { bookingIsStayNight, partnerBookingHasPickupAttention } from '../../lib/pickup-completeness';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 import { comparePartnerBookingsOperational } from '../../lib/partner-bookings-order';
-import { displayListingTitleFromPurchase, displayMeetingPointFromPurchase, displayOptionLabelFromPurchase, displayPickupInstructionsFromPurchase, displayFulfillmentFromPurchase, displayDurationFromPurchase, displayStayCheckInTimeFromPurchase, displayStayCheckOutTimeFromPurchase, displayCheckInAddressFromPurchase, displayStayHouseRulesFromPurchase, partnerOpsDepartureDisplay, isPurchaseSnapshot } from '../../lib/purchase-snapshot';
+import { displayListingTitleFromPurchase, displayMeetingPointFromPurchase, displayOptionLabelFromPurchase, displayPickupInstructionsFromPurchase, displayFulfillmentFromPurchase, displayDurationFromPurchase, displayStayCheckInTimeFromPurchase, displayStayCheckOutTimeFromPurchase, displayCheckInAddressFromPurchase, displayStayHouseRulesFromPurchase, partnerOpsDepartureDisplay, isPurchaseSnapshot, partnerListingFilterLabelFromBookings } from '../../lib/purchase-snapshot';
 
 const BOOKINGS_PAGE_SIZE = 10;
 
@@ -689,8 +689,11 @@ export default function SupplierBookings({
           if (!inventoryFamily) return true;
           return m.family === inventoryFamily;
         })
-        .map(([id, m]) => ({ id, title: m.title })),
-    [listingMeta, inventoryFamily]
+        .map(([id, m]) => ({
+          id,
+          title: partnerListingFilterLabelFromBookings(id, m.title, bookings),
+        })),
+    [listingMeta, inventoryFamily, bookings]
   );
 
   const selectedBooking = useMemo(
