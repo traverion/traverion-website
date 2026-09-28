@@ -16,7 +16,7 @@ export default function PartnerHelpPage() {
 
       <div className="max-w-xl space-y-3">
         <a
-          href={`mailto:${SUPPORT_EMAIL}`}
+          href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('[Traverion · Partner] Support')}`}
           className="partner-surface-panel lux-flat flex items-start gap-3 px-4 py-3.5 hover:border-finland/30"
         >
           <span className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-md bg-finland/10 text-finland">
@@ -27,6 +27,29 @@ export default function PartnerHelpPage() {
             <span className="mt-0.5 block text-[13px] text-slate-500">{SUPPORT_EMAIL}</span>
           </span>
         </a>
+
+        {/* Phase 1648: ops shortcuts named in the Help hero (bookings / payouts). */}
+        <button
+          type="button"
+          onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings`)}
+          className="partner-surface-panel lux-flat w-full px-4 py-3.5 text-left hover:border-finland/30"
+        >
+          <span className="block text-[14px] font-semibold text-slate-900">Bookings</span>
+          <span className="mt-0.5 block text-[13px] text-slate-500">
+            Today’s schedule, guest details, and checkout holds.
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/money`)}
+          className="partner-surface-panel lux-flat w-full px-4 py-3.5 text-left hover:border-finland/30"
+        >
+          <span className="block text-[14px] font-semibold text-slate-900">Money</span>
+          <span className="mt-0.5 block text-[13px] text-slate-500">
+            Collected payments, fees, and payout status.
+          </span>
+        </button>
 
         <button
           type="button"
