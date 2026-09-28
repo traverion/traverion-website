@@ -3,7 +3,7 @@ import LegalPageShell from '../components/LegalPageShell';
 import { submitContactInquiry, ContactInquiry } from '../data/supabase-contact';
 import { required, validateEmail, maxLength } from '../lib/validation';
 import { CONTACT_PREFILL_KEY } from '../lib/contactPrefill';
-import { buildInquiryEmailSubject } from '../lib/contactEmailSubject';
+import { buildContactFormEmailSubject } from '../lib/contactEmailSubject';
 import { CONTACT_FORM_SUCCESS_HEADING, CONTACT_FORM_THANK_YOU, CONTACT_FORM_SUBMIT_ERROR } from '../lib/booking-confirmation-copy';
 import NoticeCallout from '../components/NoticeCallout';
 
@@ -121,12 +121,14 @@ export default function Contact({ onNavigate }: ContactProps) {
     setIsSubmitting(true);
     setFieldErrors({});
     try {
+      const topicLabel = TOPICS.find((t) => t.id === topic)?.label ?? 'Contact form message';
       const inquiryData: Omit<ContactInquiry, 'id' | 'created_at' | 'updated_at'> = {
         name: formData.name,
         email: formData.email,
         phone: formData.phone || undefined,
-        subject: buildInquiryEmailSubject('general', TOPICS.find((t) => t.id === topic)?.label ?? 'Contact form message'),
-        message: `[${TOPICS.find((t) => t.id === topic)?.label ?? 'General'}]\n\n${formData.message}`,
+        // Phase 1621: topic appears in the subject tag for inbox routing.
+        subject: buildContactFormEmailSubject(topicLabel),
+        message: `[${topicLabel}]\n\n${formData.message}`,
         inquiry_type: 'general',
         status: 'new',
       };

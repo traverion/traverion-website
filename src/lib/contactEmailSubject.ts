@@ -35,6 +35,12 @@ export function buildInquiryEmailSubject(kind: InquiryKind, userSubjectLine: str
   return `${SUBJECT_TAG[kind]} ${tail}`;
 }
 
+/** Phase 1621: traveler Contact form — topic lives in the subject tag for inbox rules. */
+export function buildContactFormEmailSubject(topicLabel: string): string {
+  const label = topicLabel.trim() || 'Contact form message';
+  return `[Traverion · Contact · ${label}]`;
+}
+
 export function inquiryKindLabel(kind: InquiryKind): string {
   switch (kind) {
     case 'affiliate':
