@@ -825,7 +825,24 @@ export default function SupplierDashboard() {
         />
         {dashboardLoading && publishedListingsCount === null ? (
           <SupplierListSkeleton rows={3} />
-        ) : bookingsLoadFailed ? null : todayDepartures.length === 0 ? (
+        ) : bookingsLoadFailed ? (
+          // Phase 1617: do not look like an empty schedule when bookings failed to load.
+          <div className="partner-surface-panel flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+            <div className="min-w-0">
+              <p className="text-[15px] font-semibold text-slate-800">Bookings couldn’t load</p>
+              <p className="text-[13px] text-slate-500 mt-0.5 leading-snug">
+                Today’s schedule is unavailable until bookings load again.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void reloadDashboard()}
+              className="partner-btn-secondary lux-flat shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-[12px] font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Retry
+            </button>
+          </div>
+        ) : todayDepartures.length === 0 ? (
           <div className="partner-surface-panel flex flex-wrap items-center justify-between gap-3 px-5 py-4">
             <div className="min-w-0">
               <p className="text-[15px] font-semibold text-slate-800">{todayEmptyCopy.title}</p>
@@ -1021,7 +1038,24 @@ export default function SupplierDashboard() {
               <TextLink onClick={() => openSupplierCalendar()}>Availability →</TextLink>
             }
           />
-          {bookingsLoadFailed ? null : upcomingByDate.length === 0 ? (
+          {bookingsLoadFailed ? (
+            // Phase 1617: Next 7 days — same honest failure panel as Today’s schedule.
+            <div className="partner-surface-panel flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+              <div className="min-w-0">
+                <p className="text-[15px] font-semibold text-slate-800">Bookings couldn’t load</p>
+                <p className="text-[13px] text-slate-500 mt-0.5 leading-snug">
+                  The week-ahead schedule needs bookings to load successfully.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void reloadDashboard()}
+                className="partner-btn-secondary lux-flat shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-[12px] font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Retry
+              </button>
+            </div>
+          ) : upcomingByDate.length === 0 ? (
             <div className="rounded-md border border-dashed border-slate-200 bg-white/60 px-4 py-5">
               <p className="text-[14px] text-slate-500">No confirmed departures in the next week.</p>
             </div>
