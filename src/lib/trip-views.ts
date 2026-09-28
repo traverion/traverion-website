@@ -270,6 +270,18 @@ export function bookingMatchesTripView(
   return !date || date >= day;
 }
 
+/** Account hub / badges: any row that appears on Trips (Upcoming, Past, or Cancelled). */
+export function bookingAppearsInTravelerTrips(
+  b: Parameters<typeof bookingMatchesTripView>[0],
+  nowMs: number = Date.now()
+): boolean {
+  return (
+    bookingMatchesTripView(b, 'upcoming', undefined, nowMs) ||
+    bookingMatchesTripView(b, 'past', undefined, nowMs) ||
+    bookingMatchesTripView(b, 'cancelled', undefined, nowMs)
+  );
+}
+
 /** Cancelled tab: Refund due first, then newest booking date. */
 export function sortTravelerCancelledTrips<
   T extends { status?: string | null; payment_status?: string | null; booking_date?: string | null; refund_choice?: string | null },

@@ -9,6 +9,7 @@ import {
   partnerBookingIsUpcomingSchedule,
   partnerBookingIsPastSchedule,
   travelerTripIsLive,
+  bookingAppearsInTravelerTrips,
   travelerBookingNeedsPayNow,
   travelerTripReferenceLabel,
   partnerBookingIsUnpaidCheckout,
@@ -24,6 +25,18 @@ import {
 const today = '2026-09-08';
 
 describe('trip list views', () => {
+  it('counts cancelled and refund-due trips for Account hub (Phase 1372)', () => {
+    const refundDue = { status: 'cancelled', payment_status: 'paid', booking_date: '2026-10-01' };
+    const refunded = { status: 'confirmed', payment_status: 'refunded', booking_date: '2026-09-05' };
+    const nowMs = Date.parse(`${today}T12:00:00.000Z`);
+    expect(travelerTripIsLive(refundDue)).toBe(false);
+    expect(travelerTripIsLive(refunded)).toBe(false);
+    expect(bookingAppearsInTravelerTrips(refundDue, nowMs)).toBe(true);
+    expect(bookingAppearsInTravelerTrips(refunded, nowMs)).toBe(true);
+    const failedConfirmed = { status: 'confirmed', payment_status: 'failed', booking_date: '2026-10-10' };
+    expect(bookingAppearsInTravelerTrips(failedConfirmed, nowMs)).toBe(false);
+  });
+
   it('keeps refunded bookings out of Upcoming even if status is not cancelled', () => {
     const refundedStay = {
       status: 'confirmed',

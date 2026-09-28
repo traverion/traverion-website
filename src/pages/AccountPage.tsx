@@ -21,7 +21,7 @@ import {
   saveConsumerProfile,
   normalizeConsumerPhone,
 } from '../data/supabase-consumer-profile';
-import { travelerTripIsLive } from '../lib/trip-views';
+import { bookingAppearsInTravelerTrips } from '../lib/trip-views';
 import NoticeCallout from '../components/NoticeCallout';
 interface AccountPageProps {
   onNavigate: (page: string) => void;
@@ -60,7 +60,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
       ]);
       if (gen !== statsGenRef.current) return;
       setStats({
-        bookings: bookings.filter(travelerTripIsLive).length,
+        bookings: bookings.filter(bookingAppearsInTravelerTrips).length,
         wishlist: wishlistIds.length,
       });
     } catch (e) {
