@@ -985,6 +985,14 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       setBookingCardError(LISTING_SELF_BOOK_BLOCKED);
       return;
     }
+    if (capacityUnknown) {
+      // Phase 1361: sticky stays tappable — scroll to desktop Capacity unavailable + retry.
+      scrollElementIntoView('tour-booking-card-error', { behavior: 'smooth', block: 'center' });
+      if (!document.getElementById('tour-booking-card-error')) {
+        scrollElementIntoView('tour-booking-panel', { behavior: 'smooth', block: 'start' });
+      }
+      return;
+    }
     if (!bookingDate.trim()) {
       scrollElementIntoView('tour-booking-panel', { behavior: 'smooth', block: 'start' });
       window.requestAnimationFrame(() => {
@@ -2081,7 +2089,6 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     return (
                       variantChecking ||
                       selfBookBlocked ||
-                      capacityUnknown ||
                       allDeparturesSoldOut ||
                       (panelQuote != null && !panelQuote.ok) ||
                       (Boolean(selectedBookingVariant) &&
@@ -2121,6 +2128,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                     quoteInvalid: Boolean(selectedBookingVariant && panelQuote != null && !panelQuote.ok),
                     selfBookBlocked,
                     selfBookCheckFailed,
+                    capacityUnknown,
                   })}
                 </button>
               </div>

@@ -26,6 +26,14 @@ describe('tourStickyBookCtaLabel', () => {
         hasDate: true,
         hasOption: true,
         needsDeparture: false,
+        capacityUnknown: true,
+      })
+    ).toBe('Capacity unavailable');
+    expect(
+      tourStickyBookCtaLabel({
+        hasDate: true,
+        hasOption: true,
+        needsDeparture: false,
         selfBookBlocked: true,
       })
     ).toBe('Cannot book own listing');
