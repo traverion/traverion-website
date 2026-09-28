@@ -31,6 +31,7 @@ import { pgTimeToHm } from '../../data/supabase-listings';
 import { stayRangeFromBooking } from '../../lib/stayOccupancy';
 import { formatStayNightHuman } from '../../lib/stay-calendar';
 import { experienceTodayIsoForListing } from '../../lib/booking-quote';
+import { TRAVERION_DEPARTURE_TIMEZONE } from '../../lib/tour-departure-cutoff';
 import { addCalendarDaysYmd } from '../../lib/booking-lifecycle-calendar';
 import { formatBookingDateDisplay } from '../../lib/booking-flow';
 import { PARTNER_INBOX_MESSAGE_FETCH_CAP } from '../../lib/partner-inbox-cap';
@@ -458,7 +459,14 @@ export default function SupplierDashboard() {
     return [...map.entries()];
   }, [upcoming]);
 
-  const hour = new Date().getHours();
+  // Phase 1321: greeting hour matches platform experience TZ (1314 date strip parity).
+  const hour = Number(
+    new Intl.DateTimeFormat('en-GB', {
+      hour: 'numeric',
+      hour12: false,
+      timeZone: TRAVERION_DEPARTURE_TIMEZONE,
+    }).format(new Date())
+  );
   const hello = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
   const todayGuestTotal = todayDepartures.reduce((s, b) => s + (b.guests ?? 0), 0);
