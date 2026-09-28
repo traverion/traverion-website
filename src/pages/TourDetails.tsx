@@ -1602,6 +1602,10 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                           <p className="mb-4 text-sm font-medium text-ink-faint">Checking offers…</p>
                         );
                       }
+                      // Phase 1550: option selected + failed quote — do not invent catalog From (1547/1548).
+                      if (selectedBookingVariant && panelQuote && !panelQuote.ok) {
+                        return <p className="mb-4 text-lg font-semibold tabular-nums text-ink">—</p>;
+                      }
                       const { price, originalPrice, label, qualifier, summary } = getDisplayPriceForTour(
                         tour,
                         discountsByListing
