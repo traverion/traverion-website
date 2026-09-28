@@ -47,6 +47,7 @@ export type BookingRowForContent =
       guest_name?: string | null;
       booking_date?: string | null;
       check_out?: string | null;
+      nights?: number | null;
       guests?: number | null;
       booking_number?: number | null;
       purchase_snapshot?: unknown;
@@ -138,8 +139,11 @@ function resolveListingKind(
     if (typeof fam === 'string' && fam.trim().toLowerCase() === 'stay') return 'stay';
     if (typeof fam === 'string' && fam.trim()) return fam.trim().toLowerCase();
   }
+  // Phase 1525: bookingIsStayNight parity — column / nights / snap (never notes-only).
   const checkOut = typeof booking?.check_out === 'string' ? booking.check_out.trim() : '';
   if (checkOut && /^\d{4}-\d{2}-\d{2}$/.test(checkOut)) return 'stay';
+  const nights = Math.floor(Number(booking?.nights ?? 0));
+  if (Number.isFinite(nights) && nights >= 1) return 'stay';
   const snapCheckOut = snapshotString(booking?.purchase_snapshot, 'checkOut');
   if (snapCheckOut && /^\d{4}-\d{2}-\d{2}$/.test(snapCheckOut)) return 'stay';
   const kind = String(listing?.experience_kind ?? '')
@@ -147,6 +151,35 @@ function resolveListingKind(
     .toLowerCase();
   if (kind === 'stay') return 'stay';
   if (kind) return kind;
+  return undefined;
+}
+
+/** Phase 1524/1525: exclusive stay check-out = column → nights → snap → undefined (never notes). */
+function resolveStayCheckOutDate(booking: BookingRowForContent): string | undefined {
+  if (!booking) return undefined;
+  const checkIn =
+    typeof booking.booking_date === 'string' && booking.booking_date.trim()
+      ? booking.booking_date.trim()
+      : '';
+  const fromColumn =
+    typeof booking.check_out === 'string' && booking.check_out.trim()
+      ? booking.check_out.trim()
+      : '';
+  if (fromColumn && /^\d{4}-\d{2}-\d{2}$/.test(fromColumn)) {
+    if (!checkIn || fromColumn > checkIn) return fromColumn;
+    return fromColumn;
+  }
+  const nights = Math.floor(Number(booking.nights ?? 0));
+  if (checkIn && /^\d{4}-\d{2}-\d{2}$/.test(checkIn) && Number.isFinite(nights) && nights >= 1) {
+    const [y, m, d] = checkIn.split('-').map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d + nights));
+    return dt.toISOString().slice(0, 10);
+  }
+  const fromSnap = snapshotString(booking.purchase_snapshot, 'checkOut');
+  if (fromSnap && /^\d{4}-\d{2}-\d{2}$/.test(fromSnap)) {
+    if (!checkIn || fromSnap > checkIn) return fromSnap;
+    return fromSnap;
+  }
   return undefined;
 }
 
@@ -236,8 +269,10 @@ export function resolveBookingTiedContent(params: {
 
   if (listingKind) overrides.listingKind = listingKind;
 
-  const checkOut =
-    typeof params.bookingRow.check_out === 'string' && params.bookingRow.check_out.trim()
+  // Phase 1525: nights-only stays must surface checkOutDate like Trips / stayRangeFromBooking.
+  const checkOut = isStay
+    ? resolveStayCheckOutDate(params.bookingRow)
+    : typeof params.bookingRow.check_out === 'string' && params.bookingRow.check_out.trim()
       ? params.bookingRow.check_out.trim()
       : snapshotString(snap, 'checkOut');
   if (checkOut && /^\d{4}-\d{2}-\d{2}$/.test(checkOut)) overrides.checkOutDate = checkOut;

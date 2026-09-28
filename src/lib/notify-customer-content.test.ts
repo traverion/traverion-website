@@ -64,6 +64,24 @@ describe('resolveBookingTiedContent (Phase 1052 content-forgery fix)', () => {
     expect(byCheckout.ok).toBe(true);
     if (!byCheckout.ok) return;
     expect(byCheckout.overrides.listingKind).toBe('stay');
+
+    // Phase 1525: nights-only stay surfaces exclusive check-out in email
+    const byNights = resolveBookingTiedContent({
+      kind: 'experience_reminder',
+      bookingId: BOOKING_ID,
+      bookingRow: {
+        guest_name: 'M',
+        booking_date: '2026-12-01',
+        nights: 3,
+        guests: 2,
+        payment_status: 'paid',
+      },
+      listingRow: { id: 'l1', title: 'Cabin' },
+    });
+    expect(byNights.ok).toBe(true);
+    if (!byNights.ok) return;
+    expect(byNights.overrides.listingKind).toBe('stay');
+    expect(byNights.overrides.checkOutDate).toBe('2026-12-04');
   });
 
   it('rejects booking-tied kind without bookingId', () => {
