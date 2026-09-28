@@ -298,7 +298,9 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     isSupabaseConfigured() &&
     allListings.length > 0 &&
     !dateCapacityError &&
-    (dateCapacityLoading || dateCapacityByListing === null);
+    (dateCapacityLoading ||
+      dateCapacityByListing === null ||
+      dateCapacityLoadedFor !== filterDate);
   const showCatalogLoading = catalogLoading || waitingOnDateCapacity;
 
   const dateCapacityForActiveFilter = useMemo(() => {
