@@ -8,7 +8,6 @@ import { listingIsFamily } from '../lib/inventory';
 import { listingDetailVisibleToTraveler } from '../lib/product-workflows';
 import { useAuth } from '../contexts/AuthContext';
 import { LISTING_SELF_BOOK_BLOCKED, LISTING_SELF_BOOK_CHECK_FAILED, viewerIsListingSupplierSide } from '../lib/listing-self-book';
-import { rememberTravelerReturnStay, travelerLoginHref } from '../lib/travelerAuthLinks';
 import { failCloseOrphanStayCheckout } from '../lib/marketplaceBrowse';
 import { quoteStayNights, stayQuotePriceLines, experienceTodayIsoForListing } from '../lib/booking-quote';
 import { stayDateRangesOverlap, occupiedNightsFromStayRanges, nightsOccupiedByStay } from '../lib/stayOccupancy';
@@ -1200,7 +1199,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
             {stayQuote && !stayQuote.ok && checkIn && checkOut ? (
               <p className="mt-3 text-sm text-red-700">{userFacingError(stayQuote.error, USER_ERROR.checkout)}</p>
             ) : null}
-            {user ? (
+            {quoteOk ? (
               <>
                 <label className="mt-4 block text-sm font-medium text-ink" htmlFor="stay-guest-name">
                   Lead guest name
@@ -1273,15 +1272,6 @@ export default function StayDetails({ stayId, onBack }: Props) {
                       return;
                     }
                     if (selectionOccupied || selfBookBlocked || maxGuests == null) return;
-                    if (!quoteOk) {
-                      document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                      window.requestAnimationFrame(() => {
-                        const root = document.getElementById('stay-night-picker');
-                        const firstOpen = root?.querySelector('button:not([disabled])') as HTMLButtonElement | null;
-                        (firstOpen ?? root)?.focus();
-                      });
-                      return;
-                    }
                     void startStayCheckout();
                   }}
                 >
@@ -1289,9 +1279,10 @@ export default function StayDetails({ stayId, onBack }: Props) {
                 </button>
                 <p className="mt-3 text-xs text-ink-muted leading-relaxed">
                   Price is confirmed on the server. If checkout cannot start, you will see an error — never a fake success.
+                  {!user ? ' Sign in when prompted — you are not charged until Stripe confirms payment.' : ''}
                 </p>
               </>
-            ) : !quoteOk ? (
+            ) : (
               <button
                 type="button"
                 className="tv-btn-primary w-full mt-4"
@@ -1306,21 +1297,6 @@ export default function StayDetails({ stayId, onBack }: Props) {
               >
                 {stickyStayCtaLabel}
               </button>
-            ) : (
-              <a
-                href={travelerLoginHref('stays')}
-                className="tv-btn-primary w-full mt-4"
-                onClick={() =>
-                  rememberTravelerReturnStay({
-                    id: stay.id,
-                    checkIn,
-                    checkOut,
-                    guests,
-                  })
-                }
-              >
-                Log in to continue
-              </a>
             )}
             <p className="mt-3 text-xs text-ink-muted leading-relaxed">
               {STAY_LISTING_CONFIRMATION_NOTE} {BOOKING_CONFIRMATION_EMAIL_DISCLAIMER} {STRIPE_TEST_UNTIL_LIVE}.
@@ -1344,7 +1320,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
                   : `Pay via ${STRIPE_TEST_UNTIL_LIVE}`}
               </p>
             </div>
-            {user ? (
+            {quoteOk ? (
               <button
                 type="button"
                 className="tv-btn-primary min-h-11 shrink-0 disabled:opacity-50"
@@ -1362,21 +1338,12 @@ export default function StayDetails({ stayId, onBack }: Props) {
                     return;
                   }
                   if (selectionOccupied || selfBookBlocked || maxGuests == null) return;
-                  if (!quoteOk) {
-                    document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    window.requestAnimationFrame(() => {
-                      const root = document.getElementById('stay-night-picker');
-                      const firstOpen = root?.querySelector('button:not([disabled])') as HTMLButtonElement | null;
-                      (firstOpen ?? root)?.focus();
-                    });
-                    return;
-                  }
                   void startStayCheckout();
                 }}
               >
                 {stickyStayCtaLabel}
               </button>
-            ) : !quoteOk ? (
+            ) : (
               <button
                 type="button"
                 className="tv-btn-primary min-h-11 shrink-0"
@@ -1391,21 +1358,6 @@ export default function StayDetails({ stayId, onBack }: Props) {
               >
                 {stickyStayCtaLabel}
               </button>
-            ) : (
-              <a
-                href={travelerLoginHref('stays')}
-                className="tv-btn-primary min-h-11 shrink-0"
-                onClick={() =>
-                  rememberTravelerReturnStay({
-                    id: stay.id,
-                    checkIn,
-                    checkOut,
-                    guests,
-                  })
-                }
-              >
-                Log in
-              </a>
             )}
           </div>
         </div>,
