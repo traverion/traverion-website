@@ -2,7 +2,7 @@
  * Minimal post–Stripe Checkout screen for one booking (no site header/footer).
  * Stripe redirects here with ?session_id=cs_…; we resolve the row via RLS.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle, Calendar, Users, Loader2, LogIn, Copy, Check } from 'lucide-react';
 import { Skeleton } from '../components/ui/Skeleton';
 import ErrorState from '../components/ErrorState';
@@ -208,26 +208,26 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
     }
   }, [sessionId, user?.id]);
 
-  useEffect(() => {
-    if (authLoading) return;
+  // Phase 1380 + layout: clear prior account booking before paint (useEffect ran one frame too late).
+  useLayoutEffect(() => {
     if (!user?.id) {
       confirmationUserIdRef.current = null;
       loadGenRef.current += 1;
       resetConfirmationBookingState();
       return;
     }
-    // Phase 1380: clear prior account booking before load (Trips 1379 / loadGen parity).
     if (confirmationUserIdRef.current !== user.id) {
       confirmationUserIdRef.current = user.id;
       loadGenRef.current += 1;
       resetConfirmationBookingState();
     }
-  }, [user?.id, authLoading, resetConfirmationBookingState]);
+  }, [user?.id, resetConfirmationBookingState]);
 
   useEffect(() => {
+    if (authLoading) return;
     if (!canQuery) return;
     void load();
-  }, [canQuery, load]);
+  }, [canQuery, load, authLoading]);
 
   /** Webhook may lag behind the browser redirect — poll until paid or cancelled, or cap. */
   useEffect(() => {
