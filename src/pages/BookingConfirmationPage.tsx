@@ -16,7 +16,7 @@ import { fetchMyBookingByCheckoutSessionId,
 } from '../data/supabase-bookings';
 import { fetchListingById, fetchListingOpsByIds, pgTimeToHm } from '../data/supabase-listings';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
-import { parseStayCheckOutFromNotes, nightsOccupiedByStay, stayRangeFromBooking } from '../lib/stayOccupancy';
+import { nightsOccupiedByStay, stayRangeFromBooking } from '../lib/stayOccupancy';
 import { formatMoney, isStripeTestCheckoutSession, appStripeIsTestMode } from '../lib/money';
 import NoticeCallout from '../components/NoticeCallout';
 import StatusChip, { toneForPaymentLabel } from '../components/StatusChip';
