@@ -69,7 +69,7 @@ export default function BookingMessageThread({
       await markBookingMessagesRead(bookingId);
     } catch (e) {
       if (gen !== loadGenRef.current) return;
-      setRows([]);
+      // Phase 1340: keep prior thread visible — load failure ≠ empty conversation.
       setLoadError(userFacingError(e, 'We could not load messages. Check your connection and try again.'));
     } finally {
       if (gen === loadGenRef.current) setLoading(false);
@@ -114,18 +114,19 @@ export default function BookingMessageThread({
   return (
     <div className="space-y-3">
       <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint m-0">Messages</h2>
-      {loading ? (
-        <p className="text-sm text-ink-muted" aria-busy="true">
-          Loading messages…
-        </p>
-      ) : loadError ? (
+      {loadError ? (
         <NoticeCallout title="Messages unavailable" tone="warn">
           <p className="text-sm text-ink-muted">{loadError}</p>
           <button type="button" className="mt-2 text-xs font-semibold text-finland hover:underline" onClick={() => void load()}>
             Try again
           </button>
         </NoticeCallout>
-      ) : rows.length === 0 ? (
+      ) : null}
+      {loading && rows.length === 0 ? (
+        <p className="text-sm text-ink-muted" aria-busy="true">
+          Loading messages…
+        </p>
+      ) : rows.length === 0 && !loadError ? (
         canCompose ? (
           <div className="rounded-xl bg-paper-raised px-4 py-3.5 ring-1 ring-black/[0.06]">
             <div className="flex items-start gap-3">
@@ -156,7 +157,7 @@ export default function BookingMessageThread({
             Messages appear here after a paid booking.
           </NoticeCallout>
         )
-      ) : (
+      ) : rows.length > 0 ? (
         <ul className="space-y-2 max-h-72 overflow-y-auto">
           {rows.map((m) => (
             <li
@@ -179,13 +180,13 @@ export default function BookingMessageThread({
             </li>
           ))}
         </ul>
-      )}
+      ) : null}
       {error ? (
         <NoticeCallout title={BOOKING_MESSAGE_SUBMIT_ERROR_TITLE} tone="danger">
           {error}
         </NoticeCallout>
       ) : null}
-      {canCompose ? (
+      {canCompose && !loadError ? (
         <div>
           <label htmlFor={`msg-${bookingId}`} className="sr-only">
             Message about this booking
@@ -213,6 +214,8 @@ export default function BookingMessageThread({
             <p className="mt-2 text-xs text-ink-muted leading-relaxed">{TRAVELER_BOOKING_THREAD_DELIVERY_NOTE}</p>
           )}
         </div>
+      ) : canCompose && loadError ? (
+        <p className="text-xs text-ink-faint">Reload messages to continue this conversation.</p>
       ) : (
         <p className="text-xs text-ink-faint">
           {composeBlock === 'closed'
