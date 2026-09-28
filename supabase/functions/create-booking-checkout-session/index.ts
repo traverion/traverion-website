@@ -63,6 +63,17 @@ function sanitizePath(path: string | undefined, fallback: string): string {
   return raw;
 }
 
+const BOOKING_UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/** Trips cancel return must identify which hold was abandoned (multi-pending). */
+function appendBookingParam(path: string, bookingId: string): string {
+  const id = String(bookingId ?? '').trim();
+  if (!id || !BOOKING_UUID_RE.test(id)) return path;
+  if (/[?&]booking=/i.test(path)) return path;
+  return `${path}${path.includes('?') ? '&' : '?'}booking=${encodeURIComponent(id)}`;
+}
+
 function optionIdFromNotes(notes: unknown): string | null {
   if (typeof notes !== 'string') return null;
   const line = notes
@@ -714,7 +725,7 @@ serve(async (req) => {
       customer_email: email,
       expires_at: holdExpiresAtUnix,
       success_url: `${publicSiteUrl}${successPath}${successPath.includes('?') ? '&' : '?'}session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${publicSiteUrl}${cancelPath}`,
+      cancel_url: `${publicSiteUrl}${appendBookingParam(cancelPath, targetBookingId)}`,
       payment_method_types: ['card'],
       line_items: [
         {

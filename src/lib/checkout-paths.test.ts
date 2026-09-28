@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { resolveCheckoutSiteUrl, sanitizeCheckoutReturnPath } from './checkout-paths';
+import {
+  appendCheckoutBookingParam,
+  resolveCheckoutSiteUrl,
+  sanitizeCheckoutReturnPath,
+} from './checkout-paths';
 
 describe('sanitizeCheckoutReturnPath', () => {
   const fallback = '/booking-confirmed';
@@ -17,6 +21,31 @@ describe('sanitizeCheckoutReturnPath', () => {
     expect(sanitizeCheckoutReturnPath('/\\evil.example', fallback)).toBe(fallback);
     expect(sanitizeCheckoutReturnPath('/https://evil.example/phish', fallback)).toBe(fallback);
     expect(sanitizeCheckoutReturnPath(undefined, fallback)).toBe(fallback);
+  });
+});
+
+describe('appendCheckoutBookingParam', () => {
+  const bid = 'a1b2c3d4-e5f6-4789-a012-3456789abcde';
+
+  it('appends booking uuid to Trips cancel path', () => {
+    expect(appendCheckoutBookingParam('/bookings?payment=cancelled', bid)).toBe(
+      `/bookings?payment=cancelled&booking=${bid}`
+    );
+  });
+
+  it('appends to path without query', () => {
+    expect(appendCheckoutBookingParam('/bookings', bid)).toBe(`/bookings?booking=${bid}`);
+  });
+
+  it('is idempotent when booking already present', () => {
+    const path = `/bookings?payment=cancelled&booking=${bid}`;
+    expect(appendCheckoutBookingParam(path, bid)).toBe(path);
+  });
+
+  it('ignores non-uuid booking ids', () => {
+    expect(appendCheckoutBookingParam('/bookings?payment=cancelled', 'not-a-uuid')).toBe(
+      '/bookings?payment=cancelled'
+    );
   });
 });
 

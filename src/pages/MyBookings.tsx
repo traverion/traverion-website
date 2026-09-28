@@ -367,12 +367,19 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   useEffect(() => {
     if (paymentBanner !== 'cancelled' || pendingPayBookings.length === 0) return;
     if (openTripId) return;
-    const first = pendingPayBookings[0];
-    setOpenTripId(first.id);
+    const urlBooking =
+      typeof window !== 'undefined'
+        ? new URLSearchParams(window.location.search).get('booking')?.trim() || null
+        : null;
+    const fromUrl = urlBooking
+      ? pendingPayBookings.find((b) => b.id === urlBooking)
+      : undefined;
+    const target = fromUrl ?? pendingPayBookings[0];
+    setOpenTripId(target.id);
     setTripView('upcoming');
     if (typeof window === 'undefined') return;
     const url = new URL(window.location.href);
-    url.searchParams.set('booking', first.id);
+    url.searchParams.set('booking', target.id);
     window.history.replaceState({}, '', `${url.pathname}${url.search}`);
   }, [paymentBanner, pendingPayBookings, openTripId]);
 

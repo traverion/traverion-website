@@ -8,6 +8,20 @@ export function sanitizeCheckoutReturnPath(path: string | undefined, fallback: s
   return raw;
 }
 
+const BOOKING_UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/**
+ * Ensure Stripe cancel (or success) return paths carry `booking=<uuid>` so Trips
+ * can reopen the hold that was abandoned — not an unrelated pending payment.
+ */
+export function appendCheckoutBookingParam(path: string, bookingId: string | undefined | null): string {
+  const id = String(bookingId ?? '').trim();
+  if (!id || !BOOKING_UUID_RE.test(id)) return path;
+  if (/[?&]booking=/i.test(path)) return path;
+  return `${path}${path.includes('?') ? '&' : '?'}booking=${encodeURIComponent(id)}`;
+}
+
 const DEFAULT_LOCAL_CHECKOUT_ORIGINS = [
   'http://localhost:5173',
   'http://127.0.0.1:5173',
