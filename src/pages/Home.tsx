@@ -14,7 +14,11 @@ import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
 import {
   MarketplaceSearchFields,
 } from '../components/marketplace/MarketplaceSearchBar';
-import { failCloseOrphanStayCheckout, HOME_DISCOVERY_GRID_CLASS } from '../lib/marketplaceBrowse';
+import {
+  failCloseOrphanStayCheckout,
+  HOME_DISCOVERY_GRID_CLASS,
+  matchesDestination,
+} from '../lib/marketplaceBrowse';
 import { listingHasUpcomingBookableSeason } from '../lib/booking-quote';
 import { useTravelerWishlist } from '../hooks/useTravelerWishlist';
 import { supplierPortalLandingHref } from '../lib/partnerHost';
@@ -470,11 +474,8 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
           ) : placeChips.length > 0 ? (
             <div className="tv-dest-grid">
               {placeChips.slice(0, 12).map((p) => {
-                const matches = [...allListings, ...stayListings].filter(
-                  (t) =>
-                    (t.city && t.city.toLowerCase() === p.label.toLowerCase()) ||
-                    (t.country && t.country.toLowerCase() === p.label.toLowerCase()) ||
-                    (t.destination && t.destination.toLowerCase().includes(p.label.toLowerCase()))
+                const matches = [...allListings, ...stayListings].filter((t) =>
+                  matchesDestination(t, p.id, [p])
                 );
                 const fromInventory = matches[0] ?? null;
                 const img = listingHeroImageSrc(fromInventory?.image) ?? HERO_IMG.vacation;
