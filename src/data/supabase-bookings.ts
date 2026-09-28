@@ -14,7 +14,11 @@ import {
   TRAVELER_SELF_CANCEL_EMAIL_DIFF_NO_REFUND,
   TRAVELER_CANCEL_UNPAID_CHECKOUT_EMAIL_DIFF,
 } from '../lib/booking-confirmation-copy';
-import { isPurchaseSnapshot, redactUnpaidStayCheckInAddress } from '../lib/purchase-snapshot';
+import {
+  displayListingTitleFromPurchase,
+  isPurchaseSnapshot,
+  redactUnpaidStayCheckInAddress,
+} from '../lib/purchase-snapshot';
 
 /** Best-effort: close open Stripe Checkout after unpaid cancel (Phase 134 still refunds late captures). */
 function expireUnpaidCancelledCheckout(bookingId: string): void {
@@ -573,7 +577,7 @@ export async function updateBookingSchedule(
 
   if (fieldDiffs.length === 0) return { ok: true };
 
-  let listingTitle = 'Your experience';
+  let listingTitle = displayListingTitleFromPurchase(prior.purchase_snapshot, null, 'Your experience');
   let supplierId: string | null = null;
   if (prior.listing_id) {
     const { data: lt } = await supabase
@@ -581,7 +585,12 @@ export async function updateBookingSchedule(
       .select('title, supplier_id')
       .eq('id', prior.listing_id)
       .maybeSingle();
-    if (lt?.title?.trim()) listingTitle = lt.title.trim();
+    // Phase 1477: schedule emails must name what the traveler purchased, not a later ops rename.
+    listingTitle = displayListingTitleFromPurchase(
+      prior.purchase_snapshot,
+      lt?.title?.trim() || null,
+      'Your experience'
+    );
     if (lt?.supplier_id) supplierId = String(lt.supplier_id);
   }
 
