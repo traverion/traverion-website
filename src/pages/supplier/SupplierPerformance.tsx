@@ -62,15 +62,12 @@ export default function SupplierPerformance() {
     setLoading(true);
     setError(null);
     const settled = await Promise.allSettled([fetchMyListings(uid), fetchBookingsForSupplier(uid)]);
+    // Phase 1304: keep prior listings/bookings on failure — do not invent empty Performance.
     if (settled[0].status === 'fulfilled') {
       setListings(settled[0].value);
-    } else {
-      setListings([]);
     }
     if (settled[1].status === 'fulfilled') {
       setBookings(settled[1].value);
-    } else {
-      setBookings([]);
     }
     if (settled[0].status === 'rejected' || settled[1].status === 'rejected') {
       setError(PERFORMANCE_LOAD_ERROR);
@@ -227,14 +224,14 @@ export default function SupplierPerformance() {
         <ErrorState className="py-6" title="Analytics unavailable" body={error} retry={{ onClick: () => void load() }} />
       )}
 
-      {!error && loading && (
+      {loading && !error && listings.length === 0 && bookings.length === 0 && (
         <div className="space-y-6">
           <SupplierStatSkeletonGrid count={4} />
           <SupplierListSkeleton rows={3} />
         </div>
       )}
 
-      {!error && !loading && collectedInWindow.length === 0 && (
+      {!loading && !error && collectedInWindow.length === 0 && (
         <SupplierEmptyState
           icon={TrendingUp}
           title={
@@ -269,7 +266,7 @@ export default function SupplierPerformance() {
         />
       )}
 
-      {!error && !loading && collectedInWindow.length > 0 && (
+      {!loading && collectedInWindow.length > 0 && (
         <div className="space-y-8">
           <p className="text-xs text-ink-muted -mb-4">
             Window uses booking created date (checkout time), not departure date.
