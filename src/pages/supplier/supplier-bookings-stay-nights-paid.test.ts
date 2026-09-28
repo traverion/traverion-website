@@ -16,3 +16,17 @@ describe('SupplierBookings list stay nights beside paid (Phase 1584)', () => {
     );
   });
 });
+
+describe('SupplierBookings detail Nights field (Phase 1590)', () => {
+  const src = readFileSync(join(here, 'SupplierBookings.tsx'), 'utf8');
+
+  it('detail stayNightCount uses stayPaidAdjacentNightCount (not raw occupancy alone)', () => {
+    expect(src).toContain('Phase 1590');
+    expect(src).toMatch(
+      /Phase 1590: detail Nights field[\s\S]*stayPaidAdjacentNightCount/
+    );
+    expect(src).not.toMatch(
+      /const stayNightCount = stayRange\s*\?\s*nightsOccupiedByStay\(stayRange\.checkIn, stayRange\.checkOut\)\.length/
+    );
+  });
+});

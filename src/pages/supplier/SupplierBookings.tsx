@@ -1265,8 +1265,20 @@ export default function SupplierBookings({
             const placePrefix = fulfillment === 'pickup' ? 'Pickup' : 'Meet';
             const stayRange = isStay ? stayRangeFromBooking(booking) : null;
             const stayOut = stayRange?.checkOut ?? null;
-            const stayNightCount = stayRange
+            // Phase 1590: detail Nights field matches list meta 1584/1588 when paid+nightly (date range keeps occupancy).
+            const stayOccupancyNights = stayRange
               ? nightsOccupiedByStay(stayRange.checkIn, stayRange.checkOut).length
+              : 0;
+            const stayNightCount = stayRange
+              ? stayPaidAdjacentNightCount({
+                  amountPaid: booking.amount_paid,
+                  nightlyAmount: booking.nightly_amount,
+                  cleaningFee: booking.cleaning_fee,
+                  paymentCollected: bookingPaymentWasCollected(booking.payment_status),
+                  columnNights: booking.nights,
+                  snapshotNights: (booking.purchase_snapshot as PurchaseSnapshot | null | undefined)?.nights,
+                  occupancyNights: stayOccupancyNights,
+                }) ?? 0
               : 0;
             const whenLabel = stayOut
               ? `${formatStayNightHuman(booking.booking_date ?? '')} → ${formatStayNightHuman(stayOut)}`
