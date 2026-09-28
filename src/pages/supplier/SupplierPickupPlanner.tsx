@@ -52,6 +52,7 @@ import {
   partnerUnpaidCheckoutHoldsInventory,
 } from '../../lib/booking-hold';
 import { partnerBookingIsUnpaidCheckout } from '../../lib/trip-views';
+import { partnerBookingNumberMatchesFilterQuery } from '../../lib/partner-bookings-search';
 
 function toYmd(d: Date): string {
   const y = d.getFullYear();
@@ -249,6 +250,7 @@ export default function SupplierPickupPlanner() {
     return new URLSearchParams(window.location.search).get('needs') === '1';
   });
   const [sortDate, setSortDate] = useState<'asc' | 'desc'>('asc');
+  const [filterQuery, setFilterQuery] = useState('');
   const [showSearch, setShowSearch] = useState(() => {
     if (typeof window === 'undefined') return false;
     const p = new URLSearchParams(window.location.search);
@@ -524,10 +526,31 @@ export default function SupplierPickupPlanner() {
     let rows = sorted;
     if (listingFilterId) rows = rows.filter((b) => b.listing_id === listingFilterId);
     if (needsPickupOnly) rows = rows.filter((b) => needsPickupInfo(b));
+    const q = filterQuery.trim().toLowerCase();
+    if (q) {
+      rows = rows.filter((b) => {
+        // Phase 1481: search must match purchased titles on cards, not live listing renames.
+        // Phase 1485: search must match booking # on cards (Bookings 1484 / admin 1053 parity).
+        const title = displayListingTitleFromPurchase(
+          b.purchase_snapshot,
+          listingTitles[b.listing_id],
+          ''
+        ).toLowerCase();
+        const guestName = (b.guest_name ?? '').toLowerCase();
+        const guestEmail = (b.guest_email ?? '').toLowerCase();
+        return (
+          title.includes(q) ||
+          partnerBookingNumberMatchesFilterQuery(q, b.booking_number) ||
+          b.id.toLowerCase().includes(q) ||
+          guestName.includes(q) ||
+          guestEmail.includes(q)
+        );
+      });
+    }
     const cmp = (a: BookingRow, b: BookingRow) =>
       (a.booking_date ?? '').localeCompare(b.booking_date ?? '') || a.created_at.localeCompare(b.created_at);
     return sortDate === 'asc' ? [...rows].sort(cmp) : [...rows].sort((a, b) => cmp(b, a));
-  }, [sorted, listingFilterId, needsPickupOnly, sortDate, needsPickupInfo]);
+  }, [sorted, listingFilterId, needsPickupOnly, sortDate, needsPickupInfo, filterQuery, listingTitles]);
 
   const bookingsGroupedByDate = useMemo(() => {
     const withDate: BookingRow[] = [];
@@ -804,7 +827,7 @@ export default function SupplierPickupPlanner() {
 
   if (!user) return null;
 
-  const filtersOn = Boolean(dateFrom || dateTo || dayPreset || listingFilterId || needsPickupOnly);
+  const filtersOn = Boolean(dateFrom || dateTo || dayPreset || listingFilterId || needsPickupOnly || filterQuery.trim());
   const activeBookingsCount = bookings.filter((b) => partnerBookingIsOperatingTrip(b)).length;
 
   if (selectedBooking) {
@@ -1207,6 +1230,16 @@ export default function SupplierPickupPlanner() {
           {showSearch && (
             <div className="mt-1 space-y-4 motion-safe:animate-fade-in">
               <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
+                <div className="flex min-w-[min(100%,14rem)] flex-1 flex-col gap-1">
+                  <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Guest</label>
+                  <input
+                    type="search"
+                    value={filterQuery}
+                    onChange={(e) => setFilterQuery(e.target.value)}
+                    placeholder="Name, email, or booking #"
+                    className="tv-input"
+                  />
+                </div>
                 <div className="flex min-w-[min(100%,12rem)] flex-1 flex-col gap-1 sm:flex-none sm:min-w-[11rem]">
                   <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Listing</label>
                   <select
@@ -1270,6 +1303,7 @@ export default function SupplierPickupPlanner() {
                     onClick={() => {
                       writePickupFiltersToUrl({ day: '', from: '', to: '', listingId: '', needsOnly: false });
                       setSortDate('asc');
+                      setFilterQuery('');
                     }}
                     className="tv-btn-ghost"
                   >
