@@ -60,13 +60,15 @@ export function stayRangeFromBooking(booking: {
   const nights = Math.floor(Number(booking.nights ?? 0));
   const fromNights =
     Number.isFinite(nights) && nights >= 1 ? addCalendarDays(checkIn, nights) : null;
+  // Phase 1330: match SQL stay_booking_check_out — column → nights → notes (legacy) → +1.
+  // Traveler-editable notes must not shrink/expand inventory vs nights.
   const checkOut =
     fromColumn && fromColumn > checkIn
       ? fromColumn
-      : fromNotes && fromNotes > checkIn
-        ? fromNotes
-        : fromNights && fromNights > checkIn
-          ? fromNights
+      : fromNights && fromNights > checkIn
+        ? fromNights
+        : fromNotes && fromNotes > checkIn
+          ? fromNotes
           : addCalendarDays(checkIn, 1);
   return { checkIn, checkOut };
 }

@@ -59,6 +59,31 @@ describe('stay occupancy', () => {
     });
   });
 
+  it('prefers nights over traveler notes when check_out column is null (Phase 1330)', () => {
+    expect(
+      stayRangeFromBooking({
+        booking_date: '2026-09-10',
+        nights: 3,
+        special_requests: 'check_out: 2026-09-11',
+      })
+    ).toEqual({
+      checkIn: '2026-09-10',
+      checkOut: '2026-09-13',
+    });
+  });
+
+  it('uses notes only for legacy rows without nights or check_out column', () => {
+    expect(
+      stayRangeFromBooking({
+        booking_date: '2026-09-10',
+        special_requests: 'check_out: 2026-09-12',
+      })
+    ).toEqual({
+      checkIn: '2026-09-10',
+      checkOut: '2026-09-12',
+    });
+  });
+
   it('treats capacity 0 as an operator block, not listing_availability.booked', () => {
     expect(stayNightIsOperatorBlocked(0)).toBe(true);
     expect(stayNightIsOperatorBlocked(1)).toBe(false);
