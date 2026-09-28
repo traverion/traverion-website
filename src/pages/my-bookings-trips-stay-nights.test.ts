@@ -31,10 +31,9 @@ describe('Trips stay nights from purchased range (Phase 1551)', () => {
 describe('Trips stay night suffix paid reconciliation (Phase 1581)', () => {
   const src = readFileSync(join(here, 'MyBookings.tsx'), 'utf8');
 
-  it('gates stayNightsSuffix through confirmationStayNightCount when paid+nightly', () => {
-    expect(src).toContain('Phase 1551/1581');
-    expect(src).toContain('stayConfirmationPaidNightlyBreakdown');
-    expect(src).toContain('confirmationStayNightCount');
+  it('gates stayNightsSuffix through stayPaidAdjacentNightCount when paid+nightly', () => {
+    expect(src).toContain('Phase 1551/1581/1588');
+    expect(src).toContain('stayPaidAdjacentNightCount');
     expect(src).not.toMatch(
       /const n = nightsOccupiedByStay\(stay\.checkIn, stay\.checkOut\)\.length;\s*return n > 0 \?/
     );
@@ -57,9 +56,9 @@ describe('Confirmation paid breakdown nights (Phase 1579)', () => {
 describe('Confirmation stay night subtitle (Phase 1580)', () => {
   const src = readFileSync(join(here, 'BookingConfirmationPage.tsx'), 'utf8');
 
-  it('uses confirmationStayNightCount, not raw stayNights under Stay dates', () => {
-    expect(src).toContain('Phase 1580');
-    expect(src).toContain('confirmationStayNightCount');
+  it('uses stayPaidAdjacentNightCount for Stay-dates subtitle (1588 shared helper)', () => {
+    expect(src).toContain('Phase 1580/1588');
+    expect(src).toContain('stayPaidAdjacentNightCount');
     expect(src).toContain('confirmationNightCount');
     expect(src).not.toMatch(/\{stayNights \? \(/);
     expect(src).not.toMatch(/\{stayNights\} night/);

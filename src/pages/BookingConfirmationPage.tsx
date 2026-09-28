@@ -46,7 +46,7 @@ import {
   TRAVELER_OPENING_CHECKOUT_CTA,
   TRAVELER_PAY_NOW_TEST_CTA,
   stayConfirmationPaidNightlyBreakdown,
-  confirmationStayNightCount,
+  stayPaidAdjacentNightCount,
 } from '../lib/booking-confirmation-copy';
 import { formatBookingParticipantsLabel } from '../lib/participant-mix';
 import { formatBookingDateDisplay } from '../lib/booking-flow';
@@ -312,12 +312,15 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
           ],
         })
       : null;
-  // Phase 1580: Stay-dates night subtitle follows paid breakdown; omit when paid+nightly cannot reconcile.
-  const confirmationNightCount = confirmationStayNightCount({
-    paidNightlyBreakdown,
-    stayNights,
-    paidWithNightlyPricing:
-      paidActive && booking?.amount_paid != null && booking?.nightly_amount != null,
+  // Phase 1580/1588: Stay-dates night subtitle via shared paid-adjacent helper.
+  const confirmationNightCount = stayPaidAdjacentNightCount({
+    amountPaid: booking?.amount_paid,
+    nightlyAmount: booking?.nightly_amount,
+    cleaningFee: booking?.cleaning_fee,
+    paymentCollected: Boolean(paidActive),
+    columnNights: booking?.nights,
+    snapshotNights: (booking?.purchase_snapshot as PurchaseSnapshot | null | undefined)?.nights,
+    occupancyNights: stayNights,
   });
   const stalledConfirming = confirmationStillWaitingAfterReconcile({
     phase,

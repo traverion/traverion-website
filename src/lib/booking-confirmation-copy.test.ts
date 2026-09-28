@@ -54,6 +54,7 @@ import {
   paidConfirmationEmailMaySend,
   stayConfirmationPaidNightlyBreakdown,
   confirmationStayNightCount,
+  stayPaidAdjacentNightCount,
   BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE,
   PARTNER_MONEY_COLLECTED_TO_DATE_NOTE,
   PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE,
@@ -705,6 +706,44 @@ describe('confirmationStayNightCount (Phase 1580)', () => {
         paidNightlyBreakdown: null,
         stayNights: 5,
         paidWithNightlyPricing: false,
+      })
+    ).toBe(5);
+  });
+});
+
+describe('stayPaidAdjacentNightCount (Phase 1588)', () => {
+  it('prefers column nights that reconcile when payment collected + nightly', () => {
+    expect(
+      stayPaidAdjacentNightCount({
+        amountPaid: 300,
+        nightlyAmount: 100,
+        cleaningFee: 0,
+        paymentCollected: true,
+        columnNights: 3,
+        occupancyNights: 5,
+      })
+    ).toBe(3);
+  });
+
+  it('omits occupancy when paid+nightly cannot reconcile', () => {
+    expect(
+      stayPaidAdjacentNightCount({
+        amountPaid: 250,
+        nightlyAmount: 100,
+        paymentCollected: true,
+        columnNights: 3,
+        occupancyNights: 5,
+      })
+    ).toBeNull();
+  });
+
+  it('falls back to occupancy when not collected', () => {
+    expect(
+      stayPaidAdjacentNightCount({
+        amountPaid: null,
+        nightlyAmount: 100,
+        paymentCollected: false,
+        occupancyNights: 5,
       })
     ).toBe(5);
   });

@@ -22,8 +22,7 @@ import {
 import { fetchListingOpsByIds, pgTimeToHm, type ListingOpsMeta } from '../data/supabase-listings';
 import { stayRangeFromBooking, nightsOccupiedByStay } from '../lib/stayOccupancy';
 import {
-  stayConfirmationPaidNightlyBreakdown,
-  confirmationStayNightCount,
+  stayPaidAdjacentNightCount,
 } from '../lib/booking-confirmation-copy';
 import { formatMoney, isStripeTestCheckoutSession, appStripeIsTestMode } from '../lib/money';
 import { travelerPaymentLabel, REFUND_DUE_MANUAL_COPY, bookingPaymentWasCollected, isRefundDueBooking } from '../lib/payment-states';
@@ -914,33 +913,20 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 }
                 return b.booking_date ? formatBookingDateDisplay(b.booking_date) : 'Date TBC';
               })();
-              // Phase 1551/1581: nights from stayRange; when paid+nightly, reconcile to amount_paid (1579/1580).
+              // Phase 1551/1581/1588: nights from stayRange; paid+nightly via stayPaidAdjacentNightCount.
               const stayNightsSuffix = (() => {
                 if (!isStay) return '';
                 const stay = stayRangeFromBooking(b);
                 if (!stay) return '';
                 const stayNights = nightsOccupiedByStay(stay.checkIn, stay.checkOut).length;
-                const paidWithNightly =
-                  bookingPaymentWasCollected(b.payment_status) &&
-                  b.amount_paid != null &&
-                  Number(b.amount_paid) > 0 &&
-                  b.nightly_amount != null;
-                const paidBreakdown = paidWithNightly
-                  ? stayConfirmationPaidNightlyBreakdown({
-                      amountPaid: b.amount_paid,
-                      nightlyAmount: b.nightly_amount,
-                      cleaningFee: b.cleaning_fee,
-                      candidateNights: [
-                        b.nights,
-                        (b.purchase_snapshot as PurchaseSnapshot | null | undefined)?.nights,
-                        stayNights,
-                      ],
-                    })
-                  : null;
-                const n = confirmationStayNightCount({
-                  paidNightlyBreakdown: paidBreakdown,
-                  stayNights,
-                  paidWithNightlyPricing: Boolean(paidWithNightly),
+                const n = stayPaidAdjacentNightCount({
+                  amountPaid: b.amount_paid,
+                  nightlyAmount: b.nightly_amount,
+                  cleaningFee: b.cleaning_fee,
+                  paymentCollected: bookingPaymentWasCollected(b.payment_status),
+                  columnNights: b.nights,
+                  snapshotNights: (b.purchase_snapshot as PurchaseSnapshot | null | undefined)?.nights,
+                  occupancyNights: stayNights,
                 });
                 return n != null && n > 0 ? ` · ${n === 1 ? '1 night' : `${n} nights`}` : '';
               })();

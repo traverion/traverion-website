@@ -476,6 +476,40 @@ export function confirmationStayNightCount(params: {
   return Number.isFinite(n) && n >= 1 ? n : null;
 }
 
+/**
+ * Phase 1588: single entry for money-adjacent stay night counts (confirmation,
+ * Trips, partner Bookings meta) — 1579 reconcile + 1580 omit-on-mismatch.
+ */
+export function stayPaidAdjacentNightCount(params: {
+  amountPaid: number | null | undefined;
+  nightlyAmount: number | null | undefined;
+  cleaningFee?: number | null;
+  /** True when payment was collected (paid / complete / succeeded). */
+  paymentCollected: boolean;
+  columnNights?: number | null;
+  snapshotNights?: number | null;
+  occupancyNights: number | null | undefined;
+}): number | null {
+  const paidWithNightly =
+    params.paymentCollected &&
+    params.amountPaid != null &&
+    Number(params.amountPaid) > 0 &&
+    params.nightlyAmount != null;
+  const paidBreakdown = paidWithNightly
+    ? stayConfirmationPaidNightlyBreakdown({
+        amountPaid: params.amountPaid,
+        nightlyAmount: params.nightlyAmount,
+        cleaningFee: params.cleaningFee,
+        candidateNights: [params.columnNights, params.snapshotNights, params.occupancyNights],
+      })
+    : null;
+  return confirmationStayNightCount({
+    paidNightlyBreakdown: paidBreakdown,
+    stayNights: params.occupancyNights,
+    paidWithNightlyPricing: Boolean(paidWithNightly),
+  });
+}
+
 /** Keep in sync with notify-customer-booking detail row label. */
 export function confirmationEmailListingLabel(listingKind?: string | null): string {
   return String(listingKind ?? '').trim().toLowerCase() === 'stay' ? 'Stay' : 'Tour';

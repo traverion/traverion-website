@@ -66,8 +66,7 @@ import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { nightsOccupiedByStay, stayRangeFromBooking } from '../../lib/stayOccupancy';
 import {
-  stayConfirmationPaidNightlyBreakdown,
-  confirmationStayNightCount,
+  stayPaidAdjacentNightCount,
 } from '../../lib/booking-confirmation-copy';
 import { partnerBookingIsLiveTrip, partnerBookingIsOperatingTrip, partnerBookingNeedsLook, partnerBookingIsUnpaidCheckout, partnerBookingIsActiveUnpaidCheckout, partnerBookingShowsCancelAction, partnerBookingIsPastSchedule, partnerStayTouchesScheduleDay, scheduleTodayIsoForBooking } from '../../lib/trip-views';
 import { addCalendarDaysYmd } from '../../lib/booking-lifecycle-calendar';
@@ -1111,32 +1110,19 @@ export default function SupplierBookings({
                         {formatBookingParticipantsLabel(booking)}
                         {meta?.family === 'stay' || bookingIsStayNight(booking)
                           ? (() => {
-                              // Phase 1584: meta nights beside paidLabel must reconcile when paid+nightly
-                              // (date line keeps occupancy range; Trips 1581 parity).
+                              // Phase 1584/1588: meta nights beside paidLabel via stayPaidAdjacentNightCount.
                               const range = stayRangeFromBooking(booking);
                               if (!range) return '';
                               const stayNights = nightsOccupiedByStay(range.checkIn, range.checkOut).length;
-                              const paidWithNightly =
-                                bookingPaymentWasCollected(booking.payment_status) &&
-                                booking.amount_paid != null &&
-                                Number(booking.amount_paid) > 0 &&
-                                booking.nightly_amount != null;
-                              const paidBreakdown = paidWithNightly
-                                ? stayConfirmationPaidNightlyBreakdown({
-                                    amountPaid: booking.amount_paid,
-                                    nightlyAmount: booking.nightly_amount,
-                                    cleaningFee: booking.cleaning_fee,
-                                    candidateNights: [
-                                      booking.nights,
-                                      (booking.purchase_snapshot as PurchaseSnapshot | null | undefined)?.nights,
-                                      stayNights,
-                                    ],
-                                  })
-                                : null;
-                              const n = confirmationStayNightCount({
-                                paidNightlyBreakdown: paidBreakdown,
-                                stayNights,
-                                paidWithNightlyPricing: Boolean(paidWithNightly),
+                              const n = stayPaidAdjacentNightCount({
+                                amountPaid: booking.amount_paid,
+                                nightlyAmount: booking.nightly_amount,
+                                cleaningFee: booking.cleaning_fee,
+                                paymentCollected: bookingPaymentWasCollected(booking.payment_status),
+                                columnNights: booking.nights,
+                                snapshotNights: (booking.purchase_snapshot as PurchaseSnapshot | null | undefined)
+                                  ?.nights,
+                                occupancyNights: stayNights,
                               });
                               return n != null && n > 0 ? ` · ${n} night${n === 1 ? '' : 's'}` : '';
                             })()
