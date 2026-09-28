@@ -63,7 +63,7 @@ import { canManageBookings } from '../../lib/supplierTeamRoles';
 import { navigateSupplierUrl, openSupplierInbox, openSupplierPickup } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
-import { parseStayCheckOutFromNotes, nightsOccupiedByStay, stayRangeFromBooking } from '../../lib/stayOccupancy';
+import { nightsOccupiedByStay, stayRangeFromBooking } from '../../lib/stayOccupancy';
 import { partnerBookingIsLiveTrip, partnerBookingIsOperatingTrip, partnerBookingNeedsLook, partnerBookingIsUnpaidCheckout, partnerBookingIsActiveUnpaidCheckout, partnerBookingShowsCancelAction, partnerBookingIsPastSchedule, partnerStayTouchesScheduleDay, scheduleTodayIsoForBooking } from '../../lib/trip-views';
 import { addCalendarDaysYmd } from '../../lib/booking-lifecycle-calendar';
 import { formatPartnerCheckoutHoldLabel, partnerUnpaidCheckoutHoldsInventory } from '../../lib/booking-hold';
@@ -939,14 +939,11 @@ export default function SupplierBookings({
                 booking.purchase_snapshot,
                 meta?.pickupInstructions
               );
-              const stayOut =
-                booking.check_out && /^\d{4}-\d{2}-\d{2}$/.test(booking.check_out)
-                  ? booking.check_out
-                  : parseStayCheckOutFromNotes(booking.special_requests);
               const stayRangeForChip =
                 meta?.family === 'stay' || bookingIsStayNight(booking)
                   ? stayRangeFromBooking(booking)
                   : null;
+              const stayOut = stayRangeForChip?.checkOut ?? null;
               const experienceToday = scheduleTodayIsoForBooking(booking);
               const scheduleDayIso =
                 view === 'today'
@@ -1177,11 +1174,8 @@ export default function SupplierBookings({
               meta?.duration ?? null
             );
             const placePrefix = fulfillment === 'pickup' ? 'Pickup' : 'Meet';
-            const stayOut =
-              booking.check_out && /^\d{4}-\d{2}-\d{2}$/.test(booking.check_out)
-                ? booking.check_out
-                : parseStayCheckOutFromNotes(booking.special_requests);
             const stayRange = isStay ? stayRangeFromBooking(booking) : null;
+            const stayOut = stayRange?.checkOut ?? null;
             const stayNightCount = stayRange
               ? nightsOccupiedByStay(stayRange.checkIn, stayRange.checkOut).length
               : 0;
