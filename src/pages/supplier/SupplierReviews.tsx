@@ -22,7 +22,7 @@ import {
 } from '../../data/supabase-reviews';
 import type { InventoryFamily } from '../../lib/inventory';
 import { openSupplierListingEditor, navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
-import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
+import { PARTNER_APP_BASE, PARTNER_CREATE_PATH } from '../../lib/partnerPortalPaths';
 import { reviewHasWrittenFeedback, reviewNeedsSupplierReply } from '../../lib/review-feedback';
 
 function familyLabel(family: InventoryFamily | undefined): 'Stay' | 'Tour' {
@@ -326,13 +326,23 @@ export default function SupplierReviews() {
           title="No reviews yet"
           body="Guests have not rated a tour or stay yet. That is normal for new products. Feedback appears here after a trip."
           action={
-            <button
-              type="button"
-              className="tv-btn-secondary"
-              onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings`)}
-            >
-              Open listings
-            </button>
+            <div className="flex flex-wrap gap-2">
+              {/* Phase 1684: Calendar/Offers dual-CTA parity when reviews are empty. */}
+              <button
+                type="button"
+                className="tv-btn-primary"
+                onClick={() => navigateSupplierUrl(PARTNER_CREATE_PATH)}
+              >
+                New listing
+              </button>
+              <button
+                type="button"
+                className="tv-btn-ghost"
+                onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings`)}
+              >
+                Your listings
+              </button>
+            </div>
           }
         />
       ) : (
