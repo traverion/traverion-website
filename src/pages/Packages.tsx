@@ -14,7 +14,7 @@ import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
 import { isSupabaseListingId } from '../lib/discount-display';
 import { clearListingsJsonLd, setListingsJsonLd } from '../lib/seo';
 import { listingHasBookableDepartureOnDate, listingHasUpcomingBookableSeason, tourBookableSellingDeparturesOnDate } from '../lib/booking-quote';
-import { getPartySizeBoundsKnown } from '../lib/booking-flow';
+import { getPartySizeBoundsKnown, formatBookingDateDisplay } from '../lib/booking-flow';
 import { tourDateLacksCapacityForParty } from '../lib/tour-calendar';
 import { listingTourCapacityFromOptions, capacitySpotsFromBookingOptions } from '../lib/availability-ops';
 import { fetchAvailabilityByListingId, fetchPublishedTourPaidGuests, fetchPublishedTourPaidGuestsBySlot, tourPaidSlotKey } from '../data/supabase-availability';
@@ -1071,7 +1071,8 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
               ) : null}
               {filterDate ? (
                 <MarketplaceActiveChip
-                  label={filterDate}
+                  // Phase 1600: human date — match search summary / booking date display.
+                  label={formatBookingDateDisplay(filterDate) || filterDate}
                   onRemove={() => {
                     setFilterDate('');
                     setDraftDate('');
