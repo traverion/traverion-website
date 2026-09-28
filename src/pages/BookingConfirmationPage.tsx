@@ -39,6 +39,7 @@ import {
   bookingConfirmationCancelledBody,
   BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE,
   STRIPE_TEST_UNTIL_LIVE,
+  TRAVELER_HOLD_EXPIRED_PAY_NOW_NOTE,
   TRAVELER_OPENING_CHECKOUT_CTA,
   TRAVELER_PAY_NOW_TEST_CTA,
 } from '../lib/booking-confirmation-copy';
@@ -625,13 +626,24 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                   </NoticeCallout>
                 ) : needsPay ? (
                   <NoticeCallout title="What happens next" tone="warn">
-                    Your hold stays on Trips until you pay or cancel. Checkout uses {STRIPE_TEST_UNTIL_LIVE} and opens in the same flow as before.
+                    {payLabel === 'Hold expired'
+                      ? TRAVELER_HOLD_EXPIRED_PAY_NOW_NOTE
+                      : `Your hold stays on Trips until you pay or cancel. Checkout uses ${STRIPE_TEST_UNTIL_LIVE} and opens in the same flow as before.`}
+                  </NoticeCallout>
+                ) : confirming ? (
+                  <NoticeCallout title="What happens next" tone="info">
+                    If payment completes, manage this {isStayBooking ? 'stay' : 'booking'} from Trips. Host schedule
+                    updates appear only after payment is confirmed.
+                  </NoticeCallout>
+                ) : paidActive ? (
+                  <NoticeCallout title="What happens next" tone="info">
+                    {BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE} Manage this {isStayBooking ? 'stay' : 'booking'} from Trips.
+                    Cancellation terms follow what you agreed at checkout — open Trips or the listing for the exact
+                    policy.
                   </NoticeCallout>
                 ) : (
                   <NoticeCallout title="What happens next" tone="info">
-                    {BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE} Manage this {stayCheckOut ? 'stay' : 'booking'} from Trips.
-                    Cancellation terms follow what you agreed at checkout — open Trips or the listing for the exact
-                    policy.
+                    We saved your booking. Open Trips to follow status — host updates appear after payment is confirmed.
                   </NoticeCallout>
                 )}
                 {paidActive && pickupPending ? (
