@@ -93,6 +93,16 @@ export function coalesceLegacyParticipantTicketOptions(
     typeof spotsRaw === 'number' && Number.isFinite(spotsRaw) && spotsRaw >= 1
       ? Math.floor(spotsRaw)
       : 0;
+  // Phase 1508: Adult/Child ticket rows share one departure product — inherit season
+  // bounds from any ticket so traveler calendar / scheduleIsBookable match inventory.
+  const seasonFroms = opts
+    .map((o) => (o.availabilityDateFrom ?? '').trim())
+    .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))
+    .sort();
+  const seasonTos = opts
+    .map((o) => (o.availabilityDateTo ?? '').trim())
+    .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))
+    .sort();
   const coalesced: ListingBookingOption = {
     ...anchor,
     name: deriveCoalescedOptionName(anchor),
@@ -100,6 +110,8 @@ export function coalesceLegacyParticipantTicketOptions(
     minPersons,
     maxPersons,
     maxSpotsPerSlot,
+    availabilityDateFrom: seasonFroms[0] || (anchor.availabilityDateFrom ?? ''),
+    availabilityDateTo: seasonTos[seasonTos.length - 1] || (anchor.availabilityDateTo ?? ''),
     pricingMode: 'age_dependent',
     priceCategories,
     optionInfo:

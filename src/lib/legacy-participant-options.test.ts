@@ -57,6 +57,15 @@ describe('legacy Adult/Child options → age-dependent option', () => {
     expect(coalesced[0].priceCategories?.[1].priceUsd).toBe(149);
   });
 
+  it('Phase 1508: inherits season start from any Adult/Child ticket row', () => {
+    const opts = adultChildOpts();
+    opts[0] = { ...opts[0], availabilityDateFrom: '' };
+    opts[1] = { ...opts[1], availabilityDateFrom: '2026-09-10', availabilityDateTo: '2027-03-31' };
+    const coalesced = coalesceLegacyParticipantTicketOptions(opts);
+    expect(coalesced[0].availabilityDateFrom).toBe('2026-09-10');
+    expect(coalesced[0].availabilityDateTo).toBe('2027-03-31');
+  });
+
   it('does not coalesce real product variants', () => {
     const opts = [
       normalizeListingBookingOption({ id: 'a', name: 'Hotel pickup', priceUsd: 189 }, 'a'),
