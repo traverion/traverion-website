@@ -2,7 +2,8 @@
 import { type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
 import { staleCheckoutFailureShouldApply, stripeWebhookCanMarkPaidFrom } from './checkout-resume.ts';
-import { isCheckoutInventoryConflictError, isMissingPostgresFunctionError } from './checkout-inventory-conflict.ts';
+import { isMissingPostgresFunctionError } from './checkout-inventory-conflict.ts';
+import { promotePaidCheckoutOutcome } from './promote-paid-checkout.ts';
 import { checkoutPaidAmountAcceptable, checkoutPaidCurrencyMatches, rejectedCheckoutCaptureShouldRefund, unpromotedCheckoutCaptureShouldRefund } from './checkout-paid-amount.ts';
 import { orphanSupersededCheckoutShouldRefund } from './orphan-checkout-refund.ts';
 import {
@@ -509,7 +510,6 @@ export async function promotePaidFromCheckoutSession(params: {
   const listingId = String(existingBooking?.listing_id ?? '').trim();
   const bookingDate = String(existingBooking?.booking_date ?? '').trim();
   const guests = Number(existingBooking?.guests ?? 0);
-  const checkOutRaw = String(existingBooking?.check_out ?? '').trim();
   // Occupancy counting prefers purchase_snapshot.startTimeHm (mig 126). Assert must use the
   // same purchased slot — live start_time may have been ops-edited (Phase 1080).
   const startTimeHm =
@@ -586,78 +586,8 @@ export async function promotePaidFromCheckoutSession(params: {
         bookingId,
       });
     }
-
-    const { error: inventoryErr } = await admin.rpc('assert_checkout_inventory', {
-      p_listing_id: listingId,
-      p_check_in: bookingDate,
-      p_guests: guests,
-      p_check_out: checkOutRaw || null,
-      p_exclude_booking_id: bookingId,
-      p_start_time: startTimeHm || null,
-      p_booking_option_id: bookingOptionId || null,
-    });
-    if (
-      inventoryErr &&
-      !isMissingPostgresFunctionError(inventoryErr.message) &&
-      isCheckoutInventoryConflictError(inventoryErr.message)
-    ) {
-      let inventoryRefunded = false;
-      if (
-        rejectedCheckoutCaptureShouldRefund({
-          sessionPaymentStatus: session.payment_status,
-          paymentIntentId,
-        })
-      ) {
-        try {
-          await stripe.refunds.create(
-            {
-              payment_intent: paymentIntentId as string,
-              reason: 'duplicate',
-            },
-            { idempotencyKey: `inventory-conflict-checkout-refund:${session.id}` }
-          );
-          inventoryRefunded = true;
-          await admin.from('booking_payment_events').insert({
-            booking_id: bookingId,
-            event_id: event.id,
-            event_type: 'inventory_conflict_checkout_refund',
-            payment_intent_id: paymentIntentId,
-            checkout_session_id: session.id,
-            amount: amountPaid,
-            currency,
-            payload: {
-              reason: 'inventory_conflict_on_paid_promotion',
-              inventoryError: inventoryErr.message,
-              stripeEventType: event.type,
-            },
-          });
-        } catch (refundErr) {
-          const msg = refundErr instanceof Error ? refundErr.message : String(refundErr);
-          if (!/already.?been.?refunded|charge_already_refunded/i.test(msg)) {
-            throw refundErr;
-          }
-        }
-      }
-      await markProcessed('processed');
-      return json({
-        success: true,
-        ignored: true,
-        reason: 'inventory conflict on checkout.session.completed',
-        inventoryRefunded,
-        eventId: event.id,
-        bookingId,
-      });
-    }
-    // Phase 1096: missing assert must not promote paid (oversell). Other assert
-    // errors also fail closed so webhook can retry after repair.
-    if (inventoryErr) {
-      if (isMissingPostgresFunctionError(inventoryErr.message)) {
-        throw new Error('Checkout inventory guard unavailable');
-      }
-      if (!isCheckoutInventoryConflictError(inventoryErr.message)) {
-        throw new Error(inventoryErr.message);
-      }
-    }
+    // Phase 1513: inventory assert runs inside promote_paid_checkout_booking with the
+    // paid UPDATE so claim_pending cannot take the seat between assert and promote.
   }
 
   // Phase 1154: never confirm paid self-book (stale session from before 1146/1152).
@@ -791,33 +721,82 @@ export async function promotePaidFromCheckoutSession(params: {
     }
   }
 
-  const paidPatch: Record<string, unknown> = {
-    status: 'confirmed',
-    payment_status: 'paid',
-    payment_provider: 'stripe',
-    checkout_session_id: session.id,
-    payment_intent_id: paymentIntentId,
-    amount_paid: amountPaid,
-    currency,
-    paid_at: new Date().toISOString(),
-  };
-  if (purchaseSnapshotForPaid) {
-    paidPatch.purchase_snapshot = purchaseSnapshotForPaid;
+  // Phase 1513: assert inventory + mark paid in one DB transaction.
+  const { data: promoteData, error: promoteErr } = await admin.rpc('promote_paid_checkout_booking', {
+    p_booking_id: bookingId,
+    p_checkout_session_id: session.id,
+    p_payment_intent_id: paymentIntentId,
+    p_amount_paid: amountPaid,
+    p_currency: currency,
+    p_paid_at: new Date().toISOString(),
+    p_purchase_snapshot: purchaseSnapshotForPaid ?? null,
+    p_assert_start_time: startTimeHm || null,
+    p_assert_booking_option_id: bookingOptionId || null,
+  });
+
+  if (promoteErr && isMissingPostgresFunctionError(promoteErr.message)) {
+    throw new Error('Checkout paid promotion guard unavailable');
   }
 
-  let paidUpdate = admin
-    .from('bookings')
-    .update(paidPatch)
-    .eq('id', bookingId)
-    .in('payment_status', ['pending', 'failed'])
-    .neq('status', 'cancelled');
-  const currentCheckoutSessionId = String(existingBooking?.checkout_session_id ?? '').trim();
-  if (currentCheckoutSessionId) {
-    paidUpdate = paidUpdate.eq('checkout_session_id', session.id);
+  const promoteOutcome = promotePaidCheckoutOutcome(
+    (promoteData ?? null) as { ok?: boolean; reason?: string } | null,
+    promoteErr?.message ?? null
+  );
+
+  if (promoteOutcome.kind === 'inventory_conflict') {
+    let inventoryRefunded = false;
+    if (
+      rejectedCheckoutCaptureShouldRefund({
+        sessionPaymentStatus: session.payment_status,
+        paymentIntentId,
+      })
+    ) {
+      try {
+        await stripe.refunds.create(
+          {
+            payment_intent: paymentIntentId as string,
+            reason: 'duplicate',
+          },
+          { idempotencyKey: `inventory-conflict-checkout-refund:${session.id}` }
+        );
+        inventoryRefunded = true;
+        await admin.from('booking_payment_events').insert({
+          booking_id: bookingId,
+          event_id: event.id,
+          event_type: 'inventory_conflict_checkout_refund',
+          payment_intent_id: paymentIntentId,
+          checkout_session_id: session.id,
+          amount: amountPaid,
+          currency,
+          payload: {
+            reason: 'inventory_conflict_on_paid_promotion',
+            inventoryError: promoteOutcome.message,
+            stripeEventType: event.type,
+          },
+        });
+      } catch (refundErr) {
+        const msg = refundErr instanceof Error ? refundErr.message : String(refundErr);
+        if (!/already.?been.?refunded|charge_already_refunded/i.test(msg)) {
+          throw refundErr;
+        }
+      }
+    }
+    await markProcessed('processed');
+    return json({
+      success: true,
+      ignored: true,
+      reason: 'inventory conflict on checkout.session.completed',
+      inventoryRefunded,
+      eventId: event.id,
+      bookingId,
+    });
   }
-  const { data: paidRows, error: bookingErr } = await paidUpdate.select('id');
-  if (bookingErr) throw new Error(bookingErr.message);
-  if ((paidRows ?? []).length === 0) {
+
+  if (promoteOutcome.kind === 'rpc_error') {
+    throw new Error(promoteOutcome.message);
+  }
+
+  if (promoteOutcome.kind !== 'promoted') {
     const { data: again } = await admin
       .from('bookings')
       .select('id, status, payment_status, checkout_session_id, payment_intent_id, currency')
@@ -825,8 +804,13 @@ export async function promotePaidFromCheckoutSession(params: {
       .maybeSingle();
     const againPay = (again?.payment_status ?? '').toLowerCase();
     let unpromotedRefunded = false;
-    if (againPay === 'paid' || againPay === 'refunded') {
-      if (againPay === 'paid') {
+    if (
+      promoteOutcome.kind === 'already_paid' ||
+      promoteOutcome.kind === 'already_refunded' ||
+      againPay === 'paid' ||
+      againPay === 'refunded'
+    ) {
+      if (againPay === 'paid' || promoteOutcome.kind === 'already_paid') {
         const { error: earnErr } = await admin.rpc('record_paid_booking_earnings', {
           p_booking_id: bookingId,
         });
@@ -859,6 +843,7 @@ export async function promotePaidFromCheckoutSession(params: {
             payload: {
               reason: 'unpromoted_paid_update_orphan_pi',
               stripeEventType: event.type,
+              promoteReason: promoteOutcome.kind,
             },
           });
         } catch (refundErr) {
@@ -868,7 +853,7 @@ export async function promotePaidFromCheckoutSession(params: {
           }
         }
       }
-      if (againPay === 'paid' && !unpromotedRefunded) {
+      if ((againPay === 'paid' || promoteOutcome.kind === 'already_paid') && !unpromotedRefunded) {
         await notifyPaidBookingSideEffects({
           admin,
           supabaseUrl,
@@ -882,8 +867,8 @@ export async function promotePaidFromCheckoutSession(params: {
       return json({
         success: true,
         duplicate: true,
-        alreadyPaid: againPay === 'paid',
-        alreadyRefunded: againPay === 'refunded',
+        alreadyPaid: againPay === 'paid' || promoteOutcome.kind === 'already_paid',
+        alreadyRefunded: againPay === 'refunded' || promoteOutcome.kind === 'already_refunded',
         orphanRefunded: unpromotedRefunded,
         eventId: event.id,
         bookingId,
@@ -919,6 +904,8 @@ export async function promotePaidFromCheckoutSession(params: {
             bookingPaymentStatus: again?.payment_status ?? null,
             bookingCheckoutSessionId: again?.checkout_session_id ?? null,
             stripeEventType: event.type,
+            promoteReason:
+              promoteOutcome.kind === 'unpromoted' ? promoteOutcome.reason : promoteOutcome.kind,
           },
         });
       } catch (refundErr) {
