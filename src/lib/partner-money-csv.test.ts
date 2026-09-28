@@ -89,4 +89,30 @@ describe('partner money CSV', () => {
     expect(rows[0]![8].toLowerCase()).toContain('collected, not paid out');
     expect(rows[0]![8].toLowerCase()).toContain('stripe test');
   });
+
+  it('Phase 1575: collected stay detail uses exclusive purchased range not check-in alone', () => {
+    const rows = buildPartnerMoneyCsvRows({
+      payouts: [],
+      refundDue: [],
+      collected: [
+        {
+          id: 'stay1',
+          booking_number: 8,
+          status: 'confirmed',
+          payment_status: 'paid',
+          amount_paid: 400,
+          currency: 'EUR',
+          booking_date: '2026-12-01',
+          check_out: '2026-12-03',
+          nights: 2,
+          purchase_snapshot: { checkOut: '2026-12-06' },
+          guest_name: 'Mira',
+          listing_title: 'Cabin',
+        },
+      ],
+      ledger: [],
+      ledgerKindLabel: (k) => k,
+    });
+    expect(rows[0]![8]).toContain('2026-12-01 → 2026-12-06');
+  });
 });

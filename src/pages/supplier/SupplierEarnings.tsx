@@ -26,6 +26,7 @@ import {
 } from '../../lib/partner-money-csv';
 import { csvSafeCell } from '../../lib/csv-export';
 import { displayListingTitleFromPurchase } from '../../lib/purchase-snapshot';
+import { bookingIsStayNight, stayRangeFromBooking } from '../../lib/stayOccupancy';
 
 function ledgerKindLabel(kind: string): string {
   const k = kind.trim().toLowerCase();
@@ -606,7 +607,16 @@ export default function SupplierEarnings() {
                           </p>
                           <p className="mt-0.5 text-xs text-ink-muted truncate">
                             {b.guest_name?.trim() || 'Guest'} ·{' '}
-                            {b.booking_date ? formatBookingDateDisplay(b.booking_date) : 'Date TBC'}
+                            {(() => {
+                              // Phase 1575: stays show purchased exclusive range (1564), not check-in alone.
+                              if (bookingIsStayNight(b)) {
+                                const range = stayRangeFromBooking(b);
+                                if (range) {
+                                  return `${formatBookingDateDisplay(range.checkIn)} → ${formatBookingDateDisplay(range.checkOut)}`;
+                                }
+                              }
+                              return b.booking_date ? formatBookingDateDisplay(b.booking_date) : 'Date TBC';
+                            })()}
                             {isStripeTestCheckoutSession(b.checkout_session_id) || appStripeIsTestMode()
                               ? ' · Stripe TEST'
                               : ''}

@@ -1,6 +1,7 @@
 import { partnerPaymentLabel, type MoneyBookingRow } from './payment-states';
 import { PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL } from './booking-confirmation-copy';
 import { isStripeTestCheckoutSession } from './money';
+import { bookingIsStayNight, stayRangeFromBooking } from './stayOccupancy';
 
 export const PARTNER_MONEY_CSV_HEADER = [
   'row_kind',
@@ -43,10 +44,30 @@ export type PartnerMoneyCollectedCsvInput = MoneyBookingRow & {
   id: string;
   booking_number?: number | null;
   booking_date?: string | null;
+  check_out?: string | null;
+  nights?: number | null;
+  purchase_snapshot?: unknown;
   guest_name?: string | null;
   listing_title?: string | null;
   checkout_session_id?: string | null;
 };
+
+/**
+ * Phase 1575: Money collected date line — stays use exclusive purchased range (1564),
+ * not check-in alone (Bookings CSV / Trips parity).
+ */
+export function partnerMoneyCollectedDateLine(b: {
+  booking_date?: string | null;
+  check_out?: string | null;
+  nights?: number | null;
+  purchase_snapshot?: unknown;
+}): string {
+  if (bookingIsStayNight(b)) {
+    const range = stayRangeFromBooking(b);
+    if (range) return `${range.checkIn} → ${range.checkOut}`;
+  }
+  return typeof b.booking_date === 'string' ? b.booking_date.trim() : '';
+}
 
 /** Unified Money export: payout periods + Refund due + collected bookings + ledger adjustments. */
 export function buildPartnerMoneyCsvRows(input: {
@@ -95,7 +116,7 @@ export function buildPartnerMoneyCsvRows(input: {
     const who = (b.listing_title ?? b.guest_name ?? 'Guest').trim() || 'Guest';
     const detailBits = [
       who,
-      b.booking_date ?? '',
+      partnerMoneyCollectedDateLine(b),
       isStripeTestCheckoutSession(b.checkout_session_id) ? 'Stripe TEST' : '',
       'collected, not paid out',
     ].filter(Boolean);
