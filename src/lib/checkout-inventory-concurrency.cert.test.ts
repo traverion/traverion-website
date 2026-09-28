@@ -1,12 +1,14 @@
 /**
  * Documents checkout inventory lock semantics for concurrent last-spot races.
  * The authoritative lock lives in Postgres assert_checkout_inventory
- * (pg_advisory_xact_lock on listing id) inside claim_pending_checkout_booking.
+ * (pg_advisory_xact_lock on listing id) inside claim_pending_checkout_booking
+ * and — Phase 1513 / mig 198 — promote_paid_checkout_booking (assert + paid UPDATE).
  */
 
 import { describe, expect, it } from 'vitest';
 import { tourCheckoutOccupiedGuests } from './booking-hold';
 import { tourDepartureRemainingSeats } from './tour-departure-remaining';
+import { promotePaidRequiresAtomicAssertUpdate } from './promote-paid-checkout';
 
 /** Mirrors the SQL lock key shape: hashtext(listing_id::text) — listing-scoped. */
 export function checkoutInventoryLockKey(listingId: string): string {
@@ -152,5 +154,15 @@ describe('checkout inventory concurrency semantics', () => {
     expect(
       lastSeatRemainingAfterHold({ capacity, occupiedGuests: occupied, requestingGuests: 2 }).allowClaim
     ).toBe(false);
+  });
+
+  it('Phase 1513/1516: paid promote must assert+update in one transaction', () => {
+    // Expired-hold + claim_pending race: separate assert then paid UPDATE oversells.
+    expect(promotePaidRequiresAtomicAssertUpdate({ assertAndUpdateSameTransaction: false })).toBe(
+      false
+    );
+    expect(promotePaidRequiresAtomicAssertUpdate({ assertAndUpdateSameTransaction: true })).toBe(
+      true
+    );
   });
 });
