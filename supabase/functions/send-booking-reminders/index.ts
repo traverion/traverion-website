@@ -135,8 +135,8 @@ serve(async (req) => {
     }
   }
 
-  // Reviews: tour completion ≈ booking_date; stay completion = check_out / nights.
-  // Fetch by booking_date window OR check_out window OR nights-only stays, then filter locally.
+  // Reviews: tour completion ≈ booking_date; stay completion = check_out / nights / snap.
+  // Fetch by booking_date window OR check_out window OR nights-only OR snapshot checkOut, then filter locally.
   const reviewSelect =
     'id, guest_email, guest_name, booking_date, check_out, nights, special_requests, booking_number, listing_id, purchase_snapshot, review_request_email_sent_at, status, payment_status';
   const { data: reviewByDeparture, error: revErr1 } = await admin
@@ -180,11 +180,27 @@ serve(async (req) => {
 
   if (revErr3) return json({ error: revErr3.message }, 500);
 
+  // Phase 1537: snapshot-only stay check-out (column/nights null) — 1524 parity.
+  const { data: reviewBySnapCheckout, error: revErr4 } = await admin
+    .from('bookings')
+    .select(reviewSelect)
+    .eq('status', 'confirmed')
+    .eq('payment_status', 'paid')
+    .is('review_request_email_sent_at', null)
+    .is('check_out', null)
+    .or('nights.is.null,nights.lt.1')
+    .filter('purchase_snapshot->>checkOut', 'gte', fromYmd)
+    .filter('purchase_snapshot->>checkOut', 'lte', toYmd)
+    .limit(500);
+
+  if (revErr4) return json({ error: revErr4.message }, 500);
+
   const reviewById = new Map<string, Record<string, unknown>>();
   for (const row of [
     ...(reviewByDeparture ?? []),
     ...(reviewByCheckout ?? []),
     ...(reviewByNights ?? []),
+    ...(reviewBySnapCheckout ?? []),
   ]) {
     if (row && typeof row === 'object' && typeof (row as { id?: unknown }).id === 'string') {
       reviewById.set((row as { id: string }).id, row as Record<string, unknown>);
