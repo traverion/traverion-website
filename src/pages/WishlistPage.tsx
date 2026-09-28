@@ -1,7 +1,7 @@
 /**
  * Consumer: saved listings (wishlist). Requires login when Supabase is configured.
  */
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import { LogIn, ArrowLeft, Heart } from 'lucide-react';
 import { SkeletonCardGrid, SkeletonConsumerPage } from '../components/ui/Skeleton';
 import EmptyState from '../components/EmptyState';
@@ -84,20 +84,26 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
     }
   }, [user?.id]);
 
-  useEffect(() => {
-    if (user?.id) {
-      // Phase 1377: new traveler — do not keep prior account's cards if this load fails.
-      if (wishlistUserIdRef.current !== user.id) {
-        wishlistUserIdRef.current = user.id;
-        setListings([]);
-        setUnavailableCount(0);
-      }
-      void load();
-    } else {
+  // Phase 1377 + layout: clear prior account's Saved cards before paint (useEffect ran one frame too late).
+  useLayoutEffect(() => {
+    if (!user?.id) {
       wishlistUserIdRef.current = null;
-      setLoading(false);
       setListings([]);
       setUnavailableCount(0);
+      return;
+    }
+    if (wishlistUserIdRef.current !== user.id) {
+      wishlistUserIdRef.current = user.id;
+      setListings([]);
+      setUnavailableCount(0);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (user?.id) {
+      void load();
+    } else {
+      setLoading(false);
     }
   }, [user?.id, load]);
 
@@ -244,7 +250,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
             }
           />
         )}
-        {loading ? (
+        {loading && listings.length === 0 ? (
           <div aria-busy="true" aria-label="Loading saved listings">
             <SkeletonCardGrid count={8} />
           </div>
@@ -256,7 +262,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
                 this grid.
               </p>
             ) : null}
-            <div className={MARKETPLACE_BROWSE_GRID_CLASS}>
+            <div className={MARKETPLACE_BROWSE_GRID_CLASS} aria-busy={loading || undefined}>
               {listings.map((tour, index) => (
                 <PublicListingBrowseCard
                   key={tour.id}
