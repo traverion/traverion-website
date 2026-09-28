@@ -1209,8 +1209,8 @@ export default function SupplierListings() {
         />
       )}
 
-      {loading ? (
-        <div className="space-y-3 animate-fade-in-up">
+      {loading && listings.length === 0 ? (
+        <div className="space-y-3 animate-fade-in-up" aria-busy="true" aria-label="Loading listings">
           <SkeletonListItem />
           <SkeletonListItem />
           <SkeletonListItem />
@@ -1263,7 +1263,7 @@ export default function SupplierListings() {
         />
       ) : (
         listings.length > 0 && (
-          <div className="space-y-2.5">
+          <div className="space-y-2.5" aria-busy={loading || undefined}>
             {filteredListings.map((listing) => {
               const isLive = listing.status !== 'draft';
               const family = inventoryFamilyFromListing(listing);
