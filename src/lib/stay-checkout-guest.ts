@@ -6,14 +6,17 @@ export function stayCheckoutLeadGuestNameReady(name: string | null | undefined):
 /** Alias — same rule for tours and stays. */
 export const bookingLeadGuestNameReady = stayCheckoutLeadGuestNameReady;
 
-/** Prefer client name; on Trips Pay now fall back to the name stored on the booking. */
+/**
+ * Pay now resume freezes lead guest to the claimed booking when set.
+ * Client customerName may only fill an empty column (first claim edge cases).
+ */
 export function resumeStayLeadGuestName(params: {
   bodyCustomerName?: string | null;
   bookingGuestName?: string | null;
 }): string {
-  const fromBody = String(params.bodyCustomerName ?? '').trim();
-  if (fromBody) return fromBody;
-  return String(params.bookingGuestName ?? '').trim();
+  const fromBooking = String(params.bookingGuestName ?? '').trim();
+  if (fromBooking) return fromBooking;
+  return String(params.bodyCustomerName ?? '').trim();
 }
 
 export const resumeBookingLeadGuestName = resumeStayLeadGuestName;

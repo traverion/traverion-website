@@ -11,12 +11,15 @@ describe('stayCheckoutLeadGuestNameReady', () => {
 });
 
 describe('resumeStayLeadGuestName', () => {
-  it('prefers the client name, then the booking guest_name', () => {
+  it('prefers the booking guest_name over a client rewrite on Pay now resume', () => {
     expect(
       resumeStayLeadGuestName({ bodyCustomerName: 'Alex Guest', bookingGuestName: 'Old Name' })
-    ).toBe('Alex Guest');
+    ).toBe('Old Name');
     expect(resumeStayLeadGuestName({ bodyCustomerName: '', bookingGuestName: 'Stored Guest' })).toBe(
       'Stored Guest'
+    );
+    expect(resumeStayLeadGuestName({ bodyCustomerName: 'New Guest', bookingGuestName: '' })).toBe(
+      'New Guest'
     );
     expect(resumeStayLeadGuestName({ bodyCustomerName: null, bookingGuestName: null })).toBe('');
   });
