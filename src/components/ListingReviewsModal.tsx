@@ -119,7 +119,23 @@ export function ListingReviewsModal({ open, onClose, reviews, replies, listingTi
 
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain pr-1">
           {filtered.length === 0 ? (
-            <p className="text-sm text-ink-muted py-6">No reviews match this filter.</p>
+            // Phase 1618: star filter empty — offer Reset, do not strand the traveler.
+            <div className="py-6">
+              <p className="text-sm text-ink-muted">
+                {reviews.length > 0
+                  ? 'No reviews match this rating filter.'
+                  : 'No reviews yet for this listing.'}
+              </p>
+              {reviews.length > 0 && starFilter !== 'all' ? (
+                <button
+                  type="button"
+                  onClick={() => setStarFilter('all')}
+                  className="tv-btn-secondary mt-3"
+                >
+                  Show all ratings
+                </button>
+              ) : null}
+            </div>
           ) : (
             filtered.map((r) => (
               <article key={r.id} className="border-b border-black/[0.06] pb-5 last:border-0">
