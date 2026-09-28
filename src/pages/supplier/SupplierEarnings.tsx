@@ -369,7 +369,7 @@ export default function SupplierEarnings() {
       <SupplierPageHero
         badge="Insights"
         title="Income"
-        description={`Traveler payments collected, fees & adjustments, and what Traverion has paid you. Payouts are manual — this page never invents a transfer. ${STRIPE_TEST_UNTIL_LIVE}.`}
+        description={`Traveler payments collected, fees & adjustments, and what Traverion has paid you. Payouts are manual — this page never invents a transfer. Guest checkout uses ${STRIPE_TEST_UNTIL_LIVE}.`}
       />
 
       {error && (

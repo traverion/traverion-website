@@ -456,7 +456,7 @@ function App() {
       bookings: { title: 'Trips', description: 'View your tour and stay reservations and their status.' },
       'booking-confirmed': {
         title: 'Booking confirmed',
-        description: `Your tour or stay payment was successful. ${STRIPE_TEST_UNTIL_LIVE}.`,
+        description: `Your tour or stay payment was successful. Checkout used ${STRIPE_TEST_UNTIL_LIVE}.`,
       },
       blog: { title: 'Stories coming later', description: 'Traverion is not publishing editorial articles yet.' },
       contact: { title: 'Contact', description: 'Get in touch with Traverion.' },
