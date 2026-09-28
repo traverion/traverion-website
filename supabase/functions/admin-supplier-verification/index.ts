@@ -309,7 +309,7 @@ serve(async (req) => {
     }
 
     const bookingCols =
-      'id, listing_id, guest_email, guest_name, guests, booking_date, check_out, nights, status, payment_status, amount_paid, currency, checkout_session_id, payment_intent_id, refund_choice, booking_number, created_at';
+      'id, listing_id, guest_email, guest_name, guests, booking_date, check_out, nights, status, payment_status, amount_paid, currency, checkout_session_id, payment_intent_id, refund_choice, booking_number, created_at, hold_expires_at';
 
     let query = admin
       .from('bookings')

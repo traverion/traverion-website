@@ -31,6 +31,7 @@ type AdminBookingRow = MoneyBookingRow & {
   booking_number: number | null;
   checkout_session_id?: string | null;
   payment_intent_id?: string | null;
+  hold_expires_at?: string | null;
   created_at: string;
 };
 
