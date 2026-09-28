@@ -330,7 +330,9 @@ export default function Contact({ onNavigate }: ContactProps) {
                 required
                 aria-required="true"
                 aria-invalid={fieldErrors.message ? true : undefined}
-                aria-describedby={fieldErrors.message ? 'contact-message-err' : undefined}
+                aria-describedby={
+                  fieldErrors.message ? 'contact-message-err contact-message-hint' : 'contact-message-hint'
+                }
                 placeholder={
                   topic === 'trip'
                     ? 'Include your booking reference if you have one.'
@@ -343,6 +345,11 @@ export default function Contact({ onNavigate }: ContactProps) {
                           : undefined
                 }
               />
+              {/* Phase 1666: calm limit hint before submit fails at 5000 chars. */}
+              <p id="contact-message-hint" className="mt-1.5 text-xs text-ink-faint">
+                Up to 5000 characters
+                {formData.message.length > 0 ? ` · ${formData.message.length} used` : ''}.
+              </p>
               {fieldErrors.message && (
                 <p id="contact-message-err" className="mt-1.5 text-sm text-red-800" role="alert">
                   {fieldErrors.message}
