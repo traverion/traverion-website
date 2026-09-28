@@ -47,6 +47,13 @@ export default function About({ onNavigate }: AboutProps) {
     }
   };
 
+  const goTrips = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (onNavigate) {
+      e.preventDefault();
+      onNavigate('bookings');
+    }
+  };
+
   return (
     <LegalPageShell
       eyebrow="Company"
@@ -86,6 +93,10 @@ export default function About({ onNavigate }: AboutProps) {
               </a>
               <a href="/stays" onClick={goStays} className="tv-btn-ghost text-sm">
                 Browse stays
+              </a>
+              {/* Phase 1624: Trips entry next to browse — matches footer/nav wayfinding. */}
+              <a href="/bookings" onClick={goTrips} className="tv-btn-ghost text-sm">
+                Your trips
               </a>
             </div>
           </div>
