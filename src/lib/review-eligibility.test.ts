@@ -58,35 +58,59 @@ describe('bookingEligibleForReview', () => {
     expect(bookingEligibleForReview(row, Date.parse('2026-09-01T19:01:00.000Z'))).toBe(true);
   });
 
-  it('does not unlock stay review from checkout notes alone (SQL needs check_out column)', () => {
+  it('unlocks stay review on/after check-out day (column)', () => {
     const row = {
       status: 'confirmed',
       payment_status: 'paid',
       booking_date: '2026-09-01',
-      start_time: '20:00:00',
-      check_out: null as string | null,
-      special_requests: 'Check-out: 2026-09-03',
+      check_out: '2026-09-03',
       purchase_snapshot: {
         listingTitle: 'Cabin',
-        checkOut: '2026-09-03',
+        departureTimezone: 'Europe/Helsinki',
+        capturedAt: '2026-08-01T00:00:00.000Z',
+      },
+    };
+    expect(bookingEligibleForReview(row, Date.parse('2026-09-02T12:00:00.000Z'))).toBe(false);
+    expect(bookingEligibleForReview(row, Date.parse('2026-09-03T12:00:00.000Z'))).toBe(true);
+  });
+
+  it('treats nights-only stays like SQL stay_booking_check_out (Phase 1328)', () => {
+    const row = {
+      status: 'confirmed',
+      payment_status: 'paid',
+      booking_date: '2026-09-01',
+      check_out: null as string | null,
+      nights: 2,
+      special_requests: null as string | null,
+      purchase_snapshot: {
+        listingTitle: 'Cabin',
         startTimeHm: '20:00',
         departureTimezone: 'Europe/Helsinki',
         capturedAt: '2026-08-01T00:00:00.000Z',
       },
     };
-    // Notes-only checkout must not take the stay path; tour start gate still applies.
-    expect(bookingEligibleForReview(row, Date.parse('2026-09-01T16:30:00.000Z'))).toBe(false);
-    expect(
-      bookingEligibleForReview(
-        { ...row, check_out: '2026-09-03' },
-        Date.parse('2026-09-02T12:00:00.000Z')
-      )
-    ).toBe(false);
-    expect(
-      bookingEligibleForReview(
-        { ...row, check_out: '2026-09-03' },
-        Date.parse('2026-09-03T12:00:00.000Z')
-      )
-    ).toBe(true);
+    // Mid-stay must not unlock via tour startTimeHm
+    expect(bookingEligibleForReview(row, Date.parse('2026-09-01T19:01:00.000Z'))).toBe(false);
+    expect(bookingEligibleForReview(row, Date.parse('2026-09-02T12:00:00.000Z'))).toBe(false);
+    // check-out = 2026-09-03
+    expect(bookingEligibleForReview(row, Date.parse('2026-09-03T12:00:00.000Z'))).toBe(true);
+  });
+
+  it('unlocks stay review from check_out: notes when column is null (Phase 1328)', () => {
+    const row = {
+      status: 'confirmed',
+      payment_status: 'paid',
+      booking_date: '2026-09-01',
+      check_out: null as string | null,
+      special_requests: 'check_out: 2026-09-03',
+      purchase_snapshot: {
+        listingTitle: 'Cabin',
+        startTimeHm: '20:00',
+        departureTimezone: 'Europe/Helsinki',
+        capturedAt: '2026-08-01T00:00:00.000Z',
+      },
+    };
+    expect(bookingEligibleForReview(row, Date.parse('2026-09-02T12:00:00.000Z'))).toBe(false);
+    expect(bookingEligibleForReview(row, Date.parse('2026-09-03T12:00:00.000Z'))).toBe(true);
   });
 });

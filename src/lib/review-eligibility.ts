@@ -1,9 +1,9 @@
 import { resolveDepartureTimezone, wallTimeInZoneToUtcMs } from './tour-departure-cutoff';
+import { bookingIsStayNight } from './pickup-completeness';
 import { displayDepartureTimezoneFromPurchase, displayStartTimeFromPurchase } from './purchase-snapshot';
+import { stayRangeFromBooking } from './stayOccupancy';
 
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-
-/** Pure rules for when a booking may unlock a traveler review — mirrors SQL booking_experience_started_for_review. */
+/** Pure rules for when a booking may unlock a traveler review — mirrors SQL booking_experience_started_for_review (Phase 1326/1328). */
 export function bookingEligibleForReview(
   b: {
     status?: string | null;
@@ -11,6 +11,7 @@ export function bookingEligibleForReview(
     booking_date: string | null;
     start_time?: string | null;
     check_out?: string | null;
+    nights?: number | null;
     special_requests?: string | null;
     purchase_snapshot?: unknown;
     /** Optional explicit TZ when snapshot is not attached. */
@@ -26,12 +27,13 @@ export function bookingEligibleForReview(
     displayDepartureTimezoneFromPurchase(b.purchase_snapshot) || b.departureTimezone
   );
 
-  // Stay: only real check_out column (matches SQL booking_experience_started_for_review).
-  // Do not invent checkout from notes — that opened UI while RLS still blocked.
-  const checkOutCol = (b.check_out ?? '').trim();
-  if (ISO_DATE.test(checkOutCol)) {
+  // Stay: bookingIsStayNight parity with SQL booking_is_stay_night; unlock on/after
+  // stay_booking_check_out day (stayRangeFromBooking).
+  if (bookingIsStayNight(b)) {
+    const stay = stayRangeFromBooking(b);
+    if (!stay) return false;
     const todayLocal = ymdInZone(nowMs, tz);
-    return Boolean(todayLocal && todayLocal >= checkOutCol);
+    return Boolean(todayLocal && todayLocal >= stay.checkOut);
   }
 
   const date = (b.booking_date ?? '').trim();
