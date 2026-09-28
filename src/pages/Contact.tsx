@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import LegalPageShell from '../components/LegalPageShell';
 import { submitContactInquiry, ContactInquiry } from '../data/supabase-contact';
 import { required, validateEmail, maxLength } from '../lib/validation';
@@ -34,6 +34,13 @@ export default function Contact({ onNavigate }: ContactProps) {
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<FieldKey, string>>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const successHeadingRef = useRef<HTMLHeadingElement | null>(null);
+
+  useEffect(() => {
+    if (!isSubmitted) return;
+    // Phase 1619: move focus to success so keyboard users hear the outcome.
+    successHeadingRef.current?.focus();
+  }, [isSubmitted]);
 
   const readTopicFromUrl = () => {
     const params = new URLSearchParams(window.location.search);
@@ -154,9 +161,21 @@ export default function Contact({ onNavigate }: ContactProps) {
       onNavigate={onNavigate}
     >
       {isSubmitted ? (
-        <NoticeCallout title={CONTACT_FORM_SUCCESS_HEADING} tone="success">
-          {CONTACT_FORM_THANK_YOU}
-        </NoticeCallout>
+        <div className="space-y-4 max-w-lg">
+          <div tabIndex={-1} ref={successHeadingRef} className="outline-none">
+            <NoticeCallout title={CONTACT_FORM_SUCCESS_HEADING} tone="success">
+              {CONTACT_FORM_THANK_YOU}
+            </NoticeCallout>
+          </div>
+          {/* Phase 1619: allow another message without a full page reload. */}
+          <button
+            type="button"
+            onClick={() => setIsSubmitted(false)}
+            className="tv-btn-secondary"
+          >
+            Send another message
+          </button>
+        </div>
       ) : (
         <>
           <p>
@@ -307,7 +326,11 @@ export default function Contact({ onNavigate }: ContactProps) {
                     ? 'Include your booking reference if you have one.'
                     : topic === 'payment'
                       ? 'Include the amount, date, and booking reference if you have them.'
-                      : undefined
+                      : topic === 'partner'
+                        ? 'Include your business name and what you need help with in Partner.'
+                        : topic === 'booking'
+                          ? 'Include the tour or stay name and the dates you are looking at.'
+                          : undefined
                 }
               />
               {fieldErrors.message && (
