@@ -267,7 +267,8 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
     let whenLabel = 'Any date';
     if (searchFamily === 'stays') {
       if (when && checkout) whenLabel = `${when} → ${checkout}`;
-      else if (when) whenLabel = when;
+      // Phase 1650: check-in alone needs an explicit checkout nudge (guests parity).
+      else if (when) whenLabel = `${when} · Add checkout`;
     } else if (when) {
       whenLabel = when;
     }
