@@ -27,6 +27,9 @@ interface WishlistPageProps {
   onTourSelect: (tour: TourPackage) => void;
 }
 
+/** Layer C: named Saved region (MyBookings Trips landmark parity). */
+const WISHLIST_HEADING_ID = 'wishlist-heading';
+
 export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageProps) {
   const { user, loading: authLoading } = useAuth();
   const [listings, setListings] = useState<TourPackage[]>([]);
@@ -150,8 +153,11 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
         <div className="mx-auto max-w-[90rem] px-4 sm:px-6 lg:px-8 py-8">
           <header className="mb-6 border-b border-black/[0.06] pb-5">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Your travel</p>
-            <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Saved</h1>
+            <h1 id={WISHLIST_HEADING_ID} className="font-display text-3xl sm:text-4xl text-ink tracking-tight">
+              Saved
+            </h1>
           </header>
+          <section aria-labelledby={WISHLIST_HEADING_ID}>
           <EmptyState
             icon={Heart}
             className="pt-2 pb-0"
@@ -168,6 +174,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
               </div>
             }
           />
+          </section>
         </div>
       </div>
     );
@@ -182,8 +189,11 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
         <div className="mx-auto max-w-[90rem] px-4 sm:px-6 lg:px-8 py-8">
           <header className="mb-6 border-b border-black/[0.06] pb-5">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Your travel</p>
-            <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Saved</h1>
+            <h1 id={WISHLIST_HEADING_ID} className="font-display text-3xl sm:text-4xl text-ink tracking-tight">
+              Saved
+            </h1>
           </header>
+          <section aria-labelledby={WISHLIST_HEADING_ID}>
           <EmptyState
             icon={LogIn}
             className="pt-2 pb-0"
@@ -210,6 +220,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
               </div>
             }
           />
+          </section>
         </div>
       </div>
     );
@@ -222,7 +233,9 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Your travel</p>
-              <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Saved</h1>
+              <h1 id={WISHLIST_HEADING_ID} className="font-display text-3xl sm:text-4xl text-ink tracking-tight">
+                Saved
+              </h1>
               <p className="mt-2 text-sm text-ink-muted max-w-xl leading-relaxed">
                 Tours and stays you want to come back to — open one to check dates and book.
               </p>
@@ -237,6 +250,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
             </button>
           </div>
         </header>
+        <section aria-labelledby={WISHLIST_HEADING_ID}>
         {error && (
           <ErrorState
             className="py-6"
@@ -302,6 +316,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
             }
           />
         )}
+        </section>
       </div>
     </div>
   );
