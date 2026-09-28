@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { ArrowLeft, MapPin } from 'lucide-react';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
@@ -58,6 +58,8 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
   const [discountsByListing, setDiscountsByListing] = useState<
     Map<string, import('../data/supabase-discounts').ListingDiscount[]> | null
   >(null);
+  const [discountsLoadedForKey, setDiscountsLoadedForKey] = useState<string | null>(null);
+  const discountsLoadGenRef = useRef(0);
   const allListings = useMemo(() => {
     if (isSupabaseConfigured()) {
       // Phase 1356: never invent Destination catalog from localStorage when live fetch is null/failed.
@@ -97,23 +99,34 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
     [listings]
   );
   const listingIdsForReviewsKey = useMemo(() => listingIdsForReviews.join(','), [listingIdsForReviews]);
+  const discountsForDestinationCatalog =
+    discountsLoadedForKey === listingIdsForReviewsKey ? discountsByListing : null;
 
   useEffect(() => {
     if (!isSupabaseConfigured() || !listingIdsForReviewsKey) {
       setReviewAggregates(new Map());
       setDiscountsByListing(null);
+      setDiscountsLoadedForKey(null);
       return;
     }
     const ids = listingIdsForReviewsKey.split(',');
+    const keyAtStart = listingIdsForReviewsKey;
+    const gen = ++discountsLoadGenRef.current;
+    setDiscountsByListing(null);
+    setDiscountsLoadedForKey(null);
     let cancelled = false;
     // Phase 1193: decouple offers vs reviews — one RPC failure must not block the other.
     void fetchDiscountsByListingIds(ids)
       .then((discounts) => {
-        if (!cancelled) setDiscountsByListing(discounts);
+        if (cancelled || gen !== discountsLoadGenRef.current) return;
+        setDiscountsByListing(discounts);
+        setDiscountsLoadedForKey(keyAtStart);
       })
       .catch(() => {
         // Phase 1151: empty map → honest list From (not endless "Checking offers…").
-        if (!cancelled) setDiscountsByListing(new Map());
+        if (cancelled || gen !== discountsLoadGenRef.current) return;
+        setDiscountsByListing(new Map());
+        setDiscountsLoadedForKey(keyAtStart);
       });
     void getReviewAggregatesForListingIds(ids)
       .then((reviews) => {
@@ -300,7 +313,7 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
                       tour={tour}
                       index={index}
                       onSelect={() => onTourSelect(tour)}
-                      discountsByListing={discountsByListing}
+                      discountsByListing={discountsForDestinationCatalog}
                       reviewAggregate={reviewAggregates.get(tour.id)}
                       tagLabels={TAG_LABELS}
                       size="default"
@@ -336,7 +349,7 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
                       tour={stay}
                       index={index}
                       onSelect={() => onTourSelect(stay)}
-                      discountsByListing={discountsByListing}
+                      discountsByListing={discountsForDestinationCatalog}
                       reviewAggregate={reviewAggregates.get(stay.id)}
                       tagLabels={TAG_LABELS}
                       size="default"
