@@ -14,7 +14,8 @@ const SECTIONS: SitemapSection[] = [
       { label: 'Home', page: 'home' },
       { label: 'Tours', page: 'packages' },
       { label: 'Stays', page: 'stays' },
-      { label: 'Destinations', page: 'home' },
+      // Phase 1642: label matches behavior — destination cards live on Home.
+      { label: 'Destination guides', page: 'home' },
       { label: 'Trips', page: 'bookings' },
       { label: 'Saved', page: 'wishlist' },
       { label: 'Contact', page: 'contact' },
