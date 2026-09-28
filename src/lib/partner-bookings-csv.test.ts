@@ -127,6 +127,30 @@ describe('partner bookings CSV', () => {
     );
     expect(values[PARTNER_BOOKINGS_CSV_HEADER.indexOf('inventory')]).toBe('stay');
     expect(values[PARTNER_BOOKINGS_CSV_HEADER.indexOf('check_out')]).toBe('2026-12-05');
+    expect(values[PARTNER_BOOKINGS_CSV_HEADER.indexOf('nights')]).toBe('4');
+  });
+
+  it('Phase 1552: nights follow purchased range, not stale nights column', () => {
+    const values = partnerBookingCsvValues(
+      {
+        id: 'stay-stale',
+        listing_id: 'prop',
+        booking_number: 10,
+        status: 'confirmed',
+        payment_status: 'paid',
+        amount_paid: 400,
+        currency: 'EUR',
+        booking_date: '2026-12-01',
+        check_out: '2026-12-05',
+        nights: 2,
+        guests: 2,
+      },
+      'Cabin',
+      '',
+      ''
+    );
+    expect(values[PARTNER_BOOKINGS_CSV_HEADER.indexOf('check_out')]).toBe('2026-12-05');
+    expect(values[PARTNER_BOOKINGS_CSV_HEADER.indexOf('nights')]).toBe('4');
   });
 
   it('listing_title column carries purchased title when caller prefers snapshot (Phase 1069)', () => {

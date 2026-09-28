@@ -1,6 +1,6 @@
 import { partnerPaymentLabel, normalizePaymentStatus, type MoneyBookingRow } from './payment-states';
 import { bookingIsStayNight } from './pickup-completeness';
-import { stayRangeFromBooking } from './stayOccupancy';
+import { nightsOccupiedByStay, stayRangeFromBooking } from './stayOccupancy';
 
 export type PartnerBookingCsvRow = MoneyBookingRow & {
   id: string;
@@ -65,24 +65,20 @@ export function partnerBookingCsvValues(
     opts?.nights != null && Number.isFinite(opts.nights) && opts.nights > 0
       ? Math.floor(opts.nights)
       : null;
+  // Phase 1552: prefer purchased range over stale bookings.nights (1538 check_out / 1551 parity).
+  const nightsFromRange =
+    range != null ? nightsOccupiedByStay(range.checkIn, range.checkOut).length : 0;
   const nightsFromRow =
     b.nights != null && Number.isFinite(Number(b.nights)) && Number(b.nights) >= 1
       ? Math.floor(Number(b.nights))
       : null;
-  const nightsFromRange =
-    range && range.checkIn && range.checkOut && range.checkOut > range.checkIn
-      ? Math.round(
-          (Date.parse(`${range.checkOut}T12:00:00Z`) - Date.parse(`${range.checkIn}T12:00:00Z`)) /
-            86400000
-        )
-      : null;
   const nights =
     nightsFromOpts != null
       ? String(nightsFromOpts)
-      : nightsFromRow != null
-        ? String(nightsFromRow)
-        : nightsFromRange != null && nightsFromRange >= 1
-          ? String(nightsFromRange)
+      : nightsFromRange >= 1
+        ? String(nightsFromRange)
+        : nightsFromRow != null
+          ? String(nightsFromRow)
           : '';
   return [
     b.id,
