@@ -450,10 +450,19 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
           <p className="text-ink-muted text-sm mt-2 mb-6 leading-relaxed">
             Your payment was tied to your account. Sign in with the same account to view this booking.
           </p>
-          <button type="button" onClick={goSignIn} className="tv-btn-primary w-full">
-            <LogIn className="w-4 h-4" />
-            Sign in
-          </button>
+          {/* Phase 1660: browse escapes when signed out so the page is not a dead end. */}
+          <div className="flex flex-col gap-2">
+            <button type="button" onClick={goSignIn} className="tv-btn-primary w-full">
+              <LogIn className="w-4 h-4" />
+              Sign in
+            </button>
+            <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-ghost w-full justify-center">
+              Browse tours
+            </button>
+            <button type="button" onClick={() => onNavigate('stays')} className="tv-btn-ghost w-full justify-center">
+              Browse stays
+            </button>
+          </div>
         </div>
       </div>
     );
