@@ -3,7 +3,7 @@
  *
  * PURCHASE CONTRACT:
  * - Tour departure date = booking_date (sold seat; startTimeHm is wall clock on that date)
- * - Stay check-in date = booking_date; stay completes on check_out
+ * - Stay check-in date = booking_date; stay completes on check_out (column, nights, notes, or snap)
  * - Timezone = purchase_snapshot.departureTimezone (else Europe/Helsinki)
  *
  * Reminder: local calendar day before departure / check-in.
@@ -20,6 +20,8 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 export type LifecycleBookingRow = {
   booking_date?: string | null;
   check_out?: string | null;
+  nights?: number | null;
+  special_requests?: string | null;
   purchase_snapshot?: unknown;
   status?: string | null;
   payment_status?: string | null;
@@ -84,11 +86,46 @@ function snapshotString(snapshot: unknown, key: string): string | null {
   return typeof v === 'string' && v.trim() ? v.trim() : null;
 }
 
-/** Stay when check_out column or purchased checkOut exists. */
+function parseStayCheckOutFromNotes(notes: string | null | undefined): string | null {
+  if (!notes) return null;
+  for (const raw of notes.split(/\n+/)) {
+    const m = raw.trim().match(/^check_out:\s*(\d{4}-\d{2}-\d{2})/i);
+    if (m?.[1] && ISO_DATE.test(m[1])) return m[1];
+  }
+  return null;
+}
+
+/**
+ * Stay shape parity with bookingIsStayNight / SQL booking_is_stay_night (Phase 1332):
+ * check_out column, purchased checkOut, nights >= 1, or check_out: notes.
+ */
 export function lifecycleBookingIsStay(b: LifecycleBookingRow): boolean {
   if (isoDay(b.check_out)) return true;
   const snapOut = snapshotString(b.purchase_snapshot, 'checkOut');
-  return Boolean(snapOut && ISO_DATE.test(snapOut));
+  if (snapOut && ISO_DATE.test(snapOut)) return true;
+  const nights = Math.floor(Number(b.nights ?? 0));
+  if (Number.isFinite(nights) && nights >= 1) return true;
+  return Boolean(parseStayCheckOutFromNotes(b.special_requests));
+}
+
+/**
+ * Stay check-out day: column → snap → nights → notes (legacy). Matches stay_booking_check_out /
+ * stayRangeFromBooking nights-before-notes precedence for inventory honesty.
+ */
+export function lifecycleStayCheckOutYmd(b: LifecycleBookingRow): string | null {
+  const checkIn = isoDay(b.booking_date);
+  const fromColumn = isoDay(b.check_out);
+  if (fromColumn && checkIn && fromColumn > checkIn) return fromColumn;
+  if (fromColumn) return fromColumn;
+  const fromSnap = isoDay(snapshotString(b.purchase_snapshot, 'checkOut'));
+  if (fromSnap && (!checkIn || fromSnap > checkIn)) return fromSnap;
+  const nights = Math.floor(Number(b.nights ?? 0));
+  if (checkIn && Number.isFinite(nights) && nights >= 1) {
+    return addCalendarDaysYmd(checkIn, nights);
+  }
+  const fromNotes = parseStayCheckOutFromNotes(b.special_requests);
+  if (fromNotes && (!checkIn || fromNotes > checkIn)) return fromNotes;
+  return null;
 }
 
 /**
@@ -101,11 +138,11 @@ export function lifecycleReminderAnchorYmd(b: LifecycleBookingRow): string | nul
 
 /**
  * Date after which the experience is complete for review prompting.
- * Tour: departure day. Stay: check-out day (column, else snap) — never check-in alone.
+ * Tour: departure day. Stay: check-out day — never check-in alone.
  */
 export function lifecycleReviewCompletionYmd(b: LifecycleBookingRow): string | null {
   if (lifecycleBookingIsStay(b)) {
-    return isoDay(b.check_out) || isoDay(snapshotString(b.purchase_snapshot, 'checkOut'));
+    return lifecycleStayCheckOutYmd(b);
   }
   return isoDay(b.booking_date);
 }
@@ -130,16 +167,12 @@ export function shouldSendExperienceReminder(b: LifecycleBookingRow, nowMs: numb
 
 /**
  * True when experience-local today is the calendar day after completion
- * (tour departure or stay check-out). Stays without a checkout date never qualify.
+ * (tour departure or stay check-out).
  */
 export function shouldSendReviewRequest(b: LifecycleBookingRow, nowMs: number = Date.now()): boolean {
   if (!isPaidConfirmed(b)) return false;
   const completion = lifecycleReviewCompletionYmd(b);
   if (!completion) return false;
-  // Stay mid-visit: if we only have booking_date and somehow isStay failed, still require checkout.
-  if (lifecycleBookingIsStay(b) && !isoDay(b.check_out) && !isoDay(snapshotString(b.purchase_snapshot, 'checkOut'))) {
-    return false;
-  }
   const tz = resolveLifecycleTimezone(b.purchase_snapshot);
   const todayLocal = ymdInTimeZone(nowMs, tz);
   if (!todayLocal) return false;
@@ -157,6 +190,21 @@ export function lifecycleCandidateUtcWindow(nowMs: number = Date.now()): {
   const utcToday = new Date(nowMs).toISOString().slice(0, 10);
   return {
     fromYmd: addCalendarDaysYmd(utcToday, -3) ?? utcToday,
+    toYmd: addCalendarDaysYmd(utcToday, 3) ?? utcToday,
+  };
+}
+
+/**
+ * Wider check-in window so nights-only stays whose check-out falls in the
+ * ±3 day candidate window are still selected (Phase 1332).
+ */
+export function lifecycleStayNightsCandidateUtcWindow(nowMs: number = Date.now()): {
+  fromYmd: string;
+  toYmd: string;
+} {
+  const utcToday = new Date(nowMs).toISOString().slice(0, 10);
+  return {
+    fromYmd: addCalendarDaysYmd(utcToday, -60) ?? utcToday,
     toYmd: addCalendarDaysYmd(utcToday, 3) ?? utcToday,
   };
 }

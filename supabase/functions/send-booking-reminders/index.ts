@@ -19,6 +19,7 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import {
   lifecycleCandidateUtcWindow,
+  lifecycleStayNightsCandidateUtcWindow,
   shouldSendExperienceReminder,
   shouldSendReviewRequest,
 } from '../_shared/booking-lifecycle-calendar.ts';
@@ -134,13 +135,13 @@ serve(async (req) => {
     }
   }
 
-  // Reviews: tour completion ≈ booking_date; stay completion = check_out.
-  // Fetch by booking_date window OR check_out window, then filter locally.
+  // Reviews: tour completion ≈ booking_date; stay completion = check_out / nights.
+  // Fetch by booking_date window OR check_out window OR nights-only stays, then filter locally.
+  const reviewSelect =
+    'id, guest_email, guest_name, booking_date, check_out, nights, special_requests, booking_number, listing_id, purchase_snapshot, review_request_email_sent_at, status, payment_status';
   const { data: reviewByDeparture, error: revErr1 } = await admin
     .from('bookings')
-    .select(
-      'id, guest_email, guest_name, booking_date, check_out, booking_number, listing_id, purchase_snapshot, review_request_email_sent_at, status, payment_status'
-    )
+    .select(reviewSelect)
     .eq('status', 'confirmed')
     .eq('payment_status', 'paid')
     .is('review_request_email_sent_at', null)
@@ -152,9 +153,7 @@ serve(async (req) => {
 
   const { data: reviewByCheckout, error: revErr2 } = await admin
     .from('bookings')
-    .select(
-      'id, guest_email, guest_name, booking_date, check_out, booking_number, listing_id, purchase_snapshot, review_request_email_sent_at, status, payment_status'
-    )
+    .select(reviewSelect)
     .eq('status', 'confirmed')
     .eq('payment_status', 'paid')
     .is('review_request_email_sent_at', null)
@@ -165,8 +164,28 @@ serve(async (req) => {
 
   if (revErr2) return json({ error: revErr2.message }, 500);
 
+  // Phase 1332: nights-only stays need a wider check-in window (check-out = booking_date + nights).
+  const stayNightsWindow = lifecycleStayNightsCandidateUtcWindow(nowMs);
+  const { data: reviewByNights, error: revErr3 } = await admin
+    .from('bookings')
+    .select(reviewSelect)
+    .eq('status', 'confirmed')
+    .eq('payment_status', 'paid')
+    .is('review_request_email_sent_at', null)
+    .is('check_out', null)
+    .gte('nights', 1)
+    .gte('booking_date', stayNightsWindow.fromYmd)
+    .lte('booking_date', stayNightsWindow.toYmd)
+    .limit(500);
+
+  if (revErr3) return json({ error: revErr3.message }, 500);
+
   const reviewById = new Map<string, Record<string, unknown>>();
-  for (const row of [...(reviewByDeparture ?? []), ...(reviewByCheckout ?? [])]) {
+  for (const row of [
+    ...(reviewByDeparture ?? []),
+    ...(reviewByCheckout ?? []),
+    ...(reviewByNights ?? []),
+  ]) {
     if (row && typeof row === 'object' && typeof (row as { id?: unknown }).id === 'string') {
       reviewById.set((row as { id: string }).id, row as Record<string, unknown>);
     }

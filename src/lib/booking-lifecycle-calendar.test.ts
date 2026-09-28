@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   addCalendarDaysYmd,
+  lifecycleBookingIsStay,
   lifecycleReminderAnchorYmd,
   lifecycleReviewCompletionYmd,
   resolveLifecycleTimezone,
@@ -102,6 +103,27 @@ describe('booking-lifecycle-calendar', () => {
     // Day after check-in (Sep 11 Helsinki) — must NOT review.
     expect(shouldSendReviewRequest(stay, Date.parse('2026-09-10T21:30:00.000Z'))).toBe(false);
     // Day after check-out (Sep 14 Helsinki).
+    expect(shouldSendReviewRequest(stay, Date.parse('2026-09-13T21:30:00.000Z'))).toBe(true);
+  });
+
+  it('nights-only stay review waits until day after computed check-out (Phase 1332)', () => {
+    const stay = {
+      status: 'confirmed',
+      payment_status: 'paid',
+      booking_date: '2026-09-10',
+      check_out: null as string | null,
+      nights: 3,
+      special_requests: null as string | null,
+      purchase_snapshot: {
+        listingTitle: 'Cabin',
+        departureTimezone: 'Europe/Helsinki',
+        capturedAt: 't',
+      },
+    };
+    expect(lifecycleBookingIsStay(stay)).toBe(true);
+    expect(lifecycleReviewCompletionYmd(stay)).toBe('2026-09-13');
+    // Day after check-in — must NOT review (tour path would fire here).
+    expect(shouldSendReviewRequest(stay, Date.parse('2026-09-10T21:30:00.000Z'))).toBe(false);
     expect(shouldSendReviewRequest(stay, Date.parse('2026-09-13T21:30:00.000Z'))).toBe(true);
   });
 
