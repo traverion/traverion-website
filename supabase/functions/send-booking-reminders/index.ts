@@ -164,7 +164,8 @@ serve(async (req) => {
 
   if (revErr2) return json({ error: revErr2.message }, 500);
 
-  // Phase 1332: nights-only stays need a wider check-in window (check-out = booking_date + nights).
+  // Phase 1332/1565: nights stays need a wider check-in window (check-out = booking_date + nights).
+  // Phase 1565: do not require check_out IS NULL — stale short column + longer nights must still load.
   const stayNightsWindow = lifecycleStayNightsCandidateUtcWindow(nowMs);
   const { data: reviewByNights, error: revErr3 } = await admin
     .from('bookings')
@@ -172,7 +173,6 @@ serve(async (req) => {
     .eq('status', 'confirmed')
     .eq('payment_status', 'paid')
     .is('review_request_email_sent_at', null)
-    .is('check_out', null)
     .gte('nights', 1)
     .gte('booking_date', stayNightsWindow.fromYmd)
     .lte('booking_date', stayNightsWindow.toYmd)
@@ -180,15 +180,13 @@ serve(async (req) => {
 
   if (revErr3) return json({ error: revErr3.message }, 500);
 
-  // Phase 1537: snapshot-only stay check-out (column/nights null) — 1524 parity.
+  // Phase 1537/1565: snapshot checkOut in window — even when column/nights are set short (1564 max).
   const { data: reviewBySnapCheckout, error: revErr4 } = await admin
     .from('bookings')
     .select(reviewSelect)
     .eq('status', 'confirmed')
     .eq('payment_status', 'paid')
     .is('review_request_email_sent_at', null)
-    .is('check_out', null)
-    .or('nights.is.null,nights.lt.1')
     .filter('purchase_snapshot->>checkOut', 'gte', fromYmd)
     .filter('purchase_snapshot->>checkOut', 'lte', toYmd)
     .limit(500);
