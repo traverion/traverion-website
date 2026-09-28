@@ -82,6 +82,24 @@ export function mergePurchaseSnapshotMaxCheckOut(
   } else if (incomingOk) {
     merged.checkOut = incomingOk;
   }
+  // Phase 1571: nights must match exclusive checkOut (not stale shorter quote nights).
+  const checkIn =
+    typeof merged.checkIn === 'string' && ISO_CHECKOUT.test(merged.checkIn.trim())
+      ? merged.checkIn.trim()
+      : typeof (existing as { checkIn?: unknown } | null)?.checkIn === 'string' &&
+          ISO_CHECKOUT.test(String((existing as { checkIn: string }).checkIn).trim())
+        ? String((existing as { checkIn: string }).checkIn).trim()
+        : null;
+  const checkOut =
+    typeof merged.checkOut === 'string' && ISO_CHECKOUT.test(merged.checkOut.trim())
+      ? merged.checkOut.trim()
+      : null;
+  if (checkIn && checkOut && checkOut > checkIn) {
+    const nights = Math.round(
+      (Date.parse(`${checkOut}T12:00:00Z`) - Date.parse(`${checkIn}T12:00:00Z`)) / 86400000
+    );
+    if (Number.isFinite(nights) && nights >= 1) merged.nights = nights;
+  }
   return merged;
 }
 

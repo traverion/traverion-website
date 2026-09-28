@@ -399,10 +399,12 @@ describe('resolveOptionFieldsForSnapshot (checkout freeze helpers)', () => {
       pickupInstructions: null,
       startTimeHm: null,
       capturedAt: 't1',
+      checkIn: '2026-12-01',
       checkOut: '2026-12-08',
     };
     const incoming = buildPurchaseSnapshot({
       listingTitle: 'Cabin',
+      checkIn: '2026-12-01',
       checkOut: '2026-12-05',
       nights: 4,
       capturedAt: 't2',
@@ -410,5 +412,7 @@ describe('resolveOptionFieldsForSnapshot (checkout freeze helpers)', () => {
     const merged = mergePurchaseSnapshotMaxCheckOut(existing, incoming);
     expect(merged.checkOut).toBe('2026-12-08');
     expect(merged.capturedAt).toBe('t2');
+    // Phase 1571: nights follow exclusive checkOut.
+    expect(merged.nights).toBe(7);
   });
 });

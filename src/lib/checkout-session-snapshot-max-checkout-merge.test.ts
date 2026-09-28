@@ -15,4 +15,10 @@ describe('Pay-now checkout session snapshot merge (Phase 1570)', () => {
     expect(edge).toContain('Phase 1570');
     expect(edge).toMatch(/mergePurchaseSnapshotMaxCheckOut\(resumePurchaseSnapshot, purchaseSnapshot\)/);
   });
+
+  it('Phase 1571: resume assert uses healed stayColumns check_out', () => {
+    expect(edge).toContain('Phase 1571');
+    expect(edge).toMatch(/stayAssertOut[\s\S]*stayColumns\?\.check_out/);
+    expect(edge).toMatch(/p_check_out:\s*stayAssertOut/);
+  });
 });

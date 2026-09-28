@@ -741,11 +741,16 @@ serve(async (req) => {
         }
       }
     } else {
+      // Phase 1571: assert exclusive stay out from healed stayColumns (1570), not raw quote checkoutDate.
+      const stayAssertOut =
+        extrasFamily === 'stay'
+          ? stayColumns?.check_out ?? (checkoutDate || null)
+          : null;
       const { error: inventoryErr } = await admin.rpc('assert_checkout_inventory', {
         p_listing_id: listingId,
         p_check_in: bookingDate,
         p_guests: guests,
-        p_check_out: extrasFamily === 'stay' && checkoutDate ? checkoutDate : null,
+        p_check_out: stayAssertOut,
         p_exclude_booking_id: targetBookingId,
         p_start_time: startTime || null,
         p_booking_option_id: quote.optionId || storedOptionId || null,
