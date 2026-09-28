@@ -42,6 +42,36 @@ export type PurchaseSnapshot = {
   termsAcceptedAt?: string | null;
 };
 
+const ISO_CHECKOUT = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Phase 1570 / mig 209 parity: shallow-merge incoming over existing, then
+ * checkOut = max(valid existing, valid incoming). Never let Pay-now clobber a longer stay.
+ */
+export function mergePurchaseSnapshotMaxCheckOut(
+  existing: unknown,
+  incoming: PurchaseSnapshot
+): PurchaseSnapshot {
+  const base =
+    existing && typeof existing === 'object' ? { ...(existing as Record<string, unknown>) } : {};
+  const merged = { ...base, ...incoming } as PurchaseSnapshot;
+  const existingOut =
+    typeof (existing as { checkOut?: unknown } | null)?.checkOut === 'string'
+      ? String((existing as { checkOut: string }).checkOut).trim()
+      : '';
+  const incomingOut = typeof incoming.checkOut === 'string' ? incoming.checkOut.trim() : '';
+  const existingOk = ISO_CHECKOUT.test(existingOut) ? existingOut : null;
+  const incomingOk = ISO_CHECKOUT.test(incomingOut) ? incomingOut : null;
+  if (existingOk && incomingOk) {
+    merged.checkOut = existingOk > incomingOk ? existingOk : incomingOk;
+  } else if (existingOk) {
+    merged.checkOut = existingOk;
+  } else if (incomingOk) {
+    merged.checkOut = incomingOk;
+  }
+  return merged;
+}
+
 /** Cap inclusion/exclusion lists frozen at purchase. */
 export function normalizePurchaseStringList(
   raw: unknown,

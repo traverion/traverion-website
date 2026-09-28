@@ -28,7 +28,9 @@ import {
   displayExcludesFromPurchase,
   isPurchaseSnapshot,
   partnerOpsDepartureDisplay,
+  mergePurchaseSnapshotMaxCheckOut,
 } from './purchase-snapshot';
+
 
 describe('purchase-snapshot', () => {
   it('builds a trimmed commercial snapshot', () => {
@@ -387,5 +389,26 @@ describe('resolveOptionFieldsForSnapshot (checkout freeze helpers)', () => {
     expect(displayIncludesFromPurchase(snap)).toEqual(['Hot drink', 'Guide']);
     expect(displayExcludesFromPurchase(snap)).toEqual(['Hotel pickup']);
     expect(displayIncludesFromPurchase({ listingTitle: 'x', capturedAt: 't' })).toEqual([]);
+  });
+
+  it('Phase 1570: mergePurchaseSnapshotMaxCheckOut keeps longer checkOut', () => {
+    const existing = {
+      listingTitle: 'Cabin',
+      optionLabel: null,
+      meetingPoint: null,
+      pickupInstructions: null,
+      startTimeHm: null,
+      capturedAt: 't1',
+      checkOut: '2026-12-08',
+    };
+    const incoming = buildPurchaseSnapshot({
+      listingTitle: 'Cabin',
+      checkOut: '2026-12-05',
+      nights: 4,
+      capturedAt: 't2',
+    });
+    const merged = mergePurchaseSnapshotMaxCheckOut(existing, incoming);
+    expect(merged.checkOut).toBe('2026-12-08');
+    expect(merged.capturedAt).toBe('t2');
   });
 });

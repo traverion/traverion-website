@@ -14,6 +14,7 @@ import {
   resolveCancellationPolicyForSnapshot,
   resolveStayFieldsForSnapshot,
   normalizePurchaseStringList,
+  mergePurchaseSnapshotMaxCheckOut,
 } from '../_shared/purchase-snapshot.ts';
 import { isStripeTestSecretKey, stripeLiveSecretBlockedMessage } from '../_shared/stripe-test-only.ts';
 import { authUserVerifiedEmail } from '../_shared/auth-verified-email.ts';
@@ -670,12 +671,26 @@ serve(async (req) => {
     });
 
     // Phase 1541: stay columns for claim + session update (heal snapshot-only rows on Pay-now).
-    const stayColumns = stayBookingColumnsForCheckoutUpdate({
+    let stayColumns = stayBookingColumnsForCheckoutUpdate({
       inventoryFamily: extrasFamily === 'stay' ? 'stay' : null,
       bookingDate,
       checkoutDate,
       quoteNights: quote.nights,
     });
+    // Phase 1570: never shorten check_out/nights vs an already-persisted longer resume column.
+    if (stayColumns && resumeStayCheckOut && /^\d{4}-\d{2}-\d{2}$/.test(resumeStayCheckOut)) {
+      if (resumeStayCheckOut > stayColumns.check_out) {
+        const checkIn = bookingDate.trim();
+        const nights = Math.round(
+          (Date.parse(`${resumeStayCheckOut}T12:00:00Z`) - Date.parse(`${checkIn}T12:00:00Z`)) /
+            86400000
+        );
+        stayColumns = {
+          check_out: resumeStayCheckOut,
+          nights: nights >= 1 ? nights : stayColumns.nights,
+        };
+      }
+    }
 
     if (!targetBookingId) {
       const stayNights = stayColumns?.nights ?? null;
@@ -811,7 +826,11 @@ serve(async (req) => {
       hold_expires_at: session.expires_at
         ? new Date(session.expires_at * 1000).toISOString()
         : holdExpiresAtIso,
-      purchase_snapshot: purchaseSnapshot,
+      // Phase 1570: max-merge checkOut with existing row snap (mig 209 promote parity).
+      purchase_snapshot:
+        targetBookingId && resumePurchaseSnapshot != null
+          ? mergePurchaseSnapshotMaxCheckOut(resumePurchaseSnapshot, purchaseSnapshot)
+          : purchaseSnapshot,
       // Phase 1541: backfill check_out/nights so resume does not leave snapshot-only stays.
       ...(stayColumns ?? {}),
       ...(quote.guestBreakdown?.length ? { guest_breakdown: quote.guestBreakdown } : {}),
