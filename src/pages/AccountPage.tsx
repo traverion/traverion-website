@@ -224,6 +224,10 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
               <button type="button" onClick={() => onNavigate('stays')} className="tv-btn-ghost">
                 Browse stays
               </button>
+              {/* Phase 1676: Contact escape matches misconfigured Account state. */}
+              <button type="button" onClick={() => onNavigate('contact')} className="tv-btn-ghost">
+                Contact support
+              </button>
             </div>
           </section>
         </div>
