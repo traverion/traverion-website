@@ -100,6 +100,24 @@ export function bookingConfirmationCancelledNextStep(b: MoneyBookingRow): string
 export const STAY_LISTING_CONFIRMATION_NOTE =
   'After you pay, the stay appears in Trips. We do not send a confirmation email from this checkout.';
 
+/**
+ * Phase 1514: Check-in & check-out heading must not imply published times
+ * when the host left them blank (browser Stay PDP showed only the Trips note).
+ */
+export function stayCheckInOutMissingCopy(params: {
+  checkInTime?: string | null;
+  checkOutTime?: string | null;
+}): string | null {
+  const checkIn = (params.checkInTime ?? '').trim();
+  const checkOut = (params.checkOutTime ?? '').trim();
+  if (!checkIn && !checkOut) {
+    return 'This host has not published check-in or check-out times yet.';
+  }
+  if (!checkIn) return 'Check-in time is not published yet.';
+  if (!checkOut) return 'Check-out time is not published yet.';
+  return null;
+}
+
 /** Tour listing booking panel: confirmation is Trips, not mail. */
 export const TOUR_LISTING_CONFIRMATION_NOTE =
   'After you pay, the tour appears in Trips. We do not send a confirmation email from this checkout.';

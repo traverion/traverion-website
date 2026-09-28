@@ -133,6 +133,13 @@ describe('booking confirmation copy', () => {
     expect(STAY_LISTING_CONFIRMATION_NOTE.toLowerCase()).toContain('trips');
   });
 
+  it('Phase 1514: Stay Check-in section admits missing published times', () => {
+    expect(stayCheckInOutMissingCopy({})).toMatch(/not published/i);
+    expect(stayCheckInOutMissingCopy({ checkInTime: '16:00' })).toMatch(/check-out/i);
+    expect(stayCheckInOutMissingCopy({ checkOutTime: '11:00' })).toMatch(/check-in/i);
+    expect(stayCheckInOutMissingCopy({ checkInTime: '16:00', checkOutTime: '11:00' })).toBeNull();
+  });
+
   it('tour listing copy does not promise a confirmation email', () => {
     expect(bookingConfirmationPromisesEmailSent(TOUR_LISTING_CONFIRMATION_NOTE)).toBe(false);
     expect(TOUR_LISTING_CONFIRMATION_NOTE.toLowerCase()).toContain('do not send a confirmation email');

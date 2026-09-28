@@ -50,6 +50,7 @@ import { travelerDisplayNameFromSources } from '../lib/traveler-display-name';
 import {
   BOOKING_CONFIRMATION_EMAIL_DISCLAIMER,
   STAY_LISTING_CONFIRMATION_NOTE,
+  stayCheckInOutMissingCopy,
   LISTING_REVIEWS_EMPTY_COPY,
   STRIPE_TEST_UNTIL_LIVE,
   TRAVELER_OPENING_CHECKOUT_CTA,
@@ -879,6 +880,13 @@ export default function StayDetails({ stayId, onBack }: Props) {
               <ul className="space-y-2 text-ink-muted">
                 {s?.checkInTime ? <li>Check-in from {s.checkInTime}</li> : null}
                 {s?.checkOutTime ? <li>Check-out by {s.checkOutTime}</li> : null}
+                {(() => {
+                  const missing = stayCheckInOutMissingCopy({
+                    checkInTime: s?.checkInTime,
+                    checkOutTime: s?.checkOutTime,
+                  });
+                  return missing ? <li>{missing}</li> : null;
+                })()}
                 <li>{STAY_LISTING_CONFIRMATION_NOTE}</li>
               </ul>
             </div>
