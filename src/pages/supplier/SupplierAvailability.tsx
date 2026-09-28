@@ -93,6 +93,9 @@ export default function SupplierAvailability() {
   const [bulkError, setBulkError] = useState<string | null>(null);
   const daySheetRef = useRef<HTMLDivElement>(null);
   const loadGenRef = useRef(0);
+  /** Invalidates in-flight month/listing capacity fetches — stale responses must not paint another listing. */
+  const capsLoadGenRef = useRef(0);
+  const prevListingIdForCapsRef = useRef(listingId);
   const availabilityHubUserIdRef = useRef<string | null>(null);
   const closeDaySheet = useCallback(() => {
     setEditing(null);
@@ -264,17 +267,17 @@ export default function SupplierAvailability() {
       setCapsError(null);
       return;
     }
-    const gen = loadGenRef.current;
+    const gen = ++capsLoadGenRef.current;
     try {
       const data = await fetchAvailabilityByListingId(
         id,
         fromIso && toIso ? { fromDate: fromIso, toDate: toIso } : undefined
       );
-      if (gen !== loadGenRef.current) return;
+      if (gen !== capsLoadGenRef.current) return;
       setRows(data);
       setCapsError(null);
     } catch (e) {
-      if (gen !== loadGenRef.current) return;
+      if (gen !== capsLoadGenRef.current) return;
       // Keep prior capacity rows; never flash an empty month as “no overrides”.
       setCapsError(
         userFacingError(e, 'Could not load capacity overrides for this month. Check your connection and try again.')
@@ -303,6 +306,7 @@ export default function SupplierAvailability() {
     if (availabilityHubUserIdRef.current !== user.id) {
       availabilityHubUserIdRef.current = user.id;
       loadGenRef.current += 1;
+      capsLoadGenRef.current += 1;
       clearAvailabilityPartnerWorkspace();
     }
   }, [user?.id]);
@@ -339,6 +343,13 @@ export default function SupplierAvailability() {
   }, [listings, listingId, setListingIdAndUrl]);
 
   useEffect(() => {
+    if (prevListingIdForCapsRef.current !== listingId) {
+      prevListingIdForCapsRef.current = listingId;
+      capsLoadGenRef.current += 1;
+      setRows([]);
+      setCapsError(null);
+      setEditing(null);
+    }
     if (listingId && monthFromIso && monthToIso) void loadCaps(listingId, monthFromIso, monthToIso);
     else if (!listingId) setRows([]);
   }, [listingId, monthFromIso, monthToIso, loadCaps]);
