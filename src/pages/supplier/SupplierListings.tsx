@@ -26,6 +26,7 @@ import {
 import { fetchBookingsForSupplier } from '../../data/supabase-bookings';
 import {
   countUpcomingPaidTripsForListing,
+  partnerListingUpcomingPaidCheckPending,
   unpublishUpcomingBookingsCheckFailedNotice,
   unpublishUpcomingBookingsNotice,
 } from '../../lib/listing-unpublish-impact';
@@ -186,6 +187,18 @@ export default function SupplierListings() {
   );
 
   const workspaceCounts = useMemo(() => partnerListingsWorkspaceCounts(listings), [listings]);
+
+  // Phase 1490: confirm must not run before upcoming-paid honesty (fast click ≠ zero trips).
+  const deleteUpcomingPaidCheckPending = partnerListingUpcomingPaidCheckPending({
+    requiresCheck: Boolean(isSupabase && user?.id && listingPendingDelete),
+    count: deleteUpcomingPaid,
+    checkFailed: deleteUpcomingPaidCheckFailed,
+  });
+  const deactivateUpcomingPaidCheckPending = partnerListingUpcomingPaidCheckPending({
+    requiresCheck: Boolean(isSupabase && user?.id && listingPendingDeactivate),
+    count: deactivateUpcomingPaid,
+    checkFailed: deactivateUpcomingPaidCheckFailed,
+  });
 
   const setWorkspaceFilterAndUrl = useCallback((next: PartnerListingsWorkspaceFilter) => {
     setWorkspaceFilter(next);
@@ -803,7 +816,7 @@ export default function SupplierListings() {
   };
 
   const confirmDeleteListing = async () => {
-    if (!listingPendingDelete || !canEditListings) return;
+    if (!listingPendingDelete || !canEditListings || deleteUpcomingPaidCheckPending) return;
     const id = listingPendingDelete.id;
     const pending = listingPendingDelete;
     setDeleteBusy(true);
@@ -913,7 +926,7 @@ export default function SupplierListings() {
 
   const confirmDeactivateListing = async () => {
     const listing = listingPendingDeactivate;
-    if (!listing || !canEditListings) return;
+    if (!listing || !canEditListings || deactivateUpcomingPaidCheckPending) return;
     setDeactivateBusy(true);
     try {
       if (isSupabase && user) {
@@ -1649,7 +1662,11 @@ export default function SupplierListings() {
                     : ' Confirmed bookings stay in Bookings.'}{' '}
                   This cannot be undone.
                 </p>
-                {deleteUpcomingPaidCheckFailed ? (
+                {deleteUpcomingPaidCheckPending ? (
+                  <p className="mt-3 text-sm text-ink-muted leading-relaxed" aria-busy="true">
+                    Checking Bookings for upcoming paid trips…
+                  </p>
+                ) : deleteUpcomingPaidCheckFailed ? (
                   <p className="mt-3 text-sm font-medium text-amber-900 leading-relaxed">
                     {unpublishUpcomingBookingsCheckFailedNotice()}
                   </p>
@@ -1677,7 +1694,7 @@ export default function SupplierListings() {
                   <button
                     type="button"
                     className="inline-flex items-center justify-center min-h-[44px] rounded-lg bg-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-800 disabled:opacity-50"
-                    disabled={deleteBusy}
+                    disabled={deleteBusy || deleteUpcomingPaidCheckPending}
                     onClick={() => void confirmDeleteListing()}
                   >
                     {deleteBusy ? 'Removing…' : 'Remove listing'}
@@ -1733,7 +1750,11 @@ export default function SupplierListings() {
                     ? ' New stay checkouts stop until you publish it again.'
                     : ' New checkouts stop until you publish it again.'}
                 </p>
-                {deactivateUpcomingPaidCheckFailed ? (
+                {deactivateUpcomingPaidCheckPending ? (
+                  <p className="mt-3 text-sm text-ink-muted leading-relaxed" aria-busy="true">
+                    Checking Bookings for upcoming paid trips…
+                  </p>
+                ) : deactivateUpcomingPaidCheckFailed ? (
                   <p className="mt-3 text-sm font-medium text-amber-900 leading-relaxed">
                     {unpublishUpcomingBookingsCheckFailedNotice()}
                   </p>
@@ -1761,7 +1782,7 @@ export default function SupplierListings() {
                   <button
                     type="button"
                     className="tv-btn-primary"
-                    disabled={deactivateBusy}
+                    disabled={deactivateBusy || deactivateUpcomingPaidCheckPending}
                     onClick={() => void confirmDeactivateListing()}
                   >
                     {deactivateBusy ? 'Updating…' : 'Take offline'}

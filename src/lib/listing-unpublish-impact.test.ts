@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   countUpcomingPaidTripsForListing,
+  partnerListingUpcomingPaidCheckPending,
   unpublishUpcomingBookingsCheckFailedNotice,
   unpublishUpcomingBookingsNotice,
 } from './listing-unpublish-impact';
@@ -70,5 +71,20 @@ describe('listing-unpublish-impact', () => {
       nowMs
     );
     expect(n).toBe(1);
+  });
+
+  it('blocks confirm while upcoming-paid check is in flight (Phase 1490)', () => {
+    expect(
+      partnerListingUpcomingPaidCheckPending({ requiresCheck: true, count: null, checkFailed: false })
+    ).toBe(true);
+    expect(
+      partnerListingUpcomingPaidCheckPending({ requiresCheck: true, count: 0, checkFailed: false })
+    ).toBe(false);
+    expect(
+      partnerListingUpcomingPaidCheckPending({ requiresCheck: true, count: null, checkFailed: true })
+    ).toBe(false);
+    expect(
+      partnerListingUpcomingPaidCheckPending({ requiresCheck: false, count: null, checkFailed: false })
+    ).toBe(false);
   });
 });

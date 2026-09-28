@@ -42,3 +42,12 @@ export function unpublishUpcomingBookingsNotice(count: number): string | null {
 export function unpublishUpcomingBookingsCheckFailedNotice(): string {
   return 'We could not load your Bookings calendar. Check Bookings for upcoming paid trips before removing or taking this listing offline.';
 }
+
+/** Supabase sheets: block confirm until upcoming-paid count is known or check failed. */
+export function partnerListingUpcomingPaidCheckPending(params: {
+  requiresCheck: boolean;
+  count: number | null;
+  checkFailed: boolean;
+}): boolean {
+  return params.requiresCheck && params.count === null && !params.checkFailed;
+}
