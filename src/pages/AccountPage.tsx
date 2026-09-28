@@ -174,6 +174,10 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
               <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-primary">
                 Browse tours
               </button>
+              {/* Phase 1636: stays browse parity with logged-out Account CTAs. */}
+              <button type="button" onClick={() => onNavigate('stays')} className="tv-btn-ghost">
+                Browse stays
+              </button>
               <button type="button" onClick={() => onNavigate('contact')} className="tv-btn-ghost">
                 Contact support
               </button>
@@ -359,9 +363,13 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
               </button>
             </section>
 
-            <p>
+            <p className="flex flex-wrap gap-2">
               <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-ghost -ml-2">
                 Browse tours
+              </button>
+              {/* Phase 1636: signed-in hub also offers stays. */}
+              <button type="button" onClick={() => onNavigate('stays')} className="tv-btn-ghost">
+                Browse stays
               </button>
             </p>
           </div>
