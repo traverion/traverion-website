@@ -504,6 +504,11 @@ export default function StayDetails({ stayId, onBack }: Props) {
     };
   }, [stay?.supplierId, user?.id]);
 
+  const stayBookingAlertDescribedBy =
+    [occupancyError ? 'stay-occupancy-error' : null, payError ? 'stay-pay-error' : null]
+      .filter(Boolean)
+      .join(' ') || undefined;
+
   const stickyStayCtaLabel = stayStickyBookCtaLabel({
     selectionOccupied,
     paying,
@@ -1108,9 +1113,16 @@ export default function StayDetails({ stayId, onBack }: Props) {
 
           <aside
             id="stay-booking-panel"
+            role="region"
+            aria-labelledby="stay-booking-panel-title"
             className="lg:sticky lg:top-24 h-fit scroll-mt-24 rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft-lg ring-1 ring-black/[0.06]"
           >
-            <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">Book this stay</p>
+            <p
+              id="stay-booking-panel-title"
+              className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland"
+            >
+              Book this stay
+            </p>
             {nightly > 0 ? (
               <PriceHero
                 amount={nightly}
@@ -1227,7 +1239,11 @@ export default function StayDetails({ stayId, onBack }: Props) {
                     </button>
                   </p>
                 ) : null}
-                {payError ? <p className="mt-3 text-sm text-red-700">{payError}</p> : null}
+                {payError ? (
+                  <p id="stay-pay-error" className="mt-3 text-sm text-red-700">
+                    {payError}
+                  </p>
+                ) : null}
                 <div className="mt-4">
                   <CheckoutConsentCheckbox
                     id="stay-checkout-consent"
@@ -1247,6 +1263,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
                     selfBookBlocked ||
                     maxGuests == null
                   }
+                  aria-describedby={stayBookingAlertDescribedBy}
                   onClick={() => {
                     if (occupancyError) {
                       document.getElementById('stay-occupancy-error')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -1335,6 +1352,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
                   selfBookBlocked ||
                   maxGuests == null
                 }
+                aria-describedby={stayBookingAlertDescribedBy}
                 onClick={() => {
                   if (occupancyError) {
                     document.getElementById('stay-occupancy-error')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
