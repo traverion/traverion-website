@@ -678,7 +678,8 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                     reviewAggregate={reviewAggregates.get(item.id)}
                     tagLabels={TAG_LABELS}
                     size="compact"
-                    showTagPills={false}
+                    // Phase 1601: surface marketplace tags on home discovery cards.
+                    showTagPills
                     wishlist={
                       wishlist.enabled && wishlist.heartsKnown
                         ? {

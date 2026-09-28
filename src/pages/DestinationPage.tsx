@@ -317,7 +317,8 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
                       reviewAggregate={reviewAggregates.get(tour.id)}
                       tagLabels={TAG_LABELS}
                       size="default"
-                      showTagPills={false}
+                      // Phase 1601: surface marketplace tags on destination tour cards.
+                      showTagPills
                       wishlist={
                         wishlist.enabled && wishlist.heartsKnown
                           ? {

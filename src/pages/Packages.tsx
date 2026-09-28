@@ -1162,7 +1162,8 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
                   reviewAggregate={reviewAggregates.get(tour.id)}
                   tagLabels={TAG_LABELS}
                   size="compact"
-                  showTagPills={false}
+                  // Phase 1601: surface marketplace tags (small-group, pickup, etc.) on browse cards.
+                  showTagPills
                   wishlist={
                     wishlist.enabled && wishlist.heartsKnown
                       ? {
