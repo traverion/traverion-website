@@ -112,6 +112,7 @@ import {
   TRAVELER_BOOKING_THREAD_DELIVERY_NOTE,
   bookingConfirmationPromisesEmailSent,
   bookingConfirmationPhase,
+  confirmationLoadErrorShouldSurface,
   bookingConfirmationCancelledBody,
   bookingConfirmationCancelledNextStep,
   bookingContactIntroCopy,
@@ -553,6 +554,11 @@ describe('booking confirmation copy', () => {
     expect(bookingConfirmationPromisesEmailSent(COOKIES_PREFERENCES_NOTE)).toBe(false);
     expect(COOKIES_PREFERENCES_NOTE.toLowerCase()).toContain('saved on this website');
     expect(COOKIES_PREFERENCES_NOTE.toLowerCase()).toContain('does not treat email delivery as proof');
+  });
+
+  it('confirmation load failure surfaces ErrorState only before a row exists', () => {
+    expect(confirmationLoadErrorShouldSurface(false)).toBe(true);
+    expect(confirmationLoadErrorShouldSurface(true)).toBe(false);
   });
 
   it('confirmation page phase must not treat cancelled+paid as Booking confirmed', () => {

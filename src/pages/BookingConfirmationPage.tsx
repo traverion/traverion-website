@@ -36,6 +36,7 @@ import {
   BOOKING_CONFIRMATION_NEEDS_PAY_BODY,
   BOOKING_CONFIRMATION_NEEDS_PAY_TITLE,
   bookingConfirmationPhase,
+  confirmationLoadErrorShouldSurface,
   bookingConfirmationCancelledBody,
   bookingConfirmationCancelledNextStep,
   BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE,
@@ -95,8 +96,13 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
   const [copiedRef, setCopiedRef] = useState(false);
   const loadGenRef = useRef(0);
   const confirmationUserIdRef = useRef<string | null>(null);
+  const bookingRowRef = useRef<BookingWithPaymentRow | null>(null);
 
   const canQuery = Boolean(user?.id && sessionId && isSupabaseConfigured());
+
+  useEffect(() => {
+    bookingRowRef.current = booking;
+  }, [booking]);
 
   const resetConfirmationBookingState = useCallback(() => {
     setBooking(null);
@@ -196,7 +202,9 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
       }
     } catch (e) {
       if (gen !== loadGenRef.current) return;
-      setError(userFacingError(e, USER_ERROR.booking));
+      if (confirmationLoadErrorShouldSurface(bookingRowRef.current != null)) {
+        setError(userFacingError(e, USER_ERROR.booking));
+      }
     }
   }, [sessionId, user?.id]);
 
@@ -462,7 +470,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
       </header>
 
       <div className="w-full max-w-lg">
-        {error && (
+        {error && !booking && (
           <ErrorState
             className="py-6"
             title="Could not load this booking"

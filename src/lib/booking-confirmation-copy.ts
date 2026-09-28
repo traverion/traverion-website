@@ -57,6 +57,11 @@ export function bookingConfirmationPhase(
   return 'received';
 }
 
+/** Infrastructure failure after a row is loaded — keep last booking truth (Trips keep-prior parity). */
+export function confirmationLoadErrorShouldSurface(hasBookingRow: boolean): boolean {
+  return !hasBookingRow;
+}
+
 export const BOOKING_CONFIRMATION_NEEDS_PAY_TITLE = 'Payment not completed';
 
 export const BOOKING_CONFIRMATION_NEEDS_PAY_BODY =
