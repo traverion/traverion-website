@@ -754,12 +754,15 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     };
   }, [tour?.supplierId, user?.id]);
 
+  useEffect(() => {
+    setReviewReplies({});
+  }, [tourId]);
+
   const loadReviews = useCallback(() => {
     if (!tourId || !isSupabaseConfigured()) return;
     setReviewsLoadError(null);
     // Phase 1194: clear prior tour reviews so the previous PDP stars do not flash.
     setReviews([]);
-    setReviewReplies({});
     setReviewAggregate(null);
     void fetchReviewsByListingId(tourId)
       .then((rows) => {

@@ -174,7 +174,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
   const closeMobileSearch = useCallback(() => setMobileSearchOpen(false), []);
   useDialogFocus(mobileSearchOpen, mobileSearchSheetRef, closeMobileSearch);
   const { listings: supplierListings, error: listingsLoadError, reload: reloadSupplierListings } =
-    usePublishedSupplierListings();
+    usePublishedSupplierListings({ emptyOnFirstError: false });
   const catalogLoading = isSupabaseConfigured() && supplierListings === null && !listingsLoadError;
   const [discountsByListing, setDiscountsByListing] = useState<Map<
     string,
