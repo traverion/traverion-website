@@ -15,6 +15,20 @@ describe('stayStickyBookCtaLabel', () => {
     ).toBe('Dates unavailable');
   });
 
+  it('names occupancy load failure instead of Continue', () => {
+    expect(
+      stayStickyBookCtaLabel({
+        selectionOccupied: false,
+        quoteOk: true,
+        leadGuestReady: true,
+        checkIn: '2026-10-01',
+        checkOut: '2026-10-03',
+        minNights: 1,
+        occupancyUnavailable: true,
+      })
+    ).toBe('Availability unavailable');
+  });
+
   it('asks for check-out before implying ready', () => {
     expect(
       stayStickyBookCtaLabel({

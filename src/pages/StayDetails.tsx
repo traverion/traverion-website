@@ -494,6 +494,10 @@ export default function StayDetails({ stayId, onBack }: Props) {
     checkOut,
     quoteError: stayQuote && !stayQuote.ok ? stayQuote.error : null,
     minNights,
+    occupancyUnavailable: Boolean(occupancyError),
+    selfBookBlocked,
+    selfBookCheckFailed,
+    acceptTerms: quoteOk && checkoutPayBlockedByConsent(checkoutConsentAccepted),
   });
 
   const startStayCheckout = async () => {
@@ -1184,7 +1188,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
                   placeholder="Arrival contact"
                 />
                 {occupancyError ? (
-                  <p className="mt-3 text-sm text-red-700">
+                  <p id="stay-occupancy-error" className="mt-3 text-sm text-red-700">
                     {occupancyError}{' '}
                     <button type="button" className="font-semibold text-finland hover:underline" onClick={() => reloadStayOccupancy()}>
                       Try again
@@ -1208,12 +1212,16 @@ export default function StayDetails({ stayId, onBack }: Props) {
                   disabled={
                     paying ||
                     selectionOccupied ||
-                    Boolean(occupancyError) ||
                     selfBookBlocked ||
                     maxGuests == null
                   }
                   onClick={() => {
-                    if (selectionOccupied || occupancyError || selfBookBlocked || maxGuests == null) return;
+                    if (occupancyError) {
+                      document.getElementById('stay-occupancy-error')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      return;
+                    }
+                    if (selectionOccupied || selfBookBlocked || maxGuests == null) return;
                     if (!quoteOk) {
                       document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                       window.requestAnimationFrame(() => {
@@ -1226,19 +1234,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
                     void startStayCheckout();
                   }}
                 >
-                  {selectionOccupied
-                    ? 'Dates unavailable'
-                    : selfBookCheckFailed
-                      ? 'Eligibility unavailable'
-                    : selfBookBlocked
-                      ? 'Cannot book own listing'
-                    : paying
-                      ? TRAVELER_OPENING_CHECKOUT_CTA
-                      : checkoutPayBlockedByConsent(checkoutConsentAccepted)
-                        ? 'Accept terms to pay'
-                      : stickyStayCtaLabel === TRAVELER_CONTINUE_TEST_CTA
-                        ? TRAVELER_CONTINUE_TEST_CTA
-                        : stickyStayCtaLabel}
+                  {stickyStayCtaLabel}
                 </button>
                 <p className="mt-3 text-xs text-ink-muted leading-relaxed">
                   Price is confirmed on the server. If checkout cannot start, you will see an error — never a fake success.
@@ -1304,12 +1300,16 @@ export default function StayDetails({ stayId, onBack }: Props) {
                 disabled={
                   paying ||
                   selectionOccupied ||
-                  Boolean(occupancyError) ||
                   selfBookBlocked ||
                   maxGuests == null
                 }
                 onClick={() => {
-                  if (selectionOccupied || occupancyError || selfBookBlocked || maxGuests == null) return;
+                  if (occupancyError) {
+                    document.getElementById('stay-occupancy-error')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    return;
+                  }
+                  if (selectionOccupied || selfBookBlocked || maxGuests == null) return;
                   if (!quoteOk) {
                     document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     window.requestAnimationFrame(() => {
@@ -1322,13 +1322,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
                   void startStayCheckout();
                 }}
               >
-                {selfBookCheckFailed
-                  ? 'Eligibility unavailable'
-                  : selfBookBlocked
-                  ? 'Cannot book own listing'
-                  : quoteOk && checkoutPayBlockedByConsent(checkoutConsentAccepted)
-                  ? 'Accept terms'
-                  : stickyStayCtaLabel}
+                {stickyStayCtaLabel}
               </button>
             ) : !quoteOk ? (
               <button
