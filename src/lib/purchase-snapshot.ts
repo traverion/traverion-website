@@ -313,6 +313,23 @@ export function displayCheckInAddressFromPurchase(
   return addr || null;
 }
 
+/**
+ * Phase 1358: traveler client loads must not surface checkInAddress on unpaid rows
+ * (defense in depth alongside DB trigger 195).
+ */
+export function redactUnpaidStayCheckInAddress<T extends {
+  payment_status?: string | null;
+  purchase_snapshot?: unknown;
+}>(row: T): T {
+  if (bookingPaymentWasCollected(row.payment_status)) return row;
+  const snap = row.purchase_snapshot;
+  if (!snap || typeof snap !== 'object' || Array.isArray(snap)) return row;
+  if (!('checkInAddress' in snap)) return row;
+  const next = { ...(snap as Record<string, unknown>) };
+  delete next.checkInAddress;
+  return { ...row, purchase_snapshot: next };
+}
+
 /** House check-in wall clock from purchase; live only for pre-snapshot rows. */
 export function displayStayCheckInTimeFromPurchase(
   snapshot: unknown,

@@ -16,6 +16,7 @@ import {
   displayDepartureTimezoneFromPurchase,
   formatTripDepartureWithTimezone,
   displayCheckInAddressFromPurchase,
+  redactUnpaidStayCheckInAddress,
   displayDurationFromPurchase,
   displayCancellationPolicyFromPurchase,
   displayFulfillmentFromPurchase,
@@ -293,6 +294,35 @@ describe('resolveOptionFieldsForSnapshot (checkout freeze helpers)', () => {
     );
     expect(displayCheckInAddressFromPurchase(snap, 'pending')).toBeNull();
     expect(displayCheckInAddressFromPurchase(snap, 'failed')).toBeNull();
+  });
+
+  it('Phase 1358: redacts checkInAddress from unpaid traveler rows', () => {
+    const unpaid = redactUnpaidStayCheckInAddress({
+      payment_status: 'pending',
+      purchase_snapshot: {
+        v: 1 as const,
+        listingTitle: 'Loft',
+        checkInAddress: 'Secret Road 1',
+        capturedAt: '2026-09-22T00:00:00.000Z',
+      },
+    });
+    expect(
+      unpaid.purchase_snapshot &&
+        typeof unpaid.purchase_snapshot === 'object' &&
+        'checkInAddress' in unpaid.purchase_snapshot
+    ).toBe(false);
+    const paid = redactUnpaidStayCheckInAddress({
+      payment_status: 'paid',
+      purchase_snapshot: {
+        v: 1 as const,
+        listingTitle: 'Loft',
+        checkInAddress: 'Secret Road 1',
+        capturedAt: '2026-09-22T00:00:00.000Z',
+      },
+    });
+    expect((paid.purchase_snapshot as { checkInAddress?: string }).checkInAddress).toBe(
+      'Secret Road 1'
+    );
   });
 
   it('freezes stay house check-in/out times onto the purchase snapshot', () => {

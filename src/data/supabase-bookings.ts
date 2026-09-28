@@ -14,7 +14,7 @@ import {
   TRAVELER_SELF_CANCEL_EMAIL_DIFF_NO_REFUND,
   TRAVELER_CANCEL_UNPAID_CHECKOUT_EMAIL_DIFF,
 } from '../lib/booking-confirmation-copy';
-import { isPurchaseSnapshot } from '../lib/purchase-snapshot';
+import { isPurchaseSnapshot, redactUnpaidStayCheckInAddress } from '../lib/purchase-snapshot';
 
 /** Best-effort: close open Stripe Checkout after unpaid cancel (Phase 134 still refunds late captures). */
 function expireUnpaidCancelledCheckout(bookingId: string): void {
@@ -865,7 +865,11 @@ export async function fetchMyBookings(): Promise<BookingRow[]> {
       .from('bookings')
       .select(columns)
       .order('created_at', { ascending: false });
-    if (!error) return (data ?? []) as unknown as BookingRow[];
+    if (!error) {
+      return ((data ?? []) as unknown as BookingRow[]).map((row) =>
+        redactUnpaidStayCheckInAddress(row)
+      );
+    }
     lastError = error.message;
     if (!isLikelyMissingColumnError(error.message)) break;
   }
@@ -897,7 +901,10 @@ export async function fetchMyBookingByCheckoutSessionId(
       .select(columns)
       .eq('checkout_session_id', id)
       .maybeSingle();
-    if (!error) return (data ?? null) as BookingWithPaymentRow | null;
+    if (!error) {
+      const row = (data ?? null) as BookingWithPaymentRow | null;
+      return row ? redactUnpaidStayCheckInAddress(row) : null;
+    }
     lastError = error.message;
     if (!isLikelyMissingColumnError(error.message)) break;
   }
