@@ -38,6 +38,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
     () => new Map()
   );
   const loadGenRef = useRef(0);
+  const wishlistUserIdRef = useRef<string | null>(null);
 
   const load = useCallback(async () => {
     if (!isSupabaseConfigured() || !user?.id) {
@@ -84,13 +85,21 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
   }, [user?.id]);
 
   useEffect(() => {
-    if (user) void load();
-    else {
+    if (user?.id) {
+      // Phase 1377: new traveler — do not keep prior account's cards if this load fails.
+      if (wishlistUserIdRef.current !== user.id) {
+        wishlistUserIdRef.current = user.id;
+        setListings([]);
+        setUnavailableCount(0);
+      }
+      void load();
+    } else {
+      wishlistUserIdRef.current = null;
       setLoading(false);
       setListings([]);
       setUnavailableCount(0);
     }
-  }, [user, load]);
+  }, [user?.id, load]);
 
   // Phase 1156/1183/1194: wishlist cards need live offers and reviews (decoupled browse parity).
   useEffect(() => {
