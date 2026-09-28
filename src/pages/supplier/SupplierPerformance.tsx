@@ -300,7 +300,16 @@ export default function SupplierPerformance() {
               >
                 View bookings
               </button>
-            ) : undefined
+            ) : (
+              // Phase 1673: listings exist but zero bookings — escape to listings (Inbox/Money parity).
+              <button
+                type="button"
+                onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings`)}
+                className="tv-btn-ghost"
+              >
+                Your listings
+              </button>
+            )
           }
         />
       )}
