@@ -382,7 +382,10 @@ serve(async (req) => {
 
     const admin = adminClientFromEnv();
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')?.trim() ?? '';
-    // Phase 1126: fieldDiffs are caller-authored copy — only supplier or service-role may set them.
+    // Phase 1126: fieldDiffs are caller-authored copy — supplier/service-role always;
+    // Phase 1706: guest JWT may supply diffs only for guestMayInvokeCustomerEmailKind kinds
+    // (your_details_updated / booking_cancelled / cancel responses) so Trips note updates
+    // and cancel self-receipts are not hollow “what changed” emails.
     let allowCallerFieldDiffs = false;
     // Phase 1092: booking-tied kinds reject anonymous forgery. Service-role
     // (webhook/cron/promote) or JWT guest/supplier party only. Recipient +
@@ -474,8 +477,11 @@ serve(async (req) => {
         if (callerIsGuest && !callerIsSupplierSide && !guestMayInvokeCustomerEmailKind(kind)) {
           return json({ success: false, error: 'Unauthorized' }, 401);
         }
-        // Phase 1126/1130: fieldDiffs only from supplier-side or service-role.
-        allowCallerFieldDiffs = callerIsSupplierSide;
+        // Phase 1126/1130: supplier-side may set fieldDiffs.
+        // Phase 1706: guest JWT may set diffs only for guest-originated kinds (already gated above).
+        allowCallerFieldDiffs =
+          callerIsSupplierSide ||
+          (callerIsGuest && !callerIsSupplierSide && guestMayInvokeCustomerEmailKind(kind));
       }
     }
 
