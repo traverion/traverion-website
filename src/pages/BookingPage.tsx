@@ -1689,12 +1689,19 @@ export default function BookingPage({
                   <textarea
                     id="booking-special-requests"
                     value={specialRequests}
-                    onChange={(e) => setSpecialRequests(e.target.value)}
+                    onChange={(e) => setSpecialRequests(e.target.value.slice(0, 2000))}
                     placeholder="Dietary needs, accessibility, questions for the provider…"
                     rows={3}
+                    maxLength={2000}
                     className="tv-input pl-10 min-h-[5.5rem] py-3 resize-none"
+                    aria-describedby="booking-special-requests-hint"
                   />
                 </div>
+                {/* Phase 1695: calm limit hint for optional special requests. */}
+                <p id="booking-special-requests-hint" className="mt-1.5 text-xs text-ink-faint">
+                  Up to 2000 characters
+                  {specialRequests.length > 0 ? ` · ${specialRequests.length} used` : ''}.
+                </p>
               </div>
             </div>
             {error ? (
