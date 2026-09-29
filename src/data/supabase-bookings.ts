@@ -393,7 +393,7 @@ export async function updateGuestBookingSpecialRequests(
         : undefined;
     void notifySupplierEvent({
       supplierId: listingMeta.supplier_id,
-      eventType: 'guest_message',
+      eventType: 'booking_detail_changed',
       listingId: row.listing_id,
       listingTitle,
       bookingId: row.id,
@@ -404,8 +404,8 @@ export async function updateGuestBookingSpecialRequests(
       portalBaseUrl: supplierPortalPublicBaseUrl(),
       fieldDiffs: fieldDiffs.length ? fieldDiffs : undefined,
       bookingNumber: ord,
-      // Phase 1710: do not share permanent supplier:guest_message:{bookingId} with Inbox posts.
-      idempotencyKey: `supplier:guest_message:${row.id}:notes:${fieldDiffs
+      // Phase 1710/1723: notes use booking_detail_changed so Inbox guest_message cooldown does not drop them.
+      idempotencyKey: `supplier:booking_detail_changed:${row.id}:notes:${fieldDiffs
         .map((d) => `${d.label}:${d.after}`)
         .join('|')
         .slice(0, 80)}`,
