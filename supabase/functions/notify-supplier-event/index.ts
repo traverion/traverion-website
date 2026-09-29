@@ -434,10 +434,8 @@ serve(async (req) => {
     }
 
     // Phase 1033: supplier_welcome / verification_submitted have no booking to
-    // re-derive against. Mirror traveler_welcome (Phase 580): require the
-    // caller's JWT user id to match payload.supplierId. Legitimate callers
-    // (SupplierAuth, Settings) already invoke with the supplier session.
-    // No Stripe/webhook/cron callers use these eventTypes.
+    // re-derive against. Require JWT owner match OR supplier_team_members row
+    // (Phase 1703 — team company save notifies with owner supplierId).
     if (isSupplierSelfNotifyEvent(payload.eventType)) {
       const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
       const authHeader = req.headers.get('Authorization') ?? '';
@@ -451,8 +449,24 @@ serve(async (req) => {
         global: { headers: { Authorization: authHeader } },
       });
       const { data: authData, error: authError } = await authedClient.auth.getUser();
-      if (authError || !isAuthorizedSupplierSelfNotifyCaller(authData?.user?.id, payload.supplierId)) {
+      const callerId = authData?.user?.id ?? null;
+      if (authError || !callerId) {
         return json({ success: false, error: 'Unauthorized' }, 401);
+      }
+      if (!isAuthorizedSupplierSelfNotifyCaller(callerId, payload.supplierId)) {
+        const adminForAuth = createClient(supabaseUrl, serviceRoleKey);
+        const { data: teamRow, error: teamErr } = await adminForAuth
+          .from('supplier_team_members')
+          .select('user_id')
+          .eq('supplier_id', String(payload.supplierId).trim())
+          .eq('user_id', callerId)
+          .maybeSingle();
+        if (teamErr) {
+          return json({ success: false, error: 'Could not verify authorization. Try again.' }, 500);
+        }
+        if (!teamRow?.user_id) {
+          return json({ success: false, error: 'Unauthorized' }, 401);
+        }
       }
     }
 

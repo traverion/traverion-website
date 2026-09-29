@@ -269,9 +269,9 @@ export function isSupplierSelfNotifyEvent(eventType: string): boolean {
 }
 
 /**
- * Phase 1033: supplier_welcome / verification_submitted have no booking ownership
- * chain. Require the signed-in user id to match payload.supplierId (same shape
- * as traveler_welcome email match in notify-customer-booking Phase 580).
+ * Phase 1033: owner JWT matches payload.supplierId.
+ * Phase 1703: team members are authorized separately via supplier_team_members
+ * lookup in notify-supplier-event (this helper stays sync / exact-id only).
  */
 export function isAuthorizedSupplierSelfNotifyCaller(
   authedUserId: string | null | undefined,
