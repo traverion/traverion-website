@@ -21,7 +21,8 @@ type PortalPhase = 'verifying' | 'traveler' | 'partner' | 'invalid';
 function readNextAfterReset(): string {
   try {
     const next = new URLSearchParams(window.location.search).get('next');
-    const allowed = new Set(['home', 'packages', 'bookings', 'booking-confirmed', 'account', 'wishlist', 'contact']);
+    // Phase 1692: stays next= parity with Auth sanitizeTravelerAuthNext.
+    const allowed = new Set(['home', 'packages', 'stays', 'bookings', 'booking-confirmed', 'account', 'wishlist', 'contact']);
     if (next && allowed.has(next)) return next;
   } catch {
     /* ignore */
