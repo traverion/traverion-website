@@ -650,7 +650,9 @@ serve(async (req) => {
         templateKey: kind,
         entityType: body.bookingId ? 'booking' : kind === 'traveler_welcome' ? 'consumer' : undefined,
         entityId: body.bookingId ?? (kind === 'traveler_welcome' ? to : undefined),
-        cooldownSeconds: kind === 'new_booking_message' || kind === 'your_details_updated' ? 900 : undefined,
+        // Phase 1727: content-hashed keys dedupe identical new_booking_message /
+        // your_details_updated mail. Entity-level 900s cooldown dropped every later
+        // distinct Inbox message / Trips note change within 15 minutes.
       });
       if (claim.action === 'skip') {
         return json({ success: true, skipped: true, reason: claim.reason, idempotencyKey });

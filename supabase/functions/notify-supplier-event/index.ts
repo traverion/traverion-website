@@ -783,10 +783,9 @@ serve(async (req) => {
       templateKey: payload.eventType,
       entityType: payload.bookingId ? 'booking' : 'supplier_profile',
       entityId: payload.bookingId ?? payload.supplierId,
-      cooldownSeconds:
-        payload.eventType === 'guest_message' || payload.eventType === 'booking_detail_changed'
-          ? 900
-          : undefined,
+      // Phase 1727: content-hashed idempotency keys already dedupe identical
+      // guest_message / booking_detail_changed mail. Entity-level 900s cooldown
+      // was dropping distinct Inbox messages and Trips note updates after the first.
     });
     if (claim.action === 'skip') {
       return json({ success: true, skipped: true, reason: claim.reason, notified: 0, idempotencyKey });
