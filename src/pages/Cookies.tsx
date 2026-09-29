@@ -8,6 +8,13 @@ type CookiesProps = {
 const LAST_UPDATED = '26 March 2026';
 
 export default function Cookies({ onNavigate }: CookiesProps) {
+  const goContact = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (onNavigate) {
+      e.preventDefault();
+      onNavigate('contact');
+    }
+  };
+
   return (
     <LegalPageShell
       eyebrow="Legal"
@@ -95,6 +102,11 @@ export default function Cookies({ onNavigate }: CookiesProps) {
 
         <p>If you have any questions about our use of cookies, please contact us:</p>
         <p>
+          {/* Phase 1688: in-app Contact parity with Terms (mailto alone is a dead end on mobile). */}
+          <a href="/contact" onClick={goContact}>
+            Contact support
+          </a>
+          <br />
           Email: <a href="mailto:info@traverion.com">info@traverion.com</a>
           <br />
           Address: TRAVERION Travel Agency, Finland
