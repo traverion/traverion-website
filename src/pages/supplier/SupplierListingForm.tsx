@@ -139,6 +139,7 @@ import {
   removeProgressiveSlot,
 } from '../../lib/listing-creation-lines';
 import { ListingCreationWorkspace } from '../../components/supplier/listing-creation/ListingCreationWorkspace';
+import { ListingCreationIdentityPreview } from '../../components/supplier/listing-creation/ListingCreationIdentityPreview';
 import { TourBasicsGuidedScenes } from '../../components/supplier/listing-creation/TourBasicsGuidedScenes';
 import { TourOptionGuidedScenes } from '../../components/supplier/listing-creation/TourOptionGuidedScenes';
 import { TourScheduleWorkspace } from '../../components/supplier/listing-creation/TourScheduleWorkspace';
@@ -2852,6 +2853,14 @@ export default function SupplierListingForm({
                 <p className="text-xs text-ink-muted mt-1 tabular-nums">
                   {form.subtitle.length}/{MAX_SUBTITLE_LENGTH}
                 </p>
+              </div>
+              {/* Phase 1687: tour identity preview parity for stay title/subtitle. */}
+              <div className="xl:sticky xl:top-2 min-w-0">
+                <ListingCreationIdentityPreview
+                  title={form.title}
+                  subtitle={form.subtitle}
+                  languageLabel={null}
+                />
               </div>
               <div id="supplier-listing-field-description">
                 <label htmlFor="supplier-listing-description" className="block text-sm font-semibold text-ink mb-1">
