@@ -351,6 +351,21 @@ export async function promotePaidFromCheckoutSession(params: {
             stripeEventType: event.type,
           },
         });
+        // Phase 1715: superseded checkout PI refunded — tell traveler (do not cancel paid booking).
+        await notifyTravelerCheckoutCaptureReversed({
+          admin,
+          supabaseUrl,
+          serviceRoleKey,
+          existingBooking,
+          bookingId,
+          sessionId: session.id,
+          amountPaid,
+          currency: orphanCurrency,
+          reasonKey: 'orphan_checkout_refund',
+          fieldBefore: 'A superseded checkout session was paid',
+          fieldAfter: 'Stripe payment automatically reversed — your booking uses the current checkout',
+          ensureCancelled: false,
+        });
       } catch (refundErr) {
         const msg = refundErr instanceof Error ? refundErr.message : String(refundErr);
         if (!/already.?been.?refunded|charge_already_refunded/i.test(msg)) {
@@ -540,6 +555,21 @@ export async function promotePaidFromCheckoutSession(params: {
             stripeEventType: event.type,
           },
         });
+        // Phase 1715: underpay capture reversed — email traveler.
+        await notifyTravelerCheckoutCaptureReversed({
+          admin,
+          supabaseUrl,
+          serviceRoleKey,
+          existingBooking,
+          bookingId,
+          sessionId: session.id,
+          amountPaid,
+          currency: underpayCurrency,
+          reasonKey: 'underpay_checkout_refund',
+          fieldBefore: 'Checkout paid less than the quoted total',
+          fieldAfter: 'Stripe payment automatically reversed — no booking',
+          ensureCancelled: true,
+        });
       } catch (refundErr) {
         const msg = refundErr instanceof Error ? refundErr.message : String(refundErr);
         if (!/already.?been.?refunded|charge_already_refunded/i.test(msg)) {
@@ -599,6 +629,21 @@ export async function promotePaidFromCheckoutSession(params: {
             bookingCurrency: existingBooking?.currency ?? null,
             stripeEventType: event.type,
           },
+        });
+        // Phase 1715: currency mismatch capture reversed — email traveler.
+        await notifyTravelerCheckoutCaptureReversed({
+          admin,
+          supabaseUrl,
+          serviceRoleKey,
+          existingBooking,
+          bookingId,
+          sessionId: session.id,
+          amountPaid,
+          currency: mismatchCurrency,
+          reasonKey: 'currency_mismatch_checkout_refund',
+          fieldBefore: 'Checkout currency did not match the booking quote',
+          fieldAfter: 'Stripe payment automatically reversed — no booking',
+          ensureCancelled: true,
         });
       } catch (refundErr) {
         const msg = refundErr instanceof Error ? refundErr.message : String(refundErr);
@@ -1024,6 +1069,21 @@ export async function promotePaidFromCheckoutSession(params: {
             stripeEventType: event.type,
           },
         });
+        // Phase 1715: sold-out race — refund + email traveler.
+        await notifyTravelerCheckoutCaptureReversed({
+          admin,
+          supabaseUrl,
+          serviceRoleKey,
+          existingBooking,
+          bookingId,
+          sessionId: session.id,
+          amountPaid,
+          currency,
+          reasonKey: 'inventory_conflict_checkout_refund',
+          fieldBefore: 'Checkout completed after this departure sold out',
+          fieldAfter: 'Stripe payment automatically reversed — no booking',
+          ensureCancelled: true,
+        });
       } catch (refundErr) {
         const msg = refundErr instanceof Error ? refundErr.message : String(refundErr);
         if (!/already.?been.?refunded|charge_already_refunded/i.test(msg)) {
@@ -1096,6 +1156,21 @@ export async function promotePaidFromCheckoutSession(params: {
               promoteReason: promoteOutcome.kind,
             },
           });
+          // Phase 1715: orphan PI on already-paid booking — email, do not cancel.
+          await notifyTravelerCheckoutCaptureReversed({
+            admin,
+            supabaseUrl,
+            serviceRoleKey,
+            existingBooking,
+            bookingId,
+            sessionId: session.id,
+            amountPaid,
+            currency: String(again?.currency || session.currency || 'eur').toUpperCase(),
+            reasonKey: 'orphan_checkout_refund_unpromoted',
+            fieldBefore: 'An extra checkout payment was captured',
+            fieldAfter: 'Stripe payment automatically reversed — your booking stays as already paid',
+            ensureCancelled: false,
+          });
         } catch (refundErr) {
           const msg = refundErr instanceof Error ? refundErr.message : String(refundErr);
           if (!/already.?been.?refunded|charge_already_refunded/i.test(msg)) {
@@ -1157,6 +1232,21 @@ export async function promotePaidFromCheckoutSession(params: {
             promoteReason:
               promoteOutcome.kind === 'unpromoted' ? promoteOutcome.reason : promoteOutcome.kind,
           },
+        });
+        // Phase 1715: promote matched zero rows — reverse capture + email.
+        await notifyTravelerCheckoutCaptureReversed({
+          admin,
+          supabaseUrl,
+          serviceRoleKey,
+          existingBooking,
+          bookingId,
+          sessionId: session.id,
+          amountPaid,
+          currency: String(again?.currency || session.currency || 'eur').toUpperCase(),
+          reasonKey: 'unpromoted_checkout_refund',
+          fieldBefore: 'Checkout completed but the booking could not be marked paid',
+          fieldAfter: 'Stripe payment automatically reversed — no booking',
+          ensureCancelled: true,
         });
       } catch (refundErr) {
         const msg = refundErr instanceof Error ? refundErr.message : String(refundErr);
