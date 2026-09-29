@@ -39,6 +39,8 @@ import {
   TRAVELER_SELF_CANCEL_SYSTEM_MESSAGE_FULL_REFUND,
   TRAVELER_SELF_CANCEL_SYSTEM_MESSAGE_NO_REFUND,
   SUPPLIER_BOOKING_CANCELLED_NOTIFY_SUB,
+  SUPPLIER_BOOKING_CANCELLED_FULL_REFUND_NOTIFY_SUB,
+  SUPPLIER_BOOKING_CANCELLED_NO_REFUND_NOTIFY_SUB,
   SUPPLIER_HOST_SCHEDULE_UPDATED_NOTIFY_SUB,
   SUPPLIER_GUEST_DETAILS_UPDATED_NOTIFY_SUB,
   SUPPLIER_GUEST_INBOX_MESSAGE_NOTIFY_SUB,
@@ -361,6 +363,16 @@ describe('booking confirmation copy', () => {
     );
     expect(SUPPLIER_BOOKING_CANCELLED_NOTIFY_SUB.toLowerCase()).not.toBe('a booking was cancelled.');
     expect(bookingConfirmationPromisesEmailSent(SUPPLIER_BOOKING_CANCELLED_NOTIFY_SUB)).toBe(false);
+    // Phase 1724: paid cancel partner copy distinguishes full_refund vs no_refund.
+    expect(SUPPLIER_BOOKING_CANCELLED_FULL_REFUND_NOTIFY_SUB.toLowerCase()).toContain('full refund is due');
+    expect(SUPPLIER_BOOKING_CANCELLED_FULL_REFUND_NOTIFY_SUB.toLowerCase()).toContain(
+      'does not send refunds automatically'
+    );
+    expect(SUPPLIER_BOOKING_CANCELLED_FULL_REFUND_NOTIFY_SUB.toLowerCase()).not.toContain('when a refund applies');
+    expect(bookingConfirmationPromisesEmailSent(SUPPLIER_BOOKING_CANCELLED_FULL_REFUND_NOTIFY_SUB)).toBe(false);
+    expect(SUPPLIER_BOOKING_CANCELLED_NO_REFUND_NOTIFY_SUB.toLowerCase()).toContain('no refund applies');
+    expect(SUPPLIER_BOOKING_CANCELLED_NO_REFUND_NOTIFY_SUB.toLowerCase()).not.toContain('refund due');
+    expect(bookingConfirmationPromisesEmailSent(SUPPLIER_BOOKING_CANCELLED_NO_REFUND_NOTIFY_SUB)).toBe(false);
     expect(bookingConfirmationPromisesEmailSent(SUPPLIER_HOST_SCHEDULE_UPDATED_NOTIFY_SUB)).toBe(false);
     expect(SUPPLIER_HOST_SCHEDULE_UPDATED_NOTIFY_SUB.toLowerCase()).toContain('trips');
     expect(SUPPLIER_HOST_SCHEDULE_UPDATED_NOTIFY_SUB.toLowerCase()).toContain(

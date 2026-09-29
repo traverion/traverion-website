@@ -70,6 +70,11 @@ type Payload = {
   bookingNumber?: number;
   /** booking_cancelled: true when traveler cancelled an unpaid checkout. */
   unpaidCheckout?: boolean;
+  /**
+   * Phase 1724: booking_cancelled paid path — DB refund_choice after rebuild
+   * (`full_refund` / `no_refund`). Callers must not forge this; server overwrites.
+   */
+  refundChoice?: string | null;
   /** Explicit idempotency key. */
   idempotencyKey?: string;
 };
@@ -164,10 +169,15 @@ function eventBody(payload: Payload): string {
   } else if (payload.eventType === 'booking_cancelled') {
     lines.push(payload.unpaidCheckout === true ? 'Unpaid checkout cancelled (traveler)' : 'Booking cancelled (traveler)');
     lines.push(`Listing: ${listing}`);
+    // Phase 1724: paid cancel plain-text follows DB refund_choice (keep in sync with eventHtml).
     lines.push(
       payload.unpaidCheckout === true
         ? 'No payment was collected. The hold is released; nothing is Refund due.'
-        : 'When a refund applies, traveler status is Refund due until Stripe records a refund — Traverion does not send refunds automatically.',
+        : payload.refundChoice === 'full_refund'
+          ? 'A full refund is due until Stripe records it — Traverion does not send refunds automatically. Inventory is released.'
+          : payload.refundChoice === 'no_refund'
+            ? 'No refund applies for this traveler-initiated cancellation. Inventory is released.'
+            : 'When a refund applies, traveler status is Refund due until Stripe records a refund — Traverion does not send refunds automatically.',
     );
   } else if (payload.eventType === 'cancellation_accepted') {
     lines.push('Traveler chose cancellation after your cancellation request.');
@@ -274,10 +284,15 @@ ${bodyText}
   } else if (payload.eventType === 'booking_cancelled') {
     headline = payload.unpaidCheckout === true ? 'Unpaid checkout cancelled' : 'Booking cancelled';
     // Keep in sync with SUPPLIER_BOOKING_CANCELLED_*_NOTIFY_SUB in booking-confirmation-copy.ts
+    // Phase 1724: paid path branches on DB refund_choice (full_refund / no_refund).
     sub =
       payload.unpaidCheckout === true
         ? 'The traveler cancelled an unpaid checkout. No payment was collected. The hold is released; nothing is Refund due. Check Bookings if you need the record.'
-        : 'The traveler cancelled this booking. When a refund applies, traveler status is Refund due until Stripe records a refund — Traverion does not send refunds automatically. Inventory is released; check Bookings and Money.';
+        : payload.refundChoice === 'full_refund'
+          ? 'The traveler cancelled this booking. A full refund is due until Stripe records it — Traverion does not send refunds automatically. Inventory is released; check Bookings and Money.'
+          : payload.refundChoice === 'no_refund'
+            ? 'The traveler cancelled this booking. No refund applies for this traveler-initiated cancellation. Inventory is released; check Bookings.'
+            : 'The traveler cancelled this booking. When a refund applies, traveler status is Refund due until Stripe records a refund — Traverion does not send refunds automatically. Inventory is released; check Bookings and Money.';
   } else if (payload.eventType === 'cancellation_accepted') {
     headline = 'Traveler chose cancellation';
     sub =
@@ -647,6 +662,7 @@ serve(async (req) => {
           booking_number?: number | null;
           payment_status?: string | null;
           status?: string | null;
+          refund_choice?: string | null;
         }
       | null = null;
     let reviewRow:
@@ -665,7 +681,7 @@ serve(async (req) => {
           const { data } = await admin
             .from('bookings')
             .select(
-              'id, listing_id, guest_name, booking_date, check_out, nights, guests, booking_number, payment_status, status, purchase_snapshot'
+              'id, listing_id, guest_name, booking_date, check_out, nights, guests, booking_number, payment_status, status, purchase_snapshot, refund_choice'
             )
             .eq('id', bookingId)
             .maybeSingle();
@@ -728,19 +744,29 @@ serve(async (req) => {
     if (effectivePayload.eventType === 'booking_cancelled' && bookingRow) {
       effectivePayload.unpaidCheckout = notifyUnpaidCheckoutFromPaymentStatus(bookingRow.payment_status);
     }
-    // Phase 1139: guests may not forge cancel fieldDiffs; rebuild from unpaid truth.
+    // Phase 1139/1724: guests may not forge cancel fieldDiffs; rebuild from unpaid + refund_choice.
     if (effectivePayload.eventType === 'booking_cancelled' && !allowCallerFieldDiffs) {
       const unpaid = effectivePayload.unpaidCheckout === true;
+      const refundChoice = String(bookingRow?.refund_choice ?? '')
+        .trim()
+        .toLowerCase();
+      const after = unpaid
+        ? 'Unpaid checkout cancelled — no payment collected'
+        : refundChoice === 'full_refund'
+          ? 'Cancelled — full refund due until Stripe records it (not automatic)'
+          : refundChoice === 'no_refund'
+            ? 'Cancelled — no refund for this traveler-initiated cancellation'
+            : 'Cancelled — refund status follows Trips / Stripe';
       effectivePayload.changeSummary = undefined;
       effectivePayload.fieldDiffs = [
         {
           label: 'Cancellation & refund',
           before: unpaid ? 'Unpaid checkout' : 'Active booking',
-          after: unpaid
-            ? 'Unpaid checkout cancelled — no payment collected'
-            : 'Cancelled — refund status follows Trips / Stripe',
+          after,
         },
       ];
+      // Phase 1724: stash for eventHtml/eventBody paid cancel honesty.
+      effectivePayload.refundChoice = refundChoice;
     }
 
     // Phase 1510: client idempotencyKey may only extend supplier:${eventType}:…

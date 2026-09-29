@@ -347,9 +347,24 @@ export const TRAVELER_SELF_CANCEL_SYSTEM_MESSAGE_NO_REFUND =
 /**
  * Partner notify-supplier-event for traveler self-cancel (booking_cancelled).
  * Keep in sync with supabase/functions/notify-supplier-event HTML subcopy.
+ * Fallback when refund_choice is unknown; prefer FULL_REFUND / NO_REFUND variants.
  */
 export const SUPPLIER_BOOKING_CANCELLED_NOTIFY_SUB =
   'The traveler cancelled this booking. When a refund applies, traveler status is Refund due until Stripe records a refund — Traverion does not send refunds automatically. Inventory is released; check Bookings and Money.';
+
+/**
+ * Phase 1724: partner cancel notify when booking.refund_choice is full_refund.
+ * Keep in sync with notify-supplier-event booking_cancelled HTML subcopy.
+ */
+export const SUPPLIER_BOOKING_CANCELLED_FULL_REFUND_NOTIFY_SUB =
+  'The traveler cancelled this booking. A full refund is due until Stripe records it — Traverion does not send refunds automatically. Inventory is released; check Bookings and Money.';
+
+/**
+ * Phase 1724: partner cancel notify when booking.refund_choice is no_refund.
+ * Keep in sync with notify-supplier-event booking_cancelled HTML subcopy.
+ */
+export const SUPPLIER_BOOKING_CANCELLED_NO_REFUND_NOTIFY_SUB =
+  'The traveler cancelled this booking. No refund applies for this traveler-initiated cancellation. Inventory is released; check Bookings.';
 
 /**
  * Partner notify after host saves schedule — do not claim the guest was emailed.
