@@ -34,14 +34,23 @@ export function bookingPaymentWasCollected(raw: string | null | undefined): bool
   return isPaidPaymentStatus(pay) || pay === 'refunded';
 }
 
-/** Collected for Money: currently paid. Cancelled and refunded amounts are not supplier revenue. */
+/**
+ * Collected for Money: currently paid and still supplier revenue.
+ * Refunded and Refund-due cancels are out. Late traveler cancels with
+ * refund_choice = no_refund stay in — Stripe keeps the charge and earnings are not reversed.
+ */
 export function isCollectedBooking(b: MoneyBookingRow): boolean {
-  if ((b.status ?? '').trim().toLowerCase() === 'cancelled') return false;
+  const status = (b.status ?? '').trim().toLowerCase();
   const pay = normalizePaymentStatus(b.payment_status);
   if (pay === 'refunded') return false;
   if (!isPaidPaymentStatus(b.payment_status)) return false;
   const amount = Number(b.amount_paid ?? 0);
-  return Number.isFinite(amount) && amount > 0;
+  if (!Number.isFinite(amount) || amount <= 0) return false;
+  if (status === 'cancelled') {
+    // Phase 1725: host keeps no_refund paid cancels in Collected / Available.
+    return (b.refund_choice ?? '').trim().toLowerCase() === 'no_refund';
+  }
+  return true;
 }
 
 export function travelerPaymentLabel(b: MoneyBookingRow): string {

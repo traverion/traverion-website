@@ -81,6 +81,23 @@ describe('payment states', () => {
         amount_paid: 189,
       })
     ).toBe(false);
+    // Phase 1725: late no_refund cancel — host keeps Stripe money; still Collected.
+    expect(
+      isCollectedBooking({
+        status: 'cancelled',
+        payment_status: 'paid',
+        amount_paid: 100,
+        refund_choice: 'no_refund',
+      })
+    ).toBe(true);
+    expect(
+      isCollectedBooking({
+        status: 'cancelled',
+        payment_status: 'paid',
+        amount_paid: 100,
+        refund_choice: 'full_refund',
+      })
+    ).toBe(false);
     expect(travelerPaymentLabel({ status: 'confirmed', payment_status: 'refunded', amount_paid: 189 })).toBe(
       'Refunded'
     );
@@ -150,7 +167,8 @@ describe('payment states', () => {
     ];
     expect(rows.filter(isRefundDueBooking)).toHaveLength(2);
     expect(sumRefundDueAmount(rows)).toBe(378);
-    expect(sumCollectedAmount(rows)).toBe(189);
+    // Phase 1725: confirmed 189 + no_refund cancelled 100; Refund-due cancels stay out.
+    expect(sumCollectedAmount(rows)).toBe(289);
     expect(isRefundDueBooking({ status: 'confirmed', payment_status: 'paid', amount_paid: 189 })).toBe(false);
   });
 });

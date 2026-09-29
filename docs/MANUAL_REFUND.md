@@ -23,12 +23,12 @@ Payments → the charge → **Refund**.
 ## 4. Record the booking in Traverion
 
 If the webhook is configured, `payment_status` becomes `refunded` and occupancy is released.  
-If the webhook has not arrived: Partner can still **cancel** the booking (status `cancelled`). Cancelled rows are excluded from collected Money. Prefer waiting for `refunded` so Trips shows **Refunded**.
+If the webhook has not arrived: Partner can still **cancel** the booking (status `cancelled`). Refund-due cancelled rows are excluded from collected Money; late `no_refund` cancels stay in Collected. Prefer waiting for `refunded` so Trips shows **Refunded**.
 
 ## 5. Money
 
-Collected / pending payout **must not** include `payment_status = refunded` or `status = cancelled`.  
-There is no separate gross-sales ledger. **Collected** = sum of **paid, not refunded, not cancelled** `amount_paid`. Refunded money is omitted, not shown as collected revenue.
+Collected / pending payout **must not** include `payment_status = refunded` or cancelled bookings that are **Refund due** (`refund_choice` is not `no_refund`).  
+There is no separate gross-sales ledger. **Collected** = sum of `amount_paid` on rows that are still supplier revenue: paid (not refunded), plus cancelled + paid + `refund_choice = no_refund` (late traveler cancel — Stripe keeps the charge; earnings are not reversed). Refunded and Refund-due amounts are omitted, not shown as collected revenue.
 
 ## 6. Availability
 
