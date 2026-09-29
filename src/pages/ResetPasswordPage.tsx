@@ -9,8 +9,6 @@ import { supabase } from '../lib/supabase';
 import { establishPasswordRecoverySession } from '../lib/passwordRecoveryFlow';
 import { resolvePasswordRecoveryPortal } from '../lib/recoveryPortal';
 import { isPublicTraverionMarketingHost } from '../lib/adminHost';
-import { partnerPortalAuthRedirectUrl } from '../lib/partnerHost';
-import { PARTNER_RESET_PASSWORD_PATH } from '../lib/partnerPortalPaths';
 
 interface ResetPasswordPageProps {
   onNavigate: (page: string) => void;
@@ -62,13 +60,11 @@ export default function ResetPasswordPage({ onNavigate }: ResetPasswordPageProps
         setPortal('invalid');
         return;
       }
-      // Partner recovery on www /set-password: move to partner host so success
-      // lands on partner login, not traveler /login marketing alias.
+      // Phase 1717: stay on www after establish — hopping to partner strips the
+      // consumed recovery session (origin-scoped storage). PartnerResetPasswordPage
+      // already redirects success to partner login.
       if (resolved === 'partner' && isPublicTraverionMarketingHost()) {
-        const { search, hash } = window.location;
-        window.location.replace(
-          `${partnerPortalAuthRedirectUrl(PARTNER_RESET_PASSWORD_PATH)}${search}${hash}`
-        );
+        setPortal('partner');
         return;
       }
       setPortal(resolved);
