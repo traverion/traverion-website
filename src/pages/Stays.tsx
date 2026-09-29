@@ -1008,9 +1008,18 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
                 title="No stays published yet"
                 body="When an operator publishes a stay, it appears here. Traverion does not invent sample apartments."
                 action={
-                  <a href={supplierPortalLandingHref()} className="tv-btn-primary inline-flex">
-                    List a stay
-                  </a>
+                  <div className="flex flex-wrap gap-2">
+                    <a href={supplierPortalLandingHref()} className="tv-btn-primary inline-flex">
+                      List a stay
+                    </a>
+                    {/* Phase 1694: traveler escapes when the catalog is empty. */}
+                    <button type="button" onClick={() => onNavigate?.('packages')} className="tv-btn-ghost">
+                      Browse tours
+                    </button>
+                    <button type="button" onClick={() => onNavigate?.('home')} className="tv-btn-ghost">
+                      Back to home
+                    </button>
+                  </div>
                 }
               />
             ) : (
@@ -1095,7 +1104,8 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
                 stacked
               />
             </div>
-            <div className="mt-5 flex gap-2 shrink-0">
+            <div className="mt-5 flex gap-2 shrink-0 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+              {/* Phase 1693: Home sheet safe-area parity on Stays mobile search actions. */}
               {draftWhere.trim() ||
               draftCheckIn ||
               draftCheckOut ||

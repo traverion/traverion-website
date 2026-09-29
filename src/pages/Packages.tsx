@@ -1226,9 +1226,18 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
                 title="No tours published yet"
                 body="Operators have not published live tours. That is expected — Traverion does not show a demo catalog. If you run tours, you can list yours today."
                 action={
-                  <a href={supplierPortalLandingHref()} className="tv-btn-primary inline-flex">
-                    List your tours
-                  </a>
+                  <div className="flex flex-wrap gap-2">
+                    <a href={supplierPortalLandingHref()} className="tv-btn-primary inline-flex">
+                      List your tours
+                    </a>
+                    {/* Phase 1694: traveler escapes when the catalog is empty. */}
+                    <button type="button" onClick={() => onNavigate?.('stays')} className="tv-btn-ghost">
+                      Browse stays
+                    </button>
+                    <button type="button" onClick={() => onNavigate?.('home')} className="tv-btn-ghost">
+                      Back to home
+                    </button>
+                  </div>
                 }
               />
             )}
@@ -1271,7 +1280,8 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
                 stacked
               />
             </div>
-            <div className="mt-5 flex gap-2 shrink-0">
+            <div className="mt-5 flex gap-2 shrink-0 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+              {/* Phase 1693: Home sheet safe-area parity on Tours mobile search actions. */}
               {draftWhere ||
               draftDate ||
               draftGuests ||
