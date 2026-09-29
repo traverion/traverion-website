@@ -171,6 +171,102 @@ export async function notifyPaidBookingSideEffects(params: {
   }
 }
 
+/**
+ * Phase 1713/1714: after Stripe auto-refunds a capture that never became a paid booking,
+ * email the traveler (refund_completed never runs — payment_status stays failed).
+ * When ensureCancelled, close pending holds so booking_cancelled lifecycle gate passes.
+ */
+async function notifyTravelerCheckoutCaptureReversed(params: {
+  admin: SupabaseClient;
+  supabaseUrl: string;
+  serviceRoleKey: string;
+  existingBooking: Record<string, unknown> | null;
+  bookingId: string;
+  sessionId: string;
+  amountPaid: number | null;
+  currency: string;
+  reasonKey: string;
+  fieldBefore: string;
+  fieldAfter: string;
+  ensureCancelled?: boolean;
+}): Promise<void> {
+  const {
+    admin,
+    supabaseUrl,
+    serviceRoleKey,
+    existingBooking,
+    bookingId,
+    sessionId,
+    amountPaid,
+    currency,
+    reasonKey,
+    fieldBefore,
+    fieldAfter,
+    ensureCancelled = false,
+  } = params;
+  if (!supabaseUrl || !serviceRoleKey) return;
+
+  if (ensureCancelled) {
+    try {
+      await admin
+        .from('bookings')
+        .update({
+          status: 'cancelled',
+          cancelled_at: new Date().toISOString(),
+        })
+        .eq('id', bookingId)
+        .in('status', ['pending', 'confirmed']);
+    } catch {
+      /* still attempt notify */
+    }
+  }
+
+  const guestEmail = String(existingBooking?.guest_email ?? '')
+    .trim()
+    .toLowerCase();
+  if (!guestEmail) return;
+
+  let listingTitle = 'Your booking';
+  if (existingBooking?.listing_id) {
+    const { data: lt } = await admin
+      .from('listings')
+      .select('title')
+      .eq('id', existingBooking.listing_id)
+      .maybeSingle();
+    if (lt?.title?.trim()) listingTitle = lt.title.trim();
+  }
+  const bn = existingBooking?.booking_number;
+  const orderNum = typeof bn === 'number' && Number.isFinite(bn) ? Math.floor(bn) : undefined;
+  try {
+    await fetch(`${supabaseUrl}/functions/v1/notify-customer-booking`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${serviceRoleKey}`,
+        apikey: serviceRoleKey,
+      },
+      body: JSON.stringify({
+        customerEmail: guestEmail,
+        customerName: existingBooking?.guest_name ?? undefined,
+        listingTitle,
+        bookingId,
+        bookingNumber: orderNum,
+        bookingDate: existingBooking?.booking_date ?? undefined,
+        guests: typeof existingBooking?.guests === 'number' ? existingBooking.guests : undefined,
+        totalAmount: amountPaid ?? undefined,
+        currency,
+        emailKind: 'booking_cancelled',
+        unpaidCheckout: false,
+        fieldDiffs: [{ label: 'Payment', before: fieldBefore, after: fieldAfter }],
+        publicSiteUrl: Deno.env.get('PUBLIC_SITE_URL') ?? 'https://www.traverion.com',
+        idempotencyKey: `customer:booking_cancelled:${bookingId}:${reasonKey}:${sessionId}`,
+      }),
+    });
+  } catch {
+    /* non-fatal — refund already succeeded */
+  }
+}
+
 export async function promotePaidFromCheckoutSession(params: {
   admin: SupabaseClient;
   stripe: Stripe;
@@ -310,58 +406,20 @@ export async function promotePaidFromCheckoutSession(params: {
             stripeEventType: event.type,
           },
         });
-        // Phase 1713: traveler must learn the bank charge was reversed (refund_completed
-        // never runs — payment_status stays failed, not refunded).
-        const guestEmail = String(existingBooking?.guest_email ?? '')
-          .trim()
-          .toLowerCase();
-        if (guestEmail && supabaseUrl && serviceRoleKey) {
-          let listingTitle = 'Your booking';
-          if (existingBooking?.listing_id) {
-            const { data: lt } = await admin
-              .from('listings')
-              .select('title')
-              .eq('id', existingBooking.listing_id)
-              .maybeSingle();
-            if (lt?.title?.trim()) listingTitle = lt.title.trim();
-          }
-          const bn = existingBooking?.booking_number;
-          const orderNum = typeof bn === 'number' && Number.isFinite(bn) ? Math.floor(bn) : undefined;
-          try {
-            await fetch(`${supabaseUrl}/functions/v1/notify-customer-booking`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${serviceRoleKey}`,
-                apikey: serviceRoleKey,
-              },
-              body: JSON.stringify({
-                customerEmail: guestEmail,
-                customerName: existingBooking?.guest_name ?? undefined,
-                listingTitle,
-                bookingId,
-                bookingNumber: orderNum,
-                bookingDate: existingBooking?.booking_date ?? undefined,
-                guests: typeof existingBooking?.guests === 'number' ? existingBooking.guests : undefined,
-                totalAmount: amountPaid ?? undefined,
-                currency: cancelCurrency,
-                emailKind: 'booking_cancelled',
-                unpaidCheckout: false,
-                fieldDiffs: [
-                  {
-                    label: 'Payment',
-                    before: 'Checkout completed after the hold was released',
-                    after: 'Stripe payment automatically reversed — no booking',
-                  },
-                ],
-                publicSiteUrl: Deno.env.get('PUBLIC_SITE_URL') ?? 'https://www.traverion.com',
-                idempotencyKey: `customer:booking_cancelled:${bookingId}:cancelled_checkout_refund:${session.id}`,
-              }),
-            });
-          } catch {
-            /* non-fatal — refund already succeeded */
-          }
-        }
+        // Phase 1713: traveler must learn the bank charge was reversed.
+        await notifyTravelerCheckoutCaptureReversed({
+          admin,
+          supabaseUrl,
+          serviceRoleKey,
+          existingBooking,
+          bookingId,
+          sessionId: session.id,
+          amountPaid,
+          currency: cancelCurrency,
+          reasonKey: 'cancelled_checkout_refund',
+          fieldBefore: 'Checkout completed after the hold was released',
+          fieldAfter: 'Stripe payment automatically reversed — no booking',
+        });
       } catch (refundErr) {
         const msg = refundErr instanceof Error ? refundErr.message : String(refundErr);
         if (!/already.?been.?refunded|charge_already_refunded/i.test(msg)) {
@@ -628,6 +686,21 @@ export async function promotePaidFromCheckoutSession(params: {
               stripeEventType: event.type,
             },
           });
+          // Phase 1714: close hold + email (booking was never cancelled).
+          await notifyTravelerCheckoutCaptureReversed({
+            admin,
+            supabaseUrl,
+            serviceRoleKey,
+            existingBooking,
+            bookingId,
+            sessionId: session.id,
+            amountPaid,
+            currency,
+            reasonKey: 'listing_unavailable_checkout_refund',
+            fieldBefore: 'Checkout completed after the listing left the live catalog',
+            fieldAfter: 'Stripe payment automatically reversed — no booking',
+            ensureCancelled: true,
+          });
         } catch (refundErr) {
           const msg = refundErr instanceof Error ? refundErr.message : String(refundErr);
           if (!/already.?been.?refunded|charge_already_refunded/i.test(msg)) {
@@ -704,6 +777,21 @@ export async function promotePaidFromCheckoutSession(params: {
                 cutoffError: cut.error,
                 stripeEventType: event.type,
               },
+            });
+            // Phase 1714: cutoff race — hold outlived bookable window; reverse + email.
+            await notifyTravelerCheckoutCaptureReversed({
+              admin,
+              supabaseUrl,
+              serviceRoleKey,
+              existingBooking,
+              bookingId,
+              sessionId: session.id,
+              amountPaid,
+              currency,
+              reasonKey: 'departure_cutoff_checkout_refund',
+              fieldBefore: 'Checkout completed after the departure booking window closed',
+              fieldAfter: 'Stripe payment automatically reversed — no booking',
+              ensureCancelled: true,
             });
           } catch (refundErr) {
             const msg = refundErr instanceof Error ? refundErr.message : String(refundErr);
@@ -802,6 +890,21 @@ export async function promotePaidFromCheckoutSession(params: {
               reason: 'supplier_self_book_on_paid_promotion',
               stripeEventType: event.type,
             },
+          });
+          // Phase 1714: self-book capture must not silently reverse without traveler notice.
+          await notifyTravelerCheckoutCaptureReversed({
+            admin,
+            supabaseUrl,
+            serviceRoleKey,
+            existingBooking,
+            bookingId,
+            sessionId: session.id,
+            amountPaid,
+            currency,
+            reasonKey: 'self_book_checkout_refund',
+            fieldBefore: 'Checkout completed on your own listing',
+            fieldAfter: 'Stripe payment automatically reversed — hosts cannot book themselves',
+            ensureCancelled: true,
           });
         } catch (refundErr) {
           const msg = refundErr instanceof Error ? refundErr.message : String(refundErr);

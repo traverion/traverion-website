@@ -18,6 +18,7 @@ describe('Phase 1713: Release hold + late-pay refund traveler emails', () => {
     );
     expect(src).toContain('Phase 1713');
     expect(src).toContain('cancelled_checkout_refund');
-    expect(src).toContain('cancelled_checkout_refund:${session.id}');
+    expect(src).toContain("reasonKey: 'cancelled_checkout_refund'");
+    expect(src).toContain('notifyTravelerCheckoutCaptureReversed');
   });
 });
