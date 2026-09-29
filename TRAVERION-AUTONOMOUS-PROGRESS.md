@@ -1,5 +1,22 @@
 # TRAVERION-AUTONOMOUS-PROGRESS
 
+**Mission:** Phases 1597→1700 product/UX polish complete (see `TRAVERION-PHASE-1700.md`)  
+**Prior missions:** 401→850 · 851→1000+ marketplace completeness · security/ops bands through 1596  
+**Started (this UX band):** 2026-09-28  
+**Starting SHA (Phase 1596):** `3d011d2`  
+**Current SHA:** see Phase 1700 commit  
+**Current phase:** 1700  
+**Branch:** `main`  
+**Stripe:** TEST — LIVE not enabled  
+
+## Milestone Phase 1700
+
+Final product review for the 1597→1699 UX/polish band. Report: `TRAVERION-PHASE-1700.md`.
+
+---
+
+# TRAVERION-AUTONOMOUS-PROGRESS (archive header preserved below)
+
 **Mission:** Phases 401→850 complete · **851→1000+ marketplace completeness** (continuing 1001+)  
 **Started:** 2026-09-22  
 **Starting SHA:** `6bbe875`  
