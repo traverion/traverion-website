@@ -20,12 +20,10 @@ import { nightsOccupiedByStay, stayRangeFromBooking } from '../lib/stayOccupancy
 import { formatMoney, isStripeTestCheckoutSession, appStripeIsTestMode } from '../lib/money';
 import NoticeCallout from '../components/NoticeCallout';
 import StatusChip, { toneForPaymentLabel } from '../components/StatusChip';
-import { bookingIsStayNight, listingPickupCopyIncomplete } from '../lib/pickup-completeness';
+import { bookingIsStayNight, listingPickupCopyIncomplete, resolvePartnerPickupCopy } from '../lib/pickup-completeness';
 import {
   displayListingTitleFromPurchase,
-  displayMeetingPointFromPurchase,
   displayOptionLabelFromPurchase,
-  displayPickupInstructionsFromPurchase,
   displayStartTimeFromPurchase,
   displayDepartureTimezoneFromPurchase,
   formatTripDepartureWithTimezone,
@@ -156,16 +154,18 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
             )
           );
           const stay = bookingIsStayNight(row);
-          const snapMeeting = displayMeetingPointFromPurchase(
-            row.purchase_snapshot,
-            meta?.meeting_point
-          );
-          const snapPickup = displayPickupInstructionsFromPurchase(
-            row.purchase_snapshot,
-            meta?.pickup_instructions
-          );
+          // Phase 1716: include special_requests overrides (Pickup Planner) for pending honesty.
+          const tripPickup = resolvePartnerPickupCopy({
+            purchaseSnapshot: row.purchase_snapshot,
+            bookingOptionId: row.booking_option_id,
+            specialRequests: row.special_requests,
+            listingMeetingPoint: meta?.meeting_point,
+            listingPickupInstructions: meta?.pickup_instructions,
+          });
           setPickupPending(
-            !stay && listingPickupCopyIncomplete(snapMeeting || null, snapPickup || null) && !row.pickup_time
+            !stay &&
+              listingPickupCopyIncomplete(tripPickup.meetingPoint || null, tripPickup.pickupInstructions || null) &&
+              !row.pickup_time
           );
         } catch {
           if (gen !== loadGenRef.current) return;
@@ -177,10 +177,17 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
             )
           );
           const stay = bookingIsStayNight(row);
-          const snapMeeting = displayMeetingPointFromPurchase(row.purchase_snapshot, null);
-          const snapPickup = displayPickupInstructionsFromPurchase(row.purchase_snapshot, null);
+          const tripPickup = resolvePartnerPickupCopy({
+            purchaseSnapshot: row.purchase_snapshot,
+            bookingOptionId: row.booking_option_id,
+            specialRequests: row.special_requests,
+            listingMeetingPoint: null,
+            listingPickupInstructions: null,
+          });
           setPickupPending(
-            !stay && listingPickupCopyIncomplete(snapMeeting || null, snapPickup || null) && !row.pickup_time
+            !stay &&
+              listingPickupCopyIncomplete(tripPickup.meetingPoint || null, tripPickup.pickupInstructions || null) &&
+              !row.pickup_time
           );
         }
         try {

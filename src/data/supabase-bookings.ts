@@ -7,7 +7,7 @@ import { supplierPortalPublicBaseUrl } from '../lib/partnerHost';
 import { notifySupplierEvent } from './supabase-supplier-messaging';
 import { resolveSupplierId } from './supabase-supplier-team';
 import { hmToPgTime, pgTimeToHm, fetchListingSupplierMetaForParty } from './supabase-listings';
-import { upsertBookingPickupNoteOverrides } from '../lib/booking-notes';
+import { upsertBookingPickupNoteOverrides, parseBookingMeetingPointOverride, parseBookingPickupInstructionsOverride } from '../lib/booking-notes';
 import { travelerSelfCancelBlock, travelerSelfCancelError, travelerSelfCancelIsUnpaidCheckout, partnerBookingStatusRewriteBlock, partnerManualConfirmBlock, partnerManualConfirmError } from '../lib/cancellation-policy';
 import {
   TRAVELER_SELF_CANCEL_EMAIL_DIFF_FULL_REFUND,
@@ -712,7 +712,9 @@ export async function updateBookingPickupCopy(
 
   const { data: prior, error: priorErr } = await supabase
     .from('bookings')
-    .select('special_requests, status, payment_status')
+    .select(
+      'special_requests, status, payment_status, guest_email, guest_name, listing_id, booking_date, guests, booking_number, purchase_snapshot'
+    )
     .eq('id', bookingId)
     .maybeSingle();
   if (priorErr || !prior) return { ok: false, error: priorErr?.message || 'This booking is not available.' };
@@ -721,6 +723,8 @@ export async function updateBookingPickupCopy(
     return { ok: false, error: travelerSelfCancelError(closed) };
   }
 
+  const prevMeeting = parseBookingMeetingPointOverride(prior.special_requests) ?? '';
+  const prevInstructions = parseBookingPickupInstructionsOverride(prior.special_requests) ?? '';
   const nextNotes = upsertBookingPickupNoteOverrides(
     prior.special_requests,
     params.meetingPoint,
@@ -731,6 +735,58 @@ export async function updateBookingPickupCopy(
     .update({ special_requests: nextNotes || null })
     .eq('id', bookingId);
   if (error) return { ok: false, error: error.message || 'Could not save pickup details.' };
+
+  // Phase 1716: email traveler when host fills/changes place or instructions (schedule-time parity).
+  const nextMeeting = params.meetingPoint.trim();
+  const nextInstructions = params.pickupInstructions.trim();
+  const fieldDiffs: { label: string; before: string; after: string }[] = [];
+  if (prevMeeting !== nextMeeting) {
+    fieldDiffs.push({
+      label: 'Meeting / pickup place',
+      before: prevMeeting || '—',
+      after: nextMeeting || '—',
+    });
+  }
+  if (prevInstructions !== nextInstructions) {
+    fieldDiffs.push({
+      label: 'Pickup instructions',
+      before: prevInstructions || '—',
+      after: nextInstructions || '—',
+    });
+  }
+  const guestEmail = (prior.guest_email ?? '').trim().toLowerCase();
+  if (guestEmail && fieldDiffs.length > 0) {
+    let listingTitle = displayListingTitleFromPurchase(prior.purchase_snapshot, null, 'Your experience');
+    if (prior.listing_id) {
+      const meta = await fetchListingSupplierMetaForParty(prior.listing_id);
+      listingTitle = displayListingTitleFromPurchase(prior.purchase_snapshot, meta.title, 'Your experience');
+    }
+    const ord =
+      typeof prior.booking_number === 'number' && Number.isFinite(prior.booking_number)
+        ? Math.floor(prior.booking_number)
+        : undefined;
+    const priorEmpty = !prevMeeting.trim() && !prevInstructions.trim();
+    const emailKind = priorEmpty ? 'pickup_confirmed' : 'host_updated_schedule';
+    void supabase.functions.invoke('notify-customer-booking', {
+      body: {
+        customerEmail: guestEmail,
+        customerName: prior.guest_name ?? undefined,
+        listingTitle,
+        bookingId,
+        bookingNumber: ord,
+        bookingDate: prior.booking_date ?? undefined,
+        guests: prior.guests ?? undefined,
+        emailKind,
+        fieldDiffs,
+        publicSiteUrl: publicSiteBaseUrl(),
+        idempotencyKey: `customer:${emailKind}:${bookingId}:pickup_copy:${fieldDiffs
+          .map((d) => d.after)
+          .join('|')
+          .slice(0, 80)}`,
+      },
+    });
+  }
+
   return { ok: true, special_requests: nextNotes };
 }
 

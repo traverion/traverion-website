@@ -41,12 +41,10 @@ import {
 import BookingMessageThread from '../components/BookingMessageThread';
 import StatusChip, { toneForPaymentLabel, toneForTravelerTripCard } from '../components/StatusChip';
 import NoticeCallout from '../components/NoticeCallout';
-import { bookingIsStayNight, listingPickupCopyIncomplete } from '../lib/pickup-completeness';
+import { bookingIsStayNight, listingPickupCopyIncomplete, resolvePartnerPickupCopy } from '../lib/pickup-completeness';
 import {
   displayListingTitleFromPurchase,
-  displayMeetingPointFromPurchase,
   displayOptionLabelFromPurchase,
-  displayPickupInstructionsFromPurchase,
   displayStartTimeFromPurchase,
   displayDepartureTimezoneFromPurchase,
   formatTripDepartureWithTimezone,
@@ -885,14 +883,16 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 isStay ? 'Stay' : 'Tour'
               );
               const tripOption = displayOptionLabelFromPurchase(b.purchase_snapshot, null);
-              const tripMeeting = displayMeetingPointFromPurchase(
-                b.purchase_snapshot,
-                ops?.meeting_point
-              );
-              const tripPickupInstructions = displayPickupInstructionsFromPurchase(
-                b.purchase_snapshot,
-                ops?.pickup_instructions
-              );
+              // Phase 1716: host Pickup Planner saves override notes — same precedence as partner UI.
+              const tripPickup = resolvePartnerPickupCopy({
+                purchaseSnapshot: b.purchase_snapshot,
+                bookingOptionId: b.booking_option_id,
+                specialRequests: b.special_requests,
+                listingMeetingPoint: ops?.meeting_point,
+                listingPickupInstructions: ops?.pickup_instructions,
+              });
+              const tripMeeting = tripPickup.meetingPoint;
+              const tripPickupInstructions = tripPickup.pickupInstructions;
               const tripDuration = displayDurationFromPurchase(b.purchase_snapshot, null);
               const tripFulfillment = displayFulfillmentFromPurchase(b.purchase_snapshot);
               const tripPlaceHeading =
