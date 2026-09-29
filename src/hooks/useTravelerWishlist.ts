@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchWishlistListingIds, toggleWishlist } from '../data/supabase-wishlist';
 import { isSupabaseListingId } from '../lib/discount-display';
-import { isSupabaseConfigured } from '../lib/supabase';
+import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { recordTravelerInterest } from '../lib/traveler-interest';
 
 /**
@@ -15,8 +15,11 @@ import { recordTravelerInterest } from '../lib/traveler-interest';
  */
 export function useTravelerWishlist() {
   const { user, requestAuth } = useAuth();
+  // Phase 1708: effect sync only — per-render wipe broke Save→sign-in resume (1704 checkout parity).
   const userRef = useRef(user);
-  userRef.current = user;
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
   const [ids, setIds] = useState<Set<string>>(() => new Set());
   const idsRef = useRef(ids);
   idsRef.current = ids;
@@ -107,7 +110,20 @@ export function useTravelerWishlist() {
         }
       };
       if (!userRef.current) {
-        requestAuth({ onSuccess: () => void run() });
+        // Phase 1708: hydrate session before resume (AuthModal onSuccess before React user).
+        requestAuth({
+          onSuccess: () => {
+            void (async () => {
+              if (supabase) {
+                const { data: sessionData } = await supabase.auth.getSession();
+                if (sessionData.session?.user) {
+                  userRef.current = sessionData.session.user;
+                }
+              }
+              void run();
+            })();
+          },
+        });
         return;
       }
       void run();

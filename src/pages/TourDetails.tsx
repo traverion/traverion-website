@@ -13,7 +13,7 @@ import ErrorState from '../components/ErrorState';
 import { useAuth } from '../contexts/AuthContext';
 import { getListingById, getListingByIdAsync } from '../data/listings';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
-import { isSupabaseConfigured } from '../lib/supabase';
+import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { analytics } from '../lib/analytics';
 import { TourPackage } from '../types/tour';
 import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
@@ -205,8 +205,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   /** Overlapping capacity reloads (tab visibility, option load) must not commit stale occupancy. */
   const dayCapacityReloadGenRef = useRef(0);
   const optionsSectionRef = useRef<HTMLDivElement>(null);
+  // Phase 1708: effect sync only — per-render wipe broke Save→sign-in wishlist resume (1704 parity).
   const userRef = useRef(user);
-  userRef.current = user;
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   const partyBounds = useMemo(() => (tour ? getPartySizeBounds(tour) : { min: 1, max: 0 }), [tour]);
   const canBook = Boolean(tour && isListingVisibleToTravelers(tour.status));
@@ -654,12 +657,25 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         setWishlistBusy(false);
       }
     };
-    if (!user) {
-      requestAuth({ onSuccess: () => void run() });
+    // Phase 1708: gate on userRef + hydrate session before resume (1704 checkout parity).
+    if (!userRef.current) {
+      requestAuth({
+        onSuccess: () => {
+          void (async () => {
+            if (supabase) {
+              const { data: sessionData } = await supabase.auth.getSession();
+              if (sessionData.session?.user) {
+                userRef.current = sessionData.session.user;
+              }
+            }
+            void run();
+          })();
+        },
+      });
       return;
     }
     void run();
-  }, [tour?.id, user, requestAuth, savedToWishlist]);
+  }, [tour?.id, requestAuth, savedToWishlist]);
 
   useEffect(() => {
     setTourLoadError(null);

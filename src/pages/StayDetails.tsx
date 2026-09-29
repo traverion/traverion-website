@@ -295,12 +295,25 @@ export default function StayDetails({ stayId, onBack }: Props) {
         setWishlistBusy(false);
       }
     };
-    if (!user) {
-      requestAuth({ onSuccess: () => void run() });
+    // Phase 1708: hydrate session before resume (checkout already 1704; wishlist was still broken).
+    if (!userRef.current) {
+      requestAuth({
+        onSuccess: () => {
+          void (async () => {
+            if (supabase) {
+              const { data: sessionData } = await supabase.auth.getSession();
+              if (sessionData.session?.user) {
+                userRef.current = sessionData.session.user;
+              }
+            }
+            void run();
+          })();
+        },
+      });
       return;
     }
     void run();
-  }, [stay?.id, user, requestAuth, savedToWishlist]);
+  }, [stay?.id, requestAuth, savedToWishlist]);
 
   // Phase 1273: match TourDetails 1271 — do not advertise non-catalog stays.
   useEffect(() => {
