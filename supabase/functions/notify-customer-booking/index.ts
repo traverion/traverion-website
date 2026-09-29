@@ -53,7 +53,8 @@ type EmailKind =
   | 'traveler_welcome'
   | 'refund_completed'
   | 'experience_reminder'
-  | 'review_request';
+  | 'review_request'
+  | 'checkout_payment_reversed';
 
 type Payload = {
   customerEmail: string;
@@ -305,6 +306,8 @@ function subjectForKind(
       return isStay ? `${tag}Your stay is coming up — ${t}` : `${tag}Your tour is coming up — ${t}`;
     case 'review_request':
       return isStay ? `${tag}How was your stay? — ${t}` : `${tag}How was your tour? — ${t}`;
+    case 'checkout_payment_reversed':
+      return `${tag}Checkout payment reversed — ${t}`;
     default:
       return `${tag}Booking received — ${t}`;
   }
@@ -801,6 +804,16 @@ serve(async (req) => {
       headline = isStay ? 'How was your stay?' : 'How was your tour?';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Thanks for booking with Traverion. If you enjoyed <strong>${escapeHtml(title)}</strong>, a short review helps other travelers.</p>`;
       footerNote = 'You can leave a review from Trips or the listing page.';
+    } else if (kind === 'checkout_payment_reversed') {
+      // Phase 1719: orphan / duplicate capture reverse while booking stays paid/active.
+      headline = 'A checkout payment was reversed';
+      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Stripe reversed an extra or invalid checkout payment for <strong>${escapeHtml(title)}</strong>. Your booking status on Trips is unchanged unless noted below.</p>`;
+      if (diffs.length) extraHtml = fieldDiffTableHtml(diffs);
+      if (typeof amount === 'number') {
+        extraHtml += `<p style="margin:12px 0 0;font-size:14px;color:#374151;"><strong>Amount reversed:</strong> ${escapeHtml(currency)} ${amount.toFixed(2)}</p>`;
+      }
+      footerNote =
+        'Open Trips to confirm your booking. Traverion does not treat email delivery as proof of a bank refund timeline.';
     } else {
       headline = 'We received your booking request';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your request is recorded for <strong>${escapeHtml(title)}</strong>. Complete payment when prompted in the app, or wait for confirmation if no payment is required.</p>`;

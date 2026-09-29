@@ -36,7 +36,8 @@ export type NotifyCustomerContentKind =
   | 'traveler_welcome'
   | 'refund_completed'
   | 'experience_reminder'
-  | 'review_request';
+  | 'review_request'
+  | 'checkout_payment_reversed';
 
 function isBookingTiedContentKind(kind: NotifyCustomerContentKind): boolean {
   return kind !== 'traveler_welcome';

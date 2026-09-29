@@ -37,7 +37,8 @@ export type NotifyCustomerBookingKind =
   | 'traveler_welcome'
   | 'refund_completed'
   | 'experience_reminder'
-  | 'review_request';
+  | 'review_request'
+  | 'checkout_payment_reversed';
 
 /** Every kind is tied to a real booking except traveler_welcome (fired on signup, before any booking exists). */
 export function isBookingTiedEmailKind(kind: NotifyCustomerBookingKind): boolean {

@@ -238,7 +238,7 @@ async function notifyTravelerCheckoutCaptureReversed(params: {
   const bn = existingBooking?.booking_number;
   const orderNum = typeof bn === 'number' && Number.isFinite(bn) ? Math.floor(bn) : undefined;
   try {
-    await fetch(`${supabaseUrl}/functions/v1/notify-customer-booking`, {
+    const res = await fetch(`${supabaseUrl}/functions/v1/notify-customer-booking`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -255,13 +255,25 @@ async function notifyTravelerCheckoutCaptureReversed(params: {
         guests: typeof existingBooking?.guests === 'number' ? existingBooking.guests : undefined,
         totalAmount: amountPaid ?? undefined,
         currency,
-        emailKind: 'booking_cancelled',
+        // Phase 1719: orphan paths keep the booking active — booking_cancelled is 409.
+        emailKind: ensureCancelled ? 'booking_cancelled' : 'checkout_payment_reversed',
         unpaidCheckout: false,
         fieldDiffs: [{ label: 'Payment', before: fieldBefore, after: fieldAfter }],
         publicSiteUrl: Deno.env.get('PUBLIC_SITE_URL') ?? 'https://www.traverion.com',
-        idempotencyKey: `customer:booking_cancelled:${bookingId}:${reasonKey}:${sessionId}`,
+        idempotencyKey: `customer:${ensureCancelled ? 'booking_cancelled' : 'checkout_payment_reversed'}:${bookingId}:${reasonKey}:${sessionId}`,
       }),
     });
+    if (!res.ok) {
+      console.error(
+        JSON.stringify({
+          source: 'notifyTravelerCheckoutCaptureReversed',
+          bookingId,
+          reasonKey,
+          status: res.status,
+          body: await res.text().catch(() => ''),
+        })
+      );
+    }
   } catch {
     /* non-fatal — refund already succeeded */
   }
