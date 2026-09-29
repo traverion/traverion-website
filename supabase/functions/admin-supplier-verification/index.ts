@@ -431,14 +431,21 @@ serve(async (req) => {
       const pay = normalizePaymentStatus(raw);
       return pay === 'paid' || pay === 'complete' || pay === 'succeeded';
     };
-    /** Mirrors src/lib/payment-states.ts isCollectedBooking - keep in sync. */
+    /**
+     * Mirrors src/lib/payment-states.ts isCollectedBooking — keep in sync.
+     * Phase 1728: late no_refund cancels stay collected (parity with Phase 1725 partner Money).
+     */
     const isCollected = (b: any): boolean => {
-      if (normalizePaymentStatus(b.status) === 'cancelled') return false;
+      const status = normalizePaymentStatus(b.status);
       const pay = normalizePaymentStatus(b.payment_status);
       if (pay === 'refunded') return false;
       if (!isPaidPaymentStatus(b.payment_status)) return false;
       const amount = Number(b.amount_paid ?? 0);
-      return Number.isFinite(amount) && amount > 0;
+      if (!Number.isFinite(amount) || amount <= 0) return false;
+      if (status === 'cancelled') {
+        return normalizePaymentStatus(b.refund_choice) === 'no_refund';
+      }
+      return true;
     };
     /** Mirrors src/lib/payment-states.ts isRefundDueBooking - keep in sync. */
     const isRefundDue = (b: any): boolean => {
