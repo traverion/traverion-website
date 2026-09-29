@@ -671,6 +671,8 @@ export default function SupplierBookings({
         bookingNumber: typeof cancelModal.booking_number === 'number' ? cancelModal.booking_number : undefined,
         bookingDate: cancelModal.booking_date,
         reasonLabel: supplierCancellationReasonLabel(cancelReason),
+        // Phase 1712: unique key per cancellation_requests row (re-request after decline).
+        requestId: res.id,
       });
     }
     setCancelModal(null);

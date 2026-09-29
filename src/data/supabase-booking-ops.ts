@@ -174,8 +174,11 @@ export async function notifyTravelerCancellationRequest(params: {
   bookingNumber?: number;
   bookingDate?: string | null;
   reasonLabel: string;
+  /** Phase 1712: cancellation_requests.id so a re-request after decline is not already_sent. */
+  requestId?: string | null;
 }): Promise<void> {
   if (!supabase) return;
+  const reqSuffix = (params.requestId ?? '').trim() || String(Date.now());
   await supabase.functions.invoke('notify-customer-booking', {
     body: {
       customerEmail: params.customerEmail,
@@ -194,7 +197,8 @@ export async function notifyTravelerCancellationRequest(params: {
         },
       ],
       publicSiteUrl: publicSiteBaseUrl(),
-      idempotencyKey: `customer:cancellation_requested_by_supplier:${params.bookingId}`,
+      // Phase 1712: per-request key (not permanent per booking).
+      idempotencyKey: `customer:cancellation_requested_by_supplier:${params.bookingId}:${reqSuffix}`,
     },
   });
 }
