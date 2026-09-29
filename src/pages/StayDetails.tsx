@@ -1406,13 +1406,14 @@ export default function StayDetails({ stayId, onBack }: Props) {
                 <span className="font-semibold tabular-nums">
                   {/* Phase 1546: never invent catalog nightly when quoteStayNights failed (Tour 1545 / Stay 1520 parity). */}
                   {/* Phase 1606: Price unavailable on sticky (Tour 1604 parity). */}
+                  {/* Phase 1686: no-dates without nightly uses Price unavailable — not an em dash. */}
                   {quoteOk
                     ? formatMoney(total, currency)
                     : checkIn && checkOut
                       ? 'Price unavailable'
                       : nightly > 0
                         ? formatMoney(nightly, currency)
-                        : '—'}
+                        : 'Price unavailable'}
                 </span>
                 <span className="text-ink-muted">
                   {' '}
