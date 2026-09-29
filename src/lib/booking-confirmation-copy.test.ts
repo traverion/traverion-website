@@ -526,8 +526,10 @@ describe('booking confirmation copy', () => {
     expect(bookingConfirmationPromisesEmailSent('Thank you. We will get back to you by email.')).toBe(true);
     expect(CONTACT_FORM_THANK_YOU.toLowerCase()).toContain('message is saved');
     expect(PARTNERSHIP_FORM_THANK_YOU.toLowerCase()).toContain('application is saved');
-    expect(CONTACT_FORM_THANK_YOU.toLowerCase()).toContain('do not treat email delivery as proof of a reply');
-    expect(PARTNERSHIP_FORM_THANK_YOU.toLowerCase()).toContain('do not treat email delivery as proof of a reply');
+    expect(CONTACT_FORM_THANK_YOU.toLowerCase()).toContain('team has been notified');
+    expect(PARTNERSHIP_FORM_THANK_YOU.toLowerCase()).toContain('team has been notified');
+    expect(CONTACT_FORM_THANK_YOU.toLowerCase()).toContain('do not treat that as proof of a reply');
+    expect(PARTNERSHIP_FORM_THANK_YOU.toLowerCase()).toContain('do not treat that as proof of a reply');
   });
 
   it('Terms and partner marketing copy do not promise email as the only notice of changes', () => {

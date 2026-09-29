@@ -641,20 +641,20 @@ export const TRAVELER_PICKUP_ACTION_EMAIL_NOTE =
 /** Contact form success heading — saved, not email-sent proof. */
 export const CONTACT_FORM_SUCCESS_HEADING = 'Message received';
 
-/** Contact form success: inquiry is saved; do not promise a reply email. */
+/** Contact form success: inquiry saved and ops notify completed (or idempotent skip). */
 export const CONTACT_FORM_THANK_YOU =
-  'Thank you. Your message is saved with Traverion. We do not treat email delivery as proof of a reply.';
+  'Thank you. Your message is saved with Traverion and our team has been notified. We do not treat that as proof of a reply yet.';
 
-/** Contact form save failure — submit/save, not email send. */
+/** Contact form save/notify failure — submit/save, not a false “email sent”. */
 export const CONTACT_FORM_SUBMIT_ERROR =
-  'Could not submit your message. Try again, or email us directly.';
+  'Could not submit your message. Try again, or email us directly at info@traverion.com.';
 
 /** Affiliate / creator success heading — received, not sent. */
 export const PARTNERSHIP_FORM_SUCCESS_HEADING = 'Application received';
 
-/** Affiliate / content-creator application success: saved; do not promise a reply email. */
+/** Affiliate / creator success: saved + ops notify completed. */
 export const PARTNERSHIP_FORM_THANK_YOU =
-  'Thank you. Your application is saved with Traverion. We do not treat email delivery as proof of a reply.';
+  'Thank you. Your application is saved with Traverion and our team has been notified. We do not treat that as proof of a reply yet.';
 
 /** Affiliate / creator save failure — submit/save, not email send. */
 export const PARTNERSHIP_FORM_SUBMIT_ERROR =
