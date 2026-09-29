@@ -272,6 +272,8 @@ export async function notifyNewBookingMessage(params: {
       messagePreview: params.preview.slice(0, 280),
       portalBaseUrl: supplierPortalPublicBaseUrl(),
       bookingNumber: params.bookingNumber,
+      // Phase 1710: do not share permanent supplier:guest_message:{bookingId} with Trips note updates.
+      idempotencyKey: `supplier:guest_message:${params.bookingId}:inbox:${params.preview.slice(0, 80)}`,
     });
   } else if (params.customerEmail) {
     void supabase.functions.invoke('notify-customer-booking', {
@@ -285,6 +287,8 @@ export async function notifyNewBookingMessage(params: {
         emailKind: 'new_booking_message',
         fieldDiffs: [{ label: 'Message', before: '—', after: params.preview.slice(0, 280) }],
         publicSiteUrl: publicSiteBaseUrl(),
+        // Phase 1710: each host Inbox message must email the traveler (not one-shot per booking).
+        idempotencyKey: `customer:new_booking_message:${params.bookingId}:${params.preview.slice(0, 80)}`,
       },
     });
   }

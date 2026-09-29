@@ -404,6 +404,11 @@ export async function updateGuestBookingSpecialRequests(
       portalBaseUrl: supplierPortalPublicBaseUrl(),
       fieldDiffs: fieldDiffs.length ? fieldDiffs : undefined,
       bookingNumber: ord,
+      // Phase 1710: do not share permanent supplier:guest_message:{bookingId} with Inbox posts.
+      idempotencyKey: `supplier:guest_message:${row.id}:notes:${fieldDiffs
+        .map((d) => `${d.label}:${d.after}`)
+        .join('|')
+        .slice(0, 80)}`,
     });
   }
 
@@ -425,6 +430,11 @@ export async function updateGuestBookingSpecialRequests(
         emailKind: 'your_details_updated',
         fieldDiffs,
         publicSiteUrl: publicSiteBaseUrl(),
+        // Phase 1710: each note change must self-receipt (not one-shot per booking).
+        idempotencyKey: `customer:your_details_updated:${row.id}:${fieldDiffs
+          .map((d) => `${d.label}:${d.after}`)
+          .join('|')
+          .slice(0, 80)}`,
       },
     });
   }
