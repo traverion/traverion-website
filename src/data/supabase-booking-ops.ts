@@ -201,42 +201,50 @@ export async function notifyTravelerCancellationRequest(params: {
 
 export async function notifyCancellationResolved(params: {
   accepted: boolean;
-  customerEmail: string;
+  customerEmail?: string | null;
   customerName?: string | null;
   listingTitle: string;
   bookingId: string;
   bookingNumber?: number;
   bookingDate?: string | null;
-  supplierId: string;
+  /** Phase 1707: optional — host notify skipped when unpublished listing hid supplier_id. */
+  supplierId?: string | null;
   listingId: string;
   guests?: number;
 }): Promise<void> {
   if (!supabase) return;
   const kind = params.accepted ? 'cancellation_accepted' : 'cancellation_declined';
-  void supabase.functions.invoke('notify-customer-booking', {
-    body: {
-      customerEmail: params.customerEmail,
-      customerName: params.customerName ?? undefined,
+  const guestEmail = (params.customerEmail ?? '').trim().toLowerCase();
+  // Phase 1707: traveler self-receipt must not depend on resolving supplier_id.
+  if (guestEmail) {
+    void supabase.functions.invoke('notify-customer-booking', {
+      body: {
+        customerEmail: guestEmail,
+        customerName: params.customerName ?? undefined,
+        listingTitle: params.listingTitle,
+        bookingId: params.bookingId,
+        bookingNumber: params.bookingNumber,
+        bookingDate: params.bookingDate ?? undefined,
+        emailKind: kind,
+        publicSiteUrl: publicSiteBaseUrl(),
+      },
+    });
+  }
+  const supplierId = (params.supplierId ?? '').trim();
+  if (supplierId) {
+    void notifySupplierEvent({
+      supplierId,
+      eventType: params.accepted ? 'cancellation_accepted' : 'cancellation_declined',
+      listingId: params.listingId,
       listingTitle: params.listingTitle,
       bookingId: params.bookingId,
-      bookingNumber: params.bookingNumber,
       bookingDate: params.bookingDate ?? undefined,
-      emailKind: kind,
-      publicSiteUrl: publicSiteBaseUrl(),
-    },
-  });
-  void notifySupplierEvent({
-    supplierId: params.supplierId,
-    eventType: params.accepted ? 'cancellation_accepted' : 'cancellation_declined',
-    listingId: params.listingId,
-    listingTitle: params.listingTitle,
-    bookingId: params.bookingId,
-    bookingDate: params.bookingDate ?? undefined,
-    guests: params.guests,
-    guestName: params.customerName ?? undefined,
-    portalBaseUrl: supplierPortalPublicBaseUrl(),
-    bookingNumber: params.bookingNumber,
-  });
+      guests: params.guests,
+      guestName: params.customerName ?? undefined,
+      portalBaseUrl: supplierPortalPublicBaseUrl(),
+      bookingNumber: params.bookingNumber,
+    });
+  }
 }
 
 export async function notifyNewBookingMessage(params: {

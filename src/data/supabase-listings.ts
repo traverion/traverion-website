@@ -496,16 +496,28 @@ export type ListingOpsMeta = {
 
 export async function fetchListingOpsByIds(ids: string[]): Promise<Record<string, ListingOpsMeta>> {
   if (!supabase || ids.length === 0) return {};
+  const unique = [...new Set(ids.filter(Boolean))];
   const { data, error } = await supabase
     .from('listings')
     .select(
       'id, title, supplier_id, meeting_point, pickup_instructions, image, destination, city, status, listing_extras'
     )
-    .in('id', ids);
+    .in('id', unique);
   // Failure must not look like "listings have no ops meta" (Phase 1089).
   if (error) throw new Error(error.message);
   const map: Record<string, ListingOpsMeta> = {};
-  for (const r of data ?? []) {
+  const ingest = (r: {
+    id: string;
+    title?: string | null;
+    supplier_id?: string | null;
+    meeting_point?: string | null;
+    pickup_instructions?: string | null;
+    image?: string | null;
+    destination?: string | null;
+    city?: string | null;
+    status?: string | null;
+    listing_extras?: unknown;
+  }) => {
     map[r.id] = {
       title: r.title ?? '',
       supplier_id: r.supplier_id ?? null,
@@ -517,6 +529,42 @@ export async function fetchListingOpsByIds(ids: string[]): Promise<Record<string
       status: typeof r.status === 'string' ? r.status : null,
       listing_extras: r.listing_extras ?? null,
     };
+  };
+  for (const r of data ?? []) ingest(r);
+
+  // Phase 1707: unpublished listings are invisible under listings RLS — fill via party RPC.
+  const missing = unique.filter((id) => !map[id]);
+  if (missing.length > 0) {
+    const { data: partyRows, error: partyErr } = await supabase.rpc('listing_ops_for_booking_party', {
+      p_listing_ids: missing,
+    });
+    if (partyErr) throw new Error(partyErr.message);
+    for (const r of partyRows ?? []) ingest(r);
   }
   return map;
+}
+
+/** Phase 1707: supplier_id + title even when the listing is draft/unpublished (booking party). */
+export async function fetchListingSupplierMetaForParty(
+  listingId: string
+): Promise<{ supplier_id: string | null; title: string | null }> {
+  if (!supabase || !listingId) return { supplier_id: null, title: null };
+  const { data, error } = await supabase
+    .from('listings')
+    .select('supplier_id, title')
+    .eq('id', listingId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (data?.supplier_id) {
+    return { supplier_id: data.supplier_id, title: data.title?.trim() || null };
+  }
+  const { data: partyRows, error: partyErr } = await supabase.rpc('listing_ops_for_booking_party', {
+    p_listing_ids: [listingId],
+  });
+  if (partyErr) throw new Error(partyErr.message);
+  const row = Array.isArray(partyRows) ? partyRows[0] : null;
+  return {
+    supplier_id: row?.supplier_id ?? null,
+    title: typeof row?.title === 'string' ? row.title.trim() || null : null,
+  };
 }

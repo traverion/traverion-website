@@ -6,7 +6,7 @@ import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 import { supplierPortalPublicBaseUrl } from '../lib/partnerHost';
 import { notifySupplierEvent } from './supabase-supplier-messaging';
 import { resolveSupplierId } from './supabase-supplier-team';
-import { hmToPgTime, pgTimeToHm } from './supabase-listings';
+import { hmToPgTime, pgTimeToHm, fetchListingSupplierMetaForParty } from './supabase-listings';
 import { upsertBookingPickupNoteOverrides } from '../lib/booking-notes';
 import { travelerSelfCancelBlock, travelerSelfCancelError, travelerSelfCancelIsUnpaidCheckout, partnerBookingStatusRewriteBlock, partnerManualConfirmBlock, partnerManualConfirmError } from '../lib/cancellation-policy';
 import {
@@ -353,16 +353,13 @@ export async function updateGuestBookingSpecialRequests(
     .maybeSingle();
   if (!row?.listing_id) return { success: true };
 
-  const { data: listingData } = await supabase
-    .from('listings')
-    .select('supplier_id, title')
-    .eq('id', row.listing_id)
-    .maybeSingle();
+  // Phase 1707: resolve supplier even when listing is draft/unpublished.
+  const listingMeta = await fetchListingSupplierMetaForParty(row.listing_id);
 
   // Phase 1480: details-update emails name what was purchased, not a later partner rename.
   const listingTitle = displayListingTitleFromPurchase(
     row.purchase_snapshot,
-    listingData?.title?.trim() || null,
+    listingMeta.title,
     'Listing'
   );
 
@@ -387,7 +384,7 @@ export async function updateGuestBookingSpecialRequests(
     });
   }
 
-  if (listingData?.supplier_id) {
+  if (listingMeta.supplier_id) {
     const preview =
       specialRequests.trim().length > 400 ? `${specialRequests.trim().slice(0, 400)}…` : specialRequests.trim();
     const ord =
@@ -395,7 +392,7 @@ export async function updateGuestBookingSpecialRequests(
         ? Math.floor(row.booking_number)
         : undefined;
     void notifySupplierEvent({
-      supplierId: listingData.supplier_id,
+      supplierId: listingMeta.supplier_id,
       eventType: 'guest_message',
       listingId: row.listing_id,
       listingTitle,
@@ -796,20 +793,17 @@ export async function cancelBookingAsCustomer(
       ? Math.floor(bookingMeta.booking_number)
       : undefined;
   if (bookingMeta?.listing_id) {
-    const { data: listingData } = await supabase
-      .from('listings')
-      .select('supplier_id, title')
-      .eq('id', bookingMeta.listing_id)
-      .maybeSingle();
+    // Phase 1707: resolve supplier even when listing is draft/unpublished.
+    const listingMeta = await fetchListingSupplierMetaForParty(bookingMeta.listing_id);
     // Phase 1478: cancel emails must name what was purchased, not a later partner rename.
     listingTitle = displayListingTitleFromPurchase(
       bookingMeta.purchase_snapshot,
-      listingData?.title?.trim() || null,
+      listingMeta.title,
       'Listing'
     );
-    if (listingData?.supplier_id) {
+    if (listingMeta.supplier_id) {
       void notifySupplierEvent({
-        supplierId: listingData.supplier_id,
+        supplierId: listingMeta.supplier_id,
         eventType: 'booking_cancelled',
         listingId: bookingMeta.listing_id,
         listingTitle,

@@ -298,20 +298,21 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
         return;
       }
       const ops = listingOps[b.listing_id];
-      if (ops?.supplier_id && b.guest_email) {
+      // Phase 1707: fire resolves even when unpublished listing hid supplier_id from RLS.
+      if (b.guest_email || ops?.supplier_id) {
         void notifyCancellationResolved({
           accepted: accept,
           customerEmail: b.guest_email,
           customerName: b.guest_name,
           listingTitle: displayListingTitleFromPurchase(
             b.purchase_snapshot,
-            ops.title || titles[b.listing_id],
+            ops?.title || titles[b.listing_id],
             'Booking'
           ),
           bookingId: b.id,
           bookingNumber: typeof b.booking_number === 'number' ? b.booking_number : undefined,
           bookingDate: b.booking_date,
-          supplierId: ops.supplier_id,
+          supplierId: ops?.supplier_id ?? null,
           listingId: b.listing_id,
           guests: b.guests,
         });
