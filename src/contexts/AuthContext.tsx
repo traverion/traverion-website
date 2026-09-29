@@ -14,6 +14,7 @@ import { sanitizeAuthRedirectTo } from '../lib/authRedirect';
 import { sanitizeTravelerAuthNext } from '../lib/travelerAuthLinks';
 import { travelerSessionIsPartnerOnly } from '../lib/traveler-session-authority';
 import { userHasSupplierProfile } from '../lib/supplierPortalAccess';
+import { isPasswordRecoveryActive } from '../lib/passwordRecoveryFlow';
 
 type AuthContextValue = {
   user: User | null;
@@ -98,6 +99,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const allowed = await travelerUserAllowed(next);
       if (gen !== gateGen.current) return;
       if (!allowed) {
+        // Phase 1718: partner-only recovery on www must keep the session for updateUser
+        // (1717 stays on marketing host). Do not wipe; leave React user null.
+        if (isPasswordRecoveryActive()) {
+          if (gen === gateGen.current) setUser(null);
+          return;
+        }
         await clearPartnerOnlyTravelerSession();
         if (gen === gateGen.current) setUser(null);
         return;
