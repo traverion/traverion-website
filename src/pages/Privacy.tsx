@@ -8,6 +8,13 @@ type PrivacyProps = {
 const LAST_UPDATED = '26 March 2026';
 
 export default function Privacy({ onNavigate }: PrivacyProps) {
+  const goContact = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (onNavigate) {
+      e.preventDefault();
+      onNavigate('contact');
+    }
+  };
+
   return (
     <LegalPageShell
       eyebrow="Legal"
@@ -88,6 +95,11 @@ export default function Privacy({ onNavigate }: PrivacyProps) {
         <h2 id="contact">Contact us</h2>
         <p>If you have any questions about this Privacy Policy, please contact us:</p>
         <p>
+          {/* Phase 1689: in-app Contact parity with Terms. */}
+          <a href="/contact" onClick={goContact}>
+            Contact support
+          </a>
+          <br />
           Email:{' '}
           <a href="mailto:info@traverion.com">info@traverion.com</a>
           <br />
