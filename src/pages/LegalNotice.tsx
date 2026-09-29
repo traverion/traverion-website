@@ -50,6 +50,11 @@ export default function LegalNotice({ onNavigate }: LegalNoticeProps) {
       <section>
         <h2 id="contact">Contact for legal &amp; official matters</h2>
         <p>
+          {/* Phase 1691: in-app Contact parity with Cookies/Privacy. */}
+          <a href="/contact" onClick={go('contact')}>
+            Contact support
+          </a>
+          <br />
           Email: <a href="mailto:info@traverion.com">info@traverion.com</a>
           <br />
           Postal address: TRAVERION Travel Agency, Finland
