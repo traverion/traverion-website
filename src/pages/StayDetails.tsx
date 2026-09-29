@@ -54,7 +54,7 @@ import {
   STRIPE_TEST_UNTIL_LIVE,
 } from '../lib/booking-confirmation-copy';
 import { listingShowsFreeCancellation, publicReviewLabel } from '../lib/listingTruth';
-import { isSupabaseConfigured } from '../lib/supabase';
+import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { isSupabaseListingId } from '../lib/discount-display';
 import { fetchConsumerProfileRow } from '../data/supabase-consumer-profile';
 import {
@@ -86,8 +86,12 @@ function readStayPrefill(): { checkIn: string; checkOut: string; guests: number 
 
 export default function StayDetails({ stayId, onBack }: Props) {
   const { user, requestAuth } = useAuth();
+  // Phase 1704: sync via effect only — per-render `userRef = user` wiped session set in auth onSuccess
+  // before React `user` caught up (modal close re-render → Pay never resumed / self-book skipped).
   const userRef = useRef(user);
-  userRef.current = user;
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
   const [stay, setStay] = useState<TourPackage | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [checkIn, setCheckIn] = useState(() => readStayPrefill().checkIn);
@@ -585,20 +589,27 @@ export default function StayDetails({ stayId, onBack }: Props) {
       return;
     }
     // Phase 1142: tours require sign-in before Stripe; stays must match (edge rejects anon JWT).
-    if (isSupabaseConfigured() && !user) {
+    // Phase 1704: gate on userRef — AuthModal onSuccess can fire before React `user` state updates.
+    if (isSupabaseConfigured() && !userRef.current) {
       requestAuth({
         onSuccess: () => {
-          window.setTimeout(() => {
+          void (async () => {
+            if (supabase) {
+              const { data: sessionData } = await supabase.auth.getSession();
+              if (sessionData.session?.user) {
+                userRef.current = sessionData.session.user;
+              }
+            }
             void startStayCheckout();
-          }, 0);
+          })();
         },
       });
       return;
     }
     // Phase 1147: mirror checkout edge — don't open Stripe for own/team listings.
-    if (isSupabaseConfigured() && user?.id) {
+    if (isSupabaseConfigured() && userRef.current?.id) {
       try {
-        const selfBook = await viewerIsListingSupplierSide(user.id, stay.supplierId);
+        const selfBook = await viewerIsListingSupplierSide(userRef.current.id, stay.supplierId);
         if (selfBook) {
           setPayError(LISTING_SELF_BOOK_BLOCKED);
           document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });

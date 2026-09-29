@@ -142,6 +142,8 @@ export default function AuthModal() {
           setFieldErrors(serverMessageToFields(err));
           return;
         }
+        // Phase 1704: ensure session is readable before checkout onSuccess resumes Pay.
+        if (supabase) await supabase.auth.getSession();
         triggerAuthSuccess();
       } else {
         const { error: err, hasSession } = await signUp(trimmedEmail, password, {
@@ -154,8 +156,10 @@ export default function AuthModal() {
           setFieldErrors(serverMessageToFields(err));
           return;
         }
-        if (hasSession) triggerAuthSuccess();
-        else setSuccessMessage(AUTH_CONFIRMATION_EMAIL_REQUESTED);
+        if (hasSession) {
+          if (supabase) await supabase.auth.getSession();
+          triggerAuthSuccess();
+        } else setSuccessMessage(AUTH_CONFIRMATION_EMAIL_REQUESTED);
       }
     } finally {
       setSubmitting(false);

@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { TourPackage } from '../types/tour';
 import { useAuth } from '../contexts/AuthContext';
-import { isSupabaseConfigured } from '../lib/supabase';
+import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { createBookingCheckoutSession } from '../data/supabase-bookings';
 import { LISTING_SELF_BOOK_BLOCKED, LISTING_SELF_BOOK_CHECK_FAILED, viewerIsListingSupplierSide } from '../lib/listing-self-book';
 import { tourDepartureSlotCapacity } from '../../supabase/functions/_shared/booking-quote.ts';
@@ -222,8 +222,11 @@ export default function BookingPage({
   onCheckoutUrlState,
 }: BookingPageProps) {
   const { user, requestAuth } = useAuth();
+  // Phase 1704: effect sync only — avoid wiping session filled in auth onSuccess before React user updates.
   const userRef = useRef(user);
-  userRef.current = user;
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
   const flowMode = presentation === 'modal' ? 'modal' : 'page';
   const hasPreselectedVariant = Boolean(selectedVariant);
   const progressFlow: 'page' | 'modal' | 'variant' =
@@ -1072,9 +1075,16 @@ export default function BookingPage({
     if (isSupabaseConfigured() && !userRef.current) {
       requestAuth({
         onSuccess: () => {
-          window.setTimeout(() => {
+          // Phase 1704: wait for session before resume (AuthModal can fire before React user).
+          void (async () => {
+            if (supabase) {
+              const { data: sessionData } = await supabase.auth.getSession();
+              if (sessionData.session?.user) {
+                userRef.current = sessionData.session.user;
+              }
+            }
             void handleConfirmBooking();
-          }, 0);
+          })();
         },
       });
       return;
