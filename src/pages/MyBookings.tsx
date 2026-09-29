@@ -269,11 +269,14 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
     setCancelConfirm(null);
     if (res.success) {
       if (b.booking_date) await decrementAvailabilityBooked(b.listing_id, b.booking_date, b.guests ?? 1);
+      // Phase 1726: toast follows server refund_choice (SQL may coerce near cutoff).
+      const serverChoice = res.refundChoice ?? refundChoice;
+      const serverUnpaid = res.unpaidCheckout ?? unpaid;
       setActionSuccess({
-        title: unpaid ? 'Checkout cancelled' : 'Booking cancelled',
-        body: unpaid
+        title: serverUnpaid ? 'Checkout cancelled' : 'Booking cancelled',
+        body: serverUnpaid
           ? TRAVELER_CANCEL_UNPAID_CHECKOUT_SUCCESS
-          : refundChoice === 'full_refund'
+          : serverChoice === 'full_refund'
             ? TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE
             : TRAVELER_SELF_CANCEL_SUCCESS_NO_REFUND,
       });

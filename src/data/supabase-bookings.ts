@@ -854,7 +854,13 @@ export async function batchCancelBookings(
 export async function cancelBookingAsCustomer(
   bookingId: string,
   refundChoice: 'full_refund' | 'no_refund'
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{
+  success: boolean;
+  error?: string;
+  /** Phase 1726: server-authoritative choice after cancel_booking_as_traveler coerce. */
+  refundChoice?: 'full_refund' | 'no_refund';
+  unpaidCheckout?: boolean;
+}> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
   const { data: current, error: loadError } = await supabase
     .from('bookings')
@@ -883,11 +889,10 @@ export async function cancelBookingAsCustomer(
   if (unpaidCheckout) {
     expireUnpaidCancelledCheckout(bookingId);
   }
-  const cancelDiffAfter = unpaidCheckout
-    ? TRAVELER_CANCEL_UNPAID_CHECKOUT_EMAIL_DIFF
-    : effectiveChoice === 'full_refund'
-      ? TRAVELER_SELF_CANCEL_EMAIL_DIFF_FULL_REFUND
-      : TRAVELER_SELF_CANCEL_EMAIL_DIFF_NO_REFUND;
+  // Phase 1726: SQL may coerce full_refund → no_refund near the free-cancel cutoff; trust DB.
+  const rpcChoiceRaw = String((rpcData as { refund_choice?: string } | null)?.refund_choice ?? '')
+    .trim()
+    .toLowerCase();
   const { data: bookingMeta } = await supabase
     .from('bookings')
     .select(
@@ -895,6 +900,16 @@ export async function cancelBookingAsCustomer(
     )
     .eq('id', bookingId)
     .maybeSingle();
+  const dbChoiceRaw = String(bookingMeta?.refund_choice ?? rpcChoiceRaw)
+    .trim()
+    .toLowerCase();
+  const serverChoice: 'full_refund' | 'no_refund' =
+    unpaidCheckout || dbChoiceRaw === 'no_refund' ? 'no_refund' : 'full_refund';
+  const cancelDiffAfter = unpaidCheckout
+    ? TRAVELER_CANCEL_UNPAID_CHECKOUT_EMAIL_DIFF
+    : serverChoice === 'full_refund'
+      ? TRAVELER_SELF_CANCEL_EMAIL_DIFF_FULL_REFUND
+      : TRAVELER_SELF_CANCEL_EMAIL_DIFF_NO_REFUND;
 
   let listingTitle = displayListingTitleFromPurchase(bookingMeta?.purchase_snapshot, null, 'Listing');
   const cancelOrd =
@@ -958,7 +973,7 @@ export async function cancelBookingAsCustomer(
       },
     });
   }
-  return { success: true };
+  return { success: true, refundChoice: serverChoice, unpaidCheckout };
 }
 
 /** Fetch current consumer's bookings (RLS: guest_user_id or verified guest_email). Must be logged in. Throws on Supabase error. */

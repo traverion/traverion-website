@@ -272,6 +272,13 @@ export const TRAVELER_CANCEL_UNPAID_CHECKOUT_EMAIL_DIFF =
 export const TRAVELER_CANCEL_UNPAID_CHECKOUT_EMAIL_FOOTER =
   'This was an unpaid checkout. No payment was collected. Trips keeps the cancelled record if you need it.';
 
+/**
+ * Phase 1726: traveler cancel email footer when refund_choice is no_refund.
+ * Keep in sync with notify-customer-booking booking_cancelled footer.
+ */
+export const TRAVELER_CANCEL_NO_REFUND_EMAIL_FOOTER =
+  'No refund applies for this cancellation. Trips keeps the cancelled record if you need it.';
+
 /** Partner notify-supplier-event for traveler cancel of unpaid checkout — keep in sync with notify-supplier-event. */
 export const SUPPLIER_BOOKING_CANCELLED_UNPAID_NOTIFY_SUB =
   'The traveler cancelled an unpaid checkout. No payment was collected. The hold is released; nothing is Refund due. Check Bookings if you need the record.';

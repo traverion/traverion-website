@@ -510,6 +510,8 @@ serve(async (req) => {
         : undefined;
     // Phase 1129: prefer DB payment_status over caller unpaidCheckout flag.
     let unpaidCheckoutFromDb: boolean | null = null;
+    // Phase 1726: paid cancel fieldDiffs / footer follow DB refund_choice, not guest forge.
+    let refundChoiceFromDb: string | null = null;
     // Phase 1132: receipt PDF metadata from bookings row, not caller body.
     let paidAtIsoFromDb: string | undefined;
     let paymentIntentIdFromDb: string | undefined;
@@ -521,13 +523,16 @@ serve(async (req) => {
       const { data: bookingRow } = await admin
         .from('bookings')
         .select(
-          'status, payment_status, guest_email, amount_paid, total_amount, currency, guest_name, booking_date, check_out, nights, guests, booking_number, purchase_snapshot, listing_id, paid_at, payment_intent_id'
+          'status, payment_status, guest_email, amount_paid, total_amount, currency, guest_name, booking_date, check_out, nights, guests, booking_number, purchase_snapshot, listing_id, paid_at, payment_intent_id, refund_choice'
         )
         .eq('id', bookingId)
         .maybeSingle();
 
       if (bookingRow) {
         unpaidCheckoutFromDb = notifyUnpaidCheckoutFromPaymentStatus(bookingRow.payment_status);
+        refundChoiceFromDb = String(bookingRow.refund_choice ?? '')
+          .trim()
+          .toLowerCase();
         if (typeof bookingRow.paid_at === 'string' && bookingRow.paid_at.trim()) {
           paidAtIsoFromDb = bookingRow.paid_at.trim();
         }
@@ -652,7 +657,7 @@ serve(async (req) => {
       }
     }
 
-    const diffs = allowCallerFieldDiffs
+    let diffs = allowCallerFieldDiffs
       ? Array.isArray(body.fieldDiffs)
         ? body.fieldDiffs.filter(
             (d) =>
@@ -663,6 +668,29 @@ serve(async (req) => {
           )
         : []
       : [];
+
+    // Phase 1726: booking_cancelled refund copy must follow DB unpaid + refund_choice
+    // (parity with notify-supplier-event Phase 1724) — guests cannot forge Refund due.
+    if (kind === 'booking_cancelled') {
+      const unpaid =
+        unpaidCheckoutFromDb !== null ? unpaidCheckoutFromDb : body.unpaidCheckout === true;
+      const refundChoice = refundChoiceFromDb ?? '';
+      // Keep after strings in sync with TRAVELER_*_EMAIL_DIFF constants in booking-confirmation-copy.ts
+      const after = unpaid
+        ? 'Unpaid checkout cancelled — no payment was collected.'
+        : refundChoice === 'full_refund'
+          ? 'Cancelled — full refund due until Stripe records it (not automatic)'
+          : refundChoice === 'no_refund'
+            ? 'Cancelled — no refund for this traveler-initiated cancellation'
+            : 'Cancelled — refund status follows Trips / Stripe';
+      diffs = [
+        {
+          label: 'Cancellation & refund',
+          before: unpaid ? 'Unpaid checkout' : 'Active booking',
+          after,
+        },
+      ];
+    }
 
     let headline = 'Booking update';
     let intro = '';
@@ -715,6 +743,8 @@ serve(async (req) => {
       // Phase 1129: unpaid copy follows payment_status, not body.unpaidCheckout.
       const unpaid =
         unpaidCheckoutFromDb !== null ? unpaidCheckoutFromDb : body.unpaidCheckout === true;
+      // Phase 1726: paid footer follows DB refund_choice (no false Refund due on no_refund).
+      const refundChoice = refundChoiceFromDb ?? '';
       headline = unpaid ? 'Checkout cancelled' : 'Your booking was cancelled';
       intro = unpaid
         ? `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">You cancelled an unpaid checkout. No payment was collected. Summary below.</p>`
@@ -723,7 +753,9 @@ serve(async (req) => {
       footerNote = unpaid
         ? // Keep in sync with TRAVELER_CANCEL_UNPAID_CHECKOUT_EMAIL_FOOTER
           'This was an unpaid checkout. No payment was collected. Trips keeps the cancelled record if you need it.'
-        : 'When a refund applies, Trips shows Refund due until Stripe records Refunded. Traverion does not send Stripe refunds automatically. Timing then depends on your bank.';
+        : refundChoice === 'no_refund'
+          ? 'No refund applies for this cancellation. Trips keeps the cancelled record if you need it.'
+          : 'When a refund applies, Trips shows Refund due until Stripe records Refunded. Traverion does not send Stripe refunds automatically. Timing then depends on your bank.';
     } else if (kind === 'cancellation_requested_by_supplier') {
       headline = 'Action needed on your booking';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">The supplier can no longer operate this booking as planned. Your reservation is <strong>not cancelled yet</strong>. Open Trips to accept the cancellation (refund due when payment was collected) or keep the booking if you decline.</p>`;

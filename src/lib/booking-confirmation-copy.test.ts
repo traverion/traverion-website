@@ -28,6 +28,7 @@ import {
   TRAVELER_CANCEL_UNPAID_CHECKOUT_SYSTEM_MESSAGE,
   TRAVELER_CANCEL_UNPAID_CHECKOUT_EMAIL_DIFF,
   TRAVELER_CANCEL_UNPAID_CHECKOUT_EMAIL_FOOTER,
+  TRAVELER_CANCEL_NO_REFUND_EMAIL_FOOTER,
   SUPPLIER_BOOKING_CANCELLED_UNPAID_NOTIFY_SUB,
   TRAVELER_ACCEPT_CANCEL_SUCCESS,
   TRAVELER_DECLINE_CANCEL_SUCCESS,
@@ -347,6 +348,9 @@ describe('booking confirmation copy', () => {
     expect(TRAVELER_CANCEL_UNPAID_CHECKOUT_EMAIL_FOOTER.toLowerCase()).toContain('no payment was collected');
     expect(TRAVELER_CANCEL_UNPAID_CHECKOUT_EMAIL_FOOTER.toLowerCase()).not.toContain('refund due');
     expect(bookingConfirmationPromisesEmailSent(TRAVELER_CANCEL_UNPAID_CHECKOUT_EMAIL_FOOTER)).toBe(false);
+    expect(TRAVELER_CANCEL_NO_REFUND_EMAIL_FOOTER.toLowerCase()).toContain('no refund applies');
+    expect(TRAVELER_CANCEL_NO_REFUND_EMAIL_FOOTER.toLowerCase()).not.toContain('refund due');
+    expect(bookingConfirmationPromisesEmailSent(TRAVELER_CANCEL_NO_REFUND_EMAIL_FOOTER)).toBe(false);
     expect(SUPPLIER_BOOKING_CANCELLED_UNPAID_NOTIFY_SUB.toLowerCase()).toContain('unpaid checkout');
     expect(SUPPLIER_BOOKING_CANCELLED_UNPAID_NOTIFY_SUB.toLowerCase()).toContain('no payment was collected');
     expect(SUPPLIER_BOOKING_CANCELLED_UNPAID_NOTIFY_SUB.toLowerCase()).toContain('nothing is refund due');
