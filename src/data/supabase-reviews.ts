@@ -4,6 +4,7 @@ import { bookingEligibleForReview } from '../lib/review-eligibility';
 import { redactUnpaidStayCheckInAddress } from '../lib/purchase-snapshot';
 import { notifySupplierEvent } from './supabase-supplier-messaging';
 import { resolveSupplierId } from './supabase-supplier-team';
+import { fetchListingSupplierMetaForParty } from './supabase-listings';
 import { inventoryFamilyFromListing, type InventoryFamily } from '../lib/inventory';
 import { parseListingExtras } from '../types/listingExtras';
 import { reviewHasWrittenFeedback } from '../lib/review-feedback';
@@ -132,17 +133,15 @@ export async function submitReview(params: {
     .select('id')
     .maybeSingle();
   if (error) return { success: false, error: error.message };
-  const { data: listingData } = await supabase
-    .from('listings')
-    .select('supplier_id, title')
-    .eq('id', params.listingId)
-    .maybeSingle();
-  if (listingData?.supplier_id && savedReview?.id) {
+  // Phase 1730: draft/unpublished listings are hidden from traveler SELECT; resolve
+  // supplier via party RPC so new_review still emails the host (1707/1729 parity).
+  const listingMeta = await fetchListingSupplierMetaForParty(params.listingId);
+  if (listingMeta.supplier_id && savedReview?.id) {
     void notifySupplierEvent({
-      supplierId: listingData.supplier_id,
+      supplierId: listingMeta.supplier_id,
       eventType: 'new_review',
       listingId: params.listingId,
-      listingTitle: listingData.title ?? undefined,
+      listingTitle: listingMeta.title ?? undefined,
       reviewId: savedReview.id,
       reviewRating: params.rating,
       reviewTitle: params.title,
