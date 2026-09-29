@@ -32,6 +32,16 @@ export function tripAllowsBrowseLiveListing(
   });
 }
 
+/**
+ * Phase 1709: Leave a review from Trips — published is enough.
+ * Do not require upcoming season (review-request cron often fires after the season ends).
+ */
+export function tripAllowsLeaveReview(
+  ops: { status?: string | null } | null | undefined
+): boolean {
+  return (ops?.status ?? '').trim().toLowerCase() === 'published';
+}
+
 export type TripListView = 'upcoming' | 'past' | 'cancelled';
 
 export function bookingIsCancelledTrip(b: {

@@ -65,7 +65,7 @@ import { TRAVERION_STANDARD_CANCELLATION_POLICY } from '../types/listingExtras';
 import { decrementAvailabilityBooked } from '../data/supabase-availability';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
 import { guestFacingBookingNotes } from '../lib/booking-notes';
-import { bookingMatchesTripView, travelerTripIsLive, travelerBookingNeedsPayNow, travelerTripReferenceLabel, sortTravelerCancelledTrips, tripAllowsBrowseLiveListing } from '../lib/trip-views';
+import { bookingMatchesTripView, travelerTripIsLive, travelerBookingNeedsPayNow, travelerTripReferenceLabel, sortTravelerCancelledTrips, tripAllowsBrowseLiveListing, tripAllowsLeaveReview } from '../lib/trip-views';
 import { bookingEligibleForReview } from '../lib/review-eligibility';
 import { partnerBookingNumberMatchesFilterQuery } from '../lib/partner-bookings-search';
 import {
@@ -1369,10 +1369,10 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     </div>
                   )}
                   <div className="flex flex-wrap gap-2">
-                    {/* Phase 1678: review-request email opens Trips — Leave a review on eligible past trips. */}
+                    {/* Phase 1678 + Phase 1709: review-request opens Trips — Leave a review needs published, not live season. */}
                     {onTourSelect &&
                     tripView === 'past' &&
-                    tripAllowsBrowseLiveListing(ops) &&
+                    tripAllowsLeaveReview(ops) &&
                     bookingEligibleForReview(b) ? (
                       <button
                         type="button"
@@ -1391,7 +1391,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     ) : null}
                     {onTourSelect &&
                     tripAllowsBrowseLiveListing(ops) &&
-                    !(tripView === 'past' && bookingEligibleForReview(b)) && (
+                    !(tripView === 'past' && bookingEligibleForReview(b) && tripAllowsLeaveReview(ops)) && (
                       <button
                         type="button"
                         onClick={() => {

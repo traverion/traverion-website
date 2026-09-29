@@ -20,6 +20,7 @@ import {
   partnerTourMatchesExperienceDayOffset,
   pickupMissingIsUrgentSoon,
   tripAllowsBrowseLiveListing,
+  tripAllowsLeaveReview,
 } from './trip-views';
 
 const today = '2026-09-08';
@@ -425,5 +426,11 @@ describe('trip list views', () => {
         listing_extras: { inventoryFamily: 'stay' },
       })
     ).toBe(true);
+  });
+
+  it('Phase 1709: Leave a review allowed for published tours even when season ended', () => {
+    expect(tripAllowsLeaveReview({ status: 'published' })).toBe(true);
+    expect(tripAllowsLeaveReview({ status: 'draft' })).toBe(false);
+    expect(tripAllowsLeaveReview(null)).toBe(false);
   });
 });
