@@ -1374,7 +1374,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     </div>
                   )}
                   <div className="flex flex-wrap gap-2">
-                    {/* Phase 1678 + Phase 1709: review-request opens Trips — Leave a review needs published, not live season. */}
+                    {/* Phase 1678 + Phase 1709 + Phase 1731: Leave a review for published or draft (unpublish); not live-season. */}
                     {onTourSelect &&
                     tripView === 'past' &&
                     tripAllowsLeaveReview(ops) &&

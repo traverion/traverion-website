@@ -21,6 +21,7 @@ import {
   pickupMissingIsUrgentSoon,
   tripAllowsBrowseLiveListing,
   tripAllowsLeaveReview,
+  reviewOnlyPackageFromListingOps,
 } from './trip-views';
 
 const today = '2026-09-08';
@@ -430,7 +431,21 @@ describe('trip list views', () => {
 
   it('Phase 1709: Leave a review allowed for published tours even when season ended', () => {
     expect(tripAllowsLeaveReview({ status: 'published' })).toBe(true);
-    expect(tripAllowsLeaveReview({ status: 'draft' })).toBe(false);
+    expect(tripAllowsLeaveReview({ status: 'draft' })).toBe(true);
+    expect(tripAllowsLeaveReview({ status: 'archived' })).toBe(false);
     expect(tripAllowsLeaveReview(null)).toBe(false);
+  });
+
+  it('Phase 1731: review-only package carries draft status and title from ops', () => {
+    const pkg = reviewOnlyPackageFromListingOps('abc', {
+      title: 'Northern Lights',
+      status: 'draft',
+      supplier_id: 'sup-1',
+      city: 'Rovaniemi',
+    });
+    expect(pkg.id).toBe('abc');
+    expect(pkg.title).toBe('Northern Lights');
+    expect(pkg.status).toBe('draft');
+    expect(pkg.supplierId).toBe('sup-1');
   });
 });

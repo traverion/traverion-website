@@ -6,6 +6,8 @@ import { parseListingExtras, TRAVERION_STANDARD_CANCELLATION_POLICY } from '../t
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 import { listingIsFamily } from '../lib/inventory';
 import { listingDetailVisibleToTraveler } from '../lib/product-workflows';
+import { reviewOnlyPackageFromListingOps } from '../lib/trip-views';
+import { fetchListingOpsByIds } from '../data/supabase-listings';
 import { useAuth } from '../contexts/AuthContext';
 import { LISTING_SELF_BOOK_BLOCKED, LISTING_SELF_BOOK_CHECK_FAILED, viewerIsListingSupplierSide } from '../lib/listing-self-book';
 import { failCloseOrphanStayCheckout } from '../lib/marketplaceBrowse';
@@ -94,6 +96,8 @@ export default function StayDetails({ stayId, onBack }: Props) {
   }, [user]);
   const [stay, setStay] = useState<TourPackage | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Phase 1731: review-only PDP when draft stay is hidden from traveler SELECT. */
+  const [reviewOnlyAccess, setReviewOnlyAccess] = useState(false);
   const [checkIn, setCheckIn] = useState(() => readStayPrefill().checkIn);
   const [checkOut, setCheckOut] = useState(() => readStayPrefill().checkOut);
   const [guests, setGuests] = useState(() => readStayPrefill().guests);
@@ -143,23 +147,53 @@ export default function StayDetails({ stayId, onBack }: Props) {
     let cancelled = false;
     setError(null);
     setStay(null);
+    setReviewOnlyAccess(false);
     setOccupiedRanges([]);
     setBlockedNights([]);
     setOccupancyError(null);
     setOccupancyLoaded(false);
     void getListingByIdAsync(stayId)
-      .then((row) => {
+      .then(async (row) => {
         if (cancelled) return;
         const found = row ?? getListingById(stayId) ?? null;
         if (
-          !found ||
-          !listingDetailVisibleToTraveler({ familyMatches: listingIsFamily(found, 'stay'), status: found.status })
+          found &&
+          listingDetailVisibleToTraveler({
+            familyMatches: listingIsFamily(found, 'stay'),
+            status: found.status,
+          })
         ) {
-          setStay(null);
-          setError(USER_ERROR.stayMissing);
+          setStay(found);
           return;
         }
-        setStay(found);
+        // Phase 1731: draft/unpublished stay — review-only hydrate via party ops.
+        const uid = user?.id;
+        const email = user?.email ?? '';
+        if (uid && isSupabaseConfigured()) {
+          try {
+            const { canReview } = await userHasCompletedBookingForListing(uid, email, stayId);
+            if (cancelled) return;
+            if (canReview) {
+              if (found) {
+                setReviewOnlyAccess(true);
+                setStay(found);
+                return;
+              }
+              const opsMap = await fetchListingOpsByIds([stayId]);
+              if (cancelled) return;
+              const ops = opsMap[stayId];
+              if (ops) {
+                setReviewOnlyAccess(true);
+                setStay(reviewOnlyPackageFromListingOps(stayId, ops));
+                return;
+              }
+            }
+          } catch {
+            /* fall through to missing */
+          }
+        }
+        setStay(null);
+        setError(USER_ERROR.stayMissing);
       })
       .catch((e) => {
         if (cancelled) return;
@@ -169,7 +203,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [stayId]);
+  }, [stayId, user?.id, user?.email]);
 
   useEffect(() => {
     setShowReviewForm(false);
@@ -559,6 +593,11 @@ export default function StayDetails({ stayId, onBack }: Props) {
   const startStayCheckout = async () => {
     if (!stay || !stayQuote?.ok) {
       document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    // Phase 1731: review-only draft hydrate must not open Stripe.
+    if (reviewOnlyAccess) {
+      setPayError('This stay is no longer bookable. You can still leave a review below.');
       return;
     }
     if (checkoutPayBlockedByConsent(checkoutConsentAccepted)) {

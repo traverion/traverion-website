@@ -37,6 +37,8 @@ import { checkAvailability, fetchAvailabilityByListingId, fetchPublishedTourPaid
 import { optionRunsOnDate, formatOptionWeekdays, experienceTodayIsoForListing, listingHasUpcomingBookableSeason } from '../lib/booking-quote';
 import { isListingVisibleToTravelers, listingDetailVisibleToTraveler } from '../lib/product-workflows';
 import { listingIsOnTravelerCatalog } from '../lib/inventory';
+import { reviewOnlyPackageFromListingOps } from '../lib/trip-views';
+import { fetchListingOpsByIds } from '../data/supabase-listings';
 import { listingShowsFreeCancellation, publicReviewLabel } from '../lib/listingTruth';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 import { LISTING_SELF_BOOK_BLOCKED, LISTING_SELF_BOOK_CHECK_FAILED, viewerIsListingSupplierSide } from '../lib/listing-self-book';
@@ -141,6 +143,8 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   const { user, requestAuth } = useAuth();
   const [tour, setTour] = useState<TourPackage | null>(null);
   const [tourLoadError, setTourLoadError] = useState<string | null>(null);
+  /** Phase 1731: loaded for Leave a review when draft/season-ended (not a live bookable PDP). */
+  const [reviewOnlyAccess, setReviewOnlyAccess] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
   const [reviews, setReviews] = useState<ReviewDisplay[]>([]);
   const [reviewsLoadError, setReviewsLoadError] = useState<string | null>(null);
@@ -683,11 +687,36 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   useEffect(() => {
     setTourLoadError(null);
     setTour(null);
+    setReviewOnlyAccess(false);
     if (isSupabaseConfigured()) {
       let cancelled = false;
       getListingByIdAsync(tourId)
         .then(async (found) => {
           if (cancelled) return;
+          const tryReviewOnlyLoad = async (): Promise<boolean> => {
+            const uid = userRef.current?.id;
+            const email = userRef.current?.email ?? '';
+            if (!uid) return false;
+            try {
+              const { canReview } = await userHasCompletedBookingForListing(uid, email, tourId);
+              if (cancelled || !canReview) return false;
+              if (found) {
+                setReviewOnlyAccess(true);
+                setTour(found);
+                return true;
+              }
+              const opsMap = await fetchListingOpsByIds([tourId]);
+              if (cancelled) return false;
+              const ops = opsMap[tourId];
+              if (!ops) return false;
+              setReviewOnlyAccess(true);
+              setTour(reviewOnlyPackageFromListingOps(tourId, ops));
+              return true;
+            } catch {
+              return false;
+            }
+          };
+
           if (
             !found ||
             !listingDetailVisibleToTraveler({
@@ -695,34 +724,19 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
               status: found.status,
             })
           ) {
+            // Phase 1731: draft/unpublished — hydrate review-only PDP via party ops.
+            if (await tryReviewOnlyLoad()) return;
             setTour(null);
             if (found) setTourLoadError(USER_ERROR.tourMissing);
             return;
           }
           // Phase 1266: season-ended tours are not a live browse/book PDP.
-          // Phase 1709: still load when signed-in traveler can leave a review (review-request → Trips).
+          // Phase 1709/1731: still load when signed-in traveler can leave a review.
           if (!listingHasUpcomingBookableSeason(found)) {
-            const uid = userRef.current?.id;
-            const email = userRef.current?.email ?? '';
-            if (!uid) {
-              setTour(null);
-              setTourLoadError(USER_ERROR.tourMissing);
-              return;
-            }
-            try {
-              const { canReview } = await userHasCompletedBookingForListing(uid, email, tourId);
-              if (cancelled) return;
-              if (!canReview) {
-                setTour(null);
-                setTourLoadError(USER_ERROR.tourMissing);
-                return;
-              }
-            } catch {
-              if (cancelled) return;
-              setTour(null);
-              setTourLoadError(USER_ERROR.tourMissing);
-              return;
-            }
+            if (await tryReviewOnlyLoad()) return;
+            setTour(null);
+            setTourLoadError(USER_ERROR.tourMissing);
+            return;
           }
           setTour(found);
         })
@@ -1296,8 +1310,12 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
   if (
     !tour ||
-    !listingDetailVisibleToTraveler({ familyMatches: listingIsOnTravelerCatalog(tour), status: tour.status }) ||
-    !listingHasUpcomingBookableSeason(tour)
+    (!reviewOnlyAccess &&
+      !listingDetailVisibleToTraveler({
+        familyMatches: listingIsOnTravelerCatalog(tour),
+        status: tour.status,
+      })) ||
+    (!reviewOnlyAccess && !listingHasUpcomingBookableSeason(tour))
   ) {
     const isLoading = isSupabaseConfigured() && !tourLoadError && !tour;
     if (isLoading) {

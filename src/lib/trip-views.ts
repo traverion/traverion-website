@@ -33,13 +33,77 @@ export function tripAllowsBrowseLiveListing(
 }
 
 /**
- * Phase 1709: Leave a review from Trips — published is enough.
- * Do not require upcoming season (review-request cron often fires after the season ends).
+ * Phase 1709: Leave a review from Trips — do not require upcoming season.
+ * Phase 1731: also allow draft — force-unpublish hides browse but paid guests
+ * still get review_request email and must be able to submit from Trips.
  */
 export function tripAllowsLeaveReview(
   ops: { status?: string | null } | null | undefined
 ): boolean {
-  return (ops?.status ?? '').trim().toLowerCase() === 'published';
+  const status = (ops?.status ?? '').trim().toLowerCase();
+  return status === 'published' || status === 'draft';
+}
+
+/**
+ * Phase 1731: minimal TourPackage for review-only PDP when listings RLS hides drafts.
+ * Prefer full rows from getListingByIdAsync when available.
+ */
+export function reviewOnlyPackageFromListingOps(
+  listingId: string,
+  ops: {
+    title?: string | null;
+    destination?: string | null;
+    city?: string | null;
+    image?: string | null;
+    status?: string | null;
+    supplier_id?: string | null;
+    meeting_point?: string | null;
+    pickup_instructions?: string | null;
+    listing_extras?: unknown;
+  }
+): import('../types/tour').TourPackage {
+  const statusRaw = (ops.status ?? '').trim().toLowerCase();
+  const status = statusRaw === 'published' ? 'published' : 'draft';
+  return {
+    id: listingId,
+    title: (ops.title ?? '').trim() || 'Experience',
+    destination: (ops.destination ?? '').trim() || (ops.city ?? '').trim() || '',
+    duration: '',
+    style: '',
+    startLocation: '',
+    endLocation: '',
+    price: {
+      startingFrom: 0,
+      currency: 'EUR',
+      perPerson: true,
+      twinOccupancy: false,
+      customQuote: false,
+      singleSupplement: 0,
+      validity: '',
+    },
+    category: '3*',
+    tourType: 'adventure',
+    validity: '',
+    image: (ops.image ?? '').trim() || '',
+    description: '',
+    highlights: [],
+    itinerary: [],
+    includes: [],
+    excludes: [],
+    hotels: [],
+    difficulty: 'Easy',
+    groupSize: '',
+    bestTime: '',
+    rating: 0,
+    reviews: 0,
+    isPopular: false,
+    city: ops.city?.trim() || undefined,
+    supplierId: ops.supplier_id ?? undefined,
+    status,
+    meetingPoint: ops.meeting_point?.trim() || undefined,
+    pickupInstructions: ops.pickup_instructions?.trim() || undefined,
+    listingExtras: parseListingExtras(ops.listing_extras),
+  };
 }
 
 export type TripListView = 'upcoming' | 'past' | 'cancelled';
