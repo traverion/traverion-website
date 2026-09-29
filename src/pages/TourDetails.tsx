@@ -2091,12 +2091,19 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                   <textarea
                     id="tour-review-comment"
                     value={reviewComment}
-                    onChange={(e) => setReviewComment(e.target.value)}
+                    onChange={(e) => setReviewComment(e.target.value.slice(0, 2000))}
                     rows={3}
+                    maxLength={2000}
                     className="tv-input"
                     placeholder="Tell others what you liked…"
                     required
+                    aria-describedby="tour-review-comment-hint"
                   />
+                  {/* Phase 1696: live length honesty on review compose. */}
+                  <p id="tour-review-comment-hint" className="mt-1.5 text-xs text-ink-faint">
+                    Up to 2000 characters
+                    {reviewComment.length > 0 ? ` · ${reviewComment.length} used` : ''}.
+                  </p>
                 </div>
                 {reviewError ? (
                   <NoticeCallout title="Could not submit review" tone="danger">
