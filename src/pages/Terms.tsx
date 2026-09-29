@@ -242,6 +242,11 @@ export default function Terms({ onNavigate }: TermsProps) {
         <h2 id="contact">Contact information</h2>
         <p>For questions about these Terms of Service, please contact us:</p>
         <p>
+          {/* Phase 1690: in-app Contact parity with Cookies/Privacy. */}
+          <a href="/contact" onClick={goContact}>
+            Contact support
+          </a>
+          <br />
           Email: <a href="mailto:info@traverion.com">info@traverion.com</a>
           <br />
           Address: TRAVERION Travel Agency, Finland
