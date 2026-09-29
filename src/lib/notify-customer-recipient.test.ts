@@ -60,6 +60,7 @@ describe('resolveBookingTiedRecipient (Phase 578 arbitrary-recipient fix)', () =
     'pickup_action_required',
     'experience_reminder',
     'review_request',
+    'checkout_payment_reversed',
   ] as const;
 
   it.each(otherBookingTiedKinds)(

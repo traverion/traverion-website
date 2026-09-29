@@ -215,9 +215,12 @@ export async function notifyCancellationResolved(params: {
   supplierId?: string | null;
   listingId: string;
   guests?: number;
+  /** Phase 1721: cancellation_requests.id so a second Decline/Accept after re-request is not already_sent. */
+  requestId?: string | null;
 }): Promise<void> {
   if (!supabase) return;
   const kind = params.accepted ? 'cancellation_accepted' : 'cancellation_declined';
+  const reqSuffix = (params.requestId ?? '').trim() || String(Date.now());
   const guestEmail = (params.customerEmail ?? '').trim().toLowerCase();
   // Phase 1707: traveler self-receipt must not depend on resolving supplier_id.
   if (guestEmail) {
@@ -231,6 +234,8 @@ export async function notifyCancellationResolved(params: {
         bookingDate: params.bookingDate ?? undefined,
         emailKind: kind,
         publicSiteUrl: publicSiteBaseUrl(),
+        // Phase 1721: per-request key (parity with 1712 cancel request).
+        idempotencyKey: `customer:${kind}:${params.bookingId}:${reqSuffix}`,
       },
     });
   }
@@ -247,6 +252,7 @@ export async function notifyCancellationResolved(params: {
       guestName: params.customerName ?? undefined,
       portalBaseUrl: supplierPortalPublicBaseUrl(),
       bookingNumber: params.bookingNumber,
+      idempotencyKey: `supplier:${kind}:${params.bookingId}:${reqSuffix}`,
     });
   }
 }

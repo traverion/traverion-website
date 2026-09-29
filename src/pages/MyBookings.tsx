@@ -313,6 +313,8 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           supplierId: ops?.supplier_id ?? null,
           listingId: b.listing_id,
           guests: b.guests,
+          // Phase 1721: unique key per cancellation_requests row (re-request after decline).
+          requestId: req.id,
         });
       }
       if (accept) {
