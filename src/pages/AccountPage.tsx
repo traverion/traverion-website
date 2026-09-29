@@ -289,7 +289,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
             <section>
               <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint mb-3">Your travel</h2>
               {statsError ? (
-                {/* Phase 1635: stats cover Trips and Saved counts. */}
+                // Phase 1635: stats cover Trips and Saved counts.
                 <ErrorState
                   className="mb-4 py-4"
                   title="Could not load your account summary"
