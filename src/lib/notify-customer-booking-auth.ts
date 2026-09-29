@@ -41,11 +41,18 @@ export function bookingPartyAllowsCustomerNotify(params: {
 
 /**
  * Phase 1128: guest JWT may only invoke guest-originated customer email kinds.
+ * Phase 1705: cancellation_accepted / cancellation_declined are guest responses
+ * to a host cancel request — traveler self-receipt after Accept/Decline.
  * Host/ops/cron kinds require supplier-side or service-role.
  */
 export function guestMayInvokeCustomerEmailKind(emailKind: string): boolean {
   const kind = (emailKind ?? '').trim();
-  return kind === 'your_details_updated' || kind === 'booking_cancelled';
+  return (
+    kind === 'your_details_updated' ||
+    kind === 'booking_cancelled' ||
+    kind === 'cancellation_accepted' ||
+    kind === 'cancellation_declined'
+  );
 }
 
 /**

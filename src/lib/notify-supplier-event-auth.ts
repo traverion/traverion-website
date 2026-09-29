@@ -59,14 +59,18 @@ export function supplierEventPartyAllowsNotify(params: {
 
 /**
  * Phase 1127: guest JWT may only invoke guest-originated booking events.
- * Host/ops kinds (host_schedule_updated, new_booking, cancellation_*, …)
- * require supplier-side or service-role.
+ * Phase 1705: cancellation_accepted / cancellation_declined are guest responses
+ * to a host cancel request (MyBookings Accept/Decline) — same class as booking_cancelled.
+ * Host/ops kinds (host_schedule_updated, new_booking, cancellation_requested, …)
+ * still require supplier-side or service-role.
  */
 export function guestMayInvokeSupplierEvent(eventType: string): boolean {
   const kind = (eventType ?? '').trim();
   return (
     kind === 'guest_message' ||
     kind === 'booking_detail_changed' ||
-    kind === 'booking_cancelled'
+    kind === 'booking_cancelled' ||
+    kind === 'cancellation_accepted' ||
+    kind === 'cancellation_declined'
   );
 }

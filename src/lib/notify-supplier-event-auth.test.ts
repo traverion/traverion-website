@@ -109,12 +109,14 @@ describe('notify-supplier-event auth (Phase 1093)', () => {
     ).toBe(false);
   });
 
-  it('Phase 1127: guest may only invoke guest-originated booking events', () => {
+  it('Phase 1127/1705: guest may invoke guest-originated booking events including cancel responses', () => {
     expect(guestMayInvokeSupplierEvent('guest_message')).toBe(true);
     expect(guestMayInvokeSupplierEvent('booking_detail_changed')).toBe(true);
     expect(guestMayInvokeSupplierEvent('booking_cancelled')).toBe(true);
+    expect(guestMayInvokeSupplierEvent('cancellation_accepted')).toBe(true);
+    expect(guestMayInvokeSupplierEvent('cancellation_declined')).toBe(true);
     expect(guestMayInvokeSupplierEvent('host_schedule_updated')).toBe(false);
     expect(guestMayInvokeSupplierEvent('new_booking')).toBe(false);
-    expect(guestMayInvokeSupplierEvent('cancellation_accepted')).toBe(false);
+    expect(guestMayInvokeSupplierEvent('cancellation_requested')).toBe(false);
   });
 });

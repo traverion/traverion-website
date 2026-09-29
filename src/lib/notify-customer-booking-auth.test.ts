@@ -78,9 +78,11 @@ describe('notify-customer-booking auth (Phase 1092)', () => {
     ).toBe(false);
   });
 
-  it('Phase 1128: guest may only invoke guest-originated customer email kinds', () => {
+  it('Phase 1128/1705: guest may invoke guest-originated customer email kinds including cancel responses', () => {
     expect(guestMayInvokeCustomerEmailKind('your_details_updated')).toBe(true);
     expect(guestMayInvokeCustomerEmailKind('booking_cancelled')).toBe(true);
+    expect(guestMayInvokeCustomerEmailKind('cancellation_accepted')).toBe(true);
+    expect(guestMayInvokeCustomerEmailKind('cancellation_declined')).toBe(true);
     expect(guestMayInvokeCustomerEmailKind('host_updated_schedule')).toBe(false);
     expect(guestMayInvokeCustomerEmailKind('pickup_confirmed')).toBe(false);
     expect(guestMayInvokeCustomerEmailKind('cancellation_requested_by_supplier')).toBe(false);
