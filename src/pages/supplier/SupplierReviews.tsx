@@ -535,11 +535,26 @@ export default function SupplierReviews() {
                         <textarea
                           id={`review-reply-${r.id}`}
                           value={replyText[r.id] ?? ''}
-                          onChange={(e) => setReplyText((prev) => ({ ...prev, [r.id]: e.target.value }))}
+                          onChange={(e) =>
+                            setReplyText((prev) => ({
+                              ...prev,
+                              [r.id]: e.target.value.slice(0, 2000),
+                            }))
+                          }
                           placeholder="Thank the customer or answer a question…"
                           rows={2}
+                          maxLength={2000}
                           className="tv-input text-sm"
+                          aria-describedby={`review-reply-hint-${r.id}`}
                         />
+                        {/* Phase 1697: live length honesty on supplier review replies. */}
+                        <p id={`review-reply-hint-${r.id}`} className="mt-1.5 text-xs text-ink-faint">
+                          Up to 2000 characters
+                          {(replyText[r.id] ?? '').length > 0
+                            ? ` · ${(replyText[r.id] ?? '').length} used`
+                            : ''}
+                          .
+                        </p>
                         <div className="mt-2 flex items-center gap-2">
                           <button
                             type="button"
