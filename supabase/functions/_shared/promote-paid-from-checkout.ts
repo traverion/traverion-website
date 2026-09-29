@@ -172,11 +172,12 @@ export async function notifyPaidBookingSideEffects(params: {
 }
 
 /**
- * Phase 1713/1714: after Stripe auto-refunds a capture that never became a paid booking,
+ * Phase 1713/1714/1719/1720: after Stripe auto-refunds a capture that never became a paid booking,
  * email the traveler (refund_completed never runs — payment_status stays failed).
  * When ensureCancelled, close pending holds so booking_cancelled lifecycle gate passes.
+ * When not cancelled (orphan paid booking), use checkout_payment_reversed.
  */
-async function notifyTravelerCheckoutCaptureReversed(params: {
+export async function notifyTravelerCheckoutCaptureReversed(params: {
   admin: SupabaseClient;
   supabaseUrl: string;
   serviceRoleKey: string;
@@ -513,6 +514,21 @@ export async function promotePaidFromCheckoutSession(params: {
           reason: 'charge_fully_refunded_before_paid_promotion',
           stripeEventType: event.type,
         },
+      });
+      // Phase 1720: charge already refunded before promote — email traveler.
+      await notifyTravelerCheckoutCaptureReversed({
+        admin,
+        supabaseUrl,
+        serviceRoleKey,
+        existingBooking,
+        bookingId,
+        sessionId: session.id,
+        amountPaid,
+        currency: String(existingBooking?.currency || session.currency || 'eur').toUpperCase(),
+        reasonKey: 'refunded_before_promote',
+        fieldBefore: 'Checkout was charged but already fully refunded before confirmation',
+        fieldAfter: 'Stripe payment reversed — no booking',
+        ensureCancelled: true,
       });
       await markProcessed('processed');
       return json({

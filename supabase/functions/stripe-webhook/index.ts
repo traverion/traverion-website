@@ -6,7 +6,7 @@ import { stripeWebhookReplayDecision } from '../_shared/stripe-webhook-replay.ts
 import { isStripeChargeFullyRefunded, refundBeforePaidShouldMarkFailed } from '../_shared/stripe-charge-refund.ts';
 import { staleCheckoutFailureShouldApply } from '../_shared/checkout-resume.ts';
 import { paymentIntentSucceededShouldPromote } from '../_shared/checkout-pi-succeeded.ts';
-import { promotePaidFromCheckoutSession } from '../_shared/promote-paid-from-checkout.ts';
+import { promotePaidFromCheckoutSession, notifyTravelerCheckoutCaptureReversed } from '../_shared/promote-paid-from-checkout.ts';
 import { isStripeTestSecretKey, stripeLiveSecretBlockedMessage } from '../_shared/stripe-test-only.ts';
 
 function json(body: unknown, status = 200): Response {
@@ -452,6 +452,21 @@ serve(async (req) => {
               ...(event as unknown as Record<string, unknown>),
               reason: 'full_refund_before_paid_promotion',
             },
+          });
+          // Phase 1720: traveler must learn the reverse (refund_completed never runs).
+          await notifyTravelerCheckoutCaptureReversed({
+            admin,
+            supabaseUrl: supabaseUrl!,
+            serviceRoleKey: serviceRoleKey!,
+            existingBooking: booking as Record<string, unknown>,
+            bookingId: booking.id,
+            sessionId: paymentIntentId || event.id,
+            amountPaid: refundAmount,
+            currency,
+            reasonKey: 'full_refund_before_paid_promotion',
+            fieldBefore: 'Checkout was charged before the booking was confirmed paid',
+            fieldAfter: 'Stripe payment fully reversed — no booking',
+            ensureCancelled: true,
           });
           await markProcessed('processed');
           return json({
