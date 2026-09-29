@@ -5,6 +5,7 @@ import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 import { supplierPortalPublicBaseUrl } from '../lib/partnerHost';
 import { notifySupplierEvent } from './supabase-supplier-messaging';
 import { resolveSupplierId } from './supabase-supplier-team';
+import { fetchListingSupplierMetaForParty } from './supabase-listings';
 import {
   BOOKING_MESSAGE_SUBMIT_ERROR,
   PARTNER_CANCEL_REQUEST_SUBMIT_ERROR,
@@ -240,9 +241,16 @@ export async function notifyCancellationResolved(params: {
     });
   }
   const supplierId = (params.supplierId ?? '').trim();
-  if (supplierId) {
+  // Phase 1729: resolve owner via party RPC when Trips ops cache lacked supplier_id
+  // (unpublished listing / ops load failure) — parity with Phase 1707 cancel/notes.
+  let hostSupplierId = supplierId;
+  if (!hostSupplierId && params.listingId) {
+    const meta = await fetchListingSupplierMetaForParty(params.listingId);
+    hostSupplierId = (meta.supplier_id ?? '').trim();
+  }
+  if (hostSupplierId) {
     void notifySupplierEvent({
-      supplierId,
+      supplierId: hostSupplierId,
       eventType: params.accepted ? 'cancellation_accepted' : 'cancellation_declined',
       listingId: params.listingId,
       listingTitle: params.listingTitle,
@@ -271,8 +279,15 @@ export async function notifyNewBookingMessage(params: {
 }): Promise<void> {
   if (!supabase) return;
   if (params.fromRole === 'traveler') {
+    let supplierId = (params.supplierId ?? '').trim();
+    // Phase 1729: Inbox host mail must not depend on Trips ops cache (1707 cancel/notes parity).
+    if (!supplierId && params.listingId) {
+      const meta = await fetchListingSupplierMetaForParty(params.listingId);
+      supplierId = (meta.supplier_id ?? '').trim();
+    }
+    if (!supplierId) return;
     void notifySupplierEvent({
-      supplierId: params.supplierId,
+      supplierId,
       eventType: 'guest_message',
       listingId: params.listingId,
       listingTitle: params.listingTitle,
