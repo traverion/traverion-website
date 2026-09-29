@@ -62,7 +62,7 @@ import { fetchMyListings, pgTimeToHm } from '../../data/supabase-listings';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
 import { navigateSupplierUrl, openSupplierInbox, openSupplierPickup } from '../../lib/supplierPortalNavigation';
-import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
+import { PARTNER_APP_BASE, PARTNER_CREATE_PATH } from '../../lib/partnerPortalPaths';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { nightsOccupiedByStay, stayRangeFromBooking } from '../../lib/stayOccupancy';
 import {
@@ -932,13 +932,23 @@ export default function SupplierBookings({
               : 'No traveler has booked your tours yet. That is normal until a listing is live and someone checks out. When they do, bookings appear here.'
           }
           action={
-            <button
-              type="button"
-              onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings`)}
-              className="tv-btn-primary"
-            >
-              View listings
-            </button>
+            <div className="flex flex-wrap gap-2">
+              {/* Phase 1698: Calendar/Offers dual-CTA parity when bookings are empty. */}
+              <button
+                type="button"
+                onClick={() => navigateSupplierUrl(PARTNER_CREATE_PATH)}
+                className="tv-btn-primary"
+              >
+                New listing
+              </button>
+              <button
+                type="button"
+                onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings`)}
+                className="tv-btn-ghost"
+              >
+                Your listings
+              </button>
+            </div>
           }
         />
       ) : (
