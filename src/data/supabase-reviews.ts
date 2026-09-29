@@ -148,6 +148,9 @@ export async function submitReview(params: {
       reviewTitle: params.title,
       guestName: params.guestName,
       portalBaseUrl: supplierPortalPublicBaseUrl(),
+      // Phase 1722: per-review key — default supplier:new_review:{supplierId} blocked all later reviews.
+      idempotencyKey: `supplier:new_review:${savedReview.id}`,
+      bookingId: bookingId || undefined,
     });
   }
   return { success: true };

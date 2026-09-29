@@ -697,6 +697,11 @@ export async function updateBookingSchedule(
       fieldDiffs,
       portalBaseUrl: supplierPortalPublicBaseUrl(),
       bookingNumber: ord,
+      // Phase 1722: content suffix so a second schedule edit still emails the host ops inbox.
+      idempotencyKey: `supplier:host_schedule_updated:${bookingId}:${fieldDiffs
+        .map((d) => d.after)
+        .join('|')
+        .slice(0, 80)}`,
     });
   }
 
