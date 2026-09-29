@@ -52,6 +52,18 @@ export default function PartnerHelpPage() {
           </span>
         </button>
 
+        {/* Phase 1699: Inbox shortcut for guest messaging. */}
+        <button
+          type="button"
+          onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/inbox`)}
+          className="partner-surface-panel lux-flat w-full px-4 py-3.5 text-left hover:border-finland/30"
+        >
+          <span className="block text-[14px] font-semibold text-slate-900">Inbox</span>
+          <span className="mt-0.5 block text-[13px] text-slate-500">
+            Messages from travelers about bookings and pickups.
+          </span>
+        </button>
+
         <button
           type="button"
           onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/money`)}
