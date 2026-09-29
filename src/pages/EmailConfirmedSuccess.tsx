@@ -7,13 +7,14 @@ import {
   ensureConsumerProfile,
   fetchConsumerProfile,
 } from '../data/supabase-consumer-profile';
-import { fetchSupplierProfile } from '../data/supabase-supplier-profile';
 import { isTraverionAdminUser } from '../lib/adminAuth';
 import { customerSignInPartnerOnlyMessage } from '../lib/customerSupplierAuthMessages';
 import { supplierPortalPublicBaseUrl } from '../lib/partnerHost';
 import { PARTNER_LOGIN_PATH } from '../lib/partnerPortalPaths';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
 import NoticeCallout from '../components/NoticeCallout';
+import { userHasSupplierProfile } from '../lib/supplierPortalAccess';
+import { travelerSessionIsPartnerOnly } from '../lib/traveler-session-authority';
 
 import { sanitizeTravelerAuthNext } from '../lib/travelerAuthLinks';
 
@@ -54,8 +55,21 @@ export default function EmailConfirmedSuccess() {
         return;
       }
 
-      const [supplierRow, consumerRow] = await Promise.all([fetchSupplierProfile(u.id), fetchConsumerProfile(u.id)]);
-      if (supplierRow && !consumerRow) {
+      // Phase 1711: own-row supplier check — team JWTs must not look like partner-only owners.
+      const [hasSupplierProfile, consumerRow] = await Promise.all([
+        userHasSupplierProfile(supabase, u.id),
+        fetchConsumerProfile(u.id),
+      ]);
+      if (hasSupplierProfile === null) {
+        if (!cancelled) setPhase('invalid');
+        return;
+      }
+      if (
+        travelerSessionIsPartnerOnly({
+          hasSupplierProfile,
+          hasConsumerProfile: Boolean(consumerRow),
+        })
+      ) {
         if (!cancelled) setPhase('wrong_account');
         return;
       }

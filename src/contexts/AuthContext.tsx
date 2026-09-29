@@ -3,22 +3,17 @@ import { User } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { isSignUpEmailAlreadyRegistered } from '../lib/supabaseAuthHelpers';
 import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
-import {
-  consumerProfileEnsurePayloadFromAuthUser,
-  ensureConsumerProfile,
-  fetchConsumerProfile,
-  normalizeConsumerPhone,
-} from '../data/supabase-consumer-profile';
-import { fetchSupplierProfile } from '../data/supabase-supplier-profile';
+import { fetchConsumerProfile, ensureConsumerProfile, consumerProfileEnsurePayloadFromAuthUser, normalizeConsumerPhone } from '../data/supabase-consumer-profile';
 import { isPhoneAvailableForSignup } from '../data/supabase-phone-signup';
 import { isTraverionAdminUser } from '../lib/adminAuth';
 import { customerSignInPartnerOnlyMessage, travelerSignUpDuplicateEmailMessage } from '../lib/customerSupplierAuthMessages';
-import { supplierPortalPublicBaseUrl } from '../lib/partnerHost';
+import { isTraverionPartnerHost, supplierPortalPublicBaseUrl } from '../lib/partnerHost';
 import { PARTNER_LOGIN_PATH } from '../lib/partnerPortalPaths';
 import { clearSupabaseAuthStorage } from '../lib/clearSupabaseAuthStorage';
 import { sanitizeAuthRedirectTo } from '../lib/authRedirect';
 import { sanitizeTravelerAuthNext } from '../lib/travelerAuthLinks';
 import { travelerSessionIsPartnerOnly } from '../lib/traveler-session-authority';
+import { userHasSupplierProfile } from '../lib/supplierPortalAccess';
 
 type AuthContextValue = {
   user: User | null;
@@ -59,12 +54,18 @@ async function clearPartnerOnlyTravelerSession(): Promise<void> {
 /** Reject restored partner-only sessions on traveler surfaces (localhost same-origin bleed). */
 async function travelerUserAllowed(user: User): Promise<boolean> {
   if (isTraverionAdminUser(user)) return true;
-  const [supplierRow, consumerRow] = await Promise.all([
-    fetchSupplierProfile(user.id),
+  // Phase 1711: partner shell must not run this gate — team JWTs resolve owner profile via
+  // fetchSupplierProfile and would be wiped as "partner-only" while SupplierAuth correctly admits them.
+  if (isTraverionPartnerHost()) return true;
+  if (!supabase) return false;
+  // Phase 1711: own supplier_profiles row only — not resolveSupplierId (team → owner).
+  const [hasSupplierProfile, consumerRow] = await Promise.all([
+    userHasSupplierProfile(supabase, user.id),
     fetchConsumerProfile(user.id),
   ]);
+  if (hasSupplierProfile === null) return false;
   return !travelerSessionIsPartnerOnly({
-    hasSupplierProfile: Boolean(supplierRow),
+    hasSupplierProfile,
     hasConsumerProfile: Boolean(consumerRow),
   });
 }
@@ -126,13 +127,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: 'Please confirm your email before signing in.' };
     }
     if (data.user && !isTraverionAdminUser(data.user)) {
-      const [supplierRow, consumerRow] = await Promise.all([
-        fetchSupplierProfile(data.user.id),
+      // Phase 1711: own-row supplier check (not resolveSupplierId) so invited teammates are not
+      // misclassified as partner-only owners on the traveler site.
+      const [hasSupplierProfile, consumerRow] = await Promise.all([
+        userHasSupplierProfile(supabase, data.user.id),
         fetchConsumerProfile(data.user.id),
       ]);
+      if (hasSupplierProfile === null) {
+        await supabase.auth.signOut();
+        return { error: 'Could not verify your account. Try again.' };
+      }
       if (
         travelerSessionIsPartnerOnly({
-          hasSupplierProfile: Boolean(supplierRow),
+          hasSupplierProfile,
           hasConsumerProfile: Boolean(consumerRow),
         })
       ) {
