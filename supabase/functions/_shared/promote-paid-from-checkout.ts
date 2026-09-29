@@ -196,16 +196,16 @@ export async function promotePaidFromCheckoutSession(params: {
   const withStay = await admin
     .from('bookings')
     .select(
-      'id, status, payment_status, currency, total_amount, checkout_session_id, payment_intent_id, listing_id, booking_date, guests, check_out, start_time, purchase_snapshot, booking_option_id, guest_user_id'
+      'id, status, payment_status, currency, total_amount, checkout_session_id, payment_intent_id, listing_id, booking_date, guests, check_out, start_time, purchase_snapshot, booking_option_id, guest_user_id, guest_email, guest_name, booking_number'
     )
     .eq('id', bookingId)
     .maybeSingle();
   let existingBooking = withStay.data as Record<string, unknown> | null;
-  if (withStay.error && /check_out|start_time|purchase_snapshot|booking_option_id|guest_user_id/i.test(withStay.error.message)) {
+  if (withStay.error && /check_out|start_time|purchase_snapshot|booking_option_id|guest_user_id|guest_email|guest_name|booking_number/i.test(withStay.error.message)) {
     const fallback = await admin
       .from('bookings')
       .select(
-        'id, status, payment_status, currency, total_amount, checkout_session_id, payment_intent_id, listing_id, booking_date, guests, check_out, start_time, guest_user_id'
+        'id, status, payment_status, currency, total_amount, checkout_session_id, payment_intent_id, listing_id, booking_date, guests, check_out, start_time, guest_user_id, guest_email, guest_name, booking_number'
       )
       .eq('id', bookingId)
       .maybeSingle();
@@ -310,6 +310,58 @@ export async function promotePaidFromCheckoutSession(params: {
             stripeEventType: event.type,
           },
         });
+        // Phase 1713: traveler must learn the bank charge was reversed (refund_completed
+        // never runs — payment_status stays failed, not refunded).
+        const guestEmail = String(existingBooking?.guest_email ?? '')
+          .trim()
+          .toLowerCase();
+        if (guestEmail && supabaseUrl && serviceRoleKey) {
+          let listingTitle = 'Your booking';
+          if (existingBooking?.listing_id) {
+            const { data: lt } = await admin
+              .from('listings')
+              .select('title')
+              .eq('id', existingBooking.listing_id)
+              .maybeSingle();
+            if (lt?.title?.trim()) listingTitle = lt.title.trim();
+          }
+          const bn = existingBooking?.booking_number;
+          const orderNum = typeof bn === 'number' && Number.isFinite(bn) ? Math.floor(bn) : undefined;
+          try {
+            await fetch(`${supabaseUrl}/functions/v1/notify-customer-booking`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${serviceRoleKey}`,
+                apikey: serviceRoleKey,
+              },
+              body: JSON.stringify({
+                customerEmail: guestEmail,
+                customerName: existingBooking?.guest_name ?? undefined,
+                listingTitle,
+                bookingId,
+                bookingNumber: orderNum,
+                bookingDate: existingBooking?.booking_date ?? undefined,
+                guests: typeof existingBooking?.guests === 'number' ? existingBooking.guests : undefined,
+                totalAmount: amountPaid ?? undefined,
+                currency: cancelCurrency,
+                emailKind: 'booking_cancelled',
+                unpaidCheckout: false,
+                fieldDiffs: [
+                  {
+                    label: 'Payment',
+                    before: 'Checkout completed after the hold was released',
+                    after: 'Stripe payment automatically reversed — no booking',
+                  },
+                ],
+                publicSiteUrl: Deno.env.get('PUBLIC_SITE_URL') ?? 'https://www.traverion.com',
+                idempotencyKey: `customer:booking_cancelled:${bookingId}:cancelled_checkout_refund:${session.id}`,
+              }),
+            });
+          } catch {
+            /* non-fatal — refund already succeeded */
+          }
+        }
       } catch (refundErr) {
         const msg = refundErr instanceof Error ? refundErr.message : String(refundErr);
         if (!/already.?been.?refunded|charge_already_refunded/i.test(msg)) {

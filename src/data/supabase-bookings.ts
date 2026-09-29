@@ -487,7 +487,9 @@ export async function updateBookingStatus(
   if (!supabase) return { ok: false, error: 'Supabase not configured' };
   const { data: current, error: loadError } = await supabase
     .from('bookings')
-    .select('id, status, payment_status, checkout_session_id')
+    .select(
+      'id, status, payment_status, checkout_session_id, guest_email, guest_name, listing_id, booking_date, guests, booking_number, purchase_snapshot'
+    )
     .eq('id', bookingId)
     .maybeSingle();
   if (loadError) return { ok: false, error: loadError.message };
@@ -521,6 +523,42 @@ export async function updateBookingStatus(
   }
   if (status === 'cancelled' && travelerSelfCancelIsUnpaidCheckout(current)) {
     expireUnpaidCancelledCheckout(bookingId);
+    // Phase 1713: Release hold must email the traveler (parity with traveler unpaid cancel).
+    const guestEmail = (current.guest_email ?? '').trim().toLowerCase();
+    if (guestEmail && current.listing_id) {
+      const listingMeta = await fetchListingSupplierMetaForParty(current.listing_id);
+      const listingTitle = displayListingTitleFromPurchase(
+        current.purchase_snapshot,
+        listingMeta.title,
+        'Listing'
+      );
+      const cancelOrd =
+        typeof current.booking_number === 'number' && Number.isFinite(current.booking_number)
+          ? Math.floor(current.booking_number)
+          : undefined;
+      void supabase.functions.invoke('notify-customer-booking', {
+        body: {
+          customerEmail: guestEmail,
+          customerName: current.guest_name ?? undefined,
+          listingTitle,
+          bookingId: current.id,
+          bookingNumber: cancelOrd,
+          bookingDate: current.booking_date ?? undefined,
+          guests: current.guests ?? undefined,
+          emailKind: 'booking_cancelled',
+          unpaidCheckout: true,
+          fieldDiffs: [
+            {
+              label: 'Cancellation & refund',
+              before: 'Unpaid checkout',
+              after: TRAVELER_CANCEL_UNPAID_CHECKOUT_EMAIL_DIFF,
+            },
+          ],
+          publicSiteUrl: publicSiteBaseUrl(),
+          idempotencyKey: `customer:booking_cancelled:${current.id}:partner_release_hold`,
+        },
+      });
+    }
   }
   return { ok: true };
 }
