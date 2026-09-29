@@ -4,7 +4,7 @@
 **Prior missions:** 401→850 · 851→1000+ marketplace completeness · security/ops bands through 1596  
 **Started (this UX band):** 2026-09-28  
 **Starting SHA (Phase 1596):** `3d011d2`  
-**Current SHA:** see Phase 1700 commit  
+**Current SHA:** `56ba5d1`  
 **Current phase:** 1700  
 **Branch:** `main`  
 **Stripe:** TEST — LIVE not enabled  
