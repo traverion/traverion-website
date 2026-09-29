@@ -1087,11 +1087,13 @@ function BusinessProfilePage(p: Props) {
                         p.setBusinessVerificationFeedback('');
                         p.setCompanyMessage('success');
                         p.onCompanyProfileSaved();
+                        // Phase 1702: notify against owner supplier id (team JWT ≠ profile id).
+                        const ownerId = res.supplierId ?? p.user.id;
                         void notifySupplierEvent({
-                          supplierId: p.user.id,
+                          supplierId: ownerId,
                           eventType: 'verification_submitted',
                           portalBaseUrl: supplierPortalPublicBaseUrl(),
-                          idempotencyKey: `supplier:verification_submitted:${p.user.id}:${submittedNow.slice(0, 16)}`,
+                          idempotencyKey: `supplier:verification_submitted:${ownerId}:${submittedNow.slice(0, 16)}`,
                         });
               } else {
                 p.setCompanyMessage('error');

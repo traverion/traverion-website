@@ -466,8 +466,10 @@ export async function updateSupplierCompanyProfile(
     identity_document_path: string | null;
     company_registration_document_path: string | null;
   }>
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; supplierId?: string }> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
+  // Phase 1702: team JWT → owner profile id (parity with updateSupplierPayout / Phase 1219).
+  const ownerSupplierId = await resolveSupplierId(userId);
   const normalizedCompanyName = payload.company_legal_name?.trim();
   const { data, error } = await supabase
     .from('supplier_profiles')
@@ -476,12 +478,12 @@ export async function updateSupplierCompanyProfile(
       ...(normalizedCompanyName ? { display_name: normalizedCompanyName, company_legal_name: normalizedCompanyName } : {}),
       updated_at: new Date().toISOString(),
     })
-    .eq('id', userId)
+    .eq('id', ownerSupplierId)
     .select('id')
     .maybeSingle();
   if (error) return { success: false, error: error.message };
   if (!data) return { success: false, error: 'Supplier profile not found' };
-  return { success: true };
+  return { success: true, supplierId: ownerSupplierId };
 }
 
 /** Public operator name/legal text for listing pages. Does not expose payout or KYC fields. */
