@@ -1361,20 +1361,20 @@ export default function SupplierListings() {
               return (
                 <article
                   key={listing.id}
-                  className={`group min-w-0 overflow-hidden rounded-lg border border-black/[0.06] bg-paper ${cardAccent}`}
+                  className={`tv-ops-listing-card group min-w-0 ${cardAccent}`}
                 >
-                  <div className="flex flex-col gap-2.5 p-2.5 sm:flex-row sm:items-stretch sm:gap-3 sm:p-3">
+                  <div className="flex flex-col gap-2.5 p-3 sm:flex-row sm:items-stretch sm:gap-3.5 sm:p-3.5">
                     <button
                       type="button"
                       onClick={() => openSupplierListingEditor(listing.id)}
-                      className="flex min-w-0 flex-1 gap-2.5 text-left sm:gap-3"
+                      className="flex min-w-0 flex-1 gap-3 text-left sm:gap-3.5"
                     >
-                      <div className="relative h-16 w-20 shrink-0 overflow-hidden rounded-lg bg-black/[0.04] sm:h-[4.5rem] sm:w-24">
+                      <div className="relative h-[4.5rem] w-[5.5rem] shrink-0 overflow-hidden rounded-xl bg-black/[0.04] sm:h-20 sm:w-28">
                         {heroSrc ? (
                           <img
                             src={heroSrc}
                             alt=""
-                            className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
+                            className="h-full w-full object-cover transition-transform duration-500 ease-out motion-safe:group-hover:scale-[1.03]"
                           />
                         ) : null}
                       </div>
@@ -1407,16 +1407,23 @@ export default function SupplierListings() {
                             </span>
                           ) : null}
                         </div>
-                        <h2 className="mt-1.5 break-words font-sans text-base font-semibold text-ink leading-snug line-clamp-2 [overflow-wrap:anywhere]">
+                        <h2 className="mt-1.5 break-words font-display text-[1.05rem] font-semibold tracking-tight text-ink leading-snug line-clamp-2 [overflow-wrap:anywhere]">
                           {listing.title}
                         </h2>
-                        <p className="mt-0.5 text-sm text-ink-muted truncate">
-                          {[place || null, money ? `From ${money}${qualifier && !isStay ? ` / ${qualifier}` : isStay ? ' / night' : ''}` : 'Price not set']
-                            .filter(Boolean)
-                            .join(' · ')}
+                        <p className="mt-1 text-sm text-ink-muted truncate">
+                          {place || null}
+                          {place && money ? ' · ' : null}
+                          {money ? (
+                            <span className="font-display text-[0.95rem] font-semibold tabular-nums tracking-tight text-ink">
+                              From {money}
+                              {qualifier && !isStay ? ` / ${qualifier}` : isStay ? ' / night' : ''}
+                            </span>
+                          ) : (
+                            <span>Price not set</span>
+                          )}
                         </p>
                         {readinessLine ? (
-                          <p className="mt-1 break-words text-xs leading-snug text-ink-muted line-clamp-2 [overflow-wrap:anywhere]">{readinessLine}</p>
+                          <p className="mt-1.5 break-words text-xs leading-snug text-ink-muted line-clamp-2 [overflow-wrap:anywhere]">{readinessLine}</p>
                         ) : null}
                       </div>
                     </button>
