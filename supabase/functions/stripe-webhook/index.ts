@@ -382,12 +382,14 @@ serve(async (req) => {
           booking_number?: number | null;
           amount_paid?: number | null;
           currency?: string | null;
+          status?: string | null;
+          refund_choice?: string | null;
         } | null = null;
+        const refundBookingSelect =
+          'id, payment_status, status, refund_choice, listing_id, booking_date, check_out, guests, guest_email, guest_name, booking_number, amount_paid, currency';
         const byPi = await admin
           .from('bookings')
-          .select(
-            'id, payment_status, listing_id, booking_date, check_out, guests, guest_email, guest_name, booking_number, amount_paid, currency'
-          )
+          .select(refundBookingSelect)
           .eq('payment_intent_id', paymentIntentId)
           .maybeSingle();
         booking = byPi.data;
@@ -404,9 +406,7 @@ serve(async (req) => {
           if (metaBookingId) {
             const byMeta = await admin
               .from('bookings')
-              .select(
-                'id, payment_status, listing_id, booking_date, check_out, guests, guest_email, guest_name, booking_number, amount_paid, currency'
-              )
+              .select(refundBookingSelect)
               .eq('id', metaBookingId)
               .maybeSingle();
             booking = byMeta.data;
@@ -488,6 +488,16 @@ serve(async (req) => {
         // Phase 1735: shrink amount_paid to remaining charge + email both parties.
         if (!fullyRefunded) {
           const remainingPaid = remainingPaidMajorFromCharge(charge);
+          const bookingStatus = String(booking.status ?? '')
+            .trim()
+            .toLowerCase();
+          const refundChoice = String(booking.refund_choice ?? '')
+            .trim()
+            .toLowerCase();
+          // Phase 1740: cancelled + Refund due already posted a ledger refund
+          // reversing booking_earnings — do not shrink that row again (net would go negative).
+          const cancelledRefundDue =
+            bookingStatus === 'cancelled' && refundChoice !== 'no_refund';
           if (remainingPaid != null) {
             const { error: partialAmtErr } = await admin
               .from('bookings')
@@ -495,12 +505,14 @@ serve(async (req) => {
               .eq('id', booking.id)
               .eq('payment_status', 'paid');
             if (partialAmtErr) throw new Error(partialAmtErr.message);
-            // Phase 1739: Ledger booking_earnings must mirror shrunk Collected.
-            const { error: shrinkEarnErr } = await admin.rpc('shrink_paid_booking_earnings', {
-              p_booking_id: booking.id,
-              p_remaining: remainingPaid,
-            });
-            if (shrinkEarnErr) throw new Error(shrinkEarnErr.message);
+            // Phase 1739: Ledger booking_earnings must mirror shrunk Collected (active paid only).
+            if (!cancelledRefundDue) {
+              const { error: shrinkEarnErr } = await admin.rpc('shrink_paid_booking_earnings', {
+                p_booking_id: booking.id,
+                p_remaining: remainingPaid,
+              });
+              if (shrinkEarnErr) throw new Error(shrinkEarnErr.message);
+            }
           }
           await admin.from('booking_payment_events').insert({
             booking_id: booking.id,

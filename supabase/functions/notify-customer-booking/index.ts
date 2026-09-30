@@ -515,6 +515,8 @@ serve(async (req) => {
     let unpaidCheckoutFromDb: boolean | null = null;
     // Phase 1726: paid cancel fieldDiffs / footer follow DB refund_choice, not guest forge.
     let refundChoiceFromDb: string | null = null;
+    // Phase 1740: partial refund on cancelled Refund due must not claim trip still Paid.
+    let cancelledRefundDuePartial = false;
     // Phase 1132: receipt PDF metadata from bookings row, not caller body.
     let paidAtIsoFromDb: string | undefined;
     let paymentIntentIdFromDb: string | undefined;
@@ -536,6 +538,10 @@ serve(async (req) => {
         refundChoiceFromDb = String(bookingRow.refund_choice ?? '')
           .trim()
           .toLowerCase();
+        cancelledRefundDuePartial =
+          String(bookingRow.status ?? '')
+            .trim()
+            .toLowerCase() === 'cancelled' && refundChoiceFromDb !== 'no_refund';
         if (typeof bookingRow.paid_at === 'string' && bookingRow.paid_at.trim()) {
           paidAtIsoFromDb = bookingRow.paid_at.trim();
         }
@@ -817,14 +823,21 @@ serve(async (req) => {
         body.refundStatusNote?.trim() ||
         'Trips shows Refunded for this booking. Traverion does not treat email delivery as proof of bank settlement.';
     } else if (kind === 'partial_refund_recorded') {
-      // Phase 1735: booking stays Paid; inventory held; Stripe returned part of the charge.
+      // Phase 1735: active paid booking stays Paid; inventory held.
+      // Phase 1740: cancelled Refund due — do not claim reservation still active.
       headline = 'A partial refund was recorded';
-      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Stripe recorded a partial refund for this booking. Your reservation stays active and Trips still shows Paid for the remaining amount.</p>`;
+      if (cancelledRefundDuePartial) {
+        intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Stripe recorded a partial refund toward the amount due on this cancelled booking. Trips still shows Refund due for any remaining charge until Stripe records a full refund.</p>`;
+        footerNote =
+          'Timing to your bank depends on your card issuer. Trips is the durable record — Traverion does not treat email delivery as proof of bank settlement.';
+      } else {
+        intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Stripe recorded a partial refund for this booking. Your reservation stays active and Trips still shows Paid for the remaining amount.</p>`;
+        footerNote =
+          'Timing to your bank depends on your card issuer. Trips is the durable record — Traverion does not treat email delivery as proof of bank settlement.';
+      }
       if (typeof amount === 'number') {
         extraHtml = `<p style="margin:0;font-size:14px;color:#374151;"><strong>Refunded this time:</strong> ${escapeHtml(currency)} ${amount.toFixed(2)}</p>`;
       }
-      footerNote =
-        'Timing to your bank depends on your card issuer. Trips is the durable record — Traverion does not treat email delivery as proof of bank settlement.';
     } else if (kind === 'experience_reminder') {
       const isStay = String(listingKind ?? '').toLowerCase() === 'stay';
       headline = isStay ? 'Your stay is coming up soon' : 'Your tour is coming up soon';

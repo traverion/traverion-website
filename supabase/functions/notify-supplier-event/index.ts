@@ -87,6 +87,11 @@ type Payload = {
   currency?: string;
   /** Phase 1738 partial: remaining bookings.amount_paid after shrink. */
   amountPaidRemaining?: number;
+  /**
+   * Phase 1740: partial refund on cancelled Refund due — honest copy (not “stays Paid”).
+   * Re-derived from booking row when possible; webhook may also pass.
+   */
+  cancelledRefundDue?: boolean;
   /** Explicit idempotency key. */
   idempotencyKey?: string;
 };
@@ -215,7 +220,7 @@ function eventBody(payload: Payload): string {
       'Payment status is Refunded. Collected earnings for this booking were reversed. Check Bookings and Money — Traverion does not treat email delivery as proof you saw this.'
     );
   } else if (payload.eventType === 'partial_refund_recorded') {
-    // Phase 1735/1738
+    // Phase 1735/1738/1740
     lines.push('Stripe recorded a partial refund for this booking.');
     lines.push(`Listing: ${listing}`);
     if (typeof payload.refundAmount === 'number' && Number.isFinite(payload.refundAmount)) {
@@ -227,11 +232,21 @@ function eventBody(payload: Payload): string {
       Number.isFinite(payload.amountPaidRemaining)
     ) {
       const cur = (payload.currency ?? 'EUR').trim().toUpperCase() || 'EUR';
-      lines.push(`Collected remaining: ${cur} ${payload.amountPaidRemaining.toFixed(2)}`);
+      lines.push(
+        payload.cancelledRefundDue
+          ? `Refund due remaining: ${cur} ${payload.amountPaidRemaining.toFixed(2)}`
+          : `Collected remaining: ${cur} ${payload.amountPaidRemaining.toFixed(2)}`
+      );
     }
-    lines.push(
-      'The booking stays Paid. Collected amount was reduced to the remaining charge. Inventory is still held. Check Bookings and Money — Traverion does not treat email delivery as proof you saw this.'
-    );
+    if (payload.cancelledRefundDue) {
+      lines.push(
+        'The booking is already cancelled (Refund due). This partial refund reduces the remaining charge — it does not keep inventory held as Paid. Check Bookings and Money — Traverion does not treat email delivery as proof you saw this.'
+      );
+    } else {
+      lines.push(
+        'The booking stays Paid. Collected amount was reduced to the remaining charge. Inventory is still held. Check Bookings and Money — Traverion does not treat email delivery as proof you saw this.'
+      );
+    }
   } else {
     lines.push(`Event: ${payload.eventType}`);
     lines.push(`Listing: ${listing}`);
@@ -356,8 +371,9 @@ ${bodyText}
       'Stripe recorded a full refund for this booking. Payment status is Refunded. Collected earnings for this booking were reversed. Check Bookings and Money — Traverion does not treat email delivery as proof you saw this.';
   } else if (payload.eventType === 'partial_refund_recorded') {
     headline = 'Partial refund recorded';
-    sub =
-      'Stripe recorded a partial refund for this booking. The booking stays Paid. Collected amount was reduced to the remaining charge. Inventory is still held. Check Bookings and Money — Traverion does not treat email delivery as proof you saw this.';
+    sub = payload.cancelledRefundDue
+      ? 'Stripe recorded a partial refund on a cancelled booking that was Refund due. Remaining charge was reduced. This does not keep the trip Paid or inventory held. Check Bookings and Money — Traverion does not treat email delivery as proof you saw this.'
+      : 'Stripe recorded a partial refund for this booking. The booking stays Paid. Collected amount was reduced to the remaining charge. Inventory is still held. Check Bookings and Money — Traverion does not treat email delivery as proof you saw this.';
   } else if (payload.eventType === 'new_review') {
     headline = 'New review';
     // Keep in sync with SUPPLIER_NEW_REVIEW_NOTIFY_SUB in booking-confirmation-copy.ts
@@ -443,8 +459,9 @@ ${bodyText}
     Number.isFinite(payload.amountPaidRemaining)
   ) {
     const cur = escapeHtml((payload.currency ?? 'EUR').trim().toUpperCase() || 'EUR');
+    const remLabel = payload.cancelledRefundDue ? 'Refund due remaining' : 'Collected remaining';
     rows.push(
-      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Collected remaining</td><td style="padding:6px 0;font-size:14px;color:#111827;font-weight:600;">${cur} ${payload.amountPaidRemaining.toFixed(2)}</td></tr>`,
+      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">${remLabel}</td><td style="padding:6px 0;font-size:14px;color:#111827;font-weight:600;">${cur} ${payload.amountPaidRemaining.toFixed(2)}</td></tr>`,
     );
   }
   if (typeof payload.reviewRating === 'number' && payload.reviewRating > 0) {
@@ -821,6 +838,16 @@ serve(async (req) => {
     // Phase 1129: cancel unpaid copy from booking payment_status, not caller flag.
     if (effectivePayload.eventType === 'booking_cancelled' && bookingRow) {
       effectivePayload.unpaidCheckout = notifyUnpaidCheckoutFromPaymentStatus(bookingRow.payment_status);
+    }
+    // Phase 1740: partial on cancelled Refund due — honest host copy from DB.
+    if (effectivePayload.eventType === 'partial_refund_recorded' && bookingRow) {
+      const st = String(bookingRow.status ?? '')
+        .trim()
+        .toLowerCase();
+      const choice = String(bookingRow.refund_choice ?? '')
+        .trim()
+        .toLowerCase();
+      effectivePayload.cancelledRefundDue = st === 'cancelled' && choice !== 'no_refund';
     }
     // Phase 1139/1724: guests may not forge cancel fieldDiffs; rebuild from unpaid + refund_choice.
     if (effectivePayload.eventType === 'booking_cancelled' && !allowCallerFieldDiffs) {
