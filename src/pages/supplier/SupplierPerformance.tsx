@@ -319,37 +319,37 @@ export default function SupplierPerformance() {
           <p className="text-xs text-ink-muted -mb-4">
             Window uses booking created date (checkout time), not departure date.
           </p>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-            <div className="rounded-lg border border-black/[0.06] bg-paper px-3 py-2.5">
-              <p className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Paid bookings</p>
-              <p className="mt-0.5 font-display text-xl text-ink tabular-nums">{totals.bookingsCount}</p>
-              <p className="text-[11px] text-ink-muted mt-0.5">{activeWindow.label.toLowerCase()}</p>
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3">
+            <div className="tv-metric-tile">
+              <p className="tv-metric-tile__label">Paid bookings</p>
+              <p className="tv-metric-tile__value">{totals.bookingsCount}</p>
+              <p className="text-[11px] text-ink-muted mt-1.5">{activeWindow.label.toLowerCase()}</p>
             </div>
-            <div className="rounded-lg border border-black/[0.06] bg-paper px-3 py-2.5">
-              <p className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Guests</p>
-              <p className="mt-0.5 font-display text-xl text-ink tabular-nums">{totals.guestsCount}</p>
-              <p className="text-[11px] text-ink-muted mt-0.5">
+            <div className="tv-metric-tile">
+              <p className="tv-metric-tile__label">Guests</p>
+              <p className="tv-metric-tile__value">{totals.guestsCount}</p>
+              <p className="text-[11px] text-ink-muted mt-1.5">
                 {listingCountInWindow} listing{listingCountInWindow === 1 ? '' : 's'}
               </p>
             </div>
             {revenueByCurrency.map((r) => (
-              <div key={`revenue-${r.currency}`} className="rounded-lg border border-black/[0.06] bg-paper px-3 py-2.5">
-                <p className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">
+              <div key={`revenue-${r.currency}`} className="tv-metric-tile">
+                <p className="tv-metric-tile__label">
                   Revenue{isMultiCurrency ? ` (${r.currency})` : ''}
                 </p>
-                <p className="mt-0.5 font-display text-xl text-ink tabular-nums">{formatMoney(r.revenue, r.currency)}</p>
-                <p className="text-[11px] text-ink-muted mt-0.5">paid · no refunds</p>
+                <p className="tv-metric-tile__value">{formatMoney(r.revenue, r.currency)}</p>
+                <p className="text-[11px] text-ink-muted mt-1.5">paid · no refunds</p>
               </div>
             ))}
             {revenueByCurrency.map((r) => (
-              <div key={`avg-${r.currency}`} className="rounded-lg border border-black/[0.06] bg-paper px-3 py-2.5">
-                <p className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">
+              <div key={`avg-${r.currency}`} className="tv-metric-tile">
+                <p className="tv-metric-tile__label">
                   Avg. booking{isMultiCurrency ? ` (${r.currency})` : ''}
                 </p>
-                <p className="mt-0.5 font-display text-xl text-ink tabular-nums">
+                <p className="tv-metric-tile__value">
                   {formatMoney(r.count > 0 ? r.revenue / r.count : 0, r.currency)}
                 </p>
-                <p className="text-[11px] text-ink-muted mt-0.5">per paid booking</p>
+                <p className="text-[11px] text-ink-muted mt-1.5">per paid booking</p>
               </div>
             ))}
           </div>
@@ -373,8 +373,8 @@ export default function SupplierPerformance() {
           )}
 
           <div>
-            <h2 className="text-[11px] uppercase tracking-[0.18em] text-ink-faint mb-3">By listing</h2>
-            <ul className="space-y-1.5">
+            <h2 className="font-display text-[1.125rem] font-semibold tracking-tight text-ink mb-3">By listing</h2>
+            <ul className="space-y-2">
               {listingRows.map((row) => {
                 const currencyTotal = revenueTotalByCurrency.get(row.currency) ?? 0;
                 const share = currencyTotal > 0 ? Math.round((row.revenue / currencyTotal) * 100) : 0;
@@ -382,30 +382,30 @@ export default function SupplierPerformance() {
                 const isStay = listing ? inventoryFamilyFromListing(listing) === 'stay' : false;
                 return (
                   <li key={`${row.listingId}-${row.currency}`}>
-                    <div className="rounded-lg border border-black/[0.06] bg-paper px-3 py-2.5">
+                    <div className="tv-metric-tile">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-ink truncate">
+                          <p className="text-sm font-semibold text-ink truncate leading-snug">
                             {row.title}
                             {isMultiCurrency ? (
                               <span className="text-ink-muted font-normal"> · {row.currency}</span>
                             ) : null}
                           </p>
-                          <p className="mt-0.5 text-xs text-ink-muted">
+                          <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.08em] text-ink-faint">
                             {`${isStay ? 'Stay' : 'Tour'} · ${row.bookingsCount} paid · ${row.guestsCount} guest${row.guestsCount === 1 ? '' : 's'} · ${share}% of ${row.currency}`}
                           </p>
                         </div>
-                        <p className="tabular-nums text-sm font-semibold text-ink shrink-0">
+                        <p className="font-display text-[1.05rem] font-semibold tabular-nums tracking-tight text-ink shrink-0">
                           {formatMoney(row.revenue, row.currency)}
                         </p>
                       </div>
-                      <div className="mt-2.5 h-1 w-full rounded-full bg-black/[0.06] overflow-hidden" aria-hidden>
+                      <div className="mt-3 h-1 w-full rounded-full bg-black/[0.06] overflow-hidden" aria-hidden>
                         <div
-                          className="h-full rounded-full bg-finland transition-all duration-300"
+                          className="h-full rounded-full bg-finland transition-all duration-300 motion-reduce:transition-none"
                           style={{ width: `${share}%` }}
                         />
                       </div>
-                      <div className="mt-2.5 flex flex-wrap gap-2">
+                      <div className="mt-3 flex flex-wrap gap-2">
                         <button
                           type="button"
                           onClick={() =>
@@ -413,14 +413,14 @@ export default function SupplierPerformance() {
                               `${PARTNER_APP_BASE}/bookings?listing=${encodeURIComponent(row.listingId)}&view=all`
                             )
                           }
-                          className="lux-flat rounded-md px-2.5 py-1 text-xs font-semibold text-finland ring-1 ring-finland/20 hover:bg-finland/5"
+                          className="lux-flat min-h-11 rounded-md px-3 py-1.5 text-xs font-semibold text-finland ring-1 ring-finland/20 hover:bg-finland/5"
                         >
                           Bookings
                         </button>
                         <button
                           type="button"
                           onClick={() => openSupplierCalendar(row.listingId)}
-                          className="lux-flat rounded-md px-2.5 py-1 text-xs font-semibold text-ink-muted ring-1 ring-black/[0.08] hover:text-ink"
+                          className="lux-flat min-h-11 rounded-md px-3 py-1.5 text-xs font-semibold text-ink-muted ring-1 ring-black/[0.08] hover:text-ink"
                         >
                           Calendar
                         </button>
