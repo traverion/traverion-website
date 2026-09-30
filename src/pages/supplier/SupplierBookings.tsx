@@ -77,7 +77,7 @@ import { bookingIsStayNight, partnerBookingHasPickupAttention, resolvePartnerPic
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 import { comparePartnerBookingsOperational } from '../../lib/partner-bookings-order';
 import { partnerBookingNumberMatchesFilterQuery } from '../../lib/partner-bookings-search';
-import { displayListingTitleFromPurchase, displayMeetingPointFromPurchase, displayOptionLabelFromPurchase, displayPickupInstructionsFromPurchase, displayFulfillmentFromPurchase, displayDurationFromPurchase, displayStayCheckInTimeFromPurchase, displayStayCheckOutTimeFromPurchase, displayCheckInAddressFromPurchase, displayStayHouseRulesFromPurchase, partnerOpsDepartureDisplay, isPurchaseSnapshot, partnerListingFilterLabelFromBookings, type PurchaseSnapshot } from '../../lib/purchase-snapshot';
+import { displayListingTitleFromPurchase, displayOptionLabelFromPurchase, displayFulfillmentFromPurchase, displayDurationFromPurchase, displayStayCheckInTimeFromPurchase, displayStayCheckOutTimeFromPurchase, displayCheckInAddressFromPurchase, displayStayHouseRulesFromPurchase, partnerOpsDepartureDisplay, isPurchaseSnapshot, partnerListingFilterLabelFromBookings, type PurchaseSnapshot } from '../../lib/purchase-snapshot';
 
 const BOOKINGS_PAGE_SIZE = 10;
 
@@ -462,16 +462,20 @@ export default function SupplierBookings({
       }
       if (opsFilter === 'pickup') {
         const meta = listingMeta[b.listing_id];
-        const snapMeeting = displayMeetingPointFromPurchase(b.purchase_snapshot, meta?.meetingPoint);
-        const snapInstructions = displayPickupInstructionsFromPurchase(
-          b.purchase_snapshot,
-          meta?.pickupInstructions
-        );
+        // Phase 1751: pickup queue must honor note overrides (1742 Meet display parity).
+        const copy = resolvePartnerPickupCopy({
+          purchaseSnapshot: b.purchase_snapshot,
+          bookingOptionId: b.booking_option_id,
+          specialRequests: b.special_requests,
+          listingMeetingPoint: meta?.meetingPoint,
+          listingPickupInstructions: meta?.pickupInstructions,
+          bookingOptions: isPurchaseSnapshot(b.purchase_snapshot) ? null : meta?.bookingOptions,
+        });
         if (
           !partnerBookingHasPickupAttention(
             b,
-            snapMeeting,
-            snapInstructions,
+            copy.meetingPoint,
+            copy.pickupInstructions,
             isPurchaseSnapshot(b.purchase_snapshot) ? null : meta?.bookingOptions
           )
         )

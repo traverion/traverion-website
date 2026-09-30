@@ -45,7 +45,6 @@ import { PARTNER_INBOX_MESSAGE_FETCH_CAP } from '../../lib/partner-inbox-cap';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 import {
   displayListingTitleFromPurchase,
-  displayMeetingPointFromPurchase,
   displayOptionLabelFromPurchase,
   displayFulfillmentFromPurchase,
   partnerOpsDepartureDisplay,
