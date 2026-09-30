@@ -95,6 +95,8 @@ export function coalesceLegacyParticipantTicketOptions(
       : 0;
   // Phase 1508: Adult/Child ticket rows share one departure product — inherit season
   // bounds from any ticket so traveler calendar / scheduleIsBookable match inventory.
+  // Phase 1851: empty availabilityDateTo on any ticket means open-ended (do not close
+  // the season from a sibling ticket's end date).
   const seasonFroms = opts
     .map((o) => (o.availabilityDateFrom ?? '').trim())
     .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))
@@ -103,6 +105,7 @@ export function coalesceLegacyParticipantTicketOptions(
     .map((o) => (o.availabilityDateTo ?? '').trim())
     .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))
     .sort();
+  const anyOpenEndedTo = opts.some((o) => !(o.availabilityDateTo ?? '').trim());
   const coalesced: ListingBookingOption = {
     ...anchor,
     name: deriveCoalescedOptionName(anchor),
@@ -111,7 +114,9 @@ export function coalesceLegacyParticipantTicketOptions(
     maxPersons,
     maxSpotsPerSlot,
     availabilityDateFrom: seasonFroms[0] || (anchor.availabilityDateFrom ?? ''),
-    availabilityDateTo: seasonTos[seasonTos.length - 1] || (anchor.availabilityDateTo ?? ''),
+    availabilityDateTo: anyOpenEndedTo
+      ? ''
+      : seasonTos[seasonTos.length - 1] || (anchor.availabilityDateTo ?? ''),
     pricingMode: 'age_dependent',
     priceCategories,
     optionInfo:

@@ -666,6 +666,19 @@ function coalesceLegacyParticipantTicketOptions(opts: Option[]): Option[] {
     typeof spotsRaw === 'number' && Number.isFinite(spotsRaw) && spotsRaw >= 1
       ? Math.floor(spotsRaw)
       : undefined;
+  // Phase 1851: parity with client Phase 1508 — inherit season bounds from any
+  // legacy ticket. Adult rows often omit availabilityDateFrom while Child has it;
+  // dropping Child's window made listingHasUpcomingBookableSeason fail-closed
+  // at Stripe checkout while the PDP calendar still looked bookable.
+  const seasonFroms = opts
+    .map((o) => (o.availabilityDateFrom ?? '').trim())
+    .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))
+    .sort();
+  const seasonTos = opts
+    .map((o) => (o.availabilityDateTo ?? '').trim())
+    .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))
+    .sort();
+  const anyOpenEndedTo = opts.some((o) => !(o.availabilityDateTo ?? '').trim());
   return [
     {
       ...anchor,
@@ -674,6 +687,10 @@ function coalesceLegacyParticipantTicketOptions(opts: Option[]): Option[] {
       minPersons,
       maxPersons,
       ...(maxSpotsPerSlot != null ? { maxSpotsPerSlot } : { maxSpotsPerSlot: undefined }),
+      availabilityDateFrom: seasonFroms[0] || (anchor.availabilityDateFrom ?? ''),
+      availabilityDateTo: anyOpenEndedTo
+        ? ''
+        : seasonTos[seasonTos.length - 1] || (anchor.availabilityDateTo ?? ''),
       pricingMode: 'age_dependent',
       priceCategories,
     },

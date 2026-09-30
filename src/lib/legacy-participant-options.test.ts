@@ -70,6 +70,15 @@ describe('legacy Adult/Child options → age-dependent option', () => {
     expect(coalesced[0].availabilityDateTo).toBe('2027-03-31');
   });
 
+  it('Phase 1851: open-ended To on any ticket keeps coalesced season open-ended', () => {
+    const opts = adultChildOpts();
+    opts[0] = { ...opts[0], availabilityDateFrom: '', availabilityDateTo: '' };
+    opts[1] = { ...opts[1], availabilityDateFrom: '2026-09-10', availabilityDateTo: '2027-03-31' };
+    const coalesced = coalesceLegacyParticipantTicketOptions(opts);
+    expect(coalesced[0].availabilityDateFrom).toBe('2026-09-10');
+    expect(coalesced[0].availabilityDateTo).toBe('');
+  });
+
   it('does not coalesce real product variants', () => {
     const opts = [
       normalizeListingBookingOption({ id: 'a', name: 'Hotel pickup', priceUsd: 189 }, 'a'),
@@ -145,6 +154,8 @@ describe('legacy Adult/Child options → age-dependent option', () => {
       bookingOptionId: variants[0].id,
       participantMix: { [adultId]: 2, [childId]: 1 },
       todayIso: '2026-09-18',
+      // Pin wall clock so cutoff does not reject this fixture as the calendar year moves on.
+      nowMs: Date.parse('2026-09-18T10:00:00+03:00'),
     });
     expect(q.ok).toBe(true);
     if (q.ok) {
