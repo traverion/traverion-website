@@ -1771,6 +1771,40 @@ a:focus-visible,
   padding: 0.75rem 1rem max(0.75rem, env(safe-area-inset-bottom));
 }
 
+/* Phase 1806: Trips itinerary cards — travel document, not DB row */
+.tv-trip-card {
+  border-radius: 1rem;
+  background: #fffcf8;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(28, 25, 23, 0.06),
+    0 10px 28px -18px rgba(15, 23, 42, 0.22);
+  transition: box-shadow 0.18s ease, ring-color 0.18s ease;
+}
+.tv-trip-card[data-open='true'] {
+  box-shadow:
+    0 0 0 1px rgba(0, 53, 128, 0.22),
+    0 14px 36px -18px rgba(15, 23, 42, 0.28);
+}
+.tv-trip-card__facts {
+  display: grid;
+  gap: 0.65rem;
+  border-radius: 0.75rem;
+  background: rgba(28, 25, 23, 0.025);
+  padding: 0.75rem 0.85rem;
+  box-shadow: inset 0 0 0 1px rgba(28, 25, 23, 0.05);
+}
+@media (min-width: 640px) {
+  .tv-trip-card__facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tv-trip-card {
+    transition: none;
+  }
+}
+
 .tv-chip {
   display: inline-flex;
   align-items: center;

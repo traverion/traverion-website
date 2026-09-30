@@ -985,12 +985,9 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               return (
               <article
                 key={b.id}
-                className={`rounded-2xl bg-paper-raised shadow-soft ring-1 transition-[box-shadow,ring-color] overflow-hidden ${statusAccent} ${
-                  open
-                    ? 'ring-finland/25 shadow-soft-lg'
-                    : openCancel
-                      ? 'ring-amber-300/80'
-                      : 'ring-black/[0.06]'
+                data-open={open ? 'true' : 'false'}
+                className={`tv-trip-card ${statusAccent} ${
+                  openCancel && !open ? 'ring-1 ring-amber-300/80' : ''
                 }`}
               >
                 <button
@@ -1013,7 +1010,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       });
                     }
                   }}
-                  className="lux-flat flex w-full items-start gap-3 p-3 sm:gap-3.5 sm:p-3.5 text-left"
+                  className="lux-flat flex w-full items-start gap-3 p-3.5 sm:gap-3.5 sm:p-4 text-left"
                 >
                   {thumb ? (
                     <img
@@ -1036,11 +1033,11 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint">
                           {dateLine}
                           {timeBit ? ` · ${timeBit}` : ''}
                         </p>
-                        <h3 className="mt-0.5 break-words font-semibold text-ink line-clamp-2 leading-snug [overflow-wrap:anywhere]">
+                        <h3 className="mt-1 break-words font-display text-[1.05rem] sm:text-lg font-semibold text-ink line-clamp-2 leading-snug tracking-tight [overflow-wrap:anywhere]">
                           {tripTitle}
                         </h3>
                         {tripOption ? (
@@ -1048,11 +1045,11 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         ) : null}
                       </div>
                       <ChevronDown
-                        className={`mt-1 h-4 w-4 shrink-0 text-ink-faint transition-transform ${open ? 'rotate-180' : ''}`}
+                        className={`mt-1 h-4 w-4 shrink-0 text-ink-faint transition-transform duration-200 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`}
                         aria-hidden
                       />
                     </div>
-                    <div className="mt-2 flex flex-wrap gap-1.5">
+                    <div className="mt-2.5 flex flex-wrap gap-1.5">
                       {openCancel ? <StatusChip tone="warn">Host cancellation</StatusChip> : null}
                       <StatusChip tone={toneForPaymentLabel(lifecycle)}>{lifecycle}</StatusChip>
                       {payLabel !== lifecycle ? (
@@ -1060,7 +1057,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       ) : null}
                       {pickupMissing ? <StatusChip tone="warn">Pickup needed</StatusChip> : null}
                     </div>
-                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-muted">
+                    <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-muted">
                       {placeLine ? (
                         <span className="inline-flex min-w-0 max-w-full items-center gap-1">
                           <MapPin className="h-3.5 w-3.5 shrink-0 text-ink-faint" aria-hidden />
@@ -1072,21 +1069,20 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         {stayNightsSuffix}
                       </span>
                     </div>
-                    <p className="mt-1.5 text-sm text-ink-muted">
+                    <p className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm text-ink-muted">
                       {ref ? (
-                        <span className="font-mono text-finland font-semibold tracking-wide">{ref}</span>
+                        <span className="font-mono text-[13px] text-finland font-semibold tracking-wide">{ref}</span>
                       ) : null}
-                      {ref &&
-                      b.amount_paid != null &&
-                      Number(b.amount_paid) > 0 &&
-                      bookingPaymentWasCollected(b.payment_status)
-                        ? ' · '
-                        : ''}
                       {b.amount_paid != null &&
                       Number(b.amount_paid) > 0 &&
-                      bookingPaymentWasCollected(b.payment_status)
-                        ? `${formatMoney(Number(b.amount_paid), b.currency)}${isStripeTestCheckoutSession(b.checkout_session_id) || appStripeIsTestMode() ? ' TEST' : ''}`
-                        : null}
+                      bookingPaymentWasCollected(b.payment_status) ? (
+                        <span className="font-display text-[0.95rem] font-semibold tabular-nums tracking-tight text-ink">
+                          {formatMoney(Number(b.amount_paid), b.currency)}
+                          {isStripeTestCheckoutSession(b.checkout_session_id) || appStripeIsTestMode()
+                            ? ' TEST'
+                            : ''}
+                        </span>
+                      ) : null}
                     </p>
                   </div>
                 </button>
@@ -1127,13 +1123,14 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 {open ? (
                 <div
                   id={`trip-panel-${b.id}`}
-                  className="space-y-3 border-t border-black/[0.05] px-3 py-3 sm:px-3.5 motion-safe:animate-fade-in"
-                >                  <dl className="grid gap-2 rounded-xl bg-paper px-3 py-2.5 ring-1 ring-black/[0.05] sm:grid-cols-2">
+                  className="space-y-3 border-t border-black/[0.06] px-3.5 py-3.5 sm:px-4 motion-safe:animate-fade-in"
+                >
+                  <dl className="tv-trip-card__facts">
                     <div>
                       <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
                         {isStay ? 'Stay dates' : 'Departure'}
                       </dt>
-                      <dd className="mt-0.5 text-sm font-medium text-ink">
+                      <dd className="mt-1 text-sm font-semibold text-ink leading-snug">
                         {dateLine}
                         {timeBit ? ` · ${timeBit}` : ''}
                       </dd>
@@ -1143,7 +1140,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
                           {placeLabel}
                         </dt>
-                        <dd className="mt-0.5 text-sm text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
+                        <dd className="mt-1 text-sm font-semibold text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap leading-snug">
                           {placeLine}
                         </dd>
                       </div>

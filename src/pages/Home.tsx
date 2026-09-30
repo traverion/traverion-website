@@ -725,8 +725,8 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
               <p className="mt-2 text-sm text-ink-muted">{staysSectionSubtitle}</p>
             </div>
             {!catalogLoading && stayListings.length > 0 ? (
-              <button type="button" onClick={() => goToStays()} className="lux-flat text-sm font-semibold text-finland">
-                All stays <ArrowRight className="w-4 h-4 inline" />
+              <button type="button" onClick={() => goToStays()} className="tv-section-cta lux-flat">
+                All stays <ArrowRight className="w-4 h-4" aria-hidden />
               </button>
             ) : null}
           </div>
