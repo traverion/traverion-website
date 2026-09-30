@@ -4,7 +4,7 @@ import { invokeAdminEdgeFunction } from '../../lib/adminEdgeFunction';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import { formatMoney, isStripeTestCheckoutSession, appStripeIsTestMode } from '../../lib/money';
 import {
-  bookingPaymentWasCollected,
+  isCollectedBooking,
   partnerPaymentLabel,
   isRefundDueBooking,
   type MoneyBookingRow,
@@ -204,8 +204,8 @@ export default function AdminBookingsPanel() {
             created_at: b.created_at,
           });
           const payLabel = partnerPaymentLabel(b);
-          const collected =
-            b.amount_paid != null && Number(b.amount_paid) > 0 && bookingPaymentWasCollected(b.payment_status);
+          // Phase 1770: match Partner Money / finance_summary — refunded is not Collected.
+          const collected = isCollectedBooking(b);
           return (
             <div
               key={b.id}
