@@ -2167,6 +2167,37 @@ a:focus-visible,
   color: #1c1917;
 }
 
+/* Phase 1819: booking message bubbles + composer */
+.tv-msg-bubble {
+  border-radius: 0.85rem;
+  padding: 0.7rem 0.85rem;
+  font-size: 0.875rem;
+}
+
+.tv-msg-bubble--mine {
+  background: rgba(0, 53, 128, 0.1);
+  color: #1c1917;
+}
+
+.tv-msg-bubble--theirs {
+  background: #fffcf8;
+  color: #1c1917;
+  box-shadow: inset 0 0 0 1px rgba(28, 25, 23, 0.07);
+}
+
+.tv-msg-bubble--system {
+  background: rgba(28, 25, 23, 0.04);
+  color: #57534e;
+}
+
+.tv-msg-composer {
+  margin-top: 0.25rem;
+  border-radius: 0.85rem;
+  background: #fffcf8;
+  padding: 0.75rem;
+  box-shadow: inset 0 0 0 1px rgba(28, 25, 23, 0.07);
+}
+
 .tv-chip {
   display: inline-flex;
   align-items: center;

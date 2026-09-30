@@ -206,16 +206,16 @@ export default function BookingMessageThread({
           </NoticeCallout>
         )
       ) : rows.length > 0 ? (
-        <ul className="space-y-2 max-h-72 overflow-y-auto">
+        <ul className="space-y-2.5 max-h-72 overflow-y-auto pr-0.5">
           {rows.map((m) => (
             <li
               key={m.id}
-              className={`rounded-xl px-3 py-2 text-sm ${
+              className={`tv-msg-bubble ${
                 m.sender_role === 'system'
-                  ? 'bg-black/[0.04] text-ink-muted'
+                  ? 'tv-msg-bubble--system'
                   : m.sender_role === viewerRole
-                    ? 'bg-finland/10 text-ink'
-                    : 'bg-paper-raised ring-1 ring-black/[0.06] text-ink'
+                    ? 'tv-msg-bubble--mine'
+                    : 'tv-msg-bubble--theirs'
               }`}
             >
               <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
@@ -224,7 +224,7 @@ export default function BookingMessageThread({
                   {new Date(m.created_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
                 </span>
               </p>
-              <p className="mt-1 leading-relaxed break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{m.body}</p>
+              <p className="mt-1.5 leading-relaxed break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{m.body}</p>
             </li>
           ))}
         </ul>
@@ -235,7 +235,7 @@ export default function BookingMessageThread({
         </NoticeCallout>
       ) : null}
       {canCompose && !loadError && !loading ? (
-        <div>
+        <div className="tv-msg-composer">
           <label htmlFor={`msg-${bookingId}`} className="sr-only">
             Message about this booking
           </label>
@@ -246,22 +246,24 @@ export default function BookingMessageThread({
             rows={3}
             maxLength={4000}
             placeholder="Write a message about this booking"
-            className="tv-input min-h-[5.5rem]"
+            className="tv-input min-h-[5.5rem] border-0 bg-transparent shadow-none focus:ring-0"
             aria-describedby={`msg-hint-${bookingId}`}
           />
           {/* Phase 1671: calm 4000-char limit hint while composing. */}
-          <p id={`msg-hint-${bookingId}`} className="mt-1.5 text-xs text-ink-faint">
-            Up to 4000 characters
-            {draft.length > 0 ? ` · ${draft.length} used` : ''}.
-          </p>
-          <button
-            type="button"
-            onClick={() => void send()}
-            disabled={sending || !draft.trim()}
-            className="tv-btn-secondary mt-2"
-          >
-            {sending ? 'Posting…' : 'Post message'}
-          </button>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+            <p id={`msg-hint-${bookingId}`} className="text-xs text-ink-faint">
+              Up to 4000 characters
+              {draft.length > 0 ? ` · ${draft.length} used` : ''}.
+            </p>
+            <button
+              type="button"
+              onClick={() => void send()}
+              disabled={sending || !draft.trim()}
+              className="tv-btn-primary min-h-11 disabled:opacity-50"
+            >
+              {sending ? 'Sending…' : 'Send message'}
+            </button>
+          </div>
           {viewerRole === 'supplier' ? (
             <p className="mt-2 text-xs text-ink-muted leading-relaxed">{PARTNER_INBOX_MESSAGE_DELIVERY_NOTE}</p>
           ) : (
