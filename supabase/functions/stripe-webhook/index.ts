@@ -619,9 +619,18 @@ serve(async (req) => {
           });
         }
 
+        // Phase 1737: after Phase 1735 partials shrink amount_paid to remaining,
+        // restore gross collected (cumulative Stripe refunded = charge.amount on
+        // full refund) so Trips/Bookings do not show an understated Refunded figure.
+        const fullRefundUpdate: { payment_status: string; amount_paid?: number } = {
+          payment_status: 'refunded',
+        };
+        if (typeof refundAmount === 'number' && Number.isFinite(refundAmount) && refundAmount > 0) {
+          fullRefundUpdate.amount_paid = refundAmount;
+        }
         const { data: refundedRows, error: refundErr } = await admin
           .from('bookings')
-          .update({ payment_status: 'refunded' })
+          .update(fullRefundUpdate)
           .eq('id', booking.id)
           .eq('payment_status', 'paid')
           .select('id');
