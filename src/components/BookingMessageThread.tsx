@@ -95,6 +95,10 @@ export default function BookingMessageThread({
     } finally {
       if (gen === loadGenRef.current) setLoading(false);
     }
+    // Phase 1767: finance/viewer composeBlock=role — RPC no-ops but returns ok; do not clear Unread locally.
+    if (composeBlock === 'role') {
+      return;
+    }
     const marked = await markBookingMessagesRead(bookingId);
     if (gen !== loadGenRef.current) return;
     if (!marked.ok) {
@@ -104,7 +108,7 @@ export default function BookingMessageThread({
     }
     onMarkedRead?.();
     setRows((prev) => stampInboundMessagesRead(prev, viewerRole));
-  }, [bookingId, onMarkedRead, viewerRole]);
+  }, [bookingId, composeBlock, onMarkedRead, viewerRole]);
 
   useEffect(() => {
     setRows([]);
