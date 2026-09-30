@@ -1,9 +1,12 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
 import { Wallet } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
+import { useSupplierRole } from '../../hooks/useSupplierRole';
+import { canManageFinance } from '../../lib/supplierTeamRoles';
 import { fetchSupplierEarnings, SupplierEarning } from '../../data/supabase-earnings';
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
 import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
+import { insertSupplierExportRun } from '../../data/supabase-supplier-campaigns-exports';
 import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierListSkeleton, SupplierPageHero } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
@@ -43,6 +46,9 @@ function ledgerKindLabel(kind: string): string {
 
 export default function SupplierEarnings() {
   const { user, isSupabase } = useSupplierAuth();
+  // Phase 1760: Money CSV is finance/owner; viewers must not export or audit-log.
+  const { role } = useSupplierRole();
+  const canExportFinance = canManageFinance(role);
   const [earnings, setEarnings] = useState<SupplierEarning[]>([]);
   const [paidBookings, setPaidBookings] = useState<BookingRow[]>([]);
   const [refundDueBookings, setRefundDueBookings] = useState<BookingRow[]>([]);
@@ -302,6 +308,8 @@ export default function SupplierEarnings() {
   const nextPayoutLabel = PARTNER_MONEY_PAYOUT_STATUS_NOTE;
 
   const exportCsv = () => {
+    // Phase 1760: role gate before download + export_runs insert.
+    if (!canExportFinance || !user?.id) return;
     const collectedForExport =
       filteredEarningsInWindow.length === 0
         ? paidBookingsInWindow.map((b) => ({
@@ -349,6 +357,19 @@ export default function SupplierEarnings() {
     a.download = `supplier-money-${localYmd()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+    void insertSupplierExportRun({
+      supplierId: user.id,
+      actorId: user.id,
+      kind: 'ops_summary',
+      format: 'csv',
+      scope: 'filtered',
+      rowCount: body.length,
+      filtersSnapshot: {
+        surface: 'money',
+        statusFilter,
+        listWindow,
+      },
+    });
   };
 
   const canExportMoney = partnerMoneyCsvHasExportableRows({
@@ -581,8 +602,13 @@ export default function SupplierEarnings() {
               <button
                 type="button"
                 onClick={exportCsv}
-                disabled={!canExportMoney}
+                disabled={!canExportFinance || !canExportMoney}
                 className="tv-btn-ghost text-sm disabled:opacity-40"
+                title={
+                  !canExportFinance
+                    ? 'Your role can view Money but cannot export CSV'
+                    : undefined
+                }
               >
                 Export
               </button>
