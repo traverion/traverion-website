@@ -204,10 +204,8 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
         <div className={size === 'compact' ? 'p-3' : 'px-3.5 py-3'}>
           <p className="truncate text-[12px] sm:text-[13px] text-ink-muted">{locationLine}</p>
           <h3
-            className={`mt-0.5 line-clamp-2 break-words leading-snug tracking-tight text-ink [overflow-wrap:anywhere] ${
-              size === 'compact'
-                ? 'font-display text-[15px] sm:text-[16px] font-semibold'
-                : 'text-[15px] sm:text-base font-semibold'
+            className={`mt-0.5 line-clamp-2 break-words leading-snug tracking-tight text-ink [overflow-wrap:anywhere] font-display font-semibold ${
+              size === 'compact' ? 'text-[15px] sm:text-[16px]' : 'text-[15px] sm:text-base'
             }`}
           >
             {tour.title}
@@ -216,9 +214,10 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
             <ListingCardRating tour={tour} aggregate={reviewAggregate} compact />
           </div>
           {metaLine ? <p className="mt-1 truncate text-[13px] text-ink-muted">{metaLine}</p> : null}
+          {/* Phase 1803: price row — clearer From + amount hierarchy on browse cards. */}
           <p
-            className={`mt-2 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 tabular-nums ${
-              isStay && stayStayTotal ? 'text-lg' : 'text-base'
+            className={`mt-2.5 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 tabular-nums ${
+              isStay && stayStayTotal ? 'text-lg' : 'text-[1.0625rem] sm:text-lg'
             }`}
             aria-label={priceAria}
           >
