@@ -287,7 +287,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-12 xl:gap-16">
           <div className="min-w-0 space-y-10">
             <section>
-              <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint mb-3">Your travel</h2>
+              <h2 className="font-display text-[1.125rem] font-semibold tracking-tight text-ink mb-3">Your travel</h2>
               {statsError ? (
                 // Phase 1635: stats cover Trips and Saved counts.
                 <ErrorState
@@ -302,7 +302,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                   }
                 />
               ) : null}
-              <ul className="grid gap-2 sm:grid-cols-2">
+              <ul className="grid gap-2.5 sm:grid-cols-2">
                 {tiles.map((tile) => {
                   const Icon = tile.icon;
                   return (
@@ -310,7 +310,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                       <button
                         type="button"
                         onClick={tile.onClick}
-                        className="lux-flat group flex w-full min-h-[4.25rem] items-center gap-3 rounded-2xl bg-paper-raised px-4 py-3.5 text-left ring-1 ring-black/[0.06] hover:ring-finland/25 shadow-soft"
+                        className="lux-flat tv-account-tile group"
                       >
                         <span
                           className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
@@ -325,14 +325,16 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                           <span className="flex items-center justify-between gap-2">
                             <span className="font-semibold text-ink">{tile.title}</span>
                             {tile.count != null ? (
-                              <span className="text-sm tabular-nums font-semibold text-ink-muted">{tile.count}</span>
+                              <span className="font-display text-sm tabular-nums font-semibold tracking-tight text-ink">
+                                {tile.count}
+                              </span>
                             ) : statsLoading ? (
-                              <span className="h-4 w-6 animate-pulse rounded bg-black/[0.06]" aria-hidden />
+                              <span className="tv-skeleton h-4 w-6 rounded" aria-hidden />
                             ) : null}
                           </span>
                           <span className="mt-0.5 block text-sm text-ink-muted">{tile.description}</span>
                         </span>
-                        <ChevronRight className="w-4 h-4 shrink-0 text-ink-faint transition-transform group-hover:translate-x-0.5 group-hover:text-finland" />
+                        <ChevronRight className="w-4 h-4 shrink-0 text-ink-faint transition-transform motion-safe:group-hover:translate-x-0.5 group-hover:text-finland" />
                       </button>
                     </li>
                   );
