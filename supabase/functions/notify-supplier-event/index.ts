@@ -38,7 +38,9 @@ type EventType =
   /** Copy of schedule change you saved — guest is notified separately */
   | 'host_schedule_updated'
   | 'cancellation_accepted'
-  | 'cancellation_declined';
+  | 'cancellation_declined'
+  /** Phase 1733: Stripe full refund — Money/ledger reversed */
+  | 'refund_completed';
 
 type Payload = {
   supplierId: string;
@@ -128,6 +130,7 @@ function eventSubject(payload: Payload): string {
   }
   if (payload.eventType === 'booking_detail_changed') return `${refTag}Booking updated: ${listing}`;
   if (payload.eventType === 'host_schedule_updated') return `${refTag}Schedule saved (your update): ${listing}`;
+  if (payload.eventType === 'refund_completed') return `${refTag}Refund recorded: ${listing}`;
   return `New review received: ${listing}`;
 }
 
@@ -184,6 +187,17 @@ function eventBody(payload: Payload): string {
     lines.push(`Listing: ${listing}`);
     lines.push(
       'This booking is cancelled. Traveler refund is due until Stripe records Refunded — Traverion does not refund automatically.',
+    );
+  } else if (payload.eventType === 'cancellation_declined') {
+    lines.push('Traveler declined your cancellation request.');
+    lines.push(`Listing: ${listing}`);
+    lines.push('The booking stays active. Open Bookings if you need the record.');
+  } else if (payload.eventType === 'refund_completed') {
+    // Phase 1733: keep in sync with SUPPLIER_REFUND_COMPLETED_NOTIFY_SUB
+    lines.push('Stripe recorded a full refund for this booking.');
+    lines.push(`Listing: ${listing}`);
+    lines.push(
+      'Payment status is Refunded. Collected earnings for this booking were reversed. Check Bookings and Money — Traverion does not treat email delivery as proof you saw this.'
     );
   } else {
     lines.push(`Event: ${payload.eventType}`);
@@ -302,6 +316,11 @@ ${bodyText}
     // Keep in sync with SUPPLIER_CANCELLATION_DECLINED_NOTIFY_SUB
     sub =
       'The traveler declined your cancellation request. The booking stays active. Open Bookings — Traverion does not treat email delivery as proof you saw this update.';
+  } else if (payload.eventType === 'refund_completed') {
+    headline = 'Refund recorded';
+    // Keep in sync with SUPPLIER_REFUND_COMPLETED_NOTIFY_SUB
+    sub =
+      'Stripe recorded a full refund for this booking. Payment status is Refunded. Collected earnings for this booking were reversed. Check Bookings and Money — Traverion does not treat email delivery as proof you saw this.';
   } else if (payload.eventType === 'new_review') {
     headline = 'New review';
     // Keep in sync with SUPPLIER_NEW_REVIEW_NOTIFY_SUB in booking-confirmation-copy.ts

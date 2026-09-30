@@ -429,6 +429,13 @@ export const SUPPLIER_NEW_BOOKING_PENDING_NOTIFY_SUB =
 export const SUPPLIER_CANCELLATION_DECLINED_NOTIFY_SUB =
   'The traveler declined your cancellation request. The booking stays active. Open Bookings — Traverion does not treat email delivery as proof you saw this update.';
 
+/**
+ * Phase 1733: partner notify after Stripe full refund (charge.refunded).
+ * Keep in sync with notify-supplier-event refund_completed HTML subcopy.
+ */
+export const SUPPLIER_REFUND_COMPLETED_NOTIFY_SUB =
+  'Stripe recorded a full refund for this booking. Payment status is Refunded. Collected earnings for this booking were reversed. Check Bookings and Money — Traverion does not treat email delivery as proof you saw this.';
+
 /** Paid confirmation UI — Trips is durable; do not imply host follow-up arrives by email. */
 export const BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE =
   'Watch Trips for schedule, meeting, or arrival updates from the host.';

@@ -522,16 +522,20 @@ serve(async (req) => {
 
           // Notify traveler only after payment_status is actually refunded (not on partial).
           const guestEmail = (booking.guest_email ?? '').trim().toLowerCase();
-          if (guestEmail && supabaseUrl && serviceRoleKey) {
-            let listingTitle = 'Your experience';
-            if (booking.listing_id) {
-              const { data: lt } = await admin
-                .from('listings')
-                .select('title')
-                .eq('id', booking.listing_id)
-                .maybeSingle();
-              if (lt?.title?.trim()) listingTitle = lt.title.trim();
+          let listingTitle = 'Your experience';
+          let listingSupplierId: string | null = null;
+          if (booking.listing_id) {
+            const { data: lt } = await admin
+              .from('listings')
+              .select('title, supplier_id')
+              .eq('id', booking.listing_id)
+              .maybeSingle();
+            if (lt?.title?.trim()) listingTitle = lt.title.trim();
+            if (typeof lt?.supplier_id === 'string' && lt.supplier_id.trim()) {
+              listingSupplierId = lt.supplier_id.trim();
             }
+          }
+          if (guestEmail && supabaseUrl && serviceRoleKey) {
             try {
               await fetch(`${supabaseUrl}/functions/v1/notify-customer-booking`, {
                 method: 'POST',
@@ -568,6 +572,43 @@ serve(async (req) => {
                   eventId: event.id,
                   bookingId: booking.id,
                   emailError: emailErr instanceof Error ? emailErr.message : 'refund email failed',
+                })
+              );
+            }
+          }
+          // Phase 1733: host must learn Money reversed — traveler path alone was silent for partners.
+          if (listingSupplierId && supabaseUrl && serviceRoleKey) {
+            try {
+              await fetch(`${supabaseUrl}/functions/v1/notify-supplier-event`, {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${serviceRoleKey}`,
+                  apikey: serviceRoleKey,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  supplierId: listingSupplierId,
+                  eventType: 'refund_completed',
+                  listingId: booking.listing_id ?? undefined,
+                  listingTitle,
+                  bookingId: booking.id,
+                  bookingNumber:
+                    typeof booking.booking_number === 'number' ? booking.booking_number : undefined,
+                  bookingDate: booking.booking_date ?? undefined,
+                  guests: typeof booking.guests === 'number' ? booking.guests : undefined,
+                  guestName: booking.guest_name ?? undefined,
+                  portalBaseUrl: Deno.env.get('PUBLIC_SITE_URL') ?? 'https://www.traverion.com',
+                  idempotencyKey: `supplier:refund_completed:${booking.id}`,
+                }),
+              });
+            } catch (hostEmailErr) {
+              console.error(
+                JSON.stringify({
+                  source: 'stripe-webhook',
+                  eventId: event.id,
+                  bookingId: booking.id,
+                  emailError:
+                    hostEmailErr instanceof Error ? hostEmailErr.message : 'host refund email failed',
                 })
               );
             }

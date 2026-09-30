@@ -47,6 +47,7 @@ describe('isBookingTiedSupplierEvent / isReviewTiedSupplierEvent', () => {
     expect(isBookingTiedSupplierEvent('host_schedule_updated')).toBe(true);
     expect(isBookingTiedSupplierEvent('cancellation_accepted')).toBe(true);
     expect(isBookingTiedSupplierEvent('cancellation_declined')).toBe(true);
+    expect(isBookingTiedSupplierEvent('refund_completed')).toBe(true);
     expect(isBookingTiedSupplierEvent('new_review')).toBe(false);
     expect(isBookingTiedSupplierEvent('supplier_welcome')).toBe(false);
     expect(isBookingTiedSupplierEvent('verification_submitted')).toBe(false);
