@@ -510,16 +510,22 @@ export async function updateBookingStatus(
     if (options?.cancellation_reason) payload.cancellation_reason = options.cancellation_reason;
     if (options?.refund_choice) payload.refund_choice = options.refund_choice;
   }
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from('bookings')
     .update(payload)
-    .eq('id', bookingId);
+    .eq('id', bookingId)
+    .select('id')
+    .maybeSingle();
   if (error) {
     const message = error.message || '';
     if (/already refunded/i.test(message)) {
       return { ok: false, error: travelerSelfCancelError('refunded') };
     }
     return { ok: false, error: message };
+  }
+  // Phase 1743: RLS may zero-row finance/viewer updates — do not claim success.
+  if (!updated?.id) {
+    return { ok: false, error: 'You do not have permission to update this booking.' };
   }
   if (status === 'cancelled' && travelerSelfCancelIsUnpaidCheckout(current)) {
     expireUnpaidCancelledCheckout(bookingId);
@@ -596,13 +602,22 @@ export async function updateBookingSchedule(
   if ('pickup_time' in params) payload.pickup_time = nextPickupPg;
   if (Object.keys(payload).length === 0) return { ok: true };
 
-  const { error } = await supabase.from('bookings').update(payload).eq('id', bookingId);
+  const { data: updated, error } = await supabase
+    .from('bookings')
+    .update(payload)
+    .eq('id', bookingId)
+    .select('id')
+    .maybeSingle();
   if (error) {
     const message = error.message || '';
     if (/already refunded/i.test(message)) {
       return { ok: false, error: travelerSelfCancelError('refunded') };
     }
     return { ok: false, error: message };
+  }
+  // Phase 1743: finance/viewer RLS zero-row — do not claim times saved.
+  if (!updated?.id) {
+    return { ok: false, error: 'You do not have permission to update this booking.' };
   }
 
   if (!startChanged && !pickupChanged) return { ok: true };
@@ -735,11 +750,17 @@ export async function updateBookingPickupCopy(
     params.meetingPoint,
     params.pickupInstructions
   );
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from('bookings')
     .update({ special_requests: nextNotes || null })
-    .eq('id', bookingId);
+    .eq('id', bookingId)
+    .select('id')
+    .maybeSingle();
   if (error) return { ok: false, error: error.message || 'Could not save pickup details.' };
+  // Phase 1743: finance/viewer RLS zero-row — do not claim pickup saved.
+  if (!updated?.id) {
+    return { ok: false, error: 'You do not have permission to update this booking.' };
+  }
 
   // Phase 1716: email traveler when host fills/changes place or instructions (schedule-time parity).
   const nextMeeting = params.meetingPoint.trim();
@@ -798,11 +819,14 @@ export async function updateBookingPickupCopy(
 /** Acknowledge a booking (supplier confirms receipt). */
 export async function acknowledgeBooking(bookingId: string): Promise<boolean> {
   if (!supabase) return false;
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('bookings')
     .update({ acknowledged_at: new Date().toISOString() })
-    .eq('id', bookingId);
-  return !error;
+    .eq('id', bookingId)
+    .select('id')
+    .maybeSingle();
+  // Phase 1743: RLS zero-row must not look like success.
+  return !error && !!data?.id;
 }
 
 /** Batch cancel: cancel all bookings for given listing(s) in date range. Returns count cancelled. */
