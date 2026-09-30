@@ -3,7 +3,7 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
 import { stripeWebhookReplayDecision } from '../_shared/stripe-webhook-replay.ts';
-import { isStripeChargeFullyRefunded, refundBeforePaidShouldMarkFailed, remainingPaidMajorFromCharge } from '../_shared/stripe-charge-refund.ts';
+import { isStripeChargeFullyRefunded, refundBeforePaidShouldMarkFailed, remainingPaidMajorFromCharge, chargeRefundMetaBookingMatchesPaymentIntent } from '../_shared/stripe-charge-refund.ts';
 import { staleCheckoutFailureShouldApply } from '../_shared/checkout-resume.ts';
 import { paymentIntentSucceededShouldPromote } from '../_shared/checkout-pi-succeeded.ts';
 import { promotePaidFromCheckoutSession, notifyTravelerCheckoutCaptureReversed } from '../_shared/promote-paid-from-checkout.ts';
@@ -373,6 +373,7 @@ serve(async (req) => {
         let booking: {
           id: string;
           payment_status: string | null;
+          payment_intent_id?: string | null;
           listing_id?: string | null;
           booking_date?: string | null;
           check_out?: string | null;
@@ -385,8 +386,9 @@ serve(async (req) => {
           status?: string | null;
           refund_choice?: string | null;
         } | null = null;
+        // Phase 1758: include payment_intent_id so meta fallback can refuse a live PI mismatch.
         const refundBookingSelect =
-          'id, payment_status, status, refund_choice, listing_id, booking_date, check_out, guests, guest_email, guest_name, booking_number, amount_paid, currency';
+          'id, payment_status, payment_intent_id, status, refund_choice, listing_id, booking_date, check_out, guests, guest_email, guest_name, booking_number, amount_paid, currency';
         const byPi = await admin
           .from('bookings')
           .select(refundBookingSelect)
@@ -409,7 +411,16 @@ serve(async (req) => {
               .select(refundBookingSelect)
               .eq('id', metaBookingId)
               .maybeSingle();
-            booking = byMeta.data;
+            const metaRow = byMeta.data;
+            if (
+              metaRow &&
+              chargeRefundMetaBookingMatchesPaymentIntent({
+                eventPaymentIntentId: paymentIntentId,
+                bookingPaymentIntentId: metaRow.payment_intent_id ?? null,
+              })
+            ) {
+              booking = metaRow;
+            }
           }
         }
         if (!booking) {

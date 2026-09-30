@@ -48,6 +48,22 @@ export function refundBeforePaidShouldMarkFailed(params: {
   return pay === 'pending' || pay === 'failed';
 }
 
+/**
+ * Phase 1758: charge.refunded meta booking_id must not mutate a booking whose
+ * live payment_intent_id is a different PI (Pay-now rotate / orphan refund).
+ * Empty booking PI still allows attach (pre-paid hold).
+ */
+export function chargeRefundMetaBookingMatchesPaymentIntent(params: {
+  eventPaymentIntentId?: string | null;
+  bookingPaymentIntentId?: string | null;
+}): boolean {
+  const eventPi = String(params.eventPaymentIntentId ?? '').trim();
+  if (!eventPi) return false;
+  const bookPi = String(params.bookingPaymentIntentId ?? '').trim();
+  if (!bookPi) return true;
+  return bookPi === eventPi;
+}
+
 /** Refuse paid promotion when the Checkout PaymentIntent's charge is fully refunded. */
 export function paidPromotionShouldRefuseFullyRefundedCharge(
   charge:
