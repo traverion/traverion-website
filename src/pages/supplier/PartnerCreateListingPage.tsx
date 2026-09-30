@@ -1,7 +1,10 @@
 import { Compass, Home, KeyRound } from 'lucide-react';
+import NoticeCallout from '../../components/NoticeCallout';
 import { SUPPLIER_PAGE_CLASS, SupplierPageHero } from '../../components/supplier/supplierUi';
+import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { PARTNER_CREATE_INVENTORY } from '../../lib/inventory';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
+import { canManageBookings } from '../../lib/supplierTeamRoles';
 import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 
 /**
@@ -9,7 +12,12 @@ import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
  * Rentals are not a Traverion inventory family yet — shown as unavailable, not a fake form.
  */
 export default function PartnerCreateListingPage() {
+  // Phase 1755: finance/viewer must not start a create journey that RLS 216 will reject.
+  const { role } = useSupplierRole();
+  const canCreate = canManageBookings(role);
+
   const startFamily = (family: 'tour' | 'stay') => {
+    if (!canCreate) return;
     navigateSupplierUrl(`${PARTNER_APP_BASE}/listings?create=${family}`);
   };
 
@@ -19,6 +27,12 @@ export default function PartnerCreateListingPage() {
         title="Create a listing"
         description="Pick what travelers will book. Tours and stays use different calendars and rules — Traverion does not fold them into one form."
       />
+
+      {!canCreate ? (
+        <NoticeCallout tone="info" className="mb-4">
+          Your role can view listings but cannot create new ones. Ask an owner, manager, or ops teammate.
+        </NoticeCallout>
+      ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {PARTNER_CREATE_INVENTORY.map((opt) => {
@@ -32,8 +46,9 @@ export default function PartnerCreateListingPage() {
             <button
               key={opt.family}
               type="button"
+              disabled={!canCreate}
               onClick={() => startFamily(opt.family as 'tour' | 'stay')}
-              className="partner-surface-panel lux-flat group flex flex-col px-4 py-4 text-left hover:border-finland/30"
+              className="partner-surface-panel lux-flat group flex flex-col px-4 py-4 text-left hover:border-finland/30 disabled:opacity-40 disabled:pointer-events-none"
             >
               <span className="flex h-9 w-9 items-center justify-center rounded-md bg-finland/10 text-finland">
                 <Icon className="h-4 w-4" aria-hidden />

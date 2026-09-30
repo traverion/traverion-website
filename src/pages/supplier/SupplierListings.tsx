@@ -350,6 +350,11 @@ export default function SupplierListings() {
       return;
     }
     if ((createFam === 'tour' || createFam === 'stay') && !edit) {
+      // Phase 1755: deep-link create must not open the editor for finance/viewer.
+      if (!canEditListings) {
+        window.history.replaceState(window.history.state, '', `${PARTNER_APP_BASE}/listings`);
+        return;
+      }
       if (canonicalListingIdRef.current) {
         const next = listingEditorPathAfterFirstPersist(
           window.location.pathname,
@@ -396,7 +401,7 @@ export default function SupplierListings() {
       setFormFocusSection(null);
       // Keep local "Add listing" / edit-without-URL state; only URL drives deep links.
     }
-  }, [bumpEditorInstanceIfOpening, clearCanonicalListingSession]);
+  }, [bumpEditorInstanceIfOpening, canEditListings, clearCanonicalListingSession]);
 
   useEffect(() => {
     syncListingsUrlToState();

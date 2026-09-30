@@ -20,6 +20,8 @@ type PartnerSidebarProps = {
   onNavigate: (id: PartnerNavSectionId) => void;
   onHome: () => void;
   onCreate: () => void;
+  /** Phase 1755: hide Create CTA for finance/viewer. */
+  canCreate?: boolean;
   showFinishSetup?: boolean;
   onFinishSetup?: () => void;
   collapsed?: boolean;
@@ -86,6 +88,7 @@ export default function PartnerSidebar({
   onNavigate,
   onHome,
   onCreate,
+  canCreate = true,
   showFinishSetup,
   onFinishSetup,
   collapsed,

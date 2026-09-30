@@ -11,6 +11,8 @@ import {
 import type { User } from '@supabase/supabase-js';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
+import { useSupplierRole } from '../../hooks/useSupplierRole';
+import { canManageBookings } from '../../lib/supplierTeamRoles';
 import { supabase } from '../../lib/supabase';
 import SupplierDashboard from '../../pages/supplier/SupplierDashboard';
 import SupplierListings from '../../pages/supplier/SupplierListings';
@@ -251,6 +253,9 @@ function isSupplierPortalPath(pathname: string): boolean {
 
 export default function SupplierLayout() {
   const { user, loading, signOut, isSupabase } = useSupplierAuth();
+  // Phase 1755: Create listing CTA is editor-only (matches listings write RLS).
+  const { role } = useSupplierRole();
+  const canCreateListings = canManageBookings(role);
   const [partnerProfileGate, setPartnerProfileGate] = useState<PartnerProfileGate | null>(null);
   const [partnerGateRetryKey, setPartnerGateRetryKey] = useState(0);
   const blockedRedirectStarted = useRef(false);
