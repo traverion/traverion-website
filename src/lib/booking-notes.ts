@@ -34,7 +34,17 @@ export function buildCheckoutClaimSpecialRequests(params: {
   checkOutDate?: string | null;
 }): string | null {
   const phone = sanitizeCheckoutGuestPhone(params.customerPhone);
-  const guestNotes = guestFacingBookingNotes(params.specialRequests);
+  let guestNotes = guestFacingBookingNotes(params.specialRequests);
+  // Phase 1852: if phone is supplied separately, drop any Guest phone lines from notes
+  // so client+server cannot double-emit the same line.
+  if (phone) {
+    guestNotes = guestNotes
+      .split(/\n+/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0 && !/^Guest phone\s*:/i.test(line))
+      .join('\n\n')
+      .trim();
+  }
   const optionId = (params.optionId ?? '').trim();
   const checkOut = (params.checkOutDate ?? '').trim();
   const parts = [

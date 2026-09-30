@@ -761,11 +761,12 @@ export default function BookingPage({
   useDialogFocus(presentation === 'modal', bookingModalRef, handleLeaveBooking);
 
   const mergedSpecialRequests = useCallback(() => {
-    const phoneLine = phone.trim() ? `Guest phone: ${phone.trim()}` : '';
+    // Phase 1852: phone is passed as customerPhone; claim builder adds "Guest phone:".
+    // Do not also embed it here — that duplicated the line in special_requests.
     const stayLine = placeOfStay.trim() ? `Place of stay: ${placeOfStay.trim()}` : '';
     const rest = specialRequests.trim();
-    return [phoneLine, stayLine, rest].filter(Boolean).join('\n\n');
-  }, [phone, placeOfStay, specialRequests]);
+    return [stayLine, rest].filter(Boolean).join('\n\n');
+  }, [placeOfStay, specialRequests]);
 
   const proceedToContactAfterOption = async () => {
     // Phase 1178: defense in depth — never advance when remaining is unknown/sold out.

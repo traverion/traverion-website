@@ -60,6 +60,28 @@ describe('buildCheckoutClaimSpecialRequests', () => {
     });
     expect(notes).toBe('Early arrival\n\ncheck_out: 2026-10-03');
   });
+
+  it('Phase 1852: single Guest phone line when phone is only via customerPhone', () => {
+    const notes = buildCheckoutClaimSpecialRequests({
+      customerPhone: '+358 40 123 4567',
+      specialRequests: 'Place of stay: Arctic Hotel',
+      optionId: 'opt-1',
+    });
+    expect(notes).toBe(
+      'Guest phone: +358 40 123 4567\n\nPlace of stay: Arctic Hotel\n\nbooking_option_id: opt-1'
+    );
+    expect(notes.match(/Guest phone:/g)?.length).toBe(1);
+  });
+
+  it('Phase 1852: strips duplicate Guest phone from specialRequests when customerPhone set', () => {
+    const notes = buildCheckoutClaimSpecialRequests({
+      customerPhone: '+358 40 123 4567',
+      specialRequests: 'Guest phone: +358 40 123 4567\n\nPlace of stay: Arctic Hotel',
+      optionId: null,
+    });
+    expect(notes.match(/Guest phone:/g)?.length).toBe(1);
+    expect(notes).toContain('Place of stay: Arctic Hotel');
+  });
 });
 
 describe('upsertBookingPickupNoteOverrides', () => {

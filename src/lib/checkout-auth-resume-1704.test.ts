@@ -30,4 +30,17 @@ describe('Phase 1704: checkout auth resume waits for session', () => {
     expect(src).toContain('await supabase.auth.getSession()');
     expect(src).toContain('triggerAuthSuccess()');
   });
+
+  it('Phase 1852: TourDetails does not clear tour on auth (preserves checkout step)', () => {
+    const src = readFileSync(resolve(__dirname, '../pages/TourDetails.tsx'), 'utf8');
+    expect(src).toContain('Phase 1852: blank tour only when the listing id changes');
+    expect(src).toContain('setLocationSearch(window.location.search)');
+    // Auth-dependent reload must not blank tour at the top of the [tourId, user?.id] effect.
+    const authLoad = src.slice(src.indexOf('}, [tourId, user?.id]'));
+    // The blanking setTour(null) for listing changes lives in a tourId-only effect.
+    expect(src).toMatch(
+      /useEffect\(\(\) => \{\s*setTourLoadError\(null\);\s*setTour\(null\);\s*setReviewOnlyAccess\(false\);\s*\}, \[tourId\]\)/
+    );
+    void authLoad;
+  });
 });

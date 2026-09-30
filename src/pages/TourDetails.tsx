@@ -686,9 +686,16 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     void run();
   }, [tour?.id, requestAuth, savedToWishlist]);
 
+  // Phase 1852: blank tour only when the listing id changes. Clearing on user?.id
+  // unmounted BookingPage mid-checkout and restored stale URL step=review.
   useEffect(() => {
     setTourLoadError(null);
     setTour(null);
+    setReviewOnlyAccess(false);
+  }, [tourId]);
+
+  useEffect(() => {
+    setTourLoadError(null);
     setReviewOnlyAccess(false);
     if (isSupabaseConfigured()) {
       let cancelled = false;
@@ -1076,6 +1083,9 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       if (current !== href) {
         window.history.replaceState({}, '', href);
       }
+      // Phase 1852: keep React locationSearch in sync (commitLocation parity) so a
+      // remount cannot revive a stale step=review while the traveler is on Contact/Pay.
+      setLocationSearch(window.location.search);
     },
     [tour, checkoutFromUrl]
   );
