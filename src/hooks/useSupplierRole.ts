@@ -15,13 +15,14 @@ export function useSupplierRole(): {
 } {
   const { user, isSupabase } = useSupplierAuth();
   const [members, setMembers] = useState<SupplierTeamMember[]>([]);
-  const [role, setRole] = useState<SupplierRole>('owner');
+  // Phase 1775: fail closed — never start as owner before roster loads (export/editor gates).
+  const [role, setRole] = useState<SupplierRole>('viewer');
 
   const refresh = useCallback(async () => {
     const uid = user?.id;
     if (!isSupabase || !uid) {
       setMembers([]);
-      setRole('owner');
+      setRole('viewer');
       return;
     }
     try {
@@ -30,7 +31,8 @@ export function useSupplierRole(): {
       const mine = roster.find((m) => m.id === uid);
       setRole(mine?.role ?? 'viewer');
     } catch {
-      // Keep prior role on transient failure — do not widen to owner.
+      // Phase 1775: transient failure → viewer (do not keep a forged owner window).
+      setRole('viewer');
     }
   }, [isSupabase, user?.id]);
 
