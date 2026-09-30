@@ -1148,10 +1148,11 @@ export default function SupplierDashboard() {
           <div className="partner-surface-panel overflow-hidden px-4">
             <ul>
               {recentBookings.map((b) => {
+                // Phase 1792: match Money Collected — not refunded / refund-due amounts.
                 const paid =
                   b.amount_paid != null &&
                   Number.isFinite(Number(b.amount_paid)) &&
-                  bookingPaymentWasCollected(b.payment_status)
+                  isCollectedBooking(b)
                     ? Number(b.amount_paid)
                     : null;
                 const money = paid == null ? null : formatMoney(paid, b.currency);
