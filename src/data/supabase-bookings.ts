@@ -23,11 +23,16 @@ import {
 import { bookingPaymentWasCollected } from '../lib/payment-states';
 
 /** Best-effort: close open Stripe Checkout after unpaid cancel (Phase 134 still refunds late captures). */
-function expireUnpaidCancelledCheckout(bookingId: string): void {
+async function expireUnpaidCancelledCheckout(bookingId: string): Promise<void> {
   if (!supabase) return;
-  void supabase.functions.invoke('expire-booking-checkout', {
-    body: { bookingId },
-  });
+  // Phase 1782: await expire so cancel does not leave a payable orphan session silently.
+  try {
+    await supabase.functions.invoke('expire-booking-checkout', {
+      body: { bookingId },
+    });
+  } catch {
+    /* cancel already succeeded; Stripe webhook still refunds late captures */
+  }
 }
 /** Shape used by BookingForm (legacy). Mapped to public.bookings in DB. */
 export type Booking = {
@@ -543,7 +548,7 @@ export async function updateBookingStatus(
     return { ok: false, error: 'You do not have permission to update this booking.' };
   }
   if (status === 'cancelled' && travelerSelfCancelIsUnpaidCheckout(current)) {
-    expireUnpaidCancelledCheckout(bookingId);
+    await expireUnpaidCancelledCheckout(bookingId);
     // Phase 1713: Release hold must email the traveler (parity with traveler unpaid cancel).
     const guestEmail = (current.guest_email ?? '').trim().toLowerCase();
     if (guestEmail && current.listing_id) {
@@ -926,7 +931,7 @@ export async function cancelBookingAsCustomer(
     };
   }
   if (unpaidCheckout) {
-    expireUnpaidCancelledCheckout(bookingId);
+    await expireUnpaidCancelledCheckout(bookingId);
   }
   // Phase 1726: SQL may coerce full_refund → no_refund near the free-cancel cutoff; trust DB.
   const rpcChoiceRaw = String((rpcData as { refund_choice?: string } | null)?.refund_choice ?? '')
