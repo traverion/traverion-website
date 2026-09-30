@@ -26,6 +26,7 @@ import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { decrementAvailabilityBooked } from '../../data/supabase-availability';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
+import { insertSupplierExportRun } from '../../data/supabase-supplier-campaigns-exports';
 import {
   isPurchaseSnapshot,
   displayListingTitleFromPurchase,
@@ -712,6 +713,8 @@ export default function SupplierPickupPlanner() {
   };
 
   const exportCsv = () => {
+    // Phase 1763: guest-PII pickup export is editor-only (+ audit insert).
+    if (!canEditBookings || !user?.id) return;
     const rows = listBookings.map((b) => {
       const copy = pickupCopyFor(b);
       return partnerPickupCsvValues(
@@ -733,6 +736,15 @@ export default function SupplierPickupPlanner() {
     a.download = `pickup-planner-${toYmd(new Date())}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+    void insertSupplierExportRun({
+      supplierId: user.id,
+      actorId: user.id,
+      kind: 'bookings',
+      format: 'csv',
+      scope: 'filtered',
+      rowCount: listBookings.length,
+      filtersSnapshot: { surface: 'pickup' },
+    });
   };
 
   const handleAcknowledgeSelected = async () => {
@@ -1162,7 +1174,13 @@ export default function SupplierPickupPlanner() {
             <button
               type="button"
               onClick={exportCsv}
-              className="tv-btn-ghost"
+              disabled={!canEditBookings}
+              className="tv-btn-ghost disabled:opacity-40"
+              title={
+                !canEditBookings
+                  ? 'Your role can view Pickup but cannot export guest details'
+                  : undefined
+              }
             >
               <Download className="h-4 w-4" aria-hidden />
               Export

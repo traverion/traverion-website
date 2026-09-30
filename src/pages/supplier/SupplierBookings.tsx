@@ -57,6 +57,7 @@ import {
   type BookingRow,
   updateBookingStatus,
 } from '../../data/supabase-bookings';
+import { insertSupplierExportRun } from '../../data/supabase-supplier-campaigns-exports';
 import { decrementAvailabilityBooked } from '../../data/supabase-availability';
 import { fetchMyListings, pgTimeToHm } from '../../data/supabase-listings';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
@@ -179,7 +180,8 @@ function formatActivityDateLong(bookingDate: string | null, startHm: string | nu
 
 function downloadBookingsCsv(
   rows: BookingRow[],
-  listingMeta: Record<string, ListingBookingMeta>
+  listingMeta: Record<string, ListingBookingMeta>,
+  opts?: { supplierId?: string; actorId?: string | null }
 ): void {
   // Phase 1592: nights come from partnerBookingCsvValues (1573/1591) — do not invent opts.nights.
   const lines = rows.map((b) => {
@@ -210,6 +212,18 @@ function downloadBookingsCsv(
   anchor.click();
   document.body.removeChild(anchor);
   URL.revokeObjectURL(url);
+  // Phase 1763: audit export for guest-PII CSV (parity with Money 1760).
+  if (opts?.supplierId) {
+    void insertSupplierExportRun({
+      supplierId: opts.supplierId,
+      actorId: opts.actorId ?? null,
+      kind: 'bookings',
+      format: 'csv',
+      scope: 'filtered',
+      rowCount: rows.length,
+      filtersSnapshot: { surface: 'bookings' },
+    });
+  }
 }
 
 export default function SupplierBookings({
@@ -742,9 +756,21 @@ export default function SupplierBookings({
             </button>
             <button
               type="button"
-              onClick={() => downloadBookingsCsv(filteredBookings, listingMeta)}
-              disabled={filteredBookings.length === 0}
+              // Phase 1763: guest-PII export is editor-only (+ audit insert).
+              onClick={() => {
+                if (!canEditBookings || !user?.id) return;
+                downloadBookingsCsv(filteredBookings, listingMeta, {
+                  supplierId: user.id,
+                  actorId: user.id,
+                });
+              }}
+              disabled={!canEditBookings || filteredBookings.length === 0}
               className="tv-btn-ghost disabled:opacity-50"
+              title={
+                !canEditBookings
+                  ? 'Your role can view bookings but cannot export guest details'
+                  : undefined
+              }
             >
               <Download className="h-4 w-4" aria-hidden />
               Export
