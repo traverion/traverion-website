@@ -714,7 +714,7 @@ export default function SupplierPickupPlanner() {
     setUpdatingId(null);
   };
 
-  const exportCsv = () => {
+  const exportCsv = async () => {
     // Phase 1763/1768: guest-PII pickup export for editors + finance (+ audit insert).
     if (!canExportPickupCsv || !user?.id) return;
     const rows = listBookings.map((b) => {
@@ -738,7 +738,8 @@ export default function SupplierPickupPlanner() {
     a.download = `pickup-planner-${toYmd(new Date())}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    void insertSupplierExportRun({
+    // Phase 1791: await audit — silent void hid RLS/network failures after download.
+    const audited = await insertSupplierExportRun({
       supplierId: user.id,
       actorId: user.id,
       kind: 'bookings',
@@ -757,6 +758,9 @@ export default function SupplierPickupPlanner() {
         rowCount: listBookings.length,
       },
     });
+    if (!audited) {
+      setError('Export downloaded, but the audit log failed. Try again or contact support.');
+    }
   };
 
   const handleAcknowledgeSelected = async () => {

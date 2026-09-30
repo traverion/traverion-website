@@ -178,7 +178,7 @@ function formatActivityDateLong(bookingDate: string | null, startHm: string | nu
   return startHm ? `${datePart} · ${startHm}` : datePart;
 }
 
-function downloadBookingsCsv(
+async function downloadBookingsCsv(
   rows: BookingRow[],
   listingMeta: Record<string, ListingBookingMeta>,
   opts?: {
@@ -188,7 +188,7 @@ function downloadBookingsCsv(
     dateFrom?: string;
     dateTo?: string;
   }
-): void {
+): Promise<boolean> {
   // Phase 1592: nights come from partnerBookingCsvValues (1573/1591) — do not invent opts.nights.
   const lines = rows.map((b) => {
     const meta = listingMeta[b.listing_id];
@@ -219,8 +219,9 @@ function downloadBookingsCsv(
   document.body.removeChild(anchor);
   URL.revokeObjectURL(url);
   // Phase 1763/1783: audit export for guest-PII CSV with real filter snapshot.
+  // Phase 1791: await audit — silent void hid RLS/network failures after download.
   if (opts?.supplierId) {
-    void insertSupplierExportRun({
+    return insertSupplierExportRun({
       supplierId: opts.supplierId,
       actorId: opts.actorId ?? null,
       kind: 'bookings',
@@ -232,6 +233,7 @@ function downloadBookingsCsv(
       filtersSnapshot: opts.filtersSnapshot ?? { surface: 'bookings' },
     });
   }
+  return true;
 }
 
 export default function SupplierBookings({
@@ -769,22 +771,28 @@ export default function SupplierBookings({
               // Phase 1763/1768: guest-PII export for editors + finance (+ audit insert).
               onClick={() => {
                 if (!canExportBookingsCsv || !user?.id) return;
-                downloadBookingsCsv(filteredBookings, listingMeta, {
-                  supplierId: user.id,
-                  actorId: user.id,
-                  // Phase 1783: record the exact filter slice that produced guest-PII rows.
-                  dateFrom: filterDateFrom || undefined,
-                  dateTo: filterDateTo || undefined,
-                  filtersSnapshot: {
-                    surface: 'bookings',
-                    view,
-                    opsFilter,
-                    listingId: filterListingId || null,
-                    query: filterQuery.trim() || null,
-                    inventoryFamily: inventoryFamily ?? null,
-                    rowCount: filteredBookings.length,
-                  },
-                });
+                void (async () => {
+                  const audited = await downloadBookingsCsv(filteredBookings, listingMeta, {
+                    supplierId: user.id,
+                    actorId: user.id,
+                    // Phase 1783: record the exact filter slice that produced guest-PII rows.
+                    dateFrom: filterDateFrom || undefined,
+                    dateTo: filterDateTo || undefined,
+                    filtersSnapshot: {
+                      surface: 'bookings',
+                      view,
+                      opsFilter,
+                      listingId: filterListingId || null,
+                      query: filterQuery.trim() || null,
+                      inventoryFamily: inventoryFamily ?? null,
+                      rowCount: filteredBookings.length,
+                    },
+                  });
+                  // Phase 1791: download still succeeded — surface audit miss.
+                  if (!audited) {
+                    setError('Export downloaded, but the audit log failed. Try again or contact support.');
+                  }
+                })();
               }}
               disabled={!canExportBookingsCsv || filteredBookings.length === 0}
               className="tv-btn-ghost disabled:opacity-50"

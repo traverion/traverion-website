@@ -307,7 +307,7 @@ export default function SupplierEarnings() {
   const threshold = profile?.payout_threshold_min ?? 0;
   const nextPayoutLabel = PARTNER_MONEY_PAYOUT_STATUS_NOTE;
 
-  const exportCsv = () => {
+  const exportCsv = async () => {
     // Phase 1760: role gate before download + export_runs insert.
     if (!canExportFinance || !user?.id) return;
     const collectedForExport =
@@ -357,7 +357,8 @@ export default function SupplierEarnings() {
     a.download = `supplier-money-${localYmd()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    void insertSupplierExportRun({
+    // Phase 1791: await audit — silent void hid RLS/network failures after download.
+    const audited = await insertSupplierExportRun({
       supplierId: user.id,
       actorId: user.id,
       kind: 'ops_summary',
@@ -370,6 +371,9 @@ export default function SupplierEarnings() {
         listWindow,
       },
     });
+    if (!audited) {
+      setError('Export downloaded, but the audit log failed. Try again or contact support.');
+    }
   };
 
   const canExportMoney = partnerMoneyCsvHasExportableRows({
