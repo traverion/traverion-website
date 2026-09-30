@@ -2339,6 +2339,41 @@ a:focus-visible,
   box-shadow: inset 0 0 0 1px rgba(0, 53, 128, 0.1);
 }
 
+/* Phase 1824: shared notice / callout tones */
+.tv-notice {
+  border-radius: 0.75rem;
+  padding: 0.75rem 0.9rem 0.75rem 0.95rem;
+  border-left: 3px solid transparent;
+}
+
+.tv-notice--info {
+  background: rgba(0, 53, 128, 0.07);
+  color: #1c1917;
+  border-left-color: #003580;
+  box-shadow: inset 0 0 0 1px rgba(0, 53, 128, 0.12);
+}
+
+.tv-notice--warn {
+  background: #fffbeb;
+  color: #78350f;
+  border-left-color: #d97706;
+  box-shadow: inset 0 0 0 1px rgba(217, 119, 6, 0.22);
+}
+
+.tv-notice--danger {
+  background: #fff1f2;
+  color: #881337;
+  border-left-color: #e11d48;
+  box-shadow: inset 0 0 0 1px rgba(225, 29, 72, 0.2);
+}
+
+.tv-notice--success {
+  background: #ecfdf5;
+  color: #064e3b;
+  border-left-color: #059669;
+  box-shadow: inset 0 0 0 1px rgba(5, 150, 105, 0.2);
+}
+
 .tv-chip {
   display: inline-flex;
   align-items: center;
