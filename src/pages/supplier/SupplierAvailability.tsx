@@ -417,6 +417,11 @@ export default function SupplierAvailability() {
 
   const clearCap = async (iso: string) => {
     if (!listingId) return;
+    // Phase 1753: role gate before RLS — finance/viewer must not clear caps via day sheet.
+    if (!canEditCalendar) {
+      setError('Your role can view the calendar but cannot change capacity or blocks.');
+      return;
+    }
     setSavingIso(iso);
     setError(null);
     const res = await deleteAvailability(listingId, iso);
@@ -818,6 +823,8 @@ export default function SupplierAvailability() {
                 <button
                   key={cell.iso}
                   type="button"
+                  // Phase 1753: finance/viewer may open the day sheet to view occupancy;
+                  // Save/Clear stay gated via canEditCalendar (clearCap/saveCap).
                   disabled={!cell.inMonth || busy}
                   aria-label={statusLabel}
                   aria-current={isToday ? 'date' : undefined}
@@ -1046,12 +1053,18 @@ export default function SupplierAvailability() {
                     />
                     <button
                       type="button"
+                      disabled={!canEditCalendar || savingIso === editing.iso}
                       onClick={() => void saveCap(editing.iso, Math.max(0, Math.floor(Number(editing.capacity) || 0)))}
-                      className="tv-btn-primary"
+                      className="tv-btn-primary disabled:opacity-40"
                     >
                       Save
                     </button>
-                    <button type="button" onClick={() => void clearCap(editing.iso)} className="tv-btn-ghost">
+                    <button
+                      type="button"
+                      disabled={!canEditCalendar || savingIso === editing.iso}
+                      onClick={() => void clearCap(editing.iso)}
+                      className="tv-btn-ghost disabled:opacity-40"
+                    >
                       Clear
                     </button>
                   </div>
@@ -1089,15 +1102,17 @@ export default function SupplierAvailability() {
                     />
                     <button
                       type="button"
+                      disabled={!canEditCalendar || savingIso === editing.iso}
                       onClick={() => void saveCap(editing.iso, Math.max(0, Math.floor(Number(editing.capacity) || 0)))}
-                      className="tv-btn-primary"
+                      className="tv-btn-primary disabled:opacity-40"
                     >
                       Save cap
                     </button>
                     <button
                       type="button"
+                      disabled={!canEditCalendar || savingIso === editing.iso}
                       onClick={() => void clearCap(editing.iso)}
-                      className="tv-btn-ghost"
+                      className="tv-btn-ghost disabled:opacity-40"
                     >
                       Clear
                     </button>
