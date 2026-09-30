@@ -20,6 +20,7 @@ import {
   isPurchaseSnapshot,
   redactUnpaidStayCheckInAddress,
 } from '../lib/purchase-snapshot';
+import { bookingPaymentWasCollected } from '../lib/payment-states';
 
 /** Best-effort: close open Stripe Checkout after unpaid cancel (Phase 134 still refunds late captures). */
 function expireUnpaidCancelledCheckout(bookingId: string): void {
@@ -348,7 +349,7 @@ export async function updateGuestBookingSpecialRequests(
   const { data: row } = await supabase
     .from('bookings')
     .select(
-      'id, listing_id, booking_date, guests, guest_name, guest_email, booking_number, purchase_snapshot'
+      'id, listing_id, booking_date, guests, guest_name, guest_email, booking_number, purchase_snapshot, payment_status'
     )
     .eq('id', bookingId)
     .maybeSingle();
@@ -412,7 +413,8 @@ export async function updateGuestBookingSpecialRequests(
         .slice(0, 80)}`,
     });
     // Phase 1766: also post a traveler thread row so Inbox Unread lights up (email alone is not enough).
-    if (fieldDiffs.length > 0) {
+    // Phase 1769: post_booking_message only opens after paid — skip unpaid so note+email still succeed.
+    if (fieldDiffs.length > 0 && bookingPaymentWasCollected(row.payment_status)) {
       const threadBody = fieldDiffs
         .map((d) => `${d.label}: ${d.after}`)
         .join('\n')
