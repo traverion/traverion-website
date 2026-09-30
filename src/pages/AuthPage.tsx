@@ -355,7 +355,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
               Back to Traverion
             </button>
 
-            <div className="tv-card p-4 sm:p-5">
+            <div className="tv-auth-panel">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">
                 Traveler account
               </p>

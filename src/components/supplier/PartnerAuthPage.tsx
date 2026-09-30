@@ -95,11 +95,14 @@ export default function PartnerAuthPage({ mode, onAuthenticated, isSupabase }: P
         </div>
         <div className="flex-1 px-5 sm:px-8 pb-16 pt-4 sm:pt-8">
           <div className="mx-auto w-full max-w-md">
-            <div className="rounded-lg border border-black/[0.06] bg-paper px-3.5 py-3.5 sm:px-4 sm:py-4">
-              <h1 className="font-display text-xl sm:text-2xl tracking-tight mb-1 text-ink">
+            <div className="tv-auth-panel">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">
+                Partner account
+              </p>
+              <h1 className="font-display text-2xl sm:text-3xl tracking-tight mb-1.5 text-ink">
                 {mode === 'signin' ? 'Log in' : 'Create your partner account'}
               </h1>
-              <p className="text-xs text-ink-muted mb-3 leading-snug">
+              <p className="text-sm text-ink-muted mb-4 leading-relaxed">
                 {mode === 'signin'
                   ? 'This is the supplier product — listings, calendar, bookings, and money.'
                   : 'Step 1 of 2 — your account. Business details come next, after you confirm email.'}
