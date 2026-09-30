@@ -25,7 +25,7 @@ import { openSupplierListingEditor, openSupplierBooking, openSupplierInbox, navi
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { decrementAvailabilityBooked } from '../../data/supabase-availability';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
-import { canManageBookings } from '../../lib/supplierTeamRoles';
+import { canManageBookings, canManageFinance } from '../../lib/supplierTeamRoles';
 import { insertSupplierExportRun } from '../../data/supabase-supplier-campaigns-exports';
 import {
   isPurchaseSnapshot,
@@ -206,6 +206,8 @@ export default function SupplierPickupPlanner() {
   const { user, isSupabase } = useSupplierAuth();
   const { role } = useSupplierRole();
   const canEditBookings = canManageBookings(role);
+  // Phase 1768: finance may export pickup guest PII (parity with Money + Bookings CSV).
+  const canExportPickupCsv = canEditBookings || canManageFinance(role);
   const [bookings, setBookings] = useState<BookingRow[]>([]);
   const [listingTitles, setListingTitles] = useState<Record<string, string>>({});
   const [meetingPoints, setMeetingPoints] = useState<Record<string, string>>({});
@@ -713,8 +715,8 @@ export default function SupplierPickupPlanner() {
   };
 
   const exportCsv = () => {
-    // Phase 1763: guest-PII pickup export is editor-only (+ audit insert).
-    if (!canEditBookings || !user?.id) return;
+    // Phase 1763/1768: guest-PII pickup export for editors + finance (+ audit insert).
+    if (!canExportPickupCsv || !user?.id) return;
     const rows = listBookings.map((b) => {
       const copy = pickupCopyFor(b);
       return partnerPickupCsvValues(
@@ -1174,10 +1176,10 @@ export default function SupplierPickupPlanner() {
             <button
               type="button"
               onClick={exportCsv}
-              disabled={!canEditBookings}
+              disabled={!canExportPickupCsv}
               className="tv-btn-ghost disabled:opacity-40"
               title={
-                !canEditBookings
+                !canExportPickupCsv
                   ? 'Your role can view Pickup but cannot export guest details'
                   : undefined
               }

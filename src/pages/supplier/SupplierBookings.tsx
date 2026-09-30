@@ -61,7 +61,7 @@ import { insertSupplierExportRun } from '../../data/supabase-supplier-campaigns-
 import { decrementAvailabilityBooked } from '../../data/supabase-availability';
 import { fetchMyListings, pgTimeToHm } from '../../data/supabase-listings';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
-import { canManageBookings } from '../../lib/supplierTeamRoles';
+import { canManageBookings, canManageFinance } from '../../lib/supplierTeamRoles';
 import { navigateSupplierUrl, openSupplierInbox, openSupplierPickup } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE, PARTNER_CREATE_PATH } from '../../lib/partnerPortalPaths';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
@@ -234,6 +234,8 @@ export default function SupplierBookings({
   const { user, isSupabase } = useSupplierAuth();
   const { role } = useSupplierRole();
   const canEditBookings = canManageBookings(role);
+  // Phase 1768: finance already exports guest names on Money — Bookings CSV must match.
+  const canExportBookingsCsv = canEditBookings || canManageFinance(role);
 
   const [bookings, setBookings] = useState<BookingRow[]>([]);
   const [listingMeta, setListingMeta] = useState<Record<string, ListingBookingMeta>>({});
@@ -756,18 +758,18 @@ export default function SupplierBookings({
             </button>
             <button
               type="button"
-              // Phase 1763: guest-PII export is editor-only (+ audit insert).
+              // Phase 1763/1768: guest-PII export for editors + finance (+ audit insert).
               onClick={() => {
-                if (!canEditBookings || !user?.id) return;
+                if (!canExportBookingsCsv || !user?.id) return;
                 downloadBookingsCsv(filteredBookings, listingMeta, {
                   supplierId: user.id,
                   actorId: user.id,
                 });
               }}
-              disabled={!canEditBookings || filteredBookings.length === 0}
+              disabled={!canExportBookingsCsv || filteredBookings.length === 0}
               className="tv-btn-ghost disabled:opacity-50"
               title={
-                !canEditBookings
+                !canExportBookingsCsv
                   ? 'Your role can view bookings but cannot export guest details'
                   : undefined
               }

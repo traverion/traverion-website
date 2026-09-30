@@ -8,7 +8,8 @@ describe('Phase 1763: Bookings and Pickup CSV export gate + audit', () => {
     expect(src).toContain('Phase 1763');
     expect(src).toContain('insertSupplierExportRun');
     expect(src).toContain("surface: 'bookings'");
-    expect(src).toContain('disabled={!canEditBookings || filteredBookings.length === 0}');
+    // Phase 1768: finance may export too via canExportBookingsCsv.
+    expect(src).toMatch(/disabled=\{!canExportBookingsCsv \|\| filteredBookings\.length === 0\}/);
   });
 
   it('Pickup Export requires canEditBookings and inserts export run', () => {
@@ -16,6 +17,7 @@ describe('Phase 1763: Bookings and Pickup CSV export gate + audit', () => {
     expect(src).toContain('Phase 1763');
     expect(src).toContain('insertSupplierExportRun');
     expect(src).toContain("surface: 'pickup'");
-    expect(src).toContain('disabled={!canEditBookings}');
+    // Phase 1768: finance may export too via canExportPickupCsv.
+    expect(src).toMatch(/disabled=\{!canExportPickupCsv\}/);
   });
 });
