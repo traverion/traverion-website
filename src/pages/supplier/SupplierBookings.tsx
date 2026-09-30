@@ -1143,39 +1143,40 @@ export default function SupplierBookings({
                 <article
                   key={booking.id}
                   id={`supplier-booking-row-${booking.id}`}
-                  className={`overflow-hidden rounded-lg border border-black/[0.06] bg-paper ${statusAccent} ${
-                    highlightBookingId === booking.id ? 'ring-1 ring-finland/35' : ''
-                  }`}
+                  data-highlight={highlightBookingId === booking.id ? 'true' : 'false'}
+                  className={`tv-ops-booking-row ${statusAccent}`}
                 >
                   <button
                     type="button"
                     onClick={() => setSelectedBookingId(booking.id)}
-                    className="lux-flat flex w-full min-w-0 items-center gap-2.5 px-3 py-2 text-left"
+                    className="lux-flat tv-ops-booking-row__btn"
                   >
                     {meta?.imageUrl ? (
                       <img
                         src={meta.imageUrl}
                         alt=""
-                        className="h-12 w-12 rounded-lg object-cover shrink-0 ring-1 ring-black/[0.06]"
+                        className="h-14 w-14 rounded-xl object-cover shrink-0 ring-1 ring-black/[0.06]"
                       />
                     ) : (
-                      <div className="h-12 w-12 rounded-lg bg-finland/10 shrink-0 ring-1 ring-finland/15" aria-hidden />
+                      <div className="h-14 w-14 rounded-xl bg-finland/10 shrink-0 ring-1 ring-finland/15" aria-hidden />
                     )}
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-baseline justify-between gap-3">
-                        <p className="min-w-0 break-words text-sm font-semibold text-ink [overflow-wrap:anywhere] line-clamp-2">
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="min-w-0 break-words font-display text-[1.02rem] font-semibold tracking-tight text-ink [overflow-wrap:anywhere] line-clamp-2 leading-snug">
                           {booking.guest_name || 'Guest'}
                         </p>
-                        <span className="text-[11px] font-medium text-ink-muted shrink-0">{partnerPaymentLabel(booking)}</span>
+                        <span className="shrink-0 rounded-md bg-black/[0.04] px-2 py-0.5 text-[11px] font-semibold text-ink-muted">
+                          {partnerPaymentLabel(booking)}
+                        </span>
                       </div>
-                      <p className="mt-0.5 break-words text-xs text-ink-muted [overflow-wrap:anywhere] line-clamp-2">
+                      <p className="mt-1 break-words text-[13px] font-medium text-ink-muted [overflow-wrap:anywhere] line-clamp-2">
                         {listingTitle}
                         {optionLabel ? ` · ${optionLabel}` : ''}
                       </p>
-                      <p className="mt-0.5 text-xs text-ink-muted">
+                      <p className="mt-1.5 text-[11px] font-medium uppercase tracking-[0.08em] text-ink-faint">
                         {typeof booking.booking_number === 'number' && booking.booking_number > 0 ? (
                           <>
-                            <span className="font-mono text-finland font-semibold tracking-wide">
+                            <span className="font-mono normal-case tracking-wide text-finland font-semibold">
                               #{booking.booking_number}
                             </span>
                             {' · '}
@@ -1183,7 +1184,7 @@ export default function SupplierBookings({
                         ) : null}
                         {stayDayChip ? (
                           <>
-                            <span className="font-semibold text-finland">{stayDayChip}</span>
+                            <span className="font-semibold normal-case tracking-normal text-finland">{stayDayChip}</span>
                             {' · '}
                           </>
                         ) : null}
@@ -1210,11 +1211,15 @@ export default function SupplierBookings({
                               return n != null && n > 0 ? ` · ${n} night${n === 1 ? '' : 's'}` : '';
                             })()
                           : ''}
-                        {paidLabel ? ` · ${paidLabel}` : ''}
                       </p>
+                      {paidLabel ? (
+                        <p className="mt-1.5 font-display text-[0.95rem] font-semibold tabular-nums tracking-tight text-ink">
+                          {paidLabel}
+                        </p>
+                      ) : null}
                       {partnerBookingIsUnpaidCheckout(booking) ? (
                         <p
-                          className={`mt-1 text-xs font-medium ${
+                          className={`mt-1.5 text-xs font-medium ${
                             partnerUnpaidCheckoutHoldsInventory(booking) ? 'text-amber-900' : 'text-ink-faint'
                           }`}
                         >
@@ -1222,13 +1227,13 @@ export default function SupplierBookings({
                         </p>
                       ) : null}
                       {needsAck ? (
-                        <p className="mt-1 text-xs font-medium text-finland">Needs a look</p>
+                        <p className="mt-1.5 text-xs font-medium text-finland">Needs a look</p>
                       ) : null}
                       {pickupGap ? (
-                        <p className="mt-1 text-xs font-medium text-amber-800">Pickup details missing</p>
+                        <p className="mt-1.5 text-xs font-medium text-amber-800">Pickup details missing</p>
                       ) : null}
                       {openCancel ? (
-                        <p className="mt-1 text-xs font-medium text-red-800">Awaiting traveler cancellation response</p>
+                        <p className="mt-1.5 text-xs font-medium text-red-800">Awaiting traveler cancellation response</p>
                       ) : null}
                     </div>
                     <span className="tv-btn-ghost shrink-0 pointer-events-none inline-flex text-xs sm:text-sm">

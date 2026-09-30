@@ -2037,6 +2037,32 @@ a:focus-visible,
   }
 }
 
+/* Phase 1813: partner Bookings operating console rows */
+.tv-ops-booking-row {
+  overflow: hidden;
+  border-radius: 0.75rem;
+  background: #fffcf8;
+  box-shadow:
+    0 0 0 1px rgba(28, 25, 23, 0.06),
+    0 10px 24px -18px rgba(15, 23, 42, 0.18);
+}
+
+.tv-ops-booking-row[data-highlight='true'] {
+  box-shadow:
+    0 0 0 1px rgba(0, 53, 128, 0.28),
+    0 12px 28px -16px rgba(15, 23, 42, 0.22);
+}
+
+.tv-ops-booking-row__btn {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  text-align: left;
+}
+
 .tv-chip {
   display: inline-flex;
   align-items: center;
