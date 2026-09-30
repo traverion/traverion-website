@@ -1902,6 +1902,112 @@ a:focus-visible,
   }
 }
 
+/* Phase 1811: partner calendar day-state language */
+.tv-cal-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(28, 25, 23, 0.07);
+  background: rgba(255, 252, 248, 0.9);
+  padding: 0.65rem 0.85rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #57534e;
+}
+
+.tv-cal-legend__swatch {
+  display: inline-block;
+  height: 0.625rem;
+  width: 0.625rem;
+  border-radius: 9999px;
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.12);
+}
+
+.tv-cal-day {
+  min-height: 3.75rem;
+  border-radius: 0.65rem;
+  padding: 0.35rem 0.4rem;
+  text-align: left;
+  box-shadow: inset 0 0 0 1px rgba(28, 25, 23, 0.06);
+  transition: background-color 0.14s ease, box-shadow 0.14s ease, transform 0.12s ease;
+}
+
+@media (min-width: 640px) {
+  .tv-cal-day {
+    min-height: 5rem;
+    padding: 0.45rem 0.55rem;
+  }
+}
+
+.tv-cal-day:disabled {
+  opacity: 0.4;
+}
+
+.tv-cal-day--out {
+  background: transparent;
+  color: #a8a29e;
+  box-shadow: none;
+}
+
+.tv-cal-day--editing {
+  background: #fffcf8;
+  box-shadow: inset 0 0 0 2px rgba(0, 53, 128, 0.42);
+}
+
+.tv-cal-day--today:not(.tv-cal-day--editing) {
+  background: #fffcf8;
+  box-shadow: inset 0 0 0 1.5px rgba(0, 53, 128, 0.28);
+}
+
+.tv-cal-day--occupied {
+  background: rgba(0, 53, 128, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(0, 53, 128, 0.22);
+}
+
+.tv-cal-day--checkout {
+  background: #fffbeb;
+  box-shadow: inset 0 0 0 1px rgba(217, 119, 6, 0.35);
+}
+
+.tv-cal-day--full,
+.tv-cal-day--blocked {
+  background: #fff1f2;
+  box-shadow: inset 0 0 0 1px rgba(225, 29, 72, 0.28);
+}
+
+.tv-cal-day--available {
+  background: rgba(16, 185, 129, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.28);
+}
+
+.tv-cal-day--open {
+  background: rgba(255, 252, 248, 0.85);
+}
+
+.tv-cal-day--open:hover:not(:disabled) {
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.tv-cal-day--closed {
+  color: #a8a29e;
+  background: transparent;
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tv-cal-day:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tv-cal-day {
+    transition: none;
+  }
+}
+
 .tv-chip {
   display: inline-flex;
   align-items: center;

@@ -698,7 +698,7 @@ export default function SupplierAvailability() {
 
           {/* Phase 1627: calendar legend must be available to assistive tech (was aria-hidden). */}
           <div
-            className="mb-3 flex flex-wrap gap-x-3 gap-y-1.5 rounded-lg border border-black/[0.06] bg-paper px-3 py-2 text-[11px] text-ink-muted"
+            className="tv-cal-legend mb-3"
             role="group"
             aria-label={
               stayCalendar
@@ -709,28 +709,28 @@ export default function SupplierAvailability() {
             {stayCalendar ? (
               <>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-full bg-finland ring-1 ring-finland/30" /> Occupied
+                  <span className="tv-cal-legend__swatch bg-finland" /> Occupied
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-full bg-amber-400 ring-1 ring-amber-500/30" /> Check-out
+                  <span className="tv-cal-legend__swatch bg-amber-400" /> Check-out
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 ring-1 ring-emerald-500/30" /> Available
+                  <span className="tv-cal-legend__swatch bg-emerald-400" /> Available
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-full bg-rose-500 ring-1 ring-rose-600/30" /> Blocked
+                  <span className="tv-cal-legend__swatch bg-rose-500" /> Blocked
                 </span>
               </>
             ) : (
               <>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 ring-1 ring-emerald-500/30" /> Open
+                  <span className="tv-cal-legend__swatch bg-emerald-400" /> Open
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-full bg-finland ring-1 ring-finland/30" /> Booked
+                  <span className="tv-cal-legend__swatch bg-finland" /> Booked
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-full bg-rose-500 ring-1 ring-rose-600/30" /> Full
+                  <span className="tv-cal-legend__swatch bg-rose-500" /> Full
                 </span>
                 <span className="inline-flex items-center gap-1.5 text-ink-faint">Closed days show —</span>
               </>
@@ -842,24 +842,29 @@ export default function SupplierAvailability() {
                       capacity: String(cap?.capacity ?? defaultSpots(listing) ?? ''),
                     });
                   }}
-                  className={`lux-flat min-h-[3.75rem] sm:min-h-[5rem] rounded-lg p-1 sm:p-1.5 text-left ring-1 transition-[background-color,box-shadow,transform] duration-150 disabled:opacity-40 motion-safe:active:scale-[0.97] ${
+                  className={`lux-flat tv-cal-day ${
                     !cell.inMonth
-                      ? 'bg-transparent text-ink-faint ring-transparent'
+                      ? 'tv-cal-day--out'
                       : isEditing
-                        ? 'bg-paper-raised ring-2 ring-finland/40'
-                        : isToday
-                          ? 'bg-paper-raised ring-finland/25'
-                          : occupying || stayKind === 'occupied'
-                            ? 'bg-finland/15 ring-finland/20'
-                        : departing
-                          ? 'bg-amber-50 ring-amber-200/70'
-                        : stayKind === 'blocked' || (open && monthCapacityLabel.tone === 'full')
-                          ? 'bg-rose-50 ring-rose-200/70'
-                          : (cap && (stayCalendar || open)) || (open && stayCalendar)
-                          ? 'bg-emerald-50/80 ring-emerald-200/50'
-                          : open
-                          ? 'bg-paper-raised/80 ring-black/[0.05] hover:bg-emerald-50/60'
-                          : 'text-ink-faint ring-transparent'
+                        ? 'tv-cal-day--editing'
+                        : [
+                            isToday ? 'tv-cal-day--today' : '',
+                            occupying || stayKind === 'occupied'
+                              ? 'tv-cal-day--occupied'
+                              : departing
+                                ? 'tv-cal-day--checkout'
+                                : stayKind === 'blocked' || (open && monthCapacityLabel.tone === 'full')
+                                  ? stayKind === 'blocked'
+                                    ? 'tv-cal-day--blocked'
+                                    : 'tv-cal-day--full'
+                                  : (cap && (stayCalendar || open)) || (open && stayCalendar)
+                                    ? 'tv-cal-day--available'
+                                    : open
+                                      ? 'tv-cal-day--open'
+                                      : 'tv-cal-day--closed',
+                          ]
+                            .filter(Boolean)
+                            .join(' ')
                   }`}
                 >
                   <span className="block text-xs sm:text-sm font-semibold text-ink">{cell.day}</span>
