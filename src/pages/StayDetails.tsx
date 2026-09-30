@@ -1469,11 +1469,11 @@ export default function StayDetails({ stayId, onBack }: Props) {
         </div>
       </div>
       {createPortal(
-        <div className="lg:hidden fixed inset-x-0 bottom-0 z-[60] border-t border-black/[0.06] bg-paper-raised/95 backdrop-blur-md px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <div className="lg:hidden fixed inset-x-0 bottom-0 z-[60] tv-booking-mobile-bar">
           <div className="mx-auto flex w-full min-w-0 max-w-5xl items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm text-ink">
-                <span className="font-semibold tabular-nums">
+              <p className="truncate font-display text-base font-semibold tracking-tight text-ink">
+                <span className="tabular-nums">
                   {/* Phase 1546: never invent catalog nightly when quoteStayNights failed (Tour 1545 / Stay 1520 parity). */}
                   {/* Phase 1606: Price unavailable on sticky (Tour 1604 parity). */}
                   {/* Phase 1686: no-dates without nightly uses Price unavailable — not an em dash. */}
@@ -1485,8 +1485,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
                         ? formatMoney(nightly, currency)
                         : 'Price unavailable'}
                 </span>
-                <span className="text-ink-muted">
-                  {' '}
+                <span className="ml-1 font-sans text-sm font-medium text-ink-muted">
                   {quoteOk ? 'total' : checkIn && checkOut ? '' : 'per night'}
                 </span>
               </p>

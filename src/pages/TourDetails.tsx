@@ -2230,7 +2230,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
       {canBook && !checkoutFromUrl
         ? createPortal(
-            <div className="lg:hidden fixed inset-x-0 bottom-0 z-[60] border-t border-black/[0.06] bg-paper-raised/95 backdrop-blur-md px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <div className="lg:hidden fixed inset-x-0 bottom-0 z-[60] tv-booking-mobile-bar">
               <div className="mx-auto flex w-full min-w-0 max-w-5xl items-center justify-between gap-3">
                 {(() => {
                   const currency = normalizeCurrency(tour.price?.currency);
@@ -2282,7 +2282,9 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                             : 'From · per person';
                   return (
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold tabular-nums text-ink">{priceLine}</p>
+                      <p className="truncate font-display text-base font-semibold tabular-nums tracking-tight text-ink">
+                        {priceLine}
+                      </p>
                       <p className="truncate text-xs text-ink-muted">{subLine}</p>
                     </div>
                   );
