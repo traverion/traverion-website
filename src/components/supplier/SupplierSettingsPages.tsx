@@ -38,6 +38,8 @@ import { supplierPortalPublicBaseUrl } from '../../lib/partnerHost';
 import { PARTNER_EMAIL_VERIFIED_PATH } from '../../lib/partnerPortalPaths';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { notifySupplierEvent } from '../../data/supabase-supplier-messaging';
+import { useSupplierRole } from '../../hooks/useSupplierRole';
+import { canManageBookings } from '../../lib/supplierTeamRoles';
 import { SUPPLIER_PAGE_CLASS, SupplierPageHero } from './supplierUi';
 import NoticeCallout from '../NoticeCallout';
 import StatusChip from '../StatusChip';
@@ -358,6 +360,9 @@ function BusinessProfilePage(p: Props) {
   const [docError, setDocError] = useState<string | null>(null);
   const [companySaveError, setCompanySaveError] = useState<string | null>(null);
   const [payoutSaveError, setPayoutSaveError] = useState<string | null>(null);
+  // Phase 1754: finance/viewer read company/payout/legal; editors mutate (RLS 224).
+  const { role } = useSupplierRole();
+  const canEditProfile = canManageBookings(role);
 
   const businessLocked = isSupplierBusinessIdentityLocked(
     p.verificationStatus,
@@ -368,8 +373,8 @@ function BusinessProfilePage(p: Props) {
     p.payoutVerificationStatus,
     p.payoutVerificationSubmittedAt
   );
-  const identityFieldsDisabled = businessLocked;
-  const payoutDestinationLocked = payoutLocked;
+  const identityFieldsDisabled = businessLocked || !canEditProfile;
+  const payoutDestinationLocked = payoutLocked || !canEditProfile;
 
   const businessProfileMissingReasons = getSupplierBusinessProfileMissingReasons({
     company_legal_name: p.companyLegalName,
@@ -480,6 +485,12 @@ function BusinessProfilePage(p: Props) {
           {busChip.label}
           {payChip ? ` · ${payChip.label}` : ''}
         </p>
+        {!canEditProfile ? (
+          <NoticeCallout tone="info" className="mt-4">
+            Your role can view business profile details but cannot change company, payout, or legal
+            settings. Ask an owner, manager, or ops teammate.
+          </NoticeCallout>
+        ) : null}
         <nav className="mt-5 flex gap-x-1 border-b border-black/[0.06]" aria-label="Business profile sections">
           <button
             type="button"
@@ -1009,7 +1020,7 @@ function BusinessProfilePage(p: Props) {
 
           <SaveBar
             saving={p.companySaving}
-            disabled={identityFieldsDisabled}
+            disabled={identityFieldsDisabled || !canEditProfile}
             label="Save company details"
             savingLabel="Saving…"
             success={p.companyMessage === 'success'}
@@ -1017,6 +1028,13 @@ function BusinessProfilePage(p: Props) {
             errorText={companySaveError}
             onClick={async () => {
                       if (!p.user?.id) return;
+                      // Phase 1754: role gate before RLS.
+                      if (!canEditProfile) {
+                        setCompanySaveError(
+                          'Your role can view business details but cannot change them.'
+                        );
+                        return;
+                      }
                       if (businessLocked) {
                         setCompanySaveError(
                           `These business details are locked. Email ${SUPPLIER_SENSITIVE_CHANGES_SUPPORT_EMAIL} to request a change.`
@@ -1223,6 +1241,7 @@ function BusinessProfilePage(p: Props) {
 
           <SaveBar
             saving={p.payoutSaving}
+            disabled={!canEditProfile}
             label="Save payout details"
             savingLabel="Saving…"
             success={p.payoutMessage === 'success'}
@@ -1230,6 +1249,10 @@ function BusinessProfilePage(p: Props) {
             errorText={payoutSaveError}
             onClick={async () => {
               if (!p.user?.id) return;
+              if (!canEditProfile) {
+                setPayoutSaveError('Your role can view payout details but cannot change them.');
+                return;
+              }
               setPayoutSaveError(null);
               p.setPayoutMessage(null);
               if (!payoutDestinationLocked) {
@@ -1389,12 +1412,18 @@ function BusinessProfilePage(p: Props) {
 
           <SaveBar
             saving={p.legalSaving}
+            disabled={!canEditProfile}
             label="Save legal & insurance"
             savingLabel="Saving…"
             success={p.legalMessage === 'success'}
             error={p.legalMessage === 'error'}
             onClick={async () => {
               if (!p.user?.id) return;
+              // Phase 1754: role gate before RLS.
+              if (!canEditProfile) {
+                p.setLegalMessage('error');
+                return;
+              }
               p.setLegalSaving(true);
               p.setLegalMessage(null);
               const res = await patchSupplierProfile(p.user.id, {
