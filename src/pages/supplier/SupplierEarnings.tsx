@@ -619,16 +619,13 @@ export default function SupplierEarnings() {
             </div>
             {ledgerInWindow.length > 0 ? (
               <div className="mb-8">
-                <h3 className="text-[11px] uppercase tracking-[0.18em] text-ink-faint mb-2">Ledger</h3>
-              <ul className="space-y-1.5">
+                <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint mb-2.5">Ledger</h3>
+              <ul className="space-y-2">
                 {ledgerInWindow.map((e) => (
-                  <li
-                    key={e.id}
-                    className="rounded-xl bg-paper-raised px-3 py-2.5 shadow-soft ring-1 ring-black/[0.06] flex items-baseline justify-between gap-3"
-                  >
+                  <li key={e.id} className="tv-money-row">
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-ink">{e.reason}</p>
-                      <p className="mt-0.5 text-xs text-ink-muted">
+                      <p className="text-sm font-semibold text-ink leading-snug">{e.reason}</p>
+                      <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.08em] text-ink-faint">
                         {ledgerKindLabel(e.kind)}
                         {e.booking_id ? ' · linked booking' : ''}
                         {e.policy_id ? ` · ${e.policy_id}` : ''}
@@ -636,7 +633,7 @@ export default function SupplierEarnings() {
                         {new Date(e.created_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
                       </p>
                     </div>
-                    <p className={`tabular-nums font-semibold shrink-0 ${Number(e.amount) < 0 ? 'text-red-800' : 'text-ink'}`}>
+                    <p className={`tv-money-row__amount ${Number(e.amount) < 0 ? 'text-red-800' : 'text-ink'}`}>
                       {formatMoney(Number(e.amount), e.currency)}
                     </p>
                   </li>
@@ -646,16 +643,16 @@ export default function SupplierEarnings() {
             ) : null}
             {filteredEarningsInWindow.length === 0 ? (
               statusFilter === 'all' && paidBookingsInWindow.length > 0 ? (
-                <ul className="space-y-1.5">
+                <ul className="space-y-2">
                   {paidBookingsInWindow.map((b) => (
                     <li key={b.id}>
                       <button
                         type="button"
                         onClick={() => openSupplierBooking(b.id)}
-                        className="w-full rounded-xl bg-paper-raised px-3 py-2.5 shadow-soft ring-1 ring-black/[0.06] flex items-baseline justify-between gap-3 text-left hover:ring-black/[0.1] transition-shadow"
+                        className="lux-flat tv-money-row w-full text-left hover:shadow-[0_0_0_1px_rgba(0,53,128,0.18)] transition-shadow"
                       >
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-ink truncate">
+                          <p className="text-sm font-semibold text-ink truncate leading-snug">
                             {b.booking_number != null ? `#${b.booking_number} · ` : ''}
                             {displayListingTitleFromPurchase(
                               b.purchase_snapshot,
@@ -663,7 +660,7 @@ export default function SupplierEarnings() {
                               b.guest_name?.trim() || 'Guest'
                             )}
                           </p>
-                          <p className="mt-0.5 text-xs text-ink-muted truncate">
+                          <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.08em] text-ink-faint truncate">
                             {b.guest_name?.trim() || 'Guest'} ·{' '}
                             {(() => {
                               // Phase 1575: stays show purchased exclusive range (1564), not check-in alone.
@@ -681,7 +678,7 @@ export default function SupplierEarnings() {
                             {' · collected, not paid out'}
                           </p>
                         </div>
-                        <p className="tabular-nums text-sm font-semibold text-ink shrink-0">
+                        <p className="tv-money-row__amount text-ink">
                           {formatMoney(Number(b.amount_paid ?? 0), normalizeCurrency(b.currency ?? primaryCurrency))}
                         </p>
                       </button>
@@ -711,15 +708,12 @@ export default function SupplierEarnings() {
               />
               )
             ) : (
-              <ul className="space-y-1.5">
+              <ul className="space-y-2">
                 {filteredEarningsInWindow.map((e) => (
-                  <li
-                    key={e.id}
-                    className="rounded-xl bg-paper-raised px-3 py-2.5 shadow-soft ring-1 ring-black/[0.06] flex items-baseline justify-between gap-3"
-                  >
+                  <li key={e.id} className="tv-money-row">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-medium text-ink">
+                        <p className="text-sm font-semibold text-ink leading-snug">
                           {e.period_start} – {e.period_end}
                         </p>
                         <StatusChip tone={e.status === 'paid' ? 'good' : e.status === 'pending' ? 'warn' : 'neutral'}>
@@ -730,17 +724,17 @@ export default function SupplierEarnings() {
                               : e.status}
                         </StatusChip>
                       </div>
-                      <p className="mt-0.5 text-xs text-ink-muted">
+                      <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.08em] text-ink-faint">
                         {e.invoice_number ? e.invoice_number : null}
                         {e.status === 'paid' && e.payment_reference
                           ? `${e.invoice_number ? ' · ' : ''}${e.payment_reference}`
                           : null}
                         {!e.invoice_number && !(e.status === 'paid' && e.payment_reference) ? (
-                          <span className="text-ink-faint">Payout period</span>
+                          <span>Payout period</span>
                         ) : null}
                       </p>
                     </div>
-                    <p className="tabular-nums text-sm font-semibold text-ink shrink-0">
+                    <p className="tv-money-row__amount text-ink">
                       {formatMoney(Number(e.amount), e.currency)}
                     </p>
                   </li>
