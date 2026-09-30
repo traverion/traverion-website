@@ -155,18 +155,10 @@ describe('resolveBookingTiedRecipient (Phase 578 arbitrary-recipient fix)', () =
     }
   });
 
-  // Phase 585: refund_completed is the one other kind notify-customer-booking
-  // trusts a caller-supplied amount for. It is only ever triggered
-  // server-side (stripe-webhook, after Stripe confirms a FULL refund), and
-  // its amount is always equal to the booking's original amount_paid --
-  // there is no partial-refund case for this emailKind (a partial refund
-  // does not flip payment_status to 'refunded' and never sends this email).
-  // Since notify-customer-booking has no caller-identity check at all
-  // (verify_jwt off, no bearer-token check), an unauthenticated caller could
-  // previously cite any real bookingId and any amount/currency of their
-  // choosing to send a real, Traverion-branded "your refund is complete"
-  // email quoting a fabricated figure -- and could do so even for a booking
-  // that was never refunded at all.
+  // Phase 585/1736: refund_completed is service-role only (stripe-webhook after
+  // FULL refund). Recipient/currency come from the refunded booking row; the
+  // refunded figure must stay the caller Stripe cumulative amount — amount_paid
+  // may have been shrunk by Phase 1735 partial refunds.
   it('refund_completed: rejects a booking that was never refunded, even with a valid guest_email', () => {
     const result = resolveBookingTiedRecipient({
       kind: 'refund_completed',
@@ -179,12 +171,12 @@ describe('resolveBookingTiedRecipient (Phase 578 arbitrary-recipient fix)', () =
     expect(result).toEqual({ ok: false, error: 'Booking is not refunded', status: 409 });
   });
 
-  it('refund_completed happy path: re-derives recipient, amount, and currency from the real booking, not the caller-supplied figure', () => {
+  it('refund_completed happy path: re-derives recipient and currency; keeps caller Stripe refund amount', () => {
     const refundedRow: BookingRowForRecipient = {
       payment_status: 'refunded',
       guest_email: REAL_GUEST_EMAIL,
-      amount_paid: 199.5,
-      total_amount: 199.5,
+      amount_paid: 70,
+      total_amount: 100,
       currency: 'usd',
     };
     const result = resolveBookingTiedRecipient({
@@ -192,10 +184,11 @@ describe('resolveBookingTiedRecipient (Phase 578 arbitrary-recipient fix)', () =
       bookingId: REAL_BOOKING_ID,
       bookingRow: refundedRow,
       callerEmail: ATTACKER_EMAIL,
-      callerAmount: 99999,
+      callerAmount: 100,
       callerCurrency: 'GBP',
     });
-    expect(result).toEqual({ ok: true, to: REAL_GUEST_EMAIL, amount: 199.5, currency: 'USD' });
+    // Phase 1736: keep cumulative Stripe refund (100), not shrunk amount_paid (70).
+    expect(result).toEqual({ ok: true, to: REAL_GUEST_EMAIL, amount: 100, currency: 'USD' });
   });
 
   it('non-booking_confirmed_paid/refund_completed kinds never re-derive amount/currency, only the recipient', () => {

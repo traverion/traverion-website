@@ -115,6 +115,11 @@ export function resolveBookingTiedRecipient(params: {
   // booking that was never refunded at all. Re-derive it the same way
   // booking_confirmed_paid's amount already is, gated on the kind-specific
   // payment_status that actually proves the claim being emailed.
+  // Phase 585/1736: refund_completed is only sent after Stripe FULL refund flips
+  // payment_status to refunded. Prefer the service-role caller amount (Stripe
+  // cumulative amount_refunded) — do not overwrite with amount_paid, which Phase
+  // 1735 may have shrunk after partial refunds. booking_confirmed_paid still
+  // re-derives amount from the paid row.
   if (kind === 'booking_confirmed_paid' || kind === 'refund_completed') {
     if (kind === 'booking_confirmed_paid' && !paidConfirmationMaySend(bookingRow.payment_status)) {
       return { ok: false, error: 'Booking is not paid', status: 409 };
@@ -122,14 +127,16 @@ export function resolveBookingTiedRecipient(params: {
     if (kind === 'refund_completed' && !refundConfirmationMaySend(bookingRow.payment_status)) {
       return { ok: false, error: 'Booking is not refunded', status: 409 };
     }
-    const dbAmount =
-      typeof bookingRow.amount_paid === 'number'
-        ? bookingRow.amount_paid
-        : typeof bookingRow.total_amount === 'number'
-          ? bookingRow.total_amount
-          : undefined;
-    if (typeof dbAmount === 'number' && Number.isFinite(dbAmount) && dbAmount >= 0) {
-      amount = dbAmount;
+    if (kind === 'booking_confirmed_paid') {
+      const dbAmount =
+        typeof bookingRow.amount_paid === 'number'
+          ? bookingRow.amount_paid
+          : typeof bookingRow.total_amount === 'number'
+            ? bookingRow.total_amount
+            : undefined;
+      if (typeof dbAmount === 'number' && Number.isFinite(dbAmount) && dbAmount >= 0) {
+        amount = dbAmount;
+      }
     }
     if (typeof bookingRow.currency === 'string' && bookingRow.currency.trim()) {
       currency = bookingRow.currency.trim().toUpperCase();
