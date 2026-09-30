@@ -4,6 +4,8 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
 import { Star, MessageSquare, Check } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
+import { useSupplierRole } from '../../hooks/useSupplierRole';
+import { canManageBookings } from '../../lib/supplierTeamRoles';
 import {
   SUPPLIER_PAGE_CLASS,
   SupplierEmptyState,
@@ -12,6 +14,7 @@ import {
 } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
 import StatusChip from '../../components/StatusChip';
+import NoticeCallout from '../../components/NoticeCallout';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import {
   fetchReviewsForSupplierListings,
@@ -43,6 +46,9 @@ type SupplierReviewRow = ReviewDisplay & {
 
 export default function SupplierReviews() {
   const { user, isSupabase } = useSupplierAuth();
+  const { role } = useSupplierRole();
+  // Phase 1749: finance/viewer read reviews; public replies need editor roles (RLS 1748).
+  const canReply = canManageBookings(role);
   const [reviews, setReviews] = useState<SupplierReviewRow[]>([]);
   const [replies, setReplies] = useState<Record<string, ReviewReplyRow>>({});
   const [loading, setLoading] = useState(true);
@@ -238,6 +244,11 @@ export default function SupplierReviews() {
 
   const handleSubmitReply = async (reviewId: string) => {
     if (!user) return;
+    // Phase 1749: role gate before RLS.
+    if (!canReply) {
+      setReplyError('Your role can view reviews but cannot publish replies.');
+      return;
+    }
     const text = (replyText[reviewId] ?? '').trim();
     if (!text) return;
     setReplyingId(reviewId);
@@ -299,6 +310,12 @@ export default function SupplierReviews() {
           ) : undefined
         }
       />
+
+      {!canReply ? (
+        <NoticeCallout tone="info" className="mb-4">
+          Your role can view reviews but cannot publish replies. Ask an owner, manager, or ops teammate.
+        </NoticeCallout>
+      ) : null}
 
       {error && (
         <ErrorState
@@ -509,13 +526,15 @@ export default function SupplierReviews() {
                       <div className="mt-3 rounded-lg border border-finland/15 border-l-[3px] border-l-finland bg-finland/[0.04] px-3 py-2.5">
                         <div className="flex items-start justify-between gap-3">
                           <p className="text-xs font-semibold text-ink">Your reply</p>
-                          <button
-                            type="button"
-                            onClick={() => startEditingReply(r.id)}
-                            className="text-xs font-semibold text-finland hover:underline shrink-0"
-                          >
-                            Edit reply
-                          </button>
+                          {canReply ? (
+                            <button
+                              type="button"
+                              onClick={() => startEditingReply(r.id)}
+                              className="text-xs font-semibold text-finland hover:underline shrink-0"
+                            >
+                              Edit reply
+                            </button>
+                          ) : null}
                         </div>
                         <p className="mt-0.5 text-sm text-ink-muted leading-snug break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{replies[r.id].reply_text}</p>
                         <p className="text-[11px] text-ink-faint mt-1">
@@ -544,7 +563,8 @@ export default function SupplierReviews() {
                           placeholder="Thank the customer or answer a question…"
                           rows={2}
                           maxLength={2000}
-                          className="tv-input text-sm"
+                          disabled={!canReply}
+                          className="tv-input text-sm disabled:opacity-50"
                           aria-describedby={`review-reply-hint-${r.id}`}
                         />
                         {/* Phase 1697: live length honesty on supplier review replies. */}
@@ -558,7 +578,7 @@ export default function SupplierReviews() {
                         <div className="mt-2 flex items-center gap-2">
                           <button
                             type="button"
-                            disabled={replyingId === r.id || !(replyText[r.id] ?? '').trim()}
+                            disabled={!canReply || replyingId === r.id || !(replyText[r.id] ?? '').trim()}
                             onClick={() => handleSubmitReply(r.id)}
                             className="tv-btn-primary inline-flex items-center gap-1.5 disabled:opacity-50"
                           >
