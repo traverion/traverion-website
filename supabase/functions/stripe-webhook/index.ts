@@ -588,6 +588,10 @@ serve(async (req) => {
                   bookingDate: booking.booking_date ?? undefined,
                   guests: typeof booking.guests === 'number' ? booking.guests : undefined,
                   guestName: booking.guest_name ?? undefined,
+                  // Phase 1738: host mail must cite refund + remaining Collected figures.
+                  refundAmount: notifyAmount ?? undefined,
+                  amountPaidRemaining: remainingPaid ?? undefined,
+                  currency: currency || booking.currency || 'EUR',
                   portalBaseUrl: Deno.env.get('PUBLIC_SITE_URL') ?? 'https://www.traverion.com',
                   idempotencyKey: `supplier:partial_refund_recorded:${booking.id}:${event.id}`,
                 }),
@@ -719,6 +723,9 @@ serve(async (req) => {
                   bookingDate: booking.booking_date ?? undefined,
                   guests: typeof booking.guests === 'number' ? booking.guests : undefined,
                   guestName: booking.guest_name ?? undefined,
+                  // Phase 1738: host mail cites cumulative Stripe refund (same as traveler).
+                  refundAmount: typeof refundAmount === 'number' ? refundAmount : undefined,
+                  currency: currency || booking.currency || 'EUR',
                   portalBaseUrl: Deno.env.get('PUBLIC_SITE_URL') ?? 'https://www.traverion.com',
                   idempotencyKey: `supplier:refund_completed:${booking.id}`,
                 }),

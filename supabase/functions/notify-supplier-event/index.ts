@@ -79,6 +79,14 @@ type Payload = {
    * (`full_refund` / `no_refund`). Callers must not forge this; server overwrites.
    */
   refundChoice?: string | null;
+  /**
+   * Phase 1738: Stripe refund emails — major units for the refunded figure
+   * (incremental on partial; cumulative on full). Service-role webhook only.
+   */
+  refundAmount?: number;
+  currency?: string;
+  /** Phase 1738 partial: remaining bookings.amount_paid after shrink. */
+  amountPaidRemaining?: number;
   /** Explicit idempotency key. */
   idempotencyKey?: string;
 };
@@ -196,16 +204,31 @@ function eventBody(payload: Payload): string {
     lines.push(`Listing: ${listing}`);
     lines.push('The booking stays active. Open Bookings if you need the record.');
   } else if (payload.eventType === 'refund_completed') {
-    // Phase 1733: keep in sync with SUPPLIER_REFUND_COMPLETED_NOTIFY_SUB
+    // Phase 1733/1738: keep in sync with SUPPLIER_REFUND_COMPLETED_NOTIFY_SUB
     lines.push('Stripe recorded a full refund for this booking.');
     lines.push(`Listing: ${listing}`);
+    if (typeof payload.refundAmount === 'number' && Number.isFinite(payload.refundAmount)) {
+      const cur = (payload.currency ?? 'EUR').trim().toUpperCase() || 'EUR';
+      lines.push(`Refunded: ${cur} ${payload.refundAmount.toFixed(2)}`);
+    }
     lines.push(
       'Payment status is Refunded. Collected earnings for this booking were reversed. Check Bookings and Money — Traverion does not treat email delivery as proof you saw this.'
     );
   } else if (payload.eventType === 'partial_refund_recorded') {
-    // Phase 1735
+    // Phase 1735/1738
     lines.push('Stripe recorded a partial refund for this booking.');
     lines.push(`Listing: ${listing}`);
+    if (typeof payload.refundAmount === 'number' && Number.isFinite(payload.refundAmount)) {
+      const cur = (payload.currency ?? 'EUR').trim().toUpperCase() || 'EUR';
+      lines.push(`Refunded this time: ${cur} ${payload.refundAmount.toFixed(2)}`);
+    }
+    if (
+      typeof payload.amountPaidRemaining === 'number' &&
+      Number.isFinite(payload.amountPaidRemaining)
+    ) {
+      const cur = (payload.currency ?? 'EUR').trim().toUpperCase() || 'EUR';
+      lines.push(`Collected remaining: ${cur} ${payload.amountPaidRemaining.toFixed(2)}`);
+    }
     lines.push(
       'The booking stays Paid. Collected amount was reduced to the remaining charge. Inventory is still held. Check Bookings and Money — Traverion does not treat email delivery as proof you saw this.'
     );
@@ -400,6 +423,28 @@ ${bodyText}
   if (payload.guestName) {
     rows.push(
       `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Guest</td><td style="padding:6px 0;font-size:14px;color:#111827;">${escapeHtml(payload.guestName)}</td></tr>`,
+    );
+  }
+  // Phase 1738: refund amounts for host Money honesty (parity with traveler mail).
+  if (
+    (payload.eventType === 'refund_completed' || payload.eventType === 'partial_refund_recorded') &&
+    typeof payload.refundAmount === 'number' &&
+    Number.isFinite(payload.refundAmount)
+  ) {
+    const cur = escapeHtml((payload.currency ?? 'EUR').trim().toUpperCase() || 'EUR');
+    const label = payload.eventType === 'partial_refund_recorded' ? 'Refunded this time' : 'Refunded';
+    rows.push(
+      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">${label}</td><td style="padding:6px 0;font-size:14px;color:#111827;font-weight:600;">${cur} ${payload.refundAmount.toFixed(2)}</td></tr>`,
+    );
+  }
+  if (
+    payload.eventType === 'partial_refund_recorded' &&
+    typeof payload.amountPaidRemaining === 'number' &&
+    Number.isFinite(payload.amountPaidRemaining)
+  ) {
+    const cur = escapeHtml((payload.currency ?? 'EUR').trim().toUpperCase() || 'EUR');
+    rows.push(
+      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Collected remaining</td><td style="padding:6px 0;font-size:14px;color:#111827;font-weight:600;">${cur} ${payload.amountPaidRemaining.toFixed(2)}</td></tr>`,
     );
   }
   if (typeof payload.reviewRating === 'number' && payload.reviewRating > 0) {
