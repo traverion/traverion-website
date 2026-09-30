@@ -466,7 +466,7 @@ export default function SupplierReviews() {
                   <article
                     key={r.id}
                     id={`supplier-review-card-${r.id}`}
-                    className={`overflow-hidden rounded-xl bg-paper-raised p-3.5 sm:p-4 shadow-soft ring-1 ring-black/[0.06] ${
+                    className={`tv-review-card p-3.5 sm:p-4 ${
                       needsReply
                         ? 'border-l-[3px] border-l-amber-500'
                         : replies[r.id]
@@ -474,46 +474,64 @@ export default function SupplierReviews() {
                           : r.verified
                             ? 'border-l-[3px] border-l-finland'
                             : 'border-l-[3px] border-l-black/10'
-                    } ${isHighlighted ? 'ring-finland/30 shadow-soft-lg' : ''} ${
-                      needsReply ? 'ring-amber-200/80' : ''
+                    } ${isHighlighted ? 'ring-2 ring-finland/25 shadow-soft-lg' : ''} ${
+                      needsReply ? 'ring-1 ring-amber-200/80' : ''
                     }`}
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm text-ink-muted mb-1">
-                          <span className="font-medium text-ink-muted">{kind}</span>
+                        <p className="tv-review-card__meta mb-1.5">
+                          {kind}
                           {' · '}
-                          {r.listing_title ?? 'Listing'} · {formatCreatedAtDisplay(r.created_at)}
+                          {formatCreatedAtDisplay(r.created_at)}
                         </p>
-                        <div className="flex flex-wrap items-center gap-2 mb-2">
-                          <span className="font-semibold text-ink">{r.guest_name}</span>
+                        <h3 className="font-display text-[1.05rem] font-semibold tracking-tight text-ink leading-snug break-words [overflow-wrap:anywhere]">
+                          {r.listing_title ?? 'Listing'}
+                        </h3>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-medium text-ink">{r.guest_name}</span>
                           {r.verified ? <StatusChip tone="good">Verified</StatusChip> : null}
                           {needsReply ? <StatusChip tone="warn">Needs reply</StatusChip> : null}
                           {replies[r.id] ? <StatusChip tone="neutral">Replied</StatusChip> : null}
                         </div>
-                        <div className="flex gap-1 mb-2" aria-label={`${r.rating} out of 5 stars`}>
+                        <div className="mt-2.5 flex items-center gap-1" aria-label={`${r.rating} out of 5 stars`}>
                           {[1, 2, 3, 4, 5].map((i) => (
                             <Star
                               key={i}
-                              size={16}
+                              size={18}
                               className={i <= r.rating ? 'text-amber-500 fill-amber-500' : 'text-ink-faint'}
                             />
                           ))}
+                          <span className="ml-1.5 text-sm font-semibold tabular-nums text-ink">{r.rating}/5</span>
                         </div>
-                        {r.title && (
-                          <p className="font-medium text-ink mb-1 break-words [overflow-wrap:anywhere]">{r.title}</p>
+                        {(r.title || reviewHasWrittenFeedback(r)) && (
+                          <div className="mt-3 rounded-lg bg-black/[0.025] px-3 py-2.5 ring-1 ring-black/[0.04]">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint mb-1.5">
+                              Guest review
+                            </p>
+                            {r.title ? (
+                              <p className="font-semibold text-ink mb-1 break-words [overflow-wrap:anywhere]">
+                                {r.title}
+                              </p>
+                            ) : null}
+                            {reviewHasWrittenFeedback(r) ? (
+                              (r.comment ?? '').trim() ? (
+                                <p className="text-sm text-ink-muted leading-relaxed break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
+                                  {r.comment}
+                                </p>
+                              ) : null
+                            ) : (
+                              <p className="text-sm text-ink-muted italic">No written review — rating only.</p>
+                            )}
+                          </div>
                         )}
-                        {reviewHasWrittenFeedback(r) ? (
-                          (r.comment ?? '').trim() ? (
-                            <p className="text-ink-muted break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{r.comment}</p>
-                          ) : null
-                        ) : (
-                          <p className="text-sm text-ink-muted italic">No written review — rating only.</p>
-                        )}
+                        {!r.title && !reviewHasWrittenFeedback(r) ? (
+                          <p className="mt-2.5 text-sm text-ink-muted italic">No written review — rating only.</p>
+                        ) : null}
                         {r.listing_id ? (
                           <button
                             type="button"
-                            className="mt-2 text-xs font-semibold text-finland hover:underline"
+                            className="mt-2.5 text-xs font-semibold text-finland hover:underline"
                             onClick={() => openSupplierListingEditor(r.listing_id)}
                           >
                             Open listing
@@ -523,9 +541,11 @@ export default function SupplierReviews() {
                     </div>
 
                     {replies[r.id] && !editingReplyIds.has(r.id) ? (
-                      <div className="mt-3 rounded-lg border border-finland/15 border-l-[3px] border-l-finland bg-finland/[0.04] px-3 py-2.5">
+                      <div className="tv-review-card__reply">
                         <div className="flex items-start justify-between gap-3">
-                          <p className="text-xs font-semibold text-ink">Your reply</p>
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-finland">
+                            Your response
+                          </p>
                           {canReply ? (
                             <button
                               type="button"
@@ -536,8 +556,10 @@ export default function SupplierReviews() {
                             </button>
                           ) : null}
                         </div>
-                        <p className="mt-0.5 text-sm text-ink-muted leading-snug break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{replies[r.id].reply_text}</p>
-                        <p className="text-[11px] text-ink-faint mt-1">
+                        <p className="mt-1.5 text-sm text-ink leading-snug break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
+                          {replies[r.id].reply_text}
+                        </p>
+                        <p className="text-[11px] text-ink-faint mt-1.5">
                           {formatCreatedAtDisplay(replies[r.id].created_at)}
                         </p>
                       </div>

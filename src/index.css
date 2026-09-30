@@ -1841,6 +1841,33 @@ a:focus-visible,
   }
 }
 
+/* Phase 1808: supplier review cards — guest vs reply visual distinction */
+.tv-review-card {
+  border-radius: 0.875rem;
+  background: #fffcf8;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(28, 25, 23, 0.06),
+    0 10px 24px -18px rgba(15, 23, 42, 0.2);
+}
+
+.tv-review-card__meta {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #78716c;
+}
+
+.tv-review-card__reply {
+  margin-top: 0.85rem;
+  border-radius: 0.65rem;
+  border: 1px solid rgba(0, 53, 128, 0.12);
+  border-left: 3px solid #003580;
+  background: rgba(0, 53, 128, 0.045);
+  padding: 0.75rem 0.85rem;
+}
+
 .tv-chip {
   display: inline-flex;
   align-items: center;
