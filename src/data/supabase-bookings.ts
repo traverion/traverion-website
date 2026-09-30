@@ -435,12 +435,20 @@ export async function updateGuestBookingSpecialRequests(
     });
     // Phase 1766: also post a traveler thread row so Inbox Unread lights up (email alone is not enough).
     // Phase 1769: post_booking_message only opens after paid — skip unpaid so note+email still succeed.
+    // Phase 1794: await thread post — void hid Inbox Unread misses after note save.
     if (fieldDiffs.length > 0 && bookingPaymentWasCollected(row.payment_status)) {
       const threadBody = fieldDiffs
         .map((d) => `${d.label}: ${d.after}`)
         .join('\n')
         .slice(0, 1500);
-      void postBookingMessage(row.id, `Updated booking details:\n${threadBody}`);
+      const thread = await postBookingMessage(row.id, `Updated booking details:\n${threadBody}`);
+      if (!thread.ok) {
+        console.warn('[Traverion] guest note saved but Inbox thread post failed:', thread.error);
+        return {
+          success: true,
+          error: 'Note saved, but the host Inbox thread update failed. Try sending a message from Trips.',
+        };
+      }
     }
   }
 
