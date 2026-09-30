@@ -33,7 +33,8 @@ export function useTravelerWishlist() {
     if (!enabled || !user?.id) {
       wishlistUserIdRef.current = null;
       setIds(new Set());
-      setReady(false);
+      // Phase 1772: signed-out browse must still show Save hearts (auth resume on tap).
+      setReady(Boolean(enabled) && !user?.id);
       setLoadError(false);
       return;
     }
