@@ -357,14 +357,22 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         <div className="page-hero-media" aria-hidden>
           <img src={HERO_IMG.vacation} alt="" fetchPriority="high" decoding="async" width={1600} height={1067} />
         </div>
-        <div className="absolute inset-0 bg-gradient-to-t from-black/88 via-black/50 to-black/35" aria-hidden />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/92 via-black/58 to-black/40" aria-hidden />
+        {/* Phase 1801: left vignette keeps brand/headline legible on bright coastal heroes. */}
+        <div
+          className="absolute inset-0 bg-gradient-to-r from-black/45 via-black/15 to-transparent"
+          aria-hidden
+        />
         <div className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-10 sm:pb-14 page-hero-content">
-          <p className="font-display text-3xl sm:text-4xl tracking-[0.04em] text-white mb-3 sm:mb-4">TRAVERION</p>
-          <h1 className="page-hero-title font-display text-3xl sm:text-5xl lg:text-6xl tracking-tight max-w-2xl leading-[1.08] mb-4">
+          {/* Phase 1801: brand dominates first viewport — headline must not overpower TRAVERION. */}
+          <p className="font-display text-5xl sm:text-6xl lg:text-7xl tracking-[0.05em] text-white mb-4 sm:mb-5 leading-none">
+            TRAVERION
+          </p>
+          <h1 className="page-hero-title font-display text-xl sm:text-2xl lg:text-[1.75rem] tracking-tight max-w-xl leading-snug mb-3 sm:mb-4 font-medium">
             Tours and stays from people who run the day.
           </h1>
-          <p className="page-hero-subtitle text-base sm:text-lg mb-7 max-w-lg font-normal text-white/90">
-            Discover memorable places and book directly with independent operators — experiences and nights, planned in one trip.
+          <p className="page-hero-subtitle text-sm sm:text-base mb-7 max-w-md font-normal text-white/90 leading-relaxed">
+            Book directly with independent operators — experiences and nights in one trip.
           </p>
 
           {/* Mobile: compact trigger → dedicated search sheet */}
