@@ -37,6 +37,30 @@ function snapshotStartHm(snapshot: unknown): string | null {
   return typeof v === 'string' && v.trim() ? v.trim().slice(0, 5) : null;
 }
 
+/** Phase 1786: empty guest_email still reaches account holders via auth. */
+async function resolveGuestEmail(
+  admin: ReturnType<typeof createClient>,
+  row: { id: string; guest_email?: string | null; guest_user_id?: string | null }
+): Promise<string> {
+  let email = String(row.guest_email ?? '')
+    .trim()
+    .toLowerCase();
+  if (email) return email;
+  const uid = String(row.guest_user_id ?? '').trim();
+  if (!uid) return '';
+  try {
+    const { data: authUser } = await admin.auth.admin.getUserById(uid);
+    const fromAuth = (authUser?.user?.email ?? '').trim().toLowerCase();
+    if (fromAuth) {
+      email = fromAuth;
+      await admin.from('bookings').update({ guest_email: fromAuth }).eq('id', row.id);
+    }
+  } catch {
+    /* ignore auth lookup failures */
+  }
+  return email;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok');
   if (req.method !== 'POST') return json({ error: 'POST only' }, 405);
@@ -73,7 +97,7 @@ serve(async (req) => {
   const { data: reminderRows, error: remErr } = await admin
     .from('bookings')
     .select(
-      'id, guest_email, guest_name, booking_date, check_out, guests, booking_number, listing_id, pickup_time, start_time, purchase_snapshot, reminder_email_sent_at, status, payment_status'
+      'id, guest_email, guest_user_id, guest_name, booking_date, check_out, guests, booking_number, listing_id, pickup_time, start_time, purchase_snapshot, reminder_email_sent_at, status, payment_status'
     )
     .eq('status', 'confirmed')
     .eq('payment_status', 'paid')
@@ -87,7 +111,7 @@ serve(async (req) => {
   for (const row of reminderRows ?? []) {
     if (!shouldSendExperienceReminder(row, nowMs)) continue;
     reminderCandidates += 1;
-    const email = (row.guest_email ?? '').trim().toLowerCase();
+    const email = await resolveGuestEmail(admin, row);
     if (!email) continue;
     const diffs: { label: string; before: string; after: string }[] = [];
     if (row.pickup_time) {
@@ -138,7 +162,7 @@ serve(async (req) => {
   // Reviews: tour completion ≈ booking_date; stay completion = check_out / nights / snap.
   // Fetch by booking_date window OR check_out window OR nights-only OR snapshot checkOut, then filter locally.
   const reviewSelect =
-    'id, guest_email, guest_name, booking_date, check_out, nights, special_requests, booking_number, listing_id, purchase_snapshot, review_request_email_sent_at, status, payment_status';
+    'id, guest_email, guest_user_id, guest_name, booking_date, check_out, nights, special_requests, booking_number, listing_id, purchase_snapshot, review_request_email_sent_at, status, payment_status';
   const { data: reviewByDeparture, error: revErr1 } = await admin
     .from('bookings')
     .select(reviewSelect)
@@ -212,9 +236,11 @@ serve(async (req) => {
   for (const row of reviewById.values()) {
     if (!shouldSendReviewRequest(row as Parameters<typeof shouldSendReviewRequest>[0], nowMs)) continue;
     reviewCandidates += 1;
-    const email = String(row.guest_email ?? '')
-      .trim()
-      .toLowerCase();
+    const email = await resolveGuestEmail(admin, {
+      id: String(row.id ?? ''),
+      guest_email: typeof row.guest_email === 'string' ? row.guest_email : null,
+      guest_user_id: typeof row.guest_user_id === 'string' ? row.guest_user_id : null,
+    });
     if (!email) continue;
     const bookingId = String(row.id ?? '');
     try {
