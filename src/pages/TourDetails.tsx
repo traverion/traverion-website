@@ -2106,9 +2106,12 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
           )}
 
           {showReviewForm && user && (
-            <div className="max-w-xl">
-              <h3 className="font-display text-lg text-ink mb-3">Write a review</h3>
-              <div className="space-y-3">
+            <div className="tv-review-compose max-w-xl">
+              <h3 className="font-display text-xl sm:text-2xl tracking-tight text-ink mb-1">Write a review</h3>
+              <p className="text-sm text-ink-muted mb-4 leading-relaxed">
+                Share what stood out — rating and a short note help other travelers.
+              </p>
+              <div className="space-y-4">
                 <div>
                   <label id="tour-review-rating-label" className="block text-sm font-medium text-ink mb-1">
                     Rating
@@ -2125,7 +2128,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                         aria-pressed={i <= reviewRating}
                       >
                         <Star
-                          size={24}
+                          size={28}
                           className={i <= reviewRating ? 'text-finland fill-finland' : 'text-ink-faint'}
                           aria-hidden
                         />
