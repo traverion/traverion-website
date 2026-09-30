@@ -2063,6 +2063,42 @@ a:focus-visible,
   text-align: left;
 }
 
+/* Phase 1814: shared empty/error state surface */
+.tv-state-panel {
+  max-width: 28rem;
+  padding-top: 1.75rem;
+  padding-bottom: 2rem;
+}
+
+@media (min-width: 640px) {
+  .tv-state-panel {
+    padding-top: 2rem;
+    padding-bottom: 2.5rem;
+  }
+}
+
+.tv-state-panel__icon {
+  display: inline-flex;
+  height: 2.75rem;
+  width: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.85rem;
+  border-radius: 0.85rem;
+}
+
+.tv-state-panel__icon--empty {
+  background: rgba(0, 53, 128, 0.08);
+  color: #003580;
+  box-shadow: inset 0 0 0 1px rgba(0, 53, 128, 0.14);
+}
+
+.tv-state-panel__icon--error {
+  background: #fff1f2;
+  color: #be123c;
+  box-shadow: inset 0 0 0 1px rgba(225, 29, 72, 0.22);
+}
+
 .tv-chip {
   display: inline-flex;
   align-items: center;
