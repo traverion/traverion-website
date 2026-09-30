@@ -163,6 +163,31 @@ describe('resolveBookingTiedContent (Phase 1052 content-forgery fix)', () => {
     expect(result.overrides.listingTitle).toBe('Aurora');
   });
 
+  it('Phase 1741: Pickup planner special_requests overrides beat empty/thin snapshot meeting copy', () => {
+    const result = resolveBookingTiedContent({
+      kind: 'experience_reminder',
+      bookingId: BOOKING_ID,
+      bookingRow: {
+        guest_name: 'Alex',
+        booking_date: '2026-10-01',
+        guests: 2,
+        special_requests:
+          'meeting_point: Private villa gate\npickup_instructions: Call +358 on arrival for the guide',
+        purchase_snapshot: {
+          listingTitle: 'Aurora',
+          meetingPoint: 'TBD',
+          capturedAt: '2026-09-01T12:00:00Z',
+        },
+      },
+      listingRow: { id: 'l1', title: 'Aurora' },
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.overrides.meetingPoint).toBe(
+      'Private villa gate — Call +358 on arrival for the guide'
+    );
+  });
+
   it('does not invent meeting copy when snapshot has neither place nor instructions', () => {
     const result = resolveBookingTiedContent({
       kind: 'experience_reminder',

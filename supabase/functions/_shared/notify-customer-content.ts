@@ -54,6 +54,8 @@ export type BookingRowForContent =
       purchase_snapshot?: unknown;
       listing_id?: string | null;
       payment_status?: string | null;
+      /** Phase 1741: host Pickup planner overrides (meeting_point / pickup_instructions). */
+      special_requests?: string | null;
     }
   | null
   | undefined;
@@ -112,6 +114,18 @@ function snapshotString(snapshot: unknown, key: string): string | undefined {
   if (!rec) return undefined;
   const v = rec[key];
   return typeof v === 'string' && v.trim() ? v.trim() : undefined;
+}
+
+/** Phase 1741: keyed lines from bookings.special_requests (Pickup planner). */
+function keyedSpecialRequestLine(notes: string | null | undefined, key: string): string | undefined {
+  const raw = String(notes ?? '');
+  if (!raw.trim()) return undefined;
+  const re = new RegExp(`^${key}\\s*:\\s*(.+)$`, 'im');
+  for (const line of raw.split(/\n+/)) {
+    const m = line.trim().match(re);
+    if (m?.[1]?.trim()) return m[1].trim();
+  }
+  return undefined;
 }
 
 function snapshotStringList(snapshot: unknown, key: string, maxItems = 40, maxLen = 200): string[] | undefined {
@@ -221,12 +235,19 @@ export function resolveBookingTiedContent(params: {
   const isStay = listingKind === 'stay';
 
   // Tours: place + traveler start instructions (Phase 1059/1060).
+  // Phase 1741: host Pickup planner note overrides win over purchase_snapshot (Trips 1716 parity).
   // Stays: do not invent tour meeting copy — use purchased house logistics instead.
+  const notePlace = keyedSpecialRequestLine(params.bookingRow.special_requests, 'meeting_point');
+  const noteInstructions = keyedSpecialRequestLine(
+    params.bookingRow.special_requests,
+    'pickup_instructions'
+  );
   const snapPlace = snapshotString(snap, 'meetingPoint');
   const snapInstructions = snapshotString(snap, 'pickupInstructions');
   const meetingPoint = isStay
     ? undefined
-    : [snapPlace, snapInstructions].filter(Boolean).join(' — ') || undefined;
+    : [notePlace || snapPlace, noteInstructions || snapInstructions].filter(Boolean).join(' — ') ||
+      undefined;
 
   const checkInAddress =
     isStay && paymentWasCollectedForContent(params.bookingRow.payment_status)

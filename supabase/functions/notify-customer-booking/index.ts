@@ -528,7 +528,7 @@ serve(async (req) => {
       const { data: bookingRow } = await admin
         .from('bookings')
         .select(
-          'status, payment_status, guest_email, amount_paid, total_amount, currency, guest_name, booking_date, check_out, nights, guests, booking_number, purchase_snapshot, listing_id, paid_at, payment_intent_id, refund_choice'
+          'status, payment_status, guest_email, amount_paid, total_amount, currency, guest_name, booking_date, check_out, nights, guests, booking_number, purchase_snapshot, listing_id, paid_at, payment_intent_id, refund_choice, special_requests'
         )
         .eq('id', bookingId)
         .maybeSingle();
