@@ -495,6 +495,12 @@ serve(async (req) => {
               .eq('id', booking.id)
               .eq('payment_status', 'paid');
             if (partialAmtErr) throw new Error(partialAmtErr.message);
+            // Phase 1739: Ledger booking_earnings must mirror shrunk Collected.
+            const { error: shrinkEarnErr } = await admin.rpc('shrink_paid_booking_earnings', {
+              p_booking_id: booking.id,
+              p_remaining: remainingPaid,
+            });
+            if (shrinkEarnErr) throw new Error(shrinkEarnErr.message);
           }
           await admin.from('booking_payment_events').insert({
             booking_id: booking.id,
