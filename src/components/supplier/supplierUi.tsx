@@ -43,18 +43,26 @@ type SupplierPageHeroProps = {
 
 export function SupplierPageHero({ title, description, actions, children, badge = null }: SupplierPageHeroProps) {
   return (
-    <header className="mb-6 pb-5 border-b border-[color:var(--partner-border,rgba(15,23,42,0.08))]">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <header className="partner-page-hero mb-6 pb-5 border-b border-[color:var(--partner-border,rgba(15,23,42,0.08))]">
+      <div className="flex flex-col gap-3.5 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           {badge ? (
-            <p className="mb-1.5 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-400">{badge}</p>
+            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-finland">
+              {badge}
+            </p>
           ) : null}
-          <h1 className="font-display text-[1.5rem] sm:text-[1.75rem] leading-tight text-slate-900 tracking-tight">{title}</h1>
+          <h1 className="font-display text-[1.625rem] sm:text-[1.85rem] font-semibold leading-[1.15] text-slate-900 tracking-tight">
+            {title}
+          </h1>
           {description ? (
-            <p className="mt-1 text-[13.5px] text-slate-500 max-w-2xl leading-relaxed">{description}</p>
+            <p className="mt-1.5 text-[13.5px] text-slate-500 max-w-2xl leading-relaxed">{description}</p>
           ) : null}
         </div>
-        {actions ? <div className="shrink-0 flex flex-wrap items-center gap-2">{actions}</div> : null}
+        {actions ? (
+          <div className="shrink-0 flex flex-wrap items-center gap-2 [&_button]:min-h-11 [&_a]:min-h-11">
+            {actions}
+          </div>
+        ) : null}
       </div>
       {children}
     </header>
@@ -82,10 +90,10 @@ export function SupplierModalHeader({ icon: Icon, title, subtitle, onClose, titl
           <Icon className="w-5 h-5 text-finland" aria-hidden />
         </div>
         <div className="min-w-0">
-          <h2 id={headingId} className="text-lg font-semibold text-ink truncate">
+          <h2 id={headingId} className="font-display text-lg sm:text-xl font-semibold text-ink tracking-tight truncate">
             {title}
           </h2>
-          {subtitle ? <p className="text-xs text-ink-muted mt-0.5">{subtitle}</p> : null}
+          {subtitle ? <p className="text-xs text-ink-muted mt-0.5 truncate">{subtitle}</p> : null}
         </div>
       </div>
       {onClose ? (
