@@ -1026,7 +1026,8 @@ export default function SupplierPickupPlanner() {
                   <select
                     value={cancelReason}
                     onChange={(e) => setCancelReason(e.target.value)}
-                    className={plannerInputClass()}
+                    disabled={!canEditBookings}
+                    className={`${plannerInputClass()}${!canEditBookings ? ' opacity-40' : ''}`}
                   >
                     <option value="">Select reason</option>
                     {CANCELLATION_REASONS.map((r) => (
@@ -1109,6 +1110,8 @@ export default function SupplierPickupPlanner() {
           </button>
           <button
             type="button"
+            // Phase 1756: listing editor deep-links are editor-only (listings write RLS).
+            disabled={!canEditBookings}
             onClick={() =>
               openSupplierListingEditor(
                 selectedBooking.listing_id,
@@ -1116,19 +1119,21 @@ export default function SupplierPickupPlanner() {
                 selectedBooking.booking_option_id ?? undefined
               )
             }
-            className="tv-btn-ghost"
+            className="tv-btn-ghost disabled:opacity-40"
           >
             Edit meeting
           </button>
           <button
             type="button"
+            disabled={!canEditBookings}
             onClick={() => openSupplierListingEditor(selectedBooking.listing_id, 'schedule')}
-            className="tv-btn-ghost"
+            className="tv-btn-ghost disabled:opacity-40"
           >
             Edit schedule
           </button>
           <button
             type="button"
+            disabled={!canEditBookings}
             onClick={() =>
               openSupplierListingEditor(
                 selectedBooking.listing_id,
@@ -1136,7 +1141,7 @@ export default function SupplierPickupPlanner() {
                 selectedBooking.booking_option_id ?? undefined
               )
             }
-            className="tv-btn-primary inline-flex items-center gap-1.5"
+            className="tv-btn-primary inline-flex items-center gap-1.5 disabled:opacity-40"
           >
             <ExternalLink className="w-4 h-4" aria-hidden />
             Edit pickup
