@@ -32,7 +32,8 @@ type SupplierEventType =
   | 'host_schedule_updated'
   | 'cancellation_accepted'
   | 'cancellation_declined'
-  | 'refund_completed';
+  | 'refund_completed'
+  | 'partial_refund_recorded';
 
 export async function notifySupplierEvent(params: {
   supplierId: string;

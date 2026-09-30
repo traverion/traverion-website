@@ -1,5 +1,7 @@
 /**
- * Mirror of src/lib/stripe-charge-refund.ts for Deno edge runtime.
+ * Stripe charge.refunded fires for partial and full refunds.
+ * Only a full refund should flip Traverion payment_status to refunded
+ * and release occupancy.
  */
 
 export function isStripeChargeFullyRefunded(charge: {
@@ -15,6 +17,26 @@ export function isStripeChargeFullyRefunded(charge: {
   return refunded >= amount;
 }
 
+/**
+ * Phase 1735: remaining charge after partial refunds, in major currency units
+ * (matches bookings.amount_paid). Null when Stripe amounts are unusable.
+ */
+export function remainingPaidMajorFromCharge(charge: {
+  amount?: number | null;
+  amount_refunded?: number | null;
+}): number | null {
+  const amount = charge.amount;
+  const refunded = charge.amount_refunded;
+  if (typeof amount !== 'number' || !Number.isFinite(amount) || amount < 0) return null;
+  if (typeof refunded !== 'number' || !Number.isFinite(refunded) || refunded < 0) return null;
+  const remainingMinor = Math.max(0, amount - refunded);
+  return remainingMinor / 100;
+}
+
+/**
+ * Full refund arrived before paid promotion — mark the unpaid hold failed so a
+ * late checkout.session.completed / payment_intent.succeeded cannot confirm it.
+ */
 export function refundBeforePaidShouldMarkFailed(params: {
   bookingPaymentStatus?: string | null;
   fullyRefunded: boolean;
@@ -26,6 +48,7 @@ export function refundBeforePaidShouldMarkFailed(params: {
   return pay === 'pending' || pay === 'failed';
 }
 
+/** Refuse paid promotion when the Checkout PaymentIntent's charge is fully refunded. */
 export function paidPromotionShouldRefuseFullyRefundedCharge(
   charge:
     | {

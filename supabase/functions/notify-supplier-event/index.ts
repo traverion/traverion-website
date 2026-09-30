@@ -40,7 +40,9 @@ type EventType =
   | 'cancellation_accepted'
   | 'cancellation_declined'
   /** Phase 1733: Stripe full refund — Money/ledger reversed */
-  | 'refund_completed';
+  | 'refund_completed'
+  /** Phase 1735: Stripe partial refund — amount_paid shrunk, stays Paid */
+  | 'partial_refund_recorded';
 
 type Payload = {
   supplierId: string;
@@ -131,6 +133,7 @@ function eventSubject(payload: Payload): string {
   if (payload.eventType === 'booking_detail_changed') return `${refTag}Booking updated: ${listing}`;
   if (payload.eventType === 'host_schedule_updated') return `${refTag}Schedule saved (your update): ${listing}`;
   if (payload.eventType === 'refund_completed') return `${refTag}Refund recorded: ${listing}`;
+  if (payload.eventType === 'partial_refund_recorded') return `${refTag}Partial refund recorded: ${listing}`;
   return `New review received: ${listing}`;
 }
 
@@ -198,6 +201,13 @@ function eventBody(payload: Payload): string {
     lines.push(`Listing: ${listing}`);
     lines.push(
       'Payment status is Refunded. Collected earnings for this booking were reversed. Check Bookings and Money — Traverion does not treat email delivery as proof you saw this.'
+    );
+  } else if (payload.eventType === 'partial_refund_recorded') {
+    // Phase 1735
+    lines.push('Stripe recorded a partial refund for this booking.');
+    lines.push(`Listing: ${listing}`);
+    lines.push(
+      'The booking stays Paid. Collected amount was reduced to the remaining charge. Inventory is still held. Check Bookings and Money — Traverion does not treat email delivery as proof you saw this.'
     );
   } else {
     lines.push(`Event: ${payload.eventType}`);
@@ -321,6 +331,10 @@ ${bodyText}
     // Keep in sync with SUPPLIER_REFUND_COMPLETED_NOTIFY_SUB
     sub =
       'Stripe recorded a full refund for this booking. Payment status is Refunded. Collected earnings for this booking were reversed. Check Bookings and Money — Traverion does not treat email delivery as proof you saw this.';
+  } else if (payload.eventType === 'partial_refund_recorded') {
+    headline = 'Partial refund recorded';
+    sub =
+      'Stripe recorded a partial refund for this booking. The booking stays Paid. Collected amount was reduced to the remaining charge. Inventory is still held. Check Bookings and Money — Traverion does not treat email delivery as proof you saw this.';
   } else if (payload.eventType === 'new_review') {
     headline = 'New review';
     // Keep in sync with SUPPLIER_NEW_REVIEW_NOTIFY_SUB in booking-confirmation-copy.ts

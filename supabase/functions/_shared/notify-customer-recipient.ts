@@ -36,6 +36,7 @@ export type NotifyCustomerBookingKind =
   | 'pickup_action_required'
   | 'traveler_welcome'
   | 'refund_completed'
+  | 'partial_refund_recorded'
   | 'experience_reminder'
   | 'review_request'
   | 'checkout_payment_reversed';
@@ -129,6 +130,17 @@ export function resolveBookingTiedRecipient(params: {
           : undefined;
     if (typeof dbAmount === 'number' && Number.isFinite(dbAmount) && dbAmount >= 0) {
       amount = dbAmount;
+    }
+    if (typeof bookingRow.currency === 'string' && bookingRow.currency.trim()) {
+      currency = bookingRow.currency.trim().toUpperCase();
+    }
+  }
+
+  // Phase 1735: partial refund keeps payment_status paid; amount_paid is remaining
+  // balance — keep caller incremental refund amount, only verify still paid.
+  if (kind === 'partial_refund_recorded') {
+    if (!paidConfirmationMaySend(bookingRow.payment_status)) {
+      return { ok: false, error: 'Booking is not paid', status: 409 };
     }
     if (typeof bookingRow.currency === 'string' && bookingRow.currency.trim()) {
       currency = bookingRow.currency.trim().toUpperCase();

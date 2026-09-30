@@ -3,7 +3,7 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
 import { stripeWebhookReplayDecision } from '../_shared/stripe-webhook-replay.ts';
-import { isStripeChargeFullyRefunded, refundBeforePaidShouldMarkFailed } from '../_shared/stripe-charge-refund.ts';
+import { isStripeChargeFullyRefunded, refundBeforePaidShouldMarkFailed, remainingPaidMajorFromCharge } from '../_shared/stripe-charge-refund.ts';
 import { staleCheckoutFailureShouldApply } from '../_shared/checkout-resume.ts';
 import { paymentIntentSucceededShouldPromote } from '../_shared/checkout-pi-succeeded.ts';
 import { promotePaidFromCheckoutSession, notifyTravelerCheckoutCaptureReversed } from '../_shared/promote-paid-from-checkout.ts';
@@ -485,7 +485,17 @@ serve(async (req) => {
         }
 
         // Partial refunds must not flip payment_status or release inventory.
+        // Phase 1735: shrink amount_paid to remaining charge + email both parties.
         if (!fullyRefunded) {
+          const remainingPaid = remainingPaidMajorFromCharge(charge);
+          if (remainingPaid != null) {
+            const { error: partialAmtErr } = await admin
+              .from('bookings')
+              .update({ amount_paid: remainingPaid })
+              .eq('id', booking.id)
+              .eq('payment_status', 'paid');
+            if (partialAmtErr) throw new Error(partialAmtErr.message);
+          }
           await admin.from('booking_payment_events').insert({
             booking_id: booking.id,
             event_id: event.id,
@@ -495,6 +505,108 @@ serve(async (req) => {
             currency,
             payload: event as unknown as Record<string, unknown>,
           });
+
+          const guestEmail = (booking.guest_email ?? '').trim().toLowerCase();
+          let listingTitle = 'Your experience';
+          let listingSupplierId: string | null = null;
+          if (booking.listing_id) {
+            const { data: lt } = await admin
+              .from('listings')
+              .select('title, supplier_id')
+              .eq('id', booking.listing_id)
+              .maybeSingle();
+            if (lt?.title?.trim()) listingTitle = lt.title.trim();
+            if (typeof lt?.supplier_id === 'string' && lt.supplier_id.trim()) {
+              listingSupplierId = lt.supplier_id.trim();
+            }
+          }
+          const incrementalRefund =
+            typeof booking.amount_paid === 'number' &&
+            Number.isFinite(booking.amount_paid) &&
+            remainingPaid != null
+              ? Math.round((booking.amount_paid - remainingPaid) * 100) / 100
+              : refundAmount;
+          const notifyAmount =
+            typeof incrementalRefund === 'number' && incrementalRefund > 0
+              ? incrementalRefund
+              : refundAmount;
+
+          if (guestEmail && supabaseUrl && serviceRoleKey) {
+            try {
+              await fetch(`${supabaseUrl}/functions/v1/notify-customer-booking`, {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${serviceRoleKey}`,
+                  apikey: serviceRoleKey,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  customerEmail: guestEmail,
+                  customerName: booking.guest_name ?? undefined,
+                  listingTitle,
+                  bookingId: booking.id,
+                  bookingNumber:
+                    typeof booking.booking_number === 'number' ? booking.booking_number : undefined,
+                  bookingDate: booking.booking_date ?? undefined,
+                  guests: typeof booking.guests === 'number' ? booking.guests : undefined,
+                  totalAmount: notifyAmount ?? undefined,
+                  currency: currency || booking.currency || 'EUR',
+                  emailKind: 'partial_refund_recorded',
+                  publicSiteUrl: Deno.env.get('PUBLIC_SITE_URL') ?? 'https://www.traverion.com',
+                  idempotencyKey: `customer:partial_refund_recorded:${booking.id}:${event.id}`,
+                }),
+              });
+            } catch (emailErr) {
+              console.error(
+                JSON.stringify({
+                  source: 'stripe-webhook',
+                  eventId: event.id,
+                  bookingId: booking.id,
+                  emailError:
+                    emailErr instanceof Error ? emailErr.message : 'partial refund traveler email failed',
+                })
+              );
+            }
+          }
+          if (listingSupplierId && supabaseUrl && serviceRoleKey) {
+            try {
+              await fetch(`${supabaseUrl}/functions/v1/notify-supplier-event`, {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${serviceRoleKey}`,
+                  apikey: serviceRoleKey,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  supplierId: listingSupplierId,
+                  eventType: 'partial_refund_recorded',
+                  listingId: booking.listing_id ?? undefined,
+                  listingTitle,
+                  bookingId: booking.id,
+                  bookingNumber:
+                    typeof booking.booking_number === 'number' ? booking.booking_number : undefined,
+                  bookingDate: booking.booking_date ?? undefined,
+                  guests: typeof booking.guests === 'number' ? booking.guests : undefined,
+                  guestName: booking.guest_name ?? undefined,
+                  portalBaseUrl: Deno.env.get('PUBLIC_SITE_URL') ?? 'https://www.traverion.com',
+                  idempotencyKey: `supplier:partial_refund_recorded:${booking.id}:${event.id}`,
+                }),
+              });
+            } catch (hostEmailErr) {
+              console.error(
+                JSON.stringify({
+                  source: 'stripe-webhook',
+                  eventId: event.id,
+                  bookingId: booking.id,
+                  emailError:
+                    hostEmailErr instanceof Error
+                      ? hostEmailErr.message
+                      : 'partial refund host email failed',
+                })
+              );
+            }
+          }
+
           await markProcessed('processed');
           return json({
             success: true,
@@ -503,6 +615,7 @@ serve(async (req) => {
             status: 'partial_refund_recorded',
             fullyRefunded: false,
             amountRefunded: refundAmount,
+            amountPaidRemaining: remainingPaid,
           });
         }
 

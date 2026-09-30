@@ -52,6 +52,7 @@ type EmailKind =
   | 'pickup_action_required'
   | 'traveler_welcome'
   | 'refund_completed'
+  | 'partial_refund_recorded'
   | 'experience_reminder'
   | 'review_request'
   | 'checkout_payment_reversed';
@@ -302,6 +303,8 @@ function subjectForKind(
       return 'Welcome to Traverion';
     case 'refund_completed':
       return `${tag}Refund completed — ${t}`;
+    case 'partial_refund_recorded':
+      return `${tag}Partial refund recorded — ${t}`;
     case 'experience_reminder':
       return isStay ? `${tag}Your stay is coming up — ${t}` : `${tag}Your tour is coming up — ${t}`;
     case 'review_request':
@@ -813,6 +816,15 @@ serve(async (req) => {
       footerNote =
         body.refundStatusNote?.trim() ||
         'Trips shows Refunded for this booking. Traverion does not treat email delivery as proof of bank settlement.';
+    } else if (kind === 'partial_refund_recorded') {
+      // Phase 1735: booking stays Paid; inventory held; Stripe returned part of the charge.
+      headline = 'A partial refund was recorded';
+      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Stripe recorded a partial refund for this booking. Your reservation stays active and Trips still shows Paid for the remaining amount.</p>`;
+      if (typeof amount === 'number') {
+        extraHtml = `<p style="margin:0;font-size:14px;color:#374151;"><strong>Refunded this time:</strong> ${escapeHtml(currency)} ${amount.toFixed(2)}</p>`;
+      }
+      footerNote =
+        'Timing to your bank depends on your card issuer. Trips is the durable record — Traverion does not treat email delivery as proof of bank settlement.';
     } else if (kind === 'experience_reminder') {
       const isStay = String(listingKind ?? '').toLowerCase() === 'stay';
       headline = isStay ? 'Your stay is coming up soon' : 'Your tour is coming up soon';

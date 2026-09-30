@@ -64,6 +64,7 @@ export function customerEmailKindRequiresServiceRole(emailKind: string): boolean
   return (
     kind === 'booking_confirmed_paid' ||
     kind === 'refund_completed' ||
+    kind === 'partial_refund_recorded' ||
     kind === 'experience_reminder' ||
     kind === 'review_request' ||
     kind === 'checkout_payment_reversed'

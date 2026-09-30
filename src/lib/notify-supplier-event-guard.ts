@@ -43,7 +43,9 @@ export type SupplierEventType =
   | 'cancellation_accepted'
   | 'cancellation_declined'
   /** Phase 1733: Stripe full refund recorded — Money/ledger reversed. */
-  | 'refund_completed';
+  | 'refund_completed'
+  /** Phase 1735: Stripe partial refund — Collected shrinks, stays paid. */
+  | 'partial_refund_recorded';
 
 /** These claim to be about a specific booking. */
 export function isBookingTiedSupplierEvent(eventType: SupplierEventType): boolean {
@@ -55,7 +57,8 @@ export function isBookingTiedSupplierEvent(eventType: SupplierEventType): boolea
     eventType === 'host_schedule_updated' ||
     eventType === 'cancellation_accepted' ||
     eventType === 'cancellation_declined' ||
-    eventType === 'refund_completed'
+    eventType === 'refund_completed' ||
+    eventType === 'partial_refund_recorded'
   );
 }
 

@@ -1,6 +1,7 @@
 /**
- * Mirror of src/lib/notify-customer-booking-auth.ts for Deno edge runtime.
- * Phase 1092 / 1349: bound guest_user_id blocks recycled-email party claims.
+ * Phase 1092: caller authorization for notify-customer-booking.
+ * verify_jwt is off; booking-tied kinds must still reject anonymous forgery.
+ * Phase 1349: guest email match only when guest_user_id is unbound.
  */
 
 import { travelerOwnsCheckoutBooking } from './booking-traveler-ownership.ts';
@@ -16,6 +17,10 @@ export function isServiceRoleBearer(
   return bearer.length > 0 && bearer === key;
 }
 
+/**
+ * True when the signed-in caller is the booking guest, listing supplier, or
+ * a supplier team member (Phase 1130).
+ */
 export function bookingPartyAllowsCustomerNotify(params: {
   callerUserId?: string | null;
   callerEmail?: string | null;
