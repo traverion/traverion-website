@@ -1647,7 +1647,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
             <div className="lg:col-span-1 order-1 lg:order-2">
               <div
                 id="tour-booking-panel"
-                className="lg:sticky lg:top-24 h-fit scroll-mt-24 rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft-lg ring-1 ring-black/[0.06]"
+                className="tv-booking-sticky lg:sticky lg:top-24 h-fit scroll-mt-24"
               >
                 <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">Book this experience</p>
                 {!canBook ? (

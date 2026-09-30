@@ -33,16 +33,17 @@ export function PriceHero({
   const showStrike = typeof originalAmount === 'number' && originalAmount > amount;
   return (
     <div>
-      <p className="text-2xl font-bold text-ink tabular-nums">
+      {/* Phase 1804: display type + size hierarchy for sticky booking cards. */}
+      <p className="font-display text-3xl sm:text-[2rem] font-semibold tracking-tight text-ink tabular-nums leading-none">
         {formatMoney(amount, currency)}
         {showStrike ? (
-          <span className="ml-2 text-base font-normal text-ink-faint line-through">
+          <span className="ml-2 align-baseline text-base font-sans font-normal text-ink-faint line-through">
             {formatMoney(originalAmount, currency)}
           </span>
         ) : null}
       </p>
-      <p className="text-sm text-ink-muted">{basis}</p>
-      {showStrike && discountLabel ? <p className="mt-1 text-sm text-finland">{discountLabel}</p> : null}
+      <p className="mt-1.5 text-sm text-ink-muted">{basis}</p>
+      {showStrike && discountLabel ? <p className="mt-1 text-sm font-medium text-finland">{discountLabel}</p> : null}
     </div>
   );
 }

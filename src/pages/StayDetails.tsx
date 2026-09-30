@@ -1273,7 +1273,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
             id="stay-booking-panel"
             role="region"
             aria-labelledby="stay-booking-panel-title"
-            className="lg:sticky lg:top-24 h-fit scroll-mt-24 rounded-2xl bg-paper-raised p-4 sm:p-5 shadow-soft-lg ring-1 ring-black/[0.06]"
+            className="tv-booking-sticky lg:sticky lg:top-24 h-fit scroll-mt-24"
           >
             <p
               id="stay-booking-panel-title"

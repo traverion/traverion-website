@@ -1746,6 +1746,21 @@ a:focus-visible,
   }
 }
 
+/* Phase 1804: listing sticky booking panel — OTA purchase-ready chrome */
+.tv-booking-sticky {
+  border-radius: 1rem;
+  background: #fffcf8;
+  padding: 1.15rem 1.15rem 1.25rem;
+  box-shadow:
+    0 0 0 1px rgba(28, 25, 23, 0.08),
+    0 18px 40px -20px rgba(15, 23, 42, 0.28);
+}
+@media (min-width: 640px) {
+  .tv-booking-sticky {
+    padding: 1.35rem 1.35rem 1.45rem;
+  }
+}
+
 .tv-chip {
   display: inline-flex;
   align-items: center;
