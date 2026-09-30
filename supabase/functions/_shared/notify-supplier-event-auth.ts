@@ -5,6 +5,14 @@
 
 import { travelerOwnsCheckoutBooking } from './booking-traveler-ownership.ts';
 
+/** Phase 1759: finance/viewer are not supplier-side notify callers. */
+export function supplierTeamRoleIsEditor(role: string | null | undefined): boolean {
+  const r = String(role ?? '')
+    .trim()
+    .toLowerCase();
+  return r === 'owner' || r === 'manager' || r === 'ops';
+}
+
 export function isServiceRoleBearer(
   authHeader: string | null | undefined,
   serviceRoleKey: string | null | undefined

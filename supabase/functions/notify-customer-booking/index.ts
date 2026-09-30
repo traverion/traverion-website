@@ -26,6 +26,7 @@ import {
   customerEmailKindRequiresServiceRole,
   guestMayInvokeCustomerEmailKind,
   isServiceRoleBearer,
+  supplierTeamRoleIsEditor,
 } from '../_shared/notify-customer-booking-auth.ts';
 import { authUserVerifiedEmail } from '../_shared/auth-verified-email.ts';
 import { notifyUnpaidCheckoutFromPaymentStatus } from '../_shared/notify-unpaid-checkout.ts';
@@ -451,14 +452,16 @@ serve(async (req) => {
         if (!callerIsListingSupplier && listingSupplierId) {
           const { data: teamRow, error: teamErr } = await admin
             .from('supplier_team_members')
-            .select('user_id')
+            .select('user_id, role')
             .eq('supplier_id', listingSupplierId)
             .eq('user_id', callerId)
             .maybeSingle();
           if (teamErr) {
             return json({ success: false, error: 'Could not verify authorization. Try again.' }, 500);
           }
-          callerIsSupplierTeamMember = Boolean(teamRow?.user_id);
+          // Phase 1759: finance/viewer may not act as host for customer notify.
+          callerIsSupplierTeamMember =
+            Boolean(teamRow?.user_id) && supplierTeamRoleIsEditor(teamRow?.role);
         }
         if (
           !bookingPartyAllowsCustomerNotify({

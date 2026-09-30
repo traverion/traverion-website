@@ -17,6 +17,7 @@ import {
   guestMayInvokeSupplierEvent,
   isServiceRoleBearer,
   supplierEventPartyAllowsNotify,
+  supplierTeamRoleIsEditor,
 } from '../_shared/notify-supplier-event-auth.ts';
 import { authUserVerifiedEmail } from '../_shared/auth-verified-email.ts';
 import { notifyUnpaidCheckoutFromPaymentStatus } from '../_shared/notify-unpaid-checkout.ts';
@@ -567,14 +568,15 @@ serve(async (req) => {
         const adminForAuth = createClient(supabaseUrl, serviceRoleKey);
         const { data: teamRow, error: teamErr } = await adminForAuth
           .from('supplier_team_members')
-          .select('user_id')
+          .select('user_id, role')
           .eq('supplier_id', String(payload.supplierId).trim())
           .eq('user_id', callerId)
           .maybeSingle();
         if (teamErr) {
           return json({ success: false, error: 'Could not verify authorization. Try again.' }, 500);
         }
-        if (!teamRow?.user_id) {
+        // Phase 1759: finance/viewer cannot fire verification_submitted / welcome.
+        if (!teamRow?.user_id || !supplierTeamRoleIsEditor(teamRow.role)) {
           return json({ success: false, error: 'Unauthorized' }, 401);
         }
       }
@@ -660,7 +662,7 @@ serve(async (req) => {
         if (callerId !== listingSupplierId) {
           const { data: teamRow, error: teamErr } = await admin
             .from('supplier_team_members')
-            .select('user_id')
+            .select('user_id, role')
             .eq('supplier_id', String(payload.supplierId).trim())
             .eq('user_id', callerId)
             .maybeSingle();
@@ -668,7 +670,9 @@ serve(async (req) => {
           if (teamErr) {
             return json({ success: false, error: 'Could not verify authorization. Try again.' }, 500);
           }
-          callerIsTeamMember = Boolean(teamRow?.user_id);
+          // Phase 1759: finance/viewer are not supplier-side for host events / fieldDiffs.
+          callerIsTeamMember =
+            Boolean(teamRow?.user_id) && supplierTeamRoleIsEditor(teamRow?.role);
         }
 
         if (

@@ -6,6 +6,17 @@
 
 import { travelerOwnsCheckoutBooking } from './booking-traveler-ownership.ts';
 
+/**
+ * Phase 1759: finance/viewer team JWTs are not supplier-side for notify writes.
+ * Matches canManageBookings / is_supplier_account_editor.
+ */
+export function supplierTeamRoleIsEditor(role: string | null | undefined): boolean {
+  const r = String(role ?? '')
+    .trim()
+    .toLowerCase();
+  return r === 'owner' || r === 'manager' || r === 'ops';
+}
+
 export function isServiceRoleBearer(
   authHeader: string | null | undefined,
   serviceRoleKey: string | null | undefined
