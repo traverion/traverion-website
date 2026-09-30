@@ -222,9 +222,23 @@ export async function notifyTravelerCheckoutCaptureReversed(params: {
     }
   }
 
-  const guestEmail = String(existingBooking?.guest_email ?? '')
+  let guestEmail = String(existingBooking?.guest_email ?? '')
     .trim()
     .toLowerCase();
+  // Phase 1779: match paid-confirm path — resolve auth email when guest_email is empty.
+  if (!guestEmail && existingBooking?.guest_user_id) {
+    try {
+      const { data: authUser } = await admin.auth.admin.getUserById(
+        String(existingBooking.guest_user_id)
+      );
+      const fromAuth = String(authUser?.user?.email ?? '')
+        .trim()
+        .toLowerCase();
+      if (fromAuth) guestEmail = fromAuth;
+    } catch {
+      /* still skip notify if unresolved */
+    }
+  }
   if (!guestEmail) return;
 
   let listingTitle = 'Your booking';

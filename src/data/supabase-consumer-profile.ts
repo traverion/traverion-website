@@ -45,7 +45,9 @@ export function consumerProfileEnsurePayloadFromAuthUser(user: User): {
 export async function fetchConsumerProfile(userId: string): Promise<{ id: string } | null> {
   if (!supabase) return null;
   const { data, error } = await supabase.from('consumer_profiles').select('id').eq('id', userId).maybeSingle();
-  if (error || !data) return null;
+  // Phase 1780: lookup failure ≠ missing profile (AuthContext must not wipe dual-role travelers).
+  if (error) throw new Error(error.message);
+  if (!data) return null;
   return data;
 }
 

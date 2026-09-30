@@ -60,17 +60,22 @@ async function travelerUserAllowed(user: User): Promise<boolean> {
   if (isTraverionPartnerHost()) return true;
   if (!supabase) return false;
   // Phase 1711: own supplier_profiles row only — not resolveSupplierId (team → owner).
-  const [hasSupplierProfile, consumerRow] = await Promise.all([
-    userHasSupplierProfile(supabase, user.id),
-    fetchConsumerProfile(user.id),
-  ]);
-  // Phase 1771: profile lookup failure (null) must not wipe a real traveler session.
-  // Only confirmed partner-only (hasSupplierProfile === true, no consumer) is rejected.
-  if (hasSupplierProfile === null) return true;
-  return !travelerSessionIsPartnerOnly({
-    hasSupplierProfile,
-    hasConsumerProfile: Boolean(consumerRow),
-  });
+  try {
+    const [hasSupplierProfile, consumerRow] = await Promise.all([
+      userHasSupplierProfile(supabase, user.id),
+      fetchConsumerProfile(user.id),
+    ]);
+    // Phase 1771: profile lookup failure (null) must not wipe a real traveler session.
+    // Only confirmed partner-only (hasSupplierProfile === true, no consumer) is rejected.
+    if (hasSupplierProfile === null) return true;
+    return !travelerSessionIsPartnerOnly({
+      hasSupplierProfile,
+      hasConsumerProfile: Boolean(consumerRow),
+    });
+  } catch {
+    // Phase 1780: consumer_profiles SELECT error must not look like “no consumer profile”.
+    return true;
+  }
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
