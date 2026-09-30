@@ -1701,19 +1701,25 @@ export default function SupplierBookings({
                   </div>
                   <BookingMessageThread
                     bookingId={booking.id}
-                    canCompose={bookingAllowsMessaging({
-                      status: booking.status,
-                      payment_status: booking.payment_status,
-                      openCancellation: Boolean(openCancel),
-                    })}
-                    composeBlock={
-                      messagingComposeBlock({
+                    // Phase 1752: finance/viewer read-only on host chat (RPC 223).
+                    canCompose={
+                      canEditBookings &&
+                      bookingAllowsMessaging({
                         status: booking.status,
                         payment_status: booking.payment_status,
                         openCancellation: Boolean(openCancel),
-                      }) === 'closed'
-                        ? 'closed'
-                        : 'unpaid'
+                      })
+                    }
+                    composeBlock={
+                      !canEditBookings
+                        ? 'role'
+                        : messagingComposeBlock({
+                              status: booking.status,
+                              payment_status: booking.payment_status,
+                              openCancellation: Boolean(openCancel),
+                            }) === 'closed'
+                          ? 'closed'
+                          : 'unpaid'
                     }
                     viewerRole="supplier"
                     listingTitle={listingTitle}

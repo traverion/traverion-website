@@ -19,7 +19,8 @@ import {
 type Props = {
   bookingId: string;
   canCompose: boolean;
-  composeBlock?: 'unpaid' | 'closed';
+  /** Phase 1752: `role` = finance/viewer can read host chat but cannot post. */
+  composeBlock?: 'unpaid' | 'closed' | 'role';
   viewerRole: 'traveler' | 'supplier';
   listingTitle: string;
   listingId: string;
@@ -190,6 +191,11 @@ export default function BookingMessageThread({
           <NoticeCallout title="This booking is closed" tone="info">
             Earlier messages stay here for your records.
           </NoticeCallout>
+        ) : composeBlock === 'role' ? (
+          <NoticeCallout title="Read-only for your role" tone="info">
+            Your role can read booking messages but cannot send them. Ask an owner, manager, or ops
+            teammate.
+          </NoticeCallout>
         ) : (
           <NoticeCallout title="Messages unlock after payment" tone="info">
             Messages appear here after a paid booking.
@@ -264,7 +270,9 @@ export default function BookingMessageThread({
         <p className="text-xs text-ink-faint">
           {composeBlock === 'closed'
             ? 'This booking is closed. You can still read earlier messages.'
-            : 'Chat is limited to paid bookings you are part of.'}
+            : composeBlock === 'role'
+              ? 'Your role can read booking messages but cannot send them.'
+              : 'Chat is limited to paid bookings you are part of.'}
         </p>
       ) : null}
     </div>

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { MessageSquare } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
+import { useSupplierRole } from '../../hooks/useSupplierRole';
+import { canManageBookings } from '../../lib/supplierTeamRoles';
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
 import { fetchMyListings, pgTimeToHm } from '../../data/supabase-listings';
 import {
@@ -68,6 +70,9 @@ function partnerInboxTabId(unreadOnly: boolean): string {
 
 export default function SupplierInbox() {
   const { user, isSupabase } = useSupplierAuth();
+  // Phase 1752: finance/viewer may read threads; host posts need editor roles (RPC 223).
+  const { role } = useSupplierRole();
+  const canEditBookings = canManageBookings(role);
   const [bookings, setBookings] = useState<BookingRow[]>([]);
   const [titles, setTitles] = useState<Record<string, string>>({});
   const [listingsById, setListingsById] = useState<Record<string, TourPackage>>({});
@@ -382,19 +387,24 @@ export default function SupplierInbox() {
         ) : null}
         <BookingMessageThread
           bookingId={b.id}
-          canCompose={bookingAllowsMessaging({
-            status: b.status,
-            payment_status: b.payment_status,
-            openCancellation: openCancelIds.has(b.id),
-          })}
-          composeBlock={
-            messagingComposeBlock({
+          canCompose={
+            canEditBookings &&
+            bookingAllowsMessaging({
               status: b.status,
               payment_status: b.payment_status,
               openCancellation: openCancelIds.has(b.id),
-            }) === 'closed'
-              ? 'closed'
-              : 'unpaid'
+            })
+          }
+          composeBlock={
+            !canEditBookings
+              ? 'role'
+              : messagingComposeBlock({
+                    status: b.status,
+                    payment_status: b.payment_status,
+                    openCancellation: openCancelIds.has(b.id),
+                  }) === 'closed'
+                ? 'closed'
+                : 'unpaid'
           }
           viewerRole="supplier"
           listingTitle={inboxListingLine(b, titles[b.listing_id], listingsById[b.listing_id])}
