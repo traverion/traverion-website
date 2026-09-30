@@ -553,16 +553,16 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
         )}
 
         {booking && (
-          <div className="overflow-hidden tv-card">
+          <div className="overflow-hidden tv-confirm-shell">
             <div
-              className={`px-5 sm:px-6 pt-6 pb-5 text-center ${
+              className={`tv-confirm-hero ${
                 paidActive
-                  ? 'bg-emerald-50/80'
+                  ? 'tv-confirm-hero--good'
                   : cancelled
-                    ? 'bg-rose-50/70'
+                    ? 'tv-confirm-hero--bad'
                     : needsPay || confirming
-                      ? 'bg-amber-50/70'
-                      : 'bg-finland/[0.05]'
+                      ? 'tv-confirm-hero--warn'
+                      : 'tv-confirm-hero--info'
               }`}
             >
               {cancelled ? (
@@ -668,14 +668,14 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                     </p>
                   ) : null}
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="flex items-start gap-3 rounded-xl bg-finland/[0.04] p-3 ring-1 ring-finland/10">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="tv-confirm-fact">
                     <Calendar className="w-5 h-5 text-finland shrink-0 mt-0.5" aria-hidden />
                     <div>
-                      <p className="text-xs font-medium text-ink-faint uppercase tracking-wide">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
                         {stayCheckOut ? 'Stay dates' : 'Date'}
                       </p>
-                      <p className="mt-0.5 font-medium text-ink">{dateLabel}</p>
+                      <p className="mt-1 font-semibold text-ink leading-snug">{dateLabel}</p>
                       {confirmationNightCount ? (
                         <p className="text-sm text-ink-muted mt-0.5">
                           {confirmationNightCount} night{confirmationNightCount === 1 ? '' : 's'}
@@ -685,11 +685,11 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                       ) : null}
                     </div>
                   </div>
-                  <div className="flex items-start gap-3 rounded-xl bg-finland/[0.04] p-3 ring-1 ring-finland/10">
+                  <div className="tv-confirm-fact">
                     <Users className="w-5 h-5 text-finland shrink-0 mt-0.5" aria-hidden />
                     <div>
-                      <p className="text-xs font-medium text-ink-faint uppercase tracking-wide">Participants</p>
-                      <p className="mt-0.5 font-medium text-ink">{formatBookingParticipantsLabel(booking)}</p>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">Participants</p>
+                      <p className="mt-1 font-semibold text-ink leading-snug">{formatBookingParticipantsLabel(booking)}</p>
                     </div>
                   </div>
                 </div>
@@ -709,7 +709,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                   <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">
                     {cancelled ? payLabel : 'Amount paid'}
                   </p>
-                  <p className="mt-0.5 text-xl font-semibold tabular-nums text-ink">
+                  <p className="mt-1 font-display text-2xl font-semibold tabular-nums tracking-tight text-ink">
                     {formatMoney(Number(booking.amount_paid), booking.currency)}
                     {isStripeTestCheckoutSession(booking.checkout_session_id) || appStripeIsTestMode() ? (
                       <span className="ml-2 text-sm font-medium text-amber-800">TEST</span>
