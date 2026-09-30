@@ -744,8 +744,18 @@ export default function SupplierPickupPlanner() {
       kind: 'bookings',
       format: 'csv',
       scope: 'filtered',
+      dateFrom: dateFrom || undefined,
+      dateTo: dateTo || undefined,
       rowCount: listBookings.length,
-      filtersSnapshot: { surface: 'pickup' },
+      // Phase 1784: record the exact Pickup filter slice that produced guest-PII rows.
+      filtersSnapshot: {
+        surface: 'pickup',
+        dayPreset,
+        listingId: listingFilterId || null,
+        needsPickupOnly,
+        query: filterQuery.trim() || null,
+        rowCount: listBookings.length,
+      },
     });
   };
 
