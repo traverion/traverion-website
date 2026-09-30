@@ -26,10 +26,22 @@ import { bookingPaymentWasCollected } from '../lib/payment-states';
 async function expireUnpaidCancelledCheckout(bookingId: string): Promise<void> {
   if (!supabase) return;
   // Phase 1782: await expire so cancel does not leave a payable orphan session silently.
+  // Phase 1787: functions.invoke does not throw on 4xx — check error / success body.
   try {
-    await supabase.functions.invoke('expire-booking-checkout', {
+    const { data, error } = await supabase.functions.invoke('expire-booking-checkout', {
       body: { bookingId },
     });
+    if (error) {
+      console.warn('[Traverion] expire-booking-checkout failed after cancel:', bookingId, error.message);
+      return;
+    }
+    if (data && typeof data === 'object' && (data as { success?: unknown }).success === false) {
+      console.warn(
+        '[Traverion] expire-booking-checkout declined after cancel:',
+        bookingId,
+        (data as { error?: unknown }).error ?? 'unknown'
+      );
+    }
   } catch {
     /* cancel already succeeded; Stripe webhook still refunds late captures */
   }
