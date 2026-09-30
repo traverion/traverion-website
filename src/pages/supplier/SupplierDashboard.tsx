@@ -895,10 +895,20 @@ export default function SupplierDashboard() {
                 b.purchase_snapshot,
                 liveOpt?.name?.trim() || ''
               );
-              const meetingPoint = displayMeetingPointFromPurchase(
-                b.purchase_snapshot,
-                (liveOpt?.pickupPlace ?? '').trim()
-              );
+              // Phase 1742: Today Meet line honors Pickup planner overrides (Bookings parity).
+              const listing = listingsById[b.listing_id];
+              const meetingPoint = resolvePartnerPickupCopy({
+                purchaseSnapshot: b.purchase_snapshot,
+                bookingOptionId: b.booking_option_id,
+                specialRequests: b.special_requests,
+                listingMeetingPoint: listing?.meetingPoint,
+                listingPickupInstructions: listing?.pickupInstructions,
+                bookingOptions: isPurchaseSnapshot(b.purchase_snapshot)
+                  ? null
+                  : materializedBookingOptions(
+                      parseListingExtras(listing?.listingExtras as unknown).bookingOptions
+                    ),
+              }).meetingPoint;
               const placePrefix =
                 displayFulfillmentFromPurchase(b.purchase_snapshot) === 'pickup' ? 'Pickup' : 'Meet';
               const isLast = idx === todayDepartures.length - 1;

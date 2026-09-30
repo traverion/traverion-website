@@ -73,7 +73,7 @@ import { addCalendarDaysYmd } from '../../lib/booking-lifecycle-calendar';
 import { formatPartnerCheckoutHoldLabel, partnerUnpaidCheckoutHoldsInventory } from '../../lib/booking-hold';
 import { formatStayNightHuman } from '../../lib/stay-calendar';
 import { formatBookingDateDisplay } from '../../lib/booking-flow';
-import { bookingIsStayNight, partnerBookingHasPickupAttention } from '../../lib/pickup-completeness';
+import { bookingIsStayNight, partnerBookingHasPickupAttention, resolvePartnerPickupCopy } from '../../lib/pickup-completeness';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 import { comparePartnerBookingsOperational } from '../../lib/partner-bookings-order';
 import { partnerBookingNumberMatchesFilterQuery } from '../../lib/partner-bookings-search';
@@ -1019,20 +1019,19 @@ export default function SupplierBookings({
                 meta?.title,
                 meta?.family === 'stay' ? 'Stay' : 'Tour'
               );
-              const liveMeeting =
-                booking.booking_option_id && meta?.bookingOptions?.length
-                  ? meta.bookingOptions.find((o) => o.id === booking.booking_option_id)?.pickupPlace?.trim() ||
-                    meta?.meetingPoint ||
-                    ''
-                  : meta?.meetingPoint || '';
-              const rowMeeting = displayMeetingPointFromPurchase(
-                booking.purchase_snapshot,
-                liveMeeting
-              );
-              const rowPickupInstructions = displayPickupInstructionsFromPurchase(
-                booking.purchase_snapshot,
-                meta?.pickupInstructions
-              );
+              // Phase 1742: honor Pickup planner note overrides (Trips 1716 / reminder 1741 parity).
+              const rowPickup = resolvePartnerPickupCopy({
+                purchaseSnapshot: booking.purchase_snapshot,
+                bookingOptionId: booking.booking_option_id,
+                specialRequests: booking.special_requests,
+                listingMeetingPoint: meta?.meetingPoint,
+                listingPickupInstructions: meta?.pickupInstructions,
+                bookingOptions: isPurchaseSnapshot(booking.purchase_snapshot)
+                  ? null
+                  : meta?.bookingOptions,
+              });
+              const rowMeeting = rowPickup.meetingPoint;
+              const rowPickupInstructions = rowPickup.pickupInstructions;
               const stayRangeForChip =
                 meta?.family === 'stay' || bookingIsStayNight(booking)
                   ? stayRangeFromBooking(booking)
@@ -1269,20 +1268,19 @@ export default function SupplierBookings({
               booking.purchase_snapshot,
               liveOptionLabel
             );
-            const liveMeeting =
-              booking.booking_option_id && meta?.bookingOptions?.length
-                ? meta.bookingOptions.find((o) => o.id === booking.booking_option_id)?.pickupPlace?.trim() ||
-                  meta?.meetingPoint ||
-                  ''
-                : meta?.meetingPoint || '';
-            const meetingPoint = displayMeetingPointFromPurchase(
-              booking.purchase_snapshot,
-              liveMeeting
-            );
-            const pickupInstructions = displayPickupInstructionsFromPurchase(
-              booking.purchase_snapshot,
-              meta?.pickupInstructions
-            );
+            // Phase 1742: detail Meet line uses same override precedence as Trips / Pickup planner.
+            const partnerPickup = resolvePartnerPickupCopy({
+              purchaseSnapshot: booking.purchase_snapshot,
+              bookingOptionId: booking.booking_option_id,
+              specialRequests: booking.special_requests,
+              listingMeetingPoint: meta?.meetingPoint,
+              listingPickupInstructions: meta?.pickupInstructions,
+              bookingOptions: isPurchaseSnapshot(booking.purchase_snapshot)
+                ? null
+                : meta?.bookingOptions,
+            });
+            const meetingPoint = partnerPickup.meetingPoint;
+            const pickupInstructions = partnerPickup.pickupInstructions;
             const fulfillment = displayFulfillmentFromPurchase(booking.purchase_snapshot);
             const purchasedDuration = displayDurationFromPurchase(
               booking.purchase_snapshot,
