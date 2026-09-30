@@ -334,14 +334,19 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   const handlePayNow = useCallback(async (b: BookingRow) => {
     setActionError(null);
     setPayingId(b.id);
-    const res = await resumePendingBookingCheckout({ bookingId: b.id });
+    // Phase 1773: pass a lead name when the unpaid hold never captured guest_name.
+    const fromMeta =
+      typeof user?.user_metadata?.full_name === 'string' ? user.user_metadata.full_name.trim() : '';
+    const fromEmail = (user?.email ?? '').split('@')[0]?.trim() ?? '';
+    const customerName = (b.guest_name ?? '').trim() || fromMeta || fromEmail || undefined;
+    const res = await resumePendingBookingCheckout({ bookingId: b.id, customerName });
     setPayingId(null);
     if (!res.success || !res.checkoutUrl) {
       setActionError(userFacingError(res.error, USER_ERROR.checkout));
       return;
     }
     window.location.assign(res.checkoutUrl);
-  }, []);
+  }, [user]);
 
   // Phase 1379 + layout: clear prior traveler trips before paint on account switch (useEffect ran one frame too late).
   useLayoutEffect(() => {

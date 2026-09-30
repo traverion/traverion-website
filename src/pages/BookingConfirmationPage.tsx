@@ -339,14 +339,20 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
     if (!booking?.id) return;
     setPayNowError(null);
     setPayingNow(true);
-    const res = await resumePendingBookingCheckout({ bookingId: booking.id });
+    // Phase 1773: fill empty guest_name on Pay-now resume.
+    const fromMeta =
+      typeof user?.user_metadata?.full_name === 'string' ? user.user_metadata.full_name.trim() : '';
+    const fromEmail = (user?.email ?? '').split('@')[0]?.trim() ?? '';
+    const customerName =
+      (booking.guest_name ?? '').trim() || fromMeta || fromEmail || undefined;
+    const res = await resumePendingBookingCheckout({ bookingId: booking.id, customerName });
     setPayingNow(false);
     if (!res.success || !res.checkoutUrl) {
       setPayNowError(userFacingError(res.error, USER_ERROR.checkout));
       return;
     }
     window.location.assign(res.checkoutUrl);
-  }, [booking?.id]);
+  }, [booking?.guest_name, booking?.id, user]);
 
   useEffect(() => {
     if (!paidActive && !cancelled) return;

@@ -277,6 +277,8 @@ export async function createBookingCheckoutSession(params: {
 
 export async function resumePendingBookingCheckout(params: {
   bookingId: string;
+  /** Phase 1773: fill empty guest_name on Pay-now when the booking never captured a lead name. */
+  customerName?: string | null;
 }): Promise<{ success: boolean; checkoutUrl?: string; bookingId?: string; error?: string }> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
   if (!appStripeIsTestMode()) {
@@ -287,12 +289,14 @@ export async function resumePendingBookingCheckout(params: {
       ? window.location.origin
       : undefined;
   const cancelPath = `/bookings?payment=cancelled&booking=${encodeURIComponent(params.bookingId)}`;
+  const customerName = String(params.customerName ?? '').trim();
   const { data, error } = await supabase.functions.invoke('create-booking-checkout-session', {
     body: {
       bookingId: params.bookingId,
       successPath: '/booking-confirmed',
       cancelPath,
       returnOrigin,
+      ...(customerName ? { customerName } : {}),
     },
   });
   if (error) {
