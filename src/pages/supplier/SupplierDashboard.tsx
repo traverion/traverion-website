@@ -109,10 +109,12 @@ function SectionHead({
   action?: ReactNode;
 }) {
   return (
-    <div className="mb-2.5 flex items-baseline justify-between gap-3">
+    <div className="mb-3 flex items-baseline justify-between gap-3">
       <div className="min-w-0 flex items-baseline gap-2.5 flex-wrap">
-        <h2 className="text-[16px] font-semibold tracking-tight text-slate-900">{title}</h2>
-        {meta ? <span className="text-[13px] text-slate-500 tabular-nums">{meta}</span> : null}
+        <h2 className="font-display text-[1.125rem] sm:text-[1.2rem] font-semibold tracking-tight text-slate-900">
+          {title}
+        </h2>
+        {meta ? <span className="text-[13px] font-medium text-slate-500 tabular-nums">{meta}</span> : null}
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}
     </div>
@@ -578,14 +580,14 @@ export default function SupplierDashboard() {
           <button
             type="button"
             onClick={() => openSupplierCalendar(calendarFocusListingId)}
-            className="partner-btn-secondary lux-flat inline-flex h-8 items-center rounded-md border border-slate-200/90 bg-white px-3 text-[13px] font-medium text-slate-600 hover:border-slate-300 hover:bg-white hover:text-slate-900"
+            className="partner-btn-secondary lux-flat inline-flex min-h-11 items-center rounded-md border border-slate-200/90 bg-white px-3.5 text-[13px] font-medium text-slate-600 hover:border-slate-300 hover:bg-white hover:text-slate-900"
           >
             Availability
           </button>
           <button
             type="button"
             onClick={() => navigateSupplierUrl(PARTNER_CREATE_PATH)}
-            className="partner-btn-primary lux-flat inline-flex h-8 items-center rounded-md bg-finland px-3 text-[13px] font-semibold text-white hover:bg-finland-dark md:hidden"
+            className="partner-btn-primary lux-flat inline-flex min-h-11 items-center rounded-md bg-finland px-3.5 text-[13px] font-semibold text-white hover:bg-finland-dark md:hidden"
           >
             New listing
           </button>
@@ -616,10 +618,10 @@ export default function SupplierDashboard() {
         </div>
       ) : null}
 
-      <section className="partner-metric-grid mb-6">
-        <div className="partner-surface-panel px-4 py-3">
-          <p className="text-[12px] font-medium text-slate-500">Today’s bookings</p>
-          <p className="mt-1 text-[1.375rem] font-semibold tabular-nums tracking-tight text-slate-900">
+      <section className="partner-metric-grid mb-6" aria-label="Today at a glance">
+        <div className="partner-surface-panel px-4 py-3.5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Today’s bookings</p>
+          <p className="mt-1.5 font-display text-[1.5rem] font-semibold tabular-nums tracking-tight text-slate-900 leading-none">
             {dashboardLoading && publishedListingsCount === null
               ? '—'
               : bookingsLoadFailed
@@ -627,9 +629,9 @@ export default function SupplierDashboard() {
                 : todayDepartures.length}
           </p>
         </div>
-        <div className="partner-surface-panel px-4 py-3">
-          <p className="text-[12px] font-medium text-slate-500">Today’s guests</p>
-          <p className="mt-1 text-[1.375rem] font-semibold tabular-nums tracking-tight text-slate-900">
+        <div className="partner-surface-panel px-4 py-3.5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Today’s guests</p>
+          <p className="mt-1.5 font-display text-[1.5rem] font-semibold tabular-nums tracking-tight text-slate-900 leading-none">
             {dashboardLoading && publishedListingsCount === null
               ? '—'
               : bookingsLoadFailed
@@ -637,10 +639,10 @@ export default function SupplierDashboard() {
                 : todayGuestTotal}
           </p>
         </div>
-        <div className="partner-surface-panel px-4 py-3">
-          <p className="text-[12px] font-medium text-slate-500">Unread messages</p>
+        <div className="partner-surface-panel px-4 py-3.5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Unread messages</p>
           <p
-            className={`mt-1 text-[1.375rem] font-semibold tabular-nums tracking-tight ${
+            className={`mt-1.5 font-display text-[1.5rem] font-semibold tabular-nums tracking-tight leading-none ${
               (unreadMessageCount ?? 0) > 0 ? 'text-finland' : 'text-slate-900'
             }`}
           >
@@ -651,10 +653,10 @@ export default function SupplierDashboard() {
                 : unreadMessageCount}
           </p>
         </div>
-        <div className="partner-surface-panel px-4 py-3">
-          <p className="text-[12px] font-medium text-slate-500">Needs attention</p>
+        <div className="partner-surface-panel px-4 py-3.5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Needs attention</p>
           <p
-            className={`mt-1 text-[1.375rem] font-semibold tabular-nums tracking-tight ${
+            className={`mt-1.5 font-display text-[1.5rem] font-semibold tabular-nums tracking-tight leading-none ${
               attentionCount > 0 ? 'text-amber-700' : 'text-slate-900'
             }`}
           >
