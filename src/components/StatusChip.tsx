@@ -1,11 +1,11 @@
 type Tone = 'neutral' | 'good' | 'warn' | 'bad' | 'info';
 
 const TONE: Record<Tone, string> = {
-  neutral: 'bg-black/[0.04] text-ink-muted ring-black/[0.08]',
-  good: 'bg-emerald-50 text-emerald-800 ring-emerald-200/80',
-  warn: 'bg-amber-50 text-amber-900 ring-amber-200/80',
-  bad: 'bg-rose-50 text-rose-800 ring-rose-200/80',
-  info: 'bg-finland/10 text-finland ring-finland/20',
+  neutral: 'tv-status-chip tv-status-chip--neutral',
+  good: 'tv-status-chip tv-status-chip--good',
+  warn: 'tv-status-chip tv-status-chip--warn',
+  bad: 'tv-status-chip tv-status-chip--bad',
+  info: 'tv-status-chip tv-status-chip--info',
 };
 
 export default function StatusChip({
@@ -15,11 +15,7 @@ export default function StatusChip({
   children: string;
   tone?: Tone;
 }) {
-  return (
-    <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold ring-1 ${TONE[tone]}`}>
-      {children}
-    </span>
-  );
+  return <span className={TONE[tone]}>{children}</span>;
 }
 
 export function toneForPaymentLabel(label: string): Tone {
