@@ -560,7 +560,8 @@ serve(async (req) => {
               ? incrementalRefund
               : refundAmount;
 
-          if (guestEmail && supabaseUrl && serviceRoleKey) {
+          // Phase 1789: always notify — edge resolves auth email when guest_email blank (1788).
+          if (supabaseUrl && serviceRoleKey) {
             try {
               await fetch(`${supabaseUrl}/functions/v1/notify-customer-booking`, {
                 method: 'POST',
@@ -570,7 +571,7 @@ serve(async (req) => {
                   'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                  customerEmail: guestEmail,
+                  customerEmail: guestEmail || 'resolve@guest.local',
                   customerName: booking.guest_name ?? undefined,
                   listingTitle,
                   bookingId: booking.id,
@@ -676,6 +677,7 @@ serve(async (req) => {
           if (reverseErr) throw new Error(reverseErr.message);
 
           // Notify traveler only after payment_status is actually refunded (not on partial).
+          // Phase 1789: always notify — edge resolves auth email when guest_email blank (1788).
           const guestEmail = (booking.guest_email ?? '').trim().toLowerCase();
           let listingTitle = 'Your experience';
           let listingSupplierId: string | null = null;
@@ -690,7 +692,7 @@ serve(async (req) => {
               listingSupplierId = lt.supplier_id.trim();
             }
           }
-          if (guestEmail && supabaseUrl && serviceRoleKey) {
+          if (supabaseUrl && serviceRoleKey) {
             try {
               await fetch(`${supabaseUrl}/functions/v1/notify-customer-booking`, {
                 method: 'POST',
@@ -700,7 +702,7 @@ serve(async (req) => {
                   'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                  customerEmail: guestEmail,
+                  customerEmail: guestEmail || 'resolve@guest.local',
                   customerName: booking.guest_name ?? undefined,
                   listingTitle,
                   bookingId: booking.id,
