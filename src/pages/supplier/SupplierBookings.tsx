@@ -687,24 +687,22 @@ export default function SupplierBookings({
       setCancelError(userFacingError(res.error, PARTNER_CANCEL_REQUEST_SUBMIT_ERROR));
       return;
     }
-    const email = (cancelModal.guest_email ?? '').trim();
-    if (email) {
-      void notifyTravelerCancellationRequest({
-        customerEmail: email,
-        customerName: cancelModal.guest_name,
-        listingTitle: displayListingTitleFromPurchase(
-          cancelModal.purchase_snapshot,
-          listingMeta[cancelModal.listing_id]?.title,
-          'Booking'
-        ),
-        bookingId: cancelModal.id,
-        bookingNumber: typeof cancelModal.booking_number === 'number' ? cancelModal.booking_number : undefined,
-        bookingDate: cancelModal.booking_date,
-        reasonLabel: supplierCancellationReasonLabel(cancelReason),
-        // Phase 1712: unique key per cancellation_requests row (re-request after decline).
-        requestId: res.id,
-      });
-    }
+    // Phase 1796: always notify — edge resolves auth email when guest_email blank (1788).
+    void notifyTravelerCancellationRequest({
+      customerEmail: (cancelModal.guest_email ?? '').trim() || 'resolve@guest.local',
+      customerName: cancelModal.guest_name,
+      listingTitle: displayListingTitleFromPurchase(
+        cancelModal.purchase_snapshot,
+        listingMeta[cancelModal.listing_id]?.title,
+        'Booking'
+      ),
+      bookingId: cancelModal.id,
+      bookingNumber: typeof cancelModal.booking_number === 'number' ? cancelModal.booking_number : undefined,
+      bookingDate: cancelModal.booking_date,
+      reasonLabel: supplierCancellationReasonLabel(cancelReason),
+      // Phase 1712: unique key per cancellation_requests row (re-request after decline).
+      requestId: res.id,
+    });
     setCancelModal(null);
     setCancelReasonText('');
     setCancelEvidence('');
