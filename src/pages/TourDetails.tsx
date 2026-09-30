@@ -8,6 +8,8 @@ import {
   Share2,
   CheckCircle,
   Heart,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import ErrorState from '../components/ErrorState';
 import { useAuth } from '../contexts/AuthContext';
@@ -1538,7 +1540,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
               <button
                 type="button"
                 onClick={() => setGalleryLightboxOpen(true)}
-                className="text-xs font-semibold text-finland hover:underline"
+                className="tv-section-cta lux-flat text-xs"
               >
                 View all photos
               </button>
@@ -2359,29 +2361,53 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       {galleryLightboxOpen && hasGallery ? (
         <div
           ref={gallerySheetRef}
-          className="fixed inset-0 z-[80] flex flex-col bg-ink/90"
+          className="tv-gallery-lightbox"
           role="dialog"
           aria-modal="true"
           aria-label="Photo gallery"
         >
           <div className="flex items-center justify-between gap-3 px-4 py-3 text-white">
-            <p className="text-sm tabular-nums">
+            <p className="text-sm font-medium tabular-nums">
               {Math.min(selectedImage, images.length - 1) + 1} / {images.length}
             </p>
             <button
               type="button"
-              className="tv-btn-ghost text-white hover:bg-white/10"
+              className="tv-btn-ghost min-h-11 text-white hover:bg-white/10"
               onClick={closeGalleryLightbox}
             >
               Close
             </button>
           </div>
           <div className="relative flex flex-1 items-center justify-center px-4 pb-6">
+            {images.length > 1 ? (
+              <button
+                type="button"
+                className="tv-gallery-lightbox__nav absolute left-3 sm:left-6 z-10"
+                aria-label="Previous photo"
+                onClick={() =>
+                  setSelectedImage((i) => (i <= 0 ? images.length - 1 : i - 1))
+                }
+              >
+                <ChevronLeft className="h-5 w-5" aria-hidden />
+              </button>
+            ) : null}
             <img
               src={images[Math.min(selectedImage, images.length - 1)]}
               alt=""
-              className="max-h-[min(78vh,900px)] max-w-full rounded-lg object-contain"
+              className="max-h-[min(78vh,900px)] max-w-full rounded-lg object-contain shadow-2xl"
             />
+            {images.length > 1 ? (
+              <button
+                type="button"
+                className="tv-gallery-lightbox__nav absolute right-3 sm:right-6 z-10"
+                aria-label="Next photo"
+                onClick={() =>
+                  setSelectedImage((i) => (i >= images.length - 1 ? 0 : i + 1))
+                }
+              >
+                <ChevronRight className="h-5 w-5" aria-hidden />
+              </button>
+            ) : null}
           </div>
           {images.length > 1 ? (
             <div className="flex justify-center gap-2 overflow-x-auto px-4 pb-6">
@@ -2392,7 +2418,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                   onClick={() => setSelectedImage(index)}
                   aria-label={`Photo ${index + 1}`}
                   aria-current={selectedImage === index ? 'true' : undefined}
-                  className={`h-14 w-14 shrink-0 overflow-hidden rounded-lg ring-2 ${
+                  className={`h-14 w-14 shrink-0 overflow-hidden rounded-lg ring-2 transition-opacity ${
                     selectedImage === index ? 'ring-white' : 'ring-transparent opacity-70 hover:opacity-100'
                   }`}
                 >
