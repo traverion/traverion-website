@@ -578,10 +578,7 @@ export default function SupplierInbox() {
         />
         )
       ) : (
-        <ul
-          className="divide-y divide-slate-100 rounded-lg bg-white ring-1 ring-slate-200/90 overflow-hidden"
-          aria-busy={loading || undefined}
-        >
+        <ul className="tv-inbox-list" aria-busy={loading || undefined}>
           {visibleThreads.map((b) => {
             const open = openId === b.id;
             const last = lastByBooking[b.id];
@@ -599,11 +596,13 @@ export default function SupplierInbox() {
               <li
                 key={b.id}
                 id={`supplier-inbox-row-${b.id}`}
-                className={`${open && !mobileSheet ? 'bg-finland/[0.04]' : ''} ${unread ? 'bg-amber-50/40' : ''}`}
+                data-unread={unread ? 'true' : 'false'}
+                data-open={open && !mobileSheet ? 'true' : 'false'}
+                className="tv-inbox-thread border-b border-slate-100 last:border-b-0"
               >
                 <button
                   type="button"
-                  className="partner-row-interact lux-flat w-full text-left px-3 py-2"
+                  className="partner-row-interact lux-flat tv-inbox-thread__btn"
                   aria-expanded={open}
                   onClick={() => {
                     const opening = !open;
@@ -612,17 +611,21 @@ export default function SupplierInbox() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2 min-w-0">
+                      <div className="flex items-center gap-2.5 min-w-0">
                         <span
-                          className={`h-2 w-2 shrink-0 rounded-full ${unread ? 'bg-amber-500' : 'bg-transparent'}`}
+                          className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${unread ? 'bg-amber-500' : 'bg-transparent'}`}
                           aria-hidden={!unread}
                           aria-label={unread ? 'Unread' : undefined}
                         />
-                        <p className={`min-w-0 break-words text-sm [overflow-wrap:anywhere] line-clamp-2 ${unread ? 'font-semibold text-ink' : 'font-medium text-ink'}`}>
+                        <p
+                          className={`min-w-0 break-words text-[0.95rem] leading-snug [overflow-wrap:anywhere] line-clamp-2 ${
+                            unread ? 'font-semibold text-ink' : 'font-medium text-ink'
+                          }`}
+                        >
                           {b.guest_name?.trim() || 'Traveler'}
                         </p>
                       </div>
-                      <p className="mt-0.5 break-words pl-4 text-xs text-ink-muted [overflow-wrap:anywhere] line-clamp-2">
+                      <p className="mt-1 break-words pl-[1.125rem] text-[13px] font-medium text-ink-muted [overflow-wrap:anywhere] line-clamp-2">
                         {inboxListingLine(b, titles[b.listing_id], listingsById[b.listing_id])}
                       </p>
                     </div>
@@ -633,11 +636,11 @@ export default function SupplierInbox() {
                       {openCancelIds.has(b.id) ? <StatusChip tone="warn">Cancel pending</StatusChip> : null}
                       {isClosed ? <StatusChip tone="neutral">Closed</StatusChip> : null}
                       {typeof b.booking_number === 'number' ? (
-                        <span className="text-xs font-mono text-finland">#{b.booking_number}</span>
+                        <span className="text-xs font-mono font-semibold text-finland">#{b.booking_number}</span>
                       ) : null}
                     </div>
                   </div>
-                  <p className="mt-0.5 text-[11px] text-ink-faint pl-4">
+                  <p className="mt-1.5 text-[11px] font-medium uppercase tracking-[0.08em] text-ink-faint pl-[1.125rem]">
                     {(() => {
                       if (bookingIsStayNight(b)) {
                         const stay = stayRangeFromBooking(b);
@@ -657,16 +660,26 @@ export default function SupplierInbox() {
                         ? ` · ${dep.displayHm} (${dep.purchasedNote})`
                         : ` · ${dep.displayHm}`;
                     })()}
-                    {last?.created_at
-                      ? ` · ${new Date(last.created_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}`
-                      : ''}
                   </p>
-                  <p className="mt-0.5 text-xs text-ink-muted line-clamp-1 pl-4">
-                    {last?.body ?? 'No messages yet — open to write about this booking.'}
-                  </p>
+                  <div className="mt-1.5 flex items-baseline justify-between gap-3 pl-[1.125rem]">
+                    <p className={`min-w-0 flex-1 text-sm line-clamp-1 ${unread ? 'font-medium text-ink' : 'text-ink-muted'}`}>
+                      {last?.body ?? 'No messages yet — open to write about this booking.'}
+                    </p>
+                    {last?.created_at ? (
+                      <time
+                        dateTime={last.created_at}
+                        className="shrink-0 text-[11px] tabular-nums text-ink-faint"
+                      >
+                        {new Date(last.created_at).toLocaleString(undefined, {
+                          dateStyle: 'medium',
+                          timeStyle: 'short',
+                        })}
+                      </time>
+                    ) : null}
+                  </div>
                 </button>
                 {open && !mobileSheet ? (
-                  <div className="px-4 pb-4 motion-safe:animate-fade-in border-t border-black/[0.04] pt-3">
+                  <div className="px-4 pb-4 motion-safe:animate-fade-in border-t border-black/[0.05] pt-3 bg-paper/40">
                     {renderThreadBody(b)}
                   </div>
                 ) : null}
