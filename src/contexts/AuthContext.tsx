@@ -64,7 +64,9 @@ async function travelerUserAllowed(user: User): Promise<boolean> {
     userHasSupplierProfile(supabase, user.id),
     fetchConsumerProfile(user.id),
   ]);
-  if (hasSupplierProfile === null) return false;
+  // Phase 1771: profile lookup failure (null) must not wipe a real traveler session.
+  // Only confirmed partner-only (hasSupplierProfile === true, no consumer) is rejected.
+  if (hasSupplierProfile === null) return true;
   return !travelerSessionIsPartnerOnly({
     hasSupplierProfile,
     hasConsumerProfile: Boolean(consumerRow),
