@@ -181,7 +181,13 @@ function formatActivityDateLong(bookingDate: string | null, startHm: string | nu
 function downloadBookingsCsv(
   rows: BookingRow[],
   listingMeta: Record<string, ListingBookingMeta>,
-  opts?: { supplierId?: string; actorId?: string | null }
+  opts?: {
+    supplierId?: string;
+    actorId?: string | null;
+    filtersSnapshot?: Record<string, unknown>;
+    dateFrom?: string;
+    dateTo?: string;
+  }
 ): void {
   // Phase 1592: nights come from partnerBookingCsvValues (1573/1591) — do not invent opts.nights.
   const lines = rows.map((b) => {
@@ -212,7 +218,7 @@ function downloadBookingsCsv(
   anchor.click();
   document.body.removeChild(anchor);
   URL.revokeObjectURL(url);
-  // Phase 1763: audit export for guest-PII CSV (parity with Money 1760).
+  // Phase 1763/1783: audit export for guest-PII CSV with real filter snapshot.
   if (opts?.supplierId) {
     void insertSupplierExportRun({
       supplierId: opts.supplierId,
@@ -220,8 +226,10 @@ function downloadBookingsCsv(
       kind: 'bookings',
       format: 'csv',
       scope: 'filtered',
+      dateFrom: opts.dateFrom,
+      dateTo: opts.dateTo,
       rowCount: rows.length,
-      filtersSnapshot: { surface: 'bookings' },
+      filtersSnapshot: opts.filtersSnapshot ?? { surface: 'bookings' },
     });
   }
 }
@@ -764,6 +772,18 @@ export default function SupplierBookings({
                 downloadBookingsCsv(filteredBookings, listingMeta, {
                   supplierId: user.id,
                   actorId: user.id,
+                  // Phase 1783: record the exact filter slice that produced guest-PII rows.
+                  dateFrom: filterDateFrom || undefined,
+                  dateTo: filterDateTo || undefined,
+                  filtersSnapshot: {
+                    surface: 'bookings',
+                    view,
+                    opsFilter,
+                    listingId: filterListingId || null,
+                    query: filterQuery.trim() || null,
+                    inventoryFamily: inventoryFamily ?? null,
+                    rowCount: filteredBookings.length,
+                  },
                 });
               }}
               disabled={!canExportBookingsCsv || filteredBookings.length === 0}
