@@ -6,9 +6,9 @@ interface SkeletonProps {
   children?: ReactNode;
 }
 
-/** Single line or block skeleton with pulse. */
+/** Single line or block skeleton with shimmer (respects reduced motion via CSS). */
 export function Skeleton({ className = '', children }: SkeletonProps) {
-  const base = 'bg-black/[0.06] rounded-lg animate-pulse';
+  const base = 'tv-skeleton';
   if (children) return <div className={`${base} ${className}`}>{children}</div>;
   return <div className={`h-4 ${base} ${className}`} />;
 }
@@ -61,8 +61,8 @@ export function SkeletonPageHero({ className = '' }: { className?: string }) {
   return (
     <div className={className} aria-hidden>
       <div className="inline-flex items-center gap-2 rounded-lg bg-finland/10 px-2.5 py-1.5 ring-1 ring-finland/15 mb-3">
-        <div className="h-4 w-4 rounded bg-finland/25 animate-pulse" />
-        <div className="h-2.5 w-16 rounded bg-black/[0.06] animate-pulse" />
+        <div className="tv-skeleton h-4 w-4 rounded bg-finland/20" />
+        <div className="tv-skeleton h-2.5 w-16 rounded" />
       </div>
       <Skeleton className="h-8 w-40" />
       <Skeleton className="mt-2 h-3.5 w-full max-w-md" />

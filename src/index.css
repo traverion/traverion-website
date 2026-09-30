@@ -2198,6 +2198,36 @@ a:focus-visible,
   box-shadow: inset 0 0 0 1px rgba(28, 25, 23, 0.07);
 }
 
+/* Phase 1820: skeleton shimmer for perceived speed */
+@keyframes tv-skeleton-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.tv-skeleton {
+  border-radius: 0.5rem;
+  background-color: rgba(28, 25, 23, 0.06);
+  background-image: linear-gradient(
+    90deg,
+    rgba(28, 25, 23, 0.06) 0%,
+    rgba(28, 25, 23, 0.11) 45%,
+    rgba(28, 25, 23, 0.06) 90%
+  );
+  background-size: 200% 100%;
+  animation: tv-skeleton-shimmer 1.35s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tv-skeleton {
+    animation: none;
+    background-image: none;
+  }
+}
+
 .tv-chip {
   display: inline-flex;
   align-items: center;
