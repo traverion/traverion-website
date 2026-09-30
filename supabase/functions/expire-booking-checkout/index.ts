@@ -5,6 +5,7 @@ import { unpaidCancelShouldExpireCheckout } from '../_shared/cancelled-booking-c
 import { isStripeTestSecretKey, stripeLiveSecretBlockedMessage } from '../_shared/stripe-test-only.ts';
 import { authUserVerifiedEmail } from '../_shared/auth-verified-email.ts';
 import { travelerOwnsCheckoutBooking } from '../_shared/booking-traveler-ownership.ts';
+import { supplierTeamRoleIsEditor } from '../_shared/notify-customer-booking-auth.ts';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -91,17 +92,19 @@ serve(async (req) => {
       const listingSupplierId = String(listing?.supplier_id ?? '').trim();
       ownsAsSupplier = Boolean(listingSupplierId) && listingSupplierId === user.id;
       // Phase 1133: team members may expire unpaid checkout (parity with notify).
+      // Phase 1764: finance/viewer must not mutate Stripe Checkout — editors only.
       if (!ownsAsSupplier && listingSupplierId) {
         const { data: teamRow, error: teamErr } = await admin
           .from('supplier_team_members')
-          .select('user_id')
+          .select('user_id, role')
           .eq('supplier_id', listingSupplierId)
           .eq('user_id', user.id)
           .maybeSingle();
         if (teamErr) {
           return json({ success: false, error: 'Could not verify ownership. Try again.' }, 500);
         }
-        ownsAsSupplier = Boolean(teamRow?.user_id);
+        ownsAsSupplier =
+          Boolean(teamRow?.user_id) && supplierTeamRoleIsEditor(teamRow?.role);
       }
     }
 
