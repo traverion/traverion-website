@@ -107,7 +107,24 @@ export default function AdminSupplierVerificationPanel() {
           : action === 'reject_payout'
             ? (drafts?.payout ?? '').trim() || null
             : undefined;
-      await invokeAdminEdgeFunction({ action, supplierId, feedback });
+      const result = await invokeAdminEdgeFunction<{
+        ok?: boolean;
+        email?: { sent?: boolean; skipped?: boolean; error?: string };
+      }>({ action, supplierId, feedback });
+      // Phase 1795: approval can succeed while supplier email fails — surface it.
+      if (
+        result &&
+        typeof result === 'object' &&
+        result.email &&
+        result.email.sent === false &&
+        !result.email.skipped
+      ) {
+        setError(
+          `Saved, but supplier email failed${
+            result.email.error ? `: ${result.email.error}` : ''
+          }. They may not have been notified.`
+        );
+      }
       setDetailById((prev) => {
         const next = { ...prev };
         delete next[supplierId];
