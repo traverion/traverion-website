@@ -300,26 +300,25 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
       }
       const ops = listingOps[b.listing_id];
       // Phase 1707: fire resolves even when unpublished listing hid supplier_id from RLS.
-      if (b.guest_email || ops?.supplier_id) {
-        void notifyCancellationResolved({
-          accepted: accept,
-          customerEmail: b.guest_email,
-          customerName: b.guest_name,
-          listingTitle: displayListingTitleFromPurchase(
-            b.purchase_snapshot,
-            ops?.title || titles[b.listing_id],
-            'Booking'
-          ),
-          bookingId: b.id,
-          bookingNumber: typeof b.booking_number === 'number' ? b.booking_number : undefined,
-          bookingDate: b.booking_date,
-          supplierId: ops?.supplier_id ?? null,
-          listingId: b.listing_id,
-          guests: b.guests,
-          // Phase 1721: unique key per cancellation_requests row (re-request after decline).
-          requestId: req.id,
-        });
-      }
+      // Phase 1797: always notify — blank guest_email / missing ops still resolve via 1788/1729.
+      void notifyCancellationResolved({
+        accepted: accept,
+        customerEmail: b.guest_email,
+        customerName: b.guest_name,
+        listingTitle: displayListingTitleFromPurchase(
+          b.purchase_snapshot,
+          ops?.title || titles[b.listing_id],
+          'Booking'
+        ),
+        bookingId: b.id,
+        bookingNumber: typeof b.booking_number === 'number' ? b.booking_number : undefined,
+        bookingDate: b.booking_date,
+        supplierId: ops?.supplier_id ?? null,
+        listingId: b.listing_id,
+        guests: b.guests,
+        // Phase 1721: unique key per cancellation_requests row (re-request after decline).
+        requestId: req.id,
+      });
       if (accept) {
         setActionSuccess({ title: 'Cancellation accepted', body: TRAVELER_ACCEPT_CANCEL_SUCCESS });
         setTripView('cancelled');
