@@ -5,6 +5,7 @@ import { localYmd } from '../lib/local-ymd';
 import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 import { supplierPortalPublicBaseUrl } from '../lib/partnerHost';
 import { notifySupplierEvent } from './supabase-supplier-messaging';
+import { postBookingMessage } from './supabase-booking-ops';
 import { resolveSupplierId } from './supabase-supplier-team';
 import { hmToPgTime, pgTimeToHm, fetchListingSupplierMetaForParty } from './supabase-listings';
 import { upsertBookingPickupNoteOverrides, parseBookingMeetingPointOverride, parseBookingPickupInstructionsOverride } from '../lib/booking-notes';
@@ -410,6 +411,14 @@ export async function updateGuestBookingSpecialRequests(
         .join('|')
         .slice(0, 80)}`,
     });
+    // Phase 1766: also post a traveler thread row so Inbox Unread lights up (email alone is not enough).
+    if (fieldDiffs.length > 0) {
+      const threadBody = fieldDiffs
+        .map((d) => `${d.label}: ${d.after}`)
+        .join('\n')
+        .slice(0, 1500);
+      void postBookingMessage(row.id, `Updated booking details:\n${threadBody}`);
+    }
   }
 
   const guestEmail = (row.guest_email ?? '').trim().toLowerCase();
