@@ -148,6 +148,7 @@ export default function PartnerSidebar({
       <nav className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2 py-1">
         {primary.map((entry) => {
           if (entry.kind === 'action') {
+            if (!canCreate) return null;
             if (collapsed) {
               return (
                 <div key={entry.id} className="mb-3 flex justify-center pb-3 border-b border-slate-200/70">

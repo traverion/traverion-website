@@ -944,6 +944,7 @@ export default function SupplierLayout() {
           onNavigate={(id) => handleNavigate(id as SupplierSection)}
           onHome={() => handleNavigate('dashboard')}
           onCreate={() => handleNavigate('create')}
+          canCreate={canCreateListings}
           showFinishSetup={!onboardingComplete}
           onFinishSetup={() => handleNavigate('onboarding')}
           collapsed={sidebarCollapsed}
@@ -1045,15 +1046,17 @@ export default function SupplierLayout() {
                 </button>
               </div>
               <div className="px-4 pb-10 overflow-y-auto max-h-[calc(100dvh-3.5rem)]">
-                <button
-                  type="button"
-                  onClick={() => handleNavigate('create')}
-                  className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-md bg-finland px-3 py-3 text-[15px] font-semibold text-white"
-                  aria-label="Create listing"
-                >
-                  <Plus className="h-4 w-4" strokeWidth={2.2} aria-hidden />
-                  Create listing
-                </button>
+                {canCreateListings ? (
+                  <button
+                    type="button"
+                    onClick={() => handleNavigate('create')}
+                    className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-md bg-finland px-3 py-3 text-[15px] font-semibold text-white"
+                    aria-label="Create listing"
+                  >
+                    <Plus className="h-4 w-4" strokeWidth={2.2} aria-hidden />
+                    Create listing
+                  </button>
+                ) : null}
                 {PARTNER_MORE_GROUPS.map((group) => (
                   <div key={group.id} className="pt-4">
                     <p className="pb-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-slate-400">{group.label}</p>
