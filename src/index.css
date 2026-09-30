@@ -2008,6 +2008,35 @@ a:focus-visible,
   }
 }
 
+/* Phase 1812: booking flow continuity — Trip → Contact → Pay */
+.tv-booking-progress {
+  position: relative;
+  padding-top: 0.15rem;
+}
+
+.tv-booking-progress__track {
+  position: absolute;
+  top: 1rem;
+  left: 16.666%;
+  right: 16.666%;
+  height: 2px;
+  border-radius: 9999px;
+  background: rgba(28, 25, 23, 0.1);
+}
+
+.tv-booking-progress__fill {
+  height: 100%;
+  border-radius: 9999px;
+  background: #003580;
+  transition: width 0.22s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tv-booking-progress__fill {
+    transition: none;
+  }
+}
+
 .tv-chip {
   display: inline-flex;
   align-items: center;

@@ -14,6 +14,7 @@ import {
   ClipboardList,
   X,
   Phone,
+  Check,
 } from 'lucide-react';
 import { TourPackage } from '../types/tour';
 import { useAuth } from '../contexts/AuthContext';
@@ -156,42 +157,37 @@ function BookingProgress({
     flow === 'page' ? ['date-guests', 'contact', 'confirm'] : ['review', 'contact', 'confirm'];
   const idx = order.indexOf(step);
   const currentIndex = idx >= 0 ? idx : -1;
+  const progressPct =
+    currentIndex <= 0 ? 0 : Math.round((currentIndex / (labels.length - 1)) * 100);
 
   return (
-    <nav className="mb-6" aria-label="Booking steps">
-      <ol className="flex flex-wrap items-center gap-y-2 gap-x-1 sm:gap-x-3">
+    <nav className="tv-booking-progress mb-6" aria-label="Booking steps">
+      <div className="tv-booking-progress__track" aria-hidden>
+        <div className="tv-booking-progress__fill" style={{ width: `${progressPct}%` }} />
+      </div>
+      <ol className="relative z-[1] grid grid-cols-3 gap-1">
         {labels.map((label, i) => {
           const done = currentIndex >= 0 && i < currentIndex;
           const current = currentIndex >= 0 && i === currentIndex;
           return (
-            <li key={label} className="flex items-center gap-x-1 sm:gap-x-3">
-              {i > 0 && (
-                <span className="mx-0.5 sm:mx-1 text-ink-faint select-none" aria-hidden>
-                  →
-                </span>
-              )}
+            <li key={label} className="flex flex-col items-center text-center">
               <span
                 aria-current={current ? 'step' : undefined}
-                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors duration-200 ${
+                className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-colors duration-200 motion-reduce:transition-none ${
                   done
-                    ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200/80'
+                    ? 'bg-emerald-600 text-white shadow-sm'
                     : current
-                      ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
-                      : 'bg-black/[0.04] text-ink-faint ring-1 ring-black/[0.04]'
+                      ? 'bg-finland text-white shadow-sm ring-2 ring-finland/25'
+                      : 'bg-black/[0.06] text-ink-faint'
                 }`}
               >
-                <span
-                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                    done
-                      ? 'bg-emerald-600 text-white'
-                      : current
-                        ? 'bg-white/20 text-white'
-                        : 'bg-black/[0.08] text-ink-faint'
-                  }`}
-                  aria-hidden
-                >
-                  {done ? '✓' : i + 1}
-                </span>
+                {done ? <Check className="h-3.5 w-3.5" strokeWidth={2.75} aria-hidden /> : i + 1}
+              </span>
+              <span
+                className={`mt-1.5 text-[11px] font-semibold tracking-wide ${
+                  done ? 'text-emerald-800' : current ? 'text-finland' : 'text-ink-faint'
+                }`}
+              >
                 <span aria-hidden>{label}</span>
                 <span className="sr-only">
                   {label}
