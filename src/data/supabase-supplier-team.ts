@@ -59,7 +59,8 @@ export async function fetchSupplierTeamMembers(currentUserId: string): Promise<S
     .eq('supplier_id', supplierId)
     .order('created_at', { ascending: true });
   if (error) {
-    return loadSupplierTeam(currentUserId).members;
+    // Phase 1776: never fall back to forgeable localStorage roles when Supabase is configured.
+    throw new Error(error.message);
   }
   return ((data ?? []) as TeamRow[]).map((r) => ({
     id: r.user_id,
