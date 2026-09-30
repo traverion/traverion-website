@@ -444,15 +444,16 @@ export async function updateGuestBookingSpecialRequests(
     }
   }
 
-  const guestEmail = (row.guest_email ?? '').trim().toLowerCase();
-  if (guestEmail && fieldDiffs.length > 0) {
+  // Phase 1788: invoke even when guest_email blank — edge resolves via guest_user_id.
+  if (fieldDiffs.length > 0) {
+    const guestEmail = (row.guest_email ?? '').trim().toLowerCase();
     const ord =
       typeof row.booking_number === 'number' && Number.isFinite(row.booking_number)
         ? Math.floor(row.booking_number)
         : undefined;
     void supabase.functions.invoke('notify-customer-booking', {
       body: {
-        customerEmail: guestEmail,
+        customerEmail: guestEmail || 'resolve@guest.local',
         customerName: row.guest_name ?? undefined,
         listingTitle,
         bookingId: row.id,
@@ -562,8 +563,9 @@ export async function updateBookingStatus(
   if (status === 'cancelled' && travelerSelfCancelIsUnpaidCheckout(current)) {
     await expireUnpaidCancelledCheckout(bookingId);
     // Phase 1713: Release hold must email the traveler (parity with traveler unpaid cancel).
-    const guestEmail = (current.guest_email ?? '').trim().toLowerCase();
-    if (guestEmail && current.listing_id) {
+    // Phase 1788: invoke even when guest_email blank — edge resolves via guest_user_id.
+    if (current.listing_id) {
+      const guestEmail = (current.guest_email ?? '').trim().toLowerCase();
       const listingMeta = await fetchListingSupplierMetaForParty(current.listing_id);
       const listingTitle = displayListingTitleFromPurchase(
         current.purchase_snapshot,
@@ -576,7 +578,7 @@ export async function updateBookingStatus(
           : undefined;
       void supabase.functions.invoke('notify-customer-booking', {
         body: {
-          customerEmail: guestEmail,
+          customerEmail: guestEmail || 'resolve@guest.local',
           customerName: current.guest_name ?? undefined,
           listingTitle,
           bookingId: current.id,
@@ -700,8 +702,9 @@ export async function updateBookingSchedule(
       ? Math.floor(prior.booking_number)
       : undefined;
 
-  const guestEmail = (prior.guest_email ?? '').trim().toLowerCase();
-  if (guestEmail) {
+  // Phase 1788: invoke even when guest_email blank — edge resolves via guest_user_id.
+  {
+    const guestEmail = (prior.guest_email ?? '').trim().toLowerCase();
     const priorPickupEmpty = !String(prior.pickup_time ?? '').trim();
     const nextPickupSet = Boolean(String(nextPickupPg ?? '').trim());
     let emailKind: 'pickup_confirmed' | 'pickup_changed' | 'host_updated_schedule' =
@@ -717,7 +720,7 @@ export async function updateBookingSchedule(
 
     void supabase.functions.invoke('notify-customer-booking', {
       body: {
-        customerEmail: guestEmail,
+        customerEmail: guestEmail || 'resolve@guest.local',
         customerName: prior.guest_name ?? undefined,
         listingTitle,
         bookingId,
@@ -812,8 +815,9 @@ export async function updateBookingPickupCopy(
       after: nextInstructions || '—',
     });
   }
-  const guestEmail = (prior.guest_email ?? '').trim().toLowerCase();
-  if (guestEmail && fieldDiffs.length > 0) {
+  // Phase 1788: invoke even when guest_email blank — edge resolves via guest_user_id.
+  if (fieldDiffs.length > 0) {
+    const guestEmail = (prior.guest_email ?? '').trim().toLowerCase();
     let listingTitle = displayListingTitleFromPurchase(prior.purchase_snapshot, null, 'Your experience');
     if (prior.listing_id) {
       const meta = await fetchListingSupplierMetaForParty(prior.listing_id);
@@ -827,7 +831,7 @@ export async function updateBookingPickupCopy(
     const emailKind = priorEmpty ? 'pickup_confirmed' : 'host_updated_schedule';
     void supabase.functions.invoke('notify-customer-booking', {
       body: {
-        customerEmail: guestEmail,
+        customerEmail: guestEmail || 'resolve@guest.local',
         customerName: prior.guest_name ?? undefined,
         listingTitle,
         bookingId,
@@ -1005,11 +1009,12 @@ export async function cancelBookingAsCustomer(
     }
   }
 
-  const guestEmail = (bookingMeta?.guest_email ?? '').trim().toLowerCase();
-  if (guestEmail) {
+  // Phase 1788: invoke even when guest_email blank — edge resolves via guest_user_id.
+  {
+    const guestEmail = (bookingMeta?.guest_email ?? '').trim().toLowerCase();
     void supabase.functions.invoke('notify-customer-booking', {
       body: {
-        customerEmail: guestEmail,
+        customerEmail: guestEmail || 'resolve@guest.local',
         customerName: bookingMeta?.guest_name ?? undefined,
         listingTitle,
         bookingId: bookingMeta?.id,

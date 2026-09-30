@@ -224,22 +224,21 @@ export async function notifyCancellationResolved(params: {
   const reqSuffix = (params.requestId ?? '').trim() || String(Date.now());
   const guestEmail = (params.customerEmail ?? '').trim().toLowerCase();
   // Phase 1707: traveler self-receipt must not depend on resolving supplier_id.
-  if (guestEmail) {
-    void supabase.functions.invoke('notify-customer-booking', {
-      body: {
-        customerEmail: guestEmail,
-        customerName: params.customerName ?? undefined,
-        listingTitle: params.listingTitle,
-        bookingId: params.bookingId,
-        bookingNumber: params.bookingNumber,
-        bookingDate: params.bookingDate ?? undefined,
-        emailKind: kind,
-        publicSiteUrl: publicSiteBaseUrl(),
-        // Phase 1721: per-request key (parity with 1712 cancel request).
-        idempotencyKey: `customer:${kind}:${params.bookingId}:${reqSuffix}`,
-      },
-    });
-  }
+  // Phase 1788: invoke even when guest_email blank — edge resolves via guest_user_id.
+  void supabase.functions.invoke('notify-customer-booking', {
+    body: {
+      customerEmail: guestEmail || 'resolve@guest.local',
+      customerName: params.customerName ?? undefined,
+      listingTitle: params.listingTitle,
+      bookingId: params.bookingId,
+      bookingNumber: params.bookingNumber,
+      bookingDate: params.bookingDate ?? undefined,
+      emailKind: kind,
+      publicSiteUrl: publicSiteBaseUrl(),
+      // Phase 1721: per-request key (parity with 1712 cancel request).
+      idempotencyKey: `customer:${kind}:${params.bookingId}:${reqSuffix}`,
+    },
+  });
   const supplierId = (params.supplierId ?? '').trim();
   // Phase 1729: resolve owner via party RPC when Trips ops cache lacked supplier_id
   // (unpublished listing / ops load failure) — parity with Phase 1707 cancel/notes.
@@ -300,10 +299,12 @@ export async function notifyNewBookingMessage(params: {
       // Phase 1710: do not share permanent supplier:guest_message:{bookingId} with Trips note updates.
       idempotencyKey: `supplier:guest_message:${params.bookingId}:inbox:${params.preview.slice(0, 80)}`,
     });
-  } else if (params.customerEmail) {
+  } else {
+    // Phase 1788: invoke even when customerEmail blank — edge resolves via guest_user_id.
+    const guestEmail = (params.customerEmail ?? '').trim().toLowerCase();
     void supabase.functions.invoke('notify-customer-booking', {
       body: {
-        customerEmail: params.customerEmail,
+        customerEmail: guestEmail || 'resolve@guest.local',
         customerName: params.customerName ?? undefined,
         listingTitle: params.listingTitle,
         bookingId: params.bookingId,

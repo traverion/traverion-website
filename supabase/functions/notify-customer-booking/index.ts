@@ -528,13 +528,34 @@ serve(async (req) => {
     // Phase 1092: anonymous callers never reach this path for booking-tied kinds.
     if (isBookingTiedEmailKind(kind) && admin) {
       const bookingId = String(body.bookingId ?? '').trim();
-      const { data: bookingRow } = await admin
+      const { data: bookingRowRaw } = await admin
         .from('bookings')
         .select(
-          'status, payment_status, guest_email, amount_paid, total_amount, currency, guest_name, booking_date, check_out, nights, guests, booking_number, purchase_snapshot, listing_id, paid_at, payment_intent_id, refund_choice, special_requests'
+          'status, payment_status, guest_email, guest_user_id, amount_paid, total_amount, currency, guest_name, booking_date, check_out, nights, guests, booking_number, purchase_snapshot, listing_id, paid_at, payment_intent_id, refund_choice, special_requests'
         )
         .eq('id', bookingId)
         .maybeSingle();
+
+      // Phase 1788: empty guest_email still reaches account holders via auth (parity with 1786 reminders).
+      let bookingRow = bookingRowRaw;
+      if (bookingRow) {
+        const existingEmail = String(bookingRow.guest_email ?? '')
+          .trim()
+          .toLowerCase();
+        const guestUid = String(bookingRow.guest_user_id ?? '').trim();
+        if (!existingEmail && guestUid) {
+          try {
+            const { data: authUser } = await admin.auth.admin.getUserById(guestUid);
+            const fromAuth = (authUser?.user?.email ?? '').trim().toLowerCase();
+            if (fromAuth) {
+              await admin.from('bookings').update({ guest_email: fromAuth }).eq('id', bookingId);
+              bookingRow = { ...bookingRow, guest_email: fromAuth };
+            }
+          } catch {
+            /* ignore auth lookup failures */
+          }
+        }
+      }
 
       if (bookingRow) {
         unpaidCheckoutFromDb = notifyUnpaidCheckoutFromPaymentStatus(bookingRow.payment_status);
