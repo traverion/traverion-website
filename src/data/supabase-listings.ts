@@ -411,7 +411,12 @@ export async function deleteListing(
   opts?: { ownerUserId?: string; imageUrls?: string[] }
 ): Promise<{ ok: boolean; error?: string }> {
   if (!supabase) return { ok: false, error: 'Supabase is not configured.' };
-  const { error } = await supabase.from('listings').delete().eq('id', id);
+  const { data: deleted, error } = await supabase
+    .from('listings')
+    .delete()
+    .eq('id', id)
+    .select('id')
+    .maybeSingle();
   if (error) {
     console.error('Supabase delete listing:', error);
     const code = String((error as { code?: string }).code ?? '');
@@ -423,6 +428,10 @@ export async function deleteListing(
       };
     }
     return { ok: false, error: error.message };
+  }
+  // Phase 1744: finance/viewer RLS zero-row must not look like a delete.
+  if (!deleted?.id) {
+    return { ok: false, error: 'Listing not found or you do not have permission to remove it.' };
   }
   if (opts?.ownerUserId && opts.imageUrls?.length) {
     const { removeOwnedListingImagesAfterDelete } = await import('./supabase-listing-images');
