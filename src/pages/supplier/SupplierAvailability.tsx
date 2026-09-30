@@ -2,6 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { ChevronLeft, ChevronRight, CalendarDays, Ban } from 'lucide-react';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
+import { useSupplierRole } from '../../hooks/useSupplierRole';
+import { canManageBookings } from '../../lib/supplierTeamRoles';
 import { fetchMyListings, pgTimeToHm } from '../../data/supabase-listings';
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
 import {
@@ -73,6 +75,9 @@ function defaultSpots(listing: TourPackage | null): number | null {
 
 export default function SupplierAvailability() {
   const { user, isSupabase } = useSupplierAuth();
+  const { role } = useSupplierRole();
+  // Phase 1747: finance/viewer read calendar; writes need editor roles (RLS 1746).
+  const canEditCalendar = canManageBookings(role);
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [monthIndex0, setMonthIndex0] = useState(today.getMonth());
@@ -378,6 +383,11 @@ export default function SupplierAvailability() {
 
   const saveCap = async (iso: string, capacity: number) => {
     if (!listingId) return;
+    // Phase 1747: role gate before RLS (finance/viewer are read-only).
+    if (!canEditCalendar) {
+      setError('Your role can view the calendar but cannot change capacity or blocks.');
+      return;
+    }
     setSavingIso(iso);
     setError(null);
     setSaveNote(null);
@@ -648,7 +658,9 @@ export default function SupplierAvailability() {
               )}
               <button
                 type="button"
+                disabled={!canEditCalendar}
                 onClick={() => {
+                  if (!canEditCalendar) return;
                   setBulkError(null);
                   setSaveNote(null);
                   setBulkFrom('');
@@ -656,12 +668,18 @@ export default function SupplierAvailability() {
                   setBulkCapacity('0');
                   setBulkOpen(true);
                 }}
-                className="tv-btn-secondary inline-flex items-center gap-1.5 text-sm shrink-0 self-start sm:self-auto"
+                className="tv-btn-secondary inline-flex items-center gap-1.5 text-sm shrink-0 self-start sm:self-auto disabled:opacity-40"
               >
                 <Ban className="h-4 w-4" aria-hidden />
                 {stayCalendar ? 'Block a range of nights' : 'Edit multiple dates'}
               </button>
             </div>
+          ) : null}
+
+          {!canEditCalendar ? (
+            <NoticeCallout tone="info" className="mb-4">
+              Your role can view this calendar but cannot change capacity or blocks. Ask an owner, manager, or ops teammate.
+            </NoticeCallout>
           ) : null}
 
           {error ? (
