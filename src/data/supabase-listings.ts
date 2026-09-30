@@ -403,22 +403,32 @@ export async function updateListing(id: string, tour: Partial<TourPackage>): Pro
   return { ok: true, tour: merged ?? saved };
 }
 
-/** Delete a listing (requires auth; must be owner). Optionally GC owned listing-images. */
+/** Delete a listing (requires auth; must be owner). Optionally GC owned listing-images.
+ * Phase 1734: returns ok:false when bookings still reference the listing (FK RESTRICT).
+ */
 export async function deleteListing(
   id: string,
   opts?: { ownerUserId?: string; imageUrls?: string[] }
-): Promise<boolean> {
-  if (!supabase) return false;
+): Promise<{ ok: boolean; error?: string }> {
+  if (!supabase) return { ok: false, error: 'Supabase is not configured.' };
   const { error } = await supabase.from('listings').delete().eq('id', id);
   if (error) {
     console.error('Supabase delete listing:', error);
-    return false;
+    const code = String((error as { code?: string }).code ?? '');
+    if (code === '23503') {
+      return {
+        ok: false,
+        error:
+          'This listing still has bookings. Take it offline instead of removing it so trips and Money history stay.',
+      };
+    }
+    return { ok: false, error: error.message };
   }
   if (opts?.ownerUserId && opts.imageUrls?.length) {
     const { removeOwnedListingImagesAfterDelete } = await import('./supabase-listing-images');
     await removeOwnedListingImagesAfterDelete(opts.ownerUserId, opts.imageUrls);
   }
-  return true;
+  return { ok: true };
 }
 
 /** Update only listing status (draft/published). */

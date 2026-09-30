@@ -26,6 +26,8 @@ import {
 import { fetchBookingsForSupplier } from '../../data/supabase-bookings';
 import {
   countUpcomingPaidTripsForListing,
+  countBookingsForListing,
+  deleteListingBlockedByBookingsNotice,
   partnerListingUpcomingPaidCheckPending,
   unpublishUpcomingBookingsCheckFailedNotice,
   unpublishUpcomingBookingsNotice,
@@ -119,6 +121,7 @@ export default function SupplierListings() {
   const [deactivateUpcomingPaid, setDeactivateUpcomingPaid] = useState<number | null>(null);
   const [deactivateUpcomingPaidCheckFailed, setDeactivateUpcomingPaidCheckFailed] = useState(false);
   const [deleteUpcomingPaid, setDeleteUpcomingPaid] = useState<number | null>(null);
+  const [deleteBookingCount, setDeleteBookingCount] = useState<number | null>(null);
   const [deleteUpcomingPaidCheckFailed, setDeleteUpcomingPaidCheckFailed] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deactivateBusy, setDeactivateBusy] = useState(false);
@@ -170,6 +173,7 @@ export default function SupplierListings() {
       deleteUpcomingGenRef.current += 1;
       setListingPendingDelete(null);
       setDeleteUpcomingPaid(null);
+      setDeleteBookingCount(null);
       setDeleteUpcomingPaidCheckFailed(false);
     }
   });
@@ -192,10 +196,11 @@ export default function SupplierListings() {
   // Phase 1490: confirm must not run before upcoming-paid honesty (fast click ≠ zero trips).
   const deleteUpcomingPaidCheckPending = partnerListingUpcomingPaidCheckPending({
     requiresCheck: Boolean(isSupabase && user?.id && listingPendingDelete),
-    count: deleteUpcomingPaid,
+    count: deleteBookingCount,
     checkFailed: deleteUpcomingPaidCheckFailed,
   });
-  const deactivateUpcomingPaidCheckPending = partnerListingUpcomingPaidCheckPending({
+  const deleteBlockedByBookings =
+    typeof deleteBookingCount === 'number' && deleteBookingCount > 0;  const deactivateUpcomingPaidCheckPending = partnerListingUpcomingPaidCheckPending({
     requiresCheck: Boolean(isSupabase && user?.id && listingPendingDeactivate),
     count: deactivateUpcomingPaid,
     checkFailed: deactivateUpcomingPaidCheckFailed,
@@ -499,6 +504,7 @@ export default function SupplierListings() {
       deleteUpcomingGenRef.current += 1;
       setListingPendingDelete(null);
       setDeleteUpcomingPaid(null);
+      setDeleteBookingCount(null);
       setDeleteUpcomingPaidCheckFailed(false);
       setListingPendingDeactivate(null);
       setDeactivateUpcomingPaid(null);
@@ -581,6 +587,7 @@ export default function SupplierListings() {
         if (!deleteBusy) {
           setListingPendingDelete(null);
           setDeleteUpcomingPaid(null);
+          setDeleteBookingCount(null);
           setDeleteUpcomingPaidCheckFailed(false);
         }
         return;
@@ -818,6 +825,8 @@ export default function SupplierListings() {
 
   const confirmDeleteListing = async () => {
     if (!listingPendingDelete || !canEditListings || deleteUpcomingPaidCheckPending) return;
+    // Phase 1734: never hard-delete when any booking exists (FK RESTRICT + Money/Trips).
+    if (deleteBlockedByBookings) return;
     const id = listingPendingDelete.id;
     const pending = listingPendingDelete;
     setDeleteBusy(true);
@@ -825,13 +834,18 @@ export default function SupplierListings() {
       if (isSupabase) {
         const { collectListingStorageImageUrls } = await import('../../data/supabase-listing-images');
         const imageUrls = collectListingStorageImageUrls(pending);
-        await deleteListing(id, {
+        const res = await deleteListing(id, {
           ownerUserId: user?.id,
           imageUrls,
         });
+        if (!res.ok) {
+          setError(userFacingError(res.error, 'Could not remove listing. Try again.'));
+          return;
+        }
         refresh();
         setListingPendingDelete(null);
         setDeleteUpcomingPaid(null);
+        setDeleteBookingCount(null);
         setDeleteUpcomingPaidCheckFailed(false);
       } else {
         const next = getSupplierListings().filter((t) => t.id !== id);
@@ -839,6 +853,7 @@ export default function SupplierListings() {
         refresh();
         setListingPendingDelete(null);
         setDeleteUpcomingPaid(null);
+        setDeleteBookingCount(null);
         setDeleteUpcomingPaidCheckFailed(false);
       }
     } catch (e) {
@@ -1591,6 +1606,7 @@ export default function SupplierListings() {
                     closeListingActionsMenu();
                     setListingPendingDelete(menuListing);
                     setDeleteUpcomingPaid(null);
+                    setDeleteBookingCount(null);
                     setDeleteUpcomingPaidCheckFailed(false);
                     if (isSupabase && user?.id) {
                       const listingId = menuListing.id;
@@ -1601,6 +1617,7 @@ export default function SupplierListings() {
                           if (gen !== deleteUpcomingGenRef.current) return;
                           if (listingPendingDeleteRef.current?.id !== listingId) return;
                           setDeleteUpcomingPaidCheckFailed(false);
+                          setDeleteBookingCount(countBookingsForListing(rows, listingId));
                           setDeleteUpcomingPaid(countUpcomingPaidTripsForListing(rows, listingId));
                         })
                         .catch(() => {
@@ -1608,6 +1625,7 @@ export default function SupplierListings() {
                           if (listingPendingDeleteRef.current?.id !== listingId) return;
                           // Phase 1471: fetch failure ≠ zero upcoming paid trips.
                           setDeleteUpcomingPaid(null);
+                          setDeleteBookingCount(null);
                           setDeleteUpcomingPaidCheckFailed(true);
                         });
                     }
@@ -1634,6 +1652,7 @@ export default function SupplierListings() {
                   if (deleteBusy) return;
                   setListingPendingDelete(null);
                   setDeleteUpcomingPaid(null);
+                  setDeleteBookingCount(null);
                   setDeleteUpcomingPaidCheckFailed(false);
                 }}
               />
@@ -1653,6 +1672,7 @@ export default function SupplierListings() {
                       : () => {
                           setListingPendingDelete(null);
                           setDeleteUpcomingPaid(null);
+                          setDeleteBookingCount(null);
                           setDeleteUpcomingPaidCheckFailed(false);
                         }
                   }
@@ -1661,20 +1681,24 @@ export default function SupplierListings() {
                 <p className="text-sm text-ink-muted leading-snug">
                   <span className="font-medium text-ink">{listingPendingDelete.title}</span> will disappear from
                   Partner listings.
-                  {inventoryFamilyFromListing(listingPendingDelete) === 'stay'
-                    ? ' Confirmed stays stay in Bookings and Calendar history.'
-                    : ' Confirmed bookings stay in Bookings.'}{' '}
-                  This cannot be undone.
+                  {/* Phase 1734: hard delete never preserves bookings — only empty listings may be removed. */}
+                  {deleteBlockedByBookings
+                    ? ' Bookings stay in Bookings and Money — remove is blocked while any booking exists.'
+                    : ' Only listings with no bookings can be permanently removed. This cannot be undone.'}
                 </p>
                 {deleteUpcomingPaidCheckPending ? (
                   <p className="mt-3 text-sm text-ink-muted leading-relaxed" aria-busy="true">
-                    Checking Bookings for upcoming paid trips…
+                    Checking Bookings…
                   </p>
                 ) : deleteUpcomingPaidCheckFailed ? (
                   <p className="mt-3 text-sm font-medium text-amber-900 leading-relaxed">
                     {unpublishUpcomingBookingsCheckFailedNotice()}
                   </p>
-                ) : deleteUpcomingPaid !== null ? (
+                ) : deleteBlockedByBookings ? (
+                  <p className="mt-3 text-sm font-medium text-ink leading-relaxed">
+                    {deleteListingBlockedByBookingsNotice(deleteBookingCount ?? 0)}
+                  </p>
+                ) : deleteUpcomingPaid !== null && deleteUpcomingPaid > 0 ? (
                   (() => {
                     const notice = unpublishUpcomingBookingsNotice(deleteUpcomingPaid);
                     return notice ? (
@@ -1690,6 +1714,7 @@ export default function SupplierListings() {
                     onClick={() => {
                       setListingPendingDelete(null);
                       setDeleteUpcomingPaid(null);
+                      setDeleteBookingCount(null);
                       setDeleteUpcomingPaidCheckFailed(false);
                     }}
                   >
@@ -1698,7 +1723,7 @@ export default function SupplierListings() {
                   <button
                     type="button"
                     className="inline-flex items-center justify-center min-h-[44px] rounded-lg bg-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-800 disabled:opacity-50"
-                    disabled={deleteBusy || deleteUpcomingPaidCheckPending}
+                    disabled={deleteBusy || deleteUpcomingPaidCheckPending || deleteBlockedByBookings}
                     onClick={() => void confirmDeleteListing()}
                   >
                     {deleteBusy ? 'Removing…' : 'Remove listing'}

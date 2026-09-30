@@ -27,7 +27,9 @@ describe('SupplierListings upcoming paid check race (Phase 1489)', () => {
     expect(src).toMatch(/Phase 1490|partnerListingUpcomingPaidCheckPending/);
     expect(src).toMatch(/deleteUpcomingPaidCheckPending/);
     expect(src).toMatch(/deactivateUpcomingPaidCheckPending/);
-    expect(src).toMatch(/disabled=\{deleteBusy \|\| deleteUpcomingPaidCheckPending\}/);
+    expect(src).toMatch(/disabled=\{deleteBusy \|\| deleteUpcomingPaidCheckPending \|\| deleteBlockedByBookings\}/);
     expect(src).toMatch(/disabled=\{deactivateBusy \|\| deactivateUpcomingPaidCheckPending\}/);
+    expect(src).toContain('Phase 1734');
+    expect(src).toContain('countBookingsForListing');
   });
 });

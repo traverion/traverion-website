@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   countUpcomingPaidTripsForListing,
+  countBookingsForListing,
+  deleteListingBlockedByBookingsNotice,
   partnerListingUpcomingPaidCheckPending,
   unpublishUpcomingBookingsCheckFailedNotice,
   unpublishUpcomingBookingsNotice,
@@ -86,5 +88,21 @@ describe('listing-unpublish-impact', () => {
     expect(
       partnerListingUpcomingPaidCheckPending({ requiresCheck: false, count: null, checkFailed: false })
     ).toBe(false);
+  });
+
+  it('Phase 1734: any booking count blocks hard delete', () => {
+    expect(
+      countBookingsForListing(
+        [
+          { listing_id: 'a' },
+          { listing_id: 'a' },
+          { listing_id: 'b' },
+        ],
+        'a'
+      )
+    ).toBe(2);
+    expect(deleteListingBlockedByBookingsNotice(0)).toBeNull();
+    expect(deleteListingBlockedByBookingsNotice(1)?.toLowerCase()).toContain('take the listing offline');
+    expect(deleteListingBlockedByBookingsNotice(2)?.toLowerCase()).toContain('2 bookings');
   });
 });

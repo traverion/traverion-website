@@ -30,6 +30,26 @@ export function countUpcomingPaidTripsForListing(
   return n;
 }
 
+/** Phase 1734: any booking row blocks hard delete (CASCADE wipe / RESTRICT). */
+export function countBookingsForListing(
+  bookings: Array<{ listing_id: string }>,
+  listingId: string
+): number {
+  let n = 0;
+  for (const b of bookings) {
+    if (b.listing_id === listingId) n += 1;
+  }
+  return n;
+}
+
+export function deleteListingBlockedByBookingsNotice(count: number): string | null {
+  if (count < 1) return null;
+  if (count === 1) {
+    return 'This listing has 1 booking in Bookings. Remove is blocked so trips and Money history stay. Take the listing offline instead.';
+  }
+  return `This listing has ${count} bookings in Bookings. Remove is blocked so trips and Money history stay. Take the listing offline instead.`;
+}
+
 export function unpublishUpcomingBookingsNotice(count: number): string | null {
   if (count < 1) return null;
   if (count === 1) {
