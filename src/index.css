@@ -281,7 +281,43 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
 }
 
 .listing-creation-footer {
-  background-color: #fffcf8;
+  background-color: rgba(255, 252, 248, 0.96);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  box-shadow:
+    0 -1px 0 rgba(28, 25, 23, 0.06),
+    0 -12px 28px -18px rgba(15, 23, 42, 0.22);
+}
+
+/* Phase 1807: creation sticky footer + scene progress feel premium */
+.listing-creation-scene-progress__track {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.listing-creation-scene-progress__dot {
+  display: block;
+  height: 0.375rem;
+  width: 0.375rem;
+  border-radius: 9999px;
+  background: currentColor;
+  transition: transform 0.16s ease, background-color 0.16s ease, width 0.16s ease;
+}
+
+.listing-creation-scene-progress__dot--current {
+  width: 1rem;
+  background: #003580;
+}
+
+.listing-creation-scene-progress__dot--complete {
+  background: #003580;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .listing-creation-scene-progress__dot {
+    transition: none;
+  }
 }
 
 .listing-creation-content label.block,

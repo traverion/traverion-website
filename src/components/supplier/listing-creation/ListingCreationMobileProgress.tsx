@@ -25,7 +25,7 @@ export function ListingCreationMobileProgress({
   exitBusy: boolean;
 }) {
   return (
-    <div className="listing-creation-mobile-bar shrink-0 border-b border-black/[0.08] px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] lg:hidden">
+    <div className="listing-creation-mobile-bar shrink-0 border-b border-black/[0.08] px-4 pb-3.5 pt-[max(0.75rem,env(safe-area-inset-top))] lg:hidden">
       <div className="flex items-center justify-between gap-3">
         <button
           type="button"
@@ -51,8 +51,26 @@ export function ListingCreationMobileProgress({
       <p className="mt-1 font-display text-[1.65rem] font-bold leading-tight tracking-tight text-ink">{title}</p>
       <div className="mt-3 flex items-baseline justify-between gap-3">
         <p className="text-sm font-semibold text-ink">{currentLabel}</p>
-        {progressCopy ? <p className="text-xs text-ink-muted">{progressCopy}</p> : null}
+        {progressCopy ? <p className="text-xs font-medium tabular-nums text-ink-muted">{progressCopy}</p> : null}
       </div>
+      {items.length > 0 ? (
+        <div
+          className="mt-2.5 h-1 overflow-hidden rounded-full bg-black/[0.08]"
+          aria-hidden
+        >
+          <div
+            className="h-full rounded-full bg-finland transition-[width] duration-200 motion-reduce:transition-none"
+            style={{
+              width: `${Math.max(
+                8,
+                Math.round(
+                  ((items.findIndex((item) => item.state === 'current') + 1) / items.length) * 100
+                )
+              )}%`,
+            }}
+          />
+        </div>
+      ) : null}
       <nav aria-label={navLabel} className="mt-2">
         {/* Phase 1615: column count follows step count (stay wizard has 6; tours 5). */}
         <ol
