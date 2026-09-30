@@ -602,9 +602,9 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                 type="button"
                 onClick={() => goToPackages()}
                 onPointerEnter={prefetchPackagesPage}
-                className="lux-flat text-sm font-semibold text-finland"
+                className="tv-section-cta lux-flat"
               >
-                All tours <ArrowRight className="w-4 h-4 inline" />
+                All tours <ArrowRight className="w-4 h-4" aria-hidden />
               </button>
             ) : null}
           </div>

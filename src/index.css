@@ -1668,6 +1668,15 @@ a:focus-visible,
   background: #1c1917;
   text-align: left;
   box-shadow: 0 0 0 1px rgba(28, 25, 23, 0.06);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.tv-dest-tile:hover {
+  box-shadow: 0 0 0 1px rgba(0, 53, 128, 0.22), 0 10px 24px -12px rgba(15, 23, 42, 0.35);
+}
+
+.tv-dest-tile:active {
+  transform: scale(0.985);
 }
 
 .tv-dest-tile img {
@@ -1685,6 +1694,16 @@ a:focus-visible,
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .tv-dest-tile,
+  .tv-dest-tile img {
+    transition: none;
+  }
+  .tv-dest-tile:active {
+    transform: none;
+  }
+}
+
 .tv-dest-tile-label {
   position: absolute;
   inset: auto 0 0 0;
@@ -1692,6 +1711,41 @@ a:focus-visible,
   background: linear-gradient(to top, rgba(0, 0, 0, 0.78), transparent);
   color: #fff;
 }
+
+/* Phase 1802: section “All tours / All stays” affordance — OTA-style text CTA */
+.tv-section-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2.75rem;
+  padding: 0.35rem 0.85rem;
+  margin-right: -0.35rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #003580;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.12s ease;
+}
+.tv-section-cta:hover {
+  background: rgba(0, 53, 128, 0.08);
+  color: #00285f;
+}
+.tv-section-cta:active {
+  transform: scale(0.98);
+}
+.tv-section-cta:focus-visible {
+  outline: 2px solid #003580;
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tv-section-cta {
+    transition: none;
+  }
+  .tv-section-cta:active {
+    transform: none;
+  }
+}
+
 .tv-chip {
   display: inline-flex;
   align-items: center;
