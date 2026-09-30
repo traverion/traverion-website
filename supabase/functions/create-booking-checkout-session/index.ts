@@ -895,6 +895,12 @@ serve(async (req) => {
       }
     }
     if (updateError) {
+      // Phase 1778: expire orphan Checkout when booking update fails after session.create.
+      try {
+        await stripe.checkout.sessions.expire(session.id);
+      } catch {
+        // Already complete/expired — continue.
+      }
       return json({ success: false, error: 'Checkout created but booking update failed' }, 500);
     }
     if ((updatedRows ?? []).length === 0) {
