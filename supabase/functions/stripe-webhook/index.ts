@@ -4,7 +4,11 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
 import { stripeWebhookReplayDecision } from '../_shared/stripe-webhook-replay.ts';
 import { isStripeChargeFullyRefunded, refundBeforePaidShouldMarkFailed, remainingPaidMajorFromCharge, chargeRefundMetaBookingMatchesPaymentIntent } from '../_shared/stripe-charge-refund.ts';
-import { staleCheckoutFailureShouldApply } from '../_shared/checkout-resume.ts';
+import {
+  checkoutSessionPaymentIntentId,
+  eventCheckoutSessionIdForPaymentIntentFailure,
+  staleCheckoutFailureShouldApply,
+} from '../_shared/checkout-resume.ts';
 import { paymentIntentSucceededShouldPromote } from '../_shared/checkout-pi-succeeded.ts';
 import { promotePaidFromCheckoutSession, notifyTravelerCheckoutCaptureReversed } from '../_shared/promote-paid-from-checkout.ts';
 import { isStripeTestSecretKey, stripeLiveSecretBlockedMessage } from '../_shared/stripe-test-only.ts';
@@ -248,10 +252,27 @@ serve(async (req) => {
           await markProcessed('processed');
           return json({ success: true, ignored: true, alreadyPaid: true, bookingId });
         }
+        // Phase 1855: PI-failed has no session id; create-booking clears payment_intent_id,
+        // so PI-only stale checks ignore the first real decline. Correlate via current session.
+        let eventCheckoutSessionId: string | null = null;
+        const bookingCheckoutSessionId = failedBooking?.checkout_session_id ?? null;
+        if (bookingCheckoutSessionId) {
+          try {
+            const openSession = await stripe.checkout.sessions.retrieve(bookingCheckoutSessionId);
+            eventCheckoutSessionId = eventCheckoutSessionIdForPaymentIntentFailure({
+              bookingCheckoutSessionId,
+              eventPaymentIntentId: paymentIntentId,
+              sessionPaymentIntentId: checkoutSessionPaymentIntentId(openSession),
+            });
+          } catch {
+            /* leave null — fall through to PI-only stale rules */
+          }
+        }
         if (
           !staleCheckoutFailureShouldApply({
+            eventCheckoutSessionId,
             eventPaymentIntentId: paymentIntentId,
-            bookingCheckoutSessionId: failedBooking?.checkout_session_id ?? null,
+            bookingCheckoutSessionId,
             bookingPaymentIntentId: failedBooking?.payment_intent_id ?? null,
           })
         ) {

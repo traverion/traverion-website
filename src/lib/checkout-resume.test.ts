@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   checkoutPaymentStatusCanResume,
+  checkoutSessionPaymentIntentId,
+  eventCheckoutSessionIdForPaymentIntentFailure,
   resumeStayCheckoutDate,
   resumeListingIdMismatch,
   resumeStoredOptionId,
@@ -74,6 +76,32 @@ describe('staleCheckoutFailureShouldApply', () => {
         bookingPaymentIntentId: 'pi_old',
       })
     ).toBe(true);
+  });
+
+  it('Phase 1855: correlates PI failure to current session so first decline applies', () => {
+    expect(checkoutSessionPaymentIntentId({ payment_intent: 'pi_fail' })).toBe('pi_fail');
+    expect(checkoutSessionPaymentIntentId({ payment_intent: { id: 'pi_fail' } })).toBe('pi_fail');
+    const correlated = eventCheckoutSessionIdForPaymentIntentFailure({
+      bookingCheckoutSessionId: 'cs_current',
+      eventPaymentIntentId: 'pi_fail',
+      sessionPaymentIntentId: 'pi_fail',
+    });
+    expect(correlated).toBe('cs_current');
+    expect(
+      staleCheckoutFailureShouldApply({
+        eventCheckoutSessionId: correlated,
+        eventPaymentIntentId: 'pi_fail',
+        bookingCheckoutSessionId: 'cs_current',
+        bookingPaymentIntentId: null,
+      })
+    ).toBe(true);
+    expect(
+      eventCheckoutSessionIdForPaymentIntentFailure({
+        bookingCheckoutSessionId: 'cs_new',
+        eventPaymentIntentId: 'pi_old',
+        sessionPaymentIntentId: 'pi_new',
+      })
+    ).toBeNull();
   });
 });
 

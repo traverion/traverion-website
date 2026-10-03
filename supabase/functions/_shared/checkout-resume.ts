@@ -51,6 +51,34 @@ export function staleCheckoutFailureShouldApply(params: {
   return true;
 }
 
+/** Normalize Checkout Session.payment_intent (string or expanded object). */
+export function checkoutSessionPaymentIntentId(session: {
+  payment_intent?: string | { id?: string | null } | null;
+}): string | null {
+  const pi = session.payment_intent;
+  if (typeof pi === 'string' && pi.trim()) return pi.trim();
+  if (pi && typeof pi === 'object' && typeof pi.id === 'string' && pi.id.trim()) return pi.id.trim();
+  return null;
+}
+
+/**
+ * Phase 1855: `payment_intent.payment_failed` has no Checkout session id.
+ * After create-booking clears `payment_intent_id`, PI-only stale checks return false
+ * and the first real decline is ignored. Correlate via the booking's current
+ * session's payment_intent — only then treat the event as belonging to that session.
+ */
+export function eventCheckoutSessionIdForPaymentIntentFailure(params: {
+  bookingCheckoutSessionId?: string | null;
+  eventPaymentIntentId?: string | null;
+  sessionPaymentIntentId?: string | null;
+}): string | null {
+  const bookCs = String(params.bookingCheckoutSessionId ?? '').trim();
+  const eventPi = String(params.eventPaymentIntentId ?? '').trim();
+  const sessionPi = String(params.sessionPaymentIntentId ?? '').trim();
+  if (!bookCs || !eventPi || !sessionPi) return null;
+  return sessionPi === eventPi ? bookCs : null;
+}
+
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
