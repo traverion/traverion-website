@@ -4,7 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
 import { listingHasUpcomingBookableSeason, quoteListingBooking, resolveTourDepartureHmForCutoff, stayCheckoutNightsAlreadyBooked, stayNightIsOperatorBlocked, stayRangeFromBooking, tourDepartureRemainingSeats, tourDepartureSlotCapacity, type DiscountRow, type ListingQuoteRow, type StayCheckoutOccupancyRow } from '../_shared/booking-quote.ts';
 import { tourCheckoutOccupiedGuests, inventoryStartTimeHmFromBooking, type TourCheckoutOccupancyRow } from '../_shared/booking-hold.ts';
-import { checkoutPaymentStatusCanResume, resumeStayCheckoutDate, checkoutResumeLostRaceToPaid, resumeListingIdMismatch, resumeStoredOptionId } from '../_shared/checkout-resume.ts';
+import { checkoutPaymentStatusCanResume, resumeStayCheckoutDate, checkoutResumeLostRaceToPaid, resumeListingIdMismatch, resumeStoredOptionId, participantMixFromGuestBreakdown } from '../_shared/checkout-resume.ts';
 import { resumeStayLeadGuestName, stayCheckoutLeadGuestNameReady, stayBookingColumnsForCheckoutUpdate } from '../_shared/stay-checkout-guest.ts';
 import {
   buildPurchaseSnapshot,
@@ -191,7 +191,7 @@ serve(async (req) => {
       const withOption = await admin
         .from('bookings')
         .select(
-          'id, listing_id, guest_email, guest_user_id, guest_name, guests, booking_date, check_out, nights, status, payment_status, total_amount, currency, special_requests, booking_option_id, checkout_session_id, start_time, purchase_snapshot'
+          'id, listing_id, guest_email, guest_user_id, guest_name, guests, guest_breakdown, booking_date, check_out, nights, status, payment_status, total_amount, currency, special_requests, booking_option_id, checkout_session_id, start_time, purchase_snapshot'
         )
         .eq('id', targetBookingId)
         .maybeSingle();
@@ -200,7 +200,7 @@ serve(async (req) => {
         const fallback = await admin
           .from('bookings')
           .select(
-            'id, listing_id, guest_email, guest_user_id, guest_name, guests, booking_date, status, payment_status, total_amount, currency, special_requests, checkout_session_id, start_time'
+            'id, listing_id, guest_email, guest_user_id, guest_name, guests, guest_breakdown, booking_date, status, payment_status, total_amount, currency, special_requests, checkout_session_id, start_time'
           )
           .eq('id', targetBookingId)
           .maybeSingle();
@@ -282,8 +282,9 @@ serve(async (req) => {
         });
         startTime = purchased || '';
       }
-      // Drop client participant mix — guests already restored from the booking row.
-      participantMix = null;
+      // Drop client participant mix — rebuild from frozen guest_breakdown so
+      // age_dependent Pay-now resume can re-quote without trusting the body.
+      participantMix = participantMixFromGuestBreakdown(row.guest_breakdown);
     } else {
       if (!listingId) return json({ success: false, error: 'listingId is required' }, 400);
       if (!bookingDate || !/^\d{4}-\d{2}-\d{2}$/.test(bookingDate)) {

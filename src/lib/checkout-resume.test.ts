@@ -6,6 +6,7 @@ import {
   resumeStayCheckoutDate,
   resumeListingIdMismatch,
   resumeStoredOptionId,
+  participantMixFromGuestBreakdown,
   staleCheckoutFailureShouldApply,
   stripeWebhookCanMarkPaidFrom,
   checkoutResumeLostRaceToPaid,
@@ -237,5 +238,20 @@ describe('resumeStoredOptionId', () => {
         purchaseSnapshot: null,
       })
     ).toBeNull();
+  });
+});
+
+describe('participantMixFromGuestBreakdown', () => {
+  it('Phase 1856: rebuilds category quantities from frozen guest_breakdown', () => {
+    expect(
+      participantMixFromGuestBreakdown([
+        { categoryId: 'adult-1', label: 'Adult', quantity: 2 },
+        { categoryId: 'child-1', label: 'Child', quantity: 1 },
+        { categoryId: '', label: 'Skip', quantity: 3 },
+        { categoryId: 'adult-1', label: 'Adult', quantity: 1 },
+      ])
+    ).toEqual({ 'adult-1': 3, 'child-1': 1 });
+    expect(participantMixFromGuestBreakdown(null)).toBeNull();
+    expect(participantMixFromGuestBreakdown([])).toBeNull();
   });
 });

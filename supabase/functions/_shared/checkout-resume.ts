@@ -143,3 +143,23 @@ export function resumeStoredOptionId(params: {
   }
   return null;
 }
+
+/**
+ * Phase 1856: Pay-now resume must not accept client participantMix, but
+ * age_dependent options still need category quantities to quote. Rebuild from
+ * the frozen guest_breakdown column (never from the request body).
+ */
+export function participantMixFromGuestBreakdown(
+  guestBreakdown: unknown
+): Record<string, number> | null {
+  if (!Array.isArray(guestBreakdown)) return null;
+  const mix: Record<string, number> = {};
+  for (const row of guestBreakdown) {
+    if (!row || typeof row !== 'object') continue;
+    const id = String((row as { categoryId?: unknown }).categoryId ?? '').trim();
+    const qty = Math.floor(Number((row as { quantity?: unknown }).quantity ?? 0));
+    if (!id || !(qty > 0)) continue;
+    mix[id] = (mix[id] ?? 0) + qty;
+  }
+  return Object.keys(mix).length > 0 ? mix : null;
+}
