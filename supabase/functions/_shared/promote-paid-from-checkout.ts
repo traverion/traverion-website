@@ -42,6 +42,22 @@ function amountToMajor(amountMinor: number | null | undefined): number | null {
   return Math.round((amountMinor / 100) * 100) / 100;
 }
 
+/**
+ * Phase 1853: service-role edge→edge invokes must send the *same* key in
+ * Authorization and apikey. Mixing anon apikey + service-role Bearer trips
+ * Supabase "Conflicting API keys" at the gateway — paid confirm / new_booking
+ * never reached the notify functions (booking #44). Refund path already used
+ * matching service-role headers and worked.
+ */
+export function serviceRoleEdgeInvokeHeaders(serviceRoleKey: string): Record<string, string> {
+  const key = serviceRoleKey.trim();
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${key}`,
+    apikey: key,
+  };
+}
+
 export async function notifyPaidBookingSideEffects(params: {
   admin: SupabaseClient;
   supabaseUrl: string;
@@ -51,7 +67,6 @@ export async function notifyPaidBookingSideEffects(params: {
   currency: string;
 }) {
   const { admin, supabaseUrl, serviceRoleKey, bookingId, amountPaid, currency } = params;
-  const anon = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
   const portalBase = (Deno.env.get('PUBLIC_SITE_URL') ?? 'https://www.traverion.com').replace(/\/$/, '');
 
   const withStay = await admin
@@ -104,11 +119,8 @@ export async function notifyPaidBookingSideEffects(params: {
       ? booking.check_out.trim()
       : undefined;
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${serviceRoleKey}`,
-    apikey: anon || serviceRoleKey,
-  };
+  // Phase 1853: match refund webhook / notifyTravelerCheckoutCaptureReversed headers.
+  const headers = serviceRoleEdgeInvokeHeaders(serviceRoleKey);
 
   const b = booking as Record<string, unknown>;
   const bn = b.booking_number;
@@ -119,7 +131,7 @@ export async function notifyPaidBookingSideEffects(params: {
 
   if (listing?.supplier_id) {
     try {
-      await fetch(`${supabaseUrl}/functions/v1/notify-supplier-event`, {
+      const res = await fetch(`${supabaseUrl}/functions/v1/notify-supplier-event`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -134,16 +146,37 @@ export async function notifyPaidBookingSideEffects(params: {
           portalBaseUrl: portalBase,
           bookingPaymentStatus: 'paid',
           bookingNumber: orderNum,
+          idempotencyKey: `supplier:new_booking:${bookingId}`,
         }),
       });
-    } catch {
-      /* non-fatal */
+      if (!res.ok) {
+        console.error(
+          JSON.stringify({
+            source: 'notifyPaidBookingSideEffects',
+            channel: 'supplier',
+            eventType: 'new_booking',
+            bookingId,
+            status: res.status,
+            body: (await res.text()).slice(0, 400),
+          })
+        );
+      }
+    } catch (err) {
+      console.error(
+        JSON.stringify({
+          source: 'notifyPaidBookingSideEffects',
+          channel: 'supplier',
+          eventType: 'new_booking',
+          bookingId,
+          error: err instanceof Error ? err.message : 'notify-supplier-event failed',
+        })
+      );
     }
   }
 
   if (guestEmailResolved) {
     try {
-      await fetch(`${supabaseUrl}/functions/v1/notify-customer-booking`, {
+      const res = await fetch(`${supabaseUrl}/functions/v1/notify-customer-booking`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -165,8 +198,28 @@ export async function notifyPaidBookingSideEffects(params: {
           idempotencyKey: `customer:booking_confirmed_paid:${bookingId}`,
         }),
       });
-    } catch {
-      /* non-fatal */
+      if (!res.ok) {
+        console.error(
+          JSON.stringify({
+            source: 'notifyPaidBookingSideEffects',
+            channel: 'customer',
+            emailKind: 'booking_confirmed_paid',
+            bookingId,
+            status: res.status,
+            body: (await res.text()).slice(0, 400),
+          })
+        );
+      }
+    } catch (err) {
+      console.error(
+        JSON.stringify({
+          source: 'notifyPaidBookingSideEffects',
+          channel: 'customer',
+          emailKind: 'booking_confirmed_paid',
+          bookingId,
+          error: err instanceof Error ? err.message : 'notify-customer-booking failed',
+        })
+      );
     }
   }
 }
@@ -255,11 +308,7 @@ export async function notifyTravelerCheckoutCaptureReversed(params: {
   try {
     const res = await fetch(`${supabaseUrl}/functions/v1/notify-customer-booking`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${serviceRoleKey}`,
-        apikey: serviceRoleKey,
-      },
+      headers: serviceRoleEdgeInvokeHeaders(serviceRoleKey),
       body: JSON.stringify({
         customerEmail: guestEmail,
         customerName: existingBooking?.guest_name ?? undefined,
