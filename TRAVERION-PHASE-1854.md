@@ -4,7 +4,7 @@
 **Branch:** `main`  
 **Stripe:** TEST only  
 **Starting SHA:** `bd9d887` (post-1853 ending SHA record)  
-**Ending SHA:** *(recorded after commit)*  
+**Ending SHA:** `383b0ecd63ac146bc14c19cdf3e7dd1a314a8bd9`  
 **Code change:** none — existing Inbox/RPC/notify path certified
 
 ---
