@@ -4,7 +4,7 @@
 **Branch:** `main`  
 **Stripe:** TEST only  
 **Starting SHA:** `885e85e` (post-1854)  
-**Ending SHA:** *(recorded after commit)*
+**Ending SHA:** `dff44e2bfabc117c69a14b4dc104e3d1caa379b6`
 
 ---
 
