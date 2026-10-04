@@ -854,6 +854,13 @@ serve(async (req) => {
     if (beforeErr) return json({ error: beforeErr.message }, 500);
     if (!before) return json({ error: 'Supplier not found' }, 404);
 
+    // Phase 1862: skip DB write when decision email already sent (do not clear sibling markers).
+    const alreadyEmailed =
+      before.verification_status === 'verified' && Boolean(before.business_verified_email_sent_at);
+    if (alreadyEmailed) {
+      return json({ ok: true, email: { sent: false, skipped: true, reason: 'already_sent' } });
+    }
+
     const now = new Date().toISOString();
     const { error } = await admin
       .from('supplier_profiles')
@@ -865,12 +872,6 @@ serve(async (req) => {
       })
       .eq('id', supplierId);
     if (error) return json({ error: error.message }, 500);
-
-    const alreadyEmailed =
-      before.verification_status === 'verified' && Boolean(before.business_verified_email_sent_at);
-    if (alreadyEmailed) {
-      return json({ ok: true, email: { sent: false, skipped: true, reason: 'already_sent' } });
-    }
 
     const to = await resolveSupplierRecipientEmail(admin, supplierId);
     if (!to) {
@@ -938,6 +939,13 @@ serve(async (req) => {
     if (beforeErr) return json({ error: beforeErr.message }, 500);
     if (!before) return json({ error: 'Supplier not found' }, 404);
 
+    // Phase 1862: skip DB write when decision email already sent (preserve staff feedback).
+    const alreadyEmailed =
+      before.verification_status === 'rejected' && Boolean(before.business_rejected_email_sent_at);
+    if (alreadyEmailed) {
+      return json({ ok: true, email: { sent: false, skipped: true, reason: 'already_sent' } });
+    }
+
     const now = new Date().toISOString();
     const { error } = await admin
       .from('supplier_profiles')
@@ -950,12 +958,6 @@ serve(async (req) => {
       })
       .eq('id', supplierId);
     if (error) return json({ error: error.message }, 500);
-
-    const alreadyEmailed =
-      before.verification_status === 'rejected' && Boolean(before.business_rejected_email_sent_at);
-    if (alreadyEmailed) {
-      return json({ ok: true, email: { sent: false, skipped: true, reason: 'already_sent' } });
-    }
 
     const to = await resolveSupplierRecipientEmail(admin, supplierId);
     if (!to) {
@@ -1025,6 +1027,13 @@ serve(async (req) => {
     if (beforeErr) return json({ error: beforeErr.message }, 500);
     if (!before) return json({ error: 'Supplier not found' }, 404);
 
+    // Phase 1862: skip DB write when decision email already sent.
+    const alreadyEmailed =
+      before.payout_verification_status === 'verified' && Boolean(before.payout_verified_email_sent_at);
+    if (alreadyEmailed) {
+      return json({ ok: true, email: { sent: false, skipped: true, reason: 'already_sent' } });
+    }
+
     const now = new Date().toISOString();
     const { error } = await admin
       .from('supplier_profiles')
@@ -1036,12 +1045,6 @@ serve(async (req) => {
       })
       .eq('id', supplierId);
     if (error) return json({ error: error.message }, 500);
-
-    const alreadyEmailed =
-      before.payout_verification_status === 'verified' && Boolean(before.payout_verified_email_sent_at);
-    if (alreadyEmailed) {
-      return json({ ok: true, email: { sent: false, skipped: true, reason: 'already_sent' } });
-    }
 
     const to = await resolveSupplierRecipientEmail(admin, supplierId);
     if (!to) {
@@ -1109,6 +1112,13 @@ serve(async (req) => {
     if (beforeErr) return json({ error: beforeErr.message }, 500);
     if (!before) return json({ error: 'Supplier not found' }, 404);
 
+    // Phase 1862: skip DB write when decision email already sent (preserve staff feedback).
+    const alreadyEmailed =
+      before.payout_verification_status === 'rejected' && Boolean(before.payout_rejected_email_sent_at);
+    if (alreadyEmailed) {
+      return json({ ok: true, email: { sent: false, skipped: true, reason: 'already_sent' } });
+    }
+
     const now = new Date().toISOString();
     const { error } = await admin
       .from('supplier_profiles')
@@ -1120,12 +1130,6 @@ serve(async (req) => {
       })
       .eq('id', supplierId);
     if (error) return json({ error: error.message }, 500);
-
-    const alreadyEmailed =
-      before.payout_verification_status === 'rejected' && Boolean(before.payout_rejected_email_sent_at);
-    if (alreadyEmailed) {
-      return json({ ok: true, email: { sent: false, skipped: true, reason: 'already_sent' } });
-    }
 
     const to = await resolveSupplierRecipientEmail(admin, supplierId);
     if (!to) {
