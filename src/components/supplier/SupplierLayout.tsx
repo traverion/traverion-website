@@ -45,6 +45,10 @@ import {
   userCanAccessPartnerPortal,
   userHasSupplierProfile,
 } from '../../lib/supplierPortalAccess';
+import {
+  partnerPortalAccessFalseShouldBlock,
+  partnerPortalBlockedShouldSignOut,
+} from '../../lib/partnerPortalGate';
 import { isPartnerMarketingPathForCurrentHost } from '../../lib/partnerHost';
 import {
   PARTNER_APP_BASE,
@@ -67,7 +71,12 @@ import { setPartnerAuthFlash } from '../../lib/partnerAuthFlash';
 import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
 import ErrorState from '../ErrorState';
 import SkipLink from '../SkipLink';
-import { pathEquals, replaceHrefIfChanged, replacePathIfChanged } from '../../lib/authNavigation';
+import {
+  pathEquals,
+  replaceHrefIfChanged,
+  replacePathIfChanged,
+  softReplacePathIfChanged,
+} from '../../lib/authNavigation';
 import { partnerRedirectForSession } from '../../lib/partnerAuthState';
 import { appStripeIsTestMode } from '../../lib/money';
 import { PARTNER_PRIMARY_NAV_SECTION_IDS } from '../../lib/partner-primary-nav';
@@ -254,8 +263,9 @@ function isSupplierPortalPath(pathname: string): boolean {
 export default function SupplierLayout() {
   const { user, loading, signOut, isSupabase } = useSupplierAuth();
   // Phase 1755: Create listing CTA is editor-only (matches listings write RLS).
-  const { role } = useSupplierRole();
-  const canCreateListings = canManageBookings(role);
+  const { role, roleStatus } = useSupplierRole();
+  const canCreateListings =
+    (roleStatus === 'ready' || roleStatus === 'error') && canManageBookings(role);
   const [partnerProfileGate, setPartnerProfileGate] = useState<PartnerProfileGate | null>(null);
   const [partnerGateRetryKey, setPartnerGateRetryKey] = useState(0);
   const blockedRedirectStarted = useRef(false);
@@ -404,8 +414,10 @@ export default function SupplierLayout() {
         }
         if (ok === false) {
           falseStreak += 1;
-          // Avoid flashing traveler on one transient empty read (Strict Mode, cold JWT, etc.)
-          if (falseStreak >= 2 && attempt >= 1) {
+          // Phase 1857: cold JWT / auth-header lag can yield empty RLS reads right
+          // after password login. Require a sustained false streak before blocking
+          // (previously falseStreak>=2 && attempt>=1 signed real partners out).
+          if (partnerPortalAccessFalseShouldBlock({ falseStreak, attempt })) {
             await tryRepairPartnerProfileRow();
             const afterRepair = await userCanAccessPartnerPortal(client, uid);
             if (stale()) return;
@@ -419,7 +431,7 @@ export default function SupplierLayout() {
         } else {
           falseStreak = 0;
         }
-        await new Promise((r) => setTimeout(r, 100 + attempt * 45));
+        await new Promise((r) => setTimeout(r, 120 + attempt * 55));
       }
       if (stale()) return;
       await tryRepairPartnerProfileRow();
@@ -492,8 +504,16 @@ export default function SupplierLayout() {
 
     const email = typeof user.email === 'string' ? user.email.trim() : '';
     const travelerSignInUrl = `${publicSiteBaseUrl()}/log-in`;
+    const partnerMeta = authUserHasPartnerSignupMetadata(user);
 
     void (async () => {
+      // Phase 1857: partner-signup JWTs must not be auto-signed-out on a false-negative
+      // portal gate — leave them on an error/retry surface instead.
+      if (!partnerPortalBlockedShouldSignOut({ hasPartnerSignupMetadata: partnerMeta })) {
+        blockedRedirectStarted.current = false;
+        setPartnerProfileGate({ kind: 'failed', forUserId: user.id });
+        return;
+      }
       let message = partnerSignInTravelerOnlyEmailError(travelerSignInUrl);
       try {
         const consumerRow = await fetchConsumerProfile(user.id);
@@ -508,7 +528,7 @@ export default function SupplierLayout() {
       await signOut();
       replacePathIfChanged(PARTNER_LOGIN_PATH);
     })();
-  }, [partnerGateView, user?.id, user?.email, signOut]);
+  }, [partnerGateView, user?.id, user?.email, user, signOut]);
 
   useLayoutEffect(() => {
     const clearPartnerWorkspaceProfileState = () => {
@@ -794,11 +814,15 @@ export default function SupplierLayout() {
     if (ret) {
       const pathOnly = ret.split('?')[0] ?? PARTNER_APP_BASE;
       setSection(getSectionFromPath(pathOnly) ?? 'dashboard');
+      // Phase 1857: soft navigate — full location.replace remounts AuthProvider and raced a wipe.
+      if (softReplacePathIfChanged(ret)) return;
       replaceHrefIfChanged(ret);
       return;
     }
     setSection('dashboard');
-    replacePathIfChanged(PARTNER_APP_BASE);
+    if (!softReplacePathIfChanged(PARTNER_APP_BASE)) {
+      replacePathIfChanged(PARTNER_APP_BASE);
+    }
   };
 
   const handlePartnerSignOut = () => {

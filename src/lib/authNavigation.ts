@@ -28,6 +28,19 @@ export function replacePathIfChanged(path: string): boolean {
   return true;
 }
 
+/**
+ * In-app path change without a full document reload (keeps React auth state).
+ * Prefer this after partner login so traveler AuthProvider cannot race a reload wipe.
+ */
+export function softReplacePathIfChanged(path: string): boolean {
+  if (typeof window === 'undefined') return false;
+  const next = normalizePathname(path);
+  if (pathEquals(window.location.pathname, next)) return false;
+  window.history.replaceState({}, '', next);
+  window.dispatchEvent(new PopStateEvent('popstate'));
+  return true;
+}
+
 /** Same-origin href replace that keeps `?query` (session return, booking deep links). */
 export function replaceHrefIfChanged(href: string): boolean {
   if (typeof window === 'undefined') return false;

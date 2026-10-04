@@ -13,8 +13,10 @@ import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
  */
 export default function PartnerCreateListingPage() {
   // Phase 1755: finance/viewer must not start a create journey that RLS 216 will reject.
-  const { role } = useSupplierRole();
-  const canCreate = canManageBookings(role);
+  // Phase 1857: wait for shared role roster before enabling/disabling create.
+  const { role, roleStatus } = useSupplierRole();
+  const roleReady = roleStatus === 'ready' || roleStatus === 'error';
+  const canCreate = roleReady && canManageBookings(role);
 
   const startFamily = (family: 'tour' | 'stay') => {
     if (!canCreate) return;
@@ -28,7 +30,11 @@ export default function PartnerCreateListingPage() {
         description="Pick what travelers will book. Tours and stays use different calendars and rules — Traverion does not fold them into one form."
       />
 
-      {!canCreate ? (
+      {!roleReady ? (
+        <NoticeCallout tone="info" className="mb-4">
+          Checking your workspace role…
+        </NoticeCallout>
+      ) : !canCreate ? (
         <NoticeCallout tone="info" className="mb-4">
           Your role can view listings but cannot create new ones. Ask an owner, manager, or ops teammate.
         </NoticeCallout>

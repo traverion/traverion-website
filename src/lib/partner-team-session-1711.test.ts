@@ -7,6 +7,10 @@ describe('Phase 1711: partner shell must not wipe team JWTs', () => {
     const src = readFileSync(resolve(__dirname, '../contexts/AuthContext.tsx'), 'utf8');
     expect(src).toContain('Phase 1711');
     expect(src).toContain('isTraverionPartnerHost()');
+    // Phase 1857: localhost partner routes + partner signup metadata skip traveler wipe.
+    expect(src).toContain('isPartnerPortalPathForCurrentHost');
+    expect(src).toContain("traverion_product");
+    expect(src).toContain('Phase 1857');
     expect(src).toContain('userHasSupplierProfile');
     expect(src).not.toMatch(/fetchSupplierProfile\(user\.id\)/);
     expect(src).not.toMatch(/fetchSupplierProfile\(data\.user\.id\)/);

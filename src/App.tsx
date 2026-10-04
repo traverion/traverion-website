@@ -5,6 +5,7 @@ import SkipLink from './components/SkipLink';
 import Home from './pages/Home';
 import { TranslationProvider } from './contexts/TranslationContext';
 import { SupplierAuthProvider } from './contexts/SupplierAuthContext';
+import { SupplierRoleProvider } from './contexts/SupplierRoleContext';
 import { AuthProvider } from './contexts/AuthContext';
 import AuthModal from './components/AuthModal';
 import {
@@ -797,9 +798,11 @@ function App() {
       <TranslationProvider>
         <AuthProvider>
           <SupplierAuthProvider>
-            <Suspense fallback={<PartnerRouteFallback />}>
-              <SupplierLayout />
-            </Suspense>
+            <SupplierRoleProvider>
+              <Suspense fallback={<PartnerRouteFallback />}>
+                <SupplierLayout />
+              </Suspense>
+            </SupplierRoleProvider>
           </SupplierAuthProvider>
         </AuthProvider>
       </TranslationProvider>

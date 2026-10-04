@@ -4,11 +4,12 @@ import { resolve } from 'node:path';
 
 describe('Phase 1748: real partner roles + review reply editors', () => {
   it('useSupplierRole loads roster from fetchSupplierTeamMembers', () => {
-    const src = readFileSync(resolve(__dirname, '../hooks/useSupplierRole.ts'), 'utf8');
-    expect(src).toContain('Phase 1748');
-    expect(src).toContain('fetchSupplierTeamMembers');
-    expect(src).toContain("mine?.role ?? 'viewer'");
-    expect(src).not.toMatch(/role:\s*'owner',\s*\n\s*members:\s*\[\]/);
+    const hook = readFileSync(resolve(__dirname, '../hooks/useSupplierRole.ts'), 'utf8');
+    const ctx = readFileSync(resolve(__dirname, '../contexts/SupplierRoleContext.tsx'), 'utf8');
+    expect(hook).toContain('Phase 1748');
+    expect(ctx).toContain('fetchSupplierTeamMembers');
+    expect(ctx).toContain("mine?.role ?? 'viewer'");
+    expect(ctx).not.toMatch(/role:\s*'owner',\s*\n\s*members:\s*\[\]/);
   });
 
   it('migration gates review_replies writes with is_supplier_account_editor', () => {

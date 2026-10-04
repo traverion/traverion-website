@@ -7,7 +7,11 @@ import { fetchConsumerProfile, ensureConsumerProfile, consumerProfileEnsurePaylo
 import { isPhoneAvailableForSignup } from '../data/supabase-phone-signup';
 import { isTraverionAdminUser } from '../lib/adminAuth';
 import { customerSignInPartnerOnlyMessage, travelerSignUpDuplicateEmailMessage } from '../lib/customerSupplierAuthMessages';
-import { isTraverionPartnerHost, supplierPortalPublicBaseUrl } from '../lib/partnerHost';
+import {
+  isPartnerPortalPathForCurrentHost,
+  isTraverionPartnerHost,
+  supplierPortalPublicBaseUrl,
+} from '../lib/partnerHost';
 import { PARTNER_LOGIN_PATH } from '../lib/partnerPortalPaths';
 import { clearSupabaseAuthStorage } from '../lib/clearSupabaseAuthStorage';
 import { sanitizeAuthRedirectTo } from '../lib/authRedirect';
@@ -58,6 +62,19 @@ async function travelerUserAllowed(user: User): Promise<boolean> {
   // Phase 1711: partner shell must not run this gate — team JWTs resolve owner profile via
   // fetchSupplierProfile and would be wiped as "partner-only" while SupplierAuth correctly admits them.
   if (isTraverionPartnerHost()) return true;
+  // Phase 1857: localhost serves /login + /partner/* for the partner product on the same
+  // origin as the traveler app. Wipe only on traveler surfaces — not while the partner shell is active.
+  if (
+    typeof window !== 'undefined' &&
+    isPartnerPortalPathForCurrentHost(window.location.pathname)
+  ) {
+    return true;
+  }
+  // Phase 1857: identity-level skip — partner signup metadata means this JWT belongs to the
+  // partner product. Traveler AuthProvider must not clear it during login→/partner transitions.
+  const partnerMeta = (user.user_metadata as { traverion_product?: string } | undefined)
+    ?.traverion_product;
+  if (partnerMeta === 'partner') return true;
   if (!supabase) return false;
   // Phase 1711: own supplier_profiles row only — not resolveSupplierId (team → owner).
   try {

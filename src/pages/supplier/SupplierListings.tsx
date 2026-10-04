@@ -91,8 +91,9 @@ function verificationStatusLabel(status: string): string {
 
 export default function SupplierListings() {
   const { user, isSupabase } = useSupplierAuth();
-  const { role } = useSupplierRole();
-  const canEditListings = canManageBookings(role);
+  const { role, roleStatus } = useSupplierRole();
+  const roleReady = roleStatus === 'ready' || roleStatus === 'error';
+  const canEditListings = roleReady && canManageBookings(role);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formFocusSection, setFormFocusSection] = useState<string | null>(null);
@@ -350,6 +351,8 @@ export default function SupplierListings() {
       return;
     }
     if ((createFam === 'tour' || createFam === 'stay') && !edit) {
+      // Phase 1857: wait for shared role roster — do not strip ?create= while still loading.
+      if (!roleReady) return;
       // Phase 1755: deep-link create must not open the editor for finance/viewer.
       if (!canEditListings) {
         window.history.replaceState(window.history.state, '', `${PARTNER_APP_BASE}/listings`);
@@ -401,7 +404,7 @@ export default function SupplierListings() {
       setFormFocusSection(null);
       // Keep local "Add listing" / edit-without-URL state; only URL drives deep links.
     }
-  }, [bumpEditorInstanceIfOpening, canEditListings, clearCanonicalListingSession]);
+  }, [bumpEditorInstanceIfOpening, canEditListings, clearCanonicalListingSession, roleReady]);
 
   useEffect(() => {
     syncListingsUrlToState();
@@ -411,7 +414,8 @@ export default function SupplierListings() {
   }, [syncListingsUrlToState]);
 
   useEffect(() => {
-    if (canEditListings) return;
+    // Phase 1857: only close editor / strip edit deep-links after roster is resolved.
+    if (!roleReady || canEditListings) return;
     editorSessionTokenRef.current = null;
     showFormRef.current = false;
     setShowForm(false);
@@ -419,10 +423,10 @@ export default function SupplierListings() {
     setFormFocusSection(null);
     clearCanonicalListingSession();
     const params = new URLSearchParams(window.location.search);
-    if (params.get('edit')) {
+    if (params.get('edit') || params.get('create')) {
       window.history.replaceState({}, '', `${PARTNER_APP_BASE}/listings`);
     }
-  }, [canEditListings]);
+  }, [canEditListings, clearCanonicalListingSession, roleReady]);
 
   useEffect(() => {
     if (editNotFoundCloseTimerRef.current) {
@@ -1051,7 +1055,7 @@ export default function SupplierListings() {
         </div>
       ) : null}
 
-      {!canEditListings && (
+      {roleReady && !canEditListings && (
         <div className="mb-4 rounded-lg border border-amber-200/80 border-l-[3px] border-l-amber-500 bg-amber-50/70 px-3.5 py-3 text-sm text-ink">
           <p className="font-semibold text-ink">View-only access</p>
           <p className="mt-0.5 text-xs text-ink-muted leading-snug">
