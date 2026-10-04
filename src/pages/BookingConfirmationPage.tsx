@@ -709,10 +709,11 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                   <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">
                     {cancelled ? payLabel : 'Amount paid'}
                   </p>
-                  <p className="mt-1 font-display text-2xl font-semibold tabular-nums tracking-tight text-ink">
-                    {formatMoney(Number(booking.amount_paid), booking.currency)}
+                  {/* Phase 1861: money + TEST as siblings with an explicit space (avoid “€89TEST”). */}
+                  <p className="mt-1 flex flex-wrap items-baseline gap-x-2 font-display text-2xl font-semibold tabular-nums tracking-tight text-ink">
+                    <span>{formatMoney(Number(booking.amount_paid), booking.currency)}</span>
                     {isStripeTestCheckoutSession(booking.checkout_session_id) || appStripeIsTestMode() ? (
-                      <span className="ml-2 text-sm font-medium text-amber-800">TEST</span>
+                      <span className="text-sm font-medium text-amber-800">{' '}TEST</span>
                     ) : null}
                   </p>
                 </div>
