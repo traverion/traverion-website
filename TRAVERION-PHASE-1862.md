@@ -4,7 +4,7 @@
 **Branch:** `main`  
 **Stripe:** TEST only (not exercised)  
 **Starting SHA:** `fa98312f1eb3d645bc6b4323cde4107f05d351ba`  
-**Ending SHA:** *(recorded after commit)*  
+**Ending SHA:** `d764d7f30b102dc38d65eb94ce98c7f62ef67ae5`  
 **Working tree:** clean after ending-SHA record  
 **Origin:** local `main` ahead of `origin/main` (push not performed)
 
