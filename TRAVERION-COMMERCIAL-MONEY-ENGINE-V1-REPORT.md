@@ -12,11 +12,11 @@ Money truth is server-side (Postgres RPCs + ledger), integer minor units, checko
 
 ## 3. ENDING SHA
 
-(see git after commit — this report is written with the commercial engine commit)
+`b4d35e5515e9bbba9721f64f6ec1d5c4967e032d`
 
 ## 4. COMMITS
 
-Commercial Money Engine V1 (domain + migrations 238–240 + UI + tests + edge wiring). Exact hash filled at commit time.
+- `b4d35e5` — Build commercial money engine V1 (15% Standard / 18% Fast).
 
 ## 5. PUSH STATE
 
