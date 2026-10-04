@@ -688,7 +688,8 @@ export default function SupplierBookings({
       return;
     }
     // Phase 1796: always notify — edge resolves auth email when guest_email blank (1788).
-    void notifyTravelerCancellationRequest({
+    // Phase 1859: request already committed; surface soft warn if traveler email fails.
+    const notify = await notifyTravelerCancellationRequest({
       customerEmail: (cancelModal.guest_email ?? '').trim() || 'resolve@guest.local',
       customerName: cancelModal.guest_name,
       listingTitle: displayListingTitleFromPurchase(
@@ -706,6 +707,13 @@ export default function SupplierBookings({
     setCancelModal(null);
     setCancelReasonText('');
     setCancelEvidence('');
+    if (!notify.sent && !notify.skipped) {
+      setError(
+        `Cancellation request submitted, but traveler email failed${
+          notify.error ? `: ${notify.error}` : ''
+        }. They may not have been notified — the request is still open in Trips.`
+      );
+    }
     await load();
   }, [cancelModal, canEditBookings, cancelReason, cancelReasonText, cancelEvidence, listingMeta, load]);
 

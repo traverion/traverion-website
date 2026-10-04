@@ -584,7 +584,8 @@ serve(async (req) => {
           // Phase 1789: always notify — edge resolves auth email when guest_email blank (1788).
           if (supabaseUrl && serviceRoleKey) {
             try {
-              await fetch(`${supabaseUrl}/functions/v1/notify-customer-booking`, {
+              // Phase 1859: log non-OK notify without failing refund truth.
+              const res = await fetch(`${supabaseUrl}/functions/v1/notify-customer-booking`, {
                 method: 'POST',
                 headers: {
                   Authorization: `Bearer ${serviceRoleKey}`,
@@ -607,6 +608,19 @@ serve(async (req) => {
                   idempotencyKey: `customer:partial_refund_recorded:${booking.id}:${event.id}`,
                 }),
               });
+              if (!res.ok) {
+                console.error(
+                  JSON.stringify({
+                    source: 'stripe-webhook',
+                    channel: 'customer',
+                    emailKind: 'partial_refund_recorded',
+                    eventId: event.id,
+                    bookingId: booking.id,
+                    status: res.status,
+                    body: (await res.text()).slice(0, 400),
+                  })
+                );
+              }
             } catch (emailErr) {
               console.error(
                 JSON.stringify({
@@ -621,7 +635,7 @@ serve(async (req) => {
           }
           if (listingSupplierId && supabaseUrl && serviceRoleKey) {
             try {
-              await fetch(`${supabaseUrl}/functions/v1/notify-supplier-event`, {
+              const res = await fetch(`${supabaseUrl}/functions/v1/notify-supplier-event`, {
                 method: 'POST',
                 headers: {
                   Authorization: `Bearer ${serviceRoleKey}`,
@@ -647,6 +661,19 @@ serve(async (req) => {
                   idempotencyKey: `supplier:partial_refund_recorded:${booking.id}:${event.id}`,
                 }),
               });
+              if (!res.ok) {
+                console.error(
+                  JSON.stringify({
+                    source: 'stripe-webhook',
+                    channel: 'supplier',
+                    eventType: 'partial_refund_recorded',
+                    eventId: event.id,
+                    bookingId: booking.id,
+                    status: res.status,
+                    body: (await res.text()).slice(0, 400),
+                  })
+                );
+              }
             } catch (hostEmailErr) {
               console.error(
                 JSON.stringify({
@@ -715,7 +742,7 @@ serve(async (req) => {
           }
           if (supabaseUrl && serviceRoleKey) {
             try {
-              await fetch(`${supabaseUrl}/functions/v1/notify-customer-booking`, {
+              const res = await fetch(`${supabaseUrl}/functions/v1/notify-customer-booking`, {
                 method: 'POST',
                 headers: {
                   Authorization: `Bearer ${serviceRoleKey}`,
@@ -743,6 +770,19 @@ serve(async (req) => {
                   idempotencyKey: `customer:refund_completed:${booking.id}`,
                 }),
               });
+              if (!res.ok) {
+                console.error(
+                  JSON.stringify({
+                    source: 'stripe-webhook',
+                    channel: 'customer',
+                    emailKind: 'refund_completed',
+                    eventId: event.id,
+                    bookingId: booking.id,
+                    status: res.status,
+                    body: (await res.text()).slice(0, 400),
+                  })
+                );
+              }
             } catch (emailErr) {
               console.error(
                 JSON.stringify({
@@ -757,7 +797,7 @@ serve(async (req) => {
           // Phase 1733: host must learn Money reversed — traveler path alone was silent for partners.
           if (listingSupplierId && supabaseUrl && serviceRoleKey) {
             try {
-              await fetch(`${supabaseUrl}/functions/v1/notify-supplier-event`, {
+              const res = await fetch(`${supabaseUrl}/functions/v1/notify-supplier-event`, {
                 method: 'POST',
                 headers: {
                   Authorization: `Bearer ${serviceRoleKey}`,
@@ -782,6 +822,19 @@ serve(async (req) => {
                   idempotencyKey: `supplier:refund_completed:${booking.id}`,
                 }),
               });
+              if (!res.ok) {
+                console.error(
+                  JSON.stringify({
+                    source: 'stripe-webhook',
+                    channel: 'supplier',
+                    eventType: 'refund_completed',
+                    eventId: event.id,
+                    bookingId: booking.id,
+                    status: res.status,
+                    body: (await res.text()).slice(0, 400),
+                  })
+                );
+              }
             } catch (hostEmailErr) {
               console.error(
                 JSON.stringify({

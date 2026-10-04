@@ -74,6 +74,8 @@ export default function BookingMessageThread({
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Phase 1859: RPC ok but email notify failed — warn, not submit failure. */
+  const [notifyWarning, setNotifyWarning] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [markReadError, setMarkReadError] = useState<string | null>(null);
   const loadGenRef = useRef(0);
@@ -123,6 +125,7 @@ export default function BookingMessageThread({
     if (!body) return;
     setSending(true);
     setError(null);
+    setNotifyWarning(null);
     const res = await postBookingMessage(bookingId, body);
     setSending(false);
     if (!res.ok) {
@@ -131,7 +134,8 @@ export default function BookingMessageThread({
     }
     setDraft('');
     await load();
-    void notifyNewBookingMessage({
+    // Phase 1859: message RPC already succeeded — soft-warn if email notify fails.
+    const notify = await notifyNewBookingMessage({
       fromRole: viewerRole,
       preview: body,
       customerEmail,
@@ -143,6 +147,13 @@ export default function BookingMessageThread({
       supplierId: supplierId ?? '',
       listingId,
     });
+    if (!notify.sent && !notify.skipped) {
+      setNotifyWarning(
+        notify.error?.trim()
+          ? notify.error
+          : 'Message saved, but email notification may not have been sent. It remains on this booking in Traverion.'
+      );
+    }
   };
 
   return (
@@ -232,6 +243,11 @@ export default function BookingMessageThread({
       {error ? (
         <NoticeCallout title={BOOKING_MESSAGE_SUBMIT_ERROR_TITLE} tone="danger">
           {error}
+        </NoticeCallout>
+      ) : null}
+      {notifyWarning ? (
+        <NoticeCallout title="Message saved" tone="warn">
+          <p className="text-sm text-ink-muted">{notifyWarning}</p>
         </NoticeCallout>
       ) : null}
       {canCompose && !loadError && !loading ? (

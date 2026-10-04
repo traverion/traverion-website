@@ -243,10 +243,18 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
         return;
       }
       setStaySavingId(b.id);
+      setActionSuccess(null);
       const res = await updateGuestBookingSpecialRequests(b.id, nextNotes);
       setStaySavingId(null);
-      if (res.success) await load();
-      else setActionError(userFacingError(res.error, 'Could not save place of stay.'));
+      // Phase 1859 / 1794: success:true may still carry a soft secondary warning (thread/email).
+      if (res.success) {
+        await load();
+        if (res.error) {
+          setActionSuccess({ title: 'Place of stay saved', body: res.error });
+        }
+      } else {
+        setActionError(userFacingError(res.error, 'Could not save place of stay.'));
+      }
     },
     [stayDrafts, load]
   );
@@ -272,13 +280,15 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
       // Phase 1726: toast follows server refund_choice (SQL may coerce near cutoff).
       const serverChoice = res.refundChoice ?? refundChoice;
       const serverUnpaid = res.unpaidCheckout ?? unpaid;
+      const baseBody = serverUnpaid
+        ? TRAVELER_CANCEL_UNPAID_CHECKOUT_SUCCESS
+        : serverChoice === 'full_refund'
+          ? TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE
+          : TRAVELER_SELF_CANCEL_SUCCESS_NO_REFUND;
+      // Phase 1859: cancel is authoritative; append soft notify warning when present.
       setActionSuccess({
         title: serverUnpaid ? 'Checkout cancelled' : 'Booking cancelled',
-        body: serverUnpaid
-          ? TRAVELER_CANCEL_UNPAID_CHECKOUT_SUCCESS
-          : serverChoice === 'full_refund'
-            ? TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE
-            : TRAVELER_SELF_CANCEL_SUCCESS_NO_REFUND,
+        body: res.notifyWarning ? `${baseBody}\n\n${res.notifyWarning}` : baseBody,
       });
       setTripView('cancelled');
       load();
@@ -301,7 +311,8 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
       const ops = listingOps[b.listing_id];
       // Phase 1707: fire resolves even when unpublished listing hid supplier_id from RLS.
       // Phase 1797: always notify — blank guest_email / missing ops still resolve via 1788/1729.
-      void notifyCancellationResolved({
+      // Phase 1859: await soft notify — response already committed.
+      const notify = await notifyCancellationResolved({
         accepted: accept,
         customerEmail: b.guest_email,
         customerName: b.guest_name,
@@ -319,11 +330,18 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
         // Phase 1721: unique key per cancellation_requests row (re-request after decline).
         requestId: req.id,
       });
+      const soft = !notify.sent && !notify.skipped ? notify.error : null;
       if (accept) {
-        setActionSuccess({ title: 'Cancellation accepted', body: TRAVELER_ACCEPT_CANCEL_SUCCESS });
+        setActionSuccess({
+          title: 'Cancellation accepted',
+          body: soft ? `${TRAVELER_ACCEPT_CANCEL_SUCCESS}\n\n${soft}` : TRAVELER_ACCEPT_CANCEL_SUCCESS,
+        });
         setTripView('cancelled');
       } else {
-        setActionSuccess({ title: 'Cancellation declined', body: TRAVELER_DECLINE_CANCEL_SUCCESS });
+        setActionSuccess({
+          title: 'Cancellation declined',
+          body: soft ? `${TRAVELER_DECLINE_CANCEL_SUCCESS}\n\n${soft}` : TRAVELER_DECLINE_CANCEL_SUCCESS,
+        });
       }
       await load();
     },

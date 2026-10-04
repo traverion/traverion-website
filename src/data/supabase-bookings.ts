@@ -21,6 +21,11 @@ import {
   redactUnpaidStayCheckInAddress,
 } from '../lib/purchase-snapshot';
 import { bookingPaymentWasCollected } from '../lib/payment-states';
+import {
+  softNotifyFromEdgePayload,
+  softNotifyFromSupplierInvoke,
+  softNotifyWarningFromResults,
+} from '../lib/softNotify';
 
 /** Best-effort: close open Stripe Checkout after unpaid cancel (Phase 134 still refunds late captures). */
 async function expireUnpaidCancelledCheckout(bookingId: string): Promise<void> {
@@ -407,6 +412,7 @@ export async function updateGuestBookingSpecialRequests(
     });
   }
 
+  const softResults: ReturnType<typeof softNotifyFromSupplierInvoke>[] = [];
   if (listingMeta.supplier_id) {
     const preview =
       specialRequests.trim().length > 400 ? `${specialRequests.trim().slice(0, 400)}…` : specialRequests.trim();
@@ -414,25 +420,30 @@ export async function updateGuestBookingSpecialRequests(
       typeof row.booking_number === 'number' && Number.isFinite(row.booking_number)
         ? Math.floor(row.booking_number)
         : undefined;
-    void notifySupplierEvent({
-      supplierId: listingMeta.supplier_id,
-      eventType: 'booking_detail_changed',
-      listingId: row.listing_id,
-      listingTitle,
-      bookingId: row.id,
-      bookingDate: row.booking_date ?? undefined,
-      guests: Number(row.guests ?? 0),
-      guestName: row.guest_name ?? undefined,
-      messagePreview: preview || '(empty note)',
-      portalBaseUrl: supplierPortalPublicBaseUrl(),
-      fieldDiffs: fieldDiffs.length ? fieldDiffs : undefined,
-      bookingNumber: ord,
-      // Phase 1710/1723: notes use booking_detail_changed so Inbox guest_message cooldown does not drop them.
-      idempotencyKey: `supplier:booking_detail_changed:${row.id}:notes:${fieldDiffs
-        .map((d) => `${d.label}:${d.after}`)
-        .join('|')
-        .slice(0, 80)}`,
-    });
+    // Phase 1859: await host email — note already saved; soft-warn only.
+    softResults.push(
+      softNotifyFromSupplierInvoke(
+        await notifySupplierEvent({
+          supplierId: listingMeta.supplier_id,
+          eventType: 'booking_detail_changed',
+          listingId: row.listing_id,
+          listingTitle,
+          bookingId: row.id,
+          bookingDate: row.booking_date ?? undefined,
+          guests: Number(row.guests ?? 0),
+          guestName: row.guest_name ?? undefined,
+          messagePreview: preview || '(empty note)',
+          portalBaseUrl: supplierPortalPublicBaseUrl(),
+          fieldDiffs: fieldDiffs.length ? fieldDiffs : undefined,
+          bookingNumber: ord,
+          // Phase 1710/1723: notes use booking_detail_changed so Inbox guest_message cooldown does not drop them.
+          idempotencyKey: `supplier:booking_detail_changed:${row.id}:notes:${fieldDiffs
+            .map((d) => `${d.label}:${d.after}`)
+            .join('|')
+            .slice(0, 80)}`,
+        })
+      )
+    );
     // Phase 1766: also post a traveler thread row so Inbox Unread lights up (email alone is not enough).
     // Phase 1769: post_booking_message only opens after paid — skip unpaid so note+email still succeed.
     // Phase 1794: await thread post — void hid Inbox Unread misses after note save.
@@ -444,9 +455,12 @@ export async function updateGuestBookingSpecialRequests(
       const thread = await postBookingMessage(row.id, `Updated booking details:\n${threadBody}`);
       if (!thread.ok) {
         console.warn('[Traverion] guest note saved but Inbox thread post failed:', thread.error);
+        const notifyWarning = softNotifyWarningFromResults(...softResults);
         return {
           success: true,
-          error: 'Note saved, but the host Inbox thread update failed. Try sending a message from Trips.',
+          error: notifyWarning
+            ? `Note saved, but the host Inbox thread update failed, and email notification may not have been sent. Try messaging from Trips.`
+            : 'Note saved, but the host Inbox thread update failed. Try sending a message from Trips.',
         };
       }
     }
@@ -459,7 +473,7 @@ export async function updateGuestBookingSpecialRequests(
       typeof row.booking_number === 'number' && Number.isFinite(row.booking_number)
         ? Math.floor(row.booking_number)
         : undefined;
-    void supabase.functions.invoke('notify-customer-booking', {
+    const customer = await supabase.functions.invoke('notify-customer-booking', {
       body: {
         customerEmail: guestEmail || 'resolve@guest.local',
         customerName: row.guest_name ?? undefined,
@@ -478,8 +492,10 @@ export async function updateGuestBookingSpecialRequests(
           .slice(0, 80)}`,
       },
     });
+    softResults.push(softNotifyFromEdgePayload(customer.data, customer.error));
   }
-  return { success: true };
+  const notifyWarning = softNotifyWarningFromResults(...softResults);
+  return notifyWarning ? { success: true, error: notifyWarning } : { success: true };
 }
 
 /** Fetch all bookings for a supplier's listings (RLS allows select for own listings). Throws on Supabase error.
@@ -928,6 +944,8 @@ export async function cancelBookingAsCustomer(
   /** Phase 1726: server-authoritative choice after cancel_booking_as_traveler coerce. */
   refundChoice?: 'full_refund' | 'no_refund';
   unpaidCheckout?: boolean;
+  /** Phase 1859: cancel already committed; soft warn if notify failed. */
+  notifyWarning?: string;
 }> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
   const { data: current, error: loadError } = await supabase
@@ -984,6 +1002,7 @@ export async function cancelBookingAsCustomer(
     typeof bookingMeta?.booking_number === 'number' && Number.isFinite(bookingMeta.booking_number)
       ? Math.floor(bookingMeta.booking_number)
       : undefined;
+  const softResults: ReturnType<typeof softNotifyFromSupplierInvoke>[] = [];
   if (bookingMeta?.listing_id) {
     // Phase 1707: resolve supplier even when listing is draft/unpublished.
     const listingMeta = await fetchListingSupplierMetaForParty(bookingMeta.listing_id);
@@ -994,33 +1013,38 @@ export async function cancelBookingAsCustomer(
       'Listing'
     );
     if (listingMeta.supplier_id) {
-      void notifySupplierEvent({
-        supplierId: listingMeta.supplier_id,
-        eventType: 'booking_cancelled',
-        listingId: bookingMeta.listing_id,
-        listingTitle,
-        bookingId: bookingMeta.id,
-        bookingDate: bookingMeta.booking_date ?? undefined,
-        guests: Number(bookingMeta.guests ?? 0),
-        guestName: bookingMeta.guest_name ?? undefined,
-        portalBaseUrl: supplierPortalPublicBaseUrl(),
-        bookingNumber: cancelOrd,
-        unpaidCheckout,
-        fieldDiffs: [
-          {
-            label: 'Cancellation & refund',
-            before: unpaidCheckout ? 'Unpaid checkout' : 'Active booking',
-            after: cancelDiffAfter,
-          },
-        ],
-      });
+      softResults.push(
+        softNotifyFromSupplierInvoke(
+          await notifySupplierEvent({
+            supplierId: listingMeta.supplier_id,
+            eventType: 'booking_cancelled',
+            listingId: bookingMeta.listing_id,
+            listingTitle,
+            bookingId: bookingMeta.id,
+            bookingDate: bookingMeta.booking_date ?? undefined,
+            guests: Number(bookingMeta.guests ?? 0),
+            guestName: bookingMeta.guest_name ?? undefined,
+            portalBaseUrl: supplierPortalPublicBaseUrl(),
+            bookingNumber: cancelOrd,
+            unpaidCheckout,
+            fieldDiffs: [
+              {
+                label: 'Cancellation & refund',
+                before: unpaidCheckout ? 'Unpaid checkout' : 'Active booking',
+                after: cancelDiffAfter,
+              },
+            ],
+          })
+        )
+      );
     }
   }
 
   // Phase 1788: invoke even when guest_email blank — edge resolves via guest_user_id.
+  // Phase 1859: await customer cancel mail; never fail the cancel on notify.
   {
     const guestEmail = (bookingMeta?.guest_email ?? '').trim().toLowerCase();
-    void supabase.functions.invoke('notify-customer-booking', {
+    const customer = await supabase.functions.invoke('notify-customer-booking', {
       body: {
         customerEmail: guestEmail || 'resolve@guest.local',
         customerName: bookingMeta?.guest_name ?? undefined,
@@ -1041,8 +1065,10 @@ export async function cancelBookingAsCustomer(
         publicSiteUrl: publicSiteBaseUrl(),
       },
     });
+    softResults.push(softNotifyFromEdgePayload(customer.data, customer.error));
   }
-  return { success: true, refundChoice: serverChoice, unpaidCheckout };
+  const notifyWarning = softNotifyWarningFromResults(...softResults) ?? undefined;
+  return { success: true, refundChoice: serverChoice, unpaidCheckout, notifyWarning };
 }
 
 /** Fetch current consumer's bookings (RLS: guest_user_id or verified guest_email). Must be logged in. Throws on Supabase error. */

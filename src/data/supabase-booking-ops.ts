@@ -11,6 +11,12 @@ import {
   PARTNER_CANCEL_REQUEST_SUBMIT_ERROR,
 } from '../lib/booking-confirmation-copy';
 import { queryRowsOrThrow } from '../lib/query-rows-or-throw';
+import {
+  softNotifyFromEdgePayload,
+  softNotifyFromSupplierInvoke,
+  softNotifyWarningFromResults,
+  type SoftNotifyResult,
+} from '../lib/softNotify';
 
 export type BookingMessageRow = {
   id: string;
@@ -177,10 +183,10 @@ export async function notifyTravelerCancellationRequest(params: {
   reasonLabel: string;
   /** Phase 1712: cancellation_requests.id so a re-request after decline is not already_sent. */
   requestId?: string | null;
-}): Promise<void> {
-  if (!supabase) return;
+}): Promise<SoftNotifyResult> {
+  if (!supabase) return { sent: false, error: 'Supabase not configured' };
   const reqSuffix = (params.requestId ?? '').trim() || String(Date.now());
-  await supabase.functions.invoke('notify-customer-booking', {
+  const { data, error } = await supabase.functions.invoke('notify-customer-booking', {
     body: {
       customerEmail: params.customerEmail,
       customerName: params.customerName ?? undefined,
@@ -202,6 +208,8 @@ export async function notifyTravelerCancellationRequest(params: {
       idempotencyKey: `customer:cancellation_requested_by_supplier:${params.bookingId}:${reqSuffix}`,
     },
   });
+  // Phase 1859: return notify outcome — caller must not treat failure as RPC failure.
+  return softNotifyFromEdgePayload(data, error);
 }
 
 export async function notifyCancellationResolved(params: {
@@ -218,14 +226,15 @@ export async function notifyCancellationResolved(params: {
   guests?: number;
   /** Phase 1721: cancellation_requests.id so a second Decline/Accept after re-request is not already_sent. */
   requestId?: string | null;
-}): Promise<void> {
-  if (!supabase) return;
+}): Promise<SoftNotifyResult> {
+  if (!supabase) return { sent: false, error: 'Supabase not configured' };
   const kind = params.accepted ? 'cancellation_accepted' : 'cancellation_declined';
   const reqSuffix = (params.requestId ?? '').trim() || String(Date.now());
   const guestEmail = (params.customerEmail ?? '').trim().toLowerCase();
   // Phase 1707: traveler self-receipt must not depend on resolving supplier_id.
   // Phase 1788: invoke even when guest_email blank — edge resolves via guest_user_id.
-  void supabase.functions.invoke('notify-customer-booking', {
+  // Phase 1859: await and report — do not void.
+  const customer = await supabase.functions.invoke('notify-customer-booking', {
     body: {
       customerEmail: guestEmail || 'resolve@guest.local',
       customerName: params.customerName ?? undefined,
@@ -239,6 +248,7 @@ export async function notifyCancellationResolved(params: {
       idempotencyKey: `customer:${kind}:${params.bookingId}:${reqSuffix}`,
     },
   });
+  const customerResult = softNotifyFromEdgePayload(customer.data, customer.error);
   const supplierId = (params.supplierId ?? '').trim();
   // Phase 1729: resolve owner via party RPC when Trips ops cache lacked supplier_id
   // (unpublished listing / ops load failure) — parity with Phase 1707 cancel/notes.
@@ -247,21 +257,27 @@ export async function notifyCancellationResolved(params: {
     const meta = await fetchListingSupplierMetaForParty(params.listingId);
     hostSupplierId = (meta.supplier_id ?? '').trim();
   }
+  let hostResult: SoftNotifyResult = { sent: true, skipped: true };
   if (hostSupplierId) {
-    void notifySupplierEvent({
-      supplierId: hostSupplierId,
-      eventType: params.accepted ? 'cancellation_accepted' : 'cancellation_declined',
-      listingId: params.listingId,
-      listingTitle: params.listingTitle,
-      bookingId: params.bookingId,
-      bookingDate: params.bookingDate ?? undefined,
-      guests: params.guests,
-      guestName: params.customerName ?? undefined,
-      portalBaseUrl: supplierPortalPublicBaseUrl(),
-      bookingNumber: params.bookingNumber,
-      idempotencyKey: `supplier:${kind}:${params.bookingId}:${reqSuffix}`,
-    });
+    hostResult = softNotifyFromSupplierInvoke(
+      await notifySupplierEvent({
+        supplierId: hostSupplierId,
+        eventType: params.accepted ? 'cancellation_accepted' : 'cancellation_declined',
+        listingId: params.listingId,
+        listingTitle: params.listingTitle,
+        bookingId: params.bookingId,
+        bookingDate: params.bookingDate ?? undefined,
+        guests: params.guests,
+        guestName: params.customerName ?? undefined,
+        portalBaseUrl: supplierPortalPublicBaseUrl(),
+        bookingNumber: params.bookingNumber,
+        idempotencyKey: `supplier:${kind}:${params.bookingId}:${reqSuffix}`,
+      })
+    );
   }
+  const warning = softNotifyWarningFromResults(customerResult, hostResult);
+  if (!warning) return { sent: true };
+  return { sent: false, error: warning };
 }
 
 export async function notifyNewBookingMessage(params: {
@@ -275,8 +291,8 @@ export async function notifyNewBookingMessage(params: {
   bookingDate?: string | null;
   supplierId: string;
   listingId: string;
-}): Promise<void> {
-  if (!supabase) return;
+}): Promise<SoftNotifyResult> {
+  if (!supabase) return { sent: false, error: 'Supabase not configured' };
   if (params.fromRole === 'traveler') {
     let supplierId = (params.supplierId ?? '').trim();
     // Phase 1729: Inbox host mail must not depend on Trips ops cache (1707 cancel/notes parity).
@@ -284,38 +300,41 @@ export async function notifyNewBookingMessage(params: {
       const meta = await fetchListingSupplierMetaForParty(params.listingId);
       supplierId = (meta.supplier_id ?? '').trim();
     }
-    if (!supplierId) return;
-    void notifySupplierEvent({
-      supplierId,
-      eventType: 'guest_message',
-      listingId: params.listingId,
-      listingTitle: params.listingTitle,
-      bookingId: params.bookingId,
-      bookingDate: params.bookingDate ?? undefined,
-      guestName: params.customerName ?? undefined,
-      messagePreview: params.preview.slice(0, 280),
-      portalBaseUrl: supplierPortalPublicBaseUrl(),
-      bookingNumber: params.bookingNumber,
-      // Phase 1710: do not share permanent supplier:guest_message:{bookingId} with Trips note updates.
-      idempotencyKey: `supplier:guest_message:${params.bookingId}:inbox:${params.preview.slice(0, 80)}`,
-    });
-  } else {
-    // Phase 1788: invoke even when customerEmail blank — edge resolves via guest_user_id.
-    const guestEmail = (params.customerEmail ?? '').trim().toLowerCase();
-    void supabase.functions.invoke('notify-customer-booking', {
-      body: {
-        customerEmail: guestEmail || 'resolve@guest.local',
-        customerName: params.customerName ?? undefined,
+    if (!supplierId) return { sent: false, skipped: true };
+    // Phase 1859: await notify outcome for soft UI.
+    return softNotifyFromSupplierInvoke(
+      await notifySupplierEvent({
+        supplierId,
+        eventType: 'guest_message',
+        listingId: params.listingId,
         listingTitle: params.listingTitle,
         bookingId: params.bookingId,
-        bookingNumber: params.bookingNumber,
         bookingDate: params.bookingDate ?? undefined,
-        emailKind: 'new_booking_message',
-        fieldDiffs: [{ label: 'Message', before: '—', after: params.preview.slice(0, 280) }],
-        publicSiteUrl: publicSiteBaseUrl(),
-        // Phase 1710: each host Inbox message must email the traveler (not one-shot per booking).
-        idempotencyKey: `customer:new_booking_message:${params.bookingId}:${params.preview.slice(0, 80)}`,
-      },
-    });
+        guestName: params.customerName ?? undefined,
+        messagePreview: params.preview.slice(0, 280),
+        portalBaseUrl: supplierPortalPublicBaseUrl(),
+        bookingNumber: params.bookingNumber,
+        // Phase 1710: do not share permanent supplier:guest_message:{bookingId} with Trips note updates.
+        idempotencyKey: `supplier:guest_message:${params.bookingId}:inbox:${params.preview.slice(0, 80)}`,
+      })
+    );
   }
+  // Phase 1788: invoke even when customerEmail blank — edge resolves via guest_user_id.
+  const guestEmail = (params.customerEmail ?? '').trim().toLowerCase();
+  const { data, error } = await supabase.functions.invoke('notify-customer-booking', {
+    body: {
+      customerEmail: guestEmail || 'resolve@guest.local',
+      customerName: params.customerName ?? undefined,
+      listingTitle: params.listingTitle,
+      bookingId: params.bookingId,
+      bookingNumber: params.bookingNumber,
+      bookingDate: params.bookingDate ?? undefined,
+      emailKind: 'new_booking_message',
+      fieldDiffs: [{ label: 'Message', before: '—', after: params.preview.slice(0, 280) }],
+      publicSiteUrl: publicSiteBaseUrl(),
+      // Phase 1710: each host Inbox message must email the traveler (not one-shot per booking).
+      idempotencyKey: `customer:new_booking_message:${params.bookingId}:${params.preview.slice(0, 80)}`,
+    },
+  });
+  return softNotifyFromEdgePayload(data, error);
 }
