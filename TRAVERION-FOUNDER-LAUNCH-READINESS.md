@@ -30,7 +30,7 @@
 
 ## 3. ENDING SHA
 
-*(set after commit)*
+`6109112563b34feef802fff4c7c57ce7d02f2822`
 
 ## 4. COMMITS CREATED
 
