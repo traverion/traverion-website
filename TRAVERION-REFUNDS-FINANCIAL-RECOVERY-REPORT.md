@@ -12,12 +12,11 @@ Refunds, cancellations, READY-period adjustments, post-PAID recovery accounting,
 
 ## 3. ENDING SHA
 
-See git HEAD after commits below.
+`18f88403b61bb1f292cc0a1fe44151b12ade4062`
 
 ## 4. COMMITS
 
-- Refunds & financial recovery engine (migration 241 + webhook disputes + admin investigation + UI + tests)
-- Report SHA commit
+- `18f8840` — Harden refunds, disputes, and post-payout financial recovery.
 
 ## 5. PUSH / DEPLOY STATE
 
