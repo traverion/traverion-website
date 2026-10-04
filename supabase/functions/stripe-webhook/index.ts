@@ -867,6 +867,69 @@ serve(async (req) => {
         });
       }
 
+      // Disputes / chargebacks — NOT refunds. Represent separately; block payouts while open/lost.
+      if (
+        event.type === 'charge.dispute.created' ||
+        event.type === 'charge.dispute.updated' ||
+        event.type === 'charge.dispute.closed' ||
+        event.type === 'charge.dispute.funds_withdrawn' ||
+        event.type === 'charge.dispute.funds_reinstated'
+      ) {
+        const dispute = event.data.object as Stripe.Dispute;
+        const paymentIntentId =
+          typeof dispute.payment_intent === 'string'
+            ? dispute.payment_intent
+            : dispute.payment_intent?.id ?? null;
+        let bookingId: string | null = null;
+        if (paymentIntentId) {
+          const { data: byPi } = await admin
+            .from('bookings')
+            .select('id')
+            .eq('payment_intent_id', paymentIntentId)
+            .maybeSingle();
+          bookingId = byPi?.id ?? null;
+        }
+        if (!bookingId) {
+          const metaBookingId = String(dispute.metadata?.booking_id ?? '').trim();
+          if (metaBookingId) bookingId = metaBookingId;
+        }
+        const { data: disputeResult, error: disputeErr } = await admin.rpc(
+          'apply_booking_dispute_event',
+          {
+            p_booking_id: bookingId,
+            p_stripe_event_id: event.id,
+            p_stripe_dispute_id: dispute.id,
+            p_event_type: event.type,
+            p_status: dispute.status,
+            p_amount_minor: typeof dispute.amount === 'number' ? dispute.amount : null,
+            p_currency: typeof dispute.currency === 'string' ? dispute.currency.toUpperCase() : null,
+            p_reason: typeof dispute.reason === 'string' ? dispute.reason : null,
+            p_payload: event as unknown as Record<string, unknown>,
+          }
+        );
+        if (disputeErr) throw new Error(disputeErr.message);
+        if (bookingId) {
+          await admin.from('booking_payment_events').insert({
+            booking_id: bookingId,
+            event_id: event.id,
+            event_type: event.type,
+            payment_intent_id: paymentIntentId,
+            amount:
+              typeof dispute.amount === 'number' ? dispute.amount / 100 : null,
+            currency: typeof dispute.currency === 'string' ? dispute.currency.toUpperCase() : null,
+            payload: event as unknown as Record<string, unknown>,
+          });
+        }
+        await markProcessed('processed');
+        return json({
+          success: true,
+          eventId: event.id,
+          bookingId,
+          status: 'dispute_recorded',
+          dispute: disputeResult,
+        });
+      }
+
       await markProcessed('ignored', `Unhandled event type: ${event.type}`);
       return json({ success: true, ignored: true, eventType: event.type });
     } catch (e) {

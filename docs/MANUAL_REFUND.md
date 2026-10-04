@@ -1,6 +1,10 @@
 # Manual refund (TEST or LIVE)
 
-Refunds are **not** automated. Traverion records Stripe’s refund webhook (`charge.refunded`) when Stripe has already refunded. Do the money movement in Stripe first.
+Refunds are **not** automated. Traverion can **prepare** a refund instruction (`prepare_refund_instruction` / Admin → Commercial → investigation) but does **not** call Stripe. Traverion records Stripe’s refund webhook (`charge.refunded`) when Stripe has already refunded. Do the money movement in Stripe first.
+
+**Honesty:** Cancellation / “Refund due” ≠ “Refunded”. Only `payment_status = refunded` (or Stripe-confirmed partial shrink of `amount_paid`) is provider truth.
+
+**Post-payout refunds:** If a supplier earning was already marked paid in a payout period, Traverion records a `supplier_recovery` ledger entry and a financial hold. It does **not** erase the historical paid period. Who ultimately bears chargeback/refund liability remains an OWNER POLICY decision.
 
 ## 1. Locate the booking in Traverion
 

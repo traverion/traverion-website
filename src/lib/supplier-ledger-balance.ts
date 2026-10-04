@@ -24,12 +24,22 @@ export function isPlatformCommissionKind(kind: string): boolean {
   return k === 'platform_commission';
 }
 
+export function isSupplierRecoveryKind(kind: string): boolean {
+  return kind.trim().toLowerCase() === 'supplier_recovery';
+}
+
 export function isSupplierAdjustmentKind(kind: string): boolean {
   const k = kind.trim().toLowerCase();
   if (isCollectedEarningKind(k) || isPlatformCommissionKind(k)) return false;
-  // Commission reversals are adjustments with reason in DB; kind is adjustment —
-  // exclude source pattern via optional reason when available. Amount sign handles economics.
+  // Includes cancellation_penalty, adjustment, supplier_recovery, payout.
+  // Amount sign handles economics (recovery is negative).
   return true;
+}
+
+export function ledgerRecoveryTotal(rows: LedgerAmountRow[]): number {
+  return rows
+    .filter((row) => isSupplierRecoveryKind(row.kind))
+    .reduce((sum, row) => sum + Number(row.amount), 0);
 }
 
 export function ledgerNetTotal(rows: LedgerAmountRow[]): number {

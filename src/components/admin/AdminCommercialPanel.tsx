@@ -448,6 +448,310 @@ export default function AdminCommercialPanel() {
           </ul>
         )}
       </div>
+
+      <BookingFinancialInvestigation />
+    </div>
+  );
+}
+
+type InvestigationPayload = {
+  ok?: boolean;
+  error?: string;
+  booking?: Record<string, unknown>;
+  snapshot?: Record<string, unknown> | null;
+  earning_item?: Record<string, unknown> | null;
+  ledger?: Record<string, unknown>[];
+  holds?: { id: string; reason_code: string; active: boolean; note: string | null }[];
+  disputes?: Record<string, unknown>[];
+  refund_instructions?: Record<string, unknown>[];
+  payout_period?: Record<string, unknown> | null;
+  supplier_recovery_minor?: number;
+  blocks_payout?: boolean;
+  payout_hold_hours?: number;
+};
+
+function BookingFinancialInvestigation() {
+  const [bookingId, setBookingId] = useState('');
+  const [data, setData] = useState<InvestigationPayload | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [holdReason, setHoldReason] = useState('manual_review');
+  const [holdNote, setHoldNote] = useState('');
+  const [refundReason, setRefundReason] = useState('');
+
+  const investigate = async () => {
+    const id = bookingId.trim();
+    if (!id) {
+      setMsg('Enter a booking ID.');
+      return;
+    }
+    setLoading(true);
+    setMsg(null);
+    try {
+      const payload = await invokeAdminEdgeFunction<InvestigationPayload>({
+        action: 'booking_financial_investigation',
+        investigateBookingId: id,
+      });
+      setData(payload);
+      if (!payload.ok) setMsg(payload.error ?? 'Investigation failed');
+    } catch (e) {
+      setData(null);
+      setMsg(e instanceof Error ? e.message : 'Investigation failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const setHold = async () => {
+    if (!bookingId.trim() || holdNote.trim().length < 3) {
+      setMsg('Hold requires booking ID and a note (≥3 chars).');
+      return;
+    }
+    setBusy(true);
+    setMsg(null);
+    try {
+      await invokeAdminEdgeFunction({
+        action: 'financial_hold_set',
+        investigateBookingId: bookingId.trim(),
+        financialHoldReason: holdReason,
+        financialHoldNote: holdNote.trim(),
+      });
+      setMsg('Financial hold set.');
+      setHoldNote('');
+      await investigate();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : 'Could not set hold');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const releaseHold = async (holdId: string) => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      await invokeAdminEdgeFunction({
+        action: 'financial_hold_release',
+        financialHoldId: holdId,
+        financialHoldNote: 'Released from admin commercial investigation',
+      });
+      setMsg('Hold released.');
+      await investigate();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : 'Could not release hold');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const prepareRefund = async () => {
+    if (!bookingId.trim() || refundReason.trim().length < 3) {
+      setMsg('Prepare refund requires booking ID and reason (≥3 chars).');
+      return;
+    }
+    if (
+      !window.confirm(
+        'Prepare a READY refund instruction only? This does NOT execute a Stripe refund.'
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    setMsg(null);
+    try {
+      const result = await invokeAdminEdgeFunction<{
+        ok?: boolean;
+        id?: string;
+        amount_minor?: number;
+        executes_stripe?: boolean;
+      }>({
+        action: 'prepare_refund_instruction',
+        investigateBookingId: bookingId.trim(),
+        refundKind: 'full',
+        refundReason: refundReason.trim(),
+      });
+      setMsg(
+        `Refund instruction prepared (${result.id ?? 'ok'}). executes_stripe=${String(
+          result.executes_stripe ?? false
+        )}. Issue the refund in Stripe TEST Dashboard.`
+      );
+      setRefundReason('');
+      await investigate();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : 'Could not prepare refund');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const snap = data?.snapshot;
+  const item = data?.earning_item;
+  const booking = data?.booking;
+
+  return (
+    <div className="tv-card p-4 sm:p-5 space-y-4">
+      <div>
+        <h2 className="font-display text-lg text-ink tracking-tight">Booking financial investigation</h2>
+        <p className="text-sm text-ink-muted mt-1">
+          Reconstruct gross, refunds, commission, supplier entitlement, payout, holds, disputes, and
+          recovery. Refund prepare does not call Stripe.
+        </p>
+      </div>
+      <div className="flex flex-wrap gap-2 items-end">
+        <label className="block min-w-[16rem] flex-1">
+          <span className="text-xs font-medium text-ink-muted">Booking ID</span>
+          <input
+            type="text"
+            value={bookingId}
+            onChange={(e) => setBookingId(e.target.value)}
+            className="tv-input mt-1 w-full text-sm font-mono"
+          />
+        </label>
+        <button
+          type="button"
+          onClick={() => void investigate()}
+          disabled={loading || !isSupabaseConfigured()}
+          className="tv-btn-secondary text-sm disabled:opacity-50"
+        >
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden /> : null}
+          Investigate
+        </button>
+      </div>
+      {msg ? (
+        <NoticeCallout title="Investigation" tone="info">
+          {msg}
+        </NoticeCallout>
+      ) : null}
+      {data?.ok && booking ? (
+        <div className="space-y-3 text-sm">
+          <dl className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div>
+              <dt className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Status</dt>
+              <dd className="font-medium">{String(booking.status)}</dd>
+            </div>
+            <div>
+              <dt className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Payment</dt>
+              <dd className="font-medium">{String(booking.payment_status)}</dd>
+            </div>
+            <div>
+              <dt className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Refund choice</dt>
+              <dd className="font-medium">{String(booking.refund_choice ?? '—')}</dd>
+            </div>
+            <div>
+              <dt className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Dispute</dt>
+              <dd className="font-medium">{String(booking.dispute_status ?? 'none')}</dd>
+            </div>
+            <div>
+              <dt className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Blocks payout</dt>
+              <dd className="font-medium">{data.blocks_payout ? 'YES' : 'no'}</dd>
+            </div>
+            <div>
+              <dt className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Hold hours</dt>
+              <dd className="font-medium">{String(data.payout_hold_hours ?? '—')}</dd>
+            </div>
+          </dl>
+          {snap ? (
+            <p className="text-ink-muted">
+              Snapshot: gross {String(snap.gross_minor)} · commission {String(snap.commission_minor)} ·
+              supplier {String(snap.supplier_minor)} · remaining gross{' '}
+              {String(snap.remaining_gross_minor)} / commission {String(snap.remaining_commission_minor)}{' '}
+              / supplier {String(snap.remaining_supplier_minor)} (minor units)
+            </p>
+          ) : (
+            <p className="text-ink-muted">No commercial snapshot (legacy possible).</p>
+          )}
+          {item ? (
+            <p className="text-ink-muted">
+              Earning item: status {String(item.status)} · amount_minor {String(item.amount_minor)} ·
+              eligible_at {String(item.eligible_at ?? '—')}
+            </p>
+          ) : null}
+          <p className="text-ink-muted">
+            Supplier recovery minor (sum abs): {String(data.supplier_recovery_minor ?? 0)}
+            {data.payout_period
+              ? ` · Payout period ${String((data.payout_period as { status?: string }).status)} ${String(
+                  (data.payout_period as { period_key?: string }).period_key
+                )}`
+              : ''}
+          </p>
+          <div className="border-t border-black/[0.06] pt-3 space-y-2">
+            <p className="font-medium text-ink">Set financial hold</p>
+            <div className="flex flex-wrap gap-2">
+              <select
+                value={holdReason}
+                onChange={(e) => setHoldReason(e.target.value)}
+                className="tv-input text-sm"
+              >
+                <option value="manual_review">manual_review</option>
+                <option value="refund_investigation">refund_investigation</option>
+                <option value="chargeback">chargeback</option>
+                <option value="fraud_review">fraud_review</option>
+                <option value="verification">verification</option>
+                <option value="negative_balance">negative_balance</option>
+                <option value="other">other</option>
+              </select>
+              <input
+                type="text"
+                value={holdNote}
+                onChange={(e) => setHoldNote(e.target.value)}
+                placeholder="Reason note"
+                className="tv-input text-sm flex-1 min-w-[12rem]"
+              />
+              <button
+                type="button"
+                onClick={() => void setHold()}
+                disabled={busy}
+                className="tv-btn-secondary text-sm disabled:opacity-50"
+              >
+                Set hold
+              </button>
+            </div>
+            {(data.holds ?? []).filter((h) => h.active).map((h) => (
+              <div key={h.id} className="flex flex-wrap items-center gap-2 text-xs text-ink-muted">
+                <span>
+                  ACTIVE {h.reason_code}
+                  {h.note ? ` — ${h.note}` : ''}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void releaseHold(h.id)}
+                  disabled={busy}
+                  className="tv-btn-ghost text-xs"
+                >
+                  Release
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="border-t border-black/[0.06] pt-3 space-y-2">
+            <p className="font-medium text-ink">Prepare refund instruction (no Stripe call)</p>
+            <div className="flex flex-wrap gap-2">
+              <input
+                type="text"
+                value={refundReason}
+                onChange={(e) => setRefundReason(e.target.value)}
+                placeholder="Audit reason"
+                className="tv-input text-sm flex-1 min-w-[12rem]"
+              />
+              <button
+                type="button"
+                onClick={() => void prepareRefund()}
+                disabled={busy}
+                className="tv-btn-secondary text-sm disabled:opacity-50"
+              >
+                Prepare full refund
+              </button>
+            </div>
+          </div>
+          <details className="text-xs text-ink-muted">
+            <summary className="cursor-pointer">Ledger ({(data.ledger ?? []).length})</summary>
+            <pre className="mt-2 overflow-auto max-h-48 whitespace-pre-wrap">
+              {JSON.stringify(data.ledger ?? [], null, 2)}
+            </pre>
+          </details>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -134,7 +134,11 @@ type Body = {
     | 'commercial_terms_set'
     | 'payout_periods_list'
     | 'prepare_due_payouts'
-    | 'mark_payout_period_paid';
+    | 'mark_payout_period_paid'
+    | 'booking_financial_investigation'
+    | 'financial_hold_set'
+    | 'financial_hold_release'
+    | 'prepare_refund_instruction';
   supplierId?: string;
   feedback?: string | null;
   notificationTitle?: string;
@@ -170,6 +174,14 @@ type Body = {
   commercialNote?: string;
   commercialConfirm?: boolean;
   payoutPeriodId?: string;
+  financialHoldReason?: string;
+  financialHoldNote?: string;
+  financialHoldId?: string;
+  refundKind?: string;
+  refundAmountMinor?: number;
+  refundReason?: string;
+  refundIdempotencyKey?: string;
+  investigateBookingId?: string;
 };
 
 function isAdminUser(user: { app_metadata?: Record<string, unknown> } | null): boolean {
@@ -951,6 +963,79 @@ serve(async (req) => {
     if (error) return json({ error: error.message }, 500);
     const result = data as { ok?: boolean; error?: string } | null;
     if (!result?.ok) return json({ error: result?.error ?? 'Could not mark paid' }, 400);
+    return json(result);
+  }
+
+  if (body.action === 'booking_financial_investigation') {
+    const bookingId =
+      typeof body.investigateBookingId === 'string' ? body.investigateBookingId.trim() : '';
+    if (!bookingId) return json({ error: 'investigateBookingId required' }, 400);
+    const { data, error } = await admin.rpc('admin_booking_financial_investigation', {
+      p_booking_id: bookingId,
+    });
+    if (error) return json({ error: error.message }, 500);
+    return json(data ?? { ok: false });
+  }
+
+  if (body.action === 'financial_hold_set') {
+    const bookingId =
+      typeof body.investigateBookingId === 'string' ? body.investigateBookingId.trim() : '';
+    const reason =
+      typeof body.financialHoldReason === 'string' ? body.financialHoldReason.trim() : '';
+    const note = typeof body.financialHoldNote === 'string' ? body.financialHoldNote.trim() : '';
+    if (!bookingId) return json({ error: 'investigateBookingId required' }, 400);
+    if (!reason) return json({ error: 'financialHoldReason required' }, 400);
+    if (note.length < 3) return json({ error: 'financialHoldNote must be at least 3 characters' }, 400);
+    const { data, error } = await admin.rpc('admin_set_booking_financial_hold', {
+      p_booking_id: bookingId,
+      p_reason_code: reason,
+      p_note: note,
+      p_actor_id: adminUserId,
+    });
+    if (error) return json({ error: error.message }, 500);
+    const result = data as { ok?: boolean; error?: string } | null;
+    if (!result?.ok) return json({ error: result?.error ?? 'Could not set hold' }, 400);
+    return json(result);
+  }
+
+  if (body.action === 'financial_hold_release') {
+    const holdId = typeof body.financialHoldId === 'string' ? body.financialHoldId.trim() : '';
+    const note = typeof body.financialHoldNote === 'string' ? body.financialHoldNote.trim() : '';
+    if (!holdId) return json({ error: 'financialHoldId required' }, 400);
+    const { data, error } = await admin.rpc('admin_release_booking_financial_hold', {
+      p_hold_id: holdId,
+      p_note: note || null,
+      p_actor_id: adminUserId,
+    });
+    if (error) return json({ error: error.message }, 500);
+    const result = data as { ok?: boolean; error?: string } | null;
+    if (!result?.ok) return json({ error: result?.error ?? 'Could not release hold' }, 400);
+    return json(result);
+  }
+
+  if (body.action === 'prepare_refund_instruction') {
+    const bookingId =
+      typeof body.investigateBookingId === 'string' ? body.investigateBookingId.trim() : '';
+    const kind = typeof body.refundKind === 'string' ? body.refundKind.trim().toLowerCase() : '';
+    const reason = typeof body.refundReason === 'string' ? body.refundReason.trim() : '';
+    const key =
+      typeof body.refundIdempotencyKey === 'string' ? body.refundIdempotencyKey.trim() : '';
+    const amountMinor =
+      body.refundAmountMinor == null ? null : Number(body.refundAmountMinor);
+    if (!bookingId) return json({ error: 'investigateBookingId required' }, 400);
+    if (!kind) return json({ error: 'refundKind required' }, 400);
+    if (reason.length < 3) return json({ error: 'refundReason must be at least 3 characters' }, 400);
+    const { data, error } = await admin.rpc('prepare_refund_instruction', {
+      p_booking_id: bookingId,
+      p_kind: kind,
+      p_amount_minor: amountMinor,
+      p_reason: reason,
+      p_actor_id: adminUserId,
+      p_idempotency_key: key || null,
+    });
+    if (error) return json({ error: error.message }, 500);
+    const result = data as { ok?: boolean; error?: string } | null;
+    if (!result?.ok) return json({ error: result?.error ?? 'Could not prepare refund' }, 400);
     return json(result);
   }
 

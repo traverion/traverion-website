@@ -24,7 +24,11 @@ import { navigateSupplierUrl, openSupplierBooking } from '../../lib/supplierPort
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { formatMoney, isStripeTestCheckoutSession, appStripeIsTestMode, normalizeCurrency } from '../../lib/money';
 import { isCollectedBooking, isRefundDueBooking } from '../../lib/payment-states';
-import { isCollectedEarningKind, isPlatformCommissionKind } from '../../lib/supplier-ledger-balance';
+import {
+  isCollectedEarningKind,
+  isPlatformCommissionKind,
+  ledgerRecoveryTotal,
+} from '../../lib/supplier-ledger-balance';
 import { formatBpsAsPercent, fromMinorUnits, planDefinition } from '../../lib/commercial-money';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchSupplierLedger, type SupplierLedgerEntry } from '../../data/supabase-booking-ops';
@@ -53,6 +57,7 @@ function ledgerKindLabel(kind: string): string {
   if (k === 'refund') return 'Earnings reversal';
   if (k === 'offset' || k === 'balance_offset') return 'Balance offset';
   if (k === 'adjustment') return 'Adjustment';
+  if (k === 'supplier_recovery') return 'Recovery (post-payout refund)';
   return kind.replace(/_/g, ' ');
 }
 
@@ -386,6 +391,9 @@ export default function SupplierEarnings() {
     } payouts`;
   }, [commercialTerms]);
 
+  /** Negative = supplier owes Traverion after post-payout refund/chargeback recovery. */
+  const recoveryBalance = useMemo(() => ledgerRecoveryTotal(ledger), [ledger]);
+
   const earningsForInvoices = useMemo(
     () => earnings.filter((e) => e.status !== 'cancelled'),
     [earnings]
@@ -550,6 +558,18 @@ export default function SupplierEarnings() {
                       Your plan: <span className="font-medium text-ink">{planSummary}</span>
                       . Contact Traverion to change payout plan.
                     </p>
+                  ) : null}
+                  {recoveryBalance < 0 ? (
+                    <div className="mt-3 max-w-lg">
+                      <NoticeCallout title="Balance adjustment after payout" tone="warn">
+                        A refund or dispute after a recorded payout created a recovery balance of{' '}
+                        <span className="tabular-nums font-semibold">
+                          {formatMoney(Math.abs(recoveryBalance), s.currency)}
+                        </span>
+                        . Future payouts may be reduced until this is settled. Traverion will contact
+                        you if action is needed.
+                      </NoticeCallout>
+                    </div>
                   ) : null}
                   <dl className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3 border-t border-black/[0.06] pt-4">
                     <div>

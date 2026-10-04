@@ -53,10 +53,20 @@ export function isCollectedBooking(b: MoneyBookingRow): boolean {
   return true;
 }
 
-export function travelerPaymentLabel(b: MoneyBookingRow): string {
+export type MoneyBookingRowWithDispute = MoneyBookingRow & {
+  dispute_status?: string | null;
+};
+
+export function travelerPaymentLabel(b: MoneyBookingRowWithDispute): string {
   const pay = normalizePaymentStatus(b.payment_status);
   const cancelled = (b.status ?? '').trim().toLowerCase() === 'cancelled';
+  const dispute = (b.dispute_status ?? '').trim().toLowerCase();
   if (pay === 'refunded') return 'Refunded';
+  // Dispute is not a refund — surface honestly when open/lost.
+  if (dispute === 'open' || dispute === 'needs_response' || dispute === 'under_review') {
+    return 'Payment disputed';
+  }
+  if (dispute === 'lost') return 'Chargeback lost';
   if (cancelled && isPaidPaymentStatus(pay)) {
     const choice = (b.refund_choice ?? '').trim().toLowerCase();
     if (choice === 'no_refund') return 'No refund';
