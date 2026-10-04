@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { BarChart3, CalendarDays, ClipboardCheck, Flag, History, Loader2, LogOut, Mail, Megaphone, Store, Users, ListChecks, UserCircle, Wallet, ShieldOff } from 'lucide-react';
+import { BarChart3, CalendarDays, ClipboardCheck, Flag, History, Loader2, LogOut, Mail, Megaphone, Percent, Store, Users, ListChecks, UserCircle, Wallet, ShieldOff } from 'lucide-react';
 import AdminSupplierVerificationPanel from '../components/admin/AdminSupplierVerificationPanel';
 import AdminPastVerificationsPanel from '../components/admin/AdminPastVerificationsPanel';
 import AdminSupplierPortalMessagesPanel from '../components/admin/AdminSupplierPortalMessagesPanel';
 import AdminBookingsPanel from '../components/admin/AdminBookingsPanel';
 import AdminFinancePanel from '../components/admin/AdminFinancePanel';
+import AdminCommercialPanel from '../components/admin/AdminCommercialPanel';
 import AdminInquiriesPanel from '../components/admin/AdminInquiriesPanel';
 import AdminListingsModerationPanel from '../components/admin/AdminListingsModerationPanel';
 import AdminContentReportsPanel from '../components/admin/AdminContentReportsPanel';
@@ -29,6 +30,7 @@ export default function AdminDashboard() {
     | 'overview'
     | 'bookings'
     | 'finance'
+    | 'commercial'
     | 'inquiries'
     | 'listings'
     | 'reports'
@@ -63,6 +65,7 @@ export default function AdminDashboard() {
     { id: 'overview' as const, label: 'Overview', icon: BarChart3 },
     { id: 'bookings' as const, label: 'Bookings', icon: CalendarDays },
     { id: 'finance' as const, label: 'Finance', icon: Wallet },
+    { id: 'commercial' as const, label: 'Commercial', icon: Percent },
     { id: 'inquiries' as const, label: 'Inquiries', icon: Mail },
     { id: 'listings' as const, label: 'Listings', icon: ShieldOff },
     { id: 'reports' as const, label: 'Reports', icon: Flag },
@@ -235,6 +238,7 @@ export default function AdminDashboard() {
 
         {activeTab === 'bookings' && <AdminBookingsPanel />}
         {activeTab === 'finance' && <AdminFinancePanel />}
+        {activeTab === 'commercial' && <AdminCommercialPanel />}
         {activeTab === 'inquiries' && <AdminInquiriesPanel />}
         {activeTab === 'listings' && <AdminListingsModerationPanel />}
         {activeTab === 'reports' && <AdminContentReportsPanel />}

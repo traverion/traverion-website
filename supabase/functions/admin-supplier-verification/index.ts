@@ -129,7 +129,12 @@ type Body = {
     | 'force_unpublish_listing'
     | 'content_reports_list'
     | 'resolve_content_report'
-    | 'hide_review';
+    | 'hide_review'
+    | 'commercial_terms_get'
+    | 'commercial_terms_set'
+    | 'payout_periods_list'
+    | 'prepare_due_payouts'
+    | 'mark_payout_period_paid';
   supplierId?: string;
   feedback?: string | null;
   notificationTitle?: string;
@@ -158,6 +163,13 @@ type Body = {
   reportResolutionNote?: string | null;
   reviewId?: string;
   hideReviewReason?: string;
+  commercialPlanCode?: string;
+  commercialCommissionBps?: number;
+  commercialPayoutCadence?: string;
+  commercialEffectiveFrom?: string;
+  commercialNote?: string;
+  commercialConfirm?: boolean;
+  payoutPeriodId?: string;
 };
 
 function isAdminUser(user: { app_metadata?: Record<string, unknown> } | null): boolean {
@@ -412,6 +424,7 @@ serve(async (req) => {
       refundDue: number;
       refundDueCount: number;
       ledgerAdjustments: number;
+      platformCommission: number;
       paidOut: number;
       pendingPayout: number;
     };
@@ -426,6 +439,7 @@ serve(async (req) => {
           refundDue: 0,
           refundDueCount: 0,
           ledgerAdjustments: 0,
+          platformCommission: 0,
           paidOut: 0,
           pendingPayout: 0,
         };
@@ -463,11 +477,13 @@ serve(async (req) => {
       const choice = normalizePaymentStatus(b.refund_choice);
       return choice !== 'no_refund';
     };
-    /** Mirrors src/lib/supplier-ledger-balance.ts isCollectedEarningKind - keep in sync. */
+    /** Mirrors src/lib/supplier-ledger-balance.ts — keep in sync. */
     const isCollectedLedgerKind = (kind: unknown): boolean => {
       const k = normalizePaymentStatus(kind);
       return k === 'booking_earnings' || k === 'refund';
     };
+    const isPlatformCommissionKind = (kind: unknown): boolean =>
+      normalizePaymentStatus(kind) === 'platform_commission';
 
     for (const b of bookingRows) {
       const bucket = bucketFor(b.currency);
@@ -480,7 +496,11 @@ serve(async (req) => {
       }
     }
     for (const row of ledgerRows) {
-      if (isCollectedLedgerKind(row.kind)) continue; // already reflected in Collected
+      if (isCollectedLedgerKind(row.kind)) continue; // supplier journal mirrors
+      if (isPlatformCommissionKind(row.kind)) {
+        bucketFor(row.currency).platformCommission += Number(row.amount ?? 0);
+        continue;
+      }
       bucketFor(row.currency).ledgerAdjustments += Number(row.amount ?? 0);
     }
     for (const row of earningsRows) {
@@ -798,6 +818,140 @@ serve(async (req) => {
       .eq('id', reviewId);
     if (error) return json({ error: error.message }, 500);
     return json({ ok: true, skipped: false });
+  }
+
+  if (body.action === 'commercial_terms_get') {
+    const supplierId = typeof body.supplierId === 'string' ? body.supplierId.trim() : '';
+    if (!supplierId) return json({ error: 'supplierId required' }, 400);
+    const { data: current, error } = await admin
+      .from('supplier_commercial_terms')
+      .select(
+        'id, supplier_id, plan_code, commission_bps, payout_cadence, effective_from, effective_until, status, note, created_at, created_by'
+      )
+      .eq('supplier_id', supplierId)
+      .eq('status', 'active')
+      .is('effective_until', null)
+      .maybeSingle();
+    if (error) return json({ error: error.message }, 500);
+    const { data: history } = await admin
+      .from('supplier_commercial_terms')
+      .select(
+        'id, plan_code, commission_bps, payout_cadence, effective_from, effective_until, status, note, created_at'
+      )
+      .eq('supplier_id', supplierId)
+      .order('effective_from', { ascending: false })
+      .limit(20);
+    const { data: snaps } = await admin
+      .from('booking_commercial_snapshots')
+      .select(
+        'booking_id, currency, remaining_gross_minor, remaining_commission_minor, remaining_supplier_minor, plan_code, commission_bps'
+      )
+      .eq('supplier_id', supplierId)
+      .limit(500);
+    let gmv = 0;
+    let commission = 0;
+    let supplierEarn = 0;
+    for (const s of snaps ?? []) {
+      gmv += Number(s.remaining_gross_minor ?? 0);
+      commission += Number(s.remaining_commission_minor ?? 0);
+      supplierEarn += Number(s.remaining_supplier_minor ?? 0);
+    }
+    const { data: items } = await admin
+      .from('supplier_earning_items')
+      .select('status, amount_minor, currency')
+      .eq('supplier_id', supplierId);
+    const byStatus: Record<string, number> = {};
+    for (const it of items ?? []) {
+      const k = String(it.status);
+      byStatus[k] = (byStatus[k] ?? 0) + Number(it.amount_minor ?? 0);
+    }
+    return json({
+      current,
+      history: history ?? [],
+      economicsMinor: { gmv, commission, supplierEarn },
+      earningStatusMinor: byStatus,
+    });
+  }
+
+  if (body.action === 'commercial_terms_set') {
+    const supplierId = typeof body.supplierId === 'string' ? body.supplierId.trim() : '';
+    const plan =
+      typeof body.commercialPlanCode === 'string' ? body.commercialPlanCode.trim().toLowerCase() : '';
+    const cadence =
+      typeof body.commercialPayoutCadence === 'string'
+        ? body.commercialPayoutCadence.trim().toLowerCase()
+        : '';
+    const bps = Number(body.commercialCommissionBps);
+    const note = typeof body.commercialNote === 'string' ? body.commercialNote.trim() : '';
+    const confirm = body.commercialConfirm === true;
+    if (!supplierId) return json({ error: 'supplierId required' }, 400);
+    if (!confirm) return json({ error: 'commercialConfirm must be true' }, 400);
+    if (plan !== 'standard' && plan !== 'fast' && plan !== 'custom') {
+      return json({ error: 'plan must be standard, fast, or custom' }, 400);
+    }
+    if (plan === 'custom') {
+      if (!Number.isInteger(bps) || bps < 0 || bps > 10000) {
+        return json({ error: 'custom plan requires commission bps 0–10000' }, 400);
+      }
+      if (cadence !== 'monthly' && cadence !== 'semimonthly') {
+        return json({ error: 'custom plan requires payout cadence' }, 400);
+      }
+    }
+    const resolvedBps = plan === 'standard' ? 1500 : plan === 'fast' ? 1800 : bps;
+    const resolvedCadence =
+      plan === 'standard' ? 'monthly' : plan === 'fast' ? 'semimonthly' : cadence;
+    const effectiveFrom =
+      typeof body.commercialEffectiveFrom === 'string' && body.commercialEffectiveFrom.trim()
+        ? body.commercialEffectiveFrom.trim()
+        : new Date().toISOString();
+    const { data, error } = await admin.rpc('admin_set_supplier_commercial_terms', {
+      p_supplier_id: supplierId,
+      p_plan_code: plan,
+      p_commission_bps: resolvedBps,
+      p_payout_cadence: resolvedCadence,
+      p_effective_from: effectiveFrom,
+      p_note: note || null,
+      p_actor_id: adminUserId,
+    });
+    if (error) return json({ error: error.message }, 500);
+    const result = data as { ok?: boolean; error?: string; id?: string } | null;
+    if (!result?.ok) return json({ error: result?.error ?? 'Could not set terms' }, 400);
+    return json({ ok: true, id: result.id });
+  }
+
+  if (body.action === 'payout_periods_list') {
+    const { data, error } = await admin
+      .from('supplier_payout_periods')
+      .select(
+        'id, supplier_id, currency, cadence, period_key, period_start, period_end, scheduled_for, status, amount_minor, item_count, created_at, paid_at, note'
+      )
+      .order('scheduled_for', { ascending: false })
+      .limit(100);
+    if (error) return json({ error: error.message }, 500);
+    return json({ items: data ?? [] });
+  }
+
+  if (body.action === 'prepare_due_payouts') {
+    const { data, error } = await admin.rpc('prepare_due_supplier_payouts', {
+      p_now: new Date().toISOString(),
+    });
+    if (error) return json({ error: error.message }, 500);
+    return json(data ?? { ok: true });
+  }
+
+  if (body.action === 'mark_payout_period_paid') {
+    const periodId = typeof body.payoutPeriodId === 'string' ? body.payoutPeriodId.trim() : '';
+    if (!periodId) return json({ error: 'payoutPeriodId required' }, 400);
+    const note = typeof body.payoutNote === 'string' ? body.payoutNote.trim() : '';
+    const { data, error } = await admin.rpc('admin_mark_payout_period_paid', {
+      p_period_id: periodId,
+      p_note: note || null,
+      p_actor_id: adminUserId,
+    });
+    if (error) return json({ error: error.message }, 500);
+    const result = data as { ok?: boolean; error?: string } | null;
+    if (!result?.ok) return json({ error: result?.error ?? 'Could not mark paid' }, 400);
+    return json(result);
   }
 
   if (body.action === 'list_contact_inquiries') {

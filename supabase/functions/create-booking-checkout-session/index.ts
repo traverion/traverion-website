@@ -904,6 +904,15 @@ serve(async (req) => {
       }
       return json({ success: false, error: 'Checkout created but booking update failed' }, 500);
     }
+
+    // Commercial V1: freeze supplier terms at checkout so mid-checkout plan changes
+    // cannot mutate this booking's economics at payment settle.
+    try {
+      await admin.rpc('freeze_booking_commercial_terms', { p_booking_id: targetBookingId });
+    } catch {
+      // Non-fatal if migration not yet applied on a given env; settle falls back at pay.
+    }
+
     if ((updatedRows ?? []).length === 0) {
       // Concurrent webhook may have marked paid while Stripe created this session.
       const { data: again } = await admin

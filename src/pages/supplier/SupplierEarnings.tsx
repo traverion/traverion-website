@@ -3,7 +3,17 @@ import { Wallet } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageFinance } from '../../lib/supplierTeamRoles';
-import { fetchSupplierEarnings, SupplierEarning } from '../../data/supabase-earnings';
+import {
+  earningItemsMajorByStatus,
+  fetchSupplierActiveCommercialTerms,
+  fetchSupplierCommercialSnapshots,
+  fetchSupplierEarningItems,
+  fetchSupplierEarnings,
+  type BookingCommercialSnapshotRow,
+  type SupplierCommercialTermsRow,
+  type SupplierEarning,
+  type SupplierEarningItemRow,
+} from '../../data/supabase-earnings';
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
 import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 import { insertSupplierExportRun } from '../../data/supabase-supplier-campaigns-exports';
@@ -14,7 +24,8 @@ import { navigateSupplierUrl, openSupplierBooking } from '../../lib/supplierPort
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { formatMoney, isStripeTestCheckoutSession, appStripeIsTestMode, normalizeCurrency } from '../../lib/money';
 import { isCollectedBooking, isRefundDueBooking } from '../../lib/payment-states';
-import { isCollectedEarningKind } from '../../lib/supplier-ledger-balance';
+import { isCollectedEarningKind, isPlatformCommissionKind } from '../../lib/supplier-ledger-balance';
+import { formatBpsAsPercent, fromMinorUnits, planDefinition } from '../../lib/commercial-money';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchSupplierLedger, type SupplierLedgerEntry } from '../../data/supabase-booking-ops';
 import { PARTNER_MONEY_PAYOUT_STATUS_NOTE, PARTNER_MONEY_EMPTY_TITLE, PARTNER_MONEY_EMPTY_BODY, PARTNER_MONEY_LOAD_ERROR_TITLE, PARTNER_MONEY_FILTER_EMPTY_BODY, PARTNER_MONEY_AVAILABLE_BALANCE_LABEL, PARTNER_MONEY_NEGATIVE_BALANCE_LABEL, PARTNER_MONEY_NEGATIVE_BALANCE_NOTE, PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL, PARTNER_MONEY_THRESHOLD_PREFERENCE_NOTE, STRIPE_TEST_UNTIL_LIVE } from '../../lib/booking-confirmation-copy';
@@ -37,7 +48,8 @@ function ledgerKindLabel(kind: string): string {
   if (k === 'cancellation_fee' || k === 'supplier_cancellation_fee' || k === 'cancellation_penalty') {
     return 'Cancellation fee';
   }
-  if (k === 'booking_earnings') return 'Booking earnings';
+  if (k === 'booking_earnings') return 'Your earnings';
+  if (k === 'platform_commission') return 'Traverion commission';
   if (k === 'refund') return 'Earnings reversal';
   if (k === 'offset' || k === 'balance_offset') return 'Balance offset';
   if (k === 'adjustment') return 'Adjustment';
@@ -53,6 +65,9 @@ export default function SupplierEarnings() {
   const [paidBookings, setPaidBookings] = useState<BookingRow[]>([]);
   const [refundDueBookings, setRefundDueBookings] = useState<BookingRow[]>([]);
   const [ledger, setLedger] = useState<SupplierLedgerEntry[]>([]);
+  const [commercialTerms, setCommercialTerms] = useState<SupplierCommercialTermsRow | null>(null);
+  const [earningItems, setEarningItems] = useState<SupplierEarningItemRow[]>([]);
+  const [snapshots, setSnapshots] = useState<BookingCommercialSnapshotRow[]>([]);
   const [listingTitles, setListingTitles] = useState<Record<string, string>>({});
   const [profile, setProfile] = useState<Awaited<ReturnType<typeof fetchSupplierProfile>>>(null);
   const [loading, setLoading] = useState(true);
@@ -112,10 +127,20 @@ export default function SupplierEarnings() {
     setLoading(true);
     setError(null);
     setLedgerError(null);
-    Promise.all([fetchSupplierEarnings(uid), fetchBookingsForSupplier(uid), fetchMyListings(uid)])
-      .then(async ([data, bookings, listings]) => {
+    Promise.all([
+      fetchSupplierEarnings(uid),
+      fetchBookingsForSupplier(uid),
+      fetchMyListings(uid),
+      fetchSupplierActiveCommercialTerms(uid),
+      fetchSupplierEarningItems(uid),
+      fetchSupplierCommercialSnapshots(uid),
+    ])
+      .then(async ([data, bookings, listings, terms, items, snaps]) => {
         if (gen !== loadGenRef.current) return;
         setEarnings(data);
+        setCommercialTerms(terms);
+        setEarningItems(items);
+        setSnapshots(snaps);
         setListingTitles(Object.fromEntries(listings.map((l) => [l.id, l.title])));
         setPaidBookings(bookings.filter(isCollectedBooking));
         setRefundDueBookings(bookings.filter(isRefundDueBooking));
@@ -246,21 +271,30 @@ export default function SupplierEarnings() {
 
   type CurrencyMoney = {
     currency: string;
+    /** Traveler GMV collected */
     gross: number;
-    fees: number;
-    paid: number;
+    /** Traverion commission (from snapshots when present) */
+    commission: number;
+    /** Supplier contractual earnings (net) */
+    yourEarnings: number;
+    /** Experience not yet eligible */
     pending: number;
+    /** Ready for next payout cycle */
+    eligible: number;
+    /** Locked into a prepared payout period */
+    included: number;
+    /** Recorded as paid out */
+    paid: number;
+    /** Next-payout figure = eligible (authoritative earning items) */
     available: number;
+    fees: number;
     refundDue: number;
     refundDueCount: number;
   };
 
   /**
-   * sumCollectedAmount / ledgerAdjustmentTotal are documented as single-currency-only
-   * ("Callers must not mix currencies without converting" / "same currency assumed by
-   * caller") — bucket every input by its own real currency first, matching how Admin's
-   * Finance panel mirrors this exact formula, so a supplier whose listings span more than
-   * one currency (the platform genuinely supports 9) never sees a blended balance.
+   * Commercial V1: GMV / commission / your earnings from snapshots when present;
+   * pending/eligible/paid from supplier_earning_items. Never mix currencies.
    */
   const moneyByCurrency: CurrencyMoney[] = useMemo(() => {
     const byCurrency = new Map<string, CurrencyMoney>();
@@ -268,36 +302,89 @@ export default function SupplierEarnings() {
       const currency = normalizeCurrency(code ?? primaryCurrency);
       let s = byCurrency.get(currency);
       if (!s) {
-        s = { currency, gross: 0, fees: 0, paid: 0, pending: 0, available: 0, refundDue: 0, refundDueCount: 0 };
+        s = {
+          currency,
+          gross: 0,
+          commission: 0,
+          yourEarnings: 0,
+          fees: 0,
+          paid: 0,
+          pending: 0,
+          eligible: 0,
+          included: 0,
+          available: 0,
+          refundDue: 0,
+          refundDueCount: 0,
+        };
         byCurrency.set(currency, s);
       }
       return s;
     };
 
-    const nonCancelled = earnings.filter((e) => e.status !== 'cancelled');
-    for (const e of nonCancelled) {
-      const s = bucket(e.currency);
-      if (e.status === 'paid') s.paid += Number(e.amount);
-      else if (e.status === 'pending') s.pending += Number(e.amount);
+    const hasCommercial = snapshots.length > 0 || earningItems.length > 0;
+
+    if (hasCommercial) {
+      for (const snap of snapshots) {
+        const s = bucket(snap.currency);
+        s.gross += fromMinorUnits(Number(snap.remaining_gross_minor) || 0);
+        s.commission += fromMinorUnits(Number(snap.remaining_commission_minor) || 0);
+        s.yourEarnings += fromMinorUnits(Number(snap.remaining_supplier_minor) || 0);
+      }
+      for (const s of byCurrency.values()) {
+        const parts = earningItemsMajorByStatus(earningItems, s.currency);
+        s.pending = parts.pending;
+        s.eligible = parts.eligible;
+        s.included = parts.included;
+        s.paid = parts.paid;
+        s.available = parts.eligible;
+      }
+    } else {
+      // Pre-engine fallback (legacy 0% TEST history)
+      const nonCancelled = earnings.filter((e) => e.status !== 'cancelled');
+      for (const e of nonCancelled) {
+        const s = bucket(e.currency);
+        if (e.status === 'paid') s.paid += Number(e.amount);
+        else if (e.status === 'pending') s.pending += Number(e.amount);
+      }
+      for (const b of paidBookings) {
+        const s = bucket(b.currency);
+        s.gross += Number(b.amount_paid ?? 0);
+        s.yourEarnings += Number(b.amount_paid ?? 0);
+      }
+      for (const row of ledger) {
+        if (isCollectedEarningKind(row.kind) || isPlatformCommissionKind(row.kind)) continue;
+        bucket(row.currency).fees += Number(row.amount);
+      }
+      for (const s of byCurrency.values()) {
+        s.available = s.gross + s.fees - s.paid;
+        s.pending = s.pending > 0 ? s.pending + s.fees : s.available;
+      }
     }
-    for (const b of paidBookings) {
-      bucket(b.currency).gross += Number(b.amount_paid ?? 0);
-    }
-    for (const row of ledger) {
-      if (isCollectedEarningKind(row.kind)) continue;
-      bucket(row.currency).fees += Number(row.amount);
-    }
+
     for (const b of refundDueBookings) {
       const s = bucket(b.currency);
       s.refundDue += Number(b.amount_paid ?? 0);
       s.refundDueCount += 1;
     }
-    for (const s of byCurrency.values()) {
-      s.available = s.gross + s.fees - s.paid;
-      s.pending = s.pending > 0 ? s.pending + s.fees : s.available;
-    }
     return [...byCurrency.values()].sort((a, b) => b.gross - a.gross);
-  }, [earnings, paidBookings, ledger, refundDueBookings, primaryCurrency]);
+  }, [
+    earnings,
+    paidBookings,
+    ledger,
+    refundDueBookings,
+    primaryCurrency,
+    snapshots,
+    earningItems,
+  ]);
+
+  const planSummary = useMemo(() => {
+    if (!commercialTerms) return null;
+    const def = planDefinition(commercialTerms.plan_code);
+    if (def) return def.supplierFacingSummary;
+    return `${formatBpsAsPercent(commercialTerms.commission_bps)} commission · ${
+      commercialTerms.payout_cadence === 'semimonthly' ? 'Twice-monthly' : 'Monthly'
+    } payouts`;
+  }, [commercialTerms]);
 
   const earningsForInvoices = useMemo(
     () => earnings.filter((e) => e.status !== 'cancelled'),
@@ -394,7 +481,7 @@ export default function SupplierEarnings() {
       <SupplierPageHero
         badge="Insights"
         title="Income"
-        description={`Traveler payments collected, fees & adjustments, and what Traverion has paid you. Payouts are manual — this page never invents a transfer. Guest checkout uses ${STRIPE_TEST_UNTIL_LIVE}.`}
+        description={`Gross bookings, Traverion commission, and your earnings. Eligible amounts enter the next payout cycle after the activity date — this page never invents a bank transfer. Guest checkout uses ${STRIPE_TEST_UNTIL_LIVE}.`}
       />
 
       {error && (
@@ -451,29 +538,59 @@ export default function SupplierEarnings() {
                 >
                   <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-1">
                     {moneyByCurrency.length > 1 ? `${s.currency} · ` : ''}
-                    {s.available < 0 ? PARTNER_MONEY_NEGATIVE_BALANCE_LABEL : PARTNER_MONEY_AVAILABLE_BALANCE_LABEL}
+                    {s.available < 0 ? PARTNER_MONEY_NEGATIVE_BALANCE_LABEL : 'Eligible for next payout'}
                   </p>
                   <p
                     className={`font-display text-3xl sm:text-4xl tabular-nums tracking-tight ${s.available < 0 ? 'text-red-800' : 'text-ink'}`}
                   >
                     {formatMoney(s.available, s.currency)}
                   </p>
-                  <dl className="mt-4 grid grid-cols-3 gap-3 border-t border-black/[0.06] pt-4">
+                  {planSummary ? (
+                    <p className="mt-2 text-sm text-ink-muted max-w-lg">
+                      Your plan: <span className="font-medium text-ink">{planSummary}</span>
+                      . Contact Traverion to change payout plan.
+                    </p>
+                  ) : null}
+                  <dl className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3 border-t border-black/[0.06] pt-4">
                     <div>
-                      <dt className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Collected</dt>
+                      <dt className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Gross bookings</dt>
                       <dd className="mt-0.5 text-sm font-semibold tabular-nums text-ink">
                         {formatMoney(s.gross, s.currency)}
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Fees</dt>
-                      <dd className={`mt-0.5 text-sm font-semibold tabular-nums ${s.fees < 0 ? 'text-red-800' : 'text-ink'}`}>
-                        {formatMoney(s.fees, s.currency)}
+                      <dt className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Traverion commission</dt>
+                      <dd className="mt-0.5 text-sm font-semibold tabular-nums text-ink">
+                        {formatMoney(s.commission, s.currency)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Your earnings</dt>
+                      <dd className="mt-0.5 text-sm font-semibold tabular-nums text-ink">
+                        {formatMoney(s.yourEarnings, s.currency)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Pending</dt>
+                      <dd className="mt-0.5 text-sm font-semibold tabular-nums text-ink">
+                        {formatMoney(s.pending, s.currency)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Eligible</dt>
+                      <dd className="mt-0.5 text-sm font-semibold tabular-nums text-ink">
+                        {formatMoney(s.eligible, s.currency)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">In payout prep</dt>
+                      <dd className="mt-0.5 text-sm font-semibold tabular-nums text-ink">
+                        {formatMoney(s.included, s.currency)}
                       </dd>
                     </div>
                     <div>
                       <dt className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Paid out</dt>
-                      <dd className="mt-1 text-sm font-semibold tabular-nums text-ink">
+                      <dd className="mt-0.5 text-sm font-semibold tabular-nums text-ink">
                         {formatMoney(s.paid, s.currency)}
                       </dd>
                     </div>
