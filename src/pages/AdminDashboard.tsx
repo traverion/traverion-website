@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { BarChart3, CalendarDays, ClipboardCheck, History, Loader2, LogOut, Mail, Megaphone, Store, Users, ListChecks, UserCircle, Wallet, ShieldOff } from 'lucide-react';
+import { BarChart3, CalendarDays, ClipboardCheck, Flag, History, Loader2, LogOut, Mail, Megaphone, Store, Users, ListChecks, UserCircle, Wallet, ShieldOff } from 'lucide-react';
 import AdminSupplierVerificationPanel from '../components/admin/AdminSupplierVerificationPanel';
 import AdminPastVerificationsPanel from '../components/admin/AdminPastVerificationsPanel';
 import AdminSupplierPortalMessagesPanel from '../components/admin/AdminSupplierPortalMessagesPanel';
@@ -7,6 +7,7 @@ import AdminBookingsPanel from '../components/admin/AdminBookingsPanel';
 import AdminFinancePanel from '../components/admin/AdminFinancePanel';
 import AdminInquiriesPanel from '../components/admin/AdminInquiriesPanel';
 import AdminListingsModerationPanel from '../components/admin/AdminListingsModerationPanel';
+import AdminContentReportsPanel from '../components/admin/AdminContentReportsPanel';
 import NoticeCallout from '../components/NoticeCallout';
 import { useAuth } from '../contexts/AuthContext';
 import { invokeAdminEdgeFunction, type AdminStatsPayload } from '../lib/adminEdgeFunction';
@@ -30,6 +31,7 @@ export default function AdminDashboard() {
     | 'finance'
     | 'inquiries'
     | 'listings'
+    | 'reports'
     | 'suppliers'
     | 'past_verifications'
     | 'portal_messages'
@@ -63,6 +65,7 @@ export default function AdminDashboard() {
     { id: 'finance' as const, label: 'Finance', icon: Wallet },
     { id: 'inquiries' as const, label: 'Inquiries', icon: Mail },
     { id: 'listings' as const, label: 'Listings', icon: ShieldOff },
+    { id: 'reports' as const, label: 'Reports', icon: Flag },
     { id: 'suppliers' as const, label: 'Supplier verification', icon: ClipboardCheck },
     { id: 'past_verifications' as const, label: 'Past verifications', icon: History },
     { id: 'portal_messages' as const, label: 'Portal messages', icon: Megaphone },
@@ -234,6 +237,7 @@ export default function AdminDashboard() {
         {activeTab === 'finance' && <AdminFinancePanel />}
         {activeTab === 'inquiries' && <AdminInquiriesPanel />}
         {activeTab === 'listings' && <AdminListingsModerationPanel />}
+        {activeTab === 'reports' && <AdminContentReportsPanel />}
         {activeTab === 'suppliers' && <AdminSupplierVerificationPanel />}
         {activeTab === 'past_verifications' && <AdminPastVerificationsPanel />}
         {activeTab === 'portal_messages' && <AdminSupplierPortalMessagesPanel />}

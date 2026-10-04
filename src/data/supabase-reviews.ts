@@ -319,3 +319,43 @@ export async function submitReviewReply(
   if (error) return { success: false, error: error.message };
   return { success: true };
 }
+
+export type ContentReportReason =
+  | 'spam'
+  | 'fake'
+  | 'abusive'
+  | 'harassment'
+  | 'irrelevant'
+  | 'other';
+
+/** Traveler reports a public review. Persists via submit_content_report (idempotent per reporter+target). */
+export async function submitReviewContentReport(params: {
+  reviewId: string;
+  reason: ContentReportReason;
+  details?: string;
+}): Promise<{ success: boolean; reportId?: string; error?: string }> {
+  if (!supabase) return { success: false, error: 'Supabase not configured' };
+  const reviewId = params.reviewId.trim();
+  if (!reviewId) return { success: false, error: 'Missing review' };
+  const details = (params.details ?? '').trim().slice(0, 2000) || null;
+  const { data, error } = await supabase.rpc('submit_content_report', {
+    p_target_type: 'review',
+    p_target_id: reviewId,
+    p_reason: params.reason,
+    p_details: details,
+  });
+  if (error) {
+    const msg = error.message || 'Could not submit report';
+    if (/not_authenticated|JWT/i.test(msg)) {
+      return { success: false, error: 'Sign in to report a review.' };
+    }
+    if (/target_not_found|P0002/i.test(msg)) {
+      return { success: false, error: 'That review is no longer available to report.' };
+    }
+    if (/duplicate|unique/i.test(msg)) {
+      return { success: true, error: undefined };
+    }
+    return { success: false, error: msg };
+  }
+  return { success: true, reportId: typeof data === 'string' ? data : undefined };
+}

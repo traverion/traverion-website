@@ -126,7 +126,10 @@ type Body = {
     | 'list_contact_inquiries'
     | 'update_contact_inquiry_status'
     | 'listings_moderation_list'
-    | 'force_unpublish_listing';
+    | 'force_unpublish_listing'
+    | 'content_reports_list'
+    | 'resolve_content_report'
+    | 'hide_review';
   supplierId?: string;
   feedback?: string | null;
   notificationTitle?: string;
@@ -150,6 +153,11 @@ type Body = {
   listingId?: string;
   listingSearch?: string;
   moderationReason?: string;
+  reportId?: string;
+  reportStatus?: string;
+  reportResolutionNote?: string | null;
+  reviewId?: string;
+  hideReviewReason?: string;
 };
 
 function isAdminUser(user: { app_metadata?: Record<string, unknown> } | null): boolean {
@@ -691,6 +699,105 @@ serve(async (req) => {
     }
 
     return json(result);
+  }
+
+  if (body.action === 'content_reports_list') {
+    const { data: rows, error } = await admin
+      .from('content_reports')
+      .select(
+        'id, reporter_user_id, target_type, target_id, reason, details, status, created_at, resolved_at, resolution_note'
+      )
+      .order('created_at', { ascending: false })
+      .limit(200);
+    if (error) return json({ error: error.message }, 500);
+
+    const reviewIds = (rows ?? [])
+      .filter((r: { target_type?: string }) => r.target_type === 'review')
+      .map((r: { target_id: string }) => r.target_id);
+    const reviewMeta = new Map<
+      string,
+      { listing_id: string | null; guest_name: string | null; rating: number | null; comment: string | null; hidden_at: string | null }
+    >();
+    if (reviewIds.length > 0) {
+      const { data: reviews } = await admin
+        .from('reviews')
+        .select('id, listing_id, guest_name, rating, comment, hidden_at')
+        .in('id', reviewIds);
+      for (const rev of reviews ?? []) {
+        reviewMeta.set(rev.id, {
+          listing_id: rev.listing_id ?? null,
+          guest_name: rev.guest_name ?? null,
+          rating: typeof rev.rating === 'number' ? rev.rating : null,
+          comment: typeof rev.comment === 'string' ? rev.comment.slice(0, 280) : null,
+          hidden_at: rev.hidden_at ?? null,
+        });
+      }
+    }
+
+    const items = (rows ?? []).map(
+      (r: {
+        id: string;
+        reporter_user_id: string;
+        target_type: string;
+        target_id: string;
+        reason: string;
+        details: string | null;
+        status: string;
+        created_at: string;
+        resolved_at: string | null;
+        resolution_note: string | null;
+      }) => ({
+        ...r,
+        review: r.target_type === 'review' ? reviewMeta.get(r.target_id) ?? null : null,
+      })
+    );
+    return json({ items });
+  }
+
+  if (body.action === 'resolve_content_report') {
+    const reportId = typeof body.reportId === 'string' ? body.reportId.trim() : '';
+    const status =
+      typeof body.reportStatus === 'string' ? body.reportStatus.trim().toLowerCase() : '';
+    const note =
+      typeof body.reportResolutionNote === 'string' ? body.reportResolutionNote.trim() : '';
+    if (!reportId) return json({ error: 'reportId required' }, 400);
+    if (status !== 'resolved' && status !== 'dismissed' && status !== 'open') {
+      return json({ error: "reportStatus must be 'open', 'resolved', or 'dismissed'" }, 400);
+    }
+    const patch: Record<string, unknown> = {
+      status,
+      resolved_at: status === 'open' ? null : new Date().toISOString(),
+      resolved_by: status === 'open' ? null : adminUserId,
+      resolution_note: note ? note.slice(0, 2000) : null,
+    };
+    const { error } = await admin.from('content_reports').update(patch).eq('id', reportId);
+    if (error) return json({ error: error.message }, 500);
+    return json({ ok: true });
+  }
+
+  if (body.action === 'hide_review') {
+    const reviewId = typeof body.reviewId === 'string' ? body.reviewId.trim() : '';
+    const reason =
+      typeof body.hideReviewReason === 'string' ? body.hideReviewReason.trim() : '';
+    if (!reviewId) return json({ error: 'reviewId required' }, 400);
+    if (reason.length < 3) return json({ error: 'hideReviewReason must be at least 3 characters' }, 400);
+    const { data: existing, error: findErr } = await admin
+      .from('reviews')
+      .select('id, hidden_at')
+      .eq('id', reviewId)
+      .maybeSingle();
+    if (findErr) return json({ error: findErr.message }, 500);
+    if (!existing) return json({ error: 'Review not found' }, 404);
+    if (existing.hidden_at) return json({ ok: true, skipped: true });
+    const { error } = await admin
+      .from('reviews')
+      .update({
+        hidden_at: new Date().toISOString(),
+        hidden_reason: reason.slice(0, 2000),
+      })
+      .eq('id', reviewId);
+    if (error) return json({ error: error.message }, 500);
+    return json({ ok: true, skipped: false });
   }
 
   if (body.action === 'list_contact_inquiries') {

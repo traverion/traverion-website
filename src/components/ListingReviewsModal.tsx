@@ -1,7 +1,13 @@
 import { useMemo, useRef, useState } from 'react';
-import { Star, X } from 'lucide-react';
+import { Flag, Star, X } from 'lucide-react';
 import { useDialogFocus } from '../hooks/useDialogFocus';
-import type { ReviewDisplay, ReviewReplyRow } from '../data/supabase-reviews';
+import { useAuth } from '../contexts/AuthContext';
+import {
+  submitReviewContentReport,
+  type ContentReportReason,
+  type ReviewDisplay,
+  type ReviewReplyRow,
+} from '../data/supabase-reviews';
 
 type SortId = 'newest' | 'oldest' | 'highest' | 'lowest';
 
@@ -12,6 +18,15 @@ type Props = {
   replies: Record<string, ReviewReplyRow>;
   listingTitle: string;
 };
+
+const REPORT_REASONS: { id: ContentReportReason; label: string }[] = [
+  { id: 'spam', label: 'Spam' },
+  { id: 'fake', label: 'Fake or misleading' },
+  { id: 'abusive', label: 'Abusive' },
+  { id: 'harassment', label: 'Harassment' },
+  { id: 'irrelevant', label: 'Irrelevant' },
+  { id: 'other', label: 'Other' },
+];
 
 function sortReviews(list: ReviewDisplay[], sort: SortId): ReviewDisplay[] {
   const next = [...list];
@@ -27,8 +42,15 @@ function sortReviews(list: ReviewDisplay[], sort: SortId): ReviewDisplay[] {
 export function ListingReviewsModal({ open, onClose, reviews, replies, listingTitle }: Props) {
   const sheetRef = useRef<HTMLDivElement>(null);
   useDialogFocus(open, sheetRef, onClose);
+  const { user } = useAuth();
   const [starFilter, setStarFilter] = useState<number | 'all'>('all');
   const [sort, setSort] = useState<SortId>('newest');
+  const [reportingId, setReportingId] = useState<string | null>(null);
+  const [reason, setReason] = useState<ContentReportReason>('spam');
+  const [details, setDetails] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [reportedIds, setReportedIds] = useState<Record<string, true>>({});
 
   const distribution = useMemo(() => {
     const counts = [0, 0, 0, 0, 0];
@@ -45,6 +67,29 @@ export function ListingReviewsModal({ open, onClose, reviews, replies, listingTi
   }, [reviews, starFilter, sort]);
 
   if (!open) return null;
+
+  const submitReport = async (reviewId: string) => {
+    if (!user) {
+      setFeedback('Sign in to report a review.');
+      return;
+    }
+    setBusy(true);
+    setFeedback(null);
+    const res = await submitReviewContentReport({
+      reviewId,
+      reason,
+      details,
+    });
+    setBusy(false);
+    if (!res.success) {
+      setFeedback(res.error ?? 'Could not submit report.');
+      return;
+    }
+    setReportedIds((prev) => ({ ...prev, [reviewId]: true }));
+    setReportingId(null);
+    setDetails('');
+    setFeedback('Report received. Traverion staff can review it from the admin safety queue.');
+  };
 
   return (
     <div ref={sheetRef} className="tv-sheet-overlay">
@@ -74,6 +119,12 @@ export function ListingReviewsModal({ open, onClose, reviews, replies, listingTi
             <X className="w-5 h-5" aria-hidden />
           </button>
         </div>
+
+        {feedback ? (
+          <p className="mb-3 shrink-0 rounded-xl bg-finland/[0.06] px-3 py-2 text-sm text-ink ring-1 ring-finland/15" role="status">
+            {feedback}
+          </p>
+        ) : null}
 
         <div className="mb-4 shrink-0 space-y-3">
           <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by rating">
@@ -170,6 +221,73 @@ export function ListingReviewsModal({ open, onClose, reviews, replies, listingTi
                     </p>
                   </div>
                 ) : null}
+
+                <div className="mt-3">
+                  {reportedIds[r.id] ? (
+                    <p className="text-xs text-ink-muted">Report submitted</p>
+                  ) : reportingId === r.id ? (
+                    <div className="space-y-2 rounded-xl bg-paper px-3 py-3 ring-1 ring-black/[0.06]">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-finland">Report review</p>
+                      <label className="block text-sm text-ink-muted">
+                        Reason
+                        <select
+                          value={reason}
+                          onChange={(e) => setReason(e.target.value as ContentReportReason)}
+                          className="mt-1 w-full rounded-lg bg-paper-raised px-3 py-2 text-sm text-ink ring-1 ring-black/[0.06]"
+                        >
+                          {REPORT_REASONS.map((opt) => (
+                            <option key={opt.id} value={opt.id}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="block text-sm text-ink-muted">
+                        Details (optional)
+                        <textarea
+                          value={details}
+                          onChange={(e) => setDetails(e.target.value.slice(0, 2000))}
+                          rows={3}
+                          className="mt-1 w-full rounded-lg bg-paper-raised px-3 py-2 text-sm text-ink ring-1 ring-black/[0.06]"
+                          placeholder="What is wrong with this review?"
+                        />
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void submitReport(r.id)}
+                          className="tv-btn-primary text-sm disabled:opacity-50"
+                        >
+                          {busy ? 'Sending…' : 'Submit report'}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => {
+                            setReportingId(null);
+                            setDetails('');
+                          }}
+                          className="tv-btn-secondary text-sm"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReportingId(r.id);
+                        setFeedback(null);
+                      }}
+                      className="inline-flex min-h-9 items-center gap-1.5 text-xs font-medium text-ink-muted hover:text-ink"
+                    >
+                      <Flag className="w-3.5 h-3.5" aria-hidden />
+                      Report
+                    </button>
+                  )}
+                </div>
               </article>
             ))
           )}
