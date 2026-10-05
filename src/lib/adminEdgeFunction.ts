@@ -70,4 +70,16 @@ export type AdminStatsPayload = {
   total_listings: number;
   published_listings: number;
   registered_customers: number;
+  total_bookings?: number;
+  confirmed_bookings?: number;
+  cancelled_bookings?: number;
+  paid_bookings?: number;
+  refund_due_bookings?: number;
+  open_content_reports?: number;
+  open_inquiries?: number;
+  ready_payout_periods?: number;
+  active_financial_holds?: number;
+  open_disputes?: number;
+  auth_users?: number;
+  generated_at?: string;
 };
