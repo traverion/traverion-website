@@ -140,7 +140,9 @@ type Body = {
     | 'financial_hold_release'
     | 'prepare_refund_instruction'
     | 'marketplace_reset'
-    | 'users_list';
+    | 'users_list'
+    | 'suppliers_directory'
+    | 'consumers_directory';
   supplierId?: string;
   feedback?: string | null;
   notificationTitle?: string;
@@ -1134,6 +1136,89 @@ serve(async (req) => {
     return json({ items: users, keepEmail: KEEP });
   }
 
+  if (body.action === 'suppliers_directory') {
+    const { data: profiles, error } = await admin
+      .from('supplier_profiles')
+      .select(
+        'id, display_name, verification_status, payout_verification_status, created_at, contact_phone, default_currency'
+      )
+      .order('created_at', { ascending: false })
+      .limit(500);
+    if (error) return json({ error: error.message }, 500);
+    const ids = (profiles ?? []).map((p) => p.id as string);
+    const listingCounts: Record<string, number> = {};
+    const bookingCounts: Record<string, number> = {};
+    if (ids.length) {
+      const { data: listings } = await admin.from('listings').select('id, supplier_id, status').in('supplier_id', ids);
+      for (const row of listings ?? []) {
+        const sid = String(row.supplier_id);
+        listingCounts[sid] = (listingCounts[sid] ?? 0) + 1;
+      }
+      const listingIds = (listings ?? []).map((l) => l.id as string);
+      if (listingIds.length) {
+        const { data: bookings } = await admin
+          .from('bookings')
+          .select('id, listing_id')
+          .in('listing_id', listingIds)
+          .limit(5000);
+        const listingToSupplier = new Map(
+          (listings ?? []).map((l) => [String(l.id), String(l.supplier_id)])
+        );
+        for (const b of bookings ?? []) {
+          const sid = listingToSupplier.get(String(b.listing_id));
+          if (!sid) continue;
+          bookingCounts[sid] = (bookingCounts[sid] ?? 0) + 1;
+        }
+      }
+    }
+    const emailById: Record<string, string | null> = {};
+    for (const id of ids.slice(0, 200)) {
+      try {
+        const u = await admin.auth.admin.getUserById(id);
+        emailById[id] = u.data.user?.email ?? null;
+      } catch {
+        emailById[id] = null;
+      }
+    }
+    return json({
+      items: (profiles ?? []).map((p) => ({
+        ...p,
+        email: emailById[p.id as string] ?? null,
+        listings_count: listingCounts[p.id as string] ?? 0,
+        bookings_count: bookingCounts[p.id as string] ?? 0,
+      })),
+    });
+  }
+
+  if (body.action === 'consumers_directory') {
+    const { data: profiles, error } = await admin
+      .from('consumer_profiles')
+      .select('id, display_name, created_at, contact_phone')
+      .order('created_at', { ascending: false })
+      .limit(500);
+    if (error) return json({ error: error.message }, 500);
+    const items = [];
+    for (const p of profiles ?? []) {
+      let email: string | null = null;
+      try {
+        const u = await admin.auth.admin.getUserById(p.id as string);
+        email = u.data.user?.email ?? null;
+      } catch {
+        email = null;
+      }
+      const { count } = await admin
+        .from('bookings')
+        .select('*', { count: 'exact', head: true })
+        .eq('guest_user_id', p.id);
+      items.push({
+        ...p,
+        email,
+        bookings_count: count ?? 0,
+      });
+    }
+    return json({ items });
+  }
+
   if (body.action === 'marketplace_reset') {
     const confirm =
       typeof body.marketplaceResetConfirm === 'string' ? body.marketplaceResetConfirm.trim() : '';
@@ -1142,54 +1227,49 @@ serve(async (req) => {
     }
 
     const KEEP_EMAIL = 'info.traverion@gmail.com';
-    const counts: Record<string, number> = {};
     const errors: string[] = [];
 
-    const delAll = async (table: string) => {
-      // Delete all rows: filter that matches everything. Prefer neq on impossible uuid for uuid PKs.
-      const { data, error } = await admin.from(table).delete().neq('id', '00000000-0000-0000-0000-000000000000').select('id');
-      if (error) {
-        // Some tables may not have id — try truncate-style via rpc-less fallbacks
-        errors.push(`${table}: ${error.message}`);
-        counts[table] = -1;
-        return;
+    const { data: wipeData, error: wipeErr } = await admin.rpc('admin_marketplace_wipe', {
+      p_confirm: 'RESET MARKETPLACE',
+    });
+    if (wipeErr) {
+      // Fallback row deletes if migration 241 not applied yet
+      errors.push(`wipe_rpc: ${wipeErr.message}`);
+      for (const table of [
+        'supplier_payout_period_items',
+        'supplier_payout_periods',
+        'supplier_earning_items',
+        'booking_commercial_snapshots',
+        'booking_refund_instructions',
+        'booking_financial_holds',
+        'booking_dispute_events',
+        'booking_payment_events',
+        'supplier_ledger_entries',
+        'cancellation_requests',
+        'booking_messages',
+        'reviews',
+        'content_reports',
+        'bookings',
+        'listing_images',
+        'listing_availability',
+        'listings',
+        'supplier_team_members',
+        'supplier_commercial_terms',
+        'supplier_portal_notifications',
+        'supplier_export_runs',
+        'supplier_earnings',
+        'supplier_profiles',
+        'consumer_profiles',
+        'contact_inquiries',
+      ]) {
+        const { error } = await admin
+          .from(table)
+          .delete()
+          .neq('id', '00000000-0000-0000-0000-000000000000');
+        if (error) errors.push(`${table}: ${error.message}`);
       }
-      counts[table] = (data ?? []).length;
-    };
-
-    // Order: dependent money/booking rows → listings → profiles → misc
-    for (const table of [
-      'supplier_payout_period_items',
-      'supplier_payout_periods',
-      'supplier_earning_items',
-      'booking_commercial_snapshots',
-      'booking_refund_instructions',
-      'booking_financial_holds',
-      'booking_dispute_events',
-      'booking_payment_events',
-      'supplier_ledger_entries',
-      'cancellation_requests',
-      'booking_messages',
-      'reviews',
-      'content_reports',
-      'bookings',
-      'listing_images',
-      'listing_availability',
-      'listings',
-      'supplier_team_members',
-      'supplier_commercial_terms',
-      'supplier_portal_notifications',
-      'supplier_export_runs',
-      'supplier_earnings',
-      'supplier_profiles',
-      'consumer_profiles',
-      'contact_inquiries',
-      'financial_audit_log',
-    ]) {
-      await delAll(table);
     }
 
-    // Auth users except sole kept admin email
     let deletedUsers = 0;
     let keptUsers = 0;
     let page = 1;
@@ -1220,18 +1300,16 @@ serve(async (req) => {
       else deletedUsers += 1;
     }
 
-    // Ensure admin allowlist row still present
     await admin.from('admin').upsert(
       { email: KEEP_EMAIL, password: '' },
       { onConflict: 'email' }
     );
 
-    // Re-seed STANDARD terms will happen when new suppliers are created (trigger).
     await admin.from('financial_audit_log').insert({
       actor_id: adminUserId,
       action: 'marketplace_reset',
       reason: 'Admin marketplace reset — keep info.traverion@gmail.com only',
-      after_state: { counts, deletedUsers, keptUsers, errors },
+      after_state: { wipe: wipeData, deletedUsers, keptUsers, errors },
     });
 
     return json({
@@ -1239,7 +1317,7 @@ serve(async (req) => {
       keptEmail: KEEP_EMAIL,
       deletedUsers,
       keptUsers,
-      counts,
+      wipe: wipeData,
       errors,
     });
   }
