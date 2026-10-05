@@ -604,7 +604,16 @@ export const PARTNER_MONEY_THRESHOLD_PROGRESS_SUFFIX = PARTNER_MONEY_THRESHOLD_P
 
 /** Partner Settings — payout frequency preference; not an active schedule. */
 export const PARTNER_PAYOUT_FREQUENCY_HINT =
-  'Preference for when Traverion enables payouts — not an active schedule today.';
+  'Choose when you prefer Traverion to pay out once payouts are enabled — not an active schedule today.';
+
+export const PARTNER_PAYOUT_FREQUENCY_MONTHLY_LABEL = 'Monthly';
+export const PARTNER_PAYOUT_FREQUENCY_MONTHLY_DETAIL =
+  'Paid on the 1st of each month once Traverion enables payouts. Standard commission (15%).';
+
+export const PARTNER_PAYOUT_FREQUENCY_TWICE_MONTHLY_LABEL = 'Twice a month';
+/** FAST plan: +3pp commission vs standard (18% total). Stored as payment_cycle=biweekly. */
+export const PARTNER_PAYOUT_FREQUENCY_TWICE_MONTHLY_DETAIL =
+  'Paid on the 1st and the 15th once Traverion enables payouts. Adds 3% commission (18% total vs 15% standard).';
 
 /** Partner onboarding — checklist fields filled; publish still needs verification. */
 export const PARTNER_ONBOARDING_CHECKLIST_DONE_NOTE =

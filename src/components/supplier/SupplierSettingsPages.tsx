@@ -48,6 +48,10 @@ import {
   PARTNER_PAYOUT_REVIEW_STATUS_NOTE,
   PARTNER_PAYOUT_THRESHOLD_HINT,
   PARTNER_PAYOUT_FREQUENCY_HINT,
+  PARTNER_PAYOUT_FREQUENCY_MONTHLY_LABEL,
+  PARTNER_PAYOUT_FREQUENCY_MONTHLY_DETAIL,
+  PARTNER_PAYOUT_FREQUENCY_TWICE_MONTHLY_LABEL,
+  PARTNER_PAYOUT_FREQUENCY_TWICE_MONTHLY_DETAIL,
   PARTNER_BUSINESS_READY_TO_SUBMIT_NOTE,
   PARTNER_VERIFICATION_EMAIL_REQUESTED,
 } from '../../lib/booking-confirmation-copy';
@@ -1210,21 +1214,53 @@ function BusinessProfilePage(p: Props) {
                 </NoticeCallout>
               )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-ink mb-1.5">Payout frequency</label>
-                <p className="text-xs text-ink-muted mb-2">{PARTNER_PAYOUT_FREQUENCY_HINT}</p>
-                <select
-                  value={p.paymentCycle}
-                  onChange={(e) => p.setPaymentCycle(e.target.value as 'monthly' | 'biweekly' | '')}
-                  className={profileInputClass()}
-                >
-                  <option value="">Not set</option>
-                  <option value="monthly">Monthly</option>
-                  <option value="biweekly">Bi-weekly</option>
-                </select>
-              </div>
-              <div>
+            <div className="space-y-4">
+              <fieldset className="min-w-0">
+                <legend className="block text-sm font-medium text-ink mb-1.5">Payout frequency</legend>
+                <p className="text-xs text-ink-muted mb-3">{PARTNER_PAYOUT_FREQUENCY_HINT}</p>
+                <div className="space-y-2" role="radiogroup" aria-label="Payout frequency">
+                  {(
+                    [
+                      {
+                        value: 'monthly' as const,
+                        label: PARTNER_PAYOUT_FREQUENCY_MONTHLY_LABEL,
+                        detail: PARTNER_PAYOUT_FREQUENCY_MONTHLY_DETAIL,
+                      },
+                      {
+                        value: 'biweekly' as const,
+                        label: PARTNER_PAYOUT_FREQUENCY_TWICE_MONTHLY_LABEL,
+                        detail: PARTNER_PAYOUT_FREQUENCY_TWICE_MONTHLY_DETAIL,
+                      },
+                    ] as const
+                  ).map((opt) => {
+                    const selected = p.paymentCycle === opt.value;
+                    return (
+                      <label
+                        key={opt.value}
+                        className={`flex cursor-pointer items-start gap-3 rounded-lg border px-3.5 py-3 text-left transition-colors ${
+                          selected
+                            ? 'border-finland/40 bg-finland/[0.04]'
+                            : 'border-black/[0.08] bg-paper hover:border-black/[0.14]'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="partner-payout-frequency"
+                          value={opt.value}
+                          checked={selected}
+                          onChange={() => p.setPaymentCycle(opt.value)}
+                          className="mt-1 h-4 w-4 shrink-0 border-black/[0.2] text-finland focus:ring-finland"
+                        />
+                        <span className="min-w-0">
+                          <span className="block text-sm font-semibold text-ink">{opt.label}</span>
+                          <span className="mt-0.5 block text-xs leading-snug text-ink-muted">{opt.detail}</span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+              <div className="max-w-sm">
                 <label className="block text-sm font-medium text-ink mb-1.5">Minimum payout threshold</label>
                 <p className="text-xs text-ink-muted mb-2">{PARTNER_PAYOUT_THRESHOLD_HINT}</p>
                 <input

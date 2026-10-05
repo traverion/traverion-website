@@ -557,29 +557,33 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                         {fieldErrors.email}
                       </p>
                     )}
-                    {tab === 'signin' && (
+                    {(tab === 'signin' ||
+                      /confirm your email/i.test(fieldErrors.email ?? '') ||
+                      /confirm your email/i.test(fieldErrors.form ?? '')) && (
                       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
                         <button
                           type="button"
-                          onClick={handleResendConfirmation}
+                          onClick={() => void handleResendConfirmation()}
                           disabled={resendSending}
                           className="text-xs text-finland hover:underline disabled:opacity-50 inline-flex items-center gap-1"
                         >
                           <Mail className="w-3.5 h-3.5 shrink-0" aria-hidden />
                           {resendSending ? 'Sending…' : 'Resend confirmation email'}
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setResetPasswordEmail(email.trim());
-                            setResetPasswordFieldError(null);
-                            setResetPasswordSuccess(null);
-                            setPasswordResetPanel(true);
-                          }}
-                          className="text-xs text-finland hover:underline disabled:opacity-50"
-                        >
-                          Forgot password?
-                        </button>
+                        {tab === 'signin' ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setResetPasswordEmail(email.trim());
+                              setResetPasswordFieldError(null);
+                              setResetPasswordSuccess(null);
+                              setPasswordResetPanel(true);
+                            }}
+                            className="text-xs text-finland hover:underline disabled:opacity-50"
+                          >
+                            Forgot password?
+                          </button>
+                        ) : null}
                       </div>
                     )}
                   </div>

@@ -273,10 +273,10 @@ export default function SupplierAuth({
           }
           if (data.user && !data.user.email_confirmed_at) {
             await supabase.auth.signOut();
+            setSuccessMessage(null);
             setFieldErrors({
               email: 'Please confirm your email before signing in.',
             });
-            setSuccessMessage('You can use "Resend confirmation email" below if needed.');
             return;
           }
           if (data.user) {
@@ -525,22 +525,7 @@ export default function SupplierAuth({
               </NoticeCallout>
             ) : null}
             {successMessage ? (
-              <NoticeCallout
-                title="Check your email"
-                tone="success"
-                action={
-                  mode === 'signin' && successMessage.toLowerCase().includes('confirm') ? (
-                    <button
-                      type="button"
-                      onClick={handleResendConfirmation}
-                      disabled={resendSending}
-                      className="tv-btn-secondary w-full disabled:opacity-50"
-                    >
-                      {resendSending ? 'Resending confirmation…' : 'Resend confirmation email'}
-                    </button>
-                  ) : undefined
-                }
-              >
+              <NoticeCallout title="Check your email" tone="success">
                 {successMessage}
               </NoticeCallout>
             ) : null}
@@ -579,6 +564,35 @@ export default function SupplierAuth({
                 <p id="supplier-auth-email-error" className="mt-1.5 text-sm text-red-600" role="alert">
                   {fieldErrors.email}
                 </p>
+              )}
+              {/* Always offer resend on sign-in; also when confirm-email error appears on either mode */}
+              {(mode === 'signin' ||
+                /confirm your email/i.test(fieldErrors.email ?? '') ||
+                /confirm your email/i.test(fieldErrors.form ?? '')) && (
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                  <button
+                    type="button"
+                    onClick={() => void handleResendConfirmation()}
+                    disabled={resendSending}
+                    className="text-xs text-finland hover:underline disabled:opacity-50"
+                  >
+                    {resendSending ? 'Sending confirmation…' : 'Resend confirmation email'}
+                  </button>
+                  {mode === 'signin' ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setResetPasswordEmail(email.trim());
+                        setResetPasswordFieldError(null);
+                        setResetPasswordSuccess(null);
+                        setPasswordResetPanel(true);
+                      }}
+                      className="text-xs text-finland hover:underline"
+                    >
+                      Forgot password?
+                    </button>
+                  ) : null}
+                </div>
               )}
             </div>
             {mode === 'signup' && !compact && (
@@ -690,20 +704,6 @@ export default function SupplierAuth({
                 <p id="supplier-auth-password-error" className="mt-1.5 text-sm text-red-600" role="alert">
                   {fieldErrors.password}
                 </p>
-              )}
-              {mode === 'signin' && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setResetPasswordEmail(email.trim());
-                    setResetPasswordFieldError(null);
-                    setResetPasswordSuccess(null);
-                    setPasswordResetPanel(true);
-                  }}
-                  className="lux-flat mt-2 text-sm text-ink-muted hover:text-ink"
-                >
-                  Forgot password?
-                </button>
               )}
             </div>
             {mode === 'signup' && (
