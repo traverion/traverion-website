@@ -10,6 +10,12 @@ import {
 } from '../../lib/booking-confirmation-copy';
 import StatusChip from '../../components/StatusChip';
 import NoticeCallout from '../../components/NoticeCallout';
+import {
+  partnerBusinessReviewState,
+  partnerBusinessStatusChip,
+  partnerPayoutReviewState,
+  partnerPayoutStatusChip,
+} from '../../lib/partnerVerificationStatus';
 
 type PartnerOnboardingProps = {
   onSkip: () => void;
@@ -22,6 +28,10 @@ type PartnerOnboardingProps = {
   hasListing: boolean;
   /** True when Traverion has verified both business and payout (publish gate). */
   publishReady: boolean;
+  businessVerificationStatus?: string;
+  businessVerificationSubmittedAt?: string;
+  payoutVerificationStatus?: string;
+  payoutVerificationSubmittedAt?: string;
 };
 
 export default function PartnerOnboarding({
@@ -33,7 +43,24 @@ export default function PartnerOnboarding({
   payoutDone,
   hasListing,
   publishReady,
+  businessVerificationStatus = '',
+  businessVerificationSubmittedAt = '',
+  payoutVerificationStatus = '',
+  payoutVerificationSubmittedAt = '',
 }: PartnerOnboardingProps) {
+  const businessReview = partnerBusinessReviewState({
+    verificationStatus: businessVerificationStatus,
+    submittedAt: businessVerificationSubmittedAt,
+    draftComplete: businessDone,
+  });
+  const payoutReview = partnerPayoutReviewState({
+    verificationStatus: payoutVerificationStatus,
+    submittedAt: payoutVerificationSubmittedAt,
+    hasBankDetails: payoutDone,
+  });
+  const businessChip = partnerBusinessStatusChip(businessReview);
+  const payoutChip = partnerPayoutStatusChip(payoutReview);
+
   const steps = [
     {
       n: '01',
@@ -42,6 +69,7 @@ export default function PartnerOnboarding({
       done: businessDone,
       action: onBusiness,
       cta: businessDone ? 'Review' : 'Add details',
+      statusChip: businessChip,
     },
     {
       n: '02',
@@ -50,6 +78,7 @@ export default function PartnerOnboarding({
       done: payoutDone,
       action: onPayout,
       cta: payoutDone ? 'Review' : 'Add payout',
+      statusChip: payoutChip,
     },
     {
       n: '03',
@@ -58,6 +87,7 @@ export default function PartnerOnboarding({
       done: hasListing,
       action: onTours,
       cta: hasListing ? 'Open listings' : 'Create listing',
+      statusChip: null as null | typeof businessChip,
     },
   ];
 
@@ -159,9 +189,13 @@ export default function PartnerOnboarding({
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2 mb-0.5">
                     <h2 className="text-sm font-semibold text-ink">{s.title}</h2>
-                    <StatusChip tone={s.done ? 'good' : isNext ? 'warn' : 'neutral'}>
-                      {s.done ? 'Done' : isNext ? 'Up next' : 'To do'}
-                    </StatusChip>
+                    {s.statusChip ? (
+                      <StatusChip tone={s.statusChip.tone}>{s.statusChip.label}</StatusChip>
+                    ) : (
+                      <StatusChip tone={s.done ? 'good' : isNext ? 'warn' : 'neutral'}>
+                        {s.done ? 'Done' : isNext ? 'Up next' : 'To do'}
+                      </StatusChip>
+                    )}
                   </div>
                   <p className="text-sm text-ink-muted mb-2.5 leading-snug">{s.body}</p>
                   <button

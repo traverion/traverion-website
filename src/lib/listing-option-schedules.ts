@@ -142,7 +142,10 @@ export function scheduleCapacityValid(s: Pick<ListingOptionSchedule, 'minPersons
 }
 
 /** Traveler-bookable (not a draft). Start date optional on legacy implicit rows. */
-export function scheduleIsBookable(s: ListingOptionSchedule): boolean {
+export function scheduleIsBookable(
+  s: ListingOptionSchedule,
+  opts?: { startMode?: ListingBookingOption['startMode'] }
+): boolean {
   if (s.status === 'draft') return false;
   if (!listingShapeHasBookablePrice(s)) return false;
   if (!s.weekdays.some(Boolean)) return false;
@@ -150,26 +153,31 @@ export function scheduleIsBookable(s: ListingOptionSchedule): boolean {
   const to = listingLocalDateKey(s.availabilityDateTo);
   if (to && !from) return false;
   if (from && to && from > to) return false;
-  // Phase 1291: require from + startTime for all schedules (edge quote parity; no implicit invent).
+  // Phase 1291: require from for all schedules; fixed mode also needs startTime.
   if (!from) return false;
-  if (!s.startTime.trim()) return false;
+  if (opts?.startMode !== 'flexible' && !s.startTime.trim()) return false;
   if (!scheduleCapacityValid(s)) return false;
   return true;
 }
 
-export function scheduleWizardIsComplete(s: ListingOptionSchedule): boolean {
+export function scheduleWizardIsComplete(
+  s: ListingOptionSchedule,
+  opts?: { startMode?: ListingBookingOption['startMode'] }
+): boolean {
   const from = listingLocalDateKey(s.availabilityDateFrom);
   const to = listingLocalDateKey(s.availabilityDateTo);
   if (!from) return false;
   if (to && from > to) return false;
   if (!s.weekdays.some(Boolean)) return false;
-  if (!s.startTime.trim()) return false;
+  if (opts?.startMode !== 'flexible' && !s.startTime.trim()) return false;
   if (!listingShapeHasBookablePrice(s)) return false;
   return scheduleCapacityValid(s);
 }
 
 export function listingOptionReadySchedules(option: ListingBookingOption): ListingOptionSchedule[] {
-  return listingOptionSchedules(option).filter(scheduleIsBookable);
+  return listingOptionSchedules(option).filter((s) =>
+    scheduleIsBookable(s, { startMode: option.startMode })
+  );
 }
 
 export type ScheduleOverlapConflict = {
@@ -186,19 +194,20 @@ export type ScheduleOverlapConflict = {
  */
 export function findScheduleOverlap(
   candidate: ListingOptionSchedule,
-  others: ListingOptionSchedule[]
+  others: ListingOptionSchedule[],
+  opts?: { startMode?: ListingBookingOption['startMode'] }
 ): ScheduleOverlapConflict | null {
   const cFrom = listingLocalDateKey(candidate.availabilityDateFrom);
-  const cTime = candidate.startTime.trim();
+  const cTime = scheduleDepartureHm(candidate, opts?.startMode);
   if (!cFrom || !cTime) return null;
   if (candidate.status === 'draft') return null;
   const cTo = listingLocalDateKey(candidate.availabilityDateTo);
 
   for (const other of others) {
     if (other.id === candidate.id) continue;
-    if (other.status === 'draft' || !scheduleIsBookable(other)) continue;
+    if (other.status === 'draft' || !scheduleIsBookable(other, opts)) continue;
     const oFrom = listingLocalDateKey(other.availabilityDateFrom);
-    const oTime = other.startTime.trim();
+    const oTime = scheduleDepartureHm(other, opts?.startMode);
     if (!oFrom || !oTime) continue;
     if (cTime !== oTime) continue;
     const oTo = listingLocalDateKey(other.availabilityDateTo);
@@ -259,6 +268,18 @@ export function formatScheduleWeekdays(weekdays: boolean[]): string {
   return on.join(', ');
 }
 
+/** Day-level slot used when an option runs flexible hours without a fixed clock time. */
+export const FLEXIBLE_DEPARTURE_HM = '00:00';
+
+export function scheduleDepartureHm(
+  schedule: Pick<ListingOptionSchedule, 'startTime'>,
+  startMode?: ListingBookingOption['startMode']
+): string {
+  const hm = schedule.startTime.trim();
+  if (hm) return hm;
+  return startMode === 'flexible' ? FLEXIBLE_DEPARTURE_HM : '';
+}
+
 export function matchingSchedulesForDate(
   option: ListingBookingOption,
   localDateIso: string,
@@ -267,12 +288,16 @@ export function matchingSchedulesForDate(
   const key = listingLocalDateKey(localDateIso);
   const ready = listingOptionReadySchedules(option).filter((s) => scheduleAppliesOnDate(s, key));
   const time = startTime?.trim();
-  if (time) return ready.filter((s) => s.startTime.trim() === time);
+  if (time) {
+    return ready.filter((s) => scheduleDepartureHm(s, option.startMode) === time);
+  }
   return ready;
 }
 
 export function departureTimesOnDate(option: ListingBookingOption, localDateIso: string): string[] {
-  const times = matchingSchedulesForDate(option, localDateIso).map((s) => s.startTime.trim()).filter(Boolean);
+  const times = matchingSchedulesForDate(option, localDateIso)
+    .map((s) => scheduleDepartureHm(s, option.startMode))
+    .filter(Boolean);
   return [...new Set(times)].sort();
 }
 
@@ -301,7 +326,7 @@ export function tourSellingDeparturesOnDate(
           optionName,
           scheduleId: s.id,
           scheduleName: scheduleHeadlineName(s, 0),
-          startTime: s.startTime.trim(),
+          startTime: scheduleDepartureHm(s, option.startMode),
           maxSpotsPerSlot: s.maxSpotsPerSlot,
         });
       }
@@ -354,7 +379,7 @@ export function resolveScheduleForDate(
   const ready = matchingSchedulesForDate(option, localDateIso, startTime);
   if (ready.length === 0) return null;
   if (ready.length === 1) return ready[0];
-  const times = new Set(ready.map((s) => s.startTime.trim()));
+  const times = new Set(ready.map((s) => scheduleDepartureHm(s, option.startMode)));
   if (times.size === 1) return ready[0];
   return null;
 }
@@ -371,9 +396,10 @@ export function applyScheduleToOption(
   option: ListingBookingOption,
   schedule: ListingOptionSchedule
 ): ListingBookingOption {
+  const startTime = scheduleDepartureHm(schedule, option.startMode) || schedule.startTime;
   return {
     ...option,
-    startTime: schedule.startTime,
+    startTime,
     weekdays: [...schedule.weekdays],
     availabilityDateFrom: schedule.availabilityDateFrom,
     availabilityDateTo: schedule.availabilityDateTo,
@@ -521,7 +547,10 @@ export function optionScheduleCountLabel(option: ListingBookingOption): string {
 
 export function optionHasReadySchedule(option: ListingBookingOption): boolean {
   if (listingOptionHasSchedules(option)) {
-    return (option.schedules ?? []).some((s) => s.status !== 'draft' && scheduleWizardIsComplete(s) && scheduleIsBookable(s));
+    const mode = { startMode: option.startMode };
+    return (option.schedules ?? []).some(
+      (s) => s.status !== 'draft' && scheduleWizardIsComplete(s, mode) && scheduleIsBookable(s, mode)
+    );
   }
   return listingOptionReadySchedules(option).length > 0;
 }

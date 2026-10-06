@@ -10,10 +10,15 @@ import {
   scheduleWizardIsComplete,
 } from '../../../lib/listing-option-schedules';
 import { summarizeOptionPricing } from '../../../lib/price-categories';
+import { bookingOptionSchedulePrereqIssues } from '../../../lib/listing-option-validation';
 
-function scheduleStatus(s: ListingOptionSchedule): 'ready' | 'draft' {
+function scheduleStatus(
+  s: ListingOptionSchedule,
+  startMode: ListingBookingOption['startMode']
+): 'ready' | 'draft' {
   if (s.status === 'draft') return 'draft';
-  if (scheduleWizardIsComplete(s) && scheduleIsBookable(s)) return 'ready';
+  const mode = { startMode };
+  if (scheduleWizardIsComplete(s, mode) && scheduleIsBookable(s, mode)) return 'ready';
   return 'draft';
 }
 
@@ -39,26 +44,44 @@ export function TourOptionScheduleList({
   occupancyNoticeForSchedule?: (schedule: ListingOptionSchedule) => string | null;
 }) {
   const rows = listingOptionHasSchedules(option) ? option.schedules ?? [] : listingOptionSchedules(option);
+  const prereq = bookingOptionSchedulePrereqIssues(option);
+  const canAdd = prereq.length === 0;
 
   return (
     <div id="supplier-listing-field-option-schedules" className="space-y-3">
       <p className="text-sm leading-relaxed text-ink-muted">
-        Each schedule is a date window with its own days, start time, capacity, and price. Add as many as you need —
-        for example one for September and another for October.
+        Each schedule is a date window with its own operating days
+        {option.startMode === 'flexible' ? '' : ', start time'}
+        , capacity, and price. Add as many as you need — for example one for September and another for October.
       </p>
+      {!canAdd ? (
+        <div className="rounded-xl border border-amber-200/80 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
+          <p className="font-semibold text-amber-900">Finish Setup first</p>
+          <ul className="mt-1.5 list-disc space-y-1 pl-5">
+            {prereq.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       {rows.length === 0 ? (
         <div className="lc-section rounded-xl px-4 py-6 text-center sm:px-5">
           <p className="font-display text-lg font-bold text-ink">No schedules yet</p>
           <p className="mt-1 text-sm text-ink-muted">
             Add your first schedule so travelers can pick a date and see the right price.
           </p>
-          <button type="button" onClick={onAdd} className="tv-btn-primary mt-4 !min-h-11">
+          <button
+            type="button"
+            onClick={onAdd}
+            disabled={!canAdd}
+            className="tv-btn-primary mt-4 !min-h-11 disabled:opacity-50"
+          >
             Add schedule
           </button>
         </div>
       ) : (
         rows.map((s, index) => {
-          const status = scheduleStatus(s);
+          const status = scheduleStatus(s, option.startMode);
           const pending = pendingDeleteId === s.id;
           const occupancyNotice = pending ? occupancyNoticeForSchedule?.(s) ?? null : null;
           return (
@@ -82,7 +105,12 @@ export function TourOptionScheduleList({
                     {formatScheduleRange(s.availabilityDateFrom, s.availabilityDateTo) || 'Dates not set'}
                   </p>
                   <p className="text-sm text-ink-muted">
-                    {[formatScheduleWeekdays(s.weekdays), s.startTime.trim() || null].filter(Boolean).join(' · ')}
+                    {[
+                      formatScheduleWeekdays(s.weekdays),
+                      s.startTime.trim() || (option.startMode === 'flexible' ? 'Flexible hours' : null),
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
                   </p>
                   <p className="text-sm text-ink">{summarizeOptionPricing(s, formatAmount)}</p>
                   <p className="text-xs text-ink-muted">Max {s.maxSpotsPerSlot} travelers</p>
@@ -112,7 +140,12 @@ export function TourOptionScheduleList({
                         <Pencil className="h-3.5 w-3.5" aria-hidden />
                         Edit
                       </button>
-                      <button type="button" onClick={() => onDuplicate(s.id)} className="tv-btn-ghost !min-h-11">
+                      <button
+                        type="button"
+                        onClick={() => onDuplicate(s.id)}
+                        disabled={!canAdd}
+                        className="tv-btn-ghost !min-h-11 disabled:opacity-50"
+                      >
                         <Copy className="h-3.5 w-3.5" aria-hidden />
                         Duplicate
                       </button>
@@ -136,7 +169,8 @@ export function TourOptionScheduleList({
         <button
           type="button"
           onClick={onAdd}
-          className="lc-upload inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl px-4 py-4 text-sm font-semibold text-finland"
+          disabled={!canAdd}
+          className="lc-upload inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl px-4 py-4 text-sm font-semibold text-finland disabled:opacity-50"
         >
           <Plus className="h-5 w-5 shrink-0" aria-hidden />
           Add schedule

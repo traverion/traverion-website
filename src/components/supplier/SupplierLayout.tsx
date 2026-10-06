@@ -390,13 +390,12 @@ export default function SupplierLayout() {
       const owns = await supplierOwnsAnyListing(client, uid);
       if (stale()) return;
       if (owns === true) {
-        const email = typeof candidate.email === 'string' ? candidate.email : '';
-        const local = email.includes('@') ? email.split('@')[0]! : email || 'Partner';
-        const res = await ensureSupplierProfile(uid, { display_name: local });
-        if (!res.success && typeof console !== 'undefined') {
-          console.warn('[Traverion partner] supplier_profiles repair (listings) failed:', res.error);
+          // Create the row without inventing a brand from the email local-part (e.g. "contact").
+          const res = await ensureSupplierProfile(uid, {});
+          if (!res.success && typeof console !== 'undefined') {
+            console.warn('[Traverion partner] supplier_profiles repair (listings) failed:', res.error);
+          }
         }
-      }
     };
 
     const run = async () => {
@@ -743,7 +742,8 @@ export default function SupplierLayout() {
     return () => window.removeEventListener('hashchange', applyHash);
   }, [section]);
 
-  const operatorDisplayName = companyLegalName.trim() || profileDisplayName.trim() || 'Your business';
+  // Prefer customer-facing brand (display_name); legal name is for verification only.
+  const operatorDisplayName = profileDisplayName.trim() || companyLegalName.trim() || 'Your business';
 
   const formattedBusinessAddress = useMemo(
     () =>
@@ -1164,6 +1164,10 @@ export default function SupplierLayout() {
                         payoutDone={onboardingHasPayout}
                         hasListing={onboardingHasListing}
                         publishReady={onboardingBusinessVerified && onboardingPayoutVerified}
+                        businessVerificationStatus={verificationStatus}
+                        businessVerificationSubmittedAt={verificationSubmittedAt}
+                        payoutVerificationStatus={payoutVerificationStatus}
+                        payoutVerificationSubmittedAt={payoutVerificationSubmittedAt}
                       />
                     )}
                     {section === 'dashboard' && <SupplierDashboard />}
@@ -1225,6 +1229,8 @@ export default function SupplierLayout() {
                         updateSupplierPayout={updateSupplierPayout}
                         businessType={businessType}
                         setBusinessType={setBusinessType}
+                        profileDisplayName={profileDisplayName}
+                        setProfileDisplayName={setProfileDisplayName}
                         companyLegalName={companyLegalName}
                         setCompanyLegalName={setCompanyLegalName}
                         companyRegistrationNumber={companyRegistrationNumber}

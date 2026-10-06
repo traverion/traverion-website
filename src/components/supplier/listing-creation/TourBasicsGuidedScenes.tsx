@@ -153,13 +153,13 @@ export function TourBasicsGuidedScenes({
               <p className="mb-2 text-xs text-ink-muted">
                 A short line under the title on the listing page (max {TOUR_BASICS_SUBTITLE_MAX} characters).
               </p>
-              <input
+              <textarea
                 id="supplier-listing-subtitle"
-                type="text"
                 value={form.subtitle}
                 maxLength={TOUR_BASICS_SUBTITLE_MAX}
                 onChange={(e) => onChange({ subtitle: e.target.value.slice(0, TOUR_BASICS_SUBTITLE_MAX) })}
-                className="tv-input min-w-0 [overflow-wrap:anywhere]"
+                rows={3}
+                className="tv-input min-h-[5.5rem] min-w-0 resize-y [overflow-wrap:anywhere]"
               />
               <p className="mt-1 text-xs tabular-nums text-ink-muted">
                 {form.subtitle.length}/{TOUR_BASICS_SUBTITLE_MAX}

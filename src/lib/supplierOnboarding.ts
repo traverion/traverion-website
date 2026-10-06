@@ -5,6 +5,8 @@ import type { SupplierProfileRow } from '../data/supabase-supplier-profile';
  * new required business fields—those strings are shown to suppliers in the verification status box.
  */
 export type SupplierBusinessProfileDraft = {
+  /** Customer-facing brand / trading name shown on listings. */
+  display_name?: string | null;
   company_legal_name?: string | null;
   /** Legacy single-line address (optional if structured fields are set). */
   business_address?: string | null;
@@ -39,6 +41,7 @@ export function getSupplierBusinessProfileMissingReasons(
   if (!d) return ['Sign in and open Business profile to continue.'];
   const requireDoc = opts?.requireRegistrationDocument !== false;
   const out: string[] = [];
+  if (!d.display_name?.trim()) out.push('Business or brand name (visible to travelers)');
   if (!d.company_legal_name?.trim()) out.push('Registered legal business name');
   if (!d.business_type) out.push('Business type (company or individual trader)');
   if (!supplierAddressCompleteFromDraft(d)) {
@@ -71,6 +74,7 @@ export function isSupplierPayoutConfigured(profile: SupplierProfileRow | null | 
 
 function profileDraftFromRow(profile: SupplierProfileRow): SupplierBusinessProfileDraft {
   return {
+    display_name: profile.display_name,
     company_legal_name: profile.company_legal_name,
     business_address: profile.business_address,
     address_street: profile.address_street,

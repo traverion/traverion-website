@@ -802,7 +802,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
         return;
       }
       const operatorName =
-        row.company_legal_name?.trim() || row.display_name?.trim() || 'Operator';
+        row.display_name?.trim() || row.company_legal_name?.trim() || 'Operator';
       setSupplierLegal({
         operatorName,
         business_logo_url: row.business_logo_url?.trim() || null,

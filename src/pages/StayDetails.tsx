@@ -385,7 +385,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
       return;
     }
     void fetchSupplierPublicLegal(stay.supplierId).then((row) => {
-      const name = row?.company_legal_name?.trim() || row?.display_name?.trim() || null;
+      const name = row?.display_name?.trim() || row?.company_legal_name?.trim() || null;
       setHostName(name);
     });
   }, [stay?.supplierId]);

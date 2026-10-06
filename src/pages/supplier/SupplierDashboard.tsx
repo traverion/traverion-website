@@ -2,8 +2,18 @@ import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef, typ
 import { SUPPLIER_PAGE_CLASS, SupplierListSkeleton } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
 import NoticeCallout from '../../components/NoticeCallout';
+import StatusChip from '../../components/StatusChip';
 import { USER_ERROR } from '../../lib/userFacingError';
 import { ChevronRight, Star } from 'lucide-react';
+import {
+  partnerAccountStatus,
+  partnerBusinessReviewState,
+  partnerPayoutReviewState,
+} from '../../lib/partnerVerificationStatus';
+import {
+  isSupplierBusinessProfileComplete,
+  isSupplierPayoutConfigured,
+} from '../../lib/supplierOnboarding';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
@@ -410,11 +420,25 @@ export default function SupplierDashboard() {
    * "needs action" in that case falsely tells an already-verified supplier to finish
    * onboarding. Only flag this once we actually have profile data saying otherwise.
    */
-  const verificationNeedsAction = useMemo(() => {
-    if (!profile) return false;
-    const v = (profile.verification_status ?? '').trim().toLowerCase();
-    return v !== 'verified';
+  const accountStatus = useMemo(() => {
+    if (!profile) return null;
+    const business = partnerBusinessReviewState({
+      verificationStatus: profile.verification_status,
+      submittedAt: profile.verification_submitted_at,
+      draftComplete: isSupplierBusinessProfileComplete(profile),
+    });
+    const payout = partnerPayoutReviewState({
+      verificationStatus: profile.payout_verification_status,
+      submittedAt: profile.payout_verification_submitted_at,
+      hasBankDetails: isSupplierPayoutConfigured(profile),
+    });
+    return partnerAccountStatus({ business, payout });
   }, [profile]);
+
+  /** Incomplete / rejected verification counts toward Needs attention; pending review is shown in Account status. */
+  const verificationNeedsAction = Boolean(
+    accountStatus && (accountStatus.kind === 'setup' || accountStatus.kind === 'rejected')
+  );
 
   const pickupGaps = useMemo(() => {
     const nowMs = Date.now();
@@ -665,6 +689,39 @@ export default function SupplierDashboard() {
         </div>
       </section>
 
+      {accountStatus && !dashboardLoading && (
+        <section className="mb-6">
+          <button
+            type="button"
+            onClick={() =>
+              navigateSupplierUrl(
+                accountStatus.kind === 'setup'
+                  ? `${PARTNER_APP_BASE}/onboarding`
+                  : `${PARTNER_APP_BASE}/business-profile#company`
+              )
+            }
+            className={`partner-surface-panel lux-flat partner-row-interact flex w-full items-start gap-3 px-4 py-3.5 text-left ${
+              accountStatus.kind === 'operational'
+                ? 'border-emerald-200/80 bg-emerald-50/40'
+                : accountStatus.kind === 'rejected'
+                  ? 'border-red-200/80 bg-red-50/40'
+                  : accountStatus.kind === 'pending'
+                    ? 'border-amber-200/80 bg-amber-50/30'
+                    : ''
+            }`}
+          >
+            <span className="min-w-0 flex-1">
+              <span className="flex flex-wrap items-center gap-2">
+                <span className="text-[14px] font-semibold text-slate-900">{accountStatus.title}</span>
+                <StatusChip tone={accountStatus.tone}>{accountStatus.chipLabel}</StatusChip>
+              </span>
+              <span className="mt-1 block text-[13px] leading-snug text-slate-500">{accountStatus.detail}</span>
+            </span>
+            <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-slate-300" aria-hidden />
+          </button>
+        </section>
+      )}
+
       {attentionCount > 0 && (
         <section className="mb-6">
           <SectionHead
@@ -802,11 +859,19 @@ export default function SupplierDashboard() {
                 onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings?filter=draft`)}
               />
             )}
-            {verificationNeedsAction && (
+            {verificationNeedsAction && accountStatus?.kind === 'rejected' && (
+              <AttentionItem
+                tone="danger"
+                title={accountStatus.title}
+                detail={accountStatus.detail}
+                onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile#company`)}
+              />
+            )}
+            {verificationNeedsAction && accountStatus?.kind === 'setup' && (
               <AttentionItem
                 tone="warn"
-                title="Finish business and payout setup"
-                detail="Required before live payouts"
+                title={accountStatus.title}
+                detail={accountStatus.detail}
                 onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding`)}
               />
             )}

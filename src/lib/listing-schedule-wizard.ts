@@ -34,7 +34,10 @@ export function previousTourScheduleScene(index: number): number {
   return clampTourScheduleSceneIndex(index - 1);
 }
 
-export function schedulePeriodIssues(schedule: ListingOptionSchedule): string[] {
+export function schedulePeriodIssues(
+  schedule: ListingOptionSchedule,
+  opts?: { startMode?: ListingBookingOption['startMode'] }
+): string[] {
   const msg: string[] = [];
   const from = listingLocalDateKey(schedule.availabilityDateFrom);
   const to = listingLocalDateKey(schedule.availabilityDateTo);
@@ -42,7 +45,8 @@ export function schedulePeriodIssues(schedule: ListingOptionSchedule): string[] 
   if (to && !from) msg.push('Add a starting date when you set an ending date, or clear the ending date.');
   if (from && to && from > to) msg.push('Ending date must be after starting date.');
   if (!schedule.weekdays.some(Boolean)) msg.push('Choose at least one operating day.');
-  if (!schedule.startTime.trim()) msg.push('Add a start time.');
+  const flexible = opts?.startMode === 'flexible';
+  if (!flexible && !schedule.startTime.trim()) msg.push('Add a start time.');
   return msg;
 }
 
@@ -72,8 +76,10 @@ export function scheduleReadyOverlapIssue(
   option: ListingBookingOption
 ): string | null {
   if (schedule.status === 'draft') return null;
-  if (!scheduleWizardIsComplete(schedule)) return null;
-  const conflict = findScheduleOverlap(schedule, option.schedules ?? []);
+  if (!scheduleWizardIsComplete(schedule, { startMode: option.startMode })) return null;
+  const conflict = findScheduleOverlap(schedule, option.schedules ?? [], {
+    startMode: option.startMode,
+  });
   return conflict ? scheduleOverlapMessage(conflict) : null;
 }
 
@@ -88,20 +94,21 @@ export function isTourScheduleSceneSatisfied(
 ): boolean {
   const scene = TOUR_SCHEDULE_SCENES[clampTourScheduleSceneIndex(sceneIndex)];
   if (!scene) return false;
-  if (scene.id === 'when') return schedulePeriodIssues(schedule).length === 0;
+  if (scene.id === 'when') return schedulePeriodIssues(schedule, { startMode: option?.startMode }).length === 0;
   if (scene.id === 'price_capacity') return schedulePriceCapacityIssues(schedule).length === 0;
   const overlap = option ? scheduleReadyOverlapIssue({ ...schedule, status: 'ready' }, option) : null;
-  return scheduleWizardIsComplete(schedule) && !overlap;
+  return scheduleWizardIsComplete(schedule, { startMode: option?.startMode }) && !overlap;
 }
 
 export function canVisitTourScheduleScene(input: {
   targetIndex: number;
   isNewSchedule: boolean;
   schedule: ListingOptionSchedule;
+  option?: ListingBookingOption;
 }): boolean {
   if (!input.isNewSchedule) return true;
   return previousStepsSatisfied(input.targetIndex, (index) =>
-    isTourScheduleSceneSatisfied(index, input.schedule)
+    isTourScheduleSceneSatisfied(index, input.schedule, input.option)
   );
 }
 
@@ -121,7 +128,12 @@ export function tourScheduleSceneContinueHint(input: {
 }): string | null {
   if (input.canContinue) return null;
   const scene = TOUR_SCHEDULE_SCENES[clampTourScheduleSceneIndex(input.sceneIndex)];
-  if (scene?.id === 'when') return schedulePeriodIssues(input.schedule)[0] ?? 'Finish when this schedule runs to continue.';
+  if (scene?.id === 'when') {
+    return (
+      schedulePeriodIssues(input.schedule, { startMode: input.option?.startMode })[0] ??
+      'Finish when this schedule runs to continue.'
+    );
+  }
   if (scene?.id === 'price_capacity') {
     return schedulePriceCapacityIssues(input.schedule)[0] ?? 'Finish price and capacity to continue.';
   }
@@ -135,16 +147,18 @@ export function tourScheduleSceneContinueHint(input: {
 export function tourScheduleLockedReason(input: {
   targetIndex: number;
   schedule: ListingOptionSchedule;
+  option?: ListingBookingOption;
 }): string {
   if (input.targetIndex <= 0) return '';
   const firstIncomplete = Array.from({ length: input.targetIndex }, (_, i) => i).find(
-    (i) => !isTourScheduleSceneSatisfied(i, input.schedule)
+    (i) => !isTourScheduleSceneSatisfied(i, input.schedule, input.option)
   );
   if (firstIncomplete == null) return '';
   return (
     tourScheduleSceneContinueHint({
       sceneIndex: firstIncomplete,
       schedule: input.schedule,
+      option: input.option,
       canContinue: false,
     }) ?? 'Complete the previous step first.'
   );
@@ -155,11 +169,13 @@ export function tourScheduleContextNavItems(
   options?: {
     isNewSchedule?: boolean;
     schedule?: ListingOptionSchedule;
+    option?: ListingBookingOption;
   }
 ): ListingCreationNavItem[] {
   const current = clampTourScheduleSceneIndex(currentIndex);
   const isNewSchedule = options?.isNewSchedule === true;
   const schedule = options?.schedule;
+  const option = options?.option;
   return TOUR_SCHEDULE_SCENES.map((scene, index) => ({
     id: scene.id,
     label: scene.label,
@@ -167,13 +183,17 @@ export function tourScheduleContextNavItems(
       index,
       currentIndex: current,
       isNewCreation: isNewSchedule,
-      isSatisfied: (idx) => (schedule ? isTourScheduleSceneSatisfied(idx, schedule) : idx < current),
+      isSatisfied: (idx) =>
+        schedule ? isTourScheduleSceneSatisfied(idx, schedule, option) : idx < current,
     }),
   }));
 }
 
-export function firstScheduleIssueFocusId(schedule: ListingOptionSchedule): string | null {
-  if (schedulePeriodIssues(schedule).length > 0) return 'supplier-schedule-field-from';
+export function firstScheduleIssueFocusId(
+  schedule: ListingOptionSchedule,
+  opts?: { startMode?: ListingBookingOption['startMode'] }
+): string | null {
+  if (schedulePeriodIssues(schedule, opts).length > 0) return 'supplier-schedule-field-from';
   if (schedulePriceCapacityIssues(schedule).length > 0) return 'supplier-schedule-field-price';
   return null;
 }
@@ -182,17 +202,20 @@ export function scheduleCanSaveReady(
   schedule: ListingOptionSchedule,
   option: ListingBookingOption
 ): { ok: true } | { ok: false; error: string } {
-  if (!scheduleWizardIsComplete(schedule)) {
+  const mode = { startMode: option.startMode };
+  if (!scheduleWizardIsComplete(schedule, mode)) {
     return {
       ok: false,
       error:
-        schedulePeriodIssues(schedule)[0] ??
+        schedulePeriodIssues(schedule, mode)[0] ??
         schedulePricingIssues(schedule)[0] ??
         scheduleCapacityIssues(schedule)[0] ??
         'Finish this schedule before saving.',
     };
   }
-  const overlap = findScheduleOverlap({ ...schedule, status: 'ready' }, option.schedules ?? []);
+  const overlap = findScheduleOverlap({ ...schedule, status: 'ready' }, option.schedules ?? [], {
+    startMode: option.startMode,
+  });
   if (overlap) return { ok: false, error: scheduleOverlapMessage(overlap) };
   return { ok: true };
 }
@@ -203,7 +226,8 @@ export function optionScheduleManagementIssues(
 ): string[] {
   if (option.schedules !== undefined) {
     // Phase 1290/1294: only scheduleIsBookable ready seasons count (quote/catalog parity).
-    const ready = (option.schedules ?? []).filter((s) => scheduleIsBookable(s));
+    const mode = { startMode: option.startMode };
+    const ready = (option.schedules ?? []).filter((s) => scheduleIsBookable(s, mode));
     if (ready.length === 0) {
       return ['Add at least one complete schedule before finishing this option.'];
     }
@@ -238,7 +262,7 @@ export function optionScheduleManagementIssues(
     maxPersons: option.maxPersons,
     maxSpotsPerSlot: option.maxSpotsPerSlot,
     status: 'ready',
-  })) {
+  }, { startMode: option.startMode })) {
     return [];
   }
   return ['Add at least one complete schedule before finishing this option.'];

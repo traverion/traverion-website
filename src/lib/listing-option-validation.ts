@@ -4,7 +4,7 @@
  */
 
 import type { ListingBookingOption } from '../types/listingExtras';
-import { getListingBookingOptionDurationIssue } from '../types/listingExtras';
+import { getListingBookingOptionDurationIssue, TOUR_OPTION_INFO_MAX } from '../types/listingExtras';
 import { priceCategoryValidationMessages } from './price-categories';
 import { optionScheduleManagementIssues } from './listing-schedule-wizard';
 
@@ -20,7 +20,29 @@ export function bookingOptionSetupIssues(option: ListingBookingOption): string[]
   const durIssue = getListingBookingOptionDurationIssue(option.duration);
   if (durIssue) msg.push(durIssue);
   if (option.optionInfo.trim().length < 3) {
-    msg.push('Add a short note about this option (e.g. pickup included, language, group size) — 3+ characters.');
+    msg.push(
+      `Add why travelers should choose this option (shown on the tour page) — at least 3 characters, max ${TOUR_OPTION_INFO_MAX}.`
+    );
+  } else if (option.optionInfo.length > TOUR_OPTION_INFO_MAX) {
+    msg.push(`Keep “Why choose this option” to ${TOUR_OPTION_INFO_MAX} characters or fewer.`);
+  }
+  if (option.chargeModel !== 'per_person' && option.chargeModel !== 'flat_group') {
+    msg.push('Choose how you charge: per person or per group.');
+  }
+  if (option.startMode !== 'fixed' && option.startMode !== 'flexible') {
+    msg.push('Choose fixed start time or flexible operating hours.');
+  }
+  return msg;
+}
+
+/** Schedules need charge model + start mode from option setup first. */
+export function bookingOptionSchedulePrereqIssues(option: ListingBookingOption): string[] {
+  const msg: string[] = [];
+  if (option.chargeModel !== 'per_person' && option.chargeModel !== 'flat_group') {
+    msg.push('Choose pricing (per person or per group) in Setup before adding a schedule.');
+  }
+  if (option.startMode !== 'fixed' && option.startMode !== 'flexible') {
+    msg.push('Choose fixed start time or flexible hours in Setup before adding a schedule.');
   }
   return msg;
 }
@@ -75,7 +97,7 @@ export function bookingOptionAvailabilityIssues(
   if (!option.weekdays.some(Boolean)) {
     msg.push('Choose at least one weekday when this option runs.');
   }
-  if (!option.startTime.trim()) {
+  if (option.startMode !== 'flexible' && !option.startTime.trim()) {
     msg.push('Add a start time so travelers know when this option begins.');
   }
   const df = option.availabilityDateFrom.trim();

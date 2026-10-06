@@ -178,8 +178,10 @@ export default function SupplierAuth({
     else if (!isValidEmailFormat(trimmedEmail)) next.email = 'Enter a valid email address.';
 
     if (mode === 'signup') {
+      if (!businessName.trim()) {
+        next.businessName = 'Enter your business or brand name.';
+      }
       if (!compact) {
-        if (!businessName.trim()) next.businessName = 'Enter your registered business name.';
         if (!phoneNumber.trim()) next.phoneNumber = 'Enter your phone number.';
         else if (normalizePhoneNumber(phoneNumber).replace(/\D/g, '').length < 9) {
           next.phoneNumber = 'Enter a valid phone number.';
@@ -205,7 +207,7 @@ export default function SupplierAuth({
     try {
       if (isSupabase && supabase) {
         if (mode === 'signup') {
-          const cleanBusinessName = compact ? '' : businessName.trim();
+          const cleanBrandName = businessName.trim();
           const cleanPhoneNumber = compact ? '' : normalizePhoneNumber(phoneNumber);
           if (!compact) {
           const phoneAvail = await isPhoneAvailableForSignup(phoneNumber);
@@ -227,7 +229,7 @@ export default function SupplierAuth({
               emailRedirectTo: partnerPortalAuthRedirectUrl(PARTNER_EMAIL_VERIFIED_PATH),
               data: {
                 traverion_product: 'partner',
-                ...(cleanBusinessName ? { supplier_business_name: cleanBusinessName } : {}),
+                supplier_business_name: cleanBrandName,
                 ...(cleanPhoneNumber ? { supplier_phone: cleanPhoneNumber } : {}),
               },
             },
@@ -250,8 +252,7 @@ export default function SupplierAuth({
               return;
             }
             const ensured = await ensureSupplierProfile(data.session.user.id, {
-              display_name: cleanBusinessName || normalizedEmail.split('@')[0] || null,
-              company_legal_name: cleanBusinessName || null,
+              display_name: cleanBrandName,
               contact_phone: cleanPhoneNumber || null,
             });
             if (!ensured.success) {
@@ -309,8 +310,7 @@ export default function SupplierAuth({
               return;
             }
             const ensured = await ensureSupplierProfile(data.user.id, {
-              display_name: userMeta?.supplier_business_name?.trim() || normalizedEmail.split('@')[0] || null,
-              company_legal_name: userMeta?.supplier_business_name?.trim() || null,
+              display_name: userMeta?.supplier_business_name?.trim() || null,
               contact_phone: normalizePhoneNumber(userMeta?.supplier_phone ?? ''),
             });
             if (!ensured.success) {
@@ -595,14 +595,14 @@ export default function SupplierAuth({
                 </div>
               )}
             </div>
-            {mode === 'signup' && !compact && (
+            {mode === 'signup' && (
               <div>
                 <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-muted mb-1.5" htmlFor="supplier-auth-business">
-                  Business name
+                  Business or brand name
                 </label>
                 <p className="text-xs text-ink-faint mb-2">
-                  Use your <span className="font-medium text-ink">registered business name</span> as it appears on
-                  official documents. Our team will verify that it matches your registration before you can go live.
+                  The name travelers see on your listings and booking pages. Legal registered name comes later in
+                  setup.
                 </p>
                 <input
                   id="supplier-auth-business"
@@ -618,7 +618,7 @@ export default function SupplierAuth({
                       return next;
                     });
                   }}
-                  placeholder="Registered legal / trading name"
+                  placeholder="e.g. Royal Nordic"
                   className="tv-input"
                   autoComplete="organization"
                   aria-invalid={fieldErrors.businessName ? true : undefined}

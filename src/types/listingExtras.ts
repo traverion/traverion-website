@@ -31,6 +31,15 @@ export type ListingPrivatePricing = 'per_person' | 'flat_group';
 /** How travelers begin THIS option. Listing-level experienceStartStyle remains the catalog filter. */
 export type ListingOptionFulfillment = 'meeting_point' | 'pickup';
 
+/** Traveler-facing “why choose this option” — shown when picking a bookable option. */
+export const TOUR_OPTION_INFO_MAX = 300;
+
+/** How this option is charged — required before schedules. */
+export type ListingOptionChargeModel = 'per_person' | 'flat_group';
+
+/** Fixed clock departure vs flexible operating hours — required before schedules. */
+export type ListingOptionStartMode = 'fixed' | 'flexible';
+
 export interface ListingPriceCategory {
   id: string;
   label: string;
@@ -92,6 +101,16 @@ export interface ListingBookingOption {
    */
   pricingMode?: ListingPricingMode;
   priceCategories?: ListingPriceCategory[];
+  /**
+   * Per person vs whole-group price model. Required in option setup before schedules.
+   * Distinct from age categories (those nest under per_person).
+   */
+  chargeModel?: ListingOptionChargeModel;
+  /**
+   * Fixed start time vs flexible operating hours. Required before schedules.
+   * Fixed schedules need a clock time; flexible schedules use operating days without a single departure HM.
+   */
+  startMode?: ListingOptionStartMode;
   /** Traveler can book this option as a private group. */
   isPrivate?: boolean;
   /** How private bookings are priced when isPrivate. */
@@ -338,14 +357,17 @@ export function normalizeListingBookingOption(raw: Record<string, unknown>, fall
     minPersons: minP,
     maxPersons: maxP,
     maxSpotsPerSlot: spots,
-    optionInfo: typeof raw.optionInfo === 'string' ? raw.optionInfo : '',
+    optionInfo:
+      typeof raw.optionInfo === 'string' ? raw.optionInfo.slice(0, TOUR_OPTION_INFO_MAX) : '',
     weekdays: normalizeWeekdays(raw.weekdays),
     availabilityDateFrom: typeof raw.availabilityDateFrom === 'string' ? raw.availabilityDateFrom : '',
     availabilityDateTo: typeof raw.availabilityDateTo === 'string' ? raw.availabilityDateTo : '',
   };
   if (typeof raw.travelerStartInstructions === 'string') {
-    if (raw.travelerStartInstructions.trim()) {
-      out.travelerStartInstructions = raw.travelerStartInstructions.trim().slice(0, 1000);
+    // Explicit empty must not re-seed from optionInfo. Keep non-empty text as typed
+    // (no live trim) so patchOptionDraft does not eat spaces between words.
+    if (raw.travelerStartInstructions.length > 0) {
+      out.travelerStartInstructions = raw.travelerStartInstructions.slice(0, 1000);
     }
   } else if (out.optionInfo.trim().length >= 8) {
     // Pre–Phase-1059 rows stored start copy in optionInfo; promote into the dedicated field.
@@ -356,6 +378,14 @@ export function normalizeListingBookingOption(raw: Record<string, unknown>, fall
   }
   if (pricingMode) out.pricingMode = pricingMode;
   if (priceCategories) out.priceCategories = priceCategories;
+  if (raw.chargeModel === 'per_person' || raw.chargeModel === 'flat_group') {
+    out.chargeModel = raw.chargeModel;
+  } else if (isPrivate && privatePricing === 'flat_group') {
+    out.chargeModel = 'flat_group';
+  }
+  if (raw.startMode === 'fixed' || raw.startMode === 'flexible') {
+    out.startMode = raw.startMode;
+  }
   if (isPrivate) {
     out.isPrivate = true;
     if (privatePricing) out.privatePricing = privatePricing;

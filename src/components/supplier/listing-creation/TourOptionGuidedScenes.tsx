@@ -20,7 +20,7 @@ import type { ListingCreationSceneDirection } from '../../../lib/listing-creatio
 import type { ListingBookingOption, ListingOptionSchedule } from '../../../types/listingExtras';
 
 const SUPPORT: Record<TourOptionSceneId, string> = {
-  setup: 'A traveler-facing name, why this variant exists, and how long it runs.',
+  setup: 'Name this category of the tour, why travelers would pick it, and how long it runs.',
   meeting: 'Choose meeting point or pickup, then add the exact place for this option.',
   availability_pricing:
     'Add one or more schedules — for example September and October — each with its own dates, time, capacity, and price.',

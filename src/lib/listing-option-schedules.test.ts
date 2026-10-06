@@ -7,6 +7,7 @@ import {
   applyScheduleToOption,
   blankOptionSchedule,
   duplicateOptionSchedule,
+  departureTimesOnDate,
   findScheduleOverlap,
   listingOptionHasSchedules,
   listingOptionReadySchedules,
@@ -223,6 +224,7 @@ describe('traveler quote schedule resolution', () => {
   });
 
   it('quotes September price on 30 Sep and October price on 1 Oct', () => {
+    const nowMs = Date.parse('2026-08-01T12:00:00Z');
     const sep = quoteBooking({
       tour: tourWith(opt),
       discounts: [],
@@ -230,6 +232,7 @@ describe('traveler quote schedule resolution', () => {
       guests: 1,
       bookingOptionId: 'opt-nl',
       todayIso: today,
+      nowMs,
       participantMix: { [september.priceCategories![0].id]: 1 },
     });
     const oct = quoteBooking({
@@ -239,6 +242,7 @@ describe('traveler quote schedule resolution', () => {
       guests: 1,
       bookingOptionId: 'opt-nl',
       todayIso: today,
+      nowMs,
       participantMix: { [october.priceCategories![0].id]: 1 },
     });
     expect(sep.ok).toBe(true);
@@ -308,6 +312,24 @@ describe('tourSellingDeparturesOnDate', () => {
     expect(oct).toHaveLength(1);
     expect(oct[0]?.startTime).toBe('19:00');
     expect(tourSellingDeparturesOnDate([opt], '2026-11-15')).toEqual([]);
+  });
+
+  it('exposes a day-level slot for flexible schedules without a clock time', () => {
+    const flexibleSeason = {
+      ...september,
+      id: 'sch-flex',
+      startTime: '',
+    };
+    const opt = option({
+      startMode: 'flexible',
+      chargeModel: 'per_person',
+      schedules: [flexibleSeason],
+    });
+    expect(departureTimesOnDate(opt, '2026-09-15')).toEqual(['00:00']);
+    const rows = tourSellingDeparturesOnDate([opt], '2026-09-15');
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.startTime).toBe('00:00');
+    expect(resolveScheduleForDate(opt, '2026-09-15', '00:00')?.id).toBe('sch-flex');
   });
 
   it('does not invent capacity 8 for legacy options without spots (Phase 1173)', () => {

@@ -105,7 +105,7 @@ export default function PartnerAuthPage({ mode, onAuthenticated, isSupabase }: P
               <p className="text-sm text-ink-muted mb-4 leading-relaxed">
                 {mode === 'signin'
                   ? 'This is the supplier product — listings, calendar, bookings, and money.'
-                  : 'Step 1 of 2 — your account. Business details come next, after you confirm email.'}
+                  : 'Step 1 of 2 — account and brand name travelers will see. Legal business details come next, after you confirm email.'}
               </p>
               <SupplierAuth
                 onAuthenticated={onAuthenticated}

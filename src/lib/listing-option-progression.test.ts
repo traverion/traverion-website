@@ -42,7 +42,10 @@ const ready = option({
   optionInfo: 'Pickup included',
   pickupPlace: 'Rovaniemi city hotels',
   fulfillment: 'pickup',
+  travelerStartInstructions: 'Wait outside the hotel lobby 10 minutes early.',
   startTime: '20:00',
+  chargeModel: 'per_person',
+  startMode: 'fixed',
   priceUsd: 149,
   weekdays: [true, true, true, true, true, true, true],
 });
@@ -73,6 +76,8 @@ describe('new option forward gating', () => {
       name: 'Hotel pickup',
       duration: '6 hours',
       optionInfo: 'Pickup included',
+      chargeModel: 'per_person',
+      startMode: 'fixed',
     });
     expect(isTourOptionSceneSatisfied(0, setupDone)).toBe(true);
     expect(canVisitTourOptionScene({ targetIndex: 1, isNewOption: true, option: setupDone })).toBe(true);

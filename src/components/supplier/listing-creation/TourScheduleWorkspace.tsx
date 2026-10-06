@@ -80,7 +80,7 @@ export function TourScheduleWorkspace({
   const dialogRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const scene = TOUR_SCHEDULE_SCENES[sceneIndex] ?? TOUR_SCHEDULE_SCENES[0];
-  const navItems = tourScheduleContextNavItems(sceneIndex, { isNewSchedule, schedule });
+  const navItems = tourScheduleContextNavItems(sceneIndex, { isNewSchedule, schedule, option });
   const optionView = applyScheduleToOption(
     {
       ...option,
@@ -198,9 +198,10 @@ export function TourScheduleWorkspace({
                           targetIndex: index,
                           isNewSchedule,
                           schedule,
+                          option,
                         })
                       ) {
-                        focusField(firstScheduleIssueFocusId(schedule));
+                        focusField(firstScheduleIssueFocusId(schedule, { startMode: option.startMode }));
                         return;
                       }
                       onSelectScene(index);
@@ -221,11 +222,12 @@ export function TourScheduleWorkspace({
           {scene.id === 'review' ? (
             <ScheduleReview
               schedule={schedule}
+              option={option}
               formatAmount={formatAmount}
               onEdit={(id) => onSelectScene(TOUR_SCHEDULE_SCENES.findIndex((s) => s.id === id))}
             />
           ) : (
-            <div className="w-full max-w-xl">
+            <div className="w-full max-w-2xl">
               {scene.id === 'when' ? (
                 <div className="mb-5">
                   <label htmlFor="supplier-schedule-name" className="mb-1 block text-sm font-semibold text-ink">
@@ -239,7 +241,9 @@ export function TourScheduleWorkspace({
                     className="tv-input w-full"
                     placeholder="September pricing"
                   />
-                  <p className="mt-1 text-xs text-ink-muted">Optional. We’ll use the month if you leave this blank.</p>
+                  <p className="mt-1 text-xs text-ink-muted">
+                    Optional. You can add multiple schedules on this option (e.g. different seasons or times).
+                  </p>
                 </div>
               ) : null}
               <div
@@ -289,7 +293,11 @@ export function TourScheduleWorkspace({
               ) : null}
               {!isTourScheduleSceneSatisfied(sceneIndex, schedule, option) && attempted && !continueHint ? (
                 <p className="listing-creation-hint text-xs text-ink-muted sm:text-right" role="status">
-                  {tourScheduleLockedReason({ targetIndex: sceneIndex + 1, schedule }) ||
+                  {tourScheduleLockedReason({
+                    targetIndex: sceneIndex + 1,
+                    schedule,
+                    option,
+                  }) ||
                     tourScheduleSceneContinueHint({
                       sceneIndex,
                       schedule,
@@ -308,23 +316,28 @@ export function TourScheduleWorkspace({
 
 function ScheduleReview({
   schedule,
+  option,
   formatAmount,
   onEdit,
 }: {
   schedule: ListingOptionSchedule;
+  option: ListingBookingOption;
   formatAmount: (n: number) => string;
   onEdit: (id: TourScheduleSceneId) => void;
 }) {
-  const complete = scheduleWizardIsComplete(schedule);
+  const complete = scheduleWizardIsComplete(schedule, { startMode: option.startMode });
+  const whenOk =
+    Boolean(schedule.availabilityDateFrom.trim() && schedule.weekdays.some(Boolean)) &&
+    (option.startMode === 'flexible' || Boolean(schedule.startTime.trim()));
   const rows: Array<{ id: TourScheduleSceneId; title: string; body: string; ok: boolean }> = [
     {
       id: 'when',
       title: 'When',
-      ok: Boolean(schedule.availabilityDateFrom.trim() && schedule.weekdays.some(Boolean) && schedule.startTime.trim()),
+      ok: whenOk,
       body: [
         formatScheduleRange(schedule.availabilityDateFrom, schedule.availabilityDateTo),
         formatScheduleWeekdays(schedule.weekdays),
-        schedule.startTime.trim(),
+        schedule.startTime.trim() || (option.startMode === 'flexible' ? 'Flexible hours' : ''),
       ]
         .filter(Boolean)
         .join(' · ') || 'Not configured',

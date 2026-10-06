@@ -142,6 +142,7 @@ import { ListingCreationWorkspace } from '../../components/supplier/listing-crea
 import { ListingCreationIdentityPreview } from '../../components/supplier/listing-creation/ListingCreationIdentityPreview';
 import { TourBasicsGuidedScenes } from '../../components/supplier/listing-creation/TourBasicsGuidedScenes';
 import { TourOptionGuidedScenes } from '../../components/supplier/listing-creation/TourOptionGuidedScenes';
+import { TourOptionWorkspace } from '../../components/supplier/listing-creation/TourOptionWorkspace';
 import { TourScheduleWorkspace } from '../../components/supplier/listing-creation/TourScheduleWorkspace';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import {
@@ -967,6 +968,7 @@ export default function SupplierListingForm({
   );
   const [draftCloseBusy, setDraftCloseBusy] = useState(false);
   const [draftCloseError, setDraftCloseError] = useState<string | null>(null);
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
   const publishChecklistKey = editingId ? `traverion-publish-checklist-${editingId}` : null;
@@ -1678,34 +1680,71 @@ export default function SupplierListingForm({
     return 'Publish this listing on Traverion for travelers to book.';
   }, [canPostNewListing, publishBlockersPreview]);
 
-  const handleCloseIntent = useCallback(async () => {
-    if (closeIntentRunningRef.current || submitting) return;
-    setDraftCloseError(null);
-    if (enableDraftOnClose && onSaveDraft && isDirty()) {
-      closeIntentRunningRef.current = true;
-      setDraftCloseBusy(true);
-      try {
-        const listing = buildListingFromForm({ ...form, status: 'draft' }, editingId ?? undefined);
-        const ok = await onSaveDraft(listing);
-        if (!ok) {
-          setDraftCloseError('Could not save your draft. Check your connection and try again.');
-          return;
-        }
-        clearListingDraftBackup(editingId);
-        initialFormSnapshotRef.current = serializeListingFormState(form);
-        setLastSavedAt(Date.now());
-      } finally {
-        setDraftCloseBusy(false);
-        closeIntentRunningRef.current = false;
-      }
-    }
+  const finishCloseEditor = useCallback(() => {
+    setLeaveConfirmOpen(false);
     clearWizardStepStorage(editingId, form.inventoryFamily === 'stay');
     onCancel();
-  }, [enableDraftOnClose, onSaveDraft, isDirty, form, editingId, submitting, onCancel]);
+  }, [editingId, form.inventoryFamily, onCancel]);
+
+  const handleCloseIntent = useCallback(() => {
+    if (closeIntentRunningRef.current || submitting || draftCloseBusy) return;
+    setDraftCloseError(null);
+    if (isDirty()) {
+      setLeaveConfirmOpen(true);
+      return;
+    }
+    finishCloseEditor();
+  }, [submitting, draftCloseBusy, isDirty, finishCloseEditor]);
+
+  const leaveWithoutSaving = useCallback(() => {
+    if (closeIntentRunningRef.current || submitting || draftCloseBusy) return;
+    finishCloseEditor();
+  }, [submitting, draftCloseBusy, finishCloseEditor]);
+
+  const leaveAndSaveDraft = useCallback(async () => {
+    if (closeIntentRunningRef.current || submitting || draftCloseBusy) return;
+    setDraftCloseError(null);
+    if (!enableDraftOnClose || !onSaveDraft) {
+      finishCloseEditor();
+      return;
+    }
+    closeIntentRunningRef.current = true;
+    setDraftCloseBusy(true);
+    try {
+      const listing = buildListingFromForm({ ...form, status: 'draft' }, editingId ?? undefined);
+      const ok = await onSaveDraft(listing);
+      if (!ok) {
+        setDraftCloseError('Could not save your draft. Check your connection and try again.');
+        setLeaveConfirmOpen(true);
+        return;
+      }
+      clearListingDraftBackup(editingId);
+      initialFormSnapshotRef.current = serializeListingFormState(form);
+      setLastSavedAt(Date.now());
+      finishCloseEditor();
+    } finally {
+      setDraftCloseBusy(false);
+      closeIntentRunningRef.current = false;
+    }
+  }, [
+    submitting,
+    draftCloseBusy,
+    enableDraftOnClose,
+    onSaveDraft,
+    form,
+    editingId,
+    finishCloseEditor,
+  ]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
+      if (leaveConfirmOpen) {
+        e.preventDefault();
+        e.stopPropagation();
+        setLeaveConfirmOpen(false);
+        return;
+      }
       if (scheduleDraftRef.current) {
         e.preventDefault();
         e.stopPropagation();
@@ -1728,11 +1767,11 @@ export default function SupplierListingForm({
         return;
       }
       e.preventDefault();
-      void handleCloseIntent();
+      handleCloseIntent();
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [handleCloseIntent]);
+  }, [handleCloseIntent, leaveConfirmOpen]);
 
   const runSubmit = useCallback(
     async (targetStatus: 'draft' | 'published') => {
@@ -2028,6 +2067,13 @@ export default function SupplierListingForm({
 
   const openScheduleCreate = useCallback(() => {
     if (!optionModalDraft || addScheduleLockRef.current) return;
+    const prereq = bookingOptionSchedulePrereqIssues(optionModalDraft);
+    if (prereq.length > 0) {
+      setOptionLockHint(prereq[0] ?? null);
+      setOptionAttempted(true);
+      setOptionSceneIdxPersisted(0, 'back');
+      return;
+    }
     addScheduleLockRef.current = true;
     window.setTimeout(() => {
       addScheduleLockRef.current = false;
@@ -2043,12 +2089,12 @@ export default function SupplierListingForm({
     scheduleSnapshotRef.current = JSON.stringify(blank);
     setScheduleDraft(blank);
     setScheduleSceneIdx(0);
-    setScheduleHasEndingDate(true);
+    setScheduleHasEndingDate(false);
     setScheduleAttempted(false);
     setSchedulePersistLabel(null);
     setScheduleSaveError(null);
     setScheduleLeaveOpen(false);
-  }, [optionModalDraft]);
+  }, [optionModalDraft, setOptionSceneIdxPersisted]);
 
   const openScheduleEdit = useCallback(
     (scheduleId: string) => {
@@ -2234,6 +2280,7 @@ export default function SupplierListingForm({
         targetIndex: index,
         isNewSchedule: scheduleSessionOpenedAsCreateRef.current,
         schedule: scheduleDraft,
+        option: optionModalDraft ?? undefined,
       });
       if (!allowed) {
         setScheduleAttempted(true);
@@ -2243,7 +2290,7 @@ export default function SupplierListingForm({
       setScheduleSceneIdx(clampTourScheduleSceneIndex(index));
       setScheduleAttempted(false);
     },
-    [scheduleDraft]
+    [scheduleDraft, optionModalDraft]
   );
 
   const saveScheduleAsDraft = useCallback(() => {
@@ -2451,7 +2498,7 @@ export default function SupplierListingForm({
         type="button"
         className="absolute inset-0 z-0 bg-slate-900/35 backdrop-blur-md motion-safe:animate-fade-in supports-[backdrop-filter]:bg-slate-900/25 cursor-pointer border-0 p-0"
         aria-label={form.inventoryFamily === 'stay' || createFamily === 'stay' ? 'Close stay editor' : 'Close tour editor'}
-        onClick={() => void handleCloseIntent()}
+        onClick={() => handleCloseIntent()}
       />
       <div className="relative z-10 flex h-full min-h-0 w-full flex-1 flex-col justify-stretch px-0 py-0">
         <form
@@ -2473,35 +2520,15 @@ export default function SupplierListingForm({
           progressCopy={creationProgressCopy}
           items={creationNavItems}
           navLabel={creationNavLabel}
-          currentLabel={tourOptionGuided ? (TOUR_OPTION_SCENES[optionSceneIdx]?.label ?? 'Option') : steps[stepIdx].label}
+          currentLabel={steps[stepIdx].label}
           onSelectIndex={(idx) => {
             if (tourOptionGuided) closeOptionModal();
             setStepIdxPersisted(idx);
           }}
-          onExit={() => void handleCloseIntent()}
+          onExit={() => handleCloseIntent()}
           exitDisabled={draftCloseBusy || submitting}
           exitBusy={draftCloseBusy}
-          contextNav={
-            tourOptionGuided && optionModalDraft
-              ? {
-                  title: optionSessionOpenedAsCreateRef.current
-                    ? 'New option'
-                    : optionModalEditingId
-                      ? 'Edit option'
-                      : 'New option',
-                  items: tourOptionContextNavItems(optionSceneIdx, {
-                    isNewOption: optionSessionOpenedAsCreateRef.current,
-                    option: optionModalDraft,
-                    ending: { hasEndingDate: optionModalHasEndingDate },
-                  }),
-                  onSelect: (id) => {
-                    const next = TOUR_OPTION_SCENES.findIndex((scene) => scene.id === id);
-                    if (next < 0) return;
-                    setOptionSceneIdxPersisted(next, next >= optionSceneIdx ? 'forward' : 'back');
-                  },
-                }
-              : null
-          }
+          contextNav={null}
           overlay={null}
           scrollRef={stepContainerRef}
           banners={
@@ -2563,14 +2590,6 @@ export default function SupplierListingForm({
               <button
                 type="button"
                 onClick={() => {
-                  if (tourOptionGuided) {
-                    if (optionSceneIdx > 0) {
-                      setOptionSceneIdxPersisted(previousTourOptionScene(optionSceneIdx), 'back');
-                      return;
-                    }
-                    closeOptionModal();
-                    return;
-                  }
                   if (tourBasicsGuided && basicsSceneIdx > 0) {
                     setBasicsSceneIdxPersisted(previousTourBasicsScene(basicsSceneIdx), 'back');
                     return;
@@ -2578,45 +2597,14 @@ export default function SupplierListingForm({
                   setStepIdxPersisted((s) => Math.max(0, s - 1));
                 }}
                 disabled={
-                  tourOptionGuided
-                    ? draftCloseBusy || submitting
-                    : (tourBasicsGuided ? basicsSceneIdx === 0 : stepIdx === 0) || draftCloseBusy || submitting
+                  (tourBasicsGuided ? basicsSceneIdx === 0 : stepIdx === 0) || draftCloseBusy || submitting
                 }
                 className="touch-manipulation tv-btn-ghost !min-h-11 w-full sm:w-auto disabled:opacity-50"
               >
-                {tourOptionGuided && optionSceneIdx === 0 ? 'Options' : 'Back'}
+                Back
               </button>
               <div className="flex w-full min-w-0 flex-wrap items-stretch gap-2 sm:w-auto sm:items-center">
-                {tourOptionGuided ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={saveOptionAsDraft}
-                      disabled={draftCloseBusy || submitting}
-                      className="touch-manipulation tv-btn-secondary !min-h-11 sm:flex-none disabled:opacity-50"
-                    >
-                      Save draft
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (optionSceneIdx < TOUR_OPTION_SCENE_COUNT - 1) {
-                          advanceOptionScene();
-                          return;
-                        }
-                        saveOptionModal();
-                      }}
-                      disabled={
-                        draftCloseBusy ||
-                        submitting ||
-                        (optionSceneIdx === TOUR_OPTION_SCENE_COUNT - 1 && !optionCanFinish)
-                      }
-                      className="touch-manipulation tv-btn-primary !min-h-11 flex-1 sm:flex-none disabled:opacity-50"
-                    >
-                      {optionSceneIdx < TOUR_OPTION_SCENE_COUNT - 1 ? 'Continue' : 'Finish option'}
-                    </button>
-                  </>
-                ) : stepIdx < steps.length - 1 ? (
+                {stepIdx < steps.length - 1 ? (
                   <>
                     <button
                       type="button"
@@ -2702,12 +2690,7 @@ export default function SupplierListingForm({
                 )}
               </div>
             </div>
-            {tourOptionGuided && optionContinueHint ? (
-              <p className="listing-creation-hint text-xs leading-relaxed text-ink-muted sm:text-right" role="status">
-                {optionContinueHint}
-              </p>
-            ) : null}
-            {!tourOptionGuided && stepIdx < steps.length - 1
+            {stepIdx < steps.length - 1
               ? (() => {
                   const hint = tourBasicsGuided
                     ? tourBasicsContinueHint
@@ -2729,51 +2712,6 @@ export default function SupplierListingForm({
             </div>
           }
         >
-          {tourOptionGuided && optionModalDraft ? (
-            <div className="listing-creation-option-workspace listing-creation-option-workspace--enter w-full max-w-xl">
-              {optionModalErrors.length > 0 ? (
-                <div className="mb-6" role="alert">
-                  <p className="text-sm font-semibold text-ink">This option is not ready yet</p>
-                  <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-ink-muted">
-                    {optionModalErrors.map((err) => (
-                      <li key={err}>{err}</li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-              <TourOptionGuidedScenes
-                option={optionModalDraft}
-                sceneIndex={optionSceneIdx}
-                direction={optionSceneDirection}
-                currencyLabel={listingCurrency}
-                hasEndingDate={optionModalHasEndingDate}
-                onHasEndingDateChange={setOptionModalHasEndingDate}
-                onSelectScene={(index) => {
-                  setOptionSceneIdxPersisted(index, index >= optionSceneIdx ? 'forward' : 'back');
-                }}
-                canSelectScene={(index) =>
-                  canVisitTourOptionScene({
-                    targetIndex: index,
-                    isNewOption: optionSessionOpenedAsCreateRef.current,
-                    option: optionModalDraft,
-                    ending: optionEnding,
-                  })
-                }
-                onChange={patchOptionDraft}
-                formatAmount={(n) => formatMoney(n, listingCurrency)}
-                priceSummary={summarizeOptionPricing(optionModalDraft, (n) => formatMoney(n, listingCurrency))}
-                validationMessages={optionValidationMessages(optionModalDraft, optionModalHasEndingDate)}
-                attempted={optionAttempted}
-                onAddSchedule={openScheduleCreate}
-                onEditSchedule={openScheduleEdit}
-                onDuplicateSchedule={duplicateSchedule}
-                onDeleteSchedule={deleteSchedule}
-                pendingScheduleDeleteId={pendingScheduleDeleteId}
-                onCancelScheduleDelete={() => setPendingScheduleDeleteId(null)}
-                occupancyNoticeForSchedule={occupancyNoticeForSchedule}
-              />
-            </div>
-          ) : (
           <div
             key={stepIdx}
             className={`w-full ${
@@ -2841,13 +2779,13 @@ export default function SupplierListingForm({
                 <p className="text-xs text-ink-muted mb-2">
                   A short line under the title on the listing page (max {MAX_SUBTITLE_LENGTH} characters).
                 </p>
-                <input
+                <textarea
                   id="supplier-listing-subtitle"
-                  type="text"
                   value={form.subtitle}
                   maxLength={MAX_SUBTITLE_LENGTH}
                   onChange={(e) => setForm((f) => ({ ...f, subtitle: e.target.value.slice(0, MAX_SUBTITLE_LENGTH) }))}
-                  className="tv-input"
+                  rows={3}
+                  className="tv-input min-h-[5.5rem] resize-y"
                   placeholder="e.g. Quiet apartment near the harbour"
                 />
                 <p className="text-xs text-ink-muted mt-1 tabular-nums">
@@ -3736,8 +3674,8 @@ export default function SupplierListingForm({
               </div>
               {materializedBookingOptions(form.bookingOptions).length === 0 && (
                 <p className="text-sm leading-relaxed text-ink-muted">
-                  Add a bookable variant — for example hotel pickup or a private group. Adult and Child prices belong
-                  inside one option, not as separate options.
+                  Add a bookable category of this tour — for example Small group or Bus. Pickup and meeting details are
+                  set inside each option. Adult and Child prices belong in pricing, not as separate options.
                 </p>
               )}
               <details
@@ -3777,14 +3715,13 @@ export default function SupplierListingForm({
             const photoCount = orderedPhotoUrls(normalizePhotoSlots(form.photoSlots)).length;
             const photosPublishReady = listingPhotosReadyToPublish(form);
             return (
-            <div id="supplier-listing-field-photos" className="space-y-6">
+            <div id="supplier-listing-field-photos" className="space-y-5">
                 <div>
                   <h3 className="font-display text-[1.85rem] font-bold tracking-tight text-ink">Photos</h3>
-                  <p className="mt-1 text-sm text-ink-muted leading-relaxed">
+                  <p className="mt-1 max-w-lg text-sm text-ink-muted leading-relaxed">
                     {form.inventoryFamily === 'stay' || createFamily === 'stay'
-                      ? 'Lead with the strongest room or exterior. The first photo is the cover guests see in search.'
-                      : 'Show travelers what the experience feels like. The first photo is the cover on search and the product page.'}{' '}
-                    Drag another photo onto the cover to make it the cover.
+                      ? 'Strong room or exterior shots work best. Guests see the first photo in search.'
+                      : 'Show what the experience feels like. Guests see the first photo in search.'}
                   </p>
                 </div>
                 <ListingImageFields
@@ -3800,8 +3737,8 @@ export default function SupplierListingForm({
                   <p className="text-sm text-amber-900">
                     {photoCount < LISTING_PHOTO_MIN
                       ? sessionOpenedAsCreateRef.current
-                        ? `Add ${LISTING_PHOTO_MIN - photoCount} more photos to continue (${LISTING_PHOTO_MIN}–${LISTING_PHOTO_MAX} required).`
-                        : `You can continue with this cover. Add ${LISTING_PHOTO_MIN - photoCount} more before publish (${LISTING_PHOTO_MIN}–${LISTING_PHOTO_MAX} photos required).`
+                        ? `Add ${LISTING_PHOTO_MIN - photoCount} more to continue.`
+                        : `You can continue with this cover. Add ${LISTING_PHOTO_MIN - photoCount} more before publish.`
                       : 'Replace the placeholder cover photo before publishing.'}
                   </p>
                 ) : null}
@@ -3934,8 +3871,117 @@ export default function SupplierListingForm({
             );
           })()}
           </div>
-          )}
         </ListingCreationWorkspace>
+        {tourOptionGuided && optionModalDraft ? (
+          <TourOptionWorkspace
+            title={
+              optionSessionOpenedAsCreateRef.current
+                ? 'New option'
+                : optionModalEditingId
+                  ? 'Edit option'
+                  : 'New option'
+            }
+            listingTitle={form.title}
+            persistLabel={persistLabel}
+            contextNav={{
+              title: optionSessionOpenedAsCreateRef.current
+                ? 'New option'
+                : optionModalEditingId
+                  ? 'Edit option'
+                  : 'New option',
+              items: tourOptionContextNavItems(optionSceneIdx, {
+                isNewOption: optionSessionOpenedAsCreateRef.current,
+                option: optionModalDraft,
+                ending: { hasEndingDate: optionModalHasEndingDate },
+              }),
+              onSelect: (id) => {
+                const next = TOUR_OPTION_SCENES.findIndex((scene) => scene.id === id);
+                if (next < 0) return;
+                setOptionSceneIdxPersisted(next, next >= optionSceneIdx ? 'forward' : 'back');
+              },
+            }}
+            continueHint={optionContinueHint}
+            continueLabel={
+              optionSceneIdx < TOUR_OPTION_SCENE_COUNT - 1 ? 'Continue' : 'Finish option'
+            }
+            continueDisabled={
+              draftCloseBusy ||
+              submitting ||
+              (optionSceneIdx === TOUR_OPTION_SCENE_COUNT - 1 && !optionCanFinish)
+            }
+            saveDraftDisabled={draftCloseBusy || submitting}
+            onBack={() => {
+              if (optionSceneIdx > 0) {
+                setOptionSceneIdxPersisted(previousTourOptionScene(optionSceneIdx), 'back');
+                return;
+              }
+              closeOptionModal();
+            }}
+            onClose={closeOptionModal}
+            onSaveDraft={saveOptionAsDraft}
+            onContinue={() => {
+              if (optionSceneIdx < TOUR_OPTION_SCENE_COUNT - 1) {
+                advanceOptionScene();
+                return;
+              }
+              saveOptionModal();
+            }}
+          >
+            {optionLockHint ? (
+              <div className="listing-creation-hint mb-4" role="status">
+                <p className="text-sm text-ink-muted">{optionLockHint}</p>
+              </div>
+            ) : null}
+            {optionModalErrors.length > 0 ? (
+              <div className="mb-6" role="alert">
+                <p className="text-sm font-semibold text-ink">This option is not ready yet</p>
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-ink-muted">
+                  {optionModalErrors.map((err) => (
+                    <li key={err}>{err}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            <div className="w-full max-w-xl">
+              <TourOptionGuidedScenes
+                option={optionModalDraft}
+                sceneIndex={optionSceneIdx}
+                direction={optionSceneDirection}
+                currencyLabel={listingCurrency}
+                hasEndingDate={optionModalHasEndingDate}
+                onHasEndingDateChange={setOptionModalHasEndingDate}
+                onSelectScene={(index) => {
+                  setOptionSceneIdxPersisted(index, index >= optionSceneIdx ? 'forward' : 'back');
+                }}
+                canSelectScene={(index) =>
+                  canVisitTourOptionScene({
+                    targetIndex: index,
+                    isNewOption: optionSessionOpenedAsCreateRef.current,
+                    option: optionModalDraft,
+                    ending: optionEnding,
+                  })
+                }
+                onChange={patchOptionDraft}
+                formatAmount={(n) => formatMoney(n, listingCurrency)}
+                priceSummary={summarizeOptionPricing(optionModalDraft, (n) =>
+                  formatMoney(n, listingCurrency)
+                )}
+                validationMessages={optionValidationMessages(
+                  optionModalDraft,
+                  optionModalHasEndingDate
+                )}
+                attempted={optionAttempted}
+                onAddSchedule={openScheduleCreate}
+                onEditSchedule={openScheduleEdit}
+                onDuplicateSchedule={duplicateSchedule}
+                onDeleteSchedule={deleteSchedule}
+                pendingScheduleDeleteId={pendingScheduleDeleteId}
+                onCancelScheduleDelete={() => setPendingScheduleDeleteId(null)}
+                occupancyNoticeForSchedule={occupancyNoticeForSchedule}
+              />
+            </div>
+          </TourOptionWorkspace>
+        ) : null}
         {scheduleDraft && optionModalDraft ? (
           <>
             <TourScheduleWorkspace
@@ -3986,6 +4032,61 @@ export default function SupplierListingForm({
               </div>
             ) : null}
           </>
+        ) : null}
+        {leaveConfirmOpen ? (
+          <div className="absolute inset-0 z-[60] flex items-center justify-center bg-slate-900/40 p-4">
+            <div
+              className="lc-section w-full max-w-sm rounded-xl px-5 py-5"
+              role="alertdialog"
+              aria-labelledby="listing-leave-title"
+              aria-describedby="listing-leave-desc"
+            >
+              <p id="listing-leave-title" className="font-display text-lg font-bold text-ink">
+                Leave with unfinished changes?
+              </p>
+              <p id="listing-leave-desc" className="mt-2 text-sm text-ink-muted leading-relaxed">
+                {enableDraftOnClose && onSaveDraft && form.status !== 'published'
+                  ? 'You still have unsaved edits on this listing. Save a draft to pick up where you left off, or leave without saving.'
+                  : 'You still have unsaved edits on this listing. Leave without saving, or keep editing.'}
+              </p>
+              {draftCloseError ? (
+                <p className="mt-3 text-sm text-red-800" role="alert">
+                  {draftCloseError}
+                </p>
+              ) : null}
+              <div className="mt-5 flex flex-col gap-2">
+                {enableDraftOnClose && onSaveDraft && form.status !== 'published' ? (
+                  <button
+                    type="button"
+                    className="tv-btn-primary !min-h-11 w-full"
+                    disabled={draftCloseBusy || submitting}
+                    onClick={() => void leaveAndSaveDraft()}
+                  >
+                    {draftCloseBusy ? 'Saving…' : 'Save as draft'}
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="tv-btn-secondary !min-h-11 w-full"
+                  disabled={draftCloseBusy || submitting}
+                  onClick={leaveWithoutSaving}
+                >
+                  Leave without saving
+                </button>
+                <button
+                  type="button"
+                  className="tv-btn-ghost !min-h-11 w-full"
+                  disabled={draftCloseBusy || submitting}
+                  onClick={() => {
+                    setDraftCloseError(null);
+                    setLeaveConfirmOpen(false);
+                  }}
+                >
+                  Keep editing
+                </button>
+              </div>
+            </div>
+          </div>
         ) : null}
       </form>
       </div>

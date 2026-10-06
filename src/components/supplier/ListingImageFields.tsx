@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ImagePlus, MoreHorizontal, Plus } from 'lucide-react';
 import {
   LISTING_IMAGE_MAX_MB,
   isListingImageStoragePublicUrl,
@@ -53,9 +53,11 @@ export default function ListingImageFields({
   const labels = normalizePhotoSlotLabels(photoSlotLabels);
   const fileRef = useRef<HTMLInputElement>(null);
   const replaceIndexRef = useRef<number | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
   const [issues, setIssues] = useState<PhotoIssue[]>([]);
   const [pendingRemoveIndex, setPendingRemoveIndex] = useState<number | null>(null);
+  const [menuIndex, setMenuIndex] = useState<number | null>(null);
   const [dragOverCover, setDragOverCover] = useState(false);
   const [dropActive, setDropActive] = useState(false);
   const [coverFlash, setCoverFlash] = useState(false);
@@ -68,6 +70,19 @@ export default function ListingImageFields({
   const canAddMore = filledCount < LISTING_PHOTO_MAX;
   const coverUrl = (slots[0] ?? '').trim();
   const coverPreview = previewUrl(coverUrl);
+  const photosNeeded = Math.max(0, LISTING_PHOTO_MIN - filledCount);
+
+  useEffect(() => {
+    if (menuIndex == null) return;
+    const onPointer = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuIndex(null);
+        setPendingRemoveIndex(null);
+      }
+    };
+    document.addEventListener('mousedown', onPointer);
+    return () => document.removeEventListener('mousedown', onPointer);
+  }, [menuIndex]);
 
   const openPicker = (replaceIndex: number | null) => {
     if (!uploadsEnabled || !userId || busy) return;
@@ -153,6 +168,7 @@ export default function ListingImageFields({
       void removeListingImageIfOwned(userId, prev);
     }
     setPendingRemoveIndex(null);
+    setMenuIndex(null);
   };
 
   const moveToIndex = (from: number, to: number) => {
@@ -163,6 +179,7 @@ export default function ListingImageFields({
   const makeCover = (index: number) => {
     if (index <= 0) return;
     moveToIndex(index, 0);
+    setMenuIndex(null);
     setCoverFlash(true);
     window.setTimeout(() => setCoverFlash(false), 320);
   };
@@ -195,78 +212,111 @@ export default function ListingImageFields({
     void ingestFiles(files, replaceIndex);
   };
 
-  const photoButtonClass =
-    'touch-manipulation inline-flex min-h-11 items-center px-3 text-sm font-medium text-ink hover:bg-black/[0.04] disabled:opacity-40';
+  const progressLabel =
+    filledCount === 0
+      ? `Add at least ${LISTING_PHOTO_MIN} photos`
+      : photosNeeded > 0
+        ? `${filledCount} of ${LISTING_PHOTO_MIN} · add ${photosNeeded} more`
+        : `${filledCount} of ${LISTING_PHOTO_MAX} photos`;
 
-  const renderActions = (index: number) => {
+  const renderMenu = (index: number) => {
+    if (menuIndex !== index) return null;
     const pending = pendingRemoveIndex === index;
-    if (pending) {
-      return (
-        <div className="flex flex-wrap items-center gap-1">
-          <button type="button" className={photoButtonClass} onClick={() => setPendingRemoveIndex(null)}>
-            Keep
-          </button>
-          <button
-            type="button"
-            className="lc-btn-danger touch-manipulation inline-flex min-h-11 items-center px-3 text-sm font-medium"
-            onClick={() => clearSlot(index)}
-          >
-            Remove photo
-          </button>
-        </div>
-      );
-    }
     return (
-      <div className="flex flex-wrap items-center gap-1">
-        {index > 0 ? (
-          <button type="button" className={photoButtonClass} disabled={busy} onClick={() => makeCover(index)}>
-            Make cover
-          </button>
-        ) : null}
-        {index > 0 ? (
-          <button
-            type="button"
-            className={photoButtonClass}
-            disabled={busy}
-            onClick={() => moveToIndex(index, index - 1)}
-            aria-label={`Move photo ${index + 1} earlier`}
-          >
-            Earlier
-          </button>
-        ) : null}
-        {index < filledCount - 1 ? (
-          <button
-            type="button"
-            className={photoButtonClass}
-            disabled={busy}
-            onClick={() => moveToIndex(index, index + 1)}
-            aria-label={`Move photo ${index + 1} later`}
-          >
-            Later
-          </button>
-        ) : null}
-        <button
-          type="button"
-          className={photoButtonClass}
-          disabled={!uploadsEnabled || busy}
-          onClick={() => openPicker(index)}
-        >
-          Replace
-        </button>
-        <button
-          type="button"
-          className="lc-btn-danger touch-manipulation inline-flex min-h-11 items-center px-3 text-sm font-medium disabled:opacity-40"
-          disabled={busy}
-          onClick={() => setPendingRemoveIndex(index)}
-        >
-          Remove
-        </button>
+      <div
+        ref={menuRef}
+        className="absolute right-2 top-11 z-20 min-w-[10.5rem] overflow-hidden rounded-lg border border-black/[0.1] bg-paper shadow-lg"
+        role="menu"
+      >
+        {pending ? (
+          <>
+            <button
+              type="button"
+              role="menuitem"
+              className="block w-full px-3 py-2.5 text-left text-sm font-medium text-ink hover:bg-black/[0.04]"
+              onClick={() => setPendingRemoveIndex(null)}
+            >
+              Keep photo
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="block w-full px-3 py-2.5 text-left text-sm font-medium text-red-700 hover:bg-red-50"
+              onClick={() => clearSlot(index)}
+            >
+              Remove photo
+            </button>
+          </>
+        ) : (
+          <>
+            {index > 0 ? (
+              <button
+                type="button"
+                role="menuitem"
+                className="block w-full px-3 py-2.5 text-left text-sm font-medium text-ink hover:bg-black/[0.04]"
+                disabled={busy}
+                onClick={() => makeCover(index)}
+              >
+                Make cover
+              </button>
+            ) : null}
+            {index > 0 ? (
+              <button
+                type="button"
+                role="menuitem"
+                className="block w-full px-3 py-2.5 text-left text-sm font-medium text-ink hover:bg-black/[0.04]"
+                disabled={busy}
+                onClick={() => {
+                  moveToIndex(index, index - 1);
+                  setMenuIndex(null);
+                }}
+              >
+                Move earlier
+              </button>
+            ) : null}
+            {index < filledCount - 1 ? (
+              <button
+                type="button"
+                role="menuitem"
+                className="block w-full px-3 py-2.5 text-left text-sm font-medium text-ink hover:bg-black/[0.04]"
+                disabled={busy}
+                onClick={() => {
+                  moveToIndex(index, index + 1);
+                  setMenuIndex(null);
+                }}
+              >
+                Move later
+              </button>
+            ) : null}
+            <button
+              type="button"
+              role="menuitem"
+              className="block w-full px-3 py-2.5 text-left text-sm font-medium text-ink hover:bg-black/[0.04]"
+              disabled={!uploadsEnabled || busy}
+              onClick={() => {
+                setMenuIndex(null);
+                openPicker(index);
+              }}
+            >
+              Replace
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="block w-full px-3 py-2.5 text-left text-sm font-medium text-red-700 hover:bg-red-50"
+              disabled={busy}
+              onClick={() => setPendingRemoveIndex(index)}
+            >
+              Remove
+            </button>
+          </>
+        )}
       </div>
     );
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <input
         ref={fileRef}
         type="file"
@@ -287,20 +337,79 @@ export default function ListingImageFields({
         </div>
       ) : null}
 
-      <p className="text-sm text-ink-muted tabular-nums">
-        {filledCount} {filledCount === 1 ? 'photo' : 'photos'}
-        {' · '}
-        {LISTING_PHOTO_MIN} minimum · {LISTING_PHOTO_MAX} maximum · {LISTING_IMAGE_MAX_MB} MB each
-      </p>
+      {!coverPreview ? (
+        <button
+          type="button"
+          disabled={!uploadsEnabled || busy}
+          onClick={() => openPicker(null)}
+          onDragOver={(e) => {
+            if (!uploadsEnabled || busy) return;
+            e.preventDefault();
+            setDropActive(true);
+          }}
+          onDragLeave={() => setDropActive(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDropActive(false);
+            const files = e.dataTransfer.files ? Array.from(e.dataTransfer.files) : [];
+            if (files.length) void ingestFiles(files, null);
+          }}
+          className={`lc-upload flex min-h-[16rem] w-full flex-col items-center justify-center gap-3 rounded-2xl px-6 py-10 text-center transition-colors disabled:opacity-40 sm:min-h-[18rem] ${
+            dropActive ? 'lc-upload--active' : ''
+          }`}
+        >
+          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-finland/10 text-finland">
+            <ImagePlus className="h-7 w-7" strokeWidth={1.75} aria-hidden />
+          </span>
+          <span className="font-display text-xl font-bold tracking-tight text-ink">
+            {busy ? 'Uploading…' : 'Upload photos'}
+          </span>
+          <span className="max-w-sm text-sm leading-relaxed text-ink-muted">
+            Drag and drop, or click to browse. First photo becomes the cover.
+            <span className="mt-1 block tabular-nums">
+              {LISTING_PHOTO_MIN}–{LISTING_PHOTO_MAX} photos · up to {LISTING_IMAGE_MAX_MB} MB each
+            </span>
+          </span>
+        </button>
+      ) : (
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium tabular-nums text-ink">{progressLabel}</p>
+              <p className="mt-0.5 text-sm text-ink-muted">
+                Drag a photo onto the cover to promote it. First photo shows in search.
+              </p>
+            </div>
+            {canAddMore ? (
+              <button
+                type="button"
+                disabled={!uploadsEnabled || busy}
+                onClick={() => openPicker(null)}
+                className="tv-btn-secondary inline-flex min-h-11 items-center gap-2 px-4 text-sm font-semibold disabled:opacity-40"
+              >
+                <Plus className="h-4 w-4" strokeWidth={2} aria-hidden />
+                Add photos
+              </button>
+            ) : null}
+          </div>
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
-      <section aria-label="Cover photo" className="space-y-3">
-        {coverPreview ? (
-          <>
+          <div
+            className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3"
+            onDragOver={(e) => {
+              if (!uploadsEnabled || busy || !e.dataTransfer.types.includes('Files')) return;
+              e.preventDefault();
+              setDropActive(true);
+            }}
+            onDragLeave={() => setDropActive(false)}
+            onDrop={(e) => {
+              if (!e.dataTransfer.files?.length) return;
+              dropIncomingFiles(e, null);
+            }}
+          >
             <div
-              className={`lc-tile lc-tile--cover relative overflow-hidden rounded-xl ${
+              className={`lc-tile lc-tile--cover relative col-span-2 row-span-2 overflow-hidden rounded-xl ${
                 dragOverCover ? 'lc-tile--drop' : ''
-              } ${coverFlash ? 'lc-tile--just-cover' : ''}`}
+              } ${coverFlash ? 'lc-tile--just-cover' : ''} ${dropActive ? 'lc-tile--drop' : ''}`}
               onDragOver={(e) => {
                 e.preventDefault();
                 setDragOverCover(true);
@@ -319,11 +428,25 @@ export default function ListingImageFields({
                 alt=""
                 draggable={!busy}
                 onDragStart={(e) => onPhotoDragStart(e, 0)}
-                className="aspect-[4/3] w-full object-cover"
+                className="aspect-[4/3] h-full w-full object-cover sm:aspect-auto sm:min-h-[14rem]"
               />
-              <span className="absolute left-3 top-3 bg-paper/95 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink">
+              <span className="absolute left-3 top-3 rounded-md bg-paper/95 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink">
                 Cover
               </span>
+              <button
+                type="button"
+                aria-label="Cover photo options"
+                aria-expanded={menuIndex === 0}
+                disabled={busy}
+                className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-paper/95 text-ink shadow-sm hover:bg-paper disabled:opacity-40"
+                onClick={() => {
+                  setPendingRemoveIndex(null);
+                  setMenuIndex((cur) => (cur === 0 ? null : 0));
+                }}
+              >
+                <MoreHorizontal className="h-4 w-4" aria-hidden />
+              </button>
+              {renderMenu(0)}
               {busy ? (
                 <span className="absolute inset-0 flex items-center justify-center bg-black/35 text-sm font-medium text-white">
                   Uploading…
@@ -335,31 +458,13 @@ export default function ListingImageFields({
                 </span>
               ) : null}
             </div>
-            {renderActions(0)}
-          </>
-        ) : (
-          <AddPhotosDropzone
-            disabled={!uploadsEnabled || busy}
-            active={dropActive}
-            label="Add cover photo"
-            onOpen={() => openPicker(null)}
-            onDragState={setDropActive}
-            onDropFiles={(files) => void ingestFiles(files, null)}
-          />
-        )}
-      </section>
 
-      <div className="min-w-0 space-y-4">
-      {filledCount > 1 ? (
-        <section aria-label="Supporting photos" className="space-y-3">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">More photos</p>
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {Array.from({ length: filledCount - 1 }, (_, i) => i + 1).map((index) => {
               const url = slots[index] ?? '';
               const preview = previewUrl(url);
               const caption = displayNameForPhotoSlot(url, labels[index] ?? '');
               return (
-                <li key={`slot-${index}-${url.slice(-24)}`} className="min-w-0 space-y-2">
+                <div key={`slot-${index}-${url.slice(-24)}`} className="lc-tile relative overflow-hidden rounded-xl">
                   <button
                     type="button"
                     draggable={!busy}
@@ -369,33 +474,47 @@ export default function ListingImageFields({
                       e.dataTransfer.dropEffect = 'move';
                     }}
                     onDrop={(e) => dropPhotoIndex(e, index)}
-                    aria-label={`${caption}. Photo ${index + 1} of ${filledCount}. Drag to the cover to make it the cover.`}
-                    className="lc-tile relative block w-full overflow-hidden rounded-xl"
+                    aria-label={`${caption}. Photo ${index + 1} of ${filledCount}. Drag onto cover to promote.`}
+                    className="block w-full"
                   >
                     {preview ? (
                       <img src={preview} alt="" className="aspect-square w-full object-cover" />
                     ) : null}
                   </button>
-                  {renderActions(index)}
-                </li>
+                  <button
+                    type="button"
+                    aria-label={`Options for photo ${index + 1}`}
+                    aria-expanded={menuIndex === index}
+                    disabled={busy}
+                    className="absolute right-1.5 top-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-paper/95 text-ink shadow-sm hover:bg-paper disabled:opacity-40"
+                    onClick={() => {
+                      setPendingRemoveIndex(null);
+                      setMenuIndex((cur) => (cur === index ? null : index));
+                    }}
+                  >
+                    <MoreHorizontal className="h-3.5 w-3.5" aria-hidden />
+                  </button>
+                  {renderMenu(index)}
+                </div>
               );
             })}
-          </ul>
-        </section>
-      ) : null}
 
-      {canAddMore && coverPreview ? (
-        <AddPhotosDropzone
-          disabled={!uploadsEnabled || busy}
-          active={dropActive}
-          label="Add photos"
-          onOpen={() => openPicker(null)}
-          onDragState={setDropActive}
-          onDropFiles={(files) => void ingestFiles(files, null)}
-        />
-      ) : null}
-      </div>
-      </div>
+            {canAddMore ? (
+              <button
+                type="button"
+                disabled={!uploadsEnabled || busy}
+                onClick={() => openPicker(null)}
+                className={`lc-upload flex aspect-square w-full flex-col items-center justify-center gap-1.5 rounded-xl text-sm font-semibold text-finland disabled:opacity-40 ${
+                  dropActive ? 'lc-upload--active' : ''
+                }`}
+              >
+                <Plus className="h-5 w-5" strokeWidth={1.75} aria-hidden />
+                Add
+              </button>
+            ) : null}
+          </div>
+        </div>
+      )}
 
       {!uploadsEnabled && (
         <div className="space-y-2">
@@ -425,47 +544,5 @@ export default function ListingImageFields({
         </div>
       )}
     </div>
-  );
-}
-
-function AddPhotosDropzone({
-  disabled,
-  active,
-  label,
-  onOpen,
-  onDragState,
-  onDropFiles,
-}: {
-  disabled: boolean;
-  active: boolean;
-  label: string;
-  onOpen: () => void;
-  onDragState: (on: boolean) => void;
-  onDropFiles: (files: File[]) => void;
-}) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onOpen}
-      onDragOver={(e) => {
-        if (disabled) return;
-        e.preventDefault();
-        onDragState(true);
-      }}
-      onDragLeave={() => onDragState(false)}
-      onDrop={(e) => {
-        e.preventDefault();
-        onDragState(false);
-        const files = e.dataTransfer.files ? Array.from(e.dataTransfer.files) : [];
-        if (files.length) onDropFiles(files);
-      }}
-      className={`lc-upload flex min-h-[7.5rem] w-full flex-col items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold text-finland disabled:opacity-40 ${
-        active ? 'lc-upload--active' : ''
-      }`}
-    >
-      <Plus className="h-6 w-6" strokeWidth={1.75} aria-hidden />
-      {label}
-    </button>
   );
 }

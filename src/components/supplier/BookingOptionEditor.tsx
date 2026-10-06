@@ -8,6 +8,7 @@ import {
   type BookingOptionDurationUnit,
   formatBookingOptionDuration,
   parseBookingOptionDuration,
+  TOUR_OPTION_INFO_MAX,
 } from '../../types/listingExtras';
 import {
   createPriceCategory,
@@ -17,6 +18,8 @@ import {
 } from '../../lib/price-categories';
 import type { ReactNode } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
+import { TraverionSingleDateField } from '../calendar/TraverionSingleDateField';
+import { localYmd } from '../../lib/local-ymd';
 
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -82,7 +85,12 @@ export default function BookingOptionEditor({
   const pricingMode = option.pricingMode === 'age_dependent' ? 'age_dependent' : 'uniform';
   const categories = option.priceCategories ?? [];
   const durParts = parseBookingOptionDuration(option.duration);
-  const groupPricing = Boolean(option.isPrivate && option.privatePricing === 'flat_group');
+  const groupPricing =
+    option.chargeModel === 'flat_group' ||
+    Boolean(option.isPrivate && option.privatePricing === 'flat_group');
+  const chargeModelChosen =
+    option.chargeModel === 'per_person' || option.chargeModel === 'flat_group';
+  const startModeChosen = option.startMode === 'fixed' || option.startMode === 'flexible';
 
   const setPricingMode = (mode: 'uniform' | 'age_dependent') => {
     if (mode === 'age_dependent') {
@@ -99,6 +107,7 @@ export default function BookingOptionEditor({
   const setChargeModel = (model: 'per_person' | 'flat_group') => {
     if (model === 'flat_group') {
       onChange({
+        chargeModel: 'flat_group',
         isPrivate: true,
         privatePricing: 'flat_group',
         privateGroupPriceUsd: option.privateGroupPriceUsd || option.priceUsd || 0,
@@ -106,8 +115,12 @@ export default function BookingOptionEditor({
       return;
     }
     onChange({
-      isPrivate: option.isPrivate && option.privatePricing !== 'flat_group' ? option.isPrivate : false,
-      privatePricing: option.isPrivate ? 'per_person' : undefined,
+      chargeModel: 'per_person',
+      ...(option.chargeModel === 'flat_group'
+        ? { isPrivate: false, privatePricing: undefined, privateGroupPriceUsd: undefined }
+        : option.isPrivate
+          ? { privatePricing: 'per_person' as const }
+          : {}),
     });
   };
 
@@ -147,7 +160,8 @@ export default function BookingOptionEditor({
   const placeInvalid = attempted && option.pickupPlace.trim().length < 8;
   const startInstructionsInvalid =
     attempted && (option.travelerStartInstructions ?? '').trim().length < 8;
-  const startInvalid = attempted && !option.startTime.trim();
+  const startInvalid =
+    attempted && option.startMode !== 'flexible' && !option.startTime.trim();
 
   return (
     <div className={`grid grid-cols-1 gap-5 ${activeSection ? '' : 'p-4 sm:p-5 lg:grid-cols-2 lg:gap-8'}`}>
@@ -156,19 +170,22 @@ export default function BookingOptionEditor({
           <Section
             kicker="Option identity"
             title="What travelers choose"
-            support="A bookable variant — hotel pickup vs meeting point, or a 20:00 departure. Adult and Child prices belong in pricing, not as extra options."
+            support="A category of this tour travelers pick — e.g. Small group or Bus. Pickup, meeting place, and departure times are set later for this option. Adult and Child prices belong in pricing, not as separate options."
           >
             <div id="supplier-listing-field-option-name">
               <label htmlFor="booking-option-name" className="mb-1 block text-sm font-semibold text-ink">
                 Option name *
               </label>
+              <p className="mb-1.5 text-xs text-ink-muted">
+                Short label for this category of the tour (not the clock time — times go on schedules).
+              </p>
               <input
                 id="booking-option-name"
                 type="text"
                 value={option.name}
                 onChange={(e) => onChange({ name: e.target.value })}
                 className="tv-input"
-                placeholder="e.g. Hotel pickup · 20:00"
+                placeholder="e.g. Small group"
                 aria-invalid={nameInvalid || undefined}
               />
             </div>
@@ -176,15 +193,25 @@ export default function BookingOptionEditor({
               <label htmlFor="booking-option-info" className="mb-1 block text-sm font-semibold text-ink">
                 Why choose this option *
               </label>
+              <p className="mb-1.5 text-xs text-ink-muted">
+                Shown when travelers pick an option — what makes this one different (max{' '}
+                {TOUR_OPTION_INFO_MAX} characters).
+              </p>
               <textarea
                 id="booking-option-info"
                 value={option.optionInfo}
-                onChange={(e) => onChange({ optionInfo: e.target.value })}
+                maxLength={TOUR_OPTION_INFO_MAX}
+                onChange={(e) =>
+                  onChange({ optionInfo: e.target.value.slice(0, TOUR_OPTION_INFO_MAX) })
+                }
                 rows={3}
-                className="tv-input"
-                placeholder="e.g. Includes hotel pickup · English guide · small group"
+                className="tv-input min-h-[5.5rem] resize-y"
+                placeholder="e.g. Hotel pickup included · English guide · max 8 guests"
                 aria-invalid={infoInvalid || undefined}
               />
+              <p className="mt-1 text-xs tabular-nums text-ink-muted">
+                {option.optionInfo.length}/{TOUR_OPTION_INFO_MAX}
+              </p>
             </div>
           </Section>
           <Section kicker="Timing" title="How long it runs">
@@ -232,6 +259,88 @@ export default function BookingOptionEditor({
                   </select>
                 </div>
               </div>
+            </div>
+          </Section>
+          <Section
+            kicker="Before schedules"
+            title="Pricing and start style"
+            support="Required before you can add schedules. You can still set exact prices and times on each schedule."
+          >
+            <div id="supplier-listing-field-option-charge-model" className="space-y-2">
+              <p className="text-sm font-semibold text-ink">How do you charge? *</p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Pricing model">
+                {(
+                  [
+                    {
+                      value: 'per_person' as const,
+                      title: 'Per person',
+                      hint: 'Each traveler pays. Adult/child prices can be set on schedules.',
+                    },
+                    {
+                      value: 'flat_group' as const,
+                      title: 'Per group',
+                      hint: 'One price covers the whole party up to your guest limit.',
+                    },
+                  ] as const
+                ).map((row) => {
+                  const selected = option.chargeModel === row.value;
+                  return (
+                    <button
+                      key={row.value}
+                      type="button"
+                      onClick={() => setChargeModel(row.value)}
+                      className={`lc-choice rounded-xl px-4 py-4 text-left ${selected ? 'lc-choice--selected' : ''}`}
+                      aria-pressed={selected}
+                    >
+                      <span className="block text-sm font-bold text-ink">{row.title}</span>
+                      <span className="mt-1 block text-xs leading-relaxed text-ink-muted">{row.hint}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {attempted && !chargeModelChosen ? (
+                <p className="text-sm text-red-600" role="alert">
+                  Choose per person or per group.
+                </p>
+              ) : null}
+            </div>
+            <div id="supplier-listing-field-option-start-mode" className="space-y-2">
+              <p className="text-sm font-semibold text-ink">Start time style *</p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Start time style">
+                {(
+                  [
+                    {
+                      value: 'fixed' as const,
+                      title: 'Fixed start time',
+                      hint: 'Each schedule has a clock departure (e.g. 20:00).',
+                    },
+                    {
+                      value: 'flexible' as const,
+                      title: 'Flexible (operating hours)',
+                      hint: 'Operating days without a single fixed departure time.',
+                    },
+                  ] as const
+                ).map((row) => {
+                  const selected = option.startMode === row.value;
+                  return (
+                    <button
+                      key={row.value}
+                      type="button"
+                      onClick={() => onChange({ startMode: row.value })}
+                      className={`lc-choice rounded-xl px-4 py-4 text-left ${selected ? 'lc-choice--selected' : ''}`}
+                      aria-pressed={selected}
+                    >
+                      <span className="block text-sm font-bold text-ink">{row.title}</span>
+                      <span className="mt-1 block text-xs leading-relaxed text-ink-muted">{row.hint}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {attempted && !startModeChosen ? (
+                <p className="text-sm text-red-600" role="alert">
+                  Choose fixed start time or flexible operating hours.
+                </p>
+              ) : null}
             </div>
           </Section>
         </>
@@ -345,7 +454,11 @@ export default function BookingOptionEditor({
                 },
               ] as const
             ).map((row) => {
-              const selected = groupPricing ? row.value === 'flat_group' : row.value === 'per_person';
+              const selected = chargeModelChosen
+                ? groupPricing
+                  ? row.value === 'flat_group'
+                  : row.value === 'per_person'
+                : false;
               return (
                 <button
                   key={row.value}
@@ -581,24 +694,22 @@ export default function BookingOptionEditor({
       {showAvailability ? (
         <Section
           kicker="Availability"
-          title="When is this option available?"
-          support="Travelers can only book dates that match this season, these weekdays, and this start time."
+          title="When is this schedule available?"
+          support="Travelers can only book dates that match this date window, these weekdays, and this start time. Ending date is optional."
         >
           <div id="supplier-listing-field-option-availability" className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label htmlFor="booking-option-date-from" className="mb-1 block text-sm font-semibold text-ink">
-                  Starting date
-                </label>
-                <input
+              <div className="rounded-xl bg-paper-raised px-3.5 py-2 ring-1 ring-black/[0.06] transition-[box-shadow] duration-150 hover:ring-finland/25 focus-within:ring-2 focus-within:ring-finland/35">
+                <TraverionSingleDateField
                   id="booking-option-date-from"
-                  type="date"
+                  label="Starting date"
                   value={option.availabilityDateFrom}
-                  onChange={(e) => onChange({ availabilityDateFrom: e.target.value })}
-                  className="tv-input w-full"
+                  minIso={localYmd()}
+                  placeholder="Select a date"
+                  onChange={(iso) => onChange({ availabilityDateFrom: iso })}
                 />
               </div>
-              <div>
+              <div className="space-y-2">
                 <label className="flex cursor-pointer items-start gap-3 py-1 touch-manipulation">
                   <input
                     type="checkbox"
@@ -611,24 +722,33 @@ export default function BookingOptionEditor({
                     className="mt-0.5 h-5 w-5 shrink-0 rounded border-black/20 text-finland focus:ring-finland"
                   />
                   <span>
-                    <span className="block text-sm font-semibold text-ink">Has an ending date</span>
-                    <span className="block text-xs text-ink-muted">Last day travelers can book.</span>
+                    <span className="block text-sm font-semibold text-ink">Set an ending date</span>
+                    <span className="block text-xs text-ink-muted">
+                      Optional. Leave off if this schedule has no end date.
+                    </span>
                   </span>
                 </label>
                 {hasEndingDate ? (
-                  <input
-                    id="booking-option-date-to"
-                    type="date"
-                    value={option.availabilityDateTo}
-                    onChange={(e) => onChange({ availabilityDateTo: e.target.value })}
-                    className="tv-input mt-2 w-full"
-                    aria-label="Ending date"
-                  />
+                  <div className="rounded-xl bg-paper-raised px-3.5 py-2 ring-1 ring-black/[0.06] transition-[box-shadow] duration-150 hover:ring-finland/25 focus-within:ring-2 focus-within:ring-finland/35">
+                    <TraverionSingleDateField
+                      id="booking-option-date-to"
+                      label="Ending date"
+                      value={option.availabilityDateTo}
+                      minIso={
+                        option.availabilityDateFrom.trim() &&
+                        /^\d{4}-\d{2}-\d{2}$/.test(option.availabilityDateFrom)
+                          ? option.availabilityDateFrom
+                          : localYmd()
+                      }
+                      placeholder="Select a date"
+                      onChange={(iso) => onChange({ availabilityDateTo: iso })}
+                    />
+                  </div>
                 ) : null}
               </div>
             </div>
             <div>
-              <p className="mb-2 text-sm font-semibold text-ink">Which days does it operate? *</p>
+              <p className="mb-2 text-sm font-semibold text-ink">Operating days *</p>
               <div className="flex flex-wrap gap-2">
                 {WEEKDAY_LABELS.map((label, di) => (
                   <button
@@ -649,22 +769,29 @@ export default function BookingOptionEditor({
                 ))}
               </div>
             </div>
-            <div>
-              <label htmlFor="booking-option-start" className="mb-1 block text-sm font-semibold text-ink">
-                Start time *
-              </label>
-              <input
-                id="booking-option-start"
-                type="time"
-                value={option.startTime}
-                onChange={(e) => onChange({ startTime: e.target.value })}
-                className="tv-input w-full max-w-[12rem]"
-                aria-invalid={startInvalid || undefined}
-              />
-              <p className="mt-1 text-xs text-ink-muted">
-                One departure time for this schedule. A second time is another schedule on the same option.
+            {option.startMode === 'flexible' ? (
+              <p className="rounded-lg border border-black/[0.06] bg-black/[0.02] px-3 py-2.5 text-sm leading-snug text-ink-muted">
+                Flexible start — travelers book on these operating days without a single fixed clock time on this
+                schedule.
               </p>
-            </div>
+            ) : (
+              <div>
+                <label htmlFor="booking-option-start" className="mb-1 block text-sm font-semibold text-ink">
+                  Start time *
+                </label>
+                <input
+                  id="booking-option-start"
+                  type="time"
+                  value={option.startTime}
+                  onChange={(e) => onChange({ startTime: e.target.value })}
+                  className="tv-input w-full max-w-[12rem]"
+                  aria-invalid={startInvalid || undefined}
+                />
+                <p className="mt-1 text-xs text-ink-muted">
+                  One departure time for this schedule. Another time is another schedule on the same option.
+                </p>
+              </div>
+            )}
           </div>
         </Section>
       ) : null}

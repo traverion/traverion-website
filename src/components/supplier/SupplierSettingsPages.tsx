@@ -55,6 +55,12 @@ import {
   PARTNER_BUSINESS_READY_TO_SUBMIT_NOTE,
   PARTNER_VERIFICATION_EMAIL_REQUESTED,
 } from '../../lib/booking-confirmation-copy';
+import {
+  partnerBusinessReviewState,
+  partnerBusinessStatusChip,
+  partnerPayoutReviewState,
+  partnerPayoutStatusChip,
+} from '../../lib/partnerVerificationStatus';
 
 type BusinessProfileTab = 'company' | 'legal';
 
@@ -101,6 +107,9 @@ type Props = {
 
   businessType: 'company' | 'individual' | '';
   setBusinessType: (v: 'company' | 'individual' | '') => void;
+  /** Customer-facing brand name (supplier_profiles.display_name). */
+  profileDisplayName: string;
+  setProfileDisplayName: (v: string) => void;
   companyLegalName: string;
   setCompanyLegalName: (v: string) => void;
   companyRegistrationNumber: string;
@@ -183,18 +192,23 @@ function ProfileSection({
   id,
   title,
   description,
+  badge,
   children,
 }: {
   id?: string;
   icon: typeof Building2;
   title: string;
   description?: string;
+  badge?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <section id={id} className="space-y-2.5 rounded-lg border border-black/[0.06] bg-paper px-3.5 py-3">
       <div>
-        <h2 className="text-sm font-semibold text-ink tracking-tight">{title}</h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-sm font-semibold text-ink tracking-tight">{title}</h2>
+          {badge}
+        </div>
         {description ? <p className="mt-0.5 text-xs text-ink-muted leading-snug">{description}</p> : null}
       </div>
       <div className="space-y-2.5">{children}</div>
@@ -359,6 +373,9 @@ function BusinessProfilePage(p: Props) {
   const companyRegInputRef = useRef<HTMLInputElement>(null);
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
+  const [brandSaving, setBrandSaving] = useState(false);
+  const [brandSaveError, setBrandSaveError] = useState<string | null>(null);
+  const [brandSaveOk, setBrandSaveOk] = useState(false);
   const [companyRegUploading, setCompanyRegUploading] = useState(false);
   const [companyRegDisplayName, setCompanyRegDisplayName] = useState('');
   const [docError, setDocError] = useState<string | null>(null);
@@ -381,6 +398,7 @@ function BusinessProfilePage(p: Props) {
   const payoutDestinationLocked = payoutLocked || !canEditProfile;
 
   const businessProfileMissingReasons = getSupplierBusinessProfileMissingReasons({
+    display_name: p.profileDisplayName,
     company_legal_name: p.companyLegalName,
     address_street: p.addressStreet,
     address_city: p.addressCity,
@@ -455,23 +473,20 @@ function BusinessProfilePage(p: Props) {
   }, [p.legalDocModal]);
 
   const vPay = p.payoutVerificationStatus.trim().toLowerCase();
-  const businessChip = (): { label: string } => {
-    if (vBus === 'verified') return { label: 'Business verified' };
-    if (vBus === 'rejected') return { label: 'Business rejected' };
-    if (businessInReviewQueue) return { label: 'Business in review' };
-    if (draftBusinessComplete) return { label: 'Ready to submit' };
-    return { label: 'Incomplete' };
-  };
-  const payoutChip = (): { label: string } | null => {
-    if (!p.payoutIban.trim() || !p.payoutBic.trim()) return null;
-    if (vPay === 'verified') return { label: 'Payout verified' };
-    if (vPay === 'rejected') return { label: 'Payout rejected' };
-    if ((p.payoutVerificationSubmittedAt ?? '').trim()) return { label: 'Payout in review' };
-    return { label: 'Payout pending' };
-  };
-  const busChip = businessChip();
-  const payChip = payoutChip();
-  const displayName = p.companyLegalName.trim() || p.operatorDisplayName || 'Your business';
+  const businessReview = partnerBusinessReviewState({
+    verificationStatus: p.verificationStatus,
+    submittedAt: p.verificationSubmittedAt,
+    draftComplete: draftBusinessComplete,
+  });
+  const payoutReview = partnerPayoutReviewState({
+    verificationStatus: p.payoutVerificationStatus,
+    submittedAt: p.payoutVerificationSubmittedAt,
+    hasBankDetails: Boolean(p.payoutIban.trim() && p.payoutBic.trim()),
+  });
+  const busChip = partnerBusinessStatusChip(businessReview);
+  const payChip = partnerPayoutStatusChip(payoutReview);
+  const displayName =
+    p.profileDisplayName.trim() || p.companyLegalName.trim() || p.operatorDisplayName || 'Your business';
 
   const profileTabClass = (active: boolean) =>
     `lux-flat relative px-3.5 py-2.5 text-sm font-medium transition-colors ${
@@ -485,10 +500,10 @@ function BusinessProfilePage(p: Props) {
         title={displayName}
         description="Company details, payout preferences, and legal documents guests see when they book."
       >
-        <p className="mt-3 text-sm text-ink-muted">
-          {busChip.label}
-          {payChip ? ` · ${payChip.label}` : ''}
-        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-2" aria-label="Verification status">
+          <StatusChip tone={busChip.tone}>{busChip.label}</StatusChip>
+          <StatusChip tone={payChip.tone}>{payChip.label}</StatusChip>
+        </div>
         {!canEditProfile ? (
           <NoticeCallout tone="info" className="mt-4">
             Your role can view business profile details but cannot change company, payout, or legal
@@ -538,8 +553,8 @@ function BusinessProfilePage(p: Props) {
                 {p.verificationStatus.trim().toLowerCase() === 'verified' ? (
                   <>
                     You cannot change your legal business information or registration proof here. Payout bank details are
-                    managed separately below. You can still update your profile photo, payout frequency, and minimum payout
-                    threshold. To change locked business details, email{' '}
+                    managed separately below. You can still update your brand name, profile photo, payout frequency, and
+                    minimum payout threshold. To change locked business details, email{' '}
                     <a
                       href={`mailto:${SUPPLIER_SENSITIVE_CHANGES_SUPPORT_EMAIL}?subject=Supplier%20profile%20change%20request`}
                       className="font-medium text-finland hover:underline"
@@ -552,7 +567,7 @@ function BusinessProfilePage(p: Props) {
                   <>
                     You cannot edit business registration or verification documents while Traverion reviews your business
                     submission. You can still add or update payout bank details (IBAN/BIC) below, and you can change your
-                    profile photo, payout frequency, and threshold. Questions?{' '}
+                    brand name, profile photo, payout frequency, and threshold. Questions?{' '}
                     <a href={`mailto:${SUPPLIER_SENSITIVE_CHANGES_SUPPORT_EMAIL}`} className="font-medium text-finland hover:underline">
                       {SUPPLIER_SENSITIVE_CHANGES_SUPPORT_EMAIL}
                     </a>
@@ -566,8 +581,61 @@ function BusinessProfilePage(p: Props) {
             id="supplier-business-company"
             icon={ImagePlus}
             title="Brand"
-            description="Optional photo shown on your tour pages so guests recognize your business."
+            description="Name and photo travelers see on your listings and booking pages."
           >
+            <div>
+              <label className="block text-sm font-medium text-ink mb-1" htmlFor="supplier-brand-display-name">
+                Business or brand name
+              </label>
+              <p className="text-xs text-ink-muted mb-2">
+                Visible to customers. Separate from your registered legal name below.
+              </p>
+              <input
+                id="supplier-brand-display-name"
+                type="text"
+                value={p.profileDisplayName}
+                disabled={!canEditProfile}
+                onChange={(e) => {
+                  p.setProfileDisplayName(e.target.value);
+                  setBrandSaveError(null);
+                  setBrandSaveOk(false);
+                }}
+                placeholder="e.g. Royal Nordic"
+                className={profileInputClass(!canEditProfile)}
+                autoComplete="organization"
+              />
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={!canEditProfile || brandSaving}
+                  onClick={async () => {
+                    if (!p.user?.id) return;
+                    const next = p.profileDisplayName.trim();
+                    if (!next) {
+                      setBrandSaveError('Enter your business or brand name.');
+                      setBrandSaveOk(false);
+                      return;
+                    }
+                    setBrandSaving(true);
+                    setBrandSaveError(null);
+                    setBrandSaveOk(false);
+                    const res = await patchSupplierProfile(p.user.id, { display_name: next });
+                    setBrandSaving(false);
+                    if (res.success) {
+                      p.setProfileDisplayName(next);
+                      setBrandSaveOk(true);
+                    } else {
+                      setBrandSaveError(userFacingError(res.error ?? 'Could not save brand name.', USER_ERROR.generic));
+                    }
+                  }}
+                  className="tv-btn-secondary disabled:opacity-50"
+                >
+                  {brandSaving ? 'Saving…' : 'Save brand name'}
+                </button>
+                {brandSaveOk ? <p className="text-xs font-medium text-emerald-800">Brand name saved.</p> : null}
+                {brandSaveError ? <p className="text-xs text-red-600">{brandSaveError}</p> : null}
+              </div>
+            </div>
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
               <div className="w-24 h-24 rounded-2xl bg-black/[0.04] overflow-hidden flex items-center justify-center flex-shrink-0">
                     {p.businessLogoUrl ? (
@@ -577,6 +645,7 @@ function BusinessProfilePage(p: Props) {
                     )}
                   </div>
                   <div className="flex flex-col gap-2 min-w-0">
+                    <p className="text-xs text-ink-muted">Optional logo shown next to your brand name.</p>
                     <input
                       ref={logoInputRef}
                       type="file"
@@ -639,6 +708,7 @@ function BusinessProfilePage(p: Props) {
             icon={Landmark}
             title="Legal identity"
             description="Registered name and identifiers — must match your official documents."
+            badge={<StatusChip tone={busChip.tone}>{busChip.label}</StatusChip>}
           >
             <div>
               <label className="block text-sm font-medium text-ink mb-1.5">Business type</label>
@@ -958,25 +1028,8 @@ function BusinessProfilePage(p: Props) {
           <section className="space-y-2.5 rounded-lg border border-black/[0.06] bg-paper px-3.5 py-3">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-sm font-semibold text-ink tracking-tight">Verification</h2>
-              <StatusChip
-                tone={
-                  p.verificationStatus.trim().toLowerCase() === 'verified'
-                    ? 'good'
-                    : p.verificationStatus.trim().toLowerCase() === 'rejected'
-                      ? 'bad'
-                      : businessInReviewQueue
-                        ? 'warn'
-                        : 'neutral'
-                }
-              >
-                {p.verificationStatus.trim().toLowerCase() === 'verified'
-                  ? 'Business verified'
-                  : p.verificationStatus.trim().toLowerCase() === 'rejected'
-                    ? 'Needs updates'
-                    : businessInReviewQueue
-                      ? 'In review'
-                      : 'Not submitted'}
-              </StatusChip>
+              <StatusChip tone={busChip.tone}>{busChip.label}</StatusChip>
+              <StatusChip tone={payChip.tone}>{payChip.label}</StatusChip>
             </div>
             {p.verificationStatus.trim().toLowerCase() === 'verified' && (
               <NoticeCallout
@@ -1047,6 +1100,10 @@ function BusinessProfilePage(p: Props) {
                       }
                       setCompanySaveError(null);
                       p.setCompanyMessage(null);
+                      if (!p.profileDisplayName.trim()) {
+                        setCompanySaveError('Enter your business or brand name (visible to travelers).');
+                        return;
+                      }
                       if (!p.businessType) {
                         setCompanySaveError('Select whether you are a registered company or an individual trader.');
                         return;
@@ -1088,6 +1145,7 @@ function BusinessProfilePage(p: Props) {
                       const submittedNow = new Date().toISOString();
                       const res = await p.updateSupplierCompanyProfile(p.user.id, {
                         business_type: p.businessType || null,
+                        display_name: p.profileDisplayName.trim() || null,
                         company_legal_name: p.companyLegalName.trim() || null,
                         company_registration_number: p.companyRegistrationNumber.trim() || null,
                         managing_directors: p.managingDirectors.trim() || null,
@@ -1131,6 +1189,7 @@ function BusinessProfilePage(p: Props) {
             icon={Wallet}
             title="Payment & payouts"
             description="Bank transfer only (IBAN + BIC). Verified separately from your business profile — both required to publish listings."
+            badge={<StatusChip tone={payChip.tone}>{payChip.label}</StatusChip>}
           >
             {payoutLocked && (
               <div className="text-sm text-ink">

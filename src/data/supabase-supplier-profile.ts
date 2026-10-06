@@ -315,12 +315,11 @@ export async function ensureSupplierProfileFromAuthUser(
   user: { id: string; email?: string | null; user_metadata?: unknown }
 ): Promise<{ success: boolean; error?: string }> {
   const m = user.user_metadata as PartnerSignupMeta | undefined;
-  const business = m?.supplier_business_name?.trim() || null;
+  /** Customer-facing brand name from partner signup — not the legal registered name. */
+  const brandName = m?.supplier_business_name?.trim() || null;
   const phoneRaw = (m?.supplier_phone ?? '').trim();
-  const emailLocal = typeof user.email === 'string' ? (user.email.split('@')[0] ?? '') : '';
   return ensureSupplierProfile(user.id, {
-    display_name: business ?? (emailLocal || null),
-    company_legal_name: business,
+    display_name: brandName,
     contact_phone: phoneRaw ? normalizePhoneNumber(phoneRaw) : null,
   });
 }
@@ -339,7 +338,8 @@ export async function ensureSupplierProfile(
 ): Promise<{ success: boolean; error?: string }> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
   const normalizedCompanyName = payload?.company_legal_name?.trim() || null;
-  const normalizedDisplayName = payload?.display_name?.trim() || normalizedCompanyName;
+  // Brand (display_name) stays separate from legal name — do not fall back across fields.
+  const normalizedDisplayName = payload?.display_name?.trim() || null;
   const normalizedContactPhone = payload?.contact_phone
     ? normalizePhoneNumber(payload.contact_phone)
     : '';
@@ -442,6 +442,8 @@ export async function updateSupplierCompanyProfile(
   userId: string,
   payload: Partial<{
     business_type: 'company' | 'individual' | null;
+    /** Customer-facing brand / trading name (not legal registered name). */
+    display_name: string | null;
     company_legal_name: string | null;
     company_registration_number: string | null;
     managing_directors: string | null;
@@ -470,12 +472,15 @@ export async function updateSupplierCompanyProfile(
   if (!supabase) return { success: false, error: 'Supabase not configured' };
   // Phase 1702: team JWT → owner profile id (parity with updateSupplierPayout / Phase 1219).
   const ownerSupplierId = await resolveSupplierId(userId);
-  const normalizedCompanyName = payload.company_legal_name?.trim();
+  const { company_legal_name, display_name, ...rest } = payload;
   const { data, error } = await supabase
     .from('supplier_profiles')
     .update({
-      ...payload,
-      ...(normalizedCompanyName ? { display_name: normalizedCompanyName, company_legal_name: normalizedCompanyName } : {}),
+      ...rest,
+      ...(company_legal_name !== undefined
+        ? { company_legal_name: company_legal_name?.trim() || null }
+        : {}),
+      ...(display_name !== undefined ? { display_name: display_name?.trim() || null } : {}),
       updated_at: new Date().toISOString(),
     })
     .eq('id', ownerSupplierId)
