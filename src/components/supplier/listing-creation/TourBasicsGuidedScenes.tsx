@@ -14,14 +14,17 @@ import {
   type ListingCreationSceneDirection,
   type TourBasicsSceneId,
 } from '../../../lib/listing-creation-scenes';
+import PartnerSelect from '../PartnerSelect';
 import { ListingCreationIdentityPreview } from './ListingCreationIdentityPreview';
 import { ListingCreationSceneFrame } from './ListingCreationSceneFrame';
 
 const SCENE_SUPPORT: Record<TourBasicsSceneId, string> = {
   product_type: 'Choose the product travelers are actually booking.',
   identity: 'The name guests see first, and the language they will hear.',
-  story: 'Write the experience in your own words. Highlights are optional.',
+  story: 'Write the experience in your own words. Difficulty and guest notes sit here too.',
 };
+
+type VenueSetting = 'unspecified' | 'indoor' | 'outdoor' | 'mixed';
 
 type TourBasicsFormSlice = {
   experienceKind: '' | 'tour' | 'ticket' | 'transportation';
@@ -30,7 +33,22 @@ type TourBasicsFormSlice = {
   subtitle: string;
   description: string;
   highlights: string[];
+  difficulty: 'Easy' | 'Moderate' | 'Challenging';
+  destination: string;
+  accessibilitySummary: string;
+  minGuestAge: string;
+  venueSetting: VenueSetting;
+  additionalLanguages: string[];
 };
+
+const VENUE_SETTING_OPTIONS: { value: VenueSetting; label: string }[] = [
+  { value: 'unspecified', label: 'Not specified' },
+  { value: 'indoor', label: 'Mostly indoor' },
+  { value: 'outdoor', label: 'Mostly outdoor' },
+  { value: 'mixed', label: 'Mix of indoor and outdoor' },
+];
+
+const MAX_ACCESSIBILITY_LENGTH = 500;
 
 export function TourBasicsGuidedScenes({
   form,
@@ -170,19 +188,16 @@ export function TourBasicsGuidedScenes({
                 Primary language *
               </label>
               <p className="mb-2 text-xs text-ink-muted">The main language guests hear during the tour.</p>
-              <select
+              <PartnerSelect
                 id="supplier-listing-experience-language"
                 value={form.experienceLanguage}
-                onChange={(e) => onChange({ experienceLanguage: e.target.value })}
-                className="tv-input"
-              >
-                <option value="">Select language…</option>
-                {languageOptions.map((o) => (
-                  <option key={o.code} value={o.code}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
+                placeholder="Select language…"
+                onChange={(experienceLanguage) => onChange({ experienceLanguage })}
+                options={[
+                  { value: '', label: 'Select language…' },
+                  ...languageOptions.map((o) => ({ value: o.code, label: o.label })),
+                ]}
+              />
             </div>
           </div>
           <div className="xl:sticky xl:top-2 min-w-0">
@@ -291,6 +306,132 @@ export function TourBasicsGuidedScenes({
               </button>
             ) : null}
           </div>
+          <div id="supplier-listing-field-difficulty">
+            <label htmlFor="supplier-listing-difficulty" className="mb-1 block text-sm font-semibold text-ink">
+              Overall difficulty
+            </label>
+            <p className="mb-2 text-xs text-ink-muted">How demanding this tour feels for a typical guest.</p>
+            <PartnerSelect
+              id="supplier-listing-difficulty"
+              value={form.difficulty}
+              onChange={(difficulty) =>
+                onChange({ difficulty: difficulty as TourBasicsFormSlice['difficulty'] })
+              }
+              options={[
+                { value: 'Easy', label: 'Easy' },
+                { value: 'Moderate', label: 'Moderate' },
+                { value: 'Challenging', label: 'Challenging' },
+              ]}
+            />
+          </div>
+          <details
+            id="supplier-listing-field-accessibility"
+            className="group rounded-xl border border-black/[0.08] px-4 py-3"
+          >
+            <summary className="flex cursor-pointer list-none items-start justify-between gap-3">
+              <span>
+                <span className="block text-sm font-semibold text-ink">Optional: good to know</span>
+                <span className="mt-0.5 block text-xs text-ink-muted">
+                  Place label, accessibility, age, setting, languages
+                </span>
+              </span>
+              <span className="mt-0.5 shrink-0 text-xs font-medium text-finland">
+                {form.destination.trim() ||
+                form.accessibilitySummary.trim() ||
+                form.minGuestAge.trim() ||
+                (form.venueSetting && form.venueSetting !== 'unspecified') ||
+                form.additionalLanguages.length > 0
+                  ? 'Saved'
+                  : 'Add'}
+              </span>
+            </summary>
+            <div className="mt-4 space-y-4">
+              <div id="supplier-listing-field-destination" className="space-y-2">
+                <label className="block text-sm font-semibold text-ink">How it shows as a place</label>
+                <input
+                  type="text"
+                  value={form.destination}
+                  onChange={(e) => onChange({ destination: e.target.value })}
+                  className="tv-input"
+                  placeholder="e.g. coastal route · several towns — or leave blank"
+                />
+                <p className="text-xs text-ink-muted">
+                  If blank, cards use city and country. Fill this only for a route-style label.
+                </p>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-semibold text-ink">Accessibility &amp; mobility</label>
+                <textarea
+                  value={form.accessibilitySummary}
+                  maxLength={MAX_ACCESSIBILITY_LENGTH}
+                  onChange={(e) =>
+                    onChange({ accessibilitySummary: e.target.value.slice(0, MAX_ACCESSIBILITY_LENGTH) })
+                  }
+                  rows={3}
+                  className="tv-input"
+                  placeholder="Steps, uneven ground, wheelchair access, hearing loops, etc."
+                />
+                <p className="mt-1 text-xs tabular-nums text-ink-muted">
+                  {form.accessibilitySummary.length}/{MAX_ACCESSIBILITY_LENGTH}
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-ink">Minimum guest age</label>
+                  <input
+                    type="text"
+                    value={form.minGuestAge}
+                    onChange={(e) => onChange({ minGuestAge: e.target.value })}
+                    className="tv-input"
+                    placeholder="e.g. 8+ or none"
+                  />
+                </div>
+                <div id="supplier-listing-field-venue">
+                  <label htmlFor="supplier-listing-venue" className="mb-1 block text-sm font-semibold text-ink">
+                    Setting
+                  </label>
+                  <PartnerSelect
+                    id="supplier-listing-venue"
+                    value={form.venueSetting}
+                    onChange={(venueSetting) => onChange({ venueSetting: venueSetting as VenueSetting })}
+                    options={VENUE_SETTING_OPTIONS}
+                  />
+                </div>
+              </div>
+              <div id="supplier-listing-field-languages">
+                <label className="mb-2 block text-sm font-semibold text-ink">Additional languages offered</label>
+                <p className="mb-2 text-xs text-ink-muted">Besides the primary language you set earlier.</p>
+                <div className="flex flex-wrap gap-2">
+                  {languageOptions
+                    .filter((o) => o.code !== 'other')
+                    .map((o) => {
+                      const disabled = o.code === form.experienceLanguage;
+                      return (
+                        <label
+                          key={o.code}
+                          className={`inline-flex items-center gap-1.5 ${disabled ? 'opacity-40' : ''}`}
+                        >
+                          <input
+                            type="checkbox"
+                            disabled={disabled}
+                            checked={form.additionalLanguages.includes(o.code)}
+                            onChange={() =>
+                              onChange({
+                                additionalLanguages: form.additionalLanguages.includes(o.code)
+                                  ? form.additionalLanguages.filter((c) => c !== o.code)
+                                  : [...form.additionalLanguages, o.code],
+                              })
+                            }
+                            className="rounded border-black/[0.12] text-finland focus:ring-finland"
+                          />
+                          <span className="text-sm text-ink">{o.label}</span>
+                        </label>
+                      );
+                    })}
+                </div>
+              </div>
+            </div>
+          </details>
         </div>
       ) : null}
     </ListingCreationSceneFrame>

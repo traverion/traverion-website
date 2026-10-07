@@ -49,12 +49,29 @@ export function ListingCreationRail({
         {progressCopy ? (
           <p className="mt-1 text-xs font-medium tabular-nums text-ink-muted">{progressCopy}</p>
         ) : null}
+        {items.length > 0 ? (
+          <div
+            className="listing-creation-rail-progress mt-2"
+            role="progressbar"
+            aria-label="Tour setup progress"
+            aria-valuemin={0}
+            aria-valuemax={items.length}
+            aria-valuenow={items.filter((item) => item.state === 'complete').length}
+          >
+            <div
+              className="listing-creation-rail-progress__fill"
+              style={{
+                width: `${(items.filter((item) => item.state === 'complete').length / items.length) * 100}%`,
+              }}
+            />
+          </div>
+        ) : null}
       </div>
       <nav aria-label={navLabel} className="min-h-0 flex-1 overflow-y-auto px-2 pb-6">
         <ol className="space-y-0.5">
           {items.map((item, index) => (
             <li key={item.id}>
-              <ListingCreationNavButton item={item} onClick={() => onSelectIndex(index)} />
+              <ListingCreationNavButton item={item} step={index + 1} onClick={() => onSelectIndex(index)} />
             </li>
           ))}
         </ol>

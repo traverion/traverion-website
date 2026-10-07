@@ -105,3 +105,43 @@ export function listingCreationContinueHint(input: {
   if (input.canContinue) return null;
   return listingCreationStepRequirement(input.stepIndex, input.isStay);
 }
+
+/** "To continue: add 1 more inclusion, add a country." — null when nothing is missing. */
+export function listingCreationMissingHint(missing: string[]): string | null {
+  const items = missing.map((line) => line.trim()).filter(Boolean);
+  if (items.length === 0) return null;
+  if (items.length === 1) return `To continue: ${items[0]}.`;
+  return `To continue: ${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}.`;
+}
+
+/** What is still missing on the tour Details step (mirrors the Details gate: 2 inclusions, 1 exclusion, city, country). */
+export function tourDetailsMissingItems(input: {
+  includeCount: number;
+  excludeCount: number;
+  city: string;
+  country: string;
+}): string[] {
+  const missing: string[] = [];
+  const inc = Math.max(0, 2 - input.includeCount);
+  if (inc > 0) missing.push(inc === 1 ? 'add 1 more inclusion' : `add ${inc} inclusions`);
+  if (input.excludeCount < 1) missing.push('add what is not included');
+  if (!input.city.trim()) missing.push('add the city');
+  if (!input.country.trim()) missing.push('add the country');
+  return missing;
+}
+
+/** What is still missing on the tour Photos step for the given gate. */
+export function photosMissingItems(input: {
+  photoCount: number;
+  minPhotos: number;
+  isNewCreation: boolean;
+  photosPublishReady: boolean;
+}): string[] {
+  if (input.isNewCreation) {
+    if (input.photosPublishReady) return [];
+    const need = Math.max(0, input.minPhotos - input.photoCount);
+    if (need > 0) return [need === 1 ? 'add 1 more photo' : `add ${need} more photos`];
+    return ['replace the placeholder cover with a real photo'];
+  }
+  return input.photoCount >= 1 ? [] : ['add at least one photo'];
+}

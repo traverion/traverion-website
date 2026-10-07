@@ -5,9 +5,12 @@ import {
   listingCreationAccessState,
   listingCreationContinueHint,
   listingCreationLockedReason,
+  listingCreationMissingHint,
   listingCreationProgressCopy,
   listingCreationStepRequirement,
+  photosMissingItems,
   previousStepsSatisfied,
+  tourDetailsMissingItems,
 } from './listing-creation-progression';
 
 const tourComplete = (index: number) => index <= 0;
@@ -107,5 +110,30 @@ describe('previousStepsSatisfied', () => {
   it('requires every earlier step, not only the immediately previous one', () => {
     expect(previousStepsSatisfied(3, (i) => i !== 1)).toBe(false);
     expect(previousStepsSatisfied(3, (i) => i < 3)).toBe(true);
+  });
+});
+
+describe('continue hints name what is missing', () => {
+  it('lists missing details items', () => {
+    expect(
+      tourDetailsMissingItems({ includeCount: 1, excludeCount: 0, city: '', country: 'FI' })
+    ).toEqual(['add 1 more inclusion', 'add what is not included', 'add the city']);
+    expect(tourDetailsMissingItems({ includeCount: 2, excludeCount: 1, city: 'Rovaniemi', country: 'FI' })).toEqual([]);
+  });
+
+  it('joins missing items into a single hint', () => {
+    expect(listingCreationMissingHint([])).toBeNull();
+    expect(listingCreationMissingHint(['add a country'])).toBe('To continue: add a country.');
+    expect(listingCreationMissingHint(['a', 'b', 'c'])).toBe('To continue: a, b and c.');
+  });
+
+  it('counts missing photos for new creation vs drafts', () => {
+    expect(photosMissingItems({ photoCount: 2, minPhotos: 4, isNewCreation: true, photosPublishReady: false })).toEqual([
+      'add 2 more photos',
+    ]);
+    expect(photosMissingItems({ photoCount: 0, minPhotos: 4, isNewCreation: false, photosPublishReady: false })).toEqual([
+      'add at least one photo',
+    ]);
+    expect(photosMissingItems({ photoCount: 4, minPhotos: 4, isNewCreation: true, photosPublishReady: true })).toEqual([]);
   });
 });

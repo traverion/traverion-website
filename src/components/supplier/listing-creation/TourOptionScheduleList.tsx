@@ -48,16 +48,20 @@ export function TourOptionScheduleList({
   const canAdd = prereq.length === 0;
 
   return (
-    <div id="supplier-listing-field-option-schedules" className="space-y-3">
-      <p className="text-sm leading-relaxed text-ink-muted">
+    <div id="supplier-listing-field-option-schedules" className="space-y-5">
+      <p className="max-w-xl text-sm leading-relaxed text-ink-muted">
         Each schedule is a date window with its own operating days
         {option.startMode === 'flexible' ? '' : ', start time'}
         , capacity, and price. Add as many as you need — for example one for September and another for October.
       </p>
       {!canAdd ? (
-        <div className="rounded-xl border border-amber-200/80 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
-          <p className="font-semibold text-amber-900">Finish Setup first</p>
-          <ul className="mt-1.5 list-disc space-y-1 pl-5">
+        <div className="rounded-2xl border border-amber-200/80 bg-amber-50/80 px-5 py-4 text-sm text-amber-950">
+          <p className="font-semibold text-amber-900">Schedules are locked until Setup is finished</p>
+          <p className="mt-2 leading-relaxed">
+            Each schedule asks for a price and a start time, and the right fields depend on two Setup choices: how
+            you charge and whether departures have a fixed start time.
+          </p>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
             {prereq.map((line) => (
               <li key={line}>{line}</li>
             ))}
@@ -65,18 +69,17 @@ export function TourOptionScheduleList({
         </div>
       ) : null}
       {rows.length === 0 ? (
-        <div className="lc-section rounded-xl px-4 py-6 text-center sm:px-5">
-          <p className="font-display text-lg font-bold text-ink">No schedules yet</p>
-          <p className="mt-1 text-sm text-ink-muted">
+        <div className="lc-section rounded-2xl px-5 py-8 text-center sm:px-8">
+          <p className="font-display text-xl font-bold text-ink">No schedules yet</p>
+          <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-ink-muted">
             Add your first schedule so travelers can pick a date and see the right price.
           </p>
           <button
             type="button"
             onClick={onAdd}
-            disabled={!canAdd}
-            className="tv-btn-primary mt-4 !min-h-11 disabled:opacity-50"
+            className="tv-btn-primary mt-5 !min-h-11"
           >
-            Add schedule
+            {canAdd ? 'Add schedule' : 'Go to Setup first'}
           </button>
         </div>
       ) : (
@@ -144,6 +147,7 @@ export function TourOptionScheduleList({
                         type="button"
                         onClick={() => onDuplicate(s.id)}
                         disabled={!canAdd}
+                        title={canAdd ? undefined : 'Finish Setup first (how you charge and start time style).'}
                         className="tv-btn-ghost !min-h-11 disabled:opacity-50"
                       >
                         <Copy className="h-3.5 w-3.5" aria-hidden />
@@ -169,11 +173,10 @@ export function TourOptionScheduleList({
         <button
           type="button"
           onClick={onAdd}
-          disabled={!canAdd}
-          className="lc-upload inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl px-4 py-4 text-sm font-semibold text-finland disabled:opacity-50"
+          className="lc-upload inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl px-4 py-4 text-sm font-semibold text-finland"
         >
           <Plus className="h-5 w-5 shrink-0" aria-hidden />
-          Add schedule
+          {canAdd ? 'Add schedule' : 'Go to Setup to unlock schedules'}
         </button>
       ) : null}
     </div>

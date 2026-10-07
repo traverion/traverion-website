@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import type { ListingBookingOption, ListingOptionSchedule } from '../../../types/listingExtras';
 import BookingOptionEditor from '../BookingOptionEditor';
 import {
@@ -40,6 +41,10 @@ export function TourScheduleWorkspace({
   schedule,
   sceneIndex,
   isNewSchedule,
+  listingTitle,
+  leaveOpen,
+  onKeepEditing,
+  onLeave,
   persistLabel,
   currencyLabel,
   formatAmount,
@@ -60,6 +65,11 @@ export function TourScheduleWorkspace({
   schedule: ListingOptionSchedule;
   sceneIndex: number;
   isNewSchedule: boolean;
+  listingTitle: string;
+  /** Unsaved-changes confirmation, rendered inside this layer so it always sits above the schedule. */
+  leaveOpen: boolean;
+  onKeepEditing: () => void;
+  onLeave: () => void;
   persistLabel: string | null;
   currencyLabel: string;
   formatAmount: (n: number) => string;
@@ -125,6 +135,19 @@ export function TourScheduleWorkspace({
     };
   }, []);
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      // Open PartnerSelect menus handle their own Escape first.
+      if (dialogRef.current?.querySelector('[role="listbox"]')) return;
+      e.preventDefault();
+      if (leaveOpen) onKeepEditing();
+      else onCancel();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [leaveOpen, onCancel, onKeepEditing]);
+
   const patchFromOption = (patch: Partial<ListingBookingOption>) => {
     const next: Partial<ListingOptionSchedule> = {};
     if (patch.name !== undefined) next.name = patch.name;
@@ -144,7 +167,7 @@ export function TourScheduleWorkspace({
     onChange(next);
   };
 
-  return (
+  const layer = (
     <div className="listing-creation-schedule-layer" role="presentation">
       <button
         type="button"
@@ -162,12 +185,26 @@ export function TourScheduleWorkspace({
         <header className="listing-creation-schedule-header">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
-              <button type="button" onClick={onBack} className="lux-flat inline-flex min-h-11 items-center text-sm font-medium text-ink-muted hover:text-ink">
-                ← Back
+              <button
+                type="button"
+                onClick={onCancel}
+                className="lux-flat inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-finland hover:underline"
+              >
+                <span aria-hidden>←</span> Back to option
               </button>
-              <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-                {option.name.trim() || 'Option'} · Availability &amp; Pricing
-              </p>
+              <nav aria-label="Where you are" className="mt-1">
+                <ol className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+                  <li className="max-w-[12rem] truncate">{listingTitle.trim() || 'Tour'}</li>
+                  <li aria-hidden>›</li>
+                  <li className="max-w-[12rem] truncate">{option.name.trim() || 'Option'}</li>
+                  <li aria-hidden>›</li>
+                  <li>Schedule</li>
+                  <li aria-hidden>›</li>
+                  <li aria-current="page" className="text-ink">
+                    {scene.label}
+                  </li>
+                </ol>
+              </nav>
               <h3
                 ref={headingRef}
                 id={titleId}
@@ -268,9 +305,16 @@ export function TourScheduleWorkspace({
         </div>
         <footer className="listing-creation-schedule-footer">
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <button type="button" onClick={onCancel} className="tv-btn-ghost !min-h-11 w-full sm:w-auto">
-              Cancel
-            </button>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row">
+              <button type="button" onClick={onCancel} className="tv-btn-ghost !min-h-11 w-full sm:w-auto">
+                Cancel
+              </button>
+              {sceneIndex > 0 ? (
+                <button type="button" onClick={onBack} className="tv-btn-ghost !min-h-11 w-full sm:w-auto">
+                  Back
+                </button>
+              ) : null}
+            </div>
             <div className="flex min-w-0 flex-col items-stretch gap-2 sm:items-end">
               <div className="flex flex-col-reverse gap-2 sm:flex-row">
                 <button type="button" onClick={onSaveDraft} className="tv-btn-secondary !min-h-11 w-full sm:w-auto">
@@ -309,9 +353,35 @@ export function TourScheduleWorkspace({
             </div>
           </div>
         </footer>
+        {leaveOpen ? (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+            <div
+              className="lc-section w-full max-w-sm rounded-xl px-5 py-5"
+              role="alertdialog"
+              aria-labelledby="schedule-leave-title"
+            >
+              <p id="schedule-leave-title" className="font-display text-lg font-bold text-ink">
+                Leave without saving changes?
+              </p>
+              <p className="mt-2 text-sm text-ink-muted">This schedule still has edits that have not been saved.</p>
+              <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <button type="button" className="tv-btn-ghost !min-h-11" onClick={onKeepEditing}>
+                  Keep editing
+                </button>
+                <button type="button" className="tv-btn-primary !min-h-11" onClick={onLeave}>
+                  Leave
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );
+
+  // Portal to <body> so no ancestor overflow/stacking context (option sheet, creation shell, form) can bury it.
+  if (typeof document === 'undefined') return layer;
+  return createPortal(layer, document.body);
 }
 
 function ScheduleReview({

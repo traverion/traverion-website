@@ -371,17 +371,17 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
   }
 }
 
-.listing-creation-workspace .lc-section {
+:is(.listing-creation-workspace, .listing-creation-option-shell, .listing-creation-schedule-workspace) .lc-section {
   border: 1px solid rgba(28, 25, 23, 0.12);
   background: #fffcf8;
   box-shadow: 0 1px 2px rgba(28, 25, 23, 0.04);
 }
 
-/* Schedule editor sits above the option sheet (z-index 35). */
+/* Schedule editor is portaled to <body>; it must sit above the creation shell (z-80) and option sheet. */
 .listing-creation-schedule-layer {
-  position: absolute;
+  position: fixed;
   inset: 0;
-  z-index: 45;
+  z-index: 95;
   display: flex;
   align-items: stretch;
   justify-content: center;
@@ -709,8 +709,10 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
   box-shadow: 0 0 0 3px rgba(180, 83, 9, 0.16);
 }
 
-.listing-creation-workspace .lc-choice {
-  border: 1px solid rgba(28, 25, 23, 0.12);
+.listing-creation-workspace .lc-choice,
+.listing-creation-option-shell .lc-choice,
+.listing-creation-schedule-workspace .lc-choice {
+  border: 1px solid rgba(28, 25, 23, 0.14);
   background: #fffcf8;
   box-shadow: 0 1px 2px rgba(28, 25, 23, 0.04);
   transition:
@@ -720,29 +722,56 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
     transform 140ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.listing-creation-workspace .lc-choice:hover {
-  border-color: rgba(28, 25, 23, 0.2);
+.listing-creation-workspace .lc-choice:hover,
+.listing-creation-option-shell .lc-choice:hover,
+.listing-creation-schedule-workspace .lc-choice:hover {
+  border-color: rgba(28, 25, 23, 0.22);
   box-shadow: 0 3px 10px rgba(28, 25, 23, 0.08);
 }
 
-.listing-creation-workspace .lc-choice:active {
+.listing-creation-workspace .lc-choice:active,
+.listing-creation-option-shell .lc-choice:active,
+.listing-creation-schedule-workspace .lc-choice:active {
   transform: translateY(1px);
   box-shadow: 0 1px 2px rgba(28, 25, 23, 0.06);
 }
 
 .listing-creation-workspace .lc-choice:focus-within,
-.listing-creation-workspace .lc-choice:focus-visible {
+.listing-creation-workspace .lc-choice:focus-visible,
+.listing-creation-option-shell .lc-choice:focus-within,
+.listing-creation-option-shell .lc-choice:focus-visible,
+.listing-creation-schedule-workspace .lc-choice:focus-within,
+.listing-creation-schedule-workspace .lc-choice:focus-visible {
   outline: 2px solid #003580;
   outline-offset: 2px;
 }
 
-.listing-creation-workspace .lc-choice--selected {
+.listing-creation-workspace .lc-choice--selected,
+.listing-creation-option-shell .lc-choice--selected,
+.listing-creation-schedule-workspace .lc-choice--selected {
   border-color: #003580;
-  background: rgba(0, 53, 128, 0.06);
+  background: rgba(0, 53, 128, 0.07);
   box-shadow: 0 0 0 1px rgba(0, 53, 128, 0.28), 0 2px 8px rgba(0, 53, 128, 0.08);
 }
 
-.listing-creation-workspace .lc-tile {
+.listing-creation-option-shell .tv-input,
+.listing-creation-schedule-workspace .tv-input {
+  border: 1px solid rgba(28, 25, 23, 0.14);
+  background: #fffcf8;
+  box-shadow: 0 1px 2px rgba(28, 25, 23, 0.05);
+}
+
+.listing-creation-option-shell .tv-input:focus,
+.listing-creation-schedule-workspace .tv-input:focus {
+  border-color: #003580;
+  box-shadow: 0 0 0 3px rgba(0, 53, 128, 0.2);
+}
+
+.listing-creation-option-body {
+  background: #f6f3ee;
+}
+
+:is(.listing-creation-workspace, .listing-creation-option-shell, .listing-creation-schedule-workspace) .lc-tile {
   border: 1px solid rgba(28, 25, 23, 0.12);
   background: #fffcf8;
   box-shadow: 0 1px 2px rgba(28, 25, 23, 0.05);
@@ -751,22 +780,22 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
     box-shadow 160ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.listing-creation-workspace .lc-tile:hover,
-.listing-creation-workspace .lc-tile:focus-visible {
+:is(.listing-creation-workspace, .listing-creation-option-shell, .listing-creation-schedule-workspace) .lc-tile:hover,
+:is(.listing-creation-workspace, .listing-creation-option-shell, .listing-creation-schedule-workspace) .lc-tile:focus-visible {
   border-color: rgba(0, 53, 128, 0.45);
   box-shadow: 0 4px 12px rgba(28, 25, 23, 0.08);
 }
 
-.listing-creation-workspace .lc-tile--cover {
+:is(.listing-creation-workspace, .listing-creation-option-shell, .listing-creation-schedule-workspace) .lc-tile--cover {
   border-color: rgba(0, 53, 128, 0.35);
 }
 
-.listing-creation-workspace .lc-tile--drop {
+:is(.listing-creation-workspace, .listing-creation-option-shell, .listing-creation-schedule-workspace) .lc-tile--drop {
   border-color: #003580;
   box-shadow: 0 0 0 3px rgba(0, 53, 128, 0.2);
 }
 
-.listing-creation-workspace .lc-upload {
+:is(.listing-creation-workspace, .listing-creation-option-shell, .listing-creation-schedule-workspace) .lc-upload {
   border: 1px dashed rgba(28, 25, 23, 0.22);
   background: rgba(255, 252, 248, 0.7);
   transition:
@@ -775,21 +804,79 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
     box-shadow 160ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.listing-creation-workspace .lc-upload:hover,
-.listing-creation-workspace .lc-upload:focus-visible {
+:is(.listing-creation-workspace, .listing-creation-option-shell, .listing-creation-schedule-workspace) .lc-upload:hover,
+:is(.listing-creation-workspace, .listing-creation-option-shell, .listing-creation-schedule-workspace) .lc-upload:focus-visible {
   border-color: #003580;
   border-style: solid;
   background: #fffcf8;
   box-shadow: 0 2px 8px rgba(28, 25, 23, 0.06);
 }
 
-.listing-creation-workspace .lc-upload--active {
+:is(.listing-creation-workspace, .listing-creation-option-shell, .listing-creation-schedule-workspace) .lc-upload--active {
   border-color: #003580;
   border-style: solid;
   background: rgba(0, 53, 128, 0.05);
 }
 
-.listing-creation-workspace .lc-preview {
+/* Option card needing work: amber edge so incomplete options read at a glance. */
+:is(.listing-creation-workspace, .listing-creation-option-shell) .lc-tile--attention {
+  border-color: rgba(180, 83, 9, 0.38);
+  box-shadow: 0 0 0 1px rgba(180, 83, 9, 0.12), 0 1px 2px rgba(28, 25, 23, 0.05);
+}
+
+/* Rail progress (tour rail + option rail). */
+.listing-creation-rail-progress {
+  height: 0.3125rem;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: rgba(28, 25, 23, 0.1);
+}
+
+.listing-creation-rail-progress__fill {
+  height: 100%;
+  border-radius: 9999px;
+  background: #003580;
+  transition: width 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .listing-creation-rail-progress__fill {
+    transition: none;
+  }
+}
+
+/* Traverion select — paper trigger, ink menu (replaces native OS chrome). */
+.partner-select__trigger {
+  cursor: pointer;
+}
+
+.partner-select__trigger--open {
+  border-color: #003580 !important;
+  box-shadow: 0 0 0 3px rgba(0, 53, 128, 0.2) !important;
+}
+
+.partner-select__menu {
+  border: 1px solid rgba(28, 25, 23, 0.12);
+  border-radius: 0.75rem;
+  background: #fffcf8;
+  box-shadow:
+    0 8px 24px rgba(28, 25, 23, 0.12),
+    0 1px 3px rgba(28, 25, 23, 0.06);
+}
+
+.partner-select__option--active {
+  background: rgba(0, 53, 128, 0.06);
+}
+
+.partner-select__option--selected {
+  background: rgba(0, 53, 128, 0.08);
+}
+
+.partner-select__option:hover {
+  background: rgba(0, 53, 128, 0.06);
+}
+
+:is(.listing-creation-workspace, .listing-creation-option-shell, .listing-creation-schedule-workspace) .lc-preview {
   border: 1px solid rgba(28, 25, 23, 0.1);
   background: #fffcf8;
   box-shadow: 0 1px 3px rgba(28, 25, 23, 0.05);
@@ -817,16 +904,16 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
   transform: none;
 }
 
-.listing-creation-workspace .lc-btn-danger {
+:is(.listing-creation-workspace, .listing-creation-option-shell, .listing-creation-schedule-workspace) .lc-btn-danger {
   color: #b91c1c;
   transition: background-color 140ms cubic-bezier(0.22, 1, 0.36, 1), color 140ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.listing-creation-workspace .lc-btn-danger:hover:not(:disabled) {
+:is(.listing-creation-workspace, .listing-creation-option-shell, .listing-creation-schedule-workspace) .lc-btn-danger:hover:not(:disabled) {
   background: rgba(185, 28, 28, 0.06);
 }
 
-.listing-creation-workspace .lc-btn-danger:focus-visible {
+:is(.listing-creation-workspace, .listing-creation-option-shell, .listing-creation-schedule-workspace) .lc-btn-danger:focus-visible {
   outline: 2px solid #b91c1c;
   outline-offset: 2px;
 }

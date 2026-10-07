@@ -10,12 +10,15 @@ import { ListingCreationNavButton } from './ListingCreationNavButton';
 export function TourOptionWorkspace({
   title,
   listingTitle,
+  optionName,
+  sceneLabel,
   persistLabel,
   contextNav,
   continueHint,
   continueLabel,
   continueDisabled,
-  onBack,
+  onBackToOptions,
+  onPreviousScene,
   onClose,
   onSaveDraft,
   onContinue,
@@ -24,12 +27,19 @@ export function TourOptionWorkspace({
 }: {
   title: string;
   listingTitle: string;
+  /** Current option name (empty until the supplier types one). */
+  optionName: string;
+  /** Current scene label, e.g. "Meeting". */
+  sceneLabel: string;
   persistLabel: string | null;
   contextNav: ListingCreationContextNav;
   continueHint: string | null;
   continueLabel: string;
   continueDisabled: boolean;
-  onBack: () => void;
+  /** Leave the option sheet and return to the Options list (keeps work as a draft). */
+  onBackToOptions: () => void;
+  /** Go to the previous option scene. Omit on the first scene. */
+  onPreviousScene?: (() => void) | null;
   onClose: () => void;
   onSaveDraft: () => void;
   onContinue: () => void;
@@ -37,6 +47,7 @@ export function TourOptionWorkspace({
   children: ReactNode;
 }) {
   const titleId = useId();
+  const hintId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -50,10 +61,11 @@ export function TourOptionWorkspace({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        onClose();
-      }
+      if (e.key !== 'Escape') return;
+      // Schedule editor stacks above this sheet — let it own Escape.
+      if (document.querySelector('.listing-creation-schedule-layer')) return;
+      e.preventDefault();
+      onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -84,17 +96,25 @@ export function TourOptionWorkspace({
               <div className="min-w-0">
                 <button
                   type="button"
-                  onClick={onBack}
-                  className="lux-flat inline-flex min-h-11 items-center text-sm font-medium text-ink-muted hover:text-ink"
+                  onClick={onBackToOptions}
+                  className="lux-flat inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-finland hover:underline"
                 >
-                  ← Options
+                  <span aria-hidden>←</span> Back to options
                 </button>
-                <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-                  {listingTitle.trim() || 'Tour'} · Bookable option
-                </p>
+                <nav aria-label="Where you are" className="mt-1">
+                  <ol className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+                    <li className="max-w-[12rem] truncate">{listingTitle.trim() || 'Tour'}</li>
+                    <li aria-hidden>›</li>
+                    <li className="max-w-[12rem] truncate">{optionName.trim() || 'New option'}</li>
+                    <li aria-hidden>›</li>
+                    <li aria-current="page" className="text-ink">
+                      {sceneLabel}
+                    </li>
+                  </ol>
+                </nav>
                 <h3
                   id={titleId}
-                  className="mt-1 font-display text-xl font-bold leading-tight tracking-tight text-ink sm:text-2xl"
+                  className="mt-1.5 font-display text-xl font-bold leading-tight tracking-tight text-ink sm:text-2xl"
                 >
                   {title}
                 </h3>
@@ -122,34 +142,53 @@ export function TourOptionWorkspace({
               </ol>
             </nav>
           </header>
-          <div className="listing-creation-option-body min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6 sm:py-6 lg:px-10">
+          <div className="listing-creation-option-body min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-6 sm:px-8 sm:py-8 lg:px-12 lg:py-10">
             {children}
           </div>
           <div className="listing-creation-option-footer shrink-0 border-t border-black/[0.08] px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6">
             <div className="flex flex-col gap-2">
-              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
-                <button
-                  type="button"
-                  onClick={onSaveDraft}
-                  disabled={saveDraftDisabled}
-                  className="touch-manipulation tv-btn-secondary !min-h-11 w-full sm:w-auto disabled:opacity-50"
-                >
-                  Save draft
-                </button>
-                <button
-                  type="button"
-                  onClick={onContinue}
-                  disabled={continueDisabled}
-                  className="touch-manipulation tv-btn-primary !min-h-11 w-full sm:w-auto disabled:opacity-50"
-                >
-                  {continueLabel}
-                </button>
-              </div>
               {continueHint ? (
-                <p className="listing-creation-hint text-xs leading-relaxed text-ink-muted sm:text-right" role="status">
-                  {continueHint}
+                <p
+                  id={hintId}
+                  className="listing-creation-hint flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-950 ring-1 ring-amber-200/80"
+                  role="status"
+                >
+                  <span className="shrink-0 font-semibold">Still needed:</span>
+                  <span>{continueHint}</span>
                 </p>
               ) : null}
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                <div>
+                  {onPreviousScene ? (
+                    <button
+                      type="button"
+                      onClick={onPreviousScene}
+                      className="touch-manipulation tv-btn-ghost !min-h-11 w-full sm:w-auto"
+                    >
+                      Back
+                    </button>
+                  ) : null}
+                </div>
+                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:gap-3">
+                  <button
+                    type="button"
+                    onClick={onSaveDraft}
+                    disabled={saveDraftDisabled}
+                    className="touch-manipulation tv-btn-secondary !min-h-11 w-full sm:w-auto disabled:opacity-50"
+                  >
+                    Save draft
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onContinue}
+                    disabled={continueDisabled}
+                    aria-describedby={continueHint ? hintId : undefined}
+                    className="touch-manipulation tv-btn-primary !min-h-11 w-full sm:w-auto disabled:opacity-50"
+                  >
+                    {continueLabel}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

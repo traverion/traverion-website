@@ -1,6 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Check, Minus, Plus } from 'lucide-react';
 import { TourPackage } from '../../types/tour';
 import type { ListingBookingOption, ListingExtras, ListingOptionSchedule, ScheduleStyle, VenueSetting } from '../../types/listingExtras';
 import {
@@ -13,6 +13,7 @@ import {
   TRAVERION_STANDARD_CANCELLATION_POLICY,
 } from '../../types/listingExtras';
 import ListingImageFields from '../../components/supplier/ListingImageFields';
+import PartnerSelect from '../../components/supplier/PartnerSelect';
 import { useAuth } from '../../contexts/AuthContext';
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
 import { scheduleSpotsBelowSoldWarning, scheduleDepartureTimeMoveBlockReason } from '../../lib/capacity-reduction-warn';
@@ -23,7 +24,7 @@ import {
   removeScheduleOccupancyNotice,
   schedulePersistAbandonsOccupiedSlot,
 } from '../../lib/schedule-edit-impact';
-import { optionHeadlineUnitPrice, summarizeOptionPricing } from '../../lib/price-categories';
+import { summarizeOptionPricing } from '../../lib/price-categories';
 import { headlineStartingAmountFromBookingOptions } from '../../lib/headline-price';
 import { listingDurationForPersist } from '../../lib/listing-option-ownership';
 import { itineraryForListingPersist } from '../../lib/tour-itinerary';
@@ -37,7 +38,6 @@ import {
   readyBookingOptions,
   tourOptionContextNavItems,
   tourOptionReadiness,
-  tourOptionReadinessLabel,
   upsertBookingOption,
 } from '../../lib/listing-option-scenes';
 import {
@@ -48,6 +48,7 @@ import {
   tourOptionSceneContinueHint,
 } from '../../lib/listing-option-progression';
 import {
+  bookingOptionSchedulePrereqIssues,
   firstBookingOptionIssueFocusId,
   getBookingOptionValidationMessages,
 } from '../../lib/listing-option-validation';
@@ -55,10 +56,7 @@ import {
   blankOptionSchedule,
   duplicateOptionSchedule,
   ensureExplicitSchedules,
-  formatScheduleRange,
-  listingOptionReadySchedules,
   newListingOptionScheduleId,
-  optionScheduleCountLabel,
   removeOptionSchedule,
   upsertOptionSchedule,
 } from '../../lib/listing-option-schedules';
@@ -105,6 +103,9 @@ import {
   canVisitListingCreationStep,
   listingCreationContinueHint,
   listingCreationLockedReason,
+  listingCreationMissingHint,
+  photosMissingItems,
+  tourDetailsMissingItems,
 } from '../../lib/listing-creation-progression';
 import {
   TOUR_BASICS_DESCRIPTION_MAX,
@@ -143,6 +144,8 @@ import { ListingCreationIdentityPreview } from '../../components/supplier/listin
 import { TourBasicsGuidedScenes } from '../../components/supplier/listing-creation/TourBasicsGuidedScenes';
 import { TourOptionGuidedScenes } from '../../components/supplier/listing-creation/TourOptionGuidedScenes';
 import { TourOptionWorkspace } from '../../components/supplier/listing-creation/TourOptionWorkspace';
+import { TourOptionCard } from '../../components/supplier/listing-creation/TourOptionCard';
+import { tourOptionCardModel, scheduleBlockedExplanation } from '../../lib/listing-option-card';
 import { TourScheduleWorkspace } from '../../components/supplier/listing-creation/TourScheduleWorkspace';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import {
@@ -405,6 +408,13 @@ function legacyTourToBookingOptions(tour: TourPackage): ListingBookingOption[] {
   ];
 }
 
+type OpenOptionEditOptions = {
+  /** Start on this option scene (0 setup, 1 meeting, 2 availability & pricing). */
+  sceneIndex?: number;
+  /** After the option sheet opens, immediately open a schedule editor. */
+  action?: { kind: 'add_schedule' } | { kind: 'edit_schedule'; scheduleId: string };
+};
+
 function optionValidationMessages(o: ListingBookingOption, hasEndingDate?: boolean): string[] {
   return getBookingOptionValidationMessages(o, {
     hasEndingDate: hasEndingDate ?? o.availabilityDateTo.trim().length > 0,
@@ -437,6 +447,8 @@ function ProgressiveLinesEditor({
   max,
   placeholder,
   onChange,
+  variant = 'plain',
+  minRequired = 0,
 }: {
   fieldId: string;
   label: string;
@@ -446,20 +458,42 @@ function ProgressiveLinesEditor({
   max: number;
   placeholder: (index: number) => string;
   onChange: (next: string[]) => void;
+  /** `include` / `exclude` render a sectioned card with a status badge and per-line markers. */
+  variant?: 'plain' | 'include' | 'exclude';
+  /** How many filled lines are needed (drives the badge). */
+  minRequired?: number;
 }) {
-  return (
-    <div id={fieldId}>
-      <label className="mb-1 block text-sm font-semibold text-ink">{label}</label>
-      <p className="mb-2 text-xs text-ink-muted">{hint}</p>
+  const sectioned = variant !== 'plain';
+  const filled = values.filter((line) => line.trim().length > 0).length;
+  const satisfied = minRequired <= 0 || filled >= minRequired;
+  const labelId = `${fieldId}-label`;
+
+  const list = (
+    <>
       <div className="space-y-2">
         {values.map((line, index) => (
           <div key={`${fieldId}-${index}`} className="flex items-start gap-2">
+            {sectioned ? (
+              <span
+                className={`mt-3 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
+                  variant === 'include' ? 'bg-finland/10 text-finland' : 'bg-red-50 text-red-700'
+                }`}
+                aria-hidden
+              >
+                {variant === 'include' ? (
+                  <Check className="h-3 w-3" strokeWidth={3} />
+                ) : (
+                  <Minus className="h-3 w-3" strokeWidth={3} />
+                )}
+              </span>
+            ) : null}
             <input
               type="text"
               value={line}
               onChange={(e) => onChange(values.map((s, i) => (i === index ? e.target.value : s)))}
               className="tv-input"
               placeholder={placeholder(index)}
+              aria-label={sectioned ? `${label.replace(/\s*\*$/, '')} ${index + 1}` : undefined}
             />
             {index >= minVisible ? (
               <button
@@ -482,22 +516,49 @@ function ProgressiveLinesEditor({
           + Add another
         </button>
       ) : null}
-    </div>
+    </>
+  );
+
+  if (!sectioned) {
+    return (
+      <div id={fieldId}>
+        <label className="mb-1 block text-sm font-semibold text-ink">{label}</label>
+        <p className="mb-2 text-xs text-ink-muted">{hint}</p>
+        {list}
+      </div>
+    );
+  }
+
+  return (
+    <section
+      id={fieldId}
+      aria-labelledby={labelId}
+      className={`lc-section rounded-2xl border-l-4 px-4 py-4 sm:px-5 ${
+        variant === 'include' ? 'border-l-finland' : 'border-l-red-300'
+      }`}
+    >
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h5 id={labelId} className="font-display text-base font-bold text-ink">
+            {label}
+          </h5>
+          <p className="mt-0.5 text-xs leading-relaxed text-ink-muted">{hint}</p>
+        </div>
+        {minRequired > 0 ? (
+          <span
+            className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold tabular-nums ${
+              satisfied ? 'bg-finland/10 text-finland' : 'bg-amber-50 text-amber-900 ring-1 ring-amber-200/80'
+            }`}
+            role="status"
+          >
+            {satisfied ? `${filled} added` : `${filled} of ${minRequired} needed`}
+          </span>
+        ) : null}
+      </div>
+      {list}
+    </section>
   );
 }
-
-const SCHEDULE_STYLE_OPTIONS: { value: ScheduleStyle; label: string; hint: string }[] = [
-  { value: 'flexible', label: 'Flexible timing', hint: 'Start time can vary or you confirm after booking.' },
-  { value: 'fixed_slots', label: 'Fixed daily start', hint: 'You usually run at set times (set start time on each booking option).' },
-  { value: 'on_request', label: 'Flexible / private-style', hint: 'You prefer flexible timing — travelers still pick a bookable date and time from your schedules.' },
-];
-
-const VENUE_SETTING_OPTIONS: { value: VenueSetting; label: string }[] = [
-  { value: 'unspecified', label: 'Not specified' },
-  { value: 'indoor', label: 'Mostly indoor' },
-  { value: 'outdoor', label: 'Mostly outdoor' },
-  { value: 'mixed', label: 'Mix of indoor and outdoor' },
-];
 
 /** ISO 639-1–style codes for the main language guests can expect. */
 const LANGUAGE_OPTIONS: { code: string; label: string }[] = [
@@ -1034,6 +1095,7 @@ export default function SupplierListingForm({
   /** Phase 1108: [] before first successful fetch must not mean “no sold seats”. */
   const [listingOccupancyReady, setListingOccupancyReady] = useState(false);
   const scheduleSessionOpenedAsCreateRef = useRef(false);
+  const pendingScheduleActionRef = useRef<OpenOptionEditOptions['action'] | null>(null);
   const scheduleSnapshotRef = useRef<string>('');
   /** Start time when the schedule editor was opened — sold seats stay on this purchased slot. */
   const scheduleOpenedStartTimeRef = useRef('');
@@ -1109,7 +1171,7 @@ export default function SupplierListingForm({
     }
     return [
       'Name this listing, choose the language you run it in, and pick a category.',
-      'What guests get, where it happens, and how it starts. Optional itinerary and guest notes fold away.',
+      'What guests get, where it happens, and how it starts. Booking cutoff stays here.',
       'Options are versions of this experience (pickup, time, private). Age prices live inside each option.',
       'Cover photo first, then supporting shots travelers swipe through.',
       'Check what’s ready, fix gaps, then save as draft or publish.',
@@ -1880,6 +1942,7 @@ export default function SupplierListingForm({
     setPendingScheduleDeleteId(null);
     optionSessionOpenedAsCreateRef.current = false;
     scheduleSessionOpenedAsCreateRef.current = false;
+    pendingScheduleActionRef.current = null;
   }, []);
 
   const optionEndingState = useCallback(
@@ -1916,6 +1979,7 @@ export default function SupplierListingForm({
 
   const openOptionModalCreate = useCallback(() => {
     optionSessionOpenedAsCreateRef.current = true;
+    pendingScheduleActionRef.current = null;
     setOptionModalEditingId(null);
     setOptionModalDraft(createEmptyBookingOption());
     setOptionModalErrors([]);
@@ -1928,10 +1992,11 @@ export default function SupplierListingForm({
     setOptionModalOpen(true);
   }, []);
 
-  const openOptionModalEdit = useCallback((id: string) => {
+  const openOptionModalEdit = useCallback((id: string, opts?: OpenOptionEditOptions) => {
     const opt = form.bookingOptions.find((o) => o.id === id);
     if (!opt) return;
     optionSessionOpenedAsCreateRef.current = false;
+    pendingScheduleActionRef.current = opts?.action ?? null;
     setOptionModalEditingId(id);
     setOptionModalDraft(
       ensureExplicitSchedules(
@@ -1940,7 +2005,7 @@ export default function SupplierListingForm({
     );
     setOptionModalErrors([]);
     setOptionModalHasEndingDate(opt.availabilityDateTo.trim().length > 0);
-    setOptionSceneIdx(0);
+    setOptionSceneIdx(clampTourOptionSceneIndex(opts?.sceneIndex ?? 0));
     setOptionSceneDirection('forward');
     setOptionLockHint(null);
     setOptionAttempted(false);
@@ -2069,9 +2134,18 @@ export default function SupplierListingForm({
     if (!optionModalDraft || addScheduleLockRef.current) return;
     const prereq = bookingOptionSchedulePrereqIssues(optionModalDraft);
     if (prereq.length > 0) {
-      setOptionLockHint(prereq[0] ?? null);
+      // Go to Setup and keep the reason visible (setOptionSceneIdxPersisted would clear the hint).
+      setOptionSceneDirection('back');
+      setOptionSceneIdx(0);
+      setOptionLockHint(scheduleBlockedExplanation(prereq));
       setOptionAttempted(true);
-      setOptionSceneIdxPersisted(0, 'back');
+      window.setTimeout(() => {
+        focusListingField(
+          optionModalDraft.chargeModel !== 'per_person' && optionModalDraft.chargeModel !== 'flat_group'
+            ? 'supplier-listing-field-option-charge-model'
+            : 'supplier-listing-field-option-start-mode'
+        );
+      }, 80);
       return;
     }
     addScheduleLockRef.current = true;
@@ -2094,7 +2168,7 @@ export default function SupplierListingForm({
     setSchedulePersistLabel(null);
     setScheduleSaveError(null);
     setScheduleLeaveOpen(false);
-  }, [optionModalDraft, setOptionSceneIdxPersisted]);
+  }, [optionModalDraft]);
 
   const openScheduleEdit = useCallback(
     (scheduleId: string) => {
@@ -2389,6 +2463,15 @@ export default function SupplierListingForm({
     [editingId, optionModalDraft, listingOccupancyBookings]
   );
 
+  // Option-card CTAs ("Add schedule" / "Finish schedule") open the option sheet, then the schedule editor.
+  useEffect(() => {
+    const action = pendingScheduleActionRef.current;
+    if (!action || !optionModalOpen || !optionModalDraft || scheduleDraft) return;
+    pendingScheduleActionRef.current = null;
+    if (action.kind === 'add_schedule') openScheduleCreate();
+    else openScheduleEdit(action.scheduleId);
+  }, [optionModalOpen, optionModalDraft, scheduleDraft, openScheduleCreate, openScheduleEdit]);
+
   const scheduleContinueHint =
     scheduleDraft && optionModalDraft
       ? tourScheduleSceneContinueHint({
@@ -2466,6 +2549,42 @@ export default function SupplierListingForm({
               canContinue: false,
             })
     : null;
+
+  // Specific "what is missing" line for tour steps after Basics (falls back to the generic requirement).
+  const specificTourContinueHint = (() => {
+    if (isStayForm || stepIdx === 0 || canContinueStep()) return null;
+    if (stepIdx === 1) {
+      return listingCreationMissingHint(
+        tourDetailsMissingItems({
+          includeCount: form.includes.filter((line) => line.trim()).length,
+          excludeCount: form.excludes.filter((line) => line.trim()).length,
+          city: form.city,
+          country: form.country,
+        })
+      );
+    }
+    if (stepIdx === 2) {
+      const active = materializedBookingOptions(form.bookingOptions);
+      if (active.length === 0) return 'To continue: add a bookable option and finish it.';
+      const blocked = active.find((o) => tourOptionReadiness(o, optionValidationMessages(o)) !== 'ready');
+      const first = blocked ? optionValidationMessages(blocked)[0] : null;
+      if (blocked && first) {
+        return `To continue: finish “${blocked.name.trim() || 'Untitled option'}” — ${first.replace(/\.$/, '').replace(/^Add /, 'add ')}.`;
+      }
+      return null;
+    }
+    if (stepIdx === 3) {
+      return listingCreationMissingHint(
+        photosMissingItems({
+          photoCount: orderedPhotoUrls(normalizePhotoSlots(form.photoSlots)).length,
+          minPhotos: LISTING_PHOTO_MIN,
+          isNewCreation: sessionOpenedAsCreateRef.current === true,
+          photosPublishReady: listingPhotosReadyToPublish(form),
+        })
+      );
+    }
+    return null;
+  })();
 
   const creationTitle = editingId
     ? form.title.trim() || (form.inventoryFamily === 'stay' ? 'Stay' : 'Tour')
@@ -2694,14 +2813,16 @@ export default function SupplierListingForm({
               ? (() => {
                   const hint = tourBasicsGuided
                     ? tourBasicsContinueHint
-                    : listingCreationContinueHint({
+                    : specificTourContinueHint ??
+                      listingCreationContinueHint({
                         stepIndex: stepIdx,
                         isStay: isStayForm,
                         canContinue: canContinueStep(),
                       });
                   return hint ? (
                     <p
-                      className="listing-creation-hint text-xs leading-relaxed text-ink-muted sm:text-right"
+                      id="listing-creation-continue-hint"
+                      className="listing-creation-hint rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-950 ring-1 ring-amber-200/80 sm:text-right"
                       role="status"
                     >
                       {hint}
@@ -2870,6 +2991,12 @@ export default function SupplierListingForm({
                 subtitle: form.subtitle,
                 description: form.description,
                 highlights: form.highlights,
+                difficulty: form.difficulty,
+                destination: form.destination,
+                accessibilitySummary: form.accessibilitySummary,
+                minGuestAge: form.minGuestAge,
+                venueSetting: form.venueSetting,
+                additionalLanguages: form.additionalLanguages,
               }}
               sceneIndex={basicsSceneIdx}
               direction={basicsSceneDirection}
@@ -2899,6 +3026,8 @@ export default function SupplierListingForm({
                 <ProgressiveLinesEditor
                   fieldId="supplier-listing-field-includes"
                   label="What's included *"
+                  variant="include"
+                  minRequired={2}
                   hint={`At least two clear items. You can add up to ${TOUR_INCLUDE_MAX}.`}
                   values={form.includes}
                   minVisible={TOUR_INCLUDE_MIN_VISIBLE}
@@ -2909,6 +3038,8 @@ export default function SupplierListingForm({
                 <ProgressiveLinesEditor
                   fieldId="supplier-listing-field-excludes"
                   label="Not included *"
+                  variant="exclude"
+                  minRequired={1}
                   hint={`At least one line so guests know what to budget for. You can add up to ${TOUR_EXCLUDE_MAX}.`}
                   values={form.excludes}
                   minVisible={TOUR_EXCLUDE_MIN_VISIBLE}
@@ -2956,278 +3087,89 @@ export default function SupplierListingForm({
                   How it starts
                 </h4>
                 <div id="supplier-listing-field-start">
-                  <label className="block text-sm font-semibold text-ink mb-1">How this tour generally starts *</label>
-                  <select
+                  <label
+                    htmlFor="supplier-listing-experience-start"
+                    className="mb-1 block text-sm font-semibold text-ink"
+                  >
+                    How this tour generally starts *
+                  </label>
+                  <PartnerSelect
+                    id="supplier-listing-experience-start"
                     value={form.experienceStartStyle}
-                    onChange={(e) =>
+                    onChange={(experienceStartStyle) =>
                       setForm((f) => ({
                         ...f,
-                        experienceStartStyle: e.target.value as ListingFormState['experienceStartStyle'],
+                        experienceStartStyle: experienceStartStyle as ListingFormState['experienceStartStyle'],
                       }))
                     }
-                    className="tv-input"
-                  >
-                    {EXPERIENCE_START_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-ink-muted mt-1">
+                    options={EXPERIENCE_START_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+                  />
+                  <p className="mt-1 text-xs text-ink-muted">
                     Product-level: meeting, pickup, or both. Each option still has its own exact place and start time.
                   </p>
                 </div>
               </section>
 
-              <details id="supplier-listing-field-schedule" className="group rounded-xl border border-black/[0.08] px-4 py-3">
-                <summary className="cursor-pointer list-none flex items-start justify-between gap-3">
-                  <span>
-                    <span className="block text-sm font-semibold text-ink">Optional: shared itinerary</span>
-                    <span className="block text-xs text-ink-muted mt-0.5">
-                      Common flow and difficulty — not option clock times
-                    </span>
-                  </span>
-                  <span className="text-xs text-finland font-medium mt-0.5 shrink-0">
-                    {form.typicalTimelineNotes.trim() ||
-                    (form.scheduleStyle && form.scheduleStyle !== 'flexible') ||
-                    form.difficulty !== 'Easy'
-                      ? 'Saved'
-                      : 'Add'}
-                  </span>
-                </summary>
-                <div className="mt-4 space-y-4">
-                  <div id="supplier-listing-field-difficulty">
-                    <label className="block text-sm font-semibold text-ink mb-1">Overall difficulty</label>
-                    <select
-                      value={form.difficulty}
-                      onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          difficulty: e.target.value as 'Easy' | 'Moderate' | 'Challenging',
-                        }))
-                      }
-                      className="tv-input"
-                    >
-                      <option value="Easy">Easy</option>
-                      <option value="Moderate">Moderate</option>
-                      <option value="Challenging">Challenging</option>
-                    </select>
-                  </div>
-                  <p className="text-xs text-ink-muted">
-                    Describe the shared flow in relative order. Each option has its own start time.
+              <section className="space-y-4" aria-labelledby="tour-details-booking-window" id="supplier-listing-field-schedule">
+                <h4
+                  id="tour-details-booking-window"
+                  className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted"
+                >
+                  Booking window
+                </h4>
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-ink" htmlFor="supplier-booking-cutoff">
+                    Stop online booking (hours before departure)
+                  </label>
+                  <input
+                    id="supplier-booking-cutoff"
+                    type="number"
+                    min={0}
+                    max={168}
+                    step={1}
+                    value={form.bookingCutoffHoursBeforeStart}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        bookingCutoffHoursBeforeStart: e.target.value.replace(/[^\d]/g, '').slice(0, 3),
+                      }))
+                    }
+                    className="tv-input max-w-[8rem]"
+                    placeholder="0"
+                    inputMode="numeric"
+                  />
+                  <p className="mt-1 text-xs text-ink-muted">
+                    0 or blank = travelers can book until the departure starts (in the listing timezone below).
+                    Example: 2 closes booking two hours before start.
                   </p>
-                  <div className="space-y-2">
-                    {SCHEDULE_STYLE_OPTIONS.map((o) => (
-                      <label
-                        key={o.value}
-                        className={`lc-choice flex cursor-pointer gap-3 rounded-xl p-3 ${
-                          form.scheduleStyle === o.value ? 'lc-choice--selected' : ''
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="scheduleStyle"
-                          value={o.value}
-                          checked={form.scheduleStyle === o.value}
-                          onChange={() => setForm((f) => ({ ...f, scheduleStyle: o.value }))}
-                          className="mt-1 border-black/[0.12] text-finland focus:ring-finland"
-                        />
-                        <span>
-                          <span className="block text-sm font-semibold text-ink">{o.label}</span>
-                          <span className="block text-xs text-ink-muted mt-0.5">{o.hint}</span>
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-ink mb-1">Typical flow (optional)</label>
-                    <textarea
-                      value={form.typicalTimelineNotes}
-                      maxLength={MAX_TIMELINE_LENGTH}
-                      onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          typicalTimelineNotes: e.target.value.slice(0, MAX_TIMELINE_LENGTH),
-                        }))
-                      }
-                      rows={4}
-                      className="tv-input"
-                      placeholder="e.g. Meet and brief → transfer to viewing area → time to watch and photograph → return"
-                    />
-                    <p className="text-xs text-ink-muted mt-1 tabular-nums">
-                      {form.typicalTimelineNotes.length}/{MAX_TIMELINE_LENGTH}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-ink mb-1">
-                      Stop online booking (hours before departure)
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      max={168}
-                      step={1}
-                      value={form.bookingCutoffHoursBeforeStart}
-                      onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          bookingCutoffHoursBeforeStart: e.target.value.replace(/[^\d]/g, '').slice(0, 3),
-                        }))
-                      }
-                      className="tv-input max-w-[8rem]"
-                      placeholder="0"
-                      inputMode="numeric"
-                    />
-                    <p className="text-xs text-ink-muted mt-1">
-                      0 or blank = travelers can book until the departure starts (in the listing
-                      timezone below). Example: 2 closes booking two hours before start.
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-ink mb-1" htmlFor="supplier-departure-timezone">
-                      Departure timezone
-                    </label>
-                    <select
-                      id="supplier-departure-timezone"
-                      value={form.departureTimezone || TRAVERION_DEPARTURE_TIMEZONE}
-                      onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          departureTimezone: e.target.value,
-                        }))
-                      }
-                      className="tv-input max-w-md"
-                    >
-                      <option value="Europe/Helsinki">Europe/Helsinki (Finland — default)</option>
-                      <option value="Europe/London">Europe/London</option>
-                      <option value="Europe/Paris">Europe/Paris</option>
-                      <option value="Europe/Stockholm">Europe/Stockholm</option>
-                      <option value="America/New_York">America/New_York</option>
-                      <option value="America/Los_Angeles">America/Los_Angeles</option>
-                      <option value="Asia/Tokyo">Asia/Tokyo</option>
-                      <option value="Pacific/Auckland">Pacific/Auckland</option>
-                      <option value="UTC">UTC</option>
-                    </select>
-                    <p className="text-xs text-ink-muted mt-1">
-                      Schedule times are wall clock in this zone. A 20:00 departure stays 20:00 local
-                      for travelers and cancel windows.
-                    </p>
-                  </div>
                 </div>
-              </details>
-
-              <details id="supplier-listing-field-accessibility" className="group rounded-xl border border-black/[0.08] px-4 py-3">
-                <summary className="cursor-pointer list-none flex items-start justify-between gap-3">
-                  <span>
-                    <span className="block text-sm font-semibold text-ink">Optional: good to know</span>
-                    <span className="block text-xs text-ink-muted mt-0.5">
-                      Place label, accessibility, age, setting, languages
-                    </span>
-                  </span>
-                  <span className="text-xs text-finland font-medium mt-0.5 shrink-0">
-                    {form.destination.trim() ||
-                    form.accessibilitySummary.trim() ||
-                    form.minGuestAge.trim() ||
-                    (form.venueSetting && form.venueSetting !== 'unspecified') ||
-                    form.additionalLanguages.length > 0
-                      ? 'Saved'
-                      : 'Add'}
-                  </span>
-                </summary>
-                <div className="mt-4 space-y-4">
-                  <div id="supplier-listing-field-destination" className="space-y-2">
-                    <label className="block text-sm font-semibold text-ink">How it shows as a place</label>
-                    <input
-                      type="text"
-                      value={form.destination}
-                      onChange={(e) => setForm((f) => ({ ...f, destination: e.target.value }))}
-                      className="tv-input"
-                      placeholder="e.g. coastal route · several towns — or leave blank"
-                    />
-                    <p className="text-xs text-ink-muted">
-                      If blank, cards use city and country. Fill this only for a route-style label.
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-ink mb-1">Accessibility &amp; mobility</label>
-                    <textarea
-                      value={form.accessibilitySummary}
-                      maxLength={MAX_ACCESSIBILITY_LENGTH}
-                      onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          accessibilitySummary: e.target.value.slice(0, MAX_ACCESSIBILITY_LENGTH),
-                        }))
-                      }
-                      rows={3}
-                      className="tv-input"
-                      placeholder="Steps, uneven ground, wheelchair access, hearing loops, etc."
-                    />
-                    <p className="text-xs text-ink-muted mt-1 tabular-nums">
-                      {form.accessibilitySummary.length}/{MAX_ACCESSIBILITY_LENGTH}
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-semibold text-ink mb-1">Minimum guest age</label>
-                      <input
-                        type="text"
-                        value={form.minGuestAge}
-                        onChange={(e) => setForm((f) => ({ ...f, minGuestAge: e.target.value }))}
-                        className="tv-input"
-                        placeholder="e.g. 8+ or none"
-                      />
-                    </div>
-                    <div id="supplier-listing-field-venue">
-                      <label className="block text-sm font-semibold text-ink mb-1">Setting</label>
-                      <select
-                        value={form.venueSetting}
-                        onChange={(e) =>
-                          setForm((f) => ({ ...f, venueSetting: e.target.value as VenueSetting }))
-                        }
-                        className="tv-input"
-                      >
-                        {VENUE_SETTING_OPTIONS.map((o) => (
-                          <option key={o.value} value={o.value}>
-                            {o.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                  <div id="supplier-listing-field-languages">
-                    <label className="block text-sm font-semibold text-ink mb-2">Additional languages offered</label>
-                    <p className="text-xs text-ink-muted mb-2">Besides the primary language you set earlier.</p>
-                    <div className="flex flex-wrap gap-2">
-                      {LANGUAGE_OPTIONS.filter((o) => o.code !== 'other').map((o) => {
-                        const disabled = o.code === form.experienceLanguage;
-                        return (
-                          <label
-                            key={o.code}
-                            className={`inline-flex items-center gap-1.5 ${disabled ? 'opacity-40' : ''}`}
-                          >
-                            <input
-                              type="checkbox"
-                              disabled={disabled}
-                              checked={form.additionalLanguages.includes(o.code)}
-                              onChange={() =>
-                                setForm((f) => ({
-                                  ...f,
-                                  additionalLanguages: f.additionalLanguages.includes(o.code)
-                                    ? f.additionalLanguages.filter((c) => c !== o.code)
-                                    : [...f.additionalLanguages, o.code],
-                                }))
-                              }
-                              className="rounded border-black/[0.12] text-finland focus:ring-finland"
-                            />
-                            <span className="text-sm text-ink">{o.label}</span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </div>
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-ink" htmlFor="supplier-departure-timezone">
+                    Departure timezone
+                  </label>
+                  <PartnerSelect
+                    id="supplier-departure-timezone"
+                    className="max-w-md"
+                    value={form.departureTimezone || TRAVERION_DEPARTURE_TIMEZONE}
+                    onChange={(departureTimezone) => setForm((f) => ({ ...f, departureTimezone }))}
+                    options={[
+                      { value: 'Europe/Helsinki', label: 'Europe/Helsinki (Finland — default)' },
+                      { value: 'Europe/London', label: 'Europe/London' },
+                      { value: 'Europe/Paris', label: 'Europe/Paris' },
+                      { value: 'Europe/Stockholm', label: 'Europe/Stockholm' },
+                      { value: 'America/New_York', label: 'America/New_York' },
+                      { value: 'America/Los_Angeles', label: 'America/Los_Angeles' },
+                      { value: 'Asia/Tokyo', label: 'Asia/Tokyo' },
+                      { value: 'Pacific/Auckland', label: 'Pacific/Auckland' },
+                      { value: 'UTC', label: 'UTC' },
+                    ]}
+                  />
+                  <p className="mt-1 text-xs text-ink-muted">
+                    Schedule times are wall clock in this zone. A 20:00 departure stays 20:00 local for travelers and
+                    cancel windows.
+                  </p>
                 </div>
-              </details>
+              </section>
             </div>
           )}
 
@@ -3510,152 +3452,67 @@ export default function SupplierListingForm({
                   const messages = optionValidationMessages(opt);
                   const status = tourOptionReadiness(opt, messages);
                   const pendingDelete = optionPendingDeleteId === opt.id;
+                  const card = tourOptionCardModel(opt, (n) => formatMoney(n, listingCurrency));
+                  const notice =
+                    pendingDelete && editingId
+                      ? removeBookingOptionOccupancyNotice(
+                          occupyingGuestsForBookingOption({
+                            bookings: listingOccupancyBookings,
+                            listingId: editingId,
+                            optionId: opt.id,
+                          })
+                        )
+                      : null;
                   return (
-                    <div
+                    <TourOptionCard
                       key={opt.id}
-                      className="lc-tile flex flex-wrap items-start justify-between gap-3 rounded-xl px-4 py-4"
-                    >
-                      <div className="min-w-0 space-y-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-sm font-bold text-ink truncate">
-                            {opt.name.trim() || 'Untitled option'}
+                      name={opt.name.trim()}
+                      readiness={status}
+                      model={card}
+                      pendingDelete={pendingDelete}
+                      deleteNotice={
+                        notice ? (
+                          <p className="text-sm leading-relaxed text-ink" role="status">
+                            {notice}
                           </p>
-                          <span
-                            className={`text-[11px] font-semibold uppercase tracking-[0.12em] ${
-                              status === 'ready' ? 'text-finland' : 'text-ink-muted'
-                            }`}
-                          >
-                            {tourOptionReadinessLabel(status)}
-                          </span>
-                        </div>
-                        <p className="text-xs text-ink-muted">
-                          {[
-                            opt.duration.trim() || null,
-                            optionScheduleCountLabel(opt),
-                            (() => {
-                              const ready = listingOptionReadySchedules(opt);
-                              if (ready.length === 0) return null;
-                              const froms = ready.map((s) => s.availabilityDateFrom).filter(Boolean).sort();
-                              const tos = ready.map((s) => s.availabilityDateTo).filter(Boolean).sort();
-                              return formatScheduleRange(froms[0] ?? '', tos[tos.length - 1] ?? '');
-                            })(),
-                            (() => {
-                              const ready = listingOptionReadySchedules(opt);
-                              if (ready.length === 0) {
-                                return summarizeOptionPricing(opt, (n) => formatMoney(n, listingCurrency));
-                              }
-                              if (ready.length === 1) {
-                                return summarizeOptionPricing(ready[0], (n) => formatMoney(n, listingCurrency));
-                              }
-                              const prices = ready
-                                .map((s) => optionHeadlineUnitPrice(s))
-                                .filter((n) => n > 0);
-                              if (prices.length === 0) return 'Set schedule prices';
-                              return `From ${formatMoney(Math.min(...prices), listingCurrency)}`;
-                            })(),
-                            (() => {
-                              const ready = listingOptionReadySchedules(opt);
-                              if (ready.length > 0) {
-                                const max = Math.max(...ready.map((s) => s.maxSpotsPerSlot));
-                                return max >= 1 ? `Max ${max}` : null;
-                              }
-                              return opt.maxSpotsPerSlot >= 1 ? `Max ${opt.maxSpotsPerSlot}` : null;
-                            })(),
-                          ]
-                            .filter(Boolean)
-                            .join(' · ')}
-                        </p>
-                        {opt.pickupPlace.trim() ? (
-                          <p className="text-xs text-ink-faint line-clamp-1">
-                            {opt.fulfillment === 'pickup' ? 'Pickup · ' : opt.fulfillment === 'meeting_point' ? 'Meet · ' : ''}
-                            {opt.pickupPlace.trim()}
-                          </p>
-                        ) : null}
-                        {status !== 'ready' && messages[0] ? (
-                          <p className="text-xs text-ink-muted">{messages[0]}</p>
-                        ) : null}
-                        {pendingDelete && editingId
-                          ? (() => {
-                              const notice = removeBookingOptionOccupancyNotice(
-                                occupyingGuestsForBookingOption({
-                                  bookings: listingOccupancyBookings,
-                                  listingId: editingId,
-                                  optionId: opt.id,
-                                })
-                              );
-                              return notice ? (
-                                <p className="text-sm leading-relaxed text-ink" role="status">
-                                  {notice}
-                                </p>
-                              ) : null;
-                            })()
-                          : null}
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2 shrink-0">
-                        {pendingDelete ? (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => setOptionPendingDeleteId(null)}
-                              className="tv-btn-ghost"
-                            >
-                              Keep
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (editingId && listingOccupancyReady) {
-                                  const sold = occupyingGuestsForBookingOption({
-                                    bookings: listingOccupancyBookings,
-                                    listingId: editingId,
-                                    optionId: opt.id,
-                                  });
-                                  if (sold >= 1) {
-                                    // Phase 1110: hard-refuse option delete with sold seats.
-                                    window.alert(
-                                      removeBookingOptionOccupancyNotice(sold) ??
-                                        'This option still has booked guests and cannot be deleted.'
-                                    );
-                                    setOptionPendingDeleteId(null);
-                                    return;
-                                  }
-                                }
-                                removeBookingOption(opt.id);
-                              }}
-                              className="lc-btn-danger inline-flex min-h-[44px] items-center rounded-lg px-3 py-2 text-xs font-medium"
-                            >
-                              Delete option
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => openOptionModalEdit(opt.id)}
-                              className="tv-btn-ghost"
-                            >
-                              <Pencil className="w-3.5 h-3.5" aria-hidden />
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => duplicateOption(opt.id)}
-                              className="tv-btn-ghost"
-                            >
-                              Duplicate
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setOptionPendingDeleteId(opt.id)}
-                              className="lc-btn-danger inline-flex min-h-[44px] items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" aria-hidden />
-                              Delete
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
+                        ) : null
+                      }
+                      onPrimary={() => {
+                        if (card.cta.kind === 'add_schedule') {
+                          openOptionModalEdit(opt.id, { sceneIndex: card.cta.sceneIndex, action: { kind: 'add_schedule' } });
+                        } else if (card.cta.kind === 'finish_schedule') {
+                          openOptionModalEdit(opt.id, {
+                            sceneIndex: card.cta.sceneIndex,
+                            action: { kind: 'edit_schedule', scheduleId: card.cta.scheduleId },
+                          });
+                        } else if (card.cta.kind === 'continue_setup') {
+                          openOptionModalEdit(opt.id, { sceneIndex: card.cta.sceneIndex });
+                        }
+                      }}
+                      onEdit={() => openOptionModalEdit(opt.id)}
+                      onDuplicate={() => duplicateOption(opt.id)}
+                      onRequestDelete={() => setOptionPendingDeleteId(opt.id)}
+                      onCancelDelete={() => setOptionPendingDeleteId(null)}
+                      onConfirmDelete={() => {
+                        if (editingId && listingOccupancyReady) {
+                          const sold = occupyingGuestsForBookingOption({
+                            bookings: listingOccupancyBookings,
+                            listingId: editingId,
+                            optionId: opt.id,
+                          });
+                          if (sold >= 1) {
+                            // Phase 1110: hard-refuse option delete with sold seats.
+                            window.alert(
+                              removeBookingOptionOccupancyNotice(sold) ??
+                                'This option still has booked guests and cannot be deleted.'
+                            );
+                            setOptionPendingDeleteId(null);
+                            return;
+                          }
+                        }
+                        removeBookingOption(opt.id);
+                      }}
+                    />
                   );
                 })}
               </div>
@@ -3882,6 +3739,8 @@ export default function SupplierListingForm({
                   : 'New option'
             }
             listingTitle={form.title}
+            optionName={optionModalDraft.name}
+            sceneLabel={TOUR_OPTION_SCENES[optionSceneIdx]?.label ?? 'Setup'}
             persistLabel={persistLabel}
             contextNav={{
               title: optionSessionOpenedAsCreateRef.current
@@ -3910,14 +3769,13 @@ export default function SupplierListingForm({
               (optionSceneIdx === TOUR_OPTION_SCENE_COUNT - 1 && !optionCanFinish)
             }
             saveDraftDisabled={draftCloseBusy || submitting}
-            onBack={() => {
-              if (optionSceneIdx > 0) {
-                setOptionSceneIdxPersisted(previousTourOptionScene(optionSceneIdx), 'back');
-                return;
-              }
-              closeOptionModal();
-            }}
-            onClose={closeOptionModal}
+            onBackToOptions={saveOptionAsDraft}
+            onPreviousScene={
+              optionSceneIdx > 0
+                ? () => setOptionSceneIdxPersisted(previousTourOptionScene(optionSceneIdx), 'back')
+                : null
+            }
+            onClose={saveOptionAsDraft}
             onSaveDraft={saveOptionAsDraft}
             onContinue={() => {
               if (optionSceneIdx < TOUR_OPTION_SCENE_COUNT - 1) {
@@ -3928,8 +3786,11 @@ export default function SupplierListingForm({
             }}
           >
             {optionLockHint ? (
-              <div className="listing-creation-hint mb-4" role="status">
-                <p className="text-sm text-ink-muted">{optionLockHint}</p>
+              <div
+                className="listing-creation-hint mb-5 max-w-2xl rounded-xl bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-950 ring-1 ring-amber-200/80"
+                role="status"
+              >
+                {optionLockHint}
               </div>
             ) : null}
             {optionModalErrors.length > 0 ? (
@@ -3942,7 +3803,7 @@ export default function SupplierListingForm({
                 </ul>
               </div>
             ) : null}
-            <div className="w-full max-w-xl">
+            <div className="w-full max-w-2xl">
               <TourOptionGuidedScenes
                 option={optionModalDraft}
                 sceneIndex={optionSceneIdx}
@@ -3989,6 +3850,10 @@ export default function SupplierListingForm({
               schedule={scheduleDraft}
               sceneIndex={scheduleSceneIdx}
               isNewSchedule={scheduleSessionOpenedAsCreateRef.current}
+              listingTitle={form.title}
+              leaveOpen={scheduleLeaveOpen}
+              onKeepEditing={() => setScheduleLeaveOpen(false)}
+              onLeave={() => closeScheduleWorkspace(true)}
               persistLabel={scheduleIsDirty() ? 'Unsaved changes' : schedulePersistLabel}
               currencyLabel={listingCurrency}
               formatAmount={(n) => formatMoney(n, listingCurrency)}
@@ -4011,26 +3876,6 @@ export default function SupplierListingForm({
               onContinue={advanceScheduleScene}
               onSaveReady={saveScheduleReady}
             />
-            {scheduleLeaveOpen ? (
-              <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-                <div className="lc-section w-full max-w-sm rounded-xl px-5 py-5" role="alertdialog" aria-labelledby="schedule-leave-title">
-                  <p id="schedule-leave-title" className="font-display text-lg font-bold text-ink">
-                    Leave without saving changes?
-                  </p>
-                  <p className="mt-2 text-sm text-ink-muted">
-                    This schedule still has edits that have not been saved.
-                  </p>
-                  <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                    <button type="button" className="tv-btn-ghost !min-h-11" onClick={() => setScheduleLeaveOpen(false)}>
-                      Keep editing
-                    </button>
-                    <button type="button" className="tv-btn-primary !min-h-11" onClick={() => closeScheduleWorkspace(true)}>
-                      Leave
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : null}
           </>
         ) : null}
         {leaveConfirmOpen ? (

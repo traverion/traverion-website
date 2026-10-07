@@ -1,6 +1,5 @@
 import type {
   ListingBookingOption,
-  ListingOptionFulfillment,
   ListingPriceCategory,
   ListingPriceCategoryKind,
 } from '../../types/listingExtras';
@@ -19,6 +18,7 @@ import {
 import type { ReactNode } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { TraverionSingleDateField } from '../calendar/TraverionSingleDateField';
+import PartnerSelect from './PartnerSelect';
 import { localYmd } from '../../lib/local-ymd';
 
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -62,14 +62,50 @@ function Section({
   children: ReactNode;
 }) {
   return (
-    <section className="lc-section space-y-4 rounded-xl px-4 py-4 sm:px-5 sm:py-5">
-      <div>
+    <section className="lc-section space-y-5 rounded-2xl px-5 py-5 sm:px-6 sm:py-6">
+      <div className="max-w-xl">
         <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">{kicker}</p>
-        <h3 className="mt-1 font-display text-lg font-bold tracking-tight text-ink">{title}</h3>
-        {support ? <p className="mt-1 text-sm leading-relaxed text-ink-muted">{support}</p> : null}
+        <h3 className="mt-1.5 font-display text-xl font-bold tracking-tight text-ink">{title}</h3>
+        {support ? <p className="mt-2 text-sm leading-relaxed text-ink-muted">{support}</p> : null}
       </div>
-      {children}
+      <div className="space-y-5">{children}</div>
     </section>
+  );
+}
+
+function ChoiceCard({
+  selected,
+  title,
+  hint,
+  onClick,
+}: {
+  selected: boolean;
+  title: string;
+  hint: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={selected}
+      className={`lc-choice flex w-full items-start gap-3 rounded-2xl px-4 py-4 text-left sm:px-5 sm:py-5 ${
+        selected ? 'lc-choice--selected' : ''
+      }`}
+    >
+      <span
+        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
+          selected ? 'border-finland bg-finland' : 'border-black/25 bg-paper'
+        }`}
+        aria-hidden
+      >
+        {selected ? <span className="h-1.5 w-1.5 rounded-full bg-white" /> : null}
+      </span>
+      <span className="min-w-0">
+        <span className="block text-sm font-bold text-ink sm:text-base">{title}</span>
+        <span className="mt-1 block text-xs leading-relaxed text-ink-muted sm:text-sm">{hint}</span>
+      </span>
+    </button>
   );
 }
 
@@ -164,7 +200,7 @@ export default function BookingOptionEditor({
     attempted && option.startMode !== 'flexible' && !option.startTime.trim();
 
   return (
-    <div className={`grid grid-cols-1 gap-5 ${activeSection ? '' : 'p-4 sm:p-5 lg:grid-cols-2 lg:gap-8'}`}>
+    <div className={`grid grid-cols-1 gap-6 ${activeSection ? '' : 'p-4 sm:p-5 lg:grid-cols-2 lg:gap-8'}`}>
       {showSetup ? (
         <>
           <Section
@@ -242,21 +278,24 @@ export default function BookingOptionEditor({
                   <label htmlFor="booking-option-duration-unit" className="sr-only">
                     Duration unit
                   </label>
-                  <select
+                  <PartnerSelect
                     id="booking-option-duration-unit"
                     value={durParts.unit}
-                    onChange={(e) => {
-                      const u = e.target.value as BookingOptionDurationUnit;
+                    aria-label="Duration unit"
+                    onChange={(u) => {
                       onChange({
-                        duration: formatBookingOptionDuration(durParts.amount, u),
+                        duration: formatBookingOptionDuration(
+                          durParts.amount,
+                          u as BookingOptionDurationUnit
+                        ),
                       });
                     }}
-                    className="tv-input"
-                  >
-                    <option value="minutes">Minutes</option>
-                    <option value="hours">Hours</option>
-                    <option value="days">Days</option>
-                  </select>
+                    options={[
+                      { value: 'minutes', label: 'Minutes' },
+                      { value: 'hours', label: 'Hours' },
+                      { value: 'days', label: 'Days' },
+                    ]}
+                  />
                 </div>
               </div>
             </div>
@@ -266,37 +305,21 @@ export default function BookingOptionEditor({
             title="Pricing and start style"
             support="Required before you can add schedules. You can still set exact prices and times on each schedule."
           >
-            <div id="supplier-listing-field-option-charge-model" className="space-y-2">
+            <div id="supplier-listing-field-option-charge-model" className="space-y-3">
               <p className="text-sm font-semibold text-ink">How do you charge? *</p>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Pricing model">
-                {(
-                  [
-                    {
-                      value: 'per_person' as const,
-                      title: 'Per person',
-                      hint: 'Each traveler pays. Adult/child prices can be set on schedules.',
-                    },
-                    {
-                      value: 'flat_group' as const,
-                      title: 'Per group',
-                      hint: 'One price covers the whole party up to your guest limit.',
-                    },
-                  ] as const
-                ).map((row) => {
-                  const selected = option.chargeModel === row.value;
-                  return (
-                    <button
-                      key={row.value}
-                      type="button"
-                      onClick={() => setChargeModel(row.value)}
-                      className={`lc-choice rounded-xl px-4 py-4 text-left ${selected ? 'lc-choice--selected' : ''}`}
-                      aria-pressed={selected}
-                    >
-                      <span className="block text-sm font-bold text-ink">{row.title}</span>
-                      <span className="mt-1 block text-xs leading-relaxed text-ink-muted">{row.hint}</span>
-                    </button>
-                  );
-                })}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Pricing model">
+                <ChoiceCard
+                  selected={option.chargeModel === 'per_person'}
+                  title="Per person"
+                  hint="Each traveler pays. Adult/child prices can be set on schedules."
+                  onClick={() => setChargeModel('per_person')}
+                />
+                <ChoiceCard
+                  selected={option.chargeModel === 'flat_group'}
+                  title="Per group"
+                  hint="One price covers the whole party up to your guest limit."
+                  onClick={() => setChargeModel('flat_group')}
+                />
               </div>
               {attempted && !chargeModelChosen ? (
                 <p className="text-sm text-red-600" role="alert">
@@ -304,37 +327,21 @@ export default function BookingOptionEditor({
                 </p>
               ) : null}
             </div>
-            <div id="supplier-listing-field-option-start-mode" className="space-y-2">
+            <div id="supplier-listing-field-option-start-mode" className="space-y-3">
               <p className="text-sm font-semibold text-ink">Start time style *</p>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Start time style">
-                {(
-                  [
-                    {
-                      value: 'fixed' as const,
-                      title: 'Fixed start time',
-                      hint: 'Each schedule has a clock departure (e.g. 20:00).',
-                    },
-                    {
-                      value: 'flexible' as const,
-                      title: 'Flexible (operating hours)',
-                      hint: 'Operating days without a single fixed departure time.',
-                    },
-                  ] as const
-                ).map((row) => {
-                  const selected = option.startMode === row.value;
-                  return (
-                    <button
-                      key={row.value}
-                      type="button"
-                      onClick={() => onChange({ startMode: row.value })}
-                      className={`lc-choice rounded-xl px-4 py-4 text-left ${selected ? 'lc-choice--selected' : ''}`}
-                      aria-pressed={selected}
-                    >
-                      <span className="block text-sm font-bold text-ink">{row.title}</span>
-                      <span className="mt-1 block text-xs leading-relaxed text-ink-muted">{row.hint}</span>
-                    </button>
-                  );
-                })}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Start time style">
+                <ChoiceCard
+                  selected={option.startMode === 'fixed'}
+                  title="Fixed start time"
+                  hint="Each schedule has a clock departure (e.g. 20:00)."
+                  onClick={() => onChange({ startMode: 'fixed' })}
+                />
+                <ChoiceCard
+                  selected={option.startMode === 'flexible'}
+                  title="Flexible (operating hours)"
+                  hint="Operating days without a single fixed departure time."
+                  onClick={() => onChange({ startMode: 'flexible' })}
+                />
               </div>
               {attempted && !startModeChosen ? (
                 <p className="text-sm text-red-600" role="alert">
@@ -352,35 +359,19 @@ export default function BookingOptionEditor({
           title="How travelers start this option"
           support="Choose one. Only the fields for that start apply."
         >
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {(
-              [
-                {
-                  value: 'meeting_point' as ListingOptionFulfillment,
-                  title: 'Meeting point',
-                  hint: 'Travelers come to a specified location.',
-                },
-                {
-                  value: 'pickup' as ListingOptionFulfillment,
-                  title: 'Pickup included',
-                  hint: 'Travelers are collected from an eligible pickup area.',
-                },
-              ] as const
-            ).map((row) => {
-              const selected = option.fulfillment === row.value;
-              return (
-                <button
-                  key={row.value}
-                  type="button"
-                  onClick={() => onChange({ fulfillment: row.value })}
-                  className={`lc-choice rounded-xl px-4 py-4 text-left ${selected ? 'lc-choice--selected' : ''}`}
-                  aria-pressed={selected}
-                >
-                  <span className="block text-sm font-bold text-ink">{row.title}</span>
-                  <span className="mt-1 block text-xs leading-relaxed text-ink-muted">{row.hint}</span>
-                </button>
-              );
-            })}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <ChoiceCard
+              selected={option.fulfillment === 'meeting_point'}
+              title="Meeting point"
+              hint="Travelers come to a specified location."
+              onClick={() => onChange({ fulfillment: 'meeting_point' })}
+            />
+            <ChoiceCard
+              selected={option.fulfillment === 'pickup'}
+              title="Pickup included"
+              hint="Travelers are collected from an eligible pickup area."
+              onClick={() => onChange({ fulfillment: 'pickup' })}
+            />
           </div>
           {option.fulfillment || option.pickupPlace.trim() ? (
             <div id="supplier-listing-field-meeting" className="space-y-4 listing-creation-hint">
