@@ -66,6 +66,12 @@ describe('tour option creation overhaul (source contracts)', () => {
     expect(editor).toMatch(/showChargeModelPicker = !activeSection \|\| activeSection === 'pricing'/);
   });
 
+  it('guards Save schedule against rapid double clicks', () => {
+    const form = readFileSync(resolve(__dirname, '../../../pages/supplier/SupplierListingForm.tsx'), 'utf8');
+    expect(form).toContain('scheduleSaveLockRef');
+    expect(form).toMatch(/saveScheduleReady[\s\S]*scheduleSaveLockRef\.current/);
+  });
+
   it('shows Tour → Option → Scene context and Back to options in the option header', () => {
     const src = read('TourOptionWorkspace.tsx');
     expect(src).toContain('Back to options');

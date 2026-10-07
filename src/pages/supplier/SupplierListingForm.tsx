@@ -1109,6 +1109,8 @@ export default function SupplierListingForm({
   const scheduleSoldSeatAnchorRef = useRef<{ id: string; startTimeHm: string } | null>(null);
   const scheduleDraftRef = useRef<ListingOptionSchedule | null>(null);
   const addScheduleLockRef = useRef(false);
+  /** Prevent double-click duplicate ready saves on Save schedule. */
+  const scheduleSaveLockRef = useRef(false);
 
   useEffect(() => {
     if (!user?.id || !editingId) {
@@ -2400,7 +2402,7 @@ export default function SupplierListingForm({
   }, [scheduleDraft, optionModalDraft, scheduleSceneIdx, persistScheduleDraft]);
 
   const saveScheduleReady = useCallback(() => {
-    if (!scheduleDraft || !optionModalDraft) return;
+    if (!scheduleDraft || !optionModalDraft || scheduleSaveLockRef.current) return;
     const ready = { ...scheduleDraft, status: 'ready' as const };
     const gate = scheduleCanSaveReady(ready, optionModalDraft);
     if (!gate.ok) {
@@ -2409,6 +2411,10 @@ export default function SupplierListingForm({
       focusListingField(firstScheduleIssueFocusId(ready));
       return;
     }
+    scheduleSaveLockRef.current = true;
+    window.setTimeout(() => {
+      scheduleSaveLockRef.current = false;
+    }, 600);
     if (editingId) {
       if (!listingOccupancyReady || listingOccupancyLoadError) {
         setScheduleSaveError(
