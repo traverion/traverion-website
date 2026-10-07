@@ -170,7 +170,7 @@ export interface ListingExtras {
    * Omitted → platform default Europe/Helsinki. Invalid values are ignored on read.
    */
   departureTimezone?: string;
-  /** Multiple priced variants under one product (partner Cost & options). */
+  /** Multiple bookable options under one tour (partner Options step). */
   bookingOptions?: ListingBookingOption[];
   /**
    * Partner UI only: display names for grid photo slots (e.g. original filenames after upload).

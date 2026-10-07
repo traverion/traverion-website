@@ -3118,7 +3118,7 @@ export default function SupplierListingForm({
                     options={EXPERIENCE_START_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
                   />
                   <p className="mt-1 text-xs text-ink-muted">
-                    Product-level: meeting, pickup, or both. Each option still has its own exact place and start time.
+                    Overall for this tour: meeting, pickup, or both. Each bookable option still has its own exact place and start time.
                   </p>
                 </div>
               </section>
