@@ -10,7 +10,6 @@ import {
   tourOptionReadinessLabel,
   type TourOptionSceneId,
 } from '../../../lib/listing-option-scenes';
-import { isTourOptionSceneSatisfied } from '../../../lib/listing-option-progression';
 import {
   formatScheduleRange,
   listingOptionReadySchedules,
