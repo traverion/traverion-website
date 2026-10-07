@@ -47,6 +47,7 @@ import { partnerPickupAllowsForceCancel, partnerManualConfirmBlock } from '../..
 import { PARTNER_CANCEL_REQUEST_REFUND_POLICY } from '../../lib/booking-confirmation-copy';
 import { formatBookingDateDisplay } from '../../lib/booking-flow';
 import NoticeCallout from '../../components/NoticeCallout';
+import PartnerSelect from '../../components/supplier/PartnerSelect';
 import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
 import { partnerPaymentLabel } from '../../lib/payment-states';
 import {
@@ -1048,22 +1049,20 @@ export default function SupplierPickupPlanner() {
               <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Cancel booking</h2>
               {partnerPickupAllowsForceCancel(selectedBooking) ? (
                 <div className="max-w-xl">
-                  <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
+                  <span className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5" id="pickup-cancel-reason-label">
                     Reason
-                  </label>
-                  <select
+                  </span>
+                  <PartnerSelect
+                    aria-labelledby="pickup-cancel-reason-label"
                     value={cancelReason}
-                    onChange={(e) => setCancelReason(e.target.value)}
+                    onChange={setCancelReason}
                     disabled={!canEditBookings}
-                    className={`${plannerInputClass()}${!canEditBookings ? ' opacity-40' : ''}`}
-                  >
-                    <option value="">Select reason</option>
-                    {CANCELLATION_REASONS.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.label}
-                      </option>
-                    ))}
-                  </select>
+                    placeholder="Select reason"
+                    options={[
+                      { value: '', label: 'Select reason' },
+                      ...CANCELLATION_REASONS.map((r) => ({ value: r.id, label: r.label })),
+                    ]}
+                  />
                   <p className="mt-2 text-xs text-ink-muted">
                     This checkout is unpaid. Cancelling releases the hold immediately — no Stripe refund applies.
                   </p>
@@ -1281,19 +1280,18 @@ export default function SupplierPickupPlanner() {
                   />
                 </div>
                 <div className="flex min-w-[min(100%,12rem)] flex-1 flex-col gap-1 sm:flex-none sm:min-w-[11rem]">
-                  <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Listing</label>
-                  <select
+                  <span className="text-[11px] font-medium uppercase tracking-wide text-ink-faint" id="pickup-filter-listing-label">
+                    Listing
+                  </span>
+                  <PartnerSelect
+                    aria-labelledby="pickup-filter-listing-label"
                     value={listingFilterId}
-                    onChange={(e) => writePickupFiltersToUrl({ listingId: e.target.value })}
-                    className={plannerInputClass()}
-                  >
-                    <option value="">All listings</option>
-                    {listingSelectOptions.map((opt) => (
-                      <option key={opt.id} value={opt.id}>
-                        {opt.title}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(listingId) => writePickupFiltersToUrl({ listingId })}
+                    options={[
+                      { value: '', label: 'All listings' },
+                      ...listingSelectOptions.map((opt) => ({ value: opt.id, label: opt.title })),
+                    ]}
+                  />
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Dates</label>
@@ -1315,16 +1313,19 @@ export default function SupplierPickupPlanner() {
                     />
                   </div>
                 </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Sort</label>
-                  <select
+                <div className="flex flex-col gap-1 min-w-[10rem]">
+                  <span className="text-[11px] font-medium uppercase tracking-wide text-ink-faint" id="pickup-sort-label">
+                    Sort
+                  </span>
+                  <PartnerSelect
+                    aria-labelledby="pickup-sort-label"
                     value={sortDate}
-                    onChange={(e) => setSortDate(e.target.value as 'asc' | 'desc')}
-                    className={plannerInputClass()}
-                  >
-                    <option value="asc">Earliest first</option>
-                    <option value="desc">Latest first</option>
-                  </select>
+                    onChange={(v) => setSortDate(v as 'asc' | 'desc')}
+                    options={[
+                      { value: 'asc', label: 'Earliest first' },
+                      { value: 'desc', label: 'Latest first' },
+                    ]}
+                  />
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-3">
