@@ -41,6 +41,7 @@ import { notifySupplierEvent } from '../../data/supabase-supplier-messaging';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
 import { SUPPLIER_PAGE_CLASS, SupplierPageHero } from './supplierUi';
+import PartnerSelect from './PartnerSelect';
 import NoticeCallout from '../NoticeCallout';
 import StatusChip from '../StatusChip';
 import {
@@ -711,17 +712,21 @@ function BusinessProfilePage(p: Props) {
             badge={<StatusChip tone={busChip.tone}>{busChip.label}</StatusChip>}
           >
             <div>
-              <label className="block text-sm font-medium text-ink mb-1.5">Business type</label>
-              <select
+              <span id="settings-business-type-label" className="block text-sm font-medium text-ink mb-1.5">
+                Business type
+              </span>
+              <PartnerSelect
+                aria-labelledby="settings-business-type-label"
                 value={p.businessType}
                 disabled={identityFieldsDisabled}
-                onChange={(e) => p.setBusinessType(e.target.value as 'company' | 'individual' | '')}
-                className={profileInputClass(identityFieldsDisabled)}
-              >
-                  <option value="">Not set</option>
-                  <option value="company">Registered company</option>
-                  <option value="individual">Individual trader</option>
-                </select>
+                onChange={(v) => p.setBusinessType(v as 'company' | 'individual' | '')}
+                placeholder="Not set"
+                options={[
+                  { value: '', label: 'Not set' },
+                  { value: 'company', label: 'Registered company' },
+                  { value: 'individual', label: 'Individual trader' },
+                ]}
+              />
               </div>
               <div>
                 <label className="block text-sm font-medium text-ink mb-1">

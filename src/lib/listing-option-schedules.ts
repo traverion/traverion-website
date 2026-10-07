@@ -137,8 +137,17 @@ export function listingOptionSchedules(option: ListingBookingOption): ListingOpt
   return [implicit];
 }
 
+/** Hard ceiling so typos like 99999 cannot look “valid” as a tour departure size. */
+export const LISTING_CAPACITY_MAX = 200;
+
 export function scheduleCapacityValid(s: Pick<ListingOptionSchedule, 'minPersons' | 'maxPersons' | 'maxSpotsPerSlot'>): boolean {
-  return s.minPersons >= 1 && s.maxPersons >= s.minPersons && s.maxSpotsPerSlot >= 1;
+  return (
+    s.minPersons >= 1 &&
+    s.maxPersons >= s.minPersons &&
+    s.maxPersons <= LISTING_CAPACITY_MAX &&
+    s.maxSpotsPerSlot >= 1 &&
+    s.maxSpotsPerSlot <= LISTING_CAPACITY_MAX
+  );
 }
 
 /** Traveler-bookable (not a draft). Start date optional on legacy implicit rows. */

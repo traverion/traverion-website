@@ -16,6 +16,7 @@ import { formatMoney, normalizeCurrency } from '../../lib/money';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { SUPPLIER_MODAL_OVERLAY_CLASS, SUPPLIER_MODAL_PANEL_CLASS } from './supplierUi';
 import { partnerOfferListingIsStayUnsupported } from '../../lib/partner-offers-honesty';
+import PartnerSelect from './PartnerSelect';
 
 const LISTING_WIDE_VALUE = '__listing_wide__';
 
@@ -242,25 +243,26 @@ export default function DiscountOfferWizardModal({ open, onClose, listings, edit
                 Choose the listing and the booking option travelers select. The discount applies only to that option’s price.
               </p>
               <div>
-                <label htmlFor="offer-listing" className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
+                <span
+                  id="offer-listing-label"
+                  className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted"
+                >
                   Listing
-                </label>
-                <select
+                </span>
+                <PartnerSelect
                   id="offer-listing"
+                  aria-labelledby="offer-listing-label"
                   value={listingId}
-                  onChange={(e) => {
-                    setListingId(e.target.value);
+                  onChange={(next) => {
+                    setListingId(next);
                     setOptionId('');
                   }}
-                  className="tv-input"
-                >
-                  <option value="">Select a listing…</option>
-                  {listings.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.title}
-                    </option>
-                  ))}
-                </select>
+                  placeholder="Select a listing…"
+                  options={[
+                    { value: '', label: 'Select a listing…' },
+                    ...listings.map((l) => ({ value: l.id, label: l.title })),
+                  ]}
+                />
               </div>
               <div>
                 <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">Booking option</p>
@@ -268,7 +270,7 @@ export default function DiscountOfferWizardModal({ open, onClose, listings, edit
                   <p className="text-sm text-ink-muted">Choose a listing first.</p>
                 ) : bookingOptions.length === 0 ? (
                   <p className="rounded-xl bg-amber-50 px-3 py-2.5 text-sm text-amber-950 ring-1 ring-amber-200/80">
-                    This listing has no bookable options yet. Add options under Cost &amp; options in the listing editor, then return here.
+                    This listing has no bookable options yet. Open the listing, go to Options, add at least one ready option, then return here.
                   </p>
                 ) : (
                   <div className="space-y-2" role="radiogroup" aria-label="Booking option">

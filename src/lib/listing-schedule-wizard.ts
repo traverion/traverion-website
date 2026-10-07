@@ -3,6 +3,7 @@ import { listingCreationAccessState, previousStepsSatisfied } from './listing-cr
 import type { ListingCreationNavItem } from './listing-creation-workspace';
 import {
   findScheduleOverlap,
+  LISTING_CAPACITY_MAX,
   listingLocalDateKey,
   scheduleCapacityValid,
   scheduleHeadlineName,
@@ -69,7 +70,9 @@ export function scheduleCapacityIssues(schedule: ListingOptionSchedule): string[
   const msg: string[] = [];
   if (!scheduleCapacityValid(schedule)) {
     if (schedule.maxSpotsPerSlot < 1) msg.push('Maximum capacity must be at least 1.');
-    else msg.push('Set minimum and maximum guests so max is not below min.');
+    else if (schedule.maxSpotsPerSlot > LISTING_CAPACITY_MAX || schedule.maxPersons > LISTING_CAPACITY_MAX) {
+      msg.push(`Capacity cannot exceed ${LISTING_CAPACITY_MAX} travelers.`);
+    } else msg.push('Set minimum and maximum guests so max is not below min.');
   }
   return msg;
 }

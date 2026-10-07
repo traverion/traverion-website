@@ -5,6 +5,7 @@
 
 import type { ListingBookingOption } from '../types/listingExtras';
 import { getListingBookingOptionDurationIssue, TOUR_OPTION_INFO_MAX } from '../types/listingExtras';
+import { LISTING_CAPACITY_MAX } from './listing-option-schedules';
 import { priceCategoryValidationMessages } from './price-categories';
 import { optionScheduleManagementIssues } from './listing-schedule-wizard';
 
@@ -126,6 +127,13 @@ export function bookingOptionCapacityIssues(option: ListingBookingOption): strin
   }
   if (option.maxSpotsPerSlot < 1) {
     msg.push('Set max spots per departure or start time.');
+  }
+  if (
+    option.maxSpotsPerSlot > LISTING_CAPACITY_MAX ||
+    option.maxPersons > LISTING_CAPACITY_MAX ||
+    option.minPersons > LISTING_CAPACITY_MAX
+  ) {
+    msg.push(`Capacity cannot exceed ${LISTING_CAPACITY_MAX} travelers.`);
   }
   if (option.isPrivate && option.privatePricing === 'flat_group' && option.maxPersons < 1) {
     msg.push('Set how many travelers the group price covers.');

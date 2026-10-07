@@ -19,6 +19,7 @@ import type { ReactNode } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { TraverionSingleDateField } from '../calendar/TraverionSingleDateField';
 import PartnerSelect from './PartnerSelect';
+import { LISTING_CAPACITY_MAX } from '../../lib/listing-option-schedules';
 import { localYmd } from '../../lib/local-ymd';
 
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -823,12 +824,19 @@ export default function BookingOptionEditor({
                 id="booking-option-min-guests"
                 type="number"
                 min={1}
+                max={LISTING_CAPACITY_MAX}
                 value={option.minPersons || ''}
                 onChange={(e) => {
-                  const nextMin = Math.max(1, Math.floor(Number(e.target.value) || 1));
+                  const nextMin = Math.min(
+                    LISTING_CAPACITY_MAX,
+                    Math.max(1, Math.floor(Number(e.target.value) || 1))
+                  );
                   onChange({
                     minPersons: nextMin,
-                    maxPersons: Math.max(nextMin, option.maxPersons),
+                    maxPersons: Math.min(
+                      LISTING_CAPACITY_MAX,
+                      Math.max(nextMin, option.maxPersons)
+                    ),
                   });
                 }}
                 className="tv-input"
@@ -842,12 +850,16 @@ export default function BookingOptionEditor({
                 id="booking-option-max-guests"
                 type="number"
                 min={1}
+                max={LISTING_CAPACITY_MAX}
                 value={option.maxPersons || ''}
                 onChange={(e) =>
                   onChange({
-                    maxPersons: Math.max(
-                      option.minPersons,
-                      Math.floor(Number(e.target.value) || option.minPersons)
+                    maxPersons: Math.min(
+                      LISTING_CAPACITY_MAX,
+                      Math.max(
+                        option.minPersons,
+                        Math.floor(Number(e.target.value) || option.minPersons)
+                      )
                     ),
                   })
                 }
@@ -863,14 +875,19 @@ export default function BookingOptionEditor({
               id="booking-option-max-spots"
               type="number"
               min={1}
+              max={LISTING_CAPACITY_MAX}
               value={option.maxSpotsPerSlot || ''}
               onChange={(e) =>
                 onChange({
-                  maxSpotsPerSlot: Math.max(1, Math.floor(Number(e.target.value) || 1)),
+                  maxSpotsPerSlot: Math.min(
+                    LISTING_CAPACITY_MAX,
+                    Math.max(1, Math.floor(Number(e.target.value) || 1))
+                  ),
                 })
               }
               className="tv-input w-full max-w-xs"
             />
+            <p className="mt-1 text-xs text-ink-muted">Up to {LISTING_CAPACITY_MAX} travelers per departure.</p>
           </div>
         </Section>
       ) : null}

@@ -3074,7 +3074,7 @@ export default function SupplierListingForm({
                       value={form.city}
                       onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
                       className="tv-input"
-                      placeholder="e.g. Lisbon — neighbourhood or street"
+                      placeholder="e.g. Rovaniemi"
                       required
                     />
                   </div>
@@ -3200,7 +3200,7 @@ export default function SupplierListingForm({
                       value={form.city}
                       onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
                       className="tv-input"
-                      placeholder="e.g. Lisbon — neighbourhood or street"
+                      placeholder="e.g. Rovaniemi"
                       required
                     />
                   </div>
