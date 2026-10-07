@@ -1,4 +1,4 @@
-import { MIN_LISTING_DESCRIPTION_LENGTH } from './listingQualityScore';
+import { MIN_LISTING_DESCRIPTION_LENGTH, MIN_LISTING_TITLE_LENGTH } from './listingQualityScore';
 
 /** Guided scenes inside Tour → Basics. Stay Basics stays a single page. */
 export const TOUR_BASICS_SCENES = [
@@ -73,9 +73,10 @@ export function isTourIdentitySatisfied(
   fields: Pick<TourBasicsFields, 'experienceLanguage' | 'title' | 'subtitle'>
 ): boolean {
   const sub = fields.subtitle.trim();
+  const title = fields.title.trim();
   return (
     fields.experienceLanguage.trim().length > 0 &&
-    fields.title.trim().length > 0 &&
+    title.length >= MIN_LISTING_TITLE_LENGTH &&
     sub.length > 0 &&
     sub.length <= TOUR_BASICS_SUBTITLE_MAX
   );

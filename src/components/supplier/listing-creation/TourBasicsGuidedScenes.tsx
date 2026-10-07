@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { MIN_LISTING_DESCRIPTION_LENGTH } from '../../../lib/listingQualityScore';
+import { MIN_LISTING_DESCRIPTION_LENGTH, MIN_LISTING_TITLE_LENGTH } from '../../../lib/listingQualityScore';
 import {
   TOUR_BASICS_DESCRIPTION_MAX,
   TOUR_BASICS_SCENE_COUNT,
@@ -154,7 +154,8 @@ export function TourBasicsGuidedScenes({
                 Title *
               </label>
               <p className="mb-2 text-xs text-ink-muted">
-                A clear, specific name travelers will see in search and on the listing page.
+                A clear, specific name travelers will see in search and on the listing page (at least{' '}
+                {MIN_LISTING_TITLE_LENGTH} characters).
               </p>
               <input
                 id="supplier-listing-title"
@@ -162,7 +163,8 @@ export function TourBasicsGuidedScenes({
                 value={form.title}
                 onChange={(e) => onChange({ title: e.target.value })}
                 className="tv-input min-w-0 py-3 text-lg [overflow-wrap:anywhere]"
-                placeholder="e.g. Old town walking tour · small groups"
+                placeholder="e.g. Guaranteed Northern Lights Tour"
+                minLength={MIN_LISTING_TITLE_LENGTH}
                 required
               />
             </div>

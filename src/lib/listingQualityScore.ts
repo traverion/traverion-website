@@ -9,6 +9,9 @@ export const LISTING_PLACEHOLDER_IMAGE =
 /** Minimum main description length to publish (aligned with partner form and publish gate). */
 export const MIN_LISTING_DESCRIPTION_LENGTH = 100;
 
+/** Minimum title length to publish — Basics Continue must use the same floor. */
+export const MIN_LISTING_TITLE_LENGTH = 10;
+
 export type ListingQualityCheck = {
   id: string;
   label: string;

@@ -12,7 +12,7 @@ import {
   orderedPhotoUrls,
   normalizePhotoSlots,
 } from './listingPhotoGrid';
-import { MIN_LISTING_DESCRIPTION_LENGTH } from './listingQualityScore';
+import { MIN_LISTING_DESCRIPTION_LENGTH, MIN_LISTING_TITLE_LENGTH } from './listingQualityScore';
 
 export type ListingBuilderSectionId =
   | 'basics'
@@ -74,7 +74,9 @@ export function listingBuilderSections(form: BuilderFormSlice): ListingBuilderSe
   const basicsIssues: string[] = [];
   if (!lang) basicsIssues.push('Choose the main language');
   if (!kindOk) basicsIssues.push('Choose the activity type');
-  if (title.length < 10) basicsIssues.push('Add a clear title (at least 10 characters)');
+  if (title.length < MIN_LISTING_TITLE_LENGTH) {
+    basicsIssues.push(`Add a clear title (at least ${MIN_LISTING_TITLE_LENGTH} characters)`);
+  }
   if (!sub) basicsIssues.push('Add a subtitle');
 
   const desc = (form.description ?? '').trim();

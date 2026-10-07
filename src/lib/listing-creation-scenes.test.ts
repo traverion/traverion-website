@@ -79,6 +79,11 @@ describe('scene satisfaction and Continue gates', () => {
     expect(isTourIdentitySatisfied({ ...filled, subtitle: 'x'.repeat(TOUR_BASICS_SUBTITLE_MAX + 1) })).toBe(false);
   });
 
+  it('requires the same minimum title length as publish (not just non-empty)', () => {
+    expect(isTourIdentitySatisfied({ ...filled, title: 'Short' })).toBe(false);
+    expect(isTourIdentitySatisfied({ ...filled, title: 'Guaranteed NL' })).toBe(true);
+  });
+
   it('keeps existing description length rules for the story scene', () => {
     expect(isTourStorySatisfied({ description: 'short' })).toBe(false);
     expect(isTourStorySatisfied({ description: 'a'.repeat(MIN_LISTING_DESCRIPTION_LENGTH) })).toBe(true);

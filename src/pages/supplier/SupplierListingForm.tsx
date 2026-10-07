@@ -154,7 +154,7 @@ import {
   shouldResetWizardOnEditingIdChange,
 } from '../../lib/listing-creation-persist';
 import { userFacingError } from '../../lib/userFacingError';
-import { MIN_LISTING_DESCRIPTION_LENGTH } from '../../lib/listingQualityScore';
+import { MIN_LISTING_DESCRIPTION_LENGTH, MIN_LISTING_TITLE_LENGTH } from '../../lib/listingQualityScore';
 import {
   PARTNER_LISTING_PUBLISH_STEP_NOTE,
   PARTNER_LISTING_PUBLISH_STEP_TITLE,
@@ -831,7 +831,7 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
       form.experienceKind === 'transportation';
     return (
       (isStay || form.experienceLanguage.trim().length > 0) &&
-      form.title.trim().length > 0 &&
+      form.title.trim().length >= MIN_LISTING_TITLE_LENGTH &&
       kindOk &&
       sub.length > 0 &&
       sub.length <= MAX_SUBTITLE_LENGTH &&
@@ -2553,9 +2553,11 @@ export default function SupplierListingForm({
     ? basicsSceneIdx === 0 && !isTourProductTypeSatisfied(form)
       ? 'Choose a product type to continue.'
       : basicsSceneIdx === 1 && !isTourIdentitySatisfied(form)
-        ? 'Add a title, language and subtitle to continue.'
+        ? form.title.trim().length > 0 && form.title.trim().length < MIN_LISTING_TITLE_LENGTH
+          ? `Title needs at least ${MIN_LISTING_TITLE_LENGTH} characters to continue.`
+          : 'Add a title, language and subtitle to continue.'
         : basicsSceneIdx === 2 && !isTourStorySatisfied(form)
-          ? 'Add a description of at least 100 characters to continue.'
+          ? `Add a description of at least ${MIN_LISTING_DESCRIPTION_LENGTH} characters to continue.`
           : listingCreationContinueHint({
               stepIndex: 0,
               isStay: false,

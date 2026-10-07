@@ -5,7 +5,11 @@ import {
   resolveOptionTravelerStartInstructions,
 } from '../types/listingExtras';
 import type { ListingBookingOption } from '../types/listingExtras';
-import { LISTING_PLACEHOLDER_IMAGE, MIN_LISTING_DESCRIPTION_LENGTH } from './listingQualityScore';
+import {
+  LISTING_PLACEHOLDER_IMAGE,
+  MIN_LISTING_DESCRIPTION_LENGTH,
+  MIN_LISTING_TITLE_LENGTH,
+} from './listingQualityScore';
 import { priceCategoryValidationMessages } from './price-categories';
 import { experienceTodayIsoForListing } from './booking-quote';
 import { parseGroupSizeRange } from './booking-flow';
@@ -94,8 +98,10 @@ export function getListingPublishBlockers(
   const out: string[] = [];
   const isStay = listing.listingExtras?.inventoryFamily === 'stay';
   const title = listing.title?.trim() ?? '';
-  if (title.length < 10) {
-    out.push('Title is too short — add a clear, specific title (at least 10 characters).');
+  if (title.length < MIN_LISTING_TITLE_LENGTH) {
+    out.push(
+      `Title is too short — add a clear, specific title (at least ${MIN_LISTING_TITLE_LENGTH} characters).`
+    );
   }
   const sub = listing.subtitle?.trim() ?? '';
   if (sub.length === 0) {
