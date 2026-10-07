@@ -31,7 +31,7 @@ describe('partnerDepartureRemainingLine', () => {
 });
 
 describe('partnerTourMonthCellCapacityLabel', () => {
-  it('does not mark multi-departure day Full when only morning is full', () => {
+  it('does not mark multi-departure day Sold out when only morning is full', () => {
     const label = partnerTourMonthCellCapacityLabel({
       offered: true,
       dayCapacityOverride: null,
@@ -44,9 +44,22 @@ describe('partnerTourMonthCellCapacityLabel', () => {
     });
     expect(label.short).toBe('Partial');
     expect(label.tone).toBe('partial');
+    expect(label.aria).toMatch(/partially booked/i);
   });
 
-  it('marks Full when every departure is full', () => {
+  it('uses Sold out (not Full) when fallback day capacity is exhausted', () => {
+    const label = partnerTourMonthCellCapacityLabel({
+      offered: true,
+      dayCapacityOverride: null,
+      defaultCapacity: 4,
+      occupyingGuestsDay: 4,
+      departures: [],
+    });
+    expect(label.short).toBe('Sold out');
+    expect(label.aria).toMatch(/sold out/i);
+  });
+
+  it('marks Sold out when every departure is full', () => {
     const label = partnerTourMonthCellCapacityLabel({
       offered: true,
       dayCapacityOverride: null,
@@ -57,7 +70,7 @@ describe('partnerTourMonthCellCapacityLabel', () => {
         { startTimeHm: '20:00', maxSpots: 6, occupyingGuests: 6 },
       ],
     });
-    expect(label.short).toBe('Full');
+    expect(label.short).toBe('Sold out');
   });
 
   it('Phase 1281: does not invent day capacity when listing spots are unknown', () => {

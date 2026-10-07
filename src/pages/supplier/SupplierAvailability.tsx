@@ -48,6 +48,7 @@ import {
 } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
 import NoticeCallout from '../../components/NoticeCallout';
+import PartnerSelect from '../../components/supplier/PartnerSelect';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -500,25 +501,22 @@ export default function SupplierAvailability() {
         description="Availability, capacity, blocked dates, and bookings by day. Select a listing to edit."
         actions={
           !isSupabase || !user || listings.length === 0 ? undefined : (
-            <label className="block sm:min-w-[16rem]">
-              <span className="sr-only">Listing</span>
-              <select
+            <div className="block sm:min-w-[16rem]">
+              <PartnerSelect
                 id="availability-listing"
+                aria-label="Listing"
                 value={listingId}
-                onChange={(e) => {
-                  setListingIdAndUrl(e.target.value);
-                }}
-                className="tv-input"
-              >
-                <option value="">All listings</option>
-                {listings.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {inventoryFamilyFromListing(l) === 'stay' ? 'Stay · ' : 'Tour · '}
-                    {l.title}
-                    {l.status === 'draft' ? ' (draft)' : ''}
-                  </option>
-                ))}
-              </select>
+                onChange={setListingIdAndUrl}
+                options={[
+                  { value: '', label: 'All listings' },
+                  ...listings.map((l) => ({
+                    value: l.id,
+                    label: `${inventoryFamilyFromListing(l) === 'stay' ? 'Stay · ' : 'Tour · '}${l.title}${
+                      l.status === 'draft' ? ' (draft)' : ''
+                    }`,
+                  })),
+                ]}
+              />
               {viewingAll ? (
                 <p className="mt-2 text-xs font-medium text-finland">Select a listing to edit that day</p>
               ) : stayCalendar ? (
@@ -526,7 +524,7 @@ export default function SupplierAvailability() {
               ) : (
                 <p className="mt-2 text-xs font-medium text-finland">Select a listing to edit daily caps</p>
               )}
-            </label>
+            </div>
           )
         }
       />
@@ -703,7 +701,7 @@ export default function SupplierAvailability() {
             aria-label={
               stayCalendar
                 ? 'Calendar legend: Occupied, Check-out, Available, Blocked'
-                : 'Calendar legend: Open, Booked, Full, Closed days'
+                : 'Calendar legend: Available, Partially booked, Sold out, Closed, No schedule'
             }
           >
             {stayCalendar ? (
@@ -724,15 +722,18 @@ export default function SupplierAvailability() {
             ) : (
               <>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="tv-cal-legend__swatch bg-emerald-400" /> Open
+                  <span className="tv-cal-legend__swatch bg-emerald-400" /> Available
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="tv-cal-legend__swatch bg-finland" /> Booked
+                  <span className="tv-cal-legend__swatch bg-amber-400" /> Partially booked
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="tv-cal-legend__swatch bg-rose-500" /> Full
+                  <span className="tv-cal-legend__swatch bg-rose-500" /> Sold out
                 </span>
-                <span className="inline-flex items-center gap-1.5 text-ink-faint">Closed days show —</span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="tv-cal-legend__swatch bg-slate-300" /> Closed
+                </span>
+                <span className="inline-flex items-center gap-1.5 text-ink-faint">No schedule —</span>
               </>
             )}
           </div>
@@ -817,8 +818,8 @@ export default function SupplierAvailability() {
                         : remaining !== null && tourCapacity != null
                         ? `${dateLabel}, ${remaining} of ${tourCapacity} spots left`
                         : open
-                          ? `${dateLabel}, ${stayCalendar ? 'available' : 'open'}`
-                          : `${dateLabel}, not offered`;
+                          ? `${dateLabel}, available`
+                          : `${dateLabel}, ${stayCalendar ? 'not offered' : 'no schedule'}`;
               return (
                 <button
                   key={cell.iso}
@@ -894,13 +895,13 @@ export default function SupplierAvailability() {
                     <span className="mt-0.5 block text-[10px] font-semibold leading-tight text-rose-700">Blocked</span>
                   ) : cell.inMonth && remaining !== null && tourCapacity != null ? (
                     <span className={`mt-0.5 block text-[10px] leading-tight ${remaining === 0 ? 'font-semibold text-rose-700' : 'text-ink-muted'}`}>
-                      {remaining === 0 ? 'Full' : `${remaining}/${tourCapacity} left`}
+                      {remaining === 0 ? 'Sold out' : `${remaining}/${tourCapacity} left`}
                     </span>
                   ) : cell.inMonth && open ? (
-                    <span className="mt-0.5 block text-[10px] leading-tight text-ink-faint">{stayCalendar ? 'Available' : 'Open'}</span>
+                    <span className="mt-0.5 block text-[10px] leading-tight text-ink-faint">Available</span>
                   ) : cell.inMonth ? (
                     <span className="mt-0.5 block text-[10px] leading-tight text-ink-faint">
-                      {cap && !stayCalendar ? 'Not offered' : '—'}
+                      {cap && !stayCalendar ? 'Closed' : stayCalendar ? '—' : 'No schedule'}
                     </span>
                   ) : null}
                 </button>

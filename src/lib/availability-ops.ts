@@ -99,7 +99,7 @@ export function partnerTourMonthCellCapacityLabel(params: {
       ? Math.max(0, Math.floor(params.dayCapacityOverride))
       : null;
   if (dayCap != null && dayCap < 1) {
-    return { short: 'Full', aria: 'closed this day', tone: 'full' };
+    return { short: 'Closed', aria: 'closed this day', tone: 'full' };
   }
   if (params.departures.length >= 1) {
     const dayLeft = dayCap != null ? Math.max(0, dayCap - params.occupyingGuestsDay) : null;
@@ -108,12 +108,12 @@ export function partnerTourMonthCellCapacityLabel(params: {
       return dayLeft != null ? Math.min(slotLeft, dayLeft) : slotLeft;
     });
     const anyOpen = lines.some((n) => n > 0);
-    if (!anyOpen) return { short: 'Full', aria: 'fully booked this day', tone: 'full' };
+    if (!anyOpen) return { short: 'Sold out', aria: 'sold out this day', tone: 'full' };
     const openCount = lines.filter((n) => n > 0).length;
     if (params.departures.length >= 2 && openCount < params.departures.length) {
       return {
         short: 'Partial',
-        aria: `${openCount} of ${params.departures.length} departures still have seats`,
+        aria: `partially booked — ${openCount} of ${params.departures.length} departures still have seats`,
         tone: 'partial',
       };
     }
@@ -134,7 +134,7 @@ export function partnerTourMonthCellCapacityLabel(params: {
   }
   if (dayCap != null) {
     const remaining = partnerTourRemainingSpots(dayCap, params.occupyingGuestsDay);
-    if (remaining === 0) return { short: 'Full', aria: 'fully booked this day', tone: 'full' };
+    if (remaining === 0) return { short: 'Sold out', aria: 'sold out this day', tone: 'full' };
     return {
       short: `${remaining}/${dayCap} left`,
       aria: `${remaining} of ${dayCap} spots left`,
@@ -147,7 +147,7 @@ export function partnerTourMonthCellCapacityLabel(params: {
       : null;
   if (fallback == null) return { short: null, aria: null, tone: null };
   const remaining = partnerTourRemainingSpots(fallback, params.occupyingGuestsDay);
-  if (remaining === 0) return { short: 'Full', aria: 'fully booked this day', tone: 'full' };
+  if (remaining === 0) return { short: 'Sold out', aria: 'sold out this day', tone: 'full' };
   return {
     short: `${remaining}/${fallback} left`,
     aria: `${remaining} of ${fallback} spots left`,
