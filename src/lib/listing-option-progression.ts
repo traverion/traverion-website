@@ -1,8 +1,8 @@
 /**
  * Tour option wizard: 4 supplier-facing steps with strict forward gating for NEW options.
  *
- * Availability, pricing and capacity stay on the existing ListingBookingOption JSON.
- * The Availability & Pricing scene is a summary; configuration opens a nested sub-workspace.
+ * Schedules own dates, days, departure, price and capacity. The Availability & Pricing
+ * scene lists schedules and opens the nested schedule workspace.
  *
  * Existing options remain freely visitable so legacy data is not trapped behind new gates.
  */
@@ -12,7 +12,6 @@ import { listingCreationAccessState, previousStepsSatisfied } from './listing-cr
 import type { ListingCreationNavItem } from './listing-creation-workspace';
 import { formatOptionWeekdays } from './booking-quote';
 import {
-  bookingOptionAvailabilityIssues,
   bookingOptionAvailabilityPricingIssues,
   bookingOptionCapacityIssues,
   bookingOptionMeetingIssues,
@@ -34,26 +33,6 @@ export const TOUR_OPTION_SCENES = [
 
 export type TourOptionSceneId = (typeof TOUR_OPTION_SCENES)[number]['id'];
 export const TOUR_OPTION_SCENE_COUNT = TOUR_OPTION_SCENES.length;
-
-export type TourOptionConfigPanel = 'availability' | 'pricing' | 'capacity';
-
-export function tourOptionConfigPanelIssues(
-  panel: TourOptionConfigPanel,
-  option: ListingBookingOption,
-  ending?: OptionEndingDateState
-): string[] {
-  if (panel === 'availability') return bookingOptionAvailabilityIssues(option, ending);
-  if (panel === 'pricing') return bookingOptionPricingIssues(option);
-  return bookingOptionCapacityIssues(option);
-}
-
-export function tourOptionConfigSaveHint(
-  panel: TourOptionConfigPanel,
-  option: ListingBookingOption,
-  ending?: OptionEndingDateState
-): string | null {
-  return tourOptionConfigPanelIssues(panel, option, ending)[0] ?? null;
-}
 
 export function clampTourOptionSceneIndex(index: number): number {
   if (!Number.isFinite(index)) return 0;

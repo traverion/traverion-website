@@ -17,6 +17,8 @@ import {
   scheduleWizardIsComplete,
   optionCapacityForDepartureTime,
   tourSellingDeparturesOnDate,
+  ensureExplicitSchedules,
+  isImplicitScheduleId,
   upsertOptionSchedule,
 } from './listing-option-schedules';
 import { optionScheduleManagementIssues, scheduleCanSaveReady } from './listing-schedule-wizard';
@@ -401,5 +403,42 @@ describe('optionCapacityForDepartureTime (Phase 1207)', () => {
       maxSpotsPerSlot: 6,
       maxPersons: 12,
     });
+  });
+});
+
+describe('ensureExplicitSchedules implicit id remap', () => {
+  it('replaces ${optionId}-implicit with a stable explicit UUID so Finish schedule can open', () => {
+    const legacy = option({
+      id: 'opt-legacy',
+      schedules: undefined,
+      availabilityDateFrom: '2026-09-01',
+      availabilityDateTo: '2026-09-30',
+      startTime: '20:00',
+      priceUsd: 149,
+      weekdays: daily,
+      chargeModel: 'per_person',
+      startMode: 'fixed',
+    });
+    const implicitId = `${legacy.id}-implicit`;
+    expect(isImplicitScheduleId(implicitId)).toBe(true);
+
+    const prepared = ensureExplicitSchedules(legacy);
+    expect(prepared.schedules).toHaveLength(1);
+    const remapped = prepared.schedules![0]!;
+    expect(isImplicitScheduleId(remapped.id)).toBe(false);
+    expect(remapped.id).not.toBe(implicitId);
+
+    // Simulate Finish schedule: CTA still carries the old implicit id.
+    let resolved = prepared.schedules!.find((s) => s.id === implicitId);
+    if (!resolved && isImplicitScheduleId(implicitId) && prepared.schedules!.length === 1) {
+      resolved = prepared.schedules![0];
+    }
+    expect(resolved?.id).toBe(remapped.id);
+  });
+
+  it('is a no-op when schedules are already explicit', () => {
+    const withSchedules = option({ schedules: [september] });
+    const prepared = ensureExplicitSchedules(withSchedules);
+    expect(prepared.schedules?.[0]?.id).toBe('sch-sep');
   });
 });

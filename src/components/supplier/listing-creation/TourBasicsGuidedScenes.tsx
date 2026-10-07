@@ -10,6 +10,7 @@ import {
   addTourHighlight,
   canAddTourHighlight,
   canSelectTourBasicsScene,
+  isTourBasicsSceneSatisfied,
   removeTourHighlight,
   type ListingCreationSceneDirection,
   type TourBasicsSceneId,
@@ -95,6 +96,7 @@ export function TourBasicsGuidedScenes({
       canSelectScene={(index) =>
         canSelectTourBasicsScene(index, sceneIndex, form, allowDirectSceneAccess)
       }
+      isSceneComplete={(index) => isTourBasicsSceneSatisfied(index, form)}
       onSelectScene={onSelectScene}
       direction={direction}
       headingRef={headingRef}

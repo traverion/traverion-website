@@ -7,6 +7,7 @@ export function ListingCreationSceneProgress({
   labels,
   ariaLabel,
   canSelect,
+  isComplete,
   onSelect,
 }: {
   index: number;
@@ -14,6 +15,8 @@ export function ListingCreationSceneProgress({
   labels: readonly string[];
   ariaLabel: string;
   canSelect?: (index: number) => boolean;
+  /** Real readiness — never treat “visited / behind current” as complete. */
+  isComplete?: (index: number) => boolean;
   onSelect?: (index: number) => void;
 }) {
   return (
@@ -24,7 +27,7 @@ export function ListingCreationSceneProgress({
       <ol className="listing-creation-scene-progress__track" aria-label={ariaLabel}>
         {Array.from({ length: total }, (_, i) => {
           const current = i === index;
-          const complete = i < index;
+          const complete = isComplete?.(i) ?? false;
           const selectable = canSelect?.(i) ?? true;
           const label = labels[i] ?? `Scene ${i + 1}`;
           const stateSuffix = complete
@@ -53,14 +56,16 @@ export function ListingCreationSceneProgress({
                       : 'text-ink-faint/70'
                 }`}
               >
-                {complete ? (
+                {complete && !current ? (
                   <Check className="h-3 w-3 text-finland" strokeWidth={2.75} aria-hidden />
                 ) : (
                   <span
                     className={`listing-creation-scene-progress__dot ${
                       current
                         ? 'listing-creation-scene-progress__dot--current'
-                        : ''
+                        : complete
+                          ? 'listing-creation-scene-progress__dot--complete'
+                          : ''
                     }`}
                     aria-hidden
                   />

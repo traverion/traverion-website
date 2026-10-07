@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
+import { isTourOptionSceneSatisfied } from '../../../lib/listing-option-progression';
 import { ListingCreationSceneFrame } from './ListingCreationSceneFrame';
 import { TourOptionScheduleList } from './TourOptionScheduleList';
 import BookingOptionEditor from '../BookingOptionEditor';
@@ -9,6 +10,7 @@ import {
   tourOptionReadinessLabel,
   type TourOptionSceneId,
 } from '../../../lib/listing-option-scenes';
+import { isTourOptionSceneSatisfied } from '../../../lib/listing-option-progression';
 import {
   formatScheduleRange,
   listingOptionReadySchedules,
@@ -88,6 +90,9 @@ export function TourOptionGuidedScenes({
       sceneLabels={TOUR_OPTION_SCENES.map((item) => item.label)}
       sceneProgressAriaLabel="Option setup scenes"
       canSelectScene={canSelectScene}
+      isSceneComplete={(index) =>
+        isTourOptionSceneSatisfied(index, option, { hasEndingDate })
+      }
       onSelectScene={onSelectScene}
       direction={direction}
       headingRef={headingRef}

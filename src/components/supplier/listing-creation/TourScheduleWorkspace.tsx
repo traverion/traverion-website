@@ -331,12 +331,18 @@ export function TourScheduleWorkspace({
                 )}
               </div>
               {continueHint ? (
-                <p className="listing-creation-hint text-xs text-ink-muted sm:text-right" role="status">
+                <p
+                  className="listing-creation-hint rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-950 ring-1 ring-amber-200/80 sm:text-right"
+                  role="status"
+                >
                   {continueHint}
                 </p>
               ) : null}
               {!isTourScheduleSceneSatisfied(sceneIndex, schedule, option) && attempted && !continueHint ? (
-                <p className="listing-creation-hint text-xs text-ink-muted sm:text-right" role="status">
+                <p
+                  className="listing-creation-hint rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-950 ring-1 ring-amber-200/80 sm:text-right"
+                  role="status"
+                >
                   {tourScheduleLockedReason({
                     targetIndex: sceneIndex + 1,
                     schedule,

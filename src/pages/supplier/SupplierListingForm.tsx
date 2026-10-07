@@ -56,6 +56,7 @@ import {
   blankOptionSchedule,
   duplicateOptionSchedule,
   ensureExplicitSchedules,
+  isImplicitScheduleId,
   newListingOptionScheduleId,
   removeOptionSchedule,
   upsertOptionSchedule,
@@ -1082,6 +1083,8 @@ export default function SupplierListingForm({
   }, []);
   const [optionModalHasEndingDate, setOptionModalHasEndingDate] = useState(false);
   const optionModalOpenRef = useRef(false);
+  /** Escape/backdrop must persist the option draft — keep a stable callback for the capture-phase listener. */
+  const saveOptionAsDraftRef = useRef<() => void>(() => {});
   const [scheduleDraft, setScheduleDraft] = useState<ListingOptionSchedule | null>(null);
   const [scheduleSceneIdx, setScheduleSceneIdx] = useState(0);
   const [scheduleHasEndingDate, setScheduleHasEndingDate] = useState(true);
@@ -1816,16 +1819,8 @@ export default function SupplierListingForm({
       if (optionModalOpenRef.current) {
         e.preventDefault();
         e.stopPropagation();
-        setOptionModalOpen(false);
-        setOptionModalDraft(null);
-        setOptionModalEditingId(null);
-        setOptionModalErrors([]);
-        setOptionModalHasEndingDate(false);
-        setOptionSceneIdx(0);
-        setOptionSceneDirection('forward');
-        setOptionLockHint(null);
-        setOptionAttempted(false);
-        optionSessionOpenedAsCreateRef.current = false;
+        // Match backdrop / Back to options — never discard unsaved option work on Escape.
+        saveOptionAsDraftRef.current();
         return;
       }
       e.preventDefault();
@@ -2174,7 +2169,16 @@ export default function SupplierListingForm({
     (scheduleId: string) => {
       if (!optionModalDraft) return;
       const prepared = ensureExplicitSchedules(optionModalDraft);
-      const existing = (prepared.schedules ?? []).find((s) => s.id === scheduleId);
+      const rows = prepared.schedules ?? [];
+      // Implicit schedule ids (`${optionId}-implicit`) are remapped to new UUIDs by
+      // ensureExplicitSchedules — resolve the remapped row so Finish schedule still opens.
+      let existing = rows.find((s) => s.id === scheduleId);
+      if (!existing && isImplicitScheduleId(scheduleId) && rows.length === 1) {
+        existing = rows[0];
+      }
+      if (!existing && isImplicitScheduleId(scheduleId) && rows.length > 0) {
+        existing = rows.find((s) => s.status === 'draft') ?? rows[0];
+      }
       if (!existing) return;
       scheduleSessionOpenedAsCreateRef.current = false;
       // Phase 1109: lock sold-seat anchor to the first open of this schedule id.
@@ -2493,6 +2497,8 @@ export default function SupplierListingForm({
     }
     closeOptionModal();
   }, [optionModalDraft, persistOptionDraftToForm, closeOptionModal]);
+
+  saveOptionAsDraftRef.current = saveOptionAsDraft;
 
   const tourOptionGuided = Boolean(optionModalOpen && optionModalDraft && !isStayForm);
   const optionEnding = { hasEndingDate: optionModalHasEndingDate };

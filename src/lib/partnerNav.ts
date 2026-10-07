@@ -113,6 +113,7 @@ export const PARTNER_SIDEBAR_PRIMARY: PartnerSidebarEntry[] = [
   { kind: 'item', id: 'reservations', label: 'Reservations', icon: BedDouble },
   { kind: 'item', id: 'inbox', label: 'Inbox', icon: MessageSquare },
   { kind: 'item', id: 'reviews', label: 'Reviews', icon: Star },
+  { kind: 'item', id: 'discounts', label: 'Offers', icon: Percent },
   { kind: 'item', id: 'earnings', label: 'Income', icon: Wallet },
   { kind: 'item', id: 'performance', label: 'Analytics', icon: TrendingUp },
 ];
@@ -122,7 +123,7 @@ export const PARTNER_SIDEBAR_FOOTER: PartnerNavItem[] = [
   { id: 'business-profile', label: 'Settings', icon: Settings },
 ];
 
-/** Still a real destination — not a top-level item in the new IA. */
+/** Shared Offers leaf — also pinned in PARTNER_SIDEBAR_PRIMARY for discoverability. */
 export const PARTNER_NAV_OFFERS: PartnerNavItem = {
   id: 'discounts',
   label: 'Offers',

@@ -182,7 +182,9 @@ export default function BookingOptionEditor({
 
   const showSetup = !activeSection || activeSection === 'setup';
   const showMeeting = !activeSection || activeSection === 'meeting';
+  // Schedule price_capacity reuses amount/capacity fields only — charge model is locked in Setup.
   const showPricing = !activeSection || activeSection === 'pricing' || activeSection === 'price_capacity';
+  const showChargeModelPicker = !activeSection || activeSection === 'pricing';
   const showAvailability =
     !activeSection || activeSection === 'schedule' || activeSection === 'availability';
   const showCapacity =
@@ -427,43 +429,62 @@ export default function BookingOptionEditor({
       {showPricing ? (
         <Section
           kicker="Pricing"
-          title="How do you charge for this option?"
-          support="Per-person prices can include Adult and Child inside this same option. A group price covers the whole party."
+          title={
+            showChargeModelPicker
+              ? 'How do you charge for this option?'
+              : groupPricing
+                ? 'Group price for this schedule'
+                : 'Price for this schedule'
+          }
+          support={
+            showChargeModelPicker
+              ? 'Per-person prices can include Adult and Child inside this same option. A group price covers the whole party.'
+              : groupPricing
+                ? 'One price covers the whole party for departures on this schedule. Charge model was set in Setup.'
+                : 'Travelers pay this amount for departures on this schedule. Charge model was set in Setup.'
+          }
         >
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {(
-              [
-                {
-                  value: 'per_person' as const,
-                  title: 'Per person',
-                  hint: 'Each traveler pays a unit price.',
-                },
-                {
-                  value: 'flat_group' as const,
-                  title: 'Whole group',
-                  hint: 'One price covers the party up to your guest limit.',
-                },
-              ] as const
-            ).map((row) => {
-              const selected = chargeModelChosen
-                ? groupPricing
-                  ? row.value === 'flat_group'
-                  : row.value === 'per_person'
-                : false;
-              return (
-                <button
-                  key={row.value}
-                  type="button"
-                  onClick={() => setChargeModel(row.value)}
-                  className={`lc-choice rounded-xl px-4 py-4 text-left ${selected ? 'lc-choice--selected' : ''}`}
-                  aria-pressed={selected}
-                >
-                  <span className="block text-sm font-bold text-ink">{row.title}</span>
-                  <span className="mt-1 block text-xs leading-relaxed text-ink-muted">{row.hint}</span>
-                </button>
-              );
-            })}
-          </div>
+          {showChargeModelPicker ? (
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {(
+                [
+                  {
+                    value: 'per_person' as const,
+                    title: 'Per person',
+                    hint: 'Each traveler pays a unit price.',
+                  },
+                  {
+                    value: 'flat_group' as const,
+                    title: 'Whole group',
+                    hint: 'One price covers the party up to your guest limit.',
+                  },
+                ] as const
+              ).map((row) => {
+                const selected = chargeModelChosen
+                  ? groupPricing
+                    ? row.value === 'flat_group'
+                    : row.value === 'per_person'
+                  : false;
+                return (
+                  <button
+                    key={row.value}
+                    type="button"
+                    onClick={() => setChargeModel(row.value)}
+                    className={`lc-choice rounded-xl px-4 py-4 text-left ${selected ? 'lc-choice--selected' : ''}`}
+                    aria-pressed={selected}
+                  >
+                    <span className="block text-sm font-bold text-ink">{row.title}</span>
+                    <span className="mt-1 block text-xs leading-relaxed text-ink-muted">{row.hint}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="rounded-lg border border-black/[0.06] bg-black/[0.02] px-3 py-2.5 text-sm text-ink-muted">
+              {groupPricing ? 'Per group' : 'Per person'}
+              {chargeModelChosen ? '' : ' — finish Setup if this looks wrong.'}
+            </p>
+          )}
 
           {groupPricing ? (
             <div id="supplier-listing-field-price">

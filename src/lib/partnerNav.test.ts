@@ -22,6 +22,7 @@ describe('partnerNav IA', () => {
       'reservations',
       'inbox',
       'reviews',
+      'discounts',
       'earnings',
       'performance',
     ]);
@@ -46,9 +47,9 @@ describe('partnerNav IA', () => {
     expect(PARTNER_SIDEBAR_FOOTER.map((i) => i.id)).toEqual(['help', 'business-profile']);
   });
 
-  it('keeps Offers reachable without a top-level item', () => {
+  it('keeps Offers discoverable in the primary sidebar and More sheet', () => {
     expect(PARTNER_NAV_OFFERS.id).toBe('discounts');
-    expect(PARTNER_SIDEBAR_PRIMARY.some((e) => e.id === 'discounts')).toBe(false);
+    expect(PARTNER_SIDEBAR_PRIMARY.some((e) => e.id === 'discounts')).toBe(true);
     const moreIds = PARTNER_MORE_GROUPS.flatMap((g) => g.items.map((i) => i.id));
     expect(moreIds).toContain('discounts');
     expect(moreIds).toContain('inbox');

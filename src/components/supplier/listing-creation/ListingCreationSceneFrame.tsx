@@ -10,6 +10,7 @@ export function ListingCreationSceneFrame({
   sceneLabels,
   sceneProgressAriaLabel,
   canSelectScene,
+  isSceneComplete,
   onSelectScene,
   direction,
   headingRef,
@@ -23,6 +24,8 @@ export function ListingCreationSceneFrame({
   sceneLabels: readonly string[];
   sceneProgressAriaLabel: string;
   canSelectScene?: (index: number) => boolean;
+  /** Derived from real readiness, not visitation. */
+  isSceneComplete?: (index: number) => boolean;
   onSelectScene?: (index: number) => void;
   direction: ListingCreationSceneDirection;
   headingRef?: Ref<HTMLHeadingElement>;
@@ -51,6 +54,7 @@ export function ListingCreationSceneFrame({
           labels={sceneLabels}
           ariaLabel={sceneProgressAriaLabel}
           canSelect={canSelectScene}
+          isComplete={isSceneComplete}
           onSelect={onSelectScene}
         />
       </header>

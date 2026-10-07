@@ -35,6 +35,37 @@ describe('tour option creation overhaul (source contracts)', () => {
     expect(form).toContain('<TourOptionCard');
   });
 
+  it('Escape on the option sheet saves as draft instead of discarding', () => {
+    const form = readFileSync(resolve(__dirname, '../../../pages/supplier/SupplierListingForm.tsx'), 'utf8');
+    expect(form).toContain('saveOptionAsDraftRef');
+    const escapeBlock = form.slice(form.indexOf('if (optionModalOpenRef.current)'));
+    const block = escapeBlock.slice(0, escapeBlock.indexOf('return;') + 20);
+    expect(block).toContain('saveOptionAsDraftRef.current()');
+    expect(block).not.toContain('setOptionModalDraft(null)');
+  });
+
+  it('resolves remapped implicit schedule ids when opening Finish schedule', () => {
+    const form = readFileSync(resolve(__dirname, '../../../pages/supplier/SupplierListingForm.tsx'), 'utf8');
+    expect(form).toMatch(/import \{[^}]*isImplicitScheduleId[^}]*\} from '..\/..\/lib\/listing-option-schedules'/s);
+    expect(form).toContain('isImplicitScheduleId(scheduleId)');
+  });
+
+  it('derives scene progress completeness from real readiness, not visitation', () => {
+    const progress = read('ListingCreationSceneProgress.tsx');
+    const basics = read('TourBasicsGuidedScenes.tsx');
+    const option = read('TourOptionGuidedScenes.tsx');
+    expect(progress).toContain('isComplete');
+    expect(progress).not.toMatch(/const complete = i < index/);
+    expect(basics).toContain('isSceneComplete={(index) => isTourBasicsSceneSatisfied(index, form)}');
+    expect(option).toContain('isTourOptionSceneSatisfied');
+  });
+
+  it('hides charge-model picker on schedule price_capacity', () => {
+    const editor = readFileSync(resolve(__dirname, '../BookingOptionEditor.tsx'), 'utf8');
+    expect(editor).toContain('showChargeModelPicker');
+    expect(editor).toMatch(/showChargeModelPicker = !activeSection \|\| activeSection === 'pricing'/);
+  });
+
   it('shows Tour → Option → Scene context and Back to options in the option header', () => {
     const src = read('TourOptionWorkspace.tsx');
     expect(src).toContain('Back to options');

@@ -80,7 +80,9 @@ describe('tourOptionCardModel', () => {
     expect(model.cta.kind === 'add_schedule' && model.cta.sceneIndex).toBe(2);
     expect(model.rows.find((r) => r.id === 'meeting')?.ok).toBe(true);
     expect(model.rows.find((r) => r.id === 'availability')?.text).toMatch(/No schedule yet/);
-    expect(model.missingSummary).toBe('Missing: pricing, schedule');
+    // Charge model is set; amounts live on schedules — only Availability is incomplete.
+    expect(model.rows.find((r) => r.id === 'pricing')?.ok).toBe(true);
+    expect(model.missingSummary).toBe('Missing: schedule');
   });
 
   it('shows Finish schedule when only a draft schedule exists', () => {

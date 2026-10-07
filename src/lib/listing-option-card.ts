@@ -58,8 +58,10 @@ function pricingText(
     return { ok: false, text: 'Choose per person or per group' };
   }
   const model = summarizeOptionChargeModel(option);
+  // Charge model lives on the option; amounts live on schedules. Do not mark pricing
+  // incomplete merely because a schedule is still missing — Availability owns that gap.
   if (ready.length === 0) {
-    return { ok: false, text: `${model} · price is set on each schedule` };
+    return { ok: true, text: `${model} · amounts are set on each schedule` };
   }
   if (ready.length === 1) {
     return { ok: true, text: `${model} · ${summarizeOptionPricing(ready[0], formatAmount)}` };
