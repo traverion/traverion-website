@@ -2210,7 +2210,14 @@ export default function SupplierListingForm({
         addScheduleLockRef.current = false;
       }, 400);
       const prepared = ensureExplicitSchedules(optionModalDraft);
-      const source = (prepared.schedules ?? []).find((s) => s.id === scheduleId);
+      const rows = prepared.schedules ?? [];
+      let source = rows.find((s) => s.id === scheduleId);
+      if (!source && isImplicitScheduleId(scheduleId) && rows.length === 1) {
+        source = rows[0];
+      }
+      if (!source && isImplicitScheduleId(scheduleId) && rows.length > 0) {
+        source = rows.find((s) => s.status === 'draft') ?? rows[0];
+      }
       if (!source) return;
       const copy = duplicateOptionSchedule(source, newListingOptionScheduleId());
       scheduleSessionOpenedAsCreateRef.current = true;

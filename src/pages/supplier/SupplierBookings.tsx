@@ -38,6 +38,7 @@ import {
   type CancellationRequestRow,
 } from '../../data/supabase-booking-ops';
 import BookingMessageThread from '../../components/BookingMessageThread';
+import PartnerSelect from '../../components/supplier/PartnerSelect';
 import NoticeCallout from '../../components/NoticeCallout';
 import { PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE, PARTNER_CANCEL_REQUEST_REFUND_POLICY, PARTNER_CANCEL_REQUEST_SUBMIT_ERROR, PARTNER_CANCEL_REQUEST_CONSEQUENCES_TITLE, PARTNER_CANCEL_REQUEST_FEE_TIMING_NOTE } from '../../lib/booking-confirmation-copy';
 import { SkeletonListItem } from '../../components/ui/Skeleton';
@@ -888,19 +889,18 @@ export default function SupplierBookings({
         <div className="mt-4 space-y-4 motion-safe:animate-fade-in">
         <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
             <div className="flex min-w-[min(100%,12rem)] flex-1 flex-col gap-1 sm:flex-none sm:min-w-[11rem]">
-              <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Listing</label>
-              <select
+              <span className="text-[11px] font-medium uppercase tracking-wide text-ink-faint" id="bookings-filter-listing-label">
+                Listing
+              </span>
+              <PartnerSelect
+                aria-labelledby="bookings-filter-listing-label"
                 value={filterListingId}
-                onChange={(e) => writeBookingsSearchToUrl({ listingId: e.target.value })}
-                className="tv-input"
-              >
-                <option value="">All listings</option>
-                {listingOptions.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.title}
-                  </option>
-                ))}
-              </select>
+                onChange={(listingId) => writeBookingsSearchToUrl({ listingId })}
+                options={[
+                  { value: '', label: 'All listings' },
+                  ...listingOptions.map((option) => ({ value: option.id, label: option.title })),
+                ]}
+              />
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Dates</label>
@@ -1846,21 +1846,19 @@ export default function SupplierBookings({
                   ) : null}
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium uppercase tracking-wide text-ink-faint" htmlFor="cancel-reason-code">
+                  <span className="text-xs font-medium uppercase tracking-wide text-ink-faint" id="cancel-reason-code-label">
                     Reason
-                  </label>
-                  <select
+                  </span>
+                  <PartnerSelect
                     id="cancel-reason-code"
+                    aria-labelledby="cancel-reason-code-label"
                     value={cancelReason}
-                    onChange={(e) => setCancelReason(e.target.value)}
-                    className="tv-input"
-                  >
-                    {CANCELLATION_REASONS.map((reason) => (
-                      <option key={reason.id} value={reason.id}>
-                        {reason.label}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setCancelReason}
+                    options={CANCELLATION_REASONS.map((reason) => ({
+                      value: reason.id,
+                      label: reason.label,
+                    }))}
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-ink" htmlFor="cancel-reason-text">

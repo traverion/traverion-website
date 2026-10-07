@@ -15,6 +15,7 @@ import {
 import ErrorState from '../../components/ErrorState';
 import StatusChip from '../../components/StatusChip';
 import NoticeCallout from '../../components/NoticeCallout';
+import PartnerSelect from '../../components/supplier/PartnerSelect';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import {
   fetchReviewsForSupplierListings,
@@ -366,61 +367,65 @@ export default function SupplierReviews() {
         <div className="space-y-4 sm:space-y-5">
           <div className="flex flex-wrap items-end gap-x-4 gap-y-3 mb-6">
             <div className="flex flex-col gap-1 min-w-[min(100%,12rem)] flex-1 sm:flex-none sm:min-w-[11rem]">
-              <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Listing</label>
-              <select
+              <span className="text-[11px] font-medium uppercase tracking-wide text-ink-faint" id="reviews-filter-listing-label">
+                Listing
+              </span>
+              <PartnerSelect
+                aria-labelledby="reviews-filter-listing-label"
                 value={filterListingId}
-                onChange={(e) => writeFiltersToUrl({ listingId: e.target.value })}
-                className="tv-input w-full"
-              >
-                <option value="">All listings</option>
-                {listingOptions.map(([id, title]) => (
-                  <option key={id} value={id}>
-                    {title}
-                  </option>
-                ))}
-              </select>
+                onChange={(listingId) => writeFiltersToUrl({ listingId })}
+                options={[
+                  { value: '', label: 'All listings' },
+                  ...listingOptions.map(([id, title]) => ({ value: id, label: title })),
+                ]}
+              />
             </div>
             <div className="flex flex-col gap-1 min-w-[8.5rem]">
-              <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Type</label>
-              <select
+              <span className="text-[11px] font-medium uppercase tracking-wide text-ink-faint" id="reviews-filter-type-label">
+                Type
+              </span>
+              <PartnerSelect
+                aria-labelledby="reviews-filter-type-label"
                 value={filterFamily}
-                onChange={(e) => writeFiltersToUrl({ family: e.target.value as typeof filterFamily })}
-                className="tv-input w-full"
-              >
-                <option value="all">Tour and stay</option>
-                <option value="tour">Tours only</option>
-                <option value="stay">Stays only</option>
-              </select>
+                onChange={(family) => writeFiltersToUrl({ family: family as typeof filterFamily })}
+                options={[
+                  { value: 'all', label: 'Tour and stay' },
+                  { value: 'tour', label: 'Tours only' },
+                  { value: 'stay', label: 'Stays only' },
+                ]}
+              />
             </div>
             <div className="flex flex-col gap-1 min-w-[8.5rem]">
-              <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Star rating</label>
-              <select
+              <span className="text-[11px] font-medium uppercase tracking-wide text-ink-faint" id="reviews-filter-rating-label">
+                Star rating
+              </span>
+              <PartnerSelect
+                aria-labelledby="reviews-filter-rating-label"
                 value={filterRating === '' ? '' : String(filterRating)}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  writeFiltersToUrl({ rating: v === '' ? '' : Number(v) });
-                }}
-                className="tv-input w-full"
-              >
-                <option value="">All ratings</option>
-                {[5, 4, 3, 2, 1].map((n) => (
-                  <option key={n} value={String(n)}>
-                    {n} star{n === 1 ? '' : 's'} only
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => writeFiltersToUrl({ rating: v === '' ? '' : Number(v) })}
+                options={[
+                  { value: '', label: 'All ratings' },
+                  ...[5, 4, 3, 2, 1].map((n) => ({
+                    value: String(n),
+                    label: `${n} star${n === 1 ? '' : 's'} only`,
+                  })),
+                ]}
+              />
             </div>
             <div className="flex flex-col gap-1 min-w-[10rem]">
-              <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Reply status</label>
-              <select
+              <span className="text-[11px] font-medium uppercase tracking-wide text-ink-faint" id="reviews-filter-reply-label">
+                Reply status
+              </span>
+              <PartnerSelect
+                aria-labelledby="reviews-filter-reply-label"
                 value={filterReply}
-                onChange={(e) => syncReplyFilterToUrl(e.target.value as typeof filterReply)}
-                className="tv-input w-full"
-              >
-                <option value="all">All reviews</option>
-                <option value="unreplied">Needs reply</option>
-                <option value="replied">Replied</option>
-              </select>
+                onChange={(v) => syncReplyFilterToUrl(v as typeof filterReply)}
+                options={[
+                  { value: 'all', label: 'All reviews' },
+                  { value: 'unreplied', label: 'Needs reply' },
+                  { value: 'replied', label: 'Replied' },
+                ]}
+              />
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 mb-4">
