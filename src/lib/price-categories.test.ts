@@ -82,7 +82,7 @@ describe('price categories on booking options', () => {
       },
       'p'
     );
-    expect(priceCategoryValidationMessages(opt).some((m) => /private group price/i.test(m))).toBe(true);
+    expect(priceCategoryValidationMessages(opt).some((m) => /group price greater than zero/i.test(m))).toBe(true);
   });
 
   it('rejects empty age-dependent categories', () => {

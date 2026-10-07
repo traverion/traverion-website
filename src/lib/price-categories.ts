@@ -131,12 +131,12 @@ export function priceCategoryValidationMessages(option: PricedBookingShape): str
   const msg: string[] = [];
   if (option.isPrivate && option.privatePricing === 'flat_group') {
     const flat = option.privateGroupPriceUsd ?? 0;
-    if (flat <= 0) msg.push('Set a private group price greater than zero.');
+    if (flat <= 0) msg.push('Set a group price greater than zero.');
     return msg;
   }
 
   if (optionPricingMode(option) === 'uniform') {
-    if (option.priceUsd <= 0) msg.push('Set a price greater than zero.');
+    if (option.priceUsd <= 0) msg.push('Enter a price greater than zero.');
     return msg;
   }
 
@@ -158,7 +158,7 @@ export function priceCategoryValidationMessages(option: PricedBookingShape): str
   }
   if (!usable.some((c) => c.priceUsd > 0) && usable.every((c) => c.priceUsd === 0)) {
     // All free is unusual but allowed for e.g. infants-only add-on — require adult-priced for sellable tours
-    msg.push('Set a price greater than zero for at least one age category.');
+    msg.push('Enter a price greater than zero for at least one age category.');
   }
   return msg;
 }
@@ -169,7 +169,7 @@ export function summarizeOptionPricing(
 ): string {
   if (option.isPrivate && option.privatePricing === 'flat_group') {
     const flat = option.privateGroupPriceUsd ?? option.priceUsd;
-    return flat > 0 ? `Private group ${formatAmount(flat)}` : 'Private group — set price';
+    return flat > 0 ? `Per group ${formatAmount(flat)}` : 'Per group — set price';
   }
   if (optionPricingMode(option) === 'age_dependent') {
     const cats = activePriceCategories(option);

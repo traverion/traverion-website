@@ -54,12 +54,15 @@ export function schedulePricingIssues(schedule: ListingOptionSchedule): string[]
   const msgs = priceCategoryValidationMessages(schedule);
   if (optionPricingMode(schedule) === 'age_dependent') {
     return msgs.map((line) =>
-      line === 'Set a price greater than zero for at least one age category.'
+      line === 'Set a price greater than zero for at least one age category.' ||
+      line === 'Enter a price greater than zero for at least one age category.'
         ? 'Set a price for Adult.'
         : line
     );
   }
-  return msgs;
+  return msgs.map((line) =>
+    line === 'Enter a price greater than zero.' ? 'Enter what travelers pay for this schedule.' : line
+  );
 }
 
 export function scheduleCapacityIssues(schedule: ListingOptionSchedule): string[] {
