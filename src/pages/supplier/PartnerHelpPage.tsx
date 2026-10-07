@@ -69,7 +69,7 @@ export default function PartnerHelpPage() {
           onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/money`)}
           className="partner-surface-panel lux-flat w-full px-4 py-3.5 text-left hover:border-finland/30"
         >
-          <span className="block text-[14px] font-semibold text-slate-900">Money</span>
+          <span className="block text-[14px] font-semibold text-slate-900">Income</span>
           <span className="mt-0.5 block text-[13px] text-slate-500">
             Collected payments, fees, and payout status.
           </span>

@@ -1699,7 +1699,7 @@ export default function SupplierListings() {
                   Partner listings.
                   {/* Phase 1734: hard delete never preserves bookings — only empty listings may be removed. */}
                   {deleteBlockedByBookings
-                    ? ' Bookings stay in Bookings and Money — remove is blocked while any booking exists.'
+                    ? ' Bookings stay in Bookings and Income — remove is blocked while any booking exists.'
                     : ' Only listings with no bookings can be permanently removed. This cannot be undone.'}
                 </p>
                 {deleteUpcomingPaidCheckPending ? (

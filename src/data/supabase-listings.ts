@@ -424,7 +424,7 @@ export async function deleteListing(
       return {
         ok: false,
         error:
-          'This listing still has bookings. Take it offline instead of removing it so trips and Money history stay.',
+          'This listing still has bookings. Take it offline instead of removing it so trips and Income history stay.',
       };
     }
     return { ok: false, error: error.message };

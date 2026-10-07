@@ -60,7 +60,7 @@ const BENEFITS = [
   { icon: Users, text: 'No upfront cost — reach customers without listing fees' },
   {
     icon: CreditCard,
-    text: 'Manage listings, bookings, and Money in one place — payouts stay manual until Traverion enables them',
+    text: 'Manage listings, bookings, and Income in one place — payouts stay manual until Traverion enables them',
   },
 ];
 

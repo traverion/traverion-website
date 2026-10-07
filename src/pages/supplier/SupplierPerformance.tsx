@@ -273,7 +273,7 @@ export default function SupplierPerformance() {
           }
           body={
             listings.length === 0
-              ? 'Analytics uses the same paid bookings as Money. Draft a listing to start collecting bookings.'
+              ? 'Analytics uses the same paid bookings as Income. Draft a listing to start collecting bookings.'
               : bookings.length > 0
                 ? 'Unpaid checkouts, cancelled trips, and refunds are never counted. Try a longer time range, or wait until a traveler completes checkout.'
                 : 'Try a longer time range, or check back once a traveler completes checkout — cancelled and refunded bookings are never counted.'

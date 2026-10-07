@@ -954,7 +954,7 @@ export default function SupplierLayout() {
             <span className="mx-2 font-medium opacity-60" aria-hidden>
               ·
             </span>
-            <span className="font-medium">Payments and Money are sandbox data — no live charges.</span>
+            <span className="font-medium">Payments and Income are sandbox data — no live charges.</span>
           </p>
         </div>
       ) : null}

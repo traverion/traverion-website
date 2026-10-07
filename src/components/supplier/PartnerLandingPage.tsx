@@ -107,7 +107,7 @@ export default function PartnerLandingPage() {
         <section className="max-w-5xl mx-auto px-5 sm:px-8 py-16 sm:py-20">
           <h2 className="font-display text-3xl sm:text-4xl tracking-tight mb-3">What Traverion does</h2>
           <p className="text-ink-muted max-w-xl mb-10 leading-relaxed">
-            One partner product for listing, day-of ops, marketplace sales, and Money — payouts stay manual until
+            One partner product for listing, day-of ops, marketplace sales, and Income — payouts stay manual until
             Traverion enables them.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -158,7 +158,7 @@ export default function PartnerLandingPage() {
             <div className="tv-card p-4 sm:p-5">
               <h2 className="font-display text-2xl sm:text-3xl tracking-tight mb-3">A business product</h2>
               <p className="text-ink-muted leading-relaxed m-0">
-                Listings, calendar, bookings, and Money live in one partner account. Travelers never see this.
+                Listings, calendar, bookings, and Income live in one partner account. Travelers never see this.
                 Partners never land in a traveler trip inbox by accident. Payouts stay manual until Traverion enables them.
               </p>
             </div>

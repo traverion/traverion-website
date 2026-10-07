@@ -747,7 +747,7 @@ export default function SupplierEarnings() {
                 className="tv-btn-ghost text-sm disabled:opacity-40"
                 title={
                   !canExportFinance
-                    ? 'Your role can view Money but cannot export CSV'
+                    ? 'Your role can view Income but cannot export CSV'
                     : undefined
                 }
               >

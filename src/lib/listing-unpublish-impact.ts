@@ -45,9 +45,9 @@ export function countBookingsForListing(
 export function deleteListingBlockedByBookingsNotice(count: number): string | null {
   if (count < 1) return null;
   if (count === 1) {
-    return 'This listing has 1 booking in Bookings. Remove is blocked so trips and Money history stay. Take the listing offline instead.';
+    return 'This listing has 1 booking in Bookings. Remove is blocked so trips and Income history stay. Take the listing offline instead.';
   }
-  return `This listing has ${count} bookings in Bookings. Remove is blocked so trips and Money history stay. Take the listing offline instead.`;
+  return `This listing has ${count} bookings in Bookings. Remove is blocked so trips and Income history stay. Take the listing offline instead.`;
 }
 
 export function unpublishUpcomingBookingsNotice(count: number): string | null {

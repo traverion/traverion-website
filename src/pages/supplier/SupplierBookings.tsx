@@ -1724,7 +1724,7 @@ export default function SupplierBookings({
                         }}
                         className="mt-2 text-xs font-semibold text-finland hover:underline"
                       >
-                        Open Money
+                        Open Income
                       </button>
                     </div>
                   ) : null}

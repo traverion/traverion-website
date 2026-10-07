@@ -357,14 +357,14 @@ export const TRAVELER_SELF_CANCEL_SYSTEM_MESSAGE_NO_REFUND =
  * Fallback when refund_choice is unknown; prefer FULL_REFUND / NO_REFUND variants.
  */
 export const SUPPLIER_BOOKING_CANCELLED_NOTIFY_SUB =
-  'The traveler cancelled this booking. When a refund applies, traveler status is Refund due until Stripe records a refund — Traverion does not send refunds automatically. Inventory is released; check Bookings and Money.';
+  'The traveler cancelled this booking. When a refund applies, traveler status is Refund due until Stripe records a refund — Traverion does not send refunds automatically. Inventory is released; check Bookings and Income.';
 
 /**
  * Phase 1724: partner cancel notify when booking.refund_choice is full_refund.
  * Keep in sync with notify-supplier-event booking_cancelled HTML subcopy.
  */
 export const SUPPLIER_BOOKING_CANCELLED_FULL_REFUND_NOTIFY_SUB =
-  'The traveler cancelled this booking. A full refund is due until Stripe records it — Traverion does not send refunds automatically. Inventory is released; check Bookings and Money.';
+  'The traveler cancelled this booking. A full refund is due until Stripe records it — Traverion does not send refunds automatically. Inventory is released; check Bookings and Income.';
 
 /**
  * Phase 1724: partner cancel notify when booking.refund_choice is no_refund.
@@ -434,7 +434,7 @@ export const SUPPLIER_CANCELLATION_DECLINED_NOTIFY_SUB =
  * Keep in sync with notify-supplier-event refund_completed HTML subcopy.
  */
 export const SUPPLIER_REFUND_COMPLETED_NOTIFY_SUB =
-  'Stripe recorded a full refund for this booking. Payment status is Refunded. Collected earnings for this booking were reversed. Check Bookings and Money — Traverion does not treat email delivery as proof you saw this.';
+  'Stripe recorded a full refund for this booking. Payment status is Refunded. Collected earnings for this booking were reversed. Check Bookings and Income — Traverion does not treat email delivery as proof you saw this.';
 
 /** Paid confirmation UI — Trips is durable; do not imply host follow-up arrives by email. */
 export const BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE =
