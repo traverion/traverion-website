@@ -1833,43 +1833,67 @@ export default function SupplierListingForm({
   }, [handleCloseIntent, leaveConfirmOpen]);
 
   const runSubmit = useCallback(
-    async (targetStatus: 'draft' | 'published') => {
-      if (submitInFlightRef.current) return;
+    async (
+      targetStatus: 'draft' | 'published',
+      opts?: { bypassLastStepArm?: boolean; closeOnSuccess?: boolean }
+    ): Promise<boolean> => {
+      if (submitInFlightRef.current) return false;
       const last = steps.length - 1;
-      if (stepIdx === last && !lastStepSubmitArmed) return;
+      if (stepIdx === last && !lastStepSubmitArmed && !opts?.bypassLastStepArm) return false;
 
       submitInFlightRef.current = true;
       try {
         const listing = buildListingFromForm({ ...form, status: targetStatus }, editingId ?? undefined);
         if (targetStatus === 'published') {
           if (!canPostNewListing) {
-            setSubmitError(
-              'Publishing needs Traverion to verify your business and your payout (IBAN + BIC). Finish both in Settings, then try again.'
-            );
-            return;
+            const msg =
+              'Publishing needs Traverion to verify your business and your payout (IBAN + BIC). Finish both in Settings, then try again.';
+            if (opts?.closeOnSuccess) {
+              setDraftCloseError(msg);
+              setLeaveConfirmOpen(true);
+            } else {
+              setSubmitError(msg);
+            }
+            return false;
           }
           const blockers = getListingPublishBlockers(listing);
           if (blockers.length > 0) {
             setPublishBlockers(blockers);
             const first = blockers[0];
             if (first) jumpToPublishBlocker(first);
-            return;
+            if (opts?.closeOnSuccess) {
+              setDraftCloseError(first ?? 'Finish the remaining listing details before saving.');
+              setLeaveConfirmOpen(true);
+            }
+            return false;
           }
         }
         setPublishBlockers(null);
         setSubmitError(null);
+        setDraftCloseError(null);
         setSubmitting(true);
         try {
           const result = await onSave(listing);
           if (!result.success) {
-            setSubmitError(userFacingError(result.error, 'Could not save your listing. Please try again.'));
-            return;
+            const msg = userFacingError(result.error, 'Could not save your listing. Please try again.');
+            if (opts?.closeOnSuccess) {
+              setDraftCloseError(msg);
+              setLeaveConfirmOpen(true);
+            } else {
+              setSubmitError(msg);
+            }
+            return false;
           }
           if (result.listingId && result.listingId !== editingId) {
             migrateListingEditorStorage(editingId, result.listingId, form.inventoryFamily === 'stay');
           }
           initialFormSnapshotRef.current = serializeListingFormState(form);
           setLastSavedAt(Date.now());
+          if (opts?.closeOnSuccess) {
+            clearListingDraftBackup(editingId);
+            finishCloseEditor();
+          }
+          return true;
         } finally {
           setSubmitting(false);
         }
@@ -1877,8 +1901,37 @@ export default function SupplierListingForm({
         submitInFlightRef.current = false;
       }
     },
-    [form, editingId, onSave, stepIdx, lastStepSubmitArmed, steps.length, canPostNewListing, jumpToPublishBlocker]
+    [
+      form,
+      editingId,
+      onSave,
+      stepIdx,
+      lastStepSubmitArmed,
+      steps.length,
+      canPostNewListing,
+      jumpToPublishBlocker,
+      finishCloseEditor,
+    ]
   );
+
+  /**
+   * Published listings have no draft path — leave dialog must still persist edits.
+   * Reuses runSubmit('published') so leave-save cannot invent a different status contract.
+   * Draft leave uses leaveAndSaveDraft (status stays draft).
+   */
+  const leaveAndSavePublished = useCallback(async () => {
+    if (closeIntentRunningRef.current || submitting || draftCloseBusy) return;
+    if (form.status !== 'published') return;
+    closeIntentRunningRef.current = true;
+    setDraftCloseBusy(true);
+    setDraftCloseError(null);
+    try {
+      await runSubmit('published', { bypassLastStepArm: true, closeOnSuccess: true });
+    } finally {
+      setDraftCloseBusy(false);
+      closeIntentRunningRef.current = false;
+    }
+  }, [submitting, draftCloseBusy, form.status, runSubmit]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -3911,9 +3964,11 @@ export default function SupplierListingForm({
                 Leave with unfinished changes?
               </p>
               <p id="listing-leave-desc" className="mt-2 text-sm text-ink-muted leading-relaxed">
-                {enableDraftOnClose && onSaveDraft && form.status !== 'published'
-                  ? 'You still have unsaved edits on this listing. Save a draft to pick up where you left off, or leave without saving.'
-                  : 'You still have unsaved edits on this listing. Leave without saving, or keep editing.'}
+                {form.status === 'published'
+                  ? 'You still have unsaved edits on this live listing. Save changes before leaving, or discard them.'
+                  : enableDraftOnClose && onSaveDraft
+                    ? 'You still have unsaved edits on this listing. Save a draft to pick up where you left off, or leave without saving.'
+                    : 'You still have unsaved edits on this listing. Leave without saving, or keep editing.'}
               </p>
               {draftCloseError ? (
                 <p className="mt-3 text-sm text-red-800" role="alert">
@@ -3921,7 +3976,16 @@ export default function SupplierListingForm({
                 </p>
               ) : null}
               <div className="mt-5 flex flex-col gap-2">
-                {enableDraftOnClose && onSaveDraft && form.status !== 'published' ? (
+                {form.status === 'published' ? (
+                  <button
+                    type="button"
+                    className="tv-btn-primary !min-h-11 w-full"
+                    disabled={draftCloseBusy || submitting}
+                    onClick={() => void leaveAndSavePublished()}
+                  >
+                    {draftCloseBusy ? 'Saving…' : 'Save changes'}
+                  </button>
+                ) : enableDraftOnClose && onSaveDraft ? (
                   <button
                     type="button"
                     className="tv-btn-primary !min-h-11 w-full"

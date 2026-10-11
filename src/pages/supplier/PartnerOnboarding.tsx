@@ -26,6 +26,8 @@ type PartnerOnboardingProps = {
   payoutDone: boolean;
   /** True when the partner already has at least one tour or stay draft/listing. */
   hasListing: boolean;
+  /** Open Calendar for the first tour listing (departures / capacity). */
+  onDepartures?: () => void;
   /** True when Traverion has verified both business and payout (publish gate). */
   publishReady: boolean;
   businessVerificationStatus?: string;
@@ -42,6 +44,7 @@ export default function PartnerOnboarding({
   businessDone,
   payoutDone,
   hasListing,
+  onDepartures,
   publishReady,
   businessVerificationStatus = '',
   businessVerificationSubmittedAt = '',
@@ -89,11 +92,24 @@ export default function PartnerOnboarding({
       cta: hasListing ? 'Open listings' : 'Create listing',
       statusChip: null as null | typeof businessChip,
     },
+    {
+      n: '04',
+      title: 'Add departures',
+      body: 'Open the calendar so travelers can book real dates. Tours need schedules or daily availability before they can sell.',
+      done: false,
+      action: onDepartures ?? onTours,
+      cta: 'Open calendar',
+      statusChip: null as null | typeof businessChip,
+      optionalUntilListing: true,
+    },
   ];
 
-  const completed = steps.filter((s) => s.done).length;
-  const nextIncomplete = steps.find((s) => !s.done);
-  const checklistComplete = completed === steps.length;
+  const visibleSteps = steps.filter((s) => !('optionalUntilListing' in s && s.optionalUntilListing) || hasListing);
+
+  const requiredSteps = visibleSteps.filter((s) => !('optionalUntilListing' in s && s.optionalUntilListing));
+  const completed = requiredSteps.filter((s) => s.done).length;
+  const nextIncomplete = visibleSteps.find((s) => !s.done && !('optionalUntilListing' in s && s.optionalUntilListing));
+  const checklistComplete = completed === requiredSteps.length && requiredSteps.length > 0;
 
   return (
     <div className="max-w-2xl mx-auto px-1 sm:px-0 py-5 sm:py-8">
@@ -109,7 +125,7 @@ export default function PartnerOnboarding({
               ? publishReady
                 ? 'Checklist complete — publish unlocked'
                 : 'Checklist complete — verification pending'
-              : `${completed} of ${steps.length} steps done`}
+              : `${completed} of ${requiredSteps.length} steps done`}
           </p>
           <StatusChip tone={checklistComplete && publishReady ? 'good' : checklistComplete ? 'warn' : 'neutral'}>
             {checklistComplete && publishReady ? 'Can publish' : checklistComplete ? 'Awaiting review' : 'In progress'}
@@ -120,12 +136,14 @@ export default function PartnerOnboarding({
           role="progressbar"
           aria-valuenow={completed}
           aria-valuemin={0}
-          aria-valuemax={steps.length}
+          aria-valuemax={requiredSteps.length}
           aria-label="Onboarding progress"
         >
           <div
             className="h-full rounded-full bg-finland transition-[width] duration-300 ease-out"
-            style={{ width: `${(completed / steps.length) * 100}%` }}
+            style={{
+              width: `${requiredSteps.length ? (completed / requiredSteps.length) * 100 : 0}%`,
+            }}
           />
         </div>
       </div>
@@ -133,10 +151,28 @@ export default function PartnerOnboarding({
       {checklistComplete ? (
         <div className="mb-6 space-y-3">
           <NoticeCallout
-            title={publishReady ? 'Publish is unlocked' : 'Still waiting on Traverion'}
-            tone={publishReady ? 'success' : 'info'}
+            title={
+              publishReady
+                ? 'Publish is unlocked'
+                : businessReview === 'rejected' || payoutReview === 'rejected'
+                  ? 'Verification needs updates before you can publish'
+                  : 'Still waiting on Traverion verification'
+            }
+            tone={
+              publishReady
+                ? 'success'
+                : businessReview === 'rejected' || payoutReview === 'rejected'
+                  ? 'warn'
+                  : 'info'
+            }
           >
             {publishReady ? PARTNER_ONBOARDING_PUBLISH_READY_NOTE : PARTNER_ONBOARDING_CHECKLIST_DONE_NOTE}
+            {!publishReady ? (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                <StatusChip tone={businessChip.tone}>{businessChip.label}</StatusChip>
+                <StatusChip tone={payoutChip.tone}>{payoutChip.label}</StatusChip>
+              </div>
+            ) : null}
           </NoticeCallout>
           <div className="flex flex-wrap gap-2">
             <button
@@ -149,10 +185,14 @@ export default function PartnerOnboarding({
             {!publishReady ? (
               <button
                 type="button"
-                onClick={onBusiness}
+                onClick={
+                  payoutReview === 'rejected' && businessReview !== 'rejected' ? onPayout : onBusiness
+                }
                 className="tv-btn-secondary inline-flex items-center gap-1.5"
               >
-                Check verification status
+                {businessReview === 'rejected' || payoutReview === 'rejected'
+                  ? 'Fix rejected details'
+                  : 'Open Settings for status'}
               </button>
             ) : null}
           </div>
@@ -160,8 +200,11 @@ export default function PartnerOnboarding({
       ) : null}
 
       <ol className="space-y-2">
-        {steps.map((s) => {
-          const isNext = nextIncomplete?.n === s.n;
+        {visibleSteps.map((s) => {
+          const isNext =
+            ('optionalUntilListing' in s && s.optionalUntilListing && hasListing && checklistComplete)
+              ? s.n === '04'
+              : nextIncomplete?.n === s.n;
           return (
             <li
               key={s.n}

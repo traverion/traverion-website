@@ -42,6 +42,7 @@ import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
 import { SUPPLIER_PAGE_CLASS, SupplierPageHero } from './supplierUi';
 import PartnerSelect from './PartnerSelect';
+import SupplierTeamPanel from './SupplierTeamPanel';
 import NoticeCallout from '../NoticeCallout';
 import StatusChip from '../StatusChip';
 import {
@@ -63,7 +64,7 @@ import {
   partnerPayoutStatusChip,
 } from '../../lib/partnerVerificationStatus';
 
-type BusinessProfileTab = 'company' | 'legal';
+type BusinessProfileTab = 'company' | 'legal' | 'team';
 
 type Props = {
   /** Page: business profile */
@@ -499,7 +500,7 @@ function BusinessProfilePage(p: Props) {
       <SupplierPageHero
         badge="Business"
         title={displayName}
-        description="Company details, payout preferences, and legal documents guests see when they book."
+        description="Company details, payouts, legal documents, and who can help run this account."
       >
         <div className="mt-3 flex flex-wrap items-center gap-2" aria-label="Verification status">
           <StatusChip tone={busChip.tone}>{busChip.label}</StatusChip>
@@ -535,6 +536,19 @@ function BusinessProfilePage(p: Props) {
           >
             Legal
             {p.businessProfileTab === 'legal' ? (
+              <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-finland" aria-hidden />
+            ) : null}
+          </button>
+          <button
+            type="button"
+            className={profileTabClass(p.businessProfileTab === 'team')}
+            onClick={() => {
+              p.setBusinessProfileTab('team');
+              window.location.hash = 'team';
+            }}
+          >
+            Team
+            {p.businessProfileTab === 'team' ? (
               <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-finland" aria-hidden />
             ) : null}
           </button>
@@ -1396,6 +1410,12 @@ function BusinessProfilePage(p: Props) {
               }
             }}
           />
+        </div>
+      )}
+
+      {p.businessProfileTab === 'team' && (
+        <div id="supplier-business-team" className="pt-2">
+          <SupplierTeamPanel />
         </div>
       )}
 

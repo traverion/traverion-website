@@ -80,14 +80,13 @@ import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierModalHeader, SupplierPageHero } from '../../components/supplier/supplierUi';
 import { PARTNER_FIRST_LISTING_STEP_NOTE } from '../../lib/booking-confirmation-copy';
 import StatusChip from '../../components/StatusChip';
-
-function verificationStatusLabel(status: string): string {
-  const s = status.toLowerCase();
-  if (s === 'pending') return 'Under verification';
-  if (s === 'rejected') return 'Rejected';
-  if (s === 'verified') return 'Verified';
-  return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
-}
+import {
+  partnerAccountStatus,
+  partnerBusinessReviewState,
+  partnerBusinessStatusChip,
+  partnerPayoutReviewState,
+  partnerPayoutStatusChip,
+} from '../../lib/partnerVerificationStatus';
 
 export default function SupplierListings() {
   const { user, isSupabase } = useSupplierAuth();
@@ -1064,76 +1063,84 @@ export default function SupplierListings() {
         </div>
       )}
 
-      {canEditListings && !canPostNewListing && (
-        <div className="mb-4 flex flex-col gap-3 rounded-lg border border-black/[0.06] bg-paper px-3.5 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <p className="font-semibold text-ink">You can draft listings now</p>
-            {missingBusinessDetails && (
-              <p className="mt-1 text-xs font-medium text-ink">Publishing still needs a complete business profile</p>
-            )}
-            {missingPayoutForPublish && !missingBusinessDetails && (
-              <p className="mt-1 text-xs font-medium text-ink">
-                {!payoutOnFile
-                  ? 'Publishing still needs payout bank details'
-                  : (payoutVerificationStatus ?? '').trim().toLowerCase() === 'rejected'
-                    ? 'Payout verification needs an update before publishing'
-                    : 'Payout verification in progress — required before publishing'}
-              </p>
-            )}
-            <p className="mt-1 text-xs text-ink-muted leading-snug">{profileGateMessage}</p>
-            {!missingBusinessDetails && verificationStatus && (
-              <p className="mt-1 text-[11px] text-ink-faint">
-                Business: <span className="font-semibold text-ink">{verificationStatusLabel(verificationStatus)}</span>
-                {payoutOnFile ? (
-                  <>
-                    {' · '}
-                    Payout:{' '}
-                    <span className="font-semibold">
-                      {verificationStatusLabel((payoutVerificationStatus ?? 'pending').trim() || 'pending')}
-                    </span>
-                  </>
-                ) : null}
-              </p>
-            )}
-            <div className="mt-2 flex flex-wrap items-center gap-1.5">
-              {missingBusinessDetails && (
-                <button
-                  type="button"
-                  onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile#supplier-business-company`)}
-                  className="tv-btn-ghost text-xs"
-                >
-                  Complete business profile
-                </button>
-              )}
-              {missingPayoutForPublish && (
-                <button
-                  type="button"
-                  onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile#supplier-business-payout`)}
-                  className="tv-btn-ghost text-xs"
-                >
-                  {payoutOnFile ? 'Payment & payouts' : 'Add IBAN & BIC'}
-                </button>
-              )}
-              {!missingBusinessDetails && verificationStatus !== 'verified' && (
-                <button
-                  type="button"
-                  onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile#supplier-business-company`)}
-                  className="tv-btn-ghost text-xs"
-                >
-                  Business profile & verification
-                </button>
-              )}
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile`)}
-            className="tv-btn-primary shrink-0"
+      {canEditListings && !canPostNewListing && (() => {
+        const businessReview = partnerBusinessReviewState({
+          verificationStatus,
+          draftComplete: !missingBusinessDetails,
+        });
+        const payoutReview = partnerPayoutReviewState({
+          verificationStatus: payoutVerificationStatus,
+          hasBankDetails: payoutOnFile,
+        });
+        const account = partnerAccountStatus({ business: businessReview, payout: payoutReview });
+        const businessChip = partnerBusinessStatusChip(businessReview);
+        const payoutChip = partnerPayoutStatusChip(payoutReview);
+        const rejected = account.kind === 'rejected';
+        const primaryHref =
+          missingBusinessDetails || businessReview === 'rejected' || businessReview === 'pending' || businessReview === 'incomplete'
+            ? `${PARTNER_APP_BASE}/business-profile#supplier-business-company`
+            : `${PARTNER_APP_BASE}/business-profile#supplier-business-payout`;
+        return (
+          <div
+            className={`mb-4 flex flex-col gap-3 rounded-lg border border-l-[3px] px-3.5 py-3 text-sm sm:flex-row sm:items-center sm:justify-between ${
+              rejected
+                ? 'border-red-200/80 border-l-red-500 bg-red-50/50'
+                : 'border-amber-200/80 border-l-amber-500 bg-amber-50/40'
+            }`}
+            role="status"
           >
-            Open settings
-          </button>
-        </div>
-      )}
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="font-semibold text-ink">
+                  {rejected ? 'Publishing blocked — verification needs updates' : 'Publishing locked until Traverion verifies you'}
+                </p>
+                <StatusChip tone={account.tone}>{account.chipLabel}</StatusChip>
+              </div>
+              <p className="mt-1 text-xs text-ink-muted leading-snug">
+                You can save drafts anytime. Live publishing needs approved business and payout verification.
+              </p>
+              {profileGateMessage ? (
+                <p className="mt-1.5 text-xs font-medium text-ink leading-snug">{profileGateMessage}</p>
+              ) : null}
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                <StatusChip tone={businessChip.tone}>{businessChip.label}</StatusChip>
+                <StatusChip tone={payoutChip.tone}>{payoutChip.label}</StatusChip>
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                {missingBusinessDetails || businessReview === 'rejected' ? (
+                  <button
+                    type="button"
+                    onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile#supplier-business-company`)}
+                    className="tv-btn-ghost text-xs"
+                  >
+                    {businessReview === 'rejected' ? 'Fix business details' : 'Complete business profile'}
+                  </button>
+                ) : null}
+                {missingPayoutForPublish || payoutReview === 'rejected' ? (
+                  <button
+                    type="button"
+                    onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile#supplier-business-payout`)}
+                    className="tv-btn-ghost text-xs"
+                  >
+                    {payoutReview === 'rejected'
+                      ? 'Fix payout details'
+                      : payoutOnFile
+                        ? 'Payment & payouts'
+                        : 'Add IBAN & BIC'}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigateSupplierUrl(primaryHref)}
+              className="tv-btn-primary shrink-0"
+            >
+              {rejected ? 'Update in Settings' : 'Open Settings'}
+            </button>
+          </div>
+        );
+      })()}
 
       {publishGate && (
         // Phase 1644: warn callout + keep gate while editing (do not clear on Edit listing).

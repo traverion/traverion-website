@@ -1016,9 +1016,25 @@ export default function SupplierAvailability() {
                 )
               ) : null}
               {viewingAll ? (
-                <p className="mt-5 text-sm text-ink-muted">
-                  Choose a listing above to edit that day. Caps are per tour. Stays use occupied nights.
-                </p>
+                <div className="mt-5 space-y-3">
+                  <p className="text-sm text-ink-muted">
+                    Pick which listing to edit for this day. Caps are per tour; stays use occupied nights.
+                  </p>
+                  <PartnerSelect
+                    id="calendar-day-pick-listing"
+                    aria-label="Listing to edit"
+                    value={listingId}
+                    onChange={setListingIdAndUrl}
+                    placeholder="Select a listing…"
+                    options={[
+                      { value: '', label: 'Select a listing…' },
+                      ...listings.map((l) => ({
+                        value: l.id,
+                        label: `${inventoryFamilyFromListing(l) === 'stay' ? 'Stay · ' : 'Tour · '}${l.title}`,
+                      })),
+                    ]}
+                  />
+                </div>
               ) : stayCalendar ? (
                 <>
                   {dayBookings.length > 0 ? (

@@ -64,7 +64,7 @@ import { fetchMyListings, pgTimeToHm } from '../../data/supabase-listings';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings, canManageFinance } from '../../lib/supplierTeamRoles';
 import { navigateSupplierUrl, openSupplierInbox, openSupplierPickup } from '../../lib/supplierPortalNavigation';
-import { PARTNER_APP_BASE, PARTNER_CREATE_PATH } from '../../lib/partnerPortalPaths';
+import { PARTNER_APP_BASE, PARTNER_CREATE_PATH, PARTNER_RESERVATIONS_PATH } from '../../lib/partnerPortalPaths';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { nightsOccupiedByStay, stayRangeFromBooking } from '../../lib/stayOccupancy';
 import {
@@ -1016,6 +1016,23 @@ export default function SupplierBookings({
               >
                 Your listings
               </button>
+              {inventoryFamily === 'stay' ? (
+                <button
+                  type="button"
+                  onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings`)}
+                  className="tv-btn-ghost"
+                >
+                  Tour bookings
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => navigateSupplierUrl(PARTNER_RESERVATIONS_PATH)}
+                  className="tv-btn-ghost"
+                >
+                  Stay reservations
+                </button>
+              )}
             </div>
           }
         />

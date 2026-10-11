@@ -31,7 +31,10 @@ import { bookingPaymentWasCollected, partnerPaymentLabel } from '../../lib/payme
 import { partnerInboxListsBooking } from '../../lib/messaging-authorization';
 import StatusChip, { toneForPaymentLabel } from '../../components/StatusChip';
 import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
-import { PARTNER_INBOX_MESSAGE_FETCH_CAP } from '../../lib/partner-inbox-cap';
+import {
+  PARTNER_INBOX_MESSAGE_FETCH_CAP,
+  partnerInboxNextFetchCap,
+} from '../../lib/partner-inbox-cap';
 import { formatStayNightHuman } from '../../lib/stay-calendar';
 import { formatBookingDateDisplay } from '../../lib/booking-flow';
 import { displayListingTitleFromPurchase, displayOptionLabelFromPurchase, partnerOpsDepartureDisplay } from '../../lib/purchase-snapshot';
@@ -89,6 +92,9 @@ export default function SupplierInbox() {
   const loadGenRef = useRef(0);
   const inboxHubUserIdRef = useRef<string | null>(null);
   const [olderConversationsHidden, setOlderConversationsHidden] = useState(false);
+  const [messageFetchCap, setMessageFetchCap] = useState(PARTNER_INBOX_MESSAGE_FETCH_CAP);
+  const messageFetchCapRef = useRef(messageFetchCap);
+  messageFetchCapRef.current = messageFetchCap;
   const [deepLinkMissing, setDeepLinkMissing] = useState(false);
   const [unreadOnly, setUnreadOnly] = useState(() => {
     if (typeof window === 'undefined') return false;
@@ -138,13 +144,14 @@ export default function SupplierInbox() {
       }
       const lasts: Record<string, BookingMessageRow> = {};
       const failedMessagePrefetch = new Set<string>();
-      const withMessagesFetched = collected.slice(0, PARTNER_INBOX_MESSAGE_FETCH_CAP);
+      const cap = messageFetchCapRef.current;
+      const withMessagesFetched = collected.slice(0, cap);
       // Always fetch the deep-linked booking so Today → Inbox ?booking= works beyond the cap.
       if (deepLinkId && !withMessagesFetched.some((b) => b.id === deepLinkId)) {
         const deep = collected.find((b) => b.id === deepLinkId);
         if (deep) withMessagesFetched.push(deep);
       }
-      setOlderConversationsHidden(collected.length > PARTNER_INBOX_MESSAGE_FETCH_CAP);
+      setOlderConversationsHidden(collected.length > cap);
       await Promise.all(
         withMessagesFetched.map(async (b) => {
           try {
@@ -208,6 +215,7 @@ export default function SupplierInbox() {
       setOpenId(null);
       setDeepLinkMissing(false);
       setOlderConversationsHidden(false);
+      setMessageFetchCap(PARTNER_INBOX_MESSAGE_FETCH_CAP);
       setError(null);
       setCancelRequestsError(null);
       setFilterQuery('');
@@ -228,7 +236,7 @@ export default function SupplierInbox() {
 
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, messageFetchCap]);
 
   useEffect(() => {
     const syncFromUrl = () => {
@@ -489,9 +497,19 @@ export default function SupplierInbox() {
       ) : null}
       {olderConversationsHidden ? (
         <NoticeCallout title="Showing your most recent paid bookings" tone="info">
-          You have more than {PARTNER_INBOX_MESSAGE_FETCH_CAP} paid bookings, so this Inbox only checks messages for the {PARTNER_INBOX_MESSAGE_FETCH_CAP}
-          most recent ones. A closed or cancelled booking older than that won't appear here even if it has a message
-          history — open it from Bookings instead.
+          <p>
+            Inbox currently checks messages for the {messageFetchCap} most recent paid bookings. Older threads stay
+            hidden until you load more — or open a booking from Bookings.
+          </p>
+          <button
+            type="button"
+            className="tv-btn-secondary mt-3"
+            onClick={() => {
+              setMessageFetchCap((c) => partnerInboxNextFetchCap(c));
+            }}
+          >
+            Load older conversations
+          </button>
         </NoticeCallout>
       ) : null}
       {error ? (

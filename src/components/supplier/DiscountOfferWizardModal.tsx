@@ -49,6 +49,10 @@ export default function DiscountOfferWizardModal({ open, onClose, listings, edit
   }, [onClose, submitting]);
   useDialogFocus(open, panelRef, closeSafe);
 
+  const tourListings = useMemo(
+    () => listings.filter((l) => !partnerOfferListingIsStayUnsupported(l)),
+    [listings]
+  );
   const selectedTour = useMemo(
     () => listings.find((l) => l.id === listingId),
     [listings, listingId]
@@ -73,13 +77,13 @@ export default function DiscountOfferWizardModal({ open, onClose, listings, edit
       setStep(0);
     } else {
       setStep(0);
-      setListingId(listings[0]?.id ?? '');
+      setListingId(tourListings[0]?.id ?? '');
       setOptionId('');
       setValidFrom('');
       setValidUntil('');
       setPercent(15);
     }
-  }, [open, editing?.id, listings]);
+  }, [open, editing?.id, listings, tourListings]);
 
   useEffect(() => {
     if (!open || !listingId || editing) return;
@@ -240,7 +244,8 @@ export default function DiscountOfferWizardModal({ open, onClose, listings, edit
           {step === 0 && (
             <div className="space-y-4">
               <p className="text-sm text-ink-muted leading-relaxed">
-                Choose the listing and the booking option travelers select. The discount applies only to that option’s price.
+                Choose a tour listing and the booking option travelers select. Stay (accommodation) listings are not
+                available here — percentage offers only change tour checkout prices.
               </p>
               <div>
                 <span
@@ -257,12 +262,20 @@ export default function DiscountOfferWizardModal({ open, onClose, listings, edit
                     setListingId(next);
                     setOptionId('');
                   }}
-                  placeholder="Select a listing…"
+                  placeholder="Select a tour…"
                   options={[
-                    { value: '', label: 'Select a listing…' },
-                    ...listings.map((l) => ({ value: l.id, label: l.title })),
+                    { value: '', label: 'Select a tour…' },
+                    ...(editing && selectedTour && partnerOfferListingIsStayUnsupported(selectedTour)
+                      ? [{ value: selectedTour.id, label: `${selectedTour.title} (stay — unsupported)` }]
+                      : []),
+                    ...tourListings.map((l) => ({ value: l.id, label: l.title })),
                   ]}
                 />
+                {tourListings.length === 0 && !editing ? (
+                  <p className="mt-2 text-sm text-amber-950">
+                    Publish a tour first. Stay listings cannot receive Traverion percentage offers yet.
+                  </p>
+                ) : null}
               </div>
               <div>
                 <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">Booking option</p>

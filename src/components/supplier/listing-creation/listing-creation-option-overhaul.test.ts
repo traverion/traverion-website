@@ -66,6 +66,18 @@ describe('tour option creation overhaul (source contracts)', () => {
     expect(editor).toMatch(/showChargeModelPicker = !activeSection \|\| activeSection === 'pricing'/);
   });
 
+  it('offers Save changes in the leave dialog for published listings', () => {
+    const form = readFileSync(resolve(__dirname, '../../../pages/supplier/SupplierListingForm.tsx'), 'utf8');
+    expect(form).toContain('leaveAndSavePublished');
+    expect(form).toMatch(/form\.status === 'published'[\s\S]*Save changes/);
+    expect(form).toMatch(/You still have unsaved edits on this live listing/);
+    // Leave-save must reuse publish save — never invent a draft→published path from leave.
+    expect(form).toMatch(
+      /leaveAndSavePublished[\s\S]*form\.status !== 'published'[\s\S]*runSubmit\('published'/
+    );
+    expect(form).toMatch(/runSubmit\('published', \{ bypassLastStepArm: true, closeOnSuccess: true \}/);
+  });
+
   it('guards Save schedule against rapid double clicks', () => {
     const form = readFileSync(resolve(__dirname, '../../../pages/supplier/SupplierListingForm.tsx'), 'utf8');
     expect(form).toContain('scheduleSaveLockRef');

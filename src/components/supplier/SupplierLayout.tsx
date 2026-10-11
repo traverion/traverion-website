@@ -3,9 +3,9 @@ import {
   LayoutDashboard,
   MapPin,
   Calendar,
+  CalendarDays,
   X,
   UserCircle2,
-  Wallet,
   Plus,
 } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
@@ -38,6 +38,7 @@ import {
 } from '../../lib/supplierLegalTemplates';
 import { formatSupplierBusinessAddressFromParts } from '../../lib/supplierAddress';
 import { fetchMyListings } from '../../data/supabase-listings';
+import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
 import { isSupplierBusinessProfileComplete, isSupplierPayoutConfigured } from '../../lib/supplierOnboarding';
 import {
@@ -79,13 +80,16 @@ import {
 } from '../../lib/authNavigation';
 import { partnerRedirectForSession } from '../../lib/partnerAuthState';
 import { appStripeIsTestMode } from '../../lib/money';
-import { PARTNER_PRIMARY_NAV_SECTION_IDS } from '../../lib/partner-primary-nav';
+import {
+  PARTNER_PRIMARY_NAV_SECTION_IDS,
+  partnerMoreNavIncludesSection,
+} from '../../lib/partner-primary-nav';
 import {
   consumePartnerReturnPath,
   peekPartnerReturnPath,
   rememberPartnerReturnPath,
 } from '../../lib/partnerReturnPath';
-import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
+import { navigateSupplierUrl, openSupplierCalendar } from '../../lib/supplierPortalNavigation';
 
 const SupplierEarnings = lazy(() => import('../../pages/supplier/SupplierEarnings'));
 const SupplierPerformance = lazy(() => import('../../pages/supplier/SupplierPerformance'));
@@ -163,18 +167,19 @@ type SupplierSection =
   | 'account-settings'
   | 'change-password';
 type AccountShortcutTarget = 'company' | 'legal' | 'account' | 'security' | 'payout';
-type BusinessProfileTab = 'company' | 'legal';
+type BusinessProfileTab = 'company' | 'legal' | 'team';
 
 /**
  * Mobile bottom-tab nav. Fixed at 5 slots — a phone's thumb-reachable bar has no room
- * for more without crowding. Income must be one tap away.
- * Kept in sync with PARTNER_PRIMARY_NAV_SECTION_IDS below (guard throws if they drift).
+ * for more without crowding. Calendar must be one tap away for daily ops.
+ * Income stays in the sidebar and More sheet. Kept in sync with
+ * PARTNER_PRIMARY_NAV_SECTION_IDS (guard throws if they drift).
  */
 const PRIMARY_NAV: { id: SupplierSection; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
   { id: 'bookings', label: 'Bookings', icon: Calendar },
   { id: 'listings', label: 'Listings', icon: MapPin },
-  { id: 'earnings', label: 'Income', icon: Wallet },
+  { id: 'availability', label: 'Calendar', icon: CalendarDays },
 ];
 
 if (
@@ -304,6 +309,7 @@ export default function SupplierLayout() {
   const [companySaving, setCompanySaving] = useState(false);
   const [companyMessage, setCompanyMessage] = useState<'success' | 'error' | null>(null);
   const [onboardingListingCount, setOnboardingListingCount] = useState<number | null>(null);
+  const [onboardingFirstTourListingId, setOnboardingFirstTourListingId] = useState<string | null>(null);
   const [onboardingHasPayout, setOnboardingHasPayout] = useState(false);
   const [onboardingHasCompany, setOnboardingHasCompany] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
@@ -642,6 +648,7 @@ export default function SupplierLayout() {
   const refreshSupplierOnboardingSignals = useCallback(async () => {
     if (!user?.id || !isSupabase) {
       setOnboardingListingCount(null);
+      setOnboardingFirstTourListingId(null);
       setOnboardingHasPayout(false);
       setOnboardingHasCompany(false);
       setVerificationStatus('');
@@ -661,6 +668,8 @@ export default function SupplierLayout() {
       ]);
       if (gen !== partnerProfileGenRef.current) return;
       setOnboardingListingCount(listings.length);
+      const firstTour = listings.find((l) => inventoryFamilyFromListing(l) === 'tour');
+      setOnboardingFirstTourListingId(firstTour?.id ?? null);
       setOnboardingHasPayout(isSupplierPayoutConfigured(profile));
       setOnboardingHasCompany(isSupplierBusinessProfileComplete(profile));
       setProfileDisplayName((profile?.display_name ?? '').trim());
@@ -735,6 +744,7 @@ export default function SupplierLayout() {
     const applyHash = () => {
       const h = window.location.hash.replace(/^#/, '');
       if (h === 'legal') setBusinessProfileTab('legal');
+      else if (h === 'team') setBusinessProfileTab('team');
       else setBusinessProfileTab('company');
     };
     applyHash();
@@ -1160,6 +1170,13 @@ export default function SupplierLayout() {
                             navigateSupplierUrl(PARTNER_CREATE_PATH);
                           }
                         }}
+                        onDepartures={() => {
+                          if (onboardingFirstTourListingId) {
+                            openSupplierCalendar(onboardingFirstTourListingId);
+                            return;
+                          }
+                          handleNavigate('availability');
+                        }}
                         businessDone={onboardingHasCompany}
                         payoutDone={onboardingHasPayout}
                         hasListing={onboardingHasListing}
@@ -1335,30 +1352,12 @@ export default function SupplierLayout() {
             aria-haspopup="dialog"
             aria-label="More"
             aria-current={
-              !PRIMARY_NAV.some((tab) => tab.id === section) &&
-              [
-                'create',
-                'inbox',
-                'reviews',
-                'discounts',
-                'pickup',
-                'availability',
-                'reservations',
-                'performance',
-                'help',
-                'business-profile',
-                'account-settings',
-                'onboarding',
-                'change-password',
-              ].includes(section)
+              !PRIMARY_NAV.some((tab) => tab.id === section) && partnerMoreNavIncludesSection(section)
                 ? 'page'
                 : undefined
             }
             className={`partner-nav-item lux-flat flex min-h-[52px] min-w-[44px] flex-1 flex-col items-center justify-center gap-0.5 py-2 ${
-              mobileAccountOpen ||
-              ['create', 'inbox', 'reviews', 'discounts', 'pickup', 'availability', 'reservations', 'performance', 'help', 'business-profile', 'account-settings', 'onboarding', 'change-password'].includes(
-                section
-              )
+              mobileAccountOpen || partnerMoreNavIncludesSection(section)
                 ? 'text-finland'
                 : 'text-slate-400'
             }`}
@@ -1366,12 +1365,7 @@ export default function SupplierLayout() {
             <UserCircle2
               className="w-[18px] h-[18px]"
               strokeWidth={
-                mobileAccountOpen ||
-                ['create', 'inbox', 'reviews', 'discounts', 'pickup', 'availability', 'reservations', 'performance', 'help', 'business-profile', 'account-settings', 'onboarding', 'change-password'].includes(
-                  section
-                )
-                  ? 2.2
-                  : 1.6
+                mobileAccountOpen || partnerMoreNavIncludesSection(section) ? 2.2 : 1.6
               }
               aria-hidden
             />
