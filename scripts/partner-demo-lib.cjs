@@ -105,7 +105,11 @@ function resolveSupabase() {
   const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !serviceKey) {
-    console.error('Need VITE_SUPABASE_URL (or SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY.');
+    console.error(
+      'Need VITE_SUPABASE_URL (or SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY.\n' +
+        'Put the service role in gitignored .env.partner-demo.local (see .env.example).\n' +
+        'Target must be the same project as the Vite app (Traverionapp), not an unrelated org.'
+    );
     process.exit(1);
   }
   return { url, serviceKey };
