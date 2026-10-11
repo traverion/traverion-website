@@ -1,7 +1,6 @@
 import { createContext, useContext, useId, useRef, type ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { X } from 'lucide-react';
-import EmptyState from '../EmptyState';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 /** Full-width supplier portal pages — fills the main column on desktop, fluid on mobile. */
@@ -17,10 +16,45 @@ export function partnerPageFrameClass(mode: PartnerPageFrameMode = 'default'): s
 }
 
 export const SUPPLIER_SECTION_HEADER_CLASS =
-  'pb-3 mb-3 border-b border-[color:var(--partner-border,rgba(15,23,42,0.08))]';
+  'partner-section__head partner-section__head--ruled';
 
 /** @deprecated Use SUPPLIER_PAGE_CLASS (all portal pages are full-width now). */
 export const SUPPLIER_PAGE_WIDE_CLASS = SUPPLIER_PAGE_CLASS;
+
+type SupplierSectionProps = {
+  title: string;
+  description?: ReactNode;
+  actions?: ReactNode;
+  children?: ReactNode;
+  /** Draw a hairline under the heading row. Default true. */
+  ruled?: boolean;
+  className?: string;
+  id?: string;
+};
+
+/** Standard partner page section — heading, optional desc/actions, content. */
+export function SupplierSection({
+  title,
+  description,
+  actions,
+  children,
+  ruled = true,
+  className = '',
+  id,
+}: SupplierSectionProps) {
+  return (
+    <section id={id} className={`partner-section ${className}`.trim()}>
+      <div className={ruled ? 'partner-section__head partner-section__head--ruled' : 'partner-section__head'}>
+        <div className="min-w-0">
+          <h2 className="partner-section-title font-display">{title}</h2>
+          {description ? <p className="partner-section-desc">{description}</p> : null}
+        </div>
+        {actions ? <div className="shrink-0 flex flex-wrap items-center gap-2">{actions}</div> : null}
+      </div>
+      {children}
+    </section>
+  );
+}
 
 export const SUPPLIER_STAT_GRID_CLASS =
   'grid w-full min-w-0 grid-cols-1 min-[480px]:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4';
@@ -53,19 +87,11 @@ type SupplierPageHeroProps = {
 export function SupplierPageHero({ title, description, actions, children, badge = null }: SupplierPageHeroProps) {
   return (
     <header className="partner-page-hero border-b border-[color:var(--partner-border,rgba(15,23,42,0.08))]">
-      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
-          {badge ? (
-            <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-finland">
-              {badge}
-            </p>
-          ) : null}
-          <h1 className="font-display text-[1.45rem] sm:text-[1.65rem] font-semibold leading-[1.15] text-slate-900 tracking-tight">
-            {title}
-          </h1>
-          {description ? (
-            <p className="mt-1 text-[13px] text-slate-500 max-w-2xl leading-relaxed">{description}</p>
-          ) : null}
+          {badge ? <p className="partner-label mb-1 text-finland">{badge}</p> : null}
+          <h1 className="partner-page-title font-display">{title}</h1>
+          {description ? <p className="partner-section-desc mt-1">{description}</p> : null}
         </div>
         {actions ? (
           <div className="shrink-0 flex flex-wrap items-center gap-2 [&_button]:min-h-10 [&_a]:min-h-10">
@@ -133,11 +159,11 @@ export function SupplierListSkeleton({ rows = 3 }: { rows?: number }) {
 }
 
 export function SupplierEmptyState({
-  icon,
+  icon: Icon,
   title,
   body,
   action,
-  className,
+  className = '',
 }: {
   icon?: LucideIcon;
   title: string;
@@ -145,7 +171,16 @@ export function SupplierEmptyState({
   action?: ReactNode;
   className?: string;
 }) {
-  return <EmptyState icon={icon} title={title} body={body} action={action} className={className} />;
+  return (
+    <div className={`partner-empty ${className}`.trim()} role="status">
+      {Icon ? (
+        <Icon className="partner-icon mb-0.5 text-finland" strokeWidth={1.85} aria-hidden />
+      ) : null}
+      <p className="partner-empty__title">{title}</p>
+      <p className="partner-empty__body">{body}</p>
+      {action ? <div className="partner-empty__actions">{action}</div> : null}
+    </div>
+  );
 }
 
 export function SupplierStatSkeletonGrid({ count = 4 }: { count?: number }) {

@@ -50,14 +50,14 @@ export function ListingCreationNavButton({
                     ? 'font-medium text-ink-faint'
                     : 'font-medium text-ink-muted'
             }`
-          : `lux-flat relative flex w-full min-h-12 items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-[background-color,box-shadow,color] duration-160 ${
+          : `lux-flat relative flex w-full min-h-11 items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-[13px] transition-[background-color,box-shadow,color] duration-150 ${
               current
-                ? 'bg-finland/[0.1] font-semibold text-finland shadow-[inset_0_0_0_1px_rgba(0,53,128,0.28)]'
+                ? 'bg-finland/[0.08] font-semibold text-finland shadow-[inset_3px_0_0_0_var(--partner-accent,#003580)]'
                 : complete
-                  ? 'font-medium text-ink hover:bg-black/[0.04]'
+                  ? 'font-medium text-ink hover:bg-black/[0.035]'
                   : locked
                     ? 'text-ink-faint'
-                    : 'text-ink-muted hover:bg-black/[0.04] hover:text-ink'
+                    : 'text-ink-muted hover:bg-black/[0.035] hover:text-ink'
             }`
       }
     >
@@ -81,36 +81,36 @@ export function ListingCreationNavButton({
       ) : (
         <>
           <span
-            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular-nums ${
+            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold tabular-nums ${
               complete
                 ? 'bg-finland text-white'
                 : current
                   ? 'bg-white text-finland ring-2 ring-finland'
                   : locked
                     ? 'bg-black/[0.04] text-ink-faint ring-1 ring-black/10'
-                    : 'bg-white text-ink-muted ring-1 ring-black/20'
+                    : 'bg-white text-ink-muted ring-1 ring-black/15'
             }`}
             aria-hidden
           >
             {complete ? (
-              <Check className="h-4 w-4" strokeWidth={3} />
+              <Check className="h-3.5 w-3.5" strokeWidth={2.75} />
             ) : locked ? (
-              <Lock className="h-3.5 w-3.5" strokeWidth={2} />
+              <Lock className="h-3 w-3" strokeWidth={2} />
             ) : (
               (step ?? '')
             )}
           </span>
           <span className="min-w-0">
-            <span className="block truncate leading-tight">{item.label}</span>
+            <span className="block truncate leading-snug tracking-tight">{item.label}</span>
             <span
-              className={`mt-0.5 block text-[11px] font-semibold uppercase tracking-[0.1em] ${
-                complete ? 'text-finland' : current ? 'text-finland/80' : 'text-ink-faint'
+              className={`mt-0.5 block text-[10px] font-semibold uppercase tracking-[0.08em] ${
+                complete ? 'text-finland' : current ? 'text-finland/75' : 'text-ink-faint'
               }`}
             >
               {STATE_CAPTION[item.state]}
             </span>
             {item.summary && !current ? (
-              <span className="mt-0.5 block truncate text-[11px] font-normal normal-case tracking-normal text-ink-muted">
+              <span className="mt-0.5 block truncate text-[11px] font-normal normal-case tracking-normal text-ink-muted leading-snug">
                 {item.summary}
               </span>
             ) : null}

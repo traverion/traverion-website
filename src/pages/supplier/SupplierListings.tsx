@@ -981,7 +981,7 @@ export default function SupplierListings() {
       <SupplierPageHero
         badge="Operate"
         title="Listings"
-        description="Tours and stays you operate — health, status, and publish actions at a glance. Drafts stay private until you publish."
+        description="Drafts stay private until you publish. Status and next actions are on each row."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -1002,9 +1002,9 @@ export default function SupplierListings() {
                     ? 'You can draft listings now. Publishing requires Traverion-approved business and payout verification.'
                     : undefined
               }
-              className="tv-btn-primary w-full md:w-auto"
+              className="tv-btn-primary w-full md:w-auto inline-flex items-center gap-1.5"
             >
-              <Plus className="h-5 w-5 shrink-0" aria-hidden />
+              <Plus className="partner-icon-sm h-3.5 w-3.5 shrink-0" aria-hidden />
               <span>New listing</span>
             </button>
           </div>
@@ -1012,11 +1012,11 @@ export default function SupplierListings() {
       />
 
       {listings.length > 0 && !showForm ? (
-        <div className="mb-4 space-y-2.5">
+        <div className="space-y-2">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <label className="relative block min-w-0 flex-1">
               <span className="sr-only">Search listings</span>
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" aria-hidden />
+              <Search className="pointer-events-none absolute left-3 top-1/2 partner-icon -translate-y-1/2 text-ink-faint" aria-hidden />
               <input
                 type="search"
                 value={listQuery}
@@ -1026,16 +1026,16 @@ export default function SupplierListings() {
                 autoComplete="off"
               />
             </label>
-            <div className="w-full sm:w-44 shrink-0">
+            <div className="w-full sm:w-40 shrink-0">
               <PartnerSelect
                 id="listings-sort"
                 aria-label="Sort listings"
                 value={listSort}
                 onChange={(v) => setListSort((v as PartnerListingsSort) || 'title')}
                 options={[
-                  { value: 'title', label: 'Sort · Title' },
-                  { value: 'status', label: 'Sort · Live first' },
-                  { value: 'family', label: 'Sort · Tours first' },
+                  { value: 'title', label: 'Title' },
+                  { value: 'status', label: 'Live first' },
+                  { value: 'family', label: 'Tours first' },
                 ]}
               />
             </div>
@@ -1399,26 +1399,24 @@ export default function SupplierListings() {
                       onClick={() => openSupplierListingEditor(listing.id)}
                       className="flex min-w-0 flex-1 gap-3 text-left sm:gap-3.5"
                     >
-                      <div className="relative h-[4.5rem] w-[5.5rem] shrink-0 overflow-hidden rounded-xl bg-black/[0.04] sm:h-20 sm:w-28">
+                      <div className="relative h-16 w-[4.75rem] shrink-0 overflow-hidden rounded-[var(--partner-radius,0.5rem)] bg-black/[0.04] sm:h-[4.5rem] sm:w-[6.5rem]">
                         {heroSrc ? (
                           <img
                             src={heroSrc}
                             alt=""
-                            className="h-full w-full object-cover transition-transform duration-500 ease-out motion-safe:group-hover:scale-[1.03]"
+                            className="h-full w-full object-cover"
                           />
                         ) : null}
                       </div>
-                      <div className="min-w-0 flex-1 py-0.5">
+                      <div className="min-w-0 flex-1 py-0">
                         <div className="flex flex-wrap items-center gap-1.5">
                           <StatusChip tone={isLive ? 'good' : 'neutral'}>{card.statusLabel}</StatusChip>
                           {card.draftStateLabel ? (
-                            <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+                            <span className="partner-label text-ink-muted normal-case tracking-normal">
                               {card.draftStateLabel}
                             </span>
                           ) : null}
-                          <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
-                            {familyLabel}
-                          </span>
+                          <span className="partner-label text-ink-faint">{familyLabel}</span>
                           {justPublishedId === listing.id ? (
                             <button
                               type="button"
@@ -1437,14 +1435,14 @@ export default function SupplierListings() {
                             </span>
                           ) : null}
                         </div>
-                        <h2 className="mt-1.5 break-words font-display text-[1.05rem] font-semibold tracking-tight text-ink leading-snug line-clamp-2 [overflow-wrap:anywhere]">
+                        <h2 className="mt-1 break-words font-display text-[0.98rem] font-semibold tracking-tight text-ink leading-snug line-clamp-2 [overflow-wrap:anywhere]">
                           {listing.title}
                         </h2>
-                        <p className="mt-1 text-sm text-ink-muted truncate">
+                        <p className="mt-0.5 partner-meta truncate">
                           {place || null}
                           {place && money ? ' · ' : null}
                           {money ? (
-                            <span className="font-display text-[0.95rem] font-semibold tabular-nums tracking-tight text-ink">
+                            <span className="font-semibold tabular-nums tracking-tight text-ink">
                               From {money}
                               {qualifier && !isStay ? ` / ${qualifier}` : isStay ? ' / night' : ''}
                             </span>
@@ -1459,16 +1457,16 @@ export default function SupplierListings() {
                           ) : null}
                         </p>
                         {readinessLine ? (
-                          <p className="mt-1.5 break-words text-xs leading-snug text-ink-muted line-clamp-2 [overflow-wrap:anywhere]">{readinessLine}</p>
+                          <p className="mt-1 break-words text-[12px] leading-snug text-ink-muted line-clamp-2 [overflow-wrap:anywhere]">{readinessLine}</p>
                         ) : null}
                       </div>
                     </button>
-                    <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-black/[0.06] pt-3 sm:flex-col sm:items-stretch sm:justify-center sm:border-t-0 sm:border-l sm:pl-4 sm:pt-0">
+                    <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-t border-black/[0.06] pt-2.5 sm:flex-col sm:items-stretch sm:justify-center sm:border-t-0 sm:border-l sm:pl-3 sm:pt-0">
                       {isSupabase && canEditListings && card.primaryCta === 'publish' ? (
                         <button
                           type="button"
                           onClick={() => handleStatusChange(listing, 'published')}
-                          className="lux-flat inline-flex min-h-11 items-center justify-center rounded-full bg-finland px-3.5 text-xs font-semibold text-white hover:bg-finland/90"
+                          className="tv-btn-primary lux-flat inline-flex min-h-10 items-center justify-center px-3 text-xs"
                         >
                           Publish
                         </button>
@@ -1478,7 +1476,7 @@ export default function SupplierListings() {
                         <button
                           type="button"
                           onClick={() => openSupplierListingEditor(listing.id)}
-                          className="lux-flat inline-flex min-h-11 items-center justify-center rounded-full bg-finland px-3.5 text-xs font-semibold text-white hover:bg-finland/90"
+                          className="tv-btn-primary lux-flat inline-flex min-h-10 items-center justify-center px-3 text-xs"
                         >
                           {card.primaryCtaLabel}
                         </button>
@@ -1488,7 +1486,7 @@ export default function SupplierListings() {
                           type="button"
                           onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile`)}
                           title={card.publishDisabledReason ?? undefined}
-                          className="lux-flat inline-flex min-h-11 items-center justify-center rounded-full px-3.5 text-xs font-semibold text-ink ring-1 ring-black/[0.08] hover:bg-black/[0.04]"
+                          className="tv-btn-secondary lux-flat inline-flex min-h-10 items-center justify-center px-3 text-xs"
                         >
                           Verification required
                         </button>

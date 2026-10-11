@@ -119,12 +119,10 @@ function SectionHead({
   action?: ReactNode;
 }) {
   return (
-    <div className="mb-3 flex items-baseline justify-between gap-3">
-      <div className="min-w-0 flex items-baseline gap-2.5 flex-wrap">
-        <h2 className="font-display text-[1.125rem] sm:text-[1.2rem] font-semibold tracking-tight text-slate-900">
-          {title}
-        </h2>
-        {meta ? <span className="text-[13px] font-medium text-slate-500 tabular-nums">{meta}</span> : null}
+    <div className="partner-section__head partner-section__head--ruled mb-0">
+      <div className="min-w-0 flex items-baseline gap-2 flex-wrap">
+        <h2 className="partner-section-title font-display">{title}</h2>
+        {meta ? <span className="partner-meta font-medium tabular-nums">{meta}</span> : null}
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}
     </div>
@@ -592,33 +590,33 @@ export default function SupplierDashboard() {
 
   return (
     <div className={`${SUPPLIER_PAGE_CLASS} partner-home motion-safe:animate-fade-in`}>
-      <header className="mb-4 flex flex-col gap-2.5 sm:flex-row sm:items-end sm:justify-between">
+      <header className="partner-page-hero mb-0 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between border-b border-[color:var(--partner-border,rgba(15,23,42,0.08))]">
         <div className="min-w-0">
-          <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">{dateLabel}</p>
-          <h1 className="font-display text-[1.45rem] sm:text-[1.55rem] font-semibold leading-tight tracking-tight text-slate-900">
+          <p className="partner-label mb-1 text-slate-400">{dateLabel}</p>
+          <h1 className="partner-page-title font-display">
             {firstName ? `${hello}, ${firstName}` : hello}
           </h1>
-          <p className="mt-1 max-w-xl text-[13px] leading-relaxed text-slate-500">{greetingSub}</p>
+          <p className="partner-section-desc mt-1">{greetingSub}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 self-start sm:self-end">
           <button
             type="button"
             onClick={() => openSupplierCalendar(calendarFocusListingId)}
-            className="partner-btn-secondary lux-flat inline-flex min-h-10 items-center rounded-md border border-slate-200/90 bg-white px-3 text-[13px] font-medium text-slate-600 hover:border-slate-300 hover:bg-white hover:text-slate-900"
+            className="tv-btn-secondary lux-flat"
           >
             Calendar
           </button>
           <button
             type="button"
             onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings`)}
-            className="partner-btn-secondary lux-flat inline-flex min-h-10 items-center rounded-md border border-slate-200/90 bg-white px-3 text-[13px] font-medium text-slate-600 hover:border-slate-300 hover:bg-white hover:text-slate-900"
+            className="tv-btn-secondary lux-flat"
           >
             Bookings
           </button>
           <button
             type="button"
             onClick={() => navigateSupplierUrl(PARTNER_CREATE_PATH)}
-            className="partner-btn-primary lux-flat inline-flex min-h-10 items-center rounded-md bg-finland px-3 text-[13px] font-semibold text-white hover:bg-finland-dark"
+            className="tv-btn-primary lux-flat"
           >
             New listing
           </button>
@@ -649,10 +647,10 @@ export default function SupplierDashboard() {
         </div>
       ) : null}
 
-      <section className="partner-metric-grid mb-4" aria-label="Today at a glance">
-        <div className="partner-surface-panel px-3.5 py-3">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Today’s bookings</p>
-          <p className="mt-1 font-display text-[1.35rem] font-semibold tabular-nums tracking-tight text-slate-900 leading-none">
+      <section className="partner-metric-grid" aria-label="Today at a glance">
+        <div className="partner-surface-panel partner-surface-panel--quiet px-3 py-2.5">
+          <p className="partner-label">Today’s bookings</p>
+          <p className="mt-1 font-display text-[1.25rem] font-semibold tabular-nums tracking-tight text-slate-900 leading-none">
             {dashboardLoading && publishedListingsCount === null
               ? '—'
               : bookingsLoadFailed
@@ -660,16 +658,16 @@ export default function SupplierDashboard() {
                 : todayDepartures.length}
           </p>
         </div>
-        <div className="partner-surface-panel px-3.5 py-3">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Live listings</p>
-          <p className="mt-1 font-display text-[1.35rem] font-semibold tabular-nums tracking-tight text-slate-900 leading-none">
+        <div className="partner-surface-panel partner-surface-panel--quiet px-3 py-2.5">
+          <p className="partner-label">Live listings</p>
+          <p className="mt-1 font-display text-[1.25rem] font-semibold tabular-nums tracking-tight text-slate-900 leading-none">
             {dashboardLoading && publishedListingsCount === null ? '—' : publishedListingsCount ?? 0}
           </p>
         </div>
-        <div className="partner-surface-panel px-3.5 py-3">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Unread</p>
+        <div className="partner-surface-panel partner-surface-panel--quiet px-3 py-2.5">
+          <p className="partner-label">Unread</p>
           <p
-            className={`mt-1 font-display text-[1.35rem] font-semibold tabular-nums tracking-tight leading-none ${
+            className={`mt-1 font-display text-[1.25rem] font-semibold tabular-nums tracking-tight leading-none ${
               (unreadMessageCount ?? 0) > 0 ? 'text-finland' : 'text-slate-900'
             }`}
           >
@@ -680,10 +678,10 @@ export default function SupplierDashboard() {
                 : unreadMessageCount}
           </p>
         </div>
-        <div className="partner-surface-panel px-3.5 py-3">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Needs attention</p>
+        <div className="partner-surface-panel partner-surface-panel--quiet px-3 py-2.5">
+          <p className="partner-label">Needs attention</p>
           <p
-            className={`mt-1 font-display text-[1.35rem] font-semibold tabular-nums tracking-tight leading-none ${
+            className={`mt-1 font-display text-[1.25rem] font-semibold tabular-nums tracking-tight leading-none ${
               attentionCount > 0 ? 'text-amber-700' : 'text-slate-900'
             }`}
           >
@@ -693,7 +691,7 @@ export default function SupplierDashboard() {
       </section>
 
       {accountStatus && !dashboardLoading && (
-        <section className="mb-6">
+        <section>
           <button
             type="button"
             onClick={() =>
@@ -703,7 +701,7 @@ export default function SupplierDashboard() {
                   : `${PARTNER_APP_BASE}/business-profile#company`
               )
             }
-            className={`partner-surface-panel lux-flat partner-row-interact flex w-full items-start gap-3 px-4 py-3.5 text-left ${
+            className={`partner-surface-panel partner-surface-panel--quiet lux-flat partner-row-interact flex w-full items-start gap-3 px-3.5 py-3 text-left ${
               accountStatus.kind === 'operational'
                 ? 'border-emerald-200/80 bg-emerald-50/40'
                 : accountStatus.kind === 'rejected'

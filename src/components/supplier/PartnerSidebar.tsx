@@ -47,31 +47,31 @@ function NavButton({
       onClick={onClick}
       aria-current={active ? 'page' : undefined}
       title={collapsed ? item.label : undefined}
-      className={`partner-nav-item lux-flat group relative flex w-full items-center gap-2.5 rounded-md text-left text-[13.5px] ${
-        collapsed ? 'justify-center px-2 py-2' : nested ? 'pl-8 pr-2.5 py-[7px]' : 'px-2.5 py-[8px]'
+      className={`partner-nav-item lux-flat group relative flex w-full items-center gap-2 rounded-md text-left text-[13px] ${
+        collapsed ? 'justify-center px-2 py-[7px]' : nested ? 'pl-7 pr-2 py-[6px]' : 'px-2 py-[7px]'
       } ${
         active
-          ? 'bg-white font-semibold text-slate-900 shadow-[0_0_0_1px_rgba(15,23,42,0.06)]'
-          : 'font-medium text-slate-600 hover:bg-slate-900/[0.055] hover:text-slate-900'
+          ? 'bg-white font-semibold text-slate-900 shadow-[0_0_0_1px_rgba(15,23,42,0.07)]'
+          : 'font-medium text-slate-600 hover:bg-slate-900/[0.05] hover:text-slate-900'
       }`}
     >
       {active && !collapsed ? (
         <span
-          className="absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full bg-finland"
+          className="absolute left-0 top-1/2 h-3.5 w-[2.5px] -translate-y-1/2 rounded-full bg-finland"
           aria-hidden
         />
       ) : null}
       <item.icon
-        className={`h-4 w-4 shrink-0 ${
+        className={`partner-icon shrink-0 ${
           active ? 'text-finland' : 'text-slate-400 group-hover:text-slate-600'
         }`}
-        strokeWidth={active ? 2.1 : 1.65}
+        strokeWidth={active ? 2.05 : 1.7}
         aria-hidden
       />
       {collapsed ? (
         <span className="sr-only">{item.label}</span>
       ) : (
-        <span className="min-w-0 flex-1 truncate leading-snug">{item.label}</span>
+        <span className="min-w-0 flex-1 truncate leading-snug tracking-tight">{item.label}</span>
       )}
     </button>
   );
@@ -117,11 +117,11 @@ export default function PartnerSidebar({
   return (
     <aside
       className={`partner-sidebar hidden md:flex shrink-0 flex-col border-r border-slate-200/80 ${
-        collapsed ? 'w-[64px]' : 'w-[232px]'
+        collapsed ? 'w-[60px]' : 'w-[220px]'
       }`}
       aria-label="Partner navigation"
     >
-      <div className={`shrink-0 ${collapsed ? 'px-2 py-3.5' : 'px-3.5 pt-3.5 pb-3'}`}>
+      <div className={`shrink-0 ${collapsed ? 'px-2 py-3' : 'px-3 pt-3 pb-2.5'}`}>
         <button
           type="button"
           onClick={onHome}
