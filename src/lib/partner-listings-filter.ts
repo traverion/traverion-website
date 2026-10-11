@@ -85,3 +85,29 @@ export function partnerListingsVisibleWorkspaceFilters(
 ): PartnerListingsWorkspaceFilter[] {
   return WORKSPACE_FILTER_ORDER.filter((id) => id === 'all' || counts[id] > 0 || current === id);
 }
+
+export type PartnerListingsSort = 'title' | 'status' | 'family';
+
+/** Stable operator sorts — title A–Z, live before draft, tours before stays. */
+export function sortPartnerListings<
+  T extends InventoryListingSlice & {
+    title?: string | null;
+    status?: string | null;
+  },
+>(listings: T[], sort: PartnerListingsSort): T[] {
+  const copy = [...listings];
+  copy.sort((a, b) => {
+    if (sort === 'status') {
+      const aLive = a.status !== 'draft' ? 0 : 1;
+      const bLive = b.status !== 'draft' ? 0 : 1;
+      if (aLive !== bLive) return aLive - bLive;
+    }
+    if (sort === 'family') {
+      const aFam = inventoryFamilyFromListing(a) === 'tour' ? 0 : 1;
+      const bFam = inventoryFamilyFromListing(b) === 'tour' ? 0 : 1;
+      if (aFam !== bFam) return aFam - bFam;
+    }
+    return (a.title ?? '').localeCompare(b.title ?? '', undefined, { sensitivity: 'base' });
+  });
+  return copy;
+}

@@ -5,6 +5,7 @@ import {
   partnerListingsVisibleWorkspaceFilters,
   partnerListingsWorkspaceCounts,
   partnerListingMatchesQuery,
+  sortPartnerListings,
 } from './partner-listings-filter';
 
 describe('partner listings filter', () => {
@@ -64,5 +65,14 @@ describe('partner listings filter', () => {
       'stay',
       'published',
     ]);
+  });
+
+  it('sorts live before draft and tours before stays', () => {
+    const byStatus = sortPartnerListings([stay, tour], 'status');
+    expect(byStatus.map((l) => l.title)).toEqual(['Fjord hike', 'Lake cabin']);
+    const byFamily = sortPartnerListings([stay, tour], 'family');
+    expect(byFamily.map((l) => l.title)).toEqual(['Fjord hike', 'Lake cabin']);
+    const byTitle = sortPartnerListings([stay, tour], 'title');
+    expect(byTitle.map((l) => l.title)).toEqual(['Fjord hike', 'Lake cabin']);
   });
 });

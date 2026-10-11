@@ -68,6 +68,8 @@ import { materializedBookingOptions, parseListingExtras } from '../../types/list
 import { inventoryFamilyFromListing, PARTNER_CREATE_INVENTORY } from '../../lib/inventory';
 import {
   filterPartnerListings,
+  sortPartnerListings,
+  type PartnerListingsSort,
   parsePartnerListingsWorkspaceFilter,
   partnerListingsVisibleWorkspaceFilters,
   partnerListingsWorkspaceCounts,
@@ -80,6 +82,7 @@ import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierModalHeader, SupplierPageHero } from '../../components/supplier/supplierUi';
 import { PARTNER_FIRST_LISTING_STEP_NOTE } from '../../lib/booking-confirmation-copy';
 import StatusChip from '../../components/StatusChip';
+import PartnerSelect from '../../components/supplier/PartnerSelect';
 import {
   partnerAccountStatus,
   partnerBusinessReviewState,
@@ -105,6 +108,7 @@ export default function SupplierListings() {
     if (typeof window === 'undefined') return '';
     return (new URLSearchParams(window.location.search).get('q') ?? '').trim();
   });
+  const [listSort, setListSort] = useState<PartnerListingsSort>('title');
   const [showCreateChooser, setShowCreateChooser] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -187,8 +191,8 @@ export default function SupplierListings() {
   });
 
   const filteredListings = useMemo(
-    () => filterPartnerListings(listings, workspaceFilter, listQuery),
-    [listings, workspaceFilter, listQuery]
+    () => sortPartnerListings(filterPartnerListings(listings, workspaceFilter, listQuery), listSort),
+    [listings, workspaceFilter, listQuery, listSort]
   );
 
   const workspaceCounts = useMemo(() => partnerListingsWorkspaceCounts(listings), [listings]);
@@ -1008,23 +1012,38 @@ export default function SupplierListings() {
       />
 
       {listings.length > 0 && !showForm ? (
-        <div className="mb-6 space-y-3">
-          <label className="relative block">
-            <span className="sr-only">Search listings</span>
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" aria-hidden />
-            <input
-              type="search"
-              value={listQuery}
-              onChange={(e) => setListQueryAndUrl(e.target.value)}
-              placeholder="Search title or place"
-              className="tv-input w-full pl-9"
-              autoComplete="off"
-            />
-          </label>
-          <div className="flex flex-wrap gap-x-1 gap-y-2 border-b border-black/[0.06]" role="tablist" aria-label="Listing filters">
+        <div className="mb-4 space-y-2.5">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <label className="relative block min-w-0 flex-1">
+              <span className="sr-only">Search listings</span>
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" aria-hidden />
+              <input
+                type="search"
+                value={listQuery}
+                onChange={(e) => setListQueryAndUrl(e.target.value)}
+                placeholder="Search title or place"
+                className="tv-input w-full pl-9"
+                autoComplete="off"
+              />
+            </label>
+            <div className="w-full sm:w-44 shrink-0">
+              <PartnerSelect
+                id="listings-sort"
+                aria-label="Sort listings"
+                value={listSort}
+                onChange={(v) => setListSort((v as PartnerListingsSort) || 'title')}
+                options={[
+                  { value: 'title', label: 'Sort · Title' },
+                  { value: 'status', label: 'Sort · Live first' },
+                  { value: 'family', label: 'Sort · Tours first' },
+                ]}
+              />
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-x-1 gap-y-1 border-b border-black/[0.06]" role="tablist" aria-label="Listing filters">
             {([
               { id: 'all', label: 'All' },
-              { id: 'tour', label: 'Tours & activities' },
+              { id: 'tour', label: 'Tours' },
               { id: 'stay', label: 'Stays' },
               { id: 'draft', label: 'Draft' },
               { id: 'published', label: 'Live' },
@@ -1432,6 +1451,12 @@ export default function SupplierListings() {
                           ) : (
                             <span>Price not set</span>
                           )}
+                          {!isStay && opts.length > 0 ? (
+                            <span className="text-ink-faint">
+                              {' '}
+                              · {opts.length} option{opts.length === 1 ? '' : 's'}
+                            </span>
+                          ) : null}
                         </p>
                         {readinessLine ? (
                           <p className="mt-1.5 break-words text-xs leading-snug text-ink-muted line-clamp-2 [overflow-wrap:anywhere]">{readinessLine}</p>
