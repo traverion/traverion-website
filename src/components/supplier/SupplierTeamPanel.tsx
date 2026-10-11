@@ -169,24 +169,24 @@ export default function SupplierTeamPanel() {
           <SkeletonListItem />
         </div>
       ) : members.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-black/[0.1] bg-black/[0.015] px-4 py-5">
-          <p className="text-sm font-semibold text-ink">No teammates yet</p>
-          <p className="mt-1 text-[13px] leading-snug text-ink-muted">
+        <div className="partner-empty">
+          <p className="partner-empty__title">No teammates yet</p>
+          <p className="partner-empty__body">
             Add someone by Traverion user ID after they have a partner login. Only owners can manage roles.
           </p>
         </div>
       ) : (
-        <ul className="divide-y divide-black/[0.06] rounded-xl border border-black/[0.06] bg-paper overflow-hidden">
+        <ul className="divide-y divide-black/[0.06] rounded-[var(--partner-radius,0.5rem)] border border-black/[0.06] bg-paper overflow-hidden">
           {members.map((m) => {
             const isSelf = m.id === user?.id;
             const isOwner = m.role === 'owner';
             const pendingRemove = pendingRemoveId === m.id;
             return (
-              <li key={m.id} className="px-4 py-3.5 space-y-2">
-                <div className="flex flex-wrap items-start justify-between gap-3">
+              <li key={m.id} className="px-3.5 py-3 space-y-2">
+                <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-ink truncate">{m.label || 'Teammate'}</p>
-                    <p className="mt-0.5 text-xs text-ink-faint font-mono break-all">{m.id}</p>
+                    <p className="text-[13px] font-semibold tracking-tight text-ink truncate">{m.label || 'Teammate'}</p>
+                    <p className="mt-0.5 text-[11px] text-ink-faint font-mono break-all">{m.id}</p>
                   </div>
                   {isOwner || !canEdit ? (
                     <p className="text-sm font-medium text-ink shrink-0">{roleLabel(m.role)}</p>

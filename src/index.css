@@ -245,6 +245,15 @@ body {
     backdrop-filter: blur(12px);
   }
 
+  @media (max-width: 429px) {
+    .partner-app-shell {
+      --partner-gutter-x: 0.875rem;
+      --partner-gutter-y: 0.875rem;
+      --partner-section-gap: 1rem;
+      --partner-hero-mb: 1rem;
+    }
+  }
+
   @media (min-width: 640px) {
     .partner-app-shell {
       --partner-gutter-x: 1.375rem;
@@ -256,6 +265,12 @@ body {
     .partner-app-shell {
       --partner-gutter-x: 1.75rem;
       --partner-gutter-y: 1.25rem;
+    }
+  }
+
+  @media (min-width: 1440px) {
+    .partner-app-shell {
+      --partner-gutter-x: 2rem;
     }
   }
 
@@ -2313,7 +2328,11 @@ a:focus-visible,
 .tv-inbox-thread__btn {
   width: 100%;
   text-align: left;
-  padding: 0.85rem 1rem;
+  padding: 0.7rem 0.85rem;
+}
+
+.partner-app-shell .tv-inbox-thread__btn {
+  padding: 0.65rem 0.75rem;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2326,11 +2345,11 @@ a:focus-visible,
 .tv-cal-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem 1rem;
-  border-radius: 0.75rem;
-  border: 1px solid rgba(28, 25, 23, 0.07);
-  background: rgba(255, 252, 248, 0.9);
-  padding: 0.65rem 0.85rem;
+  gap: 0.5rem 0.85rem;
+  border-radius: var(--partner-radius, 0.5rem);
+  border: 1px solid var(--partner-border, rgba(15, 23, 42, 0.08));
+  background: var(--partner-surface, #fff);
+  padding: 0.55rem 0.75rem;
   font-size: 0.6875rem;
   font-weight: 600;
   letter-spacing: 0.04em;

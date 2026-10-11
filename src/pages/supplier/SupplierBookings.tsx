@@ -759,8 +759,8 @@ export default function SupplierBookings({
         title={inventoryFamily === 'stay' ? 'Reservations' : 'Bookings'}
         description={
           inventoryFamily === 'stay'
-            ? 'Stay nights, guests, payment status, and actions that need a decision.'
-            : 'Guests, products, dates, payment status, and actions that need a decision.'
+            ? 'Stay nights, guests, payment, and decisions.'
+            : 'Guests, products, dates, payment, and decisions.'
         }
         actions={
           bookings.length > 0 ? (
@@ -1187,7 +1187,7 @@ export default function SupplierBookings({
                     )}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-3">
-                        <p className="min-w-0 break-words font-display text-[1.02rem] font-semibold tracking-tight text-ink [overflow-wrap:anywhere] line-clamp-2 leading-snug">
+                        <p className="min-w-0 break-words text-[0.95rem] font-semibold tracking-tight text-ink [overflow-wrap:anywhere] line-clamp-2 leading-snug">
                           {booking.guest_name || 'Guest'}
                         </p>
                         <span className="shrink-0 rounded-md bg-black/[0.04] px-2 py-0.5 text-[11px] font-semibold text-ink-muted">

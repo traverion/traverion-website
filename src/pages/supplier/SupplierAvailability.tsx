@@ -498,7 +498,7 @@ export default function SupplierAvailability() {
       <SupplierPageHero
         badge="Operate"
         title="Calendar"
-        description="Capacity, blocked dates, and bookings by day. Select a listing to edit."
+        description="Capacity, blocks, and bookings by day. Select a listing to edit."
         actions={
           !isSupabase || !user || listings.length === 0 ? undefined : (
             <div className="block sm:min-w-[16rem]">

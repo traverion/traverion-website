@@ -489,7 +489,7 @@ export default function SupplierEarnings() {
       <SupplierPageHero
         badge="Business"
         title="Income"
-        description={`Gross bookings, Traverion commission, and your net earnings. Payout eligibility follows the activity date — this page never invents a bank transfer. Checkout uses ${STRIPE_TEST_UNTIL_LIVE}.`}
+        description={`Gross, commission, and net. Eligibility follows activity date — not a bank transfer. ${STRIPE_TEST_UNTIL_LIVE}.`}
       />
 
       {error && (
@@ -521,14 +521,14 @@ export default function SupplierEarnings() {
       ) : error && !hasMoney ? null : (
         <>
           {moneyByCurrency.length === 0 ? (
-            <section className="mb-10 pb-6 border-b border-black/[0.06]">
-              <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">
+            <section className="pb-5 border-b border-black/[0.06]">
+              <p className="partner-label mb-1.5">
                 {PARTNER_MONEY_AVAILABLE_BALANCE_LABEL}
               </p>
-              <p className="font-display text-4xl sm:text-5xl tabular-nums tracking-tight text-ink">
+              <p className="font-display text-[2rem] sm:text-[2.35rem] font-semibold tabular-nums tracking-tight text-ink leading-none">
                 {formatMoney(0, primaryCurrency)}
               </p>
-              <p className="mt-3 text-sm text-ink-muted max-w-lg">{nextPayoutLabel}</p>
+              <p className="mt-2 partner-section-desc">{nextPayoutLabel}</p>
               <button
                 type="button"
                 onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile#supplier-business-payout`)}
@@ -542,21 +542,21 @@ export default function SupplierEarnings() {
               return (
                 <section
                   key={s.currency}
-                  className="mb-8 border-b border-black/[0.06] pb-6"
+                  className="border-b border-black/[0.06] pb-5"
                 >
-                  <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-1">
+                  <p className="partner-label mb-1">
                     {moneyByCurrency.length > 1 ? `${s.currency} · ` : ''}
                     {s.available < 0 ? PARTNER_MONEY_NEGATIVE_BALANCE_LABEL : 'Eligible for next payout'}
                   </p>
                   <p
-                    className={`font-display text-3xl sm:text-4xl tabular-nums tracking-tight ${s.available < 0 ? 'text-red-800' : 'text-ink'}`}
+                    className={`font-display text-[1.85rem] sm:text-[2.15rem] font-semibold tabular-nums tracking-tight leading-none ${s.available < 0 ? 'text-red-800' : 'text-ink'}`}
                   >
                     {formatMoney(s.available, s.currency)}
                   </p>
                   {planSummary ? (
-                    <p className="mt-2 text-sm text-ink-muted max-w-lg">
-                      Your plan: <span className="font-medium text-ink">{planSummary}</span>
-                      . Contact Traverion to change payout plan.
+                    <p className="mt-2 partner-section-desc">
+                      Plan: <span className="font-medium text-ink">{planSummary}</span>
+                      . Contact Traverion to change.
                     </p>
                   ) : null}
                   {recoveryBalance < 0 ? (

@@ -1183,7 +1183,7 @@ export default function SupplierPickupPlanner() {
       <SupplierPageHero
         badge="Operate"
         title="Pickups"
-        description="Who needs pickup today, what’s missing, and what to export."
+        description="Today’s pickups, missing details, and export."
         actions={
           !loading && listBookings.length > 0 ? (
             <button
@@ -1453,7 +1453,7 @@ export default function SupplierPickupPlanner() {
                   className="lux-flat flex w-full items-baseline justify-between gap-3 py-2 text-left"
                 >
                   <div className="min-w-0">
-                    <p className="font-display text-lg sm:text-xl text-ink tracking-tight">
+                    <p className="partner-section-title font-display tracking-tight">
                       {formatPickupSectionDate(ymd)}
                     </p>
                     <p className="mt-0.5 text-sm text-ink-muted">
@@ -1515,7 +1515,7 @@ export default function SupplierPickupPlanner() {
                 className="lux-flat flex w-full items-baseline justify-between gap-3 py-2 text-left"
               >
                 <div>
-                  <p className="font-display text-lg sm:text-xl text-ink tracking-tight">No activity date</p>
+                  <p className="partner-section-title font-display tracking-tight">No activity date</p>
                   <p className="mt-0.5 text-sm text-ink-muted">
                     {`${bookingsGroupedByDate.noDate.length} booking${bookingsGroupedByDate.noDate.length === 1 ? '' : 's'}`}
                   </p>

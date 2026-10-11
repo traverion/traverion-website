@@ -436,13 +436,13 @@ export default function SupplierInbox() {
         description={
           unreadCount > 0
             ? `${unreadCount} unread · Paid-booking threads. ${PARTNER_INBOX_MESSAGE_DELIVERY_NOTE}`
-            : `Paid-booking threads (including closed / refund-due with history). ${PARTNER_INBOX_MESSAGE_DELIVERY_NOTE}`
+            : `Paid-booking threads. ${PARTNER_INBOX_MESSAGE_DELIVERY_NOTE}`
         }
       />
       {threads.length > 0 ? (
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-x-3 sm:gap-y-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end sm:gap-x-3 sm:gap-y-2">
           <div className="flex min-w-[min(100%,14rem)] flex-1 flex-col gap-1">
-            <label htmlFor="partner-inbox-search" className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">
+            <label htmlFor="partner-inbox-search" className="partner-label">
               Search
             </label>
             <input
@@ -462,7 +462,7 @@ export default function SupplierInbox() {
         </div>
       ) : null}
       {threads.length > 0 ? (
-        <div className="mb-4 flex flex-wrap gap-1.5" role="tablist" aria-label="Inbox filter">
+        <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Inbox filter">
           <button
             type="button"
             role="tab"
@@ -470,7 +470,7 @@ export default function SupplierInbox() {
             aria-controls={PARTNER_INBOX_TABPANEL_ID}
             aria-selected={!unreadOnly}
             onClick={() => setUnreadOnlyAndUrl(false)}
-            className={`lux-flat rounded-md px-3 py-1.5 text-xs font-semibold ring-1 transition-colors ${
+            className={`lux-flat rounded-md px-2.5 py-1.5 text-[12px] font-semibold ring-1 transition-colors ${
               !unreadOnly
                 ? 'bg-finland text-white ring-finland'
                 : 'bg-transparent text-ink-muted ring-black/[0.08] hover:text-ink'
@@ -485,7 +485,7 @@ export default function SupplierInbox() {
             aria-controls={PARTNER_INBOX_TABPANEL_ID}
             aria-selected={unreadOnly}
             onClick={() => setUnreadOnlyAndUrl(true)}
-            className={`lux-flat rounded-md px-3 py-1.5 text-xs font-semibold ring-1 transition-colors ${
+            className={`lux-flat rounded-md px-2.5 py-1.5 text-[12px] font-semibold ring-1 transition-colors ${
               unreadOnly
                 ? 'bg-amber-500 text-white ring-amber-500'
                 : 'bg-transparent text-ink-muted ring-black/[0.08] hover:text-ink'
@@ -496,14 +496,13 @@ export default function SupplierInbox() {
         </div>
       ) : null}
       {olderConversationsHidden ? (
-        <div className="mb-4 flex flex-col gap-2 rounded-xl border border-finland/15 bg-finland/[0.04] px-3.5 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-[13px] leading-snug text-ink-muted">
-            Checking the {messageFetchCap} most recent paid bookings. Load older to expand, or open a booking from
-            Bookings.
+        <div className="flex flex-col gap-2 rounded-[var(--partner-radius,0.5rem)] border border-finland/15 bg-finland/[0.035] px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+          <p className="partner-meta">
+            Showing the {messageFetchCap} most recent paid bookings. Load older or open Bookings.
           </p>
           <button
             type="button"
-            className="tv-btn-secondary shrink-0 !min-h-10"
+            className="tv-btn-secondary shrink-0"
             onClick={() => {
               setMessageFetchCap((c) => partnerInboxNextFetchCap(c));
             }}
@@ -627,23 +626,23 @@ export default function SupplierInbox() {
                     setOpenBookingId(opening ? b.id : null);
                   }}
                 >
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start justify-between gap-2.5">
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="flex items-center gap-2 min-w-0">
                         <span
-                          className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${unread ? 'bg-amber-500' : 'bg-transparent'}`}
+                          className={`mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full ${unread ? 'bg-amber-500' : 'bg-transparent'}`}
                           aria-hidden={!unread}
                           aria-label={unread ? 'Unread' : undefined}
                         />
                         <p
-                          className={`min-w-0 break-words text-[0.95rem] leading-snug [overflow-wrap:anywhere] line-clamp-2 ${
+                          className={`min-w-0 break-words text-[0.9rem] leading-snug tracking-tight [overflow-wrap:anywhere] line-clamp-1 ${
                             unread ? 'font-semibold text-ink' : 'font-medium text-ink'
                           }`}
                         >
                           {b.guest_name?.trim() || 'Traveler'}
                         </p>
                       </div>
-                      <p className="mt-1 break-words pl-[1.125rem] text-[13px] font-medium text-ink-muted [overflow-wrap:anywhere] line-clamp-2">
+                      <p className="mt-0.5 break-words pl-3.5 partner-meta [overflow-wrap:anywhere] line-clamp-1">
                         {inboxListingLine(b, titles[b.listing_id], listingsById[b.listing_id])}
                       </p>
                     </div>
@@ -658,7 +657,7 @@ export default function SupplierInbox() {
                       ) : null}
                     </div>
                   </div>
-                  <p className="mt-1.5 text-[11px] font-medium uppercase tracking-[0.08em] text-ink-faint pl-[1.125rem]">
+                  <p className="mt-1 partner-label pl-3.5 normal-case tracking-normal font-medium text-ink-faint">
                     {(() => {
                       if (bookingIsStayNight(b)) {
                         const stay = stayRangeFromBooking(b);
@@ -679,9 +678,9 @@ export default function SupplierInbox() {
                         : ` · ${dep.displayHm}`;
                     })()}
                   </p>
-                  <div className="mt-1.5 flex items-baseline justify-between gap-3 pl-[1.125rem]">
-                    <p className={`min-w-0 flex-1 text-sm line-clamp-1 ${unread ? 'font-medium text-ink' : 'text-ink-muted'}`}>
-                      {last?.body ?? 'No messages yet — open to write about this booking.'}
+                  <div className="mt-1 flex items-baseline justify-between gap-2 pl-3.5">
+                    <p className={`min-w-0 flex-1 text-[13px] line-clamp-1 ${unread ? 'font-medium text-ink' : 'text-ink-muted'}`}>
+                      {last?.body ?? 'No messages yet — open to write.'}
                     </p>
                     {last?.created_at ? (
                       <time

@@ -267,9 +267,9 @@ function AccountSettingsPage(p: Props) {
       <SupplierPageHero
         badge="Business"
         title="Account"
-        description="Personal sign-in for this Partner workspace — separate from business identity."
+        description="Personal sign-in for this workspace — separate from business identity."
       >
-        <p className="mt-3 text-sm text-ink-muted">
+        <p className="mt-2 partner-meta">
           {p.supplierEmailVerified ? 'Email verified' : 'Email not verified'}
         </p>
       </SupplierPageHero>
@@ -277,13 +277,13 @@ function AccountSettingsPage(p: Props) {
       <button
         type="button"
         onClick={() => p.handleNavigate('business-profile')}
-        className="lux-flat mb-10 flex w-full items-center justify-between gap-3 py-3 text-left"
+        className="partner-surface-panel partner-surface-panel--quiet lux-flat partner-row-interact flex w-full items-center justify-between gap-3 px-3.5 py-3 text-left"
       >
         <div className="min-w-0">
-          <p className="font-semibold text-ink">Business</p>
-          <p className="mt-0.5 text-sm text-ink-muted">Company details, payouts, and legal documents</p>
+          <p className="text-[14px] font-semibold tracking-tight text-ink">Business</p>
+          <p className="mt-0.5 partner-meta">Company details, payouts, and legal documents</p>
         </div>
-        <ChevronRight className="w-5 h-5 text-ink-faint shrink-0" aria-hidden />
+        <ChevronRight className="partner-icon text-ink-faint shrink-0" aria-hidden />
       </button>
 
       <ProfileSection
