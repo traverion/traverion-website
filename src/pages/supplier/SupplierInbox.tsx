@@ -435,8 +435,8 @@ export default function SupplierInbox() {
         title="Inbox"
         description={
           unreadCount > 0
-            ? `${unreadCount} unread · Messages about paid bookings. ${PARTNER_INBOX_MESSAGE_DELIVERY_NOTE}`
-            : `Messages about paid bookings. Closed and Refund due trips stay here if they already have a thread. ${PARTNER_INBOX_MESSAGE_DELIVERY_NOTE}`
+            ? `${unreadCount} unread · Paid-booking threads. ${PARTNER_INBOX_MESSAGE_DELIVERY_NOTE}`
+            : `Paid-booking threads (including closed / refund-due with history). ${PARTNER_INBOX_MESSAGE_DELIVERY_NOTE}`
         }
       />
       {threads.length > 0 ? (
@@ -496,21 +496,21 @@ export default function SupplierInbox() {
         </div>
       ) : null}
       {olderConversationsHidden ? (
-        <NoticeCallout title="Showing your most recent paid bookings" tone="info">
-          <p>
-            Inbox currently checks messages for the {messageFetchCap} most recent paid bookings. Older threads stay
-            hidden until you load more — or open a booking from Bookings.
+        <div className="mb-4 flex flex-col gap-2 rounded-xl border border-finland/15 bg-finland/[0.04] px-3.5 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-[13px] leading-snug text-ink-muted">
+            Checking the {messageFetchCap} most recent paid bookings. Load older to expand, or open a booking from
+            Bookings.
           </p>
           <button
             type="button"
-            className="tv-btn-secondary mt-3"
+            className="tv-btn-secondary shrink-0 !min-h-10"
             onClick={() => {
               setMessageFetchCap((c) => partnerInboxNextFetchCap(c));
             }}
           >
-            Load older conversations
+            Load older
           </button>
-        </NoticeCallout>
+        </div>
       ) : null}
       {error ? (
         <ErrorState

@@ -759,8 +759,8 @@ export default function SupplierBookings({
         title={inventoryFamily === 'stay' ? 'Reservations' : 'Bookings'}
         description={
           inventoryFamily === 'stay'
-            ? 'Stay nights, guest names, payment truth, and actions that need a decision.'
-            : 'Scan guests, products, dates, payment truth, and actions that need a decision.'
+            ? 'Stay nights, guests, payment status, and actions that need a decision.'
+            : 'Guests, products, dates, payment status, and actions that need a decision.'
         }
         actions={
           bookings.length > 0 ? (
@@ -817,7 +817,7 @@ export default function SupplierBookings({
         }
       >
         {bookings.length > 0 && (
-          <div className="mt-5 flex flex-wrap gap-x-1 gap-y-2 border-b border-black/[0.06]" role="tablist" aria-label="Schedule">
+          <div className="mt-4 flex flex-wrap gap-x-1 gap-y-1 border-b border-black/[0.06]" role="tablist" aria-label="Schedule">
             {([
               ['today', 'Today'],
               ['tomorrow', 'Tomorrow'],

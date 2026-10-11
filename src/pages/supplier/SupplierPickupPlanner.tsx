@@ -1183,7 +1183,7 @@ export default function SupplierPickupPlanner() {
       <SupplierPageHero
         badge="Operate"
         title="Pickups"
-        description="Who needs pickup, what’s missing, and what to export for the day."
+        description="Who needs pickup today, what’s missing, and what to export."
         actions={
           !loading && listBookings.length > 0 ? (
             <button
