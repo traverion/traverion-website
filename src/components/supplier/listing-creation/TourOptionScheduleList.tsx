@@ -69,17 +69,21 @@ export function TourOptionScheduleList({
         </div>
       ) : null}
       {rows.length === 0 ? (
-        <div className="lc-section rounded-2xl px-5 py-8 text-center sm:px-8">
-          <p className="font-display text-xl font-bold text-ink">No schedules yet</p>
-          <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-ink-muted">
-            Add your first schedule so travelers can pick a date and see the right price.
+        <div className="lc-section rounded-xl px-4 py-6 text-center sm:px-6">
+          <p className="font-display text-lg font-semibold text-ink">No schedules yet</p>
+          <p className="mx-auto mt-1.5 max-w-sm text-[13px] leading-relaxed text-ink-muted">
+            {canAdd
+              ? 'Add a schedule with dates, start time, capacity, and price.'
+              : 'Finish Setup first — charge model and start-time mode unlock Add schedule.'}
           </p>
           <button
             type="button"
             onClick={onAdd}
-            className="tv-btn-primary mt-5 !min-h-11"
+            className="tv-btn-primary mt-4 !min-h-10"
+            disabled={!canAdd}
+            title={canAdd ? undefined : 'Complete Setup before adding a schedule'}
           >
-            {canAdd ? 'Add schedule' : 'Go to Setup first'}
+            {canAdd ? 'Add schedule' : 'Setup incomplete'}
           </button>
         </div>
       ) : (

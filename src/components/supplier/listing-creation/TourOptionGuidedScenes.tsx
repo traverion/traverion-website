@@ -21,11 +21,11 @@ import type { ListingCreationSceneDirection } from '../../../lib/listing-creatio
 import type { ListingBookingOption, ListingOptionSchedule } from '../../../types/listingExtras';
 
 const SUPPORT: Record<TourOptionSceneId, string> = {
-  setup: 'Name this category of the tour, why travelers would pick it, and how long it runs.',
-  meeting: 'Choose meeting point or pickup, then add the exact place for this option.',
+  setup: 'Name this option, how long it runs, and how you charge (per person or per group).',
+  meeting: 'Meeting point or pickup for this option only — not the whole listing.',
   availability_pricing:
-    'Add one or more schedules — for example September and October — each with its own dates, time, capacity, and price.',
-  review: 'Finish only when this option is actually ready. Drafts are not bookable.',
+    'Each schedule has its own dates, start time, capacity, and traveler price for this option.',
+  review: 'Finish only when this option is ready. Drafts are not bookable.',
 };
 
 export function TourOptionGuidedScenes({

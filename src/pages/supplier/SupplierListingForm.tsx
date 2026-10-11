@@ -1265,7 +1265,7 @@ export default function SupplierListingForm({
       },
       {
         step: 1,
-        label: 'Details',
+        label: 'Experience',
         summary: reviewDetailsSummary(
           form.city,
           form.country,
@@ -3162,14 +3162,14 @@ export default function SupplierListingForm({
                 </p>
               </section>
 
-              <section className="space-y-4" aria-labelledby="tour-details-expect">
+              <section className="space-y-3" aria-labelledby="tour-details-expect">
                 <h4 id="tour-details-expect" className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
-                  How it starts
+                  Meeting & pickup
                 </h4>
                 <div id="supplier-listing-field-start">
                   <label
                     htmlFor="supplier-listing-experience-start"
-                    className="mb-1 block text-sm font-semibold text-ink"
+                    className="mb-1.5 block text-sm font-semibold text-ink"
                   >
                     How this tour generally starts *
                   </label>
@@ -3184,13 +3184,24 @@ export default function SupplierListingForm({
                     }
                     options={EXPERIENCE_START_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
                   />
-                  <p className="mt-1 text-xs text-ink-muted">
-                    Overall for this tour: meeting, pickup, or both. Each bookable option still has its own exact place and start time.
+                  <p className="mt-1.5 text-xs text-ink-muted">
+                    Listing-level default. Exact place and time are set on each option.
                   </p>
+                  {form.experienceStartStyle === 'operator_pickup' ||
+                  form.experienceStartStyle === 'either_available' ? (
+                    <p className="mt-2 rounded-lg border border-finland/15 bg-finland/[0.04] px-3 py-2 text-xs leading-snug text-ink-muted">
+                      Pickup options need a clear pickup place (or area) on each bookable option before travelers can
+                      book.
+                    </p>
+                  ) : form.experienceStartStyle === 'fixed_meeting_place' ? (
+                    <p className="mt-2 rounded-lg border border-black/[0.06] bg-black/[0.02] px-3 py-2 text-xs leading-snug text-ink-muted">
+                      Meeting-point options need an exact meeting place on each bookable option.
+                    </p>
+                  ) : null}
                 </div>
               </section>
 
-              <section className="space-y-4" aria-labelledby="tour-details-booking-window" id="supplier-listing-field-schedule">
+              <section className="space-y-3" aria-labelledby="tour-details-booking-window" id="supplier-listing-field-schedule">
                 <h4
                   id="tour-details-booking-window"
                   className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted"
@@ -3198,7 +3209,7 @@ export default function SupplierListingForm({
                   Booking window
                 </h4>
                 <div>
-                  <label className="mb-1 block text-sm font-semibold text-ink" htmlFor="supplier-booking-cutoff">
+                  <label className="mb-1.5 block text-sm font-semibold text-ink" htmlFor="supplier-booking-cutoff">
                     Stop online booking (hours before departure)
                   </label>
                   <input
@@ -3219,8 +3230,7 @@ export default function SupplierListingForm({
                     inputMode="numeric"
                   />
                   <p className="mt-1 text-xs text-ink-muted">
-                    0 or blank = travelers can book until the departure starts (in the listing timezone below).
-                    Example: 2 closes booking two hours before start.
+                    0 or blank = book until start (listing timezone). Example: 2 = closes two hours before.
                   </p>
                 </div>
                 <div>
