@@ -21,7 +21,12 @@ import SupplierAvailability from '../../pages/supplier/SupplierAvailability';
 import PartnerAuthPage from './PartnerAuthPage';
 import PartnerLandingPage from './PartnerLandingPage';
 import PartnerSidebar from './PartnerSidebar';
-import { PARTNER_MORE_GROUPS, PARTNER_SIDEBAR_FOOTER, PARTNER_SIDEBAR_PRIMARY } from '../../lib/partnerNav';
+import {
+  PARTNER_MORE_GROUPS,
+  PARTNER_SIDEBAR_FOOTER,
+  PARTNER_SIDEBAR_PRIMARY,
+  partnerSectionTitle,
+} from '../../lib/partnerNav';
 import {
   authUserHasPartnerSignupMetadata,
   ensureSupplierProfile,
@@ -277,6 +282,11 @@ export default function SupplierLayout() {
   const hadPartnerSessionRef = useRef(false);
   const partnerGateEpochRef = useRef(0);
   const [section, setSection] = useState<SupplierSection>(() => getSectionFromPath(window.location.pathname) ?? 'dashboard');
+
+  useEffect(() => {
+    document.title = `${partnerSectionTitle(section)} · Traverion Partner`;
+  }, [section]);
+
   const [payoutIban, setPayoutIban] = useState('');
   const [payoutBic, setPayoutBic] = useState('');
   const [payoutVerificationStatus, setPayoutVerificationStatus] = useState('');

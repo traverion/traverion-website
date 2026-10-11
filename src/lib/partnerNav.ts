@@ -4,6 +4,8 @@
  * Listing type (tour / stay) is chosen at Create, not as the permanent sidebar axis.
  * Labels, order, and submenu children live here so they can change without hunting JSX.
  * Mobile bottom tabs stay in PARTNER_PRIMARY_NAV_SECTION_IDS.
+ *
+ * Groups: daily operations (schedule/guests) sit above business configuration (money/growth/settings).
  */
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -21,6 +23,7 @@ import {
   Settings,
   Info,
   BedDouble,
+  Plus,
 } from 'lucide-react';
 
 export type PartnerNavSectionId =
@@ -85,10 +88,16 @@ export const PARTNER_NAV_HOME: PartnerNavItem = {
   icon: LayoutDashboard,
 };
 
+export const PARTNER_NAV_CALENDAR: PartnerNavItem = {
+  id: 'availability',
+  label: 'Calendar',
+  icon: CalendarDays,
+};
+
+/** Tour-day ops nested under Bookings (Calendar is a primary leaf — not nested). */
 export const PARTNER_NAV_BOOKINGS_CHILDREN: PartnerNavItem[] = [
   { id: 'bookings', label: 'Bookings', icon: Calendar },
-  { id: 'pickup', label: 'Manage pickups', icon: Car },
-  { id: 'availability', label: 'Availability', icon: CalendarDays },
+  { id: 'pickup', label: 'Pickups', icon: Car },
 ];
 
 /**
@@ -99,6 +108,10 @@ export const PARTNER_NAV_RESERVATIONS_CHILDREN: PartnerNavItem[] = [
   { id: 'reservations', label: 'Reservations', icon: BedDouble },
 ];
 
+/**
+ * Desktop sidebar — Create + daily ops, then guest/comms, then business, footer for account.
+ * Calendar is a leaf (matches mobile primary) so operators do not hunt under Bookings.
+ */
 export const PARTNER_SIDEBAR_PRIMARY: PartnerSidebarEntry[] = [
   { kind: 'action', id: 'create', label: 'Create listing' },
   { kind: 'item', id: 'dashboard', label: 'Home', icon: LayoutDashboard },
@@ -110,6 +123,7 @@ export const PARTNER_SIDEBAR_PRIMARY: PartnerSidebarEntry[] = [
     icon: Calendar,
     children: PARTNER_NAV_BOOKINGS_CHILDREN,
   },
+  { kind: 'item', id: 'availability', label: 'Calendar', icon: CalendarDays },
   { kind: 'item', id: 'reservations', label: 'Reservations', icon: BedDouble },
   { kind: 'item', id: 'inbox', label: 'Inbox', icon: MessageSquare },
   { kind: 'item', id: 'reviews', label: 'Reviews', icon: Star },
@@ -130,6 +144,31 @@ export const PARTNER_NAV_OFFERS: PartnerNavItem = {
   icon: Percent,
 };
 
+/** Canonical screen titles — keep heroes / document.title aligned with nav labels. */
+export const PARTNER_SECTION_TITLES: Record<PartnerNavSectionId, string> = {
+  dashboard: 'Home',
+  create: 'Create listing',
+  listings: 'Listings',
+  bookings: 'Bookings',
+  pickup: 'Pickups',
+  availability: 'Calendar',
+  reservations: 'Reservations',
+  inbox: 'Inbox',
+  reviews: 'Reviews',
+  discounts: 'Offers',
+  earnings: 'Income',
+  performance: 'Analytics',
+  help: 'Help',
+  'business-profile': 'Settings',
+  'account-settings': 'Account',
+  onboarding: 'Get ready',
+  'change-password': 'Password',
+};
+
+export function partnerSectionTitle(sectionId: string): string {
+  return PARTNER_SECTION_TITLES[sectionId as PartnerNavSectionId] ?? 'Partner';
+}
+
 export function partnerSidebarGroupContaining(
   sectionId: string,
   entries: readonly PartnerSidebarEntry[] = PARTNER_SIDEBAR_PRIMARY
@@ -144,15 +183,17 @@ export function partnerSidebarDefaultChild(group: PartnerSidebarGroup): PartnerN
   return group.children[0]!.id;
 }
 
-/** Mobile More sheet — same capabilities, grouped for a phone list. */
+/**
+ * Mobile More sheet — daily operate vs business vs account.
+ * Omits bottom-primary destinations (Home, Bookings, Listings, Calendar) to avoid duplicates.
+ */
 export const PARTNER_MORE_GROUPS: PartnerNavGroup[] = [
   {
     id: 'operate',
     label: 'Operate',
     items: [
-      PARTNER_NAV_HOME,
-      { id: 'listings', label: 'Listings', icon: MapPin },
-      ...PARTNER_NAV_BOOKINGS_CHILDREN,
+      { id: 'create', label: 'Create listing', icon: Plus },
+      { id: 'pickup', label: 'Pickups', icon: Car },
       ...PARTNER_NAV_RESERVATIONS_CHILDREN,
       { id: 'inbox', label: 'Inbox', icon: MessageSquare },
     ],
@@ -174,6 +215,7 @@ export const PARTNER_MORE_GROUPS: PartnerNavGroup[] = [
       { id: 'help', label: 'Help', icon: Info },
       { id: 'business-profile', label: 'Settings', icon: Settings },
       { id: 'account-settings', label: 'Account settings', icon: Settings },
+      { id: 'onboarding', label: 'Get ready', icon: Building2 },
     ],
   },
 ];
@@ -187,7 +229,7 @@ export const PARTNER_NAV_MANAGE = PARTNER_NAV_BOOKINGS_CHILDREN;
 /** @deprecated */
 export const PARTNER_NAV_LISTINGS: PartnerNavItem[] = [
   { id: 'listings', label: 'Listings', icon: MapPin },
-  { id: 'availability', label: 'Availability', icon: CalendarDays },
+  PARTNER_NAV_CALENDAR,
 ];
 
 /** @deprecated */
