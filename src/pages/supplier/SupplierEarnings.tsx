@@ -487,9 +487,9 @@ export default function SupplierEarnings() {
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
       <SupplierPageHero
-        badge="Insights"
+        badge="Business"
         title="Income"
-        description={`Gross bookings, Traverion commission, and your earnings. Eligible amounts enter the next payout cycle after the activity date — this page never invents a bank transfer. Guest checkout uses ${STRIPE_TEST_UNTIL_LIVE}.`}
+        description={`Gross bookings, Traverion commission, and your net earnings. Payout eligibility follows the activity date — this page never invents a bank transfer. Checkout uses ${STRIPE_TEST_UNTIL_LIVE}.`}
       />
 
       {error && (

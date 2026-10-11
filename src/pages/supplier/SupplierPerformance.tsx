@@ -224,10 +224,10 @@ export default function SupplierPerformance() {
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
       <SupplierPageHero
-        badge="Insights"
+        badge="Business"
         icon={TrendingUp}
         title="Analytics"
-        description="Paid traveler bookings only — same collected definition as Income. Not estimates, site traffic, or unpaid checkouts."
+        description="Paid traveler bookings only — same collected definition as Income. Not traffic, estimates, or unpaid checkouts."
         actions={
           <div className="flex items-center gap-1 rounded-md bg-paper p-1 ring-1 ring-black/[0.06]" role="tablist" aria-label="Time range">
             {WINDOW_OPTIONS.map((opt) => (
@@ -237,7 +237,7 @@ export default function SupplierPerformance() {
                 role="tab"
                 aria-selected={windowKey === opt.id}
                 onClick={() => setWindowAndUrl(opt.id)}
-                className={`lux-flat px-3 py-1.5 rounded-full text-sm font-medium transition-colors duration-150 ${
+                className={`lux-flat px-3 py-1.5 rounded-[var(--partner-radius,0.5rem)] text-sm font-medium transition-colors duration-150 ${
                   windowKey === opt.id
                     ? 'bg-finland text-white shadow-sm'
                     : 'text-ink-muted hover:bg-finland/10 hover:text-finland'

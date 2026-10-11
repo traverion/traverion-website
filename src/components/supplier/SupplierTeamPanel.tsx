@@ -140,11 +140,11 @@ export default function SupplierTeamPanel() {
   };
 
   return (
-    <div className="space-y-8 max-w-2xl">
+    <div className="space-y-5 max-w-2xl">
       <div>
-        <h2 className="font-display text-xl font-bold text-ink">Team</h2>
-        <p className="mt-1 text-sm text-ink-muted leading-relaxed">
-          People who can help run bookings, listings, and income for this supplier account.
+        <h2 className="font-display text-lg font-semibold text-ink">Team</h2>
+        <p className="mt-1 text-[13px] text-ink-muted leading-relaxed">
+          People who help run bookings, listings, and income for this account.
         </p>
       </div>
 
@@ -169,9 +169,12 @@ export default function SupplierTeamPanel() {
           <SkeletonListItem />
         </div>
       ) : members.length === 0 ? (
-        <NoticeCallout tone="info" title="No teammates yet">
-          Add someone by their Traverion user ID when they already have a partner login.
-        </NoticeCallout>
+        <div className="rounded-xl border border-dashed border-black/[0.1] bg-black/[0.015] px-4 py-5">
+          <p className="text-sm font-semibold text-ink">No teammates yet</p>
+          <p className="mt-1 text-[13px] leading-snug text-ink-muted">
+            Add someone by Traverion user ID after they have a partner login. Only owners can manage roles.
+          </p>
+        </div>
       ) : (
         <ul className="divide-y divide-black/[0.06] rounded-xl border border-black/[0.06] bg-paper overflow-hidden">
           {members.map((m) => {

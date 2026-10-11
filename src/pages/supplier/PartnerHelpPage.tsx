@@ -10,8 +10,9 @@ export default function PartnerHelpPage() {
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
       <SupplierPageHero
+        badge="Account"
         title="Help"
-        description="Traverion Partner support for your listings, bookings, payouts, and verification."
+        description="Support for listings, bookings, payouts, and verification — real contact paths only."
       />
 
       <div className="max-w-xl space-y-3">
