@@ -3734,70 +3734,70 @@ export default function SupplierListingForm({
               accountReason: publishAccountBlockedReason,
             });
             return (
-            <div id="supplier-listing-field-review" className="space-y-6">
+            <div id="supplier-listing-field-review" className="space-y-4">
               <div>
-                <h3 className="font-display text-[1.65rem] font-semibold leading-[1.15] tracking-tight text-ink sm:text-[1.85rem]">
+                <h3 className="partner-page-title font-display text-[1.35rem] sm:text-[1.45rem]">
                   Preview & publish
                 </h3>
                 {form.title.trim() ? (
-                  <p className="mt-2 max-w-xl font-display text-lg font-semibold leading-snug tracking-tight text-ink [overflow-wrap:anywhere]">
+                  <p className="mt-1.5 max-w-xl text-[15px] font-semibold leading-snug tracking-tight text-ink [overflow-wrap:anywhere]">
                     {form.title.trim()}
                   </p>
                 ) : null}
-                <p className="mt-1.5 max-w-xl text-[13.5px] leading-relaxed text-ink-muted">
+                <p className="partner-section-desc mt-1">
                   {[form.city.trim(), form.country.trim()].filter(Boolean).join(', ') ||
-                    (isStayForm ? 'Check readiness, then save draft or publish.' : 'Check readiness, then save draft or publish.')}
+                    'Check readiness, then save draft or publish.'}
                 </p>
               </div>
               {truth.bannerTitle ? (
-                <div className="rounded-xl border border-amber-200/80 bg-amber-50/50 px-4 py-3.5" role="status">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-900/70">Publish status</p>
-                  <p className="mt-1 font-display text-lg font-semibold tracking-tight text-ink">{truth.bannerTitle}</p>
-                  <p className="mt-1 max-w-xl text-[13px] leading-relaxed text-ink-muted">{truth.bannerBody}</p>
+                <div className="rounded-[var(--partner-radius,0.5rem)] border border-amber-200/80 bg-amber-50/50 px-3.5 py-3" role="status">
+                  <p className="partner-label text-amber-900/70">Publish status</p>
+                  <p className="mt-1 text-[15px] font-semibold tracking-tight text-ink">{truth.bannerTitle}</p>
+                  <p className="mt-1 max-w-xl partner-meta">{truth.bannerBody}</p>
                   <a
                     href={`${PARTNER_APP_BASE}/business-profile`}
-                    className="mt-2 inline-flex min-h-10 items-center text-sm font-semibold text-finland hover:underline"
+                    className="mt-2 inline-flex min-h-10 items-center text-[13px] font-semibold text-finland hover:underline"
                   >
                     Go to Settings
                   </a>
                 </div>
               ) : null}
-              <ul className="divide-y divide-black/[0.08] rounded-xl border border-black/[0.08] px-3.5">
+              <ul className="divide-y divide-black/[0.07] rounded-[var(--partner-radius,0.5rem)] border border-black/[0.08] px-3">
                 {reviewRows.map((row) => (
-                  <li key={row.label} className="flex flex-wrap items-start justify-between gap-3 py-3.5">
+                  <li key={row.label} className="flex flex-wrap items-start justify-between gap-2 py-2.5">
                     <div className="min-w-0 max-w-xl">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">{row.label}</p>
-                      <p className="mt-0.5 text-[15px] font-medium leading-snug text-ink [overflow-wrap:anywhere]">{row.summary}</p>
-                      <p className={`mt-0.5 text-[13px] ${row.ready ? 'text-finland' : 'text-amber-800'}`}>
+                      <p className="partner-label">{row.label}</p>
+                      <p className="mt-0.5 text-[14px] font-medium leading-snug text-ink [overflow-wrap:anywhere]">{row.summary}</p>
+                      <p className={`mt-0.5 text-[12px] ${row.ready ? 'text-finland' : 'text-amber-800'}`}>
                         {row.ready ? 'Complete' : row.missing || 'Needs attention'}
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={() => setStepIdxPersisted(row.step)}
-                      className="tv-btn-ghost shrink-0 !min-h-10"
+                      className="tv-btn-ghost shrink-0"
                     >
                       {row.ready ? 'Edit' : 'Fix'}
                     </button>
                   </li>
                 ))}
               </ul>
-              <div className="space-y-2">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">Publish status</p>
-                <p className="text-base leading-relaxed text-ink">{truth.listingLine}</p>
+              <div className="space-y-1.5">
+                <p className="partner-label">Publish status</p>
+                <p className="text-[14px] leading-snug text-ink">{truth.listingLine}</p>
                 {truth.accountLine ? (
-                  <p className="text-sm leading-relaxed text-ink-muted">{truth.accountLine}</p>
+                  <p className="partner-meta">{truth.accountLine}</p>
                 ) : listingReady ? (
-                  <p className="text-sm leading-relaxed text-ink-muted">
+                  <p className="partner-meta">
                     {form.status === 'published'
-                      ? 'This listing is live. Save changes from the footer when you are done.'
-                      : 'Your account can publish when you choose Publish in the footer.'}
+                      ? 'Live listing — save changes from the footer when done.'
+                      : 'Ready to publish from the footer when you choose.'}
                   </p>
                 ) : (
-                  <p className="text-sm leading-relaxed text-ink-muted">You can keep this as a draft until it is ready.</p>
+                  <p className="partner-meta">Keep as draft until ready.</p>
                 )}
                 {!canPostNewListing ? (
-                  <p className="text-sm text-ink-muted">
+                  <p className="partner-meta">
                     Publish stays unavailable until verification is complete. Draft save still works.
                   </p>
                 ) : null}

@@ -20,9 +20,9 @@ import { ListingCreationIdentityPreview } from './ListingCreationIdentityPreview
 import { ListingCreationSceneFrame } from './ListingCreationSceneFrame';
 
 const SCENE_SUPPORT: Record<TourBasicsSceneId, string> = {
-  product_type: 'Choose the product travelers are actually booking.',
-  identity: 'The name guests see first, and the language they will hear.',
-  story: 'Write the experience in your own words. Difficulty and guest notes sit here too.',
+  product_type: 'What travelers are booking.',
+  identity: 'Title and guide language guests see first.',
+  story: 'Description, highlights, and guest notes.',
 };
 
 type VenueSetting = 'unspecified' | 'indoor' | 'outdoor' | 'mixed';

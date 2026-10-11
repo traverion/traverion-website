@@ -354,19 +354,19 @@ export default function ListingImageFields({
             const files = e.dataTransfer.files ? Array.from(e.dataTransfer.files) : [];
             if (files.length) void ingestFiles(files, null);
           }}
-          className={`lc-upload flex min-h-[12rem] w-full flex-col items-center justify-center gap-2.5 rounded-xl px-5 py-8 text-center transition-colors disabled:opacity-40 sm:min-h-[13.5rem] ${
+          className={`lc-upload flex min-h-[9rem] w-full flex-col items-center justify-center gap-2 rounded-[var(--partner-radius,0.5rem)] px-4 py-6 text-center transition-colors disabled:opacity-40 sm:min-h-[10rem] ${
             dropActive ? 'lc-upload--active' : ''
           }`}
         >
-          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-finland/10 text-finland">
-            <ImagePlus className="h-5 w-5" strokeWidth={1.75} aria-hidden />
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-finland/10 text-finland">
+            <ImagePlus className="h-4 w-4" strokeWidth={1.85} aria-hidden />
           </span>
-          <span className="font-display text-lg font-semibold tracking-tight text-ink">
+          <span className="text-[0.95rem] font-semibold tracking-tight text-ink">
             {busy ? 'Uploading…' : 'Upload photos'}
           </span>
-          <span className="max-w-sm text-[13px] leading-relaxed text-ink-muted">
+          <span className="max-w-sm partner-meta">
             Drag and drop or browse. First photo is the cover.
-            <span className="mt-1 block tabular-nums text-xs">
+            <span className="mt-0.5 block tabular-nums">
               {LISTING_PHOTO_MIN}–{LISTING_PHOTO_MAX} photos · up to {LISTING_IMAGE_MAX_MB} MB each
             </span>
           </span>

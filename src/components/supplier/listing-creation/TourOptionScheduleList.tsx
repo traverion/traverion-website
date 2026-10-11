@@ -48,20 +48,19 @@ export function TourOptionScheduleList({
   const canAdd = prereq.length === 0;
 
   return (
-    <div id="supplier-listing-field-option-schedules" className="space-y-5">
-      <p className="max-w-xl text-sm leading-relaxed text-ink-muted">
-        Each schedule is a date window with its own operating days
+    <div id="supplier-listing-field-option-schedules" className="space-y-3">
+      <p className="partner-section-desc max-w-xl">
+        Date window
         {option.startMode === 'flexible' ? '' : ', start time'}
-        , capacity, and price. Add as many as you need — for example one for September and another for October.
+        , capacity, and price per schedule. Add separate windows for different seasons if needed.
       </p>
       {!canAdd ? (
-        <div className="rounded-2xl border border-amber-200/80 bg-amber-50/80 px-5 py-4 text-sm text-amber-950">
-          <p className="font-semibold text-amber-900">Schedules are locked until Setup is finished</p>
-          <p className="mt-2 leading-relaxed">
-            Each schedule asks for a price and a start time, and the right fields depend on two Setup choices: how
-            you charge and whether departures have a fixed start time.
+        <div className="rounded-[var(--partner-radius,0.5rem)] border border-amber-200/80 bg-amber-50/70 px-3.5 py-3 text-[13px] text-amber-950">
+          <p className="font-semibold text-amber-900">Finish Setup before adding schedules</p>
+          <p className="mt-1 leading-snug text-amber-900/90">
+            Charge model and start-time mode decide which price and time fields appear.
           </p>
-          <ul className="mt-2 list-disc space-y-1 pl-5">
+          <ul className="mt-1.5 list-disc space-y-0.5 pl-4">
             {prereq.map((line) => (
               <li key={line}>{line}</li>
             ))}
@@ -69,22 +68,24 @@ export function TourOptionScheduleList({
         </div>
       ) : null}
       {rows.length === 0 ? (
-        <div className="lc-section rounded-xl px-4 py-6 text-center sm:px-6">
-          <p className="font-display text-lg font-semibold text-ink">No schedules yet</p>
-          <p className="mx-auto mt-1.5 max-w-sm text-[13px] leading-relaxed text-ink-muted">
+        <div className="partner-empty items-center text-center sm:px-6">
+          <p className="partner-empty__title">No schedules yet</p>
+          <p className="partner-empty__body mx-auto text-center">
             {canAdd
-              ? 'Add a schedule with dates, start time, capacity, and price.'
-              : 'Finish Setup first — charge model and start-time mode unlock Add schedule.'}
+              ? 'Add dates, start time, capacity, and price.'
+              : 'Complete Setup to unlock Add schedule.'}
           </p>
-          <button
-            type="button"
-            onClick={onAdd}
-            className="tv-btn-primary mt-4 !min-h-10"
-            disabled={!canAdd}
-            title={canAdd ? undefined : 'Complete Setup before adding a schedule'}
-          >
-            {canAdd ? 'Add schedule' : 'Setup incomplete'}
-          </button>
+          <div className="partner-empty__actions justify-center">
+            <button
+              type="button"
+              onClick={onAdd}
+              className="tv-btn-primary"
+              disabled={!canAdd}
+              title={canAdd ? undefined : 'Complete Setup before adding a schedule'}
+            >
+              {canAdd ? 'Add schedule' : 'Setup incomplete'}
+            </button>
+          </div>
         </div>
       ) : (
         rows.map((s, index) => {
@@ -92,26 +93,24 @@ export function TourOptionScheduleList({
           const pending = pendingDeleteId === s.id;
           const occupancyNotice = pending ? occupancyNoticeForSchedule?.(s) ?? null : null;
           return (
-            <article key={s.id} className="lc-tile rounded-xl px-4 py-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0 space-y-1">
+            <article key={s.id} className="lc-tile rounded-[var(--partner-radius,0.5rem)] px-3 py-3">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0 space-y-0.5">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-sm font-bold text-ink">{scheduleHeadlineName(s, index)}</h3>
+                    <h3 className="text-[13px] font-semibold tracking-tight text-ink">{scheduleHeadlineName(s, index)}</h3>
                     {status === 'ready' ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-finland">
+                      <span className="inline-flex items-center gap-1 partner-label text-finland">
                         <Check className="h-3 w-3" strokeWidth={2.5} aria-hidden />
                         Ready
                       </span>
                     ) : (
-                      <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
-                        Draft
-                      </span>
+                      <span className="partner-label">Draft</span>
                     )}
                   </div>
-                  <p className="text-sm text-ink">
+                  <p className="text-[13px] font-medium text-ink">
                     {formatScheduleRange(s.availabilityDateFrom, s.availabilityDateTo) || 'Dates not set'}
                   </p>
-                  <p className="text-sm text-ink-muted">
+                  <p className="partner-meta">
                     {[
                       formatScheduleWeekdays(s.weekdays),
                       s.startTime.trim() || (option.startMode === 'flexible' ? 'Flexible hours' : null),
@@ -119,31 +118,27 @@ export function TourOptionScheduleList({
                       .filter(Boolean)
                       .join(' · ')}
                   </p>
-                  <p className="text-sm text-ink">{summarizeOptionPricing(s, formatAmount)}</p>
-                  <p className="text-xs text-ink-muted">Max {s.maxSpotsPerSlot} travelers</p>
+                  <p className="text-[13px] font-semibold tabular-nums text-ink">{summarizeOptionPricing(s, formatAmount)}</p>
+                  <p className="partner-meta">Max {s.maxSpotsPerSlot} travelers</p>
                   {occupancyNotice ? (
-                    <p className="mt-2 text-sm leading-relaxed text-ink" role="status">
+                    <p className="mt-1.5 text-[13px] leading-snug text-ink" role="status">
                       {occupancyNotice}
                     </p>
                   ) : null}
                 </div>
-                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <div className="flex flex-wrap items-center gap-1.5 shrink-0">
                   {pending ? (
                     <>
                       <button type="button" onClick={onCancelDelete} className="tv-btn-ghost">
                         Keep
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => onDelete(s.id)}
-                        className="lc-btn-danger inline-flex min-h-[44px] items-center rounded-lg px-3 py-2 text-xs font-medium"
-                      >
+                      <button type="button" onClick={() => onDelete(s.id)} className="partner-btn-danger lux-flat">
                         Delete schedule
                       </button>
                     </>
                   ) : (
                     <>
-                      <button type="button" onClick={() => onEdit(s.id)} className="tv-btn-secondary !min-h-11">
+                      <button type="button" onClick={() => onEdit(s.id)} className="tv-btn-secondary inline-flex items-center gap-1">
                         <Pencil className="h-3.5 w-3.5" aria-hidden />
                         Edit
                       </button>
@@ -152,7 +147,7 @@ export function TourOptionScheduleList({
                         onClick={() => onDuplicate(s.id)}
                         disabled={!canAdd}
                         title={canAdd ? undefined : 'Finish Setup first (how you charge and start time style).'}
-                        className="tv-btn-ghost !min-h-11 disabled:opacity-50"
+                        className="tv-btn-ghost inline-flex items-center gap-1 disabled:opacity-50"
                       >
                         <Copy className="h-3.5 w-3.5" aria-hidden />
                         Duplicate
@@ -160,7 +155,7 @@ export function TourOptionScheduleList({
                       <button
                         type="button"
                         onClick={() => onDelete(s.id)}
-                        className="lc-btn-danger inline-flex min-h-[44px] items-center gap-1 rounded-lg px-3 py-2 text-xs font-medium"
+                        className="partner-btn-danger lux-flat inline-flex items-center gap-1"
                       >
                         <Trash2 className="h-3.5 w-3.5" aria-hidden />
                         Delete
@@ -177,10 +172,11 @@ export function TourOptionScheduleList({
         <button
           type="button"
           onClick={onAdd}
-          className="lc-upload inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl px-4 py-4 text-sm font-semibold text-finland"
+          disabled={!canAdd}
+          className="lc-upload inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-[var(--partner-radius,0.5rem)] px-3 py-2.5 text-[13px] font-semibold text-finland disabled:opacity-50"
         >
-          <Plus className="h-5 w-5 shrink-0" aria-hidden />
-          {canAdd ? 'Add schedule' : 'Go to Setup to unlock schedules'}
+          <Plus className="h-4 w-4 shrink-0" aria-hidden />
+          {canAdd ? 'Add schedule' : 'Finish Setup to unlock'}
         </button>
       ) : null}
     </div>
