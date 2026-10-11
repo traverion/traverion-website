@@ -592,26 +592,33 @@ export default function SupplierDashboard() {
 
   return (
     <div className={`${SUPPLIER_PAGE_CLASS} partner-home motion-safe:animate-fade-in`}>
-      <header className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <header className="mb-4 flex flex-col gap-2.5 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
-          <p className="mb-1 text-[11px] font-medium tracking-[0.16em] text-slate-400">{dateLabel}</p>
-          <h1 className="font-display text-[1.5rem] sm:text-[1.625rem] font-semibold leading-tight tracking-tight text-slate-900">
+          <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">{dateLabel}</p>
+          <h1 className="font-display text-[1.45rem] sm:text-[1.55rem] font-semibold leading-tight tracking-tight text-slate-900">
             {firstName ? `${hello}, ${firstName}` : hello}
           </h1>
-          <p className="mt-1 max-w-xl text-[13.5px] leading-relaxed text-slate-500">{greetingSub}</p>
+          <p className="mt-1 max-w-xl text-[13px] leading-relaxed text-slate-500">{greetingSub}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 self-start sm:self-end">
           <button
             type="button"
             onClick={() => openSupplierCalendar(calendarFocusListingId)}
-            className="partner-btn-secondary lux-flat inline-flex min-h-11 items-center rounded-md border border-slate-200/90 bg-white px-3.5 text-[13px] font-medium text-slate-600 hover:border-slate-300 hover:bg-white hover:text-slate-900"
+            className="partner-btn-secondary lux-flat inline-flex min-h-10 items-center rounded-md border border-slate-200/90 bg-white px-3 text-[13px] font-medium text-slate-600 hover:border-slate-300 hover:bg-white hover:text-slate-900"
           >
-            Availability
+            Calendar
+          </button>
+          <button
+            type="button"
+            onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings`)}
+            className="partner-btn-secondary lux-flat inline-flex min-h-10 items-center rounded-md border border-slate-200/90 bg-white px-3 text-[13px] font-medium text-slate-600 hover:border-slate-300 hover:bg-white hover:text-slate-900"
+          >
+            Bookings
           </button>
           <button
             type="button"
             onClick={() => navigateSupplierUrl(PARTNER_CREATE_PATH)}
-            className="partner-btn-primary lux-flat inline-flex min-h-11 items-center rounded-md bg-finland px-3.5 text-[13px] font-semibold text-white hover:bg-finland-dark md:hidden"
+            className="partner-btn-primary lux-flat inline-flex min-h-10 items-center rounded-md bg-finland px-3 text-[13px] font-semibold text-white hover:bg-finland-dark"
           >
             New listing
           </button>
@@ -642,10 +649,10 @@ export default function SupplierDashboard() {
         </div>
       ) : null}
 
-      <section className="partner-metric-grid mb-6" aria-label="Today at a glance">
-        <div className="partner-surface-panel px-4 py-3.5">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Today’s bookings</p>
-          <p className="mt-1.5 font-display text-[1.5rem] font-semibold tabular-nums tracking-tight text-slate-900 leading-none">
+      <section className="partner-metric-grid mb-4" aria-label="Today at a glance">
+        <div className="partner-surface-panel px-3.5 py-3">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Today’s bookings</p>
+          <p className="mt-1 font-display text-[1.35rem] font-semibold tabular-nums tracking-tight text-slate-900 leading-none">
             {dashboardLoading && publishedListingsCount === null
               ? '—'
               : bookingsLoadFailed
@@ -653,20 +660,16 @@ export default function SupplierDashboard() {
                 : todayDepartures.length}
           </p>
         </div>
-        <div className="partner-surface-panel px-4 py-3.5">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Today’s guests</p>
-          <p className="mt-1.5 font-display text-[1.5rem] font-semibold tabular-nums tracking-tight text-slate-900 leading-none">
-            {dashboardLoading && publishedListingsCount === null
-              ? '—'
-              : bookingsLoadFailed
-                ? '—'
-                : todayGuestTotal}
+        <div className="partner-surface-panel px-3.5 py-3">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Live listings</p>
+          <p className="mt-1 font-display text-[1.35rem] font-semibold tabular-nums tracking-tight text-slate-900 leading-none">
+            {dashboardLoading && publishedListingsCount === null ? '—' : publishedListingsCount ?? 0}
           </p>
         </div>
-        <div className="partner-surface-panel px-4 py-3.5">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Unread messages</p>
+        <div className="partner-surface-panel px-3.5 py-3">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Unread</p>
           <p
-            className={`mt-1.5 font-display text-[1.5rem] font-semibold tabular-nums tracking-tight leading-none ${
+            className={`mt-1 font-display text-[1.35rem] font-semibold tabular-nums tracking-tight leading-none ${
               (unreadMessageCount ?? 0) > 0 ? 'text-finland' : 'text-slate-900'
             }`}
           >
@@ -677,10 +680,10 @@ export default function SupplierDashboard() {
                 : unreadMessageCount}
           </p>
         </div>
-        <div className="partner-surface-panel px-4 py-3.5">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Needs attention</p>
+        <div className="partner-surface-panel px-3.5 py-3">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Needs attention</p>
           <p
-            className={`mt-1.5 font-display text-[1.5rem] font-semibold tabular-nums tracking-tight leading-none ${
+            className={`mt-1 font-display text-[1.35rem] font-semibold tabular-nums tracking-tight leading-none ${
               attentionCount > 0 ? 'text-amber-700' : 'text-slate-900'
             }`}
           >
@@ -887,7 +890,7 @@ export default function SupplierDashboard() {
               ? `${todayDepartures.length} booking${todayDepartures.length === 1 ? '' : 's'} · ${todayGuestTotal} guest${todayGuestTotal === 1 ? '' : 's'}`
               : undefined
           }
-          action={<TextLink onClick={() => openSupplierCalendar(calendarFocusListingId)}>Availability →</TextLink>}
+          action={<TextLink onClick={() => openSupplierCalendar(calendarFocusListingId)}>Calendar →</TextLink>}
         />
         {dashboardLoading && publishedListingsCount === null ? (
           <SupplierListSkeleton rows={3} />
@@ -920,7 +923,7 @@ export default function SupplierDashboard() {
                 onClick={() => openSupplierCalendar(calendarFocusListingId)}
                 className="partner-btn-secondary lux-flat shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-[12px] font-semibold text-slate-700 hover:bg-slate-50"
               >
-                Availability
+                Open calendar
               </button>
             ) : null}
           </div>
@@ -1111,7 +1114,7 @@ export default function SupplierDashboard() {
           <SectionHead
             title="Next 7 days"
             action={
-              <TextLink onClick={() => openSupplierCalendar()}>Availability →</TextLink>
+              <TextLink onClick={() => openSupplierCalendar()}>Calendar →</TextLink>
             }
           />
           {bookingsLoadFailed ? (
