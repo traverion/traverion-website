@@ -148,21 +148,20 @@ export function TourBasicsGuidedScenes({
                 : 'max-w-xl'
             }
           >
-          <div className="max-w-xl space-y-7">
+          <div className="max-w-xl space-y-5">
             <div id="supplier-listing-field-title">
               <label htmlFor="supplier-listing-title" className="mb-1 block text-sm font-semibold text-ink">
                 Title *
               </label>
-              <p className="mb-2 text-xs text-ink-muted">
-                A clear, specific name travelers will see in search and on the listing page (at least{' '}
-                {MIN_LISTING_TITLE_LENGTH} characters).
+              <p className="mb-1.5 text-xs text-ink-muted">
+                Search and listing headline · min {MIN_LISTING_TITLE_LENGTH} characters
               </p>
               <input
                 id="supplier-listing-title"
                 type="text"
                 value={form.title}
                 onChange={(e) => onChange({ title: e.target.value })}
-                className="tv-input min-w-0 py-3 text-lg [overflow-wrap:anywhere]"
+                className="tv-input min-w-0 py-2.5 text-base [overflow-wrap:anywhere]"
                 placeholder="e.g. Guaranteed Northern Lights Tour"
                 minLength={MIN_LISTING_TITLE_LENGTH}
                 required
@@ -172,16 +171,14 @@ export function TourBasicsGuidedScenes({
               <label htmlFor="supplier-listing-subtitle" className="mb-1 block text-sm font-semibold text-ink">
                 Subtitle *
               </label>
-              <p className="mb-2 text-xs text-ink-muted">
-                A short line under the title on the listing page (max {TOUR_BASICS_SUBTITLE_MAX} characters).
-              </p>
+              <p className="mb-1.5 text-xs text-ink-muted">One line under the title · max {TOUR_BASICS_SUBTITLE_MAX}</p>
               <textarea
                 id="supplier-listing-subtitle"
                 value={form.subtitle}
                 maxLength={TOUR_BASICS_SUBTITLE_MAX}
                 onChange={(e) => onChange({ subtitle: e.target.value.slice(0, TOUR_BASICS_SUBTITLE_MAX) })}
-                rows={3}
-                className="tv-input min-h-[5.5rem] min-w-0 resize-y [overflow-wrap:anywhere]"
+                rows={2}
+                className="tv-input min-h-[4rem] min-w-0 resize-y [overflow-wrap:anywhere]"
               />
               <p className="mt-1 text-xs tabular-nums text-ink-muted">
                 {form.subtitle.length}/{TOUR_BASICS_SUBTITLE_MAX}
@@ -191,7 +188,6 @@ export function TourBasicsGuidedScenes({
               <label htmlFor="supplier-listing-experience-language" className="mb-1 block text-sm font-semibold text-ink">
                 Primary language *
               </label>
-              <p className="mb-2 text-xs text-ink-muted">The main language guests hear during the tour.</p>
               <PartnerSelect
                 id="supplier-listing-experience-language"
                 value={form.experienceLanguage}
@@ -220,17 +216,16 @@ export function TourBasicsGuidedScenes({
             <label htmlFor="supplier-listing-description" className="mb-1 block text-sm font-semibold text-ink">
               About this tour *
             </label>
-            <p className="mb-2 text-xs text-ink-muted">
-              Main description for guests (at least {MIN_LISTING_DESCRIPTION_LENGTH} characters to continue, max{' '}
-              {TOUR_BASICS_DESCRIPTION_MAX}).
+            <p className="mb-1.5 text-xs text-ink-muted">
+              Full description · {MIN_LISTING_DESCRIPTION_LENGTH}–{TOUR_BASICS_DESCRIPTION_MAX} characters
             </p>
             <textarea
               id="supplier-listing-description"
               value={form.description}
               maxLength={TOUR_BASICS_DESCRIPTION_MAX}
               onChange={(e) => onChange({ description: e.target.value.slice(0, TOUR_BASICS_DESCRIPTION_MAX) })}
-              rows={9}
-              className={`tv-input min-h-[12rem] break-words text-base leading-relaxed [overflow-wrap:anywhere] ${
+              rows={6}
+              className={`tv-input min-h-[9rem] break-words text-[15px] leading-relaxed [overflow-wrap:anywhere] ${
                 form.description.trim().length > 0 &&
                 form.description.trim().length < MIN_LISTING_DESCRIPTION_LENGTH
                   ? 'border-amber-300 focus:border-amber-400 focus:ring-amber-200'
@@ -259,12 +254,10 @@ export function TourBasicsGuidedScenes({
               </p>
             ) : null}
           </div>
-          <div id="supplier-listing-field-highlights" className="space-y-3">
+          <div id="supplier-listing-field-highlights" className="space-y-2.5">
             <div>
               <label className="block text-sm font-semibold text-ink">Highlights (optional)</label>
-              <p className="mt-1 text-xs text-ink-muted">
-                Add the strongest reasons travelers should choose this tour. You can add up to {TOUR_HIGHLIGHT_MAX}.
-              </p>
+              <p className="mt-0.5 text-xs text-ink-muted">Up to {TOUR_HIGHLIGHT_MAX} short selling points</p>
             </div>
             {form.highlights.map((line, index) => (
               <div key={`highlight-${index}`}>
@@ -311,10 +304,9 @@ export function TourBasicsGuidedScenes({
             ) : null}
           </div>
           <div id="supplier-listing-field-difficulty">
-            <label htmlFor="supplier-listing-difficulty" className="mb-1 block text-sm font-semibold text-ink">
+            <label htmlFor="supplier-listing-difficulty" className="mb-1.5 block text-sm font-semibold text-ink">
               Overall difficulty
             </label>
-            <p className="mb-2 text-xs text-ink-muted">How demanding this tour feels for a typical guest.</p>
             <PartnerSelect
               id="supplier-listing-difficulty"
               value={form.difficulty}

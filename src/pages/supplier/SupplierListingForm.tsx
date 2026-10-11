@@ -1155,10 +1155,10 @@ export default function SupplierListingForm({
     }
     return [
       { id: 'the_experience' as StepId, label: 'Basics' },
-      { id: 'practical' as StepId, label: 'Details' },
+      { id: 'practical' as StepId, label: 'Experience' },
       { id: 'cost_options' as StepId, label: 'Options' },
       { id: 'photos' as StepId, label: 'Photos' },
-      { id: 'review' as StepId, label: 'Review' },
+      { id: 'review' as StepId, label: 'Preview' },
     ];
   }, [form.inventoryFamily, createFamily]);
 
@@ -1175,11 +1175,11 @@ export default function SupplierListingForm({
       ] as const;
     }
     return [
-      'Name this listing, choose the language you run it in, and pick a category.',
-      'What guests get, where it happens, and how it starts. Booking cutoff stays here.',
-      'Options are versions of this experience (pickup, time, private). Age prices live inside each option.',
+      'Product type, title, language, and the story travelers see first.',
+      'Inclusions, meeting or pickup, and practical rules before booking.',
+      'Booking options with pricing and schedules. Each option can stand alone.',
       'Cover photo first, then supporting shots travelers swipe through.',
-      'Check what’s ready, fix gaps, then save as draft or publish.',
+      'Review readiness, then save as draft or publish when Traverion verification allows.',
     ] as const;
   }, [form.inventoryFamily, createFamily]);
 
@@ -2674,6 +2674,12 @@ export default function SupplierListingForm({
       : 'Create tour steps';
   const creationNavItems = listingCreationNavItems(steps, stepIdx, (idx) => isStepSatisfied(idx, form), {
     isNewCreation: sessionOpenedAsCreateRef.current === true,
+    summaryForIndex: (idx) => {
+      const row = reviewRows.find((r) => r.step === idx);
+      if (!row) return null;
+      if (row.ready) return row.summary;
+      return row.missing;
+    },
   });
   const creationProgressCopy = listingCreationProgressCopy(
     steps.filter((_, idx) => isStepSatisfied(idx, form)).length,

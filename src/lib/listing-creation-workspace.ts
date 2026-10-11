@@ -12,6 +12,8 @@ export type ListingCreationNavItem = {
   id: string;
   label: string;
   state: ListingCreationStepState;
+  /** Short operator summary when the step has content (shown under the state caption). */
+  summary?: string | null;
 };
 
 /** Nested object editor nav. Supply only when a real nested workflow exists. */
@@ -39,17 +41,24 @@ export function listingCreationNavItems(
   steps: readonly { id: string; label: string }[],
   currentIndex: number,
   isSatisfied: (index: number) => boolean,
-  options?: { isNewCreation?: boolean }
+  options?: {
+    isNewCreation?: boolean;
+    summaryForIndex?: (index: number) => string | null | undefined;
+  }
 ): ListingCreationNavItem[] {
   const isNewCreation = options?.isNewCreation === true;
-  return steps.map((step, index) => ({
-    id: step.id,
-    label: step.label,
-    state: listingCreationAccessState({
-      index,
-      currentIndex,
-      isNewCreation,
-      isSatisfied,
-    }),
-  }));
+  return steps.map((step, index) => {
+    const summary = options?.summaryForIndex?.(index)?.trim() || null;
+    return {
+      id: step.id,
+      label: step.label,
+      state: listingCreationAccessState({
+        index,
+        currentIndex,
+        isNewCreation,
+        isSatisfied,
+      }),
+      summary: summary || null,
+    };
+  });
 }

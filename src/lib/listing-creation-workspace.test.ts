@@ -74,4 +74,18 @@ describe('listingCreationNavItems', () => {
       'locked',
     ]);
   });
+
+  it('attaches collapsed section summaries for non-current steps', () => {
+    const items = listingCreationNavItems(
+      [
+        { id: 'the_experience', label: 'Basics' },
+        { id: 'practical', label: 'Experience' },
+      ],
+      1,
+      (index) => index === 0,
+      { summaryForIndex: (index) => (index === 0 ? 'Northern Lights Tour' : 'Add meeting point') }
+    );
+    expect(items[0]?.summary).toBe('Northern Lights Tour');
+    expect(items[1]?.summary).toBe('Add meeting point');
+  });
 });
