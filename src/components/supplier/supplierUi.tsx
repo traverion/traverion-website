@@ -125,7 +125,7 @@ export function SupplierListSkeleton({ rows = 3 }: { rows?: number }) {
       {Array.from({ length: rows }, (_, i) => (
         <div
           key={i}
-          className="h-20 rounded-xl bg-paper-raised ring-1 ring-black/[0.06]"
+          className="h-[4.25rem] rounded-[var(--partner-radius,0.5rem)] bg-[color:var(--partner-surface,#fff)] ring-1 ring-[color:var(--partner-border,rgba(15,23,42,0.08))]"
         />
       ))}
     </div>

@@ -133,7 +133,7 @@ export default function PartnerSelect({
         aria-label={ariaLabel}
         aria-labelledby={ariaLabelledBy}
         aria-invalid={ariaInvalid}
-        className={`partner-select__trigger tv-input flex min-h-11 w-full items-center justify-between gap-2 text-left disabled:cursor-not-allowed disabled:opacity-50 ${
+        className={`partner-select__trigger tv-input flex min-h-10 w-full items-center justify-between gap-2 px-3 py-2 text-[13.5px] text-left transition-[box-shadow,border-color,background-color] duration-150 disabled:cursor-not-allowed disabled:opacity-50 ${
           open ? 'partner-select__trigger--open' : ''
         } ${!selected ? 'text-ink-muted' : 'text-ink'}`}
         onClick={() => {

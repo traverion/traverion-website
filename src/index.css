@@ -74,6 +74,31 @@ body {
     border-radius: var(--partner-radius);
   }
 
+  .partner-app-shell .tv-btn-primary,
+  .partner-app-shell .tv-btn-secondary {
+    min-height: 2.5rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+  }
+
+  .partner-app-shell .tv-btn-ghost {
+    min-height: 2.25rem;
+    border-radius: var(--partner-radius);
+  }
+
+  .partner-app-shell .tv-input:focus-visible,
+  .partner-app-shell .partner-select__trigger:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--partner-accent) 55%, transparent);
+    outline-offset: 2px;
+  }
+
+  .partner-app-shell .tv-status-chip {
+    font-size: 0.6875rem;
+    letter-spacing: 0.02em;
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.375rem;
+  }
+
   .partner-app-shell .tv-btn-secondary {
     background: var(--partner-surface);
     color: var(--partner-ink);
@@ -100,6 +125,14 @@ body {
     color: var(--partner-ink);
     border-radius: var(--partner-radius);
     box-shadow: 0 0 0 1px var(--partner-border);
+    min-height: 2.5rem;
+    font-size: 0.875rem;
+  }
+
+  .partner-app-shell .partner-select__menu {
+    background: var(--partner-surface);
+    border-color: var(--partner-border);
+    border-radius: var(--partner-radius);
   }
 
   .partner-app-shell .tv-sheet-panel {
