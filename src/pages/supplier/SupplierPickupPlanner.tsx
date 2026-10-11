@@ -1181,8 +1181,8 @@ export default function SupplierPickupPlanner() {
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
       <SupplierPageHero
-        badge="Operations"
-        title="Pickup"
+        badge="Operate"
+        title="Pickups"
         description="Who needs pickup, what’s missing, and what to export for the day."
         actions={
           !loading && listBookings.length > 0 ? (

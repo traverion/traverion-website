@@ -5,10 +5,19 @@ import EmptyState from '../EmptyState';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 /** Full-width supplier portal pages — fills the main column on desktop, fluid on mobile. */
-export const SUPPLIER_PAGE_CLASS = 'w-full min-w-0 max-w-full motion-safe:animate-fade-in';
+export const SUPPLIER_PAGE_CLASS = 'partner-stack w-full min-w-0 max-w-full motion-safe:animate-fade-in';
+
+/** Main column width modes for SupplierLayout `partner-page-frame`. */
+export type PartnerPageFrameMode = 'default' | 'home' | 'ops';
+
+export function partnerPageFrameClass(mode: PartnerPageFrameMode = 'default'): string {
+  if (mode === 'ops') return 'partner-page-frame partner-page-frame--ops outline-none';
+  if (mode === 'home') return 'partner-page-frame partner-page-frame--home outline-none';
+  return 'partner-page-frame outline-none';
+}
 
 export const SUPPLIER_SECTION_HEADER_CLASS =
-  'pb-4 mb-4 border-b border-[color:var(--partner-border,rgba(15,23,42,0.08))]';
+  'pb-3 mb-3 border-b border-[color:var(--partner-border,rgba(15,23,42,0.08))]';
 
 /** @deprecated Use SUPPLIER_PAGE_CLASS (all portal pages are full-width now). */
 export const SUPPLIER_PAGE_WIDE_CLASS = SUPPLIER_PAGE_CLASS;
@@ -43,23 +52,23 @@ type SupplierPageHeroProps = {
 
 export function SupplierPageHero({ title, description, actions, children, badge = null }: SupplierPageHeroProps) {
   return (
-    <header className="partner-page-hero mb-6 pb-5 border-b border-[color:var(--partner-border,rgba(15,23,42,0.08))]">
-      <div className="flex flex-col gap-3.5 sm:flex-row sm:items-end sm:justify-between">
+    <header className="partner-page-hero border-b border-[color:var(--partner-border,rgba(15,23,42,0.08))]">
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           {badge ? (
-            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-finland">
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-finland">
               {badge}
             </p>
           ) : null}
-          <h1 className="font-display text-[1.625rem] sm:text-[1.85rem] font-semibold leading-[1.15] text-slate-900 tracking-tight">
+          <h1 className="font-display text-[1.45rem] sm:text-[1.65rem] font-semibold leading-[1.15] text-slate-900 tracking-tight">
             {title}
           </h1>
           {description ? (
-            <p className="mt-1.5 text-[13.5px] text-slate-500 max-w-2xl leading-relaxed">{description}</p>
+            <p className="mt-1 text-[13px] text-slate-500 max-w-2xl leading-relaxed">{description}</p>
           ) : null}
         </div>
         {actions ? (
-          <div className="shrink-0 flex flex-wrap items-center gap-2 [&_button]:min-h-11 [&_a]:min-h-11">
+          <div className="shrink-0 flex flex-wrap items-center gap-2 [&_button]:min-h-10 [&_a]:min-h-10">
             {actions}
           </div>
         ) : null}

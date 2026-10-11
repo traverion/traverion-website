@@ -24,6 +24,14 @@ body {
     --partner-accent: #003580;
     --partner-shadow: 0 1px 1px rgba(15, 23, 42, 0.03);
     --partner-radius: 0.5rem;
+    /* Shared layout rhythm — prefer these over screen-specific spacing hacks */
+    --partner-gutter-x: 1rem;
+    --partner-gutter-y: 1.125rem;
+    --partner-page-max: 72rem;
+    --partner-page-max-ops: 70rem;
+    --partner-topbar-h: 3rem;
+    --partner-section-gap: 1.25rem;
+    --partner-hero-mb: 1.25rem;
     display: flex;
     flex-direction: column;
     width: 100%;
@@ -148,6 +156,57 @@ body {
     border-bottom: 1px solid var(--partner-border);
     -webkit-backdrop-filter: blur(12px);
     backdrop-filter: blur(12px);
+  }
+
+  @media (min-width: 640px) {
+    .partner-app-shell {
+      --partner-gutter-x: 1.5rem;
+      --partner-gutter-y: 1.25rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .partner-app-shell {
+      --partner-gutter-x: 2rem;
+      --partner-gutter-y: 1.5rem;
+    }
+  }
+
+  /** Main column frame — one coherent content gutter/max-width system */
+  .partner-page-frame {
+    width: 100%;
+    max-width: var(--partner-page-max);
+    margin-inline: auto;
+    min-width: 0;
+    flex: 1 1 auto;
+    padding-inline: var(--partner-gutter-x);
+    padding-top: var(--partner-gutter-y);
+    padding-bottom: max(1.25rem, calc(5.25rem + env(safe-area-inset-bottom)));
+  }
+
+  @media (min-width: 768px) {
+    .partner-page-frame {
+      padding-bottom: 2.5rem;
+    }
+  }
+
+  .partner-page-frame--ops {
+    max-width: none;
+  }
+
+  .partner-page-frame--home {
+    max-width: var(--partner-page-max-ops);
+  }
+
+  .partner-page-hero {
+    margin-bottom: var(--partner-hero-mb);
+    padding-bottom: 1rem;
+  }
+
+  .partner-stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--partner-section-gap);
   }
 
   .partner-surface-panel {

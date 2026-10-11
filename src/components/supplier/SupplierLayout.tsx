@@ -27,6 +27,7 @@ import {
   PARTNER_SIDEBAR_PRIMARY,
   partnerSectionTitle,
 } from '../../lib/partnerNav';
+import { partnerPageFrameClass } from './supplierUi';
 import {
   authUserHasPartnerSignupMetadata,
   ensureSupplierProfile,
@@ -1146,13 +1147,9 @@ export default function SupplierLayout() {
           <main
             id="main-content"
             tabIndex={-1}
-            className={`mx-auto w-full min-w-0 flex-1 px-4 sm:px-6 lg:px-8 pt-5 pb-[max(1.5rem,calc(5.25rem+env(safe-area-inset-bottom)))] md:pb-12 outline-none ${
-              section === 'availability'
-                ? 'max-w-none'
-                : section === 'dashboard'
-                  ? 'max-w-[1120px]'
-                  : 'max-w-6xl'
-            }`}
+            className={partnerPageFrameClass(
+              section === 'availability' ? 'ops' : section === 'dashboard' ? 'home' : 'default'
+            )}
           >
             <div className="lux-page-enter w-full min-w-0">
               <Suspense fallback={<PartnerSectionFallback />}>
