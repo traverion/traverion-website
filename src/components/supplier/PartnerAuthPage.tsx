@@ -66,7 +66,7 @@ export default function PartnerAuthPage({ mode, onAuthenticated, isSupabase }: P
       </aside>
 
       <main id="main-content" tabIndex={-1} className="flex-1 flex flex-col outline-none">
-        <div className="flex items-center justify-between gap-3 px-5 sm:px-8 pt-5">
+        <div className="flex items-center justify-between gap-3 px-5 sm:px-8 pt-5 lg:pt-6">
           <a href={traveler} className="lux-flat text-sm text-ink-muted hover:bg-finland/10 hover:text-finland rounded-full px-3 py-1.5">
             For travelers
           </a>
@@ -93,7 +93,7 @@ export default function PartnerAuthPage({ mode, onAuthenticated, isSupabase }: P
             </a>
           </nav>
         </div>
-        <div className="flex-1 px-5 sm:px-8 pb-16 pt-4 sm:pt-8">
+        <div className="flex flex-1 flex-col justify-center px-5 sm:px-8 pb-12 pt-4 sm:pt-6 lg:pb-16">
           <div className="mx-auto w-full max-w-md">
             <div className="tv-auth-panel">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">
@@ -114,7 +114,7 @@ export default function PartnerAuthPage({ mode, onAuthenticated, isSupabase }: P
                 compact
               />
             </div>
-            <p className="mt-6 text-center text-xs text-ink-faint">
+            <p className="mt-5 text-center text-xs text-ink-faint">
               <a href={landing} className="text-finland font-medium hover:underline">
                 Back to Partner overview
               </a>
