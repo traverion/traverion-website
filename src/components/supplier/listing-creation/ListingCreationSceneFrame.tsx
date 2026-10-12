@@ -42,11 +42,11 @@ export function ListingCreationSceneFrame({
             ref={headingRef}
             id={headingId}
             tabIndex={-1}
-            className="font-display text-[1.35rem] font-semibold leading-[1.2] tracking-tight text-ink outline-none sm:text-[1.5rem]"
+            className="text-[1.15rem] font-semibold leading-[1.25] tracking-tight text-ink outline-none sm:text-[1.25rem]"
           >
             {question}
           </h3>
-          <p className="partner-section-desc mt-1.5">{support}</p>
+          <p className="mt-1 text-[13px] leading-snug text-ink-muted">{support}</p>
         </div>
         <ListingCreationSceneProgress
           index={sceneIndex}

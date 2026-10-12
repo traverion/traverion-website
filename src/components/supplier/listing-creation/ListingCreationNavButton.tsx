@@ -109,8 +109,11 @@ export function ListingCreationNavButton({
             >
               {STATE_CAPTION[item.state]}
             </span>
-            {item.summary && !current ? (
-              <span className="mt-0.5 block truncate text-[11px] font-normal normal-case tracking-normal text-ink-muted leading-snug">
+            {item.summary ? (
+              <span
+                className="mt-0.5 block truncate text-[11px] font-normal normal-case tracking-normal text-ink-muted leading-snug"
+                title={item.summary}
+              >
                 {item.summary}
               </span>
             ) : null}

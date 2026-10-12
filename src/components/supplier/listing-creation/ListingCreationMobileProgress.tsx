@@ -48,7 +48,7 @@ export function ListingCreationMobileProgress({
           <span className="min-h-11" />
         )}
       </div>
-      <p className="mt-1 font-display text-[1.65rem] font-bold leading-tight tracking-tight text-ink">{title}</p>
+      <p className="mt-1 text-[1.25rem] font-semibold leading-tight tracking-tight text-ink">{title}</p>
       <div className="mt-3 flex items-baseline justify-between gap-3">
         <p className="text-sm font-semibold text-ink">{currentLabel}</p>
         {progressCopy ? <p className="text-xs font-medium tabular-nums text-ink-muted">{progressCopy}</p> : null}
@@ -64,7 +64,7 @@ export function ListingCreationMobileProgress({
               width: `${Math.max(
                 8,
                 Math.round(
-                  ((items.findIndex((item) => item.state === 'current') + 1) / items.length) * 100
+                  (items.filter((item) => item.state === 'complete').length / items.length) * 100
                 )
               )}%`,
             }}
