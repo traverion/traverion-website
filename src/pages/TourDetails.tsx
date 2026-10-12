@@ -308,9 +308,13 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
   }, [tour]);
 
   const selectedOption = selectedBookingVariant?.listingOption ?? null;
-  const bookingCutoffHours = normalizeBookingCutoffHours(
+  const listingCutoffHours = normalizeBookingCutoffHours(
     tour?.listingExtras?.bookingCutoffHoursBeforeStart
   );
+  const optionCutoffHours = normalizeBookingCutoffHours(
+    selectedOption?.bookingCutoffHoursBeforeStart
+  );
+  const bookingCutoffHours = optionCutoffHours > 0 ? optionCutoffHours : listingCutoffHours;
   const departureTimezone = resolveDepartureTimezone(tour?.listingExtras?.departureTimezone);
   const experienceTodayIso = experienceTodayIsoForListing(departureTimezone);
   const departureTimes = useMemo(() => {

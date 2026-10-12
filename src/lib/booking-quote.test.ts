@@ -109,6 +109,39 @@ describe('quoteBooking', () => {
     expect(q.error).toMatch(/2 hours before departure/i);
   });
 
+  it('uses option-level cutoff when set (overrides listing default)', () => {
+    const startMs = Date.UTC(2026, 8, 27, 17, 30, 0); // 20:30 Helsinki
+    // Listing cutoff 0; option cutoff 4h — 3h before start must fail.
+    const q = quoteBooking({
+      tour: tour({
+        listingExtras: {
+          bookingCutoffHoursBeforeStart: 0,
+          departureTimezone: 'Europe/Helsinki',
+          bookingOptions: [
+            option({
+              id: 'opt-small',
+              name: 'Small group',
+              priceUsd: 149,
+              startTime: '20:30',
+              bookingCutoffHoursBeforeStart: 4,
+            }),
+          ],
+        },
+      }),
+      discounts: [],
+      bookingDate: '2026-09-27',
+      guests: 2,
+      bookingOptionId: 'opt-small',
+      startTime: '20:30',
+      todayIso: '2026-09-27',
+      nowMs: startMs - 3 * 60 * 60 * 1000,
+    });
+    expect(q.ok).toBe(false);
+    if (q.ok) return;
+    expect(q.code).toBe('time');
+    expect(q.error).toMatch(/4 hours before departure/i);
+  });
+
   it('Phase 1531: todayIso without nowMs still uses live clock for cutoff (not noon stub)', () => {
     // Same-day 20:30 with 2h cutoff: wall clock 19:00 Helsinki is past cutoff.
     // If quote used noon-on-todayIso, this would incorrectly succeed.

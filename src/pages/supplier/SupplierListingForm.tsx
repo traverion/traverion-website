@@ -95,6 +95,8 @@ import {
   reviewStayPricingSummary,
 } from '../../lib/listing-creation-review';
 import { listingWizardPersistLabel } from '../../lib/listing-wizard-persist';
+import { normalizeScheduleToOptionChargeModel } from '../../lib/listing-option-charge-model';
+import { deriveListingTags } from '../../lib/listing-derived-tags';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import {
   listingCreationNavItems,
@@ -165,13 +167,6 @@ import { STAY_AMENITY_PRESETS } from '../../lib/stay-amenities';
 import { publicStayListingUrl, publicTourListingUrl } from '../../lib/publicSiteUrl';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import NoticeCallout from '../../components/NoticeCallout';
-
-const TAG_OPTIONS = [
-  { id: 'free-cancellation', label: 'Free cancellation' },
-  { id: 'small-group', label: 'Small group' },
-  { id: 'pickup-available', label: 'Pickup available' },
-  { id: 'mobile-ticket', label: 'Mobile ticket' },
-];
 
 function stayAmenityTokens(raw: string): string[] {
   return raw
@@ -791,7 +786,14 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
     isPopular: false,
     city: form.city || undefined,
     country: form.country || undefined,
-    tags: form.tags.length ? form.tags : undefined,
+    tags: (() => {
+      const derived = deriveListingTags({
+        bookingOptions: activeOpts,
+        // Platform standard policy is free cancel until 24h before start.
+        cancellationPreset: 'free_24h',
+      });
+      return derived.length ? derived : undefined;
+    })(),
     supplierId: 'current',
     status: form.status,
     cancellationPolicy: TRAVERION_STANDARD_CANCELLATION_POLICY,
@@ -1983,13 +1985,6 @@ export default function SupplierListingForm({
     void runSubmit(form.status === 'published' ? 'published' : 'draft');
   };
 
-  const toggleTag = (id: string) => {
-    setForm(prev => ({
-      ...prev,
-      tags: prev.tags.includes(id) ? prev.tags.filter(t => t !== id) : [...prev.tags, id],
-    }));
-  };
-
   const removeBookingOption = useCallback(
     (optionId: string) => {
       if (editingId && (!listingOccupancyReady || listingOccupancyLoadError)) {
@@ -2217,7 +2212,8 @@ export default function SupplierListingForm({
   const applyScheduleToOptionDraft = useCallback(
     (schedule: ListingOptionSchedule, persist: boolean) => {
       if (!optionModalDraft) return optionModalDraft;
-      const next = upsertOptionSchedule(ensureExplicitSchedules(optionModalDraft), schedule);
+      const aligned = normalizeScheduleToOptionChargeModel(schedule, optionModalDraft);
+      const next = upsertOptionSchedule(ensureExplicitSchedules(optionModalDraft), aligned);
       setOptionModalDraft(next);
       if (persist) persistOptionDraftToForm(next);
       return next;
@@ -3664,9 +3660,9 @@ export default function SupplierListingForm({
                 <button
                   type="button"
                   onClick={openOptionModalCreate}
-                  className="lc-upload inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl px-4 py-4 text-sm font-semibold text-finland"
+                  className="lc-upload inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-[var(--partner-radius,0.5rem)] px-3 py-2.5 text-[13px] font-semibold text-finland"
                 >
-                  <Plus className="w-5 h-5 shrink-0" aria-hidden />
+                  <Plus className="h-4 w-4 shrink-0" aria-hidden />
                   Add option
                 </button>
               </div>
@@ -3676,36 +3672,6 @@ export default function SupplierListingForm({
                   set inside each option. Adult and Child prices belong in pricing, not as separate options.
                 </p>
               )}
-              <details
-                id="supplier-listing-field-tags"
-                className="group"
-              >
-                <summary className="cursor-pointer list-none flex items-start justify-between gap-3">
-                  <span>
-                    <span className="block text-sm font-semibold text-ink">Optional: tags</span>
-                    <span className="block text-xs text-ink-muted mt-0.5">Help travelers filter (pickup, small group, etc.)</span>
-                  </span>
-                  <span className="text-xs text-finland font-medium mt-0.5">{form.tags.length > 0 ? 'Saved' : 'Add'}</span>
-                </summary>
-                <div className="mt-3 px-1">
-                <div className="flex flex-wrap gap-x-4 gap-y-3">
-                  {TAG_OPTIONS.map((tag) => (
-                    <label
-                      key={tag.id}
-                      className="inline-flex items-center gap-3 min-h-[44px] pr-1 touch-manipulation cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={form.tags.includes(tag.id)}
-                        onChange={() => toggleTag(tag.id)}
-                        className="h-5 w-5 rounded border-black/[0.12] text-finland focus:ring-2 focus:ring-finland focus:ring-offset-0 shrink-0"
-                      />
-                      <span className="text-base text-ink font-medium leading-snug">{tag.label}</span>
-                    </label>
-                  ))}
-                </div>
-                </div>
-              </details>
             </div>
           )}
 
@@ -3713,10 +3679,10 @@ export default function SupplierListingForm({
             const photoCount = orderedPhotoUrls(normalizePhotoSlots(form.photoSlots)).length;
             const photosPublishReady = listingPhotosReadyToPublish(form);
             return (
-            <div id="supplier-listing-field-photos" className="space-y-5">
+                <div id="supplier-listing-field-photos" className="space-y-3">
                 <div>
-                  <h3 className="font-display text-[1.85rem] font-bold tracking-tight text-ink">Photos</h3>
-                  <p className="mt-1 max-w-lg text-sm text-ink-muted leading-relaxed">
+                  <h3 className="text-[1.05rem] font-semibold tracking-tight text-ink">Photos</h3>
+                  <p className="mt-0.5 max-w-lg partner-section-desc">
                     {form.inventoryFamily === 'stay' || createFamily === 'stay'
                       ? 'Strong room or exterior shots work best. Guests see the first photo in search.'
                       : 'Show what the experience feels like. Guests see the first photo in search.'}
@@ -3784,26 +3750,144 @@ export default function SupplierListingForm({
               listingMissing: publishBlockersPreview[0] ?? null,
               accountReason: publishAccountBlockedReason,
             });
+            const previewPhotos = orderedPhotoUrls(normalizePhotoSlots(form.photoSlots));
+            const previewCover = previewPhotos[0] ?? '';
+            const previewGallery = previewPhotos.slice(1, 5);
+            const previewOpts = materializedBookingOptions(form.bookingOptions);
+            const previewFrom = headlineStartingAmountFromBookingOptions(previewOpts);
+            const previewPlace = [form.city.trim(), form.country.trim()].filter(Boolean).join(', ');
+            const previewHighlights = (form.highlights ?? []).map((h) => h.trim()).filter(Boolean).slice(0, 5);
+            const previewIncludes = (form.includes ?? []).map((h) => h.trim()).filter(Boolean).slice(0, 4);
+            const previewExcludes = (form.excludes ?? []).map((h) => h.trim()).filter(Boolean).slice(0, 4);
             return (
             <div id="supplier-listing-field-review" className="space-y-4">
               <div>
-                <h3 className="partner-page-title font-display text-[1.35rem] sm:text-[1.45rem]">
-                  Preview & publish
-                </h3>
-                {form.title.trim() ? (
-                  <p className="mt-1.5 max-w-xl text-[15px] font-semibold leading-snug tracking-tight text-ink [overflow-wrap:anywhere]">
-                    {form.title.trim()}
-                  </p>
-                ) : null}
-                <p className="partner-section-desc mt-1">
-                  {[form.city.trim(), form.country.trim()].filter(Boolean).join(', ') ||
-                    'Check readiness, then save draft or publish.'}
+                <h3 className="text-[1.05rem] font-semibold tracking-tight text-ink">Traveler preview</h3>
+                <p className="partner-section-desc mt-0.5">
+                  Approximate guest view — fix gaps below, then save draft or publish from the footer.
                 </p>
               </div>
+
+              <article className="lc-tile overflow-hidden rounded-[var(--partner-radius,0.5rem)]">
+                {previewCover && !isPlaceholderListingImageUrl(previewCover) ? (
+                  <div className="relative">
+                    <img
+                      src={previewCover}
+                      alt=""
+                      className="aspect-[16/9] w-full object-cover sm:aspect-[2.2/1]"
+                    />
+                    {previewGallery.length > 0 ? (
+                      <div className="absolute bottom-2 right-2 flex gap-1">
+                        {previewGallery.map((url) => (
+                          <img
+                            key={url.slice(-32)}
+                            src={url}
+                            alt=""
+                            className="h-10 w-10 rounded object-cover ring-1 ring-white/80"
+                          />
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="flex aspect-[16/9] items-center justify-center bg-black/[0.04] text-[13px] text-ink-muted sm:aspect-[2.2/1]">
+                    Add a cover photo to preview the traveler gallery
+                  </div>
+                )}
+                <div className="space-y-3 px-3.5 py-3.5">
+                  <div>
+                    <p className="partner-meta">{previewPlace || 'Location not set'}</p>
+                    <h4 className="mt-0.5 font-display text-[1.2rem] font-semibold leading-snug tracking-tight text-ink [overflow-wrap:anywhere]">
+                      {form.title.trim() || 'Untitled listing'}
+                    </h4>
+                    {typeof previewFrom === 'number' && previewFrom > 0 ? (
+                      <p className="mt-1 text-[14px] font-semibold tabular-nums text-ink">
+                        From {formatMoney(previewFrom, listingCurrency)}
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-[13px] text-ink-muted">Starting price appears when options have prices</p>
+                    )}
+                  </div>
+                  {form.description.trim() ? (
+                    <p className="text-[13px] leading-relaxed text-ink-muted line-clamp-4 [overflow-wrap:anywhere]">
+                      {form.description.trim()}
+                    </p>
+                  ) : null}
+                  {previewHighlights.length > 0 ? (
+                    <ul className="grid gap-1 sm:grid-cols-2">
+                      {previewHighlights.map((line) => (
+                        <li key={line} className="flex gap-1.5 text-[13px] text-ink">
+                          <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-finland" aria-hidden />
+                          <span className="[overflow-wrap:anywhere]">{line}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  {(previewIncludes.length > 0 || previewExcludes.length > 0) ? (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {previewIncludes.length > 0 ? (
+                        <div>
+                          <p className="partner-label">Includes</p>
+                          <ul className="mt-1 space-y-0.5 text-[13px] text-ink">
+                            {previewIncludes.map((line) => (
+                              <li key={line} className="[overflow-wrap:anywhere]">
+                                {line}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null}
+                      {previewExcludes.length > 0 ? (
+                        <div>
+                          <p className="partner-label">Excludes</p>
+                          <ul className="mt-1 space-y-0.5 text-[13px] text-ink-muted">
+                            {previewExcludes.map((line) => (
+                              <li key={line} className="[overflow-wrap:anywhere]">
+                                {line}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {!isStayForm && previewOpts.length > 0 ? (
+                    <div>
+                      <p className="partner-label">Options travelers can book</p>
+                      <ul className="mt-1.5 divide-y divide-black/[0.06] rounded-[var(--partner-radius-sm,0.375rem)] border border-black/[0.08]">
+                        {previewOpts.slice(0, 4).map((opt) => {
+                          const ready = tourOptionReadiness(opt, optionValidationMessages(opt));
+                          const price = summarizeOptionPricing(opt, (n) => formatMoney(n, listingCurrency));
+                          return (
+                            <li key={opt.id} className="flex items-start justify-between gap-2 px-2.5 py-2">
+                              <div className="min-w-0">
+                                <p className="truncate text-[13px] font-semibold text-ink">
+                                  {opt.name.trim() || 'Untitled option'}
+                                </p>
+                                <p className="partner-meta">
+                                  {[opt.duration.trim() || null, price].filter(Boolean).join(' · ')}
+                                </p>
+                              </div>
+                              <span
+                                className={`shrink-0 text-[11px] font-semibold ${
+                                  ready === 'ready' ? 'text-finland' : 'text-amber-800'
+                                }`}
+                              >
+                                {ready === 'ready' ? 'Bookable' : 'Incomplete'}
+                              </span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  ) : null}
+                </div>
+              </article>
+
               {truth.bannerTitle ? (
                 <div className="rounded-[var(--partner-radius,0.5rem)] border border-amber-200/80 bg-amber-50/50 px-3.5 py-3" role="status">
                   <p className="partner-label text-amber-900/70">Publish status</p>
-                  <p className="mt-1 text-[15px] font-semibold tracking-tight text-ink">{truth.bannerTitle}</p>
+                  <p className="mt-1 text-[14px] font-semibold tracking-tight text-ink">{truth.bannerTitle}</p>
                   <p className="mt-1 max-w-xl partner-meta">{truth.bannerBody}</p>
                   <a
                     href={`${PARTNER_APP_BASE}/business-profile`}
@@ -3813,45 +3897,33 @@ export default function SupplierListingForm({
                   </a>
                 </div>
               ) : null}
-              <ul className="divide-y divide-black/[0.07] rounded-[var(--partner-radius,0.5rem)] border border-black/[0.08] px-3">
-                {reviewRows.map((row) => (
-                  <li key={row.label} className="flex flex-wrap items-start justify-between gap-2 py-2.5">
-                    <div className="min-w-0 max-w-xl">
-                      <p className="partner-label">{row.label}</p>
-                      <p className="mt-0.5 text-[14px] font-medium leading-snug text-ink [overflow-wrap:anywhere]">{row.summary}</p>
-                      <p className={`mt-0.5 text-[12px] ${row.ready ? 'text-finland' : 'text-amber-800'}`}>
-                        {row.ready ? 'Complete' : row.missing || 'Needs attention'}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setStepIdxPersisted(row.step)}
-                      className="tv-btn-ghost shrink-0"
-                    >
-                      {row.ready ? 'Edit' : 'Fix'}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              <div className="space-y-1.5">
-                <p className="partner-label">Publish status</p>
-                <p className="text-[14px] leading-snug text-ink">{truth.listingLine}</p>
-                {truth.accountLine ? (
-                  <p className="partner-meta">{truth.accountLine}</p>
-                ) : listingReady ? (
-                  <p className="partner-meta">
-                    {form.status === 'published'
-                      ? 'Live listing — save changes from the footer when done.'
-                      : 'Ready to publish from the footer when you choose.'}
-                  </p>
-                ) : (
-                  <p className="partner-meta">Keep as draft until ready.</p>
-                )}
-                {!canPostNewListing ? (
-                  <p className="partner-meta">
-                    Publish stays unavailable until verification is complete. Draft save still works.
-                  </p>
-                ) : null}
+
+              <div>
+                <p className="partner-label mb-1.5">Readiness</p>
+                <ul className="divide-y divide-black/[0.07] rounded-[var(--partner-radius,0.5rem)] border border-black/[0.08] px-3">
+                  {reviewRows.map((row) => (
+                    <li key={row.label} className="flex flex-wrap items-start justify-between gap-2 py-2">
+                      <div className="min-w-0 max-w-xl">
+                        <p className="text-[13px] font-medium text-ink">{row.label}</p>
+                        <p className="mt-0.5 text-[12px] leading-snug text-ink-muted [overflow-wrap:anywhere]">
+                          {row.ready ? row.summary : row.missing || row.summary}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setStepIdxPersisted(row.step)}
+                        className="tv-btn-ghost shrink-0"
+                      >
+                        {row.ready ? 'Edit' : 'Fix'}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-[13px] leading-snug text-ink">{truth.listingLine}</p>
+                {truth.accountLine ? <p className="partner-meta">{truth.accountLine}</p> : null}
                 {form.status === 'published' && editingId ? (
                   <a
                     href={
@@ -3859,7 +3931,7 @@ export default function SupplierListingForm({
                     }
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex min-h-11 items-center text-sm font-semibold text-finland hover:underline"
+                    className="inline-flex min-h-10 items-center text-[13px] font-semibold text-finland hover:underline"
                   >
                     View live listing
                   </a>
@@ -4023,16 +4095,16 @@ export default function SupplierListingForm({
           <div className="absolute inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4">
             <div
               ref={leaveDialogRef}
-              className="w-full max-w-sm rounded-xl bg-white px-5 py-5 shadow-xl ring-1 ring-black/[0.1]"
+              className="w-full max-w-sm rounded-[var(--partner-radius,0.5rem)] bg-white px-4 py-4 shadow-xl ring-1 ring-black/[0.1]"
               role="alertdialog"
               aria-modal="true"
               aria-labelledby="listing-leave-title"
               aria-describedby="listing-leave-desc"
             >
-              <p id="listing-leave-title" className="font-display text-lg font-semibold tracking-tight text-ink">
+              <p id="listing-leave-title" className="text-[15px] font-semibold tracking-tight text-ink">
                 Save changes before leaving?
               </p>
-              <p id="listing-leave-desc" className="mt-2 text-sm text-ink-muted leading-relaxed">
+              <p id="listing-leave-desc" className="mt-1.5 text-[13px] text-ink-muted leading-snug">
                 You have unsaved changes to this experience.
               </p>
               {draftCloseError ? (

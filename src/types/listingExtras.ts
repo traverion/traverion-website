@@ -111,6 +111,11 @@ export interface ListingBookingOption {
    * Fixed schedules need a clock time; flexible schedules use operating days without a single departure HM.
    */
   startMode?: ListingOptionStartMode;
+  /**
+   * Hours before local departure when online booking closes for this option.
+   * Overrides listing-level bookingCutoffHoursBeforeStart when set.
+   */
+  bookingCutoffHoursBeforeStart?: number;
   /** Traveler can book this option as a private group. */
   isPrivate?: boolean;
   /** How private bookings are priced when isPrivate. */
@@ -385,6 +390,12 @@ export function normalizeListingBookingOption(raw: Record<string, unknown>, fall
   }
   if (raw.startMode === 'fixed' || raw.startMode === 'flexible') {
     out.startMode = raw.startMode;
+  }
+  if (typeof raw.bookingCutoffHoursBeforeStart === 'number' && raw.bookingCutoffHoursBeforeStart > 0) {
+    out.bookingCutoffHoursBeforeStart = Math.min(168, Math.floor(raw.bookingCutoffHoursBeforeStart));
+  } else if (typeof raw.bookingCutoffHoursBeforeStart === 'string' && raw.bookingCutoffHoursBeforeStart.trim()) {
+    const n = Number(raw.bookingCutoffHoursBeforeStart);
+    if (Number.isFinite(n) && n > 0) out.bookingCutoffHoursBeforeStart = Math.min(168, Math.floor(n));
   }
   if (isPrivate) {
     out.isPrivate = true;

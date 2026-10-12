@@ -165,10 +165,15 @@ export function tourBookableSellingDeparturesOnDate(
     nowMs?: number;
   } = {}
 ): TourSellingDeparture[] {
-  const cutoff = normalizeBookingCutoffHours(params.cutoffHoursBeforeStart);
+  const listingCutoff = normalizeBookingCutoffHours(params.cutoffHoursBeforeStart);
   const timeZone = resolveDepartureTimezone(params.timeZone);
+  const byId = new Map((options ?? []).map((o) => [o.id, o]));
   return tourSellingDeparturesOnDate(options, isoDate).filter((d) => {
     const hm = d.startTime.trim();
+    const optionCutoff = normalizeBookingCutoffHours(
+      byId.get(d.optionId)?.bookingCutoffHoursBeforeStart
+    );
+    const cutoff = optionCutoff > 0 ? optionCutoff : listingCutoff;
     if (!hm) return cutoff <= 0;
     return isDepartureTimeStillBookable({
       bookingDate: isoDate,
@@ -387,10 +392,13 @@ export function quoteBooking(input: {
 
     const departureHm = (input.startTime ?? option.startTime ?? '').trim().slice(0, 5);
     if (departureHm) {
+      // Option-level cutoff overrides listing-level when set (Phase 5).
+      const optionCutoff = normalizeBookingCutoffHours(option.bookingCutoffHoursBeforeStart);
+      const effectiveCutoff = optionCutoff > 0 ? optionCutoff : cutoffHours;
       const cut = assertDepartureStillBookable({
         bookingDate: date,
         startTimeHm: departureHm,
-        cutoffHoursBeforeStart: cutoffHours,
+        cutoffHoursBeforeStart: effectiveCutoff,
         nowMs,
         timeZone: departureTimezone,
       });

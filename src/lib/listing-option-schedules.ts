@@ -173,6 +173,8 @@ export function scheduleWizardIsComplete(
   s: ListingOptionSchedule,
   opts?: { startMode?: ListingBookingOption['startMode'] }
 ): boolean {
+  // Customer-facing schedule label — required for ready seasons (Phase 3).
+  if (s.name.trim().length < 3) return false;
   const from = listingLocalDateKey(s.availabilityDateFrom);
   const to = listingLocalDateKey(s.availabilityDateTo);
   if (!from) return false;
@@ -319,6 +321,11 @@ export type TourSellingDeparture = {
   maxSpotsPerSlot: number;
 };
 
+/**
+ * Capacity is independent per option/schedule slot today.
+ * Shared physical inventory across options (e.g. one van for Small Group + Private)
+ * is not modeled — suppliers must not oversubscribe the same resource across options.
+ */
 /** Partner Calendar: what travelers can still book on this date (ready schedules only). */
 export function tourSellingDeparturesOnDate(
   options: ListingBookingOption[] | null | undefined,

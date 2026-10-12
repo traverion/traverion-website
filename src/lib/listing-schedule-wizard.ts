@@ -12,6 +12,7 @@ import {
   scheduleWizardIsComplete,
 } from './listing-option-schedules';
 import { optionPricingMode, priceCategoryValidationMessages } from './price-categories';
+import { scheduleChargeModelConflict } from './listing-option-charge-model';
 
 export const TOUR_SCHEDULE_SCENES = [
   { id: 'when', label: 'When', question: 'When does this schedule apply?' },
@@ -40,6 +41,10 @@ export function schedulePeriodIssues(
   opts?: { startMode?: ListingBookingOption['startMode'] }
 ): string[] {
   const msg: string[] = [];
+  const named = schedule.name.trim();
+  if (named.length < 3) {
+    msg.push('Add a schedule name travelers will see (at least 3 characters).');
+  }
   const from = listingLocalDateKey(schedule.availabilityDateFrom);
   const to = listingLocalDateKey(schedule.availabilityDateTo);
   if (!from) msg.push('Add a starting date.');
@@ -209,6 +214,8 @@ export function scheduleCanSaveReady(
   option: ListingBookingOption
 ): { ok: true } | { ok: false; error: string } {
   const mode = { startMode: option.startMode };
+  const chargeConflict = scheduleChargeModelConflict(schedule, option);
+  if (chargeConflict) return { ok: false, error: chargeConflict };
   if (!scheduleWizardIsComplete(schedule, mode)) {
     return {
       ok: false,

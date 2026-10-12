@@ -352,6 +352,42 @@ export default function BookingOptionEditor({
                 </p>
               ) : null}
             </div>
+            <div id="supplier-listing-field-option-cutoff" className="space-y-2">
+              <label htmlFor="option-booking-cutoff" className="block text-sm font-semibold text-ink">
+                Booking cutoff (hours before departure)
+              </label>
+              <p className="text-[13px] leading-snug text-ink-muted">
+                Applies to every schedule on this option. 0 means bookable until start. Leave empty to use the listing default.
+              </p>
+              <input
+                id="option-booking-cutoff"
+                type="number"
+                min={0}
+                max={168}
+                inputMode="numeric"
+                className="tv-input max-w-[10rem]"
+                value={
+                  typeof option.bookingCutoffHoursBeforeStart === 'number' &&
+                  option.bookingCutoffHoursBeforeStart > 0
+                    ? String(option.bookingCutoffHoursBeforeStart)
+                    : ''
+                }
+                placeholder="Listing default"
+                onChange={(e) => {
+                  const raw = e.target.value.trim();
+                  if (!raw) {
+                    onChange({ bookingCutoffHoursBeforeStart: undefined });
+                    return;
+                  }
+                  const n = Number(raw);
+                  if (!Number.isFinite(n) || n <= 0) {
+                    onChange({ bookingCutoffHoursBeforeStart: undefined });
+                    return;
+                  }
+                  onChange({ bookingCutoffHoursBeforeStart: Math.min(168, Math.floor(n)) });
+                }}
+              />
+            </div>
           </Section>
         </>
       ) : null}

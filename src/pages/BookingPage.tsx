@@ -350,9 +350,13 @@ export default function BookingPage({
       .filter((o): o is NonNullable<typeof o> => Boolean(o));
   }, [selectedVariant, tour]);
 
-  const bookingCutoffHours = normalizeBookingCutoffHours(
+  const listingCutoffHours = normalizeBookingCutoffHours(
     tour.listingExtras?.bookingCutoffHoursBeforeStart
   );
+  const optionCutoffHours = normalizeBookingCutoffHours(
+    selectedVariant?.listingOption?.bookingCutoffHoursBeforeStart
+  );
+  const bookingCutoffHours = optionCutoffHours > 0 ? optionCutoffHours : listingCutoffHours;
 
   const reloadBookingDayCapacity = useCallback(() => {
     const reloadGen = ++dayCapacityReloadGenRef.current;

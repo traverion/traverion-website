@@ -43,6 +43,8 @@ function option(partial: Partial<ListingBookingOption> = {}): ListingBookingOpti
       availabilityDateFrom: '',
       availabilityDateTo: '',
       pricingMode: 'uniform',
+      chargeModel: 'per_person',
+      startMode: 'fixed',
       ...partial,
     },
     'opt-nl'
