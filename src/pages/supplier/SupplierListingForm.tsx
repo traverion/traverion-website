@@ -358,7 +358,7 @@ function readListingDraftBackup(editingId: string | null): ListingFormState | nu
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { form?: ListingFormState; savedAt?: string };
     if (!parsed?.form || typeof parsed.form !== 'object') return null;
-    return parsed.form;
+    return coerceListingFormState(parsed.form);
   } catch {
     return null;
   }
@@ -863,30 +863,42 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
   const extras: ListingExtras = {
     ...(spokenLangs.length ? { additionalLanguages: spokenLangs } : {}),
     ...(form.venueSetting !== 'unspecified' ? { venueSetting: form.venueSetting } : {}),
-    ...(form.accessibilitySummary.trim()
-      ? { accessibilitySummary: form.accessibilitySummary.trim().slice(0, MAX_ACCESSIBILITY_LENGTH) }
+    ...((form.accessibilitySummary ?? '').trim()
+      ? {
+          accessibilitySummary: (form.accessibilitySummary ?? '')
+            .trim()
+            .slice(0, MAX_ACCESSIBILITY_LENGTH),
+        }
       : {}),
     ...(a11yIds.length ? { accessibilityFeatureIds: a11yIds } : {}),
-    ...(form.minGuestAge.trim() ? { minGuestAge: form.minGuestAge.trim() } : {}),
-    ...(form.knowBeforeYouGo.trim()
-      ? { knowBeforeYouGo: form.knowBeforeYouGo.trim().slice(0, MAX_KNOW_BEFORE_LENGTH) }
+    ...((form.minGuestAge ?? '').trim() ? { minGuestAge: (form.minGuestAge ?? '').trim() } : {}),
+    ...((form.knowBeforeYouGo ?? '').trim()
+      ? { knowBeforeYouGo: (form.knowBeforeYouGo ?? '').trim().slice(0, MAX_KNOW_BEFORE_LENGTH) }
       : {}),
-    ...(form.whatToBring.trim()
-      ? { whatToBring: form.whatToBring.trim().slice(0, MAX_WHAT_TO_BRING_LENGTH) }
+    ...((form.whatToBring ?? '').trim()
+      ? { whatToBring: (form.whatToBring ?? '').trim().slice(0, MAX_WHAT_TO_BRING_LENGTH) }
       : {}),
     ...(bringIds.length ? { whatToBringIds: bringIds } : {}),
-    ...(form.requirementsNotes.trim()
-      ? { requirementsNotes: form.requirementsNotes.trim().slice(0, MAX_REQUIREMENTS_LENGTH) }
+    ...((form.requirementsNotes ?? '').trim()
+      ? {
+          requirementsNotes: (form.requirementsNotes ?? '')
+            .trim()
+            .slice(0, MAX_REQUIREMENTS_LENGTH),
+        }
       : {}),
     ...(notSuitableIds.length ? { notSuitableForIds: notSuitableIds } : {}),
-    ...(form.additionalInfo.trim()
-      ? { additionalInfo: form.additionalInfo.trim().slice(0, MAX_ADDITIONAL_INFO_LENGTH) }
+    ...((form.additionalInfo ?? '').trim()
+      ? { additionalInfo: (form.additionalInfo ?? '').trim().slice(0, MAX_ADDITIONAL_INFO_LENGTH) }
       : {}),
     // Private table field — always present so save can upsert/clear listing_booking_contact.
-    bookingContactPhoneE164: form.bookingContactPhoneE164.trim(),
+    bookingContactPhoneE164: (form.bookingContactPhoneE164 ?? '').trim(),
     ...(form.scheduleStyle ? { scheduleStyle: form.scheduleStyle } : {}),
-    ...(form.typicalTimelineNotes.trim()
-      ? { typicalTimelineNotes: form.typicalTimelineNotes.trim().slice(0, MAX_TIMELINE_LENGTH) }
+    ...((form.typicalTimelineNotes ?? '').trim()
+      ? {
+          typicalTimelineNotes: (form.typicalTimelineNotes ?? '')
+            .trim()
+            .slice(0, MAX_TIMELINE_LENGTH),
+        }
       : {}),
     ...(Number(form.bookingCutoffHoursBeforeStart) > 0
       ? {
@@ -1160,6 +1172,38 @@ const emptyForm: ListingFormState = {
   stayCheckInAddress: '',
   stayCleaningFee: '',
 };
+
+/**
+ * Session backups from older wizard builds may omit newer Information fields.
+ * Merge onto emptyForm so .trim() / .length never run on undefined.
+ */
+function coerceListingFormState(raw: Partial<ListingFormState> | null | undefined): ListingFormState {
+  const merged: ListingFormState = { ...emptyForm, ...(raw ?? {}) };
+  merged.accessibilityFeatureIds = normalizeAccessibilityFeatureIds(merged.accessibilityFeatureIds);
+  merged.whatToBringIds = normalizeWhatToBringIds(merged.whatToBringIds);
+  merged.notSuitableForIds = normalizeNotSuitableForIds(merged.notSuitableForIds);
+  merged.additionalLanguages = normalizeSpokenLanguageIds(merged.additionalLanguages);
+  merged.accessibilitySummary =
+    typeof merged.accessibilitySummary === 'string' ? merged.accessibilitySummary : '';
+  merged.minGuestAge = typeof merged.minGuestAge === 'string' ? merged.minGuestAge : '';
+  merged.knowBeforeYouGo = typeof merged.knowBeforeYouGo === 'string' ? merged.knowBeforeYouGo : '';
+  merged.whatToBring = typeof merged.whatToBring === 'string' ? merged.whatToBring : '';
+  merged.requirementsNotes =
+    typeof merged.requirementsNotes === 'string' ? merged.requirementsNotes : '';
+  merged.additionalInfo = typeof merged.additionalInfo === 'string' ? merged.additionalInfo : '';
+  merged.bookingContactPhoneE164 =
+    typeof merged.bookingContactPhoneE164 === 'string' ? merged.bookingContactPhoneE164 : '';
+  merged.includes = Array.isArray(merged.includes)
+    ? merged.includes.map((x) => String(x ?? ''))
+    : emptyForm.includes;
+  merged.excludes = Array.isArray(merged.excludes)
+    ? merged.excludes.map((x) => String(x ?? ''))
+    : [];
+  merged.highlights = Array.isArray(merged.highlights)
+    ? merged.highlights.map((x) => String(x ?? ''))
+    : emptyForm.highlights;
+  return merged;
+}
 
 export type ListingEditorSaveResult = { success: boolean; error?: string; listingId?: string };
 
@@ -1506,11 +1550,11 @@ export default function SupplierListingForm({
             form.accessibilitySummary,
             form.additionalInfo,
             form.bookingContactPhoneE164,
-          ].filter((s) => s.trim()).length +
-            form.whatToBringIds.length +
-            form.notSuitableForIds.length +
-            form.accessibilityFeatureIds.length +
-            form.additionalLanguages.length
+          ].filter((s) => typeof s === 'string' && s.trim()).length +
+            (form.whatToBringIds?.length ?? 0) +
+            (form.notSuitableForIds?.length ?? 0) +
+            (form.accessibilityFeatureIds?.length ?? 0) +
+            (form.additionalLanguages?.length ?? 0)
         ),
         ready: true,
         missing: null,
@@ -1731,14 +1775,15 @@ export default function SupplierListingForm({
           stayCheckInAddress: extras.stay?.checkInAddress ?? '',
           stayCleaningFee: extras.stay?.cleaningFeeUsd != null ? String(extras.stay.cleaningFeeUsd) : '',
         };
-        initialFormSnapshotRef.current = serializeListingFormState(next);
+        const coercedNext = coerceListingFormState(next);
+        initialFormSnapshotRef.current = serializeListingFormState(coercedNext);
         const backup = readListingDraftBackup(editingId);
-        setForm(
-          backup && serializeListingFormState(backup) !== serializeListingFormState(next) ? backup : next
-        );
-        setLastSavedAt(Date.now());
         const applied =
-          backup && serializeListingFormState(backup) !== serializeListingFormState(next) ? backup : next;
+          backup && serializeListingFormState(backup) !== serializeListingFormState(coercedNext)
+            ? backup
+            : coercedNext;
+        setForm(applied);
+        setLastSavedAt(Date.now());
         const scene = initialTourBasicsSceneIndex({
           stored: readBasicsSceneFromStorage(editingId),
           isEditing: true,

@@ -18,8 +18,8 @@ const BOOK_OFF_RE =
 const PAY_OFF_RE =
   /\b(?:pay\s+outside|payment\s+outside|do\s+not\s+pay\s+(?:on|via)\s+traverion|bypass\s+(?:the\s+)?(?:platform|booking))\b/i;
 
-export function findOffPlatformListingTextIssues(text: string): OffPlatformTextIssue[] {
-  const t = text.trim();
+export function findOffPlatformListingTextIssues(text: string | null | undefined): OffPlatformTextIssue[] {
+  const t = (text ?? '').trim();
   if (!t) return [];
   const out: OffPlatformTextIssue[] = [];
   if (URL_RE.test(t)) {

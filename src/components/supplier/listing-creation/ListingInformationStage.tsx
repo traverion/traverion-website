@@ -170,65 +170,68 @@ export default function ListingInformationStage({
     });
   }, [form.experienceKind]);
 
-  const knowIssues = findOffPlatformListingTextIssues(form.knowBeforeYouGo);
-  const additionalIssues = findOffPlatformListingTextIssues(form.additionalInfo);
+  const knowBefore = form.knowBeforeYouGo ?? '';
+  const whatToBring = form.whatToBring ?? '';
+  const whatToBringIds = form.whatToBringIds ?? [];
+  const requirementsNotes = form.requirementsNotes ?? '';
+  const notSuitableForIds = form.notSuitableForIds ?? [];
+  const accessibilitySummary = form.accessibilitySummary ?? '';
+  const accessibilityFeatureIds = form.accessibilityFeatureIds ?? [];
+  const additionalInfo = form.additionalInfo ?? '';
+  const additionalLanguages = form.additionalLanguages ?? [];
+  const bookingContactPhoneE164 = form.bookingContactPhoneE164 ?? '';
+
+  const knowIssues = findOffPlatformListingTextIssues(knowBefore);
+  const additionalIssues = findOffPlatformListingTextIssues(additionalInfo);
   const contradictions = accessibilityContradictionMessages(
-    form.notSuitableForIds,
-    form.accessibilityFeatureIds
+    notSuitableForIds,
+    accessibilityFeatureIds
   );
 
   const guestSummary = useMemo(() => {
     const bits: string[] = [];
-    if (form.knowBeforeYouGo.trim()) bits.push('Know before you go');
-    if (form.whatToBringIds.length) {
-      bits.push(`${form.whatToBringIds.length} packing item${form.whatToBringIds.length === 1 ? '' : 's'}`);
-    } else if (form.whatToBring.trim()) {
+    if (knowBefore.trim()) bits.push('Know before you go');
+    if (whatToBringIds.length) {
+      bits.push(`${whatToBringIds.length} packing item${whatToBringIds.length === 1 ? '' : 's'}`);
+    } else if (whatToBring.trim()) {
       bits.push('Legacy packing notes');
     }
     return bits.length ? bits.join(' · ') : 'Optional preparation details';
-  }, [form.knowBeforeYouGo, form.whatToBring, form.whatToBringIds]);
+  }, [knowBefore, whatToBring, whatToBringIds]);
 
   const suitabilitySummary = useMemo(() => {
     const bits: string[] = [];
-    if (form.notSuitableForIds.length) {
-      bits.push(`${form.notSuitableForIds.length} restriction${form.notSuitableForIds.length === 1 ? '' : 's'}`);
-    } else if (form.requirementsNotes.trim()) {
+    if (notSuitableForIds.length) {
+      bits.push(`${notSuitableForIds.length} restriction${notSuitableForIds.length === 1 ? '' : 's'}`);
+    } else if (requirementsNotes.trim()) {
       bits.push('Legacy restrictions');
     }
-    if (form.accessibilityFeatureIds.length) {
-      bits.push(`${form.accessibilityFeatureIds.length} accessibility feature${form.accessibilityFeatureIds.length === 1 ? '' : 's'}`);
-    } else if (form.accessibilitySummary.trim()) {
+    if (accessibilityFeatureIds.length) {
+      bits.push(
+        `${accessibilityFeatureIds.length} accessibility feature${accessibilityFeatureIds.length === 1 ? '' : 's'}`
+      );
+    } else if (accessibilitySummary.trim()) {
       bits.push('Legacy accessibility notes');
     }
     return bits.length ? bits.join(' · ') : 'Optional suitability details';
-  }, [
-    form.notSuitableForIds,
-    form.requirementsNotes,
-    form.accessibilityFeatureIds,
-    form.accessibilitySummary,
-  ]);
+  }, [notSuitableForIds, requirementsNotes, accessibilityFeatureIds, accessibilitySummary]);
 
   const contactSummary = useMemo(() => {
     const bits: string[] = [];
-    if (form.additionalLanguages.length) {
+    if (additionalLanguages.length) {
       bits.push(
-        `${form.additionalLanguages.length} language${form.additionalLanguages.length === 1 ? '' : 's'}`
+        `${additionalLanguages.length} language${additionalLanguages.length === 1 ? '' : 's'}`
       );
     }
-    if (form.additionalInfo.trim()) bits.push('Additional notes');
-    if (form.bookingContactPhoneE164.trim()) {
-      const v = validateBookingContactPhone(form.bookingContactPhoneE164);
+    if (additionalInfo.trim()) bits.push('Additional notes');
+    if (bookingContactPhoneE164.trim()) {
+      const v = validateBookingContactPhone(bookingContactPhoneE164);
       bits.push(v.ok ? 'Contact number set' : 'Contact number needs fix');
     } else if (showPhoneRequired) {
       bits.push('Contact number required to publish');
     }
     return bits.length ? bits.join(' · ') : 'Languages, notes, and booking contact';
-  }, [
-    form.additionalLanguages,
-    form.additionalInfo,
-    form.bookingContactPhoneE164,
-    showPhoneRequired,
-  ]);
+  }, [additionalLanguages, additionalInfo, bookingContactPhoneE164, showPhoneRequired]);
 
   const knowPlaceholder =
     form.experienceKind === 'ticket'
@@ -254,7 +257,7 @@ export default function ListingInformationStage({
         summary={guestSummary}
         open={openGuest}
         onToggle={() => setOpenGuest((v) => !v)}
-        hasSaved={Boolean(form.knowBeforeYouGo.trim() || form.whatToBringIds.length || form.whatToBring.trim())}
+        hasSaved={Boolean(knowBefore.trim() || whatToBringIds.length || whatToBring.trim())}
       >
         <div id="supplier-listing-field-know-before" className="space-y-1.5">
           <label htmlFor={`${baseId}-know`} className="block text-[13px] font-semibold text-ink">
@@ -266,7 +269,7 @@ export default function ListingInformationStage({
           </p>
           <AutoGrowTextarea
             id={`${baseId}-know`}
-            value={form.knowBeforeYouGo}
+            value={knowBefore}
             maxLength={MAX_KNOW_BEFORE}
             onChange={(knowBeforeYouGo) => onChange({ knowBeforeYouGo })}
             placeholder={knowPlaceholder}
@@ -274,7 +277,7 @@ export default function ListingInformationStage({
             describedBy={`${baseId}-know-count`}
           />
           <p id={`${baseId}-know-count`} className="text-[11px] tabular-nums text-ink-faint">
-            {form.knowBeforeYouGo.length} / {MAX_KNOW_BEFORE}
+            {knowBefore.length} / {MAX_KNOW_BEFORE}
           </p>
           {knowIssues.map((issue) => (
             <p key={issue.kind} className="text-[12px] text-amber-800" role="status">
@@ -288,18 +291,18 @@ export default function ListingInformationStage({
             id={`${baseId}-bring`}
             label="What to bring"
             hint="Select items guests should pack. No free-text packing list."
-            values={form.whatToBringIds}
+            values={whatToBringIds}
             options={bringOptions}
             onChange={(whatToBringIds) => onChange({ whatToBringIds })}
             placeholder="Search packing items…"
           />
-          {form.whatToBringIds.length > 0 ? (
+          {whatToBringIds.length > 0 ? (
             <p className="mt-1.5 text-[12px] text-ink-muted">
               Selected:{' '}
-              {labelsForCatalogIds(form.whatToBringIds, WHAT_TO_BRING_CATALOG).join(', ')}
+              {labelsForCatalogIds(whatToBringIds, WHAT_TO_BRING_CATALOG).join(', ')}
             </p>
           ) : null}
-          {form.whatToBring.trim() ? (
+          {whatToBring.trim() ? (
             <div className="mt-3 space-y-1.5 rounded-md border border-amber-200/80 bg-amber-50/60 px-3 py-2.5">
               <p className="text-[12px] font-semibold text-ink">Previous packing notes (kept)</p>
               <p className="text-[12px] text-ink-muted">
@@ -307,12 +310,12 @@ export default function ListingInformationStage({
               </p>
               <AutoGrowTextarea
                 id={`${baseId}-legacy-bring`}
-                value={form.whatToBring}
+                value={whatToBring}
                 maxLength={MAX_LEGACY_BRING}
                 onChange={(whatToBring) => onChange({ whatToBring })}
               />
               <p className="text-[11px] tabular-nums text-ink-faint">
-                {form.whatToBring.length} / {MAX_LEGACY_BRING}
+                {whatToBring.length} / {MAX_LEGACY_BRING}
               </p>
             </div>
           ) : null}
@@ -326,10 +329,10 @@ export default function ListingInformationStage({
         open={openSuitability}
         onToggle={() => setOpenSuitability((v) => !v)}
         hasSaved={Boolean(
-          form.notSuitableForIds.length ||
-            form.accessibilityFeatureIds.length ||
-            form.requirementsNotes.trim() ||
-            form.accessibilitySummary.trim()
+          notSuitableForIds.length ||
+            accessibilityFeatureIds.length ||
+            requirementsNotes.trim() ||
+            accessibilitySummary.trim()
         )}
       >
         <div id="supplier-listing-field-requirements">
@@ -337,17 +340,17 @@ export default function ListingInformationStage({
             id={`${baseId}-not-suitable`}
             label="Not suitable for"
             hint="Select only restrictions that genuinely apply. Unnecessary restrictions may reduce bookings."
-            values={form.notSuitableForIds}
+            values={notSuitableForIds}
             options={NOT_SUITABLE_FOR_CATALOG}
             onChange={(notSuitableForIds) => onChange({ notSuitableForIds })}
             placeholder="Search restrictions…"
           />
-          {form.requirementsNotes.trim() ? (
+          {requirementsNotes.trim() ? (
             <div className="mt-3 space-y-1.5 rounded-md border border-amber-200/80 bg-amber-50/60 px-3 py-2.5">
               <p className="text-[12px] font-semibold text-ink">Previous requirements notes (kept)</p>
               <AutoGrowTextarea
                 id={`${baseId}-legacy-req`}
-                value={form.requirementsNotes}
+                value={requirementsNotes}
                 maxLength={MAX_LEGACY_REQ}
                 onChange={(requirementsNotes) => onChange({ requirementsNotes })}
               />
@@ -360,7 +363,7 @@ export default function ListingInformationStage({
             id={`${baseId}-a11y`}
             label="Accessibility features"
             hint="Only claim features you genuinely provide."
-            values={form.accessibilityFeatureIds}
+            values={accessibilityFeatureIds}
             options={ACCESSIBILITY_FEATURES_CATALOG}
             onChange={(accessibilityFeatureIds) => onChange({ accessibilityFeatureIds })}
             placeholder="Search accessibility features…"
@@ -371,12 +374,12 @@ export default function ListingInformationStage({
               {msg}
             </p>
           ))}
-          {form.accessibilitySummary.trim() ? (
+          {accessibilitySummary.trim() ? (
             <div className="mt-3 space-y-1.5 rounded-md border border-amber-200/80 bg-amber-50/60 px-3 py-2.5">
               <p className="text-[12px] font-semibold text-ink">Previous accessibility notes (kept)</p>
               <AutoGrowTextarea
                 id={`${baseId}-legacy-a11y`}
-                value={form.accessibilitySummary}
+                value={accessibilitySummary}
                 maxLength={MAX_LEGACY_A11Y}
                 onChange={(accessibilitySummary) => onChange({ accessibilitySummary })}
               />
@@ -392,9 +395,9 @@ export default function ListingInformationStage({
         open={openContact}
         onToggle={() => setOpenContact((v) => !v)}
         hasSaved={Boolean(
-          form.additionalLanguages.length ||
-            form.additionalInfo.trim() ||
-            form.bookingContactPhoneE164.trim()
+          additionalLanguages.length ||
+            additionalInfo.trim() ||
+            bookingContactPhoneE164.trim()
         )}
       >
         <div id="supplier-listing-field-languages">
@@ -402,7 +405,7 @@ export default function ListingInformationStage({
             id={`${baseId}-langs`}
             label="Spoken languages"
             hint="Languages available during the experience — not the same as listing language."
-            values={form.additionalLanguages}
+            values={additionalLanguages}
             options={SPOKEN_LANGUAGE_CATALOG}
             onChange={(additionalLanguages) => onChange({ additionalLanguages })}
             placeholder="Search languages…"
@@ -418,7 +421,7 @@ export default function ListingInformationStage({
           </p>
           <AutoGrowTextarea
             id={`${baseId}-more`}
-            value={form.additionalInfo}
+            value={additionalInfo}
             maxLength={MAX_ADDITIONAL}
             onChange={(additionalInfo) => onChange({ additionalInfo })}
             placeholder="Optional notes shown with Good to know."
@@ -426,7 +429,7 @@ export default function ListingInformationStage({
             describedBy={`${baseId}-more-count`}
           />
           <p id={`${baseId}-more-count`} className="text-[11px] tabular-nums text-ink-faint">
-            {form.additionalInfo.length} / {MAX_ADDITIONAL}
+            {additionalInfo.length} / {MAX_ADDITIONAL}
           </p>
           {additionalIssues.map((issue) => (
             <p key={issue.kind} className="text-[12px] text-amber-800" role="status">
@@ -436,7 +439,7 @@ export default function ListingInformationStage({
         </div>
 
         <BookingContactPhoneField
-          valueE164={form.bookingContactPhoneE164}
+          valueE164={bookingContactPhoneE164}
           onChangeE164={(bookingContactPhoneE164) => onChange({ bookingContactPhoneE164 })}
           businessCountry={businessCountry}
           businessPhoneHint={businessPhoneHint}
