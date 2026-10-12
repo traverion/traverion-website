@@ -1,4 +1,4 @@
-import { isListingTitleLengthValid } from './listingQualityScore';
+import { isListingTitleLengthValid, MAX_LISTING_DESCRIPTION_LENGTH } from './listingQualityScore';
 
 /** Guided scenes inside Tour → Basics. Stay Basics stays a single page. */
 export const TOUR_BASICS_SCENES = [
@@ -11,7 +11,8 @@ export type TourBasicsSceneId = (typeof TOUR_BASICS_SCENES)[number]['id'];
 
 export const TOUR_BASICS_SCENE_COUNT = TOUR_BASICS_SCENES.length;
 export const TOUR_BASICS_SUBTITLE_MAX = 300;
-export const TOUR_BASICS_DESCRIPTION_MAX = 2000;
+/** Experience / stay description ceiling — same as MAX_LISTING_DESCRIPTION_LENGTH. */
+export const TOUR_BASICS_DESCRIPTION_MAX = MAX_LISTING_DESCRIPTION_LENGTH;
 export const TOUR_HIGHLIGHT_MIN_VISIBLE = 2;
 export const TOUR_HIGHLIGHT_MAX = 6;
 export const TOUR_IDENTITY_PREVIEW_SUBTITLE_CLAMP = 160;

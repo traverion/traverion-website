@@ -9,6 +9,29 @@ export const LISTING_PLACEHOLDER_IMAGE =
 /** Minimum main description length to publish (aligned with partner form and publish gate). */
 export const MIN_LISTING_DESCRIPTION_LENGTH = 100;
 
+/** Maximum main description length to publish — Experience / stay Basics must use the same ceiling. */
+export const MAX_LISTING_DESCRIPTION_LENGTH = 3500;
+
+/** Soft warning threshold on the description character counter. */
+export const LISTING_DESCRIPTION_NEAR_LIMIT_LENGTH = 3200;
+
+/**
+ * Clamp description typing/paste without silently shortening legacy values already over the max.
+ */
+export function clampListingDescriptionInput(next: string, previous: string): string {
+  if (next.length <= MAX_LISTING_DESCRIPTION_LENGTH) return next;
+  if (previous.length > MAX_LISTING_DESCRIPTION_LENGTH) {
+    return next.length < previous.length ? next : previous;
+  }
+  return next.slice(0, MAX_LISTING_DESCRIPTION_LENGTH);
+}
+
+/** Publish / Experience description length bounds (trimmed). */
+export function isListingDescriptionLengthValid(description: string): boolean {
+  const t = description.trim();
+  return t.length >= MIN_LISTING_DESCRIPTION_LENGTH && t.length <= MAX_LISTING_DESCRIPTION_LENGTH;
+}
+
 /** Minimum title length to publish — Basics Continue must use the same floor. */
 export const MIN_LISTING_TITLE_LENGTH = 10;
 

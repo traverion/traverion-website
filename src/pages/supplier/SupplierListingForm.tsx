@@ -114,7 +114,6 @@ import {
   tourDetailsMissingItems,
 } from '../../lib/listing-creation-progression';
 import {
-  TOUR_BASICS_DESCRIPTION_MAX,
   TOUR_BASICS_SCENE_COUNT,
   TOUR_BASICS_SUBTITLE_MAX,
   TOUR_HIGHLIGHT_MAX,
@@ -170,11 +169,15 @@ import {
 } from '../../lib/listing-creation-persist';
 import { userFacingError } from '../../lib/userFacingError';
 import {
+  LISTING_DESCRIPTION_NEAR_LIMIT_LENGTH,
   LISTING_TITLE_NEAR_LIMIT_LENGTH,
+  MAX_LISTING_DESCRIPTION_LENGTH,
   MAX_LISTING_TITLE_LENGTH,
   MIN_LISTING_DESCRIPTION_LENGTH,
   MIN_LISTING_TITLE_LENGTH,
+  clampListingDescriptionInput,
   clampListingTitleInput,
+  isListingDescriptionLengthValid,
   isListingTitleLengthValid,
 } from '../../lib/listingQualityScore';
 import {
@@ -244,7 +247,8 @@ function experienceStartOptionsForKind(
 }
 
 const MAX_SUBTITLE_LENGTH = TOUR_BASICS_SUBTITLE_MAX;
-const MAX_DESCRIPTION_LENGTH = TOUR_BASICS_DESCRIPTION_MAX;
+const MAX_DESCRIPTION_LENGTH = MAX_LISTING_DESCRIPTION_LENGTH;
+
 const MAX_ACCESSIBILITY_LENGTH = 500;
 const MAX_TIMELINE_LENGTH = 800;
 const MAX_KNOW_BEFORE_LENGTH = 800;
@@ -828,7 +832,8 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
     form.experienceKind === 'transportation'
       ? form.experienceKind
       : undefined;
-  const desc = form.description.trim().slice(0, MAX_DESCRIPTION_LENGTH);
+  // Do not silently truncate over-max legacy descriptions on save; publish gate blocks until shortened.
+  const desc = form.description.trim();
   const highlightList =
     form.inventoryFamily === 'stay'
       ? persistableProgressiveSlots(form.highlights, STAY_HIGHLIGHT_MAX)
@@ -996,13 +1001,11 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
       form.experienceKind === 'ticket' ||
       form.experienceKind === 'transportation';
     if (isStay) {
-      const desc = form.description.trim();
       return (
         isListingTitleLengthValid(form.title) &&
         sub.length > 0 &&
         sub.length <= MAX_SUBTITLE_LENGTH &&
-        desc.length >= MIN_LISTING_DESCRIPTION_LENGTH &&
-        desc.length <= MAX_DESCRIPTION_LENGTH
+        isListingDescriptionLengthValid(form.description)
       );
     }
     return (
@@ -1023,12 +1026,10 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
         form.stayCheckInAddress.trim().length > 0
       );
     }
-    const desc = form.description.trim();
     const incLines = form.includes.map((s) => s.trim()).filter(Boolean);
     const excLines = form.excludes.map((s) => s.trim()).filter(Boolean);
     return (
-      desc.length >= MIN_LISTING_DESCRIPTION_LENGTH &&
-      desc.length <= MAX_DESCRIPTION_LENGTH &&
+      isListingDescriptionLengthValid(form.description) &&
       incLines.length >= TOUR_INCLUDE_MIN_REQUIRED &&
       incLines.length <= TOUR_INCLUDE_MAX &&
       excLines.length <= TOUR_EXCLUDE_MAX &&
@@ -3306,15 +3307,20 @@ export default function SupplierListingForm({
                   About this stay *
                 </label>
                 <p className="text-xs text-ink-muted mb-2">
-                  Main description for guests (at least {MIN_LISTING_DESCRIPTION_LENGTH} characters to continue, max{' '}
-                  {MAX_DESCRIPTION_LENGTH}).
+                  Main description for guests ({MIN_LISTING_DESCRIPTION_LENGTH.toLocaleString('en-US')}–
+                  {MAX_DESCRIPTION_LENGTH.toLocaleString('en-US')} characters).
                 </p>
                 <textarea
                   id="supplier-listing-description"
                   value={form.description}
-                  maxLength={MAX_DESCRIPTION_LENGTH}
+                  maxLength={
+                    form.description.length > MAX_DESCRIPTION_LENGTH ? undefined : MAX_DESCRIPTION_LENGTH
+                  }
                   onChange={(e) =>
-                    setForm((f) => ({ ...f, description: e.target.value.slice(0, MAX_DESCRIPTION_LENGTH) }))
+                    setForm((f) => ({
+                      ...f,
+                      description: clampListingDescriptionInput(e.target.value, f.description),
+                    }))
                   }
                   rows={8}
                   className={`tv-input min-h-[10rem] ${
@@ -3335,8 +3341,21 @@ export default function SupplierListingForm({
                       : 'supplier-listing-description-hint'
                   }
                 />
-                <p id="supplier-listing-description-hint" className="text-xs text-ink-muted mt-1 tabular-nums">
-                  {form.description.length}/{MAX_DESCRIPTION_LENGTH}
+                <p
+                  id="supplier-listing-description-hint"
+                  className={`text-xs mt-1 tabular-nums ${
+                    form.description.length >= LISTING_DESCRIPTION_NEAR_LIMIT_LENGTH
+                      ? 'text-amber-800'
+                      : 'text-ink-muted'
+                  }`}
+                >
+                  {form.description.length.toLocaleString('en-US')} /{' '}
+                  {MAX_DESCRIPTION_LENGTH.toLocaleString('en-US')}
+                  {form.description.length > MAX_DESCRIPTION_LENGTH
+                    ? ` · shorten to ${MAX_DESCRIPTION_LENGTH.toLocaleString('en-US')} to publish`
+                    : form.description.length >= LISTING_DESCRIPTION_NEAR_LIMIT_LENGTH
+                      ? ' · approaching the limit'
+                      : null}
                 </p>
                 {form.description.trim().length > 0 &&
                 form.description.trim().length < MIN_LISTING_DESCRIPTION_LENGTH ? (
@@ -3402,14 +3421,20 @@ export default function SupplierListingForm({
                     About this product *
                   </label>
                   <p className="mb-1.5 text-[12px] text-ink-muted">
-                    Full description · {MIN_LISTING_DESCRIPTION_LENGTH}–{MAX_DESCRIPTION_LENGTH} characters
+                    Full description · {MIN_LISTING_DESCRIPTION_LENGTH.toLocaleString('en-US')}–
+                    {MAX_DESCRIPTION_LENGTH.toLocaleString('en-US')} characters
                   </p>
                   <textarea
                     id="supplier-listing-description"
                     value={form.description}
-                    maxLength={MAX_DESCRIPTION_LENGTH}
+                    maxLength={
+                      form.description.length > MAX_DESCRIPTION_LENGTH ? undefined : MAX_DESCRIPTION_LENGTH
+                    }
                     onChange={(e) =>
-                      setForm((f) => ({ ...f, description: e.target.value.slice(0, MAX_DESCRIPTION_LENGTH) }))
+                      setForm((f) => ({
+                        ...f,
+                        description: clampListingDescriptionInput(e.target.value, f.description),
+                      }))
                     }
                     rows={6}
                     className={`tv-input min-h-[8rem] break-words text-[15px] leading-relaxed [overflow-wrap:anywhere] ${
@@ -3426,8 +3451,20 @@ export default function SupplierListingForm({
                           : 'What guests do, what makes it special, practical notes…'
                     }
                   />
-                  <p className="mt-1 text-[12px] tabular-nums text-ink-muted">
-                    {form.description.length}/{MAX_DESCRIPTION_LENGTH}
+                  <p
+                    className={`mt-1 text-[12px] tabular-nums ${
+                      form.description.length >= LISTING_DESCRIPTION_NEAR_LIMIT_LENGTH
+                        ? 'text-amber-800'
+                        : 'text-ink-muted'
+                    }`}
+                  >
+                    {form.description.length.toLocaleString('en-US')} /{' '}
+                    {MAX_DESCRIPTION_LENGTH.toLocaleString('en-US')}
+                    {form.description.length > MAX_DESCRIPTION_LENGTH
+                      ? ` · shorten to ${MAX_DESCRIPTION_LENGTH.toLocaleString('en-US')} to publish`
+                      : form.description.length >= LISTING_DESCRIPTION_NEAR_LIMIT_LENGTH
+                        ? ' · approaching the limit'
+                        : null}
                   </p>
                   {!canContinueStep() &&
                   form.description.trim().length < MIN_LISTING_DESCRIPTION_LENGTH ? (

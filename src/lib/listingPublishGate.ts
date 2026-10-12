@@ -7,6 +7,7 @@ import {
 import type { ListingBookingOption } from '../types/listingExtras';
 import {
   LISTING_PLACEHOLDER_IMAGE,
+  MAX_LISTING_DESCRIPTION_LENGTH,
   MAX_LISTING_TITLE_LENGTH,
   MIN_LISTING_DESCRIPTION_LENGTH,
   MIN_LISTING_TITLE_LENGTH,
@@ -128,8 +129,10 @@ export function getListingPublishBlockers(
       `Description is too short — use at least ${MIN_LISTING_DESCRIPTION_LENGTH} characters so guests know what they book.`
     );
   }
-  if (desc.length > 2000) {
-    out.push('Main description must be 2000 characters or fewer.');
+  if (desc.length > MAX_LISTING_DESCRIPTION_LENGTH) {
+    out.push(
+      `Main description must be ${MAX_LISTING_DESCRIPTION_LENGTH.toLocaleString('en-US')} characters or fewer.`
+    );
   }
   const bookingOptions = materializedBookingOptions(listing.listingExtras?.bookingOptions);
   const price = listing.price?.startingFrom;
