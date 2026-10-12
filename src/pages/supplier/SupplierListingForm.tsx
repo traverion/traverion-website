@@ -75,6 +75,7 @@ import {
   compactPhotoSlotsAndLabels,
   normalizePhotoSlots,
   normalizePhotoSlotLabels,
+  normalizePhotoOriginalUrls,
   orderedPhotoUrls,
   photoSlotsFromTourPackage,
   isPlaceholderListingImageUrl,
@@ -622,6 +623,8 @@ type ListingFormState = {
   photoSlots: string[];
   /** Optional friendly names per slot (e.g. original upload filename); parallel to photoSlots. */
   photoSlotLabels: string[];
+  /** Master URLs for recrop; parallel to photoSlots. */
+  photoOriginalUrls: string[];
   description: string;
   city: string;
   country: string;
@@ -720,6 +723,7 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
   const primaryLang = form.experienceLanguage.trim();
   const addLangs = form.additionalLanguages.filter((c) => c && c !== primaryLang);
   const labelsNorm = normalizePhotoSlotLabels(form.photoSlotLabels);
+  const originalsNorm = normalizePhotoOriginalUrls(form.photoOriginalUrls);
   const extras: ListingExtras = {
     ...(addLangs.length ? { additionalLanguages: addLangs } : {}),
     ...(form.venueSetting !== 'unspecified' ? { venueSetting: form.venueSetting } : {}),
@@ -744,6 +748,7 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
       : {}),
     ...(galleryList.length > 0 ? { galleryImageUrls: galleryList } : {}),
     ...(labelsNorm.some((l) => l.trim()) ? { photoSlotLabels: labelsNorm } : {}),
+    ...(originalsNorm.some((u) => u.trim()) ? { photoOriginalUrls: originalsNorm } : {}),
     ...(activeOpts.length > 0 && !isStay ? { bookingOptions: activeOpts } : {}),
     ...(isStay ? { inventoryFamily: 'stay' as const } : {}),
     ...(isStay
@@ -969,6 +974,7 @@ const emptyForm: ListingFormState = {
   duration: '',
   photoSlots: Array.from({ length: LISTING_PHOTO_GRID_SLOTS }, () => ''),
   photoSlotLabels: Array.from({ length: LISTING_PHOTO_GRID_SLOTS }, () => ''),
+  photoOriginalUrls: Array.from({ length: LISTING_PHOTO_GRID_SLOTS }, () => ''),
   description: '',
   city: '',
   country: '',
@@ -1465,7 +1471,8 @@ export default function SupplierListingForm({
         const extras = parseListingExtras(existing.listingExtras as unknown);
         const packed = compactPhotoSlotsAndLabels(
           photoSlotsFromTourPackage(existing),
-          normalizePhotoSlotLabels(extras.photoSlotLabels)
+          normalizePhotoSlotLabels(extras.photoSlotLabels),
+          normalizePhotoOriginalUrls(extras.photoOriginalUrls)
         );
         const listingIsStay = extras.inventoryFamily === 'stay';
         const next: ListingFormState = {
@@ -1485,6 +1492,7 @@ export default function SupplierListingForm({
           duration: existing.duration,
           photoSlots: packed.slots,
           photoSlotLabels: packed.labels,
+          photoOriginalUrls: packed.originals,
           description: existing.description,
           city: existing.city ?? '',
           country: existing.country ?? '',
@@ -3920,8 +3928,14 @@ export default function SupplierListingForm({
                 <ListingImageFields
                   photoSlots={form.photoSlots}
                   photoSlotLabels={form.photoSlotLabels}
-                  onPhotosChange={({ slots, labels }) =>
-                    setForm((f) => ({ ...f, photoSlots: slots, photoSlotLabels: labels }))
+                  photoOriginalUrls={form.photoOriginalUrls}
+                  onPhotosChange={({ slots, labels, originals }) =>
+                    setForm((f) => ({
+                      ...f,
+                      photoSlots: slots,
+                      photoSlotLabels: labels,
+                      photoOriginalUrls: originals,
+                    }))
                   }
                   userId={user?.id}
                   uploadsEnabled={isSupabaseConfigured() && !!user?.id}

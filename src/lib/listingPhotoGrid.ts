@@ -63,25 +63,34 @@ export function normalizePhotoSlotLabels(fromLabels: string[] | undefined | null
   return out;
 }
 
-/** Move all filled photos to the front (0..n-1) while keeping order and paired labels. */
+/** Parallel master URLs for recrop without re-encoding the display crop. */
+export function normalizePhotoOriginalUrls(fromUrls: string[] | undefined | null): string[] {
+  return normalizePhotoSlots(fromUrls);
+}
+
+/** Move all filled photos to the front (0..n-1) while keeping order and paired labels/originals. */
 export function compactPhotoSlotsAndLabels(
   slots: string[],
-  labels: string[]
-): { slots: string[]; labels: string[] } {
+  labels: string[],
+  originals?: string[]
+): { slots: string[]; labels: string[]; originals: string[] } {
   const s = normalizePhotoSlots(slots);
   const l = normalizePhotoSlotLabels(labels);
-  const pairs: { url: string; label: string }[] = [];
+  const o = normalizePhotoOriginalUrls(originals);
+  const pairs: { url: string; label: string; original: string }[] = [];
   for (let i = 0; i < LISTING_PHOTO_GRID_SLOTS; i++) {
     const url = s[i].trim();
-    if (url) pairs.push({ url, label: l[i].trim() });
+    if (url) pairs.push({ url, label: l[i].trim(), original: (o[i] ?? '').trim() || url });
   }
   const ns = Array.from({ length: LISTING_PHOTO_GRID_SLOTS }, () => '');
   const nl = Array.from({ length: LISTING_PHOTO_GRID_SLOTS }, () => '');
+  const no = Array.from({ length: LISTING_PHOTO_GRID_SLOTS }, () => '');
   for (let j = 0; j < pairs.length && j < LISTING_PHOTO_GRID_SLOTS; j++) {
     ns[j] = pairs[j].url;
     nl[j] = pairs[j].label;
+    no[j] = pairs[j].original;
   }
-  return { slots: ns, labels: nl };
+  return { slots: ns, labels: nl, originals: no };
 }
 
 /** Reorder filled photos. Index 0 is the cover; dragging a supporting photo to 0 makes it the cover. */
@@ -89,18 +98,22 @@ export function reorderFilledPhotos(
   slots: string[],
   labels: string[],
   from: number,
-  to: number
-): { slots: string[]; labels: string[] } {
-  const compacted = compactPhotoSlotsAndLabels(slots, labels);
+  to: number,
+  originals?: string[]
+): { slots: string[]; labels: string[]; originals: string[] } {
+  const compacted = compactPhotoSlotsAndLabels(slots, labels, originals);
   const filled = compacted.slots.filter((url) => url.trim()).length;
   if (from === to || from < 0 || to < 0 || from >= filled || to >= filled) return compacted;
   const nextS = [...compacted.slots];
   const nextL = [...compacted.labels];
+  const nextO = [...compacted.originals];
   const [movedUrl] = nextS.splice(from, 1);
   const [movedLabel] = nextL.splice(from, 1);
+  const [movedOriginal] = nextO.splice(from, 1);
   nextS.splice(to, 0, movedUrl ?? '');
   nextL.splice(to, 0, movedLabel ?? '');
-  return compactPhotoSlotsAndLabels(nextS, nextL);
+  nextO.splice(to, 0, movedOriginal ?? '');
+  return compactPhotoSlotsAndLabels(nextS, nextL, nextO);
 }
 
 /** Partner UI: show a file-style name instead of a long URL when possible. */

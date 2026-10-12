@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LISTING_PLACEHOLDER_IMAGE } from './listingQualityScore';
 import {
+  compactPhotoSlotsAndLabels,
   listingHeroImageSrc,
   reorderFilledPhotos,
   remainingListingPhotoSlots,
@@ -42,6 +43,20 @@ describe('photo reorder and cover', () => {
   it('ignores out-of-range moves without dropping photos', () => {
     const next = reorderFilledPhotos(slots, labels, 0, 9);
     expect(next.slots.slice(0, 3)).toEqual(['cover.jpg', 'a.jpg', 'b.jpg']);
+  });
+
+  it('keeps master original URLs paired when compacting and reordering', () => {
+    const originals = ['cover-master.jpg', 'a-master.jpg', 'b-master.jpg', ...Array.from({ length: 9 }, () => '')];
+    const compacted = compactPhotoSlotsAndLabels(
+      ['', 'cover.jpg', '', 'a.jpg', 'b.jpg', ...Array.from({ length: 7 }, () => '')],
+      ['', 'cover', '', 'a', 'b', ...Array.from({ length: 7 }, () => '')],
+      ['', 'cover-master.jpg', '', 'a-master.jpg', 'b-master.jpg', ...Array.from({ length: 7 }, () => '')]
+    );
+    expect(compacted.slots.slice(0, 3)).toEqual(['cover.jpg', 'a.jpg', 'b.jpg']);
+    expect(compacted.originals.slice(0, 3)).toEqual(['cover-master.jpg', 'a-master.jpg', 'b-master.jpg']);
+
+    const next = reorderFilledPhotos(slots, labels, 2, 0, originals);
+    expect(next.originals.slice(0, 3)).toEqual(['b-master.jpg', 'cover-master.jpg', 'a-master.jpg']);
   });
 });
 

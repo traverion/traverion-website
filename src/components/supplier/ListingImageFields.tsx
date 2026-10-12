@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ImagePlus, MoreHorizontal, Plus } from 'lucide-react';
 import {
+  LISTING_IMAGE_MAX_BYTES,
   LISTING_IMAGE_MAX_MB,
   isListingImageStoragePublicUrl,
   removeListingImageIfOwned,
@@ -16,6 +17,7 @@ import {
   LISTING_PHOTO_MIN,
   compactPhotoSlotsAndLabels,
   displayNameForPhotoSlot,
+  normalizePhotoOriginalUrls,
   normalizePhotoSlotLabels,
   normalizePhotoSlots,
   orderedPhotoUrls,
@@ -28,11 +30,13 @@ import { ListingPhotoCropModal } from './ListingPhotoCropModal';
 export type ListingPhotosValue = {
   slots: string[];
   labels: string[];
+  originals: string[];
 };
 
 type ListingImageFieldsProps = {
   photoSlots: string[];
   photoSlotLabels: string[];
+  photoOriginalUrls?: string[];
   onPhotosChange: (next: ListingPhotosValue) => void;
   userId: string | null | undefined;
   uploadsEnabled: boolean;
@@ -50,12 +54,14 @@ function previewUrl(url: string): string | null {
 export default function ListingImageFields({
   photoSlots,
   photoSlotLabels,
+  photoOriginalUrls,
   onPhotosChange,
   userId,
   uploadsEnabled,
 }: ListingImageFieldsProps) {
   const slots = normalizePhotoSlots(photoSlots);
   const labels = normalizePhotoSlotLabels(photoSlotLabels);
+  const originals = normalizePhotoOriginalUrls(photoOriginalUrls);
   const fileRef = useRef<HTMLInputElement>(null);
   const replaceIndexRef = useRef<number | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -68,8 +74,8 @@ export default function ListingImageFields({
   const [coverFlash, setCoverFlash] = useState(false);
   const [cropIndex, setCropIndex] = useState<number | null>(null);
 
-  const pushBundle = (nextSlots: string[], nextLabels: string[]) => {
-    onPhotosChange(compactPhotoSlotsAndLabels(nextSlots, nextLabels));
+  const pushBundle = (nextSlots: string[], nextLabels: string[], nextOriginals: string[]) => {
+    onPhotosChange(compactPhotoSlotsAndLabels(nextSlots, nextLabels, nextOriginals));
   };
 
   const filledCount = orderedPhotoUrls(slots).length;
@@ -100,19 +106,39 @@ export default function ListingImageFields({
   const prepareAndUpload = async (file: File) => {
     const prepared = await prepareListingImageFile(file);
     if ('error' in prepared) {
-      return { publicUrl: null as string | null, error: prepared.error, label: file.name };
+      return {
+        publicUrl: null as string | null,
+        originalUrl: null as string | null,
+        error: prepared.error,
+        label: file.name,
+      };
     }
-    const result = await uploadListingImage(userId!, prepared.file);
-    return { ...result, label: prepared.file.name };
+    const display = await uploadListingImage(userId!, prepared.file);
+    if (display.error || !display.publicUrl) {
+      return { publicUrl: null, originalUrl: null, error: display.error, label: file.name };
+    }
+    let originalUrl = display.publicUrl;
+    // Retain a master when we resized/converted and the source still fits storage limits.
+    if (prepared.resized && file.size <= LISTING_IMAGE_MAX_BYTES) {
+      const master = await uploadListingImage(userId!, file);
+      if (master.publicUrl) originalUrl = master.publicUrl;
+    }
+    return {
+      publicUrl: display.publicUrl,
+      originalUrl,
+      error: undefined as string | undefined,
+      label: prepared.file.name,
+    };
   };
 
-  const ingestFiles = async (files: File[], replaceIndex: number | null) => {
+  const ingestFiles = async (files: File[], replaceIndex: number | null, opts?: { keepOriginalAt?: number }) => {
     if (!userId || !uploadsEnabled || busy) return;
     const list = Array.from(files).filter(Boolean);
     if (list.length === 0) return;
 
     const workingS = [...normalizePhotoSlots(slots)];
     const workingL = [...normalizePhotoSlotLabels(labels)];
+    const workingO = [...normalizePhotoOriginalUrls(originals)];
     const nextIssues: PhotoIssue[] = [];
 
     if (replaceIndex != null) {
@@ -123,7 +149,9 @@ export default function ListingImageFields({
       }
       setBusy(true);
       const prevUrl = (workingS[replaceIndex] ?? '').trim();
-      const { publicUrl, error: upErr, label } = await prepareAndUpload(file);
+      const prevOriginal = (workingO[replaceIndex] ?? '').trim();
+      const keepOriginal = opts?.keepOriginalAt === replaceIndex ? prevOriginal || prevUrl : '';
+      const { publicUrl, originalUrl, error: upErr, label } = await prepareAndUpload(file);
       setBusy(false);
       if (upErr || !publicUrl) {
         setIssues([{ name: file.name, message: userFacingError(upErr, USER_ERROR.upload) }, ...nextIssues]);
@@ -131,9 +159,10 @@ export default function ListingImageFields({
       }
       workingS[replaceIndex] = publicUrl;
       workingL[replaceIndex] = label.trim().slice(0, 200) || 'Photo';
-      pushBundle(workingS, workingL);
+      workingO[replaceIndex] = keepOriginal || originalUrl || publicUrl;
+      pushBundle(workingS, workingL, workingO);
       setIssues(nextIssues);
-      if (prevUrl && isListingImageStoragePublicUrl(prevUrl)) {
+      if (prevUrl && prevUrl !== publicUrl && prevUrl !== workingO[replaceIndex] && isListingImageStoragePublicUrl(prevUrl)) {
         void removeListingImageIfOwned(userId, prevUrl);
       }
       return;
@@ -150,15 +179,16 @@ export default function ListingImageFields({
     setBusy(true);
     let addIndex = workingS.filter((url) => url.trim()).length;
     for (const file of toUpload) {
-      const { publicUrl, error: upErr, label } = await prepareAndUpload(file);
+      const { publicUrl, originalUrl, error: upErr, label } = await prepareAndUpload(file);
       if (upErr || !publicUrl) {
         nextIssues.push({ name: file.name, message: userFacingError(upErr, USER_ERROR.upload) });
         continue;
       }
       workingS[addIndex] = publicUrl;
       workingL[addIndex] = label.trim().slice(0, 200) || 'Photo';
+      workingO[addIndex] = originalUrl || publicUrl;
       addIndex += 1;
-      pushBundle(workingS, workingL);
+      pushBundle(workingS, workingL, workingO);
     }
     setBusy(false);
     setIssues(nextIssues);
@@ -174,21 +204,32 @@ export default function ListingImageFields({
 
   const clearSlot = (index: number) => {
     const prev = (slots[index] ?? '').trim();
+    const prevOriginal = (originals[index] ?? '').trim();
     const nextS = [...normalizePhotoSlots(slots)];
     const nextL = [...normalizePhotoSlotLabels(labels)];
+    const nextO = [...normalizePhotoOriginalUrls(originals)];
     nextS[index] = '';
     nextL[index] = '';
-    pushBundle(nextS, nextL);
+    nextO[index] = '';
+    pushBundle(nextS, nextL, nextO);
     if (userId && prev && isListingImageStoragePublicUrl(prev)) {
       void removeListingImageIfOwned(userId, prev);
+    }
+    if (
+      userId &&
+      prevOriginal &&
+      prevOriginal !== prev &&
+      isListingImageStoragePublicUrl(prevOriginal)
+    ) {
+      void removeListingImageIfOwned(userId, prevOriginal);
     }
     setPendingRemoveIndex(null);
     setMenuIndex(null);
   };
 
   const moveToIndex = (from: number, to: number) => {
-    const next = reorderFilledPhotos(slots, labels, from, to);
-    pushBundle(next.slots, next.labels);
+    const next = reorderFilledPhotos(slots, labels, from, to, originals);
+    pushBundle(next.slots, next.labels, next.originals);
   };
 
   const makeCover = (index: number) => {
@@ -518,13 +559,15 @@ export default function ListingImageFields({
 
       {cropIndex != null && (slots[cropIndex] ?? '').trim() ? (
         <ListingPhotoCropModal
-          imageUrl={(slots[cropIndex] ?? '').trim()}
+          imageUrl={
+            (originals[cropIndex] ?? '').trim() || (slots[cropIndex] ?? '').trim()
+          }
           onCancel={() => setCropIndex(null)}
           onApply={(blob) => {
             const idx = cropIndex;
             setCropIndex(null);
             const file = new File([blob], 'cover-crop.jpg', { type: 'image/jpeg' });
-            void ingestFiles([file], idx);
+            void ingestFiles([file], idx, { keepOriginalAt: idx });
           }}
         />
       ) : null}
@@ -546,9 +589,11 @@ export default function ListingImageFields({
                   if (!url) return;
                   const nextS = [...normalizePhotoSlots(slots)];
                   const nextL = [...normalizePhotoSlotLabels(labels)];
+                  const nextO = [...normalizePhotoOriginalUrls(originals)];
                   nextS[filledCount] = url;
                   nextL[filledCount] = '';
-                  pushBundle(nextS, nextL);
+                  nextO[filledCount] = url;
+                  pushBundle(nextS, nextL, nextO);
                   e.target.value = '';
                 }}
               />
