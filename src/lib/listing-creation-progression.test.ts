@@ -82,7 +82,7 @@ describe('missing-requirement copy', () => {
         isStay: false,
         isSatisfied: (i) => i === 0,
       })
-    ).toBe('Add city, country, two inclusions, and one exclusion to continue.');
+    ).toBe('Add a description, two inclusions, one exclusion, and how guests start to continue.');
   });
 
   it('explains a disabled Continue with the current step requirement', () => {
@@ -114,11 +114,30 @@ describe('previousStepsSatisfied', () => {
 });
 
 describe('continue hints name what is missing', () => {
-  it('lists missing details items', () => {
+  it('lists missing experience items', () => {
     expect(
-      tourDetailsMissingItems({ includeCount: 1, excludeCount: 0, city: '', country: 'FI' })
-    ).toEqual(['add 1 more inclusion', 'add what is not included', 'add the city']);
-    expect(tourDetailsMissingItems({ includeCount: 2, excludeCount: 1, city: 'Rovaniemi', country: 'FI' })).toEqual([]);
+      tourDetailsMissingItems({
+        includeCount: 1,
+        excludeCount: 0,
+        descriptionLength: 10,
+        minDescriptionLength: 100,
+        startStyleOk: false,
+      })
+    ).toEqual([
+      'add a description of at least 100 characters',
+      'add 1 more inclusion',
+      'add what is not included',
+      'choose how guests start',
+    ]);
+    expect(
+      tourDetailsMissingItems({
+        includeCount: 2,
+        excludeCount: 1,
+        descriptionLength: 120,
+        minDescriptionLength: 100,
+        startStyleOk: true,
+      })
+    ).toEqual([]);
   });
 
   it('joins missing items into a single hint', () => {

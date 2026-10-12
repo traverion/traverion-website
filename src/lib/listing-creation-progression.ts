@@ -90,8 +90,9 @@ export function listingCreationStepRequirement(stepIndex: number, isStay: boolea
     if (stepIndex === 4) return 'Add at least four photos to continue.';
     return 'Finish the previous step to continue.';
   }
-  if (stepIndex === 0) return 'Add a title, language and description to continue.';
-  if (stepIndex === 1) return 'Add city, country, two inclusions, and one exclusion to continue.';
+  if (stepIndex === 0) return 'Choose a product type, place, language, title and subtitle to continue.';
+  if (stepIndex === 1)
+    return 'Add a description, two inclusions, one exclusion, and how guests start to continue.';
   if (stepIndex === 2) return 'Add at least one complete bookable option to continue.';
   if (stepIndex === 3) return 'Add at least four photos to continue.';
   return 'Finish the previous step to continue.';
@@ -114,19 +115,22 @@ export function listingCreationMissingHint(missing: string[]): string | null {
   return `To continue: ${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}.`;
 }
 
-/** What is still missing on the tour Details step (mirrors the Details gate: 2 inclusions, 1 exclusion, city, country). */
+/** What is still missing on the tour Experience step. */
 export function tourDetailsMissingItems(input: {
   includeCount: number;
   excludeCount: number;
-  city: string;
-  country: string;
+  descriptionLength: number;
+  minDescriptionLength: number;
+  startStyleOk: boolean;
 }): string[] {
   const missing: string[] = [];
+  if (input.descriptionLength < input.minDescriptionLength) {
+    missing.push(`add a description of at least ${input.minDescriptionLength} characters`);
+  }
   const inc = Math.max(0, 2 - input.includeCount);
   if (inc > 0) missing.push(inc === 1 ? 'add 1 more inclusion' : `add ${inc} inclusions`);
   if (input.excludeCount < 1) missing.push('add what is not included');
-  if (!input.city.trim()) missing.push('add the city');
-  if (!input.country.trim()) missing.push('add the country');
+  if (!input.startStyleOk) missing.push('choose how guests start');
   return missing;
 }
 

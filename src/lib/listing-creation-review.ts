@@ -5,19 +5,25 @@ export function reviewProductKindLabel(kind: string): string {
   return 'Not set';
 }
 
-export function reviewBasicsSummary(title: string, kind: string, languageLabel: string): string {
+export function reviewBasicsSummary(
+  title: string,
+  kind: string,
+  languageLabel: string,
+  place?: string
+): string {
   const name = title.trim() || 'Untitled listing';
-  return [name, reviewProductKindLabel(kind), languageLabel.trim() || null].filter(Boolean).join(' · ');
+  return [name, reviewProductKindLabel(kind), languageLabel.trim() || null, place?.trim() || null]
+    .filter(Boolean)
+    .join(' · ');
 }
 
 export function reviewDetailsSummary(
-  city: string,
-  country: string,
   includesCount: number,
-  excludesCount: number
+  excludesCount: number,
+  descriptionReady: boolean
 ): string {
-  const place = [city.trim(), country.trim()].filter(Boolean).join(', ') || 'Location not set';
-  return `${place} · ${includesCount} inclusion${includesCount === 1 ? '' : 's'} · ${excludesCount} exclusion${
+  const desc = descriptionReady ? 'Description set' : 'Description needed';
+  return `${desc} · ${includesCount} inclusion${includesCount === 1 ? '' : 's'} · ${excludesCount} exclusion${
     excludesCount === 1 ? '' : 's'
   }`;
 }

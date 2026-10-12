@@ -115,12 +115,16 @@ import {
   TOUR_BASICS_DESCRIPTION_MAX,
   TOUR_BASICS_SCENE_COUNT,
   TOUR_BASICS_SUBTITLE_MAX,
+  TOUR_HIGHLIGHT_MAX,
   TOUR_HIGHLIGHT_MIN_VISIBLE,
   canAdvanceTourBasicsScene,
   canSelectTourBasicsScene,
+  canAddTourHighlight,
+  addTourHighlight,
+  removeTourHighlight,
   isTourIdentitySatisfied,
+  isTourLocationSatisfied,
   isTourProductTypeSatisfied,
-  isTourStorySatisfied,
   clampTourBasicsSceneIndex,
   initialTourBasicsSceneIndex,
   nextTourBasicsScene,
@@ -189,15 +193,40 @@ function toggleStayAmenity(raw: string, label: string): string {
   return next.join(', ');
 }
 
-const EXPERIENCE_START_OPTIONS: {
+const EXPERIENCE_START_OPTIONS_TOUR: {
   value: 'unspecified' | 'fixed_meeting_place' | 'operator_pickup' | 'either_available';
   label: string;
 }[] = [
-  { value: 'unspecified', label: 'Not sure yet — describe per option under Options' },
   { value: 'fixed_meeting_place', label: 'Guests meet us at a fixed meeting point' },
   { value: 'operator_pickup', label: 'We pick guests up (for example from their accommodation area)' },
   { value: 'either_available', label: 'Both meeting at a set place and pickup are available' },
 ];
+
+const EXPERIENCE_START_OPTIONS_TICKET: {
+  value: 'unspecified' | 'fixed_meeting_place' | 'operator_pickup' | 'either_available';
+  label: string;
+}[] = [
+  { value: 'fixed_meeting_place', label: 'Guests go to a venue / entry point' },
+  { value: 'either_available', label: 'Venue entry, with optional pickup on some options' },
+  { value: 'operator_pickup', label: 'We collect guests before entry' },
+];
+
+const EXPERIENCE_START_OPTIONS_TRANSPORT: {
+  value: 'unspecified' | 'fixed_meeting_place' | 'operator_pickup' | 'either_available';
+  label: string;
+}[] = [
+  { value: 'operator_pickup', label: 'Door-to-door or hotel pickup' },
+  { value: 'fixed_meeting_place', label: 'Guests meet at a fixed pickup point' },
+  { value: 'either_available', label: 'Pickup and meeting point both available' },
+];
+
+function experienceStartOptionsForKind(
+  kind: '' | 'tour' | 'ticket' | 'transportation'
+): typeof EXPERIENCE_START_OPTIONS_TOUR {
+  if (kind === 'ticket') return EXPERIENCE_START_OPTIONS_TICKET;
+  if (kind === 'transportation') return EXPERIENCE_START_OPTIONS_TRANSPORT;
+  return EXPERIENCE_START_OPTIONS_TOUR;
+}
 
 const MAX_SUBTITLE_LENGTH = TOUR_BASICS_SUBTITLE_MAX;
 const MAX_DESCRIPTION_LENGTH = TOUR_BASICS_DESCRIPTION_MAX;
@@ -826,20 +855,29 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
   const isStay = form.inventoryFamily === 'stay';
   if (idx === 0) {
     const sub = form.subtitle.trim();
-    const desc = form.description.trim();
     const kindOk =
       isStay ||
       form.experienceKind === 'tour' ||
       form.experienceKind === 'ticket' ||
       form.experienceKind === 'transportation';
+    if (isStay) {
+      const desc = form.description.trim();
+      return (
+        form.title.trim().length >= MIN_LISTING_TITLE_LENGTH &&
+        sub.length > 0 &&
+        sub.length <= MAX_SUBTITLE_LENGTH &&
+        desc.length >= MIN_LISTING_DESCRIPTION_LENGTH &&
+        desc.length <= MAX_DESCRIPTION_LENGTH
+      );
+    }
     return (
-      (isStay || form.experienceLanguage.trim().length > 0) &&
-      form.title.trim().length >= MIN_LISTING_TITLE_LENGTH &&
       kindOk &&
+      form.experienceLanguage.trim().length > 0 &&
+      form.city.trim().length > 0 &&
+      form.country.trim().length > 0 &&
+      form.title.trim().length >= MIN_LISTING_TITLE_LENGTH &&
       sub.length > 0 &&
-      sub.length <= MAX_SUBTITLE_LENGTH &&
-      desc.length >= MIN_LISTING_DESCRIPTION_LENGTH &&
-      desc.length <= MAX_DESCRIPTION_LENGTH
+      sub.length <= MAX_SUBTITLE_LENGTH
     );
   }
   if (idx === 1) {
@@ -850,13 +888,16 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
         form.stayCheckInAddress.trim().length > 0
       );
     }
+    const desc = form.description.trim();
     const inc = form.includes.map((s) => s.trim()).filter(Boolean).length;
     const exc = form.excludes.map((s) => s.trim()).filter(Boolean).length;
+    const startOk = form.experienceStartStyle !== 'unspecified';
     return (
+      desc.length >= MIN_LISTING_DESCRIPTION_LENGTH &&
+      desc.length <= MAX_DESCRIPTION_LENGTH &&
       inc >= 2 &&
       exc >= 1 &&
-      form.city.trim().length > 0 &&
-      form.country.trim().length > 0
+      startOk
     );
   }
   if (idx === 2) {
@@ -1181,8 +1222,8 @@ export default function SupplierListingForm({
       ] as const;
     }
     return [
-      'Product type, title, language, and the story travelers see first.',
-      'Inclusions, meeting or pickup, and practical rules before booking.',
+      'Product type, place, listing language, then title and subtitle.',
+      'Description, highlights, inclusions, and how guests start.',
       'Booking options with pricing and schedules. Each option can stand alone.',
       'Cover photo first, then supporting shots travelers swipe through.',
       'Review readiness, then save as draft or publish when Traverion verification allows.',
@@ -1259,27 +1300,30 @@ export default function SupplierListingForm({
     const amount = headlineStartingAmountFromBookingOptions(options);
     const priceSummary =
       typeof amount === 'number' && amount > 0 ? `From ${formatMoney(amount, listingCurrency)}` : '';
+    const placeLabel = [form.city.trim(), form.country.trim()].filter(Boolean).join(', ');
+    const descReady = form.description.trim().length >= MIN_LISTING_DESCRIPTION_LENGTH;
     return [
       {
         step: 0,
         label: 'Basics',
-        summary: reviewBasicsSummary(form.title, form.experienceKind, languageLabel),
+        summary: reviewBasicsSummary(form.title, form.experienceKind, languageLabel, placeLabel),
         ready: isStepSatisfied(0, form),
         missing: !isStepSatisfied(0, form)
-          ? 'Finish product type, title, subtitle, language, and description.'
+          ? 'Finish product type, place, listing language, title, and subtitle.'
           : null,
       },
       {
         step: 1,
         label: 'Experience',
         summary: reviewDetailsSummary(
-          form.city,
-          form.country,
           form.includes.map((s) => s.trim()).filter(Boolean).length,
-          form.excludes.map((s) => s.trim()).filter(Boolean).length
+          form.excludes.map((s) => s.trim()).filter(Boolean).length,
+          descReady
         ),
         ready: isStepSatisfied(1, form),
-        missing: !isStepSatisfied(1, form) ? 'Add city, country, inclusions, and exclusions.' : null,
+        missing: !isStepSatisfied(1, form)
+          ? 'Add description, inclusions, exclusions, and how guests start.'
+          : null,
       },
       {
         step: 2,
@@ -1373,14 +1417,16 @@ export default function SupplierListingForm({
       category: 0,
       kind: 0,
       subtitle: 0,
-      highlights: 0,
-      description: 0,
+      city: 0,
+      country: 0,
+      location: 0,
+      highlights: 1,
+      description: 1,
       includes: 1,
       excludes: 1,
       accessibility: 1,
       venue: 1,
       languages: 1,
-      location: 1,
       destination: 1,
       duration: 2,
       schedule: 1,
@@ -2652,12 +2698,12 @@ export default function SupplierListingForm({
   const tourBasicsContinueHint = !canContinueBasicsScene
     ? basicsSceneIdx === 0 && !isTourProductTypeSatisfied(form)
       ? 'Choose a product type to continue.'
-      : basicsSceneIdx === 1 && !isTourIdentitySatisfied(form)
-        ? form.title.trim().length > 0 && form.title.trim().length < MIN_LISTING_TITLE_LENGTH
-          ? `Title needs at least ${MIN_LISTING_TITLE_LENGTH} characters to continue.`
-          : 'Add a title, language and subtitle to continue.'
-        : basicsSceneIdx === 2 && !isTourStorySatisfied(form)
-          ? `Add a description of at least ${MIN_LISTING_DESCRIPTION_LENGTH} characters to continue.`
+      : basicsSceneIdx === 1 && !isTourLocationSatisfied(form)
+        ? 'Add listing language, country, and city to continue.'
+        : basicsSceneIdx === 2 && !isTourIdentitySatisfied(form)
+          ? form.title.trim().length > 0 && form.title.trim().length < MIN_LISTING_TITLE_LENGTH
+            ? `Title needs at least ${MIN_LISTING_TITLE_LENGTH} characters to continue.`
+            : 'Add a title and subtitle to continue.'
           : listingCreationContinueHint({
               stepIndex: 0,
               isStay: false,
@@ -2673,8 +2719,9 @@ export default function SupplierListingForm({
         tourDetailsMissingItems({
           includeCount: form.includes.filter((line) => line.trim()).length,
           excludeCount: form.excludes.filter((line) => line.trim()).length,
-          city: form.city,
-          country: form.country,
+          descriptionLength: form.description.trim().length,
+          minDescriptionLength: MIN_LISTING_DESCRIPTION_LENGTH,
+          startStyleOk: form.experienceStartStyle !== 'unspecified',
         })
       );
     }
@@ -3114,16 +3161,10 @@ export default function SupplierListingForm({
               form={{
                 experienceKind: form.experienceKind,
                 experienceLanguage: form.experienceLanguage,
+                city: form.city,
+                country: form.country,
                 title: form.title,
                 subtitle: form.subtitle,
-                description: form.description,
-                highlights: form.highlights,
-                difficulty: form.difficulty,
-                destination: form.destination,
-                accessibilitySummary: form.accessibilitySummary,
-                minGuestAge: form.minGuestAge,
-                venueSetting: form.venueSetting,
-                additionalLanguages: form.additionalLanguages,
               }}
               sceneIndex={basicsSceneIdx}
               direction={basicsSceneDirection}
@@ -3145,9 +3186,102 @@ export default function SupplierListingForm({
           )}
 
           {stepIdx === 1 && form.inventoryFamily !== 'stay' && (
-            <div className="space-y-8">
-              <section className="space-y-5" aria-labelledby="tour-details-guests">
-                <h4 id="tour-details-guests" className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
+            <div className="max-w-2xl space-y-7">
+              <section className="space-y-3" aria-labelledby="tour-details-story">
+                <h4 id="tour-details-story" className="text-[13px] font-semibold text-ink">
+                  Description
+                </h4>
+                <div id="supplier-listing-field-description">
+                  <label htmlFor="supplier-listing-description" className="mb-1 block text-[13px] font-semibold text-ink">
+                    About this product *
+                  </label>
+                  <p className="mb-1.5 text-[12px] text-ink-muted">
+                    Full description · {MIN_LISTING_DESCRIPTION_LENGTH}–{MAX_DESCRIPTION_LENGTH} characters
+                  </p>
+                  <textarea
+                    id="supplier-listing-description"
+                    value={form.description}
+                    maxLength={MAX_DESCRIPTION_LENGTH}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, description: e.target.value.slice(0, MAX_DESCRIPTION_LENGTH) }))
+                    }
+                    rows={6}
+                    className={`tv-input min-h-[8rem] break-words text-[15px] leading-relaxed [overflow-wrap:anywhere] ${
+                      form.description.trim().length > 0 &&
+                      form.description.trim().length < MIN_LISTING_DESCRIPTION_LENGTH
+                        ? 'border-amber-300 focus:border-amber-400 focus:ring-amber-200'
+                        : ''
+                    }`}
+                    placeholder={
+                      form.experienceKind === 'ticket'
+                        ? 'What guests get access to, opening hours notes, and what to bring…'
+                        : form.experienceKind === 'transportation'
+                          ? 'Route, vehicle type, luggage notes, and how pickup works…'
+                          : 'What guests do, what makes it special, practical notes…'
+                    }
+                  />
+                  <p className="mt-1 text-[12px] tabular-nums text-ink-muted">
+                    {form.description.length}/{MAX_DESCRIPTION_LENGTH}
+                  </p>
+                </div>
+                <div id="supplier-listing-field-highlights" className="space-y-2">
+                  <label className="block text-[13px] font-semibold text-ink">Highlights</label>
+                  <p className="text-[12px] text-ink-muted">Up to {TOUR_HIGHLIGHT_MAX} short selling points</p>
+                  {form.highlights.map((line, index) => (
+                    <div key={`highlight-${index}`}>
+                      <div className="mb-1 flex items-center justify-between gap-3">
+                        <label
+                          className="block text-[12px] font-medium text-ink-muted"
+                          htmlFor={`supplier-listing-highlight-${index}`}
+                        >
+                          Highlight {index + 1}
+                        </label>
+                        {index >= 2 ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setForm((f) => ({
+                                ...f,
+                                highlights: removeTourHighlight(f.highlights, index),
+                              }))
+                            }
+                            className="lux-flat min-h-9 text-[12px] font-medium text-ink-muted hover:text-ink"
+                          >
+                            Remove
+                          </button>
+                        ) : null}
+                      </div>
+                      <input
+                        id={`supplier-listing-highlight-${index}`}
+                        type="text"
+                        value={line}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            highlights: f.highlights.map((h, i) => (i === index ? e.target.value : h)),
+                          }))
+                        }
+                        className="tv-input"
+                        placeholder={index === 0 ? 'e.g. Small groups of 8' : `Highlight ${index + 1}`}
+                      />
+                    </div>
+                  ))}
+                  {canAddTourHighlight(form.highlights) ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setForm((f) => ({ ...f, highlights: addTourHighlight(f.highlights) }))
+                      }
+                      className="lux-flat min-h-10 text-[13px] font-semibold text-finland"
+                    >
+                      + Add highlight
+                    </button>
+                  ) : null}
+                </div>
+              </section>
+
+              <section className="space-y-4" aria-labelledby="tour-details-guests">
+                <h4 id="tour-details-guests" className="text-[13px] font-semibold text-ink">
                   What guests get
                 </h4>
                 <ProgressiveLinesEditor
@@ -3155,7 +3289,7 @@ export default function SupplierListingForm({
                   label="What's included *"
                   variant="include"
                   minRequired={2}
-                  hint={`At least two clear items. You can add up to ${TOUR_INCLUDE_MAX}.`}
+                  hint={`At least two clear items. Up to ${TOUR_INCLUDE_MAX}.`}
                   values={form.includes}
                   minVisible={TOUR_INCLUDE_MIN_VISIBLE}
                   max={TOUR_INCLUDE_MAX}
@@ -3167,7 +3301,7 @@ export default function SupplierListingForm({
                   label="Not included *"
                   variant="exclude"
                   minRequired={1}
-                  hint={`At least one line so guests know what to budget for. You can add up to ${TOUR_EXCLUDE_MAX}.`}
+                  hint={`At least one line. Up to ${TOUR_EXCLUDE_MAX}.`}
                   values={form.excludes}
                   minVisible={TOUR_EXCLUDE_MIN_VISIBLE}
                   max={TOUR_EXCLUDE_MAX}
@@ -3176,87 +3310,61 @@ export default function SupplierListingForm({
                 />
               </section>
 
-              <section className="space-y-4" aria-labelledby="listing-details-place">
-                <h4 id="listing-details-place" className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
-                  Where it happens
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" id="supplier-listing-field-location">
-                  <div>
-                    <label className="block text-sm font-semibold text-ink mb-1">City *</label>
-                    <input
-                      type="text"
-                      value={form.city}
-                      onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
-                      className="tv-input"
-                      placeholder="e.g. Rovaniemi"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-ink mb-1">Country *</label>
-                    <input
-                      type="text"
-                      value={form.country}
-                      onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))}
-                      className="tv-input"
-                      placeholder="Primary country for this tour"
-                      required
-                    />
-                  </div>
-                </div>
-                <p className="text-xs text-ink-muted">
-                  Use the main base or usual starting city. Exact meeting and pickup belong on each bookable option.
-                </p>
-              </section>
-
               <section className="space-y-3" aria-labelledby="tour-details-expect">
-                <h4 id="tour-details-expect" className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
-                  Meeting & pickup
+                <h4 id="tour-details-expect" className="text-[13px] font-semibold text-ink">
+                  {form.experienceKind === 'ticket'
+                    ? 'Entry & logistics'
+                    : form.experienceKind === 'transportation'
+                      ? 'Pickup & drop-off'
+                      : 'How guests start'}
                 </h4>
                 <div id="supplier-listing-field-start">
                   <label
                     htmlFor="supplier-listing-experience-start"
-                    className="mb-1.5 block text-sm font-semibold text-ink"
+                    className="mb-1.5 block text-[13px] font-semibold text-ink"
                   >
-                    How this tour generally starts *
+                    {form.experienceKind === 'ticket'
+                      ? 'How guests get entry *'
+                      : form.experienceKind === 'transportation'
+                        ? 'How this transfer starts *'
+                        : 'How this experience generally starts *'}
                   </label>
                   <PartnerSelect
                     id="supplier-listing-experience-start"
-                    value={form.experienceStartStyle}
+                    value={
+                      form.experienceStartStyle === 'unspecified' ? '' : form.experienceStartStyle
+                    }
+                    placeholder="Choose how guests start…"
                     onChange={(experienceStartStyle) =>
                       setForm((f) => ({
                         ...f,
-                        experienceStartStyle: experienceStartStyle as ListingFormState['experienceStartStyle'],
+                        experienceStartStyle: (experienceStartStyle ||
+                          'unspecified') as ListingFormState['experienceStartStyle'],
                       }))
                     }
-                    options={EXPERIENCE_START_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+                    options={[
+                      { value: '', label: 'Choose how guests start…' },
+                      ...experienceStartOptionsForKind(form.experienceKind).map((o) => ({
+                        value: o.value,
+                        label: o.label,
+                      })),
+                    ]}
                   />
-                  <p className="mt-1.5 text-xs text-ink-muted">
-                    Listing-level default. Exact place and time are set on each option.
+                  <p className="mt-1.5 text-[12px] text-ink-muted">
+                    Product-wide default. Exact place and time are set on each option.
+                    {[form.city.trim(), form.country.trim()].filter(Boolean).length > 0
+                      ? ` Base location: ${[form.city.trim(), form.country.trim()].filter(Boolean).join(', ')}.`
+                      : ''}
                   </p>
-                  {form.experienceStartStyle === 'operator_pickup' ||
-                  form.experienceStartStyle === 'either_available' ? (
-                    <p className="mt-2 rounded-lg border border-finland/15 bg-finland/[0.04] px-3 py-2 text-xs leading-snug text-ink-muted">
-                      Pickup options need a clear pickup place (or area) on each bookable option before travelers can
-                      book.
-                    </p>
-                  ) : form.experienceStartStyle === 'fixed_meeting_place' ? (
-                    <p className="mt-2 rounded-lg border border-black/[0.06] bg-black/[0.02] px-3 py-2 text-xs leading-snug text-ink-muted">
-                      Meeting-point options need an exact meeting place on each bookable option.
-                    </p>
-                  ) : null}
                 </div>
               </section>
 
               <section className="space-y-3" aria-labelledby="tour-details-booking-window" id="supplier-listing-field-schedule">
-                <h4
-                  id="tour-details-booking-window"
-                  className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted"
-                >
-                  Booking window
+                <h4 id="tour-details-booking-window" className="text-[13px] font-semibold text-ink">
+                  Default booking window
                 </h4>
                 <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-ink" htmlFor="supplier-booking-cutoff">
+                  <label className="mb-1.5 block text-[13px] font-semibold text-ink" htmlFor="supplier-booking-cutoff">
                     Stop online booking (hours before departure)
                   </label>
                   <input
@@ -3276,12 +3384,12 @@ export default function SupplierListingForm({
                     placeholder="0"
                     inputMode="numeric"
                   />
-                  <p className="mt-1 text-xs text-ink-muted">
-                    0 or blank = book until start (listing timezone). Example: 2 = closes two hours before.
+                  <p className="mt-1 text-[12px] text-ink-muted">
+                    Listing default. Options can set a stricter cutoff. 0 or blank = book until start.
                   </p>
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-semibold text-ink" htmlFor="supplier-departure-timezone">
+                  <label className="mb-1 block text-[13px] font-semibold text-ink" htmlFor="supplier-departure-timezone">
                     Departure timezone
                   </label>
                   <PartnerSelect
@@ -3301,12 +3409,133 @@ export default function SupplierListingForm({
                       { value: 'UTC', label: 'UTC' },
                     ]}
                   />
-                  <p className="mt-1 text-xs text-ink-muted">
-                    Schedule times are wall clock in this zone. A 20:00 departure stays 20:00 local for travelers and
-                    cancel windows.
-                  </p>
                 </div>
               </section>
+
+              <details className="rounded-[var(--partner-radius,0.5rem)] border border-black/[0.08] px-3.5 py-3">
+                <summary className="cursor-pointer list-none text-[13px] font-semibold text-ink">
+                  Know before you go (optional)
+                </summary>
+                <div className="mt-3 space-y-3">
+                  {form.experienceKind !== 'ticket' ? (
+                    <div id="supplier-listing-field-difficulty">
+                      <label htmlFor="supplier-listing-difficulty" className="mb-1 block text-[13px] font-semibold text-ink">
+                        Overall difficulty
+                      </label>
+                      <PartnerSelect
+                        id="supplier-listing-difficulty"
+                        value={form.difficulty}
+                        onChange={(difficulty) =>
+                          setForm((f) => ({
+                            ...f,
+                            difficulty: difficulty as ListingFormState['difficulty'],
+                          }))
+                        }
+                        options={[
+                          { value: 'Easy', label: 'Easy' },
+                          { value: 'Moderate', label: 'Moderate' },
+                          { value: 'Challenging', label: 'Challenging' },
+                        ]}
+                      />
+                    </div>
+                  ) : null}
+                  <div id="supplier-listing-field-destination">
+                    <label className="mb-1 block text-[13px] font-semibold text-ink">Route-style place label</label>
+                    <input
+                      type="text"
+                      value={form.destination}
+                      onChange={(e) => setForm((f) => ({ ...f, destination: e.target.value }))}
+                      className="tv-input"
+                      placeholder="e.g. coastal route · several towns — or leave blank"
+                    />
+                    <p className="mt-1 text-[12px] text-ink-muted">
+                      If blank, cards use {[form.city, form.country].filter((x) => x.trim()).join(', ') || 'city and country'}.
+                    </p>
+                  </div>
+                  <div id="supplier-listing-field-accessibility">
+                    <label className="mb-1 block text-[13px] font-semibold text-ink">Accessibility &amp; mobility</label>
+                    <textarea
+                      value={form.accessibilitySummary}
+                      maxLength={MAX_ACCESSIBILITY_LENGTH}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          accessibilitySummary: e.target.value.slice(0, MAX_ACCESSIBILITY_LENGTH),
+                        }))
+                      }
+                      rows={3}
+                      className="tv-input"
+                      placeholder="Steps, uneven ground, wheelchair access…"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1 block text-[13px] font-semibold text-ink">Minimum guest age</label>
+                      <input
+                        type="text"
+                        value={form.minGuestAge}
+                        onChange={(e) => setForm((f) => ({ ...f, minGuestAge: e.target.value }))}
+                        className="tv-input"
+                        placeholder="e.g. 8+ or none"
+                      />
+                    </div>
+                    <div id="supplier-listing-field-venue">
+                      <label htmlFor="supplier-listing-venue" className="mb-1 block text-[13px] font-semibold text-ink">
+                        Setting
+                      </label>
+                      <PartnerSelect
+                        id="supplier-listing-venue"
+                        value={form.venueSetting}
+                        onChange={(venueSetting) =>
+                          setForm((f) => ({
+                            ...f,
+                            venueSetting: venueSetting as ListingFormState['venueSetting'],
+                          }))
+                        }
+                        options={[
+                          { value: 'unspecified', label: 'Not specified' },
+                          { value: 'indoor', label: 'Mostly indoor' },
+                          { value: 'outdoor', label: 'Mostly outdoor' },
+                          { value: 'mixed', label: 'Mix of indoor and outdoor' },
+                        ]}
+                      />
+                    </div>
+                  </div>
+                  <div id="supplier-listing-field-languages">
+                    <label className="mb-2 block text-[13px] font-semibold text-ink">Spoken languages offered</label>
+                    <p className="mb-2 text-[12px] text-ink-muted">
+                      Besides listing language ({LANGUAGE_OPTIONS.find((o) => o.code === form.experienceLanguage)?.label || 'set in Basics'}).
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {LANGUAGE_OPTIONS.filter((o) => o.code !== 'other').map((o) => {
+                        const disabled = o.code === form.experienceLanguage;
+                        return (
+                          <label
+                            key={o.code}
+                            className={`inline-flex items-center gap-1.5 ${disabled ? 'opacity-40' : ''}`}
+                          >
+                            <input
+                              type="checkbox"
+                              disabled={disabled}
+                              checked={form.additionalLanguages.includes(o.code)}
+                              onChange={() =>
+                                setForm((f) => ({
+                                  ...f,
+                                  additionalLanguages: f.additionalLanguages.includes(o.code)
+                                    ? f.additionalLanguages.filter((c) => c !== o.code)
+                                    : [...f.additionalLanguages, o.code],
+                                }))
+                              }
+                              className="rounded border-black/[0.12] text-finland focus:ring-finland"
+                            />
+                            <span className="text-[13px] text-ink">{o.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </details>
             </div>
           )}
 
@@ -3800,6 +4029,11 @@ export default function SupplierListingForm({
                     <h4 className="mt-0.5 font-display text-[1.2rem] font-semibold leading-snug tracking-tight text-ink [overflow-wrap:anywhere]">
                       {form.title.trim() || 'Untitled listing'}
                     </h4>
+                    {form.subtitle.trim() ? (
+                      <p className="mt-1 text-[13px] leading-snug text-ink-muted [overflow-wrap:anywhere]">
+                        {form.subtitle.trim()}
+                      </p>
+                    ) : null}
                     {typeof previewFrom === 'number' && previewFrom > 0 ? (
                       <p className="mt-1 text-[14px] font-semibold tabular-nums text-ink">
                         From {formatMoney(previewFrom, listingCurrency)}

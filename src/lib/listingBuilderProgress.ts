@@ -71,9 +71,12 @@ export function listingBuilderSections(form: BuilderFormSlice): ListingBuilderSe
   const lang = (form.experienceLanguage ?? '').trim();
   const kind = form.experienceKind ?? '';
   const kindOk = kind === 'tour' || kind === 'ticket' || kind === 'transportation';
+  const city = (form.city ?? '').trim();
+  const country = (form.country ?? '').trim();
   const basicsIssues: string[] = [];
-  if (!lang) basicsIssues.push('Choose the main language');
+  if (!lang) basicsIssues.push('Choose the listing language');
   if (!kindOk) basicsIssues.push('Choose the activity type');
+  if (!city || !country) basicsIssues.push('Add city and country');
   if (title.length < MIN_LISTING_TITLE_LENGTH) {
     basicsIssues.push(`Add a clear title (at least ${MIN_LISTING_TITLE_LENGTH} characters)`);
   }
@@ -90,11 +93,6 @@ export function listingBuilderSections(form: BuilderFormSlice): ListingBuilderSe
   if (highlights.length < 1) contentIssues.push('Add at least one highlight');
   if (includes.length < 2) contentIssues.push('Add at least two included items');
   if (excludes.length < 1) contentIssues.push('Add at least one not-included item');
-
-  const city = (form.city ?? '').trim();
-  const country = (form.country ?? '').trim();
-  const locationIssues: string[] = [];
-  if (!city || !country) locationIssues.push('Add city and country');
 
   const opts = materializedBookingOptions(form.bookingOptions);
   const optionsIssues: string[] = [];
@@ -121,20 +119,14 @@ export function listingBuilderSections(form: BuilderFormSlice): ListingBuilderSe
     {
       id: 'basics',
       label: 'Basics',
-      status: statusOf(basicsIssues, Boolean(title || sub || lang || kind)),
+      status: statusOf(basicsIssues, Boolean(title || sub || lang || kind || city || country)),
       issues: basicsIssues,
     },
     {
       id: 'content',
-      label: 'Content',
+      label: 'Experience',
       status: statusOf(contentIssues, Boolean(desc || highlights.length || includes.length)),
       issues: contentIssues,
-    },
-    {
-      id: 'location',
-      label: 'Location',
-      status: statusOf(locationIssues, Boolean(city || country)),
-      issues: locationIssues,
     },
     {
       id: 'options',

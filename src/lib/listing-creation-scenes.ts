@@ -1,10 +1,10 @@
-import { MIN_LISTING_DESCRIPTION_LENGTH, MIN_LISTING_TITLE_LENGTH } from './listingQualityScore';
+import { MIN_LISTING_TITLE_LENGTH } from './listingQualityScore';
 
 /** Guided scenes inside Tour → Basics. Stay Basics stays a single page. */
 export const TOUR_BASICS_SCENES = [
   { id: 'product_type', label: 'Product type', question: 'What are you creating?' },
-  { id: 'identity', label: 'Identity', question: 'Give your tour an identity' },
-  { id: 'story', label: 'Story', question: 'Tell travelers why they should choose it' },
+  { id: 'location', label: 'Place & language', question: 'Where is it, and in what language?' },
+  { id: 'identity', label: 'Identity', question: 'Give your product an identity' },
 ] as const;
 
 export type TourBasicsSceneId = (typeof TOUR_BASICS_SCENES)[number]['id'];
@@ -41,9 +41,10 @@ export const TOUR_PRODUCT_TYPE_OPTIONS: {
 export type TourBasicsFields = {
   experienceKind: string;
   experienceLanguage: string;
+  city: string;
+  country: string;
   title: string;
   subtitle: string;
-  description: string;
 };
 
 export type ListingCreationSceneDirection = 'forward' | 'back';
@@ -69,34 +70,40 @@ export function isTourProductTypeSatisfied(fields: Pick<TourBasicsFields, 'exper
   );
 }
 
-export function isTourIdentitySatisfied(
-  fields: Pick<TourBasicsFields, 'experienceLanguage' | 'title' | 'subtitle'>
+export function isTourLocationSatisfied(
+  fields: Pick<TourBasicsFields, 'experienceLanguage' | 'city' | 'country'>
 ): boolean {
-  const sub = fields.subtitle.trim();
-  const title = fields.title.trim();
   return (
     fields.experienceLanguage.trim().length > 0 &&
-    title.length >= MIN_LISTING_TITLE_LENGTH &&
-    sub.length > 0 &&
-    sub.length <= TOUR_BASICS_SUBTITLE_MAX
+    fields.city.trim().length > 0 &&
+    fields.country.trim().length > 0
   );
 }
 
-export function isTourStorySatisfied(fields: Pick<TourBasicsFields, 'description'>): boolean {
-  const desc = fields.description.trim();
-  return desc.length >= MIN_LISTING_DESCRIPTION_LENGTH && desc.length <= TOUR_BASICS_DESCRIPTION_MAX;
+export function isTourIdentitySatisfied(fields: Pick<TourBasicsFields, 'title' | 'subtitle'>): boolean {
+  const sub = fields.subtitle.trim();
+  const title = fields.title.trim();
+  return title.length >= MIN_LISTING_TITLE_LENGTH && sub.length > 0 && sub.length <= TOUR_BASICS_SUBTITLE_MAX;
 }
 
-/** Same truth as Tour Basics Continue-to-Details / isStepSatisfied(0). Highlights stay optional. */
+/** @deprecated Description moved to Experience — kept for callers that still check description length. */
+export function isTourStorySatisfied(fields: { description?: string }): boolean {
+  const desc = (fields.description ?? '').trim();
+  return desc.length >= 40 && desc.length <= TOUR_BASICS_DESCRIPTION_MAX;
+}
+
+/** Same truth as Tour Basics Continue-to-Experience / isStepSatisfied(0). */
 export function isTourBasicsComplete(fields: TourBasicsFields): boolean {
-  return isTourProductTypeSatisfied(fields) && isTourIdentitySatisfied(fields) && isTourStorySatisfied(fields);
+  return (
+    isTourProductTypeSatisfied(fields) && isTourLocationSatisfied(fields) && isTourIdentitySatisfied(fields)
+  );
 }
 
 export function isTourBasicsSceneSatisfied(sceneIndex: number, fields: TourBasicsFields): boolean {
   const idx = clampTourBasicsSceneIndex(sceneIndex);
   if (idx === 0) return isTourProductTypeSatisfied(fields);
-  if (idx === 1) return isTourIdentitySatisfied(fields);
-  return isTourStorySatisfied(fields);
+  if (idx === 1) return isTourLocationSatisfied(fields);
+  return isTourIdentitySatisfied(fields);
 }
 
 export function canAdvanceTourBasicsScene(sceneIndex: number, fields: TourBasicsFields): boolean {
@@ -105,11 +112,28 @@ export function canAdvanceTourBasicsScene(sceneIndex: number, fields: TourBasics
   return isTourBasicsComplete(fields);
 }
 
+export function tourBasicsIdentityQuestion(
+  kind: TourBasicsFields['experienceKind'] | '' | undefined
+): string {
+  if (kind === 'ticket') return 'Give your ticket an identity';
+  if (kind === 'transportation') return 'Give your transfer an identity';
+  if (kind === 'tour') return 'Give your tour an identity';
+  return 'Give your product an identity';
+}
+
+/** Basics-owned focus only. Description/highlights live on Experience (return null). */
 export function tourBasicsSceneForFocusSection(section: string | null | undefined): number | null {
   if (!section) return null;
   if (section === 'category' || section === 'kind') return 0;
-  if (section === 'language' || section === 'title' || section === 'subtitle') return 1;
-  if (section === 'description' || section === 'highlights') return 2;
+  if (
+    section === 'language' ||
+    section === 'city' ||
+    section === 'country' ||
+    section === 'location'
+  ) {
+    return 1;
+  }
+  if (section === 'title' || section === 'subtitle') return 2;
   return null;
 }
 
@@ -141,7 +165,7 @@ export function initialTourBasicsSceneIndex(input: {
   if (input.stored !== null) {
     const stored = clampTourBasicsSceneIndex(input.stored);
     // Existing listings must not reopen on product type just because sessionStorage
-    // recorded the mount default (0). Restore identity/story; product type stays one Back away.
+    // recorded the mount default (0). Prefer location scene.
     if (input.isEditing && input.productTypeSelected && stored === 0) return 1;
     return stored;
   }
