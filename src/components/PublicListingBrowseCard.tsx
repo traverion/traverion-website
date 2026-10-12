@@ -204,6 +204,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
         <div className={size === 'compact' ? 'p-3' : 'px-3.5 py-3'}>
           <p className="truncate text-[12px] sm:text-[13px] text-ink-muted">{locationLine}</p>
           <h3
+            title={tour.title}
             className={`mt-0.5 line-clamp-2 break-words leading-snug tracking-tight text-ink [overflow-wrap:anywhere] font-display font-semibold ${
               size === 'compact' ? 'text-[15px] sm:text-[16px]' : 'text-[15px] sm:text-base'
             }`}

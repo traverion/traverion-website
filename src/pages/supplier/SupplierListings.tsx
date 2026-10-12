@@ -1444,7 +1444,10 @@ export default function SupplierListings() {
                             </span>
                           ) : null}
                         </div>
-                        <h2 className="mt-1 break-words font-display text-[0.98rem] font-semibold tracking-tight text-ink leading-snug line-clamp-2 [overflow-wrap:anywhere]">
+                        <h2
+                          title={listing.title}
+                          className="mt-1 break-words font-display text-[0.98rem] font-semibold tracking-tight text-ink leading-snug line-clamp-2 [overflow-wrap:anywhere]"
+                        >
                           {listing.title}
                         </h2>
                         <p className="mt-0.5 partner-meta truncate">

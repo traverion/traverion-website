@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { MIN_LISTING_TITLE_LENGTH } from '../../../lib/listingQualityScore';
+import {
+  LISTING_TITLE_NEAR_LIMIT_LENGTH,
+  MAX_LISTING_TITLE_LENGTH,
+  MIN_LISTING_TITLE_LENGTH,
+  clampListingTitleInput,
+} from '../../../lib/listingQualityScore';
 import {
   LISTING_CUSTOM_CITY_VALUE,
   isCustomListingCity,
@@ -253,13 +258,15 @@ export function TourBasicsGuidedScenes({
                 Title *
               </label>
               <p className="mb-1.5 text-[12px] text-ink-muted">
-                Search and listing headline · min {MIN_LISTING_TITLE_LENGTH} characters
+                Search and listing headline · {MIN_LISTING_TITLE_LENGTH}–{MAX_LISTING_TITLE_LENGTH} characters
               </p>
               <input
                 id="supplier-listing-title"
                 type="text"
                 value={form.title}
-                onChange={(e) => onChange({ title: e.target.value })}
+                onChange={(e) =>
+                  onChange({ title: clampListingTitleInput(e.target.value, form.title) })
+                }
                 className="tv-input min-w-0 py-2.5 text-[15px] [overflow-wrap:anywhere]"
                 placeholder={
                   form.experienceKind === 'ticket'
@@ -269,8 +276,27 @@ export function TourBasicsGuidedScenes({
                       : 'e.g. Guaranteed Northern Lights Tour'
                 }
                 minLength={MIN_LISTING_TITLE_LENGTH}
+                maxLength={
+                  form.title.length > MAX_LISTING_TITLE_LENGTH
+                    ? undefined
+                    : MAX_LISTING_TITLE_LENGTH
+                }
                 required
               />
+              <p
+                className={`mt-1 text-[12px] tabular-nums ${
+                  form.title.length >= LISTING_TITLE_NEAR_LIMIT_LENGTH
+                    ? 'text-amber-800'
+                    : 'text-ink-muted'
+                }`}
+              >
+                {form.title.length} / {MAX_LISTING_TITLE_LENGTH}
+                {form.title.length > MAX_LISTING_TITLE_LENGTH
+                  ? ` · shorten to ${MAX_LISTING_TITLE_LENGTH} to publish`
+                  : form.title.length >= LISTING_TITLE_NEAR_LIMIT_LENGTH
+                    ? ' · approaching the limit'
+                    : null}
+              </p>
             </div>
             <div id="supplier-listing-field-subtitle">
               <label htmlFor="supplier-listing-subtitle" className="mb-1 block text-[13px] font-semibold text-ink">

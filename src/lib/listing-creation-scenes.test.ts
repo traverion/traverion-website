@@ -88,9 +88,11 @@ describe('scene satisfaction and Continue gates', () => {
     );
   });
 
-  it('requires the same minimum title length as publish', () => {
+  it('requires the same title length bounds as publish (10–65)', () => {
     expect(isTourIdentitySatisfied({ ...filled, title: 'Short' })).toBe(false);
     expect(isTourIdentitySatisfied({ ...filled, title: 'Guaranteed NL' })).toBe(true);
+    expect(isTourIdentitySatisfied({ ...filled, title: 'x'.repeat(65) })).toBe(true);
+    expect(isTourIdentitySatisfied({ ...filled, title: 'x'.repeat(66) })).toBe(false);
   });
 
   it('completes Basics without description', () => {

@@ -12,6 +12,30 @@ export const MIN_LISTING_DESCRIPTION_LENGTH = 100;
 /** Minimum title length to publish — Basics Continue must use the same floor. */
 export const MIN_LISTING_TITLE_LENGTH = 10;
 
+/** Maximum title length to publish — Basics Continue and inputs must use the same ceiling. */
+export const MAX_LISTING_TITLE_LENGTH = 65;
+
+/** Soft warning threshold in the title character counter (approaching the max). */
+export const LISTING_TITLE_NEAR_LIMIT_LENGTH = 55;
+
+/**
+ * Clamp title typing/paste without silently shortening legacy titles already over the max.
+ * New input cannot exceed MAX; over-max saved titles stay readable until the partner shortens them.
+ */
+export function clampListingTitleInput(next: string, previous: string): string {
+  if (next.length <= MAX_LISTING_TITLE_LENGTH) return next;
+  if (previous.length > MAX_LISTING_TITLE_LENGTH) {
+    return next.length < previous.length ? next : previous;
+  }
+  return next.slice(0, MAX_LISTING_TITLE_LENGTH);
+}
+
+/** Publish / Basics identity length bounds (trimmed). */
+export function isListingTitleLengthValid(title: string): boolean {
+  const t = title.trim();
+  return t.length >= MIN_LISTING_TITLE_LENGTH && t.length <= MAX_LISTING_TITLE_LENGTH;
+}
+
 export type ListingQualityCheck = {
   id: string;
   label: string;
