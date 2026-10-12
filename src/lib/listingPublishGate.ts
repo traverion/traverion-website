@@ -15,6 +15,9 @@ import {
   TOUR_EXCLUDE_MAX,
   TOUR_INCLUDE_MAX,
   TOUR_INCLUDE_MIN_REQUIRED,
+  TOUR_LINE_ITEM_MAX_LENGTH,
+  TOUR_LINE_ITEM_MIN_LENGTH,
+  areFilledListingLineItemsValid,
 } from './listing-creation-lines';
 import { priceCategoryValidationMessages } from './price-categories';
 import { experienceTodayIsoForListing } from './booking-quote';
@@ -191,9 +194,17 @@ export function getListingPublishBlockers(
       );
     } else if (inc.length > TOUR_INCLUDE_MAX) {
       out.push(`A listing can include at most ${TOUR_INCLUDE_MAX} “what’s included” items.`);
+    } else if (!areFilledListingLineItemsValid(inc)) {
+      out.push(
+        `Each inclusion must be ${TOUR_LINE_ITEM_MIN_LENGTH}–${TOUR_LINE_ITEM_MAX_LENGTH} characters.`
+      );
     }
     if (exc.length > TOUR_EXCLUDE_MAX) {
       out.push(`A listing can include at most ${TOUR_EXCLUDE_MAX} “not included” items.`);
+    } else if (!areFilledListingLineItemsValid(exc)) {
+      out.push(
+        `Each exclusion must be ${TOUR_LINE_ITEM_MIN_LENGTH}–${TOUR_LINE_ITEM_MAX_LENGTH} characters.`
+      );
     }
   }
   const gallery = (listing.listingExtras?.galleryImageUrls ?? []).map((u) => String(u).trim()).filter(Boolean);

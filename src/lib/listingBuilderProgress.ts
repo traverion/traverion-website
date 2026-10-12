@@ -17,7 +17,12 @@ import {
   MIN_LISTING_DESCRIPTION_LENGTH,
   MIN_LISTING_TITLE_LENGTH,
 } from './listingQualityScore';
-import { TOUR_INCLUDE_MIN_REQUIRED } from './listing-creation-lines';
+import {
+  TOUR_INCLUDE_MIN_REQUIRED,
+  TOUR_LINE_ITEM_MAX_LENGTH,
+  TOUR_LINE_ITEM_MIN_LENGTH,
+  areFilledListingLineItemsValid,
+} from './listing-creation-lines';
 
 export type ListingBuilderSectionId =
   | 'basics'
@@ -101,6 +106,16 @@ export function listingBuilderSections(form: BuilderFormSlice): ListingBuilderSe
   if (highlights.length < 1) contentIssues.push('Add at least one highlight');
   if (includes.length < TOUR_INCLUDE_MIN_REQUIRED) {
     contentIssues.push(`Add at least ${TOUR_INCLUDE_MIN_REQUIRED} included items`);
+  } else if (!areFilledListingLineItemsValid(includes)) {
+    contentIssues.push(
+      `Each inclusion must be ${TOUR_LINE_ITEM_MIN_LENGTH}–${TOUR_LINE_ITEM_MAX_LENGTH} characters`
+    );
+  }
+  const excludes = (form.excludes ?? []).map((s) => s.trim()).filter(Boolean);
+  if (excludes.length > 0 && !areFilledListingLineItemsValid(excludes)) {
+    contentIssues.push(
+      `Each exclusion must be ${TOUR_LINE_ITEM_MIN_LENGTH}–${TOUR_LINE_ITEM_MAX_LENGTH} characters`
+    );
   }
 
   const opts = materializedBookingOptions(form.bookingOptions);

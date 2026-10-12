@@ -10,6 +10,13 @@ export const TOUR_EXCLUDE_MAX = 10;
 export const STAY_HIGHLIGHT_MIN_VISIBLE = 2;
 export const STAY_HIGHLIGHT_MAX = 5;
 
+/** Per inclusion/exclusion line — empty rows are ignored; filled rows must meet this floor. */
+export const TOUR_LINE_ITEM_MIN_LENGTH = 3;
+/** Per inclusion/exclusion line ceiling (replaces any earlier 100-char proposal). */
+export const TOUR_LINE_ITEM_MAX_LENGTH = 60;
+/** Soft warning threshold on the per-line character counter. */
+export const TOUR_LINE_ITEM_NEAR_LIMIT_LENGTH = 50;
+
 export function normalizeProgressiveSlots(
   fromDb: string[] | undefined | null,
   minVisible: number,
@@ -21,13 +28,36 @@ export function normalizeProgressiveSlots(
   return out;
 }
 
-/** Allow another row only when under max and every existing row has content (no stacked empties). */
+/**
+ * Clamp typing/paste for a single line without silently shortening legacy values already over max.
+ */
+export function clampListingLineItemInput(next: string, previous: string): string {
+  if (next.length <= TOUR_LINE_ITEM_MAX_LENGTH) return next;
+  if (previous.length > TOUR_LINE_ITEM_MAX_LENGTH) {
+    return next.length < previous.length ? next : previous;
+  }
+  return next.slice(0, TOUR_LINE_ITEM_MAX_LENGTH);
+}
+
+/** Empty is allowed in the editor; non-empty must be within 3–60 (trimmed). */
+export function isListingLineItemLengthValid(line: string): boolean {
+  const t = line.trim();
+  if (!t) return true;
+  return t.length >= TOUR_LINE_ITEM_MIN_LENGTH && t.length <= TOUR_LINE_ITEM_MAX_LENGTH;
+}
+
+/** Every non-empty filled line is within bounds (empty slots ignored). */
+export function areFilledListingLineItemsValid(slots: readonly string[]): boolean {
+  return slots.every((line) => isListingLineItemLengthValid(line));
+}
+
+/** Allow another row only when under max, no empties, and every filled line is length-valid. */
 export function canAddProgressiveSlot(slots: readonly string[], max: number): boolean {
   if (slots.length >= max) return false;
   if (slots.some((s) => !String(s ?? '').trim())) return false;
+  if (!areFilledListingLineItemsValid(slots)) return false;
   return true;
 }
-
 export function addProgressiveSlot(slots: readonly string[], max: number): string[] {
   if (!canAddProgressiveSlot(slots, max)) return [...slots];
   return [...slots, ''];

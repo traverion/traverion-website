@@ -95,6 +95,20 @@ describe('includes and excludes publish bounds', () => {
       } as TourPackage).some((b) => /at most 10/i.test(b))
     ).toBe(true);
   });
+
+  it('blocks per-item lengths outside 3–60 without mutating saved strings', () => {
+    const long = 'x'.repeat(61);
+    const tour = {
+      ...base,
+      includes: ['Guide', long],
+      excludes: ['ab'],
+    } as TourPackage;
+    const blockers = getListingPublishBlockers(tour);
+    expect(blockers.some((b) => /inclusion.*3–60|inclusion.*3-60/i.test(b))).toBe(true);
+    expect(blockers.some((b) => /exclusion.*3–60|exclusion.*3-60/i.test(b))).toBe(true);
+    expect(tour.includes[1]).toBe(long);
+    expect(tour.excludes[0]).toBe('ab');
+  });
 });
 
 describe('partnerListingCardPresentation', () => {

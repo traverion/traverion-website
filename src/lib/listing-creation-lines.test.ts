@@ -8,9 +8,14 @@ import {
   TOUR_INCLUDE_MAX,
   TOUR_INCLUDE_MIN_REQUIRED,
   TOUR_INCLUDE_MIN_VISIBLE,
+  TOUR_LINE_ITEM_MAX_LENGTH,
+  TOUR_LINE_ITEM_MIN_LENGTH,
   addProgressiveSlot,
+  areFilledListingLineItemsValid,
   canAddProgressiveSlot,
+  clampListingLineItemInput,
   filledProgressiveCount,
+  isListingLineItemLengthValid,
   normalizeProgressiveSlots,
   persistableProgressiveSlots,
   removeProgressiveSlot,
@@ -33,11 +38,11 @@ describe('progressive listing lines', () => {
   });
 
   it('adds through ten inclusions and refuses an eleventh', () => {
-    let slots = ['a', 'b'];
+    let slots = ['Guide', 'Pickup'];
     while (canAddProgressiveSlot(slots, TOUR_INCLUDE_MAX)) {
       slots = addProgressiveSlot(slots, TOUR_INCLUDE_MAX);
       const last = slots.length - 1;
-      slots = slots.map((value, i) => (i === last ? `item-${i + 1}` : value));
+      slots = slots.map((value, i) => (i === last ? `Item ${i + 1}` : value));
     }
     expect(slots).toHaveLength(10);
     expect(addProgressiveSlot(slots, TOUR_INCLUDE_MAX)).toHaveLength(10);
@@ -87,5 +92,28 @@ describe('progressive listing lines', () => {
   it('keeps stay highlights at five maximum', () => {
     expect(STAY_HIGHLIGHT_MIN_VISIBLE).toBe(2);
     expect(STAY_HIGHLIGHT_MAX).toBe(5);
+  });
+
+  it('enforces 3–60 characters per non-empty line without truncating legacy over-max values', () => {
+    expect(TOUR_LINE_ITEM_MIN_LENGTH).toBe(3);
+    expect(TOUR_LINE_ITEM_MAX_LENGTH).toBe(60);
+    expect(isListingLineItemLengthValid('')).toBe(true);
+    expect(isListingLineItemLengthValid('ab')).toBe(false);
+    expect(isListingLineItemLengthValid('abc')).toBe(true);
+    expect(isListingLineItemLengthValid('x'.repeat(60))).toBe(true);
+    expect(isListingLineItemLengthValid('x'.repeat(61))).toBe(false);
+
+    expect(clampListingLineItemInput('x'.repeat(61), 'Guide')).toBe('x'.repeat(60));
+    const legacy = 'x'.repeat(80);
+    expect(clampListingLineItemInput(legacy, legacy)).toBe(legacy);
+    expect(clampListingLineItemInput('x'.repeat(70), legacy)).toBe('x'.repeat(70));
+
+    expect(areFilledListingLineItemsValid(['Guide', 'Hot drinks'])).toBe(true);
+    expect(areFilledListingLineItemsValid(['ab', 'Hot drinks'])).toBe(false);
+    expect(canAddProgressiveSlot(['Guide', 'ab'], TOUR_INCLUDE_MAX)).toBe(false);
+
+    // Persist must not silently shorten over-max saved content.
+    const long = 'x'.repeat(80);
+    expect(persistableProgressiveSlots([long, 'Meals'], TOUR_INCLUDE_MAX)).toEqual([long, 'Meals']);
   });
 });

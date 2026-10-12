@@ -144,13 +144,17 @@ import {
   TOUR_INCLUDE_MAX,
   TOUR_INCLUDE_MIN_REQUIRED,
   TOUR_INCLUDE_MIN_VISIBLE,
+  TOUR_LINE_ITEM_MAX_LENGTH,
+  TOUR_LINE_ITEM_MIN_LENGTH,
+  TOUR_LINE_ITEM_NEAR_LIMIT_LENGTH,
   addProgressiveSlot,
+  areFilledListingLineItemsValid,
   canAddProgressiveSlot,
+  clampListingLineItemInput,
   normalizeProgressiveSlots,
   persistableProgressiveSlots,
   removeProgressiveSlot,
-} from '../../lib/listing-creation-lines';
-import { ListingCreationWorkspace } from '../../components/supplier/listing-creation/ListingCreationWorkspace';
+} from '../../lib/listing-creation-lines';import { ListingCreationWorkspace } from '../../components/supplier/listing-creation/ListingCreationWorkspace';
 import { ListingCreationIdentityPreview } from '../../components/supplier/listing-creation/ListingCreationIdentityPreview';
 import { TourBasicsGuidedScenes } from '../../components/supplier/listing-creation/TourBasicsGuidedScenes';
 import { TourOptionGuidedScenes } from '../../components/supplier/listing-creation/TourOptionGuidedScenes';
@@ -488,6 +492,7 @@ function ProgressiveLinesEditor({
   fieldError = null,
   addLabel = '+ Add another',
   emptyHint = null,
+  enforceItemLength = false,
 }: {
   fieldId: string;
   label: string;
@@ -505,15 +510,22 @@ function ProgressiveLinesEditor({
   fieldError?: string | null;
   addLabel?: string;
   emptyHint?: string | null;
+  /** Inclusion/exclusion lines: 3–60 chars, live counter, legacy-safe clamp. */
+  enforceItemLength?: boolean;
 }) {
   const sectioned = variant !== 'plain';
   const filled = values.filter((line) => line.trim().length > 0).length;
-  const satisfied = minRequired <= 0 || filled >= minRequired;
+  const lengthsOk = !enforceItemLength || areFilledListingLineItemsValid(values);
+  const satisfied = (minRequired <= 0 || filled >= minRequired) && lengthsOk;
   const labelId = `${fieldId}-label`;
   const errorId = `${fieldId}-error`;
   const cleanLabel = label.replace(/\s*\*$/, '').replace(/\s*\(optional\)\s*$/i, '').trim();
   const canAdd = canAddProgressiveSlot(values, max);
   const atMax = values.length >= max && filled >= max;
+  const lengthHint =
+    enforceItemLength && !lengthsOk
+      ? `Each item needs ${TOUR_LINE_ITEM_MIN_LENGTH}–${TOUR_LINE_ITEM_MAX_LENGTH} characters.`
+      : null;
 
   const list = (
     <>
@@ -521,41 +533,97 @@ function ProgressiveLinesEditor({
         <p className="text-[12px] leading-relaxed text-ink-muted">{emptyHint}</p>
       ) : null}
       <div className={values.length > 0 ? 'space-y-2' : ''}>
-        {values.map((line, index) => (
-          <div key={`${fieldId}-${index}`} className="flex items-start gap-2">
-            {sectioned ? (
-              <span
-                className={`mt-2.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
-                  variant === 'include' ? 'bg-finland/10 text-finland' : 'bg-red-50 text-red-700'
-                }`}
-                aria-hidden
-              >
-                {variant === 'include' ? (
-                  <Check className="h-3 w-3" strokeWidth={3} />
-                ) : (
-                  <Minus className="h-3 w-3" strokeWidth={3} />
-                )}
-              </span>
-            ) : null}
-            <input
-              type="text"
-              value={line}
-              onChange={(e) => onChange(values.map((s, i) => (i === index ? e.target.value : s)))}
-              className="tv-input min-w-0 flex-1"
-              placeholder={placeholder(index)}
-              aria-label={`${cleanLabel} ${index + 1}`}
-              aria-invalid={Boolean(fieldError) && !satisfied ? true : undefined}
-              aria-describedby={fieldError && !satisfied ? errorId : undefined}
-            />
-            <button
-              type="button"
-              onClick={() => onChange(removeProgressiveSlot(values, index, minVisible))}
-              className="lux-flat shrink-0 px-2 py-2 text-[12px] font-medium text-ink-muted hover:text-ink"
+        {values.map((line, index) => {
+          const trimmedLen = line.trim().length;
+          const tooShort = enforceItemLength && trimmedLen > 0 && trimmedLen < TOUR_LINE_ITEM_MIN_LENGTH;
+          const overMax = enforceItemLength && line.length > TOUR_LINE_ITEM_MAX_LENGTH;
+          const nearLimit = enforceItemLength && line.length >= TOUR_LINE_ITEM_NEAR_LIMIT_LENGTH;
+          const counterId = `${fieldId}-count-${index}`;
+          return (
+            <div
+              key={`${fieldId}-${index}`}
+              className={
+                sectioned
+                  ? 'grid grid-cols-[1.25rem_minmax(0,1fr)_4.25rem] items-start gap-x-2'
+                  : 'flex items-start gap-2'
+              }
             >
-              {index < minVisible && !line.trim() ? 'Clear' : 'Remove'}
-            </button>
-          </div>
-        ))}
+              {sectioned ? (
+                <span
+                  className={`mt-2.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
+                    variant === 'include' ? 'bg-finland/10 text-finland' : 'bg-red-50 text-red-700'
+                  }`}
+                  aria-hidden
+                >
+                  {variant === 'include' ? (
+                    <Check className="h-3 w-3" strokeWidth={3} />
+                  ) : (
+                    <Minus className="h-3 w-3" strokeWidth={3} />
+                  )}
+                </span>
+              ) : null}
+              <div className="min-w-0">
+                <input
+                  type="text"
+                  value={line}
+                  onChange={(e) => {
+                    const nextValue = enforceItemLength
+                      ? clampListingLineItemInput(e.target.value, line)
+                      : e.target.value;
+                    onChange(values.map((s, i) => (i === index ? nextValue : s)));
+                  }}
+                  className="tv-input w-full min-w-0"
+                  placeholder={placeholder(index)}
+                  aria-label={`${cleanLabel} ${index + 1}`}
+                  aria-invalid={tooShort || overMax || (Boolean(fieldError) && !satisfied) ? true : undefined}
+                  aria-describedby={
+                    enforceItemLength || (fieldError && !satisfied)
+                      ? [enforceItemLength ? counterId : null, fieldError && !satisfied ? errorId : null]
+                          .filter(Boolean)
+                          .join(' ') || undefined
+                      : undefined
+                  }
+                  maxLength={
+                    enforceItemLength && line.length <= TOUR_LINE_ITEM_MAX_LENGTH
+                      ? TOUR_LINE_ITEM_MAX_LENGTH
+                      : undefined
+                  }
+                  minLength={enforceItemLength && trimmedLen > 0 ? TOUR_LINE_ITEM_MIN_LENGTH : undefined}
+                />
+                {enforceItemLength ? (
+                  <p
+                    id={counterId}
+                    className={`mt-0.5 text-[11px] tabular-nums ${
+                      tooShort || overMax
+                        ? 'text-ink-muted'
+                        : nearLimit
+                          ? 'text-amber-800'
+                          : 'text-ink-faint'
+                    }`}
+                  >
+                    {line.length} / {TOUR_LINE_ITEM_MAX_LENGTH}
+                    {tooShort
+                      ? ` · at least ${TOUR_LINE_ITEM_MIN_LENGTH}`
+                      : overMax
+                        ? ` · shorten to ${TOUR_LINE_ITEM_MAX_LENGTH}`
+                        : nearLimit
+                          ? ' · approaching limit'
+                          : null}
+                  </p>
+                ) : null}
+              </div>
+              <button
+                type="button"
+                onClick={() => onChange(removeProgressiveSlot(values, index, minVisible))}
+                className={`lux-flat mt-1.5 w-full shrink-0 px-1 py-1.5 text-center text-[12px] font-medium text-ink-muted hover:text-ink ${
+                  sectioned ? '' : 'w-auto px-2'
+                }`}
+              >
+                {index < minVisible && !line.trim() ? 'Clear' : 'Remove'}
+              </button>
+            </div>
+          );
+        })}
       </div>
       {canAdd ? (
         <button
@@ -569,15 +637,16 @@ function ProgressiveLinesEditor({
         <p className="mt-2 text-[12px] text-ink-muted">Maximum of {max} items.</p>
       ) : values.some((s) => !s.trim()) ? (
         <p className="mt-2 text-[12px] text-ink-muted">Fill the empty row before adding another.</p>
+      ) : enforceItemLength && !lengthsOk ? (
+        <p className="mt-2 text-[12px] text-ink-muted">{lengthHint}</p>
       ) : null}
-      {fieldError && !satisfied ? (
+      {(fieldError && !satisfied) || (enforceItemLength && !lengthsOk && filled >= minRequired) ? (
         <p id={errorId} className="mt-2 text-[12px] text-ink-muted" role="status">
-          {fieldError}
+          {fieldError && !satisfied ? fieldError : lengthHint}
         </p>
       ) : null}
     </>
   );
-
   if (!sectioned) {
     return (
       <div id={fieldId}>
@@ -934,15 +1003,17 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
       );
     }
     const desc = form.description.trim();
-    const inc = form.includes.map((s) => s.trim()).filter(Boolean).length;
-    const exc = form.excludes.map((s) => s.trim()).filter(Boolean).length;
+    const incLines = form.includes.map((s) => s.trim()).filter(Boolean);
+    const excLines = form.excludes.map((s) => s.trim()).filter(Boolean);
     const startOk = form.experienceStartStyle !== 'unspecified';
     return (
       desc.length >= MIN_LISTING_DESCRIPTION_LENGTH &&
       desc.length <= MAX_DESCRIPTION_LENGTH &&
-      inc >= TOUR_INCLUDE_MIN_REQUIRED &&
-      inc <= TOUR_INCLUDE_MAX &&
-      exc <= TOUR_EXCLUDE_MAX &&
+      incLines.length >= TOUR_INCLUDE_MIN_REQUIRED &&
+      incLines.length <= TOUR_INCLUDE_MAX &&
+      excLines.length <= TOUR_EXCLUDE_MAX &&
+      areFilledListingLineItemsValid(incLines) &&
+      areFilledListingLineItemsValid(excLines) &&
       startOk
     );
   }
@@ -3369,17 +3440,21 @@ export default function SupplierListingForm({
                   label="What's included *"
                   variant="include"
                   minRequired={TOUR_INCLUDE_MIN_REQUIRED}
-                  hint={`At least ${TOUR_INCLUDE_MIN_REQUIRED} clear items · up to ${TOUR_INCLUDE_MAX}`}
+                  hint={`At least ${TOUR_INCLUDE_MIN_REQUIRED} items · up to ${TOUR_INCLUDE_MAX} · ${TOUR_LINE_ITEM_MIN_LENGTH}–${TOUR_LINE_ITEM_MAX_LENGTH} characters each`}
                   values={form.includes}
                   minVisible={TOUR_INCLUDE_MIN_VISIBLE}
                   max={TOUR_INCLUDE_MAX}
                   placeholder={(index) => (index === 0 ? 'e.g. Guide and transfers' : `Included item ${index + 1}`)}
                   onChange={(includes) => setForm((f) => ({ ...f, includes }))}
+                  enforceItemLength
                   fieldError={
                     !canContinueStep() &&
                     form.includes.map((s) => s.trim()).filter(Boolean).length < TOUR_INCLUDE_MIN_REQUIRED
                       ? `Add at least ${TOUR_INCLUDE_MIN_REQUIRED} inclusions to continue.`
-                      : null
+                      : !canContinueStep() &&
+                          !areFilledListingLineItemsValid(form.includes)
+                        ? `Each inclusion must be ${TOUR_LINE_ITEM_MIN_LENGTH}–${TOUR_LINE_ITEM_MAX_LENGTH} characters.`
+                        : null
                   }
                   addLabel="+ Add inclusion"
                 />
@@ -3388,14 +3463,22 @@ export default function SupplierListingForm({
                   label="Not included (optional)"
                   variant="exclude"
                   minRequired={TOUR_EXCLUDE_MIN_REQUIRED}
-                  hint={`Optional · up to ${TOUR_EXCLUDE_MAX} items. Leave empty if nothing to exclude.`}
+                  hint={`Optional · up to ${TOUR_EXCLUDE_MAX} · ${TOUR_LINE_ITEM_MIN_LENGTH}–${TOUR_LINE_ITEM_MAX_LENGTH} characters each`}
                   values={form.excludes}
                   minVisible={TOUR_EXCLUDE_MIN_VISIBLE}
                   max={TOUR_EXCLUDE_MAX}
                   placeholder={(index) => (index === 0 ? 'e.g. Meals' : `Not included ${index + 1}`)}
                   onChange={(excludes) => setForm((f) => ({ ...f, excludes }))}
+                  enforceItemLength
                   addLabel="+ Add exclusion"
                   emptyHint="No exclusions yet — add items guests should not expect, or skip this section."
+                  fieldError={
+                    !canContinueStep() &&
+                    form.excludes.some((s) => s.trim()) &&
+                    !areFilledListingLineItemsValid(form.excludes)
+                      ? `Each exclusion must be ${TOUR_LINE_ITEM_MIN_LENGTH}–${TOUR_LINE_ITEM_MAX_LENGTH} characters.`
+                      : null
+                  }
                 />
               </section>
 
