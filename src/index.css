@@ -592,7 +592,30 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
 }
 
 .listing-creation-workspace .font-display {
-  font-weight: 700;
+  font-weight: 600;
+}
+
+/* Compact creation density — premium without sparse admin sprawl */
+.listing-creation-workspace {
+  --lc-section-gap: 1rem;
+  --lc-card-pad: 0.875rem;
+}
+
+.listing-creation-content .space-y-8 {
+  row-gap: 1.25rem;
+}
+
+.listing-creation-content .space-y-6 {
+  row-gap: 1rem;
+}
+
+.listing-creation-content .mb-8,
+.listing-creation-content .sm\:mb-10 {
+  margin-bottom: 1.25rem;
+}
+
+.listing-creation-workspace .lc-tile {
+  padding: var(--lc-card-pad);
 }
 
 .listing-creation-content p.text-ink-muted {

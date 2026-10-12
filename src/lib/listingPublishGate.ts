@@ -234,7 +234,7 @@ export function partnerListingCardPresentation(args: {
         statusLabel: 'Needs update',
         draftStateLabel: args.liveAttention,
         primaryCta: 'continue',
-        primaryCtaLabel: 'Edit',
+        primaryCtaLabel: 'Manage listing',
         publishDisabledReason: args.liveAttention,
       };
     }
@@ -242,7 +242,7 @@ export function partnerListingCardPresentation(args: {
       statusLabel: 'Live',
       draftStateLabel: null,
       primaryCta: 'view',
-      primaryCtaLabel: 'View',
+      primaryCtaLabel: 'Manage listing',
       publishDisabledReason: null,
     };
   }
@@ -252,14 +252,14 @@ export function partnerListingCardPresentation(args: {
       statusLabel: 'Draft',
       draftStateLabel: 'Incomplete',
       primaryCta: 'continue',
-      primaryCtaLabel: 'Edit',
+      primaryCtaLabel: 'Continue editing',
       publishDisabledReason: args.publishBlockers[0] ?? 'This listing still needs required details.',
     };
   }
   if (!args.accountEligible) {
     return {
       statusLabel: 'Draft',
-      draftStateLabel: 'Ready to publish',
+      draftStateLabel: null,
       primaryCta: 'verify',
       primaryCtaLabel: 'Verification required',
       publishDisabledReason:
@@ -268,7 +268,7 @@ export function partnerListingCardPresentation(args: {
   }
   return {
     statusLabel: 'Draft',
-    draftStateLabel: 'Ready to publish',
+    draftStateLabel: null,
     primaryCta: 'publish',
     primaryCtaLabel: 'Publish',
     publishDisabledReason: null,

@@ -56,9 +56,15 @@ export async function uploadListingImage(
   file: File
 ): Promise<{ publicUrl: string | null; error?: string }> {
   if (!supabase) return { publicUrl: null, error: 'Storage not configured' };
-  if (file.size > LISTING_IMAGE_MAX_BYTES) return { publicUrl: null, error: 'Image must be 5 MB or smaller.' };
+  // Callers should run prepareListingImageFile first for large/HEIC originals.
+  if (file.size > LISTING_IMAGE_MAX_BYTES) {
+    return {
+      publicUrl: null,
+      error: 'Image must be 5 MB or smaller after optimization. Try another photo.',
+    };
+  }
   if (!ALLOWED.includes(file.type as (typeof ALLOWED)[number])) {
-    return { publicUrl: null, error: 'Use JPEG, PNG, WebP, or GIF.' };
+    return { publicUrl: null, error: 'Use JPEG, PNG, WebP, or GIF after conversion.' };
   }
 
   // Phase 1215: store under owner prefix so team uploads match owner gallery GC.

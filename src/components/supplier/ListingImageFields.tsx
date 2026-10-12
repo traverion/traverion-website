@@ -8,6 +8,10 @@ import {
 } from '../../data/supabase-listing-images';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import {
+  listingImageAcceptAttribute,
+  prepareListingImageFile,
+} from '../../lib/listing-image-prepare';
+import {
   LISTING_PHOTO_MAX,
   LISTING_PHOTO_MIN,
   compactPhotoSlotsAndLabels,
@@ -19,6 +23,7 @@ import {
   reorderFilledPhotos,
   takeListingPhotoFiles,
 } from '../../lib/listingPhotoGrid';
+import { ListingPhotoCropModal } from './ListingPhotoCropModal';
 
 export type ListingPhotosValue = {
   slots: string[];
@@ -61,6 +66,7 @@ export default function ListingImageFields({
   const [dragOverCover, setDragOverCover] = useState(false);
   const [dropActive, setDropActive] = useState(false);
   const [coverFlash, setCoverFlash] = useState(false);
+  const [cropIndex, setCropIndex] = useState<number | null>(null);
 
   const pushBundle = (nextSlots: string[], nextLabels: string[]) => {
     onPhotosChange(compactPhotoSlotsAndLabels(nextSlots, nextLabels));
@@ -91,6 +97,15 @@ export default function ListingImageFields({
     fileRef.current?.click();
   };
 
+  const prepareAndUpload = async (file: File) => {
+    const prepared = await prepareListingImageFile(file);
+    if ('error' in prepared) {
+      return { publicUrl: null as string | null, error: prepared.error, label: file.name };
+    }
+    const result = await uploadListingImage(userId!, prepared.file);
+    return { ...result, label: prepared.file.name };
+  };
+
   const ingestFiles = async (files: File[], replaceIndex: number | null) => {
     if (!userId || !uploadsEnabled || busy) return;
     const list = Array.from(files).filter(Boolean);
@@ -108,14 +123,14 @@ export default function ListingImageFields({
       }
       setBusy(true);
       const prevUrl = (workingS[replaceIndex] ?? '').trim();
-      const { publicUrl, error: upErr } = await uploadListingImage(userId, file);
+      const { publicUrl, error: upErr, label } = await prepareAndUpload(file);
       setBusy(false);
       if (upErr || !publicUrl) {
         setIssues([{ name: file.name, message: userFacingError(upErr, USER_ERROR.upload) }, ...nextIssues]);
         return;
       }
       workingS[replaceIndex] = publicUrl;
-      workingL[replaceIndex] = file.name.trim().slice(0, 200) || 'Photo';
+      workingL[replaceIndex] = label.trim().slice(0, 200) || 'Photo';
       pushBundle(workingS, workingL);
       setIssues(nextIssues);
       if (prevUrl && isListingImageStoragePublicUrl(prevUrl)) {
@@ -135,13 +150,13 @@ export default function ListingImageFields({
     setBusy(true);
     let addIndex = workingS.filter((url) => url.trim()).length;
     for (const file of toUpload) {
-      const { publicUrl, error: upErr } = await uploadListingImage(userId, file);
+      const { publicUrl, error: upErr, label } = await prepareAndUpload(file);
       if (upErr || !publicUrl) {
         nextIssues.push({ name: file.name, message: userFacingError(upErr, USER_ERROR.upload) });
         continue;
       }
       workingS[addIndex] = publicUrl;
-      workingL[addIndex] = file.name.trim().slice(0, 200) || 'Photo';
+      workingL[addIndex] = label.trim().slice(0, 200) || 'Photo';
       addIndex += 1;
       pushBundle(workingS, workingL);
     }
@@ -303,6 +318,18 @@ export default function ListingImageFields({
             <button
               type="button"
               role="menuitem"
+              className="block w-full px-3 py-2.5 text-left text-sm font-medium text-ink hover:bg-black/[0.04]"
+              disabled={!uploadsEnabled || busy || !(slots[index] ?? '').trim()}
+              onClick={() => {
+                setMenuIndex(null);
+                setCropIndex(index);
+              }}
+            >
+              Crop
+            </button>
+            <button
+              type="button"
+              role="menuitem"
               className="block w-full px-3 py-2.5 text-left text-sm font-medium text-red-700 hover:bg-red-50"
               disabled={busy}
               onClick={() => setPendingRemoveIndex(index)}
@@ -316,11 +343,11 @@ export default function ListingImageFields({
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3">
       <input
         ref={fileRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif"
+        accept={listingImageAcceptAttribute()}
         multiple
         aria-label="Upload listing photos"
         className="hidden"
@@ -330,7 +357,7 @@ export default function ListingImageFields({
       {issues.length > 0 ? (
         <div className="space-y-1" role="alert">
           {issues.map((issue, i) => (
-            <p key={`${issue.name}-${i}`} className="text-sm text-red-800">
+            <p key={`${issue.name}-${i}`} className="text-[13px] text-red-800">
               {issue.name}: {issue.message}
             </p>
           ))}
@@ -354,47 +381,45 @@ export default function ListingImageFields({
             const files = e.dataTransfer.files ? Array.from(e.dataTransfer.files) : [];
             if (files.length) void ingestFiles(files, null);
           }}
-          className={`lc-upload flex min-h-[9rem] w-full flex-col items-center justify-center gap-2 rounded-[var(--partner-radius,0.5rem)] px-4 py-6 text-center transition-colors disabled:opacity-40 sm:min-h-[10rem] ${
+          className={`lc-upload flex min-h-[7rem] w-full flex-col items-center justify-center gap-1.5 rounded-[var(--partner-radius,0.5rem)] px-3 py-4 text-center transition-colors disabled:opacity-40 ${
             dropActive ? 'lc-upload--active' : ''
           }`}
         >
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-finland/10 text-finland">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-finland/10 text-finland">
             <ImagePlus className="h-4 w-4" strokeWidth={1.85} aria-hidden />
           </span>
-          <span className="text-[0.95rem] font-semibold tracking-tight text-ink">
-            {busy ? 'Uploading…' : 'Upload photos'}
+          <span className="text-[13px] font-semibold tracking-tight text-ink">
+            {busy ? 'Optimizing & uploading…' : 'Add photos'}
           </span>
           <span className="max-w-sm partner-meta">
-            Drag and drop or browse. First photo is the cover.
+            Drag and drop or browse. Large and HEIC files are optimized automatically.
             <span className="mt-0.5 block tabular-nums">
-              {LISTING_PHOTO_MIN}–{LISTING_PHOTO_MAX} photos · up to {LISTING_IMAGE_MAX_MB} MB each
+              {LISTING_PHOTO_MIN}–{LISTING_PHOTO_MAX} photos · optimized under {LISTING_IMAGE_MAX_MB} MB
             </span>
           </span>
         </button>
       ) : (
-        <div className="space-y-4">
-          <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="space-y-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <p className="text-sm font-medium tabular-nums text-ink">{progressLabel}</p>
-              <p className="mt-0.5 text-sm text-ink-muted">
-                Drag a photo onto the cover to promote it. First photo shows in search.
-              </p>
+              <p className="text-[13px] font-medium tabular-nums text-ink">{progressLabel}</p>
+              <p className="partner-meta">First photo is the cover. Drag to reorder.</p>
             </div>
             {canAddMore ? (
               <button
                 type="button"
                 disabled={!uploadsEnabled || busy}
                 onClick={() => openPicker(null)}
-                className="tv-btn-secondary inline-flex min-h-11 items-center gap-2 px-4 text-sm font-semibold disabled:opacity-40"
+                className="tv-btn-secondary inline-flex min-h-9 items-center gap-1.5 px-3 text-[13px] font-semibold disabled:opacity-40"
               >
-                <Plus className="h-4 w-4" strokeWidth={2} aria-hidden />
+                <Plus className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
                 Add photos
               </button>
             ) : null}
           </div>
 
           <div
-            className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3"
+            className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 md:grid-cols-5"
             onDragOver={(e) => {
               if (!uploadsEnabled || busy || !e.dataTransfer.types.includes('Files')) return;
               e.preventDefault();
@@ -406,87 +431,54 @@ export default function ListingImageFields({
               dropIncomingFiles(e, null);
             }}
           >
-            <div
-              className={`lc-tile lc-tile--cover relative col-span-2 row-span-2 overflow-hidden rounded-xl ${
-                dragOverCover ? 'lc-tile--drop' : ''
-              } ${coverFlash ? 'lc-tile--just-cover' : ''} ${dropActive ? 'lc-tile--drop' : ''}`}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setDragOverCover(true);
-              }}
-              onDragLeave={() => setDragOverCover(false)}
-              onDrop={(e) => {
-                if (e.dataTransfer.files?.length) {
-                  dropIncomingFiles(e, 0);
-                  return;
-                }
-                dropPhotoIndex(e, 0);
-              }}
-            >
-              <img
-                src={coverPreview}
-                alt=""
-                draggable={!busy}
-                onDragStart={(e) => onPhotoDragStart(e, 0)}
-                className="aspect-[4/3] h-full w-full object-cover sm:aspect-auto sm:min-h-[14rem]"
-              />
-              <span className="absolute left-3 top-3 rounded-md bg-paper/95 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink">
-                Cover
-              </span>
-              <button
-                type="button"
-                aria-label="Cover photo options"
-                aria-expanded={menuIndex === 0}
-                disabled={busy}
-                className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-paper/95 text-ink shadow-sm hover:bg-paper disabled:opacity-40"
-                onClick={() => {
-                  setPendingRemoveIndex(null);
-                  setMenuIndex((cur) => (cur === 0 ? null : 0));
-                }}
-              >
-                <MoreHorizontal className="h-4 w-4" aria-hidden />
-              </button>
-              {renderMenu(0)}
-              {busy ? (
-                <span className="absolute inset-0 flex items-center justify-center bg-black/35 text-sm font-medium text-white">
-                  Uploading…
-                </span>
-              ) : null}
-              {dragOverCover ? (
-                <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-paper/90 px-3 py-2 text-center text-sm font-medium text-ink">
-                  Drop to make this the cover
-                </span>
-              ) : null}
-            </div>
-
-            {Array.from({ length: filledCount - 1 }, (_, i) => i + 1).map((index) => {
+            {Array.from({ length: filledCount }, (_, index) => {
               const url = slots[index] ?? '';
               const preview = previewUrl(url);
               const caption = displayNameForPhotoSlot(url, labels[index] ?? '');
+              const isCover = index === 0;
               return (
-                <div key={`slot-${index}-${url.slice(-24)}`} className="lc-tile relative overflow-hidden rounded-xl">
+                <div
+                  key={`slot-${index}-${url.slice(-24)}`}
+                  className={`lc-tile relative overflow-hidden rounded-[var(--partner-radius-sm,0.375rem)] ${
+                    isCover && dragOverCover ? 'lc-tile--drop' : ''
+                  } ${isCover && coverFlash ? 'lc-tile--just-cover' : ''} ${dropActive ? 'lc-tile--drop' : ''}`}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    if (isCover) setDragOverCover(true);
+                  }}
+                  onDragLeave={() => {
+                    if (isCover) setDragOverCover(false);
+                  }}
+                  onDrop={(e) => {
+                    if (e.dataTransfer.files?.length) {
+                      dropIncomingFiles(e, isCover ? 0 : index);
+                      return;
+                    }
+                    dropPhotoIndex(e, index);
+                  }}
+                >
                   <button
                     type="button"
                     draggable={!busy}
                     onDragStart={(e) => onPhotoDragStart(e, index)}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      e.dataTransfer.dropEffect = 'move';
-                    }}
-                    onDrop={(e) => dropPhotoIndex(e, index)}
-                    aria-label={`${caption}. Photo ${index + 1} of ${filledCount}. Drag onto cover to promote.`}
+                    aria-label={`${caption}. Photo ${index + 1} of ${filledCount}${isCover ? ', cover' : ''}.`}
                     className="block w-full"
                   >
                     {preview ? (
                       <img src={preview} alt="" className="aspect-square w-full object-cover" />
                     ) : null}
                   </button>
+                  {isCover ? (
+                    <span className="absolute left-1.5 top-1.5 rounded bg-paper/95 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink">
+                      Cover
+                    </span>
+                  ) : null}
                   <button
                     type="button"
                     aria-label={`Options for photo ${index + 1}`}
                     aria-expanded={menuIndex === index}
                     disabled={busy}
-                    className="absolute right-1.5 top-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-paper/95 text-ink shadow-sm hover:bg-paper disabled:opacity-40"
+                    className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-paper/95 text-ink shadow-sm hover:bg-paper disabled:opacity-40"
                     onClick={() => {
                       setPendingRemoveIndex(null);
                       setMenuIndex((cur) => (cur === index ? null : index));
@@ -495,6 +487,11 @@ export default function ListingImageFields({
                     <MoreHorizontal className="h-3.5 w-3.5" aria-hidden />
                   </button>
                   {renderMenu(index)}
+                  {busy && isCover ? (
+                    <span className="absolute inset-0 flex items-center justify-center bg-black/35 text-[12px] font-medium text-white">
+                      Uploading…
+                    </span>
+                  ) : null}
                 </div>
               );
             })}
@@ -504,25 +501,41 @@ export default function ListingImageFields({
                 type="button"
                 disabled={!uploadsEnabled || busy}
                 onClick={() => openPicker(null)}
-                className={`lc-upload flex aspect-square w-full flex-col items-center justify-center gap-1.5 rounded-xl text-sm font-semibold text-finland disabled:opacity-40 ${
+                className={`lc-upload flex aspect-square w-full flex-col items-center justify-center gap-1 rounded-[var(--partner-radius-sm,0.375rem)] text-[12px] font-semibold text-finland disabled:opacity-40 ${
                   dropActive ? 'lc-upload--active' : ''
                 }`}
               >
-                <Plus className="h-5 w-5" strokeWidth={1.75} aria-hidden />
+                <Plus className="h-4 w-4" strokeWidth={1.75} aria-hidden />
                 Add
               </button>
             ) : null}
           </div>
+          <p className="partner-meta">
+            By uploading you confirm you have rights to use these photos on Traverion.
+          </p>
         </div>
       )}
 
+      {cropIndex != null && (slots[cropIndex] ?? '').trim() ? (
+        <ListingPhotoCropModal
+          imageUrl={(slots[cropIndex] ?? '').trim()}
+          onCancel={() => setCropIndex(null)}
+          onApply={(blob) => {
+            const idx = cropIndex;
+            setCropIndex(null);
+            const file = new File([blob], 'cover-crop.jpg', { type: 'image/jpeg' });
+            void ingestFiles([file], idx);
+          }}
+        />
+      ) : null}
+
       {!uploadsEnabled && (
         <div className="space-y-2">
-          <p className="text-sm text-ink-muted">
+          <p className="text-[13px] text-ink-muted">
             Sign in with storage connected to upload from your device. You can still paste an image URL.
           </p>
           {canAddMore ? (
-            <label className="block text-sm font-medium text-ink">
+            <label className="block text-[13px] font-medium text-ink">
               Image URL
               <input
                 type="url"

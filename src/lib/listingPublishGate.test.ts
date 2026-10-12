@@ -54,7 +54,7 @@ describe('partnerListingCardPresentation', () => {
     expect(card.statusLabel).toBe('Draft');
     expect(card.draftStateLabel).toBe('Incomplete');
     expect(card.primaryCta).toBe('continue');
-    expect(card.primaryCtaLabel).toBe('Edit');
+    expect(card.primaryCtaLabel).toBe('Continue editing');
   });
 
   it('separates listing-ready from account verification', () => {
@@ -63,7 +63,7 @@ describe('partnerListingCardPresentation', () => {
       publishBlockers: [],
       accountEligible: false,
     });
-    expect(card.draftStateLabel).toBe('Ready to publish');
+    expect(card.draftStateLabel).toBeNull();
     expect(card.primaryCta).toBe('verify');
     expect(card.primaryCtaLabel).toBe('Verification required');
   });
@@ -74,6 +74,7 @@ describe('partnerListingCardPresentation', () => {
       publishBlockers: [],
       accountEligible: true,
     });
+    expect(card.draftStateLabel).toBeNull();
     expect(card.primaryCta).toBe('publish');
     expect(card.publishDisabledReason).toBeNull();
   });
@@ -87,7 +88,7 @@ describe('partnerListingCardPresentation', () => {
     });
     expect(card.statusLabel).toBe('Needs update');
     expect(card.primaryCta).toBe('continue');
-    expect(card.primaryCtaLabel).toBe('Edit');
+    expect(card.primaryCtaLabel).toBe('Manage listing');
   });
 
   it('Phase 1272: live attention works for any publish-bar message', () => {

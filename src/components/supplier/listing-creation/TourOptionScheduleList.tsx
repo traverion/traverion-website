@@ -11,6 +11,7 @@ import {
 } from '../../../lib/listing-option-schedules';
 import { summarizeOptionPricing } from '../../../lib/price-categories';
 import { bookingOptionSchedulePrereqIssues } from '../../../lib/listing-option-validation';
+import { optionChargeModel } from '../../../lib/listing-option-charge-model';
 
 function scheduleStatus(
   s: ListingOptionSchedule,
@@ -46,13 +47,15 @@ export function TourOptionScheduleList({
   const rows = listingOptionHasSchedules(option) ? option.schedules ?? [] : listingOptionSchedules(option);
   const prereq = bookingOptionSchedulePrereqIssues(option);
   const canAdd = prereq.length === 0;
+  const charge = optionChargeModel(option);
+  const chargeLabel = charge === 'flat_group' ? 'Per group' : charge === 'per_person' ? 'Per person' : null;
 
   return (
     <div id="supplier-listing-field-option-schedules" className="space-y-3">
       <p className="partner-section-desc max-w-xl">
         Date window
-        {option.startMode === 'flexible' ? '' : ', start time'}
-        , capacity, and price per schedule. Add separate windows for different seasons if needed.
+        {option.startMode === 'flexible' ? '' : ', departure times'}
+        , capacity, and price per schedule. Separate seasons need separate schedules.
       </p>
       {!canAdd ? (
         <div className="rounded-[var(--partner-radius,0.5rem)] border border-amber-200/80 bg-amber-50/70 px-3.5 py-3 text-[13px] text-amber-950">
@@ -118,8 +121,14 @@ export function TourOptionScheduleList({
                       .filter(Boolean)
                       .join(' · ')}
                   </p>
-                  <p className="text-[13px] font-semibold tabular-nums text-ink">{summarizeOptionPricing(s, formatAmount)}</p>
-                  <p className="partner-meta">Max {s.maxSpotsPerSlot} travelers</p>
+                  <p className="text-[13px] font-semibold tabular-nums text-ink">
+                    {[chargeLabel, summarizeOptionPricing(s, formatAmount)].filter(Boolean).join(' · ')}
+                  </p>
+                  <p className="partner-meta">
+                    {charge === 'flat_group'
+                      ? `${s.maxSpotsPerSlot} group${s.maxSpotsPerSlot === 1 ? '' : 's'} · up to ${s.maxPersons} per group`
+                      : `Book ${s.minPersons}–${s.maxPersons} · ${s.maxSpotsPerSlot} seats / departure`}
+                  </p>
                   {occupancyNotice ? (
                     <p className="mt-1.5 text-[13px] leading-snug text-ink" role="status">
                       {occupancyNotice}

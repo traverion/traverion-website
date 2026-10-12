@@ -1384,9 +1384,11 @@ export default function SupplierListings() {
               const readinessLine = !isLive
                 ? card.draftStateLabel === 'Incomplete'
                   ? draftPublish?.subtitle ?? card.publishDisabledReason
-                  : card.draftStateLabel === 'Ready to publish' && !canPostNewListing
+                  : card.primaryCta === 'verify'
                     ? 'Listing is complete. Verification is required before it can go live.'
-                    : 'Ready to publish'
+                    : card.primaryCta === 'publish'
+                      ? 'Ready to publish'
+                      : null
                 : liveAttention;
               const cardAccent = !isLive
                 ? card.draftStateLabel === 'Incomplete'
