@@ -332,7 +332,7 @@ export function TourScheduleWorkspace({
               </div>
               {continueHint ? (
                 <p
-                  className="listing-creation-hint rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-950 ring-1 ring-amber-200/80 sm:text-right"
+                  className="listing-creation-hint px-0.5 text-[12px] leading-relaxed text-ink-muted sm:text-right"
                   role="status"
                 >
                   {continueHint}
@@ -340,7 +340,7 @@ export function TourScheduleWorkspace({
               ) : null}
               {!isTourScheduleSceneSatisfied(sceneIndex, schedule, option) && attempted && !continueHint ? (
                 <p
-                  className="listing-creation-hint rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-950 ring-1 ring-amber-200/80 sm:text-right"
+                  className="listing-creation-hint px-0.5 text-[12px] leading-relaxed text-ink-muted sm:text-right"
                   role="status"
                 >
                   {tourScheduleLockedReason({

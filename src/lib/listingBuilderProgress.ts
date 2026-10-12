@@ -12,7 +12,12 @@ import {
   orderedPhotoUrls,
   normalizePhotoSlots,
 } from './listingPhotoGrid';
-import { MIN_LISTING_DESCRIPTION_LENGTH, MIN_LISTING_TITLE_LENGTH } from './listingQualityScore';
+import {
+  MAX_LISTING_TITLE_LENGTH,
+  MIN_LISTING_DESCRIPTION_LENGTH,
+  MIN_LISTING_TITLE_LENGTH,
+} from './listingQualityScore';
+import { TOUR_INCLUDE_MIN_REQUIRED } from './listing-creation-lines';
 
 export type ListingBuilderSectionId =
   | 'basics'
@@ -78,21 +83,25 @@ export function listingBuilderSections(form: BuilderFormSlice): ListingBuilderSe
   if (!kindOk) basicsIssues.push('Choose the activity type');
   if (!city || !country) basicsIssues.push('Add city and country');
   if (title.length < MIN_LISTING_TITLE_LENGTH) {
-    basicsIssues.push(`Add a clear title (at least ${MIN_LISTING_TITLE_LENGTH} characters)`);
+    basicsIssues.push(
+      `Add a clear title (${MIN_LISTING_TITLE_LENGTH}–${MAX_LISTING_TITLE_LENGTH} characters)`
+    );
+  } else if (title.length > MAX_LISTING_TITLE_LENGTH) {
+    basicsIssues.push(`Shorten the title to ${MAX_LISTING_TITLE_LENGTH} characters or fewer`);
   }
   if (!sub) basicsIssues.push('Add a subtitle');
 
   const desc = (form.description ?? '').trim();
   const highlights = (form.highlights ?? []).map((s) => s.trim()).filter(Boolean);
   const includes = (form.includes ?? []).map((s) => s.trim()).filter(Boolean);
-  const excludes = (form.excludes ?? []).map((s) => s.trim()).filter(Boolean);
   const contentIssues: string[] = [];
   if (desc.length < MIN_LISTING_DESCRIPTION_LENGTH) {
     contentIssues.push(`Description needs at least ${MIN_LISTING_DESCRIPTION_LENGTH} characters`);
   }
   if (highlights.length < 1) contentIssues.push('Add at least one highlight');
-  if (includes.length < 2) contentIssues.push('Add at least two included items');
-  if (excludes.length < 1) contentIssues.push('Add at least one not-included item');
+  if (includes.length < TOUR_INCLUDE_MIN_REQUIRED) {
+    contentIssues.push(`Add at least ${TOUR_INCLUDE_MIN_REQUIRED} included items`);
+  }
 
   const opts = materializedBookingOptions(form.bookingOptions);
   const optionsIssues: string[] = [];

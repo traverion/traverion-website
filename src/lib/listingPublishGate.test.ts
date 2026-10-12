@@ -44,6 +44,59 @@ describe('Phase 1240: legacy group size publish gate', () => {
   });
 });
 
+describe('includes and excludes publish bounds', () => {
+  const base = {
+    id: 't1',
+    title: 'Guaranteed Northern Lights Tour',
+    subtitle: 'Small-group evening hunt',
+    description: 'x'.repeat(120),
+    city: 'Rovaniemi',
+    country: 'Finland',
+    image: 'https://cdn.example.com/hero.jpg',
+    groupSize: '1-8 People',
+    meetingPoint: 'City center meeting point',
+    listingExtras: {
+      galleryImageUrls: ['a', 'b', 'c'],
+      experienceLanguage: 'en',
+      experienceStartStyle: 'meeting_point',
+      bookingOptions: [],
+    },
+  } as TourPackage;
+
+  it('allows publishing with zero exclusions', () => {
+    const blockers = getListingPublishBlockers({
+      ...base,
+      includes: ['Guide', 'Transfers'],
+      excludes: [],
+    } as TourPackage);
+    expect(blockers.some((b) => /not included|exclusion/i.test(b))).toBe(false);
+  });
+
+  it('blocks fewer than two inclusions and more than ten of either list', () => {
+    expect(
+      getListingPublishBlockers({
+        ...base,
+        includes: ['Guide'],
+        excludes: [],
+      } as TourPackage).some((b) => /included/i.test(b))
+    ).toBe(true);
+    expect(
+      getListingPublishBlockers({
+        ...base,
+        includes: Array.from({ length: 11 }, (_, i) => `Inc ${i + 1}`),
+        excludes: [],
+      } as TourPackage).some((b) => /at most 10/i.test(b))
+    ).toBe(true);
+    expect(
+      getListingPublishBlockers({
+        ...base,
+        includes: ['Guide', 'Transfers'],
+        excludes: Array.from({ length: 11 }, (_, i) => `Exc ${i + 1}`),
+      } as TourPackage).some((b) => /at most 10/i.test(b))
+    ).toBe(true);
+  });
+});
+
 describe('partnerListingCardPresentation', () => {
   it('does not present Publish as available when the listing is incomplete', () => {
     const card = partnerListingCardPresentation({

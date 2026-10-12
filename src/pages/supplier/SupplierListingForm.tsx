@@ -139,8 +139,10 @@ import {
   STAY_HIGHLIGHT_MAX,
   STAY_HIGHLIGHT_MIN_VISIBLE,
   TOUR_EXCLUDE_MAX,
+  TOUR_EXCLUDE_MIN_REQUIRED,
   TOUR_EXCLUDE_MIN_VISIBLE,
   TOUR_INCLUDE_MAX,
+  TOUR_INCLUDE_MIN_REQUIRED,
   TOUR_INCLUDE_MIN_VISIBLE,
   addProgressiveSlot,
   canAddProgressiveSlot,
@@ -162,7 +164,14 @@ import {
   shouldResetWizardOnEditingIdChange,
 } from '../../lib/listing-creation-persist';
 import { userFacingError } from '../../lib/userFacingError';
-import { MIN_LISTING_DESCRIPTION_LENGTH, MIN_LISTING_TITLE_LENGTH } from '../../lib/listingQualityScore';
+import {
+  LISTING_TITLE_NEAR_LIMIT_LENGTH,
+  MAX_LISTING_TITLE_LENGTH,
+  MIN_LISTING_DESCRIPTION_LENGTH,
+  MIN_LISTING_TITLE_LENGTH,
+  clampListingTitleInput,
+  isListingTitleLengthValid,
+} from '../../lib/listingQualityScore';
 import {
   PARTNER_LISTING_PUBLISH_STEP_NOTE,
   PARTNER_LISTING_PUBLISH_STEP_TITLE,
@@ -476,6 +485,9 @@ function ProgressiveLinesEditor({
   onChange,
   variant = 'plain',
   minRequired = 0,
+  fieldError = null,
+  addLabel = '+ Add another',
+  emptyHint = null,
 }: {
   fieldId: string;
   label: string;
@@ -487,22 +499,33 @@ function ProgressiveLinesEditor({
   onChange: (next: string[]) => void;
   /** `include` / `exclude` render a sectioned card with a status badge and per-line markers. */
   variant?: 'plain' | 'include' | 'exclude';
-  /** How many filled lines are needed (drives the badge). */
+  /** How many filled lines are needed (drives the badge). 0 = optional. */
   minRequired?: number;
+  /** Inline guidance when the step cannot continue (required lists only). */
+  fieldError?: string | null;
+  addLabel?: string;
+  emptyHint?: string | null;
 }) {
   const sectioned = variant !== 'plain';
   const filled = values.filter((line) => line.trim().length > 0).length;
   const satisfied = minRequired <= 0 || filled >= minRequired;
   const labelId = `${fieldId}-label`;
+  const errorId = `${fieldId}-error`;
+  const cleanLabel = label.replace(/\s*\*$/, '').replace(/\s*\(optional\)\s*$/i, '').trim();
+  const canAdd = canAddProgressiveSlot(values, max);
+  const atMax = values.length >= max && filled >= max;
 
   const list = (
     <>
-      <div className="space-y-2">
+      {values.length === 0 && emptyHint ? (
+        <p className="text-[12px] leading-relaxed text-ink-muted">{emptyHint}</p>
+      ) : null}
+      <div className={values.length > 0 ? 'space-y-2' : ''}>
         {values.map((line, index) => (
           <div key={`${fieldId}-${index}`} className="flex items-start gap-2">
             {sectioned ? (
               <span
-                className={`mt-3 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
+                className={`mt-2.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
                   variant === 'include' ? 'bg-finland/10 text-finland' : 'bg-red-50 text-red-700'
                 }`}
                 aria-hidden
@@ -518,30 +541,39 @@ function ProgressiveLinesEditor({
               type="text"
               value={line}
               onChange={(e) => onChange(values.map((s, i) => (i === index ? e.target.value : s)))}
-              className="tv-input"
+              className="tv-input min-w-0 flex-1"
               placeholder={placeholder(index)}
-              aria-label={sectioned ? `${label.replace(/\s*\*$/, '')} ${index + 1}` : undefined}
+              aria-label={`${cleanLabel} ${index + 1}`}
+              aria-invalid={Boolean(fieldError) && !satisfied ? true : undefined}
+              aria-describedby={fieldError && !satisfied ? errorId : undefined}
             />
-            {index >= minVisible ? (
-              <button
-                type="button"
-                onClick={() => onChange(removeProgressiveSlot(values, index, minVisible))}
-                className="tv-btn-ghost !min-h-11 shrink-0 text-sm"
-              >
-                Remove
-              </button>
-            ) : null}
+            <button
+              type="button"
+              onClick={() => onChange(removeProgressiveSlot(values, index, minVisible))}
+              className="lux-flat shrink-0 px-2 py-2 text-[12px] font-medium text-ink-muted hover:text-ink"
+            >
+              {index < minVisible && !line.trim() ? 'Clear' : 'Remove'}
+            </button>
           </div>
         ))}
       </div>
-      {canAddProgressiveSlot(values, max) ? (
+      {canAdd ? (
         <button
           type="button"
           onClick={() => onChange(addProgressiveSlot(values, max))}
-          className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-finland"
+          className="mt-2 inline-flex min-h-10 items-center text-[13px] font-semibold text-finland"
         >
-          + Add another
+          {addLabel}
         </button>
+      ) : atMax ? (
+        <p className="mt-2 text-[12px] text-ink-muted">Maximum of {max} items.</p>
+      ) : values.some((s) => !s.trim()) ? (
+        <p className="mt-2 text-[12px] text-ink-muted">Fill the empty row before adding another.</p>
+      ) : null}
+      {fieldError && !satisfied ? (
+        <p id={errorId} className="mt-2 text-[12px] text-ink-muted" role="status">
+          {fieldError}
+        </p>
       ) : null}
     </>
   );
@@ -556,31 +588,39 @@ function ProgressiveLinesEditor({
     );
   }
 
+  const counter =
+    minRequired > 0
+      ? satisfied
+        ? `${filled} / ${max}`
+        : `${filled} of ${minRequired} needed`
+      : `${filled} / ${max}`;
+
   return (
     <section
       id={fieldId}
       aria-labelledby={labelId}
-      className={`lc-section rounded-2xl border-l-4 px-4 py-4 sm:px-5 ${
+      className={`lc-section rounded-2xl border-l-4 px-4 py-3.5 sm:px-5 ${
         variant === 'include' ? 'border-l-finland' : 'border-l-red-300'
       }`}
     >
-      <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+      <div className="mb-2.5 flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
-          <h5 id={labelId} className="font-display text-base font-bold text-ink">
+          <h5 id={labelId} className="text-[14px] font-semibold tracking-tight text-ink">
             {label}
           </h5>
-          <p className="mt-0.5 text-xs leading-relaxed text-ink-muted">{hint}</p>
+          <p className="mt-0.5 text-[12px] leading-relaxed text-ink-muted">{hint}</p>
         </div>
-        {minRequired > 0 ? (
-          <span
-            className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold tabular-nums ${
-              satisfied ? 'bg-finland/10 text-finland' : 'bg-amber-50 text-amber-900 ring-1 ring-amber-200/80'
-            }`}
-            role="status"
-          >
-            {satisfied ? `${filled} added` : `${filled} of ${minRequired} needed`}
-          </span>
-        ) : null}
+        <span
+          className={`shrink-0 rounded-md px-2 py-0.5 text-[11px] font-semibold tabular-nums ${
+            minRequired > 0 && !satisfied
+              ? 'bg-paper text-ink-muted ring-1 ring-line'
+              : 'bg-finland/10 text-finland'
+          }`}
+          role="status"
+        >
+          {counter}
+          {minRequired <= 0 ? ' · optional' : null}
+        </span>
       </div>
       {list}
     </section>
@@ -868,7 +908,7 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
     if (isStay) {
       const desc = form.description.trim();
       return (
-        form.title.trim().length >= MIN_LISTING_TITLE_LENGTH &&
+        isListingTitleLengthValid(form.title) &&
         sub.length > 0 &&
         sub.length <= MAX_SUBTITLE_LENGTH &&
         desc.length >= MIN_LISTING_DESCRIPTION_LENGTH &&
@@ -880,7 +920,7 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
       form.experienceLanguage.trim().length > 0 &&
       form.city.trim().length > 0 &&
       form.country.trim().length > 0 &&
-      form.title.trim().length >= MIN_LISTING_TITLE_LENGTH &&
+      isListingTitleLengthValid(form.title) &&
       sub.length > 0 &&
       sub.length <= MAX_SUBTITLE_LENGTH
     );
@@ -900,8 +940,9 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
     return (
       desc.length >= MIN_LISTING_DESCRIPTION_LENGTH &&
       desc.length <= MAX_DESCRIPTION_LENGTH &&
-      inc >= 2 &&
-      exc >= 1 &&
+      inc >= TOUR_INCLUDE_MIN_REQUIRED &&
+      inc <= TOUR_INCLUDE_MAX &&
+      exc <= TOUR_EXCLUDE_MAX &&
       startOk
     );
   }
@@ -984,7 +1025,7 @@ const emptyForm: ListingFormState = {
   bookingOptions: [],
   experienceStartStyle: 'unspecified',
   includes: Array.from({ length: TOUR_INCLUDE_MIN_VISIBLE }, () => ''),
-  excludes: Array.from({ length: TOUR_EXCLUDE_MIN_VISIBLE }, () => ''),
+  excludes: [],
   scheduleStyle: 'flexible',
   typicalTimelineNotes: '',
   bookingCutoffHoursBeforeStart: '',
@@ -2711,7 +2752,9 @@ export default function SupplierListingForm({
         : basicsSceneIdx === 2 && !isTourIdentitySatisfied(form)
           ? form.title.trim().length > 0 && form.title.trim().length < MIN_LISTING_TITLE_LENGTH
             ? `Title needs at least ${MIN_LISTING_TITLE_LENGTH} characters to continue.`
-            : 'Add a title and subtitle to continue.'
+            : form.title.trim().length > MAX_LISTING_TITLE_LENGTH
+              ? `Title must be ${MAX_LISTING_TITLE_LENGTH} characters or fewer to continue.`
+              : 'Add a title and subtitle to continue.'
           : listingCreationContinueHint({
               stepIndex: 0,
               isStay: false,
@@ -3004,7 +3047,7 @@ export default function SupplierListingForm({
                   return hint ? (
                     <p
                       id="listing-creation-continue-hint"
-                      className="listing-creation-hint rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-950 ring-1 ring-amber-200/80 sm:text-right"
+                      className="listing-creation-hint px-0.5 text-[12px] leading-relaxed text-ink-muted sm:text-right"
                       role="status"
                     >
                       {hint}
@@ -3064,16 +3107,39 @@ export default function SupplierListingForm({
                 <label htmlFor="supplier-listing-title" className="block text-sm font-semibold text-ink mb-1">
                   Title *
                 </label>
-                <p className="text-xs text-ink-muted mb-2">A clear, specific name travelers will see in search and on the listing page.</p>
+                <p className="text-xs text-ink-muted mb-2">
+                  A clear, specific name travelers will see in search and on the listing page (
+                  {MIN_LISTING_TITLE_LENGTH}–{MAX_LISTING_TITLE_LENGTH} characters).
+                </p>
                 <input
                   id="supplier-listing-title"
                   type="text"
                   value={form.title}
-                  onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, title: clampListingTitleInput(e.target.value, f.title) }))
+                  }
                   className="tv-input"
                   placeholder="e.g. Harbour apartment · two bedrooms"
+                  minLength={MIN_LISTING_TITLE_LENGTH}
+                  maxLength={
+                    form.title.length > MAX_LISTING_TITLE_LENGTH ? undefined : MAX_LISTING_TITLE_LENGTH
+                  }
                   required
                 />
+                <p
+                  className={`mt-1 text-xs tabular-nums ${
+                    form.title.length >= LISTING_TITLE_NEAR_LIMIT_LENGTH
+                      ? 'text-amber-800'
+                      : 'text-ink-muted'
+                  }`}
+                >
+                  {form.title.length} / {MAX_LISTING_TITLE_LENGTH}
+                  {form.title.length > MAX_LISTING_TITLE_LENGTH
+                    ? ` · shorten to ${MAX_LISTING_TITLE_LENGTH} to publish`
+                    : form.title.length >= LISTING_TITLE_NEAR_LIMIT_LENGTH
+                      ? ' · approaching the limit'
+                      : null}
+                </p>
               </div>
               <div id="supplier-listing-field-subtitle">
                 <label htmlFor="supplier-listing-subtitle" className="block text-sm font-semibold text-ink mb-1">
@@ -3231,6 +3297,12 @@ export default function SupplierListingForm({
                   <p className="mt-1 text-[12px] tabular-nums text-ink-muted">
                     {form.description.length}/{MAX_DESCRIPTION_LENGTH}
                   </p>
+                  {!canContinueStep() &&
+                  form.description.trim().length < MIN_LISTING_DESCRIPTION_LENGTH ? (
+                    <p className="mt-1.5 text-[12px] text-ink-muted" role="status">
+                      Add at least {MIN_LISTING_DESCRIPTION_LENGTH} characters to continue.
+                    </p>
+                  ) : null}
                 </div>
                 <div id="supplier-listing-field-highlights" className="space-y-2">
                   <label className="block text-[13px] font-semibold text-ink">Highlights</label>
@@ -3288,7 +3360,7 @@ export default function SupplierListingForm({
                 </div>
               </section>
 
-              <section className="space-y-4" aria-labelledby="tour-details-guests">
+              <section className="space-y-3" aria-labelledby="tour-details-guests">
                 <h4 id="tour-details-guests" className="text-[13px] font-semibold text-ink">
                   What guests get
                 </h4>
@@ -3296,25 +3368,34 @@ export default function SupplierListingForm({
                   fieldId="supplier-listing-field-includes"
                   label="What's included *"
                   variant="include"
-                  minRequired={2}
-                  hint={`At least two clear items. Up to ${TOUR_INCLUDE_MAX}.`}
+                  minRequired={TOUR_INCLUDE_MIN_REQUIRED}
+                  hint={`At least ${TOUR_INCLUDE_MIN_REQUIRED} clear items · up to ${TOUR_INCLUDE_MAX}`}
                   values={form.includes}
                   minVisible={TOUR_INCLUDE_MIN_VISIBLE}
                   max={TOUR_INCLUDE_MAX}
                   placeholder={(index) => (index === 0 ? 'e.g. Guide and transfers' : `Included item ${index + 1}`)}
                   onChange={(includes) => setForm((f) => ({ ...f, includes }))}
+                  fieldError={
+                    !canContinueStep() &&
+                    form.includes.map((s) => s.trim()).filter(Boolean).length < TOUR_INCLUDE_MIN_REQUIRED
+                      ? `Add at least ${TOUR_INCLUDE_MIN_REQUIRED} inclusions to continue.`
+                      : null
+                  }
+                  addLabel="+ Add inclusion"
                 />
                 <ProgressiveLinesEditor
                   fieldId="supplier-listing-field-excludes"
-                  label="Not included *"
+                  label="Not included (optional)"
                   variant="exclude"
-                  minRequired={1}
-                  hint={`At least one line. Up to ${TOUR_EXCLUDE_MAX}.`}
+                  minRequired={TOUR_EXCLUDE_MIN_REQUIRED}
+                  hint={`Optional · up to ${TOUR_EXCLUDE_MAX} items. Leave empty if nothing to exclude.`}
                   values={form.excludes}
                   minVisible={TOUR_EXCLUDE_MIN_VISIBLE}
                   max={TOUR_EXCLUDE_MAX}
                   placeholder={(index) => (index === 0 ? 'e.g. Meals' : `Not included ${index + 1}`)}
                   onChange={(excludes) => setForm((f) => ({ ...f, excludes }))}
+                  addLabel="+ Add exclusion"
+                  emptyHint="No exclusions yet — add items guests should not expect, or skip this section."
                 />
               </section>
 
@@ -3364,6 +3445,11 @@ export default function SupplierListingForm({
                       ? ` Base location: ${[form.city.trim(), form.country.trim()].filter(Boolean).join(', ')}.`
                       : ''}
                   </p>
+                  {!canContinueStep() && form.experienceStartStyle === 'unspecified' ? (
+                    <p className="mt-1.5 text-[12px] text-ink-muted" role="status">
+                      Choose how guests start to continue.
+                    </p>
+                  ) : null}
                 </div>
               </section>
 
@@ -4248,7 +4334,7 @@ export default function SupplierListingForm({
           >
             {optionLockHint ? (
               <div
-                className="listing-creation-hint mb-5 max-w-2xl rounded-xl bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-950 ring-1 ring-amber-200/80"
+                className="listing-creation-hint mb-4 max-w-2xl text-[13px] leading-relaxed text-ink-muted"
                 role="status"
               >
                 {optionLockHint}

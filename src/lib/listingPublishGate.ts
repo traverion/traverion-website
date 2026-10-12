@@ -7,9 +7,15 @@ import {
 import type { ListingBookingOption } from '../types/listingExtras';
 import {
   LISTING_PLACEHOLDER_IMAGE,
+  MAX_LISTING_TITLE_LENGTH,
   MIN_LISTING_DESCRIPTION_LENGTH,
   MIN_LISTING_TITLE_LENGTH,
 } from './listingQualityScore';
+import {
+  TOUR_EXCLUDE_MAX,
+  TOUR_INCLUDE_MAX,
+  TOUR_INCLUDE_MIN_REQUIRED,
+} from './listing-creation-lines';
 import { priceCategoryValidationMessages } from './price-categories';
 import { experienceTodayIsoForListing } from './booking-quote';
 import { parseGroupSizeRange } from './booking-flow';
@@ -100,7 +106,11 @@ export function getListingPublishBlockers(
   const title = listing.title?.trim() ?? '';
   if (title.length < MIN_LISTING_TITLE_LENGTH) {
     out.push(
-      `Title is too short — add a clear, specific title (at least ${MIN_LISTING_TITLE_LENGTH} characters).`
+      `Title is too short — add a clear, specific title (${MIN_LISTING_TITLE_LENGTH}–${MAX_LISTING_TITLE_LENGTH} characters).`
+    );
+  } else if (title.length > MAX_LISTING_TITLE_LENGTH) {
+    out.push(
+      `Title is too long — shorten it to ${MAX_LISTING_TITLE_LENGTH} characters or fewer.`
     );
   }
   const sub = listing.subtitle?.trim() ?? '';
@@ -175,11 +185,15 @@ export function getListingPublishBlockers(
     }
     const inc = (listing.includes ?? []).map((s) => String(s).trim()).filter(Boolean);
     const exc = (listing.excludes ?? []).map((s) => String(s).trim()).filter(Boolean);
-    if (inc.length < 2) {
-      out.push('Add at least two “what’s included” items so the offer is clear.');
+    if (inc.length < TOUR_INCLUDE_MIN_REQUIRED) {
+      out.push(
+        `Add at least ${TOUR_INCLUDE_MIN_REQUIRED} “what’s included” items so the offer is clear.`
+      );
+    } else if (inc.length > TOUR_INCLUDE_MAX) {
+      out.push(`A listing can include at most ${TOUR_INCLUDE_MAX} “what’s included” items.`);
     }
-    if (exc.length < 1) {
-      out.push('Add at least one “not included” item (for example meals or tickets) to set expectations.');
+    if (exc.length > TOUR_EXCLUDE_MAX) {
+      out.push(`A listing can include at most ${TOUR_EXCLUDE_MAX} “not included” items.`);
     }
   }
   const gallery = (listing.listingExtras?.galleryImageUrls ?? []).map((u) => String(u).trim()).filter(Boolean);

@@ -150,7 +150,7 @@ export function TourOptionWorkspace({
               {continueHint ? (
                 <p
                   id={hintId}
-                  className="listing-creation-hint flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-950 ring-1 ring-amber-200/80"
+                  className="listing-creation-hint flex items-start gap-2 text-[12px] leading-relaxed text-ink-muted"
                   role="status"
                 >
                   <span className="shrink-0 font-semibold">Still needed:</span>

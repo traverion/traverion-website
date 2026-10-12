@@ -4,6 +4,11 @@ import { userFacingError } from '../lib/userFacingError';
 import { TourPackage } from '../types/tour';
 import { listingExtrasToDb, parseListingExtras, stripPublicStayCheckInAddress } from '../types/listingExtras';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
+import {
+  TOUR_EXCLUDE_MAX,
+  TOUR_INCLUDE_MAX,
+  persistableProgressiveSlots,
+} from '../lib/listing-creation-lines';
 import { resolveSupplierId } from './supabase-supplier-team';
 
 export type ListingRow = {
@@ -102,8 +107,12 @@ export function rowToTourPackage(row: ListingRow): TourPackage {
     description: row.description,
     highlights: Array.isArray(row.highlights) ? row.highlights : [],
     itinerary: Array.isArray(row.itinerary) && row.itinerary.length > 0 ? row.itinerary : defaultItinerary,
-    includes: Array.isArray(row.includes) ? row.includes : defaultIncludes,
-    excludes: Array.isArray(row.excludes) ? row.excludes : defaultExcludes,
+    includes: Array.isArray(row.includes)
+      ? persistableProgressiveSlots(row.includes.map(String), TOUR_INCLUDE_MAX)
+      : defaultIncludes,
+    excludes: Array.isArray(row.excludes)
+      ? persistableProgressiveSlots(row.excludes.map(String), TOUR_EXCLUDE_MAX)
+      : [],
     hotels: [],
     difficulty: (row.difficulty as TourPackage['difficulty']) ?? 'Easy',
     // Phase 1236: null group_size → empty (no invent 2–12; edge quote 1228 parity).
@@ -202,8 +211,12 @@ export function tourPackageToRow(tour: Partial<TourPackage> & { title: string; d
     description: tour.description ?? '',
     highlights: Array.isArray(tour.highlights) ? tour.highlights : [],
     itinerary: Array.isArray(tour.itinerary) && tour.itinerary.length > 0 ? tour.itinerary : defaultItinerary,
-    includes: Array.isArray(tour.includes) ? tour.includes : defaultIncludes,
-    excludes: Array.isArray(tour.excludes) ? tour.excludes : defaultExcludes,
+    includes: Array.isArray(tour.includes)
+      ? persistableProgressiveSlots(tour.includes, TOUR_INCLUDE_MAX)
+      : defaultIncludes,
+    excludes: Array.isArray(tour.excludes)
+      ? persistableProgressiveSlots(tour.excludes, TOUR_EXCLUDE_MAX)
+      : [],
     difficulty: tour.difficulty ?? 'Easy',
     // Phase 1236: do not invent 2–12 People into DB when supplier left group size blank.
     group_size: tour.groupSize?.trim() || null,

@@ -92,7 +92,7 @@ export function listingCreationStepRequirement(stepIndex: number, isStay: boolea
   }
   if (stepIndex === 0) return 'Choose a product type, place, language, title and subtitle to continue.';
   if (stepIndex === 1)
-    return 'Add a description, two inclusions, one exclusion, and how guests start to continue.';
+    return 'Add a description, two inclusions, and how guests start to continue.';
   if (stepIndex === 2) return 'Add at least one complete bookable option to continue.';
   if (stepIndex === 3) return 'Add at least four photos to continue.';
   return 'Finish the previous step to continue.';
@@ -118,7 +118,8 @@ export function listingCreationMissingHint(missing: string[]): string | null {
 /** What is still missing on the tour Experience step. */
 export function tourDetailsMissingItems(input: {
   includeCount: number;
-  excludeCount: number;
+  /** @deprecated Exclusions are optional — ignored when present. */
+  excludeCount?: number;
   descriptionLength: number;
   minDescriptionLength: number;
   startStyleOk: boolean;
@@ -129,7 +130,6 @@ export function tourDetailsMissingItems(input: {
   }
   const inc = Math.max(0, 2 - input.includeCount);
   if (inc > 0) missing.push(inc === 1 ? 'add 1 more inclusion' : `add ${inc} inclusions`);
-  if (input.excludeCount < 1) missing.push('add what is not included');
   if (!input.startStyleOk) missing.push('choose how guests start');
   return missing;
 }
