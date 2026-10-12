@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   listingPublishTruth,
   reviewBasicsSummary,
+  reviewInformationSummary,
   reviewOptionsSummary,
   reviewPhotosSummary,
 } from './listing-creation-review';
@@ -13,6 +14,8 @@ describe('review summaries', () => {
     );
     expect(reviewOptionsSummary(2, 2, 'From €149')).toBe('2 bookable options · From €149');
     expect(reviewPhotosSummary(6, true)).toBe('6 photos · Cover selected');
+    expect(reviewInformationSummary(0)).toMatch(/optional/i);
+    expect(reviewInformationSummary(3)).toBe('3 details added');
   });
 
   it('does not count draft options as bookable', () => {

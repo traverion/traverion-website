@@ -82,14 +82,17 @@ describe('missing-requirement copy', () => {
         isStay: false,
         isSatisfied: (i) => i === 0,
       })
-    ).toBe('Add a description, two inclusions, and how guests start to continue.');
+    ).toBe('Add a description and two inclusions to continue.');
   });
 
   it('explains a disabled Continue with the current step requirement', () => {
     expect(
+      listingCreationContinueHint({ stepIndex: 3, isStay: false, canContinue: false })
+    ).toBe('Add at least one complete bookable option and how guests start to continue.');
+    expect(listingCreationContinueHint({ stepIndex: 3, isStay: false, canContinue: true })).toBeNull();
+    expect(
       listingCreationContinueHint({ stepIndex: 2, isStay: false, canContinue: false })
-    ).toBe('Add at least one complete bookable option to continue.');
-    expect(listingCreationContinueHint({ stepIndex: 2, isStay: false, canContinue: true })).toBeNull();
+    ).toMatch(/optional/i);
   });
 
   it('uses stay copy for stay steps', () => {
@@ -121,12 +124,10 @@ describe('continue hints name what is missing', () => {
         excludeCount: 0,
         descriptionLength: 10,
         minDescriptionLength: 100,
-        startStyleOk: false,
       })
     ).toEqual([
       'add a description of at least 100 characters',
       'add 1 more inclusion',
-      'choose how guests start',
     ]);
     expect(
       tourDetailsMissingItems({
@@ -134,9 +135,16 @@ describe('continue hints name what is missing', () => {
         excludeCount: 0,
         descriptionLength: 120,
         minDescriptionLength: 100,
-        startStyleOk: true,
       })
     ).toEqual([]);
+    expect(
+      tourDetailsMissingItems({
+        includeCount: 2,
+        descriptionLength: 120,
+        minDescriptionLength: 100,
+        startStyleOk: false,
+      })
+    ).toEqual(['choose how guests start']);
   });
 
   it('joins missing items into a single hint', () => {

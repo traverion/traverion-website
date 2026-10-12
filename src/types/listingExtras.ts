@@ -160,6 +160,14 @@ export interface ListingExtras {
   venueSetting?: VenueSetting;
   accessibilitySummary?: string;
   minGuestAge?: string;
+  /** Partner Information step — practical notes guests should read before booking. */
+  knowBeforeYouGo?: string;
+  /** Partner Information step — packing / bring list. */
+  whatToBring?: string;
+  /** Partner Information step — fitness, documents, or other restrictions. */
+  requirementsNotes?: string;
+  /** Partner Information step — freeform additional notes. */
+  additionalInfo?: string;
   scheduleStyle?: ScheduleStyle;
   typicalTimelineNotes?: string;
   galleryImageUrls?: string[];
@@ -624,6 +632,18 @@ export function parseListingExtras(raw: unknown): ListingExtras {
   if (typeof o.minGuestAge === 'string' && o.minGuestAge.trim()) {
     out.minGuestAge = o.minGuestAge.trim();
   }
+  if (typeof o.knowBeforeYouGo === 'string' && o.knowBeforeYouGo.trim()) {
+    out.knowBeforeYouGo = o.knowBeforeYouGo.trim();
+  }
+  if (typeof o.whatToBring === 'string' && o.whatToBring.trim()) {
+    out.whatToBring = o.whatToBring.trim();
+  }
+  if (typeof o.requirementsNotes === 'string' && o.requirementsNotes.trim()) {
+    out.requirementsNotes = o.requirementsNotes.trim();
+  }
+  if (typeof o.additionalInfo === 'string' && o.additionalInfo.trim()) {
+    out.additionalInfo = o.additionalInfo.trim();
+  }
   const ss = o.scheduleStyle;
   if (ss === 'flexible' || ss === 'fixed_slots' || ss === 'on_request') {
     out.scheduleStyle = ss;
@@ -687,6 +707,10 @@ export function listingExtrasToDb(extras: ListingExtras | undefined): Record<str
   if (extras.venueSetting && extras.venueSetting !== 'unspecified') payload.venueSetting = extras.venueSetting;
   if (extras.accessibilitySummary?.trim()) payload.accessibilitySummary = extras.accessibilitySummary.trim();
   if (extras.minGuestAge?.trim()) payload.minGuestAge = extras.minGuestAge.trim();
+  if (extras.knowBeforeYouGo?.trim()) payload.knowBeforeYouGo = extras.knowBeforeYouGo.trim();
+  if (extras.whatToBring?.trim()) payload.whatToBring = extras.whatToBring.trim();
+  if (extras.requirementsNotes?.trim()) payload.requirementsNotes = extras.requirementsNotes.trim();
+  if (extras.additionalInfo?.trim()) payload.additionalInfo = extras.additionalInfo.trim();
   if (extras.scheduleStyle) payload.scheduleStyle = extras.scheduleStyle;
   if (extras.typicalTimelineNotes?.trim()) payload.typicalTimelineNotes = extras.typicalTimelineNotes.trim();
   if (typeof extras.bookingCutoffHoursBeforeStart === 'number' && extras.bookingCutoffHoursBeforeStart > 0) {

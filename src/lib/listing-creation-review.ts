@@ -28,6 +28,12 @@ export function reviewDetailsSummary(
   }`;
 }
 
+/** Sidebar / Preview summary for the optional Information stage. */
+export function reviewInformationSummary(filledCount: number): string {
+  if (filledCount <= 0) return 'Optional — nothing added yet';
+  return `${filledCount} detail${filledCount === 1 ? '' : 's'} added`;
+}
+
 export function reviewStayLocationSummary(city: string, country: string): string {
   return [city.trim(), country.trim()].filter(Boolean).join(', ') || 'Location not set';
 }

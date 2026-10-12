@@ -189,7 +189,7 @@ describe('publishBlockerListingWizardStep', () => {
   it('keeps tour blocker jumps on tour step indices', () => {
     expect(
       publishBlockerListingWizardStep('Replace the placeholder hero image with a real photo of your tour.', false)
-    ).toBe(3);
-    expect(publishBlockerListingWizardStep('Add where guests meet or are picked up for this option.', false)).toBe(2);
+    ).toBe(4);
+    expect(publishBlockerListingWizardStep('Add where guests meet or are picked up for this option.', false)).toBe(3);
   });
 });

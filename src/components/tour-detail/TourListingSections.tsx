@@ -40,12 +40,17 @@ export default function TourListingSections({
   const includes = tour.includes.map((s) => String(s).trim()).filter(Boolean);
   const excludes = tour.excludes.map((s) => String(s).trim()).filter(Boolean);
   const notes = (tour.price?.importantNotes ?? []).map((n) => String(n).trim()).filter(Boolean);
+  const extras = tour.listingExtras;
   const showImportant =
     Boolean(tour.difficulty) ||
     notes.length > 0 ||
-    Boolean(tour.listingExtras?.minGuestAge?.trim()) ||
-    Boolean(tour.listingExtras?.accessibilitySummary?.trim()) ||
-    normalizeBookingCutoffHours(tour.listingExtras?.bookingCutoffHoursBeforeStart) > 0;
+    Boolean(extras?.minGuestAge?.trim()) ||
+    Boolean(extras?.accessibilitySummary?.trim()) ||
+    Boolean(extras?.knowBeforeYouGo?.trim()) ||
+    Boolean(extras?.whatToBring?.trim()) ||
+    Boolean(extras?.requirementsNotes?.trim()) ||
+    Boolean(extras?.additionalInfo?.trim()) ||
+    normalizeBookingCutoffHours(extras?.bookingCutoffHoursBeforeStart) > 0;
   const pickup = resolveTourPickupMeetingDisplay(tour, selectedOption);
   const cutoffLabel = bookingCutoffTravelerLabel(
     tour.listingExtras?.bookingCutoffHoursBeforeStart ?? 0
@@ -200,12 +205,28 @@ export default function TourListingSections({
             {tour.difficulty === 'Easy' ? <li>Difficulty: Easy.</li> : null}
             {tour.difficulty === 'Moderate' ? <li>Difficulty: Moderate.</li> : null}
             {tour.difficulty === 'Challenging' ? <li>This tour is marked challenging.</li> : null}
-            {tour.listingExtras?.minGuestAge?.trim() ? (
-              <li>Minimum age: {tour.listingExtras.minGuestAge.trim()}</li>
+            {extras?.knowBeforeYouGo?.trim() ? (
+              <li className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                {extras.knowBeforeYouGo.trim()}
+              </li>
             ) : null}
-            {tour.listingExtras?.accessibilitySummary?.trim() ? (
-              <li className="break-words [overflow-wrap:anywhere]">
-                {tour.listingExtras.accessibilitySummary.trim()}
+            {extras?.whatToBring?.trim() ? (
+              <li className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                What to bring: {extras.whatToBring.trim()}
+              </li>
+            ) : null}
+            {extras?.requirementsNotes?.trim() ? (
+              <li className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                {extras.requirementsNotes.trim()}
+              </li>
+            ) : null}
+            {extras?.minGuestAge?.trim() ? <li>Minimum age: {extras.minGuestAge.trim()}</li> : null}
+            {extras?.accessibilitySummary?.trim() ? (
+              <li className="break-words [overflow-wrap:anywhere]">{extras.accessibilitySummary.trim()}</li>
+            ) : null}
+            {extras?.additionalInfo?.trim() ? (
+              <li className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                {extras.additionalInfo.trim()}
               </li>
             ) : null}
             {cutoffLabel ? <li>{cutoffLabel}.</li> : null}

@@ -206,6 +206,9 @@ export function getListingPublishBlockers(
         `Each exclusion must be ${TOUR_LINE_ITEM_MIN_LENGTH}–${TOUR_LINE_ITEM_MAX_LENGTH} characters.`
       );
     }
+    if (!listing.experienceStartStyle || listing.experienceStartStyle === 'unspecified') {
+      out.push('Choose how guests start (meeting point, pickup, or either) under Options.');
+    }
   }
   const gallery = (listing.listingExtras?.galleryImageUrls ?? []).map((u) => String(u).trim()).filter(Boolean);
   if (!heroIsPlaceholder && gallery.length < 3) {
@@ -310,12 +313,16 @@ export function publishBlockerListingWizardStep(blockerLine: string, isStay: boo
     if (/guest|bedroom|bed|space|host/.test(t)) return 2;
     return 0;
   }
-  if (/photo|image|gallery|cover|hero|placeholder/.test(t)) return 3;
+  if (/photo|image|gallery|cover|hero|placeholder/.test(t)) return 4;
   if (
-    /price|option|nightly|weekday|spot|guest per|meet or are picked|starting date|ending date/.test(t)
+    /price|option|nightly|weekday|spot|guest per|meet or are picked|starting date|ending date|how guests start|booking closes|cutoff/.test(
+      t
+    )
   ) {
-    return 2;
+    return 3;
   }
-  if (/city|country|location|destination|include|exclude|accessib|meeting|pickup/.test(t)) return 1;
+  if (/accessib|know before|what to bring|requirement|minimum age|difficulty/.test(t)) return 2;
+  if (/include|exclude|description/.test(t)) return 1;
+  if (/city|country|location|destination|meeting|pickup/.test(t)) return 1;
   return 0;
 }
