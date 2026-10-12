@@ -95,6 +95,7 @@ import {
   reviewStayPricingSummary,
 } from '../../lib/listing-creation-review';
 import { listingWizardPersistLabel } from '../../lib/listing-wizard-persist';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 import {
   listingCreationNavItems,
   listingCreationProgressCopy,
@@ -1032,7 +1033,10 @@ export default function SupplierListingForm({
   const [draftCloseError, setDraftCloseError] = useState<string | null>(null);
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  /** Confirmed server result — never set before onSave resolves. */
+  const [saveFlash, setSaveFlash] = useState<'draft' | 'published' | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+  const leaveDialogRef = useRef<HTMLDivElement | null>(null);
   const publishChecklistKey = editingId ? `traverion-publish-checklist-${editingId}` : null;
   const [publishChecklistDismissed, setPublishChecklistDismissed] = useState(false);
   /**
@@ -1694,19 +1698,42 @@ export default function SupplierListingForm({
     const t = window.setTimeout(() => {
       if (serializeListingFormState(form) !== initialFormSnapshotRef.current) {
         writeListingDraftBackup(editingId, form);
+        setSaveFlash(null);
       }
     }, 700);
     return () => window.clearTimeout(t);
   }, [form, editingId]);
 
+  useDialogFocus(leaveConfirmOpen, leaveDialogRef, () => {
+    if (draftCloseBusy || submitting) return;
+    setDraftCloseError(null);
+    setLeaveConfirmOpen(false);
+  });
+
   useEffect(() => {
+    /**
+     * Background flush: local backup always; server persist only when dirty.
+     * Never force `draft` onto a published listing (would unpublish on tab hide).
+     */
     const persist = () => {
       if (serializeListingFormState(form) === initialFormSnapshotRef.current) return;
       writeListingDraftBackup(editingId, form);
-      if (enableDraftOnClose && onSaveDraft) {
-        const listing = buildListingFromForm({ ...form, status: 'draft' }, editingId ?? undefined);
-        void onSaveDraft(listing);
+      if (!enableDraftOnClose || !onSaveDraft) return;
+      if (form.status === 'published') {
+        const listing = buildListingFromForm({ ...form, status: 'published' }, editingId ?? undefined);
+        void onSave(listing).then((result) => {
+          if (!result.success) return;
+          initialFormSnapshotRef.current = serializeListingFormState(formRef.current);
+          setLastSavedAt(Date.now());
+        });
+        return;
       }
+      const listing = buildListingFromForm({ ...form, status: 'draft' }, editingId ?? undefined);
+      void onSaveDraft(listing).then((ok) => {
+        if (!ok) return;
+        initialFormSnapshotRef.current = serializeListingFormState(formRef.current);
+        setLastSavedAt(Date.now());
+      });
     };
     const onVisibility = () => {
       if (document.visibilityState === 'hidden') persist();
@@ -1717,7 +1744,7 @@ export default function SupplierListingForm({
       window.removeEventListener('pagehide', persist);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [form, editingId, enableDraftOnClose, onSaveDraft]);
+  }, [form, editingId, enableDraftOnClose, onSaveDraft, onSave]);
 
   const publishBlockersPreview = useMemo(() => {
     const asPublished = buildListingFromForm({ ...form, status: 'published' }, editingId ?? undefined);
@@ -1839,7 +1866,15 @@ export default function SupplierListingForm({
     ): Promise<boolean> => {
       if (submitInFlightRef.current) return false;
       const last = steps.length - 1;
-      if (stepIdx === last && !lastStepSubmitArmed && !opts?.bypassLastStepArm) return false;
+      // Draft saves are always armed — only Publish/Save-changes needs the last-step click guard.
+      if (
+        targetStatus === 'published' &&
+        stepIdx === last &&
+        !lastStepSubmitArmed &&
+        !opts?.bypassLastStepArm
+      ) {
+        return false;
+      }
 
       submitInFlightRef.current = true;
       try {
@@ -1848,22 +1883,27 @@ export default function SupplierListingForm({
           if (!canPostNewListing) {
             const msg =
               'Publishing needs Traverion to verify your business and your payout (IBAN + BIC). Finish both in Settings, then try again.';
+            setPublishBlockers(null);
             if (opts?.closeOnSuccess) {
               setDraftCloseError(msg);
               setLeaveConfirmOpen(true);
             } else {
               setSubmitError(msg);
+              setSaveFlash(null);
             }
             return false;
           }
           const blockers = getListingPublishBlockers(listing);
           if (blockers.length > 0) {
             setPublishBlockers(blockers);
+            setSaveFlash(null);
             const first = blockers[0];
             if (first) jumpToPublishBlocker(first);
             if (opts?.closeOnSuccess) {
               setDraftCloseError(first ?? 'Finish the remaining listing details before saving.');
               setLeaveConfirmOpen(true);
+            } else {
+              setSubmitError(null);
             }
             return false;
           }
@@ -1871,6 +1911,7 @@ export default function SupplierListingForm({
         setPublishBlockers(null);
         setSubmitError(null);
         setDraftCloseError(null);
+        setSaveFlash(null);
         setSubmitting(true);
         try {
           const result = await onSave(listing);
@@ -1887,8 +1928,12 @@ export default function SupplierListingForm({
           if (result.listingId && result.listingId !== editingId) {
             migrateListingEditorStorage(editingId, result.listingId, form.inventoryFamily === 'stay');
           }
-          initialFormSnapshotRef.current = serializeListingFormState(form);
+          // Sync local status to what the server just accepted (publish must not leave UI as draft).
+          const synced: ListingFormState = { ...form, status: targetStatus };
+          setForm(synced);
+          initialFormSnapshotRef.current = serializeListingFormState(synced);
           setLastSavedAt(Date.now());
+          setSaveFlash(targetStatus === 'published' ? 'published' : 'draft');
           if (opts?.closeOnSuccess) {
             clearListingDraftBackup(editingId);
             finishCloseEditor();
@@ -2756,6 +2801,20 @@ export default function SupplierListingForm({
                   </NoticeCallout>
                 </div>
               ) : null}
+              {saveFlash === 'draft' ? (
+                <div className="shrink-0 px-4 pt-3 sm:px-8 lg:px-12" role="status">
+                  <NoticeCallout title="Draft saved" tone="success">
+                    Your progress is on the server. You can leave and reopen this listing anytime.
+                  </NoticeCallout>
+                </div>
+              ) : null}
+              {saveFlash === 'published' ? (
+                <div className="shrink-0 px-4 pt-3 sm:px-8 lg:px-12" role="status">
+                  <NoticeCallout title="Published" tone="success">
+                    This listing is live for travelers. Availability and pricing match what you saved.
+                  </NoticeCallout>
+                </div>
+              ) : null}
               {publishBlockers && publishBlockers.length > 0 ? (
                 <div className="mx-4 mt-3 shrink-0 rounded-2xl bg-amber-50 p-3.5 text-sm text-amber-950 ring-1 ring-amber-200/80 sm:mx-8 sm:p-4 lg:mx-12">
                   <p className="font-semibold text-amber-900">Finish these before publishing</p>
@@ -2807,11 +2866,19 @@ export default function SupplierListingForm({
                   <>
                     <button
                       type="button"
-                      onClick={() => void runSubmit('draft')}
-                      disabled={submitting || draftCloseBusy || form.status === 'published'}
+                      onClick={() =>
+                        void runSubmit(form.status === 'published' ? 'published' : 'draft', {
+                          bypassLastStepArm: true,
+                        })
+                      }
+                      disabled={submitting || draftCloseBusy}
                       className="touch-manipulation tv-btn-secondary !min-h-11 sm:flex-none disabled:opacity-50"
                     >
-                      {submitting ? 'Saving…' : 'Save draft'}
+                      {submitting
+                        ? 'Saving…'
+                        : form.status === 'published'
+                          ? 'Save changes'
+                          : 'Save draft'}
                     </button>
                     <button
                       type="button"
@@ -2837,14 +2904,8 @@ export default function SupplierListingForm({
                     {form.status === 'published' ? (
                       <button
                         type="button"
-                        onClick={() => void runSubmit('published')}
-                        disabled={
-                          submitting ||
-                          draftCloseBusy ||
-                          !isStepSatisfied(steps.length - 1, form) ||
-                          !lastStepSubmitArmed ||
-                          publishBlockersPreview.length > 0
-                        }
+                        onClick={() => void runSubmit('published', { bypassLastStepArm: true })}
+                        disabled={submitting || draftCloseBusy}
                         title={
                           publishBlockersPreview.length > 0
                             ? publishBlockersPreview[0]
@@ -2858,12 +2919,8 @@ export default function SupplierListingForm({
                       <>
                         <button
                           type="button"
-                          onClick={() => void runSubmit('draft')}
-                          disabled={
-                            submitting ||
-                            draftCloseBusy ||
-                            !lastStepSubmitArmed
-                          }
+                          onClick={() => void runSubmit('draft', { bypassLastStepArm: true })}
+                          disabled={submitting || draftCloseBusy}
                           className="touch-manipulation tv-btn-secondary !min-h-11 sm:flex-none disabled:opacity-50"
                         >
                           {submitting ? 'Saving…' : 'Save as draft'}
@@ -2871,17 +2928,11 @@ export default function SupplierListingForm({
                         <button
                           type="button"
                           onClick={() => void runSubmit('published')}
-                          disabled={
-                            submitting ||
-                            draftCloseBusy ||
-                            !lastStepSubmitArmed ||
-                            !canPostNewListing ||
-                            publishBlockersPreview.length > 0
-                          }
+                          disabled={submitting || draftCloseBusy || !lastStepSubmitArmed}
                           title={publishButtonTitle}
                           className="touch-manipulation tv-btn-primary !min-h-11 flex-1 sm:flex-none disabled:opacity-50"
                         >
-                          {submitting ? 'Saving…' : 'Publish'}
+                          {submitting ? 'Publishing…' : 'Publish'}
                         </button>
                       </>
                     )}
@@ -3969,22 +4020,20 @@ export default function SupplierListingForm({
           </>
         ) : null}
         {leaveConfirmOpen ? (
-          <div className="absolute inset-0 z-[60] flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="absolute inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4">
             <div
-              className="lc-section w-full max-w-sm rounded-xl px-5 py-5"
+              ref={leaveDialogRef}
+              className="w-full max-w-sm rounded-xl bg-white px-5 py-5 shadow-xl ring-1 ring-black/[0.1]"
               role="alertdialog"
+              aria-modal="true"
               aria-labelledby="listing-leave-title"
               aria-describedby="listing-leave-desc"
             >
-              <p id="listing-leave-title" className="font-display text-lg font-bold text-ink">
-                Leave with unfinished changes?
+              <p id="listing-leave-title" className="font-display text-lg font-semibold tracking-tight text-ink">
+                Save changes before leaving?
               </p>
               <p id="listing-leave-desc" className="mt-2 text-sm text-ink-muted leading-relaxed">
-                {form.status === 'published'
-                  ? 'You still have unsaved edits on this live listing. Save changes before leaving, or discard them.'
-                  : enableDraftOnClose && onSaveDraft
-                    ? 'You still have unsaved edits on this listing. Save a draft to pick up where you left off, or leave without saving.'
-                    : 'You still have unsaved edits on this listing. Leave without saving, or keep editing.'}
+                You have unsaved changes to this experience.
               </p>
               {draftCloseError ? (
                 <p className="mt-3 text-sm text-red-800" role="alert">
@@ -3999,7 +4048,7 @@ export default function SupplierListingForm({
                     disabled={draftCloseBusy || submitting}
                     onClick={() => void leaveAndSavePublished()}
                   >
-                    {draftCloseBusy ? 'Saving…' : 'Save changes'}
+                    {draftCloseBusy ? 'Saving…' : 'Save & exit'}
                   </button>
                 ) : enableDraftOnClose && onSaveDraft ? (
                   <button
@@ -4008,7 +4057,7 @@ export default function SupplierListingForm({
                     disabled={draftCloseBusy || submitting}
                     onClick={() => void leaveAndSaveDraft()}
                   >
-                    {draftCloseBusy ? 'Saving…' : 'Save as draft'}
+                    {draftCloseBusy ? 'Saving…' : 'Save & exit'}
                   </button>
                 ) : null}
                 <button

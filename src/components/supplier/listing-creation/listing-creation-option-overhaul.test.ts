@@ -66,16 +66,25 @@ describe('tour option creation overhaul (source contracts)', () => {
     expect(editor).toMatch(/showChargeModelPicker = !activeSection \|\| activeSection === 'pricing'/);
   });
 
-  it('offers Save changes in the leave dialog for published listings', () => {
+  it('offers Save & exit in the leave dialog for published listings', () => {
     const form = readFileSync(resolve(__dirname, '../../../pages/supplier/SupplierListingForm.tsx'), 'utf8');
     expect(form).toContain('leaveAndSavePublished');
-    expect(form).toMatch(/form\.status === 'published'[\s\S]*Save changes/);
-    expect(form).toMatch(/You still have unsaved edits on this live listing/);
+    expect(form).toMatch(/form\.status === 'published'[\s\S]*Save & exit/);
+    expect(form).toMatch(/Save changes before leaving\?/);
+    expect(form).toMatch(/You have unsaved changes to this experience/);
     // Leave-save must reuse publish save — never invent a draft→published path from leave.
     expect(form).toMatch(
       /leaveAndSavePublished[\s\S]*form\.status !== 'published'[\s\S]*runSubmit\('published'/
     );
     expect(form).toMatch(/runSubmit\('published', \{ bypassLastStepArm: true, closeOnSuccess: true \}/);
+  });
+
+  it('syncs local status after save and never force-drafts a published listing on hide', () => {
+    const form = readFileSync(resolve(__dirname, '../../../pages/supplier/SupplierListingForm.tsx'), 'utf8');
+    expect(form).toMatch(/status: targetStatus/);
+    expect(form).toMatch(/setSaveFlash\(targetStatus === 'published' \? 'published' : 'draft'\)/);
+    expect(form).toMatch(/form\.status === 'published'[\s\S]*status: 'published'/);
+    expect(form).toMatch(/bg-white[\s\S]*Save changes before leaving/);
   });
 
   it('guards Save schedule against rapid double clicks', () => {

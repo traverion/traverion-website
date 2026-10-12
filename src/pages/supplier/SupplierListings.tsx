@@ -141,6 +141,7 @@ export default function SupplierListings() {
   const [payoutOnFile, setPayoutOnFile] = useState(false);
   const [publishGate, setPublishGate] = useState<{ listingId: string; title: string; blockers: string[] } | null>(null);
   const [justPublishedId, setJustPublishedId] = useState<string | null>(null);
+  const [publishingId, setPublishingId] = useState<string | null>(null);
   const [justDuplicatedId, setJustDuplicatedId] = useState<string | null>(null);
   const [createFamily, setCreateFamily] = useState<'tour' | 'stay'>('tour');
   const createChooserRef = useRef<HTMLDivElement>(null);
@@ -919,6 +920,7 @@ export default function SupplierListings() {
       setError('Your role cannot change listing status.');
       return false;
     }
+    if (publishingId) return false;
     if (newStatus === 'published' && !canPostNewListing) {
       setError(
         'Publishing needs business verification and payout verification (IBAN + BIC) approved by Traverion. Check Settings.'
@@ -936,20 +938,25 @@ export default function SupplierListings() {
       }
     }
     setPublishGate(null);
-    const res = await updateListingStatus(listing.id, newStatus);
-    if (res.ok) {
-      setError(null);
-      if (newStatus === 'published') {
-        setJustPublishedId(listing.id);
-        window.setTimeout(() => setJustPublishedId((id) => (id === listing.id ? null : id)), 8000);
+    setPublishingId(listing.id);
+    try {
+      const res = await updateListingStatus(listing.id, newStatus);
+      if (res.ok) {
+        setError(null);
+        if (newStatus === 'published') {
+          setJustPublishedId(listing.id);
+          window.setTimeout(() => setJustPublishedId((id) => (id === listing.id ? null : id)), 8000);
+        }
+        loadListings();
+        window.dispatchEvent(new Event('traverion:supplier-onboarding-refresh'));
+        window.dispatchEvent(new CustomEvent('traverion:published-listings-changed'));
+        return true;
       }
-      loadListings();
-      window.dispatchEvent(new Event('traverion:supplier-onboarding-refresh'));
-      window.dispatchEvent(new CustomEvent('traverion:published-listings-changed'));
-      return true;
+      setError(userFacingError(res.error, USER_ERROR.listingSave));
+      return false;
+    } finally {
+      setPublishingId(null);
     }
-    setError(userFacingError(res.error, USER_ERROR.listingSave));
-    return false;
   };
 
   const confirmDeactivateListing = async () => {
@@ -1465,10 +1472,11 @@ export default function SupplierListings() {
                       {isSupabase && canEditListings && card.primaryCta === 'publish' ? (
                         <button
                           type="button"
-                          onClick={() => handleStatusChange(listing, 'published')}
-                          className="tv-btn-primary lux-flat inline-flex min-h-10 items-center justify-center px-3 text-xs"
+                          onClick={() => void handleStatusChange(listing, 'published')}
+                          disabled={publishingId === listing.id}
+                          className="tv-btn-primary lux-flat inline-flex min-h-10 items-center justify-center px-3 text-xs disabled:opacity-50"
                         >
-                          Publish
+                          {publishingId === listing.id ? 'Publishing…' : 'Publish'}
                         </button>
                       ) : null}
                       {/* Phase 1672: incomplete drafts get a primary continue Edit (gate already sets continue). */}
