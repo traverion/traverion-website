@@ -310,8 +310,8 @@ export function TourBasicsGuidedScenes({
                 value={form.subtitle}
                 maxLength={TOUR_BASICS_SUBTITLE_MAX}
                 onChange={(e) => onChange({ subtitle: e.target.value.slice(0, TOUR_BASICS_SUBTITLE_MAX) })}
-                rows={2}
-                className="tv-input min-h-[4rem] min-w-0 resize-y [overflow-wrap:anywhere]"
+                rows={3}
+                className="tv-input min-h-[5.5rem] min-w-0 resize-y text-[15px] leading-relaxed [overflow-wrap:anywhere] sm:min-h-[6.5rem]"
                 placeholder={
                   form.experienceKind === 'transportation'
                     ? 'e.g. Door-to-door private vehicle for up to 6 guests'
