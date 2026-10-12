@@ -10,6 +10,13 @@ import {
   normalizeBookingCutoffHours,
 } from '../../lib/tour-departure-cutoff';
 import { travelerItinerary } from '../../lib/tour-itinerary';
+import {
+  ACCESSIBILITY_FEATURES_CATALOG,
+  NOT_SUITABLE_FOR_CATALOG,
+  SPOKEN_LANGUAGE_CATALOG,
+  WHAT_TO_BRING_CATALOG,
+  labelsForCatalogIds,
+} from '../../lib/listing-information-catalogs';
 
 type Legal = {
   operatorName: string;
@@ -41,6 +48,16 @@ export default function TourListingSections({
   const excludes = tour.excludes.map((s) => String(s).trim()).filter(Boolean);
   const notes = (tour.price?.importantNotes ?? []).map((n) => String(n).trim()).filter(Boolean);
   const extras = tour.listingExtras;
+  const whatToBringLabels = labelsForCatalogIds(extras?.whatToBringIds ?? [], WHAT_TO_BRING_CATALOG);
+  const notSuitableLabels = labelsForCatalogIds(
+    extras?.notSuitableForIds ?? [],
+    NOT_SUITABLE_FOR_CATALOG
+  );
+  const accessibilityLabels = labelsForCatalogIds(
+    extras?.accessibilityFeatureIds ?? [],
+    ACCESSIBILITY_FEATURES_CATALOG
+  );
+  const spokenLabels = labelsForCatalogIds(extras?.additionalLanguages ?? [], SPOKEN_LANGUAGE_CATALOG);
   const showImportant =
     Boolean(tour.difficulty) ||
     notes.length > 0 ||
@@ -48,6 +65,10 @@ export default function TourListingSections({
     Boolean(extras?.accessibilitySummary?.trim()) ||
     Boolean(extras?.knowBeforeYouGo?.trim()) ||
     Boolean(extras?.whatToBring?.trim()) ||
+    whatToBringLabels.length > 0 ||
+    notSuitableLabels.length > 0 ||
+    accessibilityLabels.length > 0 ||
+    spokenLabels.length > 0 ||
     Boolean(extras?.requirementsNotes?.trim()) ||
     Boolean(extras?.additionalInfo?.trim()) ||
     normalizeBookingCutoffHours(extras?.bookingCutoffHoursBeforeStart) > 0;
@@ -210,9 +231,19 @@ export default function TourListingSections({
                 {extras.knowBeforeYouGo.trim()}
               </li>
             ) : null}
+            {whatToBringLabels.length > 0 ? (
+              <li className="break-words [overflow-wrap:anywhere]">
+                What to bring: {whatToBringLabels.join(', ')}
+              </li>
+            ) : null}
             {extras?.whatToBring?.trim() ? (
               <li className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
                 What to bring: {extras.whatToBring.trim()}
+              </li>
+            ) : null}
+            {notSuitableLabels.length > 0 ? (
+              <li className="break-words [overflow-wrap:anywhere]">
+                Not suitable for: {notSuitableLabels.join(', ')}
               </li>
             ) : null}
             {extras?.requirementsNotes?.trim() ? (
@@ -221,8 +252,18 @@ export default function TourListingSections({
               </li>
             ) : null}
             {extras?.minGuestAge?.trim() ? <li>Minimum age: {extras.minGuestAge.trim()}</li> : null}
+            {accessibilityLabels.length > 0 ? (
+              <li className="break-words [overflow-wrap:anywhere]">
+                Accessibility: {accessibilityLabels.join(', ')}
+              </li>
+            ) : null}
             {extras?.accessibilitySummary?.trim() ? (
               <li className="break-words [overflow-wrap:anywhere]">{extras.accessibilitySummary.trim()}</li>
+            ) : null}
+            {spokenLabels.length > 0 ? (
+              <li className="break-words [overflow-wrap:anywhere]">
+                Spoken languages: {spokenLabels.join(', ')}
+              </li>
             ) : null}
             {extras?.additionalInfo?.trim() ? (
               <li className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">

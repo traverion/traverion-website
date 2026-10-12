@@ -33,6 +33,7 @@ export type PurchaseSnapshot = {
   nights?: number | null;
   propertyType?: string | null;
   checkInAddress?: string | null;
+  bookingContactPhoneE164?: string | null;
   checkInTime?: string | null;
   checkOutTime?: string | null;
   houseRules?: string | null;
@@ -126,6 +127,7 @@ export function buildPurchaseSnapshot(input: {
   nights?: number | null;
   propertyType?: string | null;
   checkInAddress?: string | null;
+  bookingContactPhoneE164?: string | null;
   checkInTime?: string | null;
   checkOutTime?: string | null;
   houseRules?: string | null;
@@ -159,6 +161,7 @@ export function buildPurchaseSnapshot(input: {
       : null;
   const propertyType = (input.propertyType ?? '').trim() || null;
   const checkInAddress = (input.checkInAddress ?? '').trim() || null;
+  const bookingContactPhoneE164 = (input.bookingContactPhoneE164 ?? '').trim().slice(0, 24) || null;
   const checkInTime = (input.checkInTime ?? '').trim().slice(0, 5) || null;
   const checkOutTime = (input.checkOutTime ?? '').trim().slice(0, 5) || null;
   const houseRules = (input.houseRules ?? '').trim().slice(0, 2000) || null;
@@ -186,6 +189,7 @@ export function buildPurchaseSnapshot(input: {
   if (nights != null) snap.nights = nights;
   if (propertyType) snap.propertyType = propertyType;
   if (checkInAddress) snap.checkInAddress = checkInAddress;
+  if (bookingContactPhoneE164) snap.bookingContactPhoneE164 = bookingContactPhoneE164;
   if (checkInTime) snap.checkInTime = checkInTime;
   if (checkOutTime) snap.checkOutTime = checkOutTime;
   if (houseRules) snap.houseRules = houseRules;

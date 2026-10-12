@@ -27,8 +27,10 @@ import {
   displayStartTimeFromPurchase,
   displayDepartureTimezoneFromPurchase,
   formatTripDepartureWithTimezone,
+  displayBookingContactPhoneFromPurchase,
   type PurchaseSnapshot,
 } from '../lib/purchase-snapshot';
+import { formatBookingContactForDisplay } from '../lib/listing-booking-contact-phone';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
 import {
   BOOKING_CONFIRMATION_EMAIL_DISCLAIMER,
@@ -693,6 +695,32 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                     </div>
                   </div>
                 </div>
+                {!isStayBooking &&
+                collected &&
+                (() => {
+                  const phone = displayBookingContactPhoneFromPurchase(
+                    booking.purchase_snapshot,
+                    booking.payment_status
+                  );
+                  if (!phone) return null;
+                  return (
+                    <div className="tv-confirm-fact">
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
+                          Experience provider contact
+                        </p>
+                        <p className="mt-1 font-semibold text-ink leading-snug">
+                          <a
+                            href={`tel:${phone}`}
+                            className="text-finland underline-offset-2 hover:underline"
+                          >
+                            {formatBookingContactForDisplay(phone)}
+                          </a>
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               {collected && booking.amount_paid != null && (

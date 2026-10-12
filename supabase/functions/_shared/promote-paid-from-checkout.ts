@@ -1103,6 +1103,25 @@ export async function promotePaidFromCheckoutSession(params: {
         }
       }
     }
+    const alreadyPhone =
+      typeof snapObj.bookingContactPhoneE164 === 'string'
+        ? snapObj.bookingContactPhoneE164.trim()
+        : '';
+    if (!alreadyPhone) {
+      const { data: contactPriv } = await admin
+        .from('listing_booking_contact')
+        .select('phone_e164')
+        .eq('listing_id', listingId)
+        .maybeSingle();
+      const phone =
+        contactPriv && typeof (contactPriv as { phone_e164?: unknown }).phone_e164 === 'string'
+          ? String((contactPriv as { phone_e164: string }).phone_e164).trim().slice(0, 24)
+          : '';
+      if (phone) {
+        snapObj.bookingContactPhoneE164 = phone;
+        snapDirty = true;
+      }
+    }
     if (snapDirty) purchaseSnapshotForPaid = snapObj;
   }
 

@@ -14,6 +14,13 @@ import {
 } from '../../types/listingExtras';
 import ListingImageFields from '../../components/supplier/ListingImageFields';
 import PartnerSelect from '../../components/supplier/PartnerSelect';
+import ListingInformationStage from '../../components/supplier/listing-creation/ListingInformationStage';
+import {
+  normalizeAccessibilityFeatureIds,
+  normalizeNotSuitableForIds,
+  normalizeSpokenLanguageIds,
+  normalizeWhatToBringIds,
+} from '../../lib/listing-information-catalogs';
 import { useAuth } from '../../contexts/AuthContext';
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
 import { scheduleSpotsBelowSoldWarning, scheduleDepartureTimeMoveBlockReason } from '../../lib/capacity-reduction-warn';
@@ -760,11 +767,15 @@ type ListingFormState = {
   /** IANA zone for departure wall clock; empty = Europe/Helsinki. */
   departureTimezone: string;
   accessibilitySummary: string;
+  accessibilityFeatureIds: string[];
   minGuestAge: string;
   knowBeforeYouGo: string;
   whatToBring: string;
+  whatToBringIds: string[];
   requirementsNotes: string;
+  notSuitableForIds: string[];
   additionalInfo: string;
+  bookingContactPhoneE164: string;
   venueSetting: VenueSetting;
   additionalLanguages: string[];
   inventoryFamily: 'tour' | 'stay';
@@ -843,16 +854,19 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
   const orderedPhotos = orderedPhotoUrls(form.photoSlots);
   const mainImage = orderedPhotos[0] ?? '';
   const galleryList = orderedPhotos.slice(1);
-  const primaryLang = form.experienceLanguage.trim();
-  const addLangs = form.additionalLanguages.filter((c) => c && c !== primaryLang);
+  const spokenLangs = normalizeSpokenLanguageIds(form.additionalLanguages);
+  const bringIds = normalizeWhatToBringIds(form.whatToBringIds);
+  const notSuitableIds = normalizeNotSuitableForIds(form.notSuitableForIds);
+  const a11yIds = normalizeAccessibilityFeatureIds(form.accessibilityFeatureIds);
   const labelsNorm = normalizePhotoSlotLabels(form.photoSlotLabels);
   const originalsNorm = normalizePhotoOriginalUrls(form.photoOriginalUrls);
   const extras: ListingExtras = {
-    ...(addLangs.length ? { additionalLanguages: addLangs } : {}),
+    ...(spokenLangs.length ? { additionalLanguages: spokenLangs } : {}),
     ...(form.venueSetting !== 'unspecified' ? { venueSetting: form.venueSetting } : {}),
     ...(form.accessibilitySummary.trim()
       ? { accessibilitySummary: form.accessibilitySummary.trim().slice(0, MAX_ACCESSIBILITY_LENGTH) }
       : {}),
+    ...(a11yIds.length ? { accessibilityFeatureIds: a11yIds } : {}),
     ...(form.minGuestAge.trim() ? { minGuestAge: form.minGuestAge.trim() } : {}),
     ...(form.knowBeforeYouGo.trim()
       ? { knowBeforeYouGo: form.knowBeforeYouGo.trim().slice(0, MAX_KNOW_BEFORE_LENGTH) }
@@ -860,12 +874,16 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
     ...(form.whatToBring.trim()
       ? { whatToBring: form.whatToBring.trim().slice(0, MAX_WHAT_TO_BRING_LENGTH) }
       : {}),
+    ...(bringIds.length ? { whatToBringIds: bringIds } : {}),
     ...(form.requirementsNotes.trim()
       ? { requirementsNotes: form.requirementsNotes.trim().slice(0, MAX_REQUIREMENTS_LENGTH) }
       : {}),
+    ...(notSuitableIds.length ? { notSuitableForIds: notSuitableIds } : {}),
     ...(form.additionalInfo.trim()
       ? { additionalInfo: form.additionalInfo.trim().slice(0, MAX_ADDITIONAL_INFO_LENGTH) }
       : {}),
+    // Private table field — always present so save can upsert/clear listing_booking_contact.
+    bookingContactPhoneE164: form.bookingContactPhoneE164.trim(),
     ...(form.scheduleStyle ? { scheduleStyle: form.scheduleStyle } : {}),
     ...(form.typicalTimelineNotes.trim()
       ? { typicalTimelineNotes: form.typicalTimelineNotes.trim().slice(0, MAX_TIMELINE_LENGTH) }
@@ -1116,11 +1134,15 @@ const emptyForm: ListingFormState = {
   bookingCutoffHoursBeforeStart: '',
   departureTimezone: '',
   accessibilitySummary: '',
+  accessibilityFeatureIds: [] as string[],
   minGuestAge: '',
   knowBeforeYouGo: '',
   whatToBring: '',
+  whatToBringIds: [] as string[],
   requirementsNotes: '',
+  notSuitableForIds: [] as string[],
   additionalInfo: '',
+  bookingContactPhoneE164: '',
   venueSetting: 'unspecified',
   additionalLanguages: [] as string[],
   inventoryFamily: 'tour',
@@ -1185,6 +1207,9 @@ export default function SupplierListingForm({
   const [form, setForm] = useState<ListingFormState>(emptyForm);
   const [submitting, setSubmitting] = useState(false);
   const [publishBlockers, setPublishBlockers] = useState<string[] | null>(null);
+  const [infoForceExpand, setInfoForceExpand] = useState<'guest' | 'suitability' | 'contact' | null>(
+    null
+  );
   const isStayForm = form.inventoryFamily === 'stay' || createFamily === 'stay';
 
   const [stepIdx, setStepIdx] = useState(
@@ -1480,10 +1505,11 @@ export default function SupplierListingForm({
             form.requirementsNotes,
             form.accessibilitySummary,
             form.additionalInfo,
-            form.minGuestAge,
-            form.destination,
+            form.bookingContactPhoneE164,
           ].filter((s) => s.trim()).length +
-            (form.venueSetting !== 'unspecified' ? 1 : 0) +
+            form.whatToBringIds.length +
+            form.notSuitableForIds.length +
+            form.accessibilityFeatureIds.length +
             form.additionalLanguages.length
         ),
         ready: true,
@@ -1597,11 +1623,12 @@ export default function SupplierListingForm({
       accessibility: information,
       venue: information,
       languages: information,
-      destination: information,
+      destination: 0,
       know_before: information,
       what_to_bring: information,
       requirements: information,
       additional_info: information,
+      booking_contact: information,
       duration: options,
       schedule: options,
       start: options,
@@ -1678,13 +1705,17 @@ export default function SupplierListingForm({
               : '',
           departureTimezone: extras.departureTimezone?.trim() || '',
           accessibilitySummary: extras.accessibilitySummary ?? '',
+          accessibilityFeatureIds: normalizeAccessibilityFeatureIds(extras.accessibilityFeatureIds),
           minGuestAge: extras.minGuestAge ?? '',
           knowBeforeYouGo: extras.knowBeforeYouGo ?? '',
           whatToBring: extras.whatToBring ?? '',
+          whatToBringIds: normalizeWhatToBringIds(extras.whatToBringIds),
           requirementsNotes: extras.requirementsNotes ?? '',
+          notSuitableForIds: normalizeNotSuitableForIds(extras.notSuitableForIds),
           additionalInfo: extras.additionalInfo ?? '',
+          bookingContactPhoneE164: extras.bookingContactPhoneE164 ?? '',
           venueSetting: extras.venueSetting ?? 'unspecified',
-          additionalLanguages: extras.additionalLanguages ?? [],
+          additionalLanguages: normalizeSpokenLanguageIds(extras.additionalLanguages),
           inventoryFamily: extras.inventoryFamily === 'stay' ? 'stay' : 'tour',
           stayPropertyType: extras.stay?.propertyType ?? 'Apartment',
           stayBedrooms: extras.stay?.bedrooms != null ? String(extras.stay.bedrooms) : '1',
@@ -1987,9 +2018,44 @@ export default function SupplierListingForm({
         const scene = /subtitle|title|language/.test(t) ? 1 : /descri|highlight/.test(t) ? 2 : 0;
         setBasicsSceneIdxPersisted(scene, 'forward');
       }
+      if (step === 2 && !isStayForm) {
+        if (/booking contact|phone number/.test(t)) setInfoForceExpand('contact');
+        else if (/know before|what to bring/.test(t)) setInfoForceExpand('guest');
+        else if (/accessib|not suitable|conflicts with|additional information/.test(t)) {
+          setInfoForceExpand(
+            /additional information/.test(t) ? 'contact' : 'suitability'
+          );
+        } else {
+          setInfoForceExpand('contact');
+        }
+        window.setTimeout(() => {
+          const el = document.getElementById(
+            /booking contact|phone number/.test(t)
+              ? 'supplier-listing-field-booking-contact'
+              : /know before/.test(t)
+                ? 'supplier-listing-field-know-before'
+                : /what to bring/.test(t)
+                  ? 'supplier-listing-field-what-to-bring'
+                  : /additional information/.test(t)
+                    ? 'supplier-listing-field-additional-info'
+                    : /accessib|conflicts/.test(t)
+                      ? 'supplier-listing-field-accessibility'
+                      : 'supplier-listing-field-requirements'
+          );
+          el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          const focusable = el?.querySelector<HTMLElement>('input,textarea,button');
+          focusable?.focus();
+        }, 80);
+      }
     },
     [isStayForm, setStepIdxPersisted, setBasicsSceneIdxPersisted]
   );
+
+  const bookingContactPhoneError = useMemo(() => {
+    if (!publishBlockers?.length) return null;
+    const hit = publishBlockers.find((b) => /booking contact|phone number|international phone/i.test(b));
+    return hit ?? null;
+  }, [publishBlockers]);
 
   const publishButtonTitle = useMemo(() => {
     if (!canPostNewListing) {
@@ -3850,258 +3916,26 @@ export default function SupplierListingForm({
           )}
 
           {stepIdx === 2 && form.inventoryFamily !== 'stay' && (
-            <div className="max-w-2xl space-y-6">
-              <p className="text-[13px] leading-relaxed text-ink-muted">
-                Optional details travelers see under Good to know. Skip anything that does not apply
-                {form.experienceKind === 'ticket'
-                  ? ' to this ticket.'
-                  : form.experienceKind === 'transportation'
-                    ? ' to this transfer.'
-                    : ' to this experience.'}
-              </p>
-
-              <section className="space-y-3" id="supplier-listing-field-know-before" aria-labelledby="info-know-before">
-                <div>
-                  <h4 id="info-know-before" className="text-[13px] font-semibold text-ink">
-                    Know before you go
-                  </h4>
-                  <p className="mt-0.5 text-[12px] text-ink-muted">
-                    Timing tips, weather, or arrival notes guests should read first.
-                  </p>
-                </div>
-                <textarea
-                  value={form.knowBeforeYouGo}
-                  maxLength={MAX_KNOW_BEFORE_LENGTH}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      knowBeforeYouGo: e.target.value.slice(0, MAX_KNOW_BEFORE_LENGTH),
-                    }))
-                  }
-                  rows={4}
-                  className="tv-input min-h-[6rem] text-[15px] leading-relaxed"
-                  placeholder={
-                    form.experienceKind === 'ticket'
-                      ? 'e.g. Arrive 15 minutes early; entry is timed…'
-                      : form.experienceKind === 'transportation'
-                        ? 'e.g. Driver waits 15 minutes; share flight number…'
-                        : 'e.g. Dress in layers; meeting point opens 10 minutes before…'
-                  }
-                />
-                <p className="text-[11px] tabular-nums text-ink-faint">
-                  {form.knowBeforeYouGo.length} / {MAX_KNOW_BEFORE_LENGTH}
-                </p>
-              </section>
-
-              <section className="space-y-3" id="supplier-listing-field-what-to-bring" aria-labelledby="info-bring">
-                <div>
-                  <h4 id="info-bring" className="text-[13px] font-semibold text-ink">
-                    What to bring
-                  </h4>
-                  <p className="mt-0.5 text-[12px] text-ink-muted">Packing list or items guests should have with them.</p>
-                </div>
-                <textarea
-                  value={form.whatToBring}
-                  maxLength={MAX_WHAT_TO_BRING_LENGTH}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      whatToBring: e.target.value.slice(0, MAX_WHAT_TO_BRING_LENGTH),
-                    }))
-                  }
-                  rows={3}
-                  className="tv-input min-h-[5rem] text-[15px] leading-relaxed"
-                  placeholder={
-                    form.experienceKind === 'ticket'
-                      ? 'e.g. Booking confirmation, warm jacket…'
-                      : 'e.g. Warm layers, camera, valid ID…'
-                  }
-                />
-                <p className="text-[11px] tabular-nums text-ink-faint">
-                  {form.whatToBring.length} / {MAX_WHAT_TO_BRING_LENGTH}
-                </p>
-              </section>
-
-              <section className="space-y-3" id="supplier-listing-field-requirements" aria-labelledby="info-requirements">
-                <div>
-                  <h4 id="info-requirements" className="text-[13px] font-semibold text-ink">
-                    Requirements and restrictions
-                  </h4>
-                  <p className="mt-0.5 text-[12px] text-ink-muted">
-                    Fitness, documents, age limits, or other conditions.
-                  </p>
-                </div>
-                {form.experienceKind !== 'ticket' ? (
-                  <div id="supplier-listing-field-difficulty">
-                    <label htmlFor="supplier-listing-difficulty" className="mb-1 block text-[13px] font-semibold text-ink">
-                      Overall difficulty
-                    </label>
-                    <PartnerSelect
-                      id="supplier-listing-difficulty"
-                      value={form.difficulty}
-                      onChange={(difficulty) =>
-                        setForm((f) => ({
-                          ...f,
-                          difficulty: difficulty as ListingFormState['difficulty'],
-                        }))
-                      }
-                      options={[
-                        { value: 'Easy', label: 'Easy' },
-                        { value: 'Moderate', label: 'Moderate' },
-                        { value: 'Challenging', label: 'Challenging' },
-                      ]}
-                    />
-                  </div>
-                ) : null}
-                <div>
-                  <label className="mb-1 block text-[13px] font-semibold text-ink">Minimum guest age</label>
-                  <input
-                    type="text"
-                    value={form.minGuestAge}
-                    onChange={(e) => setForm((f) => ({ ...f, minGuestAge: e.target.value.slice(0, 40) }))}
-                    className="tv-input max-w-xs"
-                    placeholder="e.g. 8+ or none"
-                  />
-                </div>
-                <textarea
-                  value={form.requirementsNotes}
-                  maxLength={MAX_REQUIREMENTS_LENGTH}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      requirementsNotes: e.target.value.slice(0, MAX_REQUIREMENTS_LENGTH),
-                    }))
-                  }
-                  rows={3}
-                  className="tv-input min-h-[5rem] text-[15px] leading-relaxed"
-                  placeholder="e.g. Moderate walking required; not suitable for wheelchair users…"
-                />
-                <p className="text-[11px] tabular-nums text-ink-faint">
-                  {form.requirementsNotes.length} / {MAX_REQUIREMENTS_LENGTH}
-                </p>
-              </section>
-
-              <section className="space-y-3" id="supplier-listing-field-accessibility" aria-labelledby="info-a11y">
-                <div>
-                  <h4 id="info-a11y" className="text-[13px] font-semibold text-ink">
-                    Accessibility information
-                  </h4>
-                  <p className="mt-0.5 text-[12px] text-ink-muted">Steps, uneven ground, seating, wheelchair access…</p>
-                </div>
-                <textarea
-                  value={form.accessibilitySummary}
-                  maxLength={MAX_ACCESSIBILITY_LENGTH}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      accessibilitySummary: e.target.value.slice(0, MAX_ACCESSIBILITY_LENGTH),
-                    }))
-                  }
-                  rows={3}
-                  className="tv-input min-h-[5rem] text-[15px] leading-relaxed"
-                  placeholder="Describe access honestly so guests can decide."
-                />
-                <p className="text-[11px] tabular-nums text-ink-faint">
-                  {form.accessibilitySummary.length} / {MAX_ACCESSIBILITY_LENGTH}
-                </p>
-              </section>
-
-              <section className="space-y-3" id="supplier-listing-field-additional-info" aria-labelledby="info-more">
-                <div>
-                  <h4 id="info-more" className="text-[13px] font-semibold text-ink">
-                    Additional important information
-                  </h4>
-                  <p className="mt-0.5 text-[12px] text-ink-muted">
-                    Anything else guests should know that does not fit above.
-                  </p>
-                </div>
-                <textarea
-                  value={form.additionalInfo}
-                  maxLength={MAX_ADDITIONAL_INFO_LENGTH}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      additionalInfo: e.target.value.slice(0, MAX_ADDITIONAL_INFO_LENGTH),
-                    }))
-                  }
-                  rows={3}
-                  className="tv-input min-h-[5rem] text-[15px] leading-relaxed"
-                  placeholder="Optional notes shown with Good to know."
-                />
-                <p className="text-[11px] tabular-nums text-ink-faint">
-                  {form.additionalInfo.length} / {MAX_ADDITIONAL_INFO_LENGTH}
-                </p>
-                <div id="supplier-listing-field-destination">
-                  <label className="mb-1 block text-[13px] font-semibold text-ink">Route-style place label</label>
-                  <input
-                    type="text"
-                    value={form.destination}
-                    onChange={(e) => setForm((f) => ({ ...f, destination: e.target.value }))}
-                    className="tv-input"
-                    placeholder="e.g. coastal route · several towns — or leave blank"
-                  />
-                  <p className="mt-1 text-[12px] text-ink-muted">
-                    If blank, cards use {[form.city, form.country].filter((x) => x.trim()).join(', ') || 'city and country'}.
-                  </p>
-                </div>
-                <div id="supplier-listing-field-venue">
-                  <label htmlFor="supplier-listing-venue" className="mb-1 block text-[13px] font-semibold text-ink">
-                    Setting
-                  </label>
-                  <PartnerSelect
-                    id="supplier-listing-venue"
-                    value={form.venueSetting}
-                    onChange={(venueSetting) =>
-                      setForm((f) => ({
-                        ...f,
-                        venueSetting: venueSetting as ListingFormState['venueSetting'],
-                      }))
-                    }
-                    options={[
-                      { value: 'unspecified', label: 'Not specified' },
-                      { value: 'indoor', label: 'Mostly indoor' },
-                      { value: 'outdoor', label: 'Mostly outdoor' },
-                      { value: 'mixed', label: 'Mix of indoor and outdoor' },
-                    ]}
-                  />
-                </div>
-                <div id="supplier-listing-field-languages">
-                  <label className="mb-2 block text-[13px] font-semibold text-ink">Spoken languages offered</label>
-                  <p className="mb-2 text-[12px] text-ink-muted">
-                    Besides listing language (
-                    {LANGUAGE_OPTIONS.find((o) => o.code === form.experienceLanguage)?.label || 'set in Basics'}
-                    ).
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {LANGUAGE_OPTIONS.filter((o) => o.code !== 'other').map((o) => {
-                      const disabled = o.code === form.experienceLanguage;
-                      return (
-                        <label
-                          key={o.code}
-                          className={`inline-flex items-center gap-1.5 ${disabled ? 'opacity-40' : ''}`}
-                        >
-                          <input
-                            type="checkbox"
-                            disabled={disabled}
-                            checked={form.additionalLanguages.includes(o.code)}
-                            onChange={() =>
-                              setForm((f) => ({
-                                ...f,
-                                additionalLanguages: f.additionalLanguages.includes(o.code)
-                                  ? f.additionalLanguages.filter((c) => c !== o.code)
-                                  : [...f.additionalLanguages, o.code],
-                              }))
-                            }
-                            className="rounded border-black/[0.12] text-finland focus:ring-finland"
-                          />
-                          <span className="text-[13px] text-ink">{o.label}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-              </section>
-            </div>
+            <ListingInformationStage
+              form={{
+                experienceKind: form.experienceKind,
+                knowBeforeYouGo: form.knowBeforeYouGo,
+                whatToBring: form.whatToBring,
+                whatToBringIds: form.whatToBringIds,
+                requirementsNotes: form.requirementsNotes,
+                notSuitableForIds: form.notSuitableForIds,
+                accessibilitySummary: form.accessibilitySummary,
+                accessibilityFeatureIds: form.accessibilityFeatureIds,
+                additionalInfo: form.additionalInfo,
+                additionalLanguages: form.additionalLanguages,
+                bookingContactPhoneE164: form.bookingContactPhoneE164,
+              }}
+              onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
+              forceExpandSection={infoForceExpand}
+              phoneError={bookingContactPhoneError}
+              businessCountry={form.country}
+              showPhoneRequired
+            />
           )}
 
           {stepIdx === 3 && form.inventoryFamily !== 'stay' && (

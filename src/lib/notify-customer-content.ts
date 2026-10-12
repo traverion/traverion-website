@@ -88,6 +88,8 @@ export type CustomerContentOverrides = {
   meetingPoint?: string;
   /** Stay: purchased check-in address. */
   checkInAddress?: string;
+  /** Tour: experience provider booking contact E.164 (paid only). */
+  bookingContactPhoneE164?: string;
   /** Stay: purchased house check-in HH:MM. */
   checkInTime?: string;
   /** Stay: purchased house check-out HH:MM. */
@@ -249,10 +251,11 @@ export function resolveBookingTiedContent(params: {
     : [notePlace || snapPlace, noteInstructions || snapInstructions].filter(Boolean).join(' — ') ||
       undefined;
 
+  const paymentCollected = paymentWasCollectedForContent(params.bookingRow.payment_status);
   const checkInAddress =
-    isStay && paymentWasCollectedForContent(params.bookingRow.payment_status)
-      ? snapshotString(snap, 'checkInAddress')
-      : undefined;
+    isStay && paymentCollected ? snapshotString(snap, 'checkInAddress') : undefined;
+  const bookingContactPhoneE164 =
+    !isStay && paymentCollected ? snapshotString(snap, 'bookingContactPhoneE164') : undefined;
   const checkInTimeRaw = isStay ? snapshotString(snap, 'checkInTime') : undefined;
   const checkOutTimeRaw = isStay ? snapshotString(snap, 'checkOutTime') : undefined;
   const checkInTime =
@@ -307,6 +310,7 @@ export function resolveBookingTiedContent(params: {
 
   if (meetingPoint) overrides.meetingPoint = meetingPoint;
   if (checkInAddress) overrides.checkInAddress = checkInAddress;
+  if (bookingContactPhoneE164) overrides.bookingContactPhoneE164 = bookingContactPhoneE164;
   if (checkInTime) overrides.checkInTime = checkInTime;
   if (checkOutTime) overrides.checkOutTime = checkOutTime;
   if (houseRules) overrides.houseRules = houseRules;

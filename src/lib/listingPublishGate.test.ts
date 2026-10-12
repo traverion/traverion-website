@@ -6,6 +6,57 @@ import {
   publishBlockerListingWizardStep,
 } from './listingPublishGate';
 
+describe('Information stage publish gates', () => {
+  it('requires a valid booking contact phone for tour listings', () => {
+    const tour = {
+      id: 't1',
+      title: 'Guaranteed Northern Lights Tour',
+      subtitle: 'Small-group evening hunt',
+      description: 'x'.repeat(120),
+      city: 'Rovaniemi',
+      country: 'Finland',
+      image: 'https://cdn.example.com/hero.jpg',
+      groupSize: '1-8 People',
+      includes: ['Guide', 'Transfers'],
+      excludes: [],
+      meetingPoint: 'City center meeting point',
+      experienceStartStyle: 'fixed_meeting_place',
+      listingExtras: {
+        galleryImageUrls: ['a', 'b', 'c'],
+        bookingOptions: [],
+      },
+    } as TourPackage;
+    const blockers = getListingPublishBlockers(tour);
+    expect(blockers.some((b) => /booking contact|phone/i.test(b))).toBe(true);
+  });
+
+  it('blocks contradictory accessibility claims', () => {
+    const tour = {
+      id: 't1',
+      title: 'Guaranteed Northern Lights Tour',
+      subtitle: 'Small-group evening hunt',
+      description: 'x'.repeat(120),
+      city: 'Rovaniemi',
+      country: 'Finland',
+      image: 'https://cdn.example.com/hero.jpg',
+      groupSize: '1-8 People',
+      includes: ['Guide', 'Transfers'],
+      excludes: [],
+      meetingPoint: 'City center meeting point',
+      experienceStartStyle: 'fixed_meeting_place',
+      listingExtras: {
+        galleryImageUrls: ['a', 'b', 'c'],
+        bookingContactPhoneE164: '+358401234567',
+        notSuitableForIds: ['wheelchair_users'],
+        accessibilityFeatureIds: ['wheelchair_accessible'],
+        bookingOptions: [],
+      },
+    } as TourPackage;
+    const blockers = getListingPublishBlockers(tour);
+    expect(blockers.some((b) => /conflicts with/i.test(b))).toBe(true);
+  });
+});
+
 describe('Phase 1240: legacy group size publish gate', () => {
   it('blocks no-option tours without a parseable min–max group size', () => {
     const tour = {

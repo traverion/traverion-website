@@ -299,10 +299,10 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     if (x?.venueSetting === 'indoor') lines.push('Mostly indoor.');
     else if (x?.venueSetting === 'outdoor') lines.push('Mostly outdoor.');
     else if (x?.venueSetting === 'mixed') lines.push('Indoor and outdoor.');
-    const extraLang = (x?.additionalLanguages ?? [])
+    const spokenLang = (x?.additionalLanguages ?? [])
       .map((code) => experienceLanguageLabel(code))
       .filter(Boolean);
-    if (extraLang.length > 0) lines.push(`Also offered in ${extraLang.join(', ')}.`);
+    if (spokenLang.length > 0) lines.push(`Spoken languages: ${spokenLang.join(', ')}.`);
     if (x?.accessibilitySummary?.trim()) lines.push(x.accessibilitySummary.trim());
     return lines;
   }, [tour]);

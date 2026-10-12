@@ -1,3 +1,10 @@
+import {
+  normalizeAccessibilityFeatureIds,
+  normalizeNotSuitableForIds,
+  normalizeSpokenLanguageIds,
+  normalizeWhatToBringIds,
+} from '../lib/listing-information-catalogs';
+
 /** Legacy preset values still parsed from stored `listing_extras` JSON. */
 export type CancellationPreset = 'free_24h' | 'free_48h' | 'free_7d' | 'non_refundable' | 'custom';
 
@@ -162,12 +169,23 @@ export interface ListingExtras {
   minGuestAge?: string;
   /** Partner Information step — practical notes guests should read before booking. */
   knowBeforeYouGo?: string;
-  /** Partner Information step — packing / bring list. */
+  /** Legacy free-text packing list (preserved when migrating to whatToBringIds). */
   whatToBring?: string;
-  /** Partner Information step — fitness, documents, or other restrictions. */
+  /** Structured What to bring catalog IDs. */
+  whatToBringIds?: string[];
+  /** Legacy free-text requirements (preserved; UI uses notSuitableForIds). */
   requirementsNotes?: string;
+  /** Structured “not suitable for” catalog IDs. */
+  notSuitableForIds?: string[];
+  /** Structured positive accessibility feature IDs. */
+  accessibilityFeatureIds?: string[];
   /** Partner Information step — freeform additional notes. */
   additionalInfo?: string;
+  /**
+   * E.164 booking contact for confirmed guests only.
+   * Stripped from public listing reads — never expose on PDP/search.
+   */
+  bookingContactPhoneE164?: string;
   scheduleStyle?: ScheduleStyle;
   typicalTimelineNotes?: string;
   galleryImageUrls?: string[];
@@ -620,7 +638,9 @@ export function parseListingExtras(raw: unknown): ListingExtras {
   const out: ListingExtras = {};
 
   if (Array.isArray(o.additionalLanguages)) {
-    out.additionalLanguages = o.additionalLanguages.map((x) => String(x ?? '').trim()).filter(Boolean);
+    out.additionalLanguages = normalizeSpokenLanguageIds(
+      o.additionalLanguages.map((x) => String(x ?? '').trim()).filter(Boolean)
+    );
   }
   const vs = o.venueSetting;
   if (vs === 'indoor' || vs === 'outdoor' || vs === 'mixed' || vs === 'unspecified') {
@@ -633,16 +653,34 @@ export function parseListingExtras(raw: unknown): ListingExtras {
     out.minGuestAge = o.minGuestAge.trim();
   }
   if (typeof o.knowBeforeYouGo === 'string' && o.knowBeforeYouGo.trim()) {
-    out.knowBeforeYouGo = o.knowBeforeYouGo.trim();
+    out.knowBeforeYouGo = o.knowBeforeYouGo.trim().slice(0, 800);
   }
   if (typeof o.whatToBring === 'string' && o.whatToBring.trim()) {
-    out.whatToBring = o.whatToBring.trim();
+    out.whatToBring = o.whatToBring.trim().slice(0, 500);
+  }
+  if (Array.isArray(o.whatToBringIds)) {
+    out.whatToBringIds = normalizeWhatToBringIds(
+      o.whatToBringIds.map((x) => String(x ?? '').trim()).filter(Boolean)
+    );
   }
   if (typeof o.requirementsNotes === 'string' && o.requirementsNotes.trim()) {
-    out.requirementsNotes = o.requirementsNotes.trim();
+    out.requirementsNotes = o.requirementsNotes.trim().slice(0, 500);
+  }
+  if (Array.isArray(o.notSuitableForIds)) {
+    out.notSuitableForIds = normalizeNotSuitableForIds(
+      o.notSuitableForIds.map((x) => String(x ?? '').trim()).filter(Boolean)
+    );
+  }
+  if (Array.isArray(o.accessibilityFeatureIds)) {
+    out.accessibilityFeatureIds = normalizeAccessibilityFeatureIds(
+      o.accessibilityFeatureIds.map((x) => String(x ?? '').trim()).filter(Boolean)
+    );
   }
   if (typeof o.additionalInfo === 'string' && o.additionalInfo.trim()) {
-    out.additionalInfo = o.additionalInfo.trim();
+    out.additionalInfo = o.additionalInfo.trim().slice(0, 800);
+  }
+  if (typeof o.bookingContactPhoneE164 === 'string' && o.bookingContactPhoneE164.trim()) {
+    out.bookingContactPhoneE164 = o.bookingContactPhoneE164.trim().slice(0, 24);
   }
   const ss = o.scheduleStyle;
   if (ss === 'flexible' || ss === 'fixed_slots' || ss === 'on_request') {
@@ -703,14 +741,24 @@ export function parseListingExtras(raw: unknown): ListingExtras {
 export function listingExtrasToDb(extras: ListingExtras | undefined): Record<string, unknown> | null {
   if (!extras) return null;
   const payload: Record<string, unknown> = {};
-  if (extras.additionalLanguages?.length) payload.additionalLanguages = extras.additionalLanguages;
+  const spoken = normalizeSpokenLanguageIds(extras.additionalLanguages);
+  if (spoken.length) payload.additionalLanguages = spoken;
   if (extras.venueSetting && extras.venueSetting !== 'unspecified') payload.venueSetting = extras.venueSetting;
   if (extras.accessibilitySummary?.trim()) payload.accessibilitySummary = extras.accessibilitySummary.trim();
   if (extras.minGuestAge?.trim()) payload.minGuestAge = extras.minGuestAge.trim();
-  if (extras.knowBeforeYouGo?.trim()) payload.knowBeforeYouGo = extras.knowBeforeYouGo.trim();
-  if (extras.whatToBring?.trim()) payload.whatToBring = extras.whatToBring.trim();
-  if (extras.requirementsNotes?.trim()) payload.requirementsNotes = extras.requirementsNotes.trim();
-  if (extras.additionalInfo?.trim()) payload.additionalInfo = extras.additionalInfo.trim();
+  if (extras.knowBeforeYouGo?.trim()) payload.knowBeforeYouGo = extras.knowBeforeYouGo.trim().slice(0, 800);
+  if (extras.whatToBring?.trim()) payload.whatToBring = extras.whatToBring.trim().slice(0, 500);
+  const bringIds = normalizeWhatToBringIds(extras.whatToBringIds);
+  if (bringIds.length) payload.whatToBringIds = bringIds;
+  if (extras.requirementsNotes?.trim()) {
+    payload.requirementsNotes = extras.requirementsNotes.trim().slice(0, 500);
+  }
+  const notSuitable = normalizeNotSuitableForIds(extras.notSuitableForIds);
+  if (notSuitable.length) payload.notSuitableForIds = notSuitable;
+  const a11yIds = normalizeAccessibilityFeatureIds(extras.accessibilityFeatureIds);
+  if (a11yIds.length) payload.accessibilityFeatureIds = a11yIds;
+  if (extras.additionalInfo?.trim()) payload.additionalInfo = extras.additionalInfo.trim().slice(0, 800);
+  // bookingContactPhoneE164 is private (listing_booking_contact) — never persist into public JSON.
   if (extras.scheduleStyle) payload.scheduleStyle = extras.scheduleStyle;
   if (extras.typicalTimelineNotes?.trim()) payload.typicalTimelineNotes = extras.typicalTimelineNotes.trim();
   if (typeof extras.bookingCutoffHoursBeforeStart === 'number' && extras.bookingCutoffHoursBeforeStart > 0) {
@@ -741,6 +789,15 @@ export function listingExtrasToDb(extras: ListingExtras | undefined): Record<str
 }
 
 /** Remove exact stay address from extras used on public catalog / PDP reads. */
+/** Remove booking contact from extras used on public catalog / PDP reads. */
+export function stripPublicBookingContactPhone(
+  extras: ListingExtras | undefined
+): ListingExtras | undefined {
+  if (!extras?.bookingContactPhoneE164) return extras;
+  const { bookingContactPhoneE164: _drop, ...rest } = extras;
+  return rest;
+}
+
 export function stripPublicStayCheckInAddress(extras: ListingExtras | undefined): ListingExtras | undefined {
   if (!extras?.stay?.checkInAddress) return extras;
   const { checkInAddress: _drop, ...restStay } = extras.stay;

@@ -87,6 +87,8 @@ type Payload = {
   meetingPoint?: string;
   /** Stay: purchased check-in address. */
   checkInAddress?: string;
+  /** Tour: experience provider booking contact E.164. */
+  bookingContactPhoneE164?: string;
   /** Stay: purchased house check-in HH:MM. */
   checkInTime?: string;
   /** Stay: purchased house check-out HH:MM. */
@@ -183,6 +185,7 @@ function htmlBulletList(items: string[] | undefined, title: string): string {
 function purchasedLogisticsExtraHtml(params: {
   isStay: boolean;
   checkInAddress?: string;
+  bookingContactPhoneE164?: string;
   checkInTime?: string;
   checkOutTime?: string;
   houseRules?: string;
@@ -217,6 +220,12 @@ function purchasedLogisticsExtraHtml(params: {
   if (params.meetingPoint?.trim()) {
     parts.push(
       `<p style="margin:0;font-size:14px;color:#111827;"><strong>Meeting / pickup:</strong> ${escapeHtml(params.meetingPoint.trim())}</p>`
+    );
+  }
+  if (params.bookingContactPhoneE164?.trim()) {
+    const tel = params.bookingContactPhoneE164.trim();
+    parts.push(
+      `<p style="margin:0 0 8px;font-size:14px;color:#111827;"><strong>Experience provider contact:</strong> <a href="tel:${escapeHtml(tel)}" style="color:#0f766e;text-decoration:none;">${escapeHtml(tel)}</a></p>`
     );
   }
   parts.push(htmlBulletList(params.includes, 'Included (when you booked)'));
@@ -505,6 +514,7 @@ serve(async (req) => {
     let listingKind = body.listingKind;
     let meetingPoint = body.meetingPoint;
     let checkInAddress = body.checkInAddress;
+    let bookingContactPhoneE164 = body.bookingContactPhoneE164;
     let checkInTime = body.checkInTime;
     let checkOutTime = body.checkOutTime;
     let houseRules = body.houseRules;
@@ -657,6 +667,7 @@ serve(async (req) => {
       meetingPoint = content.overrides.meetingPoint;
       // Phase 1066: stay arrival logistics from purchase_snapshot only.
       checkInAddress = content.overrides.checkInAddress;
+      bookingContactPhoneE164 = content.overrides.bookingContactPhoneE164;
       checkInTime = content.overrides.checkInTime;
       checkOutTime = content.overrides.checkOutTime;
       // Phase 1070: purchased house rules / includes / excludes.
@@ -749,6 +760,7 @@ serve(async (req) => {
       const logistics = purchasedLogisticsExtraHtml({
         isStay: listingKindIsStay(listingKind),
         checkInAddress,
+        bookingContactPhoneE164,
         checkInTime,
         checkOutTime,
         houseRules,

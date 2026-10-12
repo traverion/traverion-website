@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { listingExtrasToDb, parseListingExtras, stripPublicStayCheckInAddress } from './listingExtras';
+import {
+  listingExtrasToDb,
+  parseListingExtras,
+  stripPublicBookingContactPhone,
+  stripPublicStayCheckInAddress,
+} from './listingExtras';
 
 describe('stay checkInAddress privacy (Phase 1081)', () => {
   it('listingExtrasToDb omits checkInAddress from public stay JSON', () => {
@@ -27,5 +32,30 @@ describe('stay checkInAddress privacy (Phase 1081)', () => {
     const stripped = stripPublicStayCheckInAddress(parsed);
     expect(stripped?.stay?.checkInAddress).toBeUndefined();
     expect(stripped?.stay?.checkInTime).toBe('15:00');
+  });
+});
+
+describe('booking contact privacy', () => {
+  it('listingExtrasToDb never writes bookingContactPhoneE164 into public JSON', () => {
+    const payload = listingExtrasToDb({
+      knowBeforeYouGo: 'Dress warmly',
+      bookingContactPhoneE164: '+358401234567',
+      whatToBringIds: ['gloves'],
+    });
+    expect(payload).toBeTruthy();
+    expect((payload as Record<string, unknown>).bookingContactPhoneE164).toBeUndefined();
+    expect((payload as Record<string, unknown>).knowBeforeYouGo).toBe('Dress warmly');
+    expect((payload as Record<string, unknown>).whatToBringIds).toEqual(['gloves']);
+  });
+
+  it('stripPublicBookingContactPhone removes leaked extras keys', () => {
+    const parsed = parseListingExtras({
+      bookingContactPhoneE164: '+358401234567',
+      additionalInfo: 'Bring cash',
+    });
+    expect(parsed.bookingContactPhoneE164).toBe('+358401234567');
+    const stripped = stripPublicBookingContactPhone(parsed);
+    expect(stripped?.bookingContactPhoneE164).toBeUndefined();
+    expect(stripped?.additionalInfo).toBe('Bring cash');
   });
 });

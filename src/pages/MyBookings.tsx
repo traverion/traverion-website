@@ -51,6 +51,7 @@ import {
   displayDurationFromPurchase,
   displayCancellationPolicyFromPurchase,
   displayCheckInAddressFromPurchase,
+  displayBookingContactPhoneFromPurchase,
   displayFulfillmentFromPurchase,
   displayStayCheckInTimeFromPurchase,
   displayStayCheckOutTimeFromPurchase,
@@ -60,6 +61,7 @@ import {
   type PurchaseSnapshot,
 } from '../lib/purchase-snapshot';
 import { TRAVERION_STANDARD_CANCELLATION_POLICY } from '../types/listingExtras';
+import { formatBookingContactForDisplay } from '../lib/listing-booking-contact-phone';
 import { decrementAvailabilityBooked } from '../data/supabase-availability';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
 import { guestFacingBookingNotes } from '../lib/booking-notes';
@@ -1241,6 +1243,29 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         </dd>
                       </div>
                     ) : null}
+                    {!isStay &&
+                    (() => {
+                      const phone = displayBookingContactPhoneFromPurchase(
+                        b.purchase_snapshot,
+                        b.payment_status
+                      );
+                      if (!phone) return null;
+                      return (
+                        <div className="sm:col-span-2">
+                          <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
+                            Experience provider contact
+                          </dt>
+                          <dd className="mt-0.5 text-sm text-ink">
+                            <a
+                              href={`tel:${phone}`}
+                              className="font-semibold text-finland underline-offset-2 hover:underline"
+                            >
+                              {formatBookingContactForDisplay(phone)}
+                            </a>
+                          </dd>
+                        </div>
+                      );
+                    })()}
                     {!isStay && tripDuration ? (
                       <div>
                         <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">

@@ -17,6 +17,7 @@ import {
   displayDepartureTimezoneFromPurchase,
   formatTripDepartureWithTimezone,
   displayCheckInAddressFromPurchase,
+  displayBookingContactPhoneFromPurchase,
   redactUnpaidStayCheckInAddress,
   displayDurationFromPurchase,
   displayCancellationPolicyFromPurchase,
@@ -324,6 +325,7 @@ describe('resolveOptionFieldsForSnapshot (checkout freeze helpers)', () => {
         v: 1 as const,
         listingTitle: 'Loft',
         checkInAddress: 'Secret Road 1',
+        bookingContactPhoneE164: '+358401234567',
         capturedAt: '2026-09-22T00:00:00.000Z',
       },
     });
@@ -331,6 +333,11 @@ describe('resolveOptionFieldsForSnapshot (checkout freeze helpers)', () => {
       unpaid.purchase_snapshot &&
         typeof unpaid.purchase_snapshot === 'object' &&
         'checkInAddress' in unpaid.purchase_snapshot
+    ).toBe(false);
+    expect(
+      unpaid.purchase_snapshot &&
+        typeof unpaid.purchase_snapshot === 'object' &&
+        'bookingContactPhoneE164' in unpaid.purchase_snapshot
     ).toBe(false);
     const paid = redactUnpaidStayCheckInAddress({
       payment_status: 'paid',
@@ -344,6 +351,15 @@ describe('resolveOptionFieldsForSnapshot (checkout freeze helpers)', () => {
     expect((paid.purchase_snapshot as { checkInAddress?: string }).checkInAddress).toBe(
       'Secret Road 1'
     );
+  });
+
+  it('shows booking contact phone only after payment is collected', () => {
+    const snap = buildPurchaseSnapshot({
+      listingTitle: 'Aurora',
+      bookingContactPhoneE164: '+358401234567',
+    });
+    expect(displayBookingContactPhoneFromPurchase(snap, 'pending')).toBeNull();
+    expect(displayBookingContactPhoneFromPurchase(snap, 'paid')).toBe('+358401234567');
   });
 
   it('freezes stay house check-in/out times onto the purchase snapshot', () => {

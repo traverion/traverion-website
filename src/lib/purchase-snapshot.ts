@@ -33,6 +33,8 @@ export type PurchaseSnapshot = {
   propertyType?: string | null;
   /** Stay: exact check-in address frozen when payment is collected (not on pending holds). */
   checkInAddress?: string | null;
+  /** Tour: experience provider booking contact E.164 frozen when payment is collected. */
+  bookingContactPhoneE164?: string | null;
   /** Stay: house check-in wall clock HH:MM at purchase. */
   checkInTime?: string | null;
   /** Stay: house check-out wall clock HH:MM at purchase. */
@@ -139,6 +141,7 @@ export function buildPurchaseSnapshot(input: {
   nights?: number | null;
   propertyType?: string | null;
   checkInAddress?: string | null;
+  bookingContactPhoneE164?: string | null;
   checkInTime?: string | null;
   checkOutTime?: string | null;
   houseRules?: string | null;
@@ -172,6 +175,7 @@ export function buildPurchaseSnapshot(input: {
       : null;
   const propertyType = (input.propertyType ?? '').trim() || null;
   const checkInAddress = (input.checkInAddress ?? '').trim() || null;
+  const bookingContactPhoneE164 = (input.bookingContactPhoneE164 ?? '').trim().slice(0, 24) || null;
   const checkInTime = (input.checkInTime ?? '').trim().slice(0, 5) || null;
   const checkOutTime = (input.checkOutTime ?? '').trim().slice(0, 5) || null;
   const houseRules = (input.houseRules ?? '').trim().slice(0, 2000) || null;
@@ -199,6 +203,7 @@ export function buildPurchaseSnapshot(input: {
   if (nights != null) snap.nights = nights;
   if (propertyType) snap.propertyType = propertyType;
   if (checkInAddress) snap.checkInAddress = checkInAddress;
+  if (bookingContactPhoneE164) snap.bookingContactPhoneE164 = bookingContactPhoneE164;
   if (checkInTime) snap.checkInTime = checkInTime;
   if (checkOutTime) snap.checkOutTime = checkOutTime;
   if (houseRules) snap.houseRules = houseRules;
@@ -387,8 +392,22 @@ export function displayCheckInAddressFromPurchase(
 }
 
 /**
+ * Experience provider booking contact after payment is collected (never on unpaid holds).
+ */
+export function displayBookingContactPhoneFromPurchase(
+  snapshot: unknown,
+  paymentStatus: string | null | undefined
+): string | null {
+  if (!bookingPaymentWasCollected(paymentStatus)) return null;
+  if (!isPurchaseSnapshot(snapshot)) return null;
+  const phone = (snapshot.bookingContactPhoneE164 ?? '').trim();
+  return phone || null;
+}
+
+/**
  * Phase 1358: traveler client loads must not surface checkInAddress on unpaid rows
  * (defense in depth alongside DB trigger 195).
+ * Also redacts bookingContactPhoneE164 until payment is collected.
  */
 export function redactUnpaidStayCheckInAddress<T extends {
   payment_status?: string | null;
@@ -397,9 +416,10 @@ export function redactUnpaidStayCheckInAddress<T extends {
   if (bookingPaymentWasCollected(row.payment_status)) return row;
   const snap = row.purchase_snapshot;
   if (!snap || typeof snap !== 'object' || Array.isArray(snap)) return row;
-  if (!('checkInAddress' in snap)) return row;
+  if (!('checkInAddress' in snap) && !('bookingContactPhoneE164' in snap)) return row;
   const next = { ...(snap as Record<string, unknown>) };
   delete next.checkInAddress;
+  delete next.bookingContactPhoneE164;
   return { ...row, purchase_snapshot: next };
 }
 

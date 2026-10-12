@@ -2,7 +2,13 @@ import { supabase } from '../lib/supabase';
 import { isListingUuid } from '../lib/listing-creation-persist';
 import { userFacingError } from '../lib/userFacingError';
 import { TourPackage } from '../types/tour';
-import { listingExtrasToDb, parseListingExtras, stripPublicStayCheckInAddress } from '../types/listingExtras';
+import {
+  listingExtrasToDb,
+  parseListingExtras,
+  stripPublicBookingContactPhone,
+  stripPublicStayCheckInAddress,
+} from '../types/listingExtras';
+import { validateBookingContactPhone } from '../lib/listing-booking-contact-phone';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 import {
   TOUR_EXCLUDE_MAX,
@@ -151,7 +157,9 @@ export function rowToTourPackage(row: ListingRow): TourPackage {
     listingExtras: (() => {
       const parsed = parseListingExtras(row.listing_extras);
       // Never trust public listing_extras for exact stay address (Phase 1081).
-      const publicSafe = stripPublicStayCheckInAddress(parsed);
+      const withoutAddr = stripPublicStayCheckInAddress(parsed);
+      // Booking contact is private (listing_booking_contact) — strip leaked extras keys.
+      const publicSafe = stripPublicBookingContactPhone(withoutAddr);
       return publicSafe && Object.keys(publicSafe).length > 0 ? publicSafe : undefined;
     })(),
   };
@@ -287,6 +295,40 @@ async function mergeOwnedStayPrivateAddresses(tours: TourPackage[]): Promise<Tou
   });
 }
 
+/** Owner-only: merge listing_booking_contact.phone_e164 into extras for edit UI. */
+async function mergeOwnedBookingContactPhones(tours: TourPackage[]): Promise<TourPackage[]> {
+  if (!supabase || tours.length === 0) return tours;
+  const ids = tours.map((t) => t.id).filter(Boolean);
+  if (ids.length === 0) return tours;
+  const { data, error } = await supabase
+    .from('listing_booking_contact')
+    .select('listing_id, phone_e164')
+    .in('listing_id', ids);
+  if (error || !data?.length) return tours;
+  const byId = new Map<string, string>();
+  for (const row of data as { listing_id: string; phone_e164: string | null }[]) {
+    const phone = (row.phone_e164 ?? '').trim();
+    if (phone) byId.set(row.listing_id, phone.slice(0, 24));
+  }
+  if (byId.size === 0) return tours;
+  return tours.map((t) => {
+    const phone = byId.get(t.id);
+    if (!phone) return t;
+    return {
+      ...t,
+      listingExtras: {
+        ...t.listingExtras,
+        bookingContactPhoneE164: phone,
+      },
+    };
+  });
+}
+
+async function mergeOwnedPrivateListingFields(tours: TourPackage[]): Promise<TourPackage[]> {
+  const withAddr = await mergeOwnedStayPrivateAddresses(tours);
+  return mergeOwnedBookingContactPhones(withAddr);
+}
+
 async function upsertStayPrivateCheckInAddress(
   listingId: string,
   checkInAddress: string | null | undefined
@@ -303,6 +345,33 @@ async function upsertStayPrivateCheckInAddress(
     { onConflict: 'listing_id' }
   );
   if (error) return { ok: false, error: formatSupabaseListingError('Could not save check-in address', error) };
+  return { ok: true };
+}
+
+async function upsertListingBookingContactPhone(
+  listingId: string,
+  phoneE164: string | null | undefined
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!supabase) return { ok: false, error: 'Supabase is not configured.' };
+  const trimmed = (phoneE164 ?? '').trim();
+  if (!trimmed) {
+    const { error } = await supabase.from('listing_booking_contact').delete().eq('listing_id', listingId);
+    if (error) {
+      return { ok: false, error: formatSupabaseListingError('Could not clear booking contact', error) };
+    }
+    return { ok: true };
+  }
+  const validated = validateBookingContactPhone(trimmed);
+  if (!validated.ok) {
+    return { ok: false, error: validated.error };
+  }
+  const { error } = await supabase.from('listing_booking_contact').upsert(
+    { listing_id: listingId, phone_e164: validated.e164, updated_at: new Date().toISOString() },
+    { onConflict: 'listing_id' }
+  );
+  if (error) {
+    return { ok: false, error: formatSupabaseListingError('Could not save booking contact', error) };
+  }
   return { ok: true };
 }
 
@@ -334,7 +403,7 @@ export async function fetchMyListings(supplierId: string): Promise<TourPackage[]
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
   const tours = (data as ListingRow[]).map(rowToTourPackage);
-  return mergeOwnedStayPrivateAddresses(tours);
+  return mergeOwnedPrivateListingFields(tours);
 }
 
 export type ListingSaveResult =
@@ -356,6 +425,7 @@ export async function insertListing(tour: TourPackage, supplierId: string): Prom
   if (!supabase) return { ok: false, error: 'Supabase is not configured.' };
   const ownerSupplierId = await resolveSupplierId(supplierId);
   const privateAddress = tour.listingExtras?.stay?.checkInAddress?.trim() || null;
+  const privatePhone = tour.listingExtras?.bookingContactPhoneE164?.trim() || null;
   const isStay = tour.listingExtras?.inventoryFamily === 'stay';
   // Phase 1252: stays that should go live insert as draft first so listing_stay_private
   // exists before publish (SQL requires address on any published stay row).
@@ -380,12 +450,14 @@ export async function insertListing(tour: TourPackage, supplierId: string): Prom
   let saved = rowToTourPackage(data as ListingRow);
   const priv = await upsertStayPrivateCheckInAddress(saved.id, privateAddress);
   if (!priv.ok) return priv;
+  const phonePriv = await upsertListingBookingContactPhone(saved.id, privatePhone);
+  if (!phonePriv.ok) return phonePriv;
   if (isStay && wantPublished) {
     const published = await updateListingStatus(saved.id, 'published');
     if (!published.ok) return published;
     saved = { ...saved, status: 'published' };
   }
-  const [merged] = await mergeOwnedStayPrivateAddresses([saved]);
+  const [merged] = await mergeOwnedPrivateListingFields([saved]);
   return { ok: true, tour: merged ?? saved };
 }
 
@@ -395,6 +467,10 @@ export async function updateListing(id: string, tour: Partial<TourPackage>): Pro
   const privateAddress =
     tour.listingExtras && 'stay' in (tour.listingExtras ?? {})
       ? tour.listingExtras?.stay?.checkInAddress?.trim() || null
+      : undefined;
+  const privatePhone =
+    tour.listingExtras != null
+      ? tour.listingExtras.bookingContactPhoneE164?.trim() || null
       : undefined;
   const row = tourPackageToRow(tour as Parameters<typeof tourPackageToRow>[0]);
   const { data, error } = await supabase
@@ -411,8 +487,12 @@ export async function updateListing(id: string, tour: Partial<TourPackage>): Pro
     const priv = await upsertStayPrivateCheckInAddress(id, privateAddress);
     if (!priv.ok) return priv;
   }
+  if (privatePhone !== undefined) {
+    const phonePriv = await upsertListingBookingContactPhone(id, privatePhone);
+    if (!phonePriv.ok) return phonePriv;
+  }
   const saved = rowToTourPackage(data as ListingRow);
-  const [merged] = await mergeOwnedStayPrivateAddresses([saved]);
+  const [merged] = await mergeOwnedPrivateListingFields([saved]);
   return { ok: true, tour: merged ?? saved };
 }
 
@@ -480,8 +560,8 @@ export async function fetchListingById(id: string): Promise<TourPackage | null> 
   }
   if (!data) return null;
   const tour = rowToTourPackage(data as ListingRow);
-  // RLS on listing_stay_private returns address only for the supplier owner.
-  const [merged] = await mergeOwnedStayPrivateAddresses([tour]);
+  // RLS returns stay address / booking contact only for supplier editors.
+  const [merged] = await mergeOwnedPrivateListingFields([tour]);
   return merged ?? tour;
 }
 
@@ -496,7 +576,7 @@ export async function fetchListingsByIds(ids: string[]): Promise<TourPackage[]> 
   const { data, error } = await supabase.from('listings').select('*').in('id', unique);
   if (error) throw new Error(error.message);
   const tours = (data ?? []).map((row) => rowToTourPackage(row as ListingRow));
-  const merged = await mergeOwnedStayPrivateAddresses(tours);
+  const merged = await mergeOwnedPrivateListingFields(tours);
   const byId = new Map(merged.map((t) => [t.id, t]));
   const ordered: TourPackage[] = [];
   for (const id of ids) {

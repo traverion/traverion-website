@@ -24,6 +24,9 @@ import { priceCategoryValidationMessages } from './price-categories';
 import { experienceTodayIsoForListing } from './booking-quote';
 import { parseGroupSizeRange } from './booking-flow';
 import { optionScheduleManagementIssues } from './listing-schedule-wizard';
+import { accessibilityContradictionMessages } from './listing-information-catalogs';
+import { listingPublicTextHasOffPlatformIssues } from './listing-off-platform-text';
+import { validateBookingContactPhone } from './listing-booking-contact-phone';
 
 function optionPublishIssues(
   o: ListingBookingOption,
@@ -222,6 +225,30 @@ export function getListingPublishBlockers(
   if (!heroIsPlaceholder && gallery.length > 11) {
     out.push('A listing can include at most twelve photos in total (one main plus up to eleven more).');
   }
+  if (!isStay) {
+    const know = listing.listingExtras?.knowBeforeYouGo ?? '';
+    const additional = listing.listingExtras?.additionalInfo ?? '';
+    if (listingPublicTextHasOffPlatformIssues(know)) {
+      out.push(
+        'Know before you go cannot ask guests to book or pay outside Traverion (remove links, emails, or off-platform booking requests).'
+      );
+    }
+    if (listingPublicTextHasOffPlatformIssues(additional)) {
+      out.push(
+        'Additional information cannot ask guests to book or pay outside Traverion (remove links, emails, or off-platform booking requests).'
+      );
+    }
+    const contradictions = accessibilityContradictionMessages(
+      listing.listingExtras?.notSuitableForIds ?? [],
+      listing.listingExtras?.accessibilityFeatureIds ?? []
+    );
+    for (const msg of contradictions) out.push(msg);
+    const phone = listing.listingExtras?.bookingContactPhoneE164 ?? '';
+    const phoneCheck = validateBookingContactPhone(phone);
+    if (!phoneCheck.ok) {
+      out.push(phoneCheck.error);
+    }
+  }
   return out;
 }
 
@@ -324,7 +351,13 @@ export function publishBlockerListingWizardStep(blockerLine: string, isStay: boo
   ) {
     return 3;
   }
-  if (/accessib|know before|what to bring|requirement|minimum age|difficulty/.test(t)) return 2;
+  if (
+    /accessib|know before|what to bring|requirement|not suitable|booking contact|phone number|spoken language|additional information|conflicts with/.test(
+      t
+    )
+  ) {
+    return 2;
+  }
   if (/include|exclude|description/.test(t)) return 1;
   if (/city|country|location|destination|meeting|pickup/.test(t)) return 1;
   return 0;
