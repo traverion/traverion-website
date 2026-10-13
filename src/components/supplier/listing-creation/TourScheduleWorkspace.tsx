@@ -214,7 +214,10 @@ export function TourScheduleWorkspace({
             >
               ← Back to option
             </button>
-            <p className="mt-5 text-[1.05rem] font-semibold leading-snug tracking-tight text-ink" title={scheduleLabel}>
+            <p
+              className="mt-5 line-clamp-2 text-[1.05rem] font-semibold leading-snug tracking-tight text-ink"
+              title={scheduleLabel}
+            >
               {scheduleLabel}
             </p>
             <div className="mt-2 min-h-4">
@@ -248,13 +251,13 @@ export function TourScheduleWorkspace({
         </aside>
 
         <div className="listing-creation-schedule-main flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#fffcf8]">
-          <header className="listing-creation-schedule-header shrink-0 border-b border-black/[0.07] px-4 py-3 sm:px-6 lg:px-8">
+          <header className="listing-creation-schedule-header shrink-0 border-b border-black/[0.07] px-4 pb-4 sm:px-6 lg:px-8">
             <div className="mx-auto flex w-full max-w-[56rem] flex-wrap items-start justify-between gap-x-4 gap-y-2">
               <div className="min-w-0 flex-1">
                 <button
                   type="button"
                   onClick={onCancel}
-                  className="lux-flat mb-1 inline-flex min-h-8 items-center gap-1 text-[12.5px] font-semibold text-finland hover:underline lg:hidden"
+                  className="lux-flat mb-1.5 inline-flex min-h-8 items-center gap-1 text-[12.5px] font-semibold text-finland hover:underline lg:hidden"
                 >
                   <span aria-hidden>←</span> Back to option
                 </button>
@@ -262,7 +265,7 @@ export function TourScheduleWorkspace({
                   ref={headingRef}
                   id={titleId}
                   tabIndex={-1}
-                  className="truncate text-[1.15rem] font-semibold leading-snug tracking-tight text-ink outline-none sm:text-[1.25rem]"
+                  className="truncate text-[1.25rem] font-semibold leading-snug tracking-tight text-ink outline-none sm:text-[1.35rem]"
                   title={optionLabel}
                 >
                   {optionLabel}
@@ -316,6 +319,9 @@ export function TourScheduleWorkspace({
                         className="tv-input w-full max-w-md"
                         placeholder="e.g. Winter evenings"
                       />
+                      <p className="mt-1.5 text-[12px] leading-snug text-ink-muted">
+                        Schedule names are shown to customers when they book.
+                      </p>
                     </div>
                   ) : null}
                   <div

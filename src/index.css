@@ -716,7 +716,7 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
 
 .listing-creation-schedule-header {
   background: #fffcf8;
-  padding-top: max(0.5rem, env(safe-area-inset-top));
+  padding-top: max(1.15rem, env(safe-area-inset-top));
 }
 
 .listing-creation-schedule-body {
