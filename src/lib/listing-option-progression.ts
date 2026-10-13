@@ -176,7 +176,10 @@ export function summarizeOptionCapacity(option: ListingBookingOption): string {
 }
 
 export function summarizeOptionChargeModel(option: ListingBookingOption): string {
-  if (option.isPrivate && option.privatePricing === 'flat_group') {
+  if (
+    option.chargeModel === 'flat_group' ||
+    (option.isPrivate && option.privatePricing === 'flat_group')
+  ) {
     return 'Whole group';
   }
   if (option.pricingMode === 'age_dependent') return 'Per person · by age';

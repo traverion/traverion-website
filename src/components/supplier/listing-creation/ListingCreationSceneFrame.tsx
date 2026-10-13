@@ -19,6 +19,8 @@ export function ListingCreationSceneFrame({
   direction,
   headingRef,
   headingId,
+  /** Options editor uses denser headings to match the full-screen compact chrome. */
+  density = 'default',
   children,
 }: {
   question: string;
@@ -34,11 +36,13 @@ export function ListingCreationSceneFrame({
   direction: ListingCreationSceneDirection;
   headingRef?: Ref<HTMLHeadingElement>;
   headingId: string;
+  density?: 'default' | 'compact';
   children: ReactNode;
 }) {
+  const compact = density === 'compact';
   return (
     <div className={`listing-creation-scene listing-creation-scene--${direction} w-full`}>
-      <header className="mb-5 space-y-3.5 sm:mb-6 sm:space-y-4">
+      <header className={compact ? 'mb-4 space-y-3' : 'mb-5 space-y-3.5 sm:mb-6 sm:space-y-4'}>
         <ListingCreationSceneProgress
           index={sceneIndex}
           total={sceneTotal}
@@ -53,12 +57,22 @@ export function ListingCreationSceneFrame({
             ref={headingRef}
             id={headingId}
             tabIndex={-1}
-            className="font-display text-[1.3rem] font-bold leading-[1.2] tracking-tight text-ink outline-none sm:text-[1.45rem]"
+            className={
+              compact
+                ? 'text-[1.125rem] font-semibold leading-snug tracking-tight text-ink outline-none sm:text-[1.2rem]'
+                : 'font-display text-[1.3rem] font-bold leading-[1.2] tracking-tight text-ink outline-none sm:text-[1.45rem]'
+            }
           >
             {question}
           </h3>
           {support.trim() ? (
-            <p className="mt-1.5 max-w-xl text-[13.5px] leading-relaxed text-ink-muted sm:text-[14px]">
+            <p
+              className={
+                compact
+                  ? 'mt-1 max-w-xl text-[12.5px] leading-snug text-ink-muted'
+                  : 'mt-1.5 max-w-xl text-[13.5px] leading-relaxed text-ink-muted sm:text-[14px]'
+              }
+            >
               {support}
             </p>
           ) : null}

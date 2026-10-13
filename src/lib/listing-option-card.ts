@@ -35,6 +35,7 @@ export type TourOptionCardCta =
   | { kind: 'continue_setup'; label: string; sceneIndex: number; reason: string }
   | { kind: 'add_schedule'; label: string; sceneIndex: number; reason: string }
   | { kind: 'finish_schedule'; label: string; sceneIndex: number; reason: string; scheduleId: string }
+  | { kind: 'manage_schedules'; label: string; sceneIndex: number; reason: string }
   | { kind: 'none' };
 
 export type TourOptionCardModel = {
@@ -62,7 +63,7 @@ function pricingText(
   // Charge model lives on the option; amounts live on schedules. Do not mark pricing
   // incomplete merely because a schedule is still missing — Availability owns that gap.
   if (ready.length === 0) {
-    return { ok: true, text: `${model} · amounts are set on each schedule` };
+    return { ok: true, text: model };
   }
   if (ready.length === 1) {
     return { ok: true, text: `${model} · ${summarizeOptionPricing(ready[0], formatAmount)}` };
@@ -92,13 +93,13 @@ function availabilityText(
         text: draftCount === 1 ? '1 draft schedule — finish it to open bookings' : `${draftCount} draft schedules — finish one to open bookings`,
       };
     }
-    return { ok: false, text: 'No schedule yet — add dates, days and a price' };
+    return { ok: false, text: 'No schedule yet' };
   }
   const froms = ready.map((s) => s.availabilityDateFrom).filter(Boolean).sort();
   const tos = ready.map((s) => s.availabilityDateTo).filter(Boolean).sort();
   const range = formatScheduleRange(froms[0] ?? '', tos.length === ready.length ? (tos[tos.length - 1] ?? '') : '');
-  const count = ready.length === 1 ? '1 ready schedule' : `${ready.length} ready schedules`;
-  return { ok: true, text: `${count} · ${range}` };
+  const count = ready.length === 1 ? '1 schedule' : `${ready.length} schedules`;
+  return { ok: true, text: range ? `${count} · ${range}` : count };
 }
 
 export function tourOptionCardModel(
@@ -177,6 +178,13 @@ export function tourOptionCardModel(
         reason: 'Travelers can only book dates that come from a ready schedule.',
       };
     }
+  } else {
+    cta = {
+      kind: 'manage_schedules',
+      label: 'Manage schedules',
+      sceneIndex: 3,
+      reason: 'Edit schedules, cutoff, and timezone for this option.',
+    };
   }
 
   return {

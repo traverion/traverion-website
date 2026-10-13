@@ -70,7 +70,7 @@ function Section({
   flat?: boolean;
 }) {
   if (flat) {
-    return <div className="space-y-4">{children}</div>;
+    return <div className="space-y-3.5">{children}</div>;
   }
   return (
     <section className="lc-section space-y-5 rounded-2xl px-5 py-5 sm:px-6 sm:py-6">
@@ -100,12 +100,12 @@ function ChoiceCard({
       type="button"
       onClick={onClick}
       aria-pressed={selected}
-      className={`lc-choice flex w-full items-start gap-2.5 rounded-xl px-3.5 py-3 text-left ${
+      className={`lc-choice flex w-full items-start gap-2 rounded-lg px-3 py-2.5 text-left ${
         selected ? 'lc-choice--selected' : ''
       }`}
     >
       <span
-        className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${
+        className={`mt-0.5 flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border-2 ${
           selected ? 'border-finland bg-finland' : 'border-black/25 bg-paper'
         }`}
         aria-hidden
@@ -113,8 +113,8 @@ function ChoiceCard({
         {selected ? <span className="h-1.5 w-1.5 rounded-full bg-white" /> : null}
       </span>
       <span className="min-w-0">
-        <span className="block text-[13px] font-semibold text-ink sm:text-sm">{title}</span>
-        <span className="mt-0.5 block text-[12px] leading-snug text-ink-muted">{hint}</span>
+        <span className="block text-[13px] font-semibold text-ink">{title}</span>
+        <span className="mt-0.5 block text-[11.5px] leading-snug text-ink-muted">{hint}</span>
       </span>
     </button>
   );
@@ -457,14 +457,14 @@ export default function BookingOptionEditor({
               />
               <ChoiceCard
                 selected={chargeModelChosen && groupPricing}
-                title="Per group"
+                title="Whole group"
                 hint="One price covers the party."
                 onClick={() => setChargeModel('flat_group')}
               />
             </div>
           ) : (
             <p className="text-[13px] text-ink-muted">
-              {groupPricing ? 'Per group' : 'Per person'}
+              {groupPricing ? 'Whole group' : 'Per person'}
               {chargeModelChosen ? '' : ' — finish Pricing if this looks wrong.'}
             </p>
           )}

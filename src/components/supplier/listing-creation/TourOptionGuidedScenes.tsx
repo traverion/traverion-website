@@ -91,6 +91,7 @@ export function TourOptionGuidedScenes({
       direction={direction}
       headingRef={headingRef}
       headingId={headingId}
+      density="compact"
     >
       {scene.id === 'availability' ? (
         <div className="space-y-7">

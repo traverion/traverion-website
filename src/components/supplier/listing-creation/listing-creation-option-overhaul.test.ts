@@ -113,12 +113,16 @@ describe('tour option creation overhaul (source contracts)', () => {
     expect(form).toMatch(/saveScheduleReady[\s\S]*scheduleSaveLockRef\.current/);
   });
 
-  it('uses a single header with Back to options and no left sidebar rail', () => {
+  it('uses a full-screen portaled editor with Back to options and no modal backdrop', () => {
     const src = read('TourOptionWorkspace.tsx');
     expect(src).toContain('Back to options');
+    expect(src).toContain('createPortal');
+    expect(src).not.toContain('listing-creation-option-backdrop');
     expect(src).not.toContain('ListingCreationContextRail');
     expect(src).not.toContain('listing-creation-option-rail');
     expect(src).not.toContain('aria-label="Where you are"');
+    expect(css).toMatch(/\.listing-creation-option-layer \{[^}]*position: fixed/s);
+    expect(css).not.toContain('listing-creation-option-backdrop');
   });
 
   it('keeps option scene questions aligned with the compact overhaul copy', () => {
@@ -136,9 +140,28 @@ describe('tour option creation overhaul (source contracts)', () => {
     const editor = readFileSync(resolve(__dirname, '../BookingOptionEditor.tsx'), 'utf8');
     const guided = read('TourOptionGuidedScenes.tsx');
     expect(editor).toContain('flat={guided}');
-    expect(editor).toMatch(/if \(flat\) \{\s*return <div className="space-y-4">\{children\}<\/div>;/);
+    expect(editor).toMatch(/if \(flat\) \{\s*return <div className="space-y-3\.5">\{children\}<\/div>;/);
     expect(guided).toContain("pricing: 'Set prices and capacity when adding a schedule.'");
+    expect(guided).toContain('density="compact"');
     expect(guided).toContain('Schedules');
     expect(guided).toContain('Booking settings');
+  });
+
+  it('syncs the option editor with ?option= and ?optionScene= query params', () => {
+    const form = readFileSync(resolve(__dirname, '../../../pages/supplier/SupplierListingForm.tsx'), 'utf8');
+    const url = readFileSync(resolve(__dirname, '../../../lib/listing-option-editor-url.ts'), 'utf8');
+    expect(url).toContain('OPTION_EDITOR_URL_PARAM');
+    expect(form).toContain('writeOptionEditorUrl');
+    expect(form).toContain('readOptionEditorUrl');
+    expect(form).toContain("addEventListener('popstate'");
+  });
+
+  it('renders compact option cards without bulky tile attention chrome', () => {
+    const card = read('TourOptionCard.tsx');
+    const model = readFileSync(resolve(__dirname, '../../../lib/listing-option-card.ts'), 'utf8');
+    expect(card).toContain('Needs setup');
+    expect(card).not.toContain('lc-tile--attention');
+    expect(model).toContain("kind: 'manage_schedules'");
+    expect(model).toContain("label: 'Manage schedules'");
   });
 });

@@ -1,9 +1,9 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 /**
- * Focused option editor over the tour creation workspace.
- * Header → body (progress + fields via children) → sticky footer.
- * No left sidebar — scene progress lives in ListingCreationSceneFrame.
+ * Full-screen option editor (portaled). Covers the listing wizard so only one footer shows.
+ * Header → body (progress + fields) → sticky footer. No modal chrome or dark overlay.
  */
 export function TourOptionWorkspace({
   title,
@@ -24,7 +24,7 @@ export function TourOptionWorkspace({
   continueHint: string | null;
   continueLabel: string;
   continueDisabled: boolean;
-  /** Leave the option sheet and return to the Options list (keeps work as a draft). */
+  /** Leave the option editor and return to the Options list (keeps work as a draft). */
   onBackToOptions: () => void;
   /** Go to the previous option scene. Omit on the first scene. */
   onPreviousScene?: (() => void) | null;
@@ -59,14 +59,8 @@ export function TourOptionWorkspace({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  return (
+  const layer = (
     <div className="listing-creation-option-layer" role="presentation">
-      <button
-        type="button"
-        className="listing-creation-option-backdrop"
-        aria-label="Close option editor"
-        onClick={onClose}
-      />
       <div
         ref={dialogRef}
         className="listing-creation-option-shell listing-creation-option-shell--enter"
@@ -75,83 +69,77 @@ export function TourOptionWorkspace({
         aria-labelledby={titleId}
         tabIndex={-1}
       >
-        <div className="listing-creation-option-main flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          <header className="listing-creation-option-header shrink-0 border-b border-black/[0.07] px-4 py-3 sm:px-6">
-            <div className="mx-auto flex w-full max-w-[48rem] flex-wrap items-center justify-between gap-x-4 gap-y-2">
-              <div className="min-w-0">
+        <header className="listing-creation-option-header shrink-0 border-b border-black/[0.07] px-4 py-2.5 sm:px-6">
+          <div className="mx-auto flex w-full max-w-[46rem] flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
+            <div className="min-w-0">
+              <button
+                type="button"
+                onClick={onBackToOptions}
+                className="lux-flat inline-flex min-h-8 items-center gap-1 text-[12.5px] font-semibold text-finland hover:underline"
+              >
+                <span aria-hidden>←</span> Back to options
+              </button>
+              <h2
+                id={titleId}
+                className="mt-0.5 text-[1.05rem] font-semibold leading-tight tracking-tight text-ink sm:text-[1.125rem]"
+              >
+                {title}
+              </h2>
+            </div>
+            <p
+              className={`text-[11px] tabular-nums sm:pt-4 ${
+                persistLabel === 'Save failed' ? 'font-medium text-red-700' : 'text-ink-muted'
+              }`}
+              aria-live="polite"
+            >
+              {persistLabel ?? ''}
+            </p>
+          </div>
+        </header>
+
+        <div className="listing-creation-option-body min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-5">
+          <div className="mx-auto w-full max-w-[46rem]">{children}</div>
+        </div>
+
+        <div className="listing-creation-option-footer shrink-0 border-t border-black/[0.07] px-4 py-2.5 pb-[max(0.65rem,env(safe-area-inset-bottom))] sm:px-6">
+          <div className="mx-auto flex w-full max-w-[46rem] flex-col gap-1.5">
+            {continueHint ? (
+              <p id={hintId} className="text-[12px] leading-snug text-ink-muted" role="status">
+                {continueHint}
+              </p>
+            ) : null}
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+              <div>
+                {onPreviousScene ? (
+                  <button
+                    type="button"
+                    onClick={onPreviousScene}
+                    className="touch-manipulation tv-btn-ghost !min-h-10 w-full sm:w-auto"
+                  >
+                    Back
+                  </button>
+                ) : (
+                  <span className="hidden sm:block sm:min-w-[4.5rem]" aria-hidden />
+                )}
+              </div>
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:gap-2.5">
                 <button
                   type="button"
-                  onClick={onBackToOptions}
-                  className="lux-flat inline-flex min-h-9 items-center gap-1 text-[13px] font-semibold text-finland hover:underline"
+                  onClick={onSaveDraft}
+                  disabled={saveDraftDisabled}
+                  className="touch-manipulation tv-btn-secondary !min-h-10 w-full sm:w-auto disabled:opacity-50"
                 >
-                  <span aria-hidden>←</span> Back to options
+                  Save draft
                 </button>
-                <h2
-                  id={titleId}
-                  className="mt-1 font-display text-xl font-bold leading-tight tracking-tight text-ink sm:text-[1.35rem]"
+                <button
+                  type="button"
+                  onClick={onContinue}
+                  disabled={continueDisabled}
+                  aria-describedby={continueHint ? hintId : undefined}
+                  className="touch-manipulation tv-btn-primary !min-h-10 w-full sm:w-auto disabled:opacity-50"
                 >
-                  {title}
-                </h2>
-              </div>
-              <p
-                className={`text-[11px] tabular-nums sm:pt-5 ${
-                  persistLabel === 'Save failed' ? 'font-medium text-red-700' : 'text-ink-muted'
-                }`}
-                aria-live="polite"
-              >
-                {persistLabel ?? ''}
-              </p>
-            </div>
-          </header>
-
-          <div className="listing-creation-option-body min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6 sm:py-6">
-            <div className="mx-auto w-full max-w-[48rem]">{children}</div>
-          </div>
-
-          <div className="listing-creation-option-footer shrink-0 border-t border-black/[0.07] px-4 py-2.5 pb-[max(0.65rem,env(safe-area-inset-bottom))] sm:px-6">
-            <div className="mx-auto flex w-full max-w-[48rem] flex-col gap-2">
-              {continueHint ? (
-                <p
-                  id={hintId}
-                  className="text-[12px] leading-snug text-ink-muted"
-                  role="status"
-                >
-                  {continueHint}
-                </p>
-              ) : null}
-              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-                <div>
-                  {onPreviousScene ? (
-                    <button
-                      type="button"
-                      onClick={onPreviousScene}
-                      className="touch-manipulation tv-btn-ghost !min-h-10 w-full sm:w-auto"
-                    >
-                      Back
-                    </button>
-                  ) : (
-                    <span className="hidden sm:block sm:min-w-[4.5rem]" aria-hidden />
-                  )}
-                </div>
-                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:gap-2.5">
-                  <button
-                    type="button"
-                    onClick={onSaveDraft}
-                    disabled={saveDraftDisabled}
-                    className="touch-manipulation tv-btn-secondary !min-h-10 w-full sm:w-auto disabled:opacity-50"
-                  >
-                    Save draft
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onContinue}
-                    disabled={continueDisabled}
-                    aria-describedby={continueHint ? hintId : undefined}
-                    className="touch-manipulation tv-btn-primary !min-h-10 w-full sm:w-auto disabled:opacity-50"
-                  >
-                    {continueLabel}
-                  </button>
-                </div>
+                  {continueLabel}
+                </button>
               </div>
             </div>
           </div>
@@ -159,4 +147,7 @@ export function TourOptionWorkspace({
       </div>
     </div>
   );
+
+  if (typeof document === 'undefined') return null;
+  return createPortal(layer, document.body);
 }

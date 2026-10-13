@@ -109,9 +109,10 @@ describe('tourOptionCardModel', () => {
     expect(model.draftSchedules).toBe(1);
   });
 
-  it('has no primary CTA and all rows ok when a ready schedule exists', () => {
+  it('offers Manage schedules when a ready schedule exists', () => {
     const model = tourOptionCardModel(option({ ...configured, schedules: [readySchedule()] }), fmt);
-    expect(model.cta.kind).toBe('none');
+    expect(model.cta.kind).toBe('manage_schedules');
+    expect(model.cta.kind === 'manage_schedules' && model.cta.sceneIndex).toBe(3);
     expect(model.rows.every((r) => r.ok)).toBe(true);
     expect(model.missingSummary).toBeNull();
     expect(model.rows.find((r) => r.id === 'pricing')?.text).toContain('€149');

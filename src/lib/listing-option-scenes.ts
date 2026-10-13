@@ -33,7 +33,7 @@ export function tourOptionReadiness(
 
 export function tourOptionReadinessLabel(status: TourOptionReadiness): string {
   if (status === 'ready') return 'Ready';
-  if (status === 'incomplete') return 'Incomplete';
+  if (status === 'incomplete') return 'Needs setup';
   return 'Draft';
 }
 
