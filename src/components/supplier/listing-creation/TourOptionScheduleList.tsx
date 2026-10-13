@@ -6,6 +6,7 @@ import {
   formatScheduleWeekdays,
   listingOptionHasSchedules,
   listingOptionSchedules,
+  maxWholeGroupsForSlot,
   scheduleHeadlineName,
   scheduleIsBookable,
   scheduleWizardIsComplete,
@@ -141,7 +142,13 @@ export function TourOptionScheduleList({
                         chargeLabel,
                         summarizeOptionPricing(s, formatAmount),
                         charge === 'flat_group'
-                          ? `${s.maxSpotsPerSlot} group${s.maxSpotsPerSlot === 1 ? '' : 's'} · up to ${s.maxPersons}`
+                          ? `${s.maxSpotsPerSlot} seats · groups of ${s.minPersons}–${s.maxPersons}${
+                              s.maxPersons >= 1
+                                ? ` · up to ${maxWholeGroupsForSlot(s.maxSpotsPerSlot, s.maxPersons)} group${
+                                    maxWholeGroupsForSlot(s.maxSpotsPerSlot, s.maxPersons) === 1 ? '' : 's'
+                                  }`
+                                : ''
+                            }`
                           : `${s.minPersons}–${s.maxPersons} · ${s.maxSpotsPerSlot} seats`,
                       ]
                         .filter(Boolean)

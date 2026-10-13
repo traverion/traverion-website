@@ -79,27 +79,40 @@ export function scheduleCapacityIssues(
   opts?: { guestsCeiling?: number; spotsCeiling?: number }
 ): string[] {
   const msg: string[] = [];
-  const guestsCeiling =
-    typeof opts?.guestsCeiling === 'number' && opts.guestsCeiling >= 1
-      ? Math.min(LISTING_CAPACITY_MAX, Math.floor(opts.guestsCeiling))
-      : LISTING_CAPACITY_MAX;
   const spotsCeiling =
     typeof opts?.spotsCeiling === 'number' && opts.spotsCeiling >= 1
       ? Math.min(LISTING_CAPACITY_MAX, Math.floor(opts.spotsCeiling))
       : LISTING_CAPACITY_MAX;
-  if (schedule.maxPersons > guestsCeiling) {
-    msg.push(`Max guests cannot exceed ${guestsCeiling} (set on this option).`);
-  }
+  const guestsCeiling = Math.min(
+    typeof opts?.guestsCeiling === 'number' && opts.guestsCeiling >= 1
+      ? Math.min(LISTING_CAPACITY_MAX, Math.floor(opts.guestsCeiling))
+      : LISTING_CAPACITY_MAX,
+    // Group/party size cannot exceed the option's (or schedule's) slot capacity.
+    schedule.maxSpotsPerSlot >= 1 ? schedule.maxSpotsPerSlot : spotsCeiling,
+    spotsCeiling
+  );
   if (schedule.maxSpotsPerSlot > spotsCeiling) {
-    msg.push(`Max spots cannot exceed ${spotsCeiling} (set on this option).`);
+    msg.push(`Travelers per start time cannot exceed ${spotsCeiling} (option capacity).`);
+  }
+  if (schedule.maxPersons > guestsCeiling) {
+    msg.push(
+      guestsCeiling < spotsCeiling
+        ? `Max group size cannot exceed ${guestsCeiling} (option limit).`
+        : `Max group size cannot exceed travelers per start time (${guestsCeiling}).`
+    );
+  }
+  if (schedule.maxSpotsPerSlot >= 1 && schedule.maxPersons > schedule.maxSpotsPerSlot) {
+    msg.push('Max group size cannot exceed travelers per start time.');
   }
   if (!scheduleCapacityValid(schedule)) {
-    if (schedule.maxSpotsPerSlot < 1) msg.push('Maximum capacity must be at least 1.');
+    if (schedule.maxSpotsPerSlot < 1) msg.push('Set how many travelers this start time can hold.');
     else if (schedule.maxSpotsPerSlot > LISTING_CAPACITY_MAX || schedule.maxPersons > LISTING_CAPACITY_MAX) {
       msg.push(`Capacity cannot exceed ${LISTING_CAPACITY_MAX} travelers.`);
     } else if (schedule.maxPersons < 1 || schedule.minPersons < 1) {
-      msg.push('Set minimum and maximum guests.');
-    } else msg.push('Set minimum and maximum guests so max is not below min.');
+      msg.push('Set minimum and maximum group size.');
+    } else if (schedule.maxPersons > schedule.maxSpotsPerSlot) {
+      msg.push('Max group size cannot exceed travelers per start time.');
+    } else msg.push('Set minimum and maximum so max is not below min.');
   }
   return msg;
 }
@@ -120,14 +133,17 @@ export function scheduleCapacityCeilings(option?: ListingBookingOption | null): 
   guestsCeiling: number;
   spotsCeiling: number;
 } {
-  const guestsCeiling =
-    option && typeof option.maxPersons === 'number' && option.maxPersons >= 1
-      ? Math.min(LISTING_CAPACITY_MAX, Math.floor(option.maxPersons))
-      : LISTING_CAPACITY_MAX;
+  /** Option-level people capacity for one departure (inventory). */
   const spotsCeiling =
     option && typeof option.maxSpotsPerSlot === 'number' && option.maxSpotsPerSlot >= 1
       ? Math.min(LISTING_CAPACITY_MAX, Math.floor(option.maxSpotsPerSlot))
       : LISTING_CAPACITY_MAX;
+  /** Party/group size for one booking — never above option party max or slot capacity. */
+  const partyCeiling =
+    option && typeof option.maxPersons === 'number' && option.maxPersons >= 1
+      ? Math.min(LISTING_CAPACITY_MAX, Math.floor(option.maxPersons))
+      : LISTING_CAPACITY_MAX;
+  const guestsCeiling = Math.min(partyCeiling, spotsCeiling);
   return { guestsCeiling, spotsCeiling };
 }
 

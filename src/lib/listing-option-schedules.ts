@@ -150,8 +150,21 @@ export function scheduleCapacityValid(s: Pick<ListingOptionSchedule, 'minPersons
     s.maxPersons >= s.minPersons &&
     s.maxPersons <= LISTING_CAPACITY_MAX &&
     s.maxSpotsPerSlot >= 1 &&
-    s.maxSpotsPerSlot <= LISTING_CAPACITY_MAX
+    s.maxSpotsPerSlot <= LISTING_CAPACITY_MAX &&
+    // Party/group size cannot exceed the departure slot (inventory is guest-based).
+    s.maxPersons <= s.maxSpotsPerSlot
   );
+}
+
+/**
+ * How many whole groups of `maxGroupSize` fit in a guest-based slot capacity.
+ * Inventory always counts travelers; this is display/planning only.
+ */
+export function maxWholeGroupsForSlot(spotsPerSlot: number, maxGroupSize: number): number {
+  const spots = Math.floor(spotsPerSlot);
+  const size = Math.floor(maxGroupSize);
+  if (spots < 1 || size < 1) return 0;
+  return Math.floor(spots / size);
 }
 
 /** Traveler-bookable (not a draft). Start date optional on legacy implicit rows. */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ListingBookingOption, ListingOptionSchedule } from '../types/listingExtras';
-import { normalizeListingBookingOption } from '../types/listingExtras';
+import { normalizeListingBookingOption, normalizeListingOptionSchedule } from '../types/listingExtras';
 import { quoteBooking } from './booking-quote';
 import type { TourPackage } from '../types/tour';
 import {
@@ -12,8 +12,10 @@ import {
   formatScheduleDepartureSummary,
   listingOptionHasSchedules,
   listingOptionReadySchedules,
+  maxWholeGroupsForSlot,
   resolveScheduleForDate,
   scheduleAppliesOnDate,
+  scheduleCapacityValid,
   scheduleHasFixedDepartures,
   scheduleOverlapMessage,
   scheduleWizardIsComplete,
@@ -24,8 +26,12 @@ import {
   isImplicitScheduleId,
   upsertOptionSchedule,
 } from './listing-option-schedules';
-import { normalizeListingOptionSchedule } from '../types/listingExtras';
-import { optionScheduleManagementIssues, scheduleCanSaveReady } from './listing-schedule-wizard';
+import {
+  optionScheduleManagementIssues,
+  scheduleCanSaveReady,
+  scheduleCapacityCeilings,
+  scheduleCapacityIssues,
+} from './listing-schedule-wizard';
 import { defaultAgeDependentCategories } from './price-categories';
 
 const daily = [true, true, true, true, true, true, true];
@@ -579,5 +585,50 @@ describe('per-weekday multiple start times', () => {
     expect(synced.weekdays[5]).toBe(true);
     expect(synced.startTime).toBe('09:00');
     expect(synced.weekdayStartTimes?.[0]).toEqual(['09:00', '14:00']);
+  });
+});
+
+describe('option capacity vs group size', () => {
+  it('treats maxSpotsPerSlot as traveler seats; groups are derived', () => {
+    expect(maxWholeGroupsForSlot(8, 8)).toBe(1);
+    expect(maxWholeGroupsForSlot(16, 8)).toBe(2);
+    expect(maxWholeGroupsForSlot(50, 10)).toBe(5);
+    expect(maxWholeGroupsForSlot(8, 0)).toBe(0);
+  });
+
+  it('rejects group size larger than slot capacity', () => {
+    expect(
+      scheduleCapacityValid({
+        minPersons: 1,
+        maxPersons: 12,
+        maxSpotsPerSlot: 8,
+      })
+    ).toBe(false);
+    expect(
+      scheduleCapacityValid({
+        minPersons: 1,
+        maxPersons: 8,
+        maxSpotsPerSlot: 8,
+      })
+    ).toBe(true);
+  });
+
+  it('caps schedule ceilings by option slot capacity and party max', () => {
+    const ceilings = scheduleCapacityCeilings(
+      option({ maxPersons: 12, maxSpotsPerSlot: 8 })
+    );
+    expect(ceilings.spotsCeiling).toBe(8);
+    expect(ceilings.guestsCeiling).toBe(8);
+    const issues = scheduleCapacityIssues(
+      season({
+        id: 'sch-cap',
+        name: 'Winter',
+        availabilityDateFrom: '2026-12-01',
+        maxPersons: 12,
+        maxSpotsPerSlot: 8,
+      }),
+      ceilings
+    );
+    expect(issues.some((m) => /group size|travelers per start/i.test(m))).toBe(true);
   });
 });
