@@ -13,6 +13,7 @@ import {
 } from '../../../lib/listing-information-catalogs';
 import { findOffPlatformListingTextIssues } from '../../../lib/listing-off-platform-text';
 import {
+  TOUR_INFORMATION_SCENE_COUNT,
   TOUR_INFORMATION_SCENES,
   canSelectTourInformationScene,
   isTourInformationSceneSatisfied,
