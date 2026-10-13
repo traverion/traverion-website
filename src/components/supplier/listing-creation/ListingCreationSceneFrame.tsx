@@ -38,7 +38,7 @@ export function ListingCreationSceneFrame({
 }) {
   return (
     <div className={`listing-creation-scene listing-creation-scene--${direction} w-full`}>
-      <header className="mb-6 space-y-4 sm:mb-7">
+      <header className="mb-5 space-y-3.5 sm:mb-6 sm:space-y-4">
         <ListingCreationSceneProgress
           index={sceneIndex}
           total={sceneTotal}
@@ -53,12 +53,14 @@ export function ListingCreationSceneFrame({
             ref={headingRef}
             id={headingId}
             tabIndex={-1}
-            className="font-display text-[1.35rem] font-bold leading-[1.2] tracking-tight text-ink outline-none sm:text-[1.5rem]"
+            className="font-display text-[1.3rem] font-bold leading-[1.2] tracking-tight text-ink outline-none sm:text-[1.45rem]"
           >
             {question}
           </h3>
           {support.trim() ? (
-            <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-ink-muted">{support}</p>
+            <p className="mt-1.5 max-w-xl text-[13.5px] leading-relaxed text-ink-muted sm:text-[14px]">
+              {support}
+            </p>
           ) : null}
         </div>
       </header>

@@ -114,13 +114,14 @@ export default function BookingContactPhoneField({
         <label htmlFor={id} className="block text-[13px] font-semibold text-ink">
           Booking contact number{requiredForPublish ? ' *' : ''}
         </label>
-        <p className="mt-0.5 text-[12px] leading-relaxed text-ink-muted">
-          Travelers will see this number after their booking is confirmed.
+        <p className="mt-1 text-[12px] leading-relaxed text-ink-muted">
+          Shared only with confirmed customers — not shown on the public listing.
         </p>
       </div>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,11rem)_1fr]">
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-[minmax(13rem,15.5rem)_minmax(0,1fr)] sm:items-stretch">
         <PartnerSelect
           id={`${id}-country`}
+          className="min-w-0"
           value={country}
           onChange={(v) => syncFromParts((v || country) as CountryCode, national)}
           options={options.map((o) => ({ value: o.value, label: o.label }))}
@@ -133,7 +134,7 @@ export default function BookingContactPhoneField({
           autoComplete="tel-national"
           value={national}
           onChange={(e) => syncFromParts(country, e.target.value)}
-          className="tv-input w-full"
+          className="tv-input min-h-11 w-full px-3.5 text-[15px]"
           placeholder="Phone number"
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? `${id}-error` : `${id}-hint`}
@@ -144,8 +145,8 @@ export default function BookingContactPhoneField({
           Saved as {formatBookingContactForDisplay(valueE164)}
         </p>
       ) : (
-        <p id={`${id}-hint`} className="text-[12px] text-ink-muted">
-          Shared only with confirmed customers — not on the public listing.
+        <p id={`${id}-hint`} className="sr-only">
+          Enter a phone number with country code. Shared only with confirmed customers.
         </p>
       )}
       {businessPhoneHint?.trim() ? (

@@ -552,6 +552,7 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
   box-shadow:
     0 -1px 0 rgba(28, 25, 23, 0.06),
     0 -12px 28px -18px rgba(15, 23, 42, 0.22);
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
 }
 
 /* Phase 1807: creation sticky footer + scene progress feel premium */
@@ -569,6 +570,13 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
     -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
   }
+}
+
+/* Information: match country select height to phone input */
+.listing-information-form #supplier-listing-field-booking-contact .partner-select__trigger {
+  min-height: 2.75rem;
+  padding-left: 0.875rem;
+  padding-right: 0.875rem;
 }
 
 .listing-creation-scene-progress__track {

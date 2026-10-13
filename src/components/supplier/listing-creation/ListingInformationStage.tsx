@@ -198,12 +198,16 @@ export default function ListingInformationStage({
       headingRef={headingRef}
       headingId={headingId}
     >
-      <div className="listing-information-form max-w-[46rem] space-y-7">
+      <div className="listing-information-form max-w-[46rem] space-y-8">
         {scene.id === 'guest_preparation' ? (
           <>
             <div id="supplier-listing-field-know-before" className="space-y-2">
-              <label htmlFor={`${baseId}-know`} className="block text-[13px] font-semibold text-ink">
-                Know before you go
+              <label
+                htmlFor={`${baseId}-know`}
+                className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[13px] font-semibold text-ink"
+              >
+                <span>Know before you go</span>
+                <span className="text-[11px] font-medium tracking-wide text-ink-faint">Optional</span>
               </label>
               <p className="text-[12px] leading-relaxed text-ink-muted">
                 Arrival, weather, timing, or preparation notes. Skip details already covered under Options.
@@ -229,6 +233,7 @@ export default function ListingInformationStage({
               <SearchableMultiSelect
                 id={`${baseId}-bring`}
                 label="What to bring"
+                optional
                 hint="Select items guests should pack."
                 values={whatToBringIds}
                 options={bringOptions}
@@ -265,11 +270,12 @@ export default function ListingInformationStage({
               <SearchableMultiSelect
                 id={`${baseId}-not-suitable`}
                 label="Not suitable for"
-                hint="Select only restrictions that genuinely apply. Unnecessary restrictions may reduce bookings."
+                optional
+                hint="Only select restrictions that genuinely apply."
                 values={notSuitableForIds}
                 options={NOT_SUITABLE_FOR_CATALOG}
                 onChange={(ids) => onChange({ notSuitableForIds: ids })}
-                placeholder="Search restrictions…"
+                placeholder="Select applicable restrictions"
               />
               {requirementsNotes.trim() ? (
                 <div className="mt-4 space-y-1.5 rounded-xl border border-amber-200/70 bg-amber-50/50 px-3.5 py-3">
@@ -288,11 +294,12 @@ export default function ListingInformationStage({
               <SearchableMultiSelect
                 id={`${baseId}-a11y`}
                 label="Accessibility features"
-                hint="Only claim features you genuinely provide."
+                optional
+                hint="Only claim features you genuinely provide. Leaving this blank means not specified."
                 values={accessibilityFeatureIds}
                 options={ACCESSIBILITY_FEATURES_CATALOG}
                 onChange={(ids) => onChange({ accessibilityFeatureIds: ids })}
-                placeholder="Search accessibility features…"
+                placeholder="Select available accessibility features"
                 aria-invalid={contradictions.length > 0}
               />
               {contradictions.map((msg) => (
@@ -321,6 +328,7 @@ export default function ListingInformationStage({
               <SearchableMultiSelect
                 id={`${baseId}-langs`}
                 label="Spoken languages"
+                optional
                 hint="Languages available during the experience — not the same as listing language."
                 values={additionalLanguages}
                 options={SPOKEN_LANGUAGE_CATALOG}
@@ -330,8 +338,12 @@ export default function ListingInformationStage({
             </div>
 
             <div id="supplier-listing-field-additional-info" className="space-y-2">
-              <label htmlFor={`${baseId}-more`} className="block text-[13px] font-semibold text-ink">
-                Additional important information
+              <label
+                htmlFor={`${baseId}-more`}
+                className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[13px] font-semibold text-ink"
+              >
+                <span>Additional important information</span>
+                <span className="text-[11px] font-medium tracking-wide text-ink-faint">Optional</span>
               </label>
               <p className="text-[12px] leading-relaxed text-ink-muted">
                 Anything else guests should know that does not fit above.

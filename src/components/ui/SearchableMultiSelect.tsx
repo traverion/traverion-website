@@ -11,6 +11,8 @@ type Props = {
   id?: string;
   label: string;
   hint?: string;
+  /** Subtle “Optional” marker beside the label (does not change validation). */
+  optional?: boolean;
   values: string[];
   options: readonly SearchableMultiSelectOption[];
   onChange: (next: string[]) => void;
@@ -24,6 +26,7 @@ export function SearchableMultiSelect({
   id,
   label,
   hint,
+  optional = false,
   values,
   options,
   onChange,
@@ -121,8 +124,14 @@ export function SearchableMultiSelect({
 
   return (
     <div ref={rootRef} className="min-w-0" onKeyDown={onKeyDown}>
-      <label htmlFor={`${rootId}-trigger`} className="mb-1 block text-[13px] font-semibold text-ink">
-        {label}
+      <label
+        htmlFor={`${rootId}-trigger`}
+        className="mb-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[13px] font-semibold text-ink"
+      >
+        <span>{label}</span>
+        {optional ? (
+          <span className="text-[11px] font-medium tracking-wide text-ink-faint">Optional</span>
+        ) : null}
       </label>
       {hint ? <p className="mb-2 text-[12px] leading-relaxed text-ink-muted">{hint}</p> : null}
       <button
