@@ -16,6 +16,7 @@ import {
   PRICE_CATEGORY_KIND_PRESETS,
 } from '../../lib/price-categories';
 import type { KeyboardEvent, ReactNode } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { TraverionSingleDateField } from '../calendar/TraverionSingleDateField';
 import PartnerSelect from './PartnerSelect';
@@ -31,7 +32,10 @@ import { localYmd } from '../../lib/local-ymd';
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 function editorWeekdayStartTimes(option: ListingBookingOption): string[][] {
-  if (option.weekdayStartTimes) return sanitizeWeekdayStartTimes(option.weekdayStartTimes);
+  if (option.weekdayStartTimes) {
+    // Keep saved order while editing — don't re-sort on every render.
+    return sanitizeWeekdayStartTimes(option.weekdayStartTimes, { sort: false });
+  }
   return WEEKDAY_LABELS.map((_, i) => scheduleTimesOnWeekday(option, i, option.startMode));
 }
 
@@ -253,10 +257,40 @@ export default function BookingOptionEditor({
     option.startMode !== 'flexible' &&
     !scheduleHasFixedDepartures(option, option.startMode);
   const guided = Boolean(activeSection);
-  const weekdayTimes = editorWeekdayStartTimes(option);
+  const timesFromOption = editorWeekdayStartTimes(option);
+  /** Local draft so typing a time never remounts / re-sorts under the caret. */
+  const [draftTimes, setDraftTimes] = useState<string[][] | null>(null);
+  const weekdayTimes = draftTimes ?? timesFromOption;
+  const focusTimeRef = useRef<{ day: number; index: number } | null>(null);
+  const timesBoardRef = useRef<HTMLDivElement>(null);
 
-  const patchWeekdayTimes = (nextTimes: string[][]) => {
-    onChange(syncScheduleDeparturesFromWeekdayTimes(nextTimes));
+  useEffect(() => {
+    setDraftTimes(null);
+  }, [option.id, option.startMode]);
+
+  useEffect(() => {
+    const target = focusTimeRef.current;
+    if (!target || !timesBoardRef.current) return;
+    focusTimeRef.current = null;
+    const input = timesBoardRef.current.querySelector<HTMLInputElement>(
+      `input[data-day="${target.day}"][data-time-index="${target.index}"]`
+    );
+    if (!input) return;
+    requestAnimationFrame(() => {
+      input.focus();
+      try {
+        input.showPicker?.();
+      } catch {
+        /* showPicker can reject when not from a direct user gesture */
+      }
+    });
+  }, [weekdayTimes]);
+
+  const commitWeekdayTimes = (nextTimes: string[][], opts?: { sort?: boolean }) => {
+    const sort = opts?.sort !== false;
+    const synced = syncScheduleDeparturesFromWeekdayTimes(nextTimes, { sort });
+    setDraftTimes(sanitizeWeekdayStartTimes(synced.weekdayStartTimes, { sort: false }));
+    onChange(synced);
   };
 
   const setDayTimeAt = (di: number, timeIndex: number, value: string) => {
@@ -264,7 +298,15 @@ export default function BookingOptionEditor({
     if (!value.trim()) return;
     const next = weekdayTimes.map((day) => [...day]);
     next[di][timeIndex] = value;
-    patchWeekdayTimes(next);
+    setDraftTimes(next);
+    // Live write without sorting so the focused row stays put.
+    onChange(syncScheduleDeparturesFromWeekdayTimes(next, { sort: false }));
+  };
+
+  const settleDayTimes = (di: number) => {
+    const next = weekdayTimes.map((day) => [...day]);
+    next[di] = sanitizeWeekdayStartTimes(next, { sort: true })[di];
+    commitWeekdayTimes(next, { sort: true });
   };
 
   const addDayTime = (di: number) => {
@@ -281,20 +323,25 @@ export default function BookingOptionEditor({
       candidate = `${String(h).padStart(2, '0')}:${minuteStr}`;
       if (!next[di].includes(candidate)) break;
     }
-    next[di] = [...next[di], candidate || '10:00'];
-    patchWeekdayTimes(next);
+    const added = candidate || '10:00';
+    next[di] = [...next[di], added];
+    focusTimeRef.current = { day: di, index: next[di].length - 1 };
+    commitWeekdayTimes(next, { sort: false });
   };
 
   const removeDayTime = (di: number, timeIndex: number) => {
     const next = weekdayTimes.map((day) => [...day]);
     next[di] = next[di].filter((_, i) => i !== timeIndex);
-    patchWeekdayTimes(next);
+    commitWeekdayTimes(next, { sort: true });
   };
 
   const applyTimesToAllDays = (fromDi: number) => {
     const source = weekdayTimes[fromDi];
     if (source.length === 0) return;
-    patchWeekdayTimes(WEEKDAY_LABELS.map(() => [...source]));
+    commitWeekdayTimes(
+      WEEKDAY_LABELS.map(() => [...source]),
+      { sort: true }
+    );
   };
 
   const guardTimeInputEscape = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -938,12 +985,15 @@ export default function BookingOptionEditor({
                 </p>
               </div>
             ) : (
-              <div className="space-y-3" aria-invalid={startInvalid || undefined}>
+              <div
+                ref={timesBoardRef}
+                className="space-y-2.5"
+                aria-invalid={startInvalid || undefined}
+              >
                 <div>
                   <p className="text-sm font-semibold text-ink">Start times *</p>
                   <p className="mt-0.5 text-[12px] leading-snug text-ink-muted">
-                    All weekdays stay listed. Days without a time stay closed. Travelers pick one departure —
-                    different price or capacity still needs another schedule.
+                    Days without a time stay closed. Travelers pick one departure.
                   </p>
                 </div>
                 {WEEKDAY_LABELS.map((label, di) => {
@@ -954,8 +1004,8 @@ export default function BookingOptionEditor({
                       key={label}
                       className={`rounded-xl border px-3 py-2.5 ${
                         open
-                          ? 'border-black/[0.16] bg-[#fffcf8]'
-                          : 'border-dashed border-black/[0.12] bg-black/[0.015]'
+                          ? 'border-black/[0.2] bg-[#fffcf8]'
+                          : 'border-dashed border-black/[0.14] bg-black/[0.015]'
                       }`}
                     >
                       <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
@@ -980,7 +1030,7 @@ export default function BookingOptionEditor({
                                 onClick={() => {
                                   const next = weekdayTimes.map((day) => [...day]);
                                   next[di] = [];
-                                  patchWeekdayTimes(next);
+                                  commitWeekdayTimes(next, { sort: true });
                                 }}
                                 className="lux-flat text-[12px] font-medium text-ink-muted hover:text-ink"
                               >
@@ -992,11 +1042,15 @@ export default function BookingOptionEditor({
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         {times.map((time, ti) => (
-                          <div key={`${label}-${ti}-${time}`} className="flex items-center gap-1">
+                          <div key={`${di}-${ti}`} className="flex items-center gap-1">
                             <input
                               type="time"
+                              step={60}
                               value={time}
+                              data-day={di}
+                              data-time-index={ti}
                               onChange={(e) => setDayTimeAt(di, ti, e.target.value)}
+                              onBlur={() => settleDayTimes(di)}
                               onKeyDown={guardTimeInputEscape}
                               className="tv-input !min-h-9 w-[7.75rem] !py-1.5 text-[13px] font-medium"
                               aria-label={`${label} start time ${ti + 1}`}

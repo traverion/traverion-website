@@ -301,30 +301,32 @@ export type ScheduleDepartureShape = Pick<
 >;
 
 /** Sanitize and pad Mon–Sun departure lists; empty days become []. */
-export function sanitizeWeekdayStartTimes(raw: string[][] | undefined | null): string[][] {
+export function sanitizeWeekdayStartTimes(
+  raw: string[][] | undefined | null,
+  opts?: { sort?: boolean }
+): string[][] {
+  const sort = opts?.sort !== false;
   const out: string[][] = [];
   for (let i = 0; i < 7; i++) {
     const day = Array.isArray(raw?.[i]) ? raw![i] : [];
-    out.push(
-      [
-        ...new Set(
-          day
-            .map((t) => String(t ?? '').trim().slice(0, 5))
-            .filter((t) => CLOCK_HM.test(t))
-        ),
-      ].sort()
-    );
+    const valid = day
+      .map((t) => String(t ?? '').trim().slice(0, 5))
+      .filter((t) => CLOCK_HM.test(t));
+    const unique = [...new Set(valid)];
+    out.push(sort ? unique.sort() : unique);
   }
   return out;
 }
 
 /**
  * Derive weekdays + legacy startTime from per-day times (write path for the schedule editor).
+ * Pass `{ sort: false }` while the supplier is editing a time so rows don't jump under the caret.
  */
 export function syncScheduleDeparturesFromWeekdayTimes(
-  weekdayStartTimes: string[][]
+  weekdayStartTimes: string[][],
+  opts?: { sort?: boolean }
 ): Pick<ListingOptionSchedule, 'weekdayStartTimes' | 'weekdays' | 'startTime'> {
-  const normalized = sanitizeWeekdayStartTimes(weekdayStartTimes);
+  const normalized = sanitizeWeekdayStartTimes(weekdayStartTimes, opts);
   return {
     weekdayStartTimes: normalized,
     weekdays: normalized.map((times) => times.length > 0),
