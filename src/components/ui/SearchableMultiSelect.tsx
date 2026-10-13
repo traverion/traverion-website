@@ -48,7 +48,10 @@ export function SearchableMultiSelect({
     const q = query.trim().toLowerCase();
     if (!q) return [...options];
     return options.filter(
-      (o) => o.label.toLowerCase().includes(q) || o.id.toLowerCase().includes(q) || (o.group ?? '').toLowerCase().includes(q)
+      (o) =>
+        o.label.toLowerCase().includes(q) ||
+        o.id.toLowerCase().includes(q) ||
+        (o.group ?? '').toLowerCase().includes(q)
     );
   }, [options, query]);
 
@@ -121,7 +124,7 @@ export function SearchableMultiSelect({
       <label htmlFor={`${rootId}-trigger`} className="mb-1 block text-[13px] font-semibold text-ink">
         {label}
       </label>
-      {hint ? <p className="mb-1.5 text-[12px] leading-relaxed text-ink-muted">{hint}</p> : null}
+      {hint ? <p className="mb-2 text-[12px] leading-relaxed text-ink-muted">{hint}</p> : null}
       <button
         id={`${rootId}-trigger`}
         type="button"
@@ -131,29 +134,34 @@ export function SearchableMultiSelect({
         aria-controls={listboxId}
         aria-invalid={ariaInvalid || undefined}
         onClick={() => !disabled && setOpen((v) => !v)}
-        className="tv-input flex w-full min-h-11 items-center justify-between gap-2 text-left"
+        className="tv-input flex w-full min-h-11 items-center justify-between gap-2 px-3.5 text-left transition-colors"
       >
         <span className={`min-w-0 truncate text-[14px] ${values.length ? 'text-ink' : 'text-ink-muted'}`}>
-          {values.length ? `${values.length} selected` : placeholder}
+          {values.length
+            ? `${values.length} selected`
+            : placeholder}
         </span>
-        <ChevronDown className={`h-4 w-4 shrink-0 text-ink-muted transition ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown
+          className={`h-4 w-4 shrink-0 text-ink-muted transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          aria-hidden
+        />
       </button>
 
       {values.length > 0 ? (
-        <ul className="mt-2 flex flex-wrap gap-1.5">
+        <ul className="mt-2.5 flex flex-wrap gap-2">
           {values.map((id) => (
             <li
               key={id}
-              className="inline-flex max-w-full items-center gap-1 rounded-md bg-finland/10 px-2 py-1 text-[12px] font-medium text-finland"
+              className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-finland/[0.08] py-1 pl-2.5 pr-1 text-[12px] font-medium leading-none text-finland ring-1 ring-finland/15"
             >
-              <span className="min-w-0 truncate">{labelById.get(id) ?? id}</span>
+              <span className="min-w-0 truncate py-0.5">{labelById.get(id) ?? id}</span>
               <button
                 type="button"
-                className="shrink-0 rounded p-0.5 hover:bg-finland/15"
+                className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-finland/80 transition-colors hover:bg-finland/15 hover:text-finland focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland/30"
                 aria-label={`Remove ${labelById.get(id) ?? id}`}
                 onClick={() => onChange(values.filter((v) => v !== id))}
               >
-                <X className="h-3 w-3" />
+                <X className="h-3 w-3" strokeWidth={2.5} aria-hidden />
               </button>
             </li>
           ))}
@@ -162,10 +170,10 @@ export function SearchableMultiSelect({
 
       {open ? (
         <div
-          className="relative z-30 mt-1.5 overflow-hidden rounded-[var(--partner-radius,0.5rem)] border border-black/[0.08] bg-paper shadow-lg"
+          className="relative z-40 mt-2 overflow-hidden rounded-xl border border-black/[0.08] bg-paper shadow-[0_12px_40px_-12px_rgba(28,25,23,0.28)]"
           role="presentation"
         >
-          <div className="flex items-center gap-2 border-b border-black/[0.06] px-2.5 py-2">
+          <div className="flex items-center gap-2 border-b border-black/[0.06] px-3 py-2.5">
             <Search className="h-3.5 w-3.5 shrink-0 text-ink-muted" aria-hidden />
             <input
               ref={searchRef}
@@ -182,14 +190,14 @@ export function SearchableMultiSelect({
             id={listboxId}
             role="listbox"
             aria-multiselectable="true"
-            className="max-h-56 overflow-y-auto overscroll-contain py-1"
+            className="max-h-[min(16rem,42vh)] overflow-y-auto overscroll-contain py-1.5"
           >
             {flatFiltered.length === 0 ? (
-              <li className="px-3 py-2.5 text-[13px] text-ink-muted">{emptySearchText}</li>
+              <li className="px-3.5 py-3 text-[13px] text-ink-muted">{emptySearchText}</li>
             ) : (
               grouped.map(([group, opts]) => (
                 <li key={group} role="presentation">
-                  <p className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
+                  <p className="px-3.5 pb-1 pt-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
                     {group}
                   </p>
                   <ul role="group" aria-label={group}>
@@ -201,14 +209,14 @@ export function SearchableMultiSelect({
                         <li key={opt.id} role="option" aria-selected={selected}>
                           <button
                             type="button"
-                            className={`flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] ${
-                              active ? 'bg-finland/10' : 'hover:bg-black/[0.03]'
+                            className={`flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] transition-colors ${
+                              active ? 'bg-finland/[0.08]' : 'hover:bg-black/[0.03]'
                             }`}
                             onMouseEnter={() => setActiveIndex(flatIdx)}
                             onClick={() => toggle(opt.id)}
                           >
                             <span
-                              className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                              className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
                                 selected
                                   ? 'border-finland bg-finland text-white'
                                   : 'border-black/15 bg-paper'
@@ -217,7 +225,11 @@ export function SearchableMultiSelect({
                             >
                               {selected ? <Check className="h-3 w-3" strokeWidth={3} /> : null}
                             </span>
-                            <span className="min-w-0 break-words text-ink">{opt.label}</span>
+                            <span
+                              className={`min-w-0 break-words ${selected ? 'font-medium text-ink' : 'text-ink'}`}
+                            >
+                              {opt.label}
+                            </span>
                           </button>
                         </li>
                       );

@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef } from 'react';
 import { SearchableMultiSelect } from '../../ui/SearchableMultiSelect';
 import BookingContactPhoneField from './BookingContactPhoneField';
 import { ListingCreationSceneFrame } from './ListingCreationSceneFrame';
@@ -8,7 +8,6 @@ import {
   SPOKEN_LANGUAGE_CATALOG,
   WHAT_TO_BRING_CATALOG,
   accessibilityContradictionMessages,
-  labelsForCatalogIds,
   suggestedWhatToBringGroups,
 } from '../../../lib/listing-information-catalogs';
 import { findOffPlatformListingTextIssues } from '../../../lib/listing-off-platform-text';
@@ -71,18 +70,50 @@ function AutoGrowTextarea({
   ariaInvalid?: boolean;
   describedBy?: string;
 }) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.max(el.scrollHeight, 72)}px`;
+  }, [value]);
+
   return (
     <textarea
+      ref={ref}
       id={id}
       value={value}
       maxLength={maxLength}
       onChange={(e) => onChange(e.target.value.slice(0, maxLength))}
-      rows={2}
+      rows={3}
       placeholder={placeholder}
       aria-invalid={ariaInvalid || undefined}
       aria-describedby={describedBy}
-      className="tv-input min-h-[4.5rem] resize-y text-[15px] leading-relaxed"
+      className="tv-input min-h-[4.5rem] resize-none overflow-hidden px-3.5 py-3 text-[15px] leading-relaxed"
     />
+  );
+}
+
+function FieldCounter({
+  id,
+  length,
+  max,
+}: {
+  id: string;
+  length: number;
+  max: number;
+}) {
+  const near = length >= Math.floor(max * 0.9);
+  return (
+    <p
+      id={id}
+      className={`text-right text-[11px] tabular-nums ${
+        near ? 'text-ink-muted' : 'text-ink-faint'
+      }`}
+    >
+      {length} / {max}
+    </p>
   );
 }
 
@@ -167,16 +198,15 @@ export default function ListingInformationStage({
       headingRef={headingRef}
       headingId={headingId}
     >
-      <div className="max-w-[46rem] space-y-5">
+      <div className="listing-information-form max-w-[46rem] space-y-7">
         {scene.id === 'guest_preparation' ? (
           <>
-            <div id="supplier-listing-field-know-before" className="space-y-1.5">
+            <div id="supplier-listing-field-know-before" className="space-y-2">
               <label htmlFor={`${baseId}-know`} className="block text-[13px] font-semibold text-ink">
                 Know before you go
               </label>
               <p className="text-[12px] leading-relaxed text-ink-muted">
-                Arrival instructions, weather, timing, or preparation notes. Avoid repeating details already
-                set under Options.
+                Arrival, weather, timing, or preparation notes. Skip details already covered under Options.
               </p>
               <AutoGrowTextarea
                 id={`${baseId}-know`}
@@ -187,9 +217,7 @@ export default function ListingInformationStage({
                 ariaInvalid={knowIssues.length > 0}
                 describedBy={`${baseId}-know-count`}
               />
-              <p id={`${baseId}-know-count`} className="text-[11px] tabular-nums text-ink-faint">
-                {knowBefore.length} / {MAX_KNOW_BEFORE}
-              </p>
+              <FieldCounter id={`${baseId}-know-count`} length={knowBefore.length} max={MAX_KNOW_BEFORE} />
               {knowIssues.map((issue) => (
                 <p key={issue.kind} className="text-[12px] text-amber-800" role="status">
                   {issue.message}
@@ -197,7 +225,7 @@ export default function ListingInformationStage({
               ))}
             </div>
 
-            <div id="supplier-listing-field-what-to-bring">
+            <div id="supplier-listing-field-what-to-bring" className="space-y-0">
               <SearchableMultiSelect
                 id={`${baseId}-bring`}
                 label="What to bring"
@@ -207,13 +235,8 @@ export default function ListingInformationStage({
                 onChange={(ids) => onChange({ whatToBringIds: ids })}
                 placeholder="Search packing items…"
               />
-              {whatToBringIds.length > 0 ? (
-                <p className="mt-1.5 text-[12px] text-ink-muted">
-                  Selected: {labelsForCatalogIds(whatToBringIds, WHAT_TO_BRING_CATALOG).join(', ')}
-                </p>
-              ) : null}
               {whatToBring.trim() ? (
-                <div className="mt-3 space-y-1.5 rounded-md border border-amber-200/80 bg-amber-50/60 px-3 py-2.5">
+                <div className="mt-4 space-y-1.5 rounded-xl border border-amber-200/70 bg-amber-50/50 px-3.5 py-3">
                   <p className="text-[12px] font-semibold text-ink">Previous packing notes (kept)</p>
                   <p className="text-[12px] text-ink-muted">
                     These notes stay on the listing until you clear them. Prefer selecting catalog items
@@ -225,9 +248,11 @@ export default function ListingInformationStage({
                     maxLength={MAX_LEGACY_BRING}
                     onChange={(next) => onChange({ whatToBring: next })}
                   />
-                  <p className="text-[11px] tabular-nums text-ink-faint">
-                    {whatToBring.length} / {MAX_LEGACY_BRING}
-                  </p>
+                  <FieldCounter
+                    id={`${baseId}-legacy-bring-count`}
+                    length={whatToBring.length}
+                    max={MAX_LEGACY_BRING}
+                  />
                 </div>
               ) : null}
             </div>
@@ -247,7 +272,7 @@ export default function ListingInformationStage({
                 placeholder="Search restrictions…"
               />
               {requirementsNotes.trim() ? (
-                <div className="mt-3 space-y-1.5 rounded-md border border-amber-200/80 bg-amber-50/60 px-3 py-2.5">
+                <div className="mt-4 space-y-1.5 rounded-xl border border-amber-200/70 bg-amber-50/50 px-3.5 py-3">
                   <p className="text-[12px] font-semibold text-ink">Previous requirements notes (kept)</p>
                   <AutoGrowTextarea
                     id={`${baseId}-legacy-req`}
@@ -276,7 +301,7 @@ export default function ListingInformationStage({
                 </p>
               ))}
               {accessibilitySummary.trim() ? (
-                <div className="mt-3 space-y-1.5 rounded-md border border-amber-200/80 bg-amber-50/60 px-3 py-2.5">
+                <div className="mt-4 space-y-1.5 rounded-xl border border-amber-200/70 bg-amber-50/50 px-3.5 py-3">
                   <p className="text-[12px] font-semibold text-ink">Previous accessibility notes (kept)</p>
                   <AutoGrowTextarea
                     id={`${baseId}-legacy-a11y`}
@@ -304,7 +329,7 @@ export default function ListingInformationStage({
               />
             </div>
 
-            <div id="supplier-listing-field-additional-info" className="space-y-1.5">
+            <div id="supplier-listing-field-additional-info" className="space-y-2">
               <label htmlFor={`${baseId}-more`} className="block text-[13px] font-semibold text-ink">
                 Additional important information
               </label>
@@ -320,9 +345,11 @@ export default function ListingInformationStage({
                 ariaInvalid={additionalIssues.length > 0}
                 describedBy={`${baseId}-more-count`}
               />
-              <p id={`${baseId}-more-count`} className="text-[11px] tabular-nums text-ink-faint">
-                {additionalInfo.length} / {MAX_ADDITIONAL}
-              </p>
+              <FieldCounter
+                id={`${baseId}-more-count`}
+                length={additionalInfo.length}
+                max={MAX_ADDITIONAL}
+              />
               {additionalIssues.map((issue) => (
                 <p key={issue.kind} className="text-[12px] text-amber-800" role="status">
                   {issue.message}

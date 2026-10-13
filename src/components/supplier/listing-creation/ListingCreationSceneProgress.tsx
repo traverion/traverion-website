@@ -2,7 +2,8 @@ import { Check } from 'lucide-react';
 
 /**
  * Substep progress for Basics / Information / Options / Schedule guided flows.
- * Shows short labels with current / complete / upcoming states (readiness-based).
+ * Shows full labels with current / complete / upcoming states (readiness-based).
+ * Labels are not ellipsis-truncated when space allows; wrap or scroll on small screens.
  */
 export function ListingCreationSceneProgress({
   index,
@@ -23,15 +24,13 @@ export function ListingCreationSceneProgress({
   onSelect?: (index: number) => void;
 }) {
   return (
-    <nav className="listing-creation-scene-progress shrink-0" aria-label={ariaLabel}>
-      <ol className="flex flex-wrap items-center justify-end gap-1.5 sm:gap-2">
+    <nav className="listing-creation-scene-progress w-full min-w-0" aria-label={ariaLabel}>
+      <ol className="listing-creation-scene-progress__list flex flex-wrap items-center gap-1.5 sm:gap-2">
         {Array.from({ length: total }, (_, i) => {
           const current = i === index;
           const complete = isComplete?.(i) ?? false;
           const selectable = canSelect?.(i) ?? true;
           const label = labels[i] ?? `Step ${i + 1}`;
-          const short =
-            label.length > 14 ? `${label.slice(0, 12).trimEnd()}…` : label;
           const stateSuffix = complete
             ? ', complete'
             : current
@@ -40,7 +39,7 @@ export function ListingCreationSceneProgress({
                 ? ''
                 : ', locked';
           return (
-            <li key={`${label}-${i}`}>
+            <li key={`${label}-${i}`} className="min-w-0">
               <button
                 type="button"
                 onClick={() => {
@@ -50,14 +49,14 @@ export function ListingCreationSceneProgress({
                 disabled={!selectable}
                 aria-current={current ? 'step' : undefined}
                 aria-label={`${label}, scene ${i + 1} of ${total}${stateSuffix}`}
-                className={`lux-flat inline-flex min-h-9 items-center gap-1 rounded-full px-2.5 py-1.5 text-[11px] font-semibold tracking-tight transition-colors disabled:cursor-default ${
+                className={`lux-flat inline-flex min-h-8 max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold tracking-tight transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland/35 focus-visible:ring-offset-1 disabled:cursor-default sm:min-h-9 sm:px-3 sm:text-[12px] ${
                   current
-                    ? 'bg-finland text-white'
+                    ? 'bg-finland text-white shadow-sm shadow-finland/20'
                     : complete
                       ? 'bg-finland/10 text-finland ring-1 ring-finland/20'
                       : selectable
-                        ? 'bg-black/[0.04] text-ink-muted hover:bg-black/[0.07] hover:text-ink'
-                        : 'bg-black/[0.03] text-ink-faint'
+                        ? 'bg-black/[0.035] text-ink-muted ring-1 ring-black/[0.04] hover:bg-black/[0.06] hover:text-ink'
+                        : 'bg-black/[0.025] text-ink-faint ring-1 ring-transparent'
                 }`}
               >
                 {complete && !current ? (
@@ -67,7 +66,7 @@ export function ListingCreationSceneProgress({
                     {i + 1}
                   </span>
                 )}
-                <span className="max-w-[7.5rem] truncate sm:max-w-none">{short}</span>
+                <span className="min-w-0 whitespace-nowrap">{label}</span>
               </button>
             </li>
           );

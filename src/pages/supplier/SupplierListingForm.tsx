@@ -1501,8 +1501,9 @@ export default function SupplierListingForm({
     return [
       'Product type, place, listing language, then title and subtitle.',
       'Description, highlights, inclusions, and exclusions.',
-      'Optional practical details — know before you go, what to bring, accessibility.',
-      'How guests start, booking window, and bookable options with schedules.',
+      // Information: scene question + support already explain the task — no redundant stage blurb.
+      '',
+      'Create the different ways travelers can book your experience.',
       'Cover photo first, then supporting shots travelers swipe through.',
       'Review readiness, then save as draft or publish when Traverion verification allows.',
     ] as const;
@@ -3436,7 +3437,11 @@ export default function SupplierListingForm({
               stepIdx === 0 && !isStayForm
                 ? ''
                 : `motion-safe:animate-fade-in ${
-                    stepIdx === 4 ? 'max-w-5xl' : 'max-w-xl'
+                    stepIdx === 4
+                      ? 'max-w-5xl'
+                      : stepIdx === 2 && !isStayForm
+                        ? 'max-w-[48rem]'
+                        : 'max-w-xl'
                   }`
             }`}
           >
@@ -3447,9 +3452,15 @@ export default function SupplierListingForm({
             stepIdx === 5 ||
             (isStayForm && (stepIdx === 2 || stepIdx === 3))
           ) ? (
-            <header className="mb-8">
-              <h3 className="font-display text-[1.85rem] font-bold tracking-tight text-ink">{steps[stepIdx].label}</h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-ink-muted">{stepGuidance[stepIdx]}</p>
+            <header className="mb-6 sm:mb-7">
+              <h3 className="font-display text-[1.65rem] font-bold tracking-tight text-ink sm:text-[1.85rem]">
+                {steps[stepIdx].label}
+              </h3>
+              {stepGuidance[stepIdx]?.trim() ? (
+                <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-muted">
+                  {stepGuidance[stepIdx]}
+                </p>
+              ) : null}
             </header>
           ) : null}
           {stepIdx === 0 && isStayForm && (

@@ -15,8 +15,19 @@ describe('listing creation progress polish', () => {
     expect(progress).toContain('isComplete');
     expect(progress).toContain("', complete'");
     expect(progress).toContain('Check');
-    expect(progress).toContain('short');
+    // Full labels on desktop — do not ellipsis-truncate when space allows.
+    expect(progress).not.toContain('slice(0, 12)');
+    expect(progress).toContain('whitespace-nowrap');
     expect(mobile).toContain('bg-finland');
     expect(mobile).toContain("item.state === 'complete'");
+  });
+
+  it('places scene progress above the question (vertical hierarchy)', () => {
+    const frame = readFileSync(resolve(__dirname, 'ListingCreationSceneFrame.tsx'), 'utf8');
+    const progressIdx = frame.indexOf('<ListingCreationSceneProgress');
+    const headingIdx = frame.indexOf('id={headingId}');
+    expect(progressIdx).toBeGreaterThan(-1);
+    expect(headingIdx).toBeGreaterThan(-1);
+    expect(progressIdx).toBeLessThan(headingIdx);
   });
 });

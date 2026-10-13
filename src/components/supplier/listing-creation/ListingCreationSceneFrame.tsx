@@ -2,6 +2,10 @@ import type { ReactNode, Ref } from 'react';
 import type { ListingCreationSceneDirection } from '../../../lib/listing-creation-scenes';
 import { ListingCreationSceneProgress } from './ListingCreationSceneProgress';
 
+/**
+ * Guided scene chrome for Basics / Information / Options.
+ * Progress sits above the question so labels stay fully readable on desktop.
+ */
 export function ListingCreationSceneFrame({
   question,
   support,
@@ -33,21 +37,8 @@ export function ListingCreationSceneFrame({
   children: ReactNode;
 }) {
   return (
-    <div
-      className={`listing-creation-scene listing-creation-scene--${direction} w-full`}
-    >
-      <header className="mb-5 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-start sm:justify-between sm:gap-5">
-        <div className="min-w-0 max-w-xl">
-          <h3
-            ref={headingRef}
-            id={headingId}
-            tabIndex={-1}
-            className="text-[1.15rem] font-semibold leading-[1.25] tracking-tight text-ink outline-none sm:text-[1.25rem]"
-          >
-            {question}
-          </h3>
-          <p className="mt-1 text-[13px] leading-snug text-ink-muted">{support}</p>
-        </div>
+    <div className={`listing-creation-scene listing-creation-scene--${direction} w-full`}>
+      <header className="mb-6 space-y-4 sm:mb-7">
         <ListingCreationSceneProgress
           index={sceneIndex}
           total={sceneTotal}
@@ -57,6 +48,19 @@ export function ListingCreationSceneFrame({
           isComplete={isSceneComplete}
           onSelect={onSelectScene}
         />
+        <div className="max-w-[46rem]">
+          <h3
+            ref={headingRef}
+            id={headingId}
+            tabIndex={-1}
+            className="font-display text-[1.35rem] font-bold leading-[1.2] tracking-tight text-ink outline-none sm:text-[1.5rem]"
+          >
+            {question}
+          </h3>
+          {support.trim() ? (
+            <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-ink-muted">{support}</p>
+          ) : null}
+        </div>
       </header>
       {children}
     </div>
