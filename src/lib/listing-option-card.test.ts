@@ -93,8 +93,9 @@ describe('tourOptionCardModel', () => {
     const model = tourOptionCardModel(option({ ...configured, schedules: [] }), fmt);
     expect(model.cta.kind).toBe('add_schedule');
     expect(model.cta.kind === 'add_schedule' && model.cta.sceneIndex).toBe(3);
+    expect(model.statusLabel).toBe('Schedule required');
     expect(model.rows.find((r) => r.id === 'meeting')?.ok).toBe(true);
-    expect(model.rows.find((r) => r.id === 'availability')?.text).toMatch(/No schedule yet/);
+    expect(model.rows.find((r) => r.id === 'availability')?.text).toMatch(/None yet/);
     // Charge model is set; amounts live on schedules — only Availability is incomplete.
     expect(model.rows.find((r) => r.id === 'pricing')?.ok).toBe(true);
     expect(model.missingSummary).toBe('Missing: schedule');
@@ -109,10 +110,12 @@ describe('tourOptionCardModel', () => {
     expect(model.draftSchedules).toBe(1);
   });
 
-  it('offers Manage schedules when a ready schedule exists', () => {
+  it('offers Schedules when a ready schedule exists', () => {
     const model = tourOptionCardModel(option({ ...configured, schedules: [readySchedule()] }), fmt);
     expect(model.cta.kind).toBe('manage_schedules');
+    expect(model.cta.kind === 'manage_schedules' && model.cta.label).toBe('Schedules');
     expect(model.cta.kind === 'manage_schedules' && model.cta.sceneIndex).toBe(3);
+    expect(model.statusLabel).toBe('Ready');
     expect(model.rows.every((r) => r.ok)).toBe(true);
     expect(model.missingSummary).toBeNull();
     expect(model.rows.find((r) => r.id === 'pricing')?.text).toContain('€149');

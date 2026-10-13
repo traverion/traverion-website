@@ -4204,12 +4204,10 @@ export default function SupplierListingForm({
             <div id="supplier-listing-field-options" className="space-y-3 transition-all duration-300 ease-out opacity-100 translate-y-0">
               <div>
                 <h3 className="text-[1.05rem] font-semibold tracking-tight text-ink">Options</h3>
-                <p className="mt-0.5 max-w-xl text-[13px] leading-snug text-ink-muted">
-                  Different ways travelers can book this experience.
-                </p>
+                <p className="mt-0.5 text-[13px] text-ink-muted">Ways travelers can book this experience.</p>
               </div>
 
-              <div className="space-y-2.5">
+              <div className="space-y-2">
                 {materializedBookingOptions(form.bookingOptions).map((opt) => {
                   const messages = optionValidationMessages(opt);
                   const status = tourOptionReadiness(opt, messages);
@@ -4282,22 +4280,17 @@ export default function SupplierListingForm({
               </div>
               <div
                 {...(!optionModalOpen ? { id: 'supplier-listing-field-price' } : {})}
-                className="pt-1"
+                className="pt-0.5"
               >
                 <button
                   type="button"
                   onClick={() => openOptionModalCreate()}
-                  className="inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-finland/35 bg-finland/[0.03] px-3 py-2 text-[13px] font-semibold text-finland transition-colors hover:bg-finland/[0.06]"
+                  className="lux-flat inline-flex min-h-9 items-center gap-1 rounded-md px-1 text-[13px] font-semibold text-finland hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland/30"
                 >
                   <Plus className="h-3.5 w-3.5 shrink-0" aria-hidden />
                   Add option
                 </button>
               </div>
-              {materializedBookingOptions(form.bookingOptions).length === 0 ? (
-                <p className="text-[12.5px] leading-snug text-ink-muted">
-                  Example: Small group or Private. Prices and schedules are set per option.
-                </p>
-              ) : null}
             </div>
           )}
 

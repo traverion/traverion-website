@@ -42,6 +42,8 @@ export type TourOptionCardModel = {
   rows: TourOptionCardRow[];
   /** Short missing-items summary, e.g. "Missing: meeting, schedule". Null when nothing is missing. */
   missingSummary: string | null;
+  /** Specific status for the card header — e.g. Ready, Schedule required. */
+  statusLabel: string;
   cta: TourOptionCardCta;
   readySchedules: number;
   draftSchedules: number;
@@ -90,10 +92,10 @@ function availabilityText(
     if (draftCount > 0) {
       return {
         ok: false,
-        text: draftCount === 1 ? '1 draft schedule — finish it to open bookings' : `${draftCount} draft schedules — finish one to open bookings`,
+        text: draftCount === 1 ? '1 draft schedule' : `${draftCount} draft schedules`,
       };
     }
-    return { ok: false, text: 'No schedule yet' };
+    return { ok: false, text: 'None yet' };
   }
   const froms = ready.map((s) => s.availabilityDateFrom).filter(Boolean).sort();
   const tos = ready.map((s) => s.availabilityDateTo).filter(Boolean).sort();
@@ -181,15 +183,29 @@ export function tourOptionCardModel(
   } else {
     cta = {
       kind: 'manage_schedules',
-      label: 'Manage schedules',
+      label: 'Schedules',
       sceneIndex: 3,
       reason: 'Edit schedules, cutoff, and timezone for this option.',
     };
   }
 
+  let statusLabel = 'Ready';
+  if (cta.kind === 'add_schedule') statusLabel = 'Schedule required';
+  else if (cta.kind === 'finish_schedule') statusLabel = 'Schedule incomplete';
+  else if (cta.kind === 'continue_setup') {
+    if (cta.sceneIndex === 1) statusLabel = 'Meeting required';
+    else if (cta.sceneIndex === 2) statusLabel = 'Pricing required';
+    else statusLabel = 'Setup required';
+  } else if (cta.kind === 'manage_schedules') {
+    statusLabel = 'Ready';
+  } else if (missingLabels.length > 0) {
+    statusLabel = 'Setup required';
+  }
+
   return {
     rows,
     missingSummary: missingLabels.length > 0 ? `Missing: ${missingLabels.join(', ')}` : null,
+    statusLabel,
     cta,
     readySchedules: ready.length,
     draftSchedules,

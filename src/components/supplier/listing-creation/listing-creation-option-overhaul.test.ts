@@ -37,7 +37,7 @@ describe('tour option creation overhaul (source contracts)', () => {
 
   it('Options overview is cards-only (no listing start/cutoff/timezone controls)', () => {
     const form = readFileSync(resolve(__dirname, '../../../pages/supplier/SupplierListingForm.tsx'), 'utf8');
-    expect(form).toContain('Create the different ways travelers can book your experience.');
+    expect(form).toContain('Ways travelers can book this experience.');
     expect(form).not.toContain('id="supplier-listing-experience-start"');
     expect(form).not.toContain('id="supplier-booking-cutoff"');
     expect(form).not.toContain('id="supplier-departure-timezone"');
@@ -156,12 +156,17 @@ describe('tour option creation overhaul (source contracts)', () => {
     expect(form).toContain("addEventListener('popstate'");
   });
 
-  it('renders compact option cards without bulky tile attention chrome', () => {
+  it('renders restrained option cards with labeled actions once each', () => {
     const card = read('TourOptionCard.tsx');
     const model = readFileSync(resolve(__dirname, '../../../lib/listing-option-card.ts'), 'utf8');
-    expect(card).toContain('Needs setup');
+    expect(card).toMatch(/>\s*Edit\s*<\/button>/);
+    expect(card).toMatch(/>\s*Duplicate\s*<\/button>/);
+    expect(card).toMatch(/onClick=\{onRequestDelete\}[\s\S]*>\s*Delete\s*<\/button>/);
+    expect(card).not.toContain('Edit details');
     expect(card).not.toContain('lc-tile--attention');
+    expect(card.match(/onClick=\{onEdit\}/g)?.length).toBe(1);
     expect(model).toContain("kind: 'manage_schedules'");
-    expect(model).toContain("label: 'Manage schedules'");
+    expect(model).toContain("label: 'Schedules'");
+    expect(model).toContain("statusLabel = 'Schedule required'");
   });
 });
