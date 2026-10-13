@@ -143,6 +143,16 @@ import {
   type ListingCreationSceneDirection,
 } from '../../lib/listing-creation-scenes';
 import {
+  TOUR_INFORMATION_SCENE_COUNT,
+  bumpInformationFarthest,
+  canAdvanceTourInformationScene,
+  clampTourInformationSceneIndex,
+  initialTourInformationSceneIndex,
+  nextTourInformationScene,
+  previousTourInformationScene,
+  tourInformationSceneForFocusSection,
+} from '../../lib/listing-information-scenes';
+import {
   STAY_HIGHLIGHT_MAX,
   STAY_HIGHLIGHT_MIN_VISIBLE,
   TOUR_EXCLUDE_MAX,
@@ -330,6 +340,61 @@ function writeBasicsSceneToStorage(editingId: string | null, scene: number) {
   }
 }
 
+function infoSceneStorageKey(editingId: string | null) {
+  return `traverion-listing-wizard-info-scene-v1-tour-${editingId ?? 'create'}`;
+}
+
+function infoFarthestStorageKey(editingId: string | null) {
+  return `traverion-listing-wizard-info-farthest-v1-tour-${editingId ?? 'create'}`;
+}
+
+function readInfoSceneFromStorage(editingId: string | null): number | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(infoSceneStorageKey(editingId));
+    if (!raw) return null;
+    const n = Number.parseInt(raw, 10);
+    if (Number.isNaN(n)) return null;
+    return clampTourInformationSceneIndex(n);
+  } catch {
+    return null;
+  }
+}
+
+function writeInfoSceneToStorage(editingId: string | null, scene: number) {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(infoSceneStorageKey(editingId), String(clampTourInformationSceneIndex(scene)));
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
+function readInfoFarthestFromStorage(editingId: string | null): number {
+  if (typeof window === 'undefined') return 0;
+  try {
+    const raw = sessionStorage.getItem(infoFarthestStorageKey(editingId));
+    if (!raw) return 0;
+    const n = Number.parseInt(raw, 10);
+    if (Number.isNaN(n)) return 0;
+    return clampTourInformationSceneIndex(n);
+  } catch {
+    return 0;
+  }
+}
+
+function writeInfoFarthestToStorage(editingId: string | null, farthest: number) {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(
+      infoFarthestStorageKey(editingId),
+      String(clampTourInformationSceneIndex(farthest))
+    );
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
 function listingDraftBackupKey(editingId: string | null) {
   return `traverion_listing_form_v1_${editingId ?? 'new'}`;
 }
@@ -345,6 +410,8 @@ function migrateListingEditorStorage(fromId: string | null, toId: string, isStay
     };
     copy(wizardStepStorageKey(fromId, isStay), wizardStepStorageKey(toId, isStay));
     copy(basicsSceneStorageKey(fromId), basicsSceneStorageKey(toId));
+    copy(infoSceneStorageKey(fromId), infoSceneStorageKey(toId));
+    copy(infoFarthestStorageKey(fromId), infoFarthestStorageKey(toId));
     copy(listingDraftBackupKey(fromId), listingDraftBackupKey(toId));
   } catch {
     // ignore quota / private mode
@@ -1251,10 +1318,9 @@ export default function SupplierListingForm({
   const [form, setForm] = useState<ListingFormState>(emptyForm);
   const [submitting, setSubmitting] = useState(false);
   const [publishBlockers, setPublishBlockers] = useState<string[] | null>(null);
-  const [infoForceExpand, setInfoForceExpand] = useState<'guest' | 'suitability' | 'contact' | null>(
-    null
-  );
   const isStayForm = form.inventoryFamily === 'stay' || createFamily === 'stay';
+  const infoEnterFromOptionsBackRef = useRef(false);
+  const infoPendingSceneRef = useRef<number | null>(null);
 
   const [stepIdx, setStepIdx] = useState(
     () => readWizardStepFromStorage(editingId, createFamily === 'stay') ?? 0
@@ -1281,6 +1347,35 @@ export default function SupplierListingForm({
         return clamped;
       });
       setBasicsSceneDirection(direction);
+    },
+    [editingId]
+  );
+  const [infoSceneIdx, setInfoSceneIdx] = useState(() =>
+    initialTourInformationSceneIndex({
+      stored: readInfoSceneFromStorage(editingId),
+      farthest: readInfoFarthestFromStorage(editingId),
+      focusSection,
+    })
+  );
+  const [infoSceneDirection, setInfoSceneDirection] =
+    useState<ListingCreationSceneDirection>('forward');
+  const [infoFarthest, setInfoFarthest] = useState(() =>
+    Math.max(readInfoFarthestFromStorage(editingId), readInfoSceneFromStorage(editingId) ?? 0)
+  );
+  const setInfoSceneIdxPersisted = useCallback(
+    (next: number | ((prev: number) => number), direction: ListingCreationSceneDirection = 'forward') => {
+      setInfoSceneIdx((prev) => {
+        const resolved = typeof next === 'function' ? next(prev) : next;
+        const clamped = clampTourInformationSceneIndex(resolved);
+        writeInfoSceneToStorage(editingId, clamped);
+        setInfoFarthest((far) => {
+          const bumped = bumpInformationFarthest(far, clamped);
+          writeInfoFarthestToStorage(editingId, bumped);
+          return bumped;
+        });
+        return clamped;
+      });
+      setInfoSceneDirection(direction);
     },
     [editingId]
   );
@@ -1616,6 +1711,29 @@ export default function SupplierListingForm({
       writeWizardStepToStorage(editingId, resolved, currentForm.inventoryFamily === 'stay');
       stepIdxRef.current = resolved;
       setStepIdx(resolved);
+      // Entering Information: restore sub-scene (Options Back → last; publish focus → pending).
+      if (currentForm.inventoryFamily !== 'stay' && resolved === 2 && prev !== 2) {
+        const pending = infoPendingSceneRef.current;
+        infoPendingSceneRef.current = null;
+        const fromOptionsBack = infoEnterFromOptionsBackRef.current;
+        infoEnterFromOptionsBackRef.current = false;
+        const scene =
+          pending != null
+            ? clampTourInformationSceneIndex(pending)
+            : initialTourInformationSceneIndex({
+                stored: readInfoSceneFromStorage(editingId),
+                farthest: readInfoFarthestFromStorage(editingId),
+                enterFromOptionsBack: fromOptionsBack,
+              });
+        setInfoSceneIdx(scene);
+        writeInfoSceneToStorage(editingId, scene);
+        setInfoFarthest((far) => {
+          const bumped = bumpInformationFarthest(far, scene);
+          writeInfoFarthestToStorage(editingId, bumped);
+          return bumped;
+        });
+        setInfoSceneDirection(fromOptionsBack || prev > 2 ? 'back' : 'forward');
+      }
     },
     [editingId]
   );
@@ -1900,6 +2018,16 @@ export default function SupplierListingForm({
       writeBasicsSceneToStorage(editingId, scene);
       setBasicsSceneIdx(scene);
     }
+    const infoScene = tourInformationSceneForFocusSection(focusSection);
+    if (infoScene !== null) {
+      writeInfoSceneToStorage(editingId, infoScene);
+      setInfoSceneIdx(infoScene);
+      setInfoFarthest((far) => {
+        const bumped = bumpInformationFarthest(far, infoScene);
+        writeInfoFarthestToStorage(editingId, bumped);
+        return bumped;
+      });
+    }
 
     const focusField = () => {
       const el = document.getElementById(`supplier-listing-field-${focusSection}`);
@@ -1958,7 +2086,7 @@ export default function SupplierListingForm({
   useEffect(() => {
     if (!stepContainerRef.current) return;
     stepContainerRef.current.scrollTo({ top: 0, behavior: 'auto' });
-  }, [stepIdx, basicsSceneIdx]);
+  }, [stepIdx, basicsSceneIdx, infoSceneIdx]);
 
   useEffect(() => {
     const html = document.documentElement;
@@ -2064,15 +2192,15 @@ export default function SupplierListingForm({
         setBasicsSceneIdxPersisted(scene, 'forward');
       }
       if (step === 2 && !isStayForm) {
-        if (/booking contact|phone number/.test(t)) setInfoForceExpand('contact');
-        else if (/know before|what to bring/.test(t)) setInfoForceExpand('guest');
-        else if (/accessib|not suitable|conflicts with|additional information/.test(t)) {
-          setInfoForceExpand(
-            /additional information/.test(t) ? 'contact' : 'suitability'
-          );
-        } else {
-          setInfoForceExpand('contact');
+        let infoScene = 2;
+        if (/know before|what to bring/.test(t)) infoScene = 0;
+        else if (/accessib|not suitable|conflicts with/.test(t) && !/additional information/.test(t)) {
+          infoScene = 1;
+        } else if (/booking contact|phone number|additional information|spoken language/.test(t)) {
+          infoScene = 2;
         }
+        infoPendingSceneRef.current = infoScene;
+        setInfoSceneIdxPersisted(infoScene, 'forward');
         window.setTimeout(() => {
           const el = document.getElementById(
             /booking contact|phone number/.test(t)
@@ -2093,7 +2221,7 @@ export default function SupplierListingForm({
         }, 80);
       }
     },
-    [isStayForm, setStepIdxPersisted, setBasicsSceneIdxPersisted]
+    [isStayForm, setStepIdxPersisted, setBasicsSceneIdxPersisted, setInfoSceneIdxPersisted]
   );
 
   const bookingContactPhoneError = useMemo(() => {
@@ -2984,7 +3112,9 @@ export default function SupplierListingForm({
 
   const canContinueStep = () => canContinueListingStep(stepIdx, form, sessionOpenedAsCreateRef.current === true);
   const tourBasicsGuided = !isStayForm && stepIdx === 0;
+  const tourInformationGuided = !isStayForm && stepIdx === 2;
   const canContinueBasicsScene = canAdvanceTourBasicsScene(basicsSceneIdx, form);
+  const canContinueInfoScene = canAdvanceTourInformationScene(infoSceneIdx);
   const tourBasicsContinueHint = !canContinueBasicsScene
     ? basicsSceneIdx === 0 && !isTourProductTypeSatisfied(form)
       ? 'Choose a product type to continue.'
@@ -3190,10 +3320,23 @@ export default function SupplierListingForm({
                     setBasicsSceneIdxPersisted(previousTourBasicsScene(basicsSceneIdx), 'back');
                     return;
                   }
+                  if (tourInformationGuided && infoSceneIdx > 0) {
+                    setInfoSceneIdxPersisted(previousTourInformationScene(infoSceneIdx), 'back');
+                    return;
+                  }
+                  if (stepIdx === 3 && !isStayForm) {
+                    infoEnterFromOptionsBackRef.current = true;
+                  }
                   setStepIdxPersisted((s) => Math.max(0, s - 1));
                 }}
                 disabled={
-                  (tourBasicsGuided ? basicsSceneIdx === 0 : stepIdx === 0) || draftCloseBusy || submitting
+                  (tourBasicsGuided
+                    ? basicsSceneIdx === 0
+                    : tourInformationGuided
+                      ? false
+                      : stepIdx === 0) ||
+                  draftCloseBusy ||
+                  submitting
                 }
                 className="touch-manipulation tv-btn-ghost !min-h-11 w-full sm:w-auto disabled:opacity-50"
               >
@@ -3225,10 +3368,21 @@ export default function SupplierListingForm({
                           setBasicsSceneIdxPersisted(nextTourBasicsScene(basicsSceneIdx), 'forward');
                           return;
                         }
+                        if (
+                          tourInformationGuided &&
+                          infoSceneIdx < TOUR_INFORMATION_SCENE_COUNT - 1
+                        ) {
+                          setInfoSceneIdxPersisted(nextTourInformationScene(infoSceneIdx), 'forward');
+                          return;
+                        }
                         setStepIdxPersisted((s) => Math.min(steps.length - 1, s + 1));
                       }}
                       disabled={
-                        (tourBasicsGuided ? !canContinueBasicsScene : !canContinueStep()) ||
+                        (tourBasicsGuided
+                          ? !canContinueBasicsScene
+                          : tourInformationGuided
+                            ? !canContinueInfoScene || !canContinueStep()
+                            : !canContinueStep()) ||
                         draftCloseBusy ||
                         submitting
                       }
@@ -3976,7 +4130,13 @@ export default function SupplierListingForm({
                 bookingContactPhoneE164: form.bookingContactPhoneE164,
               }}
               onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
-              forceExpandSection={infoForceExpand}
+              sceneIndex={infoSceneIdx}
+              direction={infoSceneDirection}
+              farthestReached={infoFarthest}
+              allowDirectSceneAccess={Boolean(editingId)}
+              onSelectScene={(index) =>
+                setInfoSceneIdxPersisted(index, index >= infoSceneIdx ? 'forward' : 'back')
+              }
               phoneError={bookingContactPhoneError}
               businessCountry={form.country}
               showPhoneRequired

@@ -1,7 +1,7 @@
 import { Check } from 'lucide-react';
 
 /**
- * Substep progress for Basics / Options / Schedule guided flows.
+ * Substep progress for Basics / Information / Options / Schedule guided flows.
  * Shows short labels with current / complete / upcoming states (readiness-based).
  */
 export function ListingCreationSceneProgress({
