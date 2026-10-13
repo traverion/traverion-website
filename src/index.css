@@ -838,11 +838,12 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
   }
 }
 
-/* Option editor — full-viewport layer over the listing wizard (no modal/backdrop). */
+/* Option editor — full-viewport layer over the listing wizard (no modal/backdrop).
+ * Must sit ABOVE the listing shell (z-[80]) and BELOW the schedule layer (z-index: 95). */
 .listing-creation-option-layer {
   position: fixed;
   inset: 0;
-  z-index: 70;
+  z-index: 90;
   display: flex;
   flex-direction: column;
   background: #fffcf8;

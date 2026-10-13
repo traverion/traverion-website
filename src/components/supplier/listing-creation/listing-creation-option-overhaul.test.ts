@@ -125,6 +125,31 @@ describe('tour option creation overhaul (source contracts)', () => {
     expect(css).not.toContain('listing-creation-option-backdrop');
   });
 
+  it('stacks the option editor above the listing shell and below the schedule layer', () => {
+    const form = readFileSync(resolve(__dirname, '../../../pages/supplier/SupplierListingForm.tsx'), 'utf8');
+    // Listing wizard shell — regression: option layer used to sit at z-70 and open behind this.
+    expect(form).toMatch(/fixed inset-0 z-\[80\]/);
+    const optionBlock = css.slice(css.indexOf('.listing-creation-option-layer {'));
+    expect(optionBlock.slice(0, 220)).toMatch(/z-index:\s*90/);
+    const scheduleBlock = css.slice(css.indexOf('.listing-creation-schedule-layer {'));
+    expect(scheduleBlock.slice(0, 200)).toMatch(/z-index:\s*95/);
+  });
+
+  it('wires Add option and Edit to openOptionModalCreate / openOptionModalEdit', () => {
+    const form = readFileSync(resolve(__dirname, '../../../pages/supplier/SupplierListingForm.tsx'), 'utf8');
+    const card = read('TourOptionCard.tsx');
+    expect(form).toContain('onClick={() => openOptionModalCreate()}');
+    expect(form).toContain('onEdit={() => openOptionModalEdit(opt.id)}');
+    expect(form).toContain('setOptionModalOpen(true)');
+    expect(form).toContain('createEmptyBookingOption()');
+    expect(form).toContain('<TourOptionWorkspace');
+    expect(form).toContain('tourOptionGuided && optionModalDraft');
+    expect(card).toContain('onClick={onEdit}');
+    expect(card).toContain('onClick={onDuplicate}');
+    expect(card).toContain('onClick={onRequestDelete}');
+    expect(card).toContain('onClick={onPrimary}');
+  });
+
   it('keeps option scene questions aligned with the compact overhaul copy', () => {
     const progression = readFileSync(
       resolve(__dirname, '../../../lib/listing-option-progression.ts'),

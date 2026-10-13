@@ -45,10 +45,18 @@ export function writeOptionEditorUrl(
   const next = `${url.pathname}${url.search}${url.hash}`;
   const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
   if (next === current && mode === 'replace') return;
+  // Preserve existing history.state (e.g. supplierListingEditor token) so Back from the
+  // option editor does not look like leaving the listing wizard.
+  const prev = window.history.state;
+  const base =
+    typeof prev === 'object' && prev !== null
+      ? { ...(prev as Record<string, unknown>) }
+      : ({} as Record<string, unknown>);
+  const nextState = { ...base, traverionOptionEditor: Boolean(state) };
   if (mode === 'push') {
-    window.history.pushState({ traverionOptionEditor: Boolean(state) }, '', next);
+    window.history.pushState(nextState, '', next);
   } else {
-    window.history.replaceState({ traverionOptionEditor: Boolean(state) }, '', next);
+    window.history.replaceState(nextState, '', next);
   }
 }
 
