@@ -12,7 +12,6 @@ import {
   PRICE_CATEGORY_KIND_PRESETS,
 } from '../../../lib/price-categories';
 import {
-  formatSupplierEarningsPreview,
   previewSupplierEarningsFromGross,
   SUPPLIER_PRICING_PREVIEW_COMMISSION_BPS,
 } from '../../../lib/supplier-pricing-preview';
@@ -26,55 +25,90 @@ function patchCategory(
   return cats.map((c) => (c.id === id ? { ...c, ...patch } : c));
 }
 
-function GrossNetPriceFields({
+function parsePriceInput(raw: string): number {
+  if (raw.trim() === '') return 0;
+  return Math.max(0, Number(raw) || 0);
+}
+
+function CustomerPriceInput({
   id,
-  label,
+  currencyLabel,
+  value,
+  onChange,
+  ariaLabel,
+}: {
+  id: string;
+  currencyLabel: string;
+  value: number;
+  onChange: (n: number) => void;
+  ariaLabel?: string;
+}) {
+  return (
+    <div className="relative">
+      <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-[12px] text-ink-muted">
+        {currencyLabel}
+      </span>
+      <input
+        id={id}
+        type="number"
+        min={0}
+        step={0.01}
+        inputMode="decimal"
+        aria-label={ariaLabel}
+        value={value > 0 ? value : ''}
+        onChange={(e) => onChange(parsePriceInput(e.target.value))}
+        className="tv-input !min-h-10 w-full pl-12 tabular-nums"
+      />
+    </div>
+  );
+}
+
+function YouReceiveValue({
+  gross,
+  formatAmount,
+}: {
+  gross: number;
+  formatAmount: (n: number) => string;
+}) {
+  const preview = previewSupplierEarningsFromGross(gross);
+  return (
+    <p className="flex min-h-10 items-center text-[15px] font-semibold tabular-nums tracking-tight text-ink">
+      {preview ? formatAmount(preview.supplierMajor) : '—'}
+    </p>
+  );
+}
+
+function GrossNetPair({
+  id,
   currencyLabel,
   value,
   onChange,
   formatAmount,
 }: {
   id: string;
-  label: string;
   currencyLabel: string;
   value: number;
   onChange: (n: number) => void;
   formatAmount: (n: number) => string;
 }) {
-  const preview = previewSupplierEarningsFromGross(value);
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:items-end">
+    <div className="grid max-w-lg grid-cols-1 gap-4 sm:grid-cols-2">
       <div>
-        <label htmlFor={id} className="mb-1 block text-[12.5px] font-semibold text-ink">
-          {label} ({currencyLabel}) *
+        <label htmlFor={id} className="mb-1.5 block text-[12.5px] font-semibold text-ink">
+          Customer price
         </label>
-        <input
+        <CustomerPriceInput
           id={id}
-          type="number"
-          min={0}
-          step={0.01}
-          inputMode="decimal"
-          value={value > 0 ? value : ''}
-          onChange={(e) => {
-            const raw = e.target.value;
-            if (raw.trim() === '') {
-              onChange(0);
-              return;
-            }
-            onChange(Math.max(0, Number(raw) || 0));
-          }}
-          className="tv-input w-full"
+          currencyLabel={currencyLabel}
+          value={value}
+          onChange={onChange}
         />
-        <p className="mt-1 text-[11px] text-ink-muted">Customer price (gross)</p>
       </div>
       <div>
-        <p className="mb-1 text-[12.5px] font-semibold text-ink">You receive</p>
-        <p className="flex min-h-10 items-center rounded-lg border border-black/[0.08] bg-black/[0.02] px-3 text-[14px] font-medium tabular-nums text-ink">
-          {preview ? formatAmount(preview.supplierMajor) : '—'}
-        </p>
-        <p className="mt-1 text-[11px] text-ink-muted">
-          After {formatBpsAsPercent(SUPPLIER_PRICING_PREVIEW_COMMISSION_BPS)} Traverion commission
-          {preview ? ` (${formatAmount(preview.commissionMajor)})` : ''}
+        <p className="mb-1.5 text-[12.5px] font-semibold text-ink">You receive</p>
+        <YouReceiveValue gross={value} formatAmount={formatAmount} />
+        <p className="mt-1 text-[11px] leading-snug text-ink-muted">
+          After {formatBpsAsPercent(SUPPLIER_PRICING_PREVIEW_COMMISSION_BPS)} commission
         </p>
       </div>
     </div>
@@ -133,15 +167,13 @@ export function SchedulePricingEditor({
   if (groupPricing) {
     const gross = option.privateGroupPriceUsd || option.priceUsd || 0;
     return (
-      <div id="supplier-listing-field-price" className="space-y-3">
-        <p className="text-[13px] font-medium text-ink">Whole-group price</p>
-        <p className="text-[12px] text-ink-muted">
-          One customer price for the entire party. Estimated earnings use the standard{' '}
+      <div id="supplier-listing-field-price" className="space-y-4">
+        <p className="text-[12.5px] leading-snug text-ink-muted">
+          One price for the whole party. You receive is after{' '}
           {formatBpsAsPercent(SUPPLIER_PRICING_PREVIEW_COMMISSION_BPS)} Traverion commission.
         </p>
-        <GrossNetPriceFields
+        <GrossNetPair
           id="booking-option-group-price"
-          label="Customer price"
           currencyLabel={currencyLabel}
           value={gross}
           formatAmount={formatAmount}
@@ -152,12 +184,16 @@ export function SchedulePricingEditor({
   }
 
   return (
-    <div id="supplier-listing-field-price" className="space-y-4">
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+    <div id="supplier-listing-field-price" className="space-y-5">
+      <div
+        className="inline-flex rounded-lg border border-black/[0.1] p-0.5"
+        role="radiogroup"
+        aria-label="Pricing model"
+      >
         {(
           [
-            { value: 'uniform' as const, title: 'Same price for everyone', hint: 'One per-person price' },
-            { value: 'age_dependent' as const, title: 'Age-based pricing', hint: 'Adult, Child, Youth…' },
+            { value: 'uniform' as const, title: 'Same price' },
+            { value: 'age_dependent' as const, title: 'Age-based' },
           ] as const
         ).map((row) => {
           const selected = pricingMode === row.value;
@@ -166,79 +202,50 @@ export function SchedulePricingEditor({
               key={row.value}
               type="button"
               onClick={() => setPricingMode(row.value)}
-              className={`lc-choice rounded-lg px-3 py-2.5 text-left ${selected ? 'lc-choice--selected' : ''}`}
+              className={`rounded-md px-3.5 py-2 text-[13px] font-semibold transition-colors ${
+                selected
+                  ? 'bg-finland text-white'
+                  : 'text-ink-muted hover:bg-black/[0.03] hover:text-ink'
+              }`}
               aria-pressed={selected}
             >
-              <span className="block text-[13px] font-semibold text-ink">{row.title}</span>
-              <span className="mt-0.5 block text-[11.5px] text-ink-muted">{row.hint}</span>
+              {row.title}
             </button>
           );
         })}
       </div>
 
-      <p className="text-[11.5px] text-ink-muted">
-        Customer price is what travelers pay. You receive is estimated after{' '}
-        {formatBpsAsPercent(SUPPLIER_PRICING_PREVIEW_COMMISSION_BPS)} Traverion commission (before
-        taxes or other adjustments).
+      <p className="text-[12px] leading-snug text-ink-muted">
+        Customer price is what travelers pay. You receive is after{' '}
+        {formatBpsAsPercent(SUPPLIER_PRICING_PREVIEW_COMMISSION_BPS)} Traverion commission.
       </p>
 
       {pricingMode === 'uniform' ? (
-        <GrossNetPriceFields
+        <GrossNetPair
           id="booking-option-unit-price"
-          label="Customer price"
           currencyLabel={currencyLabel}
           value={option.priceUsd || 0}
           formatAmount={formatAmount}
           onChange={(n) => onChange({ priceUsd: n })}
         />
       ) : (
-        <div className="space-y-2">
-          <div className="hidden grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_auto] gap-2 px-1 text-[11px] font-medium uppercase tracking-wide text-ink-muted sm:grid">
-            <span>Category</span>
-            <span>Age range</span>
-            <span>Customer price</span>
-            <span>You receive</span>
-            <span className="sr-only">Actions</span>
-          </div>
-          <ul className="divide-y divide-black/[0.08] rounded-lg border border-black/[0.08] bg-white">
+        <div className="space-y-2.5">
+          <ul className="divide-y divide-black/[0.07] rounded-lg border border-black/[0.08] bg-white">
             {categories.map((c) => {
               const expanded = expandedId === c.id;
               return (
-                <li key={c.id} className="px-3 py-2.5">
-                  <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_auto]">
-                    <p className="truncate text-[13px] font-semibold text-ink">{c.label || 'Category'}</p>
-                    <p className="text-[12.5px] text-ink-muted">
-                      {formatPriceCategoryAgeRange(c) || 'Not set'}
-                      {c.requiresAdult ? ' · Adult required' : ''}
-                    </p>
-                    <div>
-                      <label className="sr-only" htmlFor={`sch-cat-price-${c.id}`}>
-                        Customer price for {c.label}
-                      </label>
-                      <div className="flex items-center gap-1">
-                        <span className="text-[12px] text-ink-muted">{currencyLabel}</span>
-                        <input
-                          id={`sch-cat-price-${c.id}`}
-                          type="number"
-                          min={0}
-                          step={0.01}
-                          inputMode="decimal"
-                          value={c.priceUsd > 0 ? c.priceUsd : ''}
-                          onChange={(e) =>
-                            onChange({
-                              priceCategories: patchCategory(categories, c.id, {
-                                priceUsd: Math.max(0, Number(e.target.value) || 0),
-                              }),
-                            })
-                          }
-                          className="tv-input !min-h-9 w-full"
-                        />
-                      </div>
+                <li key={c.id} className="px-3.5 py-3 sm:px-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[13.5px] font-semibold tracking-tight text-ink">
+                        {c.label || 'Category'}
+                      </p>
+                      <p className="mt-0.5 text-[12px] text-ink-muted">
+                        {formatPriceCategoryAgeRange(c) || 'Age range not set'}
+                        {c.requiresAdult ? ' · Adult required' : ''}
+                      </p>
                     </div>
-                    <p className="text-[13px] font-medium tabular-nums text-ink">
-                      {formatSupplierEarningsPreview(c.priceUsd, formatAmount)}
-                    </p>
-                    <div className="flex items-center gap-0.5 justify-self-end">
+                    <div className="flex shrink-0 items-center gap-0.5">
                       <button
                         type="button"
                         onClick={() => setExpandedId(expanded ? null : c.id)}
@@ -246,7 +253,7 @@ export function SchedulePricingEditor({
                         aria-expanded={expanded}
                       >
                         <Pencil className="h-3.5 w-3.5" aria-hidden />
-                        Edit
+                        <span className="hidden sm:inline">Edit</span>
                       </button>
                       <button
                         type="button"
@@ -260,8 +267,35 @@ export function SchedulePricingEditor({
                       </button>
                     </div>
                   </div>
+
+                  <div className="mt-3 grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2 sm:max-w-md">
+                    <div>
+                      <label
+                        htmlFor={`sch-cat-price-${c.id}`}
+                        className="mb-1.5 block text-[12px] font-semibold text-ink"
+                      >
+                        Customer price
+                      </label>
+                      <CustomerPriceInput
+                        id={`sch-cat-price-${c.id}`}
+                        currencyLabel={currencyLabel}
+                        value={c.priceUsd}
+                        ariaLabel={`Customer price for ${c.label || 'category'}`}
+                        onChange={(n) =>
+                          onChange({
+                            priceCategories: patchCategory(categories, c.id, { priceUsd: n }),
+                          })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <p className="mb-1.5 text-[12px] font-semibold text-ink">You receive</p>
+                      <YouReceiveValue gross={c.priceUsd} formatAmount={formatAmount} />
+                    </div>
+                  </div>
+
                   {expanded ? (
-                    <div className="mt-2.5 grid grid-cols-2 gap-2 border-t border-black/[0.06] pt-2.5 sm:max-w-md">
+                    <div className="mt-3 grid max-w-md grid-cols-2 gap-2.5 border-t border-black/[0.06] pt-3">
                       <div className="col-span-2">
                         <label
                           htmlFor={`sch-cat-label-${c.id}`}
@@ -354,7 +388,8 @@ export function SchedulePricingEditor({
               );
             })}
           </ul>
-          <div className="flex flex-wrap gap-1.5">
+
+          <div className="flex flex-wrap gap-1">
             {PRICE_CATEGORY_KIND_PRESETS.filter(
               (p) => !categories.some((c) => c.kind === p.kind && c.kind !== 'participant')
             ).map((p) => (
@@ -365,7 +400,7 @@ export function SchedulePricingEditor({
                 className="lux-flat inline-flex min-h-8 items-center gap-1 rounded-md px-2.5 text-[12px] font-semibold text-finland hover:bg-finland/[0.06]"
               >
                 <Plus className="h-3.5 w-3.5" aria-hidden />
-                Add {p.label}
+                {p.label}
               </button>
             ))}
           </div>
