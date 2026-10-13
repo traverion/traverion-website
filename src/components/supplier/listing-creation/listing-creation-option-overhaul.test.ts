@@ -23,10 +23,17 @@ describe('tour option creation overhaul (source contracts)', () => {
     expect(block.slice(0, 200)).toMatch(/z-index: (9\d|1\d\d)/);
   });
 
-  it('portals the schedule workspace to document.body', () => {
+  it('portals a fullscreen schedule workspace matching the option editor shell', () => {
     const src = read('TourScheduleWorkspace.tsx');
     expect(src).toContain('createPortal(layer, document.body)');
     expect(src).toContain('Back to option');
+    expect(src).toContain('listing-creation-schedule-rail');
+    expect(src).toContain('Finish schedule');
+    expect(src).not.toContain('listing-creation-schedule-backdrop');
+    expect(src).not.toContain('aria-label="Where you are"');
+    expect(src).toMatch(/optionLabel|option\.name/);
+    expect(css).toMatch(/\.listing-creation-schedule-workspace \{[^}]*flex-direction: row/s);
+    expect(css).not.toContain('listing-creation-schedule-backdrop');
   });
 
   it('imports the schedule prerequisite check used by Add schedule', () => {

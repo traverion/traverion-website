@@ -36,12 +36,16 @@ function focusField(fieldId: string | null) {
   });
 }
 
+/**
+ * Full-screen schedule editor matching TourOptionWorkspace:
+ * left step rail → main header (option + schedule name) → fields → sticky footer.
+ */
 export function TourScheduleWorkspace({
   option,
   schedule,
   sceneIndex,
   isNewSchedule,
-  listingTitle,
+  listingTitle: _listingTitle,
   leaveOpen,
   onKeepEditing,
   onLeave,
@@ -66,7 +70,6 @@ export function TourScheduleWorkspace({
   sceneIndex: number;
   isNewSchedule: boolean;
   listingTitle: string;
-  /** Unsaved-changes confirmation, rendered inside this layer so it always sits above the schedule. */
   leaveOpen: boolean;
   onKeepEditing: () => void;
   onLeave: () => void;
@@ -89,6 +92,7 @@ export function TourScheduleWorkspace({
   const headingRef = useRef<HTMLHeadingElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
+  const hintId = useId();
   const scene = TOUR_SCHEDULE_SCENES[sceneIndex] ?? TOUR_SCHEDULE_SCENES[0];
   const navItems = tourScheduleContextNavItems(sceneIndex, { isNewSchedule, schedule, option });
   const optionView = applyScheduleToOption(
@@ -99,11 +103,21 @@ export function TourScheduleWorkspace({
     schedule
   );
   const lastScene = sceneIndex >= TOUR_SCHEDULE_SCENE_COUNT - 1;
-  const title = isNewSchedule ? 'New schedule' : scheduleHeadlineName(schedule, 0);
+  const scheduleLabel = schedule.name.trim() || (isNewSchedule ? 'New schedule' : scheduleHeadlineName(schedule, 0));
+  const optionLabel = option.name.trim() || 'Untitled option';
 
   useEffect(() => {
     headingRef.current?.focus();
   }, [sceneIndex]);
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    dialogRef.current?.focus();
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
 
   useEffect(() => {
     const node = dialogRef.current;
@@ -138,7 +152,6 @@ export function TourScheduleWorkspace({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || e.defaultPrevented) return;
-      // Open PartnerSelect menus handle their own Escape first.
       if (dialogRef.current?.querySelector('[role="listbox"]')) return;
       e.preventDefault();
       if (leaveOpen) onKeepEditing();
@@ -167,182 +180,179 @@ export function TourScheduleWorkspace({
     onChange(next);
   };
 
+  const selectScene = (index: number) => {
+    if (
+      !canVisitTourScheduleScene({
+        targetIndex: index,
+        isNewSchedule,
+        schedule,
+        option,
+      })
+    ) {
+      focusField(firstScheduleIssueFocusId(schedule, { startMode: option.startMode }));
+      return;
+    }
+    onSelectScene(index);
+  };
+
   const layer = (
     <div className="listing-creation-schedule-layer" role="presentation">
-      <button
-        type="button"
-        className="listing-creation-schedule-backdrop"
-        aria-label="Close schedule"
-        onClick={onCancel}
-      />
       <div
         ref={dialogRef}
         className="listing-creation-schedule-workspace listing-creation-schedule-workspace--enter"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        tabIndex={-1}
       >
-        <header className="listing-creation-schedule-header">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              <button
-                type="button"
-                onClick={onCancel}
-                className="lux-flat inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-finland hover:underline"
-              >
-                <span aria-hidden>←</span> Back to option
-              </button>
-              <nav aria-label="Where you are" className="mt-1">
-                <ol className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
-                  <li className="max-w-[12rem] truncate">{listingTitle.trim() || 'Tour'}</li>
-                  <li aria-hidden>›</li>
-                  <li className="max-w-[12rem] truncate">{option.name.trim() || 'Option'}</li>
-                  <li aria-hidden>›</li>
-                  <li>Schedule</li>
-                  <li aria-hidden>›</li>
-                  <li aria-current="page" className="text-ink">
-                    {scene.label}
-                  </li>
-                </ol>
-              </nav>
-              <h3
-                ref={headingRef}
-                id={titleId}
-                tabIndex={-1}
-                className="mt-1 font-display text-[1.85rem] font-bold leading-tight tracking-tight text-ink outline-none sm:text-[2.1rem]"
-              >
-                {title}
-              </h3>
-            </div>
-            <p
-              className={`pt-2 text-xs tabular-nums ${
-                persistLabel === 'Save failed' ? 'font-medium text-red-700' : 'text-ink-muted'
-              }`}
-              aria-live="polite"
+        <aside className="listing-creation-schedule-rail hidden h-full min-h-0 w-[15rem] shrink-0 flex-col overflow-hidden border-r border-black/[0.08] bg-[#f7f4ef] lg:flex xl:w-[15.5rem]">
+          <div className="px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="lux-flat inline-flex min-h-9 items-center text-[13px] font-medium text-ink-muted hover:text-ink"
             >
-              {persistLabel ?? ''}
+              ← Back to option
+            </button>
+            <p className="mt-5 text-[1.05rem] font-semibold leading-snug tracking-tight text-ink" title={scheduleLabel}>
+              {scheduleLabel}
             </p>
+            <p className="mt-1 truncate text-[12px] text-ink-muted" title={optionLabel}>
+              {optionLabel}
+            </p>
+            <div className="mt-2 min-h-4">
+              {persistLabel ? (
+                <p
+                  className={`text-[11px] tabular-nums ${
+                    persistLabel === 'Save failed' || persistLabel === 'Unsaved changes'
+                      ? 'font-medium text-ink-muted'
+                      : 'text-ink-muted'
+                  }`}
+                  aria-live="polite"
+                >
+                  {persistLabel}
+                </p>
+              ) : null}
+            </div>
           </div>
-          <nav aria-label="Schedule steps" className="mt-4">
-            <ol className="flex flex-wrap gap-1">
+          <nav aria-label="Schedule steps" className="min-h-0 flex-1 overflow-y-auto px-2 pb-6">
+            <ol className="space-y-0.5">
               {navItems.map((item, index) => (
                 <li key={item.id}>
                   <ListingCreationNavButton
-                    item={{ ...item, label: `${index + 1} ${item.label}` }}
-                    onClick={() => {
-                      if (
-                        !canVisitTourScheduleScene({
-                          targetIndex: index,
-                          isNewSchedule,
-                          schedule,
-                          option,
-                        })
-                      ) {
-                        focusField(firstScheduleIssueFocusId(schedule, { startMode: option.startMode }));
-                        return;
-                      }
-                      onSelectScene(index);
-                    }}
+                    item={item}
+                    step={index + 1}
+                    onClick={() => selectScene(index)}
                   />
                 </li>
               ))}
             </ol>
           </nav>
-        </header>
-        <div className="listing-creation-schedule-body">
-          {saveError ? (
-            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3" role="alert">
-              <p className="text-sm font-semibold text-ink">Couldn’t save this schedule. Your changes are still here.</p>
-              <p className="mt-1 text-sm text-ink-muted">{saveError}</p>
-            </div>
-          ) : null}
-          {scene.id === 'review' ? (
-            <ScheduleReview
-              schedule={schedule}
-              option={option}
-              formatAmount={formatAmount}
-              onEdit={(id) => onSelectScene(TOUR_SCHEDULE_SCENES.findIndex((s) => s.id === id))}
-            />
-          ) : (
-            <div className="w-full max-w-2xl">
-              {scene.id === 'when' ? (
-                <div className="mb-5">
-                  <label htmlFor="supplier-schedule-name" className="mb-1 block text-sm font-semibold text-ink">
-                    Schedule name
-                  </label>
-                  <input
-                    id="supplier-schedule-name"
-                    type="text"
-                    value={schedule.name}
-                    onChange={(e) => onChange({ name: e.target.value })}
-                    className="tv-input w-full"
-                    placeholder="September pricing"
-                  />
-                  <p className="mt-1 text-xs text-ink-muted">
-                    Optional. You can add multiple schedules on this option (e.g. different seasons or times).
-                  </p>
-                </div>
-              ) : null}
-              <div
-                id={
-                  scene.id === 'when'
-                    ? 'supplier-schedule-field-from'
-                    : 'supplier-schedule-field-price'
-                }
-              >
-                <BookingOptionEditor
-                  option={optionView}
-                  currencyLabel={currencyLabel}
-                  hasEndingDate={hasEndingDate}
-                  onHasEndingDateChange={onHasEndingDateChange}
-                  onChange={patchFromOption}
-                  activeSection={scene.id === 'when' ? 'availability' : 'price_capacity'}
-                  attempted={attempted}
-                />
-              </div>
-            </div>
-          )}
-        </div>
-        <footer className="listing-creation-schedule-footer">
-          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-col-reverse gap-2 sm:flex-row">
-              <button type="button" onClick={onCancel} className="tv-btn-ghost !min-h-11 w-full sm:w-auto">
-                Cancel
-              </button>
-              {sceneIndex > 0 ? (
-                <button type="button" onClick={onBack} className="tv-btn-ghost !min-h-11 w-full sm:w-auto">
-                  Back
-                </button>
-              ) : null}
-            </div>
-            <div className="flex min-w-0 flex-col items-stretch gap-2 sm:items-end">
-              <div className="flex flex-col-reverse gap-2 sm:flex-row">
-                <button type="button" onClick={onSaveDraft} className="tv-btn-secondary !min-h-11 w-full sm:w-auto">
-                  Save draft
-                </button>
-                {lastScene ? (
-                  <button type="button" onClick={onSaveReady} className="tv-btn-primary !min-h-11 w-full sm:w-auto">
-                    Save schedule
-                  </button>
-                ) : (
-                  <button type="button" onClick={onContinue} className="tv-btn-primary !min-h-11 w-full sm:w-auto">
-                    Continue
-                  </button>
-                )}
-              </div>
-              {continueHint ? (
-                <p
-                  className="listing-creation-hint px-0.5 text-[12px] leading-relaxed text-ink-muted sm:text-right"
-                  role="status"
+        </aside>
+
+        <div className="listing-creation-schedule-main flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#fffcf8]">
+          <header className="listing-creation-schedule-header shrink-0 border-b border-black/[0.07] px-4 py-3 sm:px-6 lg:px-8">
+            <div className="mx-auto flex w-full max-w-[56rem] flex-wrap items-start justify-between gap-x-4 gap-y-2">
+              <div className="min-w-0 flex-1">
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  className="lux-flat mb-1 inline-flex min-h-8 items-center gap-1 text-[12.5px] font-semibold text-finland hover:underline lg:hidden"
                 >
-                  {continueHint}
+                  <span aria-hidden>←</span> Back to option
+                </button>
+                <p className="truncate text-[11px] leading-tight text-ink-muted" title={optionLabel}>
+                  {optionLabel}
+                </p>
+                <h2
+                  ref={headingRef}
+                  id={titleId}
+                  tabIndex={-1}
+                  className="mt-0.5 text-[1.15rem] font-semibold leading-snug tracking-tight text-ink outline-none sm:text-[1.25rem]"
+                >
+                  {scheduleLabel}
+                </h2>
+              </div>
+              <p
+                className={`shrink-0 pt-0.5 text-[11px] tabular-nums lg:hidden ${
+                  persistLabel === 'Save failed' ? 'font-medium text-red-700' : 'text-ink-muted'
+                }`}
+                aria-live="polite"
+              >
+                {persistLabel ?? ''}
+              </p>
+            </div>
+          </header>
+
+          <div className="listing-creation-schedule-body min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-5 lg:px-8">
+            <div className="mx-auto w-full max-w-[56rem]">
+              {saveError ? (
+                <p className="mb-3 text-[12px] leading-snug text-red-800" role="alert">
+                  Couldn’t save — {saveError}
                 </p>
               ) : null}
-              {!isTourScheduleSceneSatisfied(sceneIndex, schedule, option) && attempted && !continueHint ? (
-                <p
-                  className="listing-creation-hint px-0.5 text-[12px] leading-relaxed text-ink-muted sm:text-right"
-                  role="status"
-                >
+
+              <h3 className="mb-4 text-[1.125rem] font-semibold leading-snug tracking-tight text-ink sm:text-[1.2rem]">
+                {scene.question}
+              </h3>
+
+              {scene.id === 'review' ? (
+                <ScheduleReview
+                  schedule={schedule}
+                  option={option}
+                  formatAmount={formatAmount}
+                  onEdit={(id) => onSelectScene(TOUR_SCHEDULE_SCENES.findIndex((s) => s.id === id))}
+                />
+              ) : (
+                <div className="w-full space-y-4">
+                  {scene.id === 'when' ? (
+                    <div>
+                      <label
+                        htmlFor="supplier-schedule-name"
+                        className="mb-1 block text-[13px] font-semibold text-ink"
+                      >
+                        Schedule name
+                      </label>
+                      <input
+                        id="supplier-schedule-name"
+                        type="text"
+                        value={schedule.name}
+                        onChange={(e) => onChange({ name: e.target.value })}
+                        className="tv-input w-full max-w-md"
+                        placeholder="e.g. Winter evenings"
+                      />
+                    </div>
+                  ) : null}
+                  <div
+                    id={
+                      scene.id === 'when'
+                        ? 'supplier-schedule-field-from'
+                        : 'supplier-schedule-field-price'
+                    }
+                  >
+                    <BookingOptionEditor
+                      option={optionView}
+                      currencyLabel={currencyLabel}
+                      hasEndingDate={hasEndingDate}
+                      onHasEndingDateChange={onHasEndingDateChange}
+                      onChange={patchFromOption}
+                      activeSection={scene.id === 'when' ? 'availability' : 'price_capacity'}
+                      attempted={attempted}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="listing-creation-schedule-footer shrink-0 border-t border-black/[0.07] px-4 py-2.5 pb-[max(0.65rem,env(safe-area-inset-bottom))] sm:px-6 lg:px-8">
+            <div className="mx-auto flex w-full max-w-[56rem] flex-col gap-1.5">
+              {continueHint ? (
+                <p id={hintId} className="text-[12px] leading-snug text-ink-muted" role="status">
+                  {continueHint}
+                </p>
+              ) : !isTourScheduleSceneSatisfied(sceneIndex, schedule, option) && attempted ? (
+                <p className="text-[12px] leading-snug text-ink-muted" role="status">
                   {tourScheduleLockedReason({
                     targetIndex: sceneIndex + 1,
                     schedule,
@@ -356,25 +366,70 @@ export function TourScheduleWorkspace({
                     })}
                 </p>
               ) : null}
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                <div>
+                  {sceneIndex > 0 ? (
+                    <button
+                      type="button"
+                      onClick={onBack}
+                      className="touch-manipulation tv-btn-ghost !min-h-10 w-full sm:w-auto"
+                    >
+                      Back
+                    </button>
+                  ) : (
+                    <span className="hidden sm:block sm:min-w-[4.5rem]" aria-hidden />
+                  )}
+                </div>
+                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:gap-2.5">
+                  <button
+                    type="button"
+                    onClick={onSaveDraft}
+                    className="touch-manipulation tv-btn-secondary !min-h-10 w-full sm:w-auto"
+                  >
+                    Save draft
+                  </button>
+                  {lastScene ? (
+                    <button
+                      type="button"
+                      onClick={onSaveReady}
+                      className="touch-manipulation tv-btn-primary !min-h-10 w-full sm:w-auto"
+                    >
+                      Finish schedule
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={onContinue}
+                      aria-describedby={continueHint ? hintId : undefined}
+                      className="touch-manipulation tv-btn-primary !min-h-10 w-full sm:w-auto"
+                    >
+                      Continue
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
-        </footer>
+        </div>
+
         {leaveOpen ? (
           <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
             <div
-              className="lc-section w-full max-w-sm rounded-xl px-5 py-5"
+              className="w-full max-w-sm rounded-xl border border-black/[0.08] bg-white px-5 py-5 shadow-lg"
               role="alertdialog"
               aria-labelledby="schedule-leave-title"
             >
-              <p id="schedule-leave-title" className="font-display text-lg font-bold text-ink">
+              <p id="schedule-leave-title" className="text-[15px] font-semibold text-ink">
                 Leave without saving changes?
               </p>
-              <p className="mt-2 text-sm text-ink-muted">This schedule still has edits that have not been saved.</p>
+              <p className="mt-2 text-[13px] text-ink-muted">
+                This schedule still has edits that have not been saved.
+              </p>
               <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                <button type="button" className="tv-btn-ghost !min-h-11" onClick={onKeepEditing}>
+                <button type="button" className="tv-btn-ghost !min-h-10" onClick={onKeepEditing}>
                   Keep editing
                 </button>
-                <button type="button" className="tv-btn-primary !min-h-11" onClick={onLeave}>
+                <button type="button" className="tv-btn-primary !min-h-10" onClick={onLeave}>
                   Leave
                 </button>
               </div>
@@ -385,7 +440,6 @@ export function TourScheduleWorkspace({
     </div>
   );
 
-  // Portal to <body> so no ancestor overflow/stacking context (option sheet, creation shell, form) can bury it.
   if (typeof document === 'undefined') return layer;
   return createPortal(layer, document.body);
 }
@@ -411,6 +465,7 @@ function ScheduleReview({
       title: 'When',
       ok: whenOk,
       body: [
+        schedule.name.trim() || null,
         formatScheduleRange(schedule.availabilityDateFrom, schedule.availabilityDateTo),
         formatScheduleWeekdays(schedule.weekdays),
         schedule.startTime.trim() || (option.startMode === 'flexible' ? 'Flexible hours' : ''),
@@ -432,20 +487,29 @@ function ScheduleReview({
 
   return (
     <div className="w-full max-w-xl space-y-3">
-      <p className="text-sm text-ink-muted">
-        {complete ? 'This schedule is complete and can be saved as ready.' : 'Finish the gaps below before this schedule can be ready.'}
+      <p className="text-[13px] text-ink-muted">
+        {complete
+          ? 'Ready to finish — this schedule can be saved.'
+          : 'Finish the gaps below before this schedule can be ready.'}
       </p>
       {rows.map((row) => (
-        <div key={row.id} className="lc-section rounded-xl px-4 py-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">{row.title}</p>
-              <p className="mt-2 text-sm text-ink">{row.body}</p>
-            </div>
-            <button type="button" onClick={() => onEdit(row.id)} className="tv-btn-ghost !min-h-10 shrink-0 px-3 text-xs">
-              Edit
-            </button>
+        <div
+          key={row.id}
+          className="flex items-start justify-between gap-3 border-b border-black/[0.06] py-3 last:border-b-0"
+        >
+          <div className="min-w-0">
+            <p className="text-[13px] font-semibold text-ink">{row.title}</p>
+            <p className={`mt-0.5 text-[12.5px] leading-snug ${row.ok ? 'text-ink' : 'text-ink-muted'}`}>
+              {row.body}
+            </p>
           </div>
+          <button
+            type="button"
+            onClick={() => onEdit(row.id)}
+            className="lux-flat shrink-0 rounded-md px-2 py-1 text-[12.5px] font-medium text-finland hover:bg-finland/[0.06]"
+          >
+            Edit
+          </button>
         </div>
       ))}
     </div>

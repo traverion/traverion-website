@@ -15,9 +15,9 @@ import { optionPricingMode, priceCategoryValidationMessages } from './price-cate
 import { scheduleChargeModelConflict } from './listing-option-charge-model';
 
 export const TOUR_SCHEDULE_SCENES = [
-  { id: 'when', label: 'When', question: 'When does this schedule apply?' },
-  { id: 'price_capacity', label: 'Price & capacity', question: 'What do travelers pay, and how many can join?' },
-  { id: 'review', label: 'Review', question: 'Does this schedule look right?' },
+  { id: 'when', label: 'When', question: 'When does this schedule run?' },
+  { id: 'price_capacity', label: 'Price & capacity', question: 'Price and capacity' },
+  { id: 'review', label: 'Review', question: 'Review this schedule' },
 ] as const;
 
 export type TourScheduleSceneId = (typeof TOUR_SCHEDULE_SCENES)[number]['id'];
