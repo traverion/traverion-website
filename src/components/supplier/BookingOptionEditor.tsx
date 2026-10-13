@@ -60,12 +60,18 @@ function Section({
   title,
   support,
   children,
+  /** Guided option scenes: no nested card / duplicate heading — scene frame owns the title. */
+  flat = false,
 }: {
   kicker: string;
   title: string;
   support?: string;
   children: ReactNode;
+  flat?: boolean;
 }) {
+  if (flat) {
+    return <div className="space-y-4">{children}</div>;
+  }
   return (
     <section className="lc-section space-y-5 rounded-2xl px-5 py-5 sm:px-6 sm:py-6">
       <div className="max-w-xl">
@@ -94,12 +100,12 @@ function ChoiceCard({
       type="button"
       onClick={onClick}
       aria-pressed={selected}
-      className={`lc-choice flex w-full items-start gap-3 rounded-2xl px-4 py-4 text-left sm:px-5 sm:py-5 ${
+      className={`lc-choice flex w-full items-start gap-2.5 rounded-xl px-3.5 py-3 text-left ${
         selected ? 'lc-choice--selected' : ''
       }`}
     >
       <span
-        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
+        className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${
           selected ? 'border-finland bg-finland' : 'border-black/25 bg-paper'
         }`}
         aria-hidden
@@ -107,8 +113,8 @@ function ChoiceCard({
         {selected ? <span className="h-1.5 w-1.5 rounded-full bg-white" /> : null}
       </span>
       <span className="min-w-0">
-        <span className="block text-sm font-bold text-ink sm:text-base">{title}</span>
-        <span className="mt-1 block text-xs leading-relaxed text-ink-muted sm:text-sm">{hint}</span>
+        <span className="block text-[13px] font-semibold text-ink sm:text-sm">{title}</span>
+        <span className="mt-0.5 block text-[12px] leading-snug text-ink-muted">{hint}</span>
       </span>
     </button>
   );
@@ -226,23 +232,26 @@ export default function BookingOptionEditor({
     attempted && (option.travelerStartInstructions ?? '').trim().length < 8;
   const startInvalid =
     attempted && option.startMode !== 'flexible' && !option.startTime.trim();
+  const guided = Boolean(activeSection);
 
   return (
-    <div className={`grid grid-cols-1 gap-6 ${activeSection ? '' : 'p-4 sm:p-5 lg:grid-cols-2 lg:gap-8'}`}>
+    <div
+      className={`grid grid-cols-1 ${
+        guided ? 'gap-5' : 'gap-6 p-4 sm:p-5 lg:grid-cols-2 lg:gap-8'
+      }`}
+    >
       {showSetup ? (
         <>
           <Section
+            flat={guided}
             kicker="Option identity"
             title="What travelers choose"
-            support="A category of this tour travelers pick — e.g. Small group or Bus. Pickup, meeting place, and departure times are set later for this option. Adult and Child prices belong in pricing, not as separate options."
+            support="A category of this tour travelers pick — e.g. Small group or Bus."
           >
-            <div id="supplier-listing-field-option-name">
-              <label htmlFor="booking-option-name" className="mb-1 block text-sm font-semibold text-ink">
+            <div id="supplier-listing-field-option-name" className="space-y-1.5">
+              <label htmlFor="booking-option-name" className="block text-[13px] font-semibold text-ink">
                 Option name *
               </label>
-              <p className="mb-1.5 text-xs text-ink-muted">
-                Short label for this category of the tour (not the clock time — times go on schedules).
-              </p>
               <input
                 id="booking-option-name"
                 type="text"
@@ -253,14 +262,10 @@ export default function BookingOptionEditor({
                 aria-invalid={nameInvalid || undefined}
               />
             </div>
-            <div id="supplier-listing-field-pickup">
-              <label htmlFor="booking-option-info" className="mb-1 block text-sm font-semibold text-ink">
+            <div id="supplier-listing-field-pickup" className="space-y-1.5">
+              <label htmlFor="booking-option-info" className="block text-[13px] font-semibold text-ink">
                 Why choose this option *
               </label>
-              <p className="mb-1.5 text-xs text-ink-muted">
-                Shown when travelers pick an option — what makes this one different (max{' '}
-                {TOUR_OPTION_INFO_MAX} characters).
-              </p>
               <textarea
                 id="booking-option-info"
                 value={option.optionInfo}
@@ -268,20 +273,18 @@ export default function BookingOptionEditor({
                 onChange={(e) =>
                   onChange({ optionInfo: e.target.value.slice(0, TOUR_OPTION_INFO_MAX) })
                 }
-                rows={3}
-                className="tv-input min-h-[5.5rem] resize-y"
+                rows={2}
+                className="tv-input min-h-[4.25rem] resize-y text-[15px]"
                 placeholder="e.g. Hotel pickup included · English guide · max 8 guests"
                 aria-invalid={infoInvalid || undefined}
               />
-              <p className="mt-1 text-xs tabular-nums text-ink-muted">
+              <p className="text-right text-[11px] tabular-nums text-ink-faint">
                 {option.optionInfo.length}/{TOUR_OPTION_INFO_MAX}
               </p>
             </div>
-          </Section>
-          <Section kicker="Timing" title="How long it runs">
-            <div id="supplier-listing-field-option-duration">
-              <label className="mb-1 block text-sm font-semibold text-ink">Duration *</label>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-3">
+            <div id="supplier-listing-field-option-duration" className="space-y-1.5">
+              <label className="block text-[13px] font-semibold text-ink">Duration *</label>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-2.5">
                 <div className="min-w-0 flex-1">
                   <label htmlFor="booking-option-duration-amount" className="sr-only">
                     Duration amount
@@ -302,7 +305,7 @@ export default function BookingOptionEditor({
                     placeholder="e.g. 5"
                   />
                 </div>
-                <div className="w-full shrink-0 sm:w-44">
+                <div className="w-full shrink-0 sm:w-40">
                   <label htmlFor="booking-option-duration-unit" className="sr-only">
                     Duration unit
                   </label>
@@ -327,30 +330,24 @@ export default function BookingOptionEditor({
                 </div>
               </div>
             </div>
-          </Section>
-          <Section
-            kicker="Start style"
-            title="How do departures work?"
-            support="Required before you can add schedules. Exact clock times are set on each schedule."
-          >
-            <div id="supplier-listing-field-option-start-mode" className="space-y-3">
-              <p className="text-sm font-semibold text-ink">Start time style *</p>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Start time style">
+            <div id="supplier-listing-field-option-start-mode" className="space-y-2">
+              <p className="text-[13px] font-semibold text-ink">Start time style *</p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Start time style">
                 <ChoiceCard
                   selected={option.startMode === 'fixed'}
                   title="Fixed start time"
-                  hint="Each schedule has a clock departure (e.g. 20:00)."
+                  hint="Each schedule has a clock departure."
                   onClick={() => onChange({ startMode: 'fixed' })}
                 />
                 <ChoiceCard
                   selected={option.startMode === 'flexible'}
-                  title="Flexible (operating hours)"
-                  hint="Operating days without a single fixed departure time."
+                  title="Flexible hours"
+                  hint="Operating days without a fixed clock time."
                   onClick={() => onChange({ startMode: 'flexible' })}
                 />
               </div>
               {attempted && !startModeChosen ? (
-                <p className="text-sm text-red-600" role="alert">
+                <p className="text-[12px] text-red-600" role="alert">
                   Choose fixed start time or flexible operating hours.
                 </p>
               ) : null}
@@ -361,28 +358,29 @@ export default function BookingOptionEditor({
 
       {showMeeting ? (
         <Section
+          flat={guided}
           kicker="Fulfillment"
           title="How travelers start this option"
           support="Choose one. Only the fields for that start apply."
         >
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <ChoiceCard
               selected={option.fulfillment === 'meeting_point'}
               title="Meeting point"
-              hint="Travelers come to a specified location."
+              hint="Guests arrive at a specified location."
               onClick={() => onChange({ fulfillment: 'meeting_point' })}
             />
             <ChoiceCard
               selected={option.fulfillment === 'pickup'}
               title="Pickup included"
-              hint="Travelers are collected from an eligible pickup area."
+              hint="Guests are collected from an eligible area."
               onClick={() => onChange({ fulfillment: 'pickup' })}
             />
           </div>
           {option.fulfillment || option.pickupPlace.trim() ? (
-            <div id="supplier-listing-field-meeting" className="space-y-4 listing-creation-hint">
-              <div>
-                <label htmlFor="booking-option-place" className="mb-1 block text-sm font-semibold text-ink">
+            <div id="supplier-listing-field-meeting" className="space-y-3.5">
+              <div className="space-y-1.5">
+                <label htmlFor="booking-option-place" className="block text-[13px] font-semibold text-ink">
                   {option.fulfillment === 'pickup' ? 'Pickup place *' : 'Meeting point *'}
                 </label>
                 <textarea
@@ -390,7 +388,7 @@ export default function BookingOptionEditor({
                   value={option.pickupPlace}
                   onChange={(e) => onChange({ pickupPlace: e.target.value })}
                   rows={2}
-                  className="tv-input"
+                  className="tv-input text-[15px]"
                   placeholder={
                     option.fulfillment === 'pickup'
                       ? 'e.g. Arctic City Hotel — or city hotel zone for this option'
@@ -399,10 +397,10 @@ export default function BookingOptionEditor({
                   aria-invalid={placeInvalid || undefined}
                 />
               </div>
-              <div>
+              <div className="space-y-1.5">
                 <label
                   htmlFor="booking-option-start-instructions"
-                  className="mb-1 block text-sm font-semibold text-ink"
+                  className="block text-[13px] font-semibold text-ink"
                 >
                   Traveler start instructions *
                 </label>
@@ -410,18 +408,15 @@ export default function BookingOptionEditor({
                   id="booking-option-start-instructions"
                   value={option.travelerStartInstructions ?? ''}
                   onChange={(e) => onChange({ travelerStartInstructions: e.target.value })}
-                  rows={3}
-                  className="tv-input"
+                  rows={2}
+                  className="tv-input text-[15px]"
                   placeholder={
                     option.fulfillment === 'pickup'
-                      ? 'e.g. Please wait outside the main entrance 10 minutes before pickup. The guide will arrive in a marked vehicle.'
-                      : 'e.g. Meet your guide outside the main entrance. Please arrive 15 minutes before departure.'
+                      ? 'e.g. Wait outside the main entrance 10 minutes before pickup.'
+                      : 'e.g. Meet your guide outside the main entrance; arrive 15 minutes early.'
                   }
                   aria-invalid={startInstructionsInvalid || undefined}
                 />
-                <p className="mt-1 text-xs text-ink-muted">
-                  How travelers successfully begin — separate from the place name above.
-                </p>
               </div>
             </div>
           ) : (
@@ -432,6 +427,7 @@ export default function BookingOptionEditor({
 
       {showPricing ? (
         <Section
+          flat={guided}
           kicker="Pricing"
           title={
             showChargeModelPicker
@@ -441,64 +437,40 @@ export default function BookingOptionEditor({
                 : 'Price for this schedule'
           }
           support={
-            showChargeModelPicker
-              ? showPricingScheduleNote
-                ? 'Choose per person or per group. Exact prices and capacity are set on each schedule in Availability.'
-                : 'Per-person prices can include Adult and Child inside this same option. A group price covers the whole party.'
-              : groupPricing
-                ? 'One price covers the whole party for departures on this schedule. Charge model was set in Pricing.'
-                : 'Travelers pay this amount for departures on this schedule. Charge model was set in Pricing.'
+            showChargeModelPicker && !showPricingScheduleNote
+              ? 'Per-person prices can include Adult and Child. A group price covers the whole party.'
+              : undefined
           }
         >
           {showChargeModelPicker ? (
-            <div id="supplier-listing-field-option-charge-model" className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {(
-                [
-                  {
-                    value: 'per_person' as const,
-                    title: 'Per person',
-                    hint: 'Each traveler pays a unit price. Adult/child prices can be set on schedules.',
-                  },
-                  {
-                    value: 'flat_group' as const,
-                    title: 'Whole group',
-                    hint: 'One price covers the party up to your guest limit.',
-                  },
-                ] as const
-              ).map((row) => {
-                const selected = chargeModelChosen
-                  ? groupPricing
-                    ? row.value === 'flat_group'
-                    : row.value === 'per_person'
-                  : false;
-                return (
-                  <button
-                    key={row.value}
-                    type="button"
-                    onClick={() => setChargeModel(row.value)}
-                    className={`lc-choice rounded-xl px-4 py-4 text-left ${selected ? 'lc-choice--selected' : ''}`}
-                    aria-pressed={selected}
-                  >
-                    <span className="block text-sm font-bold text-ink">{row.title}</span>
-                    <span className="mt-1 block text-xs leading-relaxed text-ink-muted">{row.hint}</span>
-                  </button>
-                );
-              })}
+            <div
+              id="supplier-listing-field-option-charge-model"
+              className="grid grid-cols-1 gap-2 sm:grid-cols-2"
+              role="radiogroup"
+              aria-label="Pricing model"
+            >
+              <ChoiceCard
+                selected={chargeModelChosen && !groupPricing}
+                title="Per person"
+                hint="Each traveler pays."
+                onClick={() => setChargeModel('per_person')}
+              />
+              <ChoiceCard
+                selected={chargeModelChosen && groupPricing}
+                title="Per group"
+                hint="One price covers the party."
+                onClick={() => setChargeModel('flat_group')}
+              />
             </div>
           ) : (
-            <p className="rounded-lg border border-black/[0.06] bg-black/[0.02] px-3 py-2.5 text-sm text-ink-muted">
+            <p className="text-[13px] text-ink-muted">
               {groupPricing ? 'Per group' : 'Per person'}
               {chargeModelChosen ? '' : ' — finish Pricing if this looks wrong.'}
             </p>
           )}
           {showChargeModelPicker && attempted && !chargeModelChosen ? (
-            <p className="text-sm text-red-600" role="alert">
+            <p className="text-[12px] text-red-600" role="alert">
               Choose per person or per group.
-            </p>
-          ) : null}
-          {showPricingScheduleNote ? (
-            <p className="rounded-lg border border-black/[0.06] bg-black/[0.02] px-3 py-2.5 text-sm leading-snug text-ink-muted">
-              Per-departure prices and capacity are set when you add a schedule on the next step.
             </p>
           ) : null}
 
@@ -723,21 +695,18 @@ export default function BookingOptionEditor({
 
       {showBookingWindow ? (
         <Section
+          flat={guided}
           kicker="Booking window"
           title="When can travelers book?"
-          support="Cutoff applies to every schedule on this option. Timezone is shared by all options on this listing."
+          support="Cutoff applies to every schedule on this option."
         >
-          <div id="supplier-listing-field-option-cutoff" className="space-y-2">
-            <label htmlFor="option-booking-cutoff" className="block text-sm font-semibold text-ink">
-              Booking cutoff (hours before departure)
+          <div id="supplier-listing-field-option-cutoff" className="space-y-1.5">
+            <label htmlFor="option-booking-cutoff" className="block text-[13px] font-semibold text-ink">
+              Booking cutoff
             </label>
-            <p className="text-[13px] leading-snug text-ink-muted">
-              Overrides the listing default when set. 0 or blank means bookable until start
-              {typeof option.bookingCutoffHoursBeforeStart !== 'number' ||
-              option.bookingCutoffHoursBeforeStart <= 0
-                ? ' (uses listing default if one exists)'
-                : ''}
-              .
+            <p className="text-[12px] leading-snug text-ink-muted">
+              Hours before departure when booking closes. Leave blank to inherit the listing default —
+              if the listing has no cutoff either, guests can book until departure.
             </p>
             <input
               id="option-booking-cutoff"
@@ -745,14 +714,14 @@ export default function BookingOptionEditor({
               min={0}
               max={168}
               inputMode="numeric"
-              className="tv-input max-w-[10rem]"
+              className="tv-input max-w-[9rem]"
               value={
                 typeof option.bookingCutoffHoursBeforeStart === 'number' &&
                 option.bookingCutoffHoursBeforeStart > 0
                   ? String(option.bookingCutoffHoursBeforeStart)
                   : ''
               }
-              placeholder="Until start"
+              placeholder="Listing default"
               onChange={(e) => {
                 const raw = e.target.value.trim();
                 if (!raw) {
@@ -769,12 +738,12 @@ export default function BookingOptionEditor({
             />
           </div>
           {onListingDepartureTimezoneChange ? (
-            <div id="supplier-listing-field-option-timezone" className="space-y-2">
-              <label htmlFor="option-departure-timezone" className="block text-sm font-semibold text-ink">
+            <div id="supplier-listing-field-option-timezone" className="space-y-1.5">
+              <label htmlFor="option-departure-timezone" className="block text-[13px] font-semibold text-ink">
                 Departure timezone
               </label>
-              <p className="text-[13px] leading-snug text-ink-muted">
-                Shared across all options on this listing. Used for schedule times and booking cutoffs.
+              <p className="text-[12px] leading-snug text-ink-muted">
+                Shared across every option on this listing.
               </p>
               <PartnerSelect
                 id="option-departure-timezone"
@@ -790,6 +759,7 @@ export default function BookingOptionEditor({
 
       {showAvailability ? (
         <Section
+          flat={guided}
           kicker="Availability"
           title="When is this schedule available?"
           support="Travelers can only book dates that match this date window, these weekdays, and this start time. Ending date is optional."
@@ -895,6 +865,7 @@ export default function BookingOptionEditor({
 
       {showCapacity ? (
         <Section
+          flat={guided}
           kicker="Capacity"
           title="How many travelers can book?"
           support="Minimum and maximum guests on one booking, and how many spots you offer at this start time."

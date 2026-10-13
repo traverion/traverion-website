@@ -113,9 +113,32 @@ describe('tour option creation overhaul (source contracts)', () => {
     expect(form).toMatch(/saveScheduleReady[\s\S]*scheduleSaveLockRef\.current/);
   });
 
-  it('shows Tour → Option → Scene context and Back to options in the option header', () => {
+  it('uses a single header with Back to options and no left sidebar rail', () => {
     const src = read('TourOptionWorkspace.tsx');
     expect(src).toContain('Back to options');
-    expect(src).toContain('aria-label="Where you are"');
+    expect(src).not.toContain('ListingCreationContextRail');
+    expect(src).not.toContain('listing-creation-option-rail');
+    expect(src).not.toContain('aria-label="Where you are"');
+  });
+
+  it('keeps option scene questions aligned with the compact overhaul copy', () => {
+    const progression = readFileSync(
+      resolve(__dirname, '../../../lib/listing-option-progression.ts'),
+      'utf8'
+    );
+    expect(progression).toContain("question: 'What are you offering?'");
+    expect(progression).toContain("question: 'Where will guests start?'");
+    expect(progression).toContain("question: 'How will guests be charged?'");
+    expect(progression).toContain("question: 'When can guests book?'");
+  });
+
+  it('guided sections are flat (no nested cards) and pricing SUPPORT is schedule-based', () => {
+    const editor = readFileSync(resolve(__dirname, '../BookingOptionEditor.tsx'), 'utf8');
+    const guided = read('TourOptionGuidedScenes.tsx');
+    expect(editor).toContain('flat={guided}');
+    expect(editor).toMatch(/if \(flat\) \{\s*return <div className="space-y-4">\{children\}<\/div>;/);
+    expect(guided).toContain("pricing: 'Set prices and capacity when adding a schedule.'");
+    expect(guided).toContain('Schedules');
+    expect(guided).toContain('Booking settings');
   });
 });

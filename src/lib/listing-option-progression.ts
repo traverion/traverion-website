@@ -23,10 +23,10 @@ import {
 } from './listing-option-validation';
 
 export const TOUR_OPTION_SCENES = [
-  { id: 'setup', label: 'Setup', question: 'What makes this option different?' },
+  { id: 'setup', label: 'Setup', question: 'What are you offering?' },
   { id: 'meeting', label: 'Meeting', question: 'Where will guests start?' },
-  { id: 'pricing', label: 'Pricing', question: 'How will travelers book this option?' },
-  { id: 'availability', label: 'Availability', question: 'When is this option available?' },
+  { id: 'pricing', label: 'Pricing', question: 'How will guests be charged?' },
+  { id: 'availability', label: 'Availability', question: 'When can guests book?' },
 ] as const;
 
 export type TourOptionSceneId = (typeof TOUR_OPTION_SCENES)[number]['id'];

@@ -11,11 +11,12 @@ import {
 import type { ListingCreationSceneDirection } from '../../../lib/listing-creation-scenes';
 import type { ListingBookingOption, ListingOptionSchedule } from '../../../types/listingExtras';
 
+/** Short support under the scene question — keep empty when the editor fields are self-explanatory. */
 const SUPPORT: Record<TourOptionSceneId, string> = {
-  setup: 'Name, duration, and how departures start for this option.',
-  meeting: 'Meeting point or hotel pickup for this option only.',
-  pricing: 'How travelers are charged. Schedule prices come next.',
-  availability: 'Schedules, booking cutoff, and listing timezone.',
+  setup: '',
+  meeting: '',
+  pricing: 'Set prices and capacity when adding a schedule.',
+  availability: '',
 };
 
 export function TourOptionGuidedScenes({
@@ -92,29 +93,39 @@ export function TourOptionGuidedScenes({
       headingId={headingId}
     >
       {scene.id === 'availability' ? (
-        <div className="space-y-6">
-          <TourOptionScheduleList
-            option={option}
-            formatAmount={formatAmount}
-            onAdd={onAddSchedule}
-            onEdit={onEditSchedule}
-            onDuplicate={onDuplicateSchedule}
-            onDelete={onDeleteSchedule}
-            pendingDeleteId={pendingScheduleDeleteId}
-            onCancelDelete={onCancelScheduleDelete}
-            occupancyNoticeForSchedule={occupancyNoticeForSchedule}
-          />
-          <BookingOptionEditor
-            option={option}
-            currencyLabel={currencyLabel}
-            hasEndingDate={hasEndingDate}
-            onHasEndingDateChange={onHasEndingDateChange}
-            onChange={onChange}
-            activeSection="booking_window"
-            attempted={attempted}
-            listingDepartureTimezone={listingDepartureTimezone}
-            onListingDepartureTimezoneChange={onListingDepartureTimezoneChange}
-          />
+        <div className="space-y-7">
+          <section className="space-y-2.5" aria-labelledby="option-schedules-heading">
+            <h4 id="option-schedules-heading" className="text-[13px] font-semibold text-ink">
+              Schedules
+            </h4>
+            <TourOptionScheduleList
+              option={option}
+              formatAmount={formatAmount}
+              onAdd={onAddSchedule}
+              onEdit={onEditSchedule}
+              onDuplicate={onDuplicateSchedule}
+              onDelete={onDeleteSchedule}
+              pendingDeleteId={pendingScheduleDeleteId}
+              onCancelDelete={onCancelScheduleDelete}
+              occupancyNoticeForSchedule={occupancyNoticeForSchedule}
+            />
+          </section>
+          <section className="space-y-2.5" aria-labelledby="option-booking-settings-heading">
+            <h4 id="option-booking-settings-heading" className="text-[13px] font-semibold text-ink">
+              Booking settings
+            </h4>
+            <BookingOptionEditor
+              option={option}
+              currencyLabel={currencyLabel}
+              hasEndingDate={hasEndingDate}
+              onHasEndingDateChange={onHasEndingDateChange}
+              onChange={onChange}
+              activeSection="booking_window"
+              attempted={attempted}
+              listingDepartureTimezone={listingDepartureTimezone}
+              onListingDepartureTimezoneChange={onListingDepartureTimezoneChange}
+            />
+          </section>
         </div>
       ) : (
         <BookingOptionEditor

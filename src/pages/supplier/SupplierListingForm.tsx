@@ -37,13 +37,11 @@ import { listingDurationForPersist } from '../../lib/listing-option-ownership';
 import { itineraryForListingPersist } from '../../lib/tour-itinerary';
 import {
   TOUR_OPTION_SCENE_COUNT,
-  TOUR_OPTION_SCENES,
   clampTourOptionSceneIndex,
   duplicateBookingOption,
   nextTourOptionScene,
   previousTourOptionScene,
   readyBookingOptions,
-  tourOptionContextNavItems,
   tourOptionReadiness,
   upsertBookingOption,
 } from '../../lib/listing-option-scenes';
@@ -3041,11 +3039,9 @@ export default function SupplierListingForm({
 
   const tourOptionGuided = Boolean(optionModalOpen && optionModalDraft && !isStayForm);
   const optionEnding = { hasEndingDate: optionModalHasEndingDate };
-  const optionCanFinish = Boolean(
-    optionModalDraft && optionValidationMessages(optionModalDraft, optionModalHasEndingDate).length === 0
-  );
-  const optionContinueHint = tourOptionGuided && optionModalDraft
-    ? optionSceneIdx < TOUR_OPTION_SCENE_COUNT - 1
+  // Only surface footer hints after Continue/Finish is attempted — avoid permanent "still needed" noise.
+  const optionContinueHint =
+    tourOptionGuided && optionModalDraft && optionAttempted
       ? tourOptionSceneContinueHint({
           sceneIndex: optionSceneIdx,
           option: optionModalDraft,
@@ -3056,15 +3052,7 @@ export default function SupplierListingForm({
             ending: optionEnding,
           }),
         })
-      : optionCanFinish
-        ? null
-        : tourOptionSceneContinueHint({
-            sceneIndex: optionSceneIdx,
-            option: optionModalDraft,
-            ending: optionEnding,
-            canContinue: false,
-          })
-    : null;
+      : null;
 
   const persistLabel = scheduleDraft
     ? scheduleIsDirty()
@@ -4509,42 +4497,16 @@ export default function SupplierListingForm({
         {tourOptionGuided && optionModalDraft ? (
           <TourOptionWorkspace
             title={
-              optionSessionOpenedAsCreateRef.current
-                ? 'New option'
-                : optionModalEditingId
-                  ? 'Edit option'
-                  : 'New option'
+              optionSessionOpenedAsCreateRef.current || !optionModalEditingId
+                ? 'Create option'
+                : 'Edit option'
             }
-            listingTitle={form.title}
-            optionName={optionModalDraft.name}
-            sceneLabel={TOUR_OPTION_SCENES[optionSceneIdx]?.label ?? 'Setup'}
             persistLabel={persistLabel}
-            contextNav={{
-              title: optionSessionOpenedAsCreateRef.current
-                ? 'New option'
-                : optionModalEditingId
-                  ? 'Edit option'
-                  : 'New option',
-              items: tourOptionContextNavItems(optionSceneIdx, {
-                isNewOption: optionSessionOpenedAsCreateRef.current,
-                option: optionModalDraft,
-                ending: { hasEndingDate: optionModalHasEndingDate },
-              }),
-              onSelect: (id) => {
-                const next = TOUR_OPTION_SCENES.findIndex((scene) => scene.id === id);
-                if (next < 0) return;
-                setOptionSceneIdxPersisted(next, next >= optionSceneIdx ? 'forward' : 'back');
-              },
-            }}
             continueHint={optionContinueHint}
             continueLabel={
               optionSceneIdx < TOUR_OPTION_SCENE_COUNT - 1 ? 'Continue' : 'Finish option'
             }
-            continueDisabled={
-              draftCloseBusy ||
-              submitting ||
-              (optionSceneIdx === TOUR_OPTION_SCENE_COUNT - 1 && !optionCanFinish)
-            }
+            continueDisabled={draftCloseBusy || submitting}
             saveDraftDisabled={draftCloseBusy || submitting}
             onBackToOptions={saveOptionAsDraft}
             onPreviousScene={
@@ -4563,65 +4525,60 @@ export default function SupplierListingForm({
             }}
           >
             {optionLockHint ? (
-              <div
-                className="listing-creation-hint mb-4 max-w-2xl text-[13px] leading-relaxed text-ink-muted"
-                role="status"
-              >
+              <div className="mb-3 text-[12px] leading-snug text-ink-muted" role="status">
                 {optionLockHint}
               </div>
             ) : null}
             {optionModalErrors.length > 0 ? (
-              <div className="mb-6" role="alert">
-                <p className="text-sm font-semibold text-ink">This option is not ready yet</p>
-                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-ink-muted">
+              <div className="mb-4 rounded-lg border border-amber-200/80 bg-amber-50/60 px-3 py-2.5" role="alert">
+                <p className="text-[13px] font-semibold text-ink">Finish these before continuing</p>
+                <ul className="mt-1 list-disc space-y-0.5 pl-4 text-[12px] text-ink-muted">
                   {optionModalErrors.map((err) => (
                     <li key={err}>{err}</li>
                   ))}
                 </ul>
               </div>
             ) : null}
-            <div className="w-full max-w-2xl">
-              <TourOptionGuidedScenes
-                option={optionModalDraft}
-                sceneIndex={optionSceneIdx}
-                direction={optionSceneDirection}
-                currencyLabel={listingCurrency}
-                hasEndingDate={optionModalHasEndingDate}
-                onHasEndingDateChange={setOptionModalHasEndingDate}
-                onSelectScene={(index) => {
-                  setOptionSceneIdxPersisted(index, index >= optionSceneIdx ? 'forward' : 'back');
-                }}
-                canSelectScene={(index) =>
-                  canVisitTourOptionScene({
-                    targetIndex: index,
-                    isNewOption: optionSessionOpenedAsCreateRef.current,
-                    option: optionModalDraft,
-                    ending: optionEnding,
-                  })
-                }
-                onChange={patchOptionDraft}
-                formatAmount={(n) => formatMoney(n, listingCurrency)}
-                priceSummary={summarizeOptionPricing(optionModalDraft, (n) =>
-                  formatMoney(n, listingCurrency)
-                )}
-                validationMessages={optionValidationMessages(
-                  optionModalDraft,
-                  optionModalHasEndingDate
-                )}
-                attempted={optionAttempted}
-                onAddSchedule={openScheduleCreate}
-                onEditSchedule={openScheduleEdit}
-                onDuplicateSchedule={duplicateSchedule}
-                onDeleteSchedule={deleteSchedule}
-                pendingScheduleDeleteId={pendingScheduleDeleteId}
-                onCancelScheduleDelete={() => setPendingScheduleDeleteId(null)}
-                occupancyNoticeForSchedule={occupancyNoticeForSchedule}
-                listingDepartureTimezone={form.departureTimezone || TRAVERION_DEPARTURE_TIMEZONE}
-                onListingDepartureTimezoneChange={(departureTimezone) =>
-                  setForm((f) => ({ ...f, departureTimezone }))
-                }
-              />
-            </div>
+            <TourOptionGuidedScenes
+              option={optionModalDraft}
+              sceneIndex={optionSceneIdx}
+              direction={optionSceneDirection}
+              currencyLabel={listingCurrency}
+              hasEndingDate={optionModalHasEndingDate}
+              onHasEndingDateChange={setOptionModalHasEndingDate}
+              onSelectScene={(index) => {
+                setOptionSceneIdxPersisted(index, index >= optionSceneIdx ? 'forward' : 'back');
+              }}
+              canSelectScene={(index) =>
+                canVisitTourOptionScene({
+                  targetIndex: index,
+                  isNewOption: optionSessionOpenedAsCreateRef.current,
+                  option: optionModalDraft,
+                  ending: optionEnding,
+                })
+              }
+              onChange={patchOptionDraft}
+              formatAmount={(n) => formatMoney(n, listingCurrency)}
+              priceSummary={summarizeOptionPricing(optionModalDraft, (n) =>
+                formatMoney(n, listingCurrency)
+              )}
+              validationMessages={optionValidationMessages(
+                optionModalDraft,
+                optionModalHasEndingDate
+              )}
+              attempted={optionAttempted}
+              onAddSchedule={openScheduleCreate}
+              onEditSchedule={openScheduleEdit}
+              onDuplicateSchedule={duplicateSchedule}
+              onDeleteSchedule={deleteSchedule}
+              pendingScheduleDeleteId={pendingScheduleDeleteId}
+              onCancelScheduleDelete={() => setPendingScheduleDeleteId(null)}
+              occupancyNoticeForSchedule={occupancyNoticeForSchedule}
+              listingDepartureTimezone={form.departureTimezone || TRAVERION_DEPARTURE_TIMEZONE}
+              onListingDepartureTimezoneChange={(departureTimezone) =>
+                setForm((f) => ({ ...f, departureTimezone }))
+              }
+            />
           </TourOptionWorkspace>
         ) : null}
         {scheduleDraft && optionModalDraft ? (

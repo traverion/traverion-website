@@ -51,19 +51,11 @@ export function TourOptionScheduleList({
   const chargeLabel = charge === 'flat_group' ? 'Per group' : charge === 'per_person' ? 'Per person' : null;
 
   return (
-    <div id="supplier-listing-field-option-schedules" className="space-y-3">
-      <p className="partner-section-desc max-w-xl">
-        Date window
-        {option.startMode === 'flexible' ? '' : ', departure times'}
-        , capacity, and price per schedule. Separate seasons need separate schedules.
-      </p>
+    <div id="supplier-listing-field-option-schedules" className="space-y-2.5">
       {!canAdd ? (
-        <div className="rounded-[var(--partner-radius,0.5rem)] border border-amber-200/80 bg-amber-50/70 px-3.5 py-3 text-[13px] text-amber-950">
-          <p className="font-semibold text-amber-900">Finish Setup before adding schedules</p>
-          <p className="mt-1 leading-snug text-amber-900/90">
-            Charge model and start-time mode decide which price and time fields appear.
-          </p>
-          <ul className="mt-1.5 list-disc space-y-0.5 pl-4">
+        <div className="rounded-lg border border-amber-200/80 bg-amber-50/60 px-3 py-2.5 text-[12px] text-amber-950">
+          <p className="font-semibold text-amber-900">Finish Setup and Pricing first</p>
+          <ul className="mt-1 list-disc space-y-0.5 pl-4">
             {prereq.map((line) => (
               <li key={line}>{line}</li>
             ))}
@@ -71,24 +63,23 @@ export function TourOptionScheduleList({
         </div>
       ) : null}
       {rows.length === 0 ? (
-        <div className="partner-empty items-center text-center sm:px-6">
-          <p className="partner-empty__title">No schedules yet</p>
-          <p className="partner-empty__body mx-auto text-center">
+        <div className="flex flex-col items-start gap-2.5 rounded-xl border border-dashed border-black/[0.12] bg-black/[0.015] px-4 py-5">
+          <p className="text-[13px] font-semibold text-ink">No schedules yet</p>
+          <p className="max-w-md text-[12px] leading-snug text-ink-muted">
             {canAdd
-              ? 'Add dates, start time, capacity, and price.'
-              : 'Complete Setup to unlock Add schedule.'}
+              ? 'Add dates, departure time, capacity, and price for this option.'
+              : 'Complete Setup and Pricing to unlock schedules.'}
           </p>
-          <div className="partner-empty__actions justify-center">
-            <button
-              type="button"
-              onClick={onAdd}
-              className="tv-btn-primary"
-              disabled={!canAdd}
-              title={canAdd ? undefined : 'Complete Setup before adding a schedule'}
-            >
-              {canAdd ? 'Add schedule' : 'Setup incomplete'}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={onAdd}
+            className="tv-btn-primary !min-h-10"
+            disabled={!canAdd}
+            title={canAdd ? undefined : 'Complete Setup and Pricing before adding a schedule'}
+          >
+            <Plus className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+            {canAdd ? 'Add schedule' : 'Setup incomplete'}
+          </button>
         </div>
       ) : (
         rows.map((s, index) => {
@@ -96,7 +87,7 @@ export function TourOptionScheduleList({
           const pending = pendingDeleteId === s.id;
           const occupancyNotice = pending ? occupancyNoticeForSchedule?.(s) ?? null : null;
           return (
-            <article key={s.id} className="lc-tile rounded-[var(--partner-radius,0.5rem)] px-3 py-3">
+            <article key={s.id} className="lc-tile rounded-lg px-3 py-2.5">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0 space-y-0.5">
                   <div className="flex flex-wrap items-center gap-2">

@@ -862,28 +862,23 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
   position: relative;
   z-index: 1;
   display: flex;
-  width: min(96vw, 88rem);
-  height: min(96dvh, 58rem);
+  width: min(96vw, 52rem);
+  height: min(96dvh, 56rem);
   max-height: 96dvh;
-  flex-direction: row;
+  flex-direction: column;
   overflow: hidden;
   border-radius: 1rem;
   border: 1px solid rgba(28, 25, 23, 0.1);
-  background: #f6f3ee;
-  box-shadow: 0 20px 48px rgba(28, 25, 23, 0.2);
+  background: #fffcf8;
+  box-shadow: 0 20px 48px rgba(28, 25, 23, 0.18);
   outline: none;
 }
 
-.listing-creation-option-rail {
-  background: #efe9e1;
-}
-
-.listing-creation-option-rail .listing-creation-context-rail {
-  border-right-color: rgba(28, 25, 23, 0.08);
-  background: transparent;
-}
-
 .listing-creation-option-header {
+  background: #fffcf8;
+}
+
+.listing-creation-option-body {
   background: #fffcf8;
 }
 
