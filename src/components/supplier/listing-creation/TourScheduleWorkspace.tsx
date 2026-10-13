@@ -181,6 +181,13 @@ export function TourScheduleWorkspace({
     return () => window.removeEventListener('keydown', onKey);
   }, [leaveOpen, onCancel, onKeepEditing]);
 
+  // Keep schedule inventory aligned with option slot capacity (set on Pricing).
+  useEffect(() => {
+    if (option.maxSpotsPerSlot >= 1 && schedule.maxSpotsPerSlot !== option.maxSpotsPerSlot) {
+      onChange({ maxSpotsPerSlot: option.maxSpotsPerSlot });
+    }
+  }, [option.maxSpotsPerSlot, schedule.maxSpotsPerSlot, onChange]);
+
   const patchFromOption = (patch: Partial<ListingBookingOption>) => {
     const next: Partial<ListingOptionSchedule> = {};
     if (patch.name !== undefined) next.name = patch.name;
@@ -197,7 +204,13 @@ export function TourScheduleWorkspace({
     if (patch.privateGroupPriceUsd !== undefined) next.privateGroupPriceUsd = patch.privateGroupPriceUsd;
     if (patch.minPersons !== undefined) next.minPersons = patch.minPersons;
     if (patch.maxPersons !== undefined) next.maxPersons = patch.maxPersons;
-    if (patch.maxSpotsPerSlot !== undefined) next.maxSpotsPerSlot = patch.maxSpotsPerSlot;
+    if (patch.maxGroupsPerSlot !== undefined) next.maxGroupsPerSlot = patch.maxGroupsPerSlot;
+    // Schedules inherit option travelers-per-slot; ignore edits that would diverge.
+    if (option.maxSpotsPerSlot >= 1) {
+      next.maxSpotsPerSlot = option.maxSpotsPerSlot;
+    } else if (patch.maxSpotsPerSlot !== undefined) {
+      next.maxSpotsPerSlot = patch.maxSpotsPerSlot;
+    }
     onChange(next);
   };
 
@@ -501,8 +514,20 @@ function ScheduleReview({
         summarizeOptionPricing(schedule, formatAmount) !== 'Set price' && schedule.maxSpotsPerSlot >= 1,
       body: [
         summarizeOptionPricing(schedule, formatAmount),
-        `Max ${schedule.maxSpotsPerSlot} travelers`,
-      ].join(' · '),
+        schedule.minPersons >= 1 && schedule.maxPersons >= 1
+          ? `${schedule.minPersons}–${schedule.maxPersons}${
+              option.chargeModel === 'flat_group' ||
+              Boolean(option.isPrivate && option.privatePricing === 'flat_group')
+                ? typeof schedule.maxGroupsPerSlot === 'number' && schedule.maxGroupsPerSlot >= 1
+                  ? ` · ${schedule.maxGroupsPerSlot} group${schedule.maxGroupsPerSlot === 1 ? '' : 's'}`
+                  : ' per group'
+                : ' per booking'
+            }`
+          : null,
+        schedule.maxSpotsPerSlot >= 1 ? `${schedule.maxSpotsPerSlot} seats / start` : null,
+      ]
+        .filter(Boolean)
+        .join(' · '),
     },
   ];
 

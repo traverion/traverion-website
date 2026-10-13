@@ -613,22 +613,49 @@ describe('option capacity vs group size', () => {
     ).toBe(true);
   });
 
-  it('caps schedule ceilings by option slot capacity and party max', () => {
+  it('caps schedule booking size by option slot capacity only', () => {
     const ceilings = scheduleCapacityCeilings(
-      option({ maxPersons: 12, maxSpotsPerSlot: 8 })
+      option({ maxPersons: 12, maxSpotsPerSlot: 16 })
     );
-    expect(ceilings.spotsCeiling).toBe(8);
-    expect(ceilings.guestsCeiling).toBe(8);
+    expect(ceilings.spotsCeiling).toBe(16);
+    expect(ceilings.guestsCeiling).toBe(16);
     const issues = scheduleCapacityIssues(
       season({
         id: 'sch-cap',
         name: 'Winter',
         availabilityDateFrom: '2026-12-01',
-        maxPersons: 12,
-        maxSpotsPerSlot: 8,
+        maxPersons: 20,
+        maxSpotsPerSlot: 16,
       }),
       ceilings
     );
-    expect(issues.some((m) => /group size|travelers per start/i.test(m))).toBe(true);
+    expect(issues.some((m) => /option capacity|travelers per start/i.test(m))).toBe(true);
+  });
+
+  it('rejects whole-group schedules when groups × max size exceeds slot capacity', () => {
+    const issues = scheduleCapacityIssues(
+      season({
+        id: 'sch-groups',
+        name: 'Summer',
+        availabilityDateFrom: '2026-06-01',
+        minPersons: 1,
+        maxPersons: 9,
+        maxSpotsPerSlot: 16,
+        maxGroupsPerSlot: 2,
+      }),
+      { spotsCeiling: 16, guestsCeiling: 16, requireGroups: true }
+    );
+    expect(issues.some((m) => /at most 1 group/i.test(m))).toBe(true);
+    expect(
+      scheduleCapacityValid(
+        {
+          minPersons: 1,
+          maxPersons: 8,
+          maxSpotsPerSlot: 16,
+          maxGroupsPerSlot: 2,
+        },
+        { requireGroups: true }
+      )
+    ).toBe(true);
   });
 });

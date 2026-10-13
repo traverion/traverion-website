@@ -143,13 +143,15 @@ export function TourOptionScheduleList({
                         summarizeOptionPricing(s, formatAmount),
                         charge === 'flat_group'
                           ? `${s.maxSpotsPerSlot} seats · groups of ${s.minPersons}–${s.maxPersons}${
-                              s.maxPersons >= 1
-                                ? ` · up to ${maxWholeGroupsForSlot(s.maxSpotsPerSlot, s.maxPersons)} group${
-                                    maxWholeGroupsForSlot(s.maxSpotsPerSlot, s.maxPersons) === 1 ? '' : 's'
-                                  }`
-                                : ''
+                              typeof s.maxGroupsPerSlot === 'number' && s.maxGroupsPerSlot >= 1
+                                ? ` · ${s.maxGroupsPerSlot} group${s.maxGroupsPerSlot === 1 ? '' : 's'}`
+                                : s.maxPersons >= 1
+                                  ? ` · up to ${maxWholeGroupsForSlot(s.maxSpotsPerSlot, s.maxPersons)} group${
+                                      maxWholeGroupsForSlot(s.maxSpotsPerSlot, s.maxPersons) === 1 ? '' : 's'
+                                    }`
+                                  : ''
                             }`
-                          : `${s.minPersons}–${s.maxPersons} · ${s.maxSpotsPerSlot} seats`,
+                          : `${s.minPersons}–${s.maxPersons} per booking · ${s.maxSpotsPerSlot} seats`,
                       ]
                         .filter(Boolean)
                         .join(' · ')}

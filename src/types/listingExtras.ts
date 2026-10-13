@@ -87,8 +87,10 @@ export interface ListingBookingOption {
   fulfillment?: ListingOptionFulfillment;
   minPersons: number;
   maxPersons: number;
-  /** Max guests for one departure / start time. */
+  /** Max guests for one departure / start time (option capacity). */
   maxSpotsPerSlot: number;
+  /** Schedule editor round-trip for whole-group concurrent groups. */
+  maxGroupsPerSlot?: number;
   /** Short card blurb: private, small group, shared bus, language, etc. Not start instructions. */
   optionInfo: string;
   /**
@@ -171,7 +173,13 @@ export interface ListingOptionSchedule {
   privateGroupPriceUsd?: number;
   minPersons: number;
   maxPersons: number;
+  /** Traveler seats for one departure (inherits option capacity on schedules). */
   maxSpotsPerSlot: number;
+  /**
+   * Whole-group: how many concurrent groups may book one start time.
+   * Valid when maxGroupsPerSlot × maxPersons ≤ option/slot capacity.
+   */
+  maxGroupsPerSlot?: number;
   status?: ListingOptionScheduleStatus;
 }
 
@@ -552,6 +560,14 @@ export function normalizeListingOptionSchedule(
     if (privateGroupPriceUsd != null) out.privateGroupPriceUsd = privateGroupPriceUsd;
   }
   if (raw.status === 'ready' || raw.status === 'draft') out.status = raw.status;
+  if (
+    typeof raw.maxGroupsPerSlot === 'number' &&
+    Number.isFinite(raw.maxGroupsPerSlot) &&
+    raw.maxGroupsPerSlot >= 1
+  ) {
+    // Keep in sync with LISTING_CAPACITY_MAX (listing-option-schedules) without a circular import.
+    out.maxGroupsPerSlot = Math.min(200, Math.floor(raw.maxGroupsPerSlot));
+  }
   return out;
 }
 

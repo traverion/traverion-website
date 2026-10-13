@@ -144,16 +144,26 @@ export function listingOptionSchedules(option: ListingBookingOption): ListingOpt
 /** Hard ceiling so typos like 99999 cannot look “valid” as a tour departure size. */
 export const LISTING_CAPACITY_MAX = 200;
 
-export function scheduleCapacityValid(s: Pick<ListingOptionSchedule, 'minPersons' | 'maxPersons' | 'maxSpotsPerSlot'>): boolean {
-  return (
+export function scheduleCapacityValid(
+  s: Pick<ListingOptionSchedule, 'minPersons' | 'maxPersons' | 'maxSpotsPerSlot' | 'maxGroupsPerSlot'>,
+  opts?: { requireGroups?: boolean }
+): boolean {
+  const base =
     s.minPersons >= 1 &&
     s.maxPersons >= s.minPersons &&
     s.maxPersons <= LISTING_CAPACITY_MAX &&
     s.maxSpotsPerSlot >= 1 &&
     s.maxSpotsPerSlot <= LISTING_CAPACITY_MAX &&
     // Party/group size cannot exceed the departure slot (inventory is guest-based).
-    s.maxPersons <= s.maxSpotsPerSlot
-  );
+    s.maxPersons <= s.maxSpotsPerSlot;
+  if (!base) return false;
+  if (!opts?.requireGroups) return true;
+  const groups =
+    typeof s.maxGroupsPerSlot === 'number' && Number.isFinite(s.maxGroupsPerSlot)
+      ? Math.floor(s.maxGroupsPerSlot)
+      : 0;
+  if (groups < 1 || groups > LISTING_CAPACITY_MAX) return false;
+  return groups * s.maxPersons <= s.maxSpotsPerSlot;
 }
 
 /**
@@ -603,6 +613,11 @@ export function applyScheduleToOption(
     maxPersons: schedule.maxPersons,
     maxSpotsPerSlot: schedule.maxSpotsPerSlot,
   };
+  if (typeof schedule.maxGroupsPerSlot === 'number' && schedule.maxGroupsPerSlot >= 1) {
+    next.maxGroupsPerSlot = schedule.maxGroupsPerSlot;
+  } else {
+    delete next.maxGroupsPerSlot;
+  }
   if (schedule.weekdayStartTimes) {
     next.weekdayStartTimes = schedule.weekdayStartTimes.map((day) => [...day]);
   } else {

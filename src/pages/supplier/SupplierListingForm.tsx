@@ -2742,12 +2742,16 @@ export default function SupplierListingForm({
     const prepared = ensureExplicitSchedules(optionModalDraft);
     if (prepared !== optionModalDraft) setOptionModalDraft(prepared);
     const blank = blankOptionSchedule(newListingOptionScheduleId());
-    // Seed capacity from the option so schedule limits stay within earlier setup.
-    if (optionModalDraft.minPersons >= 1) blank.minPersons = optionModalDraft.minPersons;
-    if (optionModalDraft.maxPersons >= 1) blank.maxPersons = optionModalDraft.maxPersons;
+    // Slot inventory comes from the option; booking min/max are set on the schedule.
+    blank.minPersons = 1;
+    blank.maxPersons = 0;
     if (optionModalDraft.maxSpotsPerSlot >= 1) {
       blank.maxSpotsPerSlot = optionModalDraft.maxSpotsPerSlot;
     }
+    const wholeGroup =
+      optionModalDraft.chargeModel === 'flat_group' ||
+      Boolean(optionModalDraft.isPrivate && optionModalDraft.privatePricing === 'flat_group');
+    if (wholeGroup) blank.maxGroupsPerSlot = 1;
     scheduleSessionOpenedAsCreateRef.current = true;
     scheduleOpenedStartTimeRef.current = '';
     scheduleSoldSeatAnchorRef.current = null;
@@ -2785,9 +2789,13 @@ export default function SupplierListingForm({
         };
       }
       scheduleOpenedStartTimeRef.current = scheduleSoldSeatAnchorRef.current.startTimeHm;
-      scheduleSnapshotRef.current = JSON.stringify(existing);
+      const synced =
+        prepared.maxSpotsPerSlot >= 1 && existing.maxSpotsPerSlot !== prepared.maxSpotsPerSlot
+          ? { ...existing, maxSpotsPerSlot: prepared.maxSpotsPerSlot }
+          : existing;
+      scheduleSnapshotRef.current = JSON.stringify(synced);
       setOptionModalDraft(prepared);
-      setScheduleDraft(existing);
+      setScheduleDraft(synced);
       setScheduleSceneIdx(0);
       setScheduleHasEndingDate(existing.availabilityDateTo.trim().length > 0);
       setScheduleAttempted(false);

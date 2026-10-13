@@ -15,7 +15,7 @@ import type { ListingBookingOption, ListingOptionSchedule } from '../../../types
 const SUPPORT: Record<TourOptionSceneId, string> = {
   setup: '',
   meeting: '',
-  pricing: 'Prices and capacity are set on each schedule.',
+  pricing: 'Set how guests are charged and max travelers per start time. Schedules set price and booking size.',
   availability: '',
   booking_settings: 'Shared across every option on this listing for timezone.',
 };

@@ -181,7 +181,9 @@ describe('tour option creation overhaul (source contracts)', () => {
     const guided = read('TourOptionGuidedScenes.tsx');
     expect(editor).toContain('flat={guided}');
     expect(editor).toMatch(/if \(flat\) \{\s*return <div className="space-y-3\.5">\{children\}<\/div>;/);
-    expect(guided).toContain("pricing: 'Prices and capacity are set on each schedule.'");
+    expect(guided).toContain(
+      "pricing: 'Set how guests are charged and max travelers per start time. Schedules set price and booking size.'"
+    );
     expect(guided).toContain('density="compact"');
     expect(guided).toContain('hideProgress');
     expect(guided).toContain('TourOptionScheduleList');

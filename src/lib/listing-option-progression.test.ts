@@ -126,6 +126,23 @@ describe('new option forward gating', () => {
     );
   });
 
+  it('requires travelers per start time on Pricing for schedule-based options', () => {
+    const noCapacity = option({
+      name: 'Hotel pickup',
+      duration: '6 hours',
+      optionInfo: 'Pickup included',
+      pickupPlace: 'Rovaniemi city hotels',
+      fulfillment: 'pickup',
+      travelerStartInstructions: 'Wait outside the hotel lobby 10 minutes early.',
+      startMode: 'fixed',
+      chargeModel: 'per_person',
+      maxSpotsPerSlot: 0,
+      schedules: [],
+    });
+    expect(isTourOptionSceneSatisfied(2, noCapacity)).toBe(false);
+    expect(bookingOptionPricingSceneIssues(noCapacity)[0]).toMatch(/start time/i);
+  });
+
   it('requires a ready schedule on Availability before Finish', () => {
     const untilPricing = option({
       name: 'Hotel pickup',
@@ -136,6 +153,7 @@ describe('new option forward gating', () => {
       travelerStartInstructions: 'Wait outside the hotel lobby 10 minutes early.',
       startMode: 'fixed',
       chargeModel: 'per_person',
+      maxSpotsPerSlot: 12,
       schedules: [],
     });
     expect(isTourOptionSceneSatisfied(2, untilPricing)).toBe(true);

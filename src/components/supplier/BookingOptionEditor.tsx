@@ -271,12 +271,26 @@ export default function BookingOptionEditor({
   const showAvailability =
     !activeSection || activeSection === 'schedule' || activeSection === 'availability';
   const showBookingWindow = !activeSection || activeSection === 'booking_window';
-  const showCapacity =
-    !activeSection ||
-    activeSection === 'schedule' ||
-    activeSection === 'capacity' ||
-    activeSection === 'price_capacity' ||
-    (activeSection === 'pricing' && !scheduleBased);
+  /** Option Pricing (schedule-based): slot capacity only. Schedule Price & capacity: booking size (+ groups). */
+  const showOptionSlotCapacity = Boolean(scheduleBased && activeSection === 'pricing');
+  const showScheduleBookingCapacity = schedulePriceCapacity;
+  const showLegacyCapacity =
+    !scheduleBased &&
+    (!activeSection ||
+      activeSection === 'schedule' ||
+      activeSection === 'capacity' ||
+      activeSection === 'pricing');
+  const showCapacity = showOptionSlotCapacity || showScheduleBookingCapacity || showLegacyCapacity;
+  const optionSlotCapacity =
+    spotsCeiling < LISTING_CAPACITY_MAX
+      ? spotsCeiling
+      : option.maxSpotsPerSlot >= 1
+        ? option.maxSpotsPerSlot
+        : 0;
+  const maxGroupsAllowed =
+    groupPricing && optionSlotCapacity >= 1 && option.maxPersons >= 1
+      ? maxWholeGroupsForSlot(optionSlotCapacity, option.maxPersons)
+      : 0;
 
   const nameInvalid = attempted && !option.name.trim();
   const infoInvalid = attempted && option.optionInfo.trim().length < 3;
@@ -1176,110 +1190,195 @@ export default function BookingOptionEditor({
         <Section
           flat={guided}
           kicker="Capacity"
-          title={groupPricing ? 'Slot capacity and group size' : 'How many travelers can book?'}
+          title={
+            showOptionSlotCapacity
+              ? 'Travelers per start time'
+              : showScheduleBookingCapacity
+                ? groupPricing
+                  ? 'Group size and groups'
+                  : 'Guests per booking'
+                : groupPricing
+                  ? 'Slot capacity and group size'
+                  : 'How many travelers can book?'
+          }
           support={
-            groupPricing
-              ? 'Inventory is traveler seats per start time. Group size is how large one booking can be.'
-              : 'Party size for one booking, and traveler seats available at each start time.'
+            showOptionSlotCapacity
+              ? 'Total travelers this option can take on one departure. Schedules use this as their capacity.'
+              : showScheduleBookingCapacity
+                ? groupPricing
+                  ? 'Set how large one group booking can be, and how many groups fit in the option capacity.'
+                  : 'Minimum and maximum travelers in one booking. Capped by the option’s capacity per start time.'
+                : groupPricing
+                  ? 'Inventory is traveler seats per start time. Group size is how large one booking can be.'
+                  : 'Party size for one booking, and traveler seats available at each start time.'
           }
         >
           <div id="supplier-listing-field-group" className="space-y-4">
-            <div>
-              <label htmlFor="booking-option-max-spots" className="mb-1 block text-sm font-semibold text-ink">
-                Travelers per start time *
-              </label>
-              <input
-                id="booking-option-max-spots"
-                type="number"
-                inputMode="numeric"
-                min={0}
-                max={spotsCeiling}
-                value={option.maxSpotsPerSlot > 0 ? option.maxSpotsPerSlot : ''}
-                onChange={(e) => {
-                  const nextSpots = parseOptionalCapacity(e.target.value, spotsCeiling);
-                  onChange({
-                    maxSpotsPerSlot: nextSpots,
-                    ...(nextSpots > 0 && option.maxPersons > nextSpots
-                      ? { maxPersons: nextSpots }
-                      : null),
-                  });
-                }}
-                className="tv-input w-full max-w-xs"
-              />
-              <p className="mt-1 text-[12px] text-ink-muted">
-                {schedulePriceCapacity && spotsCeiling < LISTING_CAPACITY_MAX
-                  ? `Cannot exceed this option’s capacity of ${spotsCeiling} travelers per start time.`
-                  : 'How many travelers this option can take on one departure.'}
+            {showScheduleBookingCapacity ? (
+              <p className="rounded-lg border border-black/[0.12] bg-black/[0.02] px-3 py-2 text-[12.5px] leading-snug text-ink">
+                Your maximum capacity per time slot is currently:{' '}
+                <span className="font-semibold">
+                  {optionSlotCapacity >= 1 ? optionSlotCapacity : '—'}
+                </span>
+                . You can modify it at:{' '}
+                <span className="font-semibold">Pricing → Travelers per start time</span>
               </p>
-            </div>
+            ) : null}
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {showOptionSlotCapacity || showLegacyCapacity ? (
               <div>
-                <label htmlFor="booking-option-min-guests" className="mb-1 block text-sm font-semibold text-ink">
-                  {groupPricing ? 'Min group size *' : 'Min guests per booking *'}
+                <label htmlFor="booking-option-max-spots" className="mb-1 block text-sm font-semibold text-ink">
+                  Travelers per start time *
                 </label>
                 <input
-                  id="booking-option-min-guests"
+                  id="booking-option-max-spots"
                   type="number"
                   inputMode="numeric"
                   min={0}
-                  max={guestsCeiling}
-                  value={option.minPersons > 0 ? option.minPersons : ''}
+                  max={LISTING_CAPACITY_MAX}
+                  value={option.maxSpotsPerSlot > 0 ? option.maxSpotsPerSlot : ''}
                   onChange={(e) => {
-                    const effectiveGuestCap = Math.min(
-                      guestsCeiling,
-                      option.maxSpotsPerSlot > 0 ? option.maxSpotsPerSlot : guestsCeiling
-                    );
-                    const nextMin = parseOptionalCapacity(e.target.value, effectiveGuestCap);
+                    const nextSpots = parseOptionalCapacity(e.target.value, LISTING_CAPACITY_MAX);
                     onChange({
-                      minPersons: nextMin,
-                      ...(option.maxPersons > 0 && nextMin > option.maxPersons
-                        ? { maxPersons: Math.min(effectiveGuestCap, nextMin) }
+                      maxSpotsPerSlot: nextSpots,
+                      ...(nextSpots > 0 && option.maxPersons > nextSpots
+                        ? { maxPersons: nextSpots }
                         : null),
                     });
                   }}
-                  className="tv-input"
+                  className="tv-input w-full max-w-xs"
                 />
+                <p className="mt-1 text-[12px] text-ink-muted">
+                  How many travelers this option can take on one departure.
+                </p>
               </div>
+            ) : null}
+
+            {showScheduleBookingCapacity || showLegacyCapacity ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="booking-option-min-guests" className="mb-1 block text-sm font-semibold text-ink">
+                    {groupPricing ? 'Min group size *' : 'Min guests per booking *'}
+                  </label>
+                  <input
+                    id="booking-option-min-guests"
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    max={guestsCeiling}
+                    value={option.minPersons > 0 ? option.minPersons : ''}
+                    onChange={(e) => {
+                      const effectiveGuestCap = Math.min(
+                        guestsCeiling,
+                        optionSlotCapacity >= 1 ? optionSlotCapacity : guestsCeiling
+                      );
+                      const nextMin = parseOptionalCapacity(e.target.value, effectiveGuestCap);
+                      onChange({
+                        minPersons: nextMin,
+                        ...(option.maxPersons > 0 && nextMin > option.maxPersons
+                          ? { maxPersons: Math.min(effectiveGuestCap, nextMin) }
+                          : null),
+                      });
+                    }}
+                    className="tv-input"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="booking-option-max-guests" className="mb-1 block text-sm font-semibold text-ink">
+                    {groupPricing ? 'Max group size *' : 'Max guests per booking *'}
+                  </label>
+                  <input
+                    id="booking-option-max-guests"
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    max={Math.min(
+                      guestsCeiling,
+                      optionSlotCapacity >= 1 ? optionSlotCapacity : guestsCeiling
+                    )}
+                    value={option.maxPersons > 0 ? option.maxPersons : ''}
+                    onChange={(e) => {
+                      const effectiveGuestCap = Math.min(
+                        guestsCeiling,
+                        optionSlotCapacity >= 1 ? optionSlotCapacity : guestsCeiling
+                      );
+                      const nextMax = parseOptionalCapacity(e.target.value, effectiveGuestCap);
+                      const patch: Partial<ListingBookingOption> = { maxPersons: nextMax };
+                      if (
+                        groupPricing &&
+                        showScheduleBookingCapacity &&
+                        nextMax >= 1 &&
+                        optionSlotCapacity >= 1
+                      ) {
+                        const allowed = maxWholeGroupsForSlot(optionSlotCapacity, nextMax);
+                        const currentGroups =
+                          typeof option.maxGroupsPerSlot === 'number' && option.maxGroupsPerSlot >= 1
+                            ? option.maxGroupsPerSlot
+                            : 1;
+                        if (allowed >= 1 && currentGroups > allowed) {
+                          patch.maxGroupsPerSlot = allowed;
+                        }
+                      }
+                      onChange(patch);
+                    }}
+                    className="tv-input"
+                  />
+                  <p className="mt-1 text-[12px] text-ink-muted">
+                    {groupPricing
+                      ? `One booking’s party size · max ${Math.min(
+                          guestsCeiling,
+                          optionSlotCapacity >= 1 ? optionSlotCapacity : guestsCeiling
+                        )}.`
+                      : guestsCeiling < LISTING_CAPACITY_MAX
+                        ? `Cannot exceed the option capacity of ${guestsCeiling}.`
+                        : 'Largest party size for one booking.'}
+                  </p>
+                </div>
+              </div>
+            ) : null}
+
+            {showScheduleBookingCapacity && groupPricing ? (
               <div>
-                <label htmlFor="booking-option-max-guests" className="mb-1 block text-sm font-semibold text-ink">
-                  {groupPricing ? 'Max group size *' : 'Max guests per booking *'}
+                <label htmlFor="booking-option-max-groups" className="mb-1 block text-sm font-semibold text-ink">
+                  Groups per start time *
                 </label>
                 <input
-                  id="booking-option-max-guests"
+                  id="booking-option-max-groups"
                   type="number"
                   inputMode="numeric"
                   min={0}
-                  max={Math.min(
-                    guestsCeiling,
-                    option.maxSpotsPerSlot > 0 ? option.maxSpotsPerSlot : guestsCeiling
-                  )}
-                  value={option.maxPersons > 0 ? option.maxPersons : ''}
+                  max={maxGroupsAllowed >= 1 ? maxGroupsAllowed : LISTING_CAPACITY_MAX}
+                  value={
+                    typeof option.maxGroupsPerSlot === 'number' && option.maxGroupsPerSlot > 0
+                      ? option.maxGroupsPerSlot
+                      : ''
+                  }
                   onChange={(e) => {
-                    const effectiveGuestCap = Math.min(
-                      guestsCeiling,
-                      option.maxSpotsPerSlot > 0 ? option.maxSpotsPerSlot : guestsCeiling
-                    );
+                    const ceiling =
+                      maxGroupsAllowed >= 1 ? maxGroupsAllowed : LISTING_CAPACITY_MAX;
                     onChange({
-                      maxPersons: parseOptionalCapacity(e.target.value, effectiveGuestCap),
+                      maxGroupsPerSlot: parseOptionalCapacity(e.target.value, ceiling),
+                      ...(optionSlotCapacity >= 1 ? { maxSpotsPerSlot: optionSlotCapacity } : null),
                     });
                   }}
-                  className="tv-input"
+                  disabled={option.maxPersons < 1 || optionSlotCapacity < 1}
+                  className="tv-input w-full max-w-xs"
                 />
                 <p className="mt-1 text-[12px] text-ink-muted">
-                  {groupPricing
-                    ? `One booking’s party size · max ${Math.min(
-                        guestsCeiling,
-                        option.maxSpotsPerSlot > 0 ? option.maxSpotsPerSlot : guestsCeiling
-                      )}.`
-                    : guestsCeiling < LISTING_CAPACITY_MAX
-                      ? `Cannot exceed ${guestsCeiling} (option limit).`
-                      : 'Largest party size for one booking.'}
+                  {option.maxPersons >= 1 && optionSlotCapacity >= 1
+                    ? maxGroupsAllowed < 1
+                      ? 'Max group size cannot exceed option capacity.'
+                      : `At max group size ${option.maxPersons}, at most ${maxGroupsAllowed} group${
+                          maxGroupsAllowed === 1 ? '' : 's'
+                        } fit in ${optionSlotCapacity} traveler seats (${maxGroupsAllowed} × ${
+                          option.maxPersons
+                        } ≤ ${optionSlotCapacity}).`
+                    : 'Set max group size first.'}
                 </p>
               </div>
-            </div>
+            ) : null}
 
-            {groupPricing && option.maxSpotsPerSlot >= 1 && option.maxPersons >= 1 ? (
+            {showLegacyCapacity && groupPricing && option.maxSpotsPerSlot >= 1 && option.maxPersons >= 1 ? (
               <p className="rounded-lg border border-black/[0.12] bg-black/[0.02] px-3 py-2 text-[12.5px] leading-snug text-ink">
                 At max group size ({option.maxPersons}), up to{' '}
                 <span className="font-semibold">

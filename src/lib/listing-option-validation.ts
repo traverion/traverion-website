@@ -41,20 +41,30 @@ export function bookingOptionChargeModelIssues(option: ListingBookingOption): st
 }
 
 /**
- * Pricing scene: charge model always; flat amount/capacity only for legacy non-schedule options.
- * Schedule-based options set prices and capacity on each schedule.
+ * Pricing scene: charge model always; option slot capacity for schedule-based options;
+ * flat amount + full capacity for legacy non-schedule options.
  */
 export function bookingOptionPricingSceneIssues(option: ListingBookingOption): string[] {
   const msg = [...bookingOptionChargeModelIssues(option)];
-  if (Array.isArray(option.schedules)) return msg;
+  if (Array.isArray(option.schedules)) {
+    if (option.maxSpotsPerSlot < 1) {
+      msg.push('Set how many travelers this option can take per start time.');
+    } else if (option.maxSpotsPerSlot > LISTING_CAPACITY_MAX) {
+      msg.push(`Capacity cannot exceed ${LISTING_CAPACITY_MAX} travelers.`);
+    }
+    return msg;
+  }
   return [...msg, ...bookingOptionPricingIssues(option), ...bookingOptionCapacityIssues(option)];
 }
 
-/** Schedules need charge model (Pricing) + start mode (Setup) first. */
+/** Schedules need charge model + slot capacity (Pricing) + start mode (Setup) first. */
 export function bookingOptionSchedulePrereqIssues(option: ListingBookingOption): string[] {
   const msg: string[] = [];
   if (option.chargeModel !== 'per_person' && option.chargeModel !== 'flat_group') {
     msg.push('Choose pricing (per person or per group) in Pricing before adding a schedule.');
+  }
+  if (option.maxSpotsPerSlot < 1) {
+    msg.push('Set travelers per start time in Pricing before adding a schedule.');
   }
   if (option.startMode !== 'fixed' && option.startMode !== 'flexible') {
     msg.push('Choose fixed start time or flexible hours in Setup before adding a schedule.');

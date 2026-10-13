@@ -5,6 +5,7 @@ import {
   findScheduleOverlap,
   LISTING_CAPACITY_MAX,
   listingLocalDateKey,
+  maxWholeGroupsForSlot,
   scheduleCapacityValid,
   scheduleHasFixedDepartures,
   scheduleHeadlineName,
@@ -76,7 +77,7 @@ export function schedulePricingIssues(schedule: ListingOptionSchedule): string[]
 
 export function scheduleCapacityIssues(
   schedule: ListingOptionSchedule,
-  opts?: { guestsCeiling?: number; spotsCeiling?: number }
+  opts?: { guestsCeiling?: number; spotsCeiling?: number; requireGroups?: boolean }
 ): string[] {
   const msg: string[] = [];
   const spotsCeiling =
@@ -87,34 +88,71 @@ export function scheduleCapacityIssues(
     typeof opts?.guestsCeiling === 'number' && opts.guestsCeiling >= 1
       ? Math.min(LISTING_CAPACITY_MAX, Math.floor(opts.guestsCeiling))
       : LISTING_CAPACITY_MAX,
-    // Group/party size cannot exceed the option's (or schedule's) slot capacity.
+    // Booking/group size cannot exceed option slot capacity (inherited onto the schedule).
     schedule.maxSpotsPerSlot >= 1 ? schedule.maxSpotsPerSlot : spotsCeiling,
     spotsCeiling
   );
-  if (schedule.maxSpotsPerSlot > spotsCeiling) {
+  if (schedule.maxSpotsPerSlot < 1 && spotsCeiling < LISTING_CAPACITY_MAX) {
+    msg.push(
+      `Set travelers per start time on the option (Pricing). Current option capacity is required before finishing capacity.`
+    );
+  } else if (schedule.maxSpotsPerSlot > spotsCeiling) {
     msg.push(`Travelers per start time cannot exceed ${spotsCeiling} (option capacity).`);
   }
   if (schedule.maxPersons > guestsCeiling) {
     msg.push(
-      guestsCeiling < spotsCeiling
-        ? `Max group size cannot exceed ${guestsCeiling} (option limit).`
-        : `Max group size cannot exceed travelers per start time (${guestsCeiling}).`
+      opts?.requireGroups
+        ? `Max group size cannot exceed the option capacity of ${guestsCeiling} travelers per start time.`
+        : `Max guests per booking cannot exceed the option capacity of ${guestsCeiling} travelers per start time.`
     );
   }
   if (schedule.maxSpotsPerSlot >= 1 && schedule.maxPersons > schedule.maxSpotsPerSlot) {
-    msg.push('Max group size cannot exceed travelers per start time.');
+    msg.push(
+      opts?.requireGroups
+        ? 'Max group size cannot exceed travelers per start time.'
+        : 'Max guests per booking cannot exceed travelers per start time.'
+    );
   }
-  if (!scheduleCapacityValid(schedule)) {
-    if (schedule.maxSpotsPerSlot < 1) msg.push('Set how many travelers this start time can hold.');
-    else if (schedule.maxSpotsPerSlot > LISTING_CAPACITY_MAX || schedule.maxPersons > LISTING_CAPACITY_MAX) {
+  if (opts?.requireGroups && schedule.maxPersons >= 1 && schedule.maxSpotsPerSlot >= 1) {
+    const maxGroups = maxWholeGroupsForSlot(schedule.maxSpotsPerSlot, schedule.maxPersons);
+    const groups =
+      typeof schedule.maxGroupsPerSlot === 'number' && Number.isFinite(schedule.maxGroupsPerSlot)
+        ? Math.floor(schedule.maxGroupsPerSlot)
+        : 0;
+    if (groups < 1) {
+      msg.push('Set how many groups can book the same start time.');
+    } else if (maxGroups < 1) {
+      msg.push('Max group size cannot exceed travelers per start time.');
+    } else if (groups > maxGroups) {
+      msg.push(
+        `At max group size ${schedule.maxPersons}, you can have at most ${maxGroups} group${
+          maxGroups === 1 ? '' : 's'
+        } within the option capacity of ${schedule.maxSpotsPerSlot}.`
+      );
+    }
+  }
+  if (!scheduleCapacityValid(schedule, { requireGroups: opts?.requireGroups })) {
+    if (schedule.maxSpotsPerSlot < 1) {
+      msg.push('Option capacity per start time is missing — set it under Pricing on the option.');
+    } else if (schedule.maxSpotsPerSlot > LISTING_CAPACITY_MAX || schedule.maxPersons > LISTING_CAPACITY_MAX) {
       msg.push(`Capacity cannot exceed ${LISTING_CAPACITY_MAX} travelers.`);
     } else if (schedule.maxPersons < 1 || schedule.minPersons < 1) {
-      msg.push('Set minimum and maximum group size.');
+      msg.push(
+        opts?.requireGroups
+          ? 'Set minimum and maximum group size.'
+          : 'Set minimum and maximum guests per booking.'
+      );
     } else if (schedule.maxPersons > schedule.maxSpotsPerSlot) {
-      msg.push('Max group size cannot exceed travelers per start time.');
-    } else msg.push('Set minimum and maximum so max is not below min.');
+      msg.push(
+        opts?.requireGroups
+          ? 'Max group size cannot exceed travelers per start time.'
+          : 'Max guests per booking cannot exceed travelers per start time.'
+      );
+    } else if (!opts?.requireGroups) {
+      msg.push('Set minimum and maximum so max is not below min.');
+    }
   }
-  return msg;
+  return [...new Set(msg)];
 }
 
 export function scheduleReadyOverlapIssue(
@@ -133,18 +171,21 @@ export function scheduleCapacityCeilings(option?: ListingBookingOption | null): 
   guestsCeiling: number;
   spotsCeiling: number;
 } {
-  /** Option-level people capacity for one departure (inventory). */
+  /** Option-level people capacity for one departure (inventory) — set on Pricing. */
   const spotsCeiling =
     option && typeof option.maxSpotsPerSlot === 'number' && option.maxSpotsPerSlot >= 1
       ? Math.min(LISTING_CAPACITY_MAX, Math.floor(option.maxSpotsPerSlot))
       : LISTING_CAPACITY_MAX;
-  /** Party/group size for one booking — never above option party max or slot capacity. */
-  const partyCeiling =
-    option && typeof option.maxPersons === 'number' && option.maxPersons >= 1
-      ? Math.min(LISTING_CAPACITY_MAX, Math.floor(option.maxPersons))
-      : LISTING_CAPACITY_MAX;
-  const guestsCeiling = Math.min(partyCeiling, spotsCeiling);
-  return { guestsCeiling, spotsCeiling };
+  /** Per-booking / per-group size on a schedule — capped by option slot capacity. */
+  return { guestsCeiling: spotsCeiling, spotsCeiling };
+}
+
+export function scheduleRequiresGroups(option?: ListingBookingOption | null): boolean {
+  if (!option) return false;
+  return (
+    option.chargeModel === 'flat_group' ||
+    Boolean(option.isPrivate && option.privatePricing === 'flat_group')
+  );
 }
 
 export function schedulePriceCapacityIssues(
@@ -152,7 +193,13 @@ export function schedulePriceCapacityIssues(
   option?: ListingBookingOption
 ): string[] {
   const ceilings = scheduleCapacityCeilings(option);
-  return [...schedulePricingIssues(schedule), ...scheduleCapacityIssues(schedule, ceilings)];
+  return [
+    ...schedulePricingIssues(schedule),
+    ...scheduleCapacityIssues(schedule, {
+      ...ceilings,
+      requireGroups: scheduleRequiresGroups(option),
+    }),
+  ];
 }
 
 export function isTourScheduleSceneSatisfied(

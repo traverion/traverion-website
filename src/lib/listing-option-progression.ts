@@ -2,7 +2,8 @@
  * Tour option wizard: 5 supplier-facing steps with strict forward gating for NEW options.
  *
  * Scenes: Setup → Meeting → Pricing → Availability → Booking settings.
- * Schedules own dates, days, departure, price and capacity on Availability.
+ * Schedules own dates, days, departure, price and booking size on Availability.
+ * Option Pricing owns charge model and travelers-per-start-time capacity.
  * Cutoff (option) and listing timezone live on Booking settings.
  *
  * Existing options remain freely visitable so legacy data is not trapped behind new gates.
