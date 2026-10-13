@@ -17,7 +17,6 @@ import {
   formatScheduleRange,
   formatScheduleWeekdays,
   applyScheduleToOption,
-  scheduleHeadlineName,
   scheduleWizardIsComplete,
 } from '../../../lib/listing-option-schedules';
 import { summarizeOptionPricing } from '../../../lib/price-categories';
@@ -103,7 +102,7 @@ export function TourScheduleWorkspace({
     schedule
   );
   const lastScene = sceneIndex >= TOUR_SCHEDULE_SCENE_COUNT - 1;
-  const scheduleLabel = schedule.name.trim() || (isNewSchedule ? 'New schedule' : scheduleHeadlineName(schedule, 0));
+  const railTitle = isNewSchedule ? 'New schedule' : 'Edit schedule';
   const optionLabel = option.name.trim() || 'Untitled option';
 
   useEffect(() => {
@@ -214,11 +213,8 @@ export function TourScheduleWorkspace({
             >
               ← Back to option
             </button>
-            <p
-              className="mt-5 line-clamp-2 text-[1.05rem] font-semibold leading-snug tracking-tight text-ink"
-              title={scheduleLabel}
-            >
-              {scheduleLabel}
+            <p className="mt-5 text-[1.05rem] font-semibold leading-snug tracking-tight text-ink">
+              {railTitle}
             </p>
             <div className="mt-2 min-h-4">
               {persistLabel ? (
