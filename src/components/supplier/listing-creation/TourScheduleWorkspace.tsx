@@ -217,9 +217,6 @@ export function TourScheduleWorkspace({
             <p className="mt-5 text-[1.05rem] font-semibold leading-snug tracking-tight text-ink" title={scheduleLabel}>
               {scheduleLabel}
             </p>
-            <p className="mt-1 truncate text-[12px] text-ink-muted" title={optionLabel}>
-              {optionLabel}
-            </p>
             <div className="mt-2 min-h-4">
               {persistLabel ? (
                 <p
@@ -261,16 +258,14 @@ export function TourScheduleWorkspace({
                 >
                   <span aria-hidden>←</span> Back to option
                 </button>
-                <p className="truncate text-[11px] leading-tight text-ink-muted" title={optionLabel}>
-                  {optionLabel}
-                </p>
                 <h2
                   ref={headingRef}
                   id={titleId}
                   tabIndex={-1}
-                  className="mt-0.5 text-[1.15rem] font-semibold leading-snug tracking-tight text-ink outline-none sm:text-[1.25rem]"
+                  className="truncate text-[1.15rem] font-semibold leading-snug tracking-tight text-ink outline-none sm:text-[1.25rem]"
+                  title={optionLabel}
                 >
-                  {scheduleLabel}
+                  {optionLabel}
                 </h2>
               </div>
               <p
