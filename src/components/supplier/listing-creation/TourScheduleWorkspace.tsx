@@ -8,6 +8,7 @@ import {
   canVisitTourScheduleScene,
   firstScheduleIssueFocusId,
   isTourScheduleSceneSatisfied,
+  scheduleCapacityCeilings,
   tourScheduleContextNavItems,
   tourScheduleLockedReason,
   tourScheduleSceneContinueHint,
@@ -103,9 +104,16 @@ export function TourScheduleWorkspace({
     },
     schedule
   );
+  const { guestsCeiling, spotsCeiling } = scheduleCapacityCeilings(option);
   const lastScene = sceneIndex >= TOUR_SCHEDULE_SCENE_COUNT - 1;
   const railTitle = isNewSchedule ? 'New schedule' : 'Edit schedule';
   const optionLabel = option.name.trim() || 'Untitled option';
+  const sceneQuestion =
+    scene.id === 'price_capacity' &&
+    (option.chargeModel === 'flat_group' ||
+      Boolean(option.isPrivate && option.privatePricing === 'flat_group'))
+      ? 'Whole-group price and capacity'
+      : scene.question;
 
   useEffect(() => {
     headingRef.current?.focus();
@@ -202,7 +210,7 @@ export function TourScheduleWorkspace({
         option,
       })
     ) {
-      focusField(firstScheduleIssueFocusId(schedule, { startMode: option.startMode }));
+      focusField(firstScheduleIssueFocusId(schedule, { startMode: option.startMode, option }));
       return;
     }
     onSelectScene(index);
@@ -301,7 +309,7 @@ export function TourScheduleWorkspace({
               ) : null}
 
               <h3 className="mb-4 text-[1.125rem] font-semibold leading-snug tracking-tight text-ink sm:text-[1.2rem]">
-                {scene.question}
+                {sceneQuestion}
               </h3>
 
               {scene.id === 'review' ? (
@@ -349,6 +357,8 @@ export function TourScheduleWorkspace({
                       onChange={patchFromOption}
                       activeSection={scene.id === 'when' ? 'availability' : 'price_capacity'}
                       attempted={attempted}
+                      guestsCeiling={guestsCeiling}
+                      spotsCeiling={spotsCeiling}
                     />
                   </div>
                 </div>

@@ -74,12 +74,31 @@ export function schedulePricingIssues(schedule: ListingOptionSchedule): string[]
   );
 }
 
-export function scheduleCapacityIssues(schedule: ListingOptionSchedule): string[] {
+export function scheduleCapacityIssues(
+  schedule: ListingOptionSchedule,
+  opts?: { guestsCeiling?: number; spotsCeiling?: number }
+): string[] {
   const msg: string[] = [];
+  const guestsCeiling =
+    typeof opts?.guestsCeiling === 'number' && opts.guestsCeiling >= 1
+      ? Math.min(LISTING_CAPACITY_MAX, Math.floor(opts.guestsCeiling))
+      : LISTING_CAPACITY_MAX;
+  const spotsCeiling =
+    typeof opts?.spotsCeiling === 'number' && opts.spotsCeiling >= 1
+      ? Math.min(LISTING_CAPACITY_MAX, Math.floor(opts.spotsCeiling))
+      : LISTING_CAPACITY_MAX;
+  if (schedule.maxPersons > guestsCeiling) {
+    msg.push(`Max guests cannot exceed ${guestsCeiling} (set on this option).`);
+  }
+  if (schedule.maxSpotsPerSlot > spotsCeiling) {
+    msg.push(`Max spots cannot exceed ${spotsCeiling} (set on this option).`);
+  }
   if (!scheduleCapacityValid(schedule)) {
     if (schedule.maxSpotsPerSlot < 1) msg.push('Maximum capacity must be at least 1.');
     else if (schedule.maxSpotsPerSlot > LISTING_CAPACITY_MAX || schedule.maxPersons > LISTING_CAPACITY_MAX) {
       msg.push(`Capacity cannot exceed ${LISTING_CAPACITY_MAX} travelers.`);
+    } else if (schedule.maxPersons < 1 || schedule.minPersons < 1) {
+      msg.push('Set minimum and maximum guests.');
     } else msg.push('Set minimum and maximum guests so max is not below min.');
   }
   return msg;
@@ -97,8 +116,27 @@ export function scheduleReadyOverlapIssue(
   return conflict ? scheduleOverlapMessage(conflict) : null;
 }
 
-export function schedulePriceCapacityIssues(schedule: ListingOptionSchedule): string[] {
-  return [...schedulePricingIssues(schedule), ...scheduleCapacityIssues(schedule)];
+export function scheduleCapacityCeilings(option?: ListingBookingOption | null): {
+  guestsCeiling: number;
+  spotsCeiling: number;
+} {
+  const guestsCeiling =
+    option && typeof option.maxPersons === 'number' && option.maxPersons >= 1
+      ? Math.min(LISTING_CAPACITY_MAX, Math.floor(option.maxPersons))
+      : LISTING_CAPACITY_MAX;
+  const spotsCeiling =
+    option && typeof option.maxSpotsPerSlot === 'number' && option.maxSpotsPerSlot >= 1
+      ? Math.min(LISTING_CAPACITY_MAX, Math.floor(option.maxSpotsPerSlot))
+      : LISTING_CAPACITY_MAX;
+  return { guestsCeiling, spotsCeiling };
+}
+
+export function schedulePriceCapacityIssues(
+  schedule: ListingOptionSchedule,
+  option?: ListingBookingOption
+): string[] {
+  const ceilings = scheduleCapacityCeilings(option);
+  return [...schedulePricingIssues(schedule), ...scheduleCapacityIssues(schedule, ceilings)];
 }
 
 export function isTourScheduleSceneSatisfied(
@@ -109,9 +147,13 @@ export function isTourScheduleSceneSatisfied(
   const scene = TOUR_SCHEDULE_SCENES[clampTourScheduleSceneIndex(sceneIndex)];
   if (!scene) return false;
   if (scene.id === 'when') return schedulePeriodIssues(schedule, { startMode: option?.startMode }).length === 0;
-  if (scene.id === 'price_capacity') return schedulePriceCapacityIssues(schedule).length === 0;
+  if (scene.id === 'price_capacity') return schedulePriceCapacityIssues(schedule, option).length === 0;
   const overlap = option ? scheduleReadyOverlapIssue({ ...schedule, status: 'ready' }, option) : null;
-  return scheduleWizardIsComplete(schedule, { startMode: option?.startMode }) && !overlap;
+  return (
+    scheduleWizardIsComplete(schedule, { startMode: option?.startMode }) &&
+    schedulePriceCapacityIssues(schedule, option).length === 0 &&
+    !overlap
+  );
 }
 
 export function canVisitTourScheduleScene(input: {
@@ -149,7 +191,10 @@ export function tourScheduleSceneContinueHint(input: {
     );
   }
   if (scene?.id === 'price_capacity') {
-    return schedulePriceCapacityIssues(input.schedule)[0] ?? 'Finish price and capacity to continue.';
+    return (
+      schedulePriceCapacityIssues(input.schedule, input.option)[0] ??
+      'Finish price and capacity to continue.'
+    );
   }
   if (input.option) {
     const overlap = scheduleReadyOverlapIssue({ ...input.schedule, status: 'ready' }, input.option);
@@ -205,10 +250,12 @@ export function tourScheduleContextNavItems(
 
 export function firstScheduleIssueFocusId(
   schedule: ListingOptionSchedule,
-  opts?: { startMode?: ListingBookingOption['startMode'] }
+  opts?: { startMode?: ListingBookingOption['startMode']; option?: ListingBookingOption }
 ): string | null {
   if (schedulePeriodIssues(schedule, opts).length > 0) return 'supplier-schedule-field-from';
-  if (schedulePriceCapacityIssues(schedule).length > 0) return 'supplier-schedule-field-price';
+  if (schedulePriceCapacityIssues(schedule, opts?.option).length > 0) {
+    return 'supplier-schedule-field-price';
+  }
   return null;
 }
 
@@ -219,13 +266,13 @@ export function scheduleCanSaveReady(
   const mode = { startMode: option.startMode };
   const chargeConflict = scheduleChargeModelConflict(schedule, option);
   if (chargeConflict) return { ok: false, error: chargeConflict };
-  if (!scheduleWizardIsComplete(schedule, mode)) {
+  const priceCapacity = schedulePriceCapacityIssues(schedule, option);
+  if (!scheduleWizardIsComplete(schedule, mode) || priceCapacity.length > 0) {
     return {
       ok: false,
       error:
         schedulePeriodIssues(schedule, mode)[0] ??
-        schedulePricingIssues(schedule)[0] ??
-        scheduleCapacityIssues(schedule)[0] ??
+        priceCapacity[0] ??
         'Finish this schedule before saving.',
     };
   }

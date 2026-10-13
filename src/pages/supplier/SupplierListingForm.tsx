@@ -2742,6 +2742,12 @@ export default function SupplierListingForm({
     const prepared = ensureExplicitSchedules(optionModalDraft);
     if (prepared !== optionModalDraft) setOptionModalDraft(prepared);
     const blank = blankOptionSchedule(newListingOptionScheduleId());
+    // Seed capacity from the option so schedule limits stay within earlier setup.
+    if (optionModalDraft.minPersons >= 1) blank.minPersons = optionModalDraft.minPersons;
+    if (optionModalDraft.maxPersons >= 1) blank.maxPersons = optionModalDraft.maxPersons;
+    if (optionModalDraft.maxSpotsPerSlot >= 1) {
+      blank.maxSpotsPerSlot = optionModalDraft.maxSpotsPerSlot;
+    }
     scheduleSessionOpenedAsCreateRef.current = true;
     scheduleOpenedStartTimeRef.current = '';
     scheduleSoldSeatAnchorRef.current = null;
@@ -2959,7 +2965,12 @@ export default function SupplierListingForm({
       });
       if (!allowed) {
         setScheduleAttempted(true);
-        focusListingField(firstScheduleIssueFocusId(scheduleDraft));
+        focusListingField(
+          firstScheduleIssueFocusId(scheduleDraft, {
+            startMode: optionModalDraft?.startMode,
+            option: optionModalDraft ?? undefined,
+          })
+        );
         return;
       }
       setScheduleSceneIdx(clampTourScheduleSceneIndex(index));
@@ -2982,7 +2993,12 @@ export default function SupplierListingForm({
     });
     if (!canContinue) {
       setScheduleAttempted(true);
-      focusListingField(firstScheduleIssueFocusId(scheduleDraft));
+      focusListingField(
+        firstScheduleIssueFocusId(scheduleDraft, {
+          startMode: optionModalDraft.startMode,
+          option: optionModalDraft,
+        })
+      );
       return;
     }
     persistScheduleDraft({ ...scheduleDraft, status: 'draft' });
@@ -2996,7 +3012,12 @@ export default function SupplierListingForm({
     if (!gate.ok) {
       setScheduleAttempted(true);
       setScheduleSaveError(gate.error);
-      focusListingField(firstScheduleIssueFocusId(ready));
+      focusListingField(
+        firstScheduleIssueFocusId(ready, {
+          startMode: optionModalDraft.startMode,
+          option: optionModalDraft,
+        })
+      );
       return;
     }
     scheduleSaveLockRef.current = true;
