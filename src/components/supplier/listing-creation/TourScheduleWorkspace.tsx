@@ -314,7 +314,7 @@ export function TourScheduleWorkspace({
               ) : (
                 <div className="w-full space-y-4">
                   {scene.id === 'when' ? (
-                    <div>
+                    <div className="max-w-md">
                       <label
                         htmlFor="supplier-schedule-name"
                         className="mb-1 block text-[13px] font-semibold text-ink"
@@ -326,11 +326,11 @@ export function TourScheduleWorkspace({
                         type="text"
                         value={schedule.name}
                         onChange={(e) => onChange({ name: e.target.value })}
-                        className="tv-input w-full max-w-md font-medium"
+                        className="tv-input w-full font-medium"
                         placeholder="e.g. Winter evenings"
                       />
                       <p className="mt-1.5 text-[12px] leading-snug text-ink-muted">
-                        Schedule names are shown to customers when they book.
+                        Shown to customers when they book.
                       </p>
                     </div>
                   ) : null}

@@ -351,6 +351,15 @@ export default function BookingOptionEditor({
     e.currentTarget.blur();
   };
 
+  const openTimePicker = (input: HTMLInputElement) => {
+    input.focus();
+    try {
+      input.showPicker?.();
+    } catch {
+      /* Some browsers only allow showPicker from a direct user gesture / WebKit path. */
+    }
+  };
+
   return (
     <div
       className={`grid grid-cols-1 ${
@@ -904,11 +913,11 @@ export default function BookingOptionEditor({
           flat={guided}
           kicker="Availability"
           title="When is this schedule available?"
-          support="Travelers can only book dates inside this window on days that have a start time. Ending date is optional."
+          support="Travelers book dates in this window on days that have a start time."
         >
-          <div id="supplier-listing-field-option-availability" className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="rounded-xl bg-paper-raised px-3.5 py-2 ring-1 ring-black/[0.2] transition-[box-shadow] duration-150 hover:ring-finland/30 focus-within:ring-2 focus-within:ring-finland/40">
+          <div id="supplier-listing-field-option-availability" className="space-y-5">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:items-start">
+              <div className="rounded-xl bg-paper-raised px-3.5 py-2.5 ring-1 ring-black/[0.22] transition-[box-shadow] duration-150 hover:ring-finland/30 focus-within:ring-2 focus-within:ring-finland/40">
                 <TraverionSingleDateField
                   id="booking-option-date-from"
                   label="Starting date"
@@ -918,7 +927,7 @@ export default function BookingOptionEditor({
                   onChange={(iso) => onChange({ availabilityDateFrom: iso })}
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 pt-0.5">
                 <label className="flex cursor-pointer items-start gap-3 py-1 touch-manipulation">
                   <input
                     type="checkbox"
@@ -928,17 +937,15 @@ export default function BookingOptionEditor({
                       onHasEndingDateChange(on);
                       if (!on) onChange({ availabilityDateTo: '' });
                     }}
-                    className="mt-0.5 h-5 w-5 shrink-0 rounded border-black/30 text-finland focus:ring-finland"
+                    className="mt-0.5 h-5 w-5 shrink-0 rounded border-black/35 text-finland focus:ring-finland"
                   />
                   <span>
                     <span className="block text-sm font-semibold text-ink">Set an ending date</span>
-                    <span className="block text-xs text-ink-muted">
-                      Optional. Leave off if this schedule has no end date.
-                    </span>
+                    <span className="block text-xs text-ink-muted">Optional — leave off for ongoing.</span>
                   </span>
                 </label>
                 {hasEndingDate ? (
-                  <div className="rounded-xl bg-paper-raised px-3.5 py-2 ring-1 ring-black/[0.2] transition-[box-shadow] duration-150 hover:ring-finland/30 focus-within:ring-2 focus-within:ring-finland/40">
+                  <div className="rounded-xl bg-paper-raised px-3.5 py-2.5 ring-1 ring-black/[0.22] transition-[box-shadow] duration-150 hover:ring-finland/30 focus-within:ring-2 focus-within:ring-finland/40">
                     <TraverionSingleDateField
                       id="booking-option-date-to"
                       label="Ending date"
@@ -980,50 +987,45 @@ export default function BookingOptionEditor({
                     ))}
                   </div>
                 </div>
-                <p className="rounded-lg border border-black/[0.1] bg-black/[0.02] px-3 py-2.5 text-sm leading-snug text-ink-muted">
-                  Flexible start — travelers book on these operating days without a fixed clock time.
+                <p className="text-[12.5px] leading-snug text-ink-muted">
+                  Flexible start — no fixed clock times on these days.
                 </p>
               </div>
             ) : (
               <div
                 ref={timesBoardRef}
-                className="space-y-2.5"
+                className="space-y-2"
                 aria-invalid={startInvalid || undefined}
               >
-                <div>
-                  <p className="text-sm font-semibold text-ink">Start times *</p>
-                  <p className="mt-0.5 text-[12px] leading-snug text-ink-muted">
-                    Days without a time stay closed. Travelers pick one departure.
-                  </p>
+                <div className="flex flex-wrap items-end justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-semibold text-ink">Weekly start times *</p>
+                    <p className="mt-0.5 text-[12px] leading-snug text-ink-muted">
+                      Click a time field to set it. Empty days stay closed.
+                    </p>
+                  </div>
                 </div>
-                {WEEKDAY_LABELS.map((label, di) => {
-                  const times = weekdayTimes[di] ?? [];
-                  const open = times.length > 0;
-                  return (
-                    <div
-                      key={label}
-                      className={`rounded-xl border px-3 py-2.5 ${
-                        open
-                          ? 'border-black/[0.2] bg-[#fffcf8]'
-                          : 'border-dashed border-black/[0.14] bg-black/[0.015]'
-                      }`}
-                    >
-                      <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="text-[13px] font-semibold text-ink">{label}</p>
-                          {!open ? (
-                            <p className="text-[11.5px] text-ink-muted">Closed — add a time to open</p>
-                          ) : null}
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2">
+                <div className="overflow-hidden rounded-xl border border-black/[0.2] bg-[#fffcf8]">
+                  {WEEKDAY_LABELS.map((label, di) => {
+                    const times = weekdayTimes[di] ?? [];
+                    const open = times.length > 0;
+                    return (
+                      <div
+                        key={label}
+                        className={`flex flex-col gap-2 border-b border-black/[0.1] px-3 py-2.5 last:border-b-0 sm:flex-row sm:items-center sm:gap-3 ${
+                          open ? 'bg-[#fffcf8]' : 'bg-[#f7f4ef]/60'
+                        }`}
+                      >
+                        <div className="flex w-full shrink-0 items-center justify-between gap-2 sm:w-[4.5rem] sm:block">
+                          <p className="text-[13px] font-semibold tabular-nums text-ink">{label}</p>
                           {open ? (
-                            <>
+                            <div className="flex items-center gap-2 sm:hidden">
                               <button
                                 type="button"
                                 onClick={() => applyTimesToAllDays(di)}
-                                className="lux-flat text-[12px] font-semibold text-finland hover:underline"
+                                className="lux-flat text-[11.5px] font-semibold text-finland hover:underline"
                               >
-                                Use on all days
+                                All days
                               </button>
                               <button
                                 type="button"
@@ -1032,51 +1034,79 @@ export default function BookingOptionEditor({
                                   next[di] = [];
                                   commitWeekdayTimes(next, { sort: true });
                                 }}
-                                className="lux-flat text-[12px] font-medium text-ink-muted hover:text-ink"
+                                className="lux-flat text-[11.5px] font-medium text-ink-muted hover:text-ink"
                               >
-                                Clear day
+                                Clear
                               </button>
-                            </>
+                            </div>
                           ) : null}
                         </div>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        {times.map((time, ti) => (
-                          <div key={`${di}-${ti}`} className="flex items-center gap-1">
-                            <input
-                              type="time"
-                              step={60}
-                              value={time}
-                              data-day={di}
-                              data-time-index={ti}
-                              onChange={(e) => setDayTimeAt(di, ti, e.target.value)}
-                              onBlur={() => settleDayTimes(di)}
-                              onKeyDown={guardTimeInputEscape}
-                              className="tv-input !min-h-9 w-[7.75rem] !py-1.5 text-[13px] font-medium"
-                              aria-label={`${label} start time ${ti + 1}`}
-                            />
+                        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+                          {times.map((time, ti) => (
+                            <div key={`${di}-${ti}`} className="flex items-center gap-0.5">
+                              <input
+                                type="time"
+                                step={60}
+                                value={time}
+                                data-day={di}
+                                data-time-index={ti}
+                                onChange={(e) => setDayTimeAt(di, ti, e.target.value)}
+                                onBlur={() => settleDayTimes(di)}
+                                onKeyDown={guardTimeInputEscape}
+                                onClick={(e) => openTimePicker(e.currentTarget)}
+                                className="schedule-time-input tv-input !min-h-9 w-[7.25rem] !rounded-lg !py-1.5 text-[13px] font-semibold tabular-nums"
+                                aria-label={`${label} start time ${ti + 1}`}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removeDayTime(di, ti)}
+                                className="lux-flat inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-ink-muted hover:bg-black/[0.05] hover:text-ink"
+                                aria-label={`Remove ${label} time ${ti + 1}`}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                              </button>
+                            </div>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => addDayTime(di)}
+                            className="lux-flat inline-flex min-h-9 items-center gap-1 rounded-md px-1.5 text-[12.5px] font-semibold text-finland hover:bg-finland/[0.06]"
+                          >
+                            <Plus className="h-3.5 w-3.5" aria-hidden />
+                            {open ? 'Add' : 'Add time'}
+                          </button>
+                          {!open ? (
+                            <span className="text-[12px] text-ink-muted">Closed</span>
+                          ) : null}
+                        </div>
+                        {open ? (
+                          <div className="hidden shrink-0 items-center gap-2 sm:flex">
                             <button
                               type="button"
-                              onClick={() => removeDayTime(di, ti)}
-                              className="lux-flat inline-flex h-8 w-8 items-center justify-center rounded-md text-ink-muted hover:bg-black/[0.04] hover:text-ink"
-                              aria-label={`Remove ${label} time ${ti + 1}`}
+                              onClick={() => applyTimesToAllDays(di)}
+                              className="lux-flat text-[12px] font-semibold text-finland hover:underline"
                             >
-                              <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                              Use on all days
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const next = weekdayTimes.map((day) => [...day]);
+                                next[di] = [];
+                                commitWeekdayTimes(next, { sort: true });
+                              }}
+                              className="lux-flat text-[12px] font-medium text-ink-muted hover:text-ink"
+                            >
+                              Clear
                             </button>
                           </div>
-                        ))}
-                        <button
-                          type="button"
-                          onClick={() => addDayTime(di)}
-                          className="lux-flat inline-flex min-h-9 items-center gap-1 text-[12.5px] font-semibold text-finland hover:underline"
-                        >
-                          <Plus className="h-3.5 w-3.5" aria-hidden />
-                          Add time
-                        </button>
+                        ) : (
+                          <div className="hidden w-[7.5rem] shrink-0 sm:block" aria-hidden />
+                        )}
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
                 {startInvalid ? (
                   <p className="text-[12px] font-medium text-ink-muted" role="status">
                     Add at least one start time on a day this schedule should run.

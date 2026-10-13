@@ -1013,7 +1013,7 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
 
 .listing-creation-option-shell .tv-input,
 .listing-creation-schedule-workspace .tv-input {
-  border: 1.5px solid rgba(28, 25, 23, 0.28);
+  border: 1.5px solid rgba(28, 25, 23, 0.3);
   background: #fffcf8;
   box-shadow: 0 1px 2px rgba(28, 25, 23, 0.06);
   font-weight: 500;
@@ -1021,13 +1021,35 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
 
 .listing-creation-option-shell .tv-input:hover:not(:disabled):not(:focus),
 .listing-creation-schedule-workspace .tv-input:hover:not(:disabled):not(:focus) {
-  border-color: rgba(28, 25, 23, 0.4);
+  border-color: rgba(28, 25, 23, 0.45);
 }
 
 .listing-creation-option-shell .tv-input:focus,
 .listing-creation-schedule-workspace .tv-input:focus {
   border-color: #003580;
   box-shadow: 0 0 0 3px rgba(0, 53, 128, 0.22);
+}
+
+/* Whole time field opens the picker — not only the clock glyph. */
+.listing-creation-schedule-workspace input[type='time'].schedule-time-input,
+.listing-creation-option-shell input[type='time'].schedule-time-input {
+  position: relative;
+  cursor: pointer;
+  color-scheme: light;
+}
+
+.listing-creation-schedule-workspace input[type='time'].schedule-time-input::-webkit-calendar-picker-indicator,
+.listing-creation-option-shell input[type='time'].schedule-time-input::-webkit-calendar-picker-indicator {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  cursor: pointer;
+  color: transparent;
+  background: transparent;
+  opacity: 0;
 }
 
 
