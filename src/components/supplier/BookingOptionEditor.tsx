@@ -916,19 +916,28 @@ export default function BookingOptionEditor({
           support="Travelers book dates in this window on days that have a start time."
         >
           <div id="supplier-listing-field-option-availability" className="space-y-5">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:items-start">
-              <div className="rounded-xl bg-paper-raised px-3.5 py-2.5 ring-1 ring-black/[0.22] transition-[box-shadow] duration-150 hover:ring-finland/30 focus-within:ring-2 focus-within:ring-finland/40">
-                <TraverionSingleDateField
-                  id="booking-option-date-from"
-                  label="Starting date"
-                  value={option.availabilityDateFrom}
-                  minIso={localYmd()}
-                  placeholder="Select a date"
-                  onChange={(iso) => onChange({ availabilityDateFrom: iso })}
-                />
+            <div className="grid max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2 sm:items-end">
+              <div>
+                <label
+                  htmlFor="booking-option-date-from"
+                  className="mb-1 block text-[13px] font-semibold text-ink"
+                >
+                  Starting date
+                </label>
+                <div className="tv-input !flex !min-h-11 !items-center !px-3 !py-1.5">
+                  <TraverionSingleDateField
+                    id="booking-option-date-from"
+                    label=""
+                    value={option.availabilityDateFrom}
+                    minIso={localYmd()}
+                    placeholder="Select a date"
+                    onChange={(iso) => onChange({ availabilityDateFrom: iso })}
+                    className="w-full [&_button]:h-8 [&_button]:text-[14px] [&_button]:font-medium"
+                  />
+                </div>
               </div>
-              <div className="space-y-2 pt-0.5">
-                <label className="flex cursor-pointer items-start gap-3 py-1 touch-manipulation">
+              <div className="space-y-2">
+                <label className="flex min-h-11 cursor-pointer items-center gap-2.5 touch-manipulation sm:min-h-0 sm:pb-2">
                   <input
                     type="checkbox"
                     checked={hasEndingDate}
@@ -937,30 +946,40 @@ export default function BookingOptionEditor({
                       onHasEndingDateChange(on);
                       if (!on) onChange({ availabilityDateTo: '' });
                     }}
-                    className="mt-0.5 h-5 w-5 shrink-0 rounded border-black/35 text-finland focus:ring-finland"
+                    className="h-4 w-4 shrink-0 rounded border-black/35 text-finland focus:ring-finland"
                   />
-                  <span>
-                    <span className="block text-sm font-semibold text-ink">Set an ending date</span>
-                    <span className="block text-xs text-ink-muted">Optional — leave off for ongoing.</span>
-                  </span>
+                  <span className="text-[13px] font-semibold text-ink">Set an ending date</span>
                 </label>
                 {hasEndingDate ? (
-                  <div className="rounded-xl bg-paper-raised px-3.5 py-2.5 ring-1 ring-black/[0.22] transition-[box-shadow] duration-150 hover:ring-finland/30 focus-within:ring-2 focus-within:ring-finland/40">
-                    <TraverionSingleDateField
-                      id="booking-option-date-to"
-                      label="Ending date"
-                      value={option.availabilityDateTo}
-                      minIso={
-                        option.availabilityDateFrom.trim() &&
-                        /^\d{4}-\d{2}-\d{2}$/.test(option.availabilityDateFrom)
-                          ? option.availabilityDateFrom
-                          : localYmd()
-                      }
-                      placeholder="Select a date"
-                      onChange={(iso) => onChange({ availabilityDateTo: iso })}
-                    />
+                  <div>
+                    <label
+                      htmlFor="booking-option-date-to"
+                      className="mb-1 block text-[13px] font-semibold text-ink"
+                    >
+                      Ending date
+                    </label>
+                    <div className="tv-input !flex !min-h-11 !items-center !px-3 !py-1.5">
+                      <TraverionSingleDateField
+                        id="booking-option-date-to"
+                        label=""
+                        value={option.availabilityDateTo}
+                        minIso={
+                          option.availabilityDateFrom.trim() &&
+                          /^\d{4}-\d{2}-\d{2}$/.test(option.availabilityDateFrom)
+                            ? option.availabilityDateFrom
+                            : localYmd()
+                        }
+                        placeholder="Select a date"
+                        onChange={(iso) => onChange({ availabilityDateTo: iso })}
+                        className="w-full [&_button]:h-8 [&_button]:text-[14px] [&_button]:font-medium"
+                      />
+                    </div>
                   </div>
-                ) : null}
+                ) : (
+                  <p className="text-[12px] leading-snug text-ink-muted sm:pb-2">
+                    Optional — leave off for ongoing.
+                  </p>
+                )}
               </div>
             </div>
             {option.startMode === 'flexible' ? (

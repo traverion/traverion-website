@@ -78,15 +78,20 @@ export function TraverionSingleDateField({
 
   const display = value.trim() ? formatBookingDateDisplay(value) : placeholder;
 
+  const showLabel = label.trim().length > 0;
+
   return (
     <div className={`relative ${className}`} ref={rootRef}>
-      <span id={labelId} className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-        {label}
-      </span>
+      {showLabel ? (
+        <span id={labelId} className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
+          {label}
+        </span>
+      ) : null}
       <button
         type="button"
         id={id}
-        aria-labelledby={`${labelId} ${valueId}`}
+        aria-labelledby={showLabel ? `${labelId} ${valueId}` : valueId}
+        aria-label={showLabel ? undefined : placeholder}
         aria-expanded={open}
         aria-controls={panelId}
         aria-haspopup="dialog"
