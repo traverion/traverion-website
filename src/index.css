@@ -1013,16 +1013,23 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
 
 .listing-creation-option-shell .tv-input,
 .listing-creation-schedule-workspace .tv-input {
-  border: 1px solid rgba(28, 25, 23, 0.14);
+  border: 1.5px solid rgba(28, 25, 23, 0.28);
   background: #fffcf8;
-  box-shadow: 0 1px 2px rgba(28, 25, 23, 0.05);
+  box-shadow: 0 1px 2px rgba(28, 25, 23, 0.06);
+  font-weight: 500;
+}
+
+.listing-creation-option-shell .tv-input:hover:not(:disabled):not(:focus),
+.listing-creation-schedule-workspace .tv-input:hover:not(:disabled):not(:focus) {
+  border-color: rgba(28, 25, 23, 0.4);
 }
 
 .listing-creation-option-shell .tv-input:focus,
 .listing-creation-schedule-workspace .tv-input:focus {
   border-color: #003580;
-  box-shadow: 0 0 0 3px rgba(0, 53, 128, 0.2);
+  box-shadow: 0 0 0 3px rgba(0, 53, 128, 0.22);
 }
+
 
 .listing-creation-option-body {
   background: #f6f3ee;

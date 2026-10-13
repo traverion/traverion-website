@@ -154,6 +154,17 @@ export function TourScheduleWorkspace({
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || e.defaultPrevented) return;
       if (dialogRef.current?.querySelector('[role="listbox"]')) return;
+      const target = e.target as HTMLElement | null;
+      // Don't treat Esc in fields as leave — native time inputs also clear on Esc.
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
       e.preventDefault();
       if (leaveOpen) onKeepEditing();
       else onCancel();
@@ -315,7 +326,7 @@ export function TourScheduleWorkspace({
                         type="text"
                         value={schedule.name}
                         onChange={(e) => onChange({ name: e.target.value })}
-                        className="tv-input w-full max-w-md"
+                        className="tv-input w-full max-w-md font-medium"
                         placeholder="e.g. Winter evenings"
                       />
                       <p className="mt-1.5 text-[12px] leading-snug text-ink-muted">

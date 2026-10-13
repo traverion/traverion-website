@@ -54,7 +54,7 @@ export function schedulePeriodIssues(
   if (!schedule.weekdays.some(Boolean)) msg.push('Choose at least one operating day.');
   const flexible = opts?.startMode === 'flexible';
   if (!flexible && !scheduleHasFixedDepartures(schedule, opts?.startMode)) {
-    msg.push('Add at least one start time on each operating day.');
+    msg.push('Add at least one start time on a day this schedule should run.');
   }
   return msg;
 }

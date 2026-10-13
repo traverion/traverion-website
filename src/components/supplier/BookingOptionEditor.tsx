@@ -15,7 +15,7 @@ import {
   formatPriceCategoryAgeRange,
   PRICE_CATEGORY_KIND_PRESETS,
 } from '../../lib/price-categories';
-import type { ReactNode } from 'react';
+import type { KeyboardEvent, ReactNode } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { TraverionSingleDateField } from '../calendar/TraverionSingleDateField';
 import PartnerSelect from './PartnerSelect';
@@ -259,21 +259,9 @@ export default function BookingOptionEditor({
     onChange(syncScheduleDeparturesFromWeekdayTimes(nextTimes));
   };
 
-  const toggleOperatingDay = (di: number) => {
-    const next = weekdayTimes.map((day) => [...day]);
-    if (next[di].length > 0) {
-      next[di] = [];
-    } else {
-      const seed =
-        weekdayTimes.find((day) => day.length > 0)?.[0] ||
-        option.startTime.trim().slice(0, 5) ||
-        '09:00';
-      next[di] = [seed];
-    }
-    patchWeekdayTimes(next);
-  };
-
   const setDayTimeAt = (di: number, timeIndex: number, value: string) => {
+    // Ignore empty clears from Esc / browser cancel — only the remove button drops a time.
+    if (!value.trim()) return;
     const next = weekdayTimes.map((day) => [...day]);
     next[di][timeIndex] = value;
     patchWeekdayTimes(next);
@@ -303,13 +291,17 @@ export default function BookingOptionEditor({
     patchWeekdayTimes(next);
   };
 
-  const applyTimesToAllSelected = (fromDi: number) => {
+  const applyTimesToAllDays = (fromDi: number) => {
     const source = weekdayTimes[fromDi];
     if (source.length === 0) return;
-    const next = weekdayTimes.map((day, i) =>
-      option.weekdays[i] || i === fromDi ? [...source] : [...day]
-    );
-    patchWeekdayTimes(next);
+    patchWeekdayTimes(WEEKDAY_LABELS.map(() => [...source]));
+  };
+
+  const guardTimeInputEscape = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Escape') return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.blur();
   };
 
   return (
@@ -865,11 +857,11 @@ export default function BookingOptionEditor({
           flat={guided}
           kicker="Availability"
           title="When is this schedule available?"
-          support="Travelers can only book dates that match this date window, these weekdays, and this start time. Ending date is optional."
+          support="Travelers can only book dates inside this window on days that have a start time. Ending date is optional."
         >
           <div id="supplier-listing-field-option-availability" className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="rounded-xl bg-paper-raised px-3.5 py-2 ring-1 ring-black/[0.06] transition-[box-shadow] duration-150 hover:ring-finland/25 focus-within:ring-2 focus-within:ring-finland/35">
+              <div className="rounded-xl bg-paper-raised px-3.5 py-2 ring-1 ring-black/[0.2] transition-[box-shadow] duration-150 hover:ring-finland/30 focus-within:ring-2 focus-within:ring-finland/40">
                 <TraverionSingleDateField
                   id="booking-option-date-from"
                   label="Starting date"
@@ -889,7 +881,7 @@ export default function BookingOptionEditor({
                       onHasEndingDateChange(on);
                       if (!on) onChange({ availabilityDateTo: '' });
                     }}
-                    className="mt-0.5 h-5 w-5 shrink-0 rounded border-black/20 text-finland focus:ring-finland"
+                    className="mt-0.5 h-5 w-5 shrink-0 rounded border-black/30 text-finland focus:ring-finland"
                   />
                   <span>
                     <span className="block text-sm font-semibold text-ink">Set an ending date</span>
@@ -899,7 +891,7 @@ export default function BookingOptionEditor({
                   </span>
                 </label>
                 {hasEndingDate ? (
-                  <div className="rounded-xl bg-paper-raised px-3.5 py-2 ring-1 ring-black/[0.06] transition-[box-shadow] duration-150 hover:ring-finland/25 focus-within:ring-2 focus-within:ring-finland/35">
+                  <div className="rounded-xl bg-paper-raised px-3.5 py-2 ring-1 ring-black/[0.2] transition-[box-shadow] duration-150 hover:ring-finland/30 focus-within:ring-2 focus-within:ring-finland/40">
                     <TraverionSingleDateField
                       id="booking-option-date-to"
                       label="Ending date"
@@ -917,87 +909,96 @@ export default function BookingOptionEditor({
                 ) : null}
               </div>
             </div>
-            <div>
-              <p className="mb-2 text-sm font-semibold text-ink">Operating days *</p>
-              <div className="flex flex-wrap gap-2">
-                {WEEKDAY_LABELS.map((label, di) => (
-                  <button
-                    key={label}
-                    type="button"
-                    onClick={() => {
-                      if (option.startMode === 'flexible') {
-                        const next = [...option.weekdays];
-                        next[di] = !next[di];
-                        onChange({ weekdays: next });
-                        return;
-                      }
-                      toggleOperatingDay(di);
-                    }}
-                    className={`lc-choice min-h-[44px] min-w-[2.75rem] rounded-full px-2.5 text-xs font-semibold ${
-                      option.weekdays[di] ? 'lc-choice--selected' : ''
-                    }`}
-                    aria-pressed={option.weekdays[di]}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
             {option.startMode === 'flexible' ? (
-              <p className="rounded-lg border border-black/[0.06] bg-black/[0.02] px-3 py-2.5 text-sm leading-snug text-ink-muted">
-                Flexible start — travelers book on these operating days without a single fixed clock time on this
-                schedule.
-              </p>
+              <div className="space-y-3">
+                <div>
+                  <p className="mb-2 text-sm font-semibold text-ink">Operating days *</p>
+                  <div className="flex flex-wrap gap-2">
+                    {WEEKDAY_LABELS.map((label, di) => (
+                      <button
+                        key={label}
+                        type="button"
+                        onClick={() => {
+                          const next = [...option.weekdays];
+                          next[di] = !next[di];
+                          onChange({ weekdays: next });
+                        }}
+                        className={`lc-choice min-h-[44px] min-w-[2.75rem] rounded-full px-2.5 text-xs font-semibold ${
+                          option.weekdays[di] ? 'lc-choice--selected' : ''
+                        }`}
+                        aria-pressed={option.weekdays[di]}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <p className="rounded-lg border border-black/[0.1] bg-black/[0.02] px-3 py-2.5 text-sm leading-snug text-ink-muted">
+                  Flexible start — travelers book on these operating days without a fixed clock time.
+                </p>
+              </div>
             ) : (
               <div className="space-y-3" aria-invalid={startInvalid || undefined}>
                 <div>
                   <p className="text-sm font-semibold text-ink">Start times *</p>
                   <p className="mt-0.5 text-[12px] leading-snug text-ink-muted">
-                    Travelers pick one of these departures. Different price or capacity still needs another
-                    schedule.
+                    All weekdays stay listed. Days without a time stay closed. Travelers pick one departure —
+                    different price or capacity still needs another schedule.
                   </p>
                 </div>
                 {WEEKDAY_LABELS.map((label, di) => {
-                  if (!option.weekdays[di]) return null;
                   const times = weekdayTimes[di] ?? [];
+                  const open = times.length > 0;
                   return (
                     <div
                       key={label}
-                      className="border-b border-black/[0.06] pb-3 last:border-b-0 last:pb-0"
+                      className={`rounded-xl border px-3 py-2.5 ${
+                        open
+                          ? 'border-black/[0.16] bg-[#fffcf8]'
+                          : 'border-dashed border-black/[0.12] bg-black/[0.015]'
+                      }`}
                     >
                       <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-[13px] font-semibold text-ink">{label}</p>
-                        <div className="flex flex-wrap items-center gap-2">
-                          {times.length > 0 ? (
-                            <button
-                              type="button"
-                              onClick={() => applyTimesToAllSelected(di)}
-                              className="lux-flat text-[12px] font-medium text-finland hover:underline"
-                            >
-                              Use on all selected days
-                            </button>
+                        <div className="min-w-0">
+                          <p className="text-[13px] font-semibold text-ink">{label}</p>
+                          {!open ? (
+                            <p className="text-[11.5px] text-ink-muted">Closed — add a time to open</p>
                           ) : null}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const next = weekdayTimes.map((day) => [...day]);
-                              next[di] = [];
-                              patchWeekdayTimes(next);
-                            }}
-                            className="lux-flat text-[12px] font-medium text-ink-muted hover:text-ink"
-                          >
-                            Clear day
-                          </button>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {open ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => applyTimesToAllDays(di)}
+                                className="lux-flat text-[12px] font-semibold text-finland hover:underline"
+                              >
+                                Use on all days
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const next = weekdayTimes.map((day) => [...day]);
+                                  next[di] = [];
+                                  patchWeekdayTimes(next);
+                                }}
+                                className="lux-flat text-[12px] font-medium text-ink-muted hover:text-ink"
+                              >
+                                Clear day
+                              </button>
+                            </>
+                          ) : null}
                         </div>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         {times.map((time, ti) => (
-                          <div key={`${label}-${ti}`} className="flex items-center gap-1">
+                          <div key={`${label}-${ti}-${time}`} className="flex items-center gap-1">
                             <input
                               type="time"
                               value={time}
                               onChange={(e) => setDayTimeAt(di, ti, e.target.value)}
-                              className="tv-input !min-h-9 w-[7.5rem] !py-1.5 text-[13px]"
+                              onKeyDown={guardTimeInputEscape}
+                              className="tv-input !min-h-9 w-[7.75rem] !py-1.5 text-[13px] font-medium"
                               aria-label={`${label} start time ${ti + 1}`}
                             />
                             <button
@@ -1023,8 +1024,8 @@ export default function BookingOptionEditor({
                   );
                 })}
                 {startInvalid ? (
-                  <p className="text-[12px] text-ink-muted" role="status">
-                    Add at least one start time on each operating day.
+                  <p className="text-[12px] font-medium text-ink-muted" role="status">
+                    Add at least one start time on a day this schedule should run.
                   </p>
                 ) : null}
               </div>
