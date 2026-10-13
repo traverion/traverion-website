@@ -144,6 +144,12 @@ export function listingOptionSchedules(option: ListingBookingOption): ListingOpt
 /** Hard ceiling so typos like 99999 cannot look “valid” as a tour departure size. */
 export const LISTING_CAPACITY_MAX = 200;
 
+/** Soft product limit for schedules per option in the supplier editor. */
+export const LISTING_OPTION_SCHEDULES_MAX = 5;
+
+/** Normalize/storage ceiling — never silently drop legacy rows above the soft product limit. */
+export const LISTING_OPTION_SCHEDULES_HARD_CEILING = 24;
+
 export function scheduleCapacityValid(
   s: Pick<ListingOptionSchedule, 'minPersons' | 'maxPersons' | 'maxSpotsPerSlot' | 'maxGroupsPerSlot'>,
   opts?: { requireGroups?: boolean }
@@ -697,8 +703,14 @@ export function upsertOptionSchedule(
     ? [...(option.schedules ?? [])]
     : listingOptionSchedules(option).filter((s) => !isImplicitScheduleId(s.id));
   const idx = current.findIndex((s) => s.id === schedule.id);
-  if (idx >= 0) current[idx] = schedule;
-  else current.push(schedule);
+  if (idx >= 0) {
+    current[idx] = schedule;
+  } else if (current.length >= LISTING_OPTION_SCHEDULES_MAX) {
+    // Soft product limit — never drop existing rows on update; refuse net-new inserts.
+    return option;
+  } else {
+    current.push(schedule);
+  }
   return syncOptionHeadlineFromSchedules({ ...option, schedules: current });
 }
 

@@ -116,6 +116,7 @@ import {
 } from '../../lib/listing-creation-review';
 import { listingWizardPersistLabel } from '../../lib/listing-wizard-persist';
 import { normalizeScheduleToOptionChargeModel } from '../../lib/listing-option-charge-model';
+import { canAddOptionSchedule } from '../../lib/listing-schedule-list';
 import { deriveListingTags } from '../../lib/listing-derived-tags';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import {
@@ -2706,8 +2707,24 @@ export default function SupplierListingForm({
   const applyScheduleToOptionDraft = useCallback(
     (schedule: ListingOptionSchedule, persist: boolean) => {
       if (!optionModalDraft) return optionModalDraft;
+      const prepared = ensureExplicitSchedules(optionModalDraft);
       const aligned = normalizeScheduleToOptionChargeModel(schedule, optionModalDraft);
-      const next = upsertOptionSchedule(ensureExplicitSchedules(optionModalDraft), aligned);
+      const existed = (prepared.schedules ?? []).some((s) => s.id === aligned.id);
+      if (!existed) {
+        const addGate = canAddOptionSchedule(prepared);
+        if (!addGate.ok) {
+          setScheduleSaveError(addGate.reason);
+          setOptionLockHint(addGate.reason);
+          return optionModalDraft;
+        }
+      }
+      const next = upsertOptionSchedule(prepared, aligned);
+      if (!existed && !(next.schedules ?? []).some((s) => s.id === aligned.id)) {
+        const msg = canAddOptionSchedule(prepared).reason ?? 'Couldn’t add another schedule.';
+        setScheduleSaveError(msg);
+        setOptionLockHint(msg);
+        return optionModalDraft;
+      }
       setOptionModalDraft(next);
       if (persist) persistOptionDraftToForm(next);
       return next;
@@ -2731,6 +2748,11 @@ export default function SupplierListingForm({
             : 'supplier-listing-field-option-start-mode'
         );
       }, 80);
+      return;
+    }
+    const addGate = canAddOptionSchedule(ensureExplicitSchedules(optionModalDraft));
+    if (!addGate.ok) {
+      setOptionLockHint(addGate.reason);
       return;
     }
     addScheduleLockRef.current = true;
@@ -2809,11 +2831,16 @@ export default function SupplierListingForm({
   const duplicateSchedule = useCallback(
     (scheduleId: string) => {
       if (!optionModalDraft || addScheduleLockRef.current) return;
+      const prepared = ensureExplicitSchedules(optionModalDraft);
+      const addGate = canAddOptionSchedule(prepared);
+      if (!addGate.ok) {
+        setOptionLockHint(addGate.reason);
+        return;
+      }
       addScheduleLockRef.current = true;
       window.setTimeout(() => {
         addScheduleLockRef.current = false;
       }, 400);
-      const prepared = ensureExplicitSchedules(optionModalDraft);
       const rows = prepared.schedules ?? [];
       let source = rows.find((s) => s.id === scheduleId);
       if (!source && isImplicitScheduleId(scheduleId) && rows.length === 1) {
@@ -2823,22 +2850,30 @@ export default function SupplierListingForm({
         source = rows.find((s) => s.status === 'draft') ?? rows[0];
       }
       if (!source) return;
-      const copy = duplicateOptionSchedule(source, newListingOptionScheduleId());
+      // Editable draft copy — not upserted until Save draft / Finish (cancel leaves no orphan).
+      const copy = normalizeScheduleToOptionChargeModel(
+        duplicateOptionSchedule(source, newListingOptionScheduleId()),
+        prepared
+      );
+      if (prepared.maxSpotsPerSlot >= 1) {
+        copy.maxSpotsPerSlot = prepared.maxSpotsPerSlot;
+      }
+      copy.status = 'draft';
       scheduleSessionOpenedAsCreateRef.current = true;
       scheduleOpenedStartTimeRef.current = '';
       scheduleSoldSeatAnchorRef.current = null;
       scheduleSnapshotRef.current = JSON.stringify(copy);
-      const next = upsertOptionSchedule(prepared, copy);
-      setOptionModalDraft(next);
-      persistOptionDraftToForm(next);
+      if (prepared !== optionModalDraft) setOptionModalDraft(prepared);
       setScheduleDraft(copy);
       setScheduleSceneIdx(0);
       setScheduleHasEndingDate(copy.availabilityDateTo.trim().length > 0);
       setScheduleAttempted(false);
-      setSchedulePersistLabel('Draft saved');
+      setSchedulePersistLabel(null);
       setScheduleSaveError(null);
+      setScheduleLeaveOpen(false);
+      setOptionLockHint(null);
     },
-    [optionModalDraft, persistOptionDraftToForm]
+    [optionModalDraft]
   );
 
   const deleteSchedule = useCallback(

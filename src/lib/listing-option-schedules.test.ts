@@ -7,6 +7,7 @@ import {
   applyScheduleToOption,
   blankOptionSchedule,
   duplicateOptionSchedule,
+  LISTING_OPTION_SCHEDULES_MAX,
   departureTimesOnDate,
   findScheduleOverlap,
   formatScheduleDepartureSummary,
@@ -310,6 +311,36 @@ describe('wizard completeness', () => {
   it('does not treat an empty schedule list as a ready option', () => {
     expect(optionScheduleManagementIssues(option({ schedules: [] }))[0]).toMatch(/complete schedule/i);
     expect(listingOptionHasSchedules(option({ schedules: [] }))).toBe(false);
+  });
+
+  it('refuses net-new schedule inserts beyond LISTING_OPTION_SCHEDULES_MAX', () => {
+    let row = option({ schedules: [] });
+    for (let i = 0; i < LISTING_OPTION_SCHEDULES_MAX; i++) {
+      row = upsertOptionSchedule(row, {
+        ...blankOptionSchedule(`sch-${i}`),
+        name: `Season ${i}`,
+        availabilityDateFrom: '2099-01-01',
+        startTime: '10:00',
+        priceUsd: 100,
+        minPersons: 1,
+        maxPersons: 8,
+        maxSpotsPerSlot: 8,
+        status: 'draft',
+      });
+    }
+    expect(row.schedules).toHaveLength(LISTING_OPTION_SCHEDULES_MAX);
+    const blocked = upsertOptionSchedule(row, {
+      ...blankOptionSchedule('sch-overflow'),
+      name: 'Overflow',
+      status: 'draft',
+    });
+    expect(blocked.schedules).toHaveLength(LISTING_OPTION_SCHEDULES_MAX);
+    const updated = upsertOptionSchedule(row, {
+      ...(row.schedules![0] as ListingOptionSchedule),
+      name: 'Renamed',
+    });
+    expect(updated.schedules).toHaveLength(LISTING_OPTION_SCHEDULES_MAX);
+    expect(updated.schedules?.[0]?.name).toBe('Renamed');
   });
 });
 

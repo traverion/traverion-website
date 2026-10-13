@@ -578,7 +578,7 @@ function normalizeListingOptionSchedules(raw: unknown, optionId: string): Listin
     .map((x, i) =>
       normalizeListingOptionSchedule(x as Record<string, unknown>, `${optionId}-sch-${i}`)
     )
-    .slice(0, 24);
+    .slice(0, 24); // hard ceiling; product UI caps adds at LISTING_OPTION_SCHEDULES_MAX (5)
 }
 
 /**

@@ -187,6 +187,16 @@ describe('tour option creation overhaul (source contracts)', () => {
     expect(guided).toContain('density="compact"');
     expect(guided).toContain('hideProgress');
     expect(guided).toContain('TourOptionScheduleList');
+    const scheduleList = read('TourOptionScheduleList.tsx');
+    expect(scheduleList).toContain('Schedules');
+    expect(scheduleList).toContain('LISTING_OPTION_SCHEDULES_MAX');
+    expect(scheduleList).toContain('scheduleListRowModel');
+    expect(scheduleList).toMatch(/role="button"/);
+    const listHelpers = readFileSync(
+      resolve(__dirname, '../../../lib/listing-schedule-list.ts'),
+      'utf8'
+    );
+    expect(listHelpers).toContain("return 'Not set'");
   });
 
   it('syncs the option editor with ?option= and ?optionScene= query params', () => {

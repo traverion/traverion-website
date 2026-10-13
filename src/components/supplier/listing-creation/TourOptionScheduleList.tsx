@@ -1,31 +1,25 @@
 import { Copy, Pencil, Plus, Trash2 } from 'lucide-react';
+import type { KeyboardEvent } from 'react';
 import type { ListingBookingOption, ListingOptionSchedule } from '../../../types/listingExtras';
 import {
-  formatScheduleDepartureSummary,
-  formatScheduleRange,
-  formatScheduleWeekdays,
   listingOptionHasSchedules,
   listingOptionSchedules,
-  maxWholeGroupsForSlot,
-  scheduleHeadlineName,
-  scheduleIsBookable,
-  scheduleWizardIsComplete,
 } from '../../../lib/listing-option-schedules';
-import { summarizeOptionPricing } from '../../../lib/price-categories';
+import {
+  canAddOptionSchedule,
+  LISTING_OPTION_SCHEDULES_MAX,
+  scheduleListRowModel,
+  type ScheduleListStatus,
+} from '../../../lib/listing-schedule-list';
 import { bookingOptionSchedulePrereqIssues } from '../../../lib/listing-option-validation';
-import { optionChargeModel } from '../../../lib/listing-option-charge-model';
 
-/** Soft viewport before the schedule list scrolls internally (≈5 compact rows). */
-const SCHEDULE_LIST_SCROLL_MAX_PX = 280;
+/** Soft viewport so ~5 compact rows scroll inside Availability without stretching the page. */
+const SCHEDULE_LIST_SCROLL_MAX_PX = 320;
 
-function scheduleStatus(
-  s: ListingOptionSchedule,
-  startMode: ListingBookingOption['startMode']
-): 'ready' | 'draft' {
-  if (s.status === 'draft') return 'draft';
-  const mode = { startMode };
-  if (scheduleWizardIsComplete(s, mode) && scheduleIsBookable(s, mode)) return 'ready';
-  return 'draft';
+function statusClass(status: ScheduleListStatus): string {
+  if (status === 'ready') return 'text-finland';
+  if (status === 'incomplete') return 'text-amber-800';
+  return 'text-ink-muted';
 }
 
 export function TourOptionScheduleList({
@@ -51,34 +45,32 @@ export function TourOptionScheduleList({
 }) {
   const rows = listingOptionHasSchedules(option) ? option.schedules ?? [] : listingOptionSchedules(option);
   const prereq = bookingOptionSchedulePrereqIssues(option);
-  const canAdd = prereq.length === 0;
-  const charge = optionChargeModel(option);
-  const chargeLabel = charge === 'flat_group' ? 'Whole group' : charge === 'per_person' ? 'Per person' : null;
-  const countLabel =
-    rows.length === 0
-      ? 'No schedules'
-      : rows.length === 1
-        ? '1 schedule'
-        : `${rows.length} schedules`;
+  const prereqOk = prereq.length === 0;
+  const addGate = canAddOptionSchedule(option);
+  const canAdd = prereqOk && addGate.ok;
+  const atLimit = !addGate.ok;
 
   return (
     <div id="supplier-listing-field-option-schedules" className="space-y-2.5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[13px] font-semibold text-ink">{countLabel}</p>
-        {rows.length > 0 ? (
-          <button
-            type="button"
-            onClick={onAdd}
-            disabled={!canAdd}
-            className="lux-flat inline-flex min-h-8 items-center gap-1 rounded-md px-2 text-[12.5px] font-semibold text-finland hover:bg-finland/[0.06] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland/30"
-          >
-            <Plus className="h-3.5 w-3.5" aria-hidden />
-            Add schedule
-          </button>
-        ) : null}
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+          <h3 className="text-[13px] font-semibold tracking-tight text-ink">Schedules</h3>
+          <span className="text-[12px] text-ink-muted tabular-nums">
+            {rows.length} of {LISTING_OPTION_SCHEDULES_MAX}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={onAdd}
+          disabled={!canAdd}
+          className="lux-flat inline-flex min-h-8 items-center gap-1 rounded-md px-2 text-[12.5px] font-semibold text-finland hover:bg-finland/[0.06] disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland/30"
+        >
+          <Plus className="h-3.5 w-3.5" aria-hidden />
+          Add schedule
+        </button>
       </div>
 
-      {!canAdd ? (
+      {!prereqOk ? (
         <div className="rounded-lg border border-amber-200/70 bg-amber-50/50 px-3 py-2 text-[12px] text-amber-950">
           <p className="font-medium">Finish Setup and Pricing to add schedules</p>
           <ul className="mt-1 list-disc space-y-0.5 pl-4">
@@ -89,12 +81,18 @@ export function TourOptionScheduleList({
         </div>
       ) : null}
 
+      {prereqOk && atLimit ? (
+        <p className="text-[12px] leading-snug text-ink-muted" role="status">
+          {addGate.reason}
+        </p>
+      ) : null}
+
       {rows.length === 0 ? (
         <div className="flex flex-col items-start gap-2 rounded-lg border border-dashed border-black/[0.12] px-4 py-4">
           <p className="text-[13px] font-semibold text-ink">No schedules yet</p>
           <p className="max-w-md text-[12px] leading-snug text-ink-muted">
-            {canAdd
-              ? 'Add dates, departure time, capacity, and price.'
+            {prereqOk
+              ? 'Add dates, departure times, booking size, and price for each season or period.'
               : 'Complete Setup and Pricing first.'}
           </p>
           <button
@@ -108,113 +106,142 @@ export function TourOptionScheduleList({
           </button>
         </div>
       ) : (
-        <div
-          className="space-y-2 overflow-y-auto overscroll-contain pr-0.5"
-          style={rows.length > 5 ? { maxHeight: SCHEDULE_LIST_SCROLL_MAX_PX } : undefined}
+        <ul
+          className="space-y-1.5 overflow-y-auto overscroll-contain pr-0.5"
+          style={{ maxHeight: SCHEDULE_LIST_SCROLL_MAX_PX }}
+          aria-label="Schedules for this option"
         >
           {rows.map((s, index) => {
-            const status = scheduleStatus(s, option.startMode);
+            const row = scheduleListRowModel(s, option, index, formatAmount);
             const pending = pendingDeleteId === s.id;
             const occupancyNotice = pending ? occupancyNoticeForSchedule?.(s) ?? null : null;
+
+            const openEdit = () => {
+              if (!pending) onEdit(s.id);
+            };
+            const onRowKeyDown = (e: KeyboardEvent<HTMLElement>) => {
+              if (pending) return;
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onEdit(s.id);
+              }
+            };
+
             return (
-              <article
-                key={s.id}
-                className="rounded-lg border border-black/[0.08] bg-white px-3 py-2.5"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0 space-y-0.5">
-                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                      <h3 className="text-[13px] font-semibold tracking-tight text-ink">
-                        {scheduleHeadlineName(s, index)}
-                      </h3>
-                      <span className="text-[11.5px] text-ink-muted">
-                        {status === 'ready' ? 'Ready' : 'Draft'}
-                      </span>
+              <li key={s.id}>
+                <article
+                  role="button"
+                  tabIndex={pending ? -1 : 0}
+                  onClick={openEdit}
+                  onKeyDown={onRowKeyDown}
+                  aria-label={`Edit schedule ${row.name}`}
+                  className="rounded-lg border border-black/[0.08] bg-white px-3 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland/30"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                        <h4 className="truncate text-[13px] font-semibold tracking-tight text-ink">
+                          {row.name}
+                        </h4>
+                        <span
+                          className={`text-[11.5px] font-medium ${statusClass(row.status)}`}
+                        >
+                          {row.statusLabel}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-x-4 gap-y-0.5 sm:grid-cols-2">
+                        <p className="min-w-0 text-[12px] leading-snug text-ink">
+                          <span className="text-ink-muted">Dates </span>
+                          {row.dates}
+                        </p>
+                        <p className="min-w-0 text-[12px] leading-snug text-ink">
+                          <span className="text-ink-muted">Days </span>
+                          {row.days}
+                        </p>
+                        <p className="min-w-0 text-[12px] leading-snug text-ink">
+                          <span className="text-ink-muted">Departure </span>
+                          {row.departure}
+                        </p>
+                        <p className="min-w-0 text-[12px] leading-snug text-ink">
+                          <span className="text-ink-muted">{row.pricingModel} </span>
+                          {row.price}
+                        </p>
+                        <p className="min-w-0 text-[12px] leading-snug text-ink sm:col-span-2">
+                          <span className="text-ink-muted">Capacity </span>
+                          {row.capacity}
+                        </p>
+                      </div>
+
+                      {row.nextIssue ? (
+                        <p className="text-[11.5px] leading-snug text-ink-muted">{row.nextIssue}</p>
+                      ) : null}
+                      {occupancyNotice ? (
+                        <p className="text-[12px] leading-snug text-ink" role="status">
+                          {occupancyNotice}
+                        </p>
+                      ) : null}
                     </div>
-                    <p className="text-[12.5px] text-ink">
-                      {formatScheduleRange(s.availabilityDateFrom, s.availabilityDateTo) ||
-                        'Dates not set'}
-                    </p>
-                    <p className="text-[12px] text-ink-muted">
-                      {[
-                        formatScheduleWeekdays(s.weekdays),
-                        formatScheduleDepartureSummary(s, option.startMode) || null,
-                        chargeLabel,
-                        summarizeOptionPricing(s, formatAmount),
-                        charge === 'flat_group'
-                          ? `${s.maxSpotsPerSlot} seats · groups of ${s.minPersons}–${s.maxPersons}${
-                              typeof s.maxGroupsPerSlot === 'number' && s.maxGroupsPerSlot >= 1
-                                ? ` · ${s.maxGroupsPerSlot} group${s.maxGroupsPerSlot === 1 ? '' : 's'}`
-                                : s.maxPersons >= 1
-                                  ? ` · up to ${maxWholeGroupsForSlot(s.maxSpotsPerSlot, s.maxPersons)} group${
-                                      maxWholeGroupsForSlot(s.maxSpotsPerSlot, s.maxPersons) === 1 ? '' : 's'
-                                    }`
-                                  : ''
-                            }`
-                          : `${s.minPersons}–${s.maxPersons} per booking · ${s.maxSpotsPerSlot} seats`,
-                      ]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    </p>
-                    {occupancyNotice ? (
-                      <p className="mt-1 text-[12px] leading-snug text-ink" role="status">
-                        {occupancyNotice}
-                      </p>
-                    ) : null}
+
+                    <div
+                      className="flex shrink-0 flex-col items-stretch gap-0.5 sm:flex-row sm:items-center"
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => e.stopPropagation()}
+                    >
+                      {pending ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={onCancelDelete}
+                            className="lux-flat inline-flex min-h-8 items-center justify-center rounded-md px-2 text-[12px] font-medium text-ink-muted hover:bg-black/[0.04]"
+                          >
+                            Keep
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onDelete(s.id)}
+                            className="lux-flat inline-flex min-h-8 items-center justify-center rounded-md px-2 text-[12px] font-semibold text-red-700 hover:bg-red-50"
+                          >
+                            Delete
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => onEdit(s.id)}
+                            className="lux-flat inline-flex min-h-8 items-center justify-center gap-1 rounded-md px-2 text-[12px] font-medium text-ink-muted hover:bg-black/[0.04] hover:text-ink"
+                          >
+                            <Pencil className="h-3.5 w-3.5" aria-hidden />
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onDuplicate(s.id)}
+                            disabled={!canAdd}
+                            title={atLimit ? addGate.reason ?? undefined : undefined}
+                            className="lux-flat inline-flex min-h-8 items-center justify-center gap-1 rounded-md px-2 text-[12px] font-medium text-ink-muted hover:bg-black/[0.04] hover:text-ink disabled:opacity-45"
+                          >
+                            <Copy className="h-3.5 w-3.5" aria-hidden />
+                            Duplicate
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onDelete(s.id)}
+                            className="lux-flat inline-flex min-h-8 items-center justify-center gap-1 rounded-md px-2 text-[12px] font-medium text-ink-muted hover:bg-red-50 hover:text-red-700"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                            Delete
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex flex-wrap items-center gap-0.5 shrink-0">
-                    {pending ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={onCancelDelete}
-                          className="lux-flat inline-flex min-h-8 items-center rounded-md px-2 text-[12.5px] font-medium text-ink-muted hover:bg-black/[0.04]"
-                        >
-                          Keep
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onDelete(s.id)}
-                          className="lux-flat inline-flex min-h-8 items-center rounded-md px-2 text-[12.5px] font-semibold text-red-700 hover:bg-red-50"
-                        >
-                          Delete
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => onEdit(s.id)}
-                          className="lux-flat inline-flex min-h-8 items-center gap-1 rounded-md px-2 text-[12.5px] font-medium text-ink-muted hover:bg-black/[0.04] hover:text-ink"
-                        >
-                          <Pencil className="h-3.5 w-3.5" aria-hidden />
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onDuplicate(s.id)}
-                          disabled={!canAdd}
-                          className="lux-flat inline-flex min-h-8 items-center gap-1 rounded-md px-2 text-[12.5px] font-medium text-ink-muted hover:bg-black/[0.04] hover:text-ink disabled:opacity-50"
-                        >
-                          <Copy className="h-3.5 w-3.5" aria-hidden />
-                          Duplicate
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onDelete(s.id)}
-                          className="lux-flat inline-flex min-h-8 items-center gap-1 rounded-md px-2 text-[12.5px] font-medium text-ink-muted hover:bg-red-50 hover:text-red-700"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                          Delete
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </article>
+                </article>
+              </li>
             );
           })}
-        </div>
+        </ul>
       )}
     </div>
   );
