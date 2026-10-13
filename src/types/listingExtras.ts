@@ -201,6 +201,11 @@ export interface ListingExtras {
    * Omitted → platform default Europe/Helsinki. Invalid values are ignored on read.
    */
   departureTimezone?: string;
+  /**
+   * When true, supplier chose departureTimezone manually — location changes must not overwrite it.
+   * Omitted / false → timezone may follow Basics country/city auto-detect.
+   */
+  departureTimezoneManual?: boolean;
   /** Multiple bookable options under one tour (partner Options step). */
   bookingOptions?: ListingBookingOption[];
   /**
@@ -704,6 +709,9 @@ export function parseListingExtras(raw: unknown): ListingExtras {
       /* ignore invalid IANA */
     }
   }
+  if (o.departureTimezoneManual === true) {
+    out.departureTimezoneManual = true;
+  }
   if (Array.isArray(o.galleryImageUrls)) {
     out.galleryImageUrls = o.galleryImageUrls.map((x) => String(x ?? '').trim()).filter(Boolean);
   }
@@ -772,6 +780,9 @@ export function listingExtrasToDb(extras: ListingExtras | undefined): Record<str
     } catch {
       /* skip invalid */
     }
+  }
+  if (extras.departureTimezoneManual === true) {
+    payload.departureTimezoneManual = true;
   }
   if (extras.galleryImageUrls?.length) payload.galleryImageUrls = extras.galleryImageUrls;
   if (extras.photoSlotLabels?.some((l) => l.trim())) payload.photoSlotLabels = extras.photoSlotLabels;

@@ -1,9 +1,9 @@
 /**
- * Tour option wizard: 4 supplier-facing steps with strict forward gating for NEW options.
+ * Tour option wizard: 5 supplier-facing steps with strict forward gating for NEW options.
  *
- * Scenes: Setup → Meeting → Pricing → Availability.
- * Schedules own dates, days, departure, price and capacity. The Availability scene lists
- * schedules and opens the nested schedule workspace; cutoff and listing timezone live here too.
+ * Scenes: Setup → Meeting → Pricing → Availability → Booking settings.
+ * Schedules own dates, days, departure, price and capacity on Availability.
+ * Cutoff (option) and listing timezone live on Booking settings.
  *
  * Existing options remain freely visitable so legacy data is not trapped behind new gates.
  */
@@ -27,10 +27,16 @@ export const TOUR_OPTION_SCENES = [
   { id: 'meeting', label: 'Meeting', question: 'Where will guests start?' },
   { id: 'pricing', label: 'Pricing', question: 'How will guests be charged?' },
   { id: 'availability', label: 'Availability', question: 'When can guests book?' },
+  { id: 'booking_settings', label: 'Booking settings', question: 'Booking cutoff and timezone' },
 ] as const;
 
 export type TourOptionSceneId = (typeof TOUR_OPTION_SCENES)[number]['id'];
 export const TOUR_OPTION_SCENE_COUNT = TOUR_OPTION_SCENES.length;
+
+/** Scene index for schedule management (Availability). */
+export const TOUR_OPTION_AVAILABILITY_SCENE_INDEX = TOUR_OPTION_SCENES.findIndex(
+  (s) => s.id === 'availability'
+);
 
 export function clampTourOptionSceneIndex(index: number): number {
   if (!Number.isFinite(index)) return 0;
@@ -43,6 +49,11 @@ export function nextTourOptionScene(index: number): number {
 
 export function previousTourOptionScene(index: number): number {
   return clampTourOptionSceneIndex(index - 1);
+}
+
+/** Booking settings has no required fields — timezone always resolves; cutoff may inherit. */
+export function isTourOptionBookingSettingsSatisfied(): boolean {
+  return true;
 }
 
 export function isTourOptionSceneSatisfied(
@@ -58,6 +69,7 @@ export function isTourOptionSceneSatisfied(
   if (scene.id === 'availability') {
     return bookingOptionAvailabilitySceneIssues(option, ending).length === 0;
   }
+  if (scene.id === 'booking_settings') return isTourOptionBookingSettingsSatisfied();
   return false;
 }
 
@@ -99,9 +111,10 @@ export function tourOptionSceneContinueHint(input: {
   if (scene?.id === 'availability') {
     return (
       bookingOptionAvailabilitySceneIssues(input.option, input.ending)[0] ??
-      'Finish availability to continue.'
+      'Add a ready schedule to continue.'
     );
   }
+  if (scene?.id === 'booking_settings') return null;
   return 'Finish the remaining option details before completing.';
 }
 
@@ -190,5 +203,5 @@ export function optionAvailabilityPricingReady(
   option: ListingBookingOption,
   ending?: OptionEndingDateState
 ): boolean {
-  return isTourOptionSceneSatisfied(3, option, ending);
+  return isTourOptionSceneSatisfied(TOUR_OPTION_AVAILABILITY_SCENE_INDEX, option, ending);
 }

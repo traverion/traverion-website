@@ -21,6 +21,8 @@ export function ListingCreationSceneFrame({
   headingId,
   /** Options editor uses denser headings to match the full-screen compact chrome. */
   density = 'default',
+  /** When the option shell has a left step rail, hide the duplicate horizontal progress on desktop. */
+  hideProgress = false,
   children,
 }: {
   question: string;
@@ -37,22 +39,37 @@ export function ListingCreationSceneFrame({
   headingRef?: Ref<HTMLHeadingElement>;
   headingId: string;
   density?: 'default' | 'compact';
+  hideProgress?: boolean;
   children: ReactNode;
 }) {
   const compact = density === 'compact';
   return (
     <div className={`listing-creation-scene listing-creation-scene--${direction} w-full`}>
       <header className={compact ? 'mb-4 space-y-3' : 'mb-5 space-y-3.5 sm:mb-6 sm:space-y-4'}>
-        <ListingCreationSceneProgress
-          index={sceneIndex}
-          total={sceneTotal}
-          labels={sceneLabels}
-          ariaLabel={sceneProgressAriaLabel}
-          canSelect={canSelectScene}
-          isComplete={isSceneComplete}
-          onSelect={onSelectScene}
-        />
-        <div className="max-w-[46rem]">
+        {hideProgress ? (
+          <div className="lg:hidden">
+            <ListingCreationSceneProgress
+              index={sceneIndex}
+              total={sceneTotal}
+              labels={sceneLabels}
+              ariaLabel={sceneProgressAriaLabel}
+              canSelect={canSelectScene}
+              isComplete={isSceneComplete}
+              onSelect={onSelectScene}
+            />
+          </div>
+        ) : (
+          <ListingCreationSceneProgress
+            index={sceneIndex}
+            total={sceneTotal}
+            labels={sceneLabels}
+            ariaLabel={sceneProgressAriaLabel}
+            canSelect={canSelectScene}
+            isComplete={isSceneComplete}
+            onSelect={onSelectScene}
+          />
+        )}
+        <div className={compact ? 'max-w-[56rem]' : 'max-w-[46rem]'}>
           <h3
             ref={headingRef}
             id={headingId}

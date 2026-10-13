@@ -29,12 +29,13 @@ function option(partial: Partial<ListingBookingOption> = {}): ListingBookingOpti
 }
 
 describe('tour option scenes', () => {
-  it('uses four supplier-facing steps: setup, meeting, pricing, availability', () => {
+  it('uses five supplier-facing steps including booking settings', () => {
     expect(TOUR_OPTION_SCENES.map((s) => s.id)).toEqual([
       'setup',
       'meeting',
       'pricing',
       'availability',
+      'booking_settings',
     ]);
   });
 
@@ -43,6 +44,7 @@ describe('tour option scenes', () => {
       'complete',
       'complete',
       'current',
+      'upcoming',
       'upcoming',
     ]);
   });

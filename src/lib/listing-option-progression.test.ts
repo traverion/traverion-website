@@ -72,12 +72,13 @@ const ready = option({
 });
 
 describe('tour option scenes', () => {
-  it('uses four supplier-facing steps: setup, meeting, pricing, availability', () => {
+  it('uses five supplier-facing steps including booking settings', () => {
     expect(TOUR_OPTION_SCENES.map((s) => s.id)).toEqual([
       'setup',
       'meeting',
       'pricing',
       'availability',
+      'booking_settings',
     ]);
   });
 });
@@ -154,7 +155,13 @@ describe('new option forward gating', () => {
 
   it('marks locked vs complete on the option rail for a new option', () => {
     const items = tourOptionContextNavItems(0, { isNewOption: true, option: option({ schedules: [] }) });
-    expect(items.map((item) => item.state)).toEqual(['current', 'locked', 'locked', 'locked']);
+    expect(items.map((item) => item.state)).toEqual([
+      'current',
+      'locked',
+      'locked',
+      'locked',
+      'locked',
+    ]);
   });
 });
 

@@ -1,6 +1,7 @@
 import type { ListingBookingOption } from '../types/listingExtras';
 import { isListingBookingOptionEffectivelyEmpty } from '../types/listingExtras';
 import {
+  TOUR_OPTION_AVAILABILITY_SCENE_INDEX,
   TOUR_OPTION_SCENE_COUNT,
   TOUR_OPTION_SCENES,
   clampTourOptionSceneIndex,
@@ -11,6 +12,7 @@ import {
 } from './listing-option-progression';
 
 export {
+  TOUR_OPTION_AVAILABILITY_SCENE_INDEX,
   TOUR_OPTION_SCENE_COUNT,
   TOUR_OPTION_SCENES,
   clampTourOptionSceneIndex,

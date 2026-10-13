@@ -185,7 +185,7 @@ export function tourOptionCardModel(
       kind: 'manage_schedules',
       label: 'Schedules',
       sceneIndex: 3,
-      reason: 'Edit schedules, cutoff, and timezone for this option.',
+      reason: 'Edit schedules for this option.',
     };
   }
 

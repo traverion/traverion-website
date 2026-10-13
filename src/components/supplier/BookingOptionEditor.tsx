@@ -42,9 +42,13 @@ type Props = {
   onChange: (patch: Partial<ListingBookingOption>) => void;
   activeSection?: BookingOptionEditorSection;
   attempted?: boolean;
-  /** Listing-scoped timezone edited from the Availability scene (shared across options). */
+  /** Listing-scoped timezone edited from Booking settings (shared across options). */
   listingDepartureTimezone?: string;
   onListingDepartureTimezoneChange?: (timezone: string) => void;
+  /** Listing default cutoff hours (0 = until departure). Shown when option inherits. */
+  listingCutoffHours?: number;
+  timezoneAutoDetected?: boolean;
+  timezoneDetectedLabel?: string | null;
 };
 
 function patchCategory(
@@ -142,6 +146,9 @@ export default function BookingOptionEditor({
   attempted = false,
   listingDepartureTimezone,
   onListingDepartureTimezoneChange,
+  listingCutoffHours = 0,
+  timezoneAutoDetected = false,
+  timezoneDetectedLabel = null,
 }: Props) {
   const pricingMode = option.pricingMode === 'age_dependent' ? 'age_dependent' : 'uniform';
   const categories = option.priceCategories ?? [];
@@ -702,16 +709,17 @@ export default function BookingOptionEditor({
         >
           <div id="supplier-listing-field-option-cutoff" className="space-y-1.5">
             <label htmlFor="option-booking-cutoff" className="block text-[13px] font-semibold text-ink">
-              Booking cutoff
+              Booking cutoff (hours before departure)
             </label>
             <p className="text-[12px] leading-snug text-ink-muted">
-              Hours before departure when booking closes. Leave blank to inherit the listing default —
-              if the listing has no cutoff either, guests can book until departure.
+              {listingCutoffHours > 0
+                ? `Leave blank to inherit the listing default (${listingCutoffHours}h). Enter a number to override for this option.`
+                : 'Leave blank to inherit the listing default (book until departure). Enter a number to close booking earlier.'}
             </p>
             <input
               id="option-booking-cutoff"
               type="number"
-              min={0}
+              min={1}
               max={168}
               inputMode="numeric"
               className="tv-input max-w-[9rem]"
@@ -721,7 +729,7 @@ export default function BookingOptionEditor({
                   ? String(option.bookingCutoffHoursBeforeStart)
                   : ''
               }
-              placeholder="Listing default"
+              placeholder={listingCutoffHours > 0 ? String(listingCutoffHours) : 'Until departure'}
               onChange={(e) => {
                 const raw = e.target.value.trim();
                 if (!raw) {
@@ -736,14 +744,38 @@ export default function BookingOptionEditor({
                 onChange({ bookingCutoffHoursBeforeStart: Math.min(168, Math.floor(n)) });
               }}
             />
+            {!(
+              typeof option.bookingCutoffHoursBeforeStart === 'number' &&
+              option.bookingCutoffHoursBeforeStart > 0
+            ) ? (
+              <p className="text-[11.5px] text-ink-muted">
+                Using listing default
+                {listingCutoffHours > 0
+                  ? ` · ${listingCutoffHours} hours before departure`
+                  : ' · book until departure'}
+              </p>
+            ) : (
+              <p className="text-[11.5px] text-ink-muted">
+                Explicit override · {option.bookingCutoffHoursBeforeStart} hours before departure
+              </p>
+            )}
           </div>
           {onListingDepartureTimezoneChange ? (
             <div id="supplier-listing-field-option-timezone" className="space-y-1.5">
-              <label htmlFor="option-departure-timezone" className="block text-[13px] font-semibold text-ink">
-                Departure timezone
-              </label>
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <label htmlFor="option-departure-timezone" className="block text-[13px] font-semibold text-ink">
+                  Departure timezone
+                </label>
+                {timezoneAutoDetected ? (
+                  <span className="text-[11.5px] text-ink-muted">Automatically detected</span>
+                ) : (
+                  <span className="text-[11.5px] text-ink-muted">Manual</span>
+                )}
+              </div>
               <p className="text-[12px] leading-snug text-ink-muted">
-                Shared across every option on this listing.
+                Shared by all options
+                {timezoneDetectedLabel ? ` · ${timezoneDetectedLabel}` : ''}. Changing this affects
+                every schedule on the listing.
               </p>
               <PartnerSelect
                 id="option-departure-timezone"

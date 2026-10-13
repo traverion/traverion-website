@@ -24,7 +24,7 @@ describe('listing-option-editor-url', () => {
   });
 
   it('clamps invalid scene indexes', () => {
-    expect(readOptionEditorUrl('?option=x&optionScene=99')?.sceneIndex).toBe(3);
+    expect(readOptionEditorUrl('?option=x&optionScene=99')?.sceneIndex).toBe(4);
     expect(readOptionEditorUrl('?option=x&optionScene=-2')?.sceneIndex).toBe(0);
   });
 

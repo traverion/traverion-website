@@ -49,8 +49,10 @@ import {
   canContinueTourOptionScene,
   canVisitTourOptionScene,
   isTourOptionSceneSatisfied,
+  tourOptionContextNavItems,
   tourOptionLockedReason,
   tourOptionSceneContinueHint,
+  TOUR_OPTION_SCENES,
 } from '../../lib/listing-option-progression';
 import {
   OPTION_EDITOR_NEW_ID,
@@ -68,6 +70,7 @@ import {
   duplicateOptionSchedule,
   ensureExplicitSchedules,
   isImplicitScheduleId,
+  listingOptionHasSchedules,
   newListingOptionScheduleId,
   removeOptionSchedule,
   upsertOptionSchedule,
@@ -97,6 +100,10 @@ import {
 import { getListingPublishBlockers, publishBlockerListingWizardStep } from '../../lib/listingPublishGate';
 import { stayFormCheckInOutFromExtras } from '../../lib/stay-form-check-times';
 import { resolveDepartureTimezone, TRAVERION_DEPARTURE_TIMEZONE } from '../../lib/tour-departure-cutoff';
+import {
+  detectListingDepartureTimezone,
+  listingTimezoneMatchesAuto,
+} from '../../lib/listing-location-timezone';
 import {
   listingPublishTruth,
   reviewBasicsSummary,
@@ -806,6 +813,8 @@ type ListingFormState = {
   bookingCutoffHoursBeforeStart: string;
   /** IANA zone for departure wall clock; empty = Europe/Helsinki. */
   departureTimezone: string;
+  /** When true, location changes must not overwrite departureTimezone. */
+  departureTimezoneManual: boolean;
   accessibilitySummary: string;
   accessibilityFeatureIds: string[];
   minGuestAge: string;
@@ -951,6 +960,7 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
     ...(form.departureTimezone.trim()
       ? { departureTimezone: resolveDepartureTimezone(form.departureTimezone) }
       : {}),
+    ...(form.departureTimezoneManual ? { departureTimezoneManual: true } : {}),
     ...(galleryList.length > 0 ? { galleryImageUrls: galleryList } : {}),
     ...(labelsNorm.some((l) => l.trim()) ? { photoSlotLabels: labelsNorm } : {}),
     ...(originalsNorm.some((u) => u.trim()) ? { photoOriginalUrls: originalsNorm } : {}),
@@ -1185,6 +1195,7 @@ const emptyForm: ListingFormState = {
   typicalTimelineNotes: '',
   bookingCutoffHoursBeforeStart: '',
   departureTimezone: '',
+  departureTimezoneManual: false,
   accessibilitySummary: '',
   accessibilityFeatureIds: [] as string[],
   minGuestAge: '',
@@ -1838,6 +1849,16 @@ export default function SupplierListingForm({
               ? String(extras.bookingCutoffHoursBeforeStart)
               : '',
           departureTimezone: extras.departureTimezone?.trim() || '',
+          departureTimezoneManual:
+            extras.departureTimezoneManual === true ||
+            Boolean(
+              extras.departureTimezone?.trim() &&
+                !listingTimezoneMatchesAuto(
+                  existing.country ?? '',
+                  existing.city ?? '',
+                  extras.departureTimezone
+                )
+            ),
           accessibilitySummary: extras.accessibilitySummary ?? '',
           accessibilityFeatureIds: normalizeAccessibilityFeatureIds(extras.accessibilityFeatureIds),
           minGuestAge: extras.minGuestAge ?? '',
@@ -1923,6 +1944,24 @@ export default function SupplierListingForm({
   useEffect(() => {
     scheduleDraftRef.current = scheduleDraft;
   }, [scheduleDraft]);
+
+  // Auto-detect listing departure timezone from Basics location unless manually overridden.
+  useEffect(() => {
+    if (isStayForm || form.departureTimezoneManual) return;
+    const detected = detectListingDepartureTimezone(form.country, form.city);
+    if (!detected.detected) return;
+    const current = resolveDepartureTimezone(form.departureTimezone || TRAVERION_DEPARTURE_TIMEZONE);
+    if (current === detected.timezone) return;
+    setForm((f) => {
+      if (f.departureTimezoneManual) return f;
+      const next = detectListingDepartureTimezone(f.country, f.city);
+      if (!next.detected) return f;
+      if (resolveDepartureTimezone(f.departureTimezone || TRAVERION_DEPARTURE_TIMEZONE) === next.timezone) {
+        return f;
+      }
+      return { ...f, departureTimezone: next.timezone };
+    });
+  }, [form.country, form.city, form.departureTimezoneManual, form.departureTimezone, isStayForm]);
 
   useEffect(() => {
     if (!publishChecklistKey) {
@@ -4574,11 +4613,8 @@ export default function SupplierListingForm({
         </ListingCreationWorkspace>
         {tourOptionGuided && optionModalDraft ? (
           <TourOptionWorkspace
-            title={
-              optionSessionOpenedAsCreateRef.current || !optionModalEditingId
-                ? 'Create option'
-                : 'Edit option'
-            }
+            optionName={optionModalDraft.name}
+            listingTitle={form.title}
             persistLabel={persistLabel}
             continueHint={optionContinueHint}
             continueLabel={
@@ -4586,6 +4622,16 @@ export default function SupplierListingForm({
             }
             continueDisabled={draftCloseBusy || submitting}
             saveDraftDisabled={draftCloseBusy || submitting}
+            navItems={tourOptionContextNavItems(optionSceneIdx, {
+              isNewOption: optionSessionOpenedAsCreateRef.current,
+              option: optionModalDraft,
+              ending: optionEnding,
+            })}
+            onSelectNavId={(id) => {
+              const index = TOUR_OPTION_SCENES.findIndex((s) => s.id === id);
+              if (index < 0) return;
+              setOptionSceneIdxPersisted(index, index >= optionSceneIdx ? 'forward' : 'back');
+            }}
             onBackToOptions={saveOptionAsDraft}
             onPreviousScene={
               optionSceneIdx > 0
@@ -4651,9 +4697,38 @@ export default function SupplierListingForm({
               onCancelScheduleDelete={() => setPendingScheduleDeleteId(null)}
               occupancyNoticeForSchedule={occupancyNoticeForSchedule}
               listingDepartureTimezone={form.departureTimezone || TRAVERION_DEPARTURE_TIMEZONE}
-              onListingDepartureTimezoneChange={(departureTimezone) =>
-                setForm((f) => ({ ...f, departureTimezone }))
+              listingCutoffHours={
+                Number(form.bookingCutoffHoursBeforeStart) > 0
+                  ? Math.min(168, Math.floor(Number(form.bookingCutoffHoursBeforeStart)))
+                  : 0
               }
+              timezoneAutoDetected={!form.departureTimezoneManual}
+              timezoneDetectedLabel={
+                form.country.trim() || form.city.trim()
+                  ? [form.city.trim(), form.country.trim()].filter(Boolean).join(', ')
+                  : null
+              }
+              onListingDepartureTimezoneChange={(departureTimezone) => {
+                const next = resolveDepartureTimezone(departureTimezone);
+                const current = resolveDepartureTimezone(
+                  form.departureTimezone || TRAVERION_DEPARTURE_TIMEZONE
+                );
+                if (next === current) return;
+                const hasSchedules = form.bookingOptions.some(
+                  (o) => (o.schedules?.length ?? 0) > 0 || listingOptionHasSchedules(o)
+                );
+                if (hasSchedules) {
+                  const ok = window.confirm(
+                    'This timezone is shared by all options and schedules on this listing. Changing it can affect how departure times are interpreted. Continue?'
+                  );
+                  if (!ok) return;
+                }
+                setForm((f) => ({
+                  ...f,
+                  departureTimezone: next,
+                  departureTimezoneManual: true,
+                }));
+              }}
             />
           </TourOptionWorkspace>
         ) : null}

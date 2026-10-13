@@ -11,12 +11,13 @@ import {
 import type { ListingCreationSceneDirection } from '../../../lib/listing-creation-scenes';
 import type { ListingBookingOption, ListingOptionSchedule } from '../../../types/listingExtras';
 
-/** Short support under the scene question — keep empty when the editor fields are self-explanatory. */
+/** Short support under the scene question — keep empty when fields are self-explanatory. */
 const SUPPORT: Record<TourOptionSceneId, string> = {
   setup: '',
   meeting: '',
-  pricing: 'Set prices and capacity when adding a schedule.',
+  pricing: 'Prices and capacity are set on each schedule.',
   availability: '',
+  booking_settings: 'Shared across every option on this listing for timezone.',
 };
 
 export function TourOptionGuidedScenes({
@@ -42,6 +43,9 @@ export function TourOptionGuidedScenes({
   occupancyNoticeForSchedule,
   listingDepartureTimezone,
   onListingDepartureTimezoneChange,
+  listingCutoffHours,
+  timezoneAutoDetected,
+  timezoneDetectedLabel,
 }: {
   option: ListingBookingOption;
   sceneIndex: number;
@@ -65,6 +69,10 @@ export function TourOptionGuidedScenes({
   occupancyNoticeForSchedule?: (schedule: ListingOptionSchedule) => string | null;
   listingDepartureTimezone?: string;
   onListingDepartureTimezoneChange?: (timezone: string) => void;
+  /** Listing-level default cutoff hours (0 = book until departure). */
+  listingCutoffHours?: number;
+  timezoneAutoDetected?: boolean;
+  timezoneDetectedLabel?: string | null;
 }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const scene = TOUR_OPTION_SCENES[sceneIndex] ?? TOUR_OPTION_SCENES[0];
@@ -92,42 +100,35 @@ export function TourOptionGuidedScenes({
       headingRef={headingRef}
       headingId={headingId}
       density="compact"
+      hideProgress
     >
       {scene.id === 'availability' ? (
-        <div className="space-y-7">
-          <section className="space-y-2.5" aria-labelledby="option-schedules-heading">
-            <h4 id="option-schedules-heading" className="text-[13px] font-semibold text-ink">
-              Schedules
-            </h4>
-            <TourOptionScheduleList
-              option={option}
-              formatAmount={formatAmount}
-              onAdd={onAddSchedule}
-              onEdit={onEditSchedule}
-              onDuplicate={onDuplicateSchedule}
-              onDelete={onDeleteSchedule}
-              pendingDeleteId={pendingScheduleDeleteId}
-              onCancelDelete={onCancelScheduleDelete}
-              occupancyNoticeForSchedule={occupancyNoticeForSchedule}
-            />
-          </section>
-          <section className="space-y-2.5" aria-labelledby="option-booking-settings-heading">
-            <h4 id="option-booking-settings-heading" className="text-[13px] font-semibold text-ink">
-              Booking settings
-            </h4>
-            <BookingOptionEditor
-              option={option}
-              currencyLabel={currencyLabel}
-              hasEndingDate={hasEndingDate}
-              onHasEndingDateChange={onHasEndingDateChange}
-              onChange={onChange}
-              activeSection="booking_window"
-              attempted={attempted}
-              listingDepartureTimezone={listingDepartureTimezone}
-              onListingDepartureTimezoneChange={onListingDepartureTimezoneChange}
-            />
-          </section>
-        </div>
+        <TourOptionScheduleList
+          option={option}
+          formatAmount={formatAmount}
+          onAdd={onAddSchedule}
+          onEdit={onEditSchedule}
+          onDuplicate={onDuplicateSchedule}
+          onDelete={onDeleteSchedule}
+          pendingDeleteId={pendingScheduleDeleteId}
+          onCancelDelete={onCancelScheduleDelete}
+          occupancyNoticeForSchedule={occupancyNoticeForSchedule}
+        />
+      ) : scene.id === 'booking_settings' ? (
+        <BookingOptionEditor
+          option={option}
+          currencyLabel={currencyLabel}
+          hasEndingDate={hasEndingDate}
+          onHasEndingDateChange={onHasEndingDateChange}
+          onChange={onChange}
+          activeSection="booking_window"
+          attempted={attempted}
+          listingDepartureTimezone={listingDepartureTimezone}
+          onListingDepartureTimezoneChange={onListingDepartureTimezoneChange}
+          listingCutoffHours={listingCutoffHours}
+          timezoneAutoDetected={timezoneAutoDetected}
+          timezoneDetectedLabel={timezoneDetectedLabel}
+        />
       ) : (
         <BookingOptionEditor
           option={option}
@@ -135,7 +136,7 @@ export function TourOptionGuidedScenes({
           hasEndingDate={hasEndingDate}
           onHasEndingDateChange={onHasEndingDateChange}
           onChange={onChange}
-          activeSection={scene.id}
+          activeSection={scene.id === 'setup' || scene.id === 'meeting' || scene.id === 'pricing' ? scene.id : 'setup'}
           attempted={attempted}
         />
       )}
