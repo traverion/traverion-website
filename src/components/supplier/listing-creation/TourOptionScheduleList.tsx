@@ -1,6 +1,7 @@
 import { Copy, Pencil, Plus, Trash2 } from 'lucide-react';
 import type { ListingBookingOption, ListingOptionSchedule } from '../../../types/listingExtras';
 import {
+  formatScheduleDepartureSummary,
   formatScheduleRange,
   formatScheduleWeekdays,
   listingOptionHasSchedules,
@@ -136,8 +137,7 @@ export function TourOptionScheduleList({
                     <p className="text-[12px] text-ink-muted">
                       {[
                         formatScheduleWeekdays(s.weekdays),
-                        s.startTime.trim() ||
-                          (option.startMode === 'flexible' ? 'Flexible hours' : null),
+                        formatScheduleDepartureSummary(s, option.startMode) || null,
                         chargeLabel,
                         summarizeOptionPricing(s, formatAmount),
                         charge === 'flat_group'

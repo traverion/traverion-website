@@ -6,6 +6,7 @@ import {
   LISTING_CAPACITY_MAX,
   listingLocalDateKey,
   scheduleCapacityValid,
+  scheduleHasFixedDepartures,
   scheduleHeadlineName,
   scheduleIsBookable,
   scheduleOverlapMessage,
@@ -52,7 +53,9 @@ export function schedulePeriodIssues(
   if (from && to && from > to) msg.push('Ending date must be after starting date.');
   if (!schedule.weekdays.some(Boolean)) msg.push('Choose at least one operating day.');
   const flexible = opts?.startMode === 'flexible';
-  if (!flexible && !schedule.startTime.trim()) msg.push('Add a start time.');
+  if (!flexible && !scheduleHasFixedDepartures(schedule, opts?.startMode)) {
+    msg.push('Add at least one start time on each operating day.');
+  }
   return msg;
 }
 

@@ -80,6 +80,8 @@ type OptionSchedule = {
   availabilityDateTo: string;
   weekdays: boolean[];
   startTime: string;
+  /** Mon=0 … Sun=6. When set, departures per day; else legacy startTime on enabled weekdays. */
+  weekdayStartTimes?: string[][];
   pricingMode?: string;
   priceUsd: number;
   priceCategories?: PriceCat[];
@@ -91,6 +93,59 @@ type OptionSchedule = {
   maxSpotsPerSlot: number;
   status?: string;
 };
+
+const CLOCK_HM = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+function normalizeWeekdayStartTimes(raw: unknown): string[][] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined;
+  const out: string[][] = [];
+  let any = false;
+  for (let i = 0; i < 7; i++) {
+    const dayRaw = raw[i];
+    const times = Array.isArray(dayRaw)
+      ? [
+          ...new Set(
+            dayRaw
+              .map((t) => (typeof t === 'string' ? t.trim().slice(0, 5) : ''))
+              .filter((t) => CLOCK_HM.test(t))
+          ),
+        ].sort()
+      : [];
+    if (times.length > 0) any = true;
+    out.push(times);
+  }
+  return any ? out : undefined;
+}
+
+function scheduleTimesOnWeekday(schedule: OptionSchedule, weekdayIndex: number): string[] {
+  if (weekdayIndex < 0 || weekdayIndex > 6) return [];
+  if (schedule.weekdayStartTimes) {
+    const day = schedule.weekdayStartTimes[weekdayIndex] ?? [];
+    return [
+      ...new Set(day.map((t) => t.trim().slice(0, 5)).filter((t) => CLOCK_HM.test(t))),
+    ].sort();
+  }
+  if (schedule.weekdays[weekdayIndex]) {
+    const hm = schedule.startTime.trim().slice(0, 5);
+    return hm ? [hm] : [];
+  }
+  return [];
+}
+
+function departureTimesForScheduleOnDate(schedule: OptionSchedule, isoDate: string): string[] {
+  const wd = weekdayIndexMondayFirst(isoDate);
+  if (wd == null) return [];
+  return scheduleTimesOnWeekday(schedule, wd);
+}
+
+function scheduleHasDepartures(schedule: OptionSchedule): boolean {
+  if (!schedule.weekdays.some(Boolean)) return false;
+  for (let i = 0; i < 7; i++) {
+    if (!schedule.weekdays[i]) continue;
+    if (scheduleTimesOnWeekday(schedule, i).length === 0) return false;
+  }
+  return true;
+}
 
 export type QuoteOk = {
   ok: true;
@@ -362,6 +417,13 @@ function parseSchedule(raw: Record<string, unknown>, fallbackId: string): Option
     maxPersons: maxP,
     maxSpotsPerSlot: spots,
   };
+  const weekdayStartTimes = normalizeWeekdayStartTimes(raw.weekdayStartTimes);
+  if (weekdayStartTimes) {
+    out.weekdayStartTimes = weekdayStartTimes;
+    out.weekdays = weekdayStartTimes.map((times) => times.length > 0);
+    const earliest = weekdayStartTimes.flat().sort()[0];
+    if (earliest) out.startTime = earliest;
+  }
   if (raw.pricingMode === 'age_dependent' || raw.pricingMode === 'uniform') out.pricingMode = String(raw.pricingMode);
   if (cats) out.priceCategories = cats;
   if (raw.isPrivate) {
@@ -388,7 +450,7 @@ function scheduleIsBookable(s: OptionSchedule): boolean {
   const to = (s.availabilityDateTo ?? '').trim();
   if (to && !from) return false;
   if (from && to && from > to) return false;
-  if (!from || !s.startTime.trim()) return false;
+  if (!from || !scheduleHasDepartures(s)) return false;
   return s.minPersons >= 1 && s.maxPersons >= s.minPersons && s.maxSpotsPerSlot >= 1;
 }
 
@@ -406,18 +468,30 @@ function scheduleAppliesOnDate(s: OptionSchedule, isoDate: string): boolean {
 function resolveScheduleForDate(option: Option, isoDate: string, startTime?: string | null): OptionSchedule | null {
   const ready = (option.schedules ?? []).filter((s) => scheduleIsBookable(s) && scheduleAppliesOnDate(s, isoDate));
   const time = (startTime ?? '').trim();
-  const pool = time ? ready.filter((s) => s.startTime.trim() === time) : ready;
+  const pool = time
+    ? ready.filter((s) => departureTimesForScheduleOnDate(s, isoDate).includes(time))
+    : ready;
   if (pool.length === 0) return null;
+  if (!time) {
+    const times = new Set<string>();
+    for (const s of pool) {
+      for (const t of departureTimesForScheduleOnDate(s, isoDate)) times.add(t);
+    }
+    if (times.size > 1) return null;
+    if (pool.length >= 1 && times.size <= 1) return pool[0];
+    return null;
+  }
   if (pool.length === 1) return pool[0];
-  const times = new Set(pool.map((s) => s.startTime.trim()));
+  const times = new Set(pool.flatMap((s) => departureTimesForScheduleOnDate(s, isoDate)));
   if (times.size === 1) return pool[0];
   return null;
 }
 
-function applyScheduleToOption(option: Option, schedule: OptionSchedule): Option {
+function applyScheduleToOption(option: Option, schedule: OptionSchedule, departureHm?: string | null): Option {
+  const chosen = (departureHm ?? '').trim().slice(0, 5);
   return {
     ...option,
-    startTime: schedule.startTime,
+    startTime: chosen || schedule.startTime,
     weekdays: [...schedule.weekdays],
     availabilityDateFrom: schedule.availabilityDateFrom,
     availabilityDateTo: schedule.availabilityDateTo,
@@ -758,7 +832,7 @@ function optionRunsOnDate(option: Option, isoDate: string, startTime?: string | 
     const ready = option.schedules.filter((s) => scheduleIsBookable(s) && scheduleAppliesOnDate(s, isoDate));
     if (ready.length === 0) return 'This option is not available on that date.';
     const time = (startTime ?? '').trim();
-    if (time && !ready.some((s) => s.startTime.trim() === time)) {
+    if (time && !ready.some((s) => departureTimesForScheduleOnDate(s, isoDate).includes(time))) {
       return 'This option is not offered at that time on that date.';
     }
     return null;
@@ -887,7 +961,7 @@ export function quoteListingBooking(input: {
     if (option.schedules && option.schedules.length > 0) {
       const resolved = resolveScheduleForDate(option, date, input.startTime);
       if (!resolved) return { ok: false, error: 'Choose a departure time to continue.' };
-      option = applyScheduleToOption(option, resolved);
+      option = applyScheduleToOption(option, resolved, input.startTime);
     }
 
     // Phase 1235: missing/invalid option maxPersons → fail closed (assert 1233 parity).

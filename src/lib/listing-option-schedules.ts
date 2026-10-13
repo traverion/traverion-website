@@ -103,7 +103,7 @@ export function isImplicitScheduleId(id: string): boolean {
 
 /** Legacy options store one season on the option row itself. */
 export function hydrateImplicitSchedule(option: ListingBookingOption): ListingOptionSchedule {
-  return {
+  const out: ListingOptionSchedule = {
     id: `${option.id}-implicit`,
     name: option.name.trim() || 'Season',
     availabilityDateFrom: option.availabilityDateFrom,
@@ -121,6 +121,10 @@ export function hydrateImplicitSchedule(option: ListingBookingOption): ListingOp
     maxSpotsPerSlot: option.maxSpotsPerSlot,
     status: listingShapeHasBookablePrice(option) ? 'ready' : 'draft',
   };
+  if (option.weekdayStartTimes) {
+    out.weekdayStartTimes = option.weekdayStartTimes.map((day) => [...day]);
+  }
+  return out;
 }
 
 export function listingOptionSchedules(option: ListingBookingOption): ListingOptionSchedule[] {
@@ -162,9 +166,9 @@ export function scheduleIsBookable(
   const to = listingLocalDateKey(s.availabilityDateTo);
   if (to && !from) return false;
   if (from && to && from > to) return false;
-  // Phase 1291: require from for all schedules; fixed mode also needs startTime.
+  // Phase 1291: require from for all schedules; fixed mode needs ≥1 departure per enabled day.
   if (!from) return false;
-  if (opts?.startMode !== 'flexible' && !s.startTime.trim()) return false;
+  if (!scheduleHasFixedDepartures(s, opts?.startMode)) return false;
   if (!scheduleCapacityValid(s)) return false;
   return true;
 }
@@ -180,7 +184,7 @@ export function scheduleWizardIsComplete(
   if (!from) return false;
   if (to && from > to) return false;
   if (!s.weekdays.some(Boolean)) return false;
-  if (opts?.startMode !== 'flexible' && !s.startTime.trim()) return false;
+  if (!scheduleHasFixedDepartures(s, opts?.startMode)) return false;
   if (!listingShapeHasBookablePrice(s)) return false;
   return scheduleCapacityValid(s);
 }
@@ -202,6 +206,7 @@ export type ScheduleOverlapConflict = {
 /**
  * Two schedules conflict when they can both apply to the same option + calendar date + departure time.
  * Draft rows are ignored — they may exist until the supplier changes dates.
+ * Multi-time schedules conflict when any shared (weekday ∩ time) pair overlaps the date window.
  */
 export function findScheduleOverlap(
   candidate: ListingOptionSchedule,
@@ -209,18 +214,18 @@ export function findScheduleOverlap(
   opts?: { startMode?: ListingBookingOption['startMode'] }
 ): ScheduleOverlapConflict | null {
   const cFrom = listingLocalDateKey(candidate.availabilityDateFrom);
-  const cTime = scheduleDepartureHm(candidate, opts?.startMode);
-  if (!cFrom || !cTime) return null;
+  if (!cFrom) return null;
   if (candidate.status === 'draft') return null;
+  const cTimes = allScheduleDepartureTimes(candidate, opts?.startMode);
+  if (cTimes.length === 0) return null;
   const cTo = listingLocalDateKey(candidate.availabilityDateTo);
 
   for (const other of others) {
     if (other.id === candidate.id) continue;
     if (other.status === 'draft' || !scheduleIsBookable(other, opts)) continue;
     const oFrom = listingLocalDateKey(other.availabilityDateFrom);
-    const oTime = scheduleDepartureHm(other, opts?.startMode);
-    if (!oFrom || !oTime) continue;
-    if (cTime !== oTime) continue;
+    const oTimes = allScheduleDepartureTimes(other, opts?.startMode);
+    if (!oFrom || oTimes.length === 0) continue;
     const oTo = listingLocalDateKey(other.availabilityDateTo);
     if (!dateRangesOverlap(cFrom, cTo, oFrom, oTo)) continue;
     if (!weekdayOverlap(candidate.weekdays, other.weekdays)) continue;
@@ -234,13 +239,19 @@ export function findScheduleOverlap(
     });
     if (overlapDays.length === 0) continue;
 
-    return {
-      otherId: other.id,
-      otherName: scheduleHeadlineName(other, 0),
-      from: overlapDays[0],
-      to: overlapDays[overlapDays.length - 1],
-      startTime: cTime,
-    };
+    for (const iso of overlapDays) {
+      const cDay = new Set(departureTimesForScheduleOnDate(candidate, iso, opts?.startMode));
+      for (const t of departureTimesForScheduleOnDate(other, iso, opts?.startMode)) {
+        if (!cDay.has(t)) continue;
+        return {
+          otherId: other.id,
+          otherName: scheduleHeadlineName(other, 0),
+          from: overlapDays[0],
+          to: overlapDays[overlapDays.length - 1],
+          startTime: t,
+        };
+      }
+    }
   }
   return null;
 }
@@ -282,13 +293,134 @@ export function formatScheduleWeekdays(weekdays: boolean[]): string {
 /** Day-level slot used when an option runs flexible hours without a fixed clock time. */
 export const FLEXIBLE_DEPARTURE_HM = '00:00';
 
-export function scheduleDepartureHm(
-  schedule: Pick<ListingOptionSchedule, 'startTime'>,
+const CLOCK_HM = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+export type ScheduleDepartureShape = Pick<
+  ListingOptionSchedule,
+  'weekdays' | 'startTime' | 'weekdayStartTimes'
+>;
+
+/** Sanitize and pad Mon–Sun departure lists; empty days become []. */
+export function sanitizeWeekdayStartTimes(raw: string[][] | undefined | null): string[][] {
+  const out: string[][] = [];
+  for (let i = 0; i < 7; i++) {
+    const day = Array.isArray(raw?.[i]) ? raw![i] : [];
+    out.push(
+      [
+        ...new Set(
+          day
+            .map((t) => String(t ?? '').trim().slice(0, 5))
+            .filter((t) => CLOCK_HM.test(t))
+        ),
+      ].sort()
+    );
+  }
+  return out;
+}
+
+/**
+ * Derive weekdays + legacy startTime from per-day times (write path for the schedule editor).
+ */
+export function syncScheduleDeparturesFromWeekdayTimes(
+  weekdayStartTimes: string[][]
+): Pick<ListingOptionSchedule, 'weekdayStartTimes' | 'weekdays' | 'startTime'> {
+  const normalized = sanitizeWeekdayStartTimes(weekdayStartTimes);
+  return {
+    weekdayStartTimes: normalized,
+    weekdays: normalized.map((times) => times.length > 0),
+    startTime: normalized.flat().sort()[0] ?? '',
+  };
+}
+
+/** Departures offered on one weekday (Mon=0 … Sun=6). */
+export function scheduleTimesOnWeekday(
+  schedule: ScheduleDepartureShape,
+  weekdayIndex: number,
+  startMode?: ListingBookingOption['startMode']
+): string[] {
+  if (weekdayIndex < 0 || weekdayIndex > 6) return [];
+  if (startMode === 'flexible') {
+    return schedule.weekdays[weekdayIndex] ? [FLEXIBLE_DEPARTURE_HM] : [];
+  }
+  if (schedule.weekdayStartTimes) {
+    const day = schedule.weekdayStartTimes[weekdayIndex] ?? [];
+    return [
+      ...new Set(day.map((t) => t.trim().slice(0, 5)).filter((t) => CLOCK_HM.test(t))),
+    ].sort();
+  }
+  if (schedule.weekdays[weekdayIndex]) {
+    const hm = schedule.startTime.trim().slice(0, 5);
+    return CLOCK_HM.test(hm) ? [hm] : hm ? [hm] : [];
+  }
+  return [];
+}
+
+/** Distinct clock times across the week (excludes flexible sentinel unless startMode is flexible). */
+export function allScheduleDepartureTimes(
+  schedule: ScheduleDepartureShape,
+  startMode?: ListingBookingOption['startMode']
+): string[] {
+  if (startMode === 'flexible') {
+    return schedule.weekdays.some(Boolean) ? [FLEXIBLE_DEPARTURE_HM] : [];
+  }
+  const times = new Set<string>();
+  for (let i = 0; i < 7; i++) {
+    for (const t of scheduleTimesOnWeekday(schedule, i, startMode)) times.add(t);
+  }
+  return [...times].sort();
+}
+
+export function departureTimesForScheduleOnDate(
+  schedule: ScheduleDepartureShape,
+  localDateIso: string,
+  startMode?: ListingBookingOption['startMode']
+): string[] {
+  const wd = scheduleWeekdayIndexMondayFirst(localDateIso);
+  if (wd == null) return [];
+  return scheduleTimesOnWeekday(schedule, wd, startMode);
+}
+
+export function scheduleHasFixedDepartures(
+  schedule: ScheduleDepartureShape,
+  startMode?: ListingBookingOption['startMode']
+): boolean {
+  if (startMode === 'flexible') return schedule.weekdays.some(Boolean);
+  if (!schedule.weekdays.some(Boolean)) return false;
+  for (let i = 0; i < 7; i++) {
+    if (!schedule.weekdays[i]) continue;
+    if (scheduleTimesOnWeekday(schedule, i, startMode).length === 0) return false;
+  }
+  return allScheduleDepartureTimes(schedule, startMode).length > 0;
+}
+
+/** Compact label for lists/review: shared times, or per-day when they differ. */
+export function formatScheduleDepartureSummary(
+  schedule: ScheduleDepartureShape,
   startMode?: ListingBookingOption['startMode']
 ): string {
+  if (startMode === 'flexible') return 'Flexible hours';
+  const enabled: number[] = [];
+  for (let i = 0; i < 7; i++) if (schedule.weekdays[i]) enabled.push(i);
+  if (enabled.length === 0) return '';
+  const sets = enabled.map((i) => scheduleTimesOnWeekday(schedule, i, startMode));
+  if (sets.some((t) => t.length === 0)) return '';
+  const first = sets[0].join(',');
+  if (sets.every((t) => t.join(',') === first)) return sets[0].join(', ');
+  return enabled
+    .map((i, idx) => `${DAY_SHORT[i]} ${sets[idx].join(', ')}`)
+    .join(' · ');
+}
+
+export function scheduleDepartureHm(
+  schedule: ScheduleDepartureShape,
+  startMode?: ListingBookingOption['startMode']
+): string {
+  if (startMode === 'flexible') return FLEXIBLE_DEPARTURE_HM;
+  const all = allScheduleDepartureTimes(schedule, startMode);
+  if (all[0]) return all[0];
   const hm = schedule.startTime.trim();
   if (hm) return hm;
-  return startMode === 'flexible' ? FLEXIBLE_DEPARTURE_HM : '';
+  return '';
 }
 
 export function matchingSchedulesForDate(
@@ -300,16 +432,22 @@ export function matchingSchedulesForDate(
   const ready = listingOptionReadySchedules(option).filter((s) => scheduleAppliesOnDate(s, key));
   const time = startTime?.trim();
   if (time) {
-    return ready.filter((s) => scheduleDepartureHm(s, option.startMode) === time);
+    return ready.filter((s) =>
+      departureTimesForScheduleOnDate(s, key, option.startMode).includes(time)
+    );
   }
   return ready;
 }
 
 export function departureTimesOnDate(option: ListingBookingOption, localDateIso: string): string[] {
-  const times = matchingSchedulesForDate(option, localDateIso)
-    .map((s) => scheduleDepartureHm(s, option.startMode))
-    .filter(Boolean);
-  return [...new Set(times)].sort();
+  const key = listingLocalDateKey(localDateIso);
+  const times = new Set<string>();
+  for (const s of matchingSchedulesForDate(option, localDateIso)) {
+    for (const t of departureTimesForScheduleOnDate(s, key, option.startMode)) {
+      if (t) times.add(t);
+    }
+  }
+  return [...times].sort();
 }
 
 export type TourSellingDeparture = {
@@ -337,14 +475,17 @@ export function tourSellingDeparturesOnDate(
     const optionName = (option.name ?? '').trim() || 'Option';
     if (listingOptionHasSchedules(option)) {
       for (const s of matchingSchedulesForDate(option, localDateIso)) {
-        out.push({
-          optionId: option.id,
-          optionName,
-          scheduleId: s.id,
-          scheduleName: scheduleHeadlineName(s, 0),
-          startTime: scheduleDepartureHm(s, option.startMode),
-          maxSpotsPerSlot: s.maxSpotsPerSlot,
-        });
+        const times = departureTimesForScheduleOnDate(s, localDateIso, option.startMode);
+        for (const startTime of times) {
+          out.push({
+            optionId: option.id,
+            optionName,
+            scheduleId: s.id,
+            scheduleName: scheduleHeadlineName(s, 0),
+            startTime,
+            maxSpotsPerSlot: s.maxSpotsPerSlot,
+          });
+        }
       }
       continue;
     }
@@ -385,7 +526,7 @@ export function tourSellingDeparturesOnDate(
 
 /**
  * Resolve the unique ready schedule for a traveler date (and optional departure).
- * Returns null when none apply, or when several apply with different times and no time was given.
+ * Returns null when none apply, or when several departure times apply and no time was given.
  */
 export function resolveScheduleForDate(
   option: ListingBookingOption,
@@ -394,8 +535,23 @@ export function resolveScheduleForDate(
 ): ListingOptionSchedule | null {
   const ready = matchingSchedulesForDate(option, localDateIso, startTime);
   if (ready.length === 0) return null;
+  const time = startTime?.trim();
+  if (!time) {
+    const times = new Set<string>();
+    for (const s of ready) {
+      for (const t of departureTimesForScheduleOnDate(s, localDateIso, option.startMode)) {
+        times.add(t);
+      }
+    }
+    if (times.size > 1) return null;
+    if (ready.length === 1) return ready[0];
+    if (times.size === 1) return ready[0];
+    return null;
+  }
   if (ready.length === 1) return ready[0];
-  const times = new Set(ready.map((s) => scheduleDepartureHm(s, option.startMode)));
+  const times = new Set(
+    ready.flatMap((s) => departureTimesForScheduleOnDate(s, localDateIso, option.startMode))
+  );
   if (times.size === 1) return ready[0];
   return null;
 }
@@ -410,10 +566,13 @@ export function optionHasScheduleCoverageOnDate(option: ListingBookingOption, lo
 /** Copy schedule commercial fields onto the option so quoteBooking / inventory stay compatible. */
 export function applyScheduleToOption(
   option: ListingBookingOption,
-  schedule: ListingOptionSchedule
+  schedule: ListingOptionSchedule,
+  departureHm?: string
 ): ListingBookingOption {
-  const startTime = scheduleDepartureHm(schedule, option.startMode) || schedule.startTime;
-  return {
+  const chosen = (departureHm ?? '').trim().slice(0, 5);
+  const startTime =
+    chosen || scheduleDepartureHm(schedule, option.startMode) || schedule.startTime;
+  const next: ListingBookingOption = {
     ...option,
     startTime,
     weekdays: [...schedule.weekdays],
@@ -429,6 +588,12 @@ export function applyScheduleToOption(
     maxPersons: schedule.maxPersons,
     maxSpotsPerSlot: schedule.maxSpotsPerSlot,
   };
+  if (schedule.weekdayStartTimes) {
+    next.weekdayStartTimes = schedule.weekdayStartTimes.map((day) => [...day]);
+  } else {
+    delete next.weekdayStartTimes;
+  }
+  return next;
 }
 
 /**

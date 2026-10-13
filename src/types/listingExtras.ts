@@ -98,6 +98,11 @@ export interface ListingBookingOption {
   travelerStartInstructions?: string;
   /** Mon–Sun; true = offered that day. */
   weekdays: boolean[];
+  /**
+   * Optional per-weekday departure times (Mon=0 … Sun=6).
+   * Used when editing a schedule via applyScheduleToOption; omitted on legacy flat options.
+   */
+  weekdayStartTimes?: string[][];
   /** Activity / offer start YYYY-MM-DD; empty = not limited to a fixed start. */
   availabilityDateFrom: string;
   /** Activity end YYYY-MM-DD when the offer has a fixed end (e.g. season); empty = no end date / runs ongoing. */
@@ -148,8 +153,16 @@ export interface ListingOptionSchedule {
   availabilityDateFrom: string;
   availabilityDateTo: string;
   weekdays: boolean[];
-  /** Local departure HH:MM. One time per schedule; another departure is another schedule. */
+  /**
+   * Local departure HH:MM (legacy / headline). When weekdayStartTimes is set, keep the earliest
+   * departure here for list labels and older readers.
+   */
   startTime: string;
+  /**
+   * Mon=0 … Sun=6. Non-empty arrays = departures that day.
+   * When omitted, each enabled weekday uses [startTime] (legacy single-time schedules).
+   */
+  weekdayStartTimes?: string[][];
   pricingMode?: ListingPricingMode;
   priceUsd: number;
   priceCategories?: ListingPriceCategory[];
@@ -283,6 +296,30 @@ function normalizeWeekdays(raw: unknown): boolean[] {
   return out;
 }
 
+const CLOCK_HM = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/** Normalize optional per-weekday HH:MM lists (Mon=0 … Sun=6). */
+export function normalizeWeekdayStartTimes(raw: unknown): string[][] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined;
+  const out: string[][] = [];
+  let any = false;
+  for (let i = 0; i < WEEKDAY_COUNT; i++) {
+    const dayRaw = raw[i];
+    const times = Array.isArray(dayRaw)
+      ? [
+          ...new Set(
+            dayRaw
+              .map((t) => (typeof t === 'string' ? t.trim().slice(0, 5) : ''))
+              .filter((t) => CLOCK_HM.test(t))
+          ),
+        ].sort()
+      : [];
+    if (times.length > 0) any = true;
+    out.push(times);
+  }
+  return any ? out : undefined;
+}
+
 const PRICE_CATEGORY_KINDS: ListingPriceCategoryKind[] = [
   'adult',
   'child',
@@ -404,6 +441,10 @@ export function normalizeListingBookingOption(raw: Record<string, unknown>, fall
     availabilityDateFrom: typeof raw.availabilityDateFrom === 'string' ? raw.availabilityDateFrom : '',
     availabilityDateTo: typeof raw.availabilityDateTo === 'string' ? raw.availabilityDateTo : '',
   };
+  {
+    const weekdayStartTimes = normalizeWeekdayStartTimes(raw.weekdayStartTimes);
+    if (weekdayStartTimes) out.weekdayStartTimes = weekdayStartTimes;
+  }
   if (typeof raw.travelerStartInstructions === 'string') {
     // Explicit empty must not re-seed from optionInfo. Keep non-empty text as typed
     // (no live trim) so patchOptionDraft does not eat spaces between words.
@@ -494,6 +535,15 @@ export function normalizeListingOptionSchedule(
     maxPersons: maxP,
     maxSpotsPerSlot: spots,
   };
+  {
+    const weekdayStartTimes = normalizeWeekdayStartTimes(raw.weekdayStartTimes);
+    if (weekdayStartTimes) {
+      out.weekdayStartTimes = weekdayStartTimes;
+      out.weekdays = weekdayStartTimes.map((times) => times.length > 0);
+      const earliest = weekdayStartTimes.flat().sort()[0];
+      if (earliest) out.startTime = earliest;
+    }
+  }
   if (pricingMode) out.pricingMode = pricingMode;
   if (priceCategories) out.priceCategories = priceCategories;
   if (isPrivate) {

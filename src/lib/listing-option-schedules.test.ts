@@ -9,18 +9,22 @@ import {
   duplicateOptionSchedule,
   departureTimesOnDate,
   findScheduleOverlap,
+  formatScheduleDepartureSummary,
   listingOptionHasSchedules,
   listingOptionReadySchedules,
   resolveScheduleForDate,
   scheduleAppliesOnDate,
+  scheduleHasFixedDepartures,
   scheduleOverlapMessage,
   scheduleWizardIsComplete,
+  syncScheduleDeparturesFromWeekdayTimes,
   optionCapacityForDepartureTime,
   tourSellingDeparturesOnDate,
   ensureExplicitSchedules,
   isImplicitScheduleId,
   upsertOptionSchedule,
 } from './listing-option-schedules';
+import { normalizeListingOptionSchedule } from '../types/listingExtras';
 import { optionScheduleManagementIssues, scheduleCanSaveReady } from './listing-schedule-wizard';
 import { defaultAgeDependentCategories } from './price-categories';
 
@@ -442,5 +446,138 @@ describe('ensureExplicitSchedules implicit id remap', () => {
     const withSchedules = option({ schedules: [september] });
     const prepared = ensureExplicitSchedules(withSchedules);
     expect(prepared.schedules?.[0]?.id).toBe('sch-sep');
+  });
+});
+
+describe('per-weekday multiple start times', () => {
+  const multi = season({
+    id: 'sch-multi',
+    name: 'Winter evenings',
+    availabilityDateFrom: '2026-12-01',
+    availabilityDateTo: '2027-03-31',
+    weekdays: [true, false, false, false, false, true, false],
+    startTime: '12:00',
+    weekdayStartTimes: [[], [], [], [], [], [], []].map((_, i) =>
+      i === 0 || i === 5 ? ['12:00', '14:00'] : []
+    ),
+  });
+
+  it('normalizes weekdayStartTimes and derives weekdays + earliest startTime', () => {
+    const normalized = normalizeListingOptionSchedule(
+      {
+        id: 'sch-n',
+        name: 'Winter',
+        availabilityDateFrom: '2026-12-01',
+        weekdays: daily,
+        startTime: '20:00',
+        weekdayStartTimes: [['09:00', '14:00'], [], [], [], [], ['10:00'], []],
+        priceUsd: 100,
+        minPersons: 1,
+        maxPersons: 8,
+        maxSpotsPerSlot: 8,
+        status: 'ready',
+      },
+      'sch-n'
+    );
+    expect(normalized.weekdays[0]).toBe(true);
+    expect(normalized.weekdays[1]).toBe(false);
+    expect(normalized.weekdays[5]).toBe(true);
+    expect(normalized.startTime).toBe('09:00');
+    expect(normalized.weekdayStartTimes?.[0]).toEqual(['09:00', '14:00']);
+  });
+
+  it('keeps legacy single startTime schedules working without weekdayStartTimes', () => {
+    expect(scheduleHasFixedDepartures(september)).toBe(true);
+    expect(departureTimesOnDate(option({ schedules: [september] }), '2026-09-15')).toEqual(['20:00']);
+    expect(resolveScheduleForDate(option({ schedules: [september] }), '2026-09-15')?.id).toBe('sch-sep');
+  });
+
+  it('fans out multiple departures on one schedule for the same date', () => {
+    // 2026-12-07 is Monday
+    const opt = option({ schedules: [multi] });
+    expect(departureTimesOnDate(opt, '2026-12-07')).toEqual(['12:00', '14:00']);
+    expect(tourSellingDeparturesOnDate([opt], '2026-12-07')).toEqual([
+      expect.objectContaining({ scheduleId: 'sch-multi', startTime: '12:00' }),
+      expect.objectContaining({ scheduleId: 'sch-multi', startTime: '14:00' }),
+    ]);
+  });
+
+  it('requires choosing a time when one schedule offers multiple departures', () => {
+    const opt = option({ schedules: [multi] });
+    expect(resolveScheduleForDate(opt, '2026-12-07')).toBeNull();
+    expect(resolveScheduleForDate(opt, '2026-12-07', '14:00')?.id).toBe('sch-multi');
+    const applied = applyScheduleToOption(opt, multi, '14:00');
+    expect(applied.startTime).toBe('14:00');
+  });
+
+  it('quotes require a departure time when the schedule has multiple times', () => {
+    const opt = option({
+      schedules: [multi],
+      pricingMode: 'age_dependent',
+      priceCategories: defaultAgeDependentCategories(119, 89),
+    });
+    const missing = quoteBooking({
+      tour: tourWith(opt),
+      discounts: [],
+      bookingDate: '2026-12-07',
+      guests: 1,
+      bookingOptionId: 'opt-nl',
+      todayIso: '2026-08-01',
+      participantMix: { [multi.priceCategories![0].id]: 1 },
+    });
+    expect(missing.ok).toBe(false);
+    if (!missing.ok) expect(missing.code).toBe('time');
+
+    const ok = quoteBooking({
+      tour: tourWith(opt),
+      discounts: [],
+      bookingDate: '2026-12-07',
+      guests: 1,
+      bookingOptionId: 'opt-nl',
+      todayIso: '2026-08-01',
+      startTime: '14:00',
+      participantMix: { [multi.priceCategories![0].id]: 1 },
+    });
+    expect(ok.ok).toBe(true);
+  });
+
+  it('overlaps when two schedules share a weekday time, not when times differ', () => {
+    const other = {
+      ...multi,
+      id: 'sch-other',
+      name: 'Other',
+      weekdayStartTimes: multi.weekdayStartTimes!.map((day, i) =>
+        i === 0 ? ['12:00'] : i === 5 ? ['16:00'] : []
+      ),
+      startTime: '12:00',
+    };
+    const conflict = findScheduleOverlap(other, [multi]);
+    expect(conflict?.startTime).toBe('12:00');
+
+    const distinct = {
+      ...other,
+      weekdayStartTimes: multi.weekdayStartTimes!.map((day, i) =>
+        i === 0 || i === 5 ? ['16:00'] : []
+      ),
+      startTime: '16:00',
+    };
+    expect(findScheduleOverlap(distinct, [multi])).toBeNull();
+  });
+
+  it('summarizes shared times compactly and syncs write helpers', () => {
+    expect(formatScheduleDepartureSummary(multi)).toBe('12:00, 14:00');
+    const synced = syncScheduleDeparturesFromWeekdayTimes([
+      ['14:00', '09:00'],
+      [],
+      [],
+      [],
+      [],
+      ['14:00'],
+      [],
+    ]);
+    expect(synced.weekdays[0]).toBe(true);
+    expect(synced.weekdays[5]).toBe(true);
+    expect(synced.startTime).toBe('09:00');
+    expect(synced.weekdayStartTimes?.[0]).toEqual(['09:00', '14:00']);
   });
 });

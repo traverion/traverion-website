@@ -4,6 +4,8 @@ import type { ListingBookingOption } from '../types/listingExtras';
 import { materializedBookingOptions } from '../types/listingExtras';
 import { travelerFacingBookingOptions } from './legacy-participant-options';
 import {
+  allScheduleDepartureTimes,
+  FLEXIBLE_DEPARTURE_HM,
   listingOptionHasSchedules,
   listingOptionReadySchedules,
   resolveScheduleForDate,
@@ -190,7 +192,15 @@ export function getTourBookingVariants(tour: TourPackage): TourBookingVariant[] 
         const ready = listingOptionReadySchedules(o);
         const schedulePrices = ready.map((s) => optionHeadlineUnitPrice(s)).filter((n) => n > 0);
         if (schedulePrices.length > 0) price = Math.min(...schedulePrices);
-        const times = [...new Set(ready.map((s) => s.startTime.trim()).filter(Boolean))].sort();
+        const times = [
+          ...new Set(
+            ready.flatMap((s) =>
+              allScheduleDepartureTimes(s, o.startMode).filter(
+                (t) => t && (o.startMode === 'flexible' || t !== FLEXIBLE_DEPARTURE_HM)
+              )
+            )
+          ),
+        ].sort();
         if (times.length === 1) startLabel = `Starts ${times[0]}`;
         else if (times.length > 1) startLabel = `From ${times[0]}`;
         else startLabel = null;

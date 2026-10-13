@@ -1,6 +1,11 @@
 import { optionRunsOnDate } from './booking-quote';
 import type { TourBookingVariant } from './booking-flow';
-import { listingOptionHasSchedules, listingOptionReadySchedules } from './listing-option-schedules';
+import {
+  allScheduleDepartureTimes,
+  FLEXIBLE_DEPARTURE_HM,
+  listingOptionHasSchedules,
+  listingOptionReadySchedules,
+} from './listing-option-schedules';
 import { optionFulfillmentPlaceMeta } from './tour-pickup-meeting';
 
 export type TourOptionAvailabilityKind = 'none' | 'one' | 'many';
@@ -50,7 +55,15 @@ export function optionMetaParts(variant: TourBookingVariant): string[] {
   const opt = variant.listingOption;
   if (!opt) return variant.subtitle ? [variant.subtitle] : [];
   const timedShapes = listingOptionHasSchedules(opt) ? listingOptionReadySchedules(opt) : [opt];
-  const times = [...new Set(timedShapes.map((s) => s.startTime.trim()).filter(Boolean))].sort();
+  const times = [
+    ...new Set(
+      timedShapes.flatMap((s) =>
+        allScheduleDepartureTimes(s, opt.startMode).filter(
+          (t) => t && (opt.startMode === 'flexible' || t !== FLEXIBLE_DEPARTURE_HM)
+        )
+      )
+    ),
+  ].sort();
   const timeLine =
     times.length === 1 ? `Starts ${times[0]}` : times.length > 1 ? `Starts ${times.join(', ')}` : null;
   const minPersons = Math.min(...timedShapes.map((s) => s.minPersons));

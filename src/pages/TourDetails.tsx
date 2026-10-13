@@ -87,6 +87,7 @@ import {
 import { activePriceCategories } from '../lib/price-categories';
 import { quoteBooking } from '../lib/booking-quote';
 import {
+  allScheduleDepartureTimes,
   listingOptionHasSchedules,
   listingOptionReadySchedules,
   departureTimesOnDate,
@@ -280,9 +281,9 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       ...new Set(
         (x?.bookingOptions ?? []).flatMap((o) => {
           if (listingOptionHasSchedules(o)) {
-            return listingOptionReadySchedules(o)
-              .map((s) => s.startTime.trim())
-              .filter(Boolean);
+            return listingOptionReadySchedules(o).flatMap((s) =>
+              allScheduleDepartureTimes(s, o.startMode).filter((t) => t && t !== '00:00')
+            );
           }
           const t = String(o.startTime ?? '').trim();
           return t ? [t] : [];
@@ -350,7 +351,9 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       bookingDate.trim(),
       selectedDepartureTime || undefined
     );
-    return resolved ? applyScheduleToOption(selectedOption, resolved) : selectedOption;
+    return resolved
+      ? applyScheduleToOption(selectedOption, resolved, selectedDepartureTime || undefined)
+      : selectedOption;
   }, [selectedOption, bookingDate, selectedDepartureTime]);
 
   const usesAgePricing = optionUsesAgePricing(selectedOptionApplied);
@@ -1810,7 +1813,11 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                                             time
                                           );
                                           if (resolved) {
-                                            const applied = applyScheduleToOption(selectedOption, resolved);
+                                            const applied = applyScheduleToOption(
+                                              selectedOption,
+                                              resolved,
+                                              time
+                                            );
                                             if (optionUsesAgePricing(applied)) {
                                               setParticipantMix(emptyMixSelection(applied));
                                             }

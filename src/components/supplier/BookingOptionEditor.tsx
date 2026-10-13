@@ -19,10 +19,21 @@ import type { ReactNode } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { TraverionSingleDateField } from '../calendar/TraverionSingleDateField';
 import PartnerSelect from './PartnerSelect';
-import { LISTING_CAPACITY_MAX } from '../../lib/listing-option-schedules';
+import {
+  LISTING_CAPACITY_MAX,
+  sanitizeWeekdayStartTimes,
+  scheduleHasFixedDepartures,
+  scheduleTimesOnWeekday,
+  syncScheduleDeparturesFromWeekdayTimes,
+} from '../../lib/listing-option-schedules';
 import { localYmd } from '../../lib/local-ymd';
 
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+function editorWeekdayStartTimes(option: ListingBookingOption): string[][] {
+  if (option.weekdayStartTimes) return sanitizeWeekdayStartTimes(option.weekdayStartTimes);
+  return WEEKDAY_LABELS.map((_, i) => scheduleTimesOnWeekday(option, i, option.startMode));
+}
 
 export type BookingOptionEditorSection =
   | 'setup'
@@ -238,8 +249,68 @@ export default function BookingOptionEditor({
   const startInstructionsInvalid =
     attempted && (option.travelerStartInstructions ?? '').trim().length < 8;
   const startInvalid =
-    attempted && option.startMode !== 'flexible' && !option.startTime.trim();
+    attempted &&
+    option.startMode !== 'flexible' &&
+    !scheduleHasFixedDepartures(option, option.startMode);
   const guided = Boolean(activeSection);
+  const weekdayTimes = editorWeekdayStartTimes(option);
+
+  const patchWeekdayTimes = (nextTimes: string[][]) => {
+    onChange(syncScheduleDeparturesFromWeekdayTimes(nextTimes));
+  };
+
+  const toggleOperatingDay = (di: number) => {
+    const next = weekdayTimes.map((day) => [...day]);
+    if (next[di].length > 0) {
+      next[di] = [];
+    } else {
+      const seed =
+        weekdayTimes.find((day) => day.length > 0)?.[0] ||
+        option.startTime.trim().slice(0, 5) ||
+        '09:00';
+      next[di] = [seed];
+    }
+    patchWeekdayTimes(next);
+  };
+
+  const setDayTimeAt = (di: number, timeIndex: number, value: string) => {
+    const next = weekdayTimes.map((day) => [...day]);
+    next[di][timeIndex] = value;
+    patchWeekdayTimes(next);
+  };
+
+  const addDayTime = (di: number) => {
+    const next = weekdayTimes.map((day) => [...day]);
+    const last = next[di][next[di].length - 1] || '09:00';
+    const [hRaw, mRaw] = last.split(':');
+    let hour = Number(hRaw);
+    const minute = Number(mRaw);
+    if (!Number.isFinite(hour)) hour = 9;
+    const minuteStr = String(Number.isFinite(minute) ? minute : 0).padStart(2, '0');
+    let candidate = '';
+    for (let step = 1; step <= 24; step++) {
+      const h = (hour + step) % 24;
+      candidate = `${String(h).padStart(2, '0')}:${minuteStr}`;
+      if (!next[di].includes(candidate)) break;
+    }
+    next[di] = [...next[di], candidate || '10:00'];
+    patchWeekdayTimes(next);
+  };
+
+  const removeDayTime = (di: number, timeIndex: number) => {
+    const next = weekdayTimes.map((day) => [...day]);
+    next[di] = next[di].filter((_, i) => i !== timeIndex);
+    patchWeekdayTimes(next);
+  };
+
+  const applyTimesToAllSelected = (fromDi: number) => {
+    const source = weekdayTimes[fromDi];
+    if (source.length === 0) return;
+    const next = weekdayTimes.map((day, i) =>
+      option.weekdays[i] || i === fromDi ? [...source] : [...day]
+    );
+    patchWeekdayTimes(next);
+  };
 
   return (
     <div
@@ -854,9 +925,13 @@ export default function BookingOptionEditor({
                     key={label}
                     type="button"
                     onClick={() => {
-                      const next = [...option.weekdays];
-                      next[di] = !next[di];
-                      onChange({ weekdays: next });
+                      if (option.startMode === 'flexible') {
+                        const next = [...option.weekdays];
+                        next[di] = !next[di];
+                        onChange({ weekdays: next });
+                        return;
+                      }
+                      toggleOperatingDay(di);
                     }}
                     className={`lc-choice min-h-[44px] min-w-[2.75rem] rounded-full px-2.5 text-xs font-semibold ${
                       option.weekdays[di] ? 'lc-choice--selected' : ''
@@ -874,21 +949,84 @@ export default function BookingOptionEditor({
                 schedule.
               </p>
             ) : (
-              <div>
-                <label htmlFor="booking-option-start" className="mb-1 block text-sm font-semibold text-ink">
-                  Start time *
-                </label>
-                <input
-                  id="booking-option-start"
-                  type="time"
-                  value={option.startTime}
-                  onChange={(e) => onChange({ startTime: e.target.value })}
-                  className="tv-input w-full max-w-[12rem]"
-                  aria-invalid={startInvalid || undefined}
-                />
-                <p className="mt-1 text-xs text-ink-muted">
-                  One departure time for this schedule. Another time is another schedule on the same option.
-                </p>
+              <div className="space-y-3" aria-invalid={startInvalid || undefined}>
+                <div>
+                  <p className="text-sm font-semibold text-ink">Start times *</p>
+                  <p className="mt-0.5 text-[12px] leading-snug text-ink-muted">
+                    Travelers pick one of these departures. Different price or capacity still needs another
+                    schedule.
+                  </p>
+                </div>
+                {WEEKDAY_LABELS.map((label, di) => {
+                  if (!option.weekdays[di]) return null;
+                  const times = weekdayTimes[di] ?? [];
+                  return (
+                    <div
+                      key={label}
+                      className="border-b border-black/[0.06] pb-3 last:border-b-0 last:pb-0"
+                    >
+                      <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-[13px] font-semibold text-ink">{label}</p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {times.length > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() => applyTimesToAllSelected(di)}
+                              className="lux-flat text-[12px] font-medium text-finland hover:underline"
+                            >
+                              Use on all selected days
+                            </button>
+                          ) : null}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const next = weekdayTimes.map((day) => [...day]);
+                              next[di] = [];
+                              patchWeekdayTimes(next);
+                            }}
+                            className="lux-flat text-[12px] font-medium text-ink-muted hover:text-ink"
+                          >
+                            Clear day
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {times.map((time, ti) => (
+                          <div key={`${label}-${ti}`} className="flex items-center gap-1">
+                            <input
+                              type="time"
+                              value={time}
+                              onChange={(e) => setDayTimeAt(di, ti, e.target.value)}
+                              className="tv-input !min-h-9 w-[7.5rem] !py-1.5 text-[13px]"
+                              aria-label={`${label} start time ${ti + 1}`}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeDayTime(di, ti)}
+                              className="lux-flat inline-flex h-8 w-8 items-center justify-center rounded-md text-ink-muted hover:bg-black/[0.04] hover:text-ink"
+                              aria-label={`Remove ${label} time ${ti + 1}`}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => addDayTime(di)}
+                          className="lux-flat inline-flex min-h-9 items-center gap-1 text-[12.5px] font-semibold text-finland hover:underline"
+                        >
+                          <Plus className="h-3.5 w-3.5" aria-hidden />
+                          Add time
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+                {startInvalid ? (
+                  <p className="text-[12px] text-ink-muted" role="status">
+                    Add at least one start time on each operating day.
+                  </p>
+                ) : null}
               </div>
             )}
           </div>

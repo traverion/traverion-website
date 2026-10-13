@@ -387,7 +387,7 @@ export function quoteBooking(input: {
           error: 'Choose a departure time to continue.',
         };
       }
-      option = applyScheduleToOption(option, resolved);
+      option = applyScheduleToOption(option, resolved, input.startTime ?? undefined);
     }
 
     const departureHm = (input.startTime ?? option.startTime ?? '').trim().slice(0, 5);

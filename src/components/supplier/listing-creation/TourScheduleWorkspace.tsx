@@ -14,9 +14,11 @@ import {
   type TourScheduleSceneId,
 } from '../../../lib/listing-schedule-wizard';
 import {
+  formatScheduleDepartureSummary,
   formatScheduleRange,
   formatScheduleWeekdays,
   applyScheduleToOption,
+  scheduleHasFixedDepartures,
   scheduleWizardIsComplete,
 } from '../../../lib/listing-option-schedules';
 import { summarizeOptionPricing } from '../../../lib/price-categories';
@@ -167,6 +169,7 @@ export function TourScheduleWorkspace({
     if (patch.availabilityDateTo !== undefined) next.availabilityDateTo = patch.availabilityDateTo;
     if (patch.weekdays !== undefined) next.weekdays = patch.weekdays;
     if (patch.startTime !== undefined) next.startTime = patch.startTime;
+    if (patch.weekdayStartTimes !== undefined) next.weekdayStartTimes = patch.weekdayStartTimes;
     if (patch.pricingMode !== undefined) next.pricingMode = patch.pricingMode;
     if (patch.priceUsd !== undefined) next.priceUsd = patch.priceUsd;
     if (patch.priceCategories !== undefined) next.priceCategories = patch.priceCategories;
@@ -455,7 +458,7 @@ function ScheduleReview({
   const complete = scheduleWizardIsComplete(schedule, { startMode: option.startMode });
   const whenOk =
     Boolean(schedule.availabilityDateFrom.trim() && schedule.weekdays.some(Boolean)) &&
-    (option.startMode === 'flexible' || Boolean(schedule.startTime.trim()));
+    scheduleHasFixedDepartures(schedule, option.startMode);
   const rows: Array<{ id: TourScheduleSceneId; title: string; body: string; ok: boolean }> = [
     {
       id: 'when',
@@ -465,7 +468,7 @@ function ScheduleReview({
         schedule.name.trim() || null,
         formatScheduleRange(schedule.availabilityDateFrom, schedule.availabilityDateTo),
         formatScheduleWeekdays(schedule.weekdays),
-        schedule.startTime.trim() || (option.startMode === 'flexible' ? 'Flexible hours' : ''),
+        formatScheduleDepartureSummary(schedule, option.startMode),
       ]
         .filter(Boolean)
         .join(' · ') || 'Not configured',

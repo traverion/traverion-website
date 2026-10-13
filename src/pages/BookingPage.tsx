@@ -275,7 +275,7 @@ export default function BookingPage({
     if (!listingOptionHasSchedules(opt)) return opt;
     const day = date.trim() || experienceTodayIso;
     const resolved = resolveScheduleForDate(opt, day, departureTime);
-    return resolved ? applyScheduleToOption(opt, resolved) : opt;
+    return resolved ? applyScheduleToOption(opt, resolved, departureTime) : opt;
   }, [selectedVariant, date, departureTime, experienceTodayIso]);
   const priceInfo = useMemo(() => {
     const day = date.trim() || experienceTodayIso;
