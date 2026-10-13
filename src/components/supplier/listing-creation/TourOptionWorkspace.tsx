@@ -5,9 +5,10 @@ import { ListingCreationNavButton } from './ListingCreationNavButton';
 
 /**
  * Full-screen option editor (portaled) with a left step rail matching tour creation.
- * Sidebar → main content (~900px) → sticky footer. No modal chrome.
+ * Sidebar holds Create/Edit + tour context; main header shows the option name (room for long names).
  */
 export function TourOptionWorkspace({
+  modeTitle,
   optionName,
   listingTitle,
   persistLabel,
@@ -24,7 +25,9 @@ export function TourOptionWorkspace({
   saveDraftDisabled,
   children,
 }: {
-  /** Display name in the sidebar; empty → "New option". */
+  /** Short sidebar title: Create option / Edit option. */
+  modeTitle: string;
+  /** Live option name in the main header; empty → "New option". */
   optionName: string;
   listingTitle: string;
   persistLabel: string | null;
@@ -86,27 +89,12 @@ export function TourOptionWorkspace({
             >
               ← Back to options
             </button>
-            <h2
-              id={titleId}
-              className="mt-5 text-[1.15rem] font-semibold leading-snug tracking-tight text-ink"
-            >
-              {displayName}
-            </h2>
+            <p className="mt-5 text-[1.05rem] font-semibold leading-snug tracking-tight text-ink">
+              {modeTitle}
+            </p>
             <p className="mt-1 truncate text-[12px] text-ink-muted" title={tourLabel}>
               {tourLabel}
             </p>
-            <div className="mt-2 min-h-4">
-              {persistLabel ? (
-                <p
-                  className={`text-[11px] tabular-nums ${
-                    persistLabel === 'Save failed' ? 'font-medium text-red-700' : 'text-ink-muted'
-                  }`}
-                  aria-live="polite"
-                >
-                  {persistLabel}
-                </p>
-              ) : null}
-            </div>
           </div>
           <nav aria-label="Option steps" className="min-h-0 flex-1 overflow-y-auto px-2 pb-6">
             <ol className="space-y-0.5">
@@ -124,16 +112,34 @@ export function TourOptionWorkspace({
         </aside>
 
         <div className="listing-creation-option-main flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#fffcf8]">
-          <header className="listing-creation-option-header shrink-0 border-b border-black/[0.07] px-4 py-2.5 lg:hidden">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <button
-                type="button"
-                onClick={onBackToOptions}
-                className="lux-flat inline-flex min-h-8 items-center gap-1 text-[12.5px] font-semibold text-finland hover:underline"
+          <header className="listing-creation-option-header shrink-0 border-b border-black/[0.07] px-4 py-3 sm:px-6 lg:px-8">
+            <div className="mx-auto flex w-full max-w-[56rem] flex-wrap items-start justify-between gap-x-4 gap-y-2">
+              <div className="min-w-0 flex-1">
+                <button
+                  type="button"
+                  onClick={onBackToOptions}
+                  className="lux-flat mb-1 inline-flex min-h-8 items-center gap-1 text-[12.5px] font-semibold text-finland hover:underline lg:hidden"
+                >
+                  <span aria-hidden>←</span> Back to options
+                </button>
+                <h2
+                  id={titleId}
+                  className="text-[1.15rem] font-semibold leading-snug tracking-tight text-ink sm:text-[1.25rem]"
+                >
+                  {displayName}
+                </h2>
+                <p className="mt-0.5 truncate text-[12px] text-ink-muted lg:hidden" title={tourLabel}>
+                  {tourLabel}
+                </p>
+              </div>
+              <p
+                className={`shrink-0 pt-0.5 text-[11px] tabular-nums ${
+                  persistLabel === 'Save failed' ? 'font-medium text-red-700' : 'text-ink-muted'
+                }`}
+                aria-live="polite"
               >
-                <span aria-hidden>←</span> Back to options
-              </button>
-              <p className="truncate text-[13px] font-semibold text-ink">{displayName}</p>
+                {persistLabel ?? ''}
+              </p>
             </div>
           </header>
 

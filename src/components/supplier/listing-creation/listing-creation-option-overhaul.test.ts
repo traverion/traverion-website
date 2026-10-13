@@ -118,7 +118,9 @@ describe('tour option creation overhaul (source contracts)', () => {
     expect(src).toContain('Back to options');
     expect(src).toContain('createPortal');
     expect(src).toContain('listing-creation-option-rail');
+    expect(src).toContain('modeTitle');
     expect(src).toContain('New option');
+    expect(src).toContain('listing-creation-option-header');
     expect(src).not.toContain('listing-creation-option-backdrop');
     expect(src).not.toContain('aria-label="Where you are"');
     expect(css).toMatch(/\.listing-creation-option-layer \{[^}]*position: fixed/s);

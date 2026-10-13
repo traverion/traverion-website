@@ -4613,6 +4613,11 @@ export default function SupplierListingForm({
         </ListingCreationWorkspace>
         {tourOptionGuided && optionModalDraft ? (
           <TourOptionWorkspace
+            modeTitle={
+              optionSessionOpenedAsCreateRef.current || !optionModalEditingId
+                ? 'Create option'
+                : 'Edit option'
+            }
             optionName={optionModalDraft.name}
             listingTitle={form.title}
             persistLabel={persistLabel}
