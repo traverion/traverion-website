@@ -122,15 +122,15 @@ export function TourOptionWorkspace({
                 >
                   <span aria-hidden>←</span> Back to options
                 </button>
+                <p className="truncate text-[11px] leading-tight text-ink-muted" title={tourLabel}>
+                  {tourLabel}
+                </p>
                 <h2
                   id={titleId}
-                  className="text-[1.15rem] font-semibold leading-snug tracking-tight text-ink sm:text-[1.25rem]"
+                  className="mt-0.5 text-[1.15rem] font-semibold leading-snug tracking-tight text-ink sm:text-[1.25rem]"
                 >
                   {displayName}
                 </h2>
-                <p className="mt-0.5 truncate text-[12px] text-ink-muted lg:hidden" title={tourLabel}>
-                  {tourLabel}
-                </p>
               </div>
               <p
                 className={`shrink-0 pt-0.5 text-[11px] tabular-nums ${
