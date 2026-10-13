@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from 'react';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import type { ListingBookingOption, ListingOptionSchedule } from '../../../types/listingExtras';
 import BookingOptionEditor from '../BookingOptionEditor';
@@ -9,6 +9,11 @@ import {
   firstScheduleIssueFocusId,
   isTourScheduleSceneSatisfied,
   scheduleCapacityCeilings,
+  scheduleCapacitySceneIssues,
+  schedulePeriodIssues,
+  schedulePriceCapacityIssues,
+  schedulePricingSceneIssues,
+  scheduleReadyOverlapIssue,
   tourScheduleContextNavItems,
   tourScheduleLockedReason,
   tourScheduleSceneContinueHint,
@@ -16,13 +21,22 @@ import {
 } from '../../../lib/listing-schedule-wizard';
 import {
   formatScheduleDepartureSummary,
-  formatScheduleRange,
   formatScheduleWeekdays,
   applyScheduleToOption,
-  scheduleHasFixedDepartures,
-  scheduleWizardIsComplete,
 } from '../../../lib/listing-option-schedules';
-import { summarizeOptionPricing } from '../../../lib/price-categories';
+import {
+  formatScheduleListDates,
+  formatScheduleListDeparture,
+  formatScheduleListPrice,
+} from '../../../lib/listing-schedule-list';
+import {
+  formatSupplierEarningsPreview,
+  previewSupplierEarningsFromGross,
+  SUPPLIER_PRICING_PREVIEW_COMMISSION_BPS,
+} from '../../../lib/supplier-pricing-preview';
+import { formatBpsAsPercent } from '../../../lib/commercial-money';
+import { activePriceCategories, optionPricingMode } from '../../../lib/price-categories';
+import { optionChargeModel } from '../../../lib/listing-option-charge-model';
 import { ListingCreationNavButton } from './ListingCreationNavButton';
 
 function focusField(fieldId: string | null) {
@@ -91,7 +105,7 @@ export function TourScheduleWorkspace({
   onContinue: () => void;
   onSaveReady: () => void;
 }) {
-  const headingRef = useRef<HTMLHeadingElement>(null);
+  const sceneHeadingRef = useRef<HTMLHeadingElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const hintId = useId();
@@ -108,15 +122,19 @@ export function TourScheduleWorkspace({
   const lastScene = sceneIndex >= TOUR_SCHEDULE_SCENE_COUNT - 1;
   const railTitle = isNewSchedule ? 'New schedule' : 'Edit schedule';
   const optionLabel = option.name.trim() || 'Untitled option';
+  const groupPricing =
+    option.chargeModel === 'flat_group' ||
+    Boolean(option.isPrivate && option.privatePricing === 'flat_group');
   const sceneQuestion =
-    scene.id === 'price_capacity' &&
-    (option.chargeModel === 'flat_group' ||
-      Boolean(option.isPrivate && option.privatePricing === 'flat_group'))
-      ? 'Whole-group price and capacity'
-      : scene.question;
+    scene.id === 'capacity' && groupPricing
+      ? 'Seats and group size'
+      : scene.id === 'pricing' && groupPricing
+        ? 'Whole-group price'
+        : scene.question;
 
   useEffect(() => {
-    headingRef.current?.focus();
+    // Focus the scene question — not the option name — to avoid a blue focus ring on the header.
+    sceneHeadingRef.current?.focus({ preventScroll: true });
   }, [sceneIndex]);
 
   useEffect(() => {
@@ -293,10 +311,8 @@ export function TourScheduleWorkspace({
                   <span aria-hidden>←</span> Back to option
                 </button>
                 <h2
-                  ref={headingRef}
                   id={titleId}
-                  tabIndex={-1}
-                  className="truncate text-[1.25rem] font-semibold leading-snug tracking-tight text-ink outline-none sm:text-[1.35rem]"
+                  className="truncate text-[1.25rem] font-semibold leading-snug tracking-tight text-ink sm:text-[1.35rem]"
                   title={optionLabel}
                 >
                   {optionLabel}
@@ -321,7 +337,11 @@ export function TourScheduleWorkspace({
                 </p>
               ) : null}
 
-              <h3 className="mb-4 text-[1.125rem] font-semibold leading-snug tracking-tight text-ink sm:text-[1.2rem]">
+              <h3
+                ref={sceneHeadingRef}
+                tabIndex={-1}
+                className="mb-4 text-[1.125rem] font-semibold leading-snug tracking-tight text-ink outline-none focus:outline-none sm:text-[1.2rem]"
+              >
                 {sceneQuestion}
               </h3>
 
@@ -359,7 +379,9 @@ export function TourScheduleWorkspace({
                     id={
                       scene.id === 'when'
                         ? 'supplier-schedule-field-from'
-                        : 'supplier-schedule-field-price'
+                        : scene.id === 'capacity'
+                          ? 'supplier-schedule-field-capacity'
+                          : 'supplier-schedule-field-price'
                     }
                   >
                     <BookingOptionEditor
@@ -368,10 +390,17 @@ export function TourScheduleWorkspace({
                       hasEndingDate={hasEndingDate}
                       onHasEndingDateChange={onHasEndingDateChange}
                       onChange={patchFromOption}
-                      activeSection={scene.id === 'when' ? 'availability' : 'price_capacity'}
+                      activeSection={
+                        scene.id === 'when'
+                          ? 'availability'
+                          : scene.id === 'capacity'
+                            ? 'schedule_capacity'
+                            : 'schedule_pricing'
+                      }
                       attempted={attempted}
                       guestsCeiling={guestsCeiling}
                       spotsCeiling={spotsCeiling}
+                      formatAmount={formatAmount}
                     />
                   </div>
                 </div>
@@ -478,6 +507,41 @@ export function TourScheduleWorkspace({
   return createPortal(layer, document.body);
 }
 
+function ReviewSection({
+  title,
+  onEdit,
+  children,
+}: {
+  title: string;
+  onEdit: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <section className="border-b border-black/[0.07] py-3.5 last:border-b-0">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <h4 className="text-[13px] font-semibold tracking-tight text-ink">{title}</h4>
+        <button
+          type="button"
+          onClick={onEdit}
+          className="lux-flat shrink-0 rounded-md px-2 py-1 text-[12.5px] font-medium text-finland hover:bg-finland/[0.06]"
+        >
+          Edit
+        </button>
+      </div>
+      <dl className="space-y-1.5">{children}</dl>
+    </section>
+  );
+}
+
+function ReviewRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="grid grid-cols-[7.5rem_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-[12.5px] leading-snug sm:grid-cols-[9rem_minmax(0,1fr)]">
+      <dt className="text-ink-muted">{label}</dt>
+      <dd className="min-w-0 text-ink">{value}</dd>
+    </div>
+  );
+}
+
 function ScheduleReview({
   schedule,
   option,
@@ -489,75 +553,137 @@ function ScheduleReview({
   formatAmount: (n: number) => string;
   onEdit: (id: TourScheduleSceneId) => void;
 }) {
-  const complete = scheduleWizardIsComplete(schedule, { startMode: option.startMode });
-  const whenOk =
-    Boolean(schedule.availabilityDateFrom.trim() && schedule.weekdays.some(Boolean)) &&
-    scheduleHasFixedDepartures(schedule, option.startMode);
-  const rows: Array<{ id: TourScheduleSceneId; title: string; body: string; ok: boolean }> = [
-    {
-      id: 'when',
-      title: 'When',
-      ok: whenOk,
-      body: [
-        schedule.name.trim() || null,
-        formatScheduleRange(schedule.availabilityDateFrom, schedule.availabilityDateTo),
-        formatScheduleWeekdays(schedule.weekdays),
-        formatScheduleDepartureSummary(schedule, option.startMode),
-      ]
-        .filter(Boolean)
-        .join(' · ') || 'Not configured',
-    },
-    {
-      id: 'price_capacity',
-      title: 'Price & capacity',
-      ok:
-        summarizeOptionPricing(schedule, formatAmount) !== 'Set price' && schedule.maxSpotsPerSlot >= 1,
-      body: [
-        summarizeOptionPricing(schedule, formatAmount),
-        schedule.minPersons >= 1 && schedule.maxPersons >= 1
-          ? `${schedule.minPersons}–${schedule.maxPersons}${
-              option.chargeModel === 'flat_group' ||
-              Boolean(option.isPrivate && option.privatePricing === 'flat_group')
-                ? typeof schedule.maxGroupsPerSlot === 'number' && schedule.maxGroupsPerSlot >= 1
-                  ? ` · ${schedule.maxGroupsPerSlot} group${schedule.maxGroupsPerSlot === 1 ? '' : 's'}`
-                  : ' per group'
-                : ' per booking'
-            }`
-          : null,
-        schedule.maxSpotsPerSlot >= 1 ? `${schedule.maxSpotsPerSlot} seats / start` : null,
-      ]
-        .filter(Boolean)
-        .join(' · '),
-    },
+  const whenIssues = schedulePeriodIssues(schedule, { startMode: option.startMode });
+  const capacityIssues = scheduleCapacitySceneIssues(schedule, option);
+  const pricingIssues = schedulePricingSceneIssues(schedule);
+  const overlap = scheduleReadyOverlapIssue({ ...schedule, status: 'ready' }, option);
+  const allIssues = [
+    ...whenIssues,
+    ...capacityIssues,
+    ...pricingIssues,
+    ...(overlap ? [overlap] : []),
+    ...schedulePriceCapacityIssues(schedule, option).filter(
+      (m) => !whenIssues.includes(m) && !capacityIssues.includes(m) && !pricingIssues.includes(m)
+    ),
   ];
+  const uniqueIssues = [...new Set(allIssues)];
+  const ready = uniqueIssues.length === 0;
+
+  const pricing = formatScheduleListPrice(schedule, option, formatAmount);
+  const charge = optionChargeModel(option);
+  const pricingLines: Array<{ label: string; customer: string; earn: string }> = [];
+  if (charge === 'flat_group') {
+    const gross = schedule.privateGroupPriceUsd ?? schedule.priceUsd;
+    pricingLines.push({
+      label: 'Whole group',
+      customer: gross > 0 ? formatAmount(gross) : 'Not set',
+      earn: formatSupplierEarningsPreview(gross, formatAmount),
+    });
+  } else if (optionPricingMode(schedule) === 'age_dependent') {
+    const cats = activePriceCategories(schedule);
+    if (cats.length === 0) {
+      pricingLines.push({ label: 'Age categories', customer: 'Not set', earn: '—' });
+    } else {
+      for (const c of cats) {
+        pricingLines.push({
+          label: c.label.trim() || 'Category',
+          customer: c.priceUsd > 0 ? formatAmount(c.priceUsd) : 'Not set',
+          earn: formatSupplierEarningsPreview(c.priceUsd, formatAmount),
+        });
+      }
+    }
+  } else {
+    pricingLines.push({
+      label: 'Per person',
+      customer: schedule.priceUsd > 0 ? formatAmount(schedule.priceUsd) : 'Not set',
+      earn: formatSupplierEarningsPreview(schedule.priceUsd, formatAmount),
+    });
+  }
+
+  const sampleGross =
+    charge === 'flat_group'
+      ? schedule.privateGroupPriceUsd ?? schedule.priceUsd
+      : optionPricingMode(schedule) === 'age_dependent'
+        ? activePriceCategories(schedule).find((c) => c.priceUsd > 0)?.priceUsd ?? 0
+        : schedule.priceUsd;
+  const samplePreview = previewSupplierEarningsFromGross(sampleGross);
 
   return (
-    <div className="w-full max-w-xl space-y-3">
-      <p className="text-[13px] text-ink-muted">
-        {complete
-          ? 'Ready to finish — this schedule can be saved.'
-          : 'Finish the gaps below before this schedule can be ready.'}
-      </p>
-      {rows.map((row) => (
-        <div
-          key={row.id}
-          className="flex items-start justify-between gap-3 border-b border-black/[0.06] py-3 last:border-b-0"
-        >
-          <div className="min-w-0">
-            <p className="text-[13px] font-semibold text-ink">{row.title}</p>
-            <p className={`mt-0.5 text-[12.5px] leading-snug ${row.ok ? 'text-ink' : 'text-ink-muted'}`}>
-              {row.body}
-            </p>
+    <div className="w-full max-w-xl">
+      <ReviewSection title="When" onEdit={() => onEdit('when')}>
+        <ReviewRow label="Name" value={schedule.name.trim() || 'Not set'} />
+        <ReviewRow
+          label="Dates"
+          value={formatScheduleListDates(schedule.availabilityDateFrom, schedule.availabilityDateTo)}
+        />
+        <ReviewRow label="Days" value={formatScheduleWeekdays(schedule.weekdays)} />
+        <ReviewRow
+          label="Departure"
+          value={
+            formatScheduleDepartureSummary(schedule, option.startMode) ||
+            formatScheduleListDeparture(schedule, option.startMode)
+          }
+        />
+      </ReviewSection>
+
+      <ReviewSection title="Capacity" onEdit={() => onEdit('capacity')}>
+        <ReviewRow
+          label="Seats"
+          value={
+            schedule.maxSpotsPerSlot >= 1 ? `${schedule.maxSpotsPerSlot} per departure` : 'Not set'
+          }
+        />
+        <ReviewRow
+          label={charge === 'flat_group' ? 'Group size' : 'Per booking'}
+          value={
+            schedule.minPersons >= 1 && schedule.maxPersons >= schedule.minPersons
+              ? `${schedule.minPersons}–${schedule.maxPersons}${
+                  charge === 'flat_group' &&
+                  typeof schedule.maxGroupsPerSlot === 'number' &&
+                  schedule.maxGroupsPerSlot >= 1
+                    ? ` · ${schedule.maxGroupsPerSlot} group${
+                        schedule.maxGroupsPerSlot === 1 ? '' : 's'
+                      }`
+                    : ''
+                }`
+              : 'Not set'
+          }
+        />
+      </ReviewSection>
+
+      <ReviewSection title="Pricing" onEdit={() => onEdit('pricing')}>
+        <ReviewRow label="Model" value={pricing.model} />
+        {pricingLines.map((line) => (
+          <div key={line.label} className="space-y-0.5">
+            <ReviewRow label={line.label} value={`Customer ${line.customer}`} />
+            <ReviewRow label="You receive" value={line.earn} />
           </div>
-          <button
-            type="button"
-            onClick={() => onEdit(row.id)}
-            className="lux-flat shrink-0 rounded-md px-2 py-1 text-[12.5px] font-medium text-finland hover:bg-finland/[0.06]"
-          >
-            Edit
-          </button>
-        </div>
-      ))}
+        ))}
+        {samplePreview ? (
+          <p className="pt-1 text-[11.5px] leading-snug text-ink-muted">
+            Estimated after {formatBpsAsPercent(SUPPLIER_PRICING_PREVIEW_COMMISSION_BPS)} Traverion
+            commission (before taxes or other adjustments).
+          </p>
+        ) : null}
+      </ReviewSection>
+
+      <section className="py-3.5">
+        <h4 className="text-[13px] font-semibold tracking-tight text-ink">Status</h4>
+        {ready ? (
+          <p className="mt-1.5 text-[12.5px] leading-snug text-ink">
+            Ready to finish — this schedule can be saved as bookable.
+          </p>
+        ) : (
+          <div className="mt-1.5 space-y-1">
+            <p className="text-[12.5px] font-medium text-ink">Not ready yet</p>
+            <ul className="list-disc space-y-0.5 pl-4 text-[12.5px] leading-snug text-ink-muted">
+              {uniqueIssues.slice(0, 6).map((issue) => (
+                <li key={issue}>{issue}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

@@ -18,7 +18,8 @@ import { scheduleChargeModelConflict } from './listing-option-charge-model';
 
 export const TOUR_SCHEDULE_SCENES = [
   { id: 'when', label: 'When', question: 'When does this schedule run?' },
-  { id: 'price_capacity', label: 'Price & capacity', question: 'Price and capacity' },
+  { id: 'capacity', label: 'Capacity', question: 'How many travelers can book?' },
+  { id: 'pricing', label: 'Pricing', question: 'What do travelers pay?' },
   { id: 'review', label: 'Review', question: 'Review this schedule' },
 ] as const;
 
@@ -202,6 +203,21 @@ export function schedulePriceCapacityIssues(
   ];
 }
 
+export function scheduleCapacitySceneIssues(
+  schedule: ListingOptionSchedule,
+  option?: ListingBookingOption
+): string[] {
+  const ceilings = scheduleCapacityCeilings(option);
+  return scheduleCapacityIssues(schedule, {
+    ...ceilings,
+    requireGroups: scheduleRequiresGroups(option),
+  });
+}
+
+export function schedulePricingSceneIssues(schedule: ListingOptionSchedule): string[] {
+  return schedulePricingIssues(schedule);
+}
+
 export function isTourScheduleSceneSatisfied(
   sceneIndex: number,
   schedule: ListingOptionSchedule,
@@ -210,7 +226,8 @@ export function isTourScheduleSceneSatisfied(
   const scene = TOUR_SCHEDULE_SCENES[clampTourScheduleSceneIndex(sceneIndex)];
   if (!scene) return false;
   if (scene.id === 'when') return schedulePeriodIssues(schedule, { startMode: option?.startMode }).length === 0;
-  if (scene.id === 'price_capacity') return schedulePriceCapacityIssues(schedule, option).length === 0;
+  if (scene.id === 'capacity') return scheduleCapacitySceneIssues(schedule, option).length === 0;
+  if (scene.id === 'pricing') return schedulePricingSceneIssues(schedule).length === 0;
   const overlap = option ? scheduleReadyOverlapIssue({ ...schedule, status: 'ready' }, option) : null;
   return (
     scheduleWizardIsComplete(schedule, { startMode: option?.startMode }) &&
@@ -253,17 +270,23 @@ export function tourScheduleSceneContinueHint(input: {
       'Finish when this schedule runs to continue.'
     );
   }
-  if (scene?.id === 'price_capacity') {
+  if (scene?.id === 'capacity') {
     return (
-      schedulePriceCapacityIssues(input.schedule, input.option)[0] ??
-      'Finish price and capacity to continue.'
+      scheduleCapacitySceneIssues(input.schedule, input.option)[0] ??
+      'Finish capacity to continue.'
     );
+  }
+  if (scene?.id === 'pricing') {
+    return schedulePricingSceneIssues(input.schedule)[0] ?? 'Finish pricing to continue.';
   }
   if (input.option) {
     const overlap = scheduleReadyOverlapIssue({ ...input.schedule, status: 'ready' }, input.option);
     if (overlap) return overlap;
   }
-  return 'Finish the remaining schedule details before saving.';
+  return (
+    schedulePriceCapacityIssues(input.schedule, input.option)[0] ??
+    'Finish the remaining schedule details before saving.'
+  );
 }
 
 export function tourScheduleLockedReason(input: {
@@ -316,7 +339,10 @@ export function firstScheduleIssueFocusId(
   opts?: { startMode?: ListingBookingOption['startMode']; option?: ListingBookingOption }
 ): string | null {
   if (schedulePeriodIssues(schedule, opts).length > 0) return 'supplier-schedule-field-from';
-  if (schedulePriceCapacityIssues(schedule, opts?.option).length > 0) {
+  if (scheduleCapacitySceneIssues(schedule, opts?.option).length > 0) {
+    return 'supplier-schedule-field-capacity';
+  }
+  if (schedulePricingSceneIssues(schedule).length > 0) {
     return 'supplier-schedule-field-price';
   }
   return null;

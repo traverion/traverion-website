@@ -29,6 +29,7 @@ import {
   syncScheduleDeparturesFromWeekdayTimes,
 } from '../../lib/listing-option-schedules';
 import { localYmd } from '../../lib/local-ymd';
+import { SchedulePricingEditor } from './listing-creation/SchedulePricingEditor';
 
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -48,7 +49,10 @@ export type BookingOptionEditorSection =
   | 'availability'
   | 'booking_window'
   | 'capacity'
-  | 'price_capacity';
+  /** Schedule wizard Capacity step (booking size / groups). */
+  | 'schedule_capacity'
+  /** Schedule wizard Pricing step (gross/net prices). */
+  | 'schedule_pricing';
 
 type Props = {
   option: ListingBookingOption;
@@ -72,6 +76,8 @@ type Props = {
   guestsCeiling?: number;
   /** Cap for max spots / groups per start time. Defaults to LISTING_CAPACITY_MAX. */
   spotsCeiling?: number;
+  /** Currency formatter for schedule pricing earnings preview. */
+  formatAmount?: (n: number) => string;
 };
 
 /** Allow clearing number fields while typing; empty stores as 0 until filled. */
@@ -182,6 +188,7 @@ export default function BookingOptionEditor({
   timezoneDetectedLabel = null,
   guestsCeiling: guestsCeilingProp,
   spotsCeiling: spotsCeilingProp,
+  formatAmount,
 }: Props) {
   const pricingMode = option.pricingMode === 'age_dependent' ? 'age_dependent' : 'uniform';
   const categories = option.priceCategories ?? [];
@@ -204,7 +211,8 @@ export default function BookingOptionEditor({
       ? Math.floor(spotsCeilingProp)
       : LISTING_CAPACITY_MAX
   );
-  const schedulePriceCapacity = activeSection === 'price_capacity';
+  const scheduleCapacityStep = activeSection === 'schedule_capacity';
+  const schedulePricingStep = activeSection === 'schedule_pricing';
 
   const setPricingMode = (mode: 'uniform' | 'age_dependent') => {
     if (mode === 'age_dependent') {
@@ -261,19 +269,21 @@ export default function BookingOptionEditor({
   const scheduleBased = Array.isArray(option.schedules);
   const showSetup = !activeSection || activeSection === 'setup';
   const showMeeting = !activeSection || activeSection === 'meeting';
-  // Schedule price_capacity reuses amount/capacity fields only — charge model lives on Pricing.
-  const showPricing = !activeSection || activeSection === 'pricing' || activeSection === 'price_capacity';
+  // Schedule Pricing step uses SchedulePricingEditor; option Pricing keeps charge model picker.
+  const showPricing =
+    !activeSection || activeSection === 'pricing' || schedulePricingStep;
   const showChargeModelPicker = !activeSection || activeSection === 'pricing';
   const showFlatPriceAmounts =
-    activeSection === 'price_capacity' ||
+    !schedulePricingStep &&
     ((!activeSection || activeSection === 'pricing') && !scheduleBased);
+  const showSchedulePricingEditor = schedulePricingStep;
   const showPricingScheduleNote = Boolean(activeSection === 'pricing' && scheduleBased);
   const showAvailability =
     !activeSection || activeSection === 'schedule' || activeSection === 'availability';
   const showBookingWindow = !activeSection || activeSection === 'booking_window';
-  /** Option Pricing (schedule-based): slot capacity only. Schedule Price & capacity: booking size (+ groups). */
+  /** Option Pricing (schedule-based): slot capacity only. Schedule Capacity: booking size (+ groups). */
   const showOptionSlotCapacity = Boolean(scheduleBased && activeSection === 'pricing');
-  const showScheduleBookingCapacity = schedulePriceCapacity;
+  const showScheduleBookingCapacity = scheduleCapacityStep;
   const showLegacyCapacity =
     !scheduleBased &&
     (!activeSection ||
@@ -281,6 +291,10 @@ export default function BookingOptionEditor({
       activeSection === 'capacity' ||
       activeSection === 'pricing');
   const showCapacity = showOptionSlotCapacity || showScheduleBookingCapacity || showLegacyCapacity;
+  const moneyFormat =
+    formatAmount ??
+    ((n: number) =>
+      Number.isFinite(n) ? n.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '—');
   const optionSlotCapacity =
     spotsCeiling < LISTING_CAPACITY_MAX
       ? spotsCeiling
@@ -610,11 +624,22 @@ export default function BookingOptionEditor({
           support={
             showChargeModelPicker && !showPricingScheduleNote
               ? 'Per-person prices can include Adult and Child. A whole-group price covers the entire party.'
-              : groupPricing && schedulePriceCapacity
+              : groupPricing && schedulePricingStep
                 ? 'One price for the entire party on this schedule.'
-                : undefined
+                : schedulePricingStep
+                  ? undefined
+                  : undefined
           }
         >
+          {showSchedulePricingEditor ? (
+            <SchedulePricingEditor
+              option={option}
+              currencyLabel={currencyLabel}
+              formatAmount={moneyFormat}
+              onChange={onChange}
+              groupPricing={groupPricing}
+            />
+          ) : null}
           {showChargeModelPicker ? (
             <div
               id="supplier-listing-field-option-charge-model"
@@ -635,7 +660,7 @@ export default function BookingOptionEditor({
                 onClick={() => setChargeModel('flat_group')}
               />
             </div>
-          ) : (
+          ) : showSchedulePricingEditor ? null : (
             <p className="text-[13px] font-medium text-ink">
               {groupPricing ? 'Charged as a whole group' : 'Charged per person'}
             </p>
@@ -1195,8 +1220,8 @@ export default function BookingOptionEditor({
               ? 'Travelers per start time'
               : showScheduleBookingCapacity
                 ? groupPricing
-                  ? 'Group size and groups'
-                  : 'Guests per booking'
+                  ? 'Seats and group size'
+                  : 'Seats and booking size'
                 : groupPricing
                   ? 'Slot capacity and group size'
                   : 'How many travelers can book?'
@@ -1206,8 +1231,8 @@ export default function BookingOptionEditor({
               ? 'Total travelers this option can take on one departure. Schedules use this as their capacity.'
               : showScheduleBookingCapacity
                 ? groupPricing
-                  ? 'Set how large one group booking can be, and how many groups fit in the option capacity.'
-                  : 'Minimum and maximum travelers in one booking. Capped by the option’s capacity per start time.'
+                  ? 'Seats come from the option. Set group size and how many groups fit per departure.'
+                  : 'Seats come from the option. Set minimum and maximum guests for one booking.'
                 : groupPricing
                   ? 'Inventory is traveler seats per start time. Group size is how large one booking can be.'
                   : 'Party size for one booking, and traveler seats available at each start time.'
@@ -1215,14 +1240,16 @@ export default function BookingOptionEditor({
         >
           <div id="supplier-listing-field-group" className="space-y-4">
             {showScheduleBookingCapacity ? (
-              <p className="rounded-lg border border-black/[0.12] bg-black/[0.02] px-3 py-2 text-[12.5px] leading-snug text-ink">
-                Your maximum capacity per time slot is currently:{' '}
-                <span className="font-semibold">
+              <div>
+                <p className="mb-1 text-[12.5px] font-semibold text-ink">Seats per departure</p>
+                <p className="flex min-h-10 max-w-xs items-center rounded-lg border border-black/[0.08] bg-black/[0.02] px-3 text-[15px] font-semibold tabular-nums text-ink">
                   {optionSlotCapacity >= 1 ? optionSlotCapacity : '—'}
-                </span>
-                . You can modify it at:{' '}
-                <span className="font-semibold">Pricing → Travelers per start time</span>
-              </p>
+                </p>
+                <p className="mt-1.5 text-[12px] leading-snug text-ink-muted">
+                  From the option. Modify at{' '}
+                  <span className="font-medium text-ink">Pricing → Travelers per start time</span>.
+                </p>
+              </div>
             ) : null}
 
             {showOptionSlotCapacity || showLegacyCapacity ? (

@@ -87,10 +87,22 @@ describe('tour option creation overhaul (source contracts)', () => {
     expect(option).toContain('isTourOptionSceneSatisfied');
   });
 
-  it('hides charge-model picker on schedule price_capacity', () => {
+  it('hides charge-model picker on schedule pricing/capacity steps', () => {
     const editor = readFileSync(resolve(__dirname, '../BookingOptionEditor.tsx'), 'utf8');
     expect(editor).toContain('showChargeModelPicker');
     expect(editor).toMatch(/showChargeModelPicker = !activeSection \|\| activeSection === 'pricing'/);
+    expect(editor).toContain('schedule_pricing');
+    expect(editor).toContain('schedule_capacity');
+    expect(editor).toContain('SchedulePricingEditor');
+  });
+
+  it('uses a four-step schedule wizard When → Capacity → Pricing → Review', () => {
+    const wizard = readFileSync(resolve(__dirname, '../../../lib/listing-schedule-wizard.ts'), 'utf8');
+    expect(wizard).toMatch(/id: 'when'/);
+    expect(wizard).toMatch(/id: 'capacity'/);
+    expect(wizard).toMatch(/id: 'pricing'/);
+    expect(wizard).toMatch(/id: 'review'/);
+    expect(wizard).not.toMatch(/price_capacity/);
   });
 
   it('offers Save & exit in the leave dialog for published listings', () => {
