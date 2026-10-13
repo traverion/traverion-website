@@ -834,9 +834,18 @@ describe('getListingPublishBlockers', () => {
         subtitle: 'Northern lights by snowmobile with a local guide',
         description: 'A'.repeat(120),
         image: 'https://example.com/real.jpg',
+        experienceStartStyle: 'operator_pickup',
         listingExtras: {
+          bookingContactPhoneE164: '+358401234567',
           bookingOptions: [
-            option({ id: 'opt-small', name: 'Small group', priceUsd: 149 }),
+            option({
+              id: 'opt-small',
+              name: 'Small group',
+              priceUsd: 149,
+              fulfillment: 'pickup',
+              pickupPlace: 'Rovaniemi city hotels',
+              travelerStartInstructions: 'Wait outside the lobby 10 minutes early.',
+            }),
           ],
           galleryImageUrls: [
             'https://example.com/2.jpg',

@@ -12,10 +12,13 @@ import {
 } from './cancelled-booking-checkout.ts';
 import { paidPromotionShouldRefuseFullyRefundedCharge } from './stripe-charge-refund.ts';
 import { inventoryStartTimeHmFromBooking } from './booking-hold.ts';
-import { listingHasUpcomingBookableSeason, resolveTourDepartureHmForCutoff } from './booking-quote.ts';
+import {
+  effectiveBookingCutoffHours,
+  listingHasUpcomingBookableSeason,
+  resolveTourDepartureHmForCutoff,
+} from './booking-quote.ts';
 import {
   assertDepartureStillBookable,
-  normalizeBookingCutoffHours,
   resolveDepartureTimezone,
 } from './tour-departure-cutoff.ts';
 
@@ -877,7 +880,10 @@ export async function promotePaidFromCheckoutSession(params: {
       const cut = assertDepartureStillBookable({
         bookingDate,
         startTimeHm: cutoffStartTimeHm,
-        cutoffHoursBeforeStart: normalizeBookingCutoffHours(extras?.bookingCutoffHoursBeforeStart),
+        cutoffHoursBeforeStart: effectiveBookingCutoffHours({
+          listingExtras: listingGate?.listing_extras,
+          bookingOptionId,
+        }),
         nowMs: Date.now(),
         timeZone: resolveDepartureTimezone(extras?.departureTimezone),
       });

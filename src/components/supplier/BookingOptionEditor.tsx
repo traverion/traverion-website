@@ -30,6 +30,7 @@ export type BookingOptionEditorSection =
   | 'pricing'
   | 'schedule'
   | 'availability'
+  | 'booking_window'
   | 'capacity'
   | 'price_capacity';
 
@@ -41,6 +42,9 @@ type Props = {
   onChange: (patch: Partial<ListingBookingOption>) => void;
   activeSection?: BookingOptionEditorSection;
   attempted?: boolean;
+  /** Listing-scoped timezone edited from the Availability scene (shared across options). */
+  listingDepartureTimezone?: string;
+  onListingDepartureTimezoneChange?: (timezone: string) => void;
 };
 
 function patchCategory(
@@ -110,6 +114,18 @@ function ChoiceCard({
   );
 }
 
+const DEPARTURE_TIMEZONE_OPTIONS = [
+  { value: 'Europe/Helsinki', label: 'Europe/Helsinki (Finland — default)' },
+  { value: 'Europe/London', label: 'Europe/London' },
+  { value: 'Europe/Paris', label: 'Europe/Paris' },
+  { value: 'Europe/Stockholm', label: 'Europe/Stockholm' },
+  { value: 'America/New_York', label: 'America/New_York' },
+  { value: 'America/Los_Angeles', label: 'America/Los_Angeles' },
+  { value: 'Asia/Tokyo', label: 'Asia/Tokyo' },
+  { value: 'Pacific/Auckland', label: 'Pacific/Auckland' },
+  { value: 'UTC', label: 'UTC' },
+];
+
 export default function BookingOptionEditor({
   option,
   currencyLabel,
@@ -118,6 +134,8 @@ export default function BookingOptionEditor({
   onChange,
   activeSection,
   attempted = false,
+  listingDepartureTimezone,
+  onListingDepartureTimezoneChange,
 }: Props) {
   const pricingMode = option.pricingMode === 'age_dependent' ? 'age_dependent' : 'uniform';
   const categories = option.priceCategories ?? [];
@@ -181,18 +199,25 @@ export default function BookingOptionEditor({
     onChange({ priceCategories: categories.filter((c) => c.id !== id) });
   };
 
+  const scheduleBased = Array.isArray(option.schedules);
   const showSetup = !activeSection || activeSection === 'setup';
   const showMeeting = !activeSection || activeSection === 'meeting';
-  // Schedule price_capacity reuses amount/capacity fields only — charge model is locked in Setup.
+  // Schedule price_capacity reuses amount/capacity fields only — charge model lives on Pricing.
   const showPricing = !activeSection || activeSection === 'pricing' || activeSection === 'price_capacity';
   const showChargeModelPicker = !activeSection || activeSection === 'pricing';
+  const showFlatPriceAmounts =
+    activeSection === 'price_capacity' ||
+    ((!activeSection || activeSection === 'pricing') && !scheduleBased);
+  const showPricingScheduleNote = Boolean(activeSection === 'pricing' && scheduleBased);
   const showAvailability =
     !activeSection || activeSection === 'schedule' || activeSection === 'availability';
+  const showBookingWindow = !activeSection || activeSection === 'booking_window';
   const showCapacity =
     !activeSection ||
     activeSection === 'schedule' ||
     activeSection === 'capacity' ||
-    activeSection === 'price_capacity';
+    activeSection === 'price_capacity' ||
+    (activeSection === 'pricing' && !scheduleBased);
 
   const nameInvalid = attempted && !option.name.trim();
   const infoInvalid = attempted && option.optionInfo.trim().length < 3;
@@ -304,32 +329,10 @@ export default function BookingOptionEditor({
             </div>
           </Section>
           <Section
-            kicker="Before schedules"
-            title="Pricing and start style"
-            support="Required before you can add schedules. You can still set exact prices and times on each schedule."
+            kicker="Start style"
+            title="How do departures work?"
+            support="Required before you can add schedules. Exact clock times are set on each schedule."
           >
-            <div id="supplier-listing-field-option-charge-model" className="space-y-3">
-              <p className="text-sm font-semibold text-ink">How do you charge? *</p>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Pricing model">
-                <ChoiceCard
-                  selected={option.chargeModel === 'per_person'}
-                  title="Per person"
-                  hint="Each traveler pays. Adult/child prices can be set on schedules."
-                  onClick={() => setChargeModel('per_person')}
-                />
-                <ChoiceCard
-                  selected={option.chargeModel === 'flat_group'}
-                  title="Per group"
-                  hint="One price covers the whole party up to your guest limit."
-                  onClick={() => setChargeModel('flat_group')}
-                />
-              </div>
-              {attempted && !chargeModelChosen ? (
-                <p className="text-sm text-red-600" role="alert">
-                  Choose per person or per group.
-                </p>
-              ) : null}
-            </div>
             <div id="supplier-listing-field-option-start-mode" className="space-y-3">
               <p className="text-sm font-semibold text-ink">Start time style *</p>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Start time style">
@@ -351,42 +354,6 @@ export default function BookingOptionEditor({
                   Choose fixed start time or flexible operating hours.
                 </p>
               ) : null}
-            </div>
-            <div id="supplier-listing-field-option-cutoff" className="space-y-2">
-              <label htmlFor="option-booking-cutoff" className="block text-sm font-semibold text-ink">
-                Booking cutoff (hours before departure)
-              </label>
-              <p className="text-[13px] leading-snug text-ink-muted">
-                Applies to every schedule on this option. 0 means bookable until start. Leave empty to use the listing default.
-              </p>
-              <input
-                id="option-booking-cutoff"
-                type="number"
-                min={0}
-                max={168}
-                inputMode="numeric"
-                className="tv-input max-w-[10rem]"
-                value={
-                  typeof option.bookingCutoffHoursBeforeStart === 'number' &&
-                  option.bookingCutoffHoursBeforeStart > 0
-                    ? String(option.bookingCutoffHoursBeforeStart)
-                    : ''
-                }
-                placeholder="Listing default"
-                onChange={(e) => {
-                  const raw = e.target.value.trim();
-                  if (!raw) {
-                    onChange({ bookingCutoffHoursBeforeStart: undefined });
-                    return;
-                  }
-                  const n = Number(raw);
-                  if (!Number.isFinite(n) || n <= 0) {
-                    onChange({ bookingCutoffHoursBeforeStart: undefined });
-                    return;
-                  }
-                  onChange({ bookingCutoffHoursBeforeStart: Math.min(168, Math.floor(n)) });
-                }}
-              />
             </div>
           </Section>
         </>
@@ -475,20 +442,22 @@ export default function BookingOptionEditor({
           }
           support={
             showChargeModelPicker
-              ? 'Per-person prices can include Adult and Child inside this same option. A group price covers the whole party.'
+              ? showPricingScheduleNote
+                ? 'Choose per person or per group. Exact prices and capacity are set on each schedule in Availability.'
+                : 'Per-person prices can include Adult and Child inside this same option. A group price covers the whole party.'
               : groupPricing
-                ? 'One price covers the whole party for departures on this schedule. Charge model was set in Setup.'
-                : 'Travelers pay this amount for departures on this schedule. Charge model was set in Setup.'
+                ? 'One price covers the whole party for departures on this schedule. Charge model was set in Pricing.'
+                : 'Travelers pay this amount for departures on this schedule. Charge model was set in Pricing.'
           }
         >
           {showChargeModelPicker ? (
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div id="supplier-listing-field-option-charge-model" className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {(
                 [
                   {
                     value: 'per_person' as const,
                     title: 'Per person',
-                    hint: 'Each traveler pays a unit price.',
+                    hint: 'Each traveler pays a unit price. Adult/child prices can be set on schedules.',
                   },
                   {
                     value: 'flat_group' as const,
@@ -519,11 +488,22 @@ export default function BookingOptionEditor({
           ) : (
             <p className="rounded-lg border border-black/[0.06] bg-black/[0.02] px-3 py-2.5 text-sm text-ink-muted">
               {groupPricing ? 'Per group' : 'Per person'}
-              {chargeModelChosen ? '' : ' — finish Setup if this looks wrong.'}
+              {chargeModelChosen ? '' : ' — finish Pricing if this looks wrong.'}
             </p>
           )}
+          {showChargeModelPicker && attempted && !chargeModelChosen ? (
+            <p className="text-sm text-red-600" role="alert">
+              Choose per person or per group.
+            </p>
+          ) : null}
+          {showPricingScheduleNote ? (
+            <p className="rounded-lg border border-black/[0.06] bg-black/[0.02] px-3 py-2.5 text-sm leading-snug text-ink-muted">
+              Per-departure prices and capacity are set when you add a schedule on the next step.
+            </p>
+          ) : null}
 
-          {groupPricing ? (
+          {showFlatPriceAmounts ? (
+            groupPricing ? (
             <div id="supplier-listing-field-price">
               <label htmlFor="booking-option-group-price" className="mb-1 block text-sm font-semibold text-ink">
                 Group price ({currencyLabel}) *
@@ -736,7 +716,75 @@ export default function BookingOptionEditor({
                 </div>
               )}
             </>
-          )}
+          )
+          ) : null}
+        </Section>
+      ) : null}
+
+      {showBookingWindow ? (
+        <Section
+          kicker="Booking window"
+          title="When can travelers book?"
+          support="Cutoff applies to every schedule on this option. Timezone is shared by all options on this listing."
+        >
+          <div id="supplier-listing-field-option-cutoff" className="space-y-2">
+            <label htmlFor="option-booking-cutoff" className="block text-sm font-semibold text-ink">
+              Booking cutoff (hours before departure)
+            </label>
+            <p className="text-[13px] leading-snug text-ink-muted">
+              Overrides the listing default when set. 0 or blank means bookable until start
+              {typeof option.bookingCutoffHoursBeforeStart !== 'number' ||
+              option.bookingCutoffHoursBeforeStart <= 0
+                ? ' (uses listing default if one exists)'
+                : ''}
+              .
+            </p>
+            <input
+              id="option-booking-cutoff"
+              type="number"
+              min={0}
+              max={168}
+              inputMode="numeric"
+              className="tv-input max-w-[10rem]"
+              value={
+                typeof option.bookingCutoffHoursBeforeStart === 'number' &&
+                option.bookingCutoffHoursBeforeStart > 0
+                  ? String(option.bookingCutoffHoursBeforeStart)
+                  : ''
+              }
+              placeholder="Until start"
+              onChange={(e) => {
+                const raw = e.target.value.trim();
+                if (!raw) {
+                  onChange({ bookingCutoffHoursBeforeStart: undefined });
+                  return;
+                }
+                const n = Number(raw);
+                if (!Number.isFinite(n) || n <= 0) {
+                  onChange({ bookingCutoffHoursBeforeStart: undefined });
+                  return;
+                }
+                onChange({ bookingCutoffHoursBeforeStart: Math.min(168, Math.floor(n)) });
+              }}
+            />
+          </div>
+          {onListingDepartureTimezoneChange ? (
+            <div id="supplier-listing-field-option-timezone" className="space-y-2">
+              <label htmlFor="option-departure-timezone" className="block text-sm font-semibold text-ink">
+                Departure timezone
+              </label>
+              <p className="text-[13px] leading-snug text-ink-muted">
+                Shared across all options on this listing. Used for schedule times and booking cutoffs.
+              </p>
+              <PartnerSelect
+                id="option-departure-timezone"
+                className="max-w-md"
+                value={listingDepartureTimezone || 'Europe/Helsinki'}
+                onChange={onListingDepartureTimezoneChange}
+                options={DEPARTURE_TIMEZONE_OPTIONS}
+              />
+            </div>
+          ) : null}
         </Section>
       ) : null}
 

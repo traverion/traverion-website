@@ -213,7 +213,9 @@ export function getListingPublishBlockers(
       );
     }
     if (!listing.experienceStartStyle || listing.experienceStartStyle === 'unspecified') {
-      out.push('Choose how guests start (meeting point, pickup, or either) under Options.');
+      out.push(
+        'Add at least one bookable option with meeting point or pickup so we know how guests start.'
+      );
     }
   }
   const gallery = (listing.listingExtras?.galleryImageUrls ?? []).map((u) => String(u).trim()).filter(Boolean);

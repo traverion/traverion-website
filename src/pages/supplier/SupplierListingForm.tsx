@@ -178,6 +178,10 @@ import { TourOptionGuidedScenes } from '../../components/supplier/listing-creati
 import { TourOptionWorkspace } from '../../components/supplier/listing-creation/TourOptionWorkspace';
 import { TourOptionCard } from '../../components/supplier/listing-creation/TourOptionCard';
 import { tourOptionCardModel, scheduleBlockedExplanation } from '../../lib/listing-option-card';
+import {
+  deriveExperienceStartStyleFromOptions,
+  optionsWithFulfillment,
+} from '../../lib/listing-option-start-style';
 import { TourScheduleWorkspace } from '../../components/supplier/listing-creation/TourScheduleWorkspace';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import {
@@ -226,41 +230,6 @@ function toggleStayAmenity(raw: string, label: string): string {
     ? cur.filter((x) => x.toLowerCase() !== key)
     : [...cur, label];
   return next.join(', ');
-}
-
-const EXPERIENCE_START_OPTIONS_TOUR: {
-  value: 'unspecified' | 'fixed_meeting_place' | 'operator_pickup' | 'either_available';
-  label: string;
-}[] = [
-  { value: 'fixed_meeting_place', label: 'Guests meet us at a fixed meeting point' },
-  { value: 'operator_pickup', label: 'We pick guests up (for example from their accommodation area)' },
-  { value: 'either_available', label: 'Both meeting at a set place and pickup are available' },
-];
-
-const EXPERIENCE_START_OPTIONS_TICKET: {
-  value: 'unspecified' | 'fixed_meeting_place' | 'operator_pickup' | 'either_available';
-  label: string;
-}[] = [
-  { value: 'fixed_meeting_place', label: 'Guests go to a venue / entry point' },
-  { value: 'either_available', label: 'Venue entry, with optional pickup on some options' },
-  { value: 'operator_pickup', label: 'We collect guests before entry' },
-];
-
-const EXPERIENCE_START_OPTIONS_TRANSPORT: {
-  value: 'unspecified' | 'fixed_meeting_place' | 'operator_pickup' | 'either_available';
-  label: string;
-}[] = [
-  { value: 'operator_pickup', label: 'Door-to-door or hotel pickup' },
-  { value: 'fixed_meeting_place', label: 'Guests meet at a fixed pickup point' },
-  { value: 'either_available', label: 'Pickup and meeting point both available' },
-];
-
-function experienceStartOptionsForKind(
-  kind: '' | 'tour' | 'ticket' | 'transportation'
-): typeof EXPERIENCE_START_OPTIONS_TOUR {
-  if (kind === 'ticket') return EXPERIENCE_START_OPTIONS_TICKET;
-  if (kind === 'transportation') return EXPERIENCE_START_OPTIONS_TRANSPORT;
-  return EXPERIENCE_START_OPTIONS_TOUR;
 }
 
 const MAX_SUBTITLE_LENGTH = TOUR_BASICS_SUBTITLE_MAX;
@@ -532,7 +501,7 @@ function legacyTourToBookingOptions(tour: TourPackage): ListingBookingOption[] {
 }
 
 type OpenOptionEditOptions = {
-  /** Start on this option scene (0 setup, 1 meeting, 2 availability & pricing). */
+  /** Start on this option scene (0 setup, 1 meeting, 2 pricing, 3 availability). */
   sceneIndex?: number;
   /** After the option sheet opens, immediately open a schedule editor. */
   action?: { kind: 'add_schedule' } | { kind: 'edit_schedule'; scheduleId: string };
@@ -1068,8 +1037,8 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
     pickupInstructions:
       (first?.travelerStartInstructions ?? '').trim() || first?.optionInfo.trim() || undefined,
     defaultStartTime: first?.startTime.trim() || undefined,
-    // Phase 1267: do not invent pickup window 0/30 on create (map 1253 / planner 1262).
-    experienceStartStyle: form.experienceStartStyle,
+    // Derived from option fulfillments so Options overview no longer asks for listing start style.
+    experienceStartStyle: deriveExperienceStartStyleFromOptions(activeOpts),
     dropoffMode: 'same_as_pickup',
     dropoffLocation: undefined,
     experienceLanguage: form.experienceLanguage.trim() || undefined,
@@ -1155,8 +1124,8 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
       );
     }
     const active = materializedBookingOptions(form.bookingOptions);
-    const startOk = form.experienceStartStyle !== 'unspecified';
-    return startOk && readyBookingOptions(active, optionValidationMessages).length >= 1;
+    const ready = readyBookingOptions(active, optionValidationMessages);
+    return optionsWithFulfillment(ready).length >= 1;
   }
   if (idx === 4) {
     return listingPhotosReadyToPublish(form);
@@ -1660,9 +1629,7 @@ export default function SupplierListingForm({
         summary: reviewOptionsSummary(readyCount, options.length, priceSummary),
         ready: isStepSatisfied(3, form),
         missing: !isStepSatisfied(3, form)
-          ? form.experienceStartStyle === 'unspecified'
-            ? 'Choose how guests start and add a complete bookable option.'
-            : 'Add at least one complete bookable option.'
+          ? 'Add at least one complete bookable option with meeting point or pickup.'
           : null,
       },
       {
@@ -3148,15 +3115,22 @@ export default function SupplierListingForm({
     }
     if (stepIdx === 2) return null;
     if (stepIdx === 3) {
-      if (form.experienceStartStyle === 'unspecified') {
-        return 'To continue: choose how guests start.';
-      }
       const active = materializedBookingOptions(form.bookingOptions);
       if (active.length === 0) return 'To continue: add a bookable option and finish it.';
-      const blocked = active.find((o) => tourOptionReadiness(o, optionValidationMessages(o)) !== 'ready');
-      const first = blocked ? optionValidationMessages(blocked)[0] : null;
-      if (blocked && first) {
-        return `To continue: finish “${blocked.name.trim() || 'Untitled option'}” — ${first.replace(/\.$/, '').replace(/^Add /, 'add ')}.`;
+      const ready = readyBookingOptions(active, optionValidationMessages);
+      if (optionsWithFulfillment(ready).length === 0) {
+        const withoutMeet = ready.find(
+          (o) => o.fulfillment !== 'pickup' && o.fulfillment !== 'meeting_point'
+        );
+        if (withoutMeet) {
+          return `To continue: choose meeting point or pickup on “${withoutMeet.name.trim() || 'Untitled option'}”.`;
+        }
+        const blocked = active.find((o) => tourOptionReadiness(o, optionValidationMessages(o)) !== 'ready');
+        const first = blocked ? optionValidationMessages(blocked)[0] : null;
+        if (blocked && first) {
+          return `To continue: finish “${blocked.name.trim() || 'Untitled option'}” — ${first.replace(/\.$/, '').replace(/^Add /, 'add ')}.`;
+        }
+        return 'To continue: finish a bookable option with meeting point or pickup.';
       }
       return null;
     }
@@ -4148,120 +4122,9 @@ export default function SupplierListingForm({
               <div>
                 <h3 className="font-display text-[1.85rem] font-bold tracking-tight text-ink">Options</h3>
                 <p className="mt-1 text-sm text-ink-muted leading-relaxed max-w-2xl">
-                  Listing defaults for how guests start and when booking closes, then each bookable option with
-                  pricing and schedules.
+                  Create the different ways travelers can book your experience.
                 </p>
               </div>
-
-              <section className="space-y-3" aria-labelledby="tour-options-start" id="supplier-listing-field-start">
-                <h4 id="tour-options-start" className="text-[13px] font-semibold text-ink">
-                  {form.experienceKind === 'ticket'
-                    ? 'Entry & logistics'
-                    : form.experienceKind === 'transportation'
-                      ? 'Pickup & drop-off'
-                      : 'How guests start'}
-                </h4>
-                <div>
-                  <label
-                    htmlFor="supplier-listing-experience-start"
-                    className="mb-1.5 block text-[13px] font-semibold text-ink"
-                  >
-                    {form.experienceKind === 'ticket'
-                      ? 'How guests get entry *'
-                      : form.experienceKind === 'transportation'
-                        ? 'How this transfer starts *'
-                        : 'How this experience generally starts *'}
-                  </label>
-                  <PartnerSelect
-                    id="supplier-listing-experience-start"
-                    value={
-                      form.experienceStartStyle === 'unspecified' ? '' : form.experienceStartStyle
-                    }
-                    placeholder="Choose how guests start…"
-                    onChange={(experienceStartStyle) =>
-                      setForm((f) => ({
-                        ...f,
-                        experienceStartStyle: (experienceStartStyle ||
-                          'unspecified') as ListingFormState['experienceStartStyle'],
-                      }))
-                    }
-                    options={[
-                      { value: '', label: 'Choose how guests start…' },
-                      ...experienceStartOptionsForKind(form.experienceKind).map((o) => ({
-                        value: o.value,
-                        label: o.label,
-                      })),
-                    ]}
-                  />
-                  <p className="mt-1.5 text-[12px] text-ink-muted">
-                    Listing default. Exact place and time are set on each option.
-                    {[form.city.trim(), form.country.trim()].filter(Boolean).length > 0
-                      ? ` Base location: ${[form.city.trim(), form.country.trim()].filter(Boolean).join(', ')}.`
-                      : ''}
-                  </p>
-                  {!canContinueStep() && form.experienceStartStyle === 'unspecified' ? (
-                    <p className="mt-1.5 text-[12px] text-ink-muted" role="status">
-                      Choose how guests start to continue.
-                    </p>
-                  ) : null}
-                </div>
-              </section>
-
-              <section className="space-y-3" aria-labelledby="tour-options-booking-window" id="supplier-listing-field-schedule">
-                <h4 id="tour-options-booking-window" className="text-[13px] font-semibold text-ink">
-                  Default booking window
-                </h4>
-                <div>
-                  <label className="mb-1.5 block text-[13px] font-semibold text-ink" htmlFor="supplier-booking-cutoff">
-                    Stop online booking (hours before departure)
-                  </label>
-                  <input
-                    id="supplier-booking-cutoff"
-                    type="number"
-                    min={0}
-                    max={168}
-                    step={1}
-                    value={form.bookingCutoffHoursBeforeStart}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        bookingCutoffHoursBeforeStart: e.target.value.replace(/[^\d]/g, '').slice(0, 3),
-                      }))
-                    }
-                    className="tv-input max-w-[8rem]"
-                    placeholder="0"
-                    inputMode="numeric"
-                  />
-                  <p className="mt-1 text-[12px] text-ink-muted">
-                    Listing default unless an option sets a stricter cutoff. 0 or blank = book until start.
-                  </p>
-                </div>
-                <div>
-                  <label className="mb-1 block text-[13px] font-semibold text-ink" htmlFor="supplier-departure-timezone">
-                    Departure timezone
-                  </label>
-                  <PartnerSelect
-                    id="supplier-departure-timezone"
-                    className="max-w-md"
-                    value={form.departureTimezone || TRAVERION_DEPARTURE_TIMEZONE}
-                    onChange={(departureTimezone) => setForm((f) => ({ ...f, departureTimezone }))}
-                    options={[
-                      { value: 'Europe/Helsinki', label: 'Europe/Helsinki (Finland — default)' },
-                      { value: 'Europe/London', label: 'Europe/London' },
-                      { value: 'Europe/Paris', label: 'Europe/Paris' },
-                      { value: 'Europe/Stockholm', label: 'Europe/Stockholm' },
-                      { value: 'America/New_York', label: 'America/New_York' },
-                      { value: 'America/Los_Angeles', label: 'America/Los_Angeles' },
-                      { value: 'Asia/Tokyo', label: 'Asia/Tokyo' },
-                      { value: 'Pacific/Auckland', label: 'Pacific/Auckland' },
-                      { value: 'UTC', label: 'UTC' },
-                    ]}
-                  />
-                  <p className="mt-1 text-[12px] text-ink-muted">
-                    Used for schedule times and booking cutoffs. Defaults from your listing location when possible.
-                  </p>
-                </div>
-              </section>
 
               <div className="space-y-3">
                 {materializedBookingOptions(form.bookingOptions).map((opt) => {
@@ -4742,6 +4605,10 @@ export default function SupplierListingForm({
                 pendingScheduleDeleteId={pendingScheduleDeleteId}
                 onCancelScheduleDelete={() => setPendingScheduleDeleteId(null)}
                 occupancyNoticeForSchedule={occupancyNoticeForSchedule}
+                listingDepartureTimezone={form.departureTimezone || TRAVERION_DEPARTURE_TIMEZONE}
+                onListingDepartureTimezoneChange={(departureTimezone) =>
+                  setForm((f) => ({ ...f, departureTimezone }))
+                }
               />
             </div>
           </TourOptionWorkspace>

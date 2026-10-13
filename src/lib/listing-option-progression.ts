@@ -1,8 +1,9 @@
 /**
  * Tour option wizard: 4 supplier-facing steps with strict forward gating for NEW options.
  *
- * Schedules own dates, days, departure, price and capacity. The Availability & Pricing
- * scene lists schedules and opens the nested schedule workspace.
+ * Scenes: Setup → Meeting → Pricing → Availability.
+ * Schedules own dates, days, departure, price and capacity. The Availability scene lists
+ * schedules and opens the nested schedule workspace; cutoff and listing timezone live here too.
  *
  * Existing options remain freely visitable so legacy data is not trapped behind new gates.
  */
@@ -12,23 +13,20 @@ import { listingCreationAccessState, previousStepsSatisfied } from './listing-cr
 import type { ListingCreationNavItem } from './listing-creation-workspace';
 import { formatOptionWeekdays } from './booking-quote';
 import {
-  bookingOptionAvailabilityPricingIssues,
+  bookingOptionAvailabilitySceneIssues,
   bookingOptionCapacityIssues,
   bookingOptionMeetingIssues,
   bookingOptionPricingIssues,
+  bookingOptionPricingSceneIssues,
   bookingOptionSetupIssues,
   type OptionEndingDateState,
 } from './listing-option-validation';
 
 export const TOUR_OPTION_SCENES = [
-  { id: 'setup', label: 'Setup', question: 'Name this bookable option' },
-  { id: 'meeting', label: 'Meeting', question: 'How do travelers start this option?' },
-  {
-    id: 'availability_pricing',
-    label: 'Availability & Pricing',
-    question: 'When can they book, and what do they pay?',
-  },
-  { id: 'review', label: 'Review', question: 'Does this option look right?' },
+  { id: 'setup', label: 'Setup', question: 'What makes this option different?' },
+  { id: 'meeting', label: 'Meeting', question: 'Where will guests start?' },
+  { id: 'pricing', label: 'Pricing', question: 'How will travelers book this option?' },
+  { id: 'availability', label: 'Availability', question: 'When is this option available?' },
 ] as const;
 
 export type TourOptionSceneId = (typeof TOUR_OPTION_SCENES)[number]['id'];
@@ -56,14 +54,11 @@ export function isTourOptionSceneSatisfied(
   if (!scene) return false;
   if (scene.id === 'setup') return bookingOptionSetupIssues(option).length === 0;
   if (scene.id === 'meeting') return bookingOptionMeetingIssues(option).length === 0;
-  if (scene.id === 'availability_pricing') {
-    return bookingOptionAvailabilityPricingIssues(option, ending).length === 0;
+  if (scene.id === 'pricing') return bookingOptionPricingSceneIssues(option).length === 0;
+  if (scene.id === 'availability') {
+    return bookingOptionAvailabilitySceneIssues(option, ending).length === 0;
   }
-  return (
-    bookingOptionSetupIssues(option).length === 0 &&
-    bookingOptionMeetingIssues(option).length === 0 &&
-    bookingOptionAvailabilityPricingIssues(option, ending).length === 0
-  );
+  return false;
 }
 
 export function canVisitTourOptionScene(input: {
@@ -98,10 +93,13 @@ export function tourOptionSceneContinueHint(input: {
   if (scene?.id === 'meeting') {
     return bookingOptionMeetingIssues(input.option)[0] ?? 'Finish Meeting to continue.';
   }
-  if (scene?.id === 'availability_pricing') {
+  if (scene?.id === 'pricing') {
+    return bookingOptionPricingSceneIssues(input.option)[0] ?? 'Finish Pricing to continue.';
+  }
+  if (scene?.id === 'availability') {
     return (
-      bookingOptionAvailabilityPricingIssues(input.option, input.ending)[0] ??
-      'Finish availability and pricing to continue.'
+      bookingOptionAvailabilitySceneIssues(input.option, input.ending)[0] ??
+      'Finish availability to continue.'
     );
   }
   return 'Finish the remaining option details before completing.';
@@ -189,5 +187,5 @@ export function optionAvailabilityPricingReady(
   option: ListingBookingOption,
   ending?: OptionEndingDateState
 ): boolean {
-  return isTourOptionSceneSatisfied(2, option, ending);
+  return isTourOptionSceneSatisfied(3, option, ending);
 }

@@ -35,6 +35,26 @@ describe('tour option creation overhaul (source contracts)', () => {
     expect(form).toContain('<TourOptionCard');
   });
 
+  it('Options overview is cards-only (no listing start/cutoff/timezone controls)', () => {
+    const form = readFileSync(resolve(__dirname, '../../../pages/supplier/SupplierListingForm.tsx'), 'utf8');
+    expect(form).toContain('Create the different ways travelers can book your experience.');
+    expect(form).not.toContain('id="supplier-listing-experience-start"');
+    expect(form).not.toContain('id="supplier-booking-cutoff"');
+    expect(form).not.toContain('id="supplier-departure-timezone"');
+    expect(form).toContain('deriveExperienceStartStyleFromOptions');
+    expect(form).toContain('listingDepartureTimezone={form.departureTimezone');
+  });
+
+  it('option scenes are setup → meeting → pricing → availability', () => {
+    const progression = readFileSync(resolve(__dirname, '../../../lib/listing-option-progression.ts'), 'utf8');
+    expect(progression).toMatch(/id: 'setup'/);
+    expect(progression).toMatch(/id: 'meeting'/);
+    expect(progression).toMatch(/id: 'pricing'/);
+    expect(progression).toMatch(/id: 'availability'/);
+    expect(progression).not.toMatch(/availability_pricing/);
+    expect(progression).not.toMatch(/id: 'review'/);
+  });
+
   it('Escape on the option sheet saves as draft instead of discarding', () => {
     const form = readFileSync(resolve(__dirname, '../../../pages/supplier/SupplierListingForm.tsx'), 'utf8');
     expect(form).toContain('saveOptionAsDraftRef');

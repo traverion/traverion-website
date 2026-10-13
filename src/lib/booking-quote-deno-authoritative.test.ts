@@ -22,7 +22,10 @@
  * directly -- proven by importing them below.
  */
 import { describe, expect, it } from 'vitest';
-import { quoteListingBooking } from '../../supabase/functions/_shared/booking-quote.ts';
+import {
+  effectiveBookingCutoffHours,
+  quoteListingBooking,
+} from '../../supabase/functions/_shared/booking-quote.ts';
 import type { DiscountRow, ListingQuoteRow } from '../../supabase/functions/_shared/booking-quote.ts';
 
 const TODAY = '2026-06-01';
@@ -568,6 +571,37 @@ describe('quoteListingBooking (authoritative Deno pricing -- direct execution)',
         nowMs,
       });
       expect(ok.ok).toBe(true);
+    });
+  });
+
+  describe('effectiveBookingCutoffHours (option overrides listing)', () => {
+    it('prefers option cutoff when set, else listing cutoff', () => {
+      const extras = {
+        bookingCutoffHoursBeforeStart: 2,
+        bookingOptions: [
+          {
+            id: 'opt-1',
+            name: 'Small',
+            priceUsd: 100,
+            minPersons: 1,
+            maxPersons: 8,
+            weekdays: [true, true, true, true, true, true, true],
+            availabilityDateFrom: '2026-01-01',
+            availabilityDateTo: '',
+            bookingCutoffHoursBeforeStart: 6,
+          },
+        ],
+      };
+      expect(effectiveBookingCutoffHours({ listingExtras: extras, bookingOptionId: 'opt-1' })).toBe(6);
+      expect(
+        effectiveBookingCutoffHours({
+          listingExtras: {
+            ...extras,
+            bookingOptions: [{ ...extras.bookingOptions[0], bookingCutoffHoursBeforeStart: 0 }],
+          },
+          bookingOptionId: 'opt-1',
+        })
+      ).toBe(2);
     });
   });
 });

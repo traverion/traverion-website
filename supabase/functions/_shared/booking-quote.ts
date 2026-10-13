@@ -68,6 +68,8 @@ type Option = {
   startTime?: string;
   duration?: string;
   maxSpotsPerSlot?: number;
+  /** Overrides listing-level bookingCutoffHoursBeforeStart when > 0. */
+  bookingCutoffHoursBeforeStart?: number;
   schedules?: OptionSchedule[];
 };
 
@@ -532,9 +534,33 @@ function parseOptions(extras: unknown): Option[] {
         .map((x, si) => parseSchedule(x, `${opt.id}-sch-${si}`))
         .slice(0, 24);
     }
+    const optionCutoff = normalizeBookingCutoffHours(o.bookingCutoffHoursBeforeStart);
+    if (optionCutoff > 0) opt.bookingCutoffHoursBeforeStart = optionCutoff;
     if (!isEmptyOption(opt)) opts.push(opt);
   }
   return coalesceLegacyParticipantTicketOptions(opts);
+}
+
+/** Option cutoff overrides listing cutoff when set (client booking-quote parity). */
+export function effectiveBookingCutoffHours(params: {
+  listingExtras: unknown;
+  bookingOptionId?: string | null;
+}): number {
+  const extras =
+    params.listingExtras != null && typeof params.listingExtras === 'object' && !Array.isArray(params.listingExtras)
+      ? (params.listingExtras as { bookingCutoffHoursBeforeStart?: unknown })
+      : null;
+  const listingCutoff = normalizeBookingCutoffHours(extras?.bookingCutoffHoursBeforeStart);
+  const opts = parseOptions(params.listingExtras);
+  const requestedId = (params.bookingOptionId ?? '').trim();
+  let option: Option | undefined;
+  if (requestedId) {
+    option = opts.find((o) => o.id === requestedId);
+  } else if (opts.length === 1) {
+    option = opts[0];
+  }
+  const optionCutoff = normalizeBookingCutoffHours(option?.bookingCutoffHoursBeforeStart);
+  return optionCutoff > 0 ? optionCutoff : listingCutoff;
 }
 
 /**
@@ -839,7 +865,7 @@ export function quoteListingBooking(input: {
   if (!ISO_DATE.test(date)) return { ok: false, error: 'Choose a valid date.' };
   if (date < today) return { ok: false, error: 'Choose a date that is today or later.' };
 
-  const cutoffHours = normalizeBookingCutoffHours(extrasObj?.bookingCutoffHoursBeforeStart);
+  const listingCutoffHours = normalizeBookingCutoffHours(extrasObj?.bookingCutoffHoursBeforeStart);
   const opts = parseOptions(input.listing.listing_extras);
   const fallbackBase = Number(input.listing.price_starting_from ?? 0);
   const currency = (input.listing.price_currency ?? 'EUR').trim().toUpperCase() || 'EUR';
@@ -875,6 +901,8 @@ export function quoteListingBooking(input: {
 
     const departureHm = (input.startTime ?? option.startTime ?? '').trim().slice(0, 5);
     if (departureHm) {
+      const optionCutoff = normalizeBookingCutoffHours(option.bookingCutoffHoursBeforeStart);
+      const cutoffHours = optionCutoff > 0 ? optionCutoff : listingCutoffHours;
       const cut = assertDepartureStillBookable({
         bookingDate: date,
         startTimeHm: departureHm,

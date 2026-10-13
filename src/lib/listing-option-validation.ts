@@ -27,20 +27,34 @@ export function bookingOptionSetupIssues(option: ListingBookingOption): string[]
   } else if (option.optionInfo.length > TOUR_OPTION_INFO_MAX) {
     msg.push(`Keep “Why choose this option” to ${TOUR_OPTION_INFO_MAX} characters or fewer.`);
   }
-  if (option.chargeModel !== 'per_person' && option.chargeModel !== 'flat_group') {
-    msg.push('Choose how you charge: per person or per group.');
-  }
   if (option.startMode !== 'fixed' && option.startMode !== 'flexible') {
     msg.push('Choose fixed start time or flexible operating hours.');
   }
   return msg;
 }
 
-/** Schedules need charge model + start mode from option setup first. */
+export function bookingOptionChargeModelIssues(option: ListingBookingOption): string[] {
+  if (option.chargeModel !== 'per_person' && option.chargeModel !== 'flat_group') {
+    return ['Choose how you charge: per person or per group.'];
+  }
+  return [];
+}
+
+/**
+ * Pricing scene: charge model always; flat amount/capacity only for legacy non-schedule options.
+ * Schedule-based options set prices and capacity on each schedule.
+ */
+export function bookingOptionPricingSceneIssues(option: ListingBookingOption): string[] {
+  const msg = [...bookingOptionChargeModelIssues(option)];
+  if (Array.isArray(option.schedules)) return msg;
+  return [...msg, ...bookingOptionPricingIssues(option), ...bookingOptionCapacityIssues(option)];
+}
+
+/** Schedules need charge model (Pricing) + start mode (Setup) first. */
 export function bookingOptionSchedulePrereqIssues(option: ListingBookingOption): string[] {
   const msg: string[] = [];
   if (option.chargeModel !== 'per_person' && option.chargeModel !== 'flat_group') {
-    msg.push('Choose pricing (per person or per group) in Setup before adding a schedule.');
+    msg.push('Choose pricing (per person or per group) in Pricing before adding a schedule.');
   }
   if (option.startMode !== 'fixed' && option.startMode !== 'flexible') {
     msg.push('Choose fixed start time or flexible hours in Setup before adding a schedule.');
@@ -76,6 +90,18 @@ export function bookingOptionMeetingIssues(option: ListingBookingOption): string
   return [];
 }
 
+/** Availability scene: schedules (preferred) or legacy weekday/date/time fields. */
+export function bookingOptionAvailabilitySceneIssues(
+  option: ListingBookingOption,
+  ending?: OptionEndingDateState
+): string[] {
+  if (Array.isArray(option.schedules)) {
+    return optionScheduleManagementIssues(option);
+  }
+  return bookingOptionAvailabilityIssues(option, ending);
+}
+
+/** @deprecated Prefer bookingOptionAvailabilitySceneIssues + bookingOptionPricingSceneIssues. */
 export function bookingOptionAvailabilityPricingIssues(
   option: ListingBookingOption,
   ending?: OptionEndingDateState
@@ -149,15 +175,15 @@ export function getBookingOptionValidationMessages(
     return [
       ...bookingOptionSetupIssues(option),
       ...bookingOptionMeetingIssues(option),
-      ...bookingOptionAvailabilityPricingIssues(option, ending),
+      ...bookingOptionPricingSceneIssues(option),
+      ...bookingOptionAvailabilitySceneIssues(option, ending),
     ];
   }
   return [
     ...bookingOptionSetupIssues(option),
     ...bookingOptionMeetingIssues(option),
-    ...bookingOptionPricingIssues(option),
-    ...bookingOptionCapacityIssues(option),
-    ...bookingOptionAvailabilityIssues(option, ending),
+    ...bookingOptionPricingSceneIssues(option),
+    ...bookingOptionAvailabilitySceneIssues(option, ending),
   ];
 }
 
@@ -173,14 +199,15 @@ export function firstBookingOptionIssueFocusId(
   }
   if (bookingOptionSetupIssues(option).length > 0) return 'supplier-listing-field-pickup';
   if (bookingOptionMeetingIssues(option).length > 0) return 'supplier-listing-field-meeting';
+  if (bookingOptionPricingSceneIssues(option).length > 0) {
+    return 'supplier-listing-field-option-charge-model';
+  }
   if (Array.isArray(option.schedules)) {
-    if (bookingOptionAvailabilityPricingIssues(option, ending).length > 0) {
+    if (bookingOptionAvailabilitySceneIssues(option, ending).length > 0) {
       return 'supplier-listing-field-option-schedules';
     }
     return null;
   }
-  if (bookingOptionPricingIssues(option).length > 0) return 'supplier-listing-field-price';
-  if (bookingOptionCapacityIssues(option).length > 0) return 'supplier-listing-field-group';
   if (bookingOptionAvailabilityIssues(option, ending).length > 0) {
     return 'supplier-listing-field-option-availability';
   }

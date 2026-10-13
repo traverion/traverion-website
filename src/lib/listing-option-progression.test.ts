@@ -10,8 +10,14 @@ import {
   tourOptionLockedReason,
   tourOptionSceneContinueHint,
 } from './listing-option-progression';
-import { getBookingOptionValidationMessages } from './listing-option-validation';
+import {
+  bookingOptionPricingSceneIssues,
+  bookingOptionSetupIssues,
+  getBookingOptionValidationMessages,
+} from './listing-option-validation';
 import { upsertBookingOption } from './listing-option-scenes';
+import { deriveExperienceStartStyleFromOptions } from './listing-option-start-style';
+import { blankOptionSchedule } from './listing-option-schedules';
 
 function option(partial: Partial<ListingBookingOption> = {}): ListingBookingOption {
   return normalizeListingBookingOption(
@@ -36,6 +42,20 @@ function option(partial: Partial<ListingBookingOption> = {}): ListingBookingOpti
   );
 }
 
+const readySchedule = {
+  ...blankOptionSchedule('sch-1'),
+  name: 'Winter',
+  availabilityDateFrom: '2099-01-01',
+  availabilityDateTo: '2099-03-01',
+  weekdays: [true, true, true, true, true, true, true],
+  startTime: '20:00',
+  priceUsd: 149,
+  minPersons: 1,
+  maxPersons: 8,
+  maxSpotsPerSlot: 8,
+  status: 'ready' as const,
+};
+
 const ready = option({
   name: 'Hotel pickup · 20:00',
   duration: '6 hours',
@@ -48,62 +68,84 @@ const ready = option({
   startMode: 'fixed',
   priceUsd: 149,
   weekdays: [true, true, true, true, true, true, true],
+  schedules: [readySchedule],
 });
 
 describe('tour option scenes', () => {
-  it('uses four supplier-facing steps with availability and pricing together', () => {
+  it('uses four supplier-facing steps: setup, meeting, pricing, availability', () => {
     expect(TOUR_OPTION_SCENES.map((s) => s.id)).toEqual([
       'setup',
       'meeting',
-      'availability_pricing',
-      'review',
+      'pricing',
+      'availability',
     ]);
   });
 });
 
 describe('new option forward gating', () => {
   it('locks Meeting until Setup is valid', () => {
-    const blank = option();
+    const blank = option({ schedules: [] });
     expect(isTourOptionSceneSatisfied(0, blank)).toBe(false);
     expect(canVisitTourOptionScene({ targetIndex: 1, isNewOption: true, option: blank })).toBe(false);
-    expect(
-      tourOptionLockedReason({ targetIndex: 1, option: blank })
-    ).toBe('Add an option name to continue.');
+    expect(tourOptionLockedReason({ targetIndex: 1, option: blank })).toBe(
+      'Add an option name to continue.'
+    );
   });
 
-  it('unlocks Meeting after Setup fields are valid', () => {
+  it('unlocks Meeting after Setup fields are valid (charge model not required yet)', () => {
     const setupDone = option({
       name: 'Hotel pickup',
       duration: '6 hours',
       optionInfo: 'Pickup included',
-      chargeModel: 'per_person',
       startMode: 'fixed',
+      schedules: [],
     });
+    expect(bookingOptionSetupIssues(setupDone)).toEqual([]);
     expect(isTourOptionSceneSatisfied(0, setupDone)).toBe(true);
     expect(canVisitTourOptionScene({ targetIndex: 1, isNewOption: true, option: setupDone })).toBe(true);
     expect(canVisitTourOptionScene({ targetIndex: 2, isNewOption: true, option: setupDone })).toBe(false);
   });
 
-  it('requires a ready availability and pricing block before Review', () => {
+  it('requires Pricing (charge model) before Availability', () => {
     const untilMeeting = option({
       name: 'Hotel pickup',
       duration: '6 hours',
       optionInfo: 'Pickup included',
       pickupPlace: 'Rovaniemi city hotels',
       fulfillment: 'pickup',
+      travelerStartInstructions: 'Wait outside the hotel lobby 10 minutes early.',
+      startMode: 'fixed',
+      schedules: [],
     });
     expect(isTourOptionSceneSatisfied(1, untilMeeting)).toBe(true);
     expect(isTourOptionSceneSatisfied(2, untilMeeting)).toBe(false);
+    expect(bookingOptionPricingSceneIssues(untilMeeting)[0]).toMatch(/charge/i);
     expect(canVisitTourOptionScene({ targetIndex: 3, isNewOption: true, option: untilMeeting })).toBe(
       false
     );
+  });
+
+  it('requires a ready schedule on Availability before Finish', () => {
+    const untilPricing = option({
+      name: 'Hotel pickup',
+      duration: '6 hours',
+      optionInfo: 'Pickup included',
+      pickupPlace: 'Rovaniemi city hotels',
+      fulfillment: 'pickup',
+      travelerStartInstructions: 'Wait outside the hotel lobby 10 minutes early.',
+      startMode: 'fixed',
+      chargeModel: 'per_person',
+      schedules: [],
+    });
+    expect(isTourOptionSceneSatisfied(2, untilPricing)).toBe(true);
+    expect(isTourOptionSceneSatisfied(3, untilPricing)).toBe(false);
     expect(
       tourOptionSceneContinueHint({
-        sceneIndex: 2,
-        option: untilMeeting,
-        canContinue: canContinueTourOptionScene({ sceneIndex: 2, option: untilMeeting }),
+        sceneIndex: 3,
+        option: untilPricing,
+        canContinue: canContinueTourOptionScene({ sceneIndex: 3, option: untilPricing }),
       })
-    ).toBe('Add a start time so travelers know when this option begins.');
+    ).toMatch(/schedule/i);
   });
 
   it('lets existing options visit any scene even when earlier fields are incomplete', () => {
@@ -111,7 +153,7 @@ describe('new option forward gating', () => {
   });
 
   it('marks locked vs complete on the option rail for a new option', () => {
-    const items = tourOptionContextNavItems(0, { isNewOption: true, option: option() });
+    const items = tourOptionContextNavItems(0, { isNewOption: true, option: option({ schedules: [] }) });
     expect(items.map((item) => item.state)).toEqual(['current', 'locked', 'locked', 'locked']);
   });
 });
@@ -123,10 +165,33 @@ describe('legacy meeting without fulfillment', () => {
       duration: '5 hours',
       optionInfo: 'Meet at the gate',
       pickupPlace: 'Santa Claus Village gate',
+      travelerStartInstructions: 'Arrive 15 minutes early at the main gate.',
       startTime: '20:00',
       priceUsd: 149,
+      startMode: 'fixed',
     });
     expect(isTourOptionSceneSatisfied(1, legacy)).toBe(true);
+  });
+});
+
+describe('deriveExperienceStartStyleFromOptions', () => {
+  it('maps all pickup / all meeting / mixed fulfillments', () => {
+    expect(
+      deriveExperienceStartStyleFromOptions([
+        option({ fulfillment: 'pickup' }),
+        option({ fulfillment: 'pickup' }),
+      ])
+    ).toBe('operator_pickup');
+    expect(
+      deriveExperienceStartStyleFromOptions([option({ fulfillment: 'meeting_point' })])
+    ).toBe('fixed_meeting_place');
+    expect(
+      deriveExperienceStartStyleFromOptions([
+        option({ fulfillment: 'pickup' }),
+        option({ fulfillment: 'meeting_point' }),
+      ])
+    ).toBe('either_available');
+    expect(deriveExperienceStartStyleFromOptions([option()])).toBe('unspecified');
   });
 });
 
@@ -148,10 +213,12 @@ describe('canonical option identity', () => {
 
 describe('validation copy', () => {
   it('names the first missing Setup field instead of a generic form error', () => {
-    expect(getBookingOptionValidationMessages(option())[0]).toBe('Add an option name to continue.');
+    expect(getBookingOptionValidationMessages(option({ schedules: [] }))[0]).toBe(
+      'Add an option name to continue.'
+    );
   });
 
-  it('treats a fully specified option as valid', () => {
+  it('treats a fully specified schedule-based option as valid', () => {
     expect(getBookingOptionValidationMessages(ready)).toEqual([]);
     expect(isTourOptionSceneSatisfied(3, ready)).toBe(true);
   });

@@ -17,6 +17,7 @@ import { optionHeadlineUnitPrice, summarizeOptionPricing } from './price-categor
 import { summarizeOptionChargeModel } from './listing-option-progression';
 import {
   bookingOptionMeetingIssues,
+  bookingOptionPricingSceneIssues,
   bookingOptionSetupIssues,
 } from './listing-option-validation';
 
@@ -134,6 +135,7 @@ export function tourOptionCardModel(
 
   const setupIssues = bookingOptionSetupIssues(option);
   const meetingIssues = bookingOptionMeetingIssues(option);
+  const pricingIssues = bookingOptionPricingSceneIssues(option);
 
   let cta: TourOptionCardCta = { kind: 'none' };
   if (setupIssues.length > 0) {
@@ -150,13 +152,20 @@ export function tourOptionCardModel(
       sceneIndex: 1,
       reason: meetingIssues[0] ?? 'Finish meeting details.',
     };
+  } else if (pricingIssues.length > 0) {
+    cta = {
+      kind: 'continue_setup',
+      label: 'Continue setup',
+      sceneIndex: 2,
+      reason: pricingIssues[0] ?? 'Finish pricing.',
+    };
   } else if (ready.length === 0) {
     const draft = all.find((s) => s.status === 'draft') ?? all[0];
     if (draft && all.length > 0) {
       cta = {
         kind: 'finish_schedule',
         label: 'Finish schedule',
-        sceneIndex: 2,
+        sceneIndex: 3,
         reason: 'A draft schedule is not bookable until its dates, days, price and capacity are complete.',
         scheduleId: draft.id,
       };
@@ -164,7 +173,7 @@ export function tourOptionCardModel(
       cta = {
         kind: 'add_schedule',
         label: 'Add schedule',
-        sceneIndex: 2,
+        sceneIndex: 3,
         reason: 'Travelers can only book dates that come from a ready schedule.',
       };
     }
@@ -182,5 +191,5 @@ export function tourOptionCardModel(
 /** Why Add schedule is blocked, written for the supplier (not a validation code). */
 export function scheduleBlockedExplanation(prereqIssues: string[]): string | null {
   if (prereqIssues.length === 0) return null;
-  return `Schedules depend on two Setup choices: how you charge (per person or per group) and whether departures have a fixed start time. ${prereqIssues.join(' ')}`;
+  return `Schedules depend on Pricing (per person or per group) and Setup (fixed start time or flexible hours). ${prereqIssues.join(' ')}`;
 }
