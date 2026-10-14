@@ -3579,8 +3579,8 @@ export default function SupplierListingForm({
                     onClick={() =>
                       void runSubmit(form.status === 'published' ? 'published' : 'draft', {
                         bypassLastStepArm: true,
-                        // Draft → save & glide home. Published “Save changes” stays in editor.
-                        closeOnSuccess: form.status !== 'published',
+                        // Save draft / Save changes → persist & glide back to listings.
+                        closeOnSuccess: true,
                       })
                     }
                     disabled={submitting || draftCloseBusy || shellExiting}
@@ -3633,7 +3633,8 @@ export default function SupplierListingForm({
                           ? !canContinueInfoScene || !canContinueStep()
                           : !canContinueStep()) ||
                       draftCloseBusy ||
-                      submitting
+                      submitting ||
+                      shellExiting
                     }
                     className="touch-manipulation tv-btn-primary !min-h-12 w-full sm:!min-h-11 sm:w-auto disabled:opacity-50"
                   >
@@ -3642,8 +3643,13 @@ export default function SupplierListingForm({
                 ) : form.status === 'published' ? (
                   <button
                     type="button"
-                    onClick={() => void runSubmit('published', { bypassLastStepArm: true })}
-                    disabled={submitting || draftCloseBusy}
+                    onClick={() =>
+                      void runSubmit('published', {
+                        bypassLastStepArm: true,
+                        closeOnSuccess: true,
+                      })
+                    }
+                    disabled={submitting || draftCloseBusy || shellExiting}
                     title={
                       publishBlockersPreview.length > 0
                         ? publishBlockersPreview[0]
@@ -3651,17 +3657,17 @@ export default function SupplierListingForm({
                     }
                     className="touch-manipulation tv-btn-primary !min-h-12 w-full sm:!min-h-11 sm:w-auto disabled:opacity-50"
                   >
-                    {submitting ? 'Saving…' : 'Save changes'}
+                    {submitting || shellExiting ? 'Saving…' : 'Save changes'}
                   </button>
                 ) : (
                   <button
                     type="button"
-                    onClick={() => void runSubmit('published')}
-                    disabled={submitting || draftCloseBusy || !lastStepSubmitArmed}
+                    onClick={() => void runSubmit('published', { closeOnSuccess: true })}
+                    disabled={submitting || draftCloseBusy || shellExiting || !lastStepSubmitArmed}
                     title={publishButtonTitle}
                     className="touch-manipulation tv-btn-primary !min-h-12 w-full sm:!min-h-11 sm:w-auto disabled:opacity-50"
                   >
-                    {submitting ? 'Publishing…' : 'Publish experience'}
+                    {submitting || shellExiting ? 'Publishing…' : 'Publish experience'}
                   </button>
                 )}
               </div>
