@@ -20,7 +20,7 @@ describe('listing title length bounds', () => {
     expect(isTourIdentitySatisfied({ title: at(10), subtitle: 'A short line' })).toBe(true);
   });
 
-  it('treats 55 as the soft near-limit threshold and 65 as the hard max', () => {
+  it('treats 65 as the hard max (near-limit constant unused by UI)', () => {
     expect(LISTING_TITLE_NEAR_LIMIT_LENGTH).toBe(55);
     expect(MAX_LISTING_TITLE_LENGTH).toBe(65);
     expect(isListingTitleLengthValid(at(55))).toBe(true);

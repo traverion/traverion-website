@@ -104,15 +104,16 @@ function FieldCounter({
   length: number;
   max: number;
 }) {
-  const near = length >= Math.floor(max * 0.9);
+  const over = length > max;
   return (
     <p
       id={id}
       className={`text-right text-[11px] tabular-nums ${
-        near ? 'text-ink-muted' : 'text-ink-faint'
+        over ? 'text-red-600' : 'text-ink-faint'
       }`}
     >
       {length} / {max}
+      {over ? ` · shorten to ${max}` : null}
     </p>
   );
 }

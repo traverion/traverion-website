@@ -14,7 +14,7 @@ export const STAY_HIGHLIGHT_MAX = 5;
 export const TOUR_LINE_ITEM_MIN_LENGTH = 3;
 /** Per inclusion/exclusion line ceiling (replaces any earlier 100-char proposal). */
 export const TOUR_LINE_ITEM_MAX_LENGTH = 60;
-/** Soft warning threshold on the per-line character counter. */
+/** @deprecated Counters stay neutral until over max; kept for tests/compat. */
 export const TOUR_LINE_ITEM_NEAR_LIMIT_LENGTH = 50;
 
 export function normalizeProgressiveSlots(

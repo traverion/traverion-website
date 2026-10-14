@@ -12,7 +12,7 @@ export const MIN_LISTING_DESCRIPTION_LENGTH = 100;
 /** Maximum main description length to publish — Experience / stay Basics must use the same ceiling. */
 export const MAX_LISTING_DESCRIPTION_LENGTH = 3500;
 
-/** Soft warning threshold on the description character counter. */
+/** @deprecated Counters stay neutral until over max; kept for tests/compat. */
 export const LISTING_DESCRIPTION_NEAR_LIMIT_LENGTH = 3200;
 
 /**
@@ -38,7 +38,7 @@ export const MIN_LISTING_TITLE_LENGTH = 10;
 /** Maximum title length to publish — Basics Continue and inputs must use the same ceiling. */
 export const MAX_LISTING_TITLE_LENGTH = 65;
 
-/** Soft warning threshold in the title character counter (approaching the max). */
+/** @deprecated Counters stay neutral until over max; kept for tests/compat. */
 export const LISTING_TITLE_NEAR_LIMIT_LENGTH = 55;
 
 /**

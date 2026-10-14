@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  LISTING_TITLE_NEAR_LIMIT_LENGTH,
   MAX_LISTING_TITLE_LENGTH,
   MIN_LISTING_TITLE_LENGTH,
   clampListingTitleInput,
@@ -285,17 +284,15 @@ export function TourBasicsGuidedScenes({
               />
               <p
                 className={`mt-1 text-[12px] tabular-nums ${
-                  form.title.length >= LISTING_TITLE_NEAR_LIMIT_LENGTH
-                    ? 'text-amber-800'
+                  form.title.length > MAX_LISTING_TITLE_LENGTH
+                    ? 'text-red-600'
                     : 'text-ink-muted'
                 }`}
               >
                 {form.title.length} / {MAX_LISTING_TITLE_LENGTH}
                 {form.title.length > MAX_LISTING_TITLE_LENGTH
                   ? ` · shorten to ${MAX_LISTING_TITLE_LENGTH} to publish`
-                  : form.title.length >= LISTING_TITLE_NEAR_LIMIT_LENGTH
-                    ? ' · approaching the limit'
-                    : null}
+                  : null}
               </p>
             </div>
             <div id="supplier-listing-field-subtitle">

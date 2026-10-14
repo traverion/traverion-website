@@ -177,7 +177,6 @@ import {
   TOUR_INCLUDE_MIN_VISIBLE,
   TOUR_LINE_ITEM_MAX_LENGTH,
   TOUR_LINE_ITEM_MIN_LENGTH,
-  TOUR_LINE_ITEM_NEAR_LIMIT_LENGTH,
   addProgressiveSlot,
   areFilledListingLineItemsValid,
   canAddProgressiveSlot,
@@ -205,8 +204,6 @@ import {
 import { userFacingError } from '../../lib/userFacingError';
 import { normalizeListingForDraftSave } from '../../lib/listingDraftUtils';
 import {
-  LISTING_DESCRIPTION_NEAR_LIMIT_LENGTH,
-  LISTING_TITLE_NEAR_LIMIT_LENGTH,
   MAX_LISTING_DESCRIPTION_LENGTH,
   MAX_LISTING_TITLE_LENGTH,
   MIN_LISTING_DESCRIPTION_LENGTH,
@@ -604,7 +601,6 @@ function ProgressiveLinesEditor({
           const trimmedLen = line.trim().length;
           const tooShort = enforceItemLength && trimmedLen > 0 && trimmedLen < TOUR_LINE_ITEM_MIN_LENGTH;
           const overMax = enforceItemLength && line.length > TOUR_LINE_ITEM_MAX_LENGTH;
-          const nearLimit = enforceItemLength && line.length >= TOUR_LINE_ITEM_NEAR_LIMIT_LENGTH;
           const counterId = `${fieldId}-count-${index}`;
           return (
             <div
@@ -661,10 +657,10 @@ function ProgressiveLinesEditor({
                   <p
                     id={counterId}
                     className={`mt-0.5 text-[11px] tabular-nums ${
-                      tooShort || overMax
-                        ? 'text-ink-muted'
-                        : nearLimit
-                          ? 'text-amber-800'
+                      overMax
+                        ? 'text-red-600'
+                        : tooShort
+                          ? 'text-ink-muted'
                           : 'text-ink-faint'
                     }`}
                   >
@@ -673,9 +669,7 @@ function ProgressiveLinesEditor({
                       ? ` · at least ${TOUR_LINE_ITEM_MIN_LENGTH}`
                       : overMax
                         ? ` · shorten to ${TOUR_LINE_ITEM_MAX_LENGTH}`
-                        : nearLimit
-                          ? ' · approaching limit'
-                          : null}
+                        : null}
                   </p>
                 ) : null}
               </div>
@@ -3778,17 +3772,15 @@ export default function SupplierListingForm({
                 />
                 <p
                   className={`mt-1 text-xs tabular-nums ${
-                    form.title.length >= LISTING_TITLE_NEAR_LIMIT_LENGTH
-                      ? 'text-amber-800'
+                    form.title.length > MAX_LISTING_TITLE_LENGTH
+                      ? 'text-red-600'
                       : 'text-ink-muted'
                   }`}
                 >
                   {form.title.length} / {MAX_LISTING_TITLE_LENGTH}
                   {form.title.length > MAX_LISTING_TITLE_LENGTH
                     ? ` · shorten to ${MAX_LISTING_TITLE_LENGTH} to publish`
-                    : form.title.length >= LISTING_TITLE_NEAR_LIMIT_LENGTH
-                      ? ' · approaching the limit'
-                      : null}
+                    : null}
                 </p>
               </div>
               <div id="supplier-listing-field-subtitle">
@@ -3861,8 +3853,8 @@ export default function SupplierListingForm({
                 <p
                   id="supplier-listing-description-hint"
                   className={`text-xs mt-1 tabular-nums ${
-                    form.description.length >= LISTING_DESCRIPTION_NEAR_LIMIT_LENGTH
-                      ? 'text-amber-800'
+                    form.description.length > MAX_DESCRIPTION_LENGTH
+                      ? 'text-red-600'
                       : 'text-ink-muted'
                   }`}
                 >
@@ -3870,9 +3862,7 @@ export default function SupplierListingForm({
                   {MAX_DESCRIPTION_LENGTH.toLocaleString('en-US')}
                   {form.description.length > MAX_DESCRIPTION_LENGTH
                     ? ` · shorten to ${MAX_DESCRIPTION_LENGTH.toLocaleString('en-US')} to publish`
-                    : form.description.length >= LISTING_DESCRIPTION_NEAR_LIMIT_LENGTH
-                      ? ' · approaching the limit'
-                      : null}
+                    : null}
                 </p>
                 {form.description.trim().length > 0 &&
                 form.description.trim().length < MIN_LISTING_DESCRIPTION_LENGTH ? (
@@ -3970,8 +3960,8 @@ export default function SupplierListingForm({
                   />
                   <p
                     className={`mt-1 text-[12px] tabular-nums ${
-                      form.description.length >= LISTING_DESCRIPTION_NEAR_LIMIT_LENGTH
-                        ? 'text-amber-800'
+                      form.description.length > MAX_DESCRIPTION_LENGTH
+                        ? 'text-red-600'
                         : 'text-ink-muted'
                     }`}
                   >
@@ -3979,9 +3969,7 @@ export default function SupplierListingForm({
                     {MAX_DESCRIPTION_LENGTH.toLocaleString('en-US')}
                     {form.description.length > MAX_DESCRIPTION_LENGTH
                       ? ` · shorten to ${MAX_DESCRIPTION_LENGTH.toLocaleString('en-US')} to publish`
-                      : form.description.length >= LISTING_DESCRIPTION_NEAR_LIMIT_LENGTH
-                        ? ' · approaching the limit'
-                        : null}
+                      : null}
                   </p>
                   {!canContinueStep() &&
                   form.description.trim().length < MIN_LISTING_DESCRIPTION_LENGTH ? (
