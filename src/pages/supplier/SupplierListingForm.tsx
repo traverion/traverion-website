@@ -1376,6 +1376,9 @@ export default function SupplierListingForm({
     [editingId]
   );
   const [draftCloseBusy, setDraftCloseBusy] = useState(false);
+  /** Smooth slide-out before returning to listings home after Save draft. */
+  const [shellExiting, setShellExiting] = useState(false);
+  const shellExitTimerRef = useRef<number | null>(null);
   const [draftCloseError, setDraftCloseError] = useState<string | null>(null);
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -2268,26 +2271,56 @@ export default function SupplierListingForm({
     return 'Publish this listing on Traverion for travelers to book.';
   }, [canPostNewListing, publishBlockersPreview]);
 
-  const finishCloseEditor = useCallback(() => {
-    setLeaveConfirmOpen(false);
-    clearWizardStepStorage(editingId, form.inventoryFamily === 'stay');
-    onCancel();
-  }, [editingId, form.inventoryFamily, onCancel]);
+  const finishCloseEditor = useCallback(
+    (opts?: { animated?: boolean }) => {
+      if (shellExiting) return;
+      setLeaveConfirmOpen(false);
+      clearWizardStepStorage(editingId, form.inventoryFamily === 'stay');
+      const preferMotion =
+        typeof window !== 'undefined' &&
+        !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const animated = opts?.animated !== false && preferMotion;
+      if (!animated) {
+        if (shellExitTimerRef.current != null) {
+          window.clearTimeout(shellExitTimerRef.current);
+          shellExitTimerRef.current = null;
+        }
+        onCancel();
+        return;
+      }
+      setShellExiting(true);
+      if (shellExitTimerRef.current != null) window.clearTimeout(shellExitTimerRef.current);
+      shellExitTimerRef.current = window.setTimeout(() => {
+        shellExitTimerRef.current = null;
+        onCancel();
+      }, 380);
+    },
+    [editingId, form.inventoryFamily, onCancel, shellExiting]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (shellExitTimerRef.current != null) {
+        window.clearTimeout(shellExitTimerRef.current);
+        shellExitTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const handleCloseIntent = useCallback(() => {
-    if (closeIntentRunningRef.current || submitting || draftCloseBusy) return;
+    if (closeIntentRunningRef.current || submitting || draftCloseBusy || shellExiting) return;
     setDraftCloseError(null);
     if (isDirty()) {
       setLeaveConfirmOpen(true);
       return;
     }
-    finishCloseEditor();
-  }, [submitting, draftCloseBusy, isDirty, finishCloseEditor]);
+    finishCloseEditor({ animated: true });
+  }, [submitting, draftCloseBusy, shellExiting, isDirty, finishCloseEditor]);
 
   const leaveWithoutSaving = useCallback(() => {
-    if (closeIntentRunningRef.current || submitting || draftCloseBusy) return;
-    finishCloseEditor();
-  }, [submitting, draftCloseBusy, finishCloseEditor]);
+    if (closeIntentRunningRef.current || submitting || draftCloseBusy || shellExiting) return;
+    finishCloseEditor({ animated: true });
+  }, [submitting, draftCloseBusy, shellExiting, finishCloseEditor]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -2395,7 +2428,7 @@ export default function SupplierListingForm({
           setSaveFlash(targetStatus === 'published' ? 'published' : 'draft');
           if (opts?.closeOnSuccess) {
             clearListingDraftBackup(editingId);
-            finishCloseEditor();
+            finishCloseEditor({ animated: true });
           }
           return true;
         } finally {
@@ -2475,7 +2508,7 @@ export default function SupplierListingForm({
       clearListingDraftBackup(editingId);
       initialFormSnapshotRef.current = serializeListingFormState(formRef.current);
       setLastSavedAt(Date.now());
-      finishCloseEditor();
+      finishCloseEditor({ animated: true });
     } catch (e) {
       setDraftCloseError(userFacingError(e, 'Could not save your draft. Please try again.'));
       setLeaveConfirmOpen(true);
@@ -3395,9 +3428,14 @@ export default function SupplierListingForm({
     >
       <button
         type="button"
-        className="absolute inset-0 z-0 bg-slate-900/35 backdrop-blur-md motion-safe:animate-fade-in supports-[backdrop-filter]:bg-slate-900/25 cursor-pointer border-0 p-0"
+        className={`absolute inset-0 z-0 bg-slate-900/35 backdrop-blur-md supports-[backdrop-filter]:bg-slate-900/25 cursor-pointer border-0 p-0 ${
+          shellExiting
+            ? 'listing-creation-backdrop--exit'
+            : 'motion-safe:animate-fade-in'
+        }`}
         aria-label={form.inventoryFamily === 'stay' || createFamily === 'stay' ? 'Close stay editor' : 'Close tour editor'}
         onClick={() => handleCloseIntent()}
+        disabled={shellExiting}
       />
       <div className="relative z-10 flex h-full min-h-0 w-full flex-1 flex-col justify-stretch px-0 py-0">
         <form
@@ -3410,7 +3448,12 @@ export default function SupplierListingForm({
             e.preventDefault();
           }}
           onClick={(e) => e.stopPropagation()}
-          className="relative motion-safe:animate-fade-in motion-reduce:animate-none flex min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden border-0 bg-white shadow-none h-full rounded-none"
+          className={`relative flex min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden border-0 bg-white shadow-none h-full rounded-none motion-reduce:animate-none ${
+            shellExiting
+              ? 'listing-creation-shell--exit'
+              : 'listing-creation-shell--enter'
+          }`}
+          aria-busy={shellExiting || undefined}
         >
         <ListingCreationWorkspace
           title={creationTitle}
@@ -3425,8 +3468,8 @@ export default function SupplierListingForm({
             setStepIdxPersisted(idx);
           }}
           onExit={() => handleCloseIntent()}
-          exitDisabled={draftCloseBusy || submitting}
-          exitBusy={draftCloseBusy}
+          exitDisabled={draftCloseBusy || submitting || shellExiting}
+          exitBusy={draftCloseBusy || shellExiting}
           contextNav={null}
           overlay={null}
           scrollRef={stepContainerRef}
@@ -3536,12 +3579,14 @@ export default function SupplierListingForm({
                     onClick={() =>
                       void runSubmit(form.status === 'published' ? 'published' : 'draft', {
                         bypassLastStepArm: true,
+                        // Draft → save & glide home. Published “Save changes” stays in editor.
+                        closeOnSuccess: form.status !== 'published',
                       })
                     }
-                    disabled={submitting || draftCloseBusy}
+                    disabled={submitting || draftCloseBusy || shellExiting}
                     className="touch-manipulation tv-btn-secondary !min-h-12 flex-1 sm:!min-h-11 sm:w-auto sm:flex-none disabled:opacity-50"
                   >
-                    {submitting
+                    {submitting || shellExiting
                       ? 'Saving…'
                       : form.status === 'published'
                         ? 'Save changes'
@@ -3550,11 +3595,16 @@ export default function SupplierListingForm({
                 ) : form.status !== 'published' ? (
                   <button
                     type="button"
-                    onClick={() => void runSubmit('draft', { bypassLastStepArm: true })}
-                    disabled={submitting || draftCloseBusy}
+                    onClick={() =>
+                      void runSubmit('draft', {
+                        bypassLastStepArm: true,
+                        closeOnSuccess: true,
+                      })
+                    }
+                    disabled={submitting || draftCloseBusy || shellExiting}
                     className="touch-manipulation tv-btn-secondary !min-h-12 flex-1 sm:!min-h-11 sm:w-auto sm:flex-none disabled:opacity-50"
                   >
-                    {submitting ? 'Saving…' : 'Save as draft'}
+                    {submitting || shellExiting ? 'Saving…' : 'Save as draft'}
                   </button>
                 ) : null}
               </div>

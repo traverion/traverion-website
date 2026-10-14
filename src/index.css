@@ -604,6 +604,60 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
   padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
 }
 
+/* Full-screen editor enter / exit — app-like slide home after Save draft */
+@keyframes listing-creation-shell-enter {
+  from {
+    opacity: 0.72;
+    transform: translate3d(0, 10%, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes listing-creation-shell-exit {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(0, 14%, 0);
+  }
+}
+
+@keyframes listing-creation-backdrop-exit {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.listing-creation-shell--enter {
+  animation: listing-creation-shell-enter 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.listing-creation-shell--exit {
+  pointer-events: none;
+  animation: listing-creation-shell-exit 0.38s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+.listing-creation-backdrop--exit {
+  pointer-events: none;
+  animation: listing-creation-backdrop-exit 0.32s ease forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .listing-creation-shell--enter,
+  .listing-creation-shell--exit,
+  .listing-creation-backdrop--exit {
+    animation: none !important;
+  }
+}
+
 /* —— Mobile app shell for tour / stay creation —— */
 @media (max-width: 1023px) {
   .listing-creation-workspace,
