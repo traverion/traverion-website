@@ -13,8 +13,8 @@ import {
   TRAVERION_STANDARD_CANCELLATION_POLICY,
 } from '../../types/listingExtras';
 import ListingImageFields from '../../components/supplier/ListingImageFields';
-import PartnerSelect from '../../components/supplier/PartnerSelect';
 import ListingInformationStage from '../../components/supplier/listing-creation/ListingInformationStage';
+import { ListingPreviewPublishStage } from '../../components/supplier/listing-creation/ListingPreviewPublishStage';
 import {
   normalizeAccessibilityFeatureIds,
   normalizeNotSuitableForIds,
@@ -258,7 +258,7 @@ const MAX_REQUIREMENTS_LENGTH = 500;
 const MAX_ADDITIONAL_INFO_LENGTH = 800;
 
 /** Tour: 6 steps. Stay: 6 (Property → Location → Space → Price → Photos → Review). */
-function wizardStepCount(isStay: boolean): number {
+function wizardStepCount(): number {
   return 6;
 }
 
@@ -272,7 +272,7 @@ function readWizardStepFromStorage(editingId: string | null, isStay: boolean): n
     const raw = sessionStorage.getItem(wizardStepStorageKey(editingId, isStay));
     if (!raw) return null;
     const n = Number.parseInt(raw, 10);
-    const max = wizardStepCount(isStay);
+    const max = wizardStepCount();
     if (Number.isNaN(n) || n < 0 || n >= max) return null;
     return n;
   } catch {
@@ -3611,7 +3611,7 @@ export default function SupplierListingForm({
                           title={publishButtonTitle}
                           className="touch-manipulation tv-btn-primary !min-h-11 flex-1 sm:flex-none disabled:opacity-50"
                         >
-                          {submitting ? 'Publishing…' : 'Publish'}
+                          {submitting ? 'Publishing…' : 'Publish experience'}
                         </button>
                       </>
                     )}
@@ -3649,11 +3649,13 @@ export default function SupplierListingForm({
               stepIdx === 0 && !isStayForm
                 ? ''
                 : `motion-safe:animate-fade-in ${
-                    stepIdx === 4
-                      ? 'max-w-5xl'
-                      : stepIdx === 2 && !isStayForm
-                        ? 'max-w-[48rem]'
-                        : 'max-w-xl'
+                    stepIdx === 5
+                      ? 'max-w-[72rem]'
+                      : stepIdx === 4
+                        ? 'max-w-5xl'
+                        : stepIdx === 2 && !isStayForm
+                          ? 'max-w-[48rem]'
+                          : 'max-w-xl'
                   }`
             }`}
           >
@@ -4516,198 +4518,55 @@ export default function SupplierListingForm({
               accountReason: publishAccountBlockedReason,
             });
             const previewPhotos = orderedPhotoUrls(normalizePhotoSlots(form.photoSlots));
-            const previewCover = previewPhotos[0] ?? '';
-            const previewGallery = previewPhotos.slice(1, 5);
             const previewOpts = materializedBookingOptions(form.bookingOptions);
-            const previewFrom = headlineStartingAmountFromBookingOptions(previewOpts);
+            const previewFrom = isStayForm
+              ? Number.parseFloat(form.stayNightly)
+              : headlineStartingAmountFromBookingOptions(previewOpts);
             const previewPlace = [form.city.trim(), form.country.trim()].filter(Boolean).join(', ');
-            const previewHighlights = (form.highlights ?? []).map((h) => h.trim()).filter(Boolean).slice(0, 5);
-            const previewIncludes = (form.includes ?? []).map((h) => h.trim()).filter(Boolean).slice(0, 4);
-            const previewExcludes = (form.excludes ?? []).map((h) => h.trim()).filter(Boolean).slice(0, 4);
+            const languageLabel =
+              LANGUAGE_OPTIONS.find((row) => row.code === form.experienceLanguage)?.label ??
+              form.experienceLanguage;
+            const startingPriceLabel =
+              typeof previewFrom === 'number' && Number.isFinite(previewFrom) && previewFrom > 0
+                ? isStayForm
+                  ? `${formatMoney(previewFrom, listingCurrency)} / night`
+                  : `From ${formatMoney(previewFrom, listingCurrency)}`
+                : null;
             return (
-            <div id="supplier-listing-field-review" className="space-y-4">
-              <div>
-                <h3 className="text-[1.05rem] font-semibold tracking-tight text-ink">Traveler preview</h3>
-                <p className="partner-section-desc mt-0.5">
-                  Approximate guest view — fix gaps below, then save draft or publish from the footer.
-                </p>
-              </div>
-
-              <article className="lc-tile overflow-hidden rounded-[var(--partner-radius,0.5rem)]">
-                {previewCover && !isPlaceholderListingImageUrl(previewCover) ? (
-                  <div className="relative">
-                    <img
-                      src={previewCover}
-                      alt=""
-                      className="aspect-[4/3] w-full object-cover"
-                    />
-                    {previewGallery.length > 0 ? (
-                      <div className="absolute bottom-2 right-2 flex gap-1">
-                        {previewGallery.map((url) => (
-                          <img
-                            key={url.slice(-32)}
-                            src={url}
-                            alt=""
-                            className="h-10 w-10 rounded object-cover ring-1 ring-white/80"
-                          />
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                ) : (
-                  <div className="flex aspect-[16/9] items-center justify-center bg-black/[0.04] text-[13px] text-ink-muted sm:aspect-[2.2/1]">
-                    Add a cover photo to preview the traveler gallery
-                  </div>
-                )}
-                <div className="space-y-3 px-3.5 py-3.5">
-                  <div>
-                    <p className="partner-meta">{previewPlace || 'Location not set'}</p>
-                    <h4 className="mt-0.5 font-display text-[1.2rem] font-semibold leading-snug tracking-tight text-ink [overflow-wrap:anywhere]">
-                      {form.title.trim() || 'Untitled listing'}
-                    </h4>
-                    {form.subtitle.trim() ? (
-                      <p className="mt-1 text-[13px] leading-snug text-ink-muted [overflow-wrap:anywhere]">
-                        {form.subtitle.trim()}
-                      </p>
-                    ) : null}
-                    {typeof previewFrom === 'number' && previewFrom > 0 ? (
-                      <p className="mt-1 text-[14px] font-semibold tabular-nums text-ink">
-                        From {formatMoney(previewFrom, listingCurrency)}
-                      </p>
-                    ) : (
-                      <p className="mt-1 text-[13px] text-ink-muted">Starting price appears when options have prices</p>
-                    )}
-                  </div>
-                  {form.description.trim() ? (
-                    <p className="text-[13px] leading-relaxed text-ink-muted line-clamp-4 [overflow-wrap:anywhere]">
-                      {form.description.trim()}
-                    </p>
-                  ) : null}
-                  {previewHighlights.length > 0 ? (
-                    <ul className="grid gap-1 sm:grid-cols-2">
-                      {previewHighlights.map((line) => (
-                        <li key={line} className="flex gap-1.5 text-[13px] text-ink">
-                          <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-finland" aria-hidden />
-                          <span className="[overflow-wrap:anywhere]">{line}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
-                  {(previewIncludes.length > 0 || previewExcludes.length > 0) ? (
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {previewIncludes.length > 0 ? (
-                        <div>
-                          <p className="partner-label">Includes</p>
-                          <ul className="mt-1 space-y-0.5 text-[13px] text-ink">
-                            {previewIncludes.map((line) => (
-                              <li key={line} className="[overflow-wrap:anywhere]">
-                                {line}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ) : null}
-                      {previewExcludes.length > 0 ? (
-                        <div>
-                          <p className="partner-label">Excludes</p>
-                          <ul className="mt-1 space-y-0.5 text-[13px] text-ink-muted">
-                            {previewExcludes.map((line) => (
-                              <li key={line} className="[overflow-wrap:anywhere]">
-                                {line}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : null}
-                  {!isStayForm && previewOpts.length > 0 ? (
-                    <div>
-                      <p className="partner-label">Options travelers can book</p>
-                      <ul className="mt-1.5 divide-y divide-black/[0.06] rounded-[var(--partner-radius-sm,0.375rem)] border border-black/[0.08]">
-                        {previewOpts.slice(0, 4).map((opt) => {
-                          const ready = tourOptionReadiness(opt, optionValidationMessages(opt));
-                          const price = summarizeOptionPricing(opt, (n) => formatMoney(n, listingCurrency));
-                          return (
-                            <li key={opt.id} className="flex items-start justify-between gap-2 px-2.5 py-2">
-                              <div className="min-w-0">
-                                <p className="truncate text-[13px] font-semibold text-ink">
-                                  {opt.name.trim() || 'Untitled option'}
-                                </p>
-                                <p className="partner-meta">
-                                  {[opt.duration.trim() || null, price].filter(Boolean).join(' · ')}
-                                </p>
-                              </div>
-                              <span
-                                className={`shrink-0 text-[11px] font-semibold ${
-                                  ready === 'ready' ? 'text-finland' : 'text-amber-800'
-                                }`}
-                              >
-                                {ready === 'ready' ? 'Bookable' : 'Incomplete'}
-                              </span>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
-                  ) : null}
-                </div>
-              </article>
-
-              {truth.bannerTitle ? (
-                <div className="rounded-[var(--partner-radius,0.5rem)] border border-amber-200/80 bg-amber-50/50 px-3.5 py-3" role="status">
-                  <p className="partner-label text-amber-900/70">Publish status</p>
-                  <p className="mt-1 text-[14px] font-semibold tracking-tight text-ink">{truth.bannerTitle}</p>
-                  <p className="mt-1 max-w-xl partner-meta">{truth.bannerBody}</p>
-                  <a
-                    href={`${PARTNER_APP_BASE}/business-profile`}
-                    className="mt-2 inline-flex min-h-10 items-center text-[13px] font-semibold text-finland hover:underline"
-                  >
-                    Go to Settings
-                  </a>
-                </div>
-              ) : null}
-
-              <div>
-                <p className="partner-label mb-1.5">Readiness</p>
-                <ul className="divide-y divide-black/[0.07] rounded-[var(--partner-radius,0.5rem)] border border-black/[0.08] px-3">
-                  {reviewRows.map((row) => (
-                    <li key={row.label} className="flex flex-wrap items-start justify-between gap-2 py-2">
-                      <div className="min-w-0 max-w-xl">
-                        <p className="text-[13px] font-medium text-ink">{row.label}</p>
-                        <p className="mt-0.5 text-[12px] leading-snug text-ink-muted [overflow-wrap:anywhere]">
-                          {row.ready ? row.summary : row.missing || row.summary}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setStepIdxPersisted(row.step)}
-                        className="tv-btn-ghost shrink-0"
-                      >
-                        {row.ready ? 'Edit' : 'Fix'}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="space-y-1">
-                <p className="text-[13px] leading-snug text-ink">{truth.listingLine}</p>
-                {truth.accountLine ? <p className="partner-meta">{truth.accountLine}</p> : null}
-                {form.status === 'published' && editingId ? (
-                  <a
-                    href={
-                      isStayForm ? publicStayListingUrl(editingId) : publicTourListingUrl(editingId)
-                    }
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex min-h-10 items-center text-[13px] font-semibold text-finland hover:underline"
-                  >
-                    View live listing
-                  </a>
-                ) : null}
-              </div>
-            </div>
+              <ListingPreviewPublishStage
+                isStay={isStayForm}
+                title={form.title}
+                subtitle={form.subtitle}
+                description={form.description}
+                place={previewPlace}
+                experienceKind={form.experienceKind}
+                languageLabel={languageLabel}
+                photos={previewPhotos}
+                startingPriceLabel={startingPriceLabel}
+                highlights={(form.highlights ?? []).map((h) => h.trim()).filter(Boolean)}
+                includes={(form.includes ?? []).map((h) => h.trim()).filter(Boolean)}
+                excludes={(form.excludes ?? []).map((h) => h.trim()).filter(Boolean)}
+                options={previewOpts.map((opt) => ({
+                  option: opt,
+                  readiness: tourOptionReadiness(opt, optionValidationMessages(opt)),
+                }))}
+                formatAmount={(n) => formatMoney(n, listingCurrency)}
+                knowBeforeYouGo={form.knowBeforeYouGo ?? ''}
+                whatToBring={form.whatToBring ?? ''}
+                additionalLanguages={form.additionalLanguages ?? []}
+                reviewRows={reviewRows}
+                truth={truth}
+                settingsHref={`${PARTNER_APP_BASE}/business-profile`}
+                liveListingHref={
+                  form.status === 'published' && editingId
+                    ? isStayForm
+                      ? publicStayListingUrl(editingId)
+                      : publicTourListingUrl(editingId)
+                    : null
+                }
+                isPublished={form.status === 'published'}
+                onEditStep={(step) => setStepIdxPersisted(step)}
+              />
             );
           })()}
           </div>

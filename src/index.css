@@ -579,6 +579,11 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
   padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
 }
 
+/* Preview & Publish: calm section rhythm inside the wide final step */
+.listing-preview-publish section + section {
+  scroll-margin-top: 1rem;
+}
+
 /* Phase 1807: creation sticky footer + scene progress feel premium */
 .listing-creation-scene-progress__list {
   /* Prefer wrap; on very narrow screens allow gentle horizontal scroll without clipping labels. */
