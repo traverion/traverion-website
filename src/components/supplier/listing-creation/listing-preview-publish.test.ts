@@ -6,23 +6,21 @@ import { describe, expect, it } from 'vitest';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 describe('ListingPreviewPublishStage', () => {
-  it('uses adaptive gallery, traveler preview, and compact publishing panel', () => {
+  it('uses a height-filling mosaic gallery, lightbox, and selectable options', () => {
     const stage = readFileSync(resolve(__dirname, 'ListingPreviewPublishStage.tsx'), 'utf8');
-    const form = readFileSync(resolve(__dirname, '../../../pages/supplier/SupplierListingForm.tsx'), 'utf8');
     const css = readFileSync(resolve(__dirname, '../../../index.css'), 'utf8');
-    expect(stage).toContain('function PreviewGallery');
-    expect(stage).toContain('Traveler preview');
-    expect(stage).toContain('lg:sticky');
-    expect(stage).toContain('incomplete.map');
-    expect(stage).toContain('labelsForCatalogIds');
-    expect(stage).toContain('tourOptionCardModel');
+    expect(stage).toContain('listing-preview-gallery');
+    expect(stage).toContain('PreviewLightbox');
+    expect(stage).toContain('View all photos');
+    expect(stage).toContain('role="option"');
+    expect(stage).toContain('setSelectedOptionId');
+    expect(stage).toContain('Ready to publish');
+    expect(stage).toContain('sharedMeeting');
+    expect(stage).toContain('listing-preview-publish--mobile-frame');
     expect(stage).not.toContain('gallerySlots');
-    expect(stage).not.toContain('listing-preview-publish__section-num');
-    expect(stage).not.toContain('bg-paper');
-    expect(stage).not.toMatch(/Configured|Incomplete/);
-    expect(form).toContain('<ListingPreviewPublishStage');
-    expect(form).toMatch(/\/ person|\/ group/);
-    expect(css).toContain('--partner-bg: #f8f9fb');
-    expect(css).toContain('--lc-paper: #ffffff');
+    expect(stage).not.toContain('All stages look complete');
+    expect(css).toContain('.listing-preview-gallery--5');
+    expect(css).toContain('grid-template-rows: 1fr 1fr');
+    expect(css).toContain('listing-preview-lightbox');
   });
 });

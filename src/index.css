@@ -609,10 +609,153 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
   scroll-margin-top: 1rem;
 }
 
-.listing-preview-publish__section-num {
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.04em;
-  color: var(--lc-ink-faint, #8b929c);
+/*
+ * Preview gallery mosaic — hero + supporting thumbs share one rectangle.
+ * Side cells use 1fr tracks (no aspect-ratio) so they fill hero height with equal gaps.
+ */
+.listing-preview-gallery {
+  display: grid;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+@media (min-width: 1024px) {
+  .listing-preview-gallery {
+    height: min(28rem, 52vw);
+    max-height: 32rem;
+  }
+
+  .listing-preview-gallery--1 {
+    grid-template-columns: 1fr;
+  }
+
+  .listing-preview-gallery--2 {
+    grid-template-columns: 1.2fr 1fr;
+  }
+
+  .listing-preview-gallery--3 {
+    grid-template-columns: 1.4fr 1fr;
+    grid-template-rows: 1fr 1fr;
+  }
+
+  .listing-preview-gallery--3 .listing-preview-gallery__hero {
+    grid-row: 1 / -1;
+  }
+
+  .listing-preview-gallery--4 {
+    grid-template-columns: 1.6fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr;
+  }
+
+  .listing-preview-gallery--4 .listing-preview-gallery__hero {
+    grid-row: 1 / -1;
+  }
+
+  .listing-preview-gallery--5 {
+    grid-template-columns: 2fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+  }
+
+  .listing-preview-gallery--5 .listing-preview-gallery__hero {
+    grid-column: 1;
+    grid-row: 1 / -1;
+  }
+
+  .listing-preview-gallery__cell {
+    position: relative;
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+    background: #f5f6f8;
+  }
+
+  .listing-preview-gallery__cell img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+@media (max-width: 1023px) {
+  .listing-preview-gallery {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    height: auto;
+  }
+
+  .listing-preview-gallery__hero {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    border-radius: 1rem;
+    background: #f5f6f8;
+  }
+
+  .listing-preview-gallery__hero img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .listing-preview-gallery__thumbs-mobile {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.15rem;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .listing-preview-gallery__thumbs-mobile .listing-preview-gallery__cell {
+    position: relative;
+    flex: 0 0 42%;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    border-radius: 0.75rem;
+    background: #f5f6f8;
+    scroll-snap-align: start;
+  }
+
+  .listing-preview-gallery__thumbs-mobile img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .listing-preview-gallery__thumb--desktop {
+    display: none !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .listing-preview-gallery__thumbs-mobile {
+    display: none !important;
+  }
+
+  .listing-preview-gallery__hero {
+    border-radius: 1rem;
+  }
+
+  .listing-preview-gallery__thumb--desktop {
+    border-radius: 0.75rem;
+  }
+}
+
+.listing-preview-publish--mobile-frame {
+  max-width: 24.375rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.listing-preview-lightbox {
+  z-index: 140;
 }
 
 /* Phase 1807: creation sticky footer + scene progress feel premium */
