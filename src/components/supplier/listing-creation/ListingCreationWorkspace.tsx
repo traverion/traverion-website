@@ -70,11 +70,11 @@ export function ListingCreationWorkspace({
         {banners}
         <div
           ref={scrollRef}
-          className="listing-creation-content min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 pb-6 sm:px-6 sm:py-5 lg:px-8 lg:py-6"
+          className="listing-creation-content min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3.5 pb-5 sm:px-6 sm:py-5 lg:px-8 lg:py-6 [-webkit-overflow-scrolling:touch]"
         >
           {children}
         </div>
-        <div className="listing-creation-footer relative z-10 shrink-0 border-t border-black/[0.08] px-4 py-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-3 lg:px-8">
+        <div className="listing-creation-footer relative z-10 shrink-0 border-t border-[#E5E7EB] px-4 py-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-3 lg:px-8">
           {footer}
         </div>
         {overlay}

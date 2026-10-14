@@ -352,7 +352,7 @@ export function ListingPreviewPublishStage({
           </h3>
         </div>
         <div
-          className="inline-flex rounded-lg border border-[#E5E7EB] bg-white p-0.5"
+          className="hidden rounded-lg border border-[#E5E7EB] bg-white p-0.5 sm:inline-flex"
           role="group"
           aria-labelledby={viewportId}
         >

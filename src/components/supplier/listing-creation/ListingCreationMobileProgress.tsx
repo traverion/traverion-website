@@ -1,6 +1,9 @@
 import type { ListingCreationNavItem } from '../../../lib/listing-creation-workspace';
-import { ListingCreationNavButton } from './ListingCreationNavButton';
+import { ListingCreationMobileStepStrip } from './ListingCreationMobileStepStrip';
 
+/**
+ * App-style top chrome for listing creation on phones / tablets (&lt; lg).
+ */
 export function ListingCreationMobileProgress({
   title,
   persistLabel,
@@ -24,66 +27,66 @@ export function ListingCreationMobileProgress({
   exitDisabled: boolean;
   exitBusy: boolean;
 }) {
+  const done = items.filter((item) => item.state === 'complete').length;
+  const progressPct =
+    items.length > 0 ? Math.max(6, Math.round((done / items.length) * 100)) : 0;
+
   return (
-    <div className="listing-creation-mobile-bar shrink-0 border-b border-black/[0.08] px-4 pb-3.5 pt-[max(0.75rem,env(safe-area-inset-top))] lg:hidden">
-      <div className="flex items-center justify-between gap-3">
-        <button
-          type="button"
-          disabled={exitDisabled}
-          onClick={onExit}
-          className="lux-flat inline-flex min-h-11 min-w-11 items-center text-sm font-medium text-ink-muted hover:text-ink disabled:opacity-50"
-        >
-          {exitBusy ? 'Saving…' : '← Exit'}
-        </button>
-        {persistLabel ? (
-          <p
-            className={`text-xs tabular-nums ${
-              persistLabel === 'Save failed' ? 'font-medium text-red-700' : 'text-ink-muted'
-            }`}
-            aria-live="polite"
+    <div className="listing-creation-mobile-bar shrink-0 border-b border-[#E5E7EB] bg-white lg:hidden">
+      <div className="px-4 pb-2.5 pt-[max(0.5rem,env(safe-area-inset-top))]">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={exitDisabled}
+            onClick={onExit}
+            className="lux-flat inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center rounded-full text-[13px] font-semibold text-[#667085] hover:bg-[#F5F6F8] hover:text-[#17191D] disabled:opacity-50"
+            aria-label={exitBusy ? 'Saving' : 'Exit'}
           >
-            {persistLabel}
-          </p>
-        ) : (
-          <span className="min-h-11" />
-        )}
-      </div>
-      <p className="mt-1 text-[1.25rem] font-semibold leading-tight tracking-tight text-ink">{title}</p>
-      <div className="mt-3 flex items-baseline justify-between gap-3">
-        <p className="text-sm font-semibold text-ink">{currentLabel}</p>
-        {progressCopy ? <p className="text-xs font-medium tabular-nums text-ink-muted">{progressCopy}</p> : null}
-      </div>
-      {items.length > 0 ? (
-        <div
-          className="mt-2.5 h-1 overflow-hidden rounded-full bg-black/[0.08]"
-          aria-hidden
-        >
+            {exitBusy ? '…' : '←'}
+          </button>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[15px] font-semibold tracking-tight text-[#17191D]">{title}</p>
+            <p className="truncate text-[12px] text-[#667085]">
+              {currentLabel}
+              {progressCopy ? ` · ${progressCopy}` : ''}
+            </p>
+          </div>
+          {persistLabel ? (
+            <p
+              className={`shrink-0 text-[11px] tabular-nums ${
+                persistLabel === 'Save failed' ? 'font-medium text-red-700' : 'text-[#667085]'
+              }`}
+              aria-live="polite"
+            >
+              {persistLabel}
+            </p>
+          ) : null}
+        </div>
+
+        {items.length > 0 ? (
           <div
-            className="h-full rounded-full bg-finland transition-[width] duration-200 motion-reduce:transition-none"
-            style={{
-              width: `${Math.max(
-                8,
-                Math.round(
-                  (items.filter((item) => item.state === 'complete').length / items.length) * 100
-                )
-              )}%`,
-            }}
+            className="mt-2.5 h-1 overflow-hidden rounded-full bg-[#F5F6F8]"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={items.length}
+            aria-valuenow={done}
+            aria-label="Listing setup progress"
+          >
+            <div
+              className="h-full rounded-full bg-[#073B83] transition-[width] duration-200 motion-reduce:transition-none"
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+        ) : null}
+
+        <div className="mt-2.5">
+          <ListingCreationMobileStepStrip
+            items={items}
+            ariaLabel={navLabel}
+            onSelectIndex={onSelectIndex}
           />
         </div>
-      ) : null}
-      <nav aria-label={navLabel} className="mt-2">
-        {/* Phase 1615: column count follows step count (stay wizard has 6; tours 5). */}
-        <ol
-          className="grid gap-0.5"
-          style={{ gridTemplateColumns: `repeat(${Math.max(items.length, 1)}, minmax(0, 1fr))` }}
-        >
-          {items.map((item, index) => (
-            <li key={item.id} className="min-w-0">
-              <ListingCreationNavButton compact item={item} onClick={() => onSelectIndex(index)} />
-            </li>
-          ))}
-        </ol>
-      </nav>
+      </div>
     </div>
   );
 }

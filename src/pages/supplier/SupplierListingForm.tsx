@@ -3498,124 +3498,121 @@ export default function SupplierListingForm({
             </>
           }
           footer={
-            <div className="flex flex-col gap-2">
-            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  if (tourBasicsGuided && basicsSceneIdx > 0) {
-                    setBasicsSceneIdxPersisted(previousTourBasicsScene(basicsSceneIdx), 'back');
-                    return;
+            <div className="listing-creation-footer-actions flex flex-col gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+              <div className="order-2 flex gap-2 sm:order-1 sm:contents">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (tourBasicsGuided && basicsSceneIdx > 0) {
+                      setBasicsSceneIdxPersisted(previousTourBasicsScene(basicsSceneIdx), 'back');
+                      return;
+                    }
+                    if (tourInformationGuided && infoSceneIdx > 0) {
+                      setInfoSceneIdxPersisted(previousTourInformationScene(infoSceneIdx), 'back');
+                      return;
+                    }
+                    if (stepIdx === 3 && !isStayForm) {
+                      infoEnterFromOptionsBackRef.current = true;
+                    }
+                    setStepIdxPersisted((s) => Math.max(0, s - 1));
+                  }}
+                  disabled={
+                    (tourBasicsGuided
+                      ? basicsSceneIdx === 0
+                      : tourInformationGuided
+                        ? false
+                        : stepIdx === 0) ||
+                    draftCloseBusy ||
+                    submitting
                   }
-                  if (tourInformationGuided && infoSceneIdx > 0) {
-                    setInfoSceneIdxPersisted(previousTourInformationScene(infoSceneIdx), 'back');
-                    return;
-                  }
-                  if (stepIdx === 3 && !isStayForm) {
-                    infoEnterFromOptionsBackRef.current = true;
-                  }
-                  setStepIdxPersisted((s) => Math.max(0, s - 1));
-                }}
-                disabled={
-                  (tourBasicsGuided
-                    ? basicsSceneIdx === 0
-                    : tourInformationGuided
-                      ? false
-                      : stepIdx === 0) ||
-                  draftCloseBusy ||
-                  submitting
-                }
-                className="touch-manipulation tv-btn-ghost !min-h-11 w-full sm:w-auto disabled:opacity-50"
-              >
-                Back
-              </button>
-              <div className="flex w-full min-w-0 flex-wrap items-stretch gap-2 sm:w-auto sm:items-center">
+                  className="touch-manipulation tv-btn-ghost !min-h-12 flex-1 sm:!min-h-11 sm:w-auto sm:flex-none disabled:opacity-50"
+                >
+                  Back
+                </button>
                 {stepIdx < steps.length - 1 ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        void runSubmit(form.status === 'published' ? 'published' : 'draft', {
-                          bypassLastStepArm: true,
-                        })
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void runSubmit(form.status === 'published' ? 'published' : 'draft', {
+                        bypassLastStepArm: true,
+                      })
+                    }
+                    disabled={submitting || draftCloseBusy}
+                    className="touch-manipulation tv-btn-secondary !min-h-12 flex-1 sm:!min-h-11 sm:w-auto sm:flex-none disabled:opacity-50"
+                  >
+                    {submitting
+                      ? 'Saving…'
+                      : form.status === 'published'
+                        ? 'Save changes'
+                        : 'Save draft'}
+                  </button>
+                ) : form.status !== 'published' ? (
+                  <button
+                    type="button"
+                    onClick={() => void runSubmit('draft', { bypassLastStepArm: true })}
+                    disabled={submitting || draftCloseBusy}
+                    className="touch-manipulation tv-btn-secondary !min-h-12 flex-1 sm:!min-h-11 sm:w-auto sm:flex-none disabled:opacity-50"
+                  >
+                    {submitting ? 'Saving…' : 'Save as draft'}
+                  </button>
+                ) : null}
+              </div>
+              <div className="order-1 flex w-full min-w-0 sm:order-2 sm:w-auto">
+                {stepIdx < steps.length - 1 ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (tourBasicsGuided && basicsSceneIdx < TOUR_BASICS_SCENE_COUNT - 1) {
+                        setBasicsSceneIdxPersisted(nextTourBasicsScene(basicsSceneIdx), 'forward');
+                        return;
                       }
-                      disabled={submitting || draftCloseBusy}
-                      className="touch-manipulation tv-btn-secondary !min-h-11 sm:flex-none disabled:opacity-50"
-                    >
-                      {submitting
-                        ? 'Saving…'
-                        : form.status === 'published'
-                          ? 'Save changes'
-                          : 'Save draft'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (tourBasicsGuided && basicsSceneIdx < TOUR_BASICS_SCENE_COUNT - 1) {
-                          setBasicsSceneIdxPersisted(nextTourBasicsScene(basicsSceneIdx), 'forward');
-                          return;
-                        }
-                        if (
-                          tourInformationGuided &&
-                          infoSceneIdx < TOUR_INFORMATION_SCENE_COUNT - 1
-                        ) {
-                          setInfoSceneIdxPersisted(nextTourInformationScene(infoSceneIdx), 'forward');
-                          return;
-                        }
-                        setStepIdxPersisted((s) => Math.min(steps.length - 1, s + 1));
-                      }}
-                      disabled={
-                        (tourBasicsGuided
-                          ? !canContinueBasicsScene
-                          : tourInformationGuided
-                            ? !canContinueInfoScene || !canContinueStep()
-                            : !canContinueStep()) ||
-                        draftCloseBusy ||
-                        submitting
+                      if (
+                        tourInformationGuided &&
+                        infoSceneIdx < TOUR_INFORMATION_SCENE_COUNT - 1
+                      ) {
+                        setInfoSceneIdxPersisted(nextTourInformationScene(infoSceneIdx), 'forward');
+                        return;
                       }
-                      className="touch-manipulation tv-btn-primary !min-h-11 flex-1 sm:flex-none disabled:opacity-50"
-                    >
-                      Continue
-                    </button>
-                  </>
+                      setStepIdxPersisted((s) => Math.min(steps.length - 1, s + 1));
+                    }}
+                    disabled={
+                      (tourBasicsGuided
+                        ? !canContinueBasicsScene
+                        : tourInformationGuided
+                          ? !canContinueInfoScene || !canContinueStep()
+                          : !canContinueStep()) ||
+                      draftCloseBusy ||
+                      submitting
+                    }
+                    className="touch-manipulation tv-btn-primary !min-h-12 w-full sm:!min-h-11 sm:w-auto disabled:opacity-50"
+                  >
+                    Continue
+                  </button>
+                ) : form.status === 'published' ? (
+                  <button
+                    type="button"
+                    onClick={() => void runSubmit('published', { bypassLastStepArm: true })}
+                    disabled={submitting || draftCloseBusy}
+                    title={
+                      publishBlockersPreview.length > 0
+                        ? publishBlockersPreview[0]
+                        : 'Save updates to your live listing'
+                    }
+                    className="touch-manipulation tv-btn-primary !min-h-12 w-full sm:!min-h-11 sm:w-auto disabled:opacity-50"
+                  >
+                    {submitting ? 'Saving…' : 'Save changes'}
+                  </button>
                 ) : (
-                  <div className="flex min-w-0 w-full flex-col gap-2 sm:w-auto sm:flex-auto sm:flex-row">
-                    {form.status === 'published' ? (
-                      <button
-                        type="button"
-                        onClick={() => void runSubmit('published', { bypassLastStepArm: true })}
-                        disabled={submitting || draftCloseBusy}
-                        title={
-                          publishBlockersPreview.length > 0
-                            ? publishBlockersPreview[0]
-                            : 'Save updates to your live listing'
-                        }
-                        className="touch-manipulation tv-btn-primary !min-h-11 flex-1 sm:flex-none disabled:opacity-50"
-                      >
-                        {submitting ? 'Saving…' : 'Save changes'}
-                      </button>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => void runSubmit('draft', { bypassLastStepArm: true })}
-                          disabled={submitting || draftCloseBusy}
-                          className="touch-manipulation tv-btn-secondary !min-h-11 sm:flex-none disabled:opacity-50"
-                        >
-                          {submitting ? 'Saving…' : 'Save as draft'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void runSubmit('published')}
-                          disabled={submitting || draftCloseBusy || !lastStepSubmitArmed}
-                          title={publishButtonTitle}
-                          className="touch-manipulation tv-btn-primary !min-h-11 flex-1 sm:flex-none disabled:opacity-50"
-                        >
-                          {submitting ? 'Publishing…' : 'Publish experience'}
-                        </button>
-                      </>
-                    )}
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void runSubmit('published')}
+                    disabled={submitting || draftCloseBusy || !lastStepSubmitArmed}
+                    title={publishButtonTitle}
+                    className="touch-manipulation tv-btn-primary !min-h-12 w-full sm:!min-h-11 sm:w-auto disabled:opacity-50"
+                  >
+                    {submitting ? 'Publishing…' : 'Publish experience'}
+                  </button>
                 )}
               </div>
             </div>

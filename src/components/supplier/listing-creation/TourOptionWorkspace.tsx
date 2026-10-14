@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import type { ListingCreationNavItem } from '../../../lib/listing-creation-workspace';
 import { ListingCreationNavButton } from './ListingCreationNavButton';
+import { ListingCreationMobileStepStrip } from './ListingCreationMobileStepStrip';
 
 /**
  * Full-screen option editor (portaled) with a left step rail matching tour creation.
@@ -112,34 +113,41 @@ export function TourOptionWorkspace({
         </aside>
 
         <div className="listing-creation-option-main flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          <header className="listing-creation-option-header shrink-0 border-b border-black/[0.07] px-4 py-3 sm:px-6 lg:px-8">
+          <header className="listing-creation-option-header shrink-0 border-b border-[#E5E7EB] px-4 py-2.5 sm:px-6 lg:px-8">
             <div className="mx-auto flex w-full max-w-[56rem] flex-wrap items-start justify-between gap-x-4 gap-y-2">
               <div className="min-w-0 flex-1">
                 <button
                   type="button"
                   onClick={onBackToOptions}
-                  className="lux-flat mb-1 inline-flex min-h-8 items-center gap-1 text-[12.5px] font-semibold text-finland hover:underline lg:hidden"
+                  className="lux-flat mb-1 inline-flex min-h-9 items-center gap-1 text-[13px] font-semibold text-[#073B83] hover:underline lg:hidden"
                 >
-                  <span aria-hidden>←</span> Back to options
+                  <span aria-hidden>←</span> Options
                 </button>
-                <p className="truncate text-[11px] leading-tight text-ink-muted" title={tourLabel}>
+                <p className="truncate text-[11px] leading-tight text-[#667085]" title={tourLabel}>
                   {tourLabel}
                 </p>
                 <h2
                   id={titleId}
-                  className="mt-0.5 font-display text-[1.25rem] font-bold leading-snug tracking-tight text-ink sm:text-[1.4rem]"
+                  className="mt-0.5 text-[1.2rem] font-semibold leading-snug tracking-tight text-[#17191D] sm:text-[1.35rem]"
                 >
                   {displayName}
                 </h2>
               </div>
               <p
                 className={`shrink-0 pt-0.5 text-[11px] tabular-nums ${
-                  persistLabel === 'Save failed' ? 'font-medium text-red-700' : 'text-ink-muted'
+                  persistLabel === 'Save failed' ? 'font-medium text-red-700' : 'text-[#667085]'
                 }`}
                 aria-live="polite"
               >
                 {persistLabel ?? ''}
               </p>
+            </div>
+            <div className="mx-auto mt-2.5 w-full max-w-[56rem] lg:hidden">
+              <ListingCreationMobileStepStrip
+                items={navItems}
+                ariaLabel="Option steps"
+                onSelectIndex={(index) => onSelectNavId(navItems[index]?.id ?? '')}
+              />
             </div>
           </header>
 
@@ -147,46 +155,44 @@ export function TourOptionWorkspace({
             <div className="mx-auto w-full max-w-[56rem]">{children}</div>
           </div>
 
-          <div className="listing-creation-option-footer shrink-0 border-t border-black/[0.07] px-4 py-2.5 pb-[max(0.65rem,env(safe-area-inset-bottom))] sm:px-6 lg:px-8">
+          <div className="listing-creation-option-footer shrink-0 border-t border-[#E5E7EB] px-4 py-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 lg:px-8">
             <div className="mx-auto flex w-full max-w-[56rem] flex-col gap-1.5">
               {continueHint ? (
-                <p id={hintId} className="text-[12px] leading-snug text-ink-muted" role="status">
+                <p id={hintId} className="text-[12px] leading-snug text-[#667085]" role="status">
                   {continueHint}
                 </p>
               ) : null}
-              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-                <div>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                <div className="order-2 flex gap-2 sm:order-1">
                   {onPreviousScene ? (
                     <button
                       type="button"
                       onClick={onPreviousScene}
-                      className="touch-manipulation tv-btn-ghost !min-h-10 w-full sm:w-auto"
+                      className="touch-manipulation tv-btn-ghost !min-h-12 flex-1 sm:!min-h-10 sm:w-auto sm:flex-none"
                     >
                       Back
                     </button>
                   ) : (
                     <span className="hidden sm:block sm:min-w-[4.5rem]" aria-hidden />
                   )}
-                </div>
-                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:gap-2.5">
                   <button
                     type="button"
                     onClick={onSaveDraft}
                     disabled={saveDraftDisabled}
-                    className="touch-manipulation tv-btn-secondary !min-h-10 w-full sm:w-auto disabled:opacity-50"
+                    className="touch-manipulation tv-btn-secondary !min-h-12 flex-1 sm:!min-h-10 sm:w-auto sm:flex-none disabled:opacity-50"
                   >
                     Save draft
                   </button>
-                  <button
-                    type="button"
-                    onClick={onContinue}
-                    disabled={continueDisabled}
-                    aria-describedby={continueHint ? hintId : undefined}
-                    className="touch-manipulation tv-btn-primary !min-h-10 w-full sm:w-auto disabled:opacity-50"
-                  >
-                    {continueLabel}
-                  </button>
                 </div>
+                <button
+                  type="button"
+                  onClick={onContinue}
+                  disabled={continueDisabled}
+                  aria-describedby={continueHint ? hintId : undefined}
+                  className="touch-manipulation tv-btn-primary order-1 !min-h-12 w-full sm:order-2 sm:!min-h-10 sm:w-auto disabled:opacity-50"
+                >
+                  {continueLabel}
+                </button>
               </div>
             </div>
           </div>
