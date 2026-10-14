@@ -20,7 +20,7 @@ export const TOUR_SCHEDULE_SCENES = [
   { id: 'when', label: 'When', question: 'When does this schedule run?' },
   { id: 'capacity', label: 'Capacity', question: 'How many travelers can book?' },
   { id: 'pricing', label: 'Pricing', question: 'What do travelers pay?' },
-  { id: 'review', label: 'Review', question: 'Review this schedule' },
+  { id: 'review', label: 'Review', question: 'Review your schedule' },
 ] as const;
 
 export type TourScheduleSceneId = (typeof TOUR_SCHEDULE_SCENES)[number]['id'];

@@ -45,11 +45,31 @@ describe('tour option creation overhaul (source contracts)', () => {
   it('Options overview is cards-only (no listing start/cutoff/timezone controls)', () => {
     const form = readFileSync(resolve(__dirname, '../../../pages/supplier/SupplierListingForm.tsx'), 'utf8');
     expect(form).toContain('Ways travelers can book this experience.');
+    expect(form).toContain('lc-options-empty');
+    expect(form).toContain('Add your first option');
     expect(form).not.toContain('id="supplier-listing-experience-start"');
     expect(form).not.toContain('id="supplier-booking-cutoff"');
     expect(form).not.toContain('id="supplier-departure-timezone"');
     expect(form).toContain('deriveExperienceStartStyleFromOptions');
     expect(form).toContain('listingDepartureTimezone={form.departureTimezone');
+  });
+
+  it('schedule Pricing shows commission inside each category and Review is structured', () => {
+    const pricing = read('SchedulePricingEditor.tsx');
+    const schedule = read('TourScheduleWorkspace.tsx');
+    const wizard = readFileSync(resolve(__dirname, '../../../lib/listing-schedule-wizard.ts'), 'utf8');
+    expect(pricing).toContain('lc-pricing-category');
+    expect(pricing).toContain('Commission ({commissionPct})');
+    expect(pricing).toContain('You receive');
+    expect(pricing).toContain('previewSupplierEarningsFromGross');
+    expect(pricing).toContain('SUPPLIER_PRICING_PREVIEW_COMMISSION_BPS');
+    expect(pricing).toContain('Age-based pricing');
+    expect(pricing).toContain('Add a category');
+    expect(schedule).toContain('Review your schedule');
+    expect(schedule).toContain('Schedule & availability');
+    expect(schedule).toContain('Ready to finish');
+    expect(schedule).toContain('Traverion commission ({commissionPct})');
+    expect(wizard).toContain("question: 'Review your schedule'");
   });
 
   it('option scenes are setup → meeting → pricing → availability', () => {

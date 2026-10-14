@@ -4383,99 +4383,145 @@ export default function SupplierListingForm({
             />
           )}
 
-          {stepIdx === 3 && form.inventoryFamily !== 'stay' && (
-            <div id="supplier-listing-field-options" className="space-y-3 transition-all duration-300 ease-out opacity-100 translate-y-0">
+          {stepIdx === 3 && form.inventoryFamily !== 'stay' && (() => {
+            const optionsList = materializedBookingOptions(form.bookingOptions);
+            const hasOptions = optionsList.length > 0;
+            return (
+            <div id="supplier-listing-field-options" className="space-y-4 transition-all duration-300 ease-out opacity-100 translate-y-0">
               <div>
-                <h3 className="text-[1.05rem] font-semibold tracking-tight text-ink">Options</h3>
-                <p className="mt-0.5 text-[13px] text-ink-muted">Ways travelers can book this experience.</p>
+                <h3 className="text-[1.25rem] font-semibold tracking-tight text-ink sm:text-[1.35rem]">
+                  Options
+                </h3>
+                {hasOptions ? (
+                  <p className="mt-0.5 text-[13px] text-ink-muted">
+                    Ways travelers can book this experience.
+                  </p>
+                ) : null}
               </div>
 
-              <div className="space-y-2">
-                {materializedBookingOptions(form.bookingOptions).map((opt) => {
-                  const messages = optionValidationMessages(opt);
-                  const status = tourOptionReadiness(opt, messages);
-                  const pendingDelete = optionPendingDeleteId === opt.id;
-                  const card = tourOptionCardModel(opt, (n) => formatMoney(n, listingCurrency));
-                  const notice =
-                    pendingDelete && editingId
-                      ? removeBookingOptionOccupancyNotice(
-                          occupyingGuestsForBookingOption({
-                            bookings: listingOccupancyBookings,
-                            listingId: editingId,
-                            optionId: opt.id,
-                          })
-                        )
-                      : null;
-                  return (
-                    <TourOptionCard
-                      key={opt.id}
-                      name={opt.name.trim()}
-                      readiness={status}
-                      model={card}
-                      pendingDelete={pendingDelete}
-                      deleteNotice={
-                        notice ? (
-                          <p className="text-[12.5px] leading-snug text-ink" role="status">
-                            {notice}
-                          </p>
-                        ) : null
-                      }
-                      onPrimary={() => {
-                        if (card.cta.kind === 'add_schedule') {
-                          openOptionModalEdit(opt.id, { sceneIndex: card.cta.sceneIndex, action: { kind: 'add_schedule' } });
-                        } else if (card.cta.kind === 'finish_schedule') {
-                          openOptionModalEdit(opt.id, {
-                            sceneIndex: card.cta.sceneIndex,
-                            action: { kind: 'edit_schedule', scheduleId: card.cta.scheduleId },
-                          });
-                        } else if (card.cta.kind === 'manage_schedules') {
-                          openOptionModalEdit(opt.id, { sceneIndex: card.cta.sceneIndex });
-                        } else if (card.cta.kind === 'continue_setup') {
-                          openOptionModalEdit(opt.id, { sceneIndex: card.cta.sceneIndex });
-                        }
-                      }}
-                      onEdit={() => openOptionModalEdit(opt.id)}
-                      onDuplicate={() => duplicateOption(opt.id)}
-                      onRequestDelete={() => setOptionPendingDeleteId(opt.id)}
-                      onCancelDelete={() => setOptionPendingDeleteId(null)}
-                      onConfirmDelete={() => {
-                        if (editingId && listingOccupancyReady) {
-                          const sold = occupyingGuestsForBookingOption({
-                            bookings: listingOccupancyBookings,
-                            listingId: editingId,
-                            optionId: opt.id,
-                          });
-                          if (sold >= 1) {
-                            // Phase 1110: hard-refuse option delete with sold seats.
-                            window.alert(
-                              removeBookingOptionOccupancyNotice(sold) ??
-                                'This option still has booked guests and cannot be deleted.'
-                            );
-                            setOptionPendingDeleteId(null);
-                            return;
+              {hasOptions ? (
+                <>
+                  <div className="space-y-2">
+                    {optionsList.map((opt) => {
+                      const messages = optionValidationMessages(opt);
+                      const status = tourOptionReadiness(opt, messages);
+                      const pendingDelete = optionPendingDeleteId === opt.id;
+                      const card = tourOptionCardModel(opt, (n) => formatMoney(n, listingCurrency));
+                      const notice =
+                        pendingDelete && editingId
+                          ? removeBookingOptionOccupancyNotice(
+                              occupyingGuestsForBookingOption({
+                                bookings: listingOccupancyBookings,
+                                listingId: editingId,
+                                optionId: opt.id,
+                              })
+                            )
+                          : null;
+                      return (
+                        <TourOptionCard
+                          key={opt.id}
+                          name={opt.name.trim()}
+                          readiness={status}
+                          model={card}
+                          pendingDelete={pendingDelete}
+                          deleteNotice={
+                            notice ? (
+                              <p className="text-[12.5px] leading-snug text-ink" role="status">
+                                {notice}
+                              </p>
+                            ) : null
                           }
-                        }
-                        removeBookingOption(opt.id);
-                      }}
-                    />
-                  );
-                })}
-              </div>
-              <div
-                {...(!optionModalOpen ? { id: 'supplier-listing-field-price' } : {})}
-                className="pt-0.5"
-              >
-                <button
-                  type="button"
-                  onClick={() => openOptionModalCreate()}
-                  className="lux-flat inline-flex min-h-9 items-center gap-1 rounded-md px-1 text-[13px] font-semibold text-finland hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland/30"
+                          onPrimary={() => {
+                            if (card.cta.kind === 'add_schedule') {
+                              openOptionModalEdit(opt.id, {
+                                sceneIndex: card.cta.sceneIndex,
+                                action: { kind: 'add_schedule' },
+                              });
+                            } else if (card.cta.kind === 'finish_schedule') {
+                              openOptionModalEdit(opt.id, {
+                                sceneIndex: card.cta.sceneIndex,
+                                action: { kind: 'edit_schedule', scheduleId: card.cta.scheduleId },
+                              });
+                            } else if (card.cta.kind === 'manage_schedules') {
+                              openOptionModalEdit(opt.id, { sceneIndex: card.cta.sceneIndex });
+                            } else if (card.cta.kind === 'continue_setup') {
+                              openOptionModalEdit(opt.id, { sceneIndex: card.cta.sceneIndex });
+                            }
+                          }}
+                          onEdit={() => openOptionModalEdit(opt.id)}
+                          onDuplicate={() => duplicateOption(opt.id)}
+                          onRequestDelete={() => setOptionPendingDeleteId(opt.id)}
+                          onCancelDelete={() => setOptionPendingDeleteId(null)}
+                          onConfirmDelete={() => {
+                            if (editingId && listingOccupancyReady) {
+                              const sold = occupyingGuestsForBookingOption({
+                                bookings: listingOccupancyBookings,
+                                listingId: editingId,
+                                optionId: opt.id,
+                              });
+                              if (sold >= 1) {
+                                // Phase 1110: hard-refuse option delete with sold seats.
+                                window.alert(
+                                  removeBookingOptionOccupancyNotice(sold) ??
+                                    'This option still has booked guests and cannot be deleted.'
+                                );
+                                setOptionPendingDeleteId(null);
+                                return;
+                              }
+                            }
+                            removeBookingOption(opt.id);
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
+                  <div
+                    {...(!optionModalOpen ? { id: 'supplier-listing-field-price' } : {})}
+                    className="pt-0.5"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => openOptionModalCreate()}
+                      className="lux-flat inline-flex min-h-9 items-center gap-1 rounded-md px-1 text-[13px] font-semibold text-finland hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland/30"
+                    >
+                      <Plus className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      Add option
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div
+                  {...(!optionModalOpen ? { id: 'supplier-listing-field-price' } : {})}
+                  className="lc-options-empty relative overflow-hidden rounded-2xl border border-[var(--lc-line,#E5E7EB)] bg-[linear-gradient(165deg,#ffffff_0%,#f7f8fa_55%,#f3f5f8_100%)] px-6 py-14 sm:px-10 sm:py-16"
                 >
-                  <Plus className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                  Add option
-                </button>
-              </div>
+                  <div
+                    className="pointer-events-none absolute inset-0 opacity-[0.45]"
+                    aria-hidden
+                    style={{
+                      backgroundImage:
+                        'radial-gradient(circle at 18% 22%, rgba(7,59,131,0.07), transparent 42%), radial-gradient(circle at 82% 78%, rgba(7,59,131,0.05), transparent 40%)',
+                    }}
+                  />
+                  <div className="relative mx-auto flex max-w-sm flex-col items-center text-center">
+                    <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--lc-line,#E5E7EB)] bg-white shadow-[0_1px_2px_rgba(23,25,29,0.04)]">
+                      <Plus className="h-6 w-6 text-finland" strokeWidth={2.25} aria-hidden />
+                    </div>
+                    <p className="text-[1.05rem] font-semibold tracking-tight text-ink">
+                      Add your first option
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => openOptionModalCreate()}
+                      className="tv-btn-primary mt-6 !min-h-11 !px-6"
+                    >
+                      Add option
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
+            );
+          })()}
 
           {stepIdx === 4 && (() => {
             const photoCount = orderedPhotoUrls(normalizePhotoSlots(form.photoSlots)).length;

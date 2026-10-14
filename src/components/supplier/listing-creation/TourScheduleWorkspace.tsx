@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import type { ListingBookingOption, ListingOptionSchedule } from '../../../types/listingExtras';
 import BookingOptionEditor from '../BookingOptionEditor';
@@ -345,16 +345,9 @@ export function TourScheduleWorkspace({
                 </p>
               ) : null}
 
-              <h3
-                ref={sceneHeadingRef}
-                tabIndex={-1}
-                className="mb-5 font-display text-[1.3rem] font-bold leading-snug tracking-tight text-ink outline-none focus:outline-none sm:text-[1.45rem]"
-              >
-                {sceneQuestion}
-              </h3>
-
               {scene.id === 'review' ? (
                 <ScheduleReview
+                  headingRef={sceneHeadingRef}
                   schedule={schedule}
                   option={option}
                   formatAmount={formatAmount}
@@ -362,6 +355,13 @@ export function TourScheduleWorkspace({
                 />
               ) : (
                 <div className="w-full space-y-4">
+                  <h3
+                    ref={sceneHeadingRef}
+                    tabIndex={-1}
+                    className="mb-5 font-display text-[1.3rem] font-bold leading-snug tracking-tight text-ink outline-none focus:outline-none sm:text-[1.45rem]"
+                  >
+                    {sceneQuestion}
+                  </h3>
                   {scene.id === 'when' ? (
                     <div className="max-w-md">
                       <label
@@ -523,37 +523,39 @@ function ReviewSection({
   children: ReactNode;
 }) {
   return (
-    <section className="border-b border-black/[0.07] py-3.5 last:border-b-0">
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <h4 className="text-[13px] font-semibold tracking-tight text-ink">{title}</h4>
+    <section className="rounded-xl border border-[var(--lc-line,#E5E7EB)] bg-white px-4 py-4 sm:px-5">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h4 className="text-[17px] font-semibold tracking-tight text-ink">{title}</h4>
         <button
           type="button"
           onClick={onEdit}
-          className="lux-flat shrink-0 rounded-md px-2 py-1 text-[12.5px] font-medium text-finland hover:bg-finland/[0.06]"
+          className="lux-flat shrink-0 rounded-md px-2 py-1 text-[12.5px] font-semibold text-finland hover:bg-finland/[0.06]"
         >
           Edit
         </button>
       </div>
-      <dl className="space-y-1.5">{children}</dl>
+      <dl className="space-y-2.5">{children}</dl>
     </section>
   );
 }
 
 function ReviewRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="grid grid-cols-[7.5rem_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-[12.5px] leading-snug sm:grid-cols-[9rem_minmax(0,1fr)]">
-      <dt className="text-ink-muted">{label}</dt>
-      <dd className="min-w-0 text-ink">{value}</dd>
+    <div className="grid grid-cols-[8rem_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-[14px] leading-snug sm:grid-cols-[10rem_minmax(0,1fr)]">
+      <dt className="text-[13px] text-ink-muted">{label}</dt>
+      <dd className="min-w-0 font-medium text-ink">{value}</dd>
     </div>
   );
 }
 
 function ScheduleReview({
+  headingRef,
   schedule,
   option,
   formatAmount,
   onEdit,
 }: {
+  headingRef: RefObject<HTMLHeadingElement | null>;
   schedule: ListingOptionSchedule;
   option: ListingBookingOption;
   formatAmount: (n: number) => string;
@@ -577,54 +579,68 @@ function ScheduleReview({
 
   const pricing = formatScheduleListPrice(schedule, option, formatAmount);
   const charge = optionChargeModel(option);
-  const pricingLines: Array<{ label: string; customer: string; earn: string }> = [];
-  if (charge === 'flat_group') {
-    const gross = schedule.privateGroupPriceUsd ?? schedule.priceUsd;
+  const commissionPct = formatBpsAsPercent(SUPPLIER_PRICING_PREVIEW_COMMISSION_BPS);
+  const pricingLines: Array<{
+    label: string;
+    customer: string;
+    commission: string;
+    earn: string;
+  }> = [];
+
+  const pushLine = (label: string, gross: number) => {
+    const preview = previewSupplierEarningsFromGross(gross);
     pricingLines.push({
-      label: 'Whole group',
+      label,
       customer: gross > 0 ? formatAmount(gross) : 'Not set',
+      commission: preview ? formatAmount(preview.commissionMajor) : '—',
       earn: formatSupplierEarningsPreview(gross, formatAmount),
     });
+  };
+
+  if (charge === 'flat_group') {
+    pushLine('Whole group', schedule.privateGroupPriceUsd ?? schedule.priceUsd);
   } else if (optionPricingMode(schedule) === 'age_dependent') {
     const cats = activePriceCategories(schedule);
     if (cats.length === 0) {
-      pricingLines.push({ label: 'Age categories', customer: 'Not set', earn: '—' });
+      pricingLines.push({
+        label: 'Age categories',
+        customer: 'Not set',
+        commission: '—',
+        earn: '—',
+      });
     } else {
       for (const c of cats) {
-        pricingLines.push({
-          label: c.label.trim() || 'Category',
-          customer: c.priceUsd > 0 ? formatAmount(c.priceUsd) : 'Not set',
-          earn: formatSupplierEarningsPreview(c.priceUsd, formatAmount),
-        });
+        pushLine(c.label.trim() || 'Category', c.priceUsd);
       }
     }
   } else {
-    pricingLines.push({
-      label: 'Per person',
-      customer: schedule.priceUsd > 0 ? formatAmount(schedule.priceUsd) : 'Not set',
-      earn: formatSupplierEarningsPreview(schedule.priceUsd, formatAmount),
-    });
+    pushLine('Per person', schedule.priceUsd);
   }
 
-  const sampleGross =
-    charge === 'flat_group'
-      ? schedule.privateGroupPriceUsd ?? schedule.priceUsd
-      : optionPricingMode(schedule) === 'age_dependent'
-        ? activePriceCategories(schedule).find((c) => c.priceUsd > 0)?.priceUsd ?? 0
-        : schedule.priceUsd;
-  const samplePreview = previewSupplierEarningsFromGross(sampleGross);
-
   return (
-    <div className="w-full max-w-xl">
-      <ReviewSection title="When" onEdit={() => onEdit('when')}>
-        <ReviewRow label="Name" value={schedule.name.trim() || 'Not set'} />
+    <div className="w-full max-w-xl space-y-4">
+      <div>
+        <h3
+          ref={headingRef}
+          tabIndex={-1}
+          className="font-display text-[1.45rem] font-bold leading-snug tracking-tight text-ink outline-none focus:outline-none sm:text-[1.65rem]"
+        >
+          Review your schedule
+        </h3>
+        <p className="mt-1.5 max-w-md text-[14px] leading-relaxed text-ink-muted">
+          Check your availability, capacity, and pricing before making this schedule bookable.
+        </p>
+      </div>
+
+      <ReviewSection title="Schedule & availability" onEdit={() => onEdit('when')}>
+        <ReviewRow label="Schedule name" value={schedule.name.trim() || 'Not set'} />
         <ReviewRow
-          label="Dates"
+          label="Date range"
           value={formatScheduleListDates(schedule.availabilityDateFrom, schedule.availabilityDateTo)}
         />
-        <ReviewRow label="Days" value={formatScheduleWeekdays(schedule.weekdays)} />
+        <ReviewRow label="Operating days" value={formatScheduleWeekdays(schedule.weekdays)} />
         <ReviewRow
-          label="Departure"
+          label="Departure times"
           value={
             formatScheduleDepartureSummary(schedule, option.startMode) ||
             formatScheduleListDeparture(schedule, option.startMode)
@@ -634,16 +650,20 @@ function ScheduleReview({
 
       <ReviewSection title="Capacity" onEdit={() => onEdit('capacity')}>
         <ReviewRow
-          label="Seats"
+          label="Seats per departure"
           value={
-            schedule.maxSpotsPerSlot >= 1 ? `${schedule.maxSpotsPerSlot} per departure` : 'Not set'
+            schedule.maxSpotsPerSlot >= 1 ? `${schedule.maxSpotsPerSlot}` : 'Not set'
           }
         />
         <ReviewRow
-          label={charge === 'flat_group' ? 'Group size' : 'Per booking'}
+          label="Min guests / booking"
+          value={schedule.minPersons >= 1 ? `${schedule.minPersons}` : 'Not set'}
+        />
+        <ReviewRow
+          label="Max guests / booking"
           value={
-            schedule.minPersons >= 1 && schedule.maxPersons >= schedule.minPersons
-              ? `${schedule.minPersons}–${schedule.maxPersons}${
+            schedule.maxPersons >= 1
+              ? `${schedule.maxPersons}${
                   charge === 'flat_group' &&
                   typeof schedule.maxGroupsPerSlot === 'number' &&
                   schedule.maxGroupsPerSlot >= 1
@@ -658,36 +678,58 @@ function ScheduleReview({
       </ReviewSection>
 
       <ReviewSection title="Pricing" onEdit={() => onEdit('pricing')}>
-        <ReviewRow label="Model" value={pricing.model} />
+        <ReviewRow label="Pricing model" value={pricing.model} />
         {pricingLines.map((line) => (
-          <div key={line.label} className="space-y-0.5">
-            <ReviewRow label={line.label} value={`Customer ${line.customer}`} />
-            <ReviewRow label="You receive" value={line.earn} />
+          <div
+            key={line.label}
+            className="rounded-lg border border-[var(--lc-line,#E5E7EB)] bg-[var(--lc-surface-subtle,#fafafb)] px-3.5 py-3"
+          >
+            <p className="text-[15px] font-semibold tracking-tight text-ink">{line.label}</p>
+            <div className="mt-2 space-y-1 text-[13.5px] leading-snug">
+              <p className="text-ink">
+                Customer pays{' '}
+                <span className="font-semibold tabular-nums">{line.customer}</span>
+              </p>
+              <p className="text-ink-muted">
+                Traverion commission ({commissionPct}){' '}
+                <span className="tabular-nums">{line.commission}</span>
+              </p>
+              <p className="text-ink">
+                You receive{' '}
+                <span className="text-[1.05rem] font-semibold tabular-nums tracking-tight">
+                  {line.earn}
+                </span>
+              </p>
+            </div>
           </div>
         ))}
-        {samplePreview ? (
-          <p className="pt-1 text-[11.5px] leading-snug text-ink-muted">
-            Estimated after {formatBpsAsPercent(SUPPLIER_PRICING_PREVIEW_COMMISSION_BPS)} Traverion
-            commission (before taxes or other adjustments).
-          </p>
-        ) : null}
       </ReviewSection>
 
-      <section className="py-3.5">
-        <h4 className="text-[13px] font-semibold tracking-tight text-ink">Status</h4>
+      <section className="rounded-xl border border-[var(--lc-line,#E5E7EB)] bg-white px-4 py-4 sm:px-5">
         {ready ? (
-          <p className="mt-1.5 text-[12.5px] leading-snug text-ink">
-            Ready to finish — this schedule can be saved as bookable.
-          </p>
+          <>
+            <div className="flex items-center gap-2">
+              <span
+                className="flex h-5 w-5 items-center justify-center rounded-full bg-finland/10 text-[11px] font-bold text-finland"
+                aria-hidden
+              >
+                ✓
+              </span>
+              <h4 className="text-[17px] font-semibold tracking-tight text-ink">Ready to finish</h4>
+            </div>
+            <p className="mt-1.5 text-[14px] leading-snug text-ink-muted">
+              Your schedule is complete and can be made bookable.
+            </p>
+          </>
         ) : (
-          <div className="mt-1.5 space-y-1">
-            <p className="text-[12.5px] font-medium text-ink">Not ready yet</p>
-            <ul className="list-disc space-y-0.5 pl-4 text-[12.5px] leading-snug text-ink-muted">
+          <>
+            <h4 className="text-[17px] font-semibold tracking-tight text-ink">Not ready yet</h4>
+            <ul className="mt-2 list-disc space-y-1 pl-4 text-[13.5px] leading-snug text-ink-muted">
               {uniqueIssues.slice(0, 6).map((issue) => (
                 <li key={issue}>{issue}</li>
               ))}
             </ul>
-          </div>
+          </>
         )}
       </section>
     </div>
