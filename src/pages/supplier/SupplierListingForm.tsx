@@ -90,12 +90,14 @@ import {
   normalizePhotoSlots,
   normalizePhotoSlotLabels,
   normalizePhotoOriginalUrls,
+  normalizePhotoCropSettings,
   orderedPhotoUrls,
   photoSlotsFromTourPackage,
   isPlaceholderListingImageUrl,
   LISTING_PHOTO_GRID_SLOTS,
   LISTING_PHOTO_MAX,
   LISTING_PHOTO_MIN,
+  type ListingPhotoCropSettings,
 } from '../../lib/listingPhotoGrid';
 import { getListingPublishBlockers, publishBlockerListingWizardStep } from '../../lib/listingPublishGate';
 import { stayFormCheckInOutFromExtras } from '../../lib/stay-form-check-times';
@@ -201,6 +203,7 @@ import {
   shouldResetWizardOnEditingIdChange,
 } from '../../lib/listing-creation-persist';
 import { userFacingError } from '../../lib/userFacingError';
+import { normalizeListingForDraftSave } from '../../lib/listingDraftUtils';
 import {
   LISTING_DESCRIPTION_NEAR_LIMIT_LENGTH,
   LISTING_TITLE_NEAR_LIMIT_LENGTH,
@@ -798,6 +801,8 @@ type ListingFormState = {
   photoSlotLabels: string[];
   /** Master URLs for recrop; parallel to photoSlots. */
   photoOriginalUrls: string[];
+  /** Crop/zoom state parallel to photoSlots (lossless re-edit). */
+  photoCropSettings: ListingPhotoCropSettings[];
   description: string;
   city: string;
   country: string;
@@ -910,6 +915,7 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
   const a11yIds = normalizeAccessibilityFeatureIds(form.accessibilityFeatureIds);
   const labelsNorm = normalizePhotoSlotLabels(form.photoSlotLabels);
   const originalsNorm = normalizePhotoOriginalUrls(form.photoOriginalUrls);
+  const cropsNorm = normalizePhotoCropSettings(form.photoCropSettings);
   const extras: ListingExtras = {
     ...(spokenLangs.length ? { additionalLanguages: spokenLangs } : {}),
     ...(form.venueSetting !== 'unspecified' ? { venueSetting: form.venueSetting } : {}),
@@ -965,6 +971,11 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
     ...(galleryList.length > 0 ? { galleryImageUrls: galleryList } : {}),
     ...(labelsNorm.some((l) => l.trim()) ? { photoSlotLabels: labelsNorm } : {}),
     ...(originalsNorm.some((u) => u.trim()) ? { photoOriginalUrls: originalsNorm } : {}),
+    ...(cropsNorm.some(
+      (c) => c.zoom !== 1 || c.crop.x !== 0 || c.crop.y !== 0 || c.areaPixels != null
+    )
+      ? { photoCropSettings: cropsNorm }
+      : {}),
     ...(activeOpts.length > 0 && !isStay ? { bookingOptions: activeOpts } : {}),
     ...(isStay ? { inventoryFamily: 'stay' as const } : {}),
     ...(isStay
@@ -1146,13 +1157,8 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
     return listingPhotosReadyToPublish(form);
   }
   if (idx === 5) {
-    return (
-      isStepSatisfied(0, form) &&
-      isStepSatisfied(1, form) &&
-      isStepSatisfied(2, form) &&
-      isStepSatisfied(3, form) &&
-      isStepSatisfied(4, form)
-    );
+    // Preview & Publish is complete only after the listing is published — not merely ready.
+    return form.status === 'published';
   }
   return true;
 }
@@ -1182,6 +1188,7 @@ const emptyForm: ListingFormState = {
   photoSlots: Array.from({ length: LISTING_PHOTO_GRID_SLOTS }, () => ''),
   photoSlotLabels: Array.from({ length: LISTING_PHOTO_GRID_SLOTS }, () => ''),
   photoOriginalUrls: Array.from({ length: LISTING_PHOTO_GRID_SLOTS }, () => ''),
+  photoCropSettings: normalizePhotoCropSettings([]),
   description: '',
   city: '',
   country: '',
@@ -1254,6 +1261,10 @@ function coerceListingFormState(raw: Partial<ListingFormState> | null | undefine
   merged.highlights = Array.isArray(merged.highlights)
     ? merged.highlights.map((x) => String(x ?? ''))
     : emptyForm.highlights;
+  merged.photoSlots = normalizePhotoSlots(merged.photoSlots);
+  merged.photoSlotLabels = normalizePhotoSlotLabels(merged.photoSlotLabels);
+  merged.photoOriginalUrls = normalizePhotoOriginalUrls(merged.photoOriginalUrls);
+  merged.photoCropSettings = normalizePhotoCropSettings(merged.photoCropSettings);
   return merged;
 }
 
@@ -1812,7 +1823,8 @@ export default function SupplierListingForm({
         const packed = compactPhotoSlotsAndLabels(
           photoSlotsFromTourPackage(existing),
           normalizePhotoSlotLabels(extras.photoSlotLabels),
-          normalizePhotoOriginalUrls(extras.photoOriginalUrls)
+          normalizePhotoOriginalUrls(extras.photoOriginalUrls),
+          normalizePhotoCropSettings(extras.photoCropSettings)
         );
         const listingIsStay = extras.inventoryFamily === 'stay';
         const next: ListingFormState = {
@@ -1833,6 +1845,7 @@ export default function SupplierListingForm({
           photoSlots: packed.slots,
           photoSlotLabels: packed.labels,
           photoOriginalUrls: packed.originals,
+          photoCropSettings: packed.crops,
           description: existing.description,
           city: existing.city ?? '',
           country: existing.country ?? '',
@@ -2161,17 +2174,20 @@ export default function SupplierListingForm({
     const persist = () => {
       if (serializeListingFormState(form) === initialFormSnapshotRef.current) return;
       writeListingDraftBackup(editingId, form);
-      if (!enableDraftOnClose || !onSaveDraft) return;
+      if (!enableDraftOnClose) return;
       if (form.status === 'published') {
         const listing = buildListingFromForm({ ...form, status: 'published' }, editingId ?? undefined);
-        void onSave(listing).then((result) => {
+        void Promise.resolve(onSave(listing)).then((result) => {
           if (!result.success) return;
           initialFormSnapshotRef.current = serializeListingFormState(formRef.current);
           setLastSavedAt(Date.now());
         });
         return;
       }
-      const listing = buildListingFromForm({ ...form, status: 'draft' }, editingId ?? undefined);
+      if (!onSaveDraft) return;
+      const listing = normalizeListingForDraftSave(
+        buildListingFromForm({ ...form, status: 'draft' }, editingId ?? undefined)
+      );
       void onSaveDraft(listing).then((ok) => {
         if (!ok) return;
         initialFormSnapshotRef.current = serializeListingFormState(formRef.current);
@@ -2272,41 +2288,6 @@ export default function SupplierListingForm({
     if (closeIntentRunningRef.current || submitting || draftCloseBusy) return;
     finishCloseEditor();
   }, [submitting, draftCloseBusy, finishCloseEditor]);
-
-  const leaveAndSaveDraft = useCallback(async () => {
-    if (closeIntentRunningRef.current || submitting || draftCloseBusy) return;
-    setDraftCloseError(null);
-    if (!enableDraftOnClose || !onSaveDraft) {
-      finishCloseEditor();
-      return;
-    }
-    closeIntentRunningRef.current = true;
-    setDraftCloseBusy(true);
-    try {
-      const listing = buildListingFromForm({ ...form, status: 'draft' }, editingId ?? undefined);
-      const ok = await onSaveDraft(listing);
-      if (!ok) {
-        setDraftCloseError('Could not save your draft. Check your connection and try again.');
-        setLeaveConfirmOpen(true);
-        return;
-      }
-      clearListingDraftBackup(editingId);
-      initialFormSnapshotRef.current = serializeListingFormState(form);
-      setLastSavedAt(Date.now());
-      finishCloseEditor();
-    } finally {
-      setDraftCloseBusy(false);
-      closeIntentRunningRef.current = false;
-    }
-  }, [
-    submitting,
-    draftCloseBusy,
-    enableDraftOnClose,
-    onSaveDraft,
-    form,
-    editingId,
-    finishCloseEditor,
-  ]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -2449,12 +2430,68 @@ export default function SupplierListingForm({
     setDraftCloseBusy(true);
     setDraftCloseError(null);
     try {
-      await runSubmit('published', { bypassLastStepArm: true, closeOnSuccess: true });
+      const ok = await runSubmit('published', { bypassLastStepArm: true, closeOnSuccess: true });
+      if (!ok) setLeaveConfirmOpen(true);
+    } catch (e) {
+      setDraftCloseError(userFacingError(e, 'Could not save your listing. Please try again.'));
+      setLeaveConfirmOpen(true);
     } finally {
       setDraftCloseBusy(false);
       closeIntentRunningRef.current = false;
     }
   }, [submitting, draftCloseBusy, form.status, runSubmit]);
+
+  const leaveAndSaveDraft = useCallback(async () => {
+    if (closeIntentRunningRef.current || submitting || draftCloseBusy) return;
+    if (form.status === 'published') return;
+    setDraftCloseError(null);
+    closeIntentRunningRef.current = true;
+    setDraftCloseBusy(true);
+    try {
+      const listing = normalizeListingForDraftSave(
+        buildListingFromForm({ ...form, status: 'draft' }, editingId ?? undefined)
+      );
+      // Prefer onSaveDraft (same contract as background flush). Fall back to onSave.
+      if (onSaveDraft) {
+        const ok = await onSaveDraft(listing);
+        if (!ok) {
+          setDraftCloseError('Could not save your draft. Check your connection and try again.');
+          setLeaveConfirmOpen(true);
+          return;
+        }
+      } else {
+        const result = await Promise.resolve(onSave(listing));
+        if (!result.success) {
+          setDraftCloseError(
+            userFacingError(result.error, 'Could not save your draft. Please try again.')
+          );
+          setLeaveConfirmOpen(true);
+          return;
+        }
+        if (result.listingId && result.listingId !== editingId) {
+          migrateListingEditorStorage(editingId, result.listingId, form.inventoryFamily === 'stay');
+        }
+      }
+      clearListingDraftBackup(editingId);
+      initialFormSnapshotRef.current = serializeListingFormState(formRef.current);
+      setLastSavedAt(Date.now());
+      finishCloseEditor();
+    } catch (e) {
+      setDraftCloseError(userFacingError(e, 'Could not save your draft. Please try again.'));
+      setLeaveConfirmOpen(true);
+    } finally {
+      setDraftCloseBusy(false);
+      closeIntentRunningRef.current = false;
+    }
+  }, [
+    submitting,
+    draftCloseBusy,
+    onSaveDraft,
+    onSave,
+    form,
+    editingId,
+    finishCloseEditor,
+  ]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -4401,36 +4438,36 @@ export default function SupplierListingForm({
             const photoCount = orderedPhotoUrls(normalizePhotoSlots(form.photoSlots)).length;
             const photosPublishReady = listingPhotosReadyToPublish(form);
             return (
-                <div id="supplier-listing-field-photos" className="space-y-3">
+                <div id="supplier-listing-field-photos" className="space-y-2.5">
                 <div>
                   <h3 className="text-[1.05rem] font-semibold tracking-tight text-ink">Photos</h3>
-                  <p className="mt-0.5 max-w-lg partner-section-desc">
-                    {form.inventoryFamily === 'stay' || createFamily === 'stay'
-                      ? 'Strong room or exterior shots work best. Guests see the first photo in search.'
-                      : 'Show what the experience feels like. Guests see the first photo in search.'}
+                  <p className="mt-0.5 text-[13px] text-ink-muted">
+                    First photo is the cover travelers see in search.
                   </p>
                 </div>
                 <ListingImageFields
                   photoSlots={form.photoSlots}
                   photoSlotLabels={form.photoSlotLabels}
                   photoOriginalUrls={form.photoOriginalUrls}
-                  onPhotosChange={({ slots, labels, originals }) =>
+                  photoCropSettings={form.photoCropSettings}
+                  onPhotosChange={({ slots, labels, originals, crops }) =>
                     setForm((f) => ({
                       ...f,
                       photoSlots: slots,
                       photoSlotLabels: labels,
                       photoOriginalUrls: originals,
+                      photoCropSettings: crops,
                     }))
                   }
                   userId={user?.id}
                   uploadsEnabled={isSupabaseConfigured() && !!user?.id}
                 />
                 {!photosPublishReady && photoCount >= 1 ? (
-                  <p className="text-sm text-amber-900">
+                  <p className="text-[12.5px] text-amber-900">
                     {photoCount < LISTING_PHOTO_MIN
                       ? sessionOpenedAsCreateRef.current
-                        ? `Add ${LISTING_PHOTO_MIN - photoCount} more to continue.`
-                        : `You can continue with this cover. Add ${LISTING_PHOTO_MIN - photoCount} more before publish.`
+                        ? `Add ${LISTING_PHOTO_MIN - photoCount} more to continue (${LISTING_PHOTO_MIN}–${LISTING_PHOTO_MAX} for publish).`
+                        : `Drafts can save with fewer photos. Add ${LISTING_PHOTO_MIN - photoCount} more before publish.`
                       : 'Replace the placeholder cover photo before publishing.'}
                   </p>
                 ) : null}
@@ -4502,7 +4539,7 @@ export default function SupplierListingForm({
                     <img
                       src={previewCover}
                       alt=""
-                      className="aspect-[16/9] w-full object-cover sm:aspect-[2.2/1]"
+                      className="aspect-[4/3] w-full object-cover"
                     />
                     {previewGallery.length > 0 ? (
                       <div className="absolute bottom-2 right-2 flex gap-1">
@@ -4867,7 +4904,7 @@ export default function SupplierListingForm({
                   >
                     {draftCloseBusy ? 'Saving…' : 'Save & exit'}
                   </button>
-                ) : enableDraftOnClose && onSaveDraft ? (
+                ) : (
                   <button
                     type="button"
                     className="tv-btn-primary !min-h-11 w-full"
@@ -4876,7 +4913,7 @@ export default function SupplierListingForm({
                   >
                     {draftCloseBusy ? 'Saving…' : 'Save & exit'}
                   </button>
-                ) : null}
+                )}
                 <button
                   type="button"
                   className="tv-btn-secondary !min-h-11 w-full"

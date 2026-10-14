@@ -240,6 +240,15 @@ export interface ListingExtras {
    */
   photoOriginalUrls?: string[];
   /**
+   * Partner UI: crop/zoom state parallel to the photo grid (react-easy-crop).
+   * Display URLs remain the traveler-facing cropped images; settings unlock lossless re-edit.
+   */
+  photoCropSettings?: Array<{
+    crop?: { x?: number; y?: number };
+    zoom?: number;
+    areaPixels?: { x?: number; y?: number; width?: number; height?: number } | null;
+  }>;
+  /**
    * Public inventory family when this listing is not a tour (stay / experience / package).
    * Omitted means tour. Separate from `experience_kind` on the listing row.
    */
@@ -787,6 +796,42 @@ export function parseListingExtras(raw: unknown): ListingExtras {
   if (Array.isArray(o.photoOriginalUrls)) {
     out.photoOriginalUrls = o.photoOriginalUrls.map((x) => String(x ?? '').trim());
   }
+  if (Array.isArray(o.photoCropSettings)) {
+    out.photoCropSettings = o.photoCropSettings.map((row) => {
+      if (!row || typeof row !== 'object') return {};
+      const r = row as Record<string, unknown>;
+      const crop =
+        r.crop && typeof r.crop === 'object'
+          ? {
+              x: Number((r.crop as { x?: unknown }).x) || 0,
+              y: Number((r.crop as { y?: unknown }).y) || 0,
+            }
+          : undefined;
+      const zoomN = Number(r.zoom);
+      const areaRaw = r.areaPixels ?? r.croppedAreaPixels;
+      let areaPixels:
+        | { x: number; y: number; width: number; height: number }
+        | null
+        | undefined;
+      if (areaRaw && typeof areaRaw === 'object') {
+        const a = areaRaw as Record<string, unknown>;
+        const x = Number(a.x);
+        const y = Number(a.y);
+        const width = Number(a.width);
+        const height = Number(a.height);
+        if ([x, y, width, height].every((n) => Number.isFinite(n)) && width > 0 && height > 0) {
+          areaPixels = { x, y, width, height };
+        }
+      } else if (areaRaw === null) {
+        areaPixels = null;
+      }
+      return {
+        ...(crop ? { crop } : {}),
+        ...(Number.isFinite(zoomN) ? { zoom: zoomN } : {}),
+        ...(areaPixels !== undefined ? { areaPixels } : {}),
+      };
+    });
+  }
   const cp = o.cancellationPreset;
   if (cp === 'free_24h' || cp === 'free_48h' || cp === 'free_7d' || cp === 'non_refundable' || cp === 'custom') {
     out.cancellationPreset = cp;
@@ -853,6 +898,17 @@ export function listingExtrasToDb(extras: ListingExtras | undefined): Record<str
   if (extras.galleryImageUrls?.length) payload.galleryImageUrls = extras.galleryImageUrls;
   if (extras.photoSlotLabels?.some((l) => l.trim())) payload.photoSlotLabels = extras.photoSlotLabels;
   if (extras.photoOriginalUrls?.some((u) => u.trim())) payload.photoOriginalUrls = extras.photoOriginalUrls;
+  if (
+    extras.photoCropSettings?.some(
+      (c) =>
+        c &&
+        (c.zoom != null ||
+          c.crop != null ||
+          (c.areaPixels != null && typeof c.areaPixels === 'object'))
+    )
+  ) {
+    payload.photoCropSettings = extras.photoCropSettings;
+  }
   if (extras.bookingOptions?.length) payload.bookingOptions = extras.bookingOptions;
   if (extras.inventoryFamily && extras.inventoryFamily !== 'tour') {
     payload.inventoryFamily = extras.inventoryFamily;

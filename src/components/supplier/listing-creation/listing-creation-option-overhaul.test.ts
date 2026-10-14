@@ -105,10 +105,12 @@ describe('tour option creation overhaul (source contracts)', () => {
     expect(wizard).not.toMatch(/price_capacity/);
   });
 
-  it('offers Save & exit in the leave dialog for published listings', () => {
+  it('offers Save & exit in the leave dialog for draft and published listings', () => {
     const form = readFileSync(resolve(__dirname, '../../../pages/supplier/SupplierListingForm.tsx'), 'utf8');
     expect(form).toContain('leaveAndSavePublished');
+    expect(form).toContain('leaveAndSaveDraft');
     expect(form).toMatch(/form\.status === 'published'[\s\S]*Save & exit/);
+    expect(form).toMatch(/leaveAndSaveDraft\(\)[\s\S]*Save & exit/);
     expect(form).toMatch(/Save changes before leaving\?/);
     expect(form).toMatch(/You have unsaved changes to this experience/);
     // Leave-save must reuse publish save — never invent a draft→published path from leave.
@@ -116,6 +118,7 @@ describe('tour option creation overhaul (source contracts)', () => {
       /leaveAndSavePublished[\s\S]*form\.status !== 'published'[\s\S]*runSubmit\('published'/
     );
     expect(form).toMatch(/runSubmit\('published', \{ bypassLastStepArm: true, closeOnSuccess: true \}/);
+    expect(form).toContain('normalizeListingForDraftSave');
   });
 
   it('syncs local status after save and never force-drafts a published listing on hide', () => {

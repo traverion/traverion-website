@@ -1282,7 +1282,7 @@ export default function SupplierListings() {
           canPostNewListing={canPostNewListing}
           publishAccountBlockedReason={!canPostNewListing ? profileGateMessage : null}
           createFamily={createFamily}
-          enableDraftOnClose={Boolean(isSupabase && canEditListings)}
+          enableDraftOnClose={Boolean(canEditListings)}
           onSaveDraft={async (tour) => {
             if (!canEditListings) return false;
             const draft = normalizeListingForDraftSave(tour);

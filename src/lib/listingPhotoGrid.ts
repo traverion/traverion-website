@@ -1,6 +1,14 @@
 import type { TourPackage } from '../types/tour';
 import { parseListingExtras } from '../types/listingExtras';
+import {
+  EMPTY_LISTING_PHOTO_CROP,
+  normalizePhotoCropSettings,
+  type ListingPhotoCropSettings,
+} from './listing-photo-crop';
 import { LISTING_PLACEHOLDER_IMAGE } from './listingQualityScore';
+
+export type { ListingPhotoCropSettings };
+export { normalizePhotoCropSettings, EMPTY_LISTING_PHOTO_CROP };
 
 export const LISTING_PHOTO_GRID_COLS = 4;
 export const LISTING_PHOTO_GRID_ROWS = 3;
@@ -68,29 +76,50 @@ export function normalizePhotoOriginalUrls(fromUrls: string[] | undefined | null
   return normalizePhotoSlots(fromUrls);
 }
 
-/** Move all filled photos to the front (0..n-1) while keeping order and paired labels/originals. */
+export type ListingPhotosBundle = {
+  slots: string[];
+  labels: string[];
+  originals: string[];
+  crops: ListingPhotoCropSettings[];
+};
+
+/** Move all filled photos to the front (0..n-1) while keeping order and paired labels/originals/crops. */
 export function compactPhotoSlotsAndLabels(
   slots: string[],
   labels: string[],
-  originals?: string[]
-): { slots: string[]; labels: string[]; originals: string[] } {
+  originals?: string[],
+  crops?: ListingPhotoCropSettings[] | unknown[]
+): ListingPhotosBundle {
   const s = normalizePhotoSlots(slots);
   const l = normalizePhotoSlotLabels(labels);
   const o = normalizePhotoOriginalUrls(originals);
-  const pairs: { url: string; label: string; original: string }[] = [];
+  const c = normalizePhotoCropSettings(crops);
+  const pairs: { url: string; label: string; original: string; crop: ListingPhotoCropSettings }[] = [];
   for (let i = 0; i < LISTING_PHOTO_GRID_SLOTS; i++) {
     const url = s[i].trim();
-    if (url) pairs.push({ url, label: l[i].trim(), original: (o[i] ?? '').trim() || url });
+    if (url) {
+      pairs.push({
+        url,
+        label: l[i].trim(),
+        original: (o[i] ?? '').trim() || url,
+        crop: c[i] ?? { ...EMPTY_LISTING_PHOTO_CROP, crop: { x: 0, y: 0 } },
+      });
+    }
   }
   const ns = Array.from({ length: LISTING_PHOTO_GRID_SLOTS }, () => '');
   const nl = Array.from({ length: LISTING_PHOTO_GRID_SLOTS }, () => '');
   const no = Array.from({ length: LISTING_PHOTO_GRID_SLOTS }, () => '');
+  const nc: ListingPhotoCropSettings[] = Array.from({ length: LISTING_PHOTO_GRID_SLOTS }, () => ({
+    ...EMPTY_LISTING_PHOTO_CROP,
+    crop: { x: 0, y: 0 },
+  }));
   for (let j = 0; j < pairs.length && j < LISTING_PHOTO_GRID_SLOTS; j++) {
     ns[j] = pairs[j].url;
     nl[j] = pairs[j].label;
     no[j] = pairs[j].original;
+    nc[j] = pairs[j].crop;
   }
-  return { slots: ns, labels: nl, originals: no };
+  return { slots: ns, labels: nl, originals: no, crops: nc };
 }
 
 /** Reorder filled photos. Index 0 is the cover; dragging a supporting photo to 0 makes it the cover. */
@@ -99,21 +128,25 @@ export function reorderFilledPhotos(
   labels: string[],
   from: number,
   to: number,
-  originals?: string[]
-): { slots: string[]; labels: string[]; originals: string[] } {
-  const compacted = compactPhotoSlotsAndLabels(slots, labels, originals);
+  originals?: string[],
+  crops?: ListingPhotoCropSettings[] | unknown[]
+): ListingPhotosBundle {
+  const compacted = compactPhotoSlotsAndLabels(slots, labels, originals, crops);
   const filled = compacted.slots.filter((url) => url.trim()).length;
   if (from === to || from < 0 || to < 0 || from >= filled || to >= filled) return compacted;
   const nextS = [...compacted.slots];
   const nextL = [...compacted.labels];
   const nextO = [...compacted.originals];
+  const nextC = [...compacted.crops];
   const [movedUrl] = nextS.splice(from, 1);
   const [movedLabel] = nextL.splice(from, 1);
   const [movedOriginal] = nextO.splice(from, 1);
+  const [movedCrop] = nextC.splice(from, 1);
   nextS.splice(to, 0, movedUrl ?? '');
   nextL.splice(to, 0, movedLabel ?? '');
   nextO.splice(to, 0, movedOriginal ?? '');
-  return compactPhotoSlotsAndLabels(nextS, nextL, nextO);
+  nextC.splice(to, 0, movedCrop ?? { ...EMPTY_LISTING_PHOTO_CROP, crop: { x: 0, y: 0 } });
+  return compactPhotoSlotsAndLabels(nextS, nextL, nextO, nextC);
 }
 
 /** Partner UI: show a file-style name instead of a long URL when possible. */

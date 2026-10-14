@@ -13,10 +13,12 @@ import {
   prepareListingImageFile,
 } from '../../lib/listing-image-prepare';
 import {
+  EMPTY_LISTING_PHOTO_CROP,
   LISTING_PHOTO_MAX,
   LISTING_PHOTO_MIN,
   compactPhotoSlotsAndLabels,
   displayNameForPhotoSlot,
+  normalizePhotoCropSettings,
   normalizePhotoOriginalUrls,
   normalizePhotoSlotLabels,
   normalizePhotoSlots,
@@ -24,25 +26,29 @@ import {
   remainingListingPhotoSlots,
   reorderFilledPhotos,
   takeListingPhotoFiles,
+  type ListingPhotoCropSettings,
 } from '../../lib/listingPhotoGrid';
+import { ListingPhotoActionMenu, photoMenuItemClass } from './ListingPhotoActionMenu';
 import { ListingPhotoCropModal } from './ListingPhotoCropModal';
 
 export type ListingPhotosValue = {
   slots: string[];
   labels: string[];
   originals: string[];
+  crops: ListingPhotoCropSettings[];
 };
 
 type ListingImageFieldsProps = {
   photoSlots: string[];
   photoSlotLabels: string[];
   photoOriginalUrls?: string[];
+  photoCropSettings?: ListingPhotoCropSettings[] | unknown[];
   onPhotosChange: (next: ListingPhotosValue) => void;
   userId: string | null | undefined;
   uploadsEnabled: boolean;
 };
 
-type PhotoIssue = { name: string; message: string };
+type PhotoIssue = { name: string; message: string; retryFiles?: File[] };
 
 const PHOTO_DRAG_TYPE = 'application/x-traverion-photo-index';
 
@@ -51,10 +57,15 @@ function previewUrl(url: string): string | null {
   return t || null;
 }
 
+function emptyCrop(): ListingPhotoCropSettings {
+  return { ...EMPTY_LISTING_PHOTO_CROP, crop: { x: 0, y: 0 } };
+}
+
 export default function ListingImageFields({
   photoSlots,
   photoSlotLabels,
   photoOriginalUrls,
+  photoCropSettings,
   onPhotosChange,
   userId,
   uploadsEnabled,
@@ -62,10 +73,13 @@ export default function ListingImageFields({
   const slots = normalizePhotoSlots(photoSlots);
   const labels = normalizePhotoSlotLabels(photoSlotLabels);
   const originals = normalizePhotoOriginalUrls(photoOriginalUrls);
+  const crops = normalizePhotoCropSettings(photoCropSettings);
   const fileRef = useRef<HTMLInputElement>(null);
   const replaceIndexRef = useRef<number | null>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const menuButtonRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const uploadGenRef = useRef(0);
   const [busy, setBusy] = useState(false);
+  const [uploadLabel, setUploadLabel] = useState<string | null>(null);
   const [issues, setIssues] = useState<PhotoIssue[]>([]);
   const [pendingRemoveIndex, setPendingRemoveIndex] = useState<number | null>(null);
   const [menuIndex, setMenuIndex] = useState<number | null>(null);
@@ -74,27 +88,29 @@ export default function ListingImageFields({
   const [coverFlash, setCoverFlash] = useState(false);
   const [cropIndex, setCropIndex] = useState<number | null>(null);
 
-  const pushBundle = (nextSlots: string[], nextLabels: string[], nextOriginals: string[]) => {
-    onPhotosChange(compactPhotoSlotsAndLabels(nextSlots, nextLabels, nextOriginals));
+  const pushBundle = (
+    nextSlots: string[],
+    nextLabels: string[],
+    nextOriginals: string[],
+    nextCrops: ListingPhotoCropSettings[]
+  ) => {
+    onPhotosChange(compactPhotoSlotsAndLabels(nextSlots, nextLabels, nextOriginals, nextCrops));
   };
 
   const filledCount = orderedPhotoUrls(slots).length;
   const canAddMore = filledCount < LISTING_PHOTO_MAX;
   const coverUrl = (slots[0] ?? '').trim();
   const coverPreview = previewUrl(coverUrl);
-  const photosNeeded = Math.max(0, LISTING_PHOTO_MIN - filledCount);
+
+  const closeMenu = () => {
+    setMenuIndex(null);
+    setPendingRemoveIndex(null);
+  };
 
   useEffect(() => {
     if (menuIndex == null) return;
-    const onPointer = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuIndex(null);
-        setPendingRemoveIndex(null);
-      }
-    };
-    document.addEventListener('mousedown', onPointer);
-    return () => document.removeEventListener('mousedown', onPointer);
-  }, [menuIndex]);
+    if (menuIndex >= filledCount) closeMenu();
+  }, [menuIndex, filledCount]);
 
   const openPicker = (replaceIndex: number | null) => {
     if (!uploadsEnabled || !userId || busy) return;
@@ -118,7 +134,6 @@ export default function ListingImageFields({
       return { publicUrl: null, originalUrl: null, error: display.error, label: file.name };
     }
     let originalUrl = display.publicUrl;
-    // Retain a master when we resized/converted and the source still fits storage limits.
     if (prepared.resized && file.size <= LISTING_IMAGE_MAX_BYTES) {
       const master = await uploadListingImage(userId!, file);
       if (master.publicUrl) originalUrl = master.publicUrl;
@@ -131,38 +146,63 @@ export default function ListingImageFields({
     };
   };
 
-  const ingestFiles = async (files: File[], replaceIndex: number | null, opts?: { keepOriginalAt?: number }) => {
+  const ingestFiles = async (
+    files: File[],
+    replaceIndex: number | null,
+    opts?: { keepOriginalAt?: number; cropSettings?: ListingPhotoCropSettings }
+  ) => {
     if (!userId || !uploadsEnabled || busy) return;
     const list = Array.from(files).filter(Boolean);
     if (list.length === 0) return;
 
+    const gen = ++uploadGenRef.current;
     const workingS = [...normalizePhotoSlots(slots)];
     const workingL = [...normalizePhotoSlotLabels(labels)];
     const workingO = [...normalizePhotoOriginalUrls(originals)];
+    const workingC = [...normalizePhotoCropSettings(crops)];
     const nextIssues: PhotoIssue[] = [];
 
     if (replaceIndex != null) {
       const file = list[0];
       if (!file) return;
       if (list.length > 1) {
-        nextIssues.push({ name: list[1]?.name ?? 'extra', message: 'Replace uses one file. Extra files were ignored.' });
+        nextIssues.push({
+          name: list[1]?.name ?? 'extra',
+          message: 'Replace uses one file. Extra files were ignored.',
+        });
       }
       setBusy(true);
+      setUploadLabel(`Uploading ${file.name}…`);
       const prevUrl = (workingS[replaceIndex] ?? '').trim();
       const prevOriginal = (workingO[replaceIndex] ?? '').trim();
       const keepOriginal = opts?.keepOriginalAt === replaceIndex ? prevOriginal || prevUrl : '';
       const { publicUrl, originalUrl, error: upErr, label } = await prepareAndUpload(file);
+      if (gen !== uploadGenRef.current) return;
       setBusy(false);
+      setUploadLabel(null);
       if (upErr || !publicUrl) {
-        setIssues([{ name: file.name, message: userFacingError(upErr, USER_ERROR.upload) }, ...nextIssues]);
+        setIssues([
+          {
+            name: file.name,
+            message: userFacingError(upErr, USER_ERROR.upload),
+            retryFiles: [file],
+          },
+          ...nextIssues,
+        ]);
         return;
       }
       workingS[replaceIndex] = publicUrl;
       workingL[replaceIndex] = label.trim().slice(0, 200) || 'Photo';
       workingO[replaceIndex] = keepOriginal || originalUrl || publicUrl;
-      pushBundle(workingS, workingL, workingO);
+      workingC[replaceIndex] = opts?.cropSettings ?? emptyCrop();
+      pushBundle(workingS, workingL, workingO, workingC);
       setIssues(nextIssues);
-      if (prevUrl && prevUrl !== publicUrl && prevUrl !== workingO[replaceIndex] && isListingImageStoragePublicUrl(prevUrl)) {
+      if (
+        prevUrl &&
+        prevUrl !== publicUrl &&
+        prevUrl !== workingO[replaceIndex] &&
+        isListingImageStoragePublicUrl(prevUrl)
+      ) {
         void removeListingImageIfOwned(userId, prevUrl);
       }
       return;
@@ -178,19 +218,30 @@ export default function ListingImageFields({
 
     setBusy(true);
     let addIndex = workingS.filter((url) => url.trim()).length;
+    let done = 0;
     for (const file of toUpload) {
+      if (gen !== uploadGenRef.current) return;
+      setUploadLabel(`Uploading ${done + 1}/${toUpload.length}…`);
       const { publicUrl, originalUrl, error: upErr, label } = await prepareAndUpload(file);
+      if (gen !== uploadGenRef.current) return;
+      done += 1;
       if (upErr || !publicUrl) {
-        nextIssues.push({ name: file.name, message: userFacingError(upErr, USER_ERROR.upload) });
+        nextIssues.push({
+          name: file.name,
+          message: userFacingError(upErr, USER_ERROR.upload),
+          retryFiles: [file],
+        });
         continue;
       }
       workingS[addIndex] = publicUrl;
       workingL[addIndex] = label.trim().slice(0, 200) || 'Photo';
       workingO[addIndex] = originalUrl || publicUrl;
+      workingC[addIndex] = emptyCrop();
       addIndex += 1;
-      pushBundle(workingS, workingL, workingO);
+      pushBundle(workingS, workingL, workingO, workingC);
     }
     setBusy(false);
+    setUploadLabel(null);
     setIssues(nextIssues);
   };
 
@@ -208,10 +259,12 @@ export default function ListingImageFields({
     const nextS = [...normalizePhotoSlots(slots)];
     const nextL = [...normalizePhotoSlotLabels(labels)];
     const nextO = [...normalizePhotoOriginalUrls(originals)];
+    const nextC = [...normalizePhotoCropSettings(crops)];
     nextS[index] = '';
     nextL[index] = '';
     nextO[index] = '';
-    pushBundle(nextS, nextL, nextO);
+    nextC[index] = emptyCrop();
+    pushBundle(nextS, nextL, nextO, nextC);
     if (userId && prev && isListingImageStoragePublicUrl(prev)) {
       void removeListingImageIfOwned(userId, prev);
     }
@@ -223,19 +276,18 @@ export default function ListingImageFields({
     ) {
       void removeListingImageIfOwned(userId, prevOriginal);
     }
-    setPendingRemoveIndex(null);
-    setMenuIndex(null);
+    closeMenu();
   };
 
   const moveToIndex = (from: number, to: number) => {
-    const next = reorderFilledPhotos(slots, labels, from, to, originals);
-    pushBundle(next.slots, next.labels, next.originals);
+    const next = reorderFilledPhotos(slots, labels, from, to, originals, crops);
+    pushBundle(next.slots, next.labels, next.originals, next.crops);
   };
 
   const makeCover = (index: number) => {
     if (index <= 0) return;
     moveToIndex(index, 0);
-    setMenuIndex(null);
+    closeMenu();
     setCoverFlash(true);
     window.setTimeout(() => setCoverFlash(false), 320);
   };
@@ -268,123 +320,112 @@ export default function ListingImageFields({
     void ingestFiles(files, replaceIndex);
   };
 
-  const progressLabel =
+  const countLabel = `${filledCount}/${LISTING_PHOTO_MAX}`;
+  const progressHint =
     filledCount === 0
-      ? `Add at least ${LISTING_PHOTO_MIN} photos`
-      : photosNeeded > 0
-        ? `${filledCount} of ${LISTING_PHOTO_MIN} · add ${photosNeeded} more`
-        : `${filledCount} of ${LISTING_PHOTO_MAX} photos`;
+      ? `${LISTING_PHOTO_MIN}–${LISTING_PHOTO_MAX} required to publish`
+      : filledCount < LISTING_PHOTO_MIN
+        ? `${LISTING_PHOTO_MIN - filledCount} more for publish`
+        : 'Ready for publish';
 
-  const renderMenu = (index: number) => {
-    if (menuIndex !== index) return null;
+  const menuItems = (index: number) => {
     const pending = pendingRemoveIndex === index;
+    if (pending) {
+      return (
+        <>
+          <button
+            type="button"
+            role="menuitem"
+            className={photoMenuItemClass()}
+            onClick={() => setPendingRemoveIndex(null)}
+          >
+            Keep photo
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className={photoMenuItemClass(true)}
+            onClick={() => clearSlot(index)}
+          >
+            Delete photo
+          </button>
+        </>
+      );
+    }
     return (
-      <div
-        ref={menuRef}
-        className="absolute right-2 top-11 z-20 min-w-[10.5rem] overflow-hidden rounded-lg border border-black/[0.1] bg-paper shadow-lg"
-        role="menu"
-      >
-        {pending ? (
-          <>
-            <button
-              type="button"
-              role="menuitem"
-              className="block w-full px-3 py-2.5 text-left text-sm font-medium text-ink hover:bg-black/[0.04]"
-              onClick={() => setPendingRemoveIndex(null)}
-            >
-              Keep photo
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="block w-full px-3 py-2.5 text-left text-sm font-medium text-red-700 hover:bg-red-50"
-              onClick={() => clearSlot(index)}
-            >
-              Remove photo
-            </button>
-          </>
-        ) : (
-          <>
-            {index > 0 ? (
-              <button
-                type="button"
-                role="menuitem"
-                className="block w-full px-3 py-2.5 text-left text-sm font-medium text-ink hover:bg-black/[0.04]"
-                disabled={busy}
-                onClick={() => makeCover(index)}
-              >
-                Make cover
-              </button>
-            ) : null}
-            {index > 0 ? (
-              <button
-                type="button"
-                role="menuitem"
-                className="block w-full px-3 py-2.5 text-left text-sm font-medium text-ink hover:bg-black/[0.04]"
-                disabled={busy}
-                onClick={() => {
-                  moveToIndex(index, index - 1);
-                  setMenuIndex(null);
-                }}
-              >
-                Move earlier
-              </button>
-            ) : null}
-            {index < filledCount - 1 ? (
-              <button
-                type="button"
-                role="menuitem"
-                className="block w-full px-3 py-2.5 text-left text-sm font-medium text-ink hover:bg-black/[0.04]"
-                disabled={busy}
-                onClick={() => {
-                  moveToIndex(index, index + 1);
-                  setMenuIndex(null);
-                }}
-              >
-                Move later
-              </button>
-            ) : null}
-            <button
-              type="button"
-              role="menuitem"
-              className="block w-full px-3 py-2.5 text-left text-sm font-medium text-ink hover:bg-black/[0.04]"
-              disabled={!uploadsEnabled || busy}
-              onClick={() => {
-                setMenuIndex(null);
-                openPicker(index);
-              }}
-            >
-              Replace
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="block w-full px-3 py-2.5 text-left text-sm font-medium text-ink hover:bg-black/[0.04]"
-              disabled={!uploadsEnabled || busy || !(slots[index] ?? '').trim()}
-              onClick={() => {
-                setMenuIndex(null);
-                setCropIndex(index);
-              }}
-            >
-              Crop
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="block w-full px-3 py-2.5 text-left text-sm font-medium text-red-700 hover:bg-red-50"
-              disabled={busy}
-              onClick={() => setPendingRemoveIndex(index)}
-            >
-              Remove
-            </button>
-          </>
-        )}
-      </div>
+      <>
+        <button
+          type="button"
+          role="menuitem"
+          className={photoMenuItemClass()}
+          disabled={busy || index === 0}
+          onClick={() => makeCover(index)}
+        >
+          Make cover
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          className={photoMenuItemClass()}
+          disabled={busy || index <= 0}
+          onClick={() => {
+            moveToIndex(index, index - 1);
+            closeMenu();
+          }}
+        >
+          Move earlier
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          className={photoMenuItemClass()}
+          disabled={busy || index >= filledCount - 1}
+          onClick={() => {
+            moveToIndex(index, index + 1);
+            closeMenu();
+          }}
+        >
+          Move later
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          className={photoMenuItemClass()}
+          disabled={!uploadsEnabled || busy || !(slots[index] ?? '').trim()}
+          onClick={() => {
+            closeMenu();
+            setCropIndex(index);
+          }}
+        >
+          Crop / Edit
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          className={photoMenuItemClass()}
+          disabled={!uploadsEnabled || busy}
+          onClick={() => {
+            closeMenu();
+            openPicker(index);
+          }}
+        >
+          Replace
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          className={photoMenuItemClass(true)}
+          disabled={busy}
+          onClick={() => setPendingRemoveIndex(index)}
+        >
+          Delete
+        </button>
+      </>
     );
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2.5">
       <input
         ref={fileRef}
         type="file"
@@ -398,8 +439,23 @@ export default function ListingImageFields({
       {issues.length > 0 ? (
         <div className="space-y-1" role="alert">
           {issues.map((issue, i) => (
-            <p key={`${issue.name}-${i}`} className="text-[13px] text-red-800">
+            <p key={`${issue.name}-${i}`} className="text-[12.5px] text-red-800">
               {issue.name}: {issue.message}
+              {issue.retryFiles?.length && uploadsEnabled && !busy ? (
+                <>
+                  {' '}
+                  <button
+                    type="button"
+                    className="font-semibold text-finland underline"
+                    onClick={() => {
+                      setIssues((prev) => prev.filter((_, j) => j !== i));
+                      void ingestFiles(issue.retryFiles!, null);
+                    }}
+                  >
+                    Retry
+                  </button>
+                </>
+              ) : null}
             </p>
           ))}
         </div>
@@ -422,42 +478,48 @@ export default function ListingImageFields({
             const files = e.dataTransfer.files ? Array.from(e.dataTransfer.files) : [];
             if (files.length) void ingestFiles(files, null);
           }}
-          className={`lc-upload flex min-h-[7rem] w-full flex-col items-center justify-center gap-1.5 rounded-[var(--partner-radius,0.5rem)] px-3 py-4 text-center transition-colors disabled:opacity-40 ${
+          className={`lc-upload flex min-h-[6.5rem] w-full flex-col items-center justify-center gap-1 rounded-[var(--partner-radius,0.5rem)] px-3 py-3.5 text-center transition-colors disabled:opacity-40 ${
             dropActive ? 'lc-upload--active' : ''
           }`}
         >
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-finland/10 text-finland">
-            <ImagePlus className="h-4 w-4" strokeWidth={1.85} aria-hidden />
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-finland/10 text-finland">
+            <ImagePlus className="h-3.5 w-3.5" strokeWidth={1.85} aria-hidden />
           </span>
           <span className="text-[13px] font-semibold tracking-tight text-ink">
-            {busy ? 'Optimizing & uploading…' : 'Add photos'}
+            {busy ? uploadLabel || 'Uploading…' : 'Add photos'}
           </span>
-          <span className="max-w-sm partner-meta">
-            Drag and drop or browse. Large and HEIC files are optimized automatically.
-            <span className="mt-0.5 block tabular-nums">
-              {LISTING_PHOTO_MIN}–{LISTING_PHOTO_MAX} photos · optimized under {LISTING_IMAGE_MAX_MB} MB
-            </span>
+          <span className="partner-meta tabular-nums">
+            {LISTING_PHOTO_MIN}–{LISTING_PHOTO_MAX} · under {LISTING_IMAGE_MAX_MB} MB · HEIC OK
           </span>
         </button>
       ) : (
-        <div className="space-y-2.5">
+        <div className="space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <p className="text-[13px] font-medium tabular-nums text-ink">{progressLabel}</p>
-              <p className="partner-meta">First photo is the cover. Drag to reorder.</p>
+            <div className="min-w-0">
+              <p className="text-[13px] font-semibold tabular-nums text-ink">
+                {countLabel}
+                <span className="ml-1.5 font-normal text-ink-muted">· {progressHint}</span>
+              </p>
+              <p className="text-[12px] text-ink-muted">Cover is first. Drag to reorder.</p>
             </div>
             {canAddMore ? (
               <button
                 type="button"
                 disabled={!uploadsEnabled || busy}
                 onClick={() => openPicker(null)}
-                className="tv-btn-secondary inline-flex min-h-9 items-center gap-1.5 px-3 text-[13px] font-semibold disabled:opacity-40"
+                className="tv-btn-secondary inline-flex min-h-8 items-center gap-1 px-2.5 text-[12.5px] font-semibold disabled:opacity-40"
               >
                 <Plus className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
                 Add photos
               </button>
             ) : null}
           </div>
+
+          {busy && uploadLabel ? (
+            <p className="text-[12.5px] text-ink-muted" role="status">
+              {uploadLabel}
+            </p>
+          ) : null}
 
           <div
             className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 md:grid-cols-5"
@@ -503,36 +565,35 @@ export default function ListingImageFields({
                     draggable={!busy}
                     onDragStart={(e) => onPhotoDragStart(e, index)}
                     aria-label={`${caption}. Photo ${index + 1} of ${filledCount}${isCover ? ', cover' : ''}.`}
-                    className="block w-full"
+                    className="lux-flat block w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-finland/40"
                   >
                     {preview ? (
                       <img src={preview} alt="" className="aspect-square w-full object-cover" />
                     ) : null}
                   </button>
                   {isCover ? (
-                    <span className="absolute left-1.5 top-1.5 rounded bg-paper/95 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink">
+                    <span className="pointer-events-none absolute left-1 top-1 rounded bg-black/55 px-1 py-px text-[9px] font-semibold uppercase tracking-wide text-white">
                       Cover
                     </span>
                   ) : null}
                   <button
+                    ref={(el) => {
+                      menuButtonRefs.current[index] = el;
+                    }}
                     type="button"
                     aria-label={`Options for photo ${index + 1}`}
                     aria-expanded={menuIndex === index}
+                    aria-haspopup="menu"
                     disabled={busy}
-                    className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-paper/95 text-ink shadow-sm hover:bg-paper disabled:opacity-40"
-                    onClick={() => {
+                    className="lux-flat absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-paper/95 text-ink shadow-sm hover:bg-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland/35 disabled:opacity-40"
+                    onClick={(e) => {
+                      e.currentTarget.blur();
                       setPendingRemoveIndex(null);
                       setMenuIndex((cur) => (cur === index ? null : index));
                     }}
                   >
                     <MoreHorizontal className="h-3.5 w-3.5" aria-hidden />
                   </button>
-                  {renderMenu(index)}
-                  {busy && isCover ? (
-                    <span className="absolute inset-0 flex items-center justify-center bg-black/35 text-[12px] font-medium text-white">
-                      Uploading…
-                    </span>
-                  ) : null}
                 </div>
               );
             })}
@@ -542,7 +603,7 @@ export default function ListingImageFields({
                 type="button"
                 disabled={!uploadsEnabled || busy}
                 onClick={() => openPicker(null)}
-                className={`lc-upload flex aspect-square w-full flex-col items-center justify-center gap-1 rounded-[var(--partner-radius-sm,0.375rem)] text-[12px] font-semibold text-finland disabled:opacity-40 ${
+                className={`lc-upload lux-flat flex aspect-square w-full flex-col items-center justify-center gap-0.5 rounded-[var(--partner-radius-sm,0.375rem)] text-[12px] font-semibold text-finland focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland/30 disabled:opacity-40 ${
                   dropActive ? 'lc-upload--active' : ''
                 }`}
               >
@@ -551,7 +612,16 @@ export default function ListingImageFields({
               </button>
             ) : null}
           </div>
-          <p className="partner-meta">
+
+          <ListingPhotoActionMenu
+            open={menuIndex != null}
+            anchorEl={menuIndex != null ? menuButtonRefs.current[menuIndex] ?? null : null}
+            onClose={closeMenu}
+          >
+            {menuIndex != null ? menuItems(menuIndex) : null}
+          </ListingPhotoActionMenu>
+
+          <p className="text-[11px] leading-snug text-ink-faint">
             By uploading you confirm you have rights to use these photos on Traverion.
           </p>
         </div>
@@ -559,22 +629,21 @@ export default function ListingImageFields({
 
       {cropIndex != null && (slots[cropIndex] ?? '').trim() ? (
         <ListingPhotoCropModal
-          imageUrl={
-            (originals[cropIndex] ?? '').trim() || (slots[cropIndex] ?? '').trim()
-          }
+          imageUrl={(originals[cropIndex] ?? '').trim() || (slots[cropIndex] ?? '').trim()}
+          initial={crops[cropIndex] ?? emptyCrop()}
           onCancel={() => setCropIndex(null)}
-          onApply={(blob) => {
+          onApply={({ blob, settings }) => {
             const idx = cropIndex;
             setCropIndex(null);
-            const file = new File([blob], 'cover-crop.jpg', { type: 'image/jpeg' });
-            void ingestFiles([file], idx, { keepOriginalAt: idx });
+            const file = new File([blob], 'photo-crop.jpg', { type: 'image/jpeg' });
+            void ingestFiles([file], idx, { keepOriginalAt: idx, cropSettings: settings });
           }}
         />
       ) : null}
 
       {!uploadsEnabled && (
         <div className="space-y-2">
-          <p className="text-[13px] text-ink-muted">
+          <p className="text-[12.5px] text-ink-muted">
             Sign in with storage connected to upload from your device. You can still paste an image URL.
           </p>
           {canAddMore ? (
@@ -590,10 +659,12 @@ export default function ListingImageFields({
                   const nextS = [...normalizePhotoSlots(slots)];
                   const nextL = [...normalizePhotoSlotLabels(labels)];
                   const nextO = [...normalizePhotoOriginalUrls(originals)];
+                  const nextC = [...normalizePhotoCropSettings(crops)];
                   nextS[filledCount] = url;
                   nextL[filledCount] = '';
                   nextO[filledCount] = url;
-                  pushBundle(nextS, nextL, nextO);
+                  nextC[filledCount] = emptyCrop();
+                  pushBundle(nextS, nextL, nextO, nextC);
                   e.target.value = '';
                 }}
               />
