@@ -51,6 +51,22 @@ describe('listingCreationNavItems', () => {
       'upcoming',
       'upcoming',
     ]);
+    expect(items[0]?.requirementsMet).toBe(true);
+    expect(items[1]?.requirementsMet).toBe(false);
+  });
+
+  it('marks requirementsMet on the current step when its requirements are already satisfied', () => {
+    const items = listingCreationNavItems(
+      [
+        { id: 'the_experience', label: 'Basics' },
+        { id: 'practical', label: 'Details' },
+        { id: 'cost_options', label: 'Options' },
+      ],
+      2,
+      () => true
+    );
+    expect(items[2]?.state).toBe('current');
+    expect(items[2]?.requirementsMet).toBe(true);
   });
 
   it('locks later steps on a new listing until earlier ones are satisfied', () => {

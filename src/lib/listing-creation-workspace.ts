@@ -12,6 +12,8 @@ export type ListingCreationNavItem = {
   id: string;
   label: string;
   state: ListingCreationStepState;
+  /** True when this step’s requirements are met (even while it is the current step). */
+  requirementsMet?: boolean;
   /** Short operator summary when the step has content (shown under the state caption). */
   summary?: string | null;
 };
@@ -49,6 +51,7 @@ export function listingCreationNavItems(
   const isNewCreation = options?.isNewCreation === true;
   return steps.map((step, index) => {
     const summary = options?.summaryForIndex?.(index)?.trim() || null;
+    const requirementsMet = isSatisfied(index);
     return {
       id: step.id,
       label: step.label,
@@ -58,6 +61,7 @@ export function listingCreationNavItems(
         isNewCreation,
         isSatisfied,
       }),
+      requirementsMet,
       summary: summary || null,
     };
   });

@@ -61,7 +61,7 @@ describe('tourOptionCardModel', () => {
     const model = tourOptionCardModel(option({ name: 'Bus', schedules: [] }), fmt);
     expect(model.cta.kind).toBe('continue_setup');
     expect(model.cta.kind === 'continue_setup' && model.cta.sceneIndex).toBe(0);
-    expect(model.rows.map((r) => r.id)).toEqual(['duration', 'pricing', 'meeting', 'availability']);
+    expect(model.rows.map((r) => r.id)).toEqual(['duration', 'meeting', 'pricing', 'availability']);
     expect(model.missingSummary).toContain('duration');
   });
 
@@ -115,10 +115,19 @@ describe('tourOptionCardModel', () => {
     expect(model.cta.kind).toBe('manage_schedules');
     expect(model.cta.kind === 'manage_schedules' && model.cta.label).toBe('Schedules');
     expect(model.cta.kind === 'manage_schedules' && model.cta.sceneIndex).toBe(3);
-    expect(model.statusLabel).toBe('Ready');
+    expect(model.statusLabel).toBe('Configured');
     expect(model.rows.every((r) => r.ok)).toBe(true);
     expect(model.missingSummary).toBeNull();
-    expect(model.rows.find((r) => r.id === 'pricing')?.text).toContain('€149');
+    expect(model.rows.find((r) => r.id === 'pricing')?.text).toBe('From €149 / person');
+  });
+
+  it('formats whole-group pricing without a From prefix when prices match', () => {
+    const schedule = { ...readySchedule(), priceUsd: 748 };
+    const model = tourOptionCardModel(
+      option({ ...configured, chargeModel: 'flat_group', schedules: [schedule] }),
+      fmt
+    );
+    expect(model.rows.find((r) => r.id === 'pricing')?.text).toBe('€748 / group');
   });
 });
 

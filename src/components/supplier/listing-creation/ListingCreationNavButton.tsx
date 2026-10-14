@@ -8,6 +8,12 @@ const STATE_CAPTION: Record<ListingCreationNavItem['state'], string> = {
   locked: 'Locked',
 };
 
+function navStateCaption(item: ListingCreationNavItem): string {
+  // Current step that already meets requirements should not read as unfinished.
+  if (item.state === 'current' && item.requirementsMet) return 'Complete';
+  return STATE_CAPTION[item.state];
+}
+
 export function ListingCreationNavButton({
   item,
   onClick,
@@ -24,10 +30,13 @@ export function ListingCreationNavButton({
   const complete = item.state === 'complete';
   const locked = item.state === 'locked';
 
+  const caption = navStateCaption(item);
   const stateLabel = complete
     ? ', complete'
     : current
-      ? ', current'
+      ? item.requirementsMet
+        ? ', complete'
+        : ', current'
       : locked
         ? ', locked. Complete the previous step first'
         : '';
@@ -104,10 +113,14 @@ export function ListingCreationNavButton({
             <span className="block truncate leading-snug tracking-tight">{item.label}</span>
             <span
               className={`mt-0.5 block text-[10px] font-semibold uppercase tracking-[0.08em] ${
-                complete ? 'text-finland' : current ? 'text-finland/75' : 'text-ink-faint'
+                complete || (current && item.requirementsMet)
+                  ? 'text-finland'
+                  : current
+                    ? 'text-finland/75'
+                    : 'text-ink-faint'
               }`}
             >
-              {STATE_CAPTION[item.state]}
+              {caption}
             </span>
             {item.summary ? (
               <span

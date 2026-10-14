@@ -1,5 +1,7 @@
-import type { ListingBookingOption } from '../types/listingExtras';
+import type { ListingBookingOption, ListingOptionSchedule, ListingPriceCategory } from '../types/listingExtras';
 import { isListingBookingOptionEffectivelyEmpty } from '../types/listingExtras';
+import { newListingOptionScheduleId } from './listing-option-schedules';
+import { newPriceCategoryId } from './price-categories';
 import {
   TOUR_OPTION_AVAILABILITY_SCENE_INDEX,
   TOUR_OPTION_SCENE_COUNT,
@@ -53,6 +55,22 @@ export function upsertBookingOption<T extends { id: string }>(options: T[], next
   return options.map((option) => (option.id === next.id ? next : option));
 }
 
+function remintPriceCategories(
+  categories: ListingPriceCategory[] | undefined
+): ListingPriceCategory[] | undefined {
+  if (!categories?.length) return categories;
+  return categories.map((c) => ({ ...c, id: newPriceCategoryId() }));
+}
+
+function remintSchedule(schedule: ListingOptionSchedule): ListingOptionSchedule {
+  return {
+    ...schedule,
+    id: newListingOptionScheduleId(),
+    priceCategories: remintPriceCategories(schedule.priceCategories),
+  };
+}
+
+/** Independent copy: new option id, schedule ids, and price-category ids. */
 export function duplicateBookingOption<T extends ListingBookingOption>(
   option: T,
   nextId: string
@@ -62,5 +80,7 @@ export function duplicateBookingOption<T extends ListingBookingOption>(
     ...option,
     id: nextId,
     name: name ? `${name} (copy)` : 'Untitled option (copy)',
+    priceCategories: remintPriceCategories(option.priceCategories),
+    schedules: option.schedules?.map(remintSchedule),
   };
 }

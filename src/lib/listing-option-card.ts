@@ -13,8 +13,7 @@ import {
   listingOptionReadySchedules,
   listingOptionSchedules,
 } from './listing-option-schedules';
-import { optionHeadlineUnitPrice, summarizeOptionPricing } from './price-categories';
-import { summarizeOptionChargeModel } from './listing-option-progression';
+import { optionHeadlineUnitPrice } from './price-categories';
 import {
   bookingOptionMeetingIssues,
   bookingOptionPricingSceneIssues,
@@ -42,7 +41,7 @@ export type TourOptionCardModel = {
   rows: TourOptionCardRow[];
   /** Short missing-items summary, e.g. "Missing: meeting, schedule". Null when nothing is missing. */
   missingSummary: string | null;
-  /** Specific status for the card header — e.g. Ready, Schedule required. */
+  /** Configuration status for the card header — e.g. Configured, Schedule required. Not live/published. */
   statusLabel: string;
   cta: TourOptionCardCta;
   readySchedules: number;
@@ -53,6 +52,13 @@ function chargeModelChosen(option: ListingBookingOption): boolean {
   return option.chargeModel === 'per_person' || option.chargeModel === 'flat_group';
 }
 
+function isWholeGroupPricing(option: ListingBookingOption): boolean {
+  return (
+    option.chargeModel === 'flat_group' ||
+    (option.isPrivate === true && option.privatePricing === 'flat_group')
+  );
+}
+
 function pricingText(
   option: ListingBookingOption,
   ready: ListingOptionSchedule[],
@@ -61,18 +67,23 @@ function pricingText(
   if (!chargeModelChosen(option)) {
     return { ok: false, text: 'Choose per person or per group' };
   }
-  const model = summarizeOptionChargeModel(option);
+  const wholeGroup = isWholeGroupPricing(option);
   // Charge model lives on the option; amounts live on schedules. Do not mark pricing
   // incomplete merely because a schedule is still missing — Availability owns that gap.
   if (ready.length === 0) {
-    return { ok: true, text: model };
-  }
-  if (ready.length === 1) {
-    return { ok: true, text: `${model} · ${summarizeOptionPricing(ready[0], formatAmount)}` };
+    return { ok: true, text: wholeGroup ? 'Whole group' : 'Per person' };
   }
   const prices = ready.map((s) => optionHeadlineUnitPrice(s)).filter((n) => n > 0);
-  if (prices.length === 0) return { ok: false, text: `${model} · set schedule prices` };
-  return { ok: true, text: `${model} · from ${formatAmount(Math.min(...prices))}` };
+  if (prices.length === 0) {
+    return { ok: false, text: wholeGroup ? 'Set schedule group price' : 'Set schedule prices' };
+  }
+  const min = Math.min(...prices);
+  const amount = formatAmount(min);
+  if (wholeGroup) {
+    const allSame = prices.every((p) => p === min);
+    return { ok: true, text: allSame ? `${amount} / group` : `From ${amount} / group` };
+  }
+  return { ok: true, text: `From ${amount} / person` };
 }
 
 function meetingText(option: ListingBookingOption): { ok: boolean; text: string } {
@@ -125,8 +136,8 @@ export function tourOptionCardModel(
 
   const rows: TourOptionCardRow[] = [
     duration,
-    { id: 'pricing', label: 'Pricing', ...pricing },
     { id: 'meeting', label: 'Meeting', ...meeting },
+    { id: 'pricing', label: 'Pricing', ...pricing },
     { id: 'availability', label: 'Availability', ...availability },
   ];
 
@@ -189,7 +200,8 @@ export function tourOptionCardModel(
     };
   }
 
-  let statusLabel = 'Ready';
+  // Configuration readiness only — not published / currently bookable.
+  let statusLabel = 'Configured';
   if (cta.kind === 'add_schedule') statusLabel = 'Schedule required';
   else if (cta.kind === 'finish_schedule') statusLabel = 'Schedule incomplete';
   else if (cta.kind === 'continue_setup') {
@@ -197,7 +209,7 @@ export function tourOptionCardModel(
     else if (cta.sceneIndex === 2) statusLabel = 'Pricing required';
     else statusLabel = 'Setup required';
   } else if (cta.kind === 'manage_schedules') {
-    statusLabel = 'Ready';
+    statusLabel = 'Configured';
   } else if (missingLabels.length > 0) {
     statusLabel = 'Setup required';
   }

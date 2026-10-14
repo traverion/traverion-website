@@ -228,9 +228,14 @@ describe('tour option creation overhaul (source contracts)', () => {
     expect(card).toMatch(/onClick=\{onRequestDelete\}[\s\S]*>\s*Delete\s*<\/button>/);
     expect(card).not.toContain('Edit details');
     expect(card).not.toContain('lc-tile--attention');
+    expect(card).not.toContain('truncate');
+    expect(card).toContain('break-words');
+    expect(card).toContain('Delete <span className="font-semibold">{displayName}</span>?');
     expect(card.match(/onClick=\{onEdit\}/g)?.length).toBe(1);
     expect(model).toContain("kind: 'manage_schedules'");
     expect(model).toContain("label: 'Schedules'");
     expect(model).toContain("statusLabel = 'Schedule required'");
+    expect(model).toContain("statusLabel = 'Configured'");
+    expect(model).toContain('From ${amount} / person');
   });
 });

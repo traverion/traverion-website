@@ -32,33 +32,36 @@ export function TourOptionCard({
   onConfirmDelete: () => void;
 }) {
   const { cta, rows } = model;
-  const statusLabel = readiness === 'draft' ? 'Draft' : model.statusLabel;
+  const displayName = name.trim() || 'Untitled option';
+  // Badge follows validation readiness (same truth as Options stage), not just card CTA.
+  const statusLabel =
+    readiness === 'draft'
+      ? 'Draft'
+      : readiness === 'ready'
+        ? 'Configured'
+        : model.statusLabel === 'Configured'
+          ? 'Incomplete'
+          : model.statusLabel;
   const showPrimary = cta.kind === 'add_schedule' || cta.kind === 'finish_schedule' || cta.kind === 'continue_setup';
   const showSchedules = cta.kind === 'manage_schedules';
 
   return (
     <article
       className="lc-tile rounded-xl px-4 py-3.5 sm:px-5 sm:py-4"
-      aria-label={`Option ${name || 'Untitled option'}, ${statusLabel}`}
+      aria-label={`Option ${displayName}, ${statusLabel}`}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h3 className="min-w-0 truncate text-[1.05rem] font-semibold tracking-tight text-ink">
-          {name || 'Untitled option'}
+        <h3 className="min-w-0 break-words text-[1.05rem] font-semibold tracking-tight text-ink">
+          {displayName}
         </h3>
-        <p
-          className={`shrink-0 text-[11px] font-semibold uppercase tracking-[0.08em] ${
-            readiness === 'ready' ? 'text-finland' : 'text-ink-muted'
-          }`}
-        >
-          {statusLabel}
-        </p>
+        <p className="shrink-0 text-[11px] font-medium tracking-wide text-ink-muted">{statusLabel}</p>
       </div>
 
-      <dl className="mt-3 grid grid-cols-1 gap-x-8 gap-y-1.5 sm:grid-cols-2">
+      <dl className="mt-3 grid grid-cols-1 gap-x-8 gap-y-2 sm:grid-cols-2">
         {rows.map((row) => (
           <div key={row.id} className="min-w-0 text-[13px] leading-snug">
             <dt className="sr-only">{row.label}</dt>
-            <dd className="truncate text-ink" title={row.text}>
+            <dd className="break-words text-ink">
               <span className="text-ink-muted">{row.label} · </span>
               {row.text}
             </dd>
@@ -69,7 +72,9 @@ export function TourOptionCard({
       {pendingDelete ? (
         <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-black/[0.06] pt-2.5">
           {deleteNotice}
-          <p className="mr-auto text-[12.5px] text-ink">Delete this option?</p>
+          <p className="mr-auto min-w-0 break-words text-[12.5px] text-ink">
+            Delete <span className="font-semibold">{displayName}</span>?
+          </p>
           <button
             type="button"
             onClick={onCancelDelete}

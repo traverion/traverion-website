@@ -121,4 +121,47 @@ describe('option identity', () => {
     expect(original.id).toBe('opt-1');
     expect(original.name).toBe('Hotel pickup');
   });
+
+  it('remints schedule and price-category ids so the copy is independent', () => {
+    const original = option({
+      id: 'opt-1',
+      name: 'Hotel pickup',
+      priceCategories: [{ id: 'cat-1', label: 'Adult', kind: 'adult', priceUsd: 99, ageMin: 13, ageMax: 99, notPermitted: false, countsTowardCapacity: true, requiresAdult: false }],
+      schedules: [
+        {
+          id: 'sch-shared',
+          name: 'Winter',
+          availabilityDateFrom: '2099-01-01',
+          availabilityDateTo: '2099-03-01',
+          weekdays: [true, true, true, true, true, true, true],
+          startTime: '20:00',
+          priceUsd: 99,
+          minPersons: 1,
+          maxPersons: 8,
+          maxSpotsPerSlot: 8,
+          status: 'ready',
+          priceCategories: [
+            {
+              id: 'cat-sch-1',
+              label: 'Adult',
+              kind: 'adult',
+              priceUsd: 99,
+              ageMin: 13,
+              ageMax: 99,
+              notPermitted: false,
+              countsTowardCapacity: true,
+              requiresAdult: false,
+            },
+          ],
+        },
+      ],
+    });
+    const copy = duplicateBookingOption(original, 'opt-2');
+    expect(copy.schedules?.[0]?.id).toBeTruthy();
+    expect(copy.schedules?.[0]?.id).not.toBe('sch-shared');
+    expect(original.schedules?.[0]?.id).toBe('sch-shared');
+    expect(copy.priceCategories?.[0]?.id).not.toBe('cat-1');
+    expect(copy.schedules?.[0]?.priceCategories?.[0]?.id).not.toBe('cat-sch-1');
+    expect(original.priceCategories?.[0]?.id).toBe('cat-1');
+  });
 });
