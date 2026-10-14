@@ -59,14 +59,14 @@ export function ListingCreationNavButton({
                     ? 'font-medium text-ink-faint'
                     : 'font-medium text-ink-muted'
             }`
-          : `lux-flat relative flex w-full min-h-11 items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition-[background-color,box-shadow,color,transform] duration-180 ${
+          : `lux-flat relative flex w-full min-h-11 items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition-[background-color,box-shadow,color] duration-180 ${
               current
-                ? 'bg-finland/[0.09] font-semibold text-finland shadow-[inset_3px_0_0_0_var(--partner-accent,#003580)]'
+                ? 'bg-[var(--lc-accent-soft,rgba(7,59,131,0.08))] font-semibold text-[var(--lc-accent,#073B83)] shadow-[inset_3px_0_0_0_var(--lc-accent,#073B83)]'
                 : complete
-                  ? 'font-medium text-ink hover:bg-black/[0.04]'
+                  ? 'font-medium text-ink hover:bg-[#F5F6F8]'
                   : locked
                     ? 'text-ink-faint'
-                    : 'text-ink-muted hover:bg-black/[0.04] hover:text-ink'
+                    : 'text-ink-muted hover:bg-[#F5F6F8] hover:text-ink'
             }`
       }
     >
@@ -92,12 +92,12 @@ export function ListingCreationNavButton({
           <span
             className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold tabular-nums ${
               complete
-                ? 'bg-finland text-white'
+                ? 'bg-[var(--lc-accent,#073B83)] text-white'
                 : current
-                  ? 'bg-white text-finland ring-2 ring-finland'
+                  ? 'bg-white text-[var(--lc-accent,#073B83)] ring-2 ring-[var(--lc-accent,#073B83)]'
                   : locked
-                    ? 'bg-black/[0.04] text-ink-faint ring-1 ring-black/10'
-                    : 'bg-white text-ink-muted ring-1 ring-black/15'
+                    ? 'bg-[#F5F6F8] text-ink-faint ring-1 ring-[#E7E9ED]'
+                    : 'bg-white text-ink-muted ring-1 ring-[#E7E9ED]'
             }`}
             aria-hidden
           >
@@ -114,9 +114,9 @@ export function ListingCreationNavButton({
             <span
               className={`mt-0.5 block text-[10px] font-semibold uppercase tracking-[0.08em] ${
                 complete || (current && item.requirementsMet)
-                  ? 'text-finland'
+                  ? 'text-[var(--lc-accent,#073B83)]'
                   : current
-                    ? 'text-finland/75'
+                    ? 'text-[var(--lc-accent,#073B83)]/80'
                     : 'text-ink-faint'
               }`}
             >

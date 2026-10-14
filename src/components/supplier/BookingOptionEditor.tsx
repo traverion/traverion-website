@@ -1098,15 +1098,15 @@ export default function BookingOptionEditor({
                     </p>
                   </div>
                 </div>
-                <div className="overflow-hidden rounded-xl border border-black/[0.2] bg-[#fffcf8]">
+                <div className="overflow-hidden rounded-lg border border-[#E7E9ED] bg-white">
                   {WEEKDAY_LABELS.map((label, di) => {
                     const times = weekdayTimes[di] ?? [];
                     const open = times.length > 0;
                     return (
                       <div
                         key={label}
-                        className={`flex flex-col gap-2 border-b border-black/[0.1] px-3 py-2.5 last:border-b-0 sm:flex-row sm:items-center sm:gap-3 ${
-                          open ? 'bg-[#fffcf8]' : 'bg-[#f7f4ef]/60'
+                        className={`flex flex-col gap-2 border-b border-[#E7E9ED] px-3 py-2.5 last:border-b-0 sm:flex-row sm:items-center sm:gap-3 ${
+                          open ? 'bg-white' : 'bg-[#F5F6F8]/70'
                         }`}
                       >
                         <div className="flex w-full shrink-0 items-center justify-between gap-2 sm:w-[4.5rem] sm:block">

@@ -620,7 +620,7 @@ export default function ListingImageFields({
                     aria-expanded={menuIndex === index}
                     aria-haspopup="menu"
                     disabled={busy}
-                    className="lux-flat absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-paper/95 text-ink shadow-sm hover:bg-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland/35 disabled:opacity-40"
+                    className="lux-flat absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-white/95 text-ink shadow-sm hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland/35 disabled:opacity-40"
                     onClick={(e) => {
                       e.currentTarget.blur();
                       setPendingRemoveIndex(null);
@@ -634,7 +634,7 @@ export default function ListingImageFields({
                       type="button"
                       aria-label={`Move photo ${index + 1} earlier`}
                       disabled={busy || !canMoveEarlier}
-                      className="lux-flat flex h-7 w-7 items-center justify-center rounded-full bg-paper/95 text-ink shadow-sm hover:bg-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland/35 disabled:pointer-events-none disabled:opacity-0"
+                      className="lux-flat flex h-7 w-7 items-center justify-center rounded-full bg-white/95 text-ink shadow-sm hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland/35 disabled:pointer-events-none disabled:opacity-0"
                       onClick={(e) => {
                         e.stopPropagation();
                         e.currentTarget.blur();
@@ -647,7 +647,7 @@ export default function ListingImageFields({
                       type="button"
                       aria-label={`Move photo ${index + 1} later`}
                       disabled={busy || !canMoveLater}
-                      className="lux-flat flex h-7 w-7 items-center justify-center rounded-full bg-paper/95 text-ink shadow-sm hover:bg-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland/35 disabled:pointer-events-none disabled:opacity-0"
+                      className="lux-flat flex h-7 w-7 items-center justify-center rounded-full bg-white/95 text-ink shadow-sm hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland/35 disabled:pointer-events-none disabled:opacity-0"
                       onClick={(e) => {
                         e.stopPropagation();
                         e.currentTarget.blur();
