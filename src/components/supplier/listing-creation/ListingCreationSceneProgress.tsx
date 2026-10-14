@@ -49,13 +49,13 @@ export function ListingCreationSceneProgress({
                 disabled={!selectable}
                 aria-current={current ? 'step' : undefined}
                 aria-label={`${label}, scene ${i + 1} of ${total}${stateSuffix}`}
-                className={`lux-flat inline-flex min-h-8 max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold tracking-tight transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland/35 focus-visible:ring-offset-1 disabled:cursor-default sm:min-h-9 sm:px-3 sm:text-[12px] ${
+                className={`lux-flat inline-flex min-h-8 max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold tracking-tight transition-[background-color,color,box-shadow,transform] duration-180 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland/35 focus-visible:ring-offset-1 disabled:cursor-default sm:min-h-9 sm:px-3 sm:text-[12px] ${
                   current
-                    ? 'bg-finland text-white shadow-sm shadow-finland/20'
+                    ? 'bg-finland text-white shadow-md shadow-finland/25'
                     : complete
-                      ? 'bg-finland/10 text-finland ring-1 ring-finland/20'
+                      ? 'bg-finland/10 text-finland ring-1 ring-finland/25'
                       : selectable
-                        ? 'bg-black/[0.035] text-ink-muted ring-1 ring-black/[0.04] hover:bg-black/[0.06] hover:text-ink'
+                        ? 'bg-black/[0.04] text-ink-muted ring-1 ring-black/[0.05] hover:bg-black/[0.07] hover:text-ink'
                         : 'bg-black/[0.025] text-ink-faint ring-1 ring-transparent'
                 }`}
               >

@@ -80,7 +80,7 @@ export function TourOptionWorkspace({
         aria-labelledby={titleId}
         tabIndex={-1}
       >
-        <aside className="listing-creation-option-rail hidden h-full min-h-0 w-[15rem] shrink-0 flex-col overflow-hidden border-r border-black/[0.08] bg-[#f7f4ef] lg:flex xl:w-[15.5rem]">
+        <aside className="listing-creation-option-rail hidden h-full min-h-0 w-[15rem] shrink-0 flex-col overflow-hidden border-r border-black/[0.09] lg:flex xl:w-[15.5rem]">
           <div className="px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
             <button
               type="button"
@@ -111,7 +111,7 @@ export function TourOptionWorkspace({
           </nav>
         </aside>
 
-        <div className="listing-creation-option-main flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#fffcf8]">
+        <div className="listing-creation-option-main flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <header className="listing-creation-option-header shrink-0 border-b border-black/[0.07] px-4 py-3 sm:px-6 lg:px-8">
             <div className="mx-auto flex w-full max-w-[56rem] flex-wrap items-start justify-between gap-x-4 gap-y-2">
               <div className="min-w-0 flex-1">
@@ -127,7 +127,7 @@ export function TourOptionWorkspace({
                 </p>
                 <h2
                   id={titleId}
-                  className="mt-0.5 text-[1.15rem] font-semibold leading-snug tracking-tight text-ink sm:text-[1.25rem]"
+                  className="mt-0.5 font-display text-[1.25rem] font-bold leading-snug tracking-tight text-ink sm:text-[1.4rem]"
                 >
                   {displayName}
                 </h2>

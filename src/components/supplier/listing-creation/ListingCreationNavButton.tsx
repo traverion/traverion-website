@@ -50,14 +50,14 @@ export function ListingCreationNavButton({
                     ? 'font-medium text-ink-faint'
                     : 'font-medium text-ink-muted'
             }`
-          : `lux-flat relative flex w-full min-h-11 items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-[13px] transition-[background-color,box-shadow,color] duration-150 ${
+          : `lux-flat relative flex w-full min-h-11 items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition-[background-color,box-shadow,color,transform] duration-180 ${
               current
-                ? 'bg-finland/[0.08] font-semibold text-finland shadow-[inset_3px_0_0_0_var(--partner-accent,#003580)]'
+                ? 'bg-finland/[0.09] font-semibold text-finland shadow-[inset_3px_0_0_0_var(--partner-accent,#003580)]'
                 : complete
-                  ? 'font-medium text-ink hover:bg-black/[0.035]'
+                  ? 'font-medium text-ink hover:bg-black/[0.04]'
                   : locked
                     ? 'text-ink-faint'
-                    : 'text-ink-muted hover:bg-black/[0.035] hover:text-ink'
+                    : 'text-ink-muted hover:bg-black/[0.04] hover:text-ink'
             }`
       }
     >

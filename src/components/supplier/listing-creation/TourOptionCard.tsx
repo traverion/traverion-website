@@ -38,25 +38,25 @@ export function TourOptionCard({
 
   return (
     <article
-      className="rounded-lg border border-black/[0.08] bg-white px-3.5 py-3 sm:px-4"
+      className="lc-tile rounded-xl px-4 py-3.5 sm:px-5 sm:py-4"
       aria-label={`Option ${name || 'Untitled option'}, ${statusLabel}`}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h3 className="min-w-0 truncate text-[15px] font-semibold tracking-tight text-ink">
+        <h3 className="min-w-0 truncate text-[1.05rem] font-semibold tracking-tight text-ink">
           {name || 'Untitled option'}
         </h3>
         <p
-          className={`shrink-0 text-[12px] ${
-            readiness === 'ready' ? 'text-ink-muted' : 'font-medium text-ink'
+          className={`shrink-0 text-[11px] font-semibold uppercase tracking-[0.08em] ${
+            readiness === 'ready' ? 'text-finland' : 'text-ink-muted'
           }`}
         >
           {statusLabel}
         </p>
       </div>
 
-      <dl className="mt-2 grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2">
+      <dl className="mt-3 grid grid-cols-1 gap-x-8 gap-y-1.5 sm:grid-cols-2">
         {rows.map((row) => (
-          <div key={row.id} className="min-w-0 text-[12.5px] leading-snug">
+          <div key={row.id} className="min-w-0 text-[13px] leading-snug">
             <dt className="sr-only">{row.label}</dt>
             <dd className="truncate text-ink" title={row.text}>
               <span className="text-ink-muted">{row.label} · </span>

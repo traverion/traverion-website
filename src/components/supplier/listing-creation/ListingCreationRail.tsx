@@ -23,21 +23,23 @@ export function ListingCreationRail({
   exitBusy: boolean;
 }) {
   return (
-    <aside className="listing-creation-rail hidden h-full min-h-0 w-[15.75rem] shrink-0 flex-col overflow-hidden border-r border-black/[0.08] lg:flex xl:w-[16.5rem]">
-      <div className="px-4 pb-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
+    <aside className="listing-creation-rail hidden h-full min-h-0 w-[15.75rem] shrink-0 flex-col overflow-hidden border-r border-black/[0.09] lg:flex xl:w-[16.5rem]">
+      <div className="px-4 pb-5 pt-[max(0.85rem,env(safe-area-inset-top))]">
         <button
           type="button"
           disabled={exitDisabled}
           onClick={onExit}
-          className="lux-flat inline-flex min-h-11 min-w-11 items-center text-sm font-medium text-ink-muted hover:text-ink disabled:opacity-50"
+          className="lux-flat inline-flex min-h-10 items-center text-[13px] font-semibold text-ink-muted hover:text-ink disabled:opacity-50"
         >
           {exitBusy ? 'Saving…' : '← Exit'}
         </button>
-        <p className="mt-6 text-[1.35rem] font-semibold leading-[1.15] tracking-tight text-ink">{title}</p>
-        <div className="mt-2 min-h-5">
+        <p className="mt-7 font-display text-[1.45rem] font-bold leading-[1.12] tracking-tight text-ink">
+          {title}
+        </p>
+        <div className="mt-2.5 min-h-5">
           {persistLabel ? (
             <p
-              className={`text-xs tabular-nums ${
+              className={`text-[11.5px] tabular-nums ${
                 persistLabel === 'Save failed' ? 'font-medium text-red-700' : 'text-ink-muted'
               }`}
               aria-live="polite"
@@ -47,13 +49,15 @@ export function ListingCreationRail({
           ) : null}
         </div>
         {progressCopy ? (
-          <p className="mt-1 text-xs font-medium tabular-nums text-ink-muted">{progressCopy}</p>
+          <p className="mt-1 text-[11.5px] font-semibold tabular-nums tracking-wide text-ink-muted">
+            {progressCopy}
+          </p>
         ) : null}
         {items.length > 0 ? (
           <div
-            className="listing-creation-rail-progress mt-2"
+            className="listing-creation-rail-progress mt-3"
             role="progressbar"
-            aria-label="Tour setup progress"
+            aria-label="Listing setup progress"
             aria-valuemin={0}
             aria-valuemax={items.length}
             aria-valuenow={items.filter((item) => item.state === 'complete').length}
@@ -68,7 +72,7 @@ export function ListingCreationRail({
         ) : null}
       </div>
       <nav aria-label={navLabel} className="min-h-0 flex-1 overflow-y-auto px-2 pb-6">
-        <ol className="space-y-0.5">
+        <ol className="space-y-1">
           {items.map((item, index) => (
             <li key={item.id}>
               <ListingCreationNavButton item={item} step={index + 1} onClick={() => onSelectIndex(index)} />

@@ -30,93 +30,13 @@ function parsePriceInput(raw: string): number {
   return Math.max(0, Number(raw) || 0);
 }
 
-function CustomerPriceInput({
-  id,
-  currencyLabel,
-  value,
-  onChange,
-  ariaLabel,
-}: {
-  id: string;
-  currencyLabel: string;
-  value: number;
-  onChange: (n: number) => void;
-  ariaLabel?: string;
-}) {
-  return (
-    <div className="relative">
-      <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-[12px] text-ink-muted">
-        {currencyLabel}
-      </span>
-      <input
-        id={id}
-        type="number"
-        min={0}
-        step={0.01}
-        inputMode="decimal"
-        aria-label={ariaLabel}
-        value={value > 0 ? value : ''}
-        onChange={(e) => onChange(parsePriceInput(e.target.value))}
-        className="tv-input !min-h-10 w-full pl-12 tabular-nums"
-      />
-    </div>
-  );
-}
-
-function YouReceiveValue({
-  gross,
-  formatAmount,
-}: {
-  gross: number;
-  formatAmount: (n: number) => string;
-}) {
+function earningsLabel(gross: number, formatAmount: (n: number) => string): string {
   const preview = previewSupplierEarningsFromGross(gross);
-  return (
-    <p className="flex min-h-10 items-center text-[15px] font-semibold tabular-nums tracking-tight text-ink">
-      {preview ? formatAmount(preview.supplierMajor) : '—'}
-    </p>
-  );
-}
-
-function GrossNetPair({
-  id,
-  currencyLabel,
-  value,
-  onChange,
-  formatAmount,
-}: {
-  id: string;
-  currencyLabel: string;
-  value: number;
-  onChange: (n: number) => void;
-  formatAmount: (n: number) => string;
-}) {
-  return (
-    <div className="grid max-w-lg grid-cols-1 gap-4 sm:grid-cols-2">
-      <div>
-        <label htmlFor={id} className="mb-1.5 block text-[12.5px] font-semibold text-ink">
-          Customer price
-        </label>
-        <CustomerPriceInput
-          id={id}
-          currencyLabel={currencyLabel}
-          value={value}
-          onChange={onChange}
-        />
-      </div>
-      <div>
-        <p className="mb-1.5 text-[12.5px] font-semibold text-ink">You receive</p>
-        <YouReceiveValue gross={value} formatAmount={formatAmount} />
-        <p className="mt-1 text-[11px] leading-snug text-ink-muted">
-          After {formatBpsAsPercent(SUPPLIER_PRICING_PREVIEW_COMMISSION_BPS)} commission
-        </p>
-      </div>
-    </div>
-  );
+  return preview ? formatAmount(preview.supplierMajor) : '—';
 }
 
 /**
- * Compact schedule Pricing step: uniform / age-based / whole-group with live 15% earnings preview.
+ * Compact schedule Pricing step — editorial layout, no overlaid currency prefixes.
  */
 export function SchedulePricingEditor({
   option,
@@ -134,6 +54,7 @@ export function SchedulePricingEditor({
   const pricingMode = option.pricingMode === 'age_dependent' ? 'age_dependent' : 'uniform';
   const categories = option.priceCategories ?? [];
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const commissionPct = formatBpsAsPercent(SUPPLIER_PRICING_PREVIEW_COMMISSION_BPS);
 
   const setPricingMode = (mode: 'uniform' | 'age_dependent') => {
     if (mode === 'age_dependent') {
@@ -167,12 +88,11 @@ export function SchedulePricingEditor({
   if (groupPricing) {
     const gross = option.privateGroupPriceUsd || option.priceUsd || 0;
     return (
-      <div id="supplier-listing-field-price" className="space-y-4">
-        <p className="text-[12.5px] leading-snug text-ink-muted">
-          One price for the whole party. You receive is after{' '}
-          {formatBpsAsPercent(SUPPLIER_PRICING_PREVIEW_COMMISSION_BPS)} Traverion commission.
+      <div id="supplier-listing-field-price" className="max-w-md space-y-5">
+        <p className="text-[13px] leading-relaxed text-ink-muted">
+          One price for the whole party. You receive is after {commissionPct} Traverion commission.
         </p>
-        <GrossNetPair
+        <PriceEarnRow
           id="booking-option-group-price"
           currencyLabel={currencyLabel}
           value={gross}
@@ -184,15 +104,11 @@ export function SchedulePricingEditor({
   }
 
   return (
-    <div id="supplier-listing-field-price" className="space-y-5">
-      <div
-        className="inline-flex rounded-lg border border-black/[0.1] p-0.5"
-        role="radiogroup"
-        aria-label="Pricing model"
-      >
+    <div id="supplier-listing-field-price" className="max-w-xl space-y-6">
+      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1" role="radiogroup" aria-label="Pricing model">
         {(
           [
-            { value: 'uniform' as const, title: 'Same price' },
+            { value: 'uniform' as const, title: 'Same price for everyone' },
             { value: 'age_dependent' as const, title: 'Age-based' },
           ] as const
         ).map((row) => {
@@ -202,10 +118,10 @@ export function SchedulePricingEditor({
               key={row.value}
               type="button"
               onClick={() => setPricingMode(row.value)}
-              className={`rounded-md px-3.5 py-2 text-[13px] font-semibold transition-colors ${
+              className={`border-b-2 pb-1 text-[13.5px] transition-colors ${
                 selected
-                  ? 'bg-finland text-white'
-                  : 'text-ink-muted hover:bg-black/[0.03] hover:text-ink'
+                  ? 'border-finland font-semibold text-ink'
+                  : 'border-transparent font-medium text-ink-muted hover:text-ink'
               }`}
               aria-pressed={selected}
             >
@@ -215,13 +131,12 @@ export function SchedulePricingEditor({
         })}
       </div>
 
-      <p className="text-[12px] leading-snug text-ink-muted">
-        Customer price is what travelers pay. You receive is after{' '}
-        {formatBpsAsPercent(SUPPLIER_PRICING_PREVIEW_COMMISSION_BPS)} Traverion commission.
+      <p className="text-[12.5px] leading-relaxed text-ink-muted">
+        Traveler price before commission. You receive is after {commissionPct} Traverion commission.
       </p>
 
       {pricingMode === 'uniform' ? (
-        <GrossNetPair
+        <PriceEarnRow
           id="booking-option-unit-price"
           currencyLabel={currencyLabel}
           value={option.priceUsd || 0}
@@ -229,38 +144,38 @@ export function SchedulePricingEditor({
           onChange={(n) => onChange({ priceUsd: n })}
         />
       ) : (
-        <div className="space-y-2.5">
-          <ul className="divide-y divide-black/[0.07] rounded-lg border border-black/[0.08] bg-white">
+        <div className="space-y-0">
+          <ul className="divide-y divide-black/[0.08]">
             {categories.map((c) => {
               const expanded = expandedId === c.id;
               return (
-                <li key={c.id} className="px-3.5 py-3 sm:px-4">
+                <li key={c.id} className="py-5 first:pt-1">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-[13.5px] font-semibold tracking-tight text-ink">
+                      <p className="text-[15px] font-semibold tracking-tight text-ink">
                         {c.label || 'Category'}
                       </p>
-                      <p className="mt-0.5 text-[12px] text-ink-muted">
+                      <p className="mt-0.5 text-[12.5px] text-ink-muted">
                         {formatPriceCategoryAgeRange(c) || 'Age range not set'}
-                        {c.requiresAdult ? ' · Adult required' : ''}
+                        {c.requiresAdult ? ' · Needs an adult' : ''}
                       </p>
                     </div>
-                    <div className="flex shrink-0 items-center gap-0.5">
+                    <div className="flex shrink-0 items-center -mr-1">
                       <button
                         type="button"
                         onClick={() => setExpandedId(expanded ? null : c.id)}
-                        className="lux-flat inline-flex min-h-8 items-center gap-1 rounded-md px-2 text-[12px] font-medium text-ink-muted hover:bg-black/[0.04] hover:text-ink"
+                        className="lux-flat inline-flex h-8 w-8 items-center justify-center rounded-md text-ink-muted hover:bg-black/[0.04] hover:text-ink"
                         aria-expanded={expanded}
+                        aria-label={expanded ? 'Close details' : `Edit ${c.label || 'category'}`}
                       >
                         <Pencil className="h-3.5 w-3.5" aria-hidden />
-                        <span className="hidden sm:inline">Edit</span>
                       </button>
                       <button
                         type="button"
                         onClick={() =>
                           onChange({ priceCategories: categories.filter((x) => x.id !== c.id) })
                         }
-                        className="lux-flat inline-flex min-h-8 items-center rounded-md px-2 text-[12px] font-medium text-ink-muted hover:bg-red-50 hover:text-red-700"
+                        className="lux-flat inline-flex h-8 w-8 items-center justify-center rounded-md text-ink-muted hover:bg-red-50 hover:text-red-700"
                         aria-label={`Remove ${c.label || 'category'}`}
                       >
                         <Trash2 className="h-3.5 w-3.5" aria-hidden />
@@ -268,40 +183,29 @@ export function SchedulePricingEditor({
                     </div>
                   </div>
 
-                  <div className="mt-3 grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2 sm:max-w-md">
-                    <div>
-                      <label
-                        htmlFor={`sch-cat-price-${c.id}`}
-                        className="mb-1.5 block text-[12px] font-semibold text-ink"
-                      >
-                        Customer price
-                      </label>
-                      <CustomerPriceInput
-                        id={`sch-cat-price-${c.id}`}
-                        currencyLabel={currencyLabel}
-                        value={c.priceUsd}
-                        ariaLabel={`Customer price for ${c.label || 'category'}`}
-                        onChange={(n) =>
-                          onChange({
-                            priceCategories: patchCategory(categories, c.id, { priceUsd: n }),
-                          })
-                        }
-                      />
-                    </div>
-                    <div>
-                      <p className="mb-1.5 text-[12px] font-semibold text-ink">You receive</p>
-                      <YouReceiveValue gross={c.priceUsd} formatAmount={formatAmount} />
-                    </div>
+                  <div className="mt-4">
+                    <PriceEarnRow
+                      id={`sch-cat-price-${c.id}`}
+                      currencyLabel={currencyLabel}
+                      value={c.priceUsd}
+                      formatAmount={formatAmount}
+                      ariaLabel={`Customer price for ${c.label || 'category'}`}
+                      onChange={(n) =>
+                        onChange({
+                          priceCategories: patchCategory(categories, c.id, { priceUsd: n }),
+                        })
+                      }
+                    />
                   </div>
 
                   {expanded ? (
-                    <div className="mt-3 grid max-w-md grid-cols-2 gap-2.5 border-t border-black/[0.06] pt-3">
+                    <div className="mt-4 grid max-w-sm grid-cols-2 gap-3 border-t border-black/[0.06] pt-4">
                       <div className="col-span-2">
                         <label
                           htmlFor={`sch-cat-label-${c.id}`}
-                          className="mb-1 block text-[11.5px] font-medium text-ink-muted"
+                          className="mb-1 block text-[12px] font-medium text-ink-muted"
                         >
-                          Category name
+                          Name
                         </label>
                         <input
                           id={`sch-cat-label-${c.id}`}
@@ -320,7 +224,7 @@ export function SchedulePricingEditor({
                       <div>
                         <label
                           htmlFor={`sch-cat-age-from-${c.id}`}
-                          className="mb-1 block text-[11.5px] font-medium text-ink-muted"
+                          className="mb-1 block text-[12px] font-medium text-ink-muted"
                         >
                           Age from
                         </label>
@@ -344,7 +248,7 @@ export function SchedulePricingEditor({
                       <div>
                         <label
                           htmlFor={`sch-cat-age-to-${c.id}`}
-                          className="mb-1 block text-[11.5px] font-medium text-ink-muted"
+                          className="mb-1 block text-[12px] font-medium text-ink-muted"
                         >
                           Age to
                         </label>
@@ -366,7 +270,7 @@ export function SchedulePricingEditor({
                         />
                       </div>
                       {(c.kind === 'child' || c.kind === 'infant') && (
-                        <label className="col-span-2 flex cursor-pointer items-center gap-2 text-[12px] text-ink">
+                        <label className="col-span-2 flex cursor-pointer items-center gap-2 text-[13px] text-ink">
                           <input
                             type="checkbox"
                             checked={Boolean(c.requiresAdult)}
@@ -389,7 +293,7 @@ export function SchedulePricingEditor({
             })}
           </ul>
 
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-x-3 gap-y-1 border-t border-black/[0.08] pt-4">
             {PRICE_CATEGORY_KIND_PRESETS.filter(
               (p) => !categories.some((c) => c.kind === p.kind && c.kind !== 'participant')
             ).map((p) => (
@@ -397,7 +301,7 @@ export function SchedulePricingEditor({
                 key={p.kind}
                 type="button"
                 onClick={() => addCategory(p.kind)}
-                className="lux-flat inline-flex min-h-8 items-center gap-1 rounded-md px-2.5 text-[12px] font-semibold text-finland hover:bg-finland/[0.06]"
+                className="inline-flex items-center gap-1 text-[13px] font-semibold text-finland hover:underline"
               >
                 <Plus className="h-3.5 w-3.5" aria-hidden />
                 {p.label}
@@ -406,6 +310,50 @@ export function SchedulePricingEditor({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Customer price input + You receive — currency lives in the label, never overlaid on the field. */
+function PriceEarnRow({
+  id,
+  currencyLabel,
+  value,
+  onChange,
+  formatAmount,
+  ariaLabel,
+}: {
+  id: string;
+  currencyLabel: string;
+  value: number;
+  onChange: (n: number) => void;
+  formatAmount: (n: number) => string;
+  ariaLabel?: string;
+}) {
+  return (
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)] sm:items-end sm:gap-10">
+      <div>
+        <label htmlFor={id} className="mb-1.5 block text-[12px] font-medium text-ink-muted">
+          Customer price ({currencyLabel})
+        </label>
+        <input
+          id={id}
+          type="number"
+          min={0}
+          step={0.01}
+          inputMode="decimal"
+          aria-label={ariaLabel}
+          value={value > 0 ? value : ''}
+          onChange={(e) => onChange(parsePriceInput(e.target.value))}
+          className="tv-input !min-h-10 w-full max-w-[11rem] tabular-nums"
+        />
+      </div>
+      <div className="sm:pb-1.5">
+        <p className="mb-1.5 text-[12px] font-medium text-ink-muted">You receive</p>
+        <p className="text-[1.125rem] font-semibold tabular-nums tracking-tight text-ink">
+          {earningsLabel(value, formatAmount)}
+        </p>
+      </div>
     </div>
   );
 }

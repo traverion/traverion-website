@@ -257,7 +257,7 @@ export function TourScheduleWorkspace({
         aria-labelledby={titleId}
         tabIndex={-1}
       >
-        <aside className="listing-creation-schedule-rail hidden h-full min-h-0 w-[15rem] shrink-0 flex-col overflow-hidden border-r border-black/[0.08] bg-[#f7f4ef] lg:flex xl:w-[15.5rem]">
+        <aside className="listing-creation-schedule-rail hidden h-full min-h-0 w-[15rem] shrink-0 flex-col overflow-hidden border-r border-black/[0.09] lg:flex xl:w-[15.5rem]">
           <div className="px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
             <button
               type="button"
@@ -299,8 +299,8 @@ export function TourScheduleWorkspace({
           </nav>
         </aside>
 
-        <div className="listing-creation-schedule-main flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#fffcf8]">
-          <header className="listing-creation-schedule-header shrink-0 border-b border-black/[0.07] px-4 pb-4 sm:px-6 lg:px-8">
+        <div className="listing-creation-schedule-main flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <header className="listing-creation-schedule-header shrink-0 border-b border-black/[0.08] px-4 pb-4 sm:px-6 lg:px-8">
             <div className="mx-auto flex w-full max-w-[56rem] flex-wrap items-start justify-between gap-x-4 gap-y-2">
               <div className="min-w-0 flex-1">
                 <button
@@ -312,7 +312,7 @@ export function TourScheduleWorkspace({
                 </button>
                 <h2
                   id={titleId}
-                  className="truncate text-[1.25rem] font-semibold leading-snug tracking-tight text-ink sm:text-[1.35rem]"
+                  className="truncate font-display text-[1.3rem] font-bold leading-snug tracking-tight text-ink sm:text-[1.45rem]"
                   title={optionLabel}
                 >
                   {optionLabel}
@@ -340,7 +340,7 @@ export function TourScheduleWorkspace({
               <h3
                 ref={sceneHeadingRef}
                 tabIndex={-1}
-                className="mb-4 text-[1.125rem] font-semibold leading-snug tracking-tight text-ink outline-none focus:outline-none sm:text-[1.2rem]"
+                className="mb-5 font-display text-[1.3rem] font-bold leading-snug tracking-tight text-ink outline-none focus:outline-none sm:text-[1.45rem]"
               >
                 {sceneQuestion}
               </h3>

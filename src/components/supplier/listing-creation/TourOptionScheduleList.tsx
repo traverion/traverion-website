@@ -51,11 +51,11 @@ export function TourOptionScheduleList({
   const atLimit = !addGate.ok;
 
   return (
-    <div id="supplier-listing-field-option-schedules" className="space-y-2.5">
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
-        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
-          <h3 className="text-[13px] font-semibold tracking-tight text-ink">Schedules</h3>
-          <span className="text-[12px] text-ink-muted tabular-nums">
+    <div id="supplier-listing-field-option-schedules" className="space-y-3.5">
+      <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-2 border-b border-black/[0.08] pb-3">
+        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
+          <h3 className="text-[1.05rem] font-semibold tracking-tight text-ink">Schedules</h3>
+          <span className="text-[12.5px] font-medium tabular-nums text-ink-muted">
             {rows.length} of {LISTING_OPTION_SCHEDULES_MAX}
           </span>
         </div>
@@ -63,7 +63,7 @@ export function TourOptionScheduleList({
           type="button"
           onClick={onAdd}
           disabled={!canAdd}
-          className="lux-flat inline-flex min-h-8 items-center gap-1 rounded-md px-2 text-[12.5px] font-semibold text-finland hover:bg-finland/[0.06] disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland/30"
+          className="lux-flat inline-flex min-h-8 items-center gap-1 rounded-md px-2 text-[13px] font-semibold text-finland hover:bg-finland/[0.06] disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland/30"
         >
           <Plus className="h-3.5 w-3.5" aria-hidden />
           Add schedule
@@ -88,9 +88,9 @@ export function TourOptionScheduleList({
       ) : null}
 
       {rows.length === 0 ? (
-        <div className="flex flex-col items-start gap-2 rounded-lg border border-dashed border-black/[0.12] px-4 py-4">
-          <p className="text-[13px] font-semibold text-ink">No schedules yet</p>
-          <p className="max-w-md text-[12px] leading-snug text-ink-muted">
+        <div className="flex flex-col items-start gap-3 border-y border-black/[0.08] py-6">
+          <p className="text-[15px] font-semibold tracking-tight text-ink">No schedules yet</p>
+          <p className="max-w-md text-[13px] leading-relaxed text-ink-muted">
             {prereqOk
               ? 'Add dates, departure times, booking size, and price for each season or period.'
               : 'Complete Setup and Pricing first.'}
@@ -98,7 +98,7 @@ export function TourOptionScheduleList({
           <button
             type="button"
             onClick={onAdd}
-            className="tv-btn-primary !min-h-9"
+            className="tv-btn-primary !min-h-10"
             disabled={!canAdd}
           >
             <Plus className="mr-1.5 h-3.5 w-3.5" aria-hidden />
@@ -107,7 +107,7 @@ export function TourOptionScheduleList({
         </div>
       ) : (
         <ul
-          className="space-y-1.5 overflow-y-auto overscroll-contain pr-0.5"
+          className="divide-y divide-black/[0.07] overflow-y-auto overscroll-contain pr-0.5"
           style={{ maxHeight: SCHEDULE_LIST_SCROLL_MAX_PX }}
           aria-label="Schedules for this option"
         >
@@ -135,39 +135,39 @@ export function TourOptionScheduleList({
                   onClick={openEdit}
                   onKeyDown={onRowKeyDown}
                   aria-label={`Edit schedule ${row.name}`}
-                  className="rounded-lg border border-black/[0.08] bg-white px-3 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland/30"
+                  className="px-0.5 py-3.5 transition-colors hover:bg-black/[0.015] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland/30"
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                        <h4 className="truncate text-[13px] font-semibold tracking-tight text-ink">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
+                        <h4 className="truncate text-[14px] font-semibold tracking-tight text-ink">
                           {row.name}
                         </h4>
                         <span
-                          className={`text-[11.5px] font-medium ${statusClass(row.status)}`}
+                          className={`text-[11px] font-semibold uppercase tracking-[0.06em] ${statusClass(row.status)}`}
                         >
                           {row.statusLabel}
                         </span>
                       </div>
 
-                      <div className="grid grid-cols-1 gap-x-4 gap-y-0.5 sm:grid-cols-2">
-                        <p className="min-w-0 text-[12px] leading-snug text-ink">
+                      <div className="grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2">
+                        <p className="min-w-0 text-[12.5px] leading-snug text-ink">
                           <span className="text-ink-muted">Dates </span>
                           {row.dates}
                         </p>
-                        <p className="min-w-0 text-[12px] leading-snug text-ink">
+                        <p className="min-w-0 text-[12.5px] leading-snug text-ink">
                           <span className="text-ink-muted">Days </span>
                           {row.days}
                         </p>
-                        <p className="min-w-0 text-[12px] leading-snug text-ink">
+                        <p className="min-w-0 text-[12.5px] leading-snug text-ink">
                           <span className="text-ink-muted">Departure </span>
                           {row.departure}
                         </p>
-                        <p className="min-w-0 text-[12px] leading-snug text-ink">
+                        <p className="min-w-0 text-[12.5px] leading-snug text-ink">
                           <span className="text-ink-muted">{row.pricingModel} </span>
                           {row.price}
                         </p>
-                        <p className="min-w-0 text-[12px] leading-snug text-ink sm:col-span-2">
+                        <p className="min-w-0 text-[12.5px] leading-snug text-ink sm:col-span-2">
                           <span className="text-ink-muted">Capacity </span>
                           {row.capacity}
                         </p>
