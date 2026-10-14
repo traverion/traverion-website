@@ -16,7 +16,8 @@ describe('ListingPreviewPublishStage', () => {
     expect(stage).toContain('setSelectedOptionId');
     expect(stage).toContain('Ready to publish');
     expect(stage).toContain('sharedMeeting');
-    expect(stage).toContain('listing-preview-publish--mobile-frame');
+    expect(stage).not.toContain('listing-preview-publish--mobile-frame');
+    expect(stage).not.toContain('setViewport');
     expect(stage).not.toContain('gallerySlots');
     expect(stage).not.toContain('All stages look complete');
     expect(css).toContain('.listing-preview-gallery--5');

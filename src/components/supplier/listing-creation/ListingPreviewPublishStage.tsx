@@ -1,6 +1,6 @@
-import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronLeft, ChevronRight, MapPin, Monitor, Smartphone, X } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, MapPin, X } from 'lucide-react';
 import type { ListingBookingOption } from '../../../types/listingExtras';
 import { TRAVERION_STANDARD_CANCELLATION_POLICY } from '../../../types/listingExtras';
 import { tourOptionCardModel } from '../../../lib/listing-option-card';
@@ -287,8 +287,6 @@ export function ListingPreviewPublishStage({
   isPublished: boolean;
   onEditStep: (step: number) => void;
 }) {
-  const viewportId = useId();
-  const [viewport, setViewport] = useState<'desktop' | 'mobile'>('desktop');
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
 
@@ -342,54 +340,17 @@ export function ListingPreviewPublishStage({
 
   return (
     <div id="supplier-listing-field-review" className="listing-preview-publish w-full">
-      <header className="mb-4 flex flex-wrap items-end justify-between gap-3 sm:mb-5">
-        <div className="min-w-0 max-w-xl">
-          <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#98A2B3]">
-            Traveler preview
-          </p>
-          <h3 className="mt-1 text-[1.35rem] font-semibold tracking-tight text-[#17191D] sm:text-[1.5rem]">
-            Preview & Publish
-          </h3>
-        </div>
-        <div
-          className="hidden rounded-lg border border-[#E5E7EB] bg-white p-0.5 sm:inline-flex"
-          role="group"
-          aria-labelledby={viewportId}
-        >
-          <span id={viewportId} className="sr-only">
-            Preview viewport
-          </span>
-          <button
-            type="button"
-            onClick={() => setViewport('desktop')}
-            className={`lux-flat inline-flex min-h-9 items-center gap-1.5 rounded-md px-2.5 text-[12px] font-semibold ${
-              viewport === 'desktop' ? 'bg-[#F5F6F8] text-[#17191D]' : 'text-[#667085]'
-            }`}
-            aria-pressed={viewport === 'desktop'}
-          >
-            <Monitor className="h-3.5 w-3.5" aria-hidden />
-            Desktop
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewport('mobile')}
-            className={`lux-flat inline-flex min-h-9 items-center gap-1.5 rounded-md px-2.5 text-[12px] font-semibold ${
-              viewport === 'mobile' ? 'bg-[#F5F6F8] text-[#17191D]' : 'text-[#667085]'
-            }`}
-            aria-pressed={viewport === 'mobile'}
-          >
-            <Smartphone className="h-3.5 w-3.5" aria-hidden />
-            Mobile
-          </button>
-        </div>
+      <header className="mb-4 max-w-xl sm:mb-5">
+        <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#98A2B3]">
+          Traveler preview
+        </p>
+        <h3 className="mt-1 text-[1.35rem] font-semibold tracking-tight text-[#17191D] sm:text-[1.5rem]">
+          Preview & Publish
+        </h3>
       </header>
 
       <div className="grid gap-7 lg:grid-cols-[minmax(0,1fr)_minmax(14.5rem,17rem)] lg:items-start xl:gap-8">
-        <div
-          className={`min-w-0 space-y-7 ${
-            viewport === 'mobile' ? 'listing-preview-publish--mobile-frame' : ''
-          }`}
-        >
+        <div className="min-w-0 space-y-7">
           <section aria-label="Product photos">
             <PreviewGallery
               photos={photos}

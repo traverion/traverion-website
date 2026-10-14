@@ -853,12 +853,6 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
   }
 }
 
-.listing-preview-publish--mobile-frame {
-  max-width: 24.375rem;
-  margin-left: auto;
-  margin-right: auto;
-}
-
 .listing-preview-lightbox {
   z-index: 140;
 }
