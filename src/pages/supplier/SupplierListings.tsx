@@ -5,13 +5,14 @@ import {
   Pencil,
   Trash2,
   EyeOff,
-  Cog,
   Map,
   Compass,
   Home,
   Copy,
   Search,
   CalendarDays,
+  MoreHorizontal,
+  X,
 } from 'lucide-react';
 import { TourPackage } from '../../types/tour';
 import { getSupplierListings, setSupplierListings } from '../../data/listings';
@@ -70,9 +71,15 @@ import {
   filterPartnerListings,
   sortPartnerListings,
   type PartnerListingsSort,
+  parsePartnerListingsTypeFilter,
   parsePartnerListingsWorkspaceFilter,
+  partnerListingExperienceKind,
+  partnerListingTypeLabel,
+  partnerListingsTypeCounts,
+  partnerListingsVisibleTypeFilters,
   partnerListingsVisibleWorkspaceFilters,
   partnerListingsWorkspaceCounts,
+  type PartnerListingsTypeFilter,
   type PartnerListingsWorkspaceFilter,
 } from '../../lib/partner-listings-filter';
 import { normalizeListingForDraftSave } from '../../lib/listingDraftUtils';
@@ -108,7 +115,26 @@ export default function SupplierListings() {
     if (typeof window === 'undefined') return '';
     return (new URLSearchParams(window.location.search).get('q') ?? '').trim();
   });
-  const [listSort, setListSort] = useState<PartnerListingsSort>('title');
+  const [typeFilter, setTypeFilter] = useState<PartnerListingsTypeFilter>(() => {
+    if (typeof window === 'undefined') return 'all';
+    return parsePartnerListingsTypeFilter(new URLSearchParams(window.location.search).get('type'));
+  });
+  const [listSort, setListSort] = useState<PartnerListingsSort>(() => {
+    if (typeof window === 'undefined') return 'updated';
+    const raw = new URLSearchParams(window.location.search).get('sort');
+    if (
+      raw === 'title' ||
+      raw === 'title_desc' ||
+      raw === 'created' ||
+      raw === 'price' ||
+      raw === 'status' ||
+      raw === 'family' ||
+      raw === 'updated'
+    ) {
+      return raw;
+    }
+    return 'updated';
+  });
   const [showCreateChooser, setShowCreateChooser] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -192,11 +218,16 @@ export default function SupplierListings() {
   });
 
   const filteredListings = useMemo(
-    () => sortPartnerListings(filterPartnerListings(listings, workspaceFilter, listQuery), listSort),
-    [listings, workspaceFilter, listQuery, listSort]
+    () =>
+      sortPartnerListings(
+        filterPartnerListings(listings, workspaceFilter, listQuery, typeFilter),
+        listSort
+      ),
+    [listings, workspaceFilter, listQuery, typeFilter, listSort]
   );
 
   const workspaceCounts = useMemo(() => partnerListingsWorkspaceCounts(listings), [listings]);
+  const typeCounts = useMemo(() => partnerListingsTypeCounts(listings), [listings]);
 
   // Phase 1490: confirm must not run before upcoming-paid honesty (fast click ≠ zero trips).
   const deleteUpcomingPaidCheckPending = partnerListingUpcomingPaidCheckPending({
@@ -230,11 +261,44 @@ export default function SupplierListings() {
     window.history.replaceState({}, '', `${url.pathname}${url.search}`);
   }, []);
 
+  const setTypeFilterAndUrl = useCallback((next: PartnerListingsTypeFilter) => {
+    setTypeFilter(next);
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    if (next === 'all') url.searchParams.delete('type');
+    else url.searchParams.set('type', next);
+    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+  }, []);
+
+  const setListSortAndUrl = useCallback((next: PartnerListingsSort) => {
+    setListSort(next);
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    if (next === 'updated') url.searchParams.delete('sort');
+    else url.searchParams.set('sort', next);
+    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+  }, []);
+
   useEffect(() => {
     const syncFromUrl = () => {
       const params = new URLSearchParams(window.location.search);
       setWorkspaceFilter(parsePartnerListingsWorkspaceFilter(params.get('filter')));
+      setTypeFilter(parsePartnerListingsTypeFilter(params.get('type')));
       setListQuery((params.get('q') ?? '').trim());
+      const sortRaw = params.get('sort');
+      if (
+        sortRaw === 'title' ||
+        sortRaw === 'title_desc' ||
+        sortRaw === 'created' ||
+        sortRaw === 'price' ||
+        sortRaw === 'status' ||
+        sortRaw === 'family' ||
+        sortRaw === 'updated'
+      ) {
+        setListSort(sortRaw);
+      } else {
+        setListSort('updated');
+      }
     };
     window.addEventListener('popstate', syncFromUrl);
     return () => window.removeEventListener('popstate', syncFromUrl);
@@ -986,96 +1050,147 @@ export default function SupplierListings() {
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
       <SupplierPageHero
-        badge="Operate"
         title="Listings"
-        description="Drafts stay private until you publish. Status and next actions are on each row."
+        description="Manage your tours, activities, tickets, and transportation products."
         actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/discounts`)}
-              className="tv-btn-ghost"
-            >
-              Offers
-            </button>
-            <button
-              type="button"
-              onClick={openCreateChooser}
-              disabled={!canEditListings}
-              title={
-                !canEditListings
-                  ? 'Your role can view listings but cannot add new ones.'
-                  : !canPostNewListing
-                    ? 'You can draft listings now. Publishing requires Traverion-approved business and payout verification.'
-                    : undefined
-              }
-              className="tv-btn-primary w-full md:w-auto inline-flex items-center gap-1.5"
-            >
-              <Plus className="partner-icon-sm h-3.5 w-3.5 shrink-0" aria-hidden />
-              <span>New listing</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={openCreateChooser}
+            disabled={!canEditListings}
+            title={
+              !canEditListings
+                ? 'Your role can view listings but cannot add new ones.'
+                : !canPostNewListing
+                  ? 'You can draft listings now. Publishing requires Traverion-approved business and payout verification.'
+                  : undefined
+            }
+            className="tv-btn-primary w-full md:w-auto inline-flex items-center gap-1.5"
+          >
+            <Plus className="partner-icon-sm h-3.5 w-3.5 shrink-0" aria-hidden />
+            <span>Create listing</span>
+          </button>
         }
       />
 
       {listings.length > 0 && !showForm ? (
-        <div className="space-y-2">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="partner-listings-toolbar space-y-2.5">
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
             <label className="relative block min-w-0 flex-1">
               <span className="sr-only">Search listings</span>
-              <Search className="pointer-events-none absolute left-3 top-1/2 partner-icon -translate-y-1/2 text-ink-faint" aria-hidden />
+              <Search
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint"
+                aria-hidden
+              />
               <input
                 type="search"
                 value={listQuery}
                 onChange={(e) => setListQueryAndUrl(e.target.value)}
-                placeholder="Search title or place"
-                className="tv-input w-full pl-9"
+                placeholder="Search title, destination, or reference"
+                className="tv-input w-full !min-h-10 pl-9 pr-9"
                 autoComplete="off"
               />
+              {listQuery.trim() ? (
+                <button
+                  type="button"
+                  onClick={() => setListQueryAndUrl('')}
+                  className="lux-flat absolute right-1.5 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-ink-muted hover:bg-black/[0.04] hover:text-ink"
+                  aria-label="Clear search"
+                >
+                  <X className="h-3.5 w-3.5" aria-hidden />
+                </button>
+              ) : null}
             </label>
-            <div className="w-full sm:w-40 shrink-0">
-              <PartnerSelect
-                id="listings-sort"
-                aria-label="Sort listings"
-                value={listSort}
-                onChange={(v) => setListSort((v as PartnerListingsSort) || 'title')}
-                options={[
-                  { value: 'title', label: 'Title' },
-                  { value: 'status', label: 'Live first' },
-                  { value: 'family', label: 'Tours first' },
-                ]}
-              />
+            <div className="flex flex-wrap gap-2 lg:shrink-0">
+              <div className="min-w-[9.5rem] flex-1 sm:flex-none sm:w-44">
+                <PartnerSelect
+                  id="listings-type"
+                  aria-label="Product type"
+                  value={typeFilter}
+                  onChange={(v) => setTypeFilterAndUrl((v as PartnerListingsTypeFilter) || 'all')}
+                  options={partnerListingsVisibleTypeFilters(typeCounts, typeFilter).map((id) => ({
+                    value: id,
+                    label:
+                      id === 'all'
+                        ? 'All types'
+                        : id === 'tour'
+                          ? 'Tours & activities'
+                          : id === 'ticket'
+                            ? 'Tickets'
+                            : id === 'transportation'
+                              ? 'Transportation'
+                              : 'Stays',
+                  }))}
+                />
+              </div>
+              <div className="min-w-[9.5rem] flex-1 sm:flex-none sm:w-44">
+                <PartnerSelect
+                  id="listings-sort"
+                  aria-label="Sort listings"
+                  value={listSort}
+                  onChange={(v) => setListSortAndUrl((v as PartnerListingsSort) || 'updated')}
+                  options={[
+                    { value: 'updated', label: 'Recently updated' },
+                    { value: 'title', label: 'Title A–Z' },
+                    { value: 'title_desc', label: 'Title Z–A' },
+                    { value: 'created', label: 'Creation date' },
+                    { value: 'price', label: 'Starting price' },
+                    { value: 'status', label: 'Live first' },
+                  ]}
+                />
+              </div>
             </div>
           </div>
-          <div className="flex flex-wrap gap-x-1 gap-y-1 border-b border-black/[0.06]" role="tablist" aria-label="Listing filters">
-            {([
-              { id: 'all', label: 'All' },
-              { id: 'tour', label: 'Tours' },
-              { id: 'stay', label: 'Stays' },
-              { id: 'draft', label: 'Draft' },
-              { id: 'published', label: 'Live' },
-            ] as const)
-              .filter((tab) => partnerListingsVisibleWorkspaceFilters(workspaceCounts, workspaceFilter).includes(tab.id))
-              .map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                aria-selected={workspaceFilter === tab.id}
-                onClick={() => setWorkspaceFilterAndUrl(tab.id)}
-                className={`lux-flat relative px-3.5 py-2.5 text-sm font-medium transition-colors ${
-                  workspaceFilter === tab.id ? 'text-finland' : 'text-ink-muted hover:text-ink'
-                }`}
-              >
-                {tab.label}
-                <span className="ml-1.5 text-xs font-semibold text-ink-faint tabular-nums">
-                  {workspaceCounts[tab.id]}
-                </span>
-                {workspaceFilter === tab.id ? (
-                  <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-finland" aria-hidden />
-                ) : null}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-2">
+            <div
+              className="flex flex-wrap gap-x-0.5 gap-y-1 border-b border-black/[0.07]"
+              role="tablist"
+              aria-label="Listing status"
+            >
+              {(
+                [
+                  { id: 'all', label: 'All' },
+                  { id: 'published', label: 'Live' },
+                  { id: 'draft', label: 'Drafts' },
+                  { id: 'tour', label: 'Tours' },
+                  { id: 'stay', label: 'Stays' },
+                ] as const
+              )
+                .filter((tab) =>
+                  partnerListingsVisibleWorkspaceFilters(workspaceCounts, workspaceFilter).includes(
+                    tab.id
+                  )
+                )
+                .map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={workspaceFilter === tab.id}
+                    onClick={() => setWorkspaceFilterAndUrl(tab.id)}
+                    className={`lux-flat relative px-3 py-2 text-[13px] font-medium transition-colors ${
+                      workspaceFilter === tab.id
+                        ? 'text-finland'
+                        : 'text-ink-muted hover:text-ink'
+                    }`}
+                  >
+                    {tab.label}
+                    <span className="ml-1.5 text-[11px] font-semibold tabular-nums text-ink-faint">
+                      {workspaceCounts[tab.id]}
+                    </span>
+                    {workspaceFilter === tab.id ? (
+                      <span
+                        className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-finland"
+                        aria-hidden
+                      />
+                    ) : null}
+                  </button>
+                ))}
+            </div>
+            <p className="pb-2 text-[12px] tabular-nums text-ink-muted" aria-live="polite">
+              {filteredListings.length === listings.length
+                ? `${listings.length} listing${listings.length === 1 ? '' : 's'}`
+                : `${filteredListings.length} of ${listings.length}`}
+            </p>
           </div>
         </div>
       ) : null}
@@ -1330,18 +1445,18 @@ export default function SupplierListings() {
               className="tv-btn-primary"
             >
               <Plus className="w-5 h-5" />
-              New listing
+              Create listing
             </button>
           }
         />
       ) : listings.length > 0 && filteredListings.length === 0 && !showForm ? (
         <SupplierEmptyState
           icon={Map}
-          title="Nothing in this view"
+          title={listQuery.trim() ? 'No matching listings' : 'Nothing in this view'}
           body={
             listQuery.trim()
-              ? 'No listings match this search and filter. Clear search or switch tabs.'
-              : 'You have listings, but none match this filter. Clear it to see everything.'
+              ? 'No listings match this search and filters. Clear search or change filters.'
+              : 'You have listings, but none match these filters. Clear them to see everything.'
           }
           action={
             <button
@@ -1349,6 +1464,7 @@ export default function SupplierListings() {
               onClick={() => {
                 setListQueryAndUrl('');
                 setWorkspaceFilterAndUrl('all');
+                setTypeFilterAndUrl('all');
               }}
               className="tv-btn-secondary"
             >
@@ -1358,18 +1474,32 @@ export default function SupplierListings() {
         />
       ) : (
         listings.length > 0 && (
-          <div className="space-y-2.5" aria-busy={loading || undefined}>
+          <div className="tv-ops-listings-table" aria-busy={loading || undefined}>
+            <div
+              className="tv-ops-listings-head hidden px-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint lg:grid"
+              aria-hidden
+            >
+              <span>Product</span>
+              <span>Status</span>
+              <span>Commercial</span>
+              <span className="text-right">Actions</span>
+            </div>
             {filteredListings.map((listing) => {
               const isLive = listing.status !== 'draft';
               const family = inventoryFamilyFromListing(listing);
               const isStay = family === 'stay';
-              const familyLabel = isStay ? 'Stay' : 'Tour';
+              const typeKind = partnerListingExperienceKind(listing);
+              const typeLabel = partnerListingTypeLabel(typeKind);
               const currency = listing.price?.currency ?? 'EUR';
               const from = catalogHeadlineAmount(listing);
-              const money = from == null ? null : formatMoney(from, currency);
-              const opts = materializedBookingOptions(parseListingExtras(listing.listingExtras).bookingOptions);
+              const money = from == null || from <= 0 ? null : formatMoney(from, currency);
+              const opts = materializedBookingOptions(
+                parseListingExtras(listing.listingExtras).bookingOptions
+              );
               const qualifier = pickHeadlineOption(opts).qualifier;
-              const place = [listing.city, listing.country ?? listing.destination].filter(Boolean).join(', ');
+              const place = [listing.city, listing.country ?? listing.destination]
+                .filter(Boolean)
+                .join(', ');
               const heroSrc = listingHeroImageSrc(listing.image);
               const draftPublish = !isLive ? partnerListingDraftPublishSubtitle(listing) : null;
               // Phase 1272: Live cards surface any publish-bar drift (season, capacity, photos…).
@@ -1385,101 +1515,119 @@ export default function SupplierListings() {
                 ? card.draftStateLabel === 'Incomplete'
                   ? draftPublish?.subtitle ?? card.publishDisabledReason
                   : card.primaryCta === 'verify'
-                    ? 'Listing is complete. Verification is required before it can go live.'
+                    ? 'Verification required before publish.'
                     : card.primaryCta === 'publish'
                       ? 'Ready to publish'
                       : null
                 : liveAttention;
-              const cardAccent = !isLive
-                ? card.draftStateLabel === 'Incomplete'
-                  ? 'border-l-[3px] border-l-amber-500'
-                  : 'border-l-[3px] border-l-slate-400'
-                : liveAttention
-                  ? 'border-l-[3px] border-l-amber-500'
-                  : 'border-l-[3px] border-l-finland';
+              const statusTone =
+                card.statusLabel === 'Live'
+                  ? 'good'
+                  : card.statusLabel === 'Needs update'
+                    ? 'warn'
+                    : 'neutral';
               return (
-                <article
-                  key={listing.id}
-                  className={`tv-ops-listing-card group min-w-0 ${cardAccent}`}
-                >
-                  <div className="flex flex-col gap-2.5 p-3 sm:flex-row sm:items-stretch sm:gap-3.5 sm:p-3.5">
+                <article key={listing.id} className="tv-ops-listing-row group min-w-0">
+                  <div className="tv-ops-listing-row__grid">
                     <button
                       type="button"
                       onClick={() => openSupplierListingEditor(listing.id)}
-                      className="flex min-w-0 flex-1 gap-3 text-left sm:gap-3.5"
+                      className="tv-ops-listing-row__identity flex min-w-0 items-start gap-3 text-left"
                     >
-                      <div className="relative h-16 w-[4.75rem] shrink-0 overflow-hidden rounded-[var(--partner-radius,0.5rem)] bg-black/[0.04] sm:h-[4.5rem] sm:w-[6.5rem]">
+                      <div className="tv-ops-listing-row__thumb relative shrink-0 overflow-hidden bg-black/[0.04]">
                         {heroSrc ? (
-                          <img
-                            src={heroSrc}
-                            alt=""
-                            className="h-full w-full object-cover"
-                          />
-                        ) : null}
+                          <img src={heroSrc} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <span className="flex h-full w-full items-center justify-center text-[11px] font-medium text-ink-faint">
+                            No photo
+                          </span>
+                        )}
                       </div>
-                      <div className="min-w-0 flex-1 py-0">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <StatusChip tone={isLive ? 'good' : 'neutral'}>{card.statusLabel}</StatusChip>
-                          {card.draftStateLabel ? (
-                            <span className="partner-label text-ink-muted normal-case tracking-normal">
-                              {card.draftStateLabel}
-                            </span>
-                          ) : null}
-                          <span className="partner-label text-ink-faint">{familyLabel}</span>
-                          {justPublishedId === listing.id ? (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openSupplierCalendar(listing.id);
-                              }}
-                              className="tv-pop rounded-full bg-emerald-600 px-2 py-0.5 text-[11px] font-semibold text-white hover:bg-emerald-700"
-                            >
-                              Published · Calendar
-                            </button>
-                          ) : null}
-                          {justDuplicatedId === listing.id ? (
-                            <span className="rounded-full bg-finland/10 px-2 py-0.5 text-[11px] font-semibold text-finland ring-1 ring-finland/20">
-                              Draft copy
-                            </span>
-                          ) : null}
+                      <div className="min-w-0 flex-1 py-0.5">
+                        <div className="mb-1 flex flex-wrap items-center gap-1.5 lg:hidden">
+                          <StatusChip tone={statusTone}>{card.statusLabel}</StatusChip>
+                          <span className="text-[11px] font-medium text-ink-faint">{typeLabel}</span>
                         </div>
                         <h2
                           title={listing.title}
-                          className="mt-1 break-words font-display text-[0.98rem] font-semibold tracking-tight text-ink leading-snug line-clamp-2 [overflow-wrap:anywhere]"
+                          className="break-words text-[15px] font-semibold leading-snug tracking-tight text-ink line-clamp-2 [overflow-wrap:anywhere]"
                         >
                           {listing.title}
                         </h2>
-                        <p className="mt-0.5 partner-meta truncate">
-                          {place || null}
-                          {place && money ? ' · ' : null}
-                          {money ? (
-                            <span className="font-semibold tabular-nums tracking-tight text-ink">
-                              From {money}
-                              {qualifier && !isStay ? ` / ${qualifier}` : isStay ? ' / night' : ''}
-                            </span>
-                          ) : (
-                            <span>Price not set</span>
-                          )}
-                          {!isStay && opts.length > 0 ? (
-                            <span className="text-ink-faint">
-                              {' '}
-                              · {opts.length} option{opts.length === 1 ? '' : 's'}
-                            </span>
-                          ) : null}
+                        <p className="mt-0.5 truncate text-[12.5px] text-ink-muted">
+                          {place || 'Destination not set'}
+                        </p>
+                        <p className="mt-0.5 hidden text-[11.5px] font-medium text-ink-faint sm:block lg:hidden">
+                          {typeLabel}
+                          {money ? ` · From ${money}` : ' · Price not set'}
+                          {!isStay && opts.length > 0
+                            ? ` · ${opts.length} option${opts.length === 1 ? '' : 's'}`
+                            : ''}
                         </p>
                         {readinessLine ? (
-                          <p className="mt-1 break-words text-[12px] leading-snug text-ink-muted line-clamp-2 [overflow-wrap:anywhere]">{readinessLine}</p>
+                          <p className="mt-1 line-clamp-1 break-words text-[12px] leading-snug text-ink-muted [overflow-wrap:anywhere]">
+                            {readinessLine}
+                          </p>
+                        ) : null}
+                        {justPublishedId === listing.id ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openSupplierCalendar(listing.id);
+                            }}
+                            className="mt-1 text-[11px] font-semibold text-finland hover:underline"
+                          >
+                            Published · Open calendar
+                          </button>
+                        ) : null}
+                        {justDuplicatedId === listing.id ? (
+                          <span className="mt-1 inline-block text-[11px] font-semibold text-finland">
+                            Draft copy created
+                          </span>
                         ) : null}
                       </div>
                     </button>
-                    <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-t border-black/[0.06] pt-2.5 sm:flex-col sm:items-stretch sm:justify-center sm:border-t-0 sm:border-l sm:pl-3 sm:pt-0">
+
+                    <div className="tv-ops-listing-row__status hidden min-w-0 lg:flex lg:flex-col lg:justify-center lg:gap-1">
+                      <StatusChip tone={statusTone}>{card.statusLabel}</StatusChip>
+                      {card.draftStateLabel && card.statusLabel !== 'Needs update' ? (
+                        <span className="text-[11.5px] text-ink-muted">{card.draftStateLabel}</span>
+                      ) : null}
+                      <span className="text-[11.5px] font-medium text-ink-faint">{typeLabel}</span>
+                    </div>
+
+                    <div className="tv-ops-listing-row__commerce hidden min-w-0 lg:flex lg:flex-col lg:justify-center">
+                      <p className="text-[14px] font-semibold tabular-nums tracking-tight text-ink">
+                        {money ? (
+                          <>
+                            From {money}
+                            <span className="font-medium text-ink-muted">
+                              {qualifier && !isStay ? ` / ${qualifier}` : isStay ? ' / night' : ''}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="font-medium text-ink-muted">Price not set</span>
+                        )}
+                      </p>
+                      {!isStay ? (
+                        <p className="mt-0.5 text-[12px] text-ink-muted">
+                          {opts.length > 0
+                            ? `${opts.length} booking option${opts.length === 1 ? '' : 's'}`
+                            : 'No booking options'}
+                        </p>
+                      ) : (
+                        <p className="mt-0.5 text-[12px] text-ink-muted">Stay inventory</p>
+                      )}
+                    </div>
+
+                    <div className="tv-ops-listing-row__actions flex shrink-0 flex-wrap items-center gap-1.5 border-t border-black/[0.06] pt-2.5 lg:justify-end lg:border-t-0 lg:pt-0">
                       {isSupabase && canEditListings && card.primaryCta === 'publish' ? (
                         <button
                           type="button"
                           onClick={() => void handleStatusChange(listing, 'published')}
                           disabled={publishingId === listing.id}
-                          className="tv-btn-primary lux-flat inline-flex min-h-10 items-center justify-center px-3 text-xs disabled:opacity-50"
+                          className="tv-btn-primary lux-flat inline-flex min-h-9 items-center justify-center px-3 text-xs disabled:opacity-50"
                         >
                           {publishingId === listing.id ? 'Publishing…' : 'Publish'}
                         </button>
@@ -1489,7 +1637,7 @@ export default function SupplierListings() {
                         <button
                           type="button"
                           onClick={() => openSupplierListingEditor(listing.id)}
-                          className="tv-btn-primary lux-flat inline-flex min-h-10 items-center justify-center px-3 text-xs"
+                          className="tv-btn-primary lux-flat inline-flex min-h-9 items-center justify-center px-3 text-xs"
                         >
                           {card.primaryCtaLabel}
                         </button>
@@ -1497,19 +1645,25 @@ export default function SupplierListings() {
                       {isSupabase && canEditListings && card.primaryCta === 'verify' ? (
                         <button
                           type="button"
-                          onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile`)}
+                          onClick={() =>
+                            navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile`)
+                          }
                           title={card.publishDisabledReason ?? undefined}
-                          className="tv-btn-secondary lux-flat inline-flex min-h-10 items-center justify-center px-3 text-xs"
+                          className="tv-btn-secondary lux-flat inline-flex min-h-9 items-center justify-center px-3 text-xs"
                         >
                           Verification required
                         </button>
                       ) : null}
                       {card.primaryCta === 'view' ? (
                         <a
-                          href={isStay ? publicStayListingUrl(listing.id) : publicTourListingUrl(listing.id)}
+                          href={
+                            isStay
+                              ? publicStayListingUrl(listing.id)
+                              : publicTourListingUrl(listing.id)
+                          }
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="lux-flat inline-flex min-h-11 items-center justify-center rounded-full bg-finland/10 px-3.5 text-xs font-semibold text-finland ring-1 ring-finland/20 hover:bg-finland/15"
+                          className="tv-btn-primary lux-flat inline-flex min-h-9 items-center justify-center px-3 text-xs"
                         >
                           View
                         </a>
@@ -1518,7 +1672,7 @@ export default function SupplierListings() {
                         <button
                           type="button"
                           onClick={() => openSupplierListingEditor(listing.id)}
-                          className="tv-btn-ghost min-h-11"
+                          className="tv-btn-ghost lux-flat inline-flex min-h-9 items-center justify-center gap-1 px-2.5 text-xs"
                         >
                           <Pencil className="h-3.5 w-3.5" aria-hidden />
                           Edit
@@ -1534,9 +1688,9 @@ export default function SupplierListings() {
                         aria-expanded={listingActionsMenuId === listing.id}
                         aria-haspopup="menu"
                         aria-label={isStay ? 'Stay actions' : 'Tour actions'}
-                        className="lux-flat inline-flex h-11 w-11 items-center justify-center rounded-full text-ink-muted hover:bg-black/[0.05] hover:text-ink disabled:opacity-40 sm:self-end"
+                        className="lux-flat inline-flex h-9 w-9 items-center justify-center rounded-lg text-ink-muted hover:bg-black/[0.05] hover:text-ink disabled:opacity-40"
                       >
-                        <Cog className="h-4 w-4" aria-hidden />
+                        <MoreHorizontal className="h-4 w-4" aria-hidden />
                       </button>
                     </div>
                   </div>
@@ -1584,6 +1738,22 @@ export default function SupplierListings() {
                 >
                   Edit
                 </button>
+                {menuIsLive ? (
+                  <a
+                    role="menuitem"
+                    href={
+                      inventoryFamilyFromListing(menuListing) === 'stay'
+                        ? publicStayListingUrl(menuListing.id)
+                        : publicTourListingUrl(menuListing.id)
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex w-full px-3 py-2.5 text-left text-sm text-ink hover:bg-paper"
+                    onClick={() => closeListingActionsMenu()}
+                  >
+                    Preview
+                  </a>
+                ) : null}
                 <button
                   type="button"
                   role="menuitem"
@@ -1594,7 +1764,7 @@ export default function SupplierListings() {
                   }}
                 >
                   <CalendarDays className="h-4 w-4 shrink-0" aria-hidden />
-                  Calendar
+                  Manage availability
                 </button>
                 {menuIsTour ? (
                   <button

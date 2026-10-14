@@ -3156,27 +3156,79 @@ a:focus-visible,
   }
 }
 
-/* Phase 1822: partner listings ops cards */
+/* Phase 1822 / listings hub: compact product rows */
+.tv-ops-listings-table {
+  border: 1px solid rgba(28, 25, 23, 0.08);
+  border-radius: 0.75rem;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.tv-ops-listings-head {
+  grid-template-columns: minmax(0, 1.7fr) 7.5rem minmax(8rem, 0.85fr) minmax(11rem, auto);
+  gap: 1rem;
+  align-items: center;
+  padding-top: 0.65rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid rgba(28, 25, 23, 0.07);
+  background: #fafafb;
+}
+
+.tv-ops-listing-row {
+  border-bottom: 1px solid rgba(28, 25, 23, 0.07);
+  background: #ffffff;
+  transition: background-color 0.14s ease;
+}
+
+.tv-ops-listing-row:last-child {
+  border-bottom: 0;
+}
+
+.tv-ops-listing-row:hover {
+  background: #fbfbfc;
+}
+
+.tv-ops-listing-row__grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.8rem 0.85rem;
+}
+
+.tv-ops-listing-row__thumb {
+  width: 4.75rem;
+  height: 4.75rem;
+  border-radius: 0.55rem;
+}
+
+@media (min-width: 1024px) {
+  .tv-ops-listing-row__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.7fr) 7.5rem minmax(8rem, 0.85fr) minmax(11rem, auto);
+    gap: 1rem;
+    align-items: center;
+    min-height: 5.75rem;
+    padding: 0.7rem 0.95rem;
+  }
+
+  .tv-ops-listing-row__thumb {
+    width: 5.25rem;
+    height: 5.25rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tv-ops-listing-row {
+    transition: none;
+  }
+}
+
+/* Legacy class kept for any remaining references */
 .tv-ops-listing-card {
   overflow: hidden;
   border-radius: 0.75rem;
   background: #ffffff;
-  box-shadow:
-    0 0 0 1px rgba(28, 25, 23, 0.06),
-    0 10px 24px -18px rgba(15, 23, 42, 0.18);
-  transition: box-shadow 0.16s ease;
-}
-
-.tv-ops-listing-card:hover {
-  box-shadow:
-    0 0 0 1px rgba(0, 53, 128, 0.16),
-    0 14px 28px -16px rgba(15, 23, 42, 0.22);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .tv-ops-listing-card {
-    transition: none;
-  }
+  box-shadow: 0 0 0 1px rgba(28, 25, 23, 0.06);
 }
 
 /* Phase 1823: booking confirmation receipt chrome */

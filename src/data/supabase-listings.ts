@@ -133,6 +133,8 @@ export function rowToTourPackage(row: ListingRow): TourPackage {
     tags: row.tags && row.tags.length > 0 ? row.tags : undefined,
     supplierId: row.supplier_id,
     status: (row.status as 'draft' | 'published') ?? 'published',
+    createdAt: row.created_at || undefined,
+    updatedAt: row.updated_at || undefined,
     cancellationPolicy: row.cancellation_policy ?? undefined,
     meetingPoint: row.meeting_point ?? undefined,
     pickupInstructions: row.pickup_instructions ?? undefined,
