@@ -96,8 +96,8 @@ export function ListingCreationNavButton({
                 : current
                   ? 'bg-white text-[var(--lc-accent,#073B83)] ring-2 ring-[var(--lc-accent,#073B83)]'
                   : locked
-                    ? 'bg-[#F5F6F8] text-ink-faint ring-1 ring-[#E7E9ED]'
-                    : 'bg-white text-ink-muted ring-1 ring-[#E7E9ED]'
+                    ? 'bg-[#F5F6F8] text-ink-faint ring-1 ring-[#E5E7EB]'
+                    : 'bg-white text-ink-muted ring-1 ring-[#E5E7EB]'
             }`}
             aria-hidden
           >

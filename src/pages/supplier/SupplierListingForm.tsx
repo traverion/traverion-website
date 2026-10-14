@@ -4525,12 +4525,25 @@ export default function SupplierListingForm({
             const previewPlace = [form.city.trim(), form.country.trim()].filter(Boolean).join(', ');
             const languageLabel =
               LANGUAGE_OPTIONS.find((row) => row.code === form.experienceLanguage)?.label ??
-              form.experienceLanguage;
+              (form.experienceLanguage.trim().length === 2
+                ? form.experienceLanguage.toUpperCase()
+                : form.experienceLanguage);
+            const chargeConfigured = previewOpts.filter(
+              (o) => o.chargeModel === 'per_person' || o.chargeModel === 'flat_group'
+            );
+            const allGroup =
+              chargeConfigured.length > 0 &&
+              chargeConfigured.every(
+                (o) =>
+                  o.chargeModel === 'flat_group' ||
+                  (o.isPrivate === true && o.privatePricing === 'flat_group')
+              );
+            const priceUnit = allGroup ? '/ group' : chargeConfigured.length > 0 ? '/ person' : '';
             const startingPriceLabel =
               typeof previewFrom === 'number' && Number.isFinite(previewFrom) && previewFrom > 0
                 ? isStayForm
                   ? `${formatMoney(previewFrom, listingCurrency)} / night`
-                  : `From ${formatMoney(previewFrom, listingCurrency)}`
+                  : `From ${formatMoney(previewFrom, listingCurrency)}${priceUnit ? ` ${priceUnit}` : ''}`
                 : null;
             return (
               <ListingPreviewPublishStage

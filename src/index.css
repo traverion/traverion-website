@@ -13,15 +13,15 @@ body {
 @layer utilities {
   .partner-app-shell {
     -webkit-tap-highlight-color: transparent;
-    --partner-bg: #f3f5f8;
-    --partner-nav: #f7f8fb;
+    --partner-bg: #f8f9fb;
+    --partner-nav: #ffffff;
     --partner-surface: #ffffff;
-    --partner-surface-muted: #f8fafc;
-    --partner-border: rgba(15, 23, 42, 0.08);
-    --partner-ink: #0b1220;
-    --partner-ink-muted: #5c6778;
-    --partner-ink-faint: #8b95a5;
-    --partner-accent: #003580;
+    --partner-surface-muted: #f5f6f8;
+    --partner-border: #e5e7eb;
+    --partner-ink: #17191d;
+    --partner-ink-muted: #667085;
+    --partner-ink-faint: #98a2b3;
+    --partner-accent: #073b83;
     --partner-shadow: 0 1px 1px rgba(15, 23, 42, 0.03);
     --partner-shadow-raised: 0 1px 2px rgba(15, 23, 42, 0.04), 0 0 0 1px rgba(15, 23, 42, 0.06);
     --partner-radius: 0.5rem;
@@ -519,7 +519,7 @@ html:has(.partner-app-shell),
 html:has(.partner-app-shell) body {
   height: 100%;
   overflow: hidden;
-  background-color: #f3f5f8 !important;
+  background-color: #f8f9fb !important;
 }
 
 /* Partner listing editor portals to body and sets data-partner-overlay. Keep .partner-bottom-nav at z-40 so it stays above listing cards; do not raise main above it. */
@@ -535,16 +535,16 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
 .listing-creation-workspace {
   --lc-paper: #ffffff;
   --lc-paper-raised: #ffffff;
-  --lc-rail: #f8f9fa;
+  --lc-rail: #f8f9fb;
   --lc-surface-muted: #f5f6f8;
   --lc-surface-subtle: #fafafb;
   --lc-ink: #17191d;
-  --lc-ink-muted: #69717d;
-  --lc-ink-faint: #8b929c;
+  --lc-ink-muted: #667085;
+  --lc-ink-faint: #98a2b3;
   --lc-accent: #073b83;
   --lc-accent-hover: #052d65;
   --lc-accent-soft: rgba(7, 59, 131, 0.08);
-  --lc-line: #e7e9ed;
+  --lc-line: #e5e7eb;
   --lc-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --lc-section-gap: 1.125rem;
   --lc-card-pad: 1rem;
@@ -822,16 +822,16 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
 .listing-creation-schedule-workspace {
   --lc-paper: #ffffff;
   --lc-paper-raised: #ffffff;
-  --lc-rail: #f8f9fa;
+  --lc-rail: #f8f9fb;
   --lc-surface-muted: #f5f6f8;
   --lc-surface-subtle: #fafafb;
   --lc-ink: #17191d;
-  --lc-ink-muted: #69717d;
-  --lc-ink-faint: #8b929c;
+  --lc-ink-muted: #667085;
+  --lc-ink-faint: #98a2b3;
   --lc-accent: #073b83;
   --lc-accent-hover: #052d65;
   --lc-accent-soft: rgba(7, 59, 131, 0.08);
-  --lc-line: #e7e9ed;
+  --lc-line: #e5e7eb;
   --lc-ease: cubic-bezier(0.22, 1, 0.36, 1);
   display: flex;
   width: 100%;
@@ -958,16 +958,16 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
 .listing-creation-option-shell {
   --lc-paper: #ffffff;
   --lc-paper-raised: #ffffff;
-  --lc-rail: #f8f9fa;
+  --lc-rail: #f8f9fb;
   --lc-surface-muted: #f5f6f8;
   --lc-surface-subtle: #fafafb;
   --lc-ink: #17191d;
-  --lc-ink-muted: #69717d;
-  --lc-ink-faint: #8b929c;
+  --lc-ink-muted: #667085;
+  --lc-ink-faint: #98a2b3;
   --lc-accent: #073b83;
   --lc-accent-hover: #052d65;
   --lc-accent-soft: rgba(7, 59, 131, 0.08);
-  --lc-line: #e7e9ed;
+  --lc-line: #e5e7eb;
   --lc-ease: cubic-bezier(0.22, 1, 0.36, 1);
   display: flex;
   width: 100%;
@@ -1271,7 +1271,7 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
 }
 
 .partner-select__menu {
-  border: 1px solid #e7e9ed;
+  border: 1px solid #e5e7eb;
   border-radius: 0.5rem;
   background: #ffffff;
   box-shadow:
@@ -2632,7 +2632,7 @@ a:focus-visible,
 .tv-ops-booking-row {
   overflow: hidden;
   border-radius: 0.75rem;
-  background: #fffcf8;
+  background: #ffffff;
   box-shadow:
     0 0 0 1px rgba(28, 25, 23, 0.06),
     0 10px 24px -18px rgba(15, 23, 42, 0.18);
@@ -2697,7 +2697,7 @@ a:focus-visible,
   justify-content: space-between;
   gap: 0.85rem;
   border-radius: 0.75rem;
-  background: #fffcf8;
+  background: #ffffff;
   padding: 0.85rem 1rem;
   box-shadow:
     0 0 0 1px rgba(28, 25, 23, 0.06),
@@ -2864,7 +2864,7 @@ a:focus-visible,
 .tv-ops-listing-card {
   overflow: hidden;
   border-radius: 0.75rem;
-  background: #fffcf8;
+  background: #ffffff;
   box-shadow:
     0 0 0 1px rgba(28, 25, 23, 0.06),
     0 10px 24px -18px rgba(15, 23, 42, 0.18);

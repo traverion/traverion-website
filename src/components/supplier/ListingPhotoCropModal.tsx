@@ -149,7 +149,7 @@ export function ListingPhotoCropModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="listing-photo-crop-title"
-        className="flex max-h-[min(92vh,44rem)] w-full max-w-xl flex-col overflow-hidden rounded-t-[var(--partner-radius,0.5rem)] border border-[#E7E9ED] bg-white shadow-xl sm:rounded-[var(--partner-radius,0.5rem)]"
+        className="flex max-h-[min(92vh,44rem)] w-full max-w-xl flex-col overflow-hidden rounded-t-[var(--partner-radius,0.5rem)] border border-[#E5E7EB] bg-white shadow-xl sm:rounded-[var(--partner-radius,0.5rem)]"
       >
         <div className="shrink-0 border-b border-black/[0.06] px-4 py-3">
           <h2 id="listing-photo-crop-title" className="text-[15px] font-semibold tracking-tight text-ink">

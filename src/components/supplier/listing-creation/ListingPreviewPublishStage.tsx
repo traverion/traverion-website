@@ -6,6 +6,10 @@ import { tourOptionCardModel } from '../../../lib/listing-option-card';
 import type { TourOptionReadiness } from '../../../lib/listing-option-scenes';
 import { isPlaceholderListingImageUrl } from '../../../lib/listingPhotoGrid';
 import { reviewProductKindLabel } from '../../../lib/listing-creation-review';
+import {
+  labelsForCatalogIds,
+  SPOKEN_LANGUAGE_CATALOG,
+} from '../../../lib/listing-information-catalogs';
 
 export type PreviewPublishReviewRow = {
   step: number;
@@ -28,31 +32,114 @@ type PreviewOption = {
   readiness: TourOptionReadiness;
 };
 
-function SectionHeading({
-  index,
-  id,
-  children,
-}: {
-  index: string;
-  id: string;
-  children: ReactNode;
-}) {
+function PreviewGallery({ photos }: { photos: string[] }) {
+  const real = photos.filter((u) => u && !isPlaceholderListingImageUrl(u));
+  if (real.length === 0) {
+    return (
+      <div className="flex aspect-[16/9] items-center justify-center rounded-2xl bg-[#F5F6F8] ring-1 ring-[#E5E7EB] sm:aspect-[2.1/1]">
+        <p className="px-4 text-center text-[13px] text-[#667085]">
+          Add a cover photo to preview the traveler gallery
+        </p>
+      </div>
+    );
+  }
+
+  const cover = real[0];
+  const rest = real.slice(1);
+  const moreCount = Math.max(0, real.length - 5);
+  const sideCount = Math.min(4, rest.length);
+  const side = rest.slice(0, sideCount);
+
+  // Adaptive desktop mosaic — only render cells that have photos.
+  let desktopGrid = 'grid gap-2 sm:gap-2.5';
+  if (sideCount === 0) {
+    desktopGrid += ' lg:grid-cols-1';
+  } else if (sideCount === 1) {
+    desktopGrid += ' lg:grid-cols-2';
+  } else if (sideCount === 2) {
+    desktopGrid += ' lg:grid-cols-3 lg:grid-rows-2 lg:min-h-[22rem]';
+  } else {
+    desktopGrid += ' lg:grid-cols-4 lg:grid-rows-2 lg:min-h-[28rem]';
+  }
+
+  const coverSpan =
+    sideCount === 0
+      ? ''
+      : sideCount === 1
+        ? 'lg:col-span-1'
+        : sideCount === 2
+          ? 'lg:col-span-2 lg:row-span-2'
+          : 'lg:col-span-2 lg:row-span-2';
+
+  return (
+    <div>
+      <div className={desktopGrid}>
+        <div
+          className={`relative overflow-hidden rounded-2xl bg-[#F5F6F8] ${coverSpan}`}
+        >
+          <img
+            src={cover}
+            alt=""
+            className={`w-full object-cover ${
+              sideCount === 0
+                ? 'aspect-[16/10] max-h-[28rem]'
+                : 'aspect-[4/3] h-full lg:absolute lg:inset-0 lg:aspect-auto'
+            }`}
+          />
+        </div>
+        {side.map((url, i) => (
+          <div
+            key={url.slice(-40)}
+            className={`relative hidden overflow-hidden rounded-xl bg-[#F5F6F8] aspect-[4/3] lg:block ${
+              sideCount === 2 ? 'lg:col-span-1' : ''
+            }`}
+          >
+            <img src={url} alt="" className="absolute inset-0 h-full w-full object-cover" />
+            {i === sideCount - 1 && moreCount > 0 ? (
+              <span className="absolute inset-0 flex items-center justify-center bg-[#17191D]/45 text-[13px] font-semibold text-white">
+                +{moreCount} more
+              </span>
+            ) : null}
+          </div>
+        ))}
+        {real.length > 1 ? (
+          <div className="flex gap-2 overflow-x-auto pb-0.5 lg:hidden -mx-0.5 px-0.5 snap-x">
+            {real.slice(1).map((url) => (
+              <img
+                key={url.slice(-36)}
+                src={url}
+                alt=""
+                className="h-20 w-[42%] shrink-0 snap-start rounded-xl object-cover sm:h-24"
+              />
+            ))}
+          </div>
+        ) : null}
+      </div>
+      <div className="mt-2.5 flex items-center justify-between gap-3">
+        <p className="text-[12.5px] tabular-nums text-[#667085]">
+          {real.length} photo{real.length === 1 ? '' : 's'}
+        </p>
+        {real.length > 1 ? (
+          <span className="text-[12.5px] font-semibold text-[#073B83]">View all photos</span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function SectionTitle({ id, children }: { id: string; children: ReactNode }) {
   return (
     <h5
       id={id}
-      className="flex items-baseline gap-2.5 font-display text-[1.2rem] font-semibold tracking-tight text-[#17191D] sm:text-[1.3rem]"
+      className="text-[1.05rem] font-semibold tracking-tight text-[#17191D] sm:text-[1.125rem]"
     >
-      <span className="listing-preview-publish__section-num text-[12px] font-semibold" aria-hidden>
-        {index}
-      </span>
-      <span>{children}</span>
+      {children}
     </h5>
   );
 }
 
 /**
- * Final creation step: traveler-facing preview + publishing readiness.
- * Desktop: ~70% preview · ~30% sticky readiness. Mobile: stacked.
+ * Final creation step: traveler-facing preview + compact publishing readiness.
  */
 export function ListingPreviewPublishStage({
   isStay,
@@ -103,162 +190,100 @@ export function ListingPreviewPublishStage({
   isPublished: boolean;
   onEditStep: (step: number) => void;
 }) {
-  const cover = photos[0] ?? '';
-  const hasCover = Boolean(cover && !isPlaceholderListingImageUrl(cover));
-  const gallery = photos.slice(1, 5);
-  const gallerySlots = Array.from({ length: 4 }, (_, i) => gallery[i] ?? null);
-  const moreCount = Math.max(0, photos.length - 5);
   const kindLabel = isStay ? 'Stay' : reviewProductKindLabel(experienceKind);
   const readyCount = reviewRows.filter((r) => r.ready).length;
-  const allReady = reviewRows.length > 0 && readyCount === reviewRows.length;
-  const spoken =
-    [languageLabel.trim(), ...additionalLanguages.map((s) => s.trim()).filter(Boolean)]
-      .filter(Boolean)
-      .filter((v, i, a) => a.indexOf(v) === i);
+  const incomplete = reviewRows.filter((r) => !r.ready);
+  const allReady = reviewRows.length > 0 && incomplete.length === 0;
+
+  const spokenExtra = labelsForCatalogIds(additionalLanguages, SPOKEN_LANGUAGE_CATALOG);
+  const spoken = [languageLabel.trim(), ...spokenExtra]
+    .filter(Boolean)
+    .filter((v, i, a) => a.indexOf(v) === i);
 
   const durationLabel =
     !isStay && options[0]?.option.duration.trim()
       ? options.length === 1
         ? options[0].option.duration.trim()
-        : 'See options below'
+        : null
       : null;
 
-  let sectionIdx = 0;
-  const nextSection = () => {
-    sectionIdx += 1;
-    return String(sectionIdx).padStart(2, '0');
-  };
-
-  const overviewNum = description.trim() ? nextSection() : null;
-  const highlightsNum = highlights.length > 0 ? nextSection() : null;
-  const includesNum = includes.length > 0 || excludes.length > 0 ? nextSection() : null;
-  const importantNum = nextSection();
-  const optionsNum = !isStay ? nextSection() : null;
+  const meetingFromOptions = !isStay
+    ? options
+        .map(({ option }) => tourOptionCardModel(option, formatAmount).rows.find((r) => r.id === 'meeting'))
+        .find((r) => r?.ok && r.text)?.text
+    : null;
 
   return (
     <div id="supplier-listing-field-review" className="listing-preview-publish w-full">
-      <header className="mb-6 max-w-3xl sm:mb-8">
-        <h3 className="font-display text-[1.6rem] font-bold tracking-tight text-[#17191D] sm:text-[1.85rem]">
+      <header className="mb-5 max-w-2xl sm:mb-6">
+        <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#98A2B3]">
+          Traveler preview
+        </p>
+        <h3 className="mt-1 text-[1.35rem] font-semibold tracking-tight text-[#17191D] sm:text-[1.5rem]">
           Preview & Publish
         </h3>
-        <p className="mt-2 text-[14px] leading-relaxed text-[#69717D]">
-          How travelers will see this listing — then confirm readiness and publish.
+        <p className="mt-1.5 text-[14px] leading-relaxed text-[#667085]">
+          Review the customer-facing listing, then publish when everything is ready.
         </p>
       </header>
 
-      <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(16.5rem,20rem)] lg:items-start xl:gap-12">
-        {/* —— Traveler preview —— */}
-        <div className="min-w-0 space-y-10 sm:space-y-12">
-          {/* Hero */}
-          <section aria-label="Product photos and title">
-            {hasCover ? (
-              <div className="grid gap-2 sm:gap-2.5 lg:grid-cols-4 lg:grid-rows-2 lg:min-h-[28rem]">
-                <div className="relative overflow-hidden rounded-2xl bg-[#F5F6F8] lg:col-span-2 lg:row-span-2">
-                  <img
-                    src={cover}
-                    alt=""
-                    className="aspect-[4/3] h-full w-full object-cover lg:absolute lg:inset-0 lg:aspect-auto motion-safe:transition-transform motion-safe:duration-500 lg:hover:scale-[1.02]"
-                  />
-                </div>
-                {gallerySlots.map((url, i) =>
-                  url ? (
-                    <div
-                      key={url.slice(-40)}
-                      className="relative hidden overflow-hidden rounded-xl bg-[#F5F6F8] aspect-[4/3] lg:block"
-                    >
-                      <img
-                        src={url}
-                        alt=""
-                        className="absolute inset-0 h-full w-full object-cover motion-safe:transition-transform motion-safe:duration-500 hover:scale-[1.03]"
-                      />
-                      {i === 3 && moreCount > 0 ? (
-                        <span className="absolute inset-0 flex items-center justify-center bg-[#17191D]/45 text-[13px] font-semibold text-white">
-                          +{moreCount} more
-                        </span>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <div
-                      key={`slot-${i}`}
-                      className="relative hidden overflow-hidden rounded-xl bg-[#FAFAFB] ring-1 ring-inset ring-[#E7E9ED] aspect-[4/3] lg:block"
-                      aria-hidden
-                    />
-                  )
-                )}
-                {photos.length > 1 ? (
-                  <div className="flex gap-2 overflow-x-auto pb-0.5 lg:hidden -mx-0.5 px-0.5 snap-x">
-                    {photos.slice(1, 6).map((url) => (
-                      <img
-                        key={url.slice(-36)}
-                        src={url}
-                        alt=""
-                        className="h-20 w-[30%] shrink-0 snap-start rounded-xl object-cover sm:h-24"
-                      />
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            ) : (
-              <div className="flex aspect-[16/9] items-center justify-center rounded-2xl bg-[#FAFAFB] ring-1 ring-[#E7E9ED] sm:aspect-[2.1/1]">
-                <p className="px-4 text-center text-[13px] text-[#69717D]">
-                  Add a cover photo to preview the traveler gallery
-                </p>
-              </div>
-            )}
-
-            {photos.length > 0 ? (
-              <p className="mt-2.5 text-[12.5px] tabular-nums text-[#69717D]">
-                {photos.length} photo{photos.length === 1 ? '' : 's'}
-              </p>
-            ) : null}
-
-            <div className="mt-5 max-w-3xl sm:mt-6">
-              <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[13px] text-[#69717D]">
-                {place ? (
-                  <span className="inline-flex items-center gap-1">
-                    <MapPin className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
-                    {place}
-                  </span>
-                ) : (
-                  <span>Location not set</span>
-                )}
-                <span className="text-[#E7E9ED]" aria-hidden>
-                  ·
-                </span>
-                <span>{kindLabel}</span>
-              </p>
-              <h4 className="mt-2 font-display text-[1.55rem] font-semibold leading-[1.18] tracking-tight text-[#17191D] [overflow-wrap:anywhere] sm:text-[1.85rem]">
-                {title.trim() || (isStay ? 'Untitled stay' : 'Untitled listing')}
-              </h4>
-              {subtitle.trim() ? (
-                <p className="mt-2 text-[15px] leading-snug text-[#69717D] [overflow-wrap:anywhere]">
-                  {subtitle.trim()}
-                </p>
-              ) : null}
-              {startingPriceLabel ? (
-                <p className="mt-4 text-[1.2rem] font-semibold tabular-nums tracking-tight text-[#17191D]">
-                  {startingPriceLabel}
-                </p>
-              ) : (
-                <p className="mt-4 text-[13px] text-[#69717D]">
-                  {isStay
-                    ? 'Nightly price appears when pricing is set'
-                    : 'Starting price appears when bookable options have prices'}
-                </p>
-              )}
-            </div>
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(15.5rem,18.5rem)] lg:items-start xl:gap-10">
+        {/* —— Traveler preview (no supplier chrome) —— */}
+        <div className="min-w-0 space-y-8 sm:space-y-9">
+          <section aria-label="Product photos">
+            <PreviewGallery photos={photos} />
           </section>
 
-          {/* Overview */}
-          {description.trim() && overviewNum ? (
+          <section aria-label="Product identity" className="max-w-2xl">
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-[#667085]">
+              <span className="inline-flex items-center rounded-md bg-[rgba(7,59,131,0.08)] px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-[#073B83]">
+                {kindLabel}
+              </span>
+              {place ? (
+                <span className="inline-flex items-center gap-1">
+                  <MapPin className="h-3.5 w-3.5 shrink-0 text-[#073B83]" aria-hidden />
+                  {place}
+                </span>
+              ) : (
+                <span>Location not set</span>
+              )}
+              {durationLabel ? (
+                <>
+                  <span className="text-[#E5E7EB]" aria-hidden>
+                    ·
+                  </span>
+                  <span>{durationLabel}</span>
+                </>
+              ) : null}
+            </p>
+            <h4 className="mt-2.5 font-display text-[1.65rem] font-semibold leading-[1.15] tracking-tight text-[#17191D] [overflow-wrap:anywhere] sm:text-[2rem]">
+              {title.trim() || (isStay ? 'Untitled stay' : 'Untitled listing')}
+            </h4>
+            {subtitle.trim() ? (
+              <p className="mt-2 text-[15px] leading-snug text-[#667085] [overflow-wrap:anywhere]">
+                {subtitle.trim()}
+              </p>
+            ) : null}
+            {startingPriceLabel ? (
+              <p className="mt-3.5 text-[1.125rem] font-semibold tabular-nums tracking-tight text-[#17191D]">
+                {startingPriceLabel}
+              </p>
+            ) : (
+              <p className="mt-3.5 text-[13px] text-[#667085]">
+                {isStay
+                  ? 'Nightly price appears when pricing is set'
+                  : 'Starting price appears when bookable options have prices'}
+              </p>
+            )}
+          </section>
+
+          {description.trim() ? (
             <section
               aria-labelledby="preview-overview-heading"
-              className="max-w-3xl border-t border-[#E7E9ED] pt-10"
+              className="max-w-2xl border-t border-[#E5E7EB] pt-8"
             >
-              <SectionHeading index={overviewNum} id="preview-overview-heading">
-                Overview
-              </SectionHeading>
-              <div className="mt-4 space-y-3.5 text-[15px] leading-[1.7] text-[#17191D] [overflow-wrap:anywhere]">
+              <SectionTitle id="preview-overview-heading">Overview</SectionTitle>
+              <div className="mt-3 space-y-3 text-[15px] leading-[1.65] text-[#17191D] [overflow-wrap:anywhere]">
                 {description
                   .trim()
                   .split(/\n{2,}/)
@@ -269,20 +294,17 @@ export function ListingPreviewPublishStage({
             </section>
           ) : null}
 
-          {/* Highlights */}
-          {highlights.length > 0 && highlightsNum ? (
+          {highlights.length > 0 ? (
             <section
               aria-labelledby="preview-highlights-heading"
-              className="max-w-3xl border-t border-[#E7E9ED] pt-10"
+              className="max-w-2xl border-t border-[#E5E7EB] pt-8"
             >
-              <SectionHeading index={highlightsNum} id="preview-highlights-heading">
-                Experience highlights
-              </SectionHeading>
-              <ul className="mt-4 grid gap-3 sm:grid-cols-2 sm:gap-x-6 sm:gap-y-3">
+              <SectionTitle id="preview-highlights-heading">Experience highlights</SectionTitle>
+              <ul className="mt-3.5 grid gap-2.5 sm:grid-cols-2 sm:gap-x-5 sm:gap-y-2.5">
                 {highlights.map((line) => (
-                  <li key={line} className="flex gap-2.5 text-[14.5px] leading-snug text-[#17191D]">
-                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[rgba(7,59,131,0.08)] text-[#073B83]">
-                      <Check className="h-3 w-3" strokeWidth={2.5} aria-hidden />
+                  <li key={line} className="flex gap-2.5 text-[14px] leading-snug text-[#17191D]">
+                    <span className="mt-0.5 flex h-[1.125rem] w-[1.125rem] shrink-0 items-center justify-center rounded-full bg-[rgba(7,59,131,0.08)] text-[#073B83]">
+                      <Check className="h-2.5 w-2.5" strokeWidth={2.75} aria-hidden />
                     </span>
                     <span className="[overflow-wrap:anywhere]">{line}</span>
                   </li>
@@ -291,23 +313,19 @@ export function ListingPreviewPublishStage({
             </section>
           ) : null}
 
-          {/* Includes / excludes */}
-          {(includes.length > 0 || excludes.length > 0) && includesNum ? (
+          {(includes.length > 0 || excludes.length > 0) ? (
             <section
               aria-label="Inclusions and exclusions"
-              className="grid max-w-3xl gap-8 border-t border-[#E7E9ED] pt-10 sm:grid-cols-2 sm:gap-10"
+              className={`grid max-w-2xl gap-6 border-t border-[#E5E7EB] pt-8 ${
+                includes.length > 0 && excludes.length > 0 ? 'sm:grid-cols-2 sm:gap-8' : ''
+              }`}
             >
-              <div className="sm:col-span-2">
-                <SectionHeading index={includesNum} id="preview-includes-heading">
-                  What&apos;s included
-                </SectionHeading>
-              </div>
               {includes.length > 0 ? (
                 <div>
-                  <h6 className="text-[13px] font-semibold tracking-tight text-[#17191D]">Included</h6>
-                  <ul className="mt-3 space-y-2 text-[14.5px] leading-snug text-[#17191D]">
+                  <SectionTitle id="preview-includes-heading">What&apos;s included</SectionTitle>
+                  <ul className="mt-3 space-y-2 text-[14px] leading-snug text-[#17191D]">
                     {includes.map((line) => (
-                      <li key={line} className="flex gap-2.5">
+                      <li key={line} className="flex gap-2">
                         <Check
                           className="mt-0.5 h-4 w-4 shrink-0 text-[#073B83]"
                           strokeWidth={2.25}
@@ -321,12 +339,12 @@ export function ListingPreviewPublishStage({
               ) : null}
               {excludes.length > 0 ? (
                 <div>
-                  <h6 className="text-[13px] font-semibold tracking-tight text-[#17191D]">Not included</h6>
-                  <ul className="mt-3 space-y-2 text-[14.5px] leading-snug text-[#69717D]">
+                  <SectionTitle id="preview-excludes-heading">Not included</SectionTitle>
+                  <ul className="mt-3 space-y-2 text-[14px] leading-snug text-[#667085]">
                     {excludes.map((line) => (
-                      <li key={line} className="flex gap-2.5">
+                      <li key={line} className="flex gap-2">
                         <X
-                          className="mt-0.5 h-4 w-4 shrink-0 text-[#8B929C]"
+                          className="mt-0.5 h-4 w-4 shrink-0 text-[#98A2B3]"
                           strokeWidth={2.25}
                           aria-hidden
                         />
@@ -339,98 +357,91 @@ export function ListingPreviewPublishStage({
             </section>
           ) : null}
 
-          {/* Important information */}
           <section
             aria-labelledby="preview-important-heading"
-            className="max-w-3xl border-t border-[#E7E9ED] pt-10"
+            className="max-w-2xl border-t border-[#E5E7EB] pt-8"
           >
-            <SectionHeading index={importantNum} id="preview-important-heading">
-              Important information
-            </SectionHeading>
-            <dl className="mt-4 space-y-4">
+            <SectionTitle id="preview-important-heading">Important information</SectionTitle>
+            <dl className="mt-3.5 space-y-3.5">
               {spoken.length > 0 ? (
-                <div className="grid gap-1 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-4">
-                  <dt className="text-[12.5px] font-semibold text-[#69717D]">
-                    Language{spoken.length === 1 ? '' : 's'}
-                  </dt>
-                  <dd className="text-[14.5px] text-[#17191D]">{spoken.join(', ')}</dd>
+                <div className="grid gap-0.5 sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:gap-x-4">
+                  <dt className="text-[12.5px] font-medium text-[#667085]">Languages</dt>
+                  <dd className="text-[14px] text-[#17191D]">{spoken.join(', ')}</dd>
                 </div>
               ) : null}
               {durationLabel ? (
-                <div className="grid gap-1 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-4">
-                  <dt className="text-[12.5px] font-semibold text-[#69717D]">Duration</dt>
-                  <dd className="text-[14.5px] text-[#17191D]">{durationLabel}</dd>
+                <div className="grid gap-0.5 sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:gap-x-4">
+                  <dt className="text-[12.5px] font-medium text-[#667085]">Duration</dt>
+                  <dd className="text-[14px] text-[#17191D]">{durationLabel}</dd>
+                </div>
+              ) : null}
+              {meetingFromOptions ? (
+                <div className="grid gap-0.5 sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:gap-x-4">
+                  <dt className="text-[12.5px] font-medium text-[#667085]">Meeting</dt>
+                  <dd className="text-[14px] text-[#17191D] [overflow-wrap:anywhere]">
+                    {meetingFromOptions}
+                  </dd>
                 </div>
               ) : null}
               {knowBeforeYouGo.trim() ? (
-                <div className="grid gap-1 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-4">
-                  <dt className="text-[12.5px] font-semibold text-[#69717D]">Know before you go</dt>
-                  <dd className="text-[14.5px] leading-relaxed text-[#17191D] [overflow-wrap:anywhere] whitespace-pre-wrap">
+                <div className="grid gap-0.5 sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:gap-x-4">
+                  <dt className="text-[12.5px] font-medium text-[#667085]">Know before you go</dt>
+                  <dd className="text-[14px] leading-relaxed text-[#17191D] [overflow-wrap:anywhere] whitespace-pre-wrap">
                     {knowBeforeYouGo.trim()}
                   </dd>
                 </div>
               ) : null}
               {whatToBring.trim() ? (
-                <div className="grid gap-1 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-4">
-                  <dt className="text-[12.5px] font-semibold text-[#69717D]">What to bring</dt>
-                  <dd className="text-[14.5px] leading-relaxed text-[#17191D] [overflow-wrap:anywhere] whitespace-pre-wrap">
+                <div className="grid gap-0.5 sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:gap-x-4">
+                  <dt className="text-[12.5px] font-medium text-[#667085]">What to bring</dt>
+                  <dd className="text-[14px] leading-relaxed text-[#17191D] [overflow-wrap:anywhere] whitespace-pre-wrap">
                     {whatToBring.trim()}
                   </dd>
                 </div>
               ) : null}
-              <div className="grid gap-1 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-4">
-                <dt className="text-[12.5px] font-semibold text-[#69717D]">Cancellation</dt>
-                <dd className="text-[14.5px] leading-relaxed text-[#69717D]">
+              <div className="grid gap-0.5 sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:gap-x-4">
+                <dt className="text-[12.5px] font-medium text-[#667085]">Cancellation</dt>
+                <dd className="text-[14px] leading-relaxed text-[#667085]">
                   {TRAVERION_STANDARD_CANCELLATION_POLICY}
                 </dd>
               </div>
             </dl>
           </section>
 
-          {/* Booking options */}
-          {!isStay && optionsNum ? (
+          {!isStay ? (
             <section
               aria-labelledby="preview-options-heading"
-              className="border-t border-[#E7E9ED] pt-10"
+              className="border-t border-[#E5E7EB] pt-8"
             >
-              <SectionHeading index={optionsNum} id="preview-options-heading">
-                Booking options
-              </SectionHeading>
+              <SectionTitle id="preview-options-heading">Booking options</SectionTitle>
               {options.length === 0 ? (
-                <p className="mt-3 text-[14px] text-[#69717D]">No bookable options yet.</p>
+                <p className="mt-2.5 text-[14px] text-[#667085]">No bookable options yet.</p>
               ) : (
-                <ul className="mt-4 grid gap-3 sm:grid-cols-2">
-                  {options.map(({ option, readiness }) => {
+                <ul className="mt-3.5 grid gap-2.5 sm:grid-cols-2">
+                  {options.map(({ option }) => {
                     const card = tourOptionCardModel(option, formatAmount);
-                    const pricing = card.rows.find((r) => r.id === 'pricing')?.text;
-                    const meeting = card.rows.find((r) => r.id === 'meeting')?.text;
-                    const duration = card.rows.find((r) => r.id === 'duration')?.text;
-                    const configured = readiness === 'ready';
+                    const pricing = card.rows.find((r) => r.id === 'pricing');
+                    const meeting = card.rows.find((r) => r.id === 'meeting');
+                    const duration = card.rows.find((r) => r.id === 'duration');
                     return (
                       <li
                         key={option.id}
-                        className="rounded-lg border border-[#E7E9ED] bg-white px-4 py-3.5"
+                        className="rounded-lg border border-[#E5E7EB] bg-white px-3.5 py-3"
                       >
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="min-w-0 text-[14.5px] font-semibold tracking-tight text-[#17191D] [overflow-wrap:anywhere]">
-                            {option.name.trim() || 'Untitled option'}
-                          </p>
-                          <span
-                            className={`shrink-0 rounded px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.04em] ${
-                              configured
-                                ? 'bg-[#F5F6F8] text-[#69717D]'
-                                : 'bg-amber-50 text-amber-900'
-                            }`}
-                          >
-                            {configured ? 'Ready' : 'Incomplete'}
-                          </span>
-                        </div>
-                        <p className="mt-2 text-[13px] leading-snug text-[#69717D]">
-                          {[duration, pricing].filter(Boolean).join(' · ')}
+                        <p className="text-[14px] font-semibold tracking-tight text-[#17191D] [overflow-wrap:anywhere]">
+                          {option.name.trim() || 'Untitled option'}
                         </p>
-                        {meeting ? (
-                          <p className="mt-1.5 text-[13px] leading-snug text-[#69717D] [overflow-wrap:anywhere]">
-                            {meeting}
+                        {duration?.ok && duration.text ? (
+                          <p className="mt-1.5 text-[12.5px] text-[#667085]">{duration.text}</p>
+                        ) : null}
+                        {pricing?.ok && pricing.text ? (
+                          <p className="mt-1 text-[13.5px] font-semibold tabular-nums text-[#17191D]">
+                            {pricing.text}
+                          </p>
+                        ) : null}
+                        {meeting?.ok && meeting.text ? (
+                          <p className="mt-1.5 text-[12.5px] leading-snug text-[#667085] [overflow-wrap:anywhere]">
+                            {meeting.text}
                           </p>
                         ) : null}
                       </li>
@@ -442,25 +453,25 @@ export function ListingPreviewPublishStage({
           ) : null}
         </div>
 
-        {/* —— Publishing readiness —— */}
-        <aside className="min-w-0 lg:sticky lg:top-3">
-          <div className="rounded-lg border border-[#E7E9ED] bg-white">
-            <div className="border-b border-[#E7E9ED] px-4 py-4">
-              <p className="text-[12.5px] font-semibold text-[#69717D]">Publishing</p>
-              <p className="mt-1 font-display text-[1.25rem] font-semibold tracking-tight text-[#17191D]">
+        {/* —— Publishing controls (supplier only) —— */}
+        <aside className="min-w-0 lg:sticky lg:top-3 lg:pb-24">
+          <div className="rounded-lg border border-[#E5E7EB] bg-white">
+            <div className="px-4 py-3.5">
+              <p className="text-[12px] font-semibold text-[#667085]">Publishing</p>
+              <p className="mt-1 text-[1.05rem] font-semibold tracking-tight text-[#17191D]">
                 {isPublished
                   ? 'Live listing'
                   : truth.canPublish
                     ? 'Ready to publish'
                     : allReady
                       ? 'Almost there'
-                      : 'Finish required steps'}
+                      : 'Not ready yet'}
               </p>
-              <p className="mt-1 text-[12.5px] leading-snug text-[#69717D] tabular-nums">
-                {readyCount} of {reviewRows.length} stages complete
+              <p className="mt-1 text-[12.5px] tabular-nums text-[#667085]">
+                {readyCount}/{reviewRows.length} stages complete
               </p>
               <div
-                className="mt-3 h-1 overflow-hidden rounded-full bg-[#F5F6F8]"
+                className="mt-2.5 h-1 overflow-hidden rounded-full bg-[#F5F6F8]"
                 role="progressbar"
                 aria-valuemin={0}
                 aria-valuemax={reviewRows.length}
@@ -477,10 +488,10 @@ export function ListingPreviewPublishStage({
             </div>
 
             {truth.bannerTitle ? (
-              <div className="border-b border-amber-200/80 bg-amber-50/70 px-4 py-3" role="status">
+              <div className="border-t border-amber-200/80 bg-amber-50/60 px-4 py-3" role="status">
                 <p className="text-[13px] font-semibold text-[#17191D]">{truth.bannerTitle}</p>
                 {truth.bannerBody ? (
-                  <p className="mt-1 text-[12.5px] leading-snug text-[#69717D]">{truth.bannerBody}</p>
+                  <p className="mt-1 text-[12.5px] leading-snug text-[#667085]">{truth.bannerBody}</p>
                 ) : null}
                 <a
                   href={settingsHref}
@@ -491,55 +502,48 @@ export function ListingPreviewPublishStage({
               </div>
             ) : null}
 
-            <ul className="divide-y divide-[#E7E9ED]">
-              {reviewRows.map((row) => (
-                <li key={row.label} className="flex items-start gap-2.5 px-4 py-3">
-                  <span
-                    className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
-                      row.ready
-                        ? 'bg-[#073B83] text-white'
-                        : 'bg-[#F5F6F8] text-[#8B929C] ring-1 ring-[#E7E9ED]'
-                    }`}
-                    aria-hidden
-                  >
-                    {row.ready ? <Check className="h-3 w-3" strokeWidth={2.75} /> : null}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
+            {incomplete.length > 0 ? (
+              <ul className="border-t border-[#E5E7EB] divide-y divide-[#E5E7EB]">
+                {incomplete.map((row) => (
+                  <li key={row.label} className="flex items-start gap-2 px-4 py-2.5">
+                    <div className="min-w-0 flex-1">
                       <p className="text-[13px] font-semibold text-[#17191D]">{row.label}</p>
-                      <button
-                        type="button"
-                        onClick={() => onEditStep(row.step)}
-                        className="lux-flat inline-flex shrink-0 items-center gap-0.5 text-[12px] font-semibold text-[#073B83] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#073B83]/30"
-                      >
-                        {row.ready ? 'Edit' : 'Fix'}
-                        <ChevronRight className="h-3 w-3 opacity-70" aria-hidden />
-                      </button>
+                      <p className="mt-0.5 text-[12px] leading-snug text-[#667085] [overflow-wrap:anywhere]">
+                        {row.missing || row.summary}
+                      </p>
                     </div>
-                    <p className="mt-0.5 text-[12px] leading-snug text-[#69717D] [overflow-wrap:anywhere]">
-                      {row.ready ? row.summary : row.missing || row.summary}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                    <button
+                      type="button"
+                      onClick={() => onEditStep(row.step)}
+                      className="lux-flat inline-flex shrink-0 items-center gap-0.5 text-[12px] font-semibold text-[#073B83] hover:underline"
+                    >
+                      Fix
+                      <ChevronRight className="h-3 w-3 opacity-70" aria-hidden />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="border-t border-[#E5E7EB] px-4 py-3">
+                <p className="text-[13px] leading-snug text-[#17191D]">
+                  {isPublished
+                    ? 'All stages look complete. Save changes from the footer to update the live listing.'
+                    : 'All stages look complete. Use Publish in the footer when you are ready.'}
+                </p>
+              </div>
+            )}
 
-            <div className="space-y-2 border-t border-[#E7E9ED] px-4 py-4">
-              <p className="text-[13px] leading-snug text-[#17191D]">{truth.listingLine}</p>
+            <div className="space-y-1.5 border-t border-[#E5E7EB] px-4 py-3">
+              <p className="text-[12.5px] leading-snug text-[#667085]">{truth.listingLine}</p>
               {truth.accountLine ? (
-                <p className="text-[12.5px] leading-snug text-[#69717D]">{truth.accountLine}</p>
+                <p className="text-[12px] leading-snug text-[#667085]">{truth.accountLine}</p>
               ) : null}
-              <p className="text-[12px] leading-snug text-[#69717D]">
-                {isPublished
-                  ? 'Save changes from the footer to update your live listing.'
-                  : 'Publish makes this listing bookable on Traverion when verification allows. You can still edit after it goes live.'}
-              </p>
               {liveListingHref ? (
                 <a
                   href={liveListingHref}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex min-h-9 items-center text-[13px] font-semibold text-[#073B83] hover:underline"
+                  className="inline-flex min-h-8 items-center text-[13px] font-semibold text-[#073B83] hover:underline"
                 >
                   View live listing
                 </a>

@@ -84,7 +84,7 @@ export function ListingPhotoActionMenu({
     <div
       ref={menuRef}
       role="menu"
-      className="fixed z-[120] min-w-[10.5rem] overflow-hidden rounded-lg border border-[#E7E9ED] bg-white shadow-lg"
+      className="fixed z-[120] min-w-[10.5rem] overflow-hidden rounded-lg border border-[#E5E7EB] bg-white shadow-lg"
       style={
         pos
           ? { top: pos.top, left: pos.left }
