@@ -23,9 +23,11 @@ export function ListingPhotoCropModal({
   imageUrl: string;
   initial?: ListingPhotoCropSettings | null;
   onCancel: () => void;
-  onApply: (result: { blob: Blob; settings: ListingPhotoCropSettings }) => void;
+  /** Return a promise so Apply stays open until upload succeeds. */
+  onApply: (result: { blob: Blob; settings: ListingPhotoCropSettings }) => void | Promise<void>;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const areaPixelsRef = useRef<Area | null>(initial?.areaPixels ?? null);
   const seed = initial ?? EMPTY_LISTING_PHOTO_CROP;
   const [crop, setCrop] = useState<Point>(seed.crop);
   const [zoom, setZoom] = useState(seed.zoom);
@@ -33,14 +35,26 @@ export function ListingPhotoCropModal({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  useDialogFocus(true, panelRef, onCancel);
+  useDialogFocus(true, panelRef, () => {
+    if (!busy) onCancel();
+  });
 
   useEffect(() => {
     setCrop(seed.crop);
     setZoom(seed.zoom);
     setAreaPixels(seed.areaPixels);
+    areaPixelsRef.current = seed.areaPixels;
     setError(null);
-  }, [imageUrl, seed.crop.x, seed.crop.y, seed.zoom, seed.areaPixels?.x, seed.areaPixels?.y, seed.areaPixels?.width, seed.areaPixels?.height]);
+  }, [
+    imageUrl,
+    seed.crop.x,
+    seed.crop.y,
+    seed.zoom,
+    seed.areaPixels?.x,
+    seed.areaPixels?.y,
+    seed.areaPixels?.width,
+    seed.areaPixels?.height,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,6 +97,7 @@ export function ListingPhotoCropModal({
   }, []);
 
   const onCropComplete = useCallback((_area: Area, pixels: Area) => {
+    areaPixelsRef.current = pixels;
     setAreaPixels(pixels);
   }, []);
 
@@ -93,20 +108,25 @@ export function ListingPhotoCropModal({
   };
 
   const apply = async () => {
-    if (!areaPixels) {
+    const pixels = areaPixelsRef.current ?? areaPixels;
+    if (!pixels) {
       setError('Adjust the crop frame, then apply.');
       return;
     }
     setBusy(true);
     setError(null);
     try {
-      const blob = await cropListingPhotoToBlob(imageUrl, areaPixels);
-      onApply({
+      const blob = await cropListingPhotoToBlob(imageUrl, pixels);
+      await onApply({
         blob,
-        settings: { crop, zoom, areaPixels },
+        settings: { crop, zoom, areaPixels: pixels },
       });
-    } catch {
-      setError('Could not apply this crop. Try again or pick another photo.');
+    } catch (e) {
+      const msg =
+        e instanceof Error && /image-load|fetch|encode|canvas|download/i.test(e.message)
+          ? 'Could not apply this crop. Check your connection and try again.'
+          : 'Could not apply this crop. Try again or pick another photo.';
+      setError(msg);
     } finally {
       setBusy(false);
     }
@@ -117,7 +137,7 @@ export function ListingPhotoCropModal({
       className="fixed inset-0 z-[100] flex items-end justify-center bg-black/55 p-0 sm:items-center sm:p-4"
       role="presentation"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onCancel();
+        if (e.target === e.currentTarget && !busy) onCancel();
       }}
     >
       <div
@@ -148,10 +168,6 @@ export function ListingPhotoCropModal({
               onZoomChange={setZoom}
               onCropComplete={onCropComplete}
               objectFit="contain"
-              classes={{
-                containerClassName: 'listing-photo-cropper',
-                mediaClassName: 'listing-photo-cropper__media',
-              }}
               style={{
                 containerStyle: { background: '#0a0a0a' },
                 cropAreaStyle: {

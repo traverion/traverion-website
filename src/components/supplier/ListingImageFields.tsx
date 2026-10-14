@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ImagePlus, MoreHorizontal, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ImagePlus, MoreHorizontal, Plus } from 'lucide-react';
 import {
   LISTING_IMAGE_MAX_BYTES,
   LISTING_IMAGE_MAX_MB,
@@ -78,6 +78,15 @@ export default function ListingImageFields({
   const replaceIndexRef = useRef<number | null>(null);
   const menuButtonRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const uploadGenRef = useRef(0);
+  const slotsRef = useRef(slots);
+  const labelsRef = useRef(labels);
+  const originalsRef = useRef(originals);
+  const cropsRef = useRef(crops);
+  slotsRef.current = slots;
+  labelsRef.current = labels;
+  originalsRef.current = originals;
+  cropsRef.current = crops;
+
   const [busy, setBusy] = useState(false);
   const [uploadLabel, setUploadLabel] = useState<string | null>(null);
   const [issues, setIssues] = useState<PhotoIssue[]>([]);
@@ -146,20 +155,62 @@ export default function ListingImageFields({
     };
   };
 
-  const ingestFiles = async (
-    files: File[],
-    replaceIndex: number | null,
-    opts?: { keepOriginalAt?: number; cropSettings?: ListingPhotoCropSettings }
+  /** Upload a cropped JPEG into an existing slot; keeps the master original. */
+  const applyCroppedBlob = async (
+    replaceIndex: number,
+    blob: Blob,
+    cropSettings: ListingPhotoCropSettings
   ) => {
+    if (!userId || !uploadsEnabled) {
+      throw new Error('Sign in to save this crop.');
+    }
+    const workingS = [...normalizePhotoSlots(slotsRef.current)];
+    const workingL = [...normalizePhotoSlotLabels(labelsRef.current)];
+    const workingO = [...normalizePhotoOriginalUrls(originalsRef.current)];
+    const workingC = [...normalizePhotoCropSettings(cropsRef.current)];
+    const prevUrl = (workingS[replaceIndex] ?? '').trim();
+    const prevOriginal = (workingO[replaceIndex] ?? '').trim();
+    const keepOriginal = prevOriginal || prevUrl;
+    if (!prevUrl) throw new Error('Photo missing');
+
+    const file = new File([blob], 'photo-crop.jpg', { type: 'image/jpeg' });
+    setBusy(true);
+    setUploadLabel('Saving crop…');
+    try {
+      const { publicUrl, error: upErr } = await prepareAndUpload(file);
+      if (upErr || !publicUrl) {
+        throw new Error(userFacingError(upErr, USER_ERROR.upload));
+      }
+      workingS[replaceIndex] = publicUrl;
+      workingO[replaceIndex] = keepOriginal;
+      workingC[replaceIndex] = cropSettings;
+      // Keep existing label; crop does not rename the photo.
+      pushBundle(workingS, workingL, workingO, workingC);
+      setIssues([]);
+      if (
+        prevUrl &&
+        prevUrl !== publicUrl &&
+        prevUrl !== keepOriginal &&
+        isListingImageStoragePublicUrl(prevUrl)
+      ) {
+        void removeListingImageIfOwned(userId, prevUrl);
+      }
+    } finally {
+      setBusy(false);
+      setUploadLabel(null);
+    }
+  };
+
+  const ingestFiles = async (files: File[], replaceIndex: number | null) => {
     if (!userId || !uploadsEnabled || busy) return;
     const list = Array.from(files).filter(Boolean);
     if (list.length === 0) return;
 
     const gen = ++uploadGenRef.current;
-    const workingS = [...normalizePhotoSlots(slots)];
-    const workingL = [...normalizePhotoSlotLabels(labels)];
-    const workingO = [...normalizePhotoOriginalUrls(originals)];
-    const workingC = [...normalizePhotoCropSettings(crops)];
+    const workingS = [...normalizePhotoSlots(slotsRef.current)];
+    const workingL = [...normalizePhotoSlotLabels(labelsRef.current)];
+    const workingO = [...normalizePhotoOriginalUrls(originalsRef.current)];
+    const workingC = [...normalizePhotoCropSettings(cropsRef.current)];
     const nextIssues: PhotoIssue[] = [];
 
     if (replaceIndex != null) {
@@ -175,7 +226,6 @@ export default function ListingImageFields({
       setUploadLabel(`Uploading ${file.name}…`);
       const prevUrl = (workingS[replaceIndex] ?? '').trim();
       const prevOriginal = (workingO[replaceIndex] ?? '').trim();
-      const keepOriginal = opts?.keepOriginalAt === replaceIndex ? prevOriginal || prevUrl : '';
       const { publicUrl, originalUrl, error: upErr, label } = await prepareAndUpload(file);
       if (gen !== uploadGenRef.current) return;
       setBusy(false);
@@ -193,8 +243,8 @@ export default function ListingImageFields({
       }
       workingS[replaceIndex] = publicUrl;
       workingL[replaceIndex] = label.trim().slice(0, 200) || 'Photo';
-      workingO[replaceIndex] = keepOriginal || originalUrl || publicUrl;
-      workingC[replaceIndex] = opts?.cropSettings ?? emptyCrop();
+      workingO[replaceIndex] = originalUrl || publicUrl;
+      workingC[replaceIndex] = emptyCrop();
       pushBundle(workingS, workingL, workingO, workingC);
       setIssues(nextIssues);
       if (
@@ -204,6 +254,15 @@ export default function ListingImageFields({
         isListingImageStoragePublicUrl(prevUrl)
       ) {
         void removeListingImageIfOwned(userId, prevUrl);
+      }
+      if (
+        userId &&
+        prevOriginal &&
+        prevOriginal !== prevUrl &&
+        prevOriginal !== workingO[replaceIndex] &&
+        isListingImageStoragePublicUrl(prevOriginal)
+      ) {
+        void removeListingImageIfOwned(userId, prevOriginal);
       }
       return;
     }
@@ -282,14 +341,16 @@ export default function ListingImageFields({
   const moveToIndex = (from: number, to: number) => {
     const next = reorderFilledPhotos(slots, labels, from, to, originals, crops);
     pushBundle(next.slots, next.labels, next.originals, next.crops);
+    if (to === 0 && from !== 0) {
+      setCoverFlash(true);
+      window.setTimeout(() => setCoverFlash(false), 320);
+    }
   };
 
   const makeCover = (index: number) => {
     if (index <= 0) return;
     moveToIndex(index, 0);
     closeMenu();
-    setCoverFlash(true);
-    window.setTimeout(() => setCoverFlash(false), 320);
   };
 
   const onPhotoDragStart = (e: React.DragEvent, index: number) => {
@@ -305,10 +366,6 @@ export default function ListingImageFields({
     const from = Number.parseInt(raw, 10);
     if (!Number.isFinite(from)) return;
     moveToIndex(from, to);
-    if (to === 0 && from !== 0) {
-      setCoverFlash(true);
-      window.setTimeout(() => setCoverFlash(false), 320);
-    }
   };
 
   const dropIncomingFiles = (e: React.DragEvent, replaceIndex: number | null) => {
@@ -362,30 +419,6 @@ export default function ListingImageFields({
           onClick={() => makeCover(index)}
         >
           Make cover
-        </button>
-        <button
-          type="button"
-          role="menuitem"
-          className={photoMenuItemClass()}
-          disabled={busy || index <= 0}
-          onClick={() => {
-            moveToIndex(index, index - 1);
-            closeMenu();
-          }}
-        >
-          Move earlier
-        </button>
-        <button
-          type="button"
-          role="menuitem"
-          className={photoMenuItemClass()}
-          disabled={busy || index >= filledCount - 1}
-          onClick={() => {
-            moveToIndex(index, index + 1);
-            closeMenu();
-          }}
-        >
-          Move later
         </button>
         <button
           type="button"
@@ -500,7 +533,7 @@ export default function ListingImageFields({
                 {countLabel}
                 <span className="ml-1.5 font-normal text-ink-muted">· {progressHint}</span>
               </p>
-              <p className="text-[12px] text-ink-muted">Cover is first. Drag to reorder.</p>
+              <p className="text-[12px] text-ink-muted">Cover is first. Use arrows or drag to reorder.</p>
             </div>
             {canAddMore ? (
               <button
@@ -539,10 +572,12 @@ export default function ListingImageFields({
               const preview = previewUrl(url);
               const caption = displayNameForPhotoSlot(url, labels[index] ?? '');
               const isCover = index === 0;
+              const canMoveEarlier = index > 0;
+              const canMoveLater = index < filledCount - 1;
               return (
                 <div
                   key={`slot-${index}-${url.slice(-24)}`}
-                  className={`lc-tile relative overflow-hidden rounded-[var(--partner-radius-sm,0.375rem)] ${
+                  className={`lc-tile group relative overflow-hidden rounded-[var(--partner-radius-sm,0.375rem)] ${
                     isCover && dragOverCover ? 'lc-tile--drop' : ''
                   } ${isCover && coverFlash ? 'lc-tile--just-cover' : ''} ${dropActive ? 'lc-tile--drop' : ''}`}
                   onDragOver={(e) => {
@@ -594,6 +629,34 @@ export default function ListingImageFields({
                   >
                     <MoreHorizontal className="h-3.5 w-3.5" aria-hidden />
                   </button>
+                  <div className="absolute bottom-1 left-1 right-1 flex items-center justify-between gap-1">
+                    <button
+                      type="button"
+                      aria-label={`Move photo ${index + 1} earlier`}
+                      disabled={busy || !canMoveEarlier}
+                      className="lux-flat flex h-7 w-7 items-center justify-center rounded-full bg-paper/95 text-ink shadow-sm hover:bg-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland/35 disabled:pointer-events-none disabled:opacity-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.currentTarget.blur();
+                        moveToIndex(index, index - 1);
+                      }}
+                    >
+                      <ChevronLeft className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Move photo ${index + 1} later`}
+                      disabled={busy || !canMoveLater}
+                      className="lux-flat flex h-7 w-7 items-center justify-center rounded-full bg-paper/95 text-ink shadow-sm hover:bg-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland/35 disabled:pointer-events-none disabled:opacity-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.currentTarget.blur();
+                        moveToIndex(index, index + 1);
+                      }}
+                    >
+                      <ChevronRight className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -632,11 +695,11 @@ export default function ListingImageFields({
           imageUrl={(originals[cropIndex] ?? '').trim() || (slots[cropIndex] ?? '').trim()}
           initial={crops[cropIndex] ?? emptyCrop()}
           onCancel={() => setCropIndex(null)}
-          onApply={({ blob, settings }) => {
+          onApply={async ({ blob, settings }) => {
             const idx = cropIndex;
+            if (idx == null) return;
+            await applyCroppedBlob(idx, blob, settings);
             setCropIndex(null);
-            const file = new File([blob], 'photo-crop.jpg', { type: 'image/jpeg' });
-            void ingestFiles([file], idx, { keepOriginalAt: idx, cropSettings: settings });
           }}
         />
       ) : null}

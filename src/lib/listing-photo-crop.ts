@@ -5,10 +5,14 @@
  */
 
 import type { Area, Point } from 'react-easy-crop';
-import { LISTING_PHOTO_GRID_SLOTS } from './listingPhotoGrid';
+import { listingImagePathFromPublicUrl } from '../data/supabase-listing-images';
+import { supabase } from './supabase';
 
 /** Traveler-facing cover / gallery tile ratio (TourDetails + browse cards). */
 export const LISTING_PHOTO_CROP_ASPECT = 4 / 3;
+
+/** Keep in sync with LISTING_PHOTO_GRID_SLOTS — avoid importing listingPhotoGrid (cycle). */
+const PHOTO_CROP_SLOT_COUNT = 12;
 
 export type ListingPhotoCropSettings = {
   crop: Point;
@@ -28,7 +32,7 @@ export function normalizePhotoCropSettings(
 ): ListingPhotoCropSettings[] {
   const base = Array.isArray(from) ? from : [];
   const out: ListingPhotoCropSettings[] = [];
-  for (let i = 0; i < LISTING_PHOTO_GRID_SLOTS; i++) {
+  for (let i = 0; i < PHOTO_CROP_SLOT_COUNT; i++) {
     out.push(parseOneCrop(base[i]));
   }
   return out;
@@ -72,14 +76,80 @@ export function listingPhotoCropHasAdjustments(settings: ListingPhotoCropSetting
   return false;
 }
 
-function loadImage(src: string): Promise<HTMLImageElement> {
+type LoadedSource = {
+  source: CanvasImageSource;
+  naturalWidth: number;
+  naturalHeight: number;
+  revoke?: () => void;
+};
+
+function htmlImageFromUrl(url: string, crossOrigin: boolean): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = 'anonymous';
+    if (crossOrigin) img.crossOrigin = 'anonymous';
     img.onload = () => resolve(img);
     img.onerror = () => reject(new Error('image-load'));
-    img.src = src;
+    img.src = url;
   });
+}
+
+async function sourceFromBlob(blob: Blob): Promise<LoadedSource> {
+  if (typeof createImageBitmap === 'function') {
+    try {
+      const bitmap = await createImageBitmap(blob);
+      return {
+        source: bitmap,
+        naturalWidth: bitmap.width,
+        naturalHeight: bitmap.height,
+        revoke: () => bitmap.close(),
+      };
+    } catch {
+      /* fall through to object URL */
+    }
+  }
+  const objectUrl = URL.createObjectURL(blob);
+  try {
+    const img = await htmlImageFromUrl(objectUrl, false);
+    return {
+      source: img,
+      naturalWidth: img.naturalWidth,
+      naturalHeight: img.naturalHeight,
+      revoke: () => URL.revokeObjectURL(objectUrl),
+    };
+  } catch (e) {
+    URL.revokeObjectURL(objectUrl);
+    throw e;
+  }
+}
+
+/**
+ * Load pixels for canvas crop without tainting.
+ * Prefer fetch/blob (or authenticated storage download) over crossOrigin &lt;img&gt;.
+ */
+export async function loadListingImageForCrop(src: string): Promise<LoadedSource> {
+  const url = src.trim();
+  if (!url) throw new Error('image-empty');
+
+  try {
+    const res = await fetch(url, { mode: 'cors', credentials: 'omit', cache: 'reload' });
+    if (res.ok) return await sourceFromBlob(await res.blob());
+  } catch {
+    /* try storage download */
+  }
+
+  const path = listingImagePathFromPublicUrl(url);
+  if (path && supabase) {
+    const { data, error } = await supabase.storage.from('listing-images').download(path);
+    if (!error && data) return await sourceFromBlob(data);
+  }
+
+  // Last resort — may fail on toBlob if the canvas is tainted.
+  const img = await htmlImageFromUrl(url, true);
+  return {
+    source: img,
+    naturalWidth: img.naturalWidth,
+    naturalHeight: img.naturalHeight,
+  };
 }
 
 /** Rasterize the selected pixel region from a master image URL. */
@@ -88,26 +158,35 @@ export async function cropListingPhotoToBlob(
   area: Area,
   opts?: { maxEdge?: number; quality?: number }
 ): Promise<Blob> {
-  const img = await loadImage(imageSrc);
-  const maxEdge = opts?.maxEdge ?? 1600;
-  const quality = opts?.quality ?? 0.9;
-  const scale = Math.min(1, maxEdge / Math.max(area.width, area.height));
-  const outW = Math.max(1, Math.round(area.width * scale));
-  const outH = Math.max(1, Math.round(area.height * scale));
-  const canvas = document.createElement('canvas');
-  canvas.width = outW;
-  canvas.height = outH;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('canvas');
-  ctx.drawImage(img, area.x, area.y, area.width, area.height, 0, 0, outW, outH);
-  const blob = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob((b) => resolve(b), 'image/jpeg', quality)
-  );
-  if (!blob) throw new Error('encode');
-  return blob;
+  const loaded = await loadListingImageForCrop(imageSrc);
+  try {
+    const maxEdge = opts?.maxEdge ?? 1600;
+    const quality = opts?.quality ?? 0.9;
+    const scale = Math.min(1, maxEdge / Math.max(area.width, area.height));
+    const outW = Math.max(1, Math.round(area.width * scale));
+    const outH = Math.max(1, Math.round(area.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = outW;
+    canvas.height = outH;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('canvas');
+    // Clamp crop rectangle to image bounds — floating-point crop coords can overflow by a px.
+    const sx = Math.max(0, Math.min(area.x, loaded.naturalWidth - 1));
+    const sy = Math.max(0, Math.min(area.y, loaded.naturalHeight - 1));
+    const sw = Math.max(1, Math.min(area.width, loaded.naturalWidth - sx));
+    const sh = Math.max(1, Math.min(area.height, loaded.naturalHeight - sy));
+    ctx.drawImage(loaded.source, sx, sy, sw, sh, 0, 0, outW, outH);
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob((b) => resolve(b), 'image/jpeg', quality)
+    );
+    if (!blob) throw new Error('encode');
+    return blob;
+  } finally {
+    loaded.revoke?.();
+  }
 }
 
-/** Small live preview data URL for the crop dialog. */
+/** Small live preview object URL for the crop dialog. Caller should revoke. */
 export async function cropListingPhotoPreviewDataUrl(
   imageSrc: string,
   area: Area,
