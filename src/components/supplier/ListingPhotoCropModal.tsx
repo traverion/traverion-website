@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Cropper, { type Area, type Point } from 'react-easy-crop';
 import 'react-easy-crop/react-easy-crop.css';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
@@ -132,9 +133,12 @@ export function ListingPhotoCropModal({
     }
   };
 
-  return (
+  // Portal above the listing shell (z-80) and sticky footer so Apply/Cancel stay reachable.
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-end justify-center bg-black/55 p-0 sm:items-center sm:p-4"
+      className="fixed inset-0 z-[130] flex items-end justify-center bg-black/55 p-0 sm:items-center sm:p-4"
       role="presentation"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget && !busy) onCancel();
@@ -236,6 +240,7 @@ export function ListingPhotoCropModal({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
