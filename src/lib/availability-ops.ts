@@ -85,6 +85,31 @@ export function partnerTourDaySpotDisplay(params: {
  * With departures: Full when every departure has min(slot_left, day_left) = 0 (Phase 1113).
  * Without departures, fall back to day-wide remaining.
  */
+export type PartnerTourMonthCellLabel = {
+  short: string | null;
+  aria: string | null;
+  tone: 'full' | 'partial' | 'open' | null;
+  /** First departure time when a single departure is offered. */
+  timeHm: string | null;
+  /** Remaining seats for the best open departure (or day cap). */
+  remaining: number | null;
+  /** Capacity paired with remaining for compact display. */
+  capacity: number | null;
+  departuresCount: number;
+};
+
+function emptyMonthCellLabel(): PartnerTourMonthCellLabel {
+  return {
+    short: null,
+    aria: null,
+    tone: null,
+    timeHm: null,
+    remaining: null,
+    capacity: null,
+    departuresCount: 0,
+  };
+}
+
 export function partnerTourMonthCellCapacityLabel(params: {
   offered: boolean;
   dayCapacityOverride: number | null | undefined;
@@ -92,14 +117,22 @@ export function partnerTourMonthCellCapacityLabel(params: {
   defaultCapacity: number | null;
   occupyingGuestsDay: number;
   departures: Array<{ startTimeHm: string; maxSpots: number; occupyingGuests: number }>;
-}): { short: string | null; aria: string | null; tone: 'full' | 'partial' | 'open' | null } {
-  if (!params.offered) return { short: null, aria: null, tone: null };
+}): PartnerTourMonthCellLabel {
+  if (!params.offered) return emptyMonthCellLabel();
   const dayCap =
     typeof params.dayCapacityOverride === 'number' && Number.isFinite(params.dayCapacityOverride)
       ? Math.max(0, Math.floor(params.dayCapacityOverride))
       : null;
   if (dayCap != null && dayCap < 1) {
-    return { short: 'Closed', aria: 'closed this day', tone: 'full' };
+    return {
+      short: 'Closed',
+      aria: 'closed this day',
+      tone: 'full',
+      timeHm: null,
+      remaining: 0,
+      capacity: 0,
+      departuresCount: params.departures.length,
+    };
   }
   if (params.departures.length >= 1) {
     const dayLeft = dayCap != null ? Math.max(0, dayCap - params.occupyingGuestsDay) : null;
@@ -108,13 +141,37 @@ export function partnerTourMonthCellCapacityLabel(params: {
       return dayLeft != null ? Math.min(slotLeft, dayLeft) : slotLeft;
     });
     const anyOpen = lines.some((n) => n > 0);
-    if (!anyOpen) return { short: 'Sold out', aria: 'sold out this day', tone: 'full' };
+    const primaryTime =
+      params.departures.length === 1
+        ? params.departures[0]?.startTimeHm?.trim() || null
+        : null;
+    if (!anyOpen) {
+      return {
+        short: 'Sold out',
+        aria: 'sold out this day',
+        tone: 'full',
+        timeHm: primaryTime,
+        remaining: 0,
+        capacity:
+          dayCap != null
+            ? dayCap
+            : Math.max(...params.departures.map((d) => d.maxSpots), 0),
+        departuresCount: params.departures.length,
+      };
+    }
     const openCount = lines.filter((n) => n > 0).length;
     if (params.departures.length >= 2 && openCount < params.departures.length) {
       return {
         short: 'Partial',
         aria: `partially booked — ${openCount} of ${params.departures.length} departures still have seats`,
         tone: 'partial',
+        timeHm: null,
+        remaining: Math.max(...lines),
+        capacity:
+          dayCap != null
+            ? dayCap
+            : Math.max(...params.departures.map((d) => d.maxSpots), 0),
+        departuresCount: params.departures.length,
       };
     }
     const left = Math.max(...lines);
@@ -123,6 +180,10 @@ export function partnerTourMonthCellCapacityLabel(params: {
         short: `${left}/${dayCap} left`,
         aria: `${left} of ${dayCap} day spots left (best open departure)`,
         tone: 'open',
+        timeHm: primaryTime,
+        remaining: left,
+        capacity: dayCap,
+        departuresCount: params.departures.length,
       };
     }
     const capShown = Math.max(...params.departures.map((d) => d.maxSpots));
@@ -130,28 +191,60 @@ export function partnerTourMonthCellCapacityLabel(params: {
       short: `${left}/${capShown} left`,
       aria: `${left} of ${capShown} spots left on the fullest open departure`,
       tone: 'open',
+      timeHm: primaryTime,
+      remaining: left,
+      capacity: capShown,
+      departuresCount: params.departures.length,
     };
   }
   if (dayCap != null) {
     const remaining = partnerTourRemainingSpots(dayCap, params.occupyingGuestsDay);
-    if (remaining === 0) return { short: 'Sold out', aria: 'sold out this day', tone: 'full' };
+    if (remaining === 0) {
+      return {
+        short: 'Sold out',
+        aria: 'sold out this day',
+        tone: 'full',
+        timeHm: null,
+        remaining: 0,
+        capacity: dayCap,
+        departuresCount: 0,
+      };
+    }
     return {
       short: `${remaining}/${dayCap} left`,
       aria: `${remaining} of ${dayCap} spots left`,
       tone: 'open',
+      timeHm: null,
+      remaining,
+      capacity: dayCap,
+      departuresCount: 0,
     };
   }
   const fallback =
     typeof params.defaultCapacity === 'number' && params.defaultCapacity >= 1
       ? Math.min(99, Math.floor(params.defaultCapacity))
       : null;
-  if (fallback == null) return { short: null, aria: null, tone: null };
+  if (fallback == null) return emptyMonthCellLabel();
   const remaining = partnerTourRemainingSpots(fallback, params.occupyingGuestsDay);
-  if (remaining === 0) return { short: 'Sold out', aria: 'sold out this day', tone: 'full' };
+  if (remaining === 0) {
+    return {
+      short: 'Sold out',
+      aria: 'sold out this day',
+      tone: 'full',
+      timeHm: null,
+      remaining: 0,
+      capacity: fallback,
+      departuresCount: 0,
+    };
+  }
   return {
     short: `${remaining}/${fallback} left`,
     aria: `${remaining} of ${fallback} spots left`,
     tone: 'open',
+    timeHm: null,
+    remaining,
+    capacity: fallback,
+    departuresCount: 0,
   };
 }
 

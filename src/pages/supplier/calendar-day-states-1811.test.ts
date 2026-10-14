@@ -10,6 +10,8 @@ describe('Phase 1811: calendar day-state visual language', () => {
     expect(css).toContain('.tv-cal-day--full');
     expect(css).toContain('.tv-cal-day--available');
     expect(css).toContain('.tv-cal-legend');
+    expect(css).toContain('.tv-cal-shell');
+    expect(css).toContain('.tv-cal-toolbar');
   });
 
   it('wires SupplierAvailability cells to state classes', () => {
@@ -17,6 +19,8 @@ describe('Phase 1811: calendar day-state visual language', () => {
     expect(src).toContain('tv-cal-day');
     expect(src).toContain('tv-cal-day--editing');
     expect(src).toContain('tv-cal-legend');
+    expect(src).toContain('tv-cal-shell');
+    expect(src).toContain('Manage departures, capacity, and availability.');
     expect(src).not.toContain('bg-emerald-50/80 ring-emerald-200/50');
   });
 });
