@@ -348,6 +348,19 @@ async function upsertStayPrivateCheckInAddress(
   return { ok: true };
 }
 
+/** PostgREST when a migration is not yet applied on the linked project. */
+function isMissingRelationError(error: { code?: string; message?: string } | null | undefined): boolean {
+  if (!error) return false;
+  const msg = error.message ?? '';
+  return (
+    error.code === 'PGRST205' ||
+    error.code === '42P01' ||
+    /Could not find the table/i.test(msg) ||
+    /relation .+ does not exist/i.test(msg) ||
+    /schema cache/i.test(msg)
+  );
+}
+
 async function upsertListingBookingContactPhone(
   listingId: string,
   phoneE164: string | null | undefined
@@ -357,6 +370,11 @@ async function upsertListingBookingContactPhone(
   if (!trimmed) {
     const { error } = await supabase.from('listing_booking_contact').delete().eq('listing_id', listingId);
     if (error) {
+      // Migration 242 not applied yet — do not block listing draft/publish.
+      if (isMissingRelationError(error)) {
+        console.warn('listing_booking_contact missing; skip clear until migration 242 is applied', error);
+        return { ok: true };
+      }
       return { ok: false, error: formatSupabaseListingError('Could not clear booking contact', error) };
     }
     return { ok: true };
@@ -370,6 +388,10 @@ async function upsertListingBookingContactPhone(
     { onConflict: 'listing_id' }
   );
   if (error) {
+    if (isMissingRelationError(error)) {
+      console.warn('listing_booking_contact missing; skip phone save until migration 242 is applied', error);
+      return { ok: true };
+    }
     return { ok: false, error: formatSupabaseListingError('Could not save booking contact', error) };
   }
   return { ok: true };
