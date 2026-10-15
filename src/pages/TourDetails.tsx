@@ -181,6 +181,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours' }: Tou
   const [legalModal, setLegalModal] = useState<'privacy' | 'terms' | null>(null);
   const legalSheetRef = useRef<HTMLDivElement>(null);
   const gallerySheetRef = useRef<HTMLDivElement>(null);
+  const galleryTouchX = useRef<number | null>(null);
   const [galleryLightboxOpen, setGalleryLightboxOpen] = useState(false);
   const closeLegalModal = useCallback(() => setLegalModal(null), []);
   const closeGalleryLightbox = useCallback(() => setGalleryLightboxOpen(false), []);
@@ -1535,7 +1536,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours' }: Tou
 
         <div className="mb-6 sm:mb-8">
           {hasGallery ? (
-            <div className="grid grid-cols-1 gap-2 sm:gap-3 lg:grid-cols-4 lg:grid-rows-2 lg:min-h-[28rem]">
+            <div className="grid grid-cols-1 gap-2 sm:gap-2.5 lg:grid-cols-4 lg:grid-rows-2 lg:h-[22rem]">
               <button
                 type="button"
                 onClick={() => {
@@ -1545,9 +1546,11 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours' }: Tou
                 className="relative overflow-hidden rounded-2xl bg-ink/10 lg:col-span-2 lg:row-span-2 aspect-[4/3] lg:aspect-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-finland"
                 aria-label={`Open gallery, photo 1 of ${images.length}`}
               >
-                <img
+                  <img
                   src={images[0]}
                   alt=""
+                  decoding="async"
+                  fetchPriority="high"
                   className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 motion-safe:hover:scale-[1.02]"
                 />
               </button>
@@ -1562,7 +1565,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours' }: Tou
                   className="relative hidden overflow-hidden rounded-xl bg-ink/10 aspect-[4/3] lg:block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-finland"
                   aria-label={`Open gallery, photo ${i + 2} of ${images.length}`}
                 >
-                  <img src={img} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                  <img src={img} alt="" loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
                   {i === 3 && images.length > 5 ? (
                     <span className="absolute inset-0 flex items-center justify-center bg-ink/45 text-sm font-semibold text-white">
                       +{images.length - 5} more
@@ -2398,6 +2401,28 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours' }: Tou
           role="dialog"
           aria-modal="true"
           aria-label="Photo gallery"
+          tabIndex={-1}
+          onKeyDown={(e) => {
+            if (images.length < 2) return;
+            if (e.key === 'ArrowRight') {
+              e.preventDefault();
+              setSelectedImage((i) => (i >= images.length - 1 ? 0 : i + 1));
+            } else if (e.key === 'ArrowLeft') {
+              e.preventDefault();
+              setSelectedImage((i) => (i <= 0 ? images.length - 1 : i - 1));
+            }
+          }}
+          onTouchStart={(e) => {
+            galleryTouchX.current = e.changedTouches[0]?.clientX ?? null;
+          }}
+          onTouchEnd={(e) => {
+            const start = galleryTouchX.current;
+            galleryTouchX.current = null;
+            if (start == null || images.length < 2) return;
+            const dx = (e.changedTouches[0]?.clientX ?? start) - start;
+            if (dx > 48) setSelectedImage((i) => (i <= 0 ? images.length - 1 : i - 1));
+            else if (dx < -48) setSelectedImage((i) => (i >= images.length - 1 ? 0 : i + 1));
+          }}
         >
           <div className="flex items-center justify-between gap-3 px-4 py-3 text-white">
             <p className="text-sm font-medium tabular-nums">
@@ -2428,6 +2453,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours' }: Tou
               src={images[Math.min(selectedImage, images.length - 1)]}
               alt=""
               className="max-h-[min(78vh,900px)] max-w-full rounded-lg object-contain shadow-2xl"
+              decoding="async"
             />
             {images.length > 1 ? (
               <button
