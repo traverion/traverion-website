@@ -1647,7 +1647,7 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
   html {
     font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
     font-weight: 400;
-    background-color: #f6f3ee;
+    background-color: #ffffff;
     /* Prefer clip: overflow-x hidden forces overflow-y to auto and traps
        wheel/trackpad over <main> so the page only scrolls when hovering the fixed header. */
     overflow-x: clip;
@@ -1658,7 +1658,7 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
     font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
     font-weight: 400;
     color: #1c1917;
-    background-color: #f6f3ee;
+    background-color: #ffffff;
     overflow-x: clip;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -1677,6 +1677,15 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
     font-family: Fraunces, Georgia, serif;
     font-weight: 600;
     letter-spacing: -0.02em;
+  }
+
+  /* Consumer: Fraunces stays on page titles and .font-display. Section and UI
+     headings use the sans family so the site is not all-serif. Partner shell
+     keeps the base rule. */
+  body:not(:has(.partner-app-shell)) :is(h2, h3, h4, h5, h6):not(.font-display) {
+    font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+    font-weight: 650;
+    letter-spacing: -0.018em;
   }
 
   .font-display,
@@ -1968,6 +1977,60 @@ html {
 
 .lux-page-enter {
   animation: lux-page-enter 0.22s var(--lux-ease) forwards;
+}
+
+@keyframes lux-page-enter-slide {
+  from {
+    opacity: 0.9;
+    transform: translate3d(0.75rem, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.lux-page-enter--slide {
+  animation: lux-page-enter-slide 0.28s var(--lux-ease, cubic-bezier(0.22, 1, 0.36, 1)) both;
+}
+
+/* Auth login ↔ signup / forgot-password panel slides */
+@keyframes tv-auth-slide-forward {
+  from {
+    opacity: 0;
+    transform: translate3d(1.1rem, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes tv-auth-slide-back {
+  from {
+    opacity: 0;
+    transform: translate3d(-1.1rem, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.tv-auth-slide--forward {
+  animation: tv-auth-slide-forward 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.tv-auth-slide--back {
+  animation: tv-auth-slide-back 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lux-page-enter--slide,
+  .tv-auth-slide--forward,
+  .tv-auth-slide--back {
+    animation: lux-page-enter-subtle 0.2s ease-out both;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2450,8 +2513,8 @@ a:focus-visible,
   min-height: 2.75rem;
   padding: 0.625rem 1.25rem;
   border-radius: 9999px;
-  border: 1px solid rgba(28, 25, 23, 0.14);
-  background: #fffcf8;
+  border: 1px solid rgba(28, 25, 23, 0.12);
+  background: #ffffff;
   color: #1c1917;
   font-size: 0.9375rem;
   font-weight: 600;
@@ -2667,12 +2730,10 @@ a:focus-visible,
 
 /* Phase 1804: listing sticky booking panel — OTA purchase-ready chrome */
 .tv-booking-sticky {
-  border-radius: 1rem;
-  background: #fffcf8;
-  padding: 1.15rem 1.15rem 1.25rem;
-  box-shadow:
-    0 0 0 1px rgba(28, 25, 23, 0.08),
-    0 18px 40px -20px rgba(15, 23, 42, 0.28);
+  border-radius: 0.75rem;
+  background: #ffffff;
+  padding: 1rem 1rem 1.1rem;
+  box-shadow: 0 0 0 1px rgba(28, 25, 23, 0.1);
 }
 @media (min-width: 640px) {
   .tv-booking-sticky {
@@ -2693,7 +2754,7 @@ a:focus-visible,
 /* Phase 1806: Trips itinerary cards — travel document, not DB row */
 .tv-trip-card {
   border-radius: 1rem;
-  background: #fffcf8;
+  background: #ffffff;
   overflow: hidden;
   box-shadow:
     0 0 0 1px rgba(28, 25, 23, 0.06),
@@ -2727,7 +2788,7 @@ a:focus-visible,
 /* Phase 1808: supplier review cards — guest vs reply visual distinction */
 .tv-review-card {
   border-radius: 0.875rem;
-  background: #fffcf8;
+  background: #ffffff;
   overflow: hidden;
   box-shadow:
     0 0 0 1px rgba(28, 25, 23, 0.06),
@@ -4205,7 +4266,7 @@ a:focus-visible,
 /* Phase 1816: traveler + partner auth form panel */
 .tv-auth-panel {
   border-radius: 1rem;
-  background: #fffcf8;
+  background: #ffffff;
   padding: 1.15rem 1.15rem 1.35rem;
   box-shadow:
     0 0 0 1px rgba(28, 25, 23, 0.07),
@@ -4221,7 +4282,7 @@ a:focus-visible,
 /* Phase 1817: Analytics metric tiles */
 .tv-metric-tile {
   border-radius: 0.75rem;
-  background: #fffcf8;
+  background: #ffffff;
   padding: 0.85rem 1rem;
   box-shadow:
     0 0 0 1px rgba(28, 25, 23, 0.06),
@@ -4260,7 +4321,7 @@ a:focus-visible,
 }
 
 .tv-msg-bubble--theirs {
-  background: #fffcf8;
+  background: #ffffff;
   color: #1c1917;
   box-shadow: inset 0 0 0 1px rgba(28, 25, 23, 0.07);
 }
@@ -4273,7 +4334,7 @@ a:focus-visible,
 .tv-msg-composer {
   margin-top: 0.25rem;
   border-radius: 0.85rem;
-  background: #fffcf8;
+  background: #ffffff;
   padding: 0.75rem;
   box-shadow: inset 0 0 0 1px rgba(28, 25, 23, 0.07);
 }
@@ -4428,7 +4489,7 @@ a:focus-visible,
 .tv-confirm-shell {
   overflow: hidden;
   border-radius: 1rem;
-  background: #fffcf8;
+  background: #ffffff;
   box-shadow:
     0 0 0 1px rgba(28, 25, 23, 0.07),
     0 22px 48px -28px rgba(15, 23, 42, 0.35);
@@ -4557,7 +4618,7 @@ a:focus-visible,
   align-items: center;
   gap: 0.75rem;
   border-radius: 1rem;
-  background: #fffcf8;
+  background: #ffffff;
   padding: 0.9rem 1rem;
   text-align: left;
   box-shadow:
@@ -4591,14 +4652,14 @@ a:focus-visible,
 .tv-input {
   width: 100%;
   min-height: 2.75rem;
-  border-radius: 0.9rem;
-  border: 0;
-  background: #fffcf8;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(28, 25, 23, 0.12);
+  background: #ffffff;
   padding: 0.55rem 0.9rem;
   color: #1c1917;
   font-size: 1rem;
-  box-shadow: 0 0 0 1px rgba(28, 25, 23, 0.08);
-  transition: box-shadow 0.15s ease;
+  box-shadow: none;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
 .tv-input:focus {
   outline: none;
@@ -4613,14 +4674,14 @@ a:focus-visible,
  * left as-is for now and migrate screen by screen rather than in one mass edit.
  */
 .tv-card {
-  background: #fffcf8;
-  border-radius: 1rem;
-  box-shadow: 0 0 0 1px rgba(28, 25, 23, 0.06), 0 2px 8px rgba(0, 0, 0, 0.06);
+  background: #ffffff;
+  border-radius: 0.75rem;
+  box-shadow: 0 0 0 1px rgba(28, 25, 23, 0.08);
 }
 .tv-card-flat {
-  background: #fffcf8;
-  border-radius: 1rem;
-  box-shadow: 0 0 0 1px rgba(28, 25, 23, 0.06);
+  background: #ffffff;
+  border-radius: 0.75rem;
+  box-shadow: 0 0 0 1px rgba(28, 25, 23, 0.08);
 }
 @keyframes tv-overlay-in {
   from { opacity: 0; }
@@ -4672,7 +4733,7 @@ a:focus-visible,
   overflow-y: auto;
   overscroll-behavior: contain;
   border-radius: 1.25rem 1.25rem 0 0;
-  background: #fffcf8;
+  background: #ffffff;
   color: #1c1917;
   padding: 1.25rem 1.25rem max(1.5rem, env(safe-area-inset-bottom, 0px));
   box-shadow:
@@ -4691,7 +4752,7 @@ a:focus-visible,
 /* Phase 1828: traveler review compose surface */
 .tv-review-compose {
   border-radius: 1rem;
-  background: #fffcf8;
+  background: #ffffff;
   padding: 1.15rem 1.15rem 1.25rem;
   box-shadow:
     0 0 0 1px rgba(28, 25, 23, 0.07),

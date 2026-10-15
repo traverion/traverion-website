@@ -15,8 +15,9 @@ export default {
           faint: '#6b6560',
         },
         paper: {
-          DEFAULT: '#f6f3ee',
-          raised: '#fffcf8',
+          DEFAULT: '#ffffff',
+          raised: '#ffffff',
+          muted: '#f5f6f8',
         },
       },
       screens: {

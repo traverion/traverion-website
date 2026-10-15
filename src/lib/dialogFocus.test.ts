@@ -74,7 +74,7 @@ describe('shouldRestoreFocusAfterDialogClose', () => {
 });
 
 describe('paper contrast', () => {
-  const paper = '#f6f3ee';
+  const paper = '#ffffff';
   const ink = '#1c1917';
   const muted = '#57534e';
   const faint = '#6b6560';
