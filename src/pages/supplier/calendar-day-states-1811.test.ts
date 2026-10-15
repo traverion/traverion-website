@@ -21,10 +21,20 @@ describe('Phase 1811: calendar day-state visual language', () => {
     expect(src).toContain('tv-cal-legend');
     expect(src).toContain('tv-cal-shell');
     expect(src).toContain('tv-cal-page-head');
-    expect(src).toContain('Optional day-wide capacity limit');
-    expect(src).toContain('tv-cal-dep-card');
+    expect(src).toContain('tv-cal-drawer');
+    expect(src).toContain('createPortal');
+    expect(src).toContain('Manage this date');
+    expect(src).toContain('Edit schedule defaults');
     expect(src).toContain('Bulk availability');
-    expect(src).toContain('Day controls');
     expect(src).not.toContain('bg-emerald-50/80 ring-emerald-200/50');
+  });
+
+  it('defines viewport-anchored calendar drawer layout', () => {
+    const css = readFileSync(resolve(__dirname, '../../index.css'), 'utf8');
+    expect(css).toContain('.tv-cal-drawer-root');
+    expect(css).toContain('.tv-cal-drawer__head');
+    expect(css).toContain('.tv-cal-drawer__body');
+    expect(css).toContain('.tv-cal-drawer__foot');
+    expect(css).toContain('position: fixed');
   });
 });

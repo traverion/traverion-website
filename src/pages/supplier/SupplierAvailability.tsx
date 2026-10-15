@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, CalendarDays, Layers, X } from 'lucide-react';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
@@ -95,7 +96,9 @@ export default function SupplierAvailability() {
   const [depEdits, setDepEdits] = useState<
     Record<string, { spots: string; cutoffHours: string }>
   >({});
-  const [depSavingKey, setDepSavingKey] = useState<string | null>(null);
+  const [scheduleSaving, setScheduleSaving] = useState(false);
+  const [dayDraftCapacity, setDayDraftCapacity] = useState('');
+  const dayBaselineCapacityRef = useRef('');
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkFrom, setBulkFrom] = useState('');
   const [bulkTo, setBulkTo] = useState('');
@@ -111,11 +114,35 @@ export default function SupplierAvailability() {
   const capsLoadGenRef = useRef(0);
   const prevListingIdForCapsRef = useRef(listingId);
   const availabilityHubUserIdRef = useRef<string | null>(null);
-  const closeDaySheet = useCallback(() => {
+
+  const forceCloseDaySheet = useCallback(() => {
     setEditing(null);
+    setDepEdits({});
+    setDayDraftCapacity('');
     setSaveNote(null);
+    setScheduleSaving(false);
   }, []);
-  useDialogFocus(editing !== null, daySheetRef, closeDaySheet);
+
+  const requestCloseDaySheet = useCallback(() => {
+    const dayDirty = dayDraftCapacity !== dayBaselineCapacityRef.current;
+    const scheduleDirty = Object.keys(depEdits).length > 0;
+    if (dayDirty || scheduleDirty) {
+      const ok = window.confirm('Discard unsaved changes for this date?');
+      if (!ok) return;
+    }
+    forceCloseDaySheet();
+  }, [dayDraftCapacity, depEdits, forceCloseDaySheet]);
+
+  useDialogFocus(editing !== null, daySheetRef, requestCloseDaySheet);
+
+  useEffect(() => {
+    if (!editing) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [editing]);
 
   const listing = listings.find((l) => l.id === listingId) ?? null;
   const viewingAll = listingId === '';
@@ -407,6 +434,10 @@ export default function SupplierAvailability() {
       return;
     }
     mergeCapRows([{ available_date: iso, capacity }]);
+    const nextStr = String(capacity);
+    dayBaselineCapacityRef.current = nextStr;
+    setDayDraftCapacity(nextStr);
+    setEditing((prev) => (prev ? { ...prev, capacity: nextStr } : prev));
     if (occupied && capacity === 0) {
       setSaveNote(
         'Block saved. The night stays Occupied while this guest is in-house; new travelers already cannot book it. The block remains after checkout.'
@@ -414,7 +445,7 @@ export default function SupplierAvailability() {
     } else if (underSold) {
       setSaveNote(underSold);
     } else {
-      setEditing(null);
+      setSaveNote(capacity < 1 ? 'Date closed for new bookings.' : 'Date availability saved.');
     }
     if (monthFromIso && monthToIso) await loadCaps(listingId, monthFromIso, monthToIso);
   };
@@ -435,8 +466,74 @@ export default function SupplierAvailability() {
       return;
     }
     removeCapRows([iso]);
-    setEditing(null);
+    const restored = String(defaultSpots(listing) ?? '');
+    dayBaselineCapacityRef.current = restored;
+    setDayDraftCapacity(restored);
+    setEditing((prev) => (prev ? { ...prev, capacity: restored } : prev));
+    setSaveNote('Restored schedule defaults for this date (day override cleared).');
     if (monthFromIso && monthToIso) await loadCaps(listingId, monthFromIso, monthToIso);
+  };
+
+  const saveScheduleDefaults = async () => {
+    if (!listing || !canEditCalendar || !editing) return;
+    const occupiedByKey = new Map<string, number>();
+    for (const d of daySellingDepartures) {
+      const rowKey = `${d.optionId}-${d.scheduleId}-${d.startTime}`;
+      occupiedByKey.set(
+        rowKey,
+        tourCheckoutOccupiedGuests(
+          dayBookings,
+          editing.iso,
+          null,
+          Date.now(),
+          d.startTime || null
+        )
+      );
+    }
+    let opts = materializedBookingOptions(listing.listingExtras?.bookingOptions);
+    let changed = false;
+    for (const d of daySellingDepartures) {
+      const rowKey = `${d.optionId}-${d.scheduleId}-${d.startTime}`;
+      const draft = depEdits[rowKey];
+      if (!draft) continue;
+      const baselineCutoff = resolveOptionCutoffHours(listing, d.optionId);
+      const nextSpots = Math.min(99, Math.max(1, Math.floor(Number(draft.spots) || 0)));
+      const nextCutoff = Math.max(0, Math.floor(Number(draft.cutoffHours) || 0));
+      const occupying = occupiedByKey.get(rowKey) ?? 0;
+      if (nextSpots !== d.maxSpotsPerSlot) {
+        if (nextSpots < occupying) {
+          setSaveNote(
+            `Cannot set ${d.optionName || 'departure'} capacity below ${occupying} confirmed guest${
+              occupying === 1 ? '' : 's'
+            }.`
+          );
+          return;
+        }
+        opts = patchScheduleOrOptionSpots(opts, d.optionId, d.scheduleId, nextSpots);
+        changed = true;
+      }
+      if (nextCutoff !== baselineCutoff) {
+        opts = patchOptionCutoff(opts, d.optionId, nextCutoff);
+        changed = true;
+      }
+    }
+    if (!changed) {
+      setSaveNote('No schedule default changes to save.');
+      return;
+    }
+    setScheduleSaving(true);
+    setSaveNote(null);
+    try {
+      const res = await persistListingOptions(opts);
+      if (!res.success) {
+        setSaveNote(res.error ?? 'Could not save schedule defaults.');
+        return;
+      }
+      setDepEdits({});
+      setSaveNote('Schedule defaults saved. They apply to all dates using these departures.');
+    } finally {
+      setScheduleSaving(false);
+    }
   };
 
   const persistListingOptions = async (
@@ -883,9 +980,12 @@ export default function SupplierAvailability() {
                 }
                 setSaveNote(null);
                 setDepEdits({});
+                const capStr = String(cap?.capacity ?? defaultSpots(listing) ?? '');
+                dayBaselineCapacityRef.current = capStr;
+                setDayDraftCapacity(capStr);
                 setEditing({
                   iso: cell.iso,
-                  capacity: String(cap?.capacity ?? defaultSpots(listing) ?? ''),
+                  capacity: capStr,
                 });
               };
               return (
@@ -1087,9 +1187,12 @@ export default function SupplierAvailability() {
                       onClick={() => {
                         setSaveNote(null);
                         setDepEdits({});
+                        const capStr = String(cap?.capacity ?? defaultSpots(listing) ?? '');
+                        dayBaselineCapacityRef.current = capStr;
+                        setDayDraftCapacity(capStr);
                         setEditing({
                           iso: cell.iso,
-                          capacity: String(cap?.capacity ?? defaultSpots(listing) ?? ''),
+                          capacity: capStr,
                         });
                       }}
                     >
@@ -1127,88 +1230,135 @@ export default function SupplierAvailability() {
           ) : null}
           </div>
 
-          {editing ? (
-            <div ref={daySheetRef} className="tv-sheet-overlay z-[70]">
-              <button
-                type="button"
-                tabIndex={-1}
-                className="absolute inset-0"
-                aria-label="Close day"
-                onClick={closeDaySheet}
-              />
-              <aside
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="calendar-day-title"
-                className="tv-sheet-panel relative max-w-xl !rounded-t-xl !p-0 motion-safe:animate-slide-up sm:!rounded-xl"
-              >
-                <div className="tv-cal-day-panel">
-                  <div className="tv-cal-day-panel__head">
-                    <div className="min-w-0">
-                      <h2 id="calendar-day-title">
-                        {new Date(`${editing.iso}T12:00:00`).toLocaleDateString('en-GB', {
-                          weekday: 'long',
-                          day: 'numeric',
-                          month: 'long',
-                          year: 'numeric',
-                        })}
-                      </h2>
-                      <p className="tv-cal-day-panel__sub" title={listing?.title?.trim() || undefined}>
-                        {viewingAll
-                          ? 'All listings — select one to edit'
-                          : [listing?.city, listing?.title?.trim()].filter(Boolean).join(' · ') ||
-                            'Listing'}
-                      </p>
-                      {!viewingAll && listing && !stayCalendar ? (
-                        <p className="tv-cal-day-panel__status">
-                          {(() => {
-                            const cap = rowByDate.get(editing.iso);
-                            if (typeof cap?.capacity === 'number' && cap.capacity < 1) {
-                              return <span className="tv-cal-status tv-cal-status--closed">Closed</span>;
-                            }
-                            if (daySellingDepartures.length === 0) {
-                              return (
-                                <span className="tv-cal-status tv-cal-status--muted">No schedule</span>
-                              );
-                            }
-                            const anyBooked = dayBookings.length > 0;
-                            return (
-                              <span
-                                className={`tv-cal-status ${
-                                  anyBooked ? 'tv-cal-status--warn' : 'tv-cal-status--open'
-                                }`}
-                              >
-                                {anyBooked ? 'Has bookings' : 'Open'}
-                              </span>
-                            );
-                          })()}
+          {editing
+            ? createPortal(
+                <div ref={daySheetRef} className="tv-cal-drawer-root">
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    className="absolute inset-0"
+                    aria-label="Close day panel"
+                    onClick={requestCloseDaySheet}
+                  />
+                  <aside
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="calendar-day-title"
+                    className="tv-cal-drawer relative z-[1]"
+                  >
+                    <header className="tv-cal-drawer__head">
+                      <div className="min-w-0 flex-1">
+                        <p className="tv-cal-drawer__kicker">Manage availability</p>
+                        <h2 id="calendar-day-title">
+                          {new Date(`${editing.iso}T12:00:00`).toLocaleDateString('en-GB', {
+                            weekday: 'long',
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric',
+                          })}
+                        </h2>
+                        <p className="tv-cal-drawer__listing">
+                          {viewingAll
+                            ? 'All listings — select one to edit'
+                            : listing?.title?.trim() || 'Listing'}
                         </p>
-                      ) : null}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={closeDaySheet}
-                      className="lux-flat inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-ink-muted hover:bg-[#f2f4f7] hover:text-ink"
-                      aria-label="Close"
-                    >
-                      <X className="h-4 w-4" aria-hidden />
-                    </button>
-                  </div>
+                        {!viewingAll && listing ? (
+                          <p className="tv-cal-drawer__status">
+                            {(() => {
+                              const cap = rowByDate.get(editing.iso);
+                              if (typeof cap?.capacity === 'number' && cap.capacity < 1) {
+                                return (
+                                  <span className="tv-cal-status tv-cal-status--closed">
+                                    Status: Closed
+                                  </span>
+                                );
+                              }
+                              if (!stayCalendar && daySellingDepartures.length === 0) {
+                                return (
+                                  <span className="tv-cal-status tv-cal-status--muted">
+                                    Status: No schedule
+                                  </span>
+                                );
+                              }
+                              if (dayBookings.length > 0) {
+                                return (
+                                  <span className="tv-cal-status tv-cal-status--warn">
+                                    Status: Has bookings
+                                  </span>
+                                );
+                              }
+                              return (
+                                <span className="tv-cal-status tv-cal-status--open">
+                                  Status: Open
+                                </span>
+                              );
+                            })()}
+                          </p>
+                        ) : null}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={requestCloseDaySheet}
+                        className="lux-flat inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-ink-muted hover:bg-[#f2f4f7] hover:text-ink"
+                        aria-label="Close"
+                      >
+                        <X className="h-4 w-4" aria-hidden />
+                      </button>
+                    </header>
 
-                  <div className="tv-cal-day-panel__body">
-                    {(dayBookings.length > 0 || dayDepartures.length > 0) && (
-                      <section className="tv-cal-day-panel__section">
-                        <h3>Bookings</h3>
-                        <ul>
-                          {dayBookings.map((b) => {
-                            const times = daySheetTimesLine(b);
-                            const hold = formatPartnerCheckoutHoldLabel(b);
-                            return (
-                              <li key={b.id}>
+                    <div className="tv-cal-drawer__body">
+                      {saveNote ? (
+                        <div className="mb-4">
+                          <NoticeCallout title="Saved" tone="info">
+                            {saveNote}
+                          </NoticeCallout>
+                        </div>
+                      ) : null}
+
+                      {(dayBookings.length > 0 || dayDepartures.length > 0) && (
+                        <section className="tv-cal-drawer__section">
+                          <h3>Bookings</h3>
+                          <ul className="m-0 list-none p-0">
+                            {dayBookings.map((b) => {
+                              const times = daySheetTimesLine(b);
+                              const hold = formatPartnerCheckoutHoldLabel(b);
+                              return (
+                                <li key={b.id} className="border-b border-[#f2f4f7] last:border-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => openSupplierBooking(b.id)}
+                                    className="lux-flat w-full rounded-md px-0 py-2.5 text-left hover:bg-[#f8fafc]"
+                                  >
+                                    <p className="text-[13px] font-medium text-ink">
+                                      {b.guest_name?.trim() || 'Guest'}
+                                    </p>
+                                    <p className="text-[12px] text-ink-muted">
+                                      {viewingAll
+                                        ? `${daySheetListingLine(b)} · ${b.guests} guest${
+                                            b.guests === 1 ? '' : 's'
+                                          }`
+                                        : `${b.guests} guest${b.guests === 1 ? '' : 's'}`}
+                                      {times ? ` · ${times}` : ''}
+                                      {stayCalendar ? ' · In-house' : ''}
+                                    </p>
+                                    {hold ? (
+                                      <p className="mt-0.5 text-[11px] font-medium text-amber-900">
+                                        {hold}
+                                      </p>
+                                    ) : null}
+                                  </button>
+                                </li>
+                              );
+                            })}
+                            {dayDepartures.map((b) => (
+                              <li
+                                key={`out-${b.id}`}
+                                className="border-b border-[#f2f4f7] last:border-0"
+                              >
                                 <button
                                   type="button"
                                   onClick={() => openSupplierBooking(b.id)}
-                                  className="lux-flat w-full rounded-md px-0 py-2 text-left hover:bg-[#f8fafc]"
+                                  className="lux-flat w-full rounded-md px-0 py-2.5 text-left hover:bg-[#f8fafc]"
                                 >
                                   <p className="text-[13px] font-medium text-ink">
                                     {b.guest_name?.trim() || 'Guest'}
@@ -1219,45 +1369,160 @@ export default function SupplierAvailability() {
                                           b.guests === 1 ? '' : 's'
                                         }`
                                       : `${b.guests} guest${b.guests === 1 ? '' : 's'}`}
-                                    {times ? ` · ${times}` : ''}
-                                    {stayCalendar ? ' · In-house' : ''}
+                                    {' · Check-out'}
                                   </p>
-                                  {hold ? (
-                                    <p className="mt-0.5 text-[11px] font-medium text-amber-900">{hold}</p>
-                                  ) : null}
                                 </button>
                               </li>
-                            );
-                          })}
-                          {dayDepartures.map((b) => (
-                            <li key={`out-${b.id}`}>
-                              <button
-                                type="button"
-                                onClick={() => openSupplierBooking(b.id)}
-                                className="lux-flat w-full rounded-md px-0 py-2 text-left hover:bg-[#f8fafc]"
-                              >
-                                <p className="text-[13px] font-medium text-ink">
-                                  {b.guest_name?.trim() || 'Guest'}
-                                </p>
-                                <p className="text-[12px] text-ink-muted">
-                                  {viewingAll
-                                    ? `${daySheetListingLine(b)} · ${b.guests} guest${
-                                        b.guests === 1 ? '' : 's'
-                                      }`
-                                    : `${b.guests} guest${b.guests === 1 ? '' : 's'}`}
-                                  {' · Check-out'}
-                                </p>
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      </section>
-                    )}
+                            ))}
+                          </ul>
+                        </section>
+                      )}
 
-                    {!stayCalendar && !viewingAll && listing ? (
-                      <section className="tv-cal-day-panel__section">
-                        <h3>Departures</h3>
-                        {daySellingDepartures.length > 0 ? (
+                      {viewingAll ? (
+                        <section className="tv-cal-drawer__section">
+                          <h3>Select listing</h3>
+                          <p className="tv-cal-drawer__hint">
+                            Capacity edits apply to one listing at a time.
+                          </p>
+                          <PartnerSelect
+                            id="calendar-day-pick-listing"
+                            aria-label="Listing to edit"
+                            value={listingId}
+                            onChange={setListingIdAndUrl}
+                            placeholder="Select a listing…"
+                            options={listingSelectOptions.filter((o) => o.value !== '')}
+                          />
+                        </section>
+                      ) : (
+                        <section className="tv-cal-drawer__section">
+                          <h3>Manage this date</h3>
+                          <p className="tv-cal-drawer__hint">
+                            {stayCalendar
+                              ? 'Close or reopen this night. Existing stays stay intact.'
+                              : 'Close or reopen this date, or set an optional day-wide guest limit across all departures. This does not change each departure’s schedule capacity.'}
+                          </p>
+                          <div className="tv-cal-drawer__actions">
+                            <button
+                              type="button"
+                              disabled={!canEditCalendar || savingIso === editing.iso}
+                              onClick={() => void saveCap(editing.iso, 0)}
+                              className="tv-btn-secondary !min-h-10 !px-3 text-[13px] disabled:opacity-40"
+                            >
+                              {stayCalendar ? 'Block night' : 'Close date'}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={!canEditCalendar || savingIso === editing.iso}
+                              onClick={() => void clearCap(editing.iso)}
+                              className="tv-btn-secondary !min-h-10 !px-3 text-[13px] disabled:opacity-40"
+                            >
+                              {stayCalendar ? 'Clear block' : 'Reopen date'}
+                            </button>
+                          </div>
+                          <label
+                            className="mb-1.5 block text-[12px] font-medium text-ink"
+                            htmlFor="day-capacity"
+                          >
+                            {stayCalendar
+                              ? 'Night block value (0 = blocked)'
+                              : 'Day-wide capacity limit (0 = closed)'}
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              id="day-capacity"
+                              type="number"
+                              min={0}
+                              max={99}
+                              value={dayDraftCapacity}
+                              onChange={(e) => {
+                                setSaveNote(null);
+                                setDayDraftCapacity(e.target.value);
+                                setEditing({ ...editing, capacity: e.target.value });
+                              }}
+                              className="tv-input !min-h-10 w-28 tabular-nums"
+                            />
+                            <span className="text-[13px] text-ink-muted">spots</span>
+                          </div>
+                        </section>
+                      )}
+
+                      {!stayCalendar && !viewingAll && listing ? (
+                        <section className="tv-cal-drawer__section">
+                          <h3>Departures on this date</h3>
+                          {daySellingDepartures.length > 0 ? (
+                            <ul className="tv-cal-dep-list">
+                              {daySellingDepartures.map((d) => {
+                                const rowKey = `${d.optionId}-${d.scheduleId}-${d.startTime}`;
+                                const occupying = tourCheckoutOccupiedGuests(
+                                  dayBookings,
+                                  editing.iso,
+                                  null,
+                                  Date.now(),
+                                  d.startTime || null
+                                );
+                                const line = partnerDepartureRemainingLine({
+                                  scheduleName: d.scheduleName,
+                                  optionName: d.optionName,
+                                  startTime: d.startTime,
+                                  maxSpotsPerSlot: d.maxSpotsPerSlot,
+                                  occupyingGuests: occupying,
+                                });
+                                const optionLabel =
+                                  d.optionName.trim() ||
+                                  d.scheduleName.trim() ||
+                                  'Departure';
+                                const dayCapRow = rowByDate.get(editing.iso);
+                                const dayClosed =
+                                  typeof dayCapRow?.capacity === 'number' &&
+                                  dayCapRow.capacity < 1;
+                                const statusWord = dayClosed
+                                  ? 'Closed'
+                                  : line.full
+                                    ? 'Sold out'
+                                    : 'Available';
+                                return (
+                                  <li key={rowKey} className="tv-cal-dep-row">
+                                    <p className="tv-cal-dep-row__title">
+                                      <span className="tv-cal-dep-row__time">
+                                        {normalizeTourStartTimeHm(d.startTime) ||
+                                          d.startTime ||
+                                          '—'}
+                                      </span>
+                                      {' — '}
+                                      {optionLabel}
+                                    </p>
+                                    <p className="tv-cal-dep-row__meta">
+                                      {statusWord}
+                                      {' · '}
+                                      {line.remaining} of {line.capacity} seats remaining
+                                      {occupying > 0 ? ` · ${occupying} booked` : ''}
+                                    </p>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          ) : (
+                            <p className="tv-cal-drawer__hint">
+                              {weekdayOpen(editing.iso)
+                                ? 'No ready departures for this date.'
+                                : 'No schedule on this weekday — a day override does not open traveler booking.'}
+                            </p>
+                          )}
+                        </section>
+                      ) : null}
+
+                      {!stayCalendar && !viewingAll && listing && daySellingDepartures.length > 0 ? (
+                        <section className="tv-cal-drawer__section">
+                          <h3>Edit schedule defaults</h3>
+                          <p className="tv-cal-drawer__hint">
+                            These controls change capacity and booking cutoff for the schedule or
+                            option across all applicable dates — not only{' '}
+                            {new Date(`${editing.iso}T12:00:00`).toLocaleDateString('en-GB', {
+                              day: 'numeric',
+                              month: 'short',
+                            })}
+                            . Date-specific departure overrides are not supported.
+                          </p>
                           <ul className="tv-cal-dep-list">
                             {daySellingDepartures.map((d) => {
                               const rowKey = `${d.optionId}-${d.scheduleId}-${d.startTime}`;
@@ -1268,13 +1533,6 @@ export default function SupplierAvailability() {
                                 Date.now(),
                                 d.startTime || null
                               );
-                              const line = partnerDepartureRemainingLine({
-                                scheduleName: d.scheduleName,
-                                optionName: d.optionName,
-                                startTime: d.startTime,
-                                maxSpotsPerSlot: d.maxSpotsPerSlot,
-                                occupyingGuests: occupying,
-                              });
                               const optionLabel =
                                 d.optionName.trim() ||
                                 d.scheduleName.trim() ||
@@ -1284,54 +1542,30 @@ export default function SupplierAvailability() {
                                 spots: String(d.maxSpotsPerSlot),
                                 cutoffHours: String(cutoffHours),
                               };
-                              const busy = depSavingKey === rowKey;
-                              const dayCapRow = rowByDate.get(editing.iso);
-                              const dayClosed =
-                                typeof dayCapRow?.capacity === 'number' && dayCapRow.capacity < 1;
-                              const statusWord = dayClosed
-                                ? 'Closed (day)'
-                                : line.full
-                                  ? 'Sold out'
-                                  : occupying > 0
-                                    ? 'Available'
-                                    : 'Available';
                               return (
-                                <li key={rowKey} className="tv-cal-dep-card">
-                                  <div className="tv-cal-dep-card__top">
-                                    <div className="min-w-0">
-                                      <p className="tv-cal-dep-card__title">
-                                        <span className="tv-cal-dep-card__time">
-                                          {normalizeTourStartTimeHm(d.startTime) ||
-                                            d.startTime ||
-                                            '—'}
-                                        </span>
-                                        <span className="tv-cal-dep-card__name" title={optionLabel}>
-                                          {optionLabel}
-                                        </span>
-                                      </p>
-                                      <p className="tv-cal-dep-card__meta">
-                                        {line.remaining} available / {line.capacity} capacity
-                                        {occupying > 0
-                                          ? ` · ${occupying} booked`
-                                          : ''}
-                                        {' · '}
-                                        {statusWord}
-                                      </p>
-                                      <p className="tv-cal-dep-card__cutoff">
-                                        {cutoffDisplayLabel(cutoffHours)}
-                                      </p>
-                                    </div>
-                                  </div>
+                                <li key={`sch-${rowKey}`} className="tv-cal-dep-row">
+                                  <p className="tv-cal-dep-row__title">
+                                    <span className="tv-cal-dep-row__time">
+                                      {normalizeTourStartTimeHm(d.startTime) ||
+                                        d.startTime ||
+                                        '—'}
+                                    </span>
+                                    {' — '}
+                                    {optionLabel}
+                                  </p>
+                                  <p className="tv-cal-dep-row__meta">
+                                    Current cutoff: {cutoffDisplayLabel(cutoffHours)}
+                                  </p>
                                   {canEditCalendar ? (
-                                    <div className="tv-cal-dep-card__controls">
-                                      <label className="tv-cal-dep-card__field">
-                                        <span>Schedule capacity</span>
+                                    <div className="tv-cal-dep-row__fields">
+                                      <label className="tv-cal-dep-row__field">
+                                        <span>Capacity</span>
                                         <input
                                           type="number"
                                           min={Math.max(1, occupying)}
                                           max={99}
                                           value={draft.spots}
-                                          disabled={busy}
+                                          disabled={scheduleSaving}
                                           onChange={(e) =>
                                             setDepEdits((prev) => ({
                                               ...prev,
@@ -1341,14 +1575,14 @@ export default function SupplierAvailability() {
                                               },
                                             }))
                                           }
-                                          className="tv-input !min-h-9 w-20 tabular-nums"
+                                          className="tv-input tabular-nums"
                                         />
                                       </label>
-                                      <label className="tv-cal-dep-card__field">
+                                      <label className="tv-cal-dep-row__field">
                                         <span>Booking cutoff</span>
                                         <select
                                           value={draft.cutoffHours}
-                                          disabled={busy}
+                                          disabled={scheduleSaving}
                                           onChange={(e) =>
                                             setDepEdits((prev) => ({
                                               ...prev,
@@ -1358,7 +1592,7 @@ export default function SupplierAvailability() {
                                               },
                                             }))
                                           }
-                                          className="tv-input !min-h-9 min-w-[9.5rem]"
+                                          className="tv-input"
                                         >
                                           {CUTOFF_PRESETS.map((p) => (
                                             <option key={p.hours} value={String(p.hours)}>
@@ -1374,222 +1608,37 @@ export default function SupplierAvailability() {
                                           ) : null}
                                         </select>
                                       </label>
-                                      <button
-                                        type="button"
-                                        disabled={busy}
-                                        onClick={() => {
-                                          void (async () => {
-                                            if (!listing || !canEditCalendar) return;
-                                            const nextSpots = Math.min(
-                                              99,
-                                              Math.max(1, Math.floor(Number(draft.spots) || 0))
-                                            );
-                                            const nextCutoff = Math.max(
-                                              0,
-                                              Math.floor(Number(draft.cutoffHours) || 0)
-                                            );
-                                            const spotsChanged = nextSpots !== d.maxSpotsPerSlot;
-                                            const cutoffChanged = nextCutoff !== cutoffHours;
-                                            if (!spotsChanged && !cutoffChanged) return;
-                                            if (spotsChanged && nextSpots < occupying) {
-                                              setSaveNote(
-                                                `Cannot set capacity below ${occupying} confirmed guest${
-                                                  occupying === 1 ? '' : 's'
-                                                } on this departure.`
-                                              );
-                                              return;
-                                            }
-                                            setDepSavingKey(rowKey);
-                                            setSaveNote(null);
-                                            try {
-                                              let opts = materializedBookingOptions(
-                                                listing.listingExtras?.bookingOptions
-                                              );
-                                              if (spotsChanged) {
-                                                opts = patchScheduleOrOptionSpots(
-                                                  opts,
-                                                  d.optionId,
-                                                  d.scheduleId,
-                                                  nextSpots
-                                                );
-                                              }
-                                              if (cutoffChanged) {
-                                                opts = patchOptionCutoff(
-                                                  opts,
-                                                  d.optionId,
-                                                  nextCutoff
-                                                );
-                                              }
-                                              const res = await persistListingOptions(opts);
-                                              if (!res.success) {
-                                                setSaveNote(
-                                                  res.error ?? 'Could not update departure.'
-                                                );
-                                                return;
-                                              }
-                                              const bits: string[] = [];
-                                              if (spotsChanged) {
-                                                bits.push(
-                                                  'schedule capacity (all dates on this schedule)'
-                                                );
-                                              }
-                                              if (cutoffChanged) {
-                                                bits.push(
-                                                  nextCutoff <= 0
-                                                    ? 'cutoff cleared (all dates)'
-                                                    : `cutoff ${nextCutoff}h (all dates)`
-                                                );
-                                              }
-                                              setSaveNote(`Updated ${bits.join(' and ')}.`);
-                                            } finally {
-                                              setDepSavingKey(null);
-                                            }
-                                          })();
-                                        }}
-                                        className="tv-btn-secondary !min-h-9 !px-3 text-[12px] disabled:opacity-40"
-                                      >
-                                        {busy ? 'Saving…' : 'Update'}
-                                      </button>
                                     </div>
                                   ) : null}
-                                  <p className="tv-cal-dep-card__note">
-                                    Capacity and cutoff edit the schedule/option defaults for all
-                                    dates — not a one-day override.
-                                  </p>
                                 </li>
                               );
                             })}
                           </ul>
-                        ) : (
-                          <p className="tv-cal-day-panel__hint">
-                            {weekdayOpen(editing.iso)
-                              ? 'No ready departures for this date.'
-                              : 'No schedule on this weekday — a daily override does not open traveler booking.'}
-                          </p>
-                        )}
-                      </section>
-                    ) : null}
+                          {canEditCalendar ? (
+                            <div className="mt-4">
+                              <button
+                                type="button"
+                                disabled={scheduleSaving || Object.keys(depEdits).length === 0}
+                                onClick={() => void saveScheduleDefaults()}
+                                className="tv-btn-secondary !min-h-10 !px-3 text-[13px] disabled:opacity-40"
+                              >
+                                {scheduleSaving ? 'Saving…' : 'Save schedule defaults'}
+                              </button>
+                            </div>
+                          ) : null}
+                        </section>
+                      ) : null}
+                    </div>
 
-                    {viewingAll ? (
-                      <section className="tv-cal-day-panel__section">
-                        <h3>Select listing</h3>
-                        <p className="tv-cal-day-panel__hint">
-                          Capacity edits apply to one listing at a time.
-                        </p>
-                        <PartnerSelect
-                          id="calendar-day-pick-listing"
-                          aria-label="Listing to edit"
-                          value={listingId}
-                          onChange={setListingIdAndUrl}
-                          placeholder="Select a listing…"
-                          options={listingSelectOptions.filter((o) => o.value !== '')}
-                        />
-                      </section>
-                    ) : stayCalendar ? (
-                      <section className="tv-cal-day-panel__section">
-                        <h3>Night block</h3>
-                        {dayBookings.length > 0 ? (
-                          <p className="tv-cal-day-panel__hint">
-                            Occupied by a paid stay. Blocking still saves for after checkout.
-                          </p>
-                        ) : dayDepartures.length > 0 ? (
-                          <p className="tv-cal-day-panel__hint">
-                            Check-out morning — night is free for the next stay.
-                          </p>
-                        ) : (
-                          <p className="tv-cal-day-panel__hint">
-                            Set 0 to block this night. Reset clears the block.
-                          </p>
-                        )}
-                        {saveNote ? (
-                          <p className="mb-3 text-[12px] font-medium text-emerald-800">{saveNote}</p>
-                        ) : null}
-                        <label className="mb-1 block text-[12px] font-medium text-ink" htmlFor="day-capacity">
-                          Block value
-                        </label>
-                        <input
-                          id="day-capacity"
-                          type="number"
-                          min={0}
-                          max={99}
-                          value={editing.capacity}
-                          onChange={(e) => {
-                            setSaveNote(null);
-                            setEditing({ ...editing, capacity: e.target.value });
-                          }}
-                          className="tv-input !min-h-10 w-28"
-                        />
-                      </section>
-                    ) : (
-                      <section className="tv-cal-day-panel__section">
-                        <h3>Day controls</h3>
-                        <p className="tv-cal-day-panel__hint">
-                          Close or reopen this date for all departures. An optional day-wide
-                          capacity limit caps total guests across departures — it does not rewrite
-                          each schedule&apos;s capacity.
-                        </p>
-                        {saveNote ? (
-                          <div className="mb-3">
-                            <NoticeCallout title="Saved" tone="info">
-                              {saveNote}
-                            </NoticeCallout>
-                          </div>
-                        ) : null}
-                        <div className="mb-3 flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            disabled={!canEditCalendar || savingIso === editing.iso}
-                            onClick={() => void saveCap(editing.iso, 0)}
-                            className="tv-btn-secondary !min-h-9 !px-3 text-[13px] disabled:opacity-40"
-                          >
-                            Close date
-                          </button>
-                          <button
-                            type="button"
-                            disabled={!canEditCalendar || savingIso === editing.iso}
-                            onClick={() => void clearCap(editing.iso)}
-                            className="tv-btn-secondary !min-h-9 !px-3 text-[13px] disabled:opacity-40"
-                          >
-                            Reopen / restore defaults
-                          </button>
-                        </div>
-                        <label
-                          className="mb-1 block text-[12px] font-medium text-ink"
-                          htmlFor="day-capacity"
-                        >
-                          Optional day-wide capacity limit
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <input
-                            id="day-capacity"
-                            type="number"
-                            min={0}
-                            max={99}
-                            value={editing.capacity}
-                            onChange={(e) => setEditing({ ...editing, capacity: e.target.value })}
-                            className="tv-input !min-h-10 w-28 tabular-nums"
-                          />
-                          <span className="text-[13px] text-ink-muted">spots (0 = closed)</span>
-                        </div>
-                      </section>
-                    )}
-                  </div>
-
-                  {!viewingAll ? (
-                    <div className="tv-cal-day-panel__foot">
-                      <button
-                        type="button"
-                        disabled={!canEditCalendar || savingIso === editing.iso}
-                        onClick={() => void clearCap(editing.iso)}
-                        className="lux-flat text-[13px] font-medium text-ink-muted hover:text-ink disabled:opacity-40"
-                      >
-                        Reset to schedule defaults
-                      </button>
-                      <div className="flex items-center gap-2">
+                    {!viewingAll ? (
+                      <footer className="tv-cal-drawer__foot">
+                        <span className="tv-cal-drawer__foot-note">
+                          Save applies to this date only
+                        </span>
                         <button
                           type="button"
-                          onClick={closeDaySheet}
-                          className="tv-btn-ghost !min-h-9 !px-3 text-[13px]"
+                          onClick={requestCloseDaySheet}
+                          className="tv-btn-ghost !min-h-10 !px-3 text-[13px]"
                         >
                           Cancel
                         </button>
@@ -1599,20 +1648,30 @@ export default function SupplierAvailability() {
                           onClick={() =>
                             void saveCap(
                               editing.iso,
-                              Math.max(0, Math.floor(Number(editing.capacity) || 0))
+                              Math.max(0, Math.floor(Number(dayDraftCapacity) || 0))
                             )
                           }
-                          className="tv-btn-primary !min-h-9 !px-3 text-[13px] disabled:opacity-40"
+                          className="tv-btn-primary !min-h-10 !px-3 text-[13px] disabled:opacity-40"
                         >
-                          {savingIso === editing.iso ? 'Saving…' : 'Save day limit'}
+                          {savingIso === editing.iso ? 'Saving…' : 'Save changes'}
                         </button>
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              </aside>
-            </div>
-          ) : null}
+                      </footer>
+                    ) : (
+                      <footer className="tv-cal-drawer__foot">
+                        <button
+                          type="button"
+                          onClick={requestCloseDaySheet}
+                          className="tv-btn-ghost !min-h-10 !px-3 text-[13px]"
+                        >
+                          Close
+                        </button>
+                      </footer>
+                    )}
+                  </aside>
+                </div>,
+                document.body
+              )
+            : null}
         </div>
       )}
 
