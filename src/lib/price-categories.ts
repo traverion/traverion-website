@@ -163,6 +163,54 @@ export function priceCategoryValidationMessages(option: PricedBookingShape): str
   return msg;
 }
 
+export type TravelerPriceFact = {
+  label: string;
+  amountLabel: string;
+  ages: string | null;
+};
+
+/** Traveler-facing option price. Identical label+price rows collapse so raw category records are not repeated. */
+export function travelerOptionPriceFacts(
+  option: PricedBookingShape,
+  formatAmount: (n: number) => string
+): { lead: string; facts: TravelerPriceFact[] } {
+  if (option.isPrivate && option.privatePricing === 'flat_group') {
+    const flat = option.privateGroupPriceUsd ?? option.priceUsd;
+    return {
+      lead: flat > 0 ? `${formatAmount(flat)} for your group` : 'Price not set',
+      facts: [],
+    };
+  }
+  if (optionPricingMode(option) === 'age_dependent') {
+    const cats = activePriceCategories(option);
+    const seen = new Set<string>();
+    const facts: TravelerPriceFact[] = [];
+    for (const c of cats) {
+      const label = c.label.trim();
+      const key = `${label.toLowerCase()}|${c.priceUsd}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const ages =
+        c.ageMin != null && c.ageMax != null && c.ageMax < 120
+          ? `Ages ${c.ageMin}–${c.ageMax}`
+          : c.ageMin != null
+            ? `Ages ${c.ageMin}+`
+            : null;
+      facts.push({ label, amountLabel: formatAmount(c.priceUsd), ages });
+    }
+    const priced = cats.filter((c) => c.priceUsd > 0).map((c) => c.priceUsd);
+    const from = priced.length ? Math.min(...priced) : 0;
+    return {
+      lead: from > 0 ? `From ${formatAmount(from)}` : facts[0]?.amountLabel ?? 'Price not set',
+      facts,
+    };
+  }
+  return {
+    lead: option.priceUsd > 0 ? `${formatAmount(option.priceUsd)} per person` : 'Price not set',
+    facts: [],
+  };
+}
+
 export function summarizeOptionPricing(
   option: PricedBookingShape,
   formatAmount: (n: number) => string

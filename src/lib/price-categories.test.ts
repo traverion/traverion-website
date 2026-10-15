@@ -8,6 +8,7 @@ import {
   optionHeadlineUnitPrice,
   priceCategoryValidationMessages,
   summarizeOptionPricing,
+  travelerOptionPriceFacts,
 } from './price-categories';
 
 describe('price categories on booking options', () => {
@@ -38,6 +39,9 @@ describe('price categories on booking options', () => {
     expect(opt.priceUsd).toBe(189);
     expect(optionHeadlineUnitPrice(opt)).toBe(189);
     expect(summarizeOptionPricing(opt, (n) => `€${n}`)).toMatch(/Adult €189/);
+    const facts = travelerOptionPriceFacts(opt, (n) => `€${n}`);
+    expect(facts.lead).toBe('From €149');
+    expect(facts.facts.map((f) => f.label)).toEqual(['Adult', 'Child']);
     expect(summarizeOptionPricing(opt, (n) => `€${n}`)).toMatch(/Child €149/);
   });
 

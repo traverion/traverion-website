@@ -6,7 +6,7 @@ import {
   type TourOptionAvailabilityKind,
 } from '../../lib/tour-available-options';
 import { optionUsesAgePricing, optionUsesPrivateFlatPrice } from '../../lib/participant-mix';
-import { summarizeOptionPricing } from '../../lib/price-categories';
+import { travelerOptionPriceFacts } from '../../lib/price-categories';
 import { formatMoney } from '../../lib/money';
 import NoticeCallout from '../NoticeCallout';
 
@@ -93,7 +93,7 @@ export default function TourAvailableOptions({
       ) : null}
 
       {kind === 'many' ? (
-        <ul className="mt-4 divide-y divide-black/[0.06] border-y border-black/[0.06]">
+        <ul className="mt-4 space-y-3">
           {available.map((variant) => (
             <li key={variant.id}>
               <OptionRow
@@ -128,30 +128,55 @@ function OptionRow({
 }) {
   const opt = variant.listingOption;
   const meta = optionMetaParts(variant);
-  // Phase 1560: selected + failed quote — do not invent catalog money on the option row.
-  const priceLine = hideCatalogPrice
-    ? '—'
-    : optionUsesAgePricing(opt)
-      ? summarizeOptionPricing(opt!, (n) => formatMoney(n, currency))
-      : `${formatMoney(variant.pricePerPerson, currency)} ${
-          optionUsesPrivateFlatPrice(opt) ? 'private group' : 'per person'
-        }`;
+  const priced = hideCatalogPrice
+    ? null
+    : opt && optionUsesAgePricing(opt)
+      ? travelerOptionPriceFacts(opt, (n) => formatMoney(n, currency))
+      : {
+          lead: `${formatMoney(variant.pricePerPerson, currency)} ${
+            optionUsesPrivateFlatPrice(opt) ? 'for your group' : 'per person'
+          }`,
+          facts: [],
+        };
   return (
     <div
-      className={`flex flex-col gap-3 py-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6 ${
-        compact ? 'rounded-xl bg-paper-raised/80 px-4 ring-1 ring-black/[0.05] sm:px-5' : ''
-      }`}
+      className={`rounded-xl px-4 py-3.5 ring-1 sm:px-5 ${
+        selected ? 'bg-finland/[0.05] ring-finland' : 'bg-white ring-black/[0.08]'
+      } ${compact ? '' : ''}`}
     >
-      <div className="min-w-0">
-        <p className="font-semibold text-ink">{variant.label}</p>
-        {meta.length > 0 ? <p className="mt-1 text-sm text-ink-muted">{meta.join(' · ')}</p> : null}
-        {opt?.optionInfo?.trim() ? (
-          <p className="mt-1 text-sm leading-snug text-ink-muted">{opt.optionInfo.trim()}</p>
-        ) : variant.subtitle && meta.length === 0 ? (
-          <p className="mt-1 text-sm text-ink-muted">{variant.subtitle}</p>
-        ) : null}
-        <p className="mt-2 text-sm font-semibold tabular-nums text-ink">{priceLine}</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <p className="font-semibold text-ink">{variant.label}</p>
+          {meta.length > 0 ? (
+            <ul className="mt-1.5 space-y-0.5 text-sm text-ink-muted">
+              {meta.map((part) => (
+                <li key={part}>{part}</li>
+              ))}
+            </ul>
+          ) : null}
+          {opt?.optionInfo?.trim() ? (
+            <p className="mt-1.5 text-sm leading-snug text-ink-muted">{opt.optionInfo.trim()}</p>
+          ) : variant.subtitle && meta.length === 0 ? (
+            <p className="mt-1.5 text-sm text-ink-muted">{variant.subtitle}</p>
+          ) : null}
+        </div>
+        <p className="shrink-0 text-sm font-semibold tabular-nums text-ink">
+          {hideCatalogPrice ? 'Price unavailable' : priced?.lead}
+        </p>
       </div>
+      {priced && priced.facts.length > 0 ? (
+        <dl className="mt-3 space-y-1 border-t border-black/[0.06] pt-3">
+          {priced.facts.map((fact) => (
+            <div key={`${fact.label}-${fact.amountLabel}`} className="flex items-baseline justify-between gap-3 text-sm">
+              <dt className="text-ink">
+                {fact.label}
+                {fact.ages ? <span className="text-ink-muted"> · {fact.ages}</span> : null}
+              </dt>
+              <dd className="shrink-0 font-medium tabular-nums text-ink">{fact.amountLabel}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
       <button
         type="button"
         data-tour-option-cta="choose"
@@ -159,8 +184,8 @@ function OptionRow({
         aria-pressed={selected}
         className={
           selected
-            ? 'tv-btn-secondary min-h-11 shrink-0 self-start'
-            : 'tv-btn-primary min-h-11 shrink-0 self-start'
+            ? 'tv-btn-secondary mt-3 min-h-11'
+            : 'tv-btn-primary mt-3 min-h-11'
         }
       >
         {selected ? (
@@ -169,7 +194,7 @@ function OptionRow({
             Selected
           </span>
         ) : (
-          'Choose'
+          'Select'
         )}
       </button>
     </div>
