@@ -184,13 +184,15 @@ export function mapStripeReturnRoute(page: string, search: string): string {
 }
 
 /**
- * history.back() + sync via popstate; if the URL did not change (no history), go home in-app.
+ * history.back() + sync via popstate; if the URL did not change (no history), run fallback.
+ * Compares pathname+search so catalog↔PDP on the same path (`/packages?tour=`) is detected.
  */
 export function navigateBackOrFallback(onFallback: () => void): void {
-  const path = window.location.pathname;
+  const before = `${window.location.pathname}${window.location.search}`;
   window.history.back();
   window.setTimeout(() => {
-    if (window.location.pathname === path) {
+    const after = `${window.location.pathname}${window.location.search}`;
+    if (after === before) {
       onFallback();
     }
   }, 200);

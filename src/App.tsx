@@ -41,7 +41,16 @@ import { listingIsFamily, listingIsOnTravelerCatalog } from './lib/inventory';
 import { listingHasUpcomingBookableSeason } from './lib/booking-quote';
 import { listingDetailVisibleToTraveler } from './lib/product-workflows';
 import { isPartnerMarketingPathForCurrentHost, isPartnerPortalPathForCurrentHost } from './lib/partnerHost';
-import { rememberProductReturn, isStaticConsumerPage } from './lib/navReturn';
+import {
+  rememberProductReturn,
+  isStaticConsumerPage,
+  rememberListingReturn,
+  listingBackLabel,
+  consumeListingReturn,
+  peekListingReturn,
+  listingOriginHref,
+  isProductDetailHistoryState,
+} from './lib/navReturn';
 import { failCloseOrphanStayCheckout } from './lib/marketplaceBrowse';
 import { takeTravelerReturnStay } from './lib/travelerAuthLinks';
 import type { TourPackage as TourPackageType } from './types/tour';
@@ -289,10 +298,20 @@ function App() {
       if (selectedTour) {
         const params = new URLSearchParams(window.location.search);
         params.set('tour', selectedTour.id);
+        params.delete('stay');
         const next = `/packages?${params.toString()}`;
         const current = `${window.location.pathname}${window.location.search}`;
         if (current !== next) {
-          window.history.replaceState({}, '', next);
+          const prevState =
+            typeof window.history.state === 'object' && window.history.state
+              ? (window.history.state as Record<string, unknown>)
+              : {};
+          const nextState = { ...prevState, traverionProductDetail: selectedTour.id };
+          if (isProductDetailHistoryState(window.history.state, selectedTour.id)) {
+            window.history.replaceState(nextState, '', next);
+          } else {
+            window.history.pushState(nextState, '', next);
+          }
         }
       }
       return;
@@ -305,7 +324,16 @@ function App() {
         const next = `/stays?${params.toString()}`;
         const current = `${window.location.pathname}${window.location.search}`;
         if (current !== next) {
-          window.history.replaceState({}, '', next);
+          const prevState =
+            typeof window.history.state === 'object' && window.history.state
+              ? (window.history.state as Record<string, unknown>)
+              : {};
+          const nextState = { ...prevState, traverionProductDetail: selectedTour.id };
+          if (isProductDetailHistoryState(window.history.state, selectedTour.id)) {
+            window.history.replaceState(nextState, '', next);
+          } else {
+            window.history.pushState(nextState, '', next);
+          }
         }
       }
       return;
@@ -542,10 +570,36 @@ function App() {
       setCurrentPage('bookings');
       return;
     }
+    if (page === 'auth') {
+      const next = `/log-in?next=${encodeURIComponent(
+        currentPage === 'auth' ? 'home' : currentPage === 'packages' ? 'packages' : currentPage
+      )}`;
+      const cur = `${window.location.pathname}${window.location.search}`;
+      if (cur !== next) {
+        window.history.pushState({}, '', next);
+      }
+      setCurrentPage('auth');
+      return;
+    }
     setCurrentPage(page);
   }, [currentPage]);
 
   const handleTourSelect = (tour: TourPackageType) => {
+    const origin = listingOriginHref(
+      currentPage,
+      window.location.pathname,
+      window.location.search
+    );
+    const here = `${window.location.pathname}${window.location.search}`;
+    if (here !== origin) {
+      const prev =
+        typeof window.history.state === 'object' && window.history.state
+          ? { ...(window.history.state as Record<string, unknown>) }
+          : {};
+      delete prev.traverionProductDetail;
+      window.history.replaceState({ ...prev, traverionPage: currentPage }, '', origin);
+    }
+    rememberListingReturn(currentPage, origin, true);
     if (listingIsFamily(tour, 'stay')) {
       if (
         tour.title &&
@@ -609,14 +663,47 @@ function App() {
     setCurrentPage('tour-details');
   };
 
-  const handleBackToStays = () => {
+  const applyListingReturn = (kind: 'tour' | 'stay', ret: { page: string; href: string } | null) => {
     setSelectedTour(null);
-    setCurrentPage('stays');
-    const params = new URLSearchParams(window.location.search);
-    params.delete('stay');
-    params.delete('tour');
-    const qs = params.toString();
-    window.history.replaceState({}, '', qs ? `/stays?${qs}` : '/stays');
+    if (ret?.href && ret.href.startsWith('/') && !ret.href.startsWith('//')) {
+      window.history.replaceState({ traverionPage: ret.page }, '', ret.href);
+      setCurrentPage(ret.page === 'booking' ? 'packages' : ret.page);
+      return;
+    }
+    if (kind === 'stay') {
+      setCurrentPage('stays');
+      window.history.replaceState({ traverionPage: 'stays' }, '', '/stays');
+      return;
+    }
+    setCurrentPage('packages');
+    window.history.replaceState({ traverionPage: 'packages' }, '', '/packages');
+  };
+
+  const leaveListing = (kind: 'tour' | 'stay') => {
+    const ret = peekListingReturn();
+    if (!ret) {
+      applyListingReturn(kind, null);
+      return;
+    }
+    consumeListingReturn();
+    if (!ret.pushed) {
+      applyListingReturn(kind, ret);
+      return;
+    }
+    const before = `${window.location.pathname}${window.location.search}`;
+    window.history.back();
+    window.setTimeout(() => {
+      const after = `${window.location.pathname}${window.location.search}`;
+      if (after === before || after !== ret.href) {
+        applyListingReturn(kind, ret);
+      } else {
+        setSelectedTour(null);
+      }
+    }, 200);
+  };
+
+  const handleBackToStays = () => {
+    leaveListing('stay');
   };
 
   const handleBackFromDestination = () => {
@@ -627,12 +714,7 @@ function App() {
   };
 
   const handleBackToTours = () => {
-    setSelectedTour(null);
-    setCurrentPage('packages');
-    const params = new URLSearchParams(window.location.search);
-    params.delete('tour');
-    const qs = params.toString();
-    window.history.replaceState({}, '', qs ? `/packages?${qs}` : '/packages');
+    leaveListing('tour');
   };
 
   const renderPage = () => {
@@ -647,7 +729,13 @@ function App() {
         const stayId =
           selectedTour?.id ?? new URLSearchParams(window.location.search).get('stay') ?? '';
         if (/^[0-9a-f-]{36}$/i.test(stayId)) {
-          return <StayDetails stayId={stayId} onBack={handleBackToStays} />;
+          return (
+            <StayDetails
+              stayId={stayId}
+              onBack={handleBackToStays}
+              backLabel={listingBackLabel('Stays')}
+            />
+          );
         }
         return (
           <div className="min-h-[50vh] bg-paper" aria-busy="true" aria-label="Loading stay">
@@ -678,7 +766,13 @@ function App() {
         const tourId =
           selectedTour?.id ?? resolveTourListingIdFromSearch(window.location.search) ?? '';
         if (/^[0-9a-f-]{36}$/i.test(tourId)) {
-          return <TourDetails tourId={tourId} onBack={handleBackToTours} />;
+          return (
+            <TourDetails
+              tourId={tourId}
+              onBack={handleBackToTours}
+              backLabel={listingBackLabel('Tours')}
+            />
+          );
         }
         return (
           <div className="min-h-[50vh] bg-paper" aria-busy="true" aria-label="Loading tour">
@@ -830,7 +924,7 @@ function App() {
             <AuthModal />
           </>
         ) : minimalTravelerChrome ? (
-          <div className="min-h-screen bg-paper">
+          <div key={currentPage} className="min-h-screen bg-paper lux-page-enter lux-page-enter--slide">
             <Suspense fallback={<RouteFallback />}>{renderPage()}</Suspense>
             <AuthModal />
           </div>
@@ -839,7 +933,7 @@ function App() {
             <SkipLink />
             <UnifiedHeader currentPage={currentPage} onNavigate={handleNavigate} />
             <main id="main-content" tabIndex={-1} className="flex-grow overflow-x-clip outline-none">
-              <div className="lux-page-enter min-h-[min(50vh,480px)]">
+              <div key={currentPage} className="lux-page-enter lux-page-enter--slide min-h-[min(50vh,480px)]">
                 <Suspense fallback={<RouteFallback />}>{renderPage()}</Suspense>
               </div>
             </main>

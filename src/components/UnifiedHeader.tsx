@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useDialogFocus } from '../hooks/useDialogFocus';
-import { Menu, X, User, LogOut, LayoutDashboard, Calendar, Heart, LifeBuoy, ExternalLink } from 'lucide-react';
+import { Menu, X, User, LogOut, LayoutDashboard, Calendar, Heart, LifeBuoy, ExternalLink, Search } from 'lucide-react';
 import { prefetchAuthPage, prefetchMyBookingsPage, prefetchPackagesPage } from '../lib/routePrefetch';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -114,13 +114,13 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
 
   return (
     <>
-    <header className="fixed top-0 left-0 right-0 z-[9999] border-b border-black/[0.06] bg-paper-raised/95 backdrop-blur-md pt-[env(safe-area-inset-top,0px)] shadow-soft">
+    <header className="fixed top-0 left-0 right-0 z-[9999] border-b border-black/[0.08] bg-white/95 backdrop-blur-md pt-[env(safe-area-inset-top,0px)]">
       <div className="tv-shell px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
           <button type="button" onClick={() => onNavigate('home')} className="lux-flat flex items-center gap-2 min-w-0" aria-label="Traverion home">
             <img 
               src={BRAND_LOGO_SRC} 
               alt="TRAVERION" 
-              className="w-10 h-10 sm:w-12 sm:h-12 object-contain"
+              className="w-9 h-9 object-contain"
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
               }}
@@ -136,8 +136,8 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               aria-current={currentPage === 'home' ? 'page' : undefined}
               className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
                 currentPage === 'home'
-                  ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
-                  : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
+                  ? 'bg-finland/10 font-semibold text-finland'
+                  : 'text-ink-muted hover:bg-black/[0.04] hover:text-ink'
               }`}
             >
               Explore
@@ -151,8 +151,8 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               }
               className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
                 currentPage === 'packages' || currentPage === 'tour-details'
-                  ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
-                  : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
+                  ? 'bg-finland/10 font-semibold text-finland'
+                  : 'text-ink-muted hover:bg-black/[0.04] hover:text-ink'
               }`}
             >
               Tours
@@ -163,8 +163,8 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               aria-current={currentPage === 'stays' || currentPage === 'stay-details' ? 'page' : undefined}
               className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
                 currentPage === 'stays' || currentPage === 'stay-details'
-                  ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
-                  : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
+                  ? 'bg-finland/10 font-semibold text-finland'
+                  : 'text-ink-muted hover:bg-black/[0.04] hover:text-ink'
               }`}
             >
               Stays
@@ -182,8 +182,8 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               aria-current={currentPage === 'wishlist' ? 'page' : undefined}
               className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
                 currentPage === 'wishlist'
-                  ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
-                  : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
+                  ? 'bg-finland/10 font-semibold text-finland'
+                  : 'text-ink-muted hover:bg-black/[0.04] hover:text-ink'
               }`}
             >
               Saved
@@ -203,8 +203,8 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               aria-label={hasUnreadBookings ? 'Trips, unread updates' : 'Trips'}
               className={`lux-flat relative rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
                 currentPage === 'bookings'
-                  ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
-                  : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
+                  ? 'bg-finland/10 font-semibold text-finland'
+                  : 'text-ink-muted hover:bg-black/[0.04] hover:text-ink'
               }`}
             >
               Trips
@@ -215,7 +215,19 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
           </nav>
 
           {/* Profile */}
-          <div className="flex items-center gap-3 sm:gap-4" ref={userMenuRef}>
+          <div className="flex items-center gap-1.5 sm:gap-2" ref={userMenuRef}>
+            <button
+              type="button"
+              className="lux-flat inline-flex h-10 w-10 items-center justify-center rounded-full text-ink hover:bg-black/[0.04]"
+              aria-label="Search tours"
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                setIsUserMenuOpen(false);
+                onNavigate('packages');
+              }}
+            >
+              <Search className="h-4 w-4" aria-hidden />
+            </button>
             <TravelerTestModeBanner variant="chip" />
             <div className="relative hidden lg:block">
               <button
