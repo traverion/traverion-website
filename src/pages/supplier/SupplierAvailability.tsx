@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, CalendarDays, Ban } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarDays, Ban, X } from 'lucide-react';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
@@ -44,7 +44,6 @@ import {
   SupplierEmptyState,
   SupplierModalHeader,
   SupplierModalShell,
-  SupplierPageHero,
 } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
 import NoticeCallout from '../../components/NoticeCallout';
@@ -493,33 +492,30 @@ export default function SupplierAvailability() {
   // Phase 1367 / 1314 parity: experience-local today (Helsinki when no listing), not browser localYmd.
   const localTodayIso = experienceTodayIsoForListing(listing?.listingExtras?.departureTimezone);
 
+  const listingSelectOptions = useMemo(
+    () => [
+      { value: '', label: 'All listings' },
+      ...listings.map((l) => ({
+        value: l.id,
+        label: `${l.title}${l.status === 'draft' ? ' (draft)' : ''}`,
+        hint:
+          inventoryFamilyFromListing(l) === 'stay'
+            ? 'Stay'
+            : l.experienceKind === 'ticket'
+              ? 'Ticket'
+              : l.experienceKind === 'transportation'
+                ? 'Transport'
+                : 'Tour',
+      })),
+    ],
+    [listings]
+  );
+
   return (
     <div className={`${SUPPLIER_PAGE_CLASS} min-h-[70vh]`}>
-      <SupplierPageHero
-        title="Calendar"
-        description="Manage departures, capacity, and availability."
-        actions={
-          !isSupabase || !user || listings.length === 0 ? undefined : (
-            <div className="w-full sm:min-w-[16rem] sm:max-w-sm">
-              <PartnerSelect
-                id="availability-listing"
-                aria-label="Listing"
-                value={listingId}
-                onChange={setListingIdAndUrl}
-                options={[
-                  { value: '', label: 'All listings' },
-                  ...listings.map((l) => ({
-                    value: l.id,
-                    label: `${inventoryFamilyFromListing(l) === 'stay' ? 'Stay · ' : 'Tour · '}${l.title}${
-                      l.status === 'draft' ? ' (draft)' : ''
-                    }`,
-                  })),
-                ]}
-              />
-            </div>
-          )
-        }
-      />
+      <header className="tv-cal-page-head">
+        <h1>Calendar</h1>
+      </header>
 
       {!isSupabase || !user ? (
         <p className="text-sm text-ink-muted">Sign in to manage availability.</p>
@@ -527,7 +523,7 @@ export default function SupplierAvailability() {
         <div className="tv-cal-shell" aria-busy="true" aria-label="Loading calendar">
           <div className="tv-cal-grid">
             {Array.from({ length: 35 }, (_, i) => (
-              <div key={i} className="min-h-[4.6rem] animate-pulse bg-black/[0.04] sm:min-h-[5.15rem]" />
+              <div key={i} className="min-h-[4.75rem] animate-pulse bg-[#f2f4f7] lg:min-h-[5.25rem]" />
             ))}
           </div>
         </div>
@@ -620,28 +616,24 @@ export default function SupplierAvailability() {
 
           <div className="tv-cal-shell">
           <div className="tv-cal-toolbar">
-            <div className="flex items-center gap-1">
+            <div className="tv-cal-toolbar__nav">
               <button
                 type="button"
                 onClick={() => shiftMonth(-1)}
-                className="lux-flat inline-flex h-9 w-9 items-center justify-center rounded-lg text-ink hover:bg-white"
+                className="lux-flat inline-flex h-8 w-8 items-center justify-center rounded-md text-ink hover:bg-[#f2f4f7]"
                 aria-label="Previous month"
               >
-                <ChevronLeft className="h-5 w-5" />
+                <ChevronLeft className="h-4 w-4" />
               </button>
-              <p className="min-w-[9.5rem] text-center text-[15px] font-semibold tabular-nums tracking-tight text-ink sm:min-w-[11rem] sm:text-[1.05rem]">
-                {monthLabel}
-              </p>
+              <p className="tv-cal-toolbar__month">{monthLabel}</p>
               <button
                 type="button"
                 onClick={() => shiftMonth(1)}
-                className="lux-flat inline-flex h-9 w-9 items-center justify-center rounded-lg text-ink hover:bg-white"
+                className="lux-flat inline-flex h-8 w-8 items-center justify-center rounded-md text-ink hover:bg-[#f2f4f7]"
                 aria-label="Next month"
               >
-                <ChevronRight className="h-5 w-5" />
+                <ChevronRight className="h-4 w-4" />
               </button>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => {
@@ -651,10 +643,21 @@ export default function SupplierAvailability() {
                     setMonthIndex0(m - 1);
                   }
                 }}
-                className="lux-flat inline-flex min-h-9 items-center rounded-lg px-3 text-[13px] font-semibold text-finland hover:bg-white"
+                className="lux-flat ml-1 inline-flex h-8 items-center rounded-md px-2.5 text-[13px] font-medium text-finland hover:bg-[#f2f4f7]"
               >
                 Today
               </button>
+            </div>
+            <div className="tv-cal-toolbar__actions">
+              <div className="tv-cal-toolbar__listing">
+                <PartnerSelect
+                  id="availability-listing"
+                  aria-label="Listing"
+                  value={listingId}
+                  onChange={setListingIdAndUrl}
+                  options={listingSelectOptions}
+                />
+              </div>
               {listingId ? (
                 <button
                   type="button"
@@ -668,7 +671,7 @@ export default function SupplierAvailability() {
                     setBulkCapacity('0');
                     setBulkOpen(true);
                   }}
-                  className="tv-btn-secondary inline-flex min-h-9 items-center gap-1.5 !px-3 text-[13px] disabled:opacity-40"
+                  className="tv-btn-secondary inline-flex h-10 shrink-0 items-center gap-1.5 !px-3 text-[13px] disabled:opacity-40"
                 >
                   <Ban className="h-3.5 w-3.5" aria-hidden />
                   {stayCalendar ? 'Block nights' : 'Edit multiple dates'}
@@ -863,13 +866,14 @@ export default function SupplierAvailability() {
                 >
                   <span className="tv-cal-day__num">{cell.day}</span>
                   {cell.inMonth && stayCalendar && (stayKind === 'occupied' || occupying) ? (
-                    <span className="tv-cal-day__meta tv-cal-day__meta--strong text-finland">Occupied</span>
+                    <span className="tv-cal-day__meta tv-cal-day__meta--cap">
+                      <span className="tv-cal-day__dot" aria-hidden />
+                      Occupied
+                    </span>
                   ) : cell.inMonth && !stayCalendar && monthCapacityLabel.short ? (
                     <>
                       {monthCapacityLabel.timeHm ? (
-                        <span className="tv-cal-day__meta tv-cal-day__meta--strong">
-                          {monthCapacityLabel.timeHm}
-                        </span>
+                        <span className="tv-cal-day__meta">{monthCapacityLabel.timeHm}</span>
                       ) : monthCapacityLabel.departuresCount >= 2 ? (
                         <span className="tv-cal-day__meta">
                           {monthCapacityLabel.departuresCount} departures
@@ -881,46 +885,75 @@ export default function SupplierAvailability() {
                             ? 'tv-cal-day__meta--danger'
                             : monthCapacityLabel.tone === 'partial'
                               ? 'tv-cal-day__meta--warn'
-                              : monthCapacityLabel.tone === 'open'
-                                ? 'tv-cal-day__meta--ok'
-                                : ''
+                              : 'tv-cal-day__meta--cap'
                         }`}
                       >
                         {monthCapacityLabel.short === 'Sold out' ||
-                        monthCapacityLabel.short === 'Closed' ||
-                        monthCapacityLabel.short === 'Partial'
-                          ? monthCapacityLabel.short === 'Partial'
-                            ? 'Partially booked'
-                            : monthCapacityLabel.short
-                          : monthCapacityLabel.remaining != null &&
-                              monthCapacityLabel.capacity != null
-                            ? `${monthCapacityLabel.remaining} / ${monthCapacityLabel.capacity} available`
-                            : monthCapacityLabel.short}
+                        monthCapacityLabel.short === 'Closed' ? (
+                          <>
+                            <span
+                              className={`tv-cal-day__dot ${
+                                monthCapacityLabel.short === 'Closed'
+                                  ? 'tv-cal-day__dot--muted'
+                                  : 'tv-cal-day__dot--danger'
+                              }`}
+                              aria-hidden
+                            />
+                            {monthCapacityLabel.short}
+                          </>
+                        ) : monthCapacityLabel.short === 'Partial' ? (
+                          <>
+                            <span className="tv-cal-day__dot tv-cal-day__dot--warn" aria-hidden />
+                            Partial
+                          </>
+                        ) : monthCapacityLabel.remaining != null &&
+                          monthCapacityLabel.capacity != null ? (
+                          <>
+                            <span className="tv-cal-day__dot" aria-hidden />
+                            {monthCapacityLabel.remaining} / {monthCapacityLabel.capacity}
+                          </>
+                        ) : (
+                          monthCapacityLabel.short
+                        )}
                       </span>
                     </>
                   ) : cell.inMonth && occupying ? (
-                    <span className="tv-cal-day__meta tv-cal-day__meta--strong text-finland">
-                      {`${occupying.guests} guest${occupying.guests === 1 ? '' : 's'}`}
+                    <span className="tv-cal-day__meta tv-cal-day__meta--cap">
+                      {occupying.guests} guest{occupying.guests === 1 ? '' : 's'}
                     </span>
                   ) : cell.inMonth && departing ? (
                     <span className="tv-cal-day__meta tv-cal-day__meta--warn">Check-out</span>
                   ) : cell.inMonth && stayKind === 'blocked' ? (
-                    <span className="tv-cal-day__meta tv-cal-day__meta--danger">Blocked</span>
+                    <span className="tv-cal-day__meta tv-cal-day__meta--danger">
+                      <span className="tv-cal-day__dot tv-cal-day__dot--danger" aria-hidden />
+                      Blocked
+                    </span>
                   ) : cell.inMonth && remaining !== null && tourCapacity != null ? (
                     <span
                       className={`tv-cal-day__meta ${
-                        remaining === 0 ? 'tv-cal-day__meta--danger' : 'tv-cal-day__meta--ok'
+                        remaining === 0 ? 'tv-cal-day__meta--danger' : 'tv-cal-day__meta--cap'
                       }`}
                     >
-                      {remaining === 0
-                        ? 'Sold out'
-                        : `${remaining} / ${tourCapacity} available`}
+                      {remaining === 0 ? (
+                        <>
+                          <span className="tv-cal-day__dot tv-cal-day__dot--danger" aria-hidden />
+                          Sold out
+                        </>
+                      ) : (
+                        <>
+                          <span className="tv-cal-day__dot" aria-hidden />
+                          {remaining} / {tourCapacity}
+                        </>
+                      )}
                     </span>
                   ) : cell.inMonth && open ? (
-                    <span className="tv-cal-day__meta tv-cal-day__meta--ok">Available</span>
+                    <span className="tv-cal-day__meta">
+                      <span className="tv-cal-day__dot" aria-hidden />
+                      Open
+                    </span>
                   ) : cell.inMonth ? (
                     <span className="tv-cal-day__meta">
-                      {cap && !stayCalendar ? 'Closed' : stayCalendar ? '—' : 'No departures'}
+                      {cap && !stayCalendar ? 'Closed' : '—'}
                     </span>
                   ) : null}
                 </button>
@@ -1016,248 +1049,289 @@ export default function SupplierAvailability() {
 
           {editing ? (
             <div ref={daySheetRef} className="tv-sheet-overlay z-[70]">
-              <button type="button" tabIndex={-1} className="absolute inset-0" aria-label="Close day" onClick={closeDaySheet} />
+              <button
+                type="button"
+                tabIndex={-1}
+                className="absolute inset-0"
+                aria-label="Close day"
+                onClick={closeDaySheet}
+              />
               <aside
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="calendar-day-title"
-                className="tv-sheet-panel relative max-w-lg motion-safe:animate-slide-up"
+                className="tv-sheet-panel relative max-w-md !rounded-t-xl !p-0 motion-safe:animate-slide-up sm:!rounded-xl"
               >
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-finland">
-                {listing?.title?.trim() || (viewingAll ? 'All listings' : 'Calendar day')}
-              </p>
-              <p id="calendar-day-title" className="mt-1 text-[1.35rem] font-semibold tracking-tight text-ink sm:text-[1.5rem]">
-                {new Date(`${editing.iso}T12:00:00`).toLocaleDateString('en-GB', {
-                  weekday: 'long',
-                  day: 'numeric',
-                  month: 'long',
-                })}
-              </p>
-              {dayBookings.length === 0 && dayDepartures.length === 0 ? (
-                <p className="mt-3 text-sm text-ink-muted">
-                  {stayCalendar ? 'No stay on this night.' : 'No guests on this date.'}
-                </p>
-              ) : (
-                <ul className="mt-4 space-y-3">
-                  {dayBookings.map((b) => {
-                    const times = daySheetTimesLine(b);
-                    const hold = formatPartnerCheckoutHoldLabel(b);
-                    return (
-                    <li key={b.id}>
-                      <button
-                        type="button"
-                        onClick={() => openSupplierBooking(b.id)}
-                        className="lux-flat w-full text-left"
-                      >
-                        <p className="font-semibold text-ink">{b.guest_name?.trim() || 'Guest'}</p>
-                        <p className="text-sm text-ink-muted">
-                          {viewingAll
-                            ? `${daySheetListingLine(b)} · ${b.guests} guest${b.guests === 1 ? '' : 's'}`
-                            : `${b.guests} guest${b.guests === 1 ? '' : 's'}`}
-                          {times ? ` · ${times}` : ''}
-                          {stayCalendar ? ' · In-house' : ''}
+                <div className="tv-cal-day-panel">
+                  <div className="tv-cal-day-panel__head">
+                    <div className="min-w-0">
+                      <h2 id="calendar-day-title">
+                        {new Date(`${editing.iso}T12:00:00`).toLocaleDateString('en-GB', {
+                          weekday: 'long',
+                          day: 'numeric',
+                          month: 'long',
+                          year: 'numeric',
+                        })}
+                      </h2>
+                      <p className="tv-cal-day-panel__sub" title={listing?.title?.trim() || undefined}>
+                        {viewingAll
+                          ? 'All listings — select one to edit capacity'
+                          : [listing?.city, listing?.title?.trim()].filter(Boolean).join(' · ') ||
+                            'Listing'}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={closeDaySheet}
+                      className="lux-flat inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-ink-muted hover:bg-[#f2f4f7] hover:text-ink"
+                      aria-label="Close"
+                    >
+                      <X className="h-4 w-4" aria-hidden />
+                    </button>
+                  </div>
+
+                  <div className="tv-cal-day-panel__body">
+                    {(dayBookings.length > 0 || dayDepartures.length > 0) && (
+                      <section className="tv-cal-day-panel__section">
+                        <h3>Bookings</h3>
+                        <ul>
+                          {dayBookings.map((b) => {
+                            const times = daySheetTimesLine(b);
+                            const hold = formatPartnerCheckoutHoldLabel(b);
+                            return (
+                              <li key={b.id}>
+                                <button
+                                  type="button"
+                                  onClick={() => openSupplierBooking(b.id)}
+                                  className="lux-flat w-full rounded-md px-0 py-2 text-left hover:bg-[#f8fafc]"
+                                >
+                                  <p className="text-[13px] font-medium text-ink">
+                                    {b.guest_name?.trim() || 'Guest'}
+                                  </p>
+                                  <p className="text-[12px] text-ink-muted">
+                                    {viewingAll
+                                      ? `${daySheetListingLine(b)} · ${b.guests} guest${
+                                          b.guests === 1 ? '' : 's'
+                                        }`
+                                      : `${b.guests} guest${b.guests === 1 ? '' : 's'}`}
+                                    {times ? ` · ${times}` : ''}
+                                    {stayCalendar ? ' · In-house' : ''}
+                                  </p>
+                                  {hold ? (
+                                    <p className="mt-0.5 text-[11px] font-medium text-amber-900">{hold}</p>
+                                  ) : null}
+                                </button>
+                              </li>
+                            );
+                          })}
+                          {dayDepartures.map((b) => (
+                            <li key={`out-${b.id}`}>
+                              <button
+                                type="button"
+                                onClick={() => openSupplierBooking(b.id)}
+                                className="lux-flat w-full rounded-md px-0 py-2 text-left hover:bg-[#f8fafc]"
+                              >
+                                <p className="text-[13px] font-medium text-ink">
+                                  {b.guest_name?.trim() || 'Guest'}
+                                </p>
+                                <p className="text-[12px] text-ink-muted">
+                                  {viewingAll
+                                    ? `${daySheetListingLine(b)} · ${b.guests} guest${
+                                        b.guests === 1 ? '' : 's'
+                                      }`
+                                    : `${b.guests} guest${b.guests === 1 ? '' : 's'}`}
+                                  {' · Check-out'}
+                                </p>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </section>
+                    )}
+
+                    {!stayCalendar && !viewingAll && listing ? (
+                      <section className="tv-cal-day-panel__section">
+                        <h3>Departures</h3>
+                        {daySellingDepartures.length > 0 ? (
+                          <ul>
+                            {daySellingDepartures.map((d) => {
+                              const occupying = tourCheckoutOccupiedGuests(
+                                dayBookings,
+                                editing.iso,
+                                null,
+                                Date.now(),
+                                d.startTime || null
+                              );
+                              const line = partnerDepartureRemainingLine({
+                                scheduleName: d.scheduleName,
+                                optionName: d.optionName,
+                                startTime: d.startTime,
+                                maxSpotsPerSlot: d.maxSpotsPerSlot,
+                                occupyingGuests: occupying,
+                              });
+                              const optionLabel =
+                                d.optionName.trim() ||
+                                d.scheduleName.trim() ||
+                                'Departure';
+                              return (
+                                <li
+                                  key={`${d.optionId}-${d.scheduleId}-${d.startTime}`}
+                                  className="tv-cal-dep-row"
+                                >
+                                  <span className="tv-cal-dep-row__time">
+                                    {normalizeTourStartTimeHm(d.startTime) || d.startTime || '—'}
+                                  </span>
+                                  <span className="tv-cal-dep-row__name" title={optionLabel}>
+                                    {optionLabel}
+                                  </span>
+                                  <span
+                                    className={`tv-cal-dep-row__cap ${
+                                      line.full ? 'tv-cal-dep-row__cap--full' : ''
+                                    }`}
+                                  >
+                                    {line.full
+                                      ? 'Sold out'
+                                      : `${line.remaining} / ${line.capacity}`}
+                                  </span>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        ) : (
+                          <p className="tv-cal-day-panel__hint">
+                            {weekdayOpen(editing.iso)
+                              ? 'No ready departures for this date.'
+                              : 'No schedule on this weekday — a daily override does not open traveler booking.'}
+                          </p>
+                        )}
+                      </section>
+                    ) : null}
+
+                    {viewingAll ? (
+                      <section className="tv-cal-day-panel__section">
+                        <h3>Select listing</h3>
+                        <p className="tv-cal-day-panel__hint">
+                          Capacity edits apply to one listing at a time.
                         </p>
-                        {hold ? (
-                          <p className="mt-0.5 text-[11px] font-medium text-amber-900">{hold}</p>
+                        <PartnerSelect
+                          id="calendar-day-pick-listing"
+                          aria-label="Listing to edit"
+                          value={listingId}
+                          onChange={setListingIdAndUrl}
+                          placeholder="Select a listing…"
+                          options={listingSelectOptions.filter((o) => o.value !== '')}
+                        />
+                      </section>
+                    ) : stayCalendar ? (
+                      <section className="tv-cal-day-panel__section">
+                        <h3>Night block</h3>
+                        {dayBookings.length > 0 ? (
+                          <p className="tv-cal-day-panel__hint">
+                            Occupied by a paid stay. Blocking still saves for after checkout.
+                          </p>
+                        ) : dayDepartures.length > 0 ? (
+                          <p className="tv-cal-day-panel__hint">
+                            Check-out morning — night is free for the next stay.
+                          </p>
+                        ) : (
+                          <p className="tv-cal-day-panel__hint">
+                            Set 0 to block this night. Reset clears the block.
+                          </p>
+                        )}
+                        {saveNote ? (
+                          <p className="mb-3 text-[12px] font-medium text-emerald-800">{saveNote}</p>
                         ) : null}
-                      </button>
-                    </li>
-                    );
-                  })}
-                  {dayDepartures.map((b) => (
-                    <li key={`out-${b.id}`}>
+                        <label className="mb-1 block text-[12px] font-medium text-ink" htmlFor="day-capacity">
+                          Block value
+                        </label>
+                        <input
+                          id="day-capacity"
+                          type="number"
+                          min={0}
+                          max={99}
+                          value={editing.capacity}
+                          onChange={(e) => {
+                            setSaveNote(null);
+                            setEditing({ ...editing, capacity: e.target.value });
+                          }}
+                          className="tv-input !min-h-10 w-28"
+                        />
+                      </section>
+                    ) : (
+                      <section className="tv-cal-day-panel__section">
+                        <h3>Daily availability</h3>
+                        <p className="tv-cal-day-panel__hint">
+                          Optional day-wide cap across all departures. Does not change each
+                          option&apos;s schedule capacity. Set 0 to close the day. Reset removes
+                          the override.
+                        </p>
+                        {saveNote ? (
+                          <div className="mb-3">
+                            <NoticeCallout title="Saved" tone="info">
+                              {saveNote}
+                            </NoticeCallout>
+                          </div>
+                        ) : null}
+                        <label
+                          className="mb-1 block text-[12px] font-medium text-ink"
+                          htmlFor="day-capacity"
+                        >
+                          Daily capacity override
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            id="day-capacity"
+                            type="number"
+                            min={0}
+                            max={99}
+                            value={editing.capacity}
+                            onChange={(e) => setEditing({ ...editing, capacity: e.target.value })}
+                            className="tv-input !min-h-10 w-28 tabular-nums"
+                          />
+                          <span className="text-[13px] text-ink-muted">spots</span>
+                        </div>
+                      </section>
+                    )}
+                  </div>
+
+                  {!viewingAll ? (
+                    <div className="tv-cal-day-panel__foot">
                       <button
                         type="button"
-                        onClick={() => openSupplierBooking(b.id)}
-                        className="lux-flat w-full text-left"
+                        disabled={!canEditCalendar || savingIso === editing.iso}
+                        onClick={() => void clearCap(editing.iso)}
+                        className="lux-flat text-[13px] font-medium text-ink-muted hover:text-ink disabled:opacity-40"
                       >
-                        <p className="font-semibold text-ink">{b.guest_name?.trim() || 'Guest'}</p>
-                        <p className="text-sm text-ink-muted">
-                          {viewingAll
-                            ? `${daySheetListingLine(b)} · ${b.guests} guest${b.guests === 1 ? '' : 's'}`
-                            : `${b.guests} guest${b.guests === 1 ? '' : 's'}`}
-                          {' · Check-out today'}
-                        </p>
+                        Reset to schedule defaults
                       </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {!stayCalendar && !viewingAll && listing && editing ? (
-                daySellingDepartures.length > 0 ? (
-                  <div className="mt-4 rounded-xl bg-finland/[0.05] px-3 py-2.5 ring-1 ring-finland/15">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-finland">
-                      Selling this day
-                    </p>
-                    <ul className="mt-1.5 space-y-1">
-                      {daySellingDepartures.map((d) => {
-                        const occupying = tourCheckoutOccupiedGuests(
-                          dayBookings,
-                          editing.iso,
-                          null,
-                          Date.now(),
-                          d.startTime || null
-                        );
-                        const line = partnerDepartureRemainingLine({
-                          scheduleName: d.scheduleName,
-                          optionName: d.optionName,
-                          startTime: d.startTime,
-                          maxSpotsPerSlot: d.maxSpotsPerSlot,
-                          occupyingGuests: occupying,
-                        });
-                        return (
-                          <li
-                            key={`${d.optionId}-${d.scheduleId}-${d.startTime}`}
-                            className={`text-sm ${line.full ? 'font-medium text-rose-800' : 'text-ink'}`}
-                          >
-                            {line.label}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                ) : weekdayOpen(editing.iso) ? null : (
-                  <p className="mt-4 text-sm text-ink-muted">
-                    Nothing is offered to travelers on this date from your ready schedules.
-                  </p>
-                )
-              ) : null}
-              {viewingAll ? (
-                <div className="mt-5 space-y-3">
-                  <p className="text-sm text-ink-muted">
-                    Pick which listing to edit for this day. Caps are per tour; stays use occupied nights.
-                  </p>
-                  <PartnerSelect
-                    id="calendar-day-pick-listing"
-                    aria-label="Listing to edit"
-                    value={listingId}
-                    onChange={setListingIdAndUrl}
-                    placeholder="Select a listing…"
-                    options={[
-                      { value: '', label: 'Select a listing…' },
-                      ...listings.map((l) => ({
-                        value: l.id,
-                        label: `${inventoryFamilyFromListing(l) === 'stay' ? 'Stay · ' : 'Tour · '}${l.title}`,
-                      })),
-                    ]}
-                  />
-                </div>
-              ) : stayCalendar ? (
-                <>
-                  {dayBookings.length > 0 ? (
-                    <NoticeCallout title="Night already occupied" tone="info">
-                      A paid stay is on this night — the calendar shows Occupied and travelers cannot book over it.
-                      Setting Block to 0 still saves for after checkout; it will not change the Occupied label while
-                      the guest is in-house.
-                    </NoticeCallout>
-                  ) : dayDepartures.length > 0 ? (
-                    <p className="mt-4 text-xs text-ink-muted leading-snug rounded-lg border border-amber-200/80 border-l-[3px] border-l-amber-500 bg-amber-50/50 px-3 py-2">
-                      Check-out morning — guests leave today. The night is free for the next stay; inventory uses
-                      nights before check-out only.
-                    </p>
-                  ) : null}
-                  {saveNote ? (
-                    <p className="mt-4 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-950 ring-1 ring-emerald-200/80">
-                      {saveNote}
-                    </p>
-                  ) : null}
-                  <p className="mt-5 text-sm text-ink-muted">
-                    Block a night by setting spots to 0. Clearing returns the night to available.
-                  </p>
-                  <div className="mt-4 flex flex-col sm:flex-row gap-2 sm:items-center">
-                    <label className="text-sm text-ink" htmlFor="day-capacity">
-                      Block
-                    </label>
-                    <input
-                      id="day-capacity"
-                      type="number"
-                      min={0}
-                      max={99}
-                      value={editing.capacity}
-                      onChange={(e) => {
-                        setSaveNote(null);
-                        setEditing({ ...editing, capacity: e.target.value });
-                      }}
-                      className="tv-input w-24"
-                    />
-                    <button
-                      type="button"
-                      disabled={!canEditCalendar || savingIso === editing.iso}
-                      onClick={() => void saveCap(editing.iso, Math.max(0, Math.floor(Number(editing.capacity) || 0)))}
-                      className="tv-btn-primary disabled:opacity-40"
-                    >
-                      Save
-                    </button>
-                    <button
-                      type="button"
-                      disabled={!canEditCalendar || savingIso === editing.iso}
-                      onClick={() => void clearCap(editing.iso)}
-                      className="tv-btn-ghost disabled:opacity-40"
-                    >
-                      Clear
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  {!weekdayOpen(editing.iso) ? (
-                    <p className="mt-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-950 ring-1 ring-amber-200/80">
-                      No departures this day per your option schedule. A saved cap does not open traveler
-                      booking — clear the cap or adjust options on the listing.
-                    </p>
-                  ) : null}
-                  {saveNote ? (
-                    <div className="mt-4">
-                      <NoticeCallout title="Cap saved — existing bookings unchanged" tone="info">
-                        {saveNote}
-                      </NoticeCallout>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={closeDaySheet}
+                          className="tv-btn-ghost !min-h-9 !px-3 text-[13px]"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!canEditCalendar || savingIso === editing.iso}
+                          onClick={() =>
+                            void saveCap(
+                              editing.iso,
+                              Math.max(0, Math.floor(Number(editing.capacity) || 0))
+                            )
+                          }
+                          className="tv-btn-primary !min-h-9 !px-3 text-[13px] disabled:opacity-40"
+                        >
+                          {savingIso === editing.iso ? 'Saving…' : 'Save changes'}
+                        </button>
+                      </div>
                     </div>
                   ) : null}
-                  <p className="mt-5 text-sm text-ink-muted">
-                    Daily cap is optional. Clearing it returns the date to weekday rules.
-                  </p>
-                  <div className="mt-4 flex flex-col sm:flex-row gap-2 sm:items-center">
-                    <label className="text-sm text-ink" htmlFor="day-capacity">
-                      Spots
-                    </label>
-                    <input
-                      id="day-capacity"
-                      type="number"
-                      min={0}
-                      max={99}
-                      value={editing.capacity}
-                      onChange={(e) => setEditing({ ...editing, capacity: e.target.value })}
-                      className="tv-input w-24"
-                    />
-                    <button
-                      type="button"
-                      disabled={!canEditCalendar || savingIso === editing.iso}
-                      onClick={() => void saveCap(editing.iso, Math.max(0, Math.floor(Number(editing.capacity) || 0)))}
-                      className="tv-btn-primary disabled:opacity-40"
-                    >
-                      Save cap
-                    </button>
-                    <button
-                      type="button"
-                      disabled={!canEditCalendar || savingIso === editing.iso}
-                      onClick={() => void clearCap(editing.iso)}
-                      className="tv-btn-ghost disabled:opacity-40"
-                    >
-                      Clear
-                    </button>
-                  </div>
-                </>
-              )}
-              <button type="button" onClick={() => setEditing(null)} className="tv-btn-ghost mt-4">
-                Close
-              </button>
+                </div>
               </aside>
             </div>
-          ) : (
-            <p className="mt-3 text-[12px] text-ink-faint">
-              Select a date for departures, bookings, and capacity.
-            </p>
-          )}
+          ) : null}
         </div>
       )}
 
@@ -1310,7 +1384,7 @@ export default function SupplierAvailability() {
               : null}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint" htmlFor="bulk-from">
+                <label className="mb-1 block text-[12px] font-medium text-ink" htmlFor="bulk-from">
                   From
                 </label>
                 <input
@@ -1318,11 +1392,11 @@ export default function SupplierAvailability() {
                   type="date"
                   value={bulkFrom}
                   onChange={(e) => setBulkFrom(e.target.value)}
-                  className="tv-input mt-1 w-full"
+                  className="tv-input w-full"
                 />
               </div>
               <div>
-                <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint" htmlFor="bulk-to">
+                <label className="mb-1 block text-[12px] font-medium text-ink" htmlFor="bulk-to">
                   To
                 </label>
                 <input
@@ -1330,14 +1404,21 @@ export default function SupplierAvailability() {
                   type="date"
                   value={bulkTo}
                   onChange={(e) => setBulkTo(e.target.value)}
-                  className="tv-input mt-1 w-full"
+                  className="tv-input w-full"
                 />
               </div>
             </div>
             <div>
-              <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint" htmlFor="bulk-capacity">
-                {stayCalendar ? 'Spots (0 blocks every night in range)' : 'Spots per day (0 closes every date in range)'}
+              <label className="mb-1 block text-[12px] font-medium text-ink" htmlFor="bulk-capacity">
+                {stayCalendar
+                  ? 'Night block (0 = blocked)'
+                  : 'Daily capacity override (0 = closed)'}
               </label>
+              <p className="mb-2 text-[12px] leading-snug text-ink-muted">
+                {stayCalendar
+                  ? 'Applies the same block value to every night in the range.'
+                  : 'Day-wide listing cap only — does not rewrite each departure’s schedule capacity.'}
+              </p>
               <input
                 id="bulk-capacity"
                 type="number"
@@ -1345,15 +1426,15 @@ export default function SupplierAvailability() {
                 max={99}
                 value={bulkCapacity}
                 onChange={(e) => setBulkCapacity(e.target.value)}
-                className="tv-input mt-1 w-24"
+                className="tv-input w-28 tabular-nums"
               />
             </div>
             {bulkError ? <p className="text-sm text-red-700">{bulkError}</p> : null}
             {bulkFrom && bulkTo && bulkFrom <= bulkTo ? (
-              <p className="text-xs text-ink-faint">
-                {`Applies to ${enumerateIsoDates(bulkFrom, bulkTo).length} date${
+              <p className="text-[12px] text-ink-muted">
+                {`${listing?.title?.trim() || 'Listing'} · ${enumerateIsoDates(bulkFrom, bulkTo).length} date${
                   enumerateIsoDates(bulkFrom, bulkTo).length === 1 ? '' : 's'
-                }.`}
+                } affected`}
               </p>
             ) : null}
             <div className="flex flex-wrap gap-2 pt-1">

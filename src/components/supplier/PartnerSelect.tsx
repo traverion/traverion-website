@@ -141,7 +141,9 @@ export default function PartnerSelect({
         }}
         onKeyDown={onTriggerKeyDown}
       >
-        <span className="min-w-0 truncate">{display}</span>
+        <span className="min-w-0 truncate" title={selected ? display : undefined}>
+          {display}
+        </span>
         <ChevronDown
           className={`h-4 w-4 shrink-0 text-ink-muted transition-transform ${open ? 'rotate-180' : ''}`}
           aria-hidden
@@ -177,10 +179,14 @@ export default function PartnerSelect({
                 <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center">
                   {isSelected ? <Check className="h-3.5 w-3.5 text-finland" strokeWidth={2.5} aria-hidden /> : null}
                 </span>
-                <span className="min-w-0">
-                  <span className="block text-sm font-medium text-ink">{opt.label}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium text-ink" title={opt.label}>
+                    {opt.label}
+                  </span>
                   {opt.hint ? (
-                    <span className="mt-0.5 block text-xs leading-snug text-ink-muted">{opt.hint}</span>
+                    <span className="mt-0.5 block truncate text-xs leading-snug text-ink-muted" title={opt.hint}>
+                      {opt.hint}
+                    </span>
                   ) : null}
                 </span>
               </li>

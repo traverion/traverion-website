@@ -20,7 +20,9 @@ describe('Phase 1811: calendar day-state visual language', () => {
     expect(src).toContain('tv-cal-day--editing');
     expect(src).toContain('tv-cal-legend');
     expect(src).toContain('tv-cal-shell');
-    expect(src).toContain('Manage departures, capacity, and availability.');
+    expect(src).toContain('tv-cal-page-head');
+    expect(src).toContain('Daily capacity override');
+    expect(src).toContain('tv-cal-dep-row');
     expect(src).not.toContain('bg-emerald-50/80 ring-emerald-200/50');
   });
 });
