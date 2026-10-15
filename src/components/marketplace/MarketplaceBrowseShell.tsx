@@ -118,7 +118,9 @@ export function MarketplaceBrowseShell({
               </button>
             </div>
             <div className="min-h-0 flex-1 space-y-6 overflow-y-auto">{filterPanel}</div>
-            {filterFooter ? <div className="mt-5 flex gap-2 shrink-0">{filterFooter}</div> : null}
+            {filterFooter ? (
+              <div className="mt-5 flex gap-2 shrink-0 pb-[max(0.25rem,env(safe-area-inset-bottom))]">{filterFooter}</div>
+            ) : null}
           </aside>
         </div>
       ) : null}
@@ -144,7 +146,7 @@ export function MarketplaceFamilySwitch({
         onClick={onTours}
         className={`lux-flat min-h-11 rounded-full px-4 py-1.5 text-sm font-medium ${
           current === 'tours'
-            ? 'bg-paper-raised text-ink shadow-sm ring-2 ring-finland/30'
+            ? 'bg-white font-semibold text-finland shadow-sm ring-1 ring-finland/25'
             : 'text-ink-muted hover:bg-black/[0.04] hover:text-ink'
         }`}
       >
@@ -157,7 +159,7 @@ export function MarketplaceFamilySwitch({
         onClick={onStays}
         className={`lux-flat min-h-11 rounded-full px-4 py-1.5 text-sm font-medium ${
           current === 'stays'
-            ? 'bg-paper-raised text-ink shadow-sm ring-2 ring-finland/30'
+            ? 'bg-white font-semibold text-finland shadow-sm ring-1 ring-finland/25'
             : 'text-ink-muted hover:bg-black/[0.04] hover:text-ink'
         }`}
       >
@@ -177,7 +179,7 @@ export function MarketplaceSortSelect({
   options: { id: string; label: string }[];
 }) {
   return (
-    <label className="inline-flex max-w-full items-center gap-2 rounded-full bg-paper-raised px-3 py-1 text-sm text-ink-muted shadow-soft ring-1 ring-black/[0.06]">
+    <label className="inline-flex max-w-full items-center gap-2 rounded-full border border-black/[0.1] bg-white px-3 py-1 text-sm text-ink-muted">
       <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-finland">Sort</span>
       <select
         value={value}
