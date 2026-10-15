@@ -36,7 +36,7 @@ describe('partnerNav IA', () => {
     expect(PARTNER_NAV_BOOKINGS_CHILDREN.map((i) => i.label)).toEqual(['Bookings', 'Pickups']);
     const calendar = PARTNER_SIDEBAR_PRIMARY.find((e) => e.id === 'availability');
     expect(calendar?.kind).toBe('item');
-    expect(calendar && 'label' in calendar ? calendar.label : null).toBe('Calendar');
+    expect(calendar && 'label' in calendar ? calendar.label : null).toBe('Availability');
     expect(partnerSidebarGroupContaining('availability')).toBeNull();
     expect(partnerSidebarGroupContaining('pickup')?.id).toBe('bookings');
   });
@@ -69,7 +69,7 @@ describe('partnerNav IA', () => {
   });
 
   it('aligns section titles with nav labels for Calendar and Income', () => {
-    expect(partnerSectionTitle('availability')).toBe('Calendar');
+    expect(partnerSectionTitle('availability')).toBe('Availability');
     expect(partnerSectionTitle('earnings')).toBe('Income');
     expect(partnerSectionTitle('pickup')).toBe('Pickups');
   });

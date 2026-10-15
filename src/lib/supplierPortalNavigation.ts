@@ -99,9 +99,9 @@ export function openSupplierPickup(
   navigateSupplierUrl(qs ? `${path}?${qs}` : path);
 }
 
-/** Open Calendar and optionally focus a listing for edit. */
+/** Open Availability workspace and optionally focus a listing for edit. */
 export function openSupplierCalendar(listingId?: string): void {
-  const path = `${PARTNER_APP_BASE}/calendar`;
+  const path = `${PARTNER_APP_BASE}/availability`;
   if (!listingId) {
     navigateSupplierUrl(path);
     return;

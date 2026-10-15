@@ -90,7 +90,7 @@ export const PARTNER_NAV_HOME: PartnerNavItem = {
 
 export const PARTNER_NAV_CALENDAR: PartnerNavItem = {
   id: 'availability',
-  label: 'Calendar',
+  label: 'Availability',
   icon: CalendarDays,
 };
 
@@ -123,7 +123,7 @@ export const PARTNER_SIDEBAR_PRIMARY: PartnerSidebarEntry[] = [
     icon: Calendar,
     children: PARTNER_NAV_BOOKINGS_CHILDREN,
   },
-  { kind: 'item', id: 'availability', label: 'Calendar', icon: CalendarDays },
+  { kind: 'item', id: 'availability', label: 'Availability', icon: CalendarDays },
   { kind: 'item', id: 'reservations', label: 'Reservations', icon: BedDouble },
   { kind: 'item', id: 'inbox', label: 'Inbox', icon: MessageSquare },
   { kind: 'item', id: 'reviews', label: 'Reviews', icon: Star },
@@ -151,7 +151,7 @@ export const PARTNER_SECTION_TITLES: Record<PartnerNavSectionId, string> = {
   listings: 'Listings',
   bookings: 'Bookings',
   pickup: 'Pickups',
-  availability: 'Calendar',
+  availability: 'Availability',
   reservations: 'Reservations',
   inbox: 'Inbox',
   reviews: 'Reviews',

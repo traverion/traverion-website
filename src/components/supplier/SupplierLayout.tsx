@@ -185,7 +185,7 @@ const PRIMARY_NAV: { id: SupplierSection; label: string; icon: typeof LayoutDash
   { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
   { id: 'bookings', label: 'Bookings', icon: Calendar },
   { id: 'listings', label: 'Listings', icon: MapPin },
-  { id: 'availability', label: 'Calendar', icon: CalendarDays },
+  { id: 'availability', label: 'Availability', icon: CalendarDays },
 ];
 
 if (
@@ -227,7 +227,7 @@ const PATH_ALIASES: Record<string, SupplierSection> = {
 function pathForSection(s: SupplierSection): string {
   if (s === 'dashboard') return PARTNER_APP_BASE;
   if (s === 'listings') return `${PARTNER_APP_BASE}/listings`;
-  if (s === 'availability') return `${PARTNER_APP_BASE}/calendar`;
+  if (s === 'availability') return `${PARTNER_APP_BASE}/availability`;
   if (s === 'earnings') return `${PARTNER_APP_BASE}/money`;
   if (s === 'create') return PARTNER_CREATE_PATH;
   if (s === 'reservations') return PARTNER_RESERVATIONS_PATH;
