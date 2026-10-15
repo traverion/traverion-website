@@ -800,7 +800,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
 
         <div className="mb-6 sm:mb-8">
           {hasStayGallery ? (
-            <div className="grid grid-cols-1 gap-2 sm:gap-3 lg:grid-cols-4 lg:grid-rows-2 lg:min-h-[26rem]">
+            <div className="grid grid-cols-1 gap-2 sm:gap-2.5 lg:grid-cols-4 lg:grid-rows-2 lg:h-[22rem]">
               {hero ? (
                 <button
                   type="button"
@@ -911,7 +911,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
           <h1 className="font-display text-3xl sm:text-4xl lg:text-[2.75rem] text-ink tracking-tight mb-4 break-words [overflow-wrap:anywhere] leading-[1.15]">
             {stay.title}
           </h1>
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-2xl bg-paper-raised/80 px-4 py-4 sm:grid-cols-4 sm:px-5 ring-1 ring-black/[0.04]">
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-lg border border-black/[0.08] bg-white px-4 py-4 sm:grid-cols-4 sm:px-5">
             {typeof s?.maxGuests === 'number' ? (
               <div className="min-w-0">
                 <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Guests</dt>
@@ -939,7 +939,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
           </dl>
           {/* Phase 1557: dates + failed quote — do not invent catalog nightly in page hero (1546/1548). */}
           {checkIn && checkOut && stayQuote && !stayQuote.ok ? (
-            <p className="mt-4 text-lg font-semibold tabular-nums text-ink">—</p>
+            <p className="mt-4 text-lg font-semibold text-ink">Price unavailable</p>
           ) : quoteOk && stayQuote?.ok ? (
             // Phase 1563: successful quote is the page hero total (panel 1562 / sticky 1546 parity).
             <p className="mt-4 text-lg font-semibold tabular-nums text-ink">
@@ -1557,6 +1557,17 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
           role="dialog"
           aria-modal="true"
           aria-label="Photo gallery"
+          tabIndex={-1}
+          onKeyDown={(e) => {
+            if (stayGalleryImages.length < 2) return;
+            if (e.key === 'ArrowRight') {
+              e.preventDefault();
+              setSelectedImage((i) => (i >= stayGalleryImages.length - 1 ? 0 : i + 1));
+            } else if (e.key === 'ArrowLeft') {
+              e.preventDefault();
+              setSelectedImage((i) => (i <= 0 ? stayGalleryImages.length - 1 : i - 1));
+            }
+          }}
         >
           <div className="flex items-center justify-between gap-3 px-4 py-3 text-white">
             <p className="text-sm font-medium tabular-nums">
