@@ -36,7 +36,7 @@ export function TraverionCalendarMonth({
     <div
       role="group"
       aria-labelledby={labelledBy}
-      className="rounded-2xl bg-paper-raised p-3 sm:p-3.5 ring-1 ring-black/[0.06] shadow-soft-lg"
+      className="rounded-xl bg-white p-2.5 ring-1 ring-black/[0.08]"
     >
       <div className="mb-2.5 flex items-center justify-between gap-2">
         <p className="font-display text-base font-semibold tracking-tight text-ink">

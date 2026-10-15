@@ -91,14 +91,12 @@ export default function TourDatePicker({
           labelledBy={`${id}-label`}
           footer={
             <>
-              <p className="flex flex-wrap gap-x-3 gap-y-1">
-                <span>
-                  <span className="mr-1 inline-block h-2 w-2 rounded-sm bg-finland align-middle" />
-                  Selected
-                </span>
-                <span>Open days are clickable. Faded days are not offered. Struck days are fully booked.</span>
+              <p>
+                {value.trim()
+                  ? `Selected · ${formatBookingDateDisplay(value)}`
+                  : 'Open days can be booked. Faded days are closed. Struck days are sold out.'}
               </p>
-              {monthNote ? <p className="mt-1.5 text-xs text-ink-muted">{monthNote}</p> : null}
+              {monthNote ? <p className="mt-1 text-ink-muted">{monthNote}</p> : null}
             </>
           }
         >
@@ -126,9 +124,6 @@ export default function TourDatePicker({
           })}
         </TraverionCalendarMonth>
       </div>
-      {value.trim() ? (
-        <p className="mt-1.5 text-xs font-medium text-finland/90">{formatBookingDateDisplay(value)}</p>
-      ) : null}
       {hint ? <p className="mt-1 text-xs text-ink-faint">{hint}</p> : null}
     </div>
   );
