@@ -36,6 +36,19 @@ type Props = {
 const sectionClass = 'border-t border-black/[0.06] pt-8';
 const headingClass = 'font-display text-xl text-ink mb-3';
 
+function Fact({ label, children }: { label: string; children: string }) {
+  const value = children.trim();
+  if (!value) return null;
+  return (
+    <div className="grid gap-1 py-3 sm:grid-cols-[9.5rem_minmax(0,1fr)] sm:gap-4">
+      <dt className="text-sm font-semibold text-ink">{label}</dt>
+      <dd className="text-sm leading-relaxed text-ink-muted break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
+        {value}
+      </dd>
+    </div>
+  );
+}
+
 export default function TourListingSections({
   tour,
   selectedOption = null,
@@ -222,61 +235,45 @@ export default function TourListingSections({
       {showImportant ? (
         <section className={sectionClass}>
           <h2 className={headingClass}>Good to know</h2>
-          <ul className="max-w-2xl space-y-2 text-[15px] text-ink">
-            {tour.difficulty === 'Easy' ? <li>Difficulty: Easy.</li> : null}
-            {tour.difficulty === 'Moderate' ? <li>Difficulty: Moderate.</li> : null}
-            {tour.difficulty === 'Challenging' ? <li>This tour is marked challenging.</li> : null}
+          <dl className="max-w-2xl divide-y divide-black/[0.06] border-y border-black/[0.06]">
+            {tour.difficulty ? <Fact label="Difficulty">{tour.difficulty}</Fact> : null}
             {extras?.knowBeforeYouGo?.trim() ? (
-              <li className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
-                {extras.knowBeforeYouGo.trim()}
-              </li>
+              <Fact label="Before you go">{extras.knowBeforeYouGo.trim()}</Fact>
             ) : null}
             {whatToBringLabels.length > 0 ? (
-              <li className="break-words [overflow-wrap:anywhere]">
-                What to bring: {whatToBringLabels.join(', ')}
-              </li>
+              <Fact label="What to bring">{whatToBringLabels.join(', ')}</Fact>
             ) : null}
             {extras?.whatToBring?.trim() ? (
-              <li className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
-                What to bring: {extras.whatToBring.trim()}
-              </li>
+              <Fact label="What to bring">{extras.whatToBring.trim()}</Fact>
             ) : null}
             {notSuitableLabels.length > 0 ? (
-              <li className="break-words [overflow-wrap:anywhere]">
-                Not suitable for: {notSuitableLabels.join(', ')}
-              </li>
+              <Fact label="Not suitable">{notSuitableLabels.join(', ')}</Fact>
             ) : null}
             {extras?.requirementsNotes?.trim() ? (
-              <li className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
-                {extras.requirementsNotes.trim()}
-              </li>
+              <Fact label="Requirements">{extras.requirementsNotes.trim()}</Fact>
             ) : null}
-            {extras?.minGuestAge?.trim() ? <li>Minimum age: {extras.minGuestAge.trim()}</li> : null}
+            {extras?.minGuestAge?.trim() ? (
+              <Fact label="Minimum age">{extras.minGuestAge.trim()}</Fact>
+            ) : null}
             {accessibilityLabels.length > 0 ? (
-              <li className="break-words [overflow-wrap:anywhere]">
-                Accessibility: {accessibilityLabels.join(', ')}
-              </li>
+              <Fact label="Accessibility">{accessibilityLabels.join(', ')}</Fact>
             ) : null}
             {extras?.accessibilitySummary?.trim() ? (
-              <li className="break-words [overflow-wrap:anywhere]">{extras.accessibilitySummary.trim()}</li>
+              <Fact label="Accessibility">{extras.accessibilitySummary.trim()}</Fact>
             ) : null}
             {spokenLabels.length > 0 ? (
-              <li className="break-words [overflow-wrap:anywhere]">
-                Spoken languages: {spokenLabels.join(', ')}
-              </li>
+              <Fact label="Languages">{spokenLabels.join(', ')}</Fact>
             ) : null}
             {extras?.additionalInfo?.trim() ? (
-              <li className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
-                {extras.additionalInfo.trim()}
-              </li>
+              <Fact label="Also note">{extras.additionalInfo.trim()}</Fact>
             ) : null}
-            {cutoffLabel ? <li>{cutoffLabel}.</li> : null}
+            {cutoffLabel ? <Fact label="Booking cutoff">{cutoffLabel}</Fact> : null}
             {notes.map((n) => (
-              <li key={n} className="break-words [overflow-wrap:anywhere]">
+              <Fact key={n} label="Note">
                 {n}
-              </li>
+              </Fact>
             ))}
-          </ul>
+          </dl>
         </section>
       ) : null}
 
