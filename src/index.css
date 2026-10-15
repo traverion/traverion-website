@@ -3027,6 +3027,11 @@ a:focus-visible,
   padding: 0.875rem 1rem 1rem;
   background: #fff;
 }
+@media (min-width: 640px) {
+  .tv-avail-modal-foot {
+    padding: 0.875rem 1.25rem 1.125rem;
+  }
+}
 .tv-avail-discard__panel {
   width: 100%;
   max-width: 22rem;

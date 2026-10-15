@@ -2276,7 +2276,7 @@ export default function SupplierAvailability() {
       {bulkOpen ? (
         <SupplierModalShell
           framed
-          maxWidth="md"
+          maxWidth="2xl"
           onClose={
             bulkSaving
               ? undefined

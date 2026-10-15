@@ -127,30 +127,31 @@ export function SupplierModalHeader({ icon: Icon, title, subtitle, onClose, titl
   const shellTitleId = useContext(SupplierModalTitleIdContext);
   const headingId = titleId ?? shellTitleId ?? undefined;
   return (
-    <div className={`${SUPPLIER_SECTION_HEADER_CLASS} flex shrink-0 items-center justify-between gap-3`}>
-      <div className="flex items-center gap-3 min-w-0">
-        <div className="w-10 h-10 rounded-xl bg-finland/10 flex items-center justify-center shrink-0">
-          <Icon className="w-5 h-5 text-finland" aria-hidden />
-        </div>
-        <div className="min-w-0">
-          <h2 id={headingId} className="font-display text-lg sm:text-xl font-semibold text-ink tracking-tight truncate">
-            {title}
-          </h2>
-          {subtitle ? (
-            <p className="text-xs text-ink-muted mt-0.5 truncate" title={subtitle}>
-              {subtitle}
-            </p>
-          ) : null}
-        </div>
+    <div className="flex shrink-0 items-start gap-3 border-b border-black/[0.06] px-4 py-3.5 sm:px-5">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-finland/10">
+        <Icon className="h-5 w-5 text-finland" aria-hidden />
+      </div>
+      <div className="min-w-0 flex-1 pt-0.5">
+        <h2
+          id={headingId}
+          className="font-display text-lg font-semibold tracking-tight text-ink sm:text-xl"
+        >
+          {title}
+        </h2>
+        {subtitle ? (
+          <p className="mt-0.5 truncate text-xs text-ink-muted" title={subtitle}>
+            {subtitle}
+          </p>
+        ) : null}
       </div>
       {onClose ? (
         <button
           type="button"
           onClick={onClose}
-          className="lux-tap-target inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-ink-muted hover:bg-black/[0.04] shrink-0"
+          className="lux-flat -mr-1.5 -mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-ink-muted hover:bg-black/[0.04] hover:text-ink"
           aria-label="Close"
         >
-          <X className="w-5 h-5" aria-hidden />
+          <X className="h-5 w-5" aria-hidden />
         </button>
       ) : null}
     </div>
@@ -221,7 +222,7 @@ export function SupplierStatSkeletonGrid({ count = 4 }: { count?: number }) {
 type SupplierModalShellProps = {
   children: ReactNode;
   onClose?: () => void;
-  maxWidth?: 'md' | 'lg' | 'xl';
+  maxWidth?: 'md' | 'lg' | 'xl' | '2xl';
   /**
    * Legacy: entire panel scrolls.
    * Prefer `framed` so header/footer stay visible and only the body scrolls.
@@ -238,7 +239,14 @@ export function SupplierModalShell({
   scrollable = true,
   framed = false,
 }: SupplierModalShellProps) {
-  const widthClass = maxWidth === 'xl' ? 'max-w-xl' : maxWidth === 'lg' ? 'max-w-lg' : 'max-w-md';
+  const widthClass =
+    maxWidth === '2xl'
+      ? 'max-w-2xl'
+      : maxWidth === 'xl'
+        ? 'max-w-xl'
+        : maxWidth === 'lg'
+          ? 'max-w-lg'
+          : 'max-w-md';
   const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   useDialogFocus(true, panelRef, onClose);
