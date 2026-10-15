@@ -106,4 +106,26 @@ describe('price categories on booking options', () => {
     );
     expect(priceCategoryValidationMessages(opt).length).toBeGreaterThan(0);
   });
+
+  it('collapses duplicate traveler price rows that share a label and amount', () => {
+    const opt = normalizeListingBookingOption(
+      {
+        id: 'dup',
+        name: 'Group',
+        priceUsd: 99,
+        pricingMode: 'age_dependent',
+        priceCategories: [
+          { id: 'a1', label: 'Adult', kind: 'adult', ageMin: 18, ageMax: 99, priceUsd: 99 },
+          { id: 'a2', label: 'Adult', kind: 'adult', ageMin: 18, ageMax: 99, priceUsd: 99 },
+          { id: 'c', label: 'Child', kind: 'child', ageMin: 3, ageMax: 12, priceUsd: 49 },
+        ],
+        duration: '2 hours',
+        weekdays: [true, true, true, true, true, true, true],
+      },
+      'dup'
+    );
+    const facts = travelerOptionPriceFacts(opt, (n) => `€${n}`);
+    expect(facts.facts.filter((f) => f.label === 'Adult')).toHaveLength(1);
+    expect(facts.lead).toBe('From €49');
+  });
 });

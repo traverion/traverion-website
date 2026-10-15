@@ -41,7 +41,7 @@ export default function ParticipantCategoryStepper({
   };
 
   return (
-    <div className="flex items-center justify-between gap-3 rounded-xl bg-paper-raised px-3 py-3 ring-1 ring-black/[0.06] sm:px-4">
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-black/[0.08] bg-white px-3 py-2.5 sm:px-3.5">
       <div className="min-w-0">
         <p className="text-sm font-semibold text-ink">{category.label}</p>
         <p className="text-xs text-ink-muted mt-0.5">
