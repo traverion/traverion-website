@@ -157,7 +157,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
           }
         }}
         onPointerEnter={prefetchTourDetailsPage}
-        className="group lux-flat block w-full overflow-hidden rounded-xl bg-paper-raised text-left shadow-soft ring-1 ring-black/[0.06] transition-[box-shadow,ring-color,transform] duration-200 hover:-translate-y-0.5 hover:shadow-soft-lg hover:ring-finland/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2 motion-reduce:hover:translate-y-0"
+        className="group lux-flat block w-full overflow-hidden rounded-lg bg-white text-left ring-1 ring-black/[0.08] transition-[box-shadow,ring-color] duration-200 hover:ring-finland/30 hover:shadow-[0_8px_24px_-18px_rgba(15,23,42,0.45)] focus:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
         style={{ animationDelay: `${Math.min(index * 35, 240)}ms` }}
         aria-label={`View ${tour.title}. ${priceAria}`}
       >
