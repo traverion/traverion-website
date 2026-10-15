@@ -363,7 +363,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
           className="absolute inset-0 bg-gradient-to-r from-black/45 via-black/15 to-transparent"
           aria-hidden
         />
-        <div className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-10 sm:pb-14 page-hero-content">
+        <div className="relative z-10 w-full tv-shell px-4 sm:px-6 lg:px-8 pb-10 sm:pb-14 page-hero-content">
           {/* Phase 1801: brand dominates first viewport — headline must not overpower TRAVERION. */}
           <p className="font-display text-5xl sm:text-6xl lg:text-7xl tracking-[0.05em] text-white mb-4 sm:mb-5 leading-none">
             TRAVERION
@@ -475,7 +475,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
       ) : null}
 
       <section className="py-4 bg-paper">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="tv-shell px-4 sm:px-6 lg:px-8">
           <p className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-ink-muted">
             <span className="inline-flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-finland" aria-hidden />

@@ -70,6 +70,8 @@ import { useDialogFocus } from '../hooks/useDialogFocus';
 type Props = {
   stayId: string;
   onBack: () => void;
+  /** Label for the back control — reflects where the traveler came from. */
+  backLabel?: string;
 };
 
 function readStayPrefill(): { checkIn: string; checkOut: string; guests: number } {
@@ -86,7 +88,7 @@ function readStayPrefill(): { checkIn: string; checkOut: string; guests: number 
   };
 }
 
-export default function StayDetails({ stayId, onBack }: Props) {
+export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Props) {
   const { user, requestAuth } = useAuth();
   // Phase 1704: sync via effect only — per-render `userRef = user` wiped session set in auth onSuccess
   // before React `user` caught up (modal close re-render → Pay never resumed / self-book skipped).
@@ -737,7 +739,10 @@ export default function StayDetails({ stayId, onBack }: Props) {
                     },
                   }
             }
-            back={{ onClick: onBack, label: 'Back to stays' }}
+            back={{
+              onClick: onBack,
+              label: backLabel.toLowerCase() === 'back' ? 'Go back' : `Back to ${backLabel}`,
+            }}
             extra={
               <a href="/contact" className="tv-btn-ghost inline-flex">
                 Contact support
@@ -759,7 +764,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
 
   return (
     <div className="min-h-screen bg-paper tv-page pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-0">
-      <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <div className="tv-shell px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <div className="mb-5 flex items-center justify-between gap-3">
           <button
             type="button"
@@ -767,7 +772,7 @@ export default function StayDetails({ stayId, onBack }: Props) {
             className="lux-flat inline-flex h-11 min-w-[2.75rem] items-center justify-center gap-2 rounded-full bg-paper-raised px-3.5 text-sm font-medium text-ink ring-1 ring-black/[0.06] hover:bg-black/[0.03]"
           >
             <ArrowLeft className="w-4 h-4" aria-hidden />
-            Stays
+            {backLabel}
           </button>
           {isSupabaseListingId(stay.id) && isSupabaseConfigured() ? (
             <button

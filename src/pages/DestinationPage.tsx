@@ -182,7 +182,7 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
           <img src={heroSrc} alt="" decoding="async" width={1600} height={900} className="object-cover" />
         </div>
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/20" aria-hidden />
-        <div className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-6 sm:pb-8 pt-14">
+        <div className="relative z-10 w-full tv-shell px-4 sm:px-6 lg:px-8 pb-6 sm:pb-8 pt-14">
           <nav
             aria-label="Breadcrumb"
             className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm text-white/90"
@@ -250,7 +250,7 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
         </div>
       </section>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 pb-12 motion-safe:animate-fade-in">
+      <div className="tv-shell px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 pb-12 motion-safe:animate-fade-in">
         {listingsError ? (
           <ErrorState
             className="mb-6 py-6"

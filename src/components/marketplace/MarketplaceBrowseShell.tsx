@@ -51,7 +51,7 @@ export function MarketplaceBrowseShell({
 
   return (
     <div className="min-h-screen bg-paper tv-page">
-      <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 pt-5 sm:pt-7 pb-12">
+      <div className="tv-shell px-4 sm:px-6 lg:px-8 pt-5 sm:pt-7 pb-12">
         <div className="mb-5 space-y-3">
           {familyNav}
           {mobileSearch}

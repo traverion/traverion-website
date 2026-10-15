@@ -266,7 +266,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
 
   return (
     <div className="min-h-screen bg-paper tv-page">
-      <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-14">
+      <div className="tv-shell px-4 sm:px-6 lg:px-8 py-8 pb-14">
         <header className="mb-8 sm:mb-10">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Traveler</p>
           <h1

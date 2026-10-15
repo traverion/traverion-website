@@ -140,9 +140,11 @@ function scrollElementIntoView(id: string, options: ScrollIntoViewOptions): void
 interface TourDetailsProps {
   tourId: string;
   onBack: () => void;
+  /** Label for the back control — reflects where the traveler came from. */
+  backLabel?: string;
 }
 
-export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
+export default function TourDetails({ tourId, onBack, backLabel = 'Tours' }: TourDetailsProps) {
   const { user, requestAuth } = useAuth();
   const [tour, setTour] = useState<TourPackage | null>(null);
   const [tourLoadError, setTourLoadError] = useState<string | null>(null);
@@ -1340,7 +1342,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
     if (isLoading) {
       return (
         <div className="min-h-screen bg-paper tv-page animate-fade-in">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="tv-shell px-4 sm:px-6 lg:px-8 py-4">
             <Skeleton className="h-10 w-48 mb-8" />
             <Skeleton className="h-80 w-full rounded-3xl mb-8" />
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -1381,7 +1383,10 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
                   }
                 : undefined
             }
-            back={{ onClick: onBack, label: 'Back to tours' }}
+            back={{
+              onClick: onBack,
+              label: backLabel.toLowerCase() === 'back' ? 'Go back' : `Back to ${backLabel}`,
+            }}
             extra={
               <a href="/contact" className="tv-btn-ghost inline-flex">
                 Contact support
@@ -1430,7 +1435,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
 
   return (
     <div className="min-h-screen bg-paper tv-page pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-0">
-      <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6">
+      <div className="tv-shell mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6">
         <div className="flex items-center justify-between gap-3 mb-4 sm:mb-5">
           <button
             type="button"
@@ -1438,7 +1443,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
             className="lux-flat inline-flex h-11 min-w-[2.75rem] items-center justify-center gap-2 rounded-full bg-paper-raised px-3.5 text-sm font-medium text-ink ring-1 ring-black/[0.06] hover:bg-black/[0.03]"
           >
             <ArrowLeft className="w-4 h-4" aria-hidden />
-            Tours
+            {backLabel}
           </button>
           <div className="flex items-center gap-2">
             {isSupabaseListingId(tour.id) && isSupabaseConfigured() ? (
@@ -1611,7 +1616,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       </div>
 
       <section className="bg-paper pb-10">
-        <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="tv-shell mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-8">
             <TourOverview
               description={tour.description}
@@ -2044,7 +2049,7 @@ export default function TourDetails({ tourId, onBack }: TourDetailsProps) {
       </section>
 
       <section className="py-8 bg-paper border-t border-black/[0.06]">
-        <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="tv-shell mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
             <h2 className="font-display text-xl sm:text-2xl text-ink">Reviews</h2>
             {reviews.length > 0 ? (

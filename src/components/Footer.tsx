@@ -31,7 +31,7 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
 
   return (
     <footer className="bg-paper border-t border-black/[0.06] text-ink">
-      <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12 lg:py-14">
+      <div className="tv-shell px-4 sm:px-6 lg:px-8 py-10 sm:py-12 lg:py-14">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 lg:gap-10">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
@@ -93,7 +93,7 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
 
       {/* Bottom bar – copyright + social */}
       <div className="border-t border-black/[0.06] bg-paper-raised/70">
-        <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row justify-between items-center gap-3">
+        <div className="tv-shell px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row justify-between items-center gap-3">
           <p className="text-sm text-ink-faint text-center sm:text-left">
             © 2026 Traverion – Original from Finland
           </p>
