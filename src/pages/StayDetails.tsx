@@ -1281,7 +1281,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
             id="stay-booking-panel"
             role="region"
             aria-labelledby="stay-booking-panel-title"
-            className="tv-booking-sticky lg:sticky lg:top-24 h-fit scroll-mt-24"
+            className="tv-booking-sticky lg:sticky lg:top-[calc(4.75rem+env(safe-area-inset-top,0px))] lg:self-start h-fit scroll-mt-28"
           >
             <p
               id="stay-booking-panel-title"

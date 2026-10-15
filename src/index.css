@@ -1956,13 +1956,10 @@ html {
 /* Route / section mount: subtle rise only — avoid opacity:0 + fill-mode both (blank screen after redirects). */
 @keyframes lux-page-enter {
   from {
-    opacity: 0.92;
-    transform: translateY(6px);
+    opacity: 0.96;
   }
   to {
     opacity: 1;
-    /* `none` — identity transform would still trap position:fixed listing CTAs. */
-    transform: none;
   }
 }
 
@@ -1976,22 +1973,20 @@ html {
 }
 
 .lux-page-enter {
-  animation: lux-page-enter 0.22s var(--lux-ease) forwards;
+  animation: lux-page-enter 0.22s var(--lux-ease);
 }
 
 @keyframes lux-page-enter-slide {
   from {
-    opacity: 0.9;
-    transform: translate3d(0.75rem, 0, 0);
+    opacity: 0.94;
   }
   to {
     opacity: 1;
-    transform: none;
   }
 }
 
 .lux-page-enter--slide {
-  animation: lux-page-enter-slide 0.28s var(--lux-ease, cubic-bezier(0.22, 1, 0.36, 1)) both;
+  animation: lux-page-enter-slide 0.28s var(--lux-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 /* Auth login ↔ signup / forgot-password panel slides */
@@ -2743,6 +2738,13 @@ a:focus-visible,
   background: #ffffff;
   padding: 1rem 1rem 1.1rem;
   box-shadow: 0 0 0 1px rgba(28, 25, 23, 0.1);
+}
+@media (min-width: 1024px) {
+  .tv-booking-sticky {
+    max-height: calc(100dvh - 5.75rem - env(safe-area-inset-top, 0px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
 }
 @media (min-width: 640px) {
   .tv-booking-sticky {

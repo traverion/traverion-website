@@ -1617,7 +1617,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours' }: Tou
 
       <section className="bg-paper pb-10">
         <div className="tv-shell mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_22.5rem] lg:gap-12">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_22.5rem] lg:gap-12">
             <div className="min-w-0 space-y-10">
               <TourOverview
                 description={tour.description}
@@ -1666,10 +1666,10 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours' }: Tou
               />
             </div>
 
-            <div className="min-w-0 lg:sticky lg:top-[calc(4.75rem+env(safe-area-inset-top,0px))] lg:self-start">
+            <div className="min-w-0">
               <div
                 id="tour-booking-panel"
-                className="tv-booking-sticky lg:sticky lg:top-24 h-fit scroll-mt-24"
+                className="tv-booking-sticky lg:sticky lg:top-[calc(4.75rem+env(safe-area-inset-top,0px))] h-fit scroll-mt-28"
               >
                 <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">Book this experience</p>
                 {!canBook ? (
