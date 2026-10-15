@@ -353,7 +353,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
 
   return (
     <div className="min-h-screen bg-paper">
-      <section className="relative text-white min-h-[min(92dvh,52rem)] flex flex-col justify-end overflow-hidden tv-page bg-ink">
+      <section className="relative text-white min-h-[min(68dvh,34rem)] flex flex-col justify-end overflow-hidden tv-page bg-ink">
         <div className="page-hero-media" aria-hidden>
           <img src={HERO_IMG.vacation} alt="" fetchPriority="high" decoding="async" width={1600} height={1067} />
         </div>
@@ -365,7 +365,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         />
         <div className="relative z-10 w-full tv-shell px-4 sm:px-6 lg:px-8 pb-10 sm:pb-14 page-hero-content">
           {/* Phase 1801: brand dominates first viewport — headline must not overpower TRAVERION. */}
-          <p className="font-display text-5xl sm:text-6xl lg:text-7xl tracking-[0.05em] text-white mb-4 sm:mb-5 leading-none">
+          <p className="font-display text-4xl sm:text-5xl tracking-[0.04em] text-white mb-3 leading-none">
             TRAVERION
           </p>
           <h1 className="page-hero-title font-display text-xl sm:text-2xl lg:text-[1.75rem] tracking-tight max-w-xl leading-snug mb-3 sm:mb-4 font-medium">
