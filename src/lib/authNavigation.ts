@@ -41,6 +41,16 @@ export function softReplacePathIfChanged(path: string): boolean {
   return true;
 }
 
+/** Soft push for in-app transitions (login ↔ signup) that should support history.back(). */
+export function softPushPathIfChanged(path: string): boolean {
+  if (typeof window === 'undefined') return false;
+  const next = normalizePathname(path);
+  if (pathEquals(window.location.pathname, next)) return false;
+  window.history.pushState({}, '', next);
+  window.dispatchEvent(new PopStateEvent('popstate'));
+  return true;
+}
+
 /** Same-origin href replace that keeps `?query` (session return, booking deep links). */
 export function replaceHrefIfChanged(href: string): boolean {
   if (typeof window === 'undefined') return false;

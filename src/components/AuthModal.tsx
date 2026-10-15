@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import { X, LogIn, UserPlus, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -22,6 +22,7 @@ type TravelerFieldErrors = Partial<Record<TravelerFieldKey, string>>;
 export default function AuthModal() {
   const { authModalOpen, closeAuthModal, signIn, signUp, triggerAuthSuccess } = useAuth();
   const [tab, setTab] = useState<Tab>('signin');
+  const [authSlide, setAuthSlide] = useState<'forward' | 'back'>('forward');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -178,11 +179,23 @@ export default function AuthModal() {
   };
 
   const exitModalPasswordReset = () => {
+    setAuthSlide('back');
     setPasswordResetPanel(false);
     setResetPasswordEmail('');
     setResetPasswordFieldError(null);
     setResetPasswordSuccess(null);
   };
+
+  const switchTab = useCallback((next: Tab) => {
+    setAuthSlide(next === 'signup' ? 'forward' : 'back');
+    setTab(next);
+    setFieldErrors({});
+    setSuccessMessage(null);
+    setPasswordResetPanel(false);
+    setResetPasswordEmail('');
+    setResetPasswordFieldError(null);
+    setResetPasswordSuccess(null);
+  }, []);
 
   const handleModalPasswordResetSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -269,12 +282,7 @@ export default function AuthModal() {
               <div className="flex gap-1 rounded-full bg-paper p-1 w-full ring-1 ring-black/[0.06]">
                 <button
                   type="button"
-                  onClick={() => {
-                    setTab('signin');
-                    setFieldErrors({});
-                    setSuccessMessage(null);
-                    exitModalPasswordReset();
-                  }}
+                  onClick={() => switchTab('signin')}
                   className={`lux-flat flex-1 rounded-full px-3 min-h-11 py-2 text-sm font-medium transition-colors ${
                     tab === 'signin'
                       ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
@@ -285,12 +293,7 @@ export default function AuthModal() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setTab('signup');
-                    setFieldErrors({});
-                    setSuccessMessage(null);
-                    exitModalPasswordReset();
-                  }}
+                  onClick={() => switchTab('signup')}
                   className={`lux-flat flex-1 rounded-full px-3 min-h-11 py-2 text-sm font-medium transition-colors ${
                     tab === 'signup'
                       ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
@@ -313,6 +316,10 @@ export default function AuthModal() {
             </>
           ) : null}
 
+          <div
+            key={passwordResetPanel ? 'reset' : tab}
+            className={authSlide === 'forward' ? 'tv-auth-slide--forward' : 'tv-auth-slide--back'}
+          >
           {tab === 'signin' && passwordResetPanel ? (
             <ForgotPasswordInline
               title="Reset your password"
@@ -433,6 +440,7 @@ export default function AuthModal() {
                   <button
                     type="button"
                     onClick={() => {
+                      setAuthSlide('forward');
                       setResetPasswordEmail(email.trim());
                       setResetPasswordFieldError(null);
                       setResetPasswordSuccess(null);
@@ -623,6 +631,7 @@ export default function AuthModal() {
               </button>
             </form>
           )}
+          </div>
         </div>
       </div>
     </div>

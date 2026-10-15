@@ -2,12 +2,13 @@
  * Dedicated partner log in / sign up — branded split shell (parity with traveler AuthPage).
  * Form logic stays in SupplierAuth.
  */
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
 import { publicSiteBaseUrl } from '../../lib/publicSiteUrl';
 import { HERO_IMG } from '../../lib/heroImages';
 import { PARTNER_LOGIN_PATH, PARTNER_SIGNUP_PATH } from '../../lib/partnerPortalPaths';
 import { supplierPortalLandingHref } from '../../lib/partnerHost';
+import { softPushPathIfChanged } from '../../lib/authNavigation';
 import { setPageMetaWithOg } from '../../lib/seo';
 import SupplierAuth from '../../pages/supplier/SupplierAuth';
 import SkipLink from '../SkipLink';
@@ -21,6 +22,8 @@ type Props = {
 export default function PartnerAuthPage({ mode, onAuthenticated, isSupabase }: Props) {
   const traveler = publicSiteBaseUrl();
   const landing = supplierPortalLandingHref();
+  const prevMode = useRef(mode);
+  const [slide, setSlide] = useState<'forward' | 'back'>('forward');
 
   useEffect(() => {
     setPageMetaWithOg(
@@ -29,8 +32,19 @@ export default function PartnerAuthPage({ mode, onAuthenticated, isSupabase }: P
     );
   }, [mode]);
 
+  useEffect(() => {
+    if (prevMode.current === mode) return;
+    setSlide(mode === 'signup' ? 'forward' : 'back');
+    prevMode.current = mode;
+  }, [mode]);
+
+  const goMode = (next: 'signin' | 'signup') => (e: { preventDefault: () => void }) => {
+    e.preventDefault();
+    softPushPathIfChanged(next === 'signup' ? PARTNER_SIGNUP_PATH : PARTNER_LOGIN_PATH);
+  };
+
   return (
-    <div className="min-h-[100dvh] bg-paper text-ink flex flex-col lg:flex-row">
+    <div className="min-h-[100dvh] bg-paper text-ink flex flex-col lg:flex-row lux-page-enter--slide">
       <SkipLink />
       <aside className="relative isolate overflow-hidden lg:w-[44%] lg:min-h-[100dvh] lg:sticky lg:top-0 lg:self-start">
         <div className="relative h-44 sm:h-52 lg:h-[100dvh] min-h-[11rem]">
@@ -73,6 +87,7 @@ export default function PartnerAuthPage({ mode, onAuthenticated, isSupabase }: P
           <nav className="flex gap-1 rounded-full bg-paper-raised p-1 shadow-soft ring-1 ring-black/[0.06]" aria-label="Partner account mode">
             <a
               href={PARTNER_LOGIN_PATH}
+              onClick={goMode('signin')}
               className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
                 mode === 'signin'
                   ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
@@ -83,6 +98,7 @@ export default function PartnerAuthPage({ mode, onAuthenticated, isSupabase }: P
             </a>
             <a
               href={PARTNER_SIGNUP_PATH}
+              onClick={goMode('signup')}
               className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
                 mode === 'signup'
                   ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
@@ -95,7 +111,10 @@ export default function PartnerAuthPage({ mode, onAuthenticated, isSupabase }: P
         </div>
         <div className="flex flex-1 flex-col justify-center px-5 sm:px-8 pb-12 pt-4 sm:pt-6 lg:pb-16">
           <div className="mx-auto w-full max-w-md">
-            <div className="tv-auth-panel">
+            <div
+              key={mode}
+              className={`tv-auth-panel ${slide === 'forward' ? 'tv-auth-slide--forward' : 'tv-auth-slide--back'}`}
+            >
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">
                 Partner account
               </p>

@@ -16,6 +16,7 @@ import { AUTH_CONFIRMATION_EMAIL_REQUESTED, AUTH_PASSWORD_RESET_REQUESTED } from
 import { HERO_IMG } from '../lib/heroImages';
 import NoticeCallout from '../components/NoticeCallout';
 import SkipLink from '../components/SkipLink';
+import { navigateBackOrFallback } from '../lib/appRouting';
 
 type AuthTab = 'signin' | 'signup';
 
@@ -52,6 +53,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
   const { signIn, signUp } = useAuth();
   const [{ tab: initialTab, next }] = useState(readAuthQuery);
   const [tab, setTab] = useState<AuthTab>(initialTab);
+  const [authSlide, setAuthSlide] = useState<'forward' | 'back'>('forward');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -269,11 +271,23 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
   };
 
   const exitTravelerPasswordReset = () => {
+    setAuthSlide('back');
     setPasswordResetPanel(false);
     setResetPasswordEmail('');
     setResetPasswordFieldError(null);
     setResetPasswordSuccess(null);
   };
+
+  const switchTab = useCallback((nextTab: AuthTab) => {
+    setAuthSlide(nextTab === 'signup' ? 'forward' : 'back');
+    setTab(nextTab);
+    setFieldErrors({});
+    setSuccessMessage(null);
+    setPasswordResetPanel(false);
+    setResetPasswordEmail('');
+    setResetPasswordFieldError(null);
+    setResetPasswordSuccess(null);
+  }, []);
 
   const handleTravelerPasswordResetSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -348,14 +362,14 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
           <div className="mx-auto w-full max-w-md">
             <button
               type="button"
-              onClick={() => onNavigate('home')}
+              onClick={() => navigateBackOrFallback(() => onNavigate('home'))}
               className="lux-flat mb-4 inline-flex items-center gap-2 text-ink-muted hover:text-ink lg:mb-5"
             >
               <ArrowLeft className="w-4 h-4" />
               Back to Traverion
             </button>
 
-            <div className="tv-auth-panel">
+            <div className="tv-auth-panel lux-page-enter--slide">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">
                 Traveler account
               </p>
@@ -408,12 +422,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                 <div className="flex gap-1 rounded-full bg-paper p-1 mb-6 w-full sm:w-fit shadow-soft ring-1 ring-black/[0.06]">
                   <button
                     type="button"
-                    onClick={() => {
-                      setTab('signin');
-                      setFieldErrors({});
-                      setSuccessMessage(null);
-                      exitTravelerPasswordReset();
-                    }}
+                    onClick={() => switchTab('signin')}
                     className={`lux-flat flex-1 sm:flex-none rounded-full px-3.5 min-h-11 py-2 text-sm font-medium transition-colors ${
                       tab === 'signin'
                         ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
@@ -424,12 +433,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      setTab('signup');
-                      setFieldErrors({});
-                      setSuccessMessage(null);
-                      exitTravelerPasswordReset();
-                    }}
+                    onClick={() => switchTab('signup')}
                     className={`lux-flat flex-1 sm:flex-none rounded-full px-3.5 min-h-11 py-2 text-sm font-medium transition-colors ${
                       tab === 'signup'
                         ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
@@ -441,6 +445,10 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                 </div>
               ) : null}
 
+              <div
+                key={passwordResetPanel ? 'reset' : tab}
+                className={authSlide === 'forward' ? 'tv-auth-slide--forward' : 'tv-auth-slide--back'}
+              >
               {tab === 'signin' && passwordResetPanel ? (
                 <ForgotPasswordInline
                   title="Reset your password"
@@ -574,6 +582,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                           <button
                             type="button"
                             onClick={() => {
+                              setAuthSlide('forward');
                               setResetPasswordEmail(email.trim());
                               setResetPasswordFieldError(null);
                               setResetPasswordSuccess(null);
@@ -766,6 +775,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                   </button>
                 </form>
               )}
+              </div>
             </div>
           </div>
         </div>
