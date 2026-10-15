@@ -1289,32 +1289,39 @@ export default function BookingPage({
               Confirm date, option, and participants. Next you will enter contact details, then pay via{' '}
               {STRIPE_TEST_UNTIL_LIVE}.
             </p>
-            <div className="space-y-3 text-sm text-ink-muted mb-6 rounded-xl bg-paper px-4 py-3.5 ring-1 ring-black/[0.05]">
-              <p>
-                <span className="font-medium text-ink">Tour</span> — {tour.title}
-              </p>
-              <p>
-                <span className="font-medium text-ink">Option</span> — {selectedVariant.label}
-              </p>
-              {selectedVariant.subtitle ? <p className="text-ink-muted">{selectedVariant.subtitle}</p> : null}
-              <p>
-                <span className="font-medium text-ink">Date</span> — {dateDisplay || date}
-              </p>
+            <dl className="mb-6 divide-y divide-black/[0.06] border-y border-black/[0.06] text-sm">
+              <div className="grid gap-1 py-2.5 sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:gap-3">
+                <dt className="font-semibold text-ink">Tour</dt>
+                <dd className="text-ink-muted break-words">{tour.title}</dd>
+              </div>
+              <div className="grid gap-1 py-2.5 sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:gap-3">
+                <dt className="font-semibold text-ink">Option</dt>
+                <dd className="text-ink-muted break-words">
+                  {selectedVariant.label}
+                  {selectedVariant.subtitle ? ` · ${selectedVariant.subtitle}` : ''}
+                </dd>
+              </div>
+              <div className="grid gap-1 py-2.5 sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:gap-3">
+                <dt className="font-semibold text-ink">Date</dt>
+                <dd className="text-ink-muted">{dateDisplay || date}</dd>
+              </div>
               {departureLabel ? (
-                <p>
-                  <span className="font-medium text-ink">Departure</span> — {departureLabel}
-                </p>
+                <div className="grid gap-1 py-2.5 sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:gap-3">
+                  <dt className="font-semibold text-ink">Departure</dt>
+                  <dd className="text-ink-muted">{departureLabel}</dd>
+                </div>
               ) : null}
-              <p>
-                <span className="font-medium text-ink">Participants</span> — {participantsSummary}
-              </p>
+              <div className="grid gap-1 py-2.5 sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:gap-3">
+                <dt className="font-semibold text-ink">Participants</dt>
+                <dd className="text-ink-muted">{participantsSummary}</dd>
+              </div>
               {selectedVariant.listingOption?.pickupPlace?.trim() ? (
-                <p>
-                  <span className="font-medium text-ink">Pickup / meeting</span> —{' '}
-                  {selectedVariant.listingOption.pickupPlace.trim()}
-                </p>
+                <div className="grid gap-1 py-2.5 sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:gap-3">
+                  <dt className="font-semibold text-ink">Meeting</dt>
+                  <dd className="text-ink-muted break-words">{selectedVariant.listingOption.pickupPlace.trim()}</dd>
+                </div>
               ) : null}
-            </div>
+            </dl>
             {usesAgePricingOnVariant && appliedOption ? (
               <div className="mb-6 space-y-2">
                 <p className="text-sm font-medium text-ink">Adjust participants</p>
@@ -2073,8 +2080,8 @@ export default function BookingPage({
           aria-label="Close booking"
           onClick={handleLeaveBooking}
         />
-        <div className="relative z-10 flex h-[100dvh] w-full max-w-6xl flex-col overflow-hidden rounded-none bg-paper sm:h-auto sm:max-h-[min(95dvh,1040px)] sm:rounded-2xl sm:shadow-2xl sm:ring-1 sm:ring-black/[0.08] pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]">
-          <div className="flex shrink-0 items-center justify-between border-b border-black/[0.06] bg-gradient-to-b from-finland/[0.06] to-paper-raised px-4 py-3 sm:px-5">
+        <div className="relative z-10 flex h-[100dvh] w-full max-w-3xl flex-col overflow-hidden rounded-none bg-white sm:h-auto sm:max-h-[min(95dvh,1040px)] sm:rounded-xl sm:shadow-2xl sm:ring-1 sm:ring-black/[0.08] pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]">
+          <div className="flex shrink-0 items-center justify-between border-b border-black/[0.08] bg-white px-4 py-3 sm:px-5">
             <div className="min-w-0 pr-2">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">Checkout</p>
               <h2
