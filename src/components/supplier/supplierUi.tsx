@@ -127,19 +127,19 @@ export function SupplierModalHeader({ icon: Icon, title, subtitle, onClose, titl
   const shellTitleId = useContext(SupplierModalTitleIdContext);
   const headingId = titleId ?? shellTitleId ?? undefined;
   return (
-    <div className="flex shrink-0 items-start gap-3 border-b border-black/[0.06] px-4 py-3.5 sm:px-5">
+    <div className="flex w-full shrink-0 flex-nowrap items-start gap-3 border-b border-black/[0.06] px-4 py-3.5 sm:px-5">
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-finland/10">
         <Icon className="h-5 w-5 text-finland" aria-hidden />
       </div>
       <div className="min-w-0 flex-1 pt-0.5">
         <h2
           id={headingId}
-          className="font-display text-lg font-semibold tracking-tight text-ink sm:text-xl"
+          className="font-display text-base font-semibold tracking-tight text-ink sm:text-xl"
         >
           {title}
         </h2>
         {subtitle ? (
-          <p className="mt-0.5 truncate text-xs text-ink-muted" title={subtitle}>
+          <p className="mt-0.5 line-clamp-2 text-xs leading-snug text-ink-muted sm:truncate" title={subtitle}>
             {subtitle}
           </p>
         ) : null}
@@ -148,7 +148,7 @@ export function SupplierModalHeader({ icon: Icon, title, subtitle, onClose, titl
         <button
           type="button"
           onClick={onClose}
-          className="lux-flat -mr-1.5 -mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-ink-muted hover:bg-black/[0.04] hover:text-ink"
+          className="lux-flat ml-auto -mr-1.5 -mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-ink-muted hover:bg-black/[0.04] hover:text-ink"
           aria-label="Close"
         >
           <X className="h-5 w-5" aria-hidden />
@@ -260,7 +260,7 @@ export function SupplierModalShell({
   }, []);
 
   const panelClass = framed
-    ? `${SUPPLIER_MODAL_PANEL_CLASS} flex max-h-[min(92dvh,40rem)] flex-col`
+    ? `${SUPPLIER_MODAL_PANEL_CLASS} tv-supplier-modal--framed flex max-h-[min(92dvh,40rem)] flex-col`
     : scrollable
       ? SUPPLIER_MODAL_PANEL_SCROLL_CLASS
       : SUPPLIER_MODAL_PANEL_CLASS;

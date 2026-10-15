@@ -3032,6 +3032,141 @@ a:focus-visible,
     padding: 0.875rem 1.25rem 1.125rem;
   }
 }
+
+/* Sticky error strip above modal footer — always visible without scrolling the body. */
+.tv-avail-modal-error {
+  flex-shrink: 0;
+  margin: 0;
+  border-top: 1px solid #fecaca;
+  background: #fef2f2;
+  padding: 0.75rem 1rem;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  font-weight: 550;
+  color: #b91c1c;
+  animation: tv-avail-error-in 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@media (min-width: 640px) {
+  .tv-avail-modal-error {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+}
+@keyframes tv-avail-error-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tv-avail-modal-error {
+    animation: none;
+  }
+}
+
+/* Mobile: framed supplier modals use full-width bottom sheet feel. */
+@media (max-width: 639px) {
+  .tv-supplier-modal--framed {
+    max-width: 100% !important;
+    max-height: min(94dvh, 100%) !important;
+    border-radius: 1rem 1rem 0 0 !important;
+    margin-bottom: 0;
+  }
+  .tv-sheet-overlay--portal {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .tv-avail-modal-foot {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    padding-bottom: max(0.875rem, env(safe-area-inset-bottom));
+  }
+  .tv-avail-modal-foot > * {
+    width: 100%;
+    justify-content: center;
+  }
+  .tv-avail-discard__actions {
+    gap: 0.5rem;
+  }
+  .tv-avail-discard__actions > * {
+    width: 100%;
+  }
+  .tv-cal-drawer__head {
+    padding: 16px 16px 14px;
+  }
+  .tv-cal-drawer__body {
+    padding: 14px 16px 20px;
+  }
+  .tv-cal-drawer__foot {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+  .tv-cal-drawer__foot > button {
+    width: 100%;
+    justify-content: center;
+  }
+  .tv-cal-drawer__foot-note {
+    margin-right: 0;
+    text-align: center;
+  }
+}
+
+/* Portaled date picker — mobile bottom sheet */
+.tv-date-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 130;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.tv-date-sheet__panel {
+  position: relative;
+  z-index: 1;
+  max-height: min(88dvh, 32rem);
+  overflow: auto;
+  overscroll-behavior: contain;
+  border-radius: 1rem 1rem 0 0;
+  background: #fff;
+  padding: 0.75rem 0.75rem max(0.75rem, env(safe-area-inset-bottom));
+  box-shadow: 0 -12px 40px rgba(15, 23, 42, 0.18);
+}
+
+/* Availability filters: tighter on small screens */
+@media (max-width: 639px) {
+  .tv-avail-filters {
+    gap: 8px;
+  }
+  .tv-avail-filters__field {
+    min-width: 0;
+    flex: 1 1 calc(50% - 4px);
+  }
+  .tv-avail-filters__field--grow {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .tv-avail-filters__shortcuts {
+    width: 100%;
+  }
+  .tv-avail-filters__shortcuts button {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .tv-cal-drawer {
+    width: 100%;
+  }
+  .tv-cal-drawer__foot {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+  .tv-avail-wd {
+    min-width: 2rem;
+    padding: 0 0.35rem;
+  }
+}
 .tv-avail-discard__panel {
   width: 100%;
   max-width: 22rem;

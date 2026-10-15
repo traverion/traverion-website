@@ -23,9 +23,10 @@ describe('Phase 1811: calendar day-state visual language', () => {
     expect(src).toContain('tv-avail-page-head');
     expect(src).toContain('tv-cal-drawer');
     expect(src).toContain('createPortal');
-    expect(src).toContain('Manage this date');
-    expect(src).toContain('Edit schedule defaults');
-    expect(src).toContain('Bulk availability');
+    expect(src).toContain('Manage availability');
+    expect(src).toContain('Bulk edit availability');
+    expect(src).toContain('tv-avail-modal-error');
+    expect(src).toContain('TraverionSingleDateField');
     expect(src).toContain("view === 'agenda'");
     expect(src).toContain('AvailabilityAgendaView');
     expect(src).toContain('AvailabilityWeekView');
@@ -38,6 +39,8 @@ describe('Phase 1811: calendar day-state visual language', () => {
     expect(css).toContain('.tv-cal-drawer__head');
     expect(css).toContain('.tv-cal-drawer__body');
     expect(css).toContain('.tv-cal-drawer__foot');
+    expect(css).toContain('.tv-avail-modal-error');
+    expect(css).toContain('.tv-date-sheet');
     expect(css).toContain('position: fixed');
   });
 });

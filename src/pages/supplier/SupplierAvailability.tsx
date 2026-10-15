@@ -1986,14 +1986,6 @@ export default function SupplierAvailability() {
                     </header>
 
                     <div className="tv-cal-drawer__body">
-                      {saveNote ? (
-                        <div className="mb-4">
-                          <NoticeCallout title="Saved" tone="info">
-                            {saveNote}
-                          </NoticeCallout>
-                        </div>
-                      ) : null}
-
                       {(dayBookings.length > 0 || dayDepartures.length > 0) && (
                         <section className="tv-cal-drawer__section">
                           <h3>Bookings</h3>
@@ -2196,12 +2188,13 @@ export default function SupplierAvailability() {
                         </section>
                       ) : null}
 
-                      {saveNote ? (
-                        <p className="tv-cal-drawer__hint" role="status">
-                          {saveNote}
-                        </p>
-                      ) : null}
                     </div>
+
+                    {saveNote ? (
+                      <div key={saveNote} className="tv-avail-modal-error" role="alert">
+                        {saveNote}
+                      </div>
+                    ) : null}
 
                     {!viewingAll ? (
                       <footer className="tv-cal-drawer__foot">
@@ -2277,7 +2270,7 @@ export default function SupplierAvailability() {
         <SupplierModalShell
           framed
           maxWidth="2xl"
-          onClose={
+            onClose={
             bulkSaving
               ? undefined
               : () => {
@@ -2285,6 +2278,7 @@ export default function SupplierAvailability() {
                     setBulkDiscardOpen(true);
                     return;
                   }
+                  setBulkError(null);
                   setBulkOpen(false);
                   setBulkConfirm(false);
                 }
@@ -2302,6 +2296,7 @@ export default function SupplierAvailability() {
                       setBulkDiscardOpen(true);
                       return;
                     }
+                    setBulkError(null);
                     setBulkOpen(false);
                     setBulkConfirm(false);
                   }
@@ -2317,6 +2312,7 @@ export default function SupplierAvailability() {
                   value={bulkFrom}
                   minIso=""
                   onChange={(iso) => {
+                    setBulkError(null);
                     setBulkConfirm(false);
                     setBulkDirty(true);
                     setBulkFrom(iso);
@@ -2328,6 +2324,7 @@ export default function SupplierAvailability() {
                   value={bulkTo}
                   minIso=""
                   onChange={(iso) => {
+                    setBulkError(null);
                     setBulkConfirm(false);
                     setBulkDirty(true);
                     setBulkTo(iso);
@@ -2397,6 +2394,7 @@ export default function SupplierAvailability() {
                 aria-label="Bulk action"
                 value={bulkAction}
                 onChange={(v) => {
+                  setBulkError(null);
                   setBulkConfirm(false);
                   setBulkDirty(true);
                   const next = parseBulkAction(v);
@@ -2436,6 +2434,7 @@ export default function SupplierAvailability() {
                     value={bulkTargetOptionId}
                     placeholder="Select an option…"
                     onChange={(id) => {
+                      setBulkError(null);
                       setBulkDirty(true);
                       setBulkConfirm(false);
                       setBulkTargetOptionId(id);
@@ -2578,8 +2577,12 @@ export default function SupplierAvailability() {
               )}
             </section>
 
-            {bulkError ? <p className="text-sm text-red-700">{bulkError}</p> : null}
           </div>
+          {bulkError ? (
+            <div key={bulkError} className="tv-avail-modal-error" role="alert">
+              {bulkError}
+            </div>
+          ) : null}
           <div className="tv-avail-modal-foot">
             <button
               type="button"
@@ -2588,6 +2591,7 @@ export default function SupplierAvailability() {
                   setBulkDiscardOpen(true);
                   return;
                 }
+                setBulkError(null);
                 setBulkOpen(false);
                 setBulkConfirm(false);
               }}
@@ -2633,6 +2637,7 @@ export default function SupplierAvailability() {
                     onClick={() => {
                       setBulkDiscardOpen(false);
                       setBulkDirty(false);
+                      setBulkError(null);
                       setBulkOpen(false);
                       setBulkConfirm(false);
                     }}

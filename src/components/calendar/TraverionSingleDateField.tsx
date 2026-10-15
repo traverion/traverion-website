@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Calendar } from 'lucide-react';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { monthGrid } from '../../lib/stay-calendar';
@@ -24,9 +25,13 @@ type Props = {
   className?: string;
 };
 
+type PanelBox =
+  | { mode: 'popover'; top: number; left: number; width: number }
+  | { mode: 'sheet' };
+
 /**
- * Traverion single-date field — popover calendar instead of native date UI.
- * Availability/sold-out logic stays at the booking layer; search uses open future days.
+ * Traverion single-date field — portaled calendar (popover on desktop, bottom sheet on mobile).
+ * Avoids clipping inside modals and overflow containers.
  */
 export function TraverionSingleDateField({
   id,
@@ -38,7 +43,9 @@ export function TraverionSingleDateField({
   className = '',
 }: Props) {
   const [open, setOpen] = useState(false);
+  const [panelBox, setPanelBox] = useState<PanelBox | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const panelId = useId();
   const labelId = useId();
@@ -63,10 +70,54 @@ export function TraverionSingleDateField({
   const close = useCallback(() => setOpen(false), []);
   useDialogFocus(open, panelRef, close);
 
+  const placePanel = useCallback(() => {
+    const btn = buttonRef.current;
+    if (!btn) return;
+    const isSheet = typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches;
+    if (isSheet) {
+      setPanelBox({ mode: 'sheet' });
+      return;
+    }
+    const rect = btn.getBoundingClientRect();
+    const edge = 8;
+    const width = Math.min(20.5 * 16, window.innerWidth - edge * 2);
+    let left = rect.left;
+    if (left + width > window.innerWidth - edge) {
+      left = Math.max(edge, window.innerWidth - width - edge);
+    }
+    if (left < edge) left = edge;
+    const gap = 8;
+    const panelH = 340;
+    const spaceBelow = window.innerHeight - rect.bottom - gap - edge;
+    const spaceAbove = rect.top - gap - edge;
+    const preferBelow = spaceBelow >= panelH || spaceBelow >= spaceAbove;
+    const top = preferBelow
+      ? Math.min(rect.bottom + gap, window.innerHeight - edge)
+      : Math.max(edge, rect.top - gap - panelH);
+    setPanelBox({ mode: 'popover', top, left, width });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setPanelBox(null);
+      return;
+    }
+    placePanel();
+    const onWin = () => placePanel();
+    window.addEventListener('resize', onWin);
+    window.addEventListener('scroll', onWin, true);
+    return () => {
+      window.removeEventListener('resize', onWin);
+      window.removeEventListener('scroll', onWin, true);
+    };
+  }, [open, placePanel]);
+
   useEffect(() => {
     if (!open) return;
     const onPointer = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) close();
+      const t = e.target as Node;
+      if (rootRef.current?.contains(t) || panelRef.current?.contains(t)) return;
+      close();
     };
     document.addEventListener('mousedown', onPointer);
     return () => document.removeEventListener('mousedown', onPointer);
@@ -82,8 +133,110 @@ export function TraverionSingleDateField({
   };
 
   const display = value.trim() ? formatBookingDateDisplay(value) : placeholder;
-
   const showLabel = label.trim().length > 0;
+
+  const calendar = (
+    <TraverionCalendarMonth
+      year={cursor.y}
+      month0={cursor.m}
+      onPrevMonth={() => shift(-1)}
+      onNextMonth={() => shift(1)}
+      footer={
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span>{hasMin ? 'Past days are unavailable.' : 'Select a date.'}</span>
+          {value.trim() ? (
+            <button
+              type="button"
+              className="text-xs font-semibold text-finland hover:underline"
+              onClick={() => {
+                onChange('');
+                close();
+              }}
+            >
+              Clear date
+            </button>
+          ) : null}
+        </div>
+      }
+    >
+      {cells.map((iso, i) => {
+        if (!iso) return <span key={`e-${i}`} />;
+        const isPast = hasMin && iso < min;
+        const isSelected = value === iso;
+        const isToday = iso === todayIso && !isSelected;
+        let visual: TraverionCalendarDayVisual = 'default';
+        if (isPast) visual = 'disabled';
+        else if (isSelected) visual = 'selected';
+        else if (isToday) visual = 'today';
+        return (
+          <TraverionCalendarDayButton
+            key={iso}
+            iso={iso}
+            visual={visual}
+            disabled={isPast}
+            ariaPressed={isSelected}
+            ariaLabel={
+              isSelected
+                ? `${formatBookingDateDisplay(iso)}, selected`
+                : isPast
+                  ? `${formatBookingDateDisplay(iso)}, unavailable`
+                  : formatBookingDateDisplay(iso)
+            }
+            onSelect={(next) => {
+              onChange(next);
+              close();
+            }}
+          />
+        );
+      })}
+    </TraverionCalendarMonth>
+  );
+
+  const panel =
+    open && panelBox && typeof document !== 'undefined'
+      ? createPortal(
+          panelBox.mode === 'sheet' ? (
+            <div className="tv-date-sheet" role="presentation">
+              <button
+                type="button"
+                tabIndex={-1}
+                className="absolute inset-0 cursor-default bg-slate-900/40"
+                aria-label="Close calendar"
+                onClick={close}
+              />
+              <div
+                ref={panelRef}
+                id={panelId}
+                role="dialog"
+                aria-modal="true"
+                aria-label={label || placeholder}
+                className="tv-date-sheet__panel motion-safe:animate-slide-up"
+              >
+                {calendar}
+              </div>
+            </div>
+          ) : (
+            <div
+              ref={panelRef}
+              id={panelId}
+              role="dialog"
+              aria-modal="true"
+              aria-label={label || placeholder}
+              className="motion-safe:animate-fade-in"
+              style={{
+                position: 'fixed',
+                top: panelBox.top,
+                left: panelBox.left,
+                width: panelBox.width,
+                zIndex: 130,
+              }}
+            >
+              {calendar}
+            </div>
+          ),
+          document.body
+        )
+      : null;
 
   return (
     <div className={`relative ${className}`} ref={rootRef}>
@@ -93,6 +246,7 @@ export function TraverionSingleDateField({
         </span>
       ) : null}
       <button
+        ref={buttonRef}
         type="button"
         id={id}
         aria-labelledby={showLabel ? `${labelId} ${valueId}` : valueId}
@@ -101,78 +255,14 @@ export function TraverionSingleDateField({
         aria-controls={panelId}
         aria-haspopup="dialog"
         onClick={() => setOpen((v) => !v)}
-        className="flex h-9 w-full items-center gap-2 border-0 bg-transparent pr-1 text-left text-[15px] text-ink focus:outline-none focus-visible:ring-0"
+        className="flex h-9 w-full min-w-0 items-center gap-2 border-0 bg-transparent pr-1 text-left text-[15px] text-ink focus:outline-none focus-visible:ring-0"
       >
         <Calendar className="h-4 w-4 shrink-0 text-ink-faint" aria-hidden />
-        <span id={valueId} className={value.trim() ? 'text-ink' : 'text-ink-muted'}>
+        <span id={valueId} className={`min-w-0 truncate ${value.trim() ? 'text-ink' : 'text-ink-muted'}`}>
           {display}
         </span>
       </button>
-      {open ? (
-        <div
-          ref={panelRef}
-          id={panelId}
-          role="dialog"
-          aria-modal="true"
-          aria-label={label}
-          className="absolute left-0 top-[calc(100%+0.5rem)] z-50 w-[min(20.5rem,calc(100vw-2rem))] motion-safe:animate-fade-in"
-        >
-          <TraverionCalendarMonth
-            year={cursor.y}
-            month0={cursor.m}
-            onPrevMonth={() => shift(-1)}
-            onNextMonth={() => shift(1)}
-            footer={
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span>{hasMin ? 'Past days are unavailable.' : 'Select a date.'}</span>
-                {value.trim() ? (
-                  <button
-                    type="button"
-                    className="text-xs font-semibold text-finland hover:underline"
-                    onClick={() => {
-                      onChange('');
-                      close();
-                    }}
-                  >
-                    Clear date
-                  </button>
-                ) : null}
-              </div>
-            }
-          >
-            {cells.map((iso, i) => {
-              if (!iso) return <span key={`e-${i}`} />;
-              const isPast = hasMin && iso < min;
-              const isSelected = value === iso;
-              const isToday = iso === todayIso && !isSelected;
-              let visual: TraverionCalendarDayVisual = 'default';
-              if (isPast) visual = 'disabled';
-              else if (isSelected) visual = 'selected';
-              else if (isToday) visual = 'today';
-              return (
-                <TraverionCalendarDayButton
-                  key={iso}
-                  iso={iso}
-                  visual={visual}
-                  disabled={isPast}
-                  ariaPressed={isSelected}
-                  ariaLabel={
-                    isSelected
-                      ? `${formatBookingDateDisplay(iso)}, selected`
-                      : isPast
-                        ? `${formatBookingDateDisplay(iso)}, unavailable`
-                        : formatBookingDateDisplay(iso)
-                  }
-                  onSelect={(next) => {
-                    onChange(next);
-                    close();
-                  }}
-                />
-              );
-            })}
-          </TraverionCalendarMonth>
-        </div>
-      ) : null}
+      {panel}
     </div>
   );
 }

@@ -74,17 +74,24 @@ export default function PartnerSelect({
     if (!btn) return;
     const rect = btn.getBoundingClientRect();
     const gap = 6;
-    const spaceBelow = window.innerHeight - rect.bottom - gap - 8;
-    const spaceAbove = rect.top - gap - 8;
+    const edge = 8;
+    const isNarrow = window.matchMedia('(max-width: 639px)').matches;
+    const width = Math.min(
+      Math.max(rect.width, isNarrow ? rect.width : 12 * 16),
+      window.innerWidth - edge * 2
+    );
+    let left = rect.left;
+    if (left + width > window.innerWidth - edge) {
+      left = Math.max(edge, window.innerWidth - width - edge);
+    }
+    if (left < edge) left = edge;
+    const spaceBelow = window.innerHeight - rect.bottom - gap - edge;
+    const spaceAbove = rect.top - gap - edge;
     const preferBelow = spaceBelow >= 160 || spaceBelow >= spaceAbove;
-    const maxHeight = Math.min(256, Math.max(120, preferBelow ? spaceBelow : spaceAbove));
-    const top = preferBelow ? rect.bottom + gap : Math.max(8, rect.top - gap - maxHeight);
-    setMenuBox({
-      top,
-      left: rect.left,
-      width: Math.max(rect.width, 12 * 16),
-      maxHeight,
-    });
+    const maxCap = isNarrow ? Math.min(320, window.innerHeight * 0.45) : 256;
+    const maxHeight = Math.min(maxCap, Math.max(120, preferBelow ? spaceBelow : spaceAbove));
+    const top = preferBelow ? rect.bottom + gap : Math.max(edge, rect.top - gap - maxHeight);
+    setMenuBox({ top, left, width, maxHeight });
   };
 
   useLayoutEffect(() => {
