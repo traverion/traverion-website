@@ -85,4 +85,24 @@ describe('partnerTourMonthCellCapacityLabel', () => {
     expect(defaultCapacityForOpenDay(undefined)).toBeNull();
     expect(defaultCapacityForOpenDay(6)).toBe(6);
   });
+
+  it('does not show a single max-of-slots figure for mixed-capacity departures', () => {
+    const label = partnerTourMonthCellCapacityLabel({
+      offered: true,
+      dayCapacityOverride: null,
+      defaultCapacity: 50,
+      occupyingGuestsDay: 0,
+      departures: [
+        { startTimeHm: '18:30', maxSpots: 16, occupyingGuests: 0, name: 'Small Group' },
+        { startTimeHm: '20:00', maxSpots: 50, occupyingGuests: 0, name: 'Standard Bus' },
+      ],
+    });
+    expect(label.short).toBe('2 departures');
+    expect(label.remaining).toBe(66);
+    expect(label.capacity).toBe(66);
+    expect(label.departureLines).toHaveLength(2);
+    expect(label.departureLines[0]).toMatchObject({ remaining: 16, capacity: 16 });
+    expect(label.departureLines[1]).toMatchObject({ remaining: 50, capacity: 50 });
+    expect(label.short).not.toMatch(/50\/50/);
+  });
 });

@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, CalendarDays, Ban, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarDays, Layers, X } from 'lucide-react';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
-import { fetchMyListings, pgTimeToHm } from '../../data/supabase-listings';
+import { fetchMyListings, pgTimeToHm, updateListing } from '../../data/supabase-listings';
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
 import {
   deleteAvailability,
@@ -17,7 +17,7 @@ import { materializedBookingOptions } from '../../types/listingExtras';
 import type { TourPackage } from '../../types/tour';
 import { listingRunsOnDate } from '../../lib/booking-quote';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
-import { nightsOccupiedByStay, stayRangeFromBooking, partnerStayDayKind, partnerStayCalendarOccupiesNight, addCalendarDays } from '../../lib/stayOccupancy';
+import { nightsOccupiedByStay, stayRangeFromBooking, partnerStayDayKind, partnerStayCalendarOccupiesNight } from '../../lib/stayOccupancy';
 import {
   accumulatePartnerStayCheckOutsByDate,
   accumulatePartnerStayGuestsByDate,
@@ -49,22 +49,19 @@ import ErrorState from '../../components/ErrorState';
 import NoticeCallout from '../../components/NoticeCallout';
 import PartnerSelect from '../../components/supplier/PartnerSelect';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
+import {
+  bulkActionSummary,
+  CUTOFF_PRESETS,
+  cutoffDisplayLabel,
+  enumerateIsoDates,
+  patchOptionCutoff,
+  patchScheduleOrOptionSpots,
+  resolveOptionCutoffHours,
+  type BulkCalendarAction,
+} from './calendarAvailabilityUi';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-const MAX_BULK_RANGE_DAYS = 366;
-
-/** Inclusive list of ISO dates from `fromIso` to `toIso`, capped so a bad range can't hang the tab. */
-function enumerateIsoDates(fromIso: string, toIso: string): string[] {
-  const out: string[] = [];
-  if (!fromIso || !toIso || fromIso > toIso) return out;
-  let cur = fromIso;
-  while (cur <= toIso && out.length < MAX_BULK_RANGE_DAYS) {
-    out.push(cur);
-    cur = addCalendarDays(cur, 1);
-  }
-  return out;
-}
+const WEEKDAY_FILTER_DEFAULT = [true, true, true, true, true, true, true];
 
 function defaultSpots(listing: TourPackage | null): number | null {
   const opts = listing ? materializedBookingOptions(listing.listingExtras?.bookingOptions) : [];
@@ -95,12 +92,19 @@ export default function SupplierAvailability() {
   const [capsError, setCapsError] = useState<string | null>(null);
   const [saveNote, setSaveNote] = useState<string | null>(null);
   const [editing, setEditing] = useState<{ iso: string; capacity: string } | null>(null);
+  const [depEdits, setDepEdits] = useState<
+    Record<string, { spots: string; cutoffHours: string }>
+  >({});
+  const [depSavingKey, setDepSavingKey] = useState<string | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkFrom, setBulkFrom] = useState('');
   const [bulkTo, setBulkTo] = useState('');
   const [bulkCapacity, setBulkCapacity] = useState('0');
+  const [bulkAction, setBulkAction] = useState<BulkCalendarAction>('close');
+  const [bulkWeekdays, setBulkWeekdays] = useState<boolean[]>(() => [...WEEKDAY_FILTER_DEFAULT]);
   const [bulkSaving, setBulkSaving] = useState(false);
   const [bulkError, setBulkError] = useState<string | null>(null);
+  const [bulkConfirm, setBulkConfirm] = useState(false);
   const daySheetRef = useRef<HTMLDivElement>(null);
   const loadGenRef = useRef(0);
   /** Invalidates in-flight month/listing capacity fetches — stale responses must not paint another listing. */
@@ -435,8 +439,26 @@ export default function SupplierAvailability() {
     if (monthFromIso && monthToIso) await loadCaps(listingId, monthFromIso, monthToIso);
   };
 
-  const applyBulk = async (mode: 'set' | 'clear') => {
-    if (!listingId) return;
+  const persistListingOptions = async (
+    nextOptions: ReturnType<typeof materializedBookingOptions>
+  ): Promise<{ success: boolean; error?: string }> => {
+    if (!listing || !listingId) return { success: false, error: 'Select a listing.' };
+    const res = await updateListing(listingId, {
+      ...listing,
+      listingExtras: {
+        ...listing.listingExtras,
+        bookingOptions: nextOptions,
+      },
+    });
+    if (!res.ok) return { success: false, error: res.error ?? 'Could not update listing.' };
+    if (res.tour) {
+      setListings((prev) => prev.map((l) => (l.id === listingId ? res.tour! : l)));
+    }
+    return { success: true };
+  };
+
+  const applyBulk = async () => {
+    if (!listingId || !canEditCalendar) return;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(bulkFrom) || !/^\d{4}-\d{2}-\d{2}$/.test(bulkTo)) {
       setBulkError('Pick a start and end date.');
       return;
@@ -445,20 +467,34 @@ export default function SupplierAvailability() {
       setBulkError('End date must be on or after the start date.');
       return;
     }
-    const dates = enumerateIsoDates(bulkFrom, bulkTo);
+    if (!bulkWeekdays.some(Boolean)) {
+      setBulkError('Select at least one weekday.');
+      return;
+    }
+    const dates = enumerateIsoDates(bulkFrom, bulkTo, bulkWeekdays);
     if (dates.length === 0) {
-      setBulkError('Pick a valid range.');
+      setBulkError('No dates match that range and weekday filter.');
+      return;
+    }
+    const capacity = Math.max(0, Math.floor(Number(bulkCapacity) || 0));
+    const mode: 'set' | 'clear' =
+      bulkAction === 'reopen' || bulkAction === 'clear' ? 'clear' : 'set';
+    const applyCapacity = bulkAction === 'close' ? 0 : capacity;
+    if (
+      !bulkConfirm &&
+      (bulkAction === 'close' || (bulkAction === 'set_override' && applyCapacity === 0))
+    ) {
+      setBulkConfirm(true);
       return;
     }
     setBulkSaving(true);
     setBulkError(null);
-    const capacity = Math.max(0, Math.floor(Number(bulkCapacity) || 0));
     const res =
       mode === 'clear'
         ? await deleteAvailabilityRange(listingId, dates)
         : await upsertAvailability(
             listingId,
-            dates.map((available_date) => ({ available_date, capacity }))
+            dates.map((available_date) => ({ available_date, capacity: applyCapacity }))
           );
     setBulkSaving(false);
     if (!res.success) {
@@ -466,21 +502,39 @@ export default function SupplierAvailability() {
       return;
     }
     if (mode === 'clear') removeCapRows(dates);
-    else mergeCapRows(dates.map((available_date) => ({ available_date, capacity })));
+    else mergeCapRows(dates.map((available_date) => ({ available_date, capacity: applyCapacity })));
     if (mode === 'set' && !stayCalendar) {
       const underSold = bulkCapacityBelowSoldWarning({
-        newCapacity: capacity,
+        newCapacity: applyCapacity,
         dates,
         occupyingGuestsForDate: (iso) => guestsByDate.get(iso)?.guests ?? 0,
       });
-      setSaveNote(underSold);
+      setSaveNote(
+        underSold ??
+          bulkActionSummary({
+            action: bulkAction,
+            dateCount: dates.length,
+            capacity: applyCapacity,
+            stay: stayCalendar,
+          })
+      );
     } else {
-      setSaveNote(null);
+      setSaveNote(
+        bulkActionSummary({
+          action: bulkAction,
+          dateCount: dates.length,
+          capacity: applyCapacity,
+          stay: stayCalendar,
+        })
+      );
     }
     setBulkOpen(false);
+    setBulkConfirm(false);
     setBulkFrom('');
     setBulkTo('');
     setBulkCapacity('0');
+    setBulkAction('close');
+    setBulkWeekdays([...WEEKDAY_FILTER_DEFAULT]);
     if (monthFromIso && monthToIso) await loadCaps(listingId, monthFromIso, monthToIso);
   };
 
@@ -515,6 +569,7 @@ export default function SupplierAvailability() {
     <div className={`${SUPPLIER_PAGE_CLASS} min-h-[70vh]`}>
       <header className="tv-cal-page-head">
         <h1>Calendar</h1>
+        <p className="tv-cal-page-head__sub">Availability, departures, and bulk date controls</p>
       </header>
 
       {!isSupabase || !user ? (
@@ -665,16 +720,19 @@ export default function SupplierAvailability() {
                   onClick={() => {
                     if (!canEditCalendar) return;
                     setBulkError(null);
+                    setBulkConfirm(false);
                     setSaveNote(null);
                     setBulkFrom('');
                     setBulkTo('');
                     setBulkCapacity('0');
+                    setBulkAction(stayCalendar ? 'close' : 'close');
+                    setBulkWeekdays([...WEEKDAY_FILTER_DEFAULT]);
                     setBulkOpen(true);
                   }}
-                  className="tv-btn-secondary inline-flex h-10 shrink-0 items-center gap-1.5 !px-3 text-[13px] disabled:opacity-40"
+                  className="tv-btn-primary inline-flex h-9 shrink-0 items-center gap-1.5 !px-3 text-[13px] disabled:opacity-40"
                 >
-                  <Ban className="h-3.5 w-3.5" aria-hidden />
-                  {stayCalendar ? 'Block nights' : 'Edit multiple dates'}
+                  <Layers className="h-3.5 w-3.5" aria-hidden />
+                  {stayCalendar ? 'Bulk edit' : 'Bulk edit'}
                 </button>
               ) : null}
             </div>
@@ -774,6 +832,7 @@ export default function SupplierAvailability() {
                             Date.now(),
                             d.startTime || null
                           ),
+                          name: d.optionName || d.scheduleName || 'Departure',
                         })),
                       });
                     })()
@@ -785,6 +844,7 @@ export default function SupplierAvailability() {
                       remaining: null,
                       capacity: null,
                       departuresCount: 0,
+                      departureLines: [],
                     };
               const tourCapacity = tourSpots.capacity;
               const remaining = tourSpots.remaining;
@@ -822,6 +882,7 @@ export default function SupplierAvailability() {
                   return;
                 }
                 setSaveNote(null);
+                setDepEdits({});
                 setEditing({
                   iso: cell.iso,
                   capacity: String(cap?.capacity ?? defaultSpots(listing) ?? ''),
@@ -872,50 +933,67 @@ export default function SupplierAvailability() {
                     </span>
                   ) : cell.inMonth && !stayCalendar && monthCapacityLabel.short ? (
                     <>
-                      {monthCapacityLabel.timeHm ? (
-                        <span className="tv-cal-day__meta">{monthCapacityLabel.timeHm}</span>
-                      ) : monthCapacityLabel.departuresCount >= 2 ? (
+                      {monthCapacityLabel.departuresCount >= 2 ? (
                         <span className="tv-cal-day__meta">
                           {monthCapacityLabel.departuresCount} departures
                         </span>
+                      ) : monthCapacityLabel.timeHm ? (
+                        <span className="tv-cal-day__meta">{monthCapacityLabel.timeHm}</span>
                       ) : null}
-                      <span
-                        className={`tv-cal-day__meta ${
-                          monthCapacityLabel.tone === 'full'
-                            ? 'tv-cal-day__meta--danger'
-                            : monthCapacityLabel.tone === 'partial'
-                              ? 'tv-cal-day__meta--warn'
-                              : 'tv-cal-day__meta--cap'
-                        }`}
-                      >
-                        {monthCapacityLabel.short === 'Sold out' ||
-                        monthCapacityLabel.short === 'Closed' ? (
-                          <>
-                            <span
-                              className={`tv-cal-day__dot ${
-                                monthCapacityLabel.short === 'Closed'
-                                  ? 'tv-cal-day__dot--muted'
+                      {monthCapacityLabel.short === 'Sold out' ||
+                      monthCapacityLabel.short === 'Closed' ||
+                      monthCapacityLabel.short === 'Partial' ? (
+                        <span
+                          className={`tv-cal-day__meta ${
+                            monthCapacityLabel.tone === 'full'
+                              ? 'tv-cal-day__meta--danger'
+                              : monthCapacityLabel.tone === 'partial'
+                                ? 'tv-cal-day__meta--warn'
+                                : 'tv-cal-day__meta--cap'
+                          }`}
+                        >
+                          <span
+                            className={`tv-cal-day__dot ${
+                              monthCapacityLabel.short === 'Closed'
+                                ? 'tv-cal-day__dot--muted'
+                                : monthCapacityLabel.short === 'Partial'
+                                  ? 'tv-cal-day__dot--warn'
                                   : 'tv-cal-day__dot--danger'
+                            }`}
+                            aria-hidden
+                          />
+                          {monthCapacityLabel.short === 'Partial' ? 'Limited' : monthCapacityLabel.short}
+                        </span>
+                      ) : monthCapacityLabel.departureLines.length >= 2 ? (
+                        <span className="tv-cal-day__deps" aria-hidden={false}>
+                          {monthCapacityLabel.departureLines.slice(0, 2).map((line) => (
+                            <span
+                              key={`${line.startTimeHm}-${line.shortName}`}
+                              className={`tv-cal-day__dep ${
+                                line.full ? 'tv-cal-day__dep--full' : ''
                               }`}
-                              aria-hidden
-                            />
-                            {monthCapacityLabel.short}
-                          </>
-                        ) : monthCapacityLabel.short === 'Partial' ? (
-                          <>
-                            <span className="tv-cal-day__dot tv-cal-day__dot--warn" aria-hidden />
-                            Partial
-                          </>
-                        ) : monthCapacityLabel.remaining != null &&
-                          monthCapacityLabel.capacity != null ? (
-                          <>
-                            <span className="tv-cal-day__dot" aria-hidden />
-                            {monthCapacityLabel.remaining} / {monthCapacityLabel.capacity}
-                          </>
-                        ) : (
-                          monthCapacityLabel.short
-                        )}
-                      </span>
+                            >
+                              <span className="tv-cal-day__dep-name">{line.shortName}</span>
+                              <span className="tv-cal-day__dep-cap">
+                                {line.full ? 'Full' : `${line.remaining}/${line.capacity}`}
+                              </span>
+                            </span>
+                          ))}
+                          {monthCapacityLabel.departureLines.length > 2 ? (
+                            <span className="tv-cal-day__meta">
+                              +{monthCapacityLabel.departureLines.length - 2} more
+                            </span>
+                          ) : null}
+                        </span>
+                      ) : monthCapacityLabel.remaining != null &&
+                        monthCapacityLabel.capacity != null ? (
+                        <span className="tv-cal-day__meta tv-cal-day__meta--cap">
+                          <span className="tv-cal-day__dot" aria-hidden />
+                          {monthCapacityLabel.remaining} / {monthCapacityLabel.capacity}
+                        </span>
+                      ) : (
+                        <span className="tv-cal-day__meta">{monthCapacityLabel.short}</span>
+                      )}
                     </>
                   ) : cell.inMonth && occupying ? (
                     <span className="tv-cal-day__meta tv-cal-day__meta--cap">
@@ -993,6 +1071,7 @@ export default function SupplierAvailability() {
                         Date.now(),
                         d.startTime || null
                       ),
+                      name: d.optionName || d.scheduleName || 'Departure',
                     })),
                   });
                   const dayName = new Date(`${cell.iso}T12:00:00`).toLocaleDateString('en-GB', {
@@ -1007,6 +1086,7 @@ export default function SupplierAvailability() {
                       className="tv-cal-mobile-list__item lux-flat"
                       onClick={() => {
                         setSaveNote(null);
+                        setDepEdits({});
                         setEditing({
                           iso: cell.iso,
                           capacity: String(cap?.capacity ?? defaultSpots(listing) ?? ''),
@@ -1060,7 +1140,7 @@ export default function SupplierAvailability() {
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="calendar-day-title"
-                className="tv-sheet-panel relative max-w-md !rounded-t-xl !p-0 motion-safe:animate-slide-up sm:!rounded-xl"
+                className="tv-sheet-panel relative max-w-xl !rounded-t-xl !p-0 motion-safe:animate-slide-up sm:!rounded-xl"
               >
                 <div className="tv-cal-day-panel">
                   <div className="tv-cal-day-panel__head">
@@ -1075,10 +1155,35 @@ export default function SupplierAvailability() {
                       </h2>
                       <p className="tv-cal-day-panel__sub" title={listing?.title?.trim() || undefined}>
                         {viewingAll
-                          ? 'All listings — select one to edit capacity'
+                          ? 'All listings — select one to edit'
                           : [listing?.city, listing?.title?.trim()].filter(Boolean).join(' · ') ||
                             'Listing'}
                       </p>
+                      {!viewingAll && listing && !stayCalendar ? (
+                        <p className="tv-cal-day-panel__status">
+                          {(() => {
+                            const cap = rowByDate.get(editing.iso);
+                            if (typeof cap?.capacity === 'number' && cap.capacity < 1) {
+                              return <span className="tv-cal-status tv-cal-status--closed">Closed</span>;
+                            }
+                            if (daySellingDepartures.length === 0) {
+                              return (
+                                <span className="tv-cal-status tv-cal-status--muted">No schedule</span>
+                              );
+                            }
+                            const anyBooked = dayBookings.length > 0;
+                            return (
+                              <span
+                                className={`tv-cal-status ${
+                                  anyBooked ? 'tv-cal-status--warn' : 'tv-cal-status--open'
+                                }`}
+                              >
+                                {anyBooked ? 'Has bookings' : 'Open'}
+                              </span>
+                            );
+                          })()}
+                        </p>
+                      ) : null}
                     </div>
                     <button
                       type="button"
@@ -1153,8 +1258,9 @@ export default function SupplierAvailability() {
                       <section className="tv-cal-day-panel__section">
                         <h3>Departures</h3>
                         {daySellingDepartures.length > 0 ? (
-                          <ul>
+                          <ul className="tv-cal-dep-list">
                             {daySellingDepartures.map((d) => {
+                              const rowKey = `${d.optionId}-${d.scheduleId}-${d.startTime}`;
                               const occupying = tourCheckoutOccupiedGuests(
                                 dayBookings,
                                 editing.iso,
@@ -1173,26 +1279,183 @@ export default function SupplierAvailability() {
                                 d.optionName.trim() ||
                                 d.scheduleName.trim() ||
                                 'Departure';
+                              const cutoffHours = resolveOptionCutoffHours(listing, d.optionId);
+                              const draft = depEdits[rowKey] ?? {
+                                spots: String(d.maxSpotsPerSlot),
+                                cutoffHours: String(cutoffHours),
+                              };
+                              const busy = depSavingKey === rowKey;
+                              const dayCapRow = rowByDate.get(editing.iso);
+                              const dayClosed =
+                                typeof dayCapRow?.capacity === 'number' && dayCapRow.capacity < 1;
+                              const statusWord = dayClosed
+                                ? 'Closed (day)'
+                                : line.full
+                                  ? 'Sold out'
+                                  : occupying > 0
+                                    ? 'Available'
+                                    : 'Available';
                               return (
-                                <li
-                                  key={`${d.optionId}-${d.scheduleId}-${d.startTime}`}
-                                  className="tv-cal-dep-row"
-                                >
-                                  <span className="tv-cal-dep-row__time">
-                                    {normalizeTourStartTimeHm(d.startTime) || d.startTime || '—'}
-                                  </span>
-                                  <span className="tv-cal-dep-row__name" title={optionLabel}>
-                                    {optionLabel}
-                                  </span>
-                                  <span
-                                    className={`tv-cal-dep-row__cap ${
-                                      line.full ? 'tv-cal-dep-row__cap--full' : ''
-                                    }`}
-                                  >
-                                    {line.full
-                                      ? 'Sold out'
-                                      : `${line.remaining} / ${line.capacity}`}
-                                  </span>
+                                <li key={rowKey} className="tv-cal-dep-card">
+                                  <div className="tv-cal-dep-card__top">
+                                    <div className="min-w-0">
+                                      <p className="tv-cal-dep-card__title">
+                                        <span className="tv-cal-dep-card__time">
+                                          {normalizeTourStartTimeHm(d.startTime) ||
+                                            d.startTime ||
+                                            '—'}
+                                        </span>
+                                        <span className="tv-cal-dep-card__name" title={optionLabel}>
+                                          {optionLabel}
+                                        </span>
+                                      </p>
+                                      <p className="tv-cal-dep-card__meta">
+                                        {line.remaining} available / {line.capacity} capacity
+                                        {occupying > 0
+                                          ? ` · ${occupying} booked`
+                                          : ''}
+                                        {' · '}
+                                        {statusWord}
+                                      </p>
+                                      <p className="tv-cal-dep-card__cutoff">
+                                        {cutoffDisplayLabel(cutoffHours)}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  {canEditCalendar ? (
+                                    <div className="tv-cal-dep-card__controls">
+                                      <label className="tv-cal-dep-card__field">
+                                        <span>Schedule capacity</span>
+                                        <input
+                                          type="number"
+                                          min={Math.max(1, occupying)}
+                                          max={99}
+                                          value={draft.spots}
+                                          disabled={busy}
+                                          onChange={(e) =>
+                                            setDepEdits((prev) => ({
+                                              ...prev,
+                                              [rowKey]: {
+                                                ...draft,
+                                                spots: e.target.value,
+                                              },
+                                            }))
+                                          }
+                                          className="tv-input !min-h-9 w-20 tabular-nums"
+                                        />
+                                      </label>
+                                      <label className="tv-cal-dep-card__field">
+                                        <span>Booking cutoff</span>
+                                        <select
+                                          value={draft.cutoffHours}
+                                          disabled={busy}
+                                          onChange={(e) =>
+                                            setDepEdits((prev) => ({
+                                              ...prev,
+                                              [rowKey]: {
+                                                ...draft,
+                                                cutoffHours: e.target.value,
+                                              },
+                                            }))
+                                          }
+                                          className="tv-input !min-h-9 min-w-[9.5rem]"
+                                        >
+                                          {CUTOFF_PRESETS.map((p) => (
+                                            <option key={p.hours} value={String(p.hours)}>
+                                              {p.label}
+                                            </option>
+                                          ))}
+                                          {!CUTOFF_PRESETS.some(
+                                            (p) => String(p.hours) === draft.cutoffHours
+                                          ) ? (
+                                            <option value={draft.cutoffHours}>
+                                              {draft.cutoffHours}h custom
+                                            </option>
+                                          ) : null}
+                                        </select>
+                                      </label>
+                                      <button
+                                        type="button"
+                                        disabled={busy}
+                                        onClick={() => {
+                                          void (async () => {
+                                            if (!listing || !canEditCalendar) return;
+                                            const nextSpots = Math.min(
+                                              99,
+                                              Math.max(1, Math.floor(Number(draft.spots) || 0))
+                                            );
+                                            const nextCutoff = Math.max(
+                                              0,
+                                              Math.floor(Number(draft.cutoffHours) || 0)
+                                            );
+                                            const spotsChanged = nextSpots !== d.maxSpotsPerSlot;
+                                            const cutoffChanged = nextCutoff !== cutoffHours;
+                                            if (!spotsChanged && !cutoffChanged) return;
+                                            if (spotsChanged && nextSpots < occupying) {
+                                              setSaveNote(
+                                                `Cannot set capacity below ${occupying} confirmed guest${
+                                                  occupying === 1 ? '' : 's'
+                                                } on this departure.`
+                                              );
+                                              return;
+                                            }
+                                            setDepSavingKey(rowKey);
+                                            setSaveNote(null);
+                                            try {
+                                              let opts = materializedBookingOptions(
+                                                listing.listingExtras?.bookingOptions
+                                              );
+                                              if (spotsChanged) {
+                                                opts = patchScheduleOrOptionSpots(
+                                                  opts,
+                                                  d.optionId,
+                                                  d.scheduleId,
+                                                  nextSpots
+                                                );
+                                              }
+                                              if (cutoffChanged) {
+                                                opts = patchOptionCutoff(
+                                                  opts,
+                                                  d.optionId,
+                                                  nextCutoff
+                                                );
+                                              }
+                                              const res = await persistListingOptions(opts);
+                                              if (!res.success) {
+                                                setSaveNote(
+                                                  res.error ?? 'Could not update departure.'
+                                                );
+                                                return;
+                                              }
+                                              const bits: string[] = [];
+                                              if (spotsChanged) {
+                                                bits.push(
+                                                  'schedule capacity (all dates on this schedule)'
+                                                );
+                                              }
+                                              if (cutoffChanged) {
+                                                bits.push(
+                                                  nextCutoff <= 0
+                                                    ? 'cutoff cleared (all dates)'
+                                                    : `cutoff ${nextCutoff}h (all dates)`
+                                                );
+                                              }
+                                              setSaveNote(`Updated ${bits.join(' and ')}.`);
+                                            } finally {
+                                              setDepSavingKey(null);
+                                            }
+                                          })();
+                                        }}
+                                        className="tv-btn-secondary !min-h-9 !px-3 text-[12px] disabled:opacity-40"
+                                      >
+                                        {busy ? 'Saving…' : 'Update'}
+                                      </button>
+                                    </div>
+                                  ) : null}
+                                  <p className="tv-cal-dep-card__note">
+                                    Capacity and cutoff edit the schedule/option defaults for all
+                                    dates — not a one-day override.
+                                  </p>
                                 </li>
                               );
                             })}
@@ -1259,11 +1522,11 @@ export default function SupplierAvailability() {
                       </section>
                     ) : (
                       <section className="tv-cal-day-panel__section">
-                        <h3>Daily availability</h3>
+                        <h3>Day controls</h3>
                         <p className="tv-cal-day-panel__hint">
-                          Optional day-wide cap across all departures. Does not change each
-                          option&apos;s schedule capacity. Set 0 to close the day. Reset removes
-                          the override.
+                          Close or reopen this date for all departures. An optional day-wide
+                          capacity limit caps total guests across departures — it does not rewrite
+                          each schedule&apos;s capacity.
                         </p>
                         {saveNote ? (
                           <div className="mb-3">
@@ -1272,11 +1535,29 @@ export default function SupplierAvailability() {
                             </NoticeCallout>
                           </div>
                         ) : null}
+                        <div className="mb-3 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            disabled={!canEditCalendar || savingIso === editing.iso}
+                            onClick={() => void saveCap(editing.iso, 0)}
+                            className="tv-btn-secondary !min-h-9 !px-3 text-[13px] disabled:opacity-40"
+                          >
+                            Close date
+                          </button>
+                          <button
+                            type="button"
+                            disabled={!canEditCalendar || savingIso === editing.iso}
+                            onClick={() => void clearCap(editing.iso)}
+                            className="tv-btn-secondary !min-h-9 !px-3 text-[13px] disabled:opacity-40"
+                          >
+                            Reopen / restore defaults
+                          </button>
+                        </div>
                         <label
                           className="mb-1 block text-[12px] font-medium text-ink"
                           htmlFor="day-capacity"
                         >
-                          Daily capacity override
+                          Optional day-wide capacity limit
                         </label>
                         <div className="flex items-center gap-2">
                           <input
@@ -1288,7 +1569,7 @@ export default function SupplierAvailability() {
                             onChange={(e) => setEditing({ ...editing, capacity: e.target.value })}
                             className="tv-input !min-h-10 w-28 tabular-nums"
                           />
-                          <span className="text-[13px] text-ink-muted">spots</span>
+                          <span className="text-[13px] text-ink-muted">spots (0 = closed)</span>
                         </div>
                       </section>
                     )}
@@ -1323,7 +1604,7 @@ export default function SupplierAvailability() {
                           }
                           className="tv-btn-primary !min-h-9 !px-3 text-[13px] disabled:opacity-40"
                         >
-                          {savingIso === editing.iso ? 'Saving…' : 'Save changes'}
+                          {savingIso === editing.iso ? 'Saving…' : 'Save day limit'}
                         </button>
                       </div>
                     </div>
@@ -1336,130 +1617,268 @@ export default function SupplierAvailability() {
       )}
 
       {bulkOpen ? (
-        <SupplierModalShell onClose={bulkSaving ? undefined : () => setBulkOpen(false)} maxWidth="md">
+        <SupplierModalShell
+          onClose={bulkSaving ? undefined : () => {
+            setBulkOpen(false);
+            setBulkConfirm(false);
+          }}
+          maxWidth="lg"
+        >
           <SupplierModalHeader
-            icon={Ban}
-            title={stayCalendar ? 'Block a range of nights' : 'Edit multiple dates'}
+            icon={Layers}
+            title="Bulk availability"
             subtitle={listing?.title}
-            onClose={bulkSaving ? undefined : () => setBulkOpen(false)}
+            onClose={
+              bulkSaving
+                ? undefined
+                : () => {
+                    setBulkOpen(false);
+                    setBulkConfirm(false);
+                  }
+            }
           />
-          <div className="space-y-4 p-4 sm:p-5">
-            <p className="text-sm text-ink-muted">
-              {stayCalendar
-                ? 'Block several nights at once \u2014 a maintenance week or a personal booking elsewhere. Clear range returns nights to available. Nights with paid stays stay Occupied until checkout; a block still saves for afterward.'
-                : 'Set the same spot count across a date range at once \u2014 close for a holiday, or open extra departures for a busy stretch. Clear range removes daily overrides. Caps never override weekday or season rules on the traveler calendar.'}
-            </p>
-            {stayCalendar &&
-            /^\d{4}-\d{2}-\d{2}$/.test(bulkFrom) &&
-            /^\d{4}-\d{2}-\d{2}$/.test(bulkTo) &&
-            bulkFrom <= bulkTo
-              ? (() => {
-                  const occupiedNights = enumerateIsoDates(bulkFrom, bulkTo).filter(
-                    (iso) => (guestsByDate.get(iso)?.count ?? 0) > 0
-                  ).length;
-                  return occupiedNights > 0 ? (
-                    <NoticeCallout title="Some nights already have stays" tone="info">
-                      {occupiedNights} night{occupiedNights === 1 ? '' : 's'} in this range already have paid
-                      guests. Blocking still saves; Occupied labels stay until checkout.
-                    </NoticeCallout>
-                  ) : null;
-                })()
-              : null}
-            {!stayCalendar &&
-            /^\d{4}-\d{2}-\d{2}$/.test(bulkFrom) &&
-            /^\d{4}-\d{2}-\d{2}$/.test(bulkTo) &&
-            bulkFrom <= bulkTo
-              ? (() => {
-                  const underSold = bulkCapacityBelowSoldWarning({
-                    newCapacity: Math.max(0, Math.floor(Number(bulkCapacity) || 0)),
-                    dates: enumerateIsoDates(bulkFrom, bulkTo),
-                    occupyingGuestsForDate: (iso) => guestsByDate.get(iso)?.guests ?? 0,
-                  });
-                  return underSold ? (
-                    <NoticeCallout title="Some dates already have more guests booked" tone="info">
-                      {underSold}
-                    </NoticeCallout>
-                  ) : null;
-                })()
-              : null}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="mb-1 block text-[12px] font-medium text-ink" htmlFor="bulk-from">
-                  From
-                </label>
-                <input
-                  id="bulk-from"
-                  type="date"
-                  value={bulkFrom}
-                  onChange={(e) => setBulkFrom(e.target.value)}
-                  className="tv-input w-full"
-                />
+          <div className="space-y-5 p-4 sm:p-5">
+            <section>
+              <h3 className="mb-2 text-[13px] font-semibold text-ink">1. Select dates</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-[12px] font-medium text-ink" htmlFor="bulk-from">
+                    From
+                  </label>
+                  <input
+                    id="bulk-from"
+                    type="date"
+                    value={bulkFrom}
+                    onChange={(e) => {
+                      setBulkConfirm(false);
+                      setBulkFrom(e.target.value);
+                    }}
+                    className="tv-input w-full"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[12px] font-medium text-ink" htmlFor="bulk-to">
+                    To
+                  </label>
+                  <input
+                    id="bulk-to"
+                    type="date"
+                    value={bulkTo}
+                    onChange={(e) => {
+                      setBulkConfirm(false);
+                      setBulkTo(e.target.value);
+                    }}
+                    className="tv-input w-full"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="mb-1 block text-[12px] font-medium text-ink" htmlFor="bulk-to">
-                  To
-                </label>
-                <input
-                  id="bulk-to"
-                  type="date"
-                  value={bulkTo}
-                  onChange={(e) => setBulkTo(e.target.value)}
-                  className="tv-input w-full"
-                />
+              <p className="mb-2 mt-3 text-[12px] font-medium text-ink">Weekdays</p>
+              <div className="flex flex-wrap gap-1.5">
+                {WEEKDAYS.map((label, i) => (
+                  <button
+                    key={label}
+                    type="button"
+                    aria-pressed={bulkWeekdays[i]}
+                    onClick={() => {
+                      setBulkConfirm(false);
+                      setBulkWeekdays((prev) => {
+                        const next = [...prev];
+                        next[i] = !next[i];
+                        return next;
+                      });
+                    }}
+                    className={`lux-flat inline-flex h-8 min-w-[2.25rem] items-center justify-center rounded-md px-2 text-[12px] font-medium ${
+                      bulkWeekdays[i]
+                        ? 'bg-finland text-white'
+                        : 'bg-[#f2f4f7] text-ink-muted hover:bg-[#e8ebf0]'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className="lux-flat ml-1 text-[12px] font-medium text-finland hover:underline"
+                  onClick={() => {
+                    setBulkConfirm(false);
+                    setBulkWeekdays([true, true, true, true, true, false, false]);
+                  }}
+                >
+                  Weekdays
+                </button>
+                <button
+                  type="button"
+                  className="lux-flat text-[12px] font-medium text-finland hover:underline"
+                  onClick={() => {
+                    setBulkConfirm(false);
+                    setBulkWeekdays([false, false, false, false, false, true, true]);
+                  }}
+                >
+                  Weekends
+                </button>
+                <button
+                  type="button"
+                  className="lux-flat text-[12px] font-medium text-finland hover:underline"
+                  onClick={() => {
+                    setBulkConfirm(false);
+                    setBulkWeekdays([...WEEKDAY_FILTER_DEFAULT]);
+                  }}
+                >
+                  All
+                </button>
               </div>
-            </div>
-            <div>
-              <label className="mb-1 block text-[12px] font-medium text-ink" htmlFor="bulk-capacity">
-                {stayCalendar
-                  ? 'Night block (0 = blocked)'
-                  : 'Daily capacity override (0 = closed)'}
-              </label>
-              <p className="mb-2 text-[12px] leading-snug text-ink-muted">
-                {stayCalendar
-                  ? 'Applies the same block value to every night in the range.'
-                  : 'Day-wide listing cap only — does not rewrite each departure’s schedule capacity.'}
-              </p>
-              <input
-                id="bulk-capacity"
-                type="number"
-                min={0}
-                max={99}
-                value={bulkCapacity}
-                onChange={(e) => setBulkCapacity(e.target.value)}
-                className="tv-input w-28 tabular-nums"
-              />
-            </div>
+            </section>
+
+            <section>
+              <h3 className="mb-2 text-[13px] font-semibold text-ink">2. Choose action</h3>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {(
+                  [
+                    {
+                      id: 'close' as const,
+                      label: stayCalendar ? 'Block nights' : 'Close dates',
+                      hint: stayCalendar
+                        ? 'Block inventory for new stays'
+                        : 'Day-wide close (capacity 0)',
+                    },
+                    {
+                      id: 'reopen' as const,
+                      label: stayCalendar ? 'Clear blocks' : 'Reopen / restore defaults',
+                      hint: 'Remove daily overrides in range',
+                    },
+                    {
+                      id: 'set_override' as const,
+                      label: stayCalendar ? 'Set night value' : 'Set day-wide limit',
+                      hint: stayCalendar
+                        ? 'Same block value on each night'
+                        : 'Cap total guests across departures',
+                    },
+                  ] as const
+                ).map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    aria-pressed={bulkAction === opt.id}
+                    onClick={() => {
+                      setBulkConfirm(false);
+                      setBulkAction(opt.id);
+                    }}
+                    className={`lux-flat rounded-lg border px-3 py-2.5 text-left ${
+                      bulkAction === opt.id
+                        ? 'border-finland bg-[#f5f8ff]'
+                        : 'border-[#e5e7eb] bg-white hover:bg-[#fafafa]'
+                    }`}
+                  >
+                    <span className="block text-[13px] font-semibold text-ink">{opt.label}</span>
+                    <span className="mt-0.5 block text-[11px] text-ink-muted">{opt.hint}</span>
+                  </button>
+                ))}
+              </div>
+              {bulkAction === 'set_override' ? (
+                <div className="mt-3">
+                  <label
+                    className="mb-1 block text-[12px] font-medium text-ink"
+                    htmlFor="bulk-capacity"
+                  >
+                    {stayCalendar ? 'Night value (0 = blocked)' : 'Day-wide spots (0 = closed)'}
+                  </label>
+                  <input
+                    id="bulk-capacity"
+                    type="number"
+                    min={0}
+                    max={99}
+                    value={bulkCapacity}
+                    onChange={(e) => {
+                      setBulkConfirm(false);
+                      setBulkCapacity(e.target.value);
+                    }}
+                    className="tv-input w-28 tabular-nums"
+                  />
+                  {!stayCalendar ? (
+                    <p className="mt-1.5 text-[12px] text-ink-muted">
+                      Does not rewrite each departure&apos;s schedule capacity. Booking cutoffs are
+                      edited per option in Manage date.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+            </section>
+
+            <section>
+              <h3 className="mb-2 text-[13px] font-semibold text-ink">3. Review</h3>
+              {bulkFrom && bulkTo && bulkFrom <= bulkTo ? (
+                (() => {
+                  const dates = enumerateIsoDates(bulkFrom, bulkTo, bulkWeekdays);
+                  const applyCapacity =
+                    bulkAction === 'close' ? 0 : Math.max(0, Math.floor(Number(bulkCapacity) || 0));
+                  const underSold =
+                    !stayCalendar && bulkAction === 'set_override'
+                      ? bulkCapacityBelowSoldWarning({
+                          newCapacity: applyCapacity,
+                          dates,
+                          occupyingGuestsForDate: (iso) => guestsByDate.get(iso)?.guests ?? 0,
+                        })
+                      : null;
+                  const occupiedNights = stayCalendar
+                    ? dates.filter((iso) => (guestsByDate.get(iso)?.count ?? 0) > 0).length
+                    : 0;
+                  return (
+                    <div className="rounded-lg border border-[#e5e7eb] bg-[#fafafa] px-3 py-3 text-[13px] text-ink">
+                      <p className="font-medium">
+                        {bulkActionSummary({
+                          action: bulkAction,
+                          dateCount: dates.length,
+                          capacity: applyCapacity,
+                          stay: stayCalendar,
+                        })}
+                      </p>
+                      <p className="mt-1 text-[12px] text-ink-muted">
+                        {listing?.title?.trim() || 'Listing'} · day-wide inventory only
+                      </p>
+                      {underSold ? (
+                        <p className="mt-2 text-[12px] font-medium text-amber-900">{underSold}</p>
+                      ) : null}
+                      {occupiedNights > 0 ? (
+                        <p className="mt-2 text-[12px] text-ink-muted">
+                          {occupiedNights} night{occupiedNights === 1 ? '' : 's'} already have paid
+                          guests — Occupied labels stay until checkout.
+                        </p>
+                      ) : null}
+                      {bulkConfirm ? (
+                        <NoticeCallout title="Confirm closing dates" tone="warn" className="mt-3">
+                          Existing bookings stay intact. New travelers will not be able to book these
+                          dates. Click Apply again to confirm.
+                        </NoticeCallout>
+                      ) : null}
+                    </div>
+                  );
+                })()
+              ) : (
+                <p className="text-[13px] text-ink-muted">Choose a valid date range to preview impact.</p>
+              )}
+            </section>
+
             {bulkError ? <p className="text-sm text-red-700">{bulkError}</p> : null}
-            {bulkFrom && bulkTo && bulkFrom <= bulkTo ? (
-              <p className="text-[12px] text-ink-muted">
-                {`${listing?.title?.trim() || 'Listing'} · ${enumerateIsoDates(bulkFrom, bulkTo).length} date${
-                  enumerateIsoDates(bulkFrom, bulkTo).length === 1 ? '' : 's'
-                } affected`}
-              </p>
-            ) : null}
-            <div className="flex flex-wrap gap-2 pt-1">
+
+            <div className="flex flex-wrap justify-end gap-2 border-t border-[#eef0f3] pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setBulkOpen(false);
+                  setBulkConfirm(false);
+                }}
+                disabled={bulkSaving}
+                className="tv-btn-ghost disabled:opacity-50"
+              >
+                Cancel
+              </button>
               <button
                 type="button"
                 disabled={bulkSaving}
-                onClick={() => void applyBulk('set')}
+                onClick={() => void applyBulk()}
                 className="tv-btn-primary disabled:opacity-50"
               >
-                {bulkSaving
-                  ? 'Saving\u2026'
-                  : stayCalendar && Math.max(0, Math.floor(Number(bulkCapacity) || 0)) === 0
-                    ? 'Block range'
-                    : 'Apply to range'}
-              </button>
-              <button
-                type="button"
-                disabled={bulkSaving}
-                onClick={() => void applyBulk('clear')}
-                className="tv-btn-secondary disabled:opacity-50"
-              >
-                {stayCalendar ? 'Clear range (unblock)' : 'Clear range'}
-              </button>
-              <button type="button" onClick={() => setBulkOpen(false)} disabled={bulkSaving} className="tv-btn-ghost">
-                Cancel
+                {bulkSaving ? 'Applying…' : bulkConfirm ? 'Confirm apply' : 'Apply changes'}
               </button>
             </div>
           </div>
