@@ -56,19 +56,23 @@ import PartnerSelect from '../../components/supplier/PartnerSelect';
 import { TraverionSingleDateField } from '../../components/calendar/TraverionSingleDateField';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import {
-  clearSlotOverridesForDates,
   findSlotOverride,
   SLOT_OVERRIDE_CAPACITY_MAX,
   upsertSlotOverride,
   type ListingSlotOverride,
 } from '../../lib/listing-slot-overrides';
 import {
+  bookingCutoffSelectLabel,
   bulkActionSummary,
+  countDeparturesForOption,
   enumerateIsoDates,
+  parseBulkAction,
+  resolveOptionCapacitiesAcrossDates,
   resolveOptionCutoffHours,
+  resolveOptionCutoffsAcrossDates,
   type BulkCalendarAction,
 } from './calendarAvailabilityUi';
-import AvailabilityCutoffField from './AvailabilityCutoffField';
+import AvailabilityCutoffField from '../../components/supplier/AvailabilityCutoffField';
 import AvailabilityAgendaView from './AvailabilityAgendaView';
 import AvailabilityWeekView from './AvailabilityWeekView';
 import {
@@ -86,20 +90,6 @@ import {
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const WEEKDAY_FILTER_DEFAULT = [true, true, true, true, true, true, true];
 
-function parseBulkAction(raw: string): BulkCalendarAction {
-  if (
-    raw === 'close' ||
-    raw === 'reopen' ||
-    raw === 'change_capacity' ||
-    raw === 'change_cutoff' ||
-    raw === 'reset_overrides' ||
-    raw === 'set_override' ||
-    raw === 'clear'
-  ) {
-    return raw;
-  }
-  return 'close';
-}
 
 
 function defaultSpots(listing: TourPackage | null): number | null {
@@ -149,9 +139,9 @@ export default function SupplierAvailability() {
   const [bulkCapacity, setBulkCapacity] = useState('16');
   const [bulkCutoffHours, setBulkCutoffHours] = useState('24');
   const [bulkAction, setBulkAction] = useState<BulkCalendarAction>('close');
-  const [bulkResetCapacity, setBulkResetCapacity] = useState(true);
-  const [bulkResetCutoff, setBulkResetCutoff] = useState(true);
   const [bulkTargetOptionId, setBulkTargetOptionId] = useState('');
+  const [bulkCapacityMixed, setBulkCapacityMixed] = useState(false);
+  const [bulkCutoffMixed, setBulkCutoffMixed] = useState(false);
   const [bulkWeekdays, setBulkWeekdays] = useState<boolean[]>(() => [...WEEKDAY_FILTER_DEFAULT]);
   const [bulkSaving, setBulkSaving] = useState(false);
   const [bulkError, setBulkError] = useState<string | null>(null);
@@ -604,8 +594,49 @@ export default function SupplierAvailability() {
     }
   };
 
+  const bulkDates = useMemo(() => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(bulkFrom) || !/^\d{4}-\d{2}-\d{2}$/.test(bulkTo) || bulkFrom > bulkTo) {
+      return [] as string[];
+    }
+    return enumerateIsoDates(bulkFrom, bulkTo, bulkWeekdays);
+  }, [bulkFrom, bulkTo, bulkWeekdays]);
+
+  const bulkOptionLabel = useMemo(() => {
+    if (!bulkTargetOptionId || !listing) return '';
+    const opt = materializedBookingOptions(listing.listingExtras?.bookingOptions).find(
+      (o) => o.id === bulkTargetOptionId
+    );
+    return opt?.name?.trim() || 'Option';
+  }, [listing, bulkTargetOptionId]);
+
+  const syncBulkFieldsForOption = useCallback(
+    (optionId: string, dates: string[]) => {
+      if (!listing || !optionId) {
+        setBulkCapacityMixed(false);
+        setBulkCutoffMixed(false);
+        return;
+      }
+      const caps = resolveOptionCapacitiesAcrossDates({ listing, optionId, dates });
+      setBulkCapacityMixed(caps.mixed);
+      if (caps.displayValue != null) setBulkCapacity(String(caps.displayValue));
+      else if (caps.mixed) setBulkCapacity('');
+      const cuts = resolveOptionCutoffsAcrossDates({ listing, optionId, dates });
+      setBulkCutoffMixed(cuts.mixed);
+      if (cuts.displayValue != null) setBulkCutoffHours(String(cuts.displayValue));
+      else if (cuts.mixed) setBulkCutoffHours('');
+    },
+    [listing]
+  );
+
+  useEffect(() => {
+    if (!bulkOpen || !listing || !bulkTargetOptionId) return;
+    if (bulkAction !== 'change_capacity' && bulkAction !== 'change_cutoff') return;
+    syncBulkFieldsForOption(bulkTargetOptionId, bulkDates);
+  }, [bulkOpen, bulkDates, bulkTargetOptionId, bulkAction, listing, syncBulkFieldsForOption]);
+
   const applyBulk = async () => {
     if (!listingId || !canEditCalendar || !listing) return;
+    if (bulkSaving) return;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(bulkFrom) || !/^\d{4}-\d{2}-\d{2}$/.test(bulkTo)) {
       setBulkError('Pick a start and end date.');
       return;
@@ -623,6 +654,36 @@ export default function SupplierAvailability() {
       setBulkError('No dates match that range and weekday filter.');
       return;
     }
+
+    if (
+      !stayCalendar &&
+      (bulkAction === 'change_capacity' || bulkAction === 'change_cutoff') &&
+      !bulkTargetOptionId.trim()
+    ) {
+      setBulkError('Select the option you want to change.');
+      return;
+    }
+
+    if (bulkAction === 'change_capacity') {
+      const capacity = Math.floor(Number(bulkCapacity));
+      if (!Number.isFinite(capacity) || capacity < 1) {
+        setBulkError('Enter a capacity between 1 and 99.');
+        return;
+      }
+      if (capacity > SLOT_OVERRIDE_CAPACITY_MAX) {
+        setBulkError(`Capacity cannot exceed ${SLOT_OVERRIDE_CAPACITY_MAX}.`);
+        return;
+      }
+    }
+
+    if (bulkAction === 'change_cutoff') {
+      const cutoffHours = Math.floor(Number(bulkCutoffHours));
+      if (!Number.isFinite(cutoffHours) || cutoffHours < 0 || cutoffHours > 168) {
+        setBulkError('Select a valid booking cutoff.');
+        return;
+      }
+    }
+
     if (!bulkConfirm && bulkAction === 'close') {
       setBulkConfirm(true);
       return;
@@ -642,13 +703,14 @@ export default function SupplierAvailability() {
         }
         mergeCapRows(dates.map((available_date) => ({ available_date, capacity: 0 })));
       } else if (bulkAction === 'reopen') {
+        // Reopen day closes only — do not clear capacity/cutoff overrides.
         const res = await deleteAvailabilityRange(listingId, dates);
         if (!res.success) {
           setBulkError(userFacingError(res.error, 'Could not reopen those dates. Try again.'));
           return;
         }
         removeCapRows(dates);
-      } else if (bulkAction === 'change_capacity' || bulkAction === 'set_override') {
+      } else if (bulkAction === 'change_capacity') {
         const capacity = Math.min(
           SLOT_OVERRIDE_CAPACITY_MAX,
           Math.max(1, Math.floor(Number(bulkCapacity) || 0))
@@ -666,9 +728,10 @@ export default function SupplierAvailability() {
         } else {
           let overrides = [...(listing.listingExtras?.slotOverrides ?? [])];
           const opts = materializedBookingOptions(listing.listingExtras?.bookingOptions);
+          let touched = 0;
           for (const iso of dates) {
             const deps = tourSellingDeparturesOnDate(opts, iso).filter(
-              (d) => !bulkTargetOptionId || d.optionId === bulkTargetOptionId
+              (d) => d.optionId === bulkTargetOptionId
             );
             for (const d of deps) {
               const hm = (d.startTime || '').trim().slice(0, 5);
@@ -690,7 +753,12 @@ export default function SupplierAvailability() {
                 startTimeHm: hm,
                 capacity,
               });
+              touched += 1;
             }
+          }
+          if (touched === 0) {
+            setBulkError('No departures for that option in the selected dates.');
+            return;
           }
           const res = await persistListingExtras({
             ...listing.listingExtras,
@@ -705,9 +773,10 @@ export default function SupplierAvailability() {
         const cutoffHours = Math.max(0, Math.min(168, Math.floor(Number(bulkCutoffHours) || 0)));
         let overrides = [...(listing.listingExtras?.slotOverrides ?? [])];
         const opts = materializedBookingOptions(listing.listingExtras?.bookingOptions);
+        let touched = 0;
         for (const iso of dates) {
           const deps = tourSellingDeparturesOnDate(opts, iso).filter(
-            (d) => !bulkTargetOptionId || d.optionId === bulkTargetOptionId
+            (d) => d.optionId === bulkTargetOptionId
           );
           for (const d of deps) {
             const hm = (d.startTime || '').trim().slice(0, 5);
@@ -716,7 +785,12 @@ export default function SupplierAvailability() {
               startTimeHm: hm,
               cutoffHours,
             });
+            touched += 1;
           }
+        }
+        if (touched === 0) {
+          setBulkError('No departures for that option in the selected dates.');
+          return;
         }
         const res = await persistListingExtras({
           ...listing.listingExtras,
@@ -726,32 +800,12 @@ export default function SupplierAvailability() {
           setBulkError(res.error ?? 'Could not update cutoff overrides.');
           return;
         }
-      } else if (bulkAction === 'reset_overrides' || bulkAction === 'clear') {
-        if (stayCalendar || bulkResetCapacity) {
-          const res = await deleteAvailabilityRange(listingId, dates);
-          if (!res.success) {
-            setBulkError(userFacingError(res.error, 'Could not clear day closes. Try again.'));
-            return;
-          }
-          removeCapRows(dates);
-        }
-        if (!stayCalendar) {
-          const next = clearSlotOverridesForDates(listing.listingExtras?.slotOverrides, dates, {
-            all: bulkResetCapacity && bulkResetCutoff,
-            capacity: bulkResetCapacity,
-            cutoffHours: bulkResetCutoff,
-          });
-          const res = await persistListingExtras({
-            ...listing.listingExtras,
-            slotOverrides: next,
-          });
-          if (!res.success) {
-            setBulkError(res.error ?? 'Could not reset overrides.');
-            return;
-          }
-        }
       }
 
+      const depCount =
+        !stayCalendar && bulkTargetOptionId
+          ? countDeparturesForOption({ listing, optionId: bulkTargetOptionId, dates })
+          : dates.length;
       setSaveNote(
         bulkActionSummary({
           action: bulkAction,
@@ -759,6 +813,8 @@ export default function SupplierAvailability() {
           capacity: Math.floor(Number(bulkCapacity) || 0),
           cutoffHours: Math.floor(Number(bulkCutoffHours) || 0),
           stay: stayCalendar,
+          optionName: bulkOptionLabel || undefined,
+          departureCount: depCount,
         })
       );
       setBulkOpen(false);
@@ -767,10 +823,12 @@ export default function SupplierAvailability() {
       setBulkFrom('');
       setBulkTo('');
       setBulkCapacity('16');
-      setBulkCutoffHours('24');
+      setBulkCutoffHours('0');
       setBulkAction('close');
       setBulkWeekdays([...WEEKDAY_FILTER_DEFAULT]);
       setBulkTargetOptionId('');
+      setBulkCapacityMixed(false);
+      setBulkCutoffMixed(false);
       if (monthFromIso && monthToIso) await loadCaps(listingId, monthFromIso, monthToIso);
     } finally {
       setBulkSaving(false);
@@ -1084,9 +1142,11 @@ export default function SupplierAvailability() {
               setBulkFrom(filterFrom || localTodayIso);
               setBulkTo(filterTo || addCalendarDays(localTodayIso, 6));
               setBulkCapacity('16');
-              setBulkCutoffHours('24');
+              setBulkCutoffHours('0');
               setBulkAction('close');
               setBulkTargetOptionId('');
+              setBulkCapacityMixed(false);
+              setBulkCutoffMixed(false);
               setBulkWeekdays([...WEEKDAY_FILTER_DEFAULT]);
               setBulkOpen(true);
             }}
@@ -2184,7 +2244,7 @@ export default function SupplierAvailability() {
                             Discard unsaved changes?
                           </p>
                           <p id="avail-discard-desc" className="tv-avail-discard__body">
-                            You have changes that haven&apos;t been saved. Leaving now will discard them.
+                            Your changes haven&apos;t been saved. Leaving now will discard them.
                           </p>
                           <div className="tv-avail-discard__actions">
                             <button
@@ -2215,6 +2275,8 @@ export default function SupplierAvailability() {
 
       {bulkOpen ? (
         <SupplierModalShell
+          framed
+          maxWidth="md"
           onClose={
             bulkSaving
               ? undefined
@@ -2227,7 +2289,6 @@ export default function SupplierAvailability() {
                   setBulkConfirm(false);
                 }
           }
-          maxWidth="md"
         >
           <SupplierModalHeader
             icon={Layers}
@@ -2246,7 +2307,7 @@ export default function SupplierAvailability() {
                   }
             }
           />
-          <div className="space-y-4 p-4 sm:p-5">
+          <div className="tv-avail-modal-body space-y-4 px-4 py-3 sm:px-5">
             <section>
               <h3 className="mb-2 text-[13px] font-semibold text-ink">Select dates</h3>
               <div className="grid grid-cols-2 gap-3">
@@ -2330,7 +2391,7 @@ export default function SupplierAvailability() {
             </section>
 
             <section>
-              <h3 className="mb-2 text-[13px] font-semibold text-ink">Choose what to change</h3>
+              <h3 className="mb-2 text-[13px] font-semibold text-ink">What would you like to change?</h3>
               <PartnerSelect
                 id="bulk-action"
                 aria-label="Bulk action"
@@ -2338,7 +2399,15 @@ export default function SupplierAvailability() {
                 onChange={(v) => {
                   setBulkConfirm(false);
                   setBulkDirty(true);
-                  setBulkAction(parseBulkAction(v));
+                  const next = parseBulkAction(v);
+                  setBulkAction(next);
+                  if (
+                    (next === 'change_capacity' || next === 'change_cutoff') &&
+                    bulkTargetOptionId &&
+                    listing
+                  ) {
+                    syncBulkFieldsForOption(bulkTargetOptionId, bulkDates);
+                  }
                 }}
                 options={
                   stayCalendar
@@ -2346,92 +2415,80 @@ export default function SupplierAvailability() {
                         { value: 'close', label: 'Block nights' },
                         { value: 'reopen', label: 'Clear blocks' },
                         { value: 'change_capacity', label: 'Set night value' },
-                        { value: 'reset_overrides', label: 'Reset overrides' },
                       ]
                     : [
                         { value: 'close', label: 'Close bookings' },
                         { value: 'reopen', label: 'Open bookings' },
                         { value: 'change_capacity', label: 'Change capacity' },
                         { value: 'change_cutoff', label: 'Change booking cutoff' },
-                        { value: 'reset_overrides', label: 'Reset overrides' },
                       ]
                 }
               />
-              {(bulkAction === 'change_capacity' || bulkAction === 'set_override') && (
+              {!stayCalendar &&
+              (bulkAction === 'change_capacity' || bulkAction === 'change_cutoff') ? (
+                <div className="mt-3">
+                  <label className="mb-1 block text-[12px] font-medium text-ink" htmlFor="bulk-option">
+                    Option
+                  </label>
+                  <PartnerSelect
+                    id="bulk-option"
+                    aria-label="Option to change"
+                    value={bulkTargetOptionId}
+                    placeholder="Select an option…"
+                    onChange={(id) => {
+                      setBulkDirty(true);
+                      setBulkConfirm(false);
+                      setBulkTargetOptionId(id);
+                      syncBulkFieldsForOption(id, bulkDates);
+                    }}
+                    options={optionSelectOptions.filter((o) => o.value !== '')}
+                  />
+                </div>
+              ) : null}
+              {bulkAction === 'change_capacity' ? (
                 <div className="mt-3">
                   <label className="mb-1 block text-[12px] font-medium text-ink" htmlFor="bulk-capacity">
                     Capacity
                   </label>
+                  {bulkCapacityMixed ? (
+                    <p className="mb-1.5 text-[12px] text-amber-800">Mixed values across selected dates</p>
+                  ) : null}
                   <input
                     id="bulk-capacity"
                     type="number"
                     min={1}
                     max={SLOT_OVERRIDE_CAPACITY_MAX}
                     value={bulkCapacity}
+                    placeholder={bulkCapacityMixed ? 'Enter capacity' : undefined}
                     onChange={(e) => {
                       setBulkDirty(true);
-                      setBulkCapacity(e.target.value);
+                      setBulkCapacityMixed(false);
+                      const raw = e.target.value;
+                      if (raw === '') {
+                        setBulkCapacity('');
+                        return;
+                      }
+                      const n = Math.floor(Number(raw));
+                      if (!Number.isFinite(n)) return;
+                      setBulkCapacity(String(Math.min(SLOT_OVERRIDE_CAPACITY_MAX, Math.max(0, n))));
                     }}
                     className="tv-input w-28 tabular-nums"
                   />
                 </div>
-              )}
+              ) : null}
               {bulkAction === 'change_cutoff' && !stayCalendar ? (
                 <div className="mt-3">
+                  {bulkCutoffMixed ? (
+                    <p className="mb-1.5 text-[12px] text-amber-800">Mixed values across selected dates</p>
+                  ) : null}
                   <AvailabilityCutoffField
                     id="bulk-cutoff"
                     value={bulkCutoffHours}
                     onChange={(h) => {
                       setBulkDirty(true);
+                      setBulkCutoffMixed(false);
                       setBulkCutoffHours(h);
                     }}
-                  />
-                </div>
-              ) : null}
-              {bulkAction === 'reset_overrides' && !stayCalendar ? (
-                <div className="mt-3 space-y-2 text-[13px]">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={bulkResetCapacity}
-                      onChange={(e) => {
-                        setBulkDirty(true);
-                        setBulkResetCapacity(e.target.checked);
-                      }}
-                    />
-                    Reset capacity overrides (and day closes)
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={bulkResetCutoff}
-                      onChange={(e) => {
-                        setBulkDirty(true);
-                        setBulkResetCutoff(e.target.checked);
-                      }}
-                    />
-                    Reset booking cutoff overrides
-                  </label>
-                </div>
-              ) : null}
-              {!stayCalendar &&
-              (bulkAction === 'change_capacity' || bulkAction === 'change_cutoff') ? (
-                <div className="mt-3">
-                  <label className="mb-1 block text-[12px] font-medium text-ink" htmlFor="bulk-option">
-                    Option (optional)
-                  </label>
-                  <PartnerSelect
-                    id="bulk-option"
-                    aria-label="Target option"
-                    value={bulkTargetOptionId}
-                    onChange={(id) => {
-                      setBulkDirty(true);
-                      setBulkTargetOptionId(id);
-                    }}
-                    options={[
-                      { value: '', label: 'All options' },
-                      ...optionSelectOptions.filter((o) => o.value !== ''),
-                    ]}
                   />
                 </div>
               ) : null}
@@ -2439,26 +2496,75 @@ export default function SupplierAvailability() {
 
             <section>
               <h3 className="mb-2 text-[13px] font-semibold text-ink">Review</h3>
-              {bulkFrom && bulkTo && bulkFrom <= bulkTo ? (
+              {bulkDates.length > 0 ? (
                 (() => {
-                  const dates = enumerateIsoDates(bulkFrom, bulkTo, bulkWeekdays);
+                  const depCount =
+                    !stayCalendar &&
+                    bulkTargetOptionId &&
+                    (bulkAction === 'change_capacity' || bulkAction === 'change_cutoff') &&
+                    listing
+                      ? countDeparturesForOption({
+                          listing,
+                          optionId: bulkTargetOptionId,
+                          dates: bulkDates,
+                        })
+                      : bulkDates.length;
+                  const title =
+                    bulkAction === 'close'
+                      ? stayCalendar
+                        ? 'Block nights'
+                        : 'Close bookings'
+                      : bulkAction === 'reopen'
+                        ? stayCalendar
+                          ? 'Clear blocks'
+                          : 'Open bookings'
+                        : bulkAction === 'change_capacity'
+                          ? 'Change capacity'
+                          : 'Change booking cutoff';
                   return (
                     <div className="rounded-lg border border-[#e5e7eb] bg-[#fafafa] px-3 py-3 text-[13px] text-ink">
-                      <p className="font-medium">
-                        {dates.length} date{dates.length === 1 ? '' : 's'} selected
-                      </p>
-                      <p className="mt-1 text-[12px] text-ink-muted">
-                        {bulkActionSummary({
-                          action: bulkAction,
-                          dateCount: dates.length,
-                          capacity: Math.floor(Number(bulkCapacity) || 0),
-                          cutoffHours: Math.floor(Number(bulkCutoffHours) || 0),
-                          stay: stayCalendar,
-                        })}
-                      </p>
-                      <p className="mt-1 text-[12px] text-ink-muted">
+                      <p className="font-semibold text-ink">{title}</p>
+                      <p className="mt-1.5 text-[12px] text-ink-muted truncate" title={listing?.title}>
                         Product: {listing?.title?.trim() || 'Listing'}
                       </p>
+                      {bulkOptionLabel ? (
+                        <p className="mt-0.5 text-[12px] text-ink-muted">Option: {bulkOptionLabel}</p>
+                      ) : null}
+                      <p className="mt-0.5 text-[12px] text-ink-muted">
+                        Dates affected: {bulkDates.length}
+                        {!stayCalendar &&
+                        (bulkAction === 'change_capacity' || bulkAction === 'change_cutoff')
+                          ? ` · Departures: ${depCount}`
+                          : ''}
+                      </p>
+                      {bulkAction === 'change_capacity' ? (
+                        <p className="mt-0.5 text-[12px] text-ink-muted">
+                          {bulkCapacityMixed
+                            ? 'Current capacity: Mixed values'
+                            : null}
+                          {bulkCapacityMixed ? ' · ' : ''}
+                          New capacity: {bulkCapacity || '—'} guests
+                        </p>
+                      ) : null}
+                      {bulkAction === 'change_cutoff' ? (
+                        <p className="mt-0.5 text-[12px] text-ink-muted">
+                          {bulkCutoffMixed ? 'Current cutoff: Mixed values · ' : ''}
+                          New cutoff:{' '}
+                          {bulkCutoffHours === ''
+                            ? '—'
+                            : bookingCutoffSelectLabel(Number(bulkCutoffHours) || 0)}
+                        </p>
+                      ) : null}
+                      {bulkAction === 'close' ? (
+                        <p className="mt-0.5 text-[12px] text-ink-muted">
+                          Bookings will be closed for the selected scope.
+                        </p>
+                      ) : null}
+                      {bulkAction === 'reopen' ? (
+                        <p className="mt-0.5 text-[12px] text-ink-muted">
+                          Day closes will be cleared. Capacity and cutoff overrides stay intact.
+                        </p>
+                      ) : null}
                       {bulkConfirm ? (
                         <NoticeCallout title="Confirm closing dates" tone="warn" className="mt-3">
                           Existing bookings stay intact. Click Apply again to confirm.
@@ -2473,32 +2579,31 @@ export default function SupplierAvailability() {
             </section>
 
             {bulkError ? <p className="text-sm text-red-700">{bulkError}</p> : null}
-
-            <div className="flex flex-wrap justify-end gap-2 border-t border-[#eef0f3] pt-4">
-              <button
-                type="button"
-                onClick={() => {
-                  if (bulkDirty) {
-                    setBulkDiscardOpen(true);
-                    return;
-                  }
-                  setBulkOpen(false);
-                  setBulkConfirm(false);
-                }}
-                disabled={bulkSaving}
-                className="tv-btn-ghost disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={bulkSaving}
-                onClick={() => void applyBulk()}
-                className="tv-btn-primary disabled:opacity-50"
-              >
-                {bulkSaving ? 'Applying…' : bulkConfirm ? 'Confirm apply' : 'Apply changes'}
-              </button>
-            </div>
+          </div>
+          <div className="tv-avail-modal-foot">
+            <button
+              type="button"
+              onClick={() => {
+                if (bulkDirty) {
+                  setBulkDiscardOpen(true);
+                  return;
+                }
+                setBulkOpen(false);
+                setBulkConfirm(false);
+              }}
+              disabled={bulkSaving}
+              className="tv-btn-ghost disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={bulkSaving}
+              onClick={() => void applyBulk()}
+              className="tv-btn-primary disabled:opacity-50"
+            >
+              {bulkSaving ? 'Applying…' : bulkConfirm ? 'Confirm apply' : 'Apply changes'}
+            </button>
           </div>
           {bulkDiscardOpen ? (
             <div className="tv-avail-discard tv-avail-discard--modal">
@@ -2506,12 +2611,13 @@ export default function SupplierAvailability() {
                 className="tv-avail-discard__panel"
                 role="alertdialog"
                 aria-labelledby="bulk-discard-title"
+                aria-describedby="bulk-discard-desc"
               >
                 <p id="bulk-discard-title" className="tv-avail-discard__title">
                   Discard unsaved changes?
                 </p>
-                <p className="tv-avail-discard__body">
-                  You have changes that haven&apos;t been saved. Leaving now will discard them.
+                <p id="bulk-discard-desc" className="tv-avail-discard__body">
+                  Your changes haven&apos;t been saved. Leaving now will discard them.
                 </p>
                 <div className="tv-avail-discard__actions">
                   <button

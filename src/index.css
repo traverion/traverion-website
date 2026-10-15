@@ -2989,7 +2989,7 @@ a:focus-visible,
 .tv-avail-discard {
   position: absolute;
   inset: 0;
-  z-index: 20;
+  z-index: 30;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2998,7 +2998,34 @@ a:focus-visible,
 }
 .tv-avail-discard--modal {
   position: fixed;
-  border-radius: inherit;
+  inset: 0;
+  z-index: 110;
+  border-radius: 0;
+}
+.tv-avail-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #d0d5dd transparent;
+}
+.tv-avail-modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+.tv-avail-modal-body::-webkit-scrollbar-thumb {
+  background: #d0d5dd;
+  border-radius: 999px;
+}
+.tv-avail-modal-foot {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  border-top: 1px solid #eef0f3;
+  padding: 0.875rem 1rem 1rem;
+  background: #fff;
 }
 .tv-avail-discard__panel {
   width: 100%;
@@ -4487,6 +4514,10 @@ a:focus-visible,
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
   animation: tv-overlay-in 0.18s ease-out;
+}
+/* Portaled supplier modals sit above Availability drawer (z-90) and app chrome. */
+.tv-sheet-overlay--portal {
+  z-index: 100;
 }
 @media (min-width: 640px) {
   .tv-sheet-overlay {

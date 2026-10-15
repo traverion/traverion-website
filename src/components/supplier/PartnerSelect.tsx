@@ -1,4 +1,5 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, ChevronDown, Search } from 'lucide-react';
 
 export type PartnerSelectOption = {
@@ -24,6 +25,7 @@ type PartnerSelectProps = {
 
 /**
  * Traverion-themed select — paper trigger + ink menu (not native OS chrome).
+ * Menu portals to document.body with fixed positioning so it is not clipped by modals.
  */
 export default function PartnerSelect({
   id,
@@ -43,10 +45,14 @@ export default function PartnerSelect({
   const searchId = `${autoId}-search`;
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [query, setQuery] = useState('');
+  const [menuBox, setMenuBox] = useState<{ top: number; left: number; width: number; maxHeight: number } | null>(
+    null
+  );
 
   const selected = options.find((o) => o.value === value) ?? null;
   const display = selected?.label ?? placeholder;
@@ -62,6 +68,39 @@ export default function PartnerSelect({
         (o.hint ?? '').toLowerCase().includes(q)
     );
   }, [options, query]);
+
+  const placeMenu = () => {
+    const btn = buttonRef.current;
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    const gap = 6;
+    const spaceBelow = window.innerHeight - rect.bottom - gap - 8;
+    const spaceAbove = rect.top - gap - 8;
+    const preferBelow = spaceBelow >= 160 || spaceBelow >= spaceAbove;
+    const maxHeight = Math.min(256, Math.max(120, preferBelow ? spaceBelow : spaceAbove));
+    const top = preferBelow ? rect.bottom + gap : Math.max(8, rect.top - gap - maxHeight);
+    setMenuBox({
+      top,
+      left: rect.left,
+      width: Math.max(rect.width, 12 * 16),
+      maxHeight,
+    });
+  };
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setMenuBox(null);
+      return;
+    }
+    placeMenu();
+    const onWin = () => placeMenu();
+    window.addEventListener('resize', onWin);
+    window.addEventListener('scroll', onWin, true);
+    return () => {
+      window.removeEventListener('resize', onWin);
+      window.removeEventListener('scroll', onWin, true);
+    };
+  }, [open, filtered.length]);
 
   useEffect(() => {
     if (!open) {
@@ -81,7 +120,9 @@ export default function PartnerSelect({
   useEffect(() => {
     if (!open) return;
     const onPointer = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (rootRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -145,6 +186,100 @@ export default function PartnerSelect({
     }
   };
 
+  const menu =
+    open && menuBox && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            ref={menuRef}
+            className="partner-select__menu overflow-hidden outline-none"
+            style={{
+              position: 'fixed',
+              top: menuBox.top,
+              left: menuBox.left,
+              width: menuBox.width,
+              maxWidth: 'min(100vw - 1rem, 28rem)',
+              zIndex: 120,
+            }}
+          >
+            {showSearch ? (
+              <div className="flex items-center gap-2 border-b border-[#eef0f3] px-2.5 py-2">
+                <Search className="h-3.5 w-3.5 shrink-0 text-ink-muted" aria-hidden />
+                <input
+                  ref={searchRef}
+                  id={searchId}
+                  type="search"
+                  value={query}
+                  onChange={(e) => {
+                    setQuery(e.target.value);
+                    setActiveIndex(0);
+                  }}
+                  onKeyDown={onListKeyDown}
+                  placeholder="Search…"
+                  aria-label="Search options"
+                  className="min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-ink-faint"
+                />
+              </div>
+            ) : null}
+            <ul
+              id={listboxId}
+              role="listbox"
+              tabIndex={showSearch ? -1 : 0}
+              aria-activedescendant={
+                filtered[activeIndex] ? `${listboxId}-opt-${activeIndex}` : undefined
+              }
+              className="overflow-auto py-1 outline-none"
+              style={{ maxHeight: menuBox.maxHeight }}
+              onKeyDown={onListKeyDown}
+              ref={(el) => {
+                if (!showSearch) el?.focus();
+              }}
+            >
+              {filtered.length === 0 ? (
+                <li className="px-3 py-2.5 text-sm text-ink-muted">No matches</li>
+              ) : (
+                filtered.map((opt, index) => {
+                  const isSelected = opt.value === value;
+                  const isActive = index === activeIndex;
+                  return (
+                    <li
+                      key={opt.value || `empty-${index}`}
+                      id={`${listboxId}-opt-${index}`}
+                      role="option"
+                      aria-selected={isSelected}
+                      className={`partner-select__option flex cursor-pointer items-start gap-2 px-3 py-2.5 ${
+                        isActive ? 'partner-select__option--active' : ''
+                      } ${isSelected ? 'partner-select__option--selected' : ''}`}
+                      onMouseEnter={() => setActiveIndex(index)}
+                      onClick={() => choose(opt.value)}
+                    >
+                      <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center">
+                        {isSelected ? (
+                          <Check className="h-3.5 w-3.5 text-finland" strokeWidth={2.5} aria-hidden />
+                        ) : null}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-medium leading-snug text-ink" title={opt.label}>
+                          {opt.label}
+                        </span>
+                        {opt.hint ? (
+                          <span
+                            className="mt-0.5 block truncate text-xs leading-snug text-ink-muted"
+                            title={opt.hint}
+                          >
+                            {opt.hint}
+                          </span>
+                        ) : null}
+                      </span>
+                    </li>
+                  );
+                })
+              )}
+            </ul>
+          </div>,
+          document.body
+        )
+      : null;
+
   return (
     <div ref={rootRef} className={`partner-select relative ${className}`.trim()}>
       <button
@@ -174,83 +309,7 @@ export default function PartnerSelect({
           aria-hidden
         />
       </button>
-      {open ? (
-        <div className="partner-select__menu absolute left-0 right-0 z-40 mt-1.5 overflow-hidden outline-none">
-          {showSearch ? (
-            <div className="flex items-center gap-2 border-b border-[#eef0f3] px-2.5 py-2">
-              <Search className="h-3.5 w-3.5 shrink-0 text-ink-muted" aria-hidden />
-              <input
-                ref={searchRef}
-                id={searchId}
-                type="search"
-                value={query}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  setActiveIndex(0);
-                }}
-                onKeyDown={onListKeyDown}
-                placeholder="Search listings…"
-                aria-label="Search listings"
-                className="min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-ink-faint"
-              />
-            </div>
-          ) : null}
-          <ul
-            id={listboxId}
-            role="listbox"
-            tabIndex={showSearch ? -1 : 0}
-            aria-activedescendant={
-              filtered[activeIndex] ? `${listboxId}-opt-${activeIndex}` : undefined
-            }
-            className="max-h-64 overflow-auto py-1 outline-none"
-            onKeyDown={onListKeyDown}
-            ref={(el) => {
-              if (!showSearch) el?.focus();
-            }}
-          >
-            {filtered.length === 0 ? (
-              <li className="px-3 py-2.5 text-sm text-ink-muted">No matches</li>
-            ) : (
-              filtered.map((opt, index) => {
-                const isSelected = opt.value === value;
-                const isActive = index === activeIndex;
-                return (
-                  <li
-                    key={opt.value || `empty-${index}`}
-                    id={`${listboxId}-opt-${index}`}
-                    role="option"
-                    aria-selected={isSelected}
-                    className={`partner-select__option flex cursor-pointer items-start gap-2 px-3 py-2.5 ${
-                      isActive ? 'partner-select__option--active' : ''
-                    } ${isSelected ? 'partner-select__option--selected' : ''}`}
-                    onMouseEnter={() => setActiveIndex(index)}
-                    onClick={() => choose(opt.value)}
-                  >
-                    <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center">
-                      {isSelected ? (
-                        <Check className="h-3.5 w-3.5 text-finland" strokeWidth={2.5} aria-hidden />
-                      ) : null}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-medium leading-snug text-ink" title={opt.label}>
-                        {opt.label}
-                      </span>
-                      {opt.hint ? (
-                        <span
-                          className="mt-0.5 block truncate text-xs leading-snug text-ink-muted"
-                          title={opt.hint}
-                        >
-                          {opt.hint}
-                        </span>
-                      ) : null}
-                    </span>
-                  </li>
-                );
-              })
-            )}
-          </ul>
-        </div>
-      ) : null}
+      {menu}
     </div>
   );
 }

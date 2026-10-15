@@ -1,4 +1,12 @@
-import { createContext, useContext, useId, useRef, type ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useId,
+  useRef,
+  type ReactNode,
+} from 'react';
+import { createPortal } from 'react-dom';
 import type { LucideIcon } from 'lucide-react';
 import { X } from 'lucide-react';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
@@ -67,7 +75,7 @@ export const SUPPLIER_HERO_STAT_GRID_CLASS =
 export const SUPPLIER_HERO_STAT_GRID_2_CLASS =
   'mt-5 grid w-full min-w-0 grid-cols-2 gap-2 sm:gap-3 border-t border-black/[0.06] pt-4';
 
-export const SUPPLIER_MODAL_OVERLAY_CLASS = 'tv-sheet-overlay';
+export const SUPPLIER_MODAL_OVERLAY_CLASS = 'tv-sheet-overlay tv-sheet-overlay--portal';
 
 export const SUPPLIER_MODAL_PANEL_CLASS =
   'relative z-10 bg-paper-raised rounded-t-2xl sm:rounded-2xl shadow-xl ring-1 ring-black/[0.08] w-full overflow-hidden motion-safe:animate-slide-up sm:motion-safe:animate-none';
@@ -119,7 +127,7 @@ export function SupplierModalHeader({ icon: Icon, title, subtitle, onClose, titl
   const shellTitleId = useContext(SupplierModalTitleIdContext);
   const headingId = titleId ?? shellTitleId ?? undefined;
   return (
-    <div className={`${SUPPLIER_SECTION_HEADER_CLASS} flex items-center justify-between gap-3`}>
+    <div className={`${SUPPLIER_SECTION_HEADER_CLASS} flex shrink-0 items-center justify-between gap-3`}>
       <div className="flex items-center gap-3 min-w-0">
         <div className="w-10 h-10 rounded-xl bg-finland/10 flex items-center justify-center shrink-0">
           <Icon className="w-5 h-5 text-finland" aria-hidden />
@@ -128,7 +136,11 @@ export function SupplierModalHeader({ icon: Icon, title, subtitle, onClose, titl
           <h2 id={headingId} className="font-display text-lg sm:text-xl font-semibold text-ink tracking-tight truncate">
             {title}
           </h2>
-          {subtitle ? <p className="text-xs text-ink-muted mt-0.5 truncate">{subtitle}</p> : null}
+          {subtitle ? (
+            <p className="text-xs text-ink-muted mt-0.5 truncate" title={subtitle}>
+              {subtitle}
+            </p>
+          ) : null}
         </div>
       </div>
       {onClose ? (
@@ -210,17 +222,42 @@ type SupplierModalShellProps = {
   children: ReactNode;
   onClose?: () => void;
   maxWidth?: 'md' | 'lg' | 'xl';
+  /**
+   * Legacy: entire panel scrolls.
+   * Prefer `framed` so header/footer stay visible and only the body scrolls.
+   */
   scrollable?: boolean;
+  /** Flex column with sticky header/footer; pass body in a scrollable middle region. */
+  framed?: boolean;
 };
 
-export function SupplierModalShell({ children, onClose, maxWidth = 'md', scrollable = true }: SupplierModalShellProps) {
+export function SupplierModalShell({
+  children,
+  onClose,
+  maxWidth = 'md',
+  scrollable = true,
+  framed = false,
+}: SupplierModalShellProps) {
   const widthClass = maxWidth === 'xl' ? 'max-w-xl' : maxWidth === 'lg' ? 'max-w-lg' : 'max-w-md';
-  const panelClass = scrollable ? SUPPLIER_MODAL_PANEL_SCROLL_CLASS : SUPPLIER_MODAL_PANEL_CLASS;
   const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   useDialogFocus(true, panelRef, onClose);
 
-  return (
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
+  const panelClass = framed
+    ? `${SUPPLIER_MODAL_PANEL_CLASS} flex max-h-[min(92dvh,40rem)] flex-col`
+    : scrollable
+      ? SUPPLIER_MODAL_PANEL_SCROLL_CLASS
+      : SUPPLIER_MODAL_PANEL_CLASS;
+
+  const layer = (
     <div className={SUPPLIER_MODAL_OVERLAY_CLASS}>
       {onClose ? (
         <button
@@ -242,4 +279,7 @@ export function SupplierModalShell({ children, onClose, maxWidth = 'md', scrolla
       </div>
     </div>
   );
+
+  if (typeof document === 'undefined') return layer;
+  return createPortal(layer, document.body);
 }

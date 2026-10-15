@@ -20,6 +20,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { TraverionSingleDateField } from '../calendar/TraverionSingleDateField';
 import PartnerSelect from './PartnerSelect';
+import AvailabilityCutoffField from './AvailabilityCutoffField';
 import {
   LISTING_CAPACITY_MAX,
   maxWholeGroupsForSlot,
@@ -901,57 +902,35 @@ export default function BookingOptionEditor({
           support="Cutoff applies to every schedule on this option."
         >
           <div id="supplier-listing-field-option-cutoff" className="space-y-1.5">
-            <label htmlFor="option-booking-cutoff" className="block text-[13px] font-semibold text-ink">
-              Booking cutoff (hours before departure)
-            </label>
-            <p className="text-[12px] leading-snug text-ink-muted">
-              {listingCutoffHours > 0
-                ? `Leave blank to inherit the listing default (${listingCutoffHours}h). Enter a number to override for this option.`
-                : 'Leave blank to inherit the listing default (book until departure). Enter a number to close booking earlier.'}
-            </p>
-            <input
+            <AvailabilityCutoffField
               id="option-booking-cutoff"
-              type="number"
-              min={1}
-              max={168}
-              inputMode="numeric"
-              className="tv-input max-w-[9rem]"
+              label="Booking cutoff"
+              allowInherit
+              inheritLabel={
+                listingCutoffHours > 0
+                  ? `Use listing default (${listingCutoffHours} hours before departure)`
+                  : 'Use listing default (until departure)'
+              }
+              className="max-w-md"
               value={
                 typeof option.bookingCutoffHoursBeforeStart === 'number' &&
                 option.bookingCutoffHoursBeforeStart > 0
                   ? String(option.bookingCutoffHoursBeforeStart)
                   : ''
               }
-              placeholder={listingCutoffHours > 0 ? String(listingCutoffHours) : 'Until departure'}
-              onChange={(e) => {
-                const raw = e.target.value.trim();
-                if (!raw) {
+              onChange={(raw) => {
+                if (!raw.trim()) {
                   onChange({ bookingCutoffHoursBeforeStart: undefined });
                   return;
                 }
-                const n = Number(raw);
+                const n = Math.floor(Number(raw));
                 if (!Number.isFinite(n) || n <= 0) {
                   onChange({ bookingCutoffHoursBeforeStart: undefined });
                   return;
                 }
-                onChange({ bookingCutoffHoursBeforeStart: Math.min(168, Math.floor(n)) });
+                onChange({ bookingCutoffHoursBeforeStart: Math.min(168, n) });
               }}
             />
-            {!(
-              typeof option.bookingCutoffHoursBeforeStart === 'number' &&
-              option.bookingCutoffHoursBeforeStart > 0
-            ) ? (
-              <p className="text-[11.5px] text-ink-muted">
-                Using listing default
-                {listingCutoffHours > 0
-                  ? ` · ${listingCutoffHours} hours before departure`
-                  : ' · book until departure'}
-              </p>
-            ) : (
-              <p className="text-[11.5px] text-ink-muted">
-                Explicit override · {option.bookingCutoffHoursBeforeStart} hours before departure
-              </p>
-            )}
           </div>
           {onListingDepartureTimezoneChange ? (
             <div id="supplier-listing-field-option-timezone" className="space-y-1.5">
