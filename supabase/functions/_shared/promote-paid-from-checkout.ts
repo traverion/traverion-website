@@ -883,6 +883,8 @@ export async function promotePaidFromCheckoutSession(params: {
         cutoffHoursBeforeStart: effectiveBookingCutoffHours({
           listingExtras: listingGate?.listing_extras,
           bookingOptionId,
+          bookingDate,
+          startTimeHm: cutoffStartTimeHm,
         }),
         nowMs: Date.now(),
         timeZone: resolveDepartureTimezone(extras?.departureTimezone),

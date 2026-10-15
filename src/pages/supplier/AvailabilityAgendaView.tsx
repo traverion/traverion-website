@@ -8,6 +8,8 @@ type Props = {
   onToggleDate: (iso: string, keys: string[]) => void;
   onOpenDate: (iso: string, listingId: string) => void;
   canEdit: boolean;
+  /** When a single product is selected, hide repeated product titles. */
+  hideProductTitle?: boolean;
 };
 
 function formatDayHeading(iso: string): string {
@@ -26,6 +28,7 @@ export default function AvailabilityAgendaView({
   onToggleDate,
   onOpenDate,
   canEdit,
+  hideProductTitle = false,
 }: Props) {
   const groups = groupDeparturesByDate(rows);
 
@@ -87,12 +90,17 @@ export default function AvailabilityAgendaView({
                   >
                     <span className="tv-avail-agenda__time">{r.startTimeHm}</span>
                     <span className="tv-avail-agenda__names">
-                      <span className="tv-avail-agenda__product">{r.listingTitle}</span>
+                      {!hideProductTitle ? (
+                        <span className="tv-avail-agenda__product">{r.listingTitle}</span>
+                      ) : null}
                       <span className="tv-avail-agenda__option">{r.optionName}</span>
                     </span>
                     <span className="tv-avail-agenda__meta">
-                      <span className="tv-avail-agenda__seats tabular-nums">
-                        {r.remaining} / {r.capacity}
+                      <span
+                        className="tv-avail-agenda__seats tabular-nums"
+                        title="Booked / Capacity"
+                      >
+                        {r.booked}/{r.capacity}
                       </span>
                       <span className="tv-avail-agenda__cutoff">{r.cutoffLabel}</span>
                       <span

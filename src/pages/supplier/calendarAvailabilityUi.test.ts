@@ -41,10 +41,10 @@ describe('calendarAvailabilityUi', () => {
   it('summarizes bulk actions', () => {
     expect(
       bulkActionSummary({ action: 'close', dateCount: 3, stay: false })
-    ).toBe('Close 3 dates');
+    ).toBe('Close bookings on 3 dates');
     expect(
-      bulkActionSummary({ action: 'set_override', dateCount: 1, capacity: 12, stay: false })
-    ).toBe('Set day-wide override 12 on 1 date');
+      bulkActionSummary({ action: 'change_capacity', dateCount: 1, capacity: 12, stay: false })
+    ).toBe('Set capacity 12 on 1 date');
   });
 
   it('patches option cutoff and schedule spots without touching siblings', () => {

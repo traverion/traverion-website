@@ -163,17 +163,25 @@ export function tourBookableSellingDeparturesOnDate(
     cutoffHoursBeforeStart?: number | null;
     timeZone?: string | null;
     nowMs?: number;
+    /** Date-specific cutoff overrides from listing_extras.slotOverrides */
+    slotOverrides?: Array<{ date: string; startTimeHm: string; cutoffHours?: number }> | null;
   } = {}
 ): TourSellingDeparture[] {
   const listingCutoff = normalizeBookingCutoffHours(params.cutoffHoursBeforeStart);
   const timeZone = resolveDepartureTimezone(params.timeZone);
   const byId = new Map((options ?? []).map((o) => [o.id, o]));
+  const overrides = params.slotOverrides ?? [];
   return tourSellingDeparturesOnDate(options, isoDate).filter((d) => {
     const hm = d.startTime.trim();
     const optionCutoff = normalizeBookingCutoffHours(
       byId.get(d.optionId)?.bookingCutoffHoursBeforeStart
     );
-    const cutoff = optionCutoff > 0 ? optionCutoff : listingCutoff;
+    const baseline = optionCutoff > 0 ? optionCutoff : listingCutoff;
+    const ov = overrides.find(
+      (o) => o.date === isoDate && (o.startTimeHm === hm || o.startTimeHm === hm.slice(0, 5))
+    );
+    const cutoff =
+      ov?.cutoffHours != null ? normalizeBookingCutoffHours(ov.cutoffHours) : baseline;
     if (!hm) return cutoff <= 0;
     return isDepartureTimeStillBookable({
       bookingDate: isoDate,
@@ -205,6 +213,7 @@ export function listingHasBookableDepartureOnDate(
     cutoffHoursBeforeStart: cutoff,
     timeZone: extras.departureTimezone,
     nowMs,
+    slotOverrides: extras.slotOverrides,
   });
   const selling = tourSellingDeparturesOnDate(opts, isoDate).filter((d) => d.startTime.trim());
   if (selling.length === 0) {

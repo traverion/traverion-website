@@ -46,7 +46,8 @@ export function partnerDepartureRemainingLine(params: {
       ? `${params.scheduleName} · ${params.optionName}`
       : params.optionName || params.scheduleName || 'Departure';
   const timeBit = params.startTime.trim() || null;
-  const spotsBit = remaining === 0 ? 'Full' : `${remaining} of ${capacity} left`;
+  const booked = Math.max(0, Math.floor(params.occupyingGuests));
+  const spotsBit = `${booked}/${capacity}`;
   return {
     capacity,
     remaining,
@@ -208,9 +209,10 @@ export function partnerTourMonthCellCapacityLabel(params: {
     }
     if (dayCap != null) {
       const dayLeft = Math.max(0, dayCap - params.occupyingGuestsDay);
+      const dayBooked = Math.max(0, dayCap - dayLeft);
       return {
-        short: `${dayLeft}/${dayCap} day`,
-        aria: `${dayLeft} of ${dayCap} day-wide spots left across ${params.departures.length} departure${
+        short: `${dayBooked}/${dayCap}`,
+        aria: `Booked / Capacity ${dayBooked}/${dayCap} across ${params.departures.length} departure${
           params.departures.length === 1 ? '' : 's'
         }`,
         tone: 'open',
@@ -223,9 +225,10 @@ export function partnerTourMonthCellCapacityLabel(params: {
     }
     if (params.departures.length === 1) {
       const only = departureLines[0]!;
+      const booked = Math.max(0, only.capacity - only.remaining);
       return {
-        short: `${only.remaining}/${only.capacity}`,
-        aria: `${only.remaining} of ${only.capacity} spots left`,
+        short: `${booked}/${only.capacity}`,
+        aria: `Booked / Capacity ${booked}/${only.capacity}`,
         tone: 'open',
         timeHm: primaryTime,
         remaining: only.remaining,
@@ -235,9 +238,10 @@ export function partnerTourMonthCellCapacityLabel(params: {
       };
     }
     // Multi-departure without day override: never invent a single max-of-slots figure.
+    const totalBooked = Math.max(0, totalCapacity - totalRemaining);
     return {
-      short: `${params.departures.length} departures`,
-      aria: `${params.departures.length} departures · ${totalRemaining} of ${totalCapacity} seats left`,
+      short: `${params.departures.length} dep`,
+      aria: `${params.departures.length} departures · Booked / Capacity ${totalBooked}/${totalCapacity}`,
       tone: 'open',
       timeHm: null,
       remaining: totalRemaining,
@@ -260,9 +264,10 @@ export function partnerTourMonthCellCapacityLabel(params: {
         departureLines,
       };
     }
+    const booked = Math.max(0, dayCap - remaining);
     return {
-      short: `${remaining}/${dayCap}`,
-      aria: `${remaining} of ${dayCap} spots left`,
+      short: `${booked}/${dayCap}`,
+      aria: `Booked / Capacity ${booked}/${dayCap}`,
       tone: 'open',
       timeHm: null,
       remaining,
@@ -289,9 +294,10 @@ export function partnerTourMonthCellCapacityLabel(params: {
       departureLines,
     };
   }
+  const booked = Math.max(0, fallback - remaining);
   return {
-    short: `${remaining}/${fallback}`,
-    aria: `${remaining} of ${fallback} spots left`,
+    short: `${booked}/${fallback}`,
+    aria: `Booked / Capacity ${booked}/${fallback}`,
     tone: 'open',
     timeHm: null,
     remaining,

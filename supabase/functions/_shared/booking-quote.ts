@@ -619,10 +619,16 @@ function parseOptions(extras: unknown): Option[] {
 export function effectiveBookingCutoffHours(params: {
   listingExtras: unknown;
   bookingOptionId?: string | null;
+  /** When set with startTimeHm, prefer listing_extras.slotOverrides for that departure. */
+  bookingDate?: string | null;
+  startTimeHm?: string | null;
 }): number {
   const extras =
     params.listingExtras != null && typeof params.listingExtras === 'object' && !Array.isArray(params.listingExtras)
-      ? (params.listingExtras as { bookingCutoffHoursBeforeStart?: unknown })
+      ? (params.listingExtras as {
+          bookingCutoffHoursBeforeStart?: unknown;
+          slotOverrides?: unknown;
+        })
       : null;
   const listingCutoff = normalizeBookingCutoffHours(extras?.bookingCutoffHoursBeforeStart);
   const opts = parseOptions(params.listingExtras);
@@ -634,7 +640,23 @@ export function effectiveBookingCutoffHours(params: {
     option = opts[0];
   }
   const optionCutoff = normalizeBookingCutoffHours(option?.bookingCutoffHoursBeforeStart);
-  return optionCutoff > 0 ? optionCutoff : listingCutoff;
+  const baseline = optionCutoff > 0 ? optionCutoff : listingCutoff;
+  const date = String(params.bookingDate ?? '').slice(0, 10);
+  const hmRaw = String(params.startTimeHm ?? '').trim();
+  const hmMatch = hmRaw.match(/^(\d{1,2}):(\d{2})/);
+  const hm = hmMatch ? `${hmMatch[1].padStart(2, '0')}:${hmMatch[2]}` : '';
+  if (date && hm && Array.isArray(extras?.slotOverrides)) {
+    for (const row of extras.slotOverrides) {
+      if (!row || typeof row !== 'object') continue;
+      const r = row as { date?: unknown; startTimeHm?: unknown; cutoffHours?: unknown };
+      const rd = String(r.date ?? '').slice(0, 10);
+      const rh = String(r.startTimeHm ?? '').trim().slice(0, 5);
+      if (rd === date && rh === hm && r.cutoffHours != null) {
+        return normalizeBookingCutoffHours(r.cutoffHours);
+      }
+    }
+  }
+  return baseline;
 }
 
 /**

@@ -13,7 +13,15 @@ export const CUTOFF_PRESETS = [
   { hours: 24, label: '24 hours before' },
 ] as const;
 
-export type BulkCalendarAction = 'close' | 'reopen' | 'set_override' | 'clear';
+export type BulkCalendarAction =
+  | 'close'
+  | 'reopen'
+  | 'change_capacity'
+  | 'change_cutoff'
+  | 'reset_overrides'
+  /** @deprecated legacy day-wide capacity — kept for stay night value only */
+  | 'set_override'
+  | 'clear';
 
 /** Inclusive ISO dates from `fromIso` to `toIso`, optionally filtered by Mon=0…Sun=6 weekdays. */
 export function enumerateIsoDates(
@@ -98,20 +106,27 @@ export function bulkActionSummary(params: {
   action: BulkCalendarAction;
   dateCount: number;
   capacity?: number;
+  cutoffHours?: number;
   stay: boolean;
 }): string {
   const n = params.dateCount;
   const dates = `${n} date${n === 1 ? '' : 's'}`;
   switch (params.action) {
     case 'close':
-      return params.stay ? `Block ${dates}` : `Close ${dates}`;
+      return params.stay ? `Block ${dates}` : `Close bookings on ${dates}`;
     case 'reopen':
+      return params.stay ? `Clear blocks on ${dates}` : `Open bookings on ${dates}`;
     case 'clear':
-      return params.stay ? `Clear blocks on ${dates}` : `Restore schedule defaults on ${dates}`;
+    case 'reset_overrides':
+      return `Reset overrides on ${dates}`;
+    case 'change_capacity':
+      return `Set capacity ${params.capacity ?? 0} on ${dates}`;
+    case 'change_cutoff':
+      return `Set booking cutoff ${params.cutoffHours ?? 0}h on ${dates}`;
     case 'set_override':
       return params.stay
         ? `Set night value ${params.capacity ?? 0} on ${dates}`
-        : `Set day-wide override ${params.capacity ?? 0} on ${dates}`;
+        : `Set capacity ${params.capacity ?? 0} on ${dates}`;
     default:
       return `Update ${dates}`;
   }

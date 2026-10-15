@@ -61,13 +61,16 @@ export default function AvailabilityWeekView({
                     key={r.key}
                     type="button"
                     className={`tv-avail-week__tile tv-avail-week__tile--${r.status} lux-flat`}
-                    title={`${r.startTimeHm} · ${r.listingTitle} · ${r.optionName} · ${r.remaining}/${r.capacity}`}
+                    title={`${r.startTimeHm} · ${r.listingTitle} · ${r.optionName} · Booked / Capacity ${r.booked}/${r.capacity}`}
                     onClick={() => onOpenDate(r.iso, r.listingId)}
                   >
                     <span className="tv-avail-week__tile-time">{r.startTimeHm}</span>
                     <span className="tv-avail-week__tile-name">{r.optionName}</span>
-                    <span className="tv-avail-week__tile-seats tabular-nums">
-                      {r.remaining}/{r.capacity}
+                    <span
+                      className="tv-avail-week__tile-seats tabular-nums"
+                      title="Booked / Capacity"
+                    >
+                      {r.booked}/{r.capacity}
                     </span>
                     <span className="sr-only">{statusLabel(r.status)}</span>
                   </button>

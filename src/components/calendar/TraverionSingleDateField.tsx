@@ -15,7 +15,10 @@ type Props = {
   label: string;
   value: string;
   onChange: (iso: string) => void;
-  /** Minimum selectable day (YYYY-MM-DD). Defaults to today. */
+  /**
+   * Minimum selectable day (YYYY-MM-DD). Defaults to today.
+   * Pass empty string to allow any past/future date (partner Availability filters).
+   */
   minIso?: string;
   placeholder?: string;
   className?: string;
@@ -41,9 +44,11 @@ export function TraverionSingleDateField({
   const labelId = useId();
   const valueId = useId();
   const todayIso = localYmd();
-  const min = minIso ?? todayIso;
+  const min = minIso === undefined ? todayIso : minIso;
+  const hasMin = /^\d{4}-\d{2}-\d{2}$/.test(min);
 
-  const start = value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : min;
+  const start =
+    value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : hasMin ? min : todayIso;
   const [cursor, setCursor] = useState(() => {
     const [y, m] = start.split('-').map(Number);
     return { y, m: (m ?? 1) - 1 };
@@ -119,7 +124,7 @@ export function TraverionSingleDateField({
             onNextMonth={() => shift(1)}
             footer={
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span>Past days are unavailable.</span>
+                <span>{hasMin ? 'Past days are unavailable.' : 'Select a date.'}</span>
                 {value.trim() ? (
                   <button
                     type="button"
@@ -137,7 +142,7 @@ export function TraverionSingleDateField({
           >
             {cells.map((iso, i) => {
               if (!iso) return <span key={`e-${i}`} />;
-              const isPast = iso < min;
+              const isPast = hasMin && iso < min;
               const isSelected = value === iso;
               const isToday = iso === todayIso && !isSelected;
               let visual: TraverionCalendarDayVisual = 'default';

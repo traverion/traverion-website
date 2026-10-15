@@ -22,11 +22,11 @@ describe('partnerDepartureRemainingLine', () => {
       occupyingGuests: 2,
     });
     expect(morning.full).toBe(true);
-    expect(morning.label).toContain('Full');
+    expect(morning.label).toContain('8/8');
     expect(evening.full).toBe(false);
     expect(evening.remaining).toBe(4);
     expect(evening.label).toContain('20:00');
-    expect(evening.label).toContain('4 of 6 left');
+    expect(evening.label).toContain('2/6');
   });
 });
 
@@ -97,12 +97,13 @@ describe('partnerTourMonthCellCapacityLabel', () => {
         { startTimeHm: '20:00', maxSpots: 50, occupyingGuests: 0, name: 'Standard Bus' },
       ],
     });
-    expect(label.short).toBe('2 departures');
+    expect(label.short).toBe('2 dep');
     expect(label.remaining).toBe(66);
     expect(label.capacity).toBe(66);
     expect(label.departureLines).toHaveLength(2);
     expect(label.departureLines[0]).toMatchObject({ remaining: 16, capacity: 16 });
     expect(label.departureLines[1]).toMatchObject({ remaining: 50, capacity: 50 });
     expect(label.short).not.toMatch(/50\/50/);
+    expect(label.aria).toMatch(/Booked \/ Capacity 0\/66/);
   });
 });

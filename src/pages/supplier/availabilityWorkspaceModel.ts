@@ -9,6 +9,11 @@ import {
   bookingCutoffTravelerLabel,
 } from '../../lib/tour-departure-cutoff';
 import { partnerTourRemainingSpots } from '../../lib/availability-ops';
+import {
+  findSlotOverride,
+  resolveSlotCapacity,
+  resolveSlotCutoffHours,
+} from '../../lib/listing-slot-overrides';
 import { resolveOptionCutoffHours, cutoffDisplayLabel } from './calendarAvailabilityUi';
 
 export type AvailabilityViewMode = 'agenda' | 'week' | 'month';
@@ -151,16 +156,23 @@ export function buildWorkspaceDepartures(params: {
       for (const d of deps) {
         if (params.optionId && d.optionId !== params.optionId) continue;
         const startTimeHm = (d.startTime || '').trim().slice(0, 5);
-        const capacity = Math.max(0, Math.floor(d.maxSpotsPerSlot));
+        const slotOv = findSlotOverride(listing.listingExtras?.slotOverrides, cur, startTimeHm);
+        const capacity = resolveSlotCapacity({
+          scheduleCapacity: Math.max(0, Math.floor(d.maxSpotsPerSlot)),
+          override: slotOv,
+        });
         const booked = params.occupyingForSlot(listing.id, cur, startTimeHm);
         let remaining = partnerTourRemainingSpots(capacity, booked);
         if (dayCap != null) {
-          // Day-wide override caps total day seats; per-slot remaining is min(slot, day left).
-          // Without day-level booked split we use slot remaining alone when dayCap is open,
-          // and force 0 when closed.
+          // Day-wide override: capacity 0 closes the day. Positive legacy day caps still LEAST.
           if (dayCap < 1) remaining = 0;
+          else remaining = Math.min(remaining, partnerTourRemainingSpots(dayCap, booked));
         }
-        const cutoffHours = resolveOptionCutoffHours(listing, d.optionId);
+        const baselineCutoff = resolveOptionCutoffHours(listing, d.optionId);
+        const cutoffHours = resolveSlotCutoffHours({
+          baselineCutoffHours: baselineCutoff,
+          override: slotOv,
+        });
         const cutoffStillBookable = isDepartureTimeStillBookable({
           bookingDate: cur,
           startTimeHm: startTimeHm || '00:00',

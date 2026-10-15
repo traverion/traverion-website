@@ -4,6 +4,11 @@ import {
   normalizeSpokenLanguageIds,
   normalizeWhatToBringIds,
 } from '../lib/listing-information-catalogs';
+import {
+  parseSlotOverrides,
+  slotOverridesToDb,
+  type ListingSlotOverride,
+} from '../lib/listing-slot-overrides';
 
 /** Legacy preset values still parsed from stored `listing_extras` JSON. */
 export type CancellationPreset = 'free_24h' | 'free_48h' | 'free_7d' | 'non_refundable' | 'custom';
@@ -255,6 +260,11 @@ export interface ListingExtras {
   inventoryFamily?: 'tour' | 'stay' | 'experience' | 'package';
   /** Stay-only facts. Ignored for tours. */
   stay?: StayDetails;
+  /**
+   * Date-specific capacity / booking-cutoff overrides per departure start time.
+   * Does not change recurring schedule defaults. Enforced by assert_checkout_inventory (Phase 243).
+   */
+  slotOverrides?: ListingSlotOverride[];
 }
 
 export type StayDetails = {
@@ -853,6 +863,9 @@ export function parseListingExtras(raw: unknown): ListingExtras {
   const stay = normalizeStayDetails(o.stay);
   if (stay) out.stay = stay;
 
+  const slotOverrides = parseSlotOverrides(o.slotOverrides);
+  if (slotOverrides.length) out.slotOverrides = slotOverrides;
+
   return out;
 }
 
@@ -910,6 +923,10 @@ export function listingExtrasToDb(extras: ListingExtras | undefined): Record<str
     payload.photoCropSettings = extras.photoCropSettings;
   }
   if (extras.bookingOptions?.length) payload.bookingOptions = extras.bookingOptions;
+  // Always persist when present (including []) so Availability can clear date overrides.
+  if (Array.isArray(extras.slotOverrides)) {
+    payload.slotOverrides = slotOverridesToDb(extras.slotOverrides) ?? [];
+  }
   if (extras.inventoryFamily && extras.inventoryFamily !== 'tour') {
     payload.inventoryFamily = extras.inventoryFamily;
   }
