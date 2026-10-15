@@ -1491,6 +1491,48 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours' }: Tou
           </div>
         </div>
 
+        <header className="mb-5 sm:mb-6 max-w-3xl">
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-muted mb-2">
+            <span className="inline-flex items-center rounded-md bg-finland/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-finland ring-1 ring-finland/15">
+              {tourKindLabel(tour.experienceKind)}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <MapPin size={14} className="shrink-0 text-finland" aria-hidden />
+              {tour.destination}
+            </span>
+            {review.score ? (
+              <>
+                <span className="text-ink-faint" aria-hidden>
+                  ·
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <Star size={14} className="text-finland fill-finland shrink-0" aria-hidden />
+                  <strong className="text-ink tabular-nums">{review.score}</strong>
+                  <span>
+                    ({review.count} {review.count === 1 ? 'review' : 'reviews'})
+                  </span>
+                </span>
+              </>
+            ) : null}
+            {supplierLegal?.operatorName ? (
+              <>
+                <span className="text-ink-faint" aria-hidden>
+                  ·
+                </span>
+                <span>Hosted by {supplierLegal.operatorName}</span>
+              </>
+            ) : null}
+          </p>
+          <h1 className="font-display text-3xl sm:text-4xl lg:text-[2.6rem] text-ink tracking-tight leading-[1.12] break-words [overflow-wrap:anywhere]">
+            {tour.title}
+          </h1>
+          {tour.subtitle?.trim() ? (
+            <p className="mt-2 max-w-2xl text-base text-ink-muted leading-snug break-words [overflow-wrap:anywhere]">
+              {tour.subtitle.trim()}
+            </p>
+          ) : null}
+        </header>
+
         <div className="mb-6 sm:mb-8">
           {hasGallery ? (
             <div className="grid grid-cols-1 gap-2 sm:gap-3 lg:grid-cols-4 lg:grid-rows-2 lg:min-h-[28rem]">
@@ -1570,61 +1612,17 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours' }: Tou
           ) : null}
         </div>
 
-        <header className="mb-5 sm:mb-6 max-w-3xl">
-          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-muted mb-2">
-            <span className="inline-flex items-center rounded-md bg-finland/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-finland ring-1 ring-finland/15">
-              {tourKindLabel(tour.experienceKind)}
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <MapPin size={14} className="shrink-0 text-finland" aria-hidden />
-              {tour.destination}
-            </span>
-            {review.score ? (
-              <>
-                <span className="text-ink-faint" aria-hidden>
-                  ·
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <Star size={14} className="text-finland fill-finland shrink-0" aria-hidden />
-                  <strong className="text-ink tabular-nums">{review.score}</strong>
-                  <span>
-                    ({review.count} {review.count === 1 ? 'review' : 'reviews'})
-                  </span>
-                </span>
-              </>
-            ) : null}
-            {supplierLegal?.operatorName ? (
-              <>
-                <span className="text-ink-faint" aria-hidden>
-                  ·
-                </span>
-                <span>Hosted by {supplierLegal.operatorName}</span>
-              </>
-            ) : null}
-          </p>
-          <h1 className="font-display text-3xl sm:text-4xl lg:text-[2.75rem] text-ink tracking-tight leading-[1.15] break-words [overflow-wrap:anywhere]">
-            {tour.title}
-          </h1>
-          {tour.subtitle?.trim() ? (
-            <p className="mt-2 text-base sm:text-lg text-ink-muted leading-snug break-words [overflow-wrap:anywhere]">
-              {tour.subtitle.trim()}
-            </p>
-          ) : null}
-        </header>
-
         <TourQuickFacts tour={tour} />
       </div>
 
       <section className="bg-paper pb-10">
         <div className="tv-shell mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="mb-8">
-            <TourOverview
-              description={tour.description}
-              extras={overviewExtras}
-            />
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-10">
-            <div className="lg:col-span-2 space-y-10 order-2 lg:order-1">
+          <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_22.5rem] lg:gap-12">
+            <div className="min-w-0 space-y-10">
+              <TourOverview
+                description={tour.description}
+                extras={overviewExtras}
+              />
               {canBook && bookingVariantsOpen && bookingDate.trim() ? (
                 <div ref={optionsSectionRef}>
                   <TourAvailableOptions
@@ -1668,7 +1666,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours' }: Tou
               />
             </div>
 
-            <div className="lg:col-span-1 order-1 lg:order-2">
+            <div className="min-w-0 lg:sticky lg:top-[calc(4.75rem+env(safe-area-inset-top,0px))] lg:self-start">
               <div
                 id="tour-booking-panel"
                 className="tv-booking-sticky lg:sticky lg:top-24 h-fit scroll-mt-24"
