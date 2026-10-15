@@ -218,7 +218,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
           <div className="flex items-center gap-1.5 sm:gap-2" ref={userMenuRef}>
             <button
               type="button"
-              className="lux-flat inline-flex h-10 w-10 items-center justify-center rounded-full text-ink hover:bg-black/[0.04]"
+              className="lux-flat inline-flex h-11 w-11 items-center justify-center rounded-full text-ink hover:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-finland"
               aria-label="Search tours"
               onClick={() => {
                 setIsMobileMenuOpen(false);
