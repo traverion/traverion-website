@@ -8,6 +8,6 @@ describe('Phase 1604: tour sticky quote-failure price copy', () => {
     expect(src).toContain('Phase 1604');
     expect(src).toContain("'Price unavailable'");
     expect(src).toMatch(/quoteFailed[\s\S]*Price unavailable/);
-    expect(src).toMatch(/quoteFailed[\s\S]*panelQuote\?\.error/);
+    expect(src).toMatch(/quoteFailed[\s\S]*panelQuote\.error/);
   });
 });

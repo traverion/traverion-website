@@ -1671,7 +1671,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours' }: Tou
                 id="tour-booking-panel"
                 className="tv-booking-sticky lg:sticky lg:top-[calc(4.75rem+env(safe-area-inset-top,0px))] h-fit scroll-mt-28"
               >
-                <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">Book this experience</p>
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">Book this experience</p>
                 {!canBook ? (
                   <div>
                     <p className="text-lg font-semibold text-ink">Not bookable yet</p>
@@ -1684,7 +1684,9 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours' }: Tou
                     {(() => {
                       // Phase 1560: failed quote beats “Checking offers…” (sticky parity).
                       if (selectedBookingVariant && panelQuote && !panelQuote.ok) {
-                        return <p className="mb-4 text-lg font-semibold tabular-nums text-ink">—</p>;
+                        return (
+                          <p className="mb-3 text-lg font-semibold text-ink">Price unavailable</p>
+                        );
                       }
                       // Phase 1561: successful quote is the hero total (sticky parity — not catalog From).
                       if (selectedBookingVariant && panelQuote?.ok) {
@@ -1720,7 +1722,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours' }: Tou
                         </>
                       );
                     })()}
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       <TourDatePicker
                         id="tour-booking-date-input"
                         value={bookingDate}
@@ -1770,8 +1772,8 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours' }: Tou
                       ) : null}
                       {selectedBookingVariant ? (
                         <div className="space-y-3 border-t border-black/[0.06] pt-3">
-                          <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Selected</p>
+                          <div className="rounded-lg bg-finland/[0.06] px-3 py-2 ring-1 ring-finland/15">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-finland">Selected option</p>
                             <p className="text-sm font-semibold text-ink">{selectedBookingVariant.label}</p>
                           </div>
                           {departureTimes.length > 1 ? (
@@ -1998,6 +2000,9 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours' }: Tou
                               capacityUnknown,
                             })}
                           </button>
+                          {listingShowsFreeCancellation(tour) ? (
+                            <p className="text-xs text-ink-muted">Free cancellation on this experience.</p>
+                          ) : null}
                         </div>
                       ) : (
                         <p className="text-sm text-ink-muted">
@@ -2293,7 +2298,8 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours' }: Tou
                         : `From ${formatMoney(Number(price), currency)}`;
                   const subLine =
                     quoteFailed
-                      ? (panelQuote?.error?.trim().slice(0, 72) || 'Adjust date, guests, or option')
+                      ? ((panelQuote && !panelQuote.ok ? panelQuote.error : '').trim().slice(0, 72) ||
+                          'Adjust date, guests, or option')
                       : selectedBookingVariant
                       ? [
                           selectedBookingVariant.label,
