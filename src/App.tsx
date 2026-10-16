@@ -87,6 +87,7 @@ const AffiliatePage = lazy(() => import('./pages/AffiliatePage'));
 const ContentCreatorPage = lazy(() => import('./pages/ContentCreatorPage'));
 const Packages = lazy(() => import('./pages/Packages'));
 const MyBookings = lazy(() => import('./pages/MyBookings'));
+const CartPage = lazy(() => import('./pages/CartPage'));
 const AuthPage = lazy(() => import('./pages/AuthPage'));
 const TourDetails = lazy(() => import('./pages/TourDetails'));
 const Stays = lazy(() => import('./pages/Stays'));
@@ -443,6 +444,7 @@ function App() {
       'account': '/account',
       'wishlist': '/wishlist',
       'bookings': '/bookings',
+      'cart': '/cart',
       'booking-confirmed': '/booking-confirmed',
       'blog': '/blog',
       'contact': '/contact',
@@ -562,7 +564,8 @@ function App() {
       'email-confirmed': { title: 'Email confirmed', description: 'Your Traverion traveler email was verified.' },
       account: { title: 'My account', description: 'Your profile, trips, and saved tours and stays.' },
       wishlist: { title: 'Saved', description: 'Tours and stays you have saved.' },
-      bookings: { title: 'Trips', description: 'View your tour and stay reservations and their status.' },
+      bookings: { title: 'Trips', description: 'View your confirmed tours and stays.' },
+      cart: { title: 'Cart', description: 'Unpaid reservations held for 60 minutes.' },
       'booking-confirmed': {
         title: 'Booking confirmed',
         description: `Your tour or stay payment was successful. Checkout used ${STRIPE_TEST_UNTIL_LIVE}.`,
@@ -593,7 +596,7 @@ function App() {
     );
 
     const pathMap: Record<string, string> = {
-      home: '/', packages: '/packages', stays: '/stays', auth: '/auth', 'reset-password': '/set-password', 'email-confirmed': '/email-confirmed', account: '/account', wishlist: '/wishlist', bookings: '/bookings',
+      home: '/', packages: '/packages', stays: '/stays', auth: '/auth', 'reset-password': '/set-password', 'email-confirmed': '/email-confirmed', account: '/account', wishlist: '/wishlist', bookings: '/bookings', cart: '/cart',
       'booking-confirmed': '/booking-confirmed',
       blog: '/blog', contact: '/contact', privacy: '/privacy', terms: '/terms', cookies: '/cookies',
       about: '/about', sitemap: '/sitemap',
@@ -876,6 +879,8 @@ function App() {
         return <ResetPasswordPage onNavigate={handleNavigate} />;
       case 'email-confirmed':
         return <Home onTourSelect={handleTourSelect} onNavigate={handleNavigate} />;
+      case 'cart':
+        return <CartPage onNavigate={handleNavigate} />;
       case 'bookings':
         return (
           <MyBookings

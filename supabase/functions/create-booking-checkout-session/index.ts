@@ -172,7 +172,7 @@ serve(async (req) => {
       : '';
     let checkoutDate = String(body.checkoutDate ?? '').trim();
     const successPath = sanitizePath(body.successPath, '/booking-confirmed');
-    const cancelPath = sanitizePath(body.cancelPath, '/bookings?payment=cancelled');
+    const cancelPath = sanitizePath(body.cancelPath, '/cart?payment=cancelled');
     const publicSiteUrl = resolveCheckoutSiteUrl({
       publicSiteUrl: publicSiteUrlEnv,
       returnOrigin: typeof body.returnOrigin === 'string' ? body.returnOrigin : null,

@@ -451,23 +451,9 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   );
 
   useEffect(() => {
-    if (paymentBanner !== 'cancelled' || pendingPayBookings.length === 0) return;
-    if (openTripId) return;
-    const urlBooking =
-      typeof window !== 'undefined'
-        ? new URLSearchParams(window.location.search).get('booking')?.trim() || null
-        : null;
-    const fromUrl = urlBooking
-      ? pendingPayBookings.find((b) => b.id === urlBooking)
-      : undefined;
-    const target = fromUrl ?? pendingPayBookings[0];
-    setOpenTripId(target.id);
-    setTripView('upcoming');
-    if (typeof window === 'undefined') return;
-    const url = new URL(window.location.href);
-    url.searchParams.set('booking', target.id);
-    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
-  }, [paymentBanner, pendingPayBookings, openTripId]);
+    if (paymentBanner !== 'cancelled') return;
+    onNavigate('cart');
+  }, [paymentBanner, onNavigate]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -730,13 +716,8 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               {pendingPayBookings[0] ? (
-                <button
-                  type="button"
-                  onClick={() => void handlePayNow(pendingPayBookings[0])}
-                  disabled={payingId === pendingPayBookings[0].id}
-                  className="tv-btn-primary"
-                >
-                  {payingId === pendingPayBookings[0].id ? TRAVELER_OPENING_CHECKOUT_CTA : TRAVELER_PAY_NOW_TEST_CTA}
+                <button type="button" onClick={() => onNavigate('cart')} className="tv-btn-primary">
+                  View cart
                 </button>
               ) : (
                 <>

@@ -1338,7 +1338,7 @@ export default function BookingPage({
                 paymentCancelled: true,
                 startTime: departureTime,
               })
-            : '/bookings?payment=cancelled',
+            : '/cart?payment=cancelled',
         });
         if (!checkout.success || !checkout.checkoutUrl) {
           setError(userFacingError(checkout.error, USER_ERROR.checkout));

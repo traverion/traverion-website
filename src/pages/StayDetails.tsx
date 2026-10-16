@@ -691,7 +691,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
       currency: stayQuote.currency,
       checkoutConsentAccepted: true,
       successPath: '/booking-confirmed',
-      cancelPath: '/bookings?payment=cancelled',
+      cancelPath: '/cart?payment=cancelled',
     }).then((res) => {
       setPaying(false);
       checkoutLockRef.current = false;

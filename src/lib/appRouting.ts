@@ -17,7 +17,7 @@ const PATH_TO_PAGE: Record<string, string> = {
   '/packages': 'packages',
   '/tours': 'packages',
   '/stays': 'stays',
-  '/cart': 'bookings',
+  '/cart': 'cart',
   '/auth': 'auth',
   '/sign-up': 'auth',
   '/log-in': 'auth',
@@ -105,12 +105,9 @@ export function normalizePublicListingDeepLinkPathname(pathname: string): string
   return normalizePublicStayDeepLinkPathname(normalizePublicTourDeepLinkPathname(pathname));
 }
 
+/** `/cart` is the reservation cart. Keep the pathname. */
 export function normalizeRetiredCartPathname(pathname: string): string {
-  const normalized =
-    pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
-  if (normalized !== '/cart' || typeof window === 'undefined') return pathname;
-  window.history.replaceState(window.history.state, '', '/trips');
-  return '/trips';
+  return pathname;
 }
 
 const TOUR_FLOW_PAGES = new Set(['tour-details', 'booking', 'tour-package', 'stay-details']);

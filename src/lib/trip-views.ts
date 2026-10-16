@@ -1,5 +1,9 @@
 import { normalizePaymentStatus, isRefundDueBooking } from './payment-states';
-import { bookingOccupiesInventory, partnerUnpaidCheckoutHoldsInventory } from './booking-hold';
+import {
+  bookingOccupiesInventory,
+  CHECKOUT_HOLD_MINUTES,
+  partnerUnpaidCheckoutHoldsInventory,
+} from './booking-hold';
 import { checkoutPaymentStatusCanResume } from './checkout-resume';
 import { bookingIsStayNight } from './pickup-completeness';
 import { nightsOccupiedByStay, stayRangeFromBooking } from './stayOccupancy';
@@ -175,10 +179,44 @@ export function travelerTripIsLive(b: {
   payment_status?: string | null;
 }): boolean {
   if (bookingIsCancelledTrip(b)) return false;
-  // Recoverable Pay now holds stay live for the traveler even when partners ignore unpaid.
-  if (travelerBookingNeedsPayNow(b)) return true;
+  // Unpaid reservations live in Cart, not Trips.
+  if (travelerBookingNeedsPayNow(b)) return false;
   if (bookingIsFailedCheckout(b)) return false;
   return partnerBookingIsLiveTrip(b) && !bookingIsCancelledTrip(b);
+}
+
+/** Server expiry for a checkout hold. Refreshing the page does not move this timestamp. */
+export function travelerHoldExpiresAtMs(b: {
+  hold_expires_at?: string | null;
+  created_at?: string | null;
+}): number | null {
+  if (b.hold_expires_at) {
+    const exp = Date.parse(b.hold_expires_at);
+    return Number.isFinite(exp) ? exp : null;
+  }
+  if (b.created_at) {
+    const created = Date.parse(b.created_at);
+    if (Number.isFinite(created)) return created + CHECKOUT_HOLD_MINUTES * 60 * 1000;
+  }
+  return null;
+}
+
+/**
+ * Unpaid reservation that still holds inventory. Expired and failed checkouts
+ * leave the cart; paying them again requires a new availability check.
+ */
+export function travelerActiveCartHold(
+  b: {
+    status?: string | null;
+    payment_status?: string | null;
+    hold_expires_at?: string | null;
+    created_at?: string | null;
+  },
+  nowMs: number = Date.now()
+): boolean {
+  if (!travelerBookingNeedsPayNow(b)) return false;
+  if (normalizePaymentStatus(b.payment_status) !== 'pending') return false;
+  return bookingOccupiesInventory(b, nowMs);
 }
 
 /** Traveler can resume Stripe for an unpaid hold (live pending or expired→failed). */
@@ -311,7 +349,7 @@ export function partnerBookingIsPastSchedule(b: PartnerScheduleBooking, todayIso
   return Boolean(date) && date < todayIso;
 }
 
-/** Upcoming and Past are for active trips + traveler-recoverable failed holds. Refunded → Cancelled.
+/** Upcoming and Past are confirmed trips. Unpaid reservations belong in Cart. Refunded → Cancelled.
  * Stays stay Upcoming through check-out day (same finish rule as partner Past: checkOut < today).
  */
 export function bookingMatchesTripView(
@@ -332,7 +370,8 @@ export function bookingMatchesTripView(
   const cancelled = bookingIsCancelledTrip(b);
   if (view === 'cancelled') return cancelled;
   if (cancelled) return false;
-  if (bookingIsFailedCheckout(b) && !travelerBookingNeedsPayNow(b)) return false;
+  if (travelerBookingNeedsPayNow(b)) return false;
+  if (bookingIsFailedCheckout(b)) return false;
   if (bookingIsStayNight(b)) {
     const stay = stayRangeFromBooking(b);
     if (!stay) return view === 'upcoming';

@@ -1016,7 +1016,7 @@ describe('parsePathname legacy brochure URLs', () => {
     expect(parsePathname('/tours/ec6e5d7e-b5d6-4428-94a4-e3ae0801a4b5').page).toBe('packages');
     expect(parsePathname('/').page).toBe('home');
     expect(parsePathname('/not-a-real-page').page).toBe('not-found');
-    expect(parsePathname('/cart').page).toBe('bookings');
+    expect(parsePathname('/cart').page).toBe('cart');
     expect(parsePathname('/account').page).toBe('account');
     expect(parsePathname('/bookings').page).toBe('bookings');
     expect(parsePathname('/stays')).toEqual({ page: 'stays', destinationSlug: null });

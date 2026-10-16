@@ -9,6 +9,8 @@ import {
   partnerBookingIsUpcomingSchedule,
   partnerBookingIsPastSchedule,
   travelerTripIsLive,
+  travelerActiveCartHold,
+  travelerHoldExpiresAtMs,
   bookingAppearsInTravelerTrips,
   travelerBookingNeedsPayNow,
   travelerTripReferenceLabel,
@@ -73,7 +75,7 @@ describe('trip list views', () => {
         nowMs
       )
     ).toBe(false);
-    expect(travelerTripIsLive({ status: 'pending', payment_status: 'pending' })).toBe(true);
+    expect(travelerTripIsLive({ status: 'pending', payment_status: 'pending' })).toBe(false);
     expect(travelerTripIsLive({ status: 'confirmed', payment_status: 'paid' })).toBe(true);
     expect(travelerBookingNeedsPayNow({ status: 'pending', payment_status: 'pending' })).toBe(true);
     expect(travelerBookingNeedsPayNow({ status: 'confirmed', payment_status: 'paid' })).toBe(false);
@@ -89,17 +91,40 @@ describe('trip list views', () => {
     expect(bookingMatchesTripView(paid, 'cancelled', today)).toBe(false);
   });
 
-  it('still lists unpaid checkout that is pending, not failed', () => {
-    const pending = { status: 'pending', payment_status: 'pending', booking_date: '2026-10-10' };
-    expect(bookingMatchesTripView(pending, 'upcoming', today)).toBe(true);
+  it('keeps a live unpaid reservation in Cart and out of Upcoming', () => {
+    const nowMs = Date.parse('2026-10-16T12:00:00.000Z');
+    const pending = {
+      status: 'pending',
+      payment_status: 'pending',
+      booking_date: '2026-10-17',
+      hold_expires_at: '2026-10-16T13:00:00.000Z',
+      created_at: '2026-10-16T12:00:00.000Z',
+    };
+    expect(bookingMatchesTripView(pending, 'upcoming', today)).toBe(false);
+    expect(travelerActiveCartHold(pending, nowMs)).toBe(true);
+    expect(travelerHoldExpiresAtMs(pending)).toBe(Date.parse('2026-10-16T13:00:00.000Z'));
+    expect(travelerHoldExpiresAtMs(pending)).toBe(travelerHoldExpiresAtMs(pending));
   });
 
-  it('lists recoverable payment-failed holds in Upcoming for Pay now', () => {
+  it('drops an expired unpaid reservation from Cart and Upcoming', () => {
+    const nowMs = Date.parse('2026-10-16T12:00:00.000Z');
+    const expired = {
+      status: 'pending',
+      payment_status: 'pending',
+      booking_date: '2026-10-17',
+      hold_expires_at: '2026-10-16T11:00:00.000Z',
+    };
+    expect(bookingMatchesTripView(expired, 'upcoming', today)).toBe(false);
+    expect(travelerActiveCartHold(expired, nowMs)).toBe(false);
+  });
+
+  it('does not list payment-failed holds in Upcoming or Cart', () => {
     const failed = { status: 'pending', payment_status: 'failed', booking_date: '2026-10-10' };
-    expect(bookingMatchesTripView(failed, 'upcoming', today)).toBe(true);
+    expect(bookingMatchesTripView(failed, 'upcoming', today)).toBe(false);
     expect(bookingMatchesTripView(failed, 'cancelled', today)).toBe(false);
     expect(travelerBookingNeedsPayNow(failed)).toBe(true);
-    expect(travelerTripIsLive(failed)).toBe(true);
+    expect(travelerTripIsLive(failed)).toBe(false);
+    expect(travelerActiveCartHold(failed)).toBe(false);
     expect(partnerBookingIsLiveTrip(failed)).toBe(false);
   });
 
@@ -146,7 +171,7 @@ describe('trip list views', () => {
     };
     expect(partnerBookingIsTodaySchedule(unpaidToday, '2026-09-11')).toBe(false);
     expect(partnerBookingIsUpcomingSchedule(unpaidToday, '2026-09-09')).toBe(false);
-    expect(travelerTripIsLive(unpaidToday)).toBe(true);
+    expect(travelerTripIsLive(unpaidToday)).toBe(false);
     expect(partnerBookingShowsCancelAction(unpaidToday)).toBe(true);
     expect(
       partnerBookingShowsCancelAction({ status: 'confirmed', payment_status: 'paid' })

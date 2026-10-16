@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useDialogFocus } from '../hooks/useDialogFocus';
-import { Menu, X, User, LogOut, LayoutDashboard, Calendar, Heart, LifeBuoy, ExternalLink, Search } from 'lucide-react';
+import { Menu, X, User, LogOut, LayoutDashboard, Calendar, Heart, LifeBuoy, ExternalLink, Search, ShoppingBag } from 'lucide-react';
 import { prefetchAuthPage, prefetchMyBookingsPage, prefetchPackagesPage } from '../lib/routePrefetch';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -279,6 +279,20 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                         </button>
                         <button
                           type="button"
+                          onClick={() => {
+                            setIsUserMenuOpen(false);
+                            onNavigate('cart');
+                          }}
+                          aria-current={currentPage === 'cart' ? 'page' : undefined}
+                          className={`lux-flat lux-tap-target min-h-11 w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left ${
+                            currentPage === 'cart' ? 'bg-finland/10 font-semibold text-finland' : 'text-ink hover:bg-black/[0.04]'
+                          }`}
+                        >
+                          <ShoppingBag className="h-4 w-4 shrink-0 text-ink-muted" aria-hidden />
+                          Cart
+                        </button>
+                        <button
+                          type="button"
                           onClick={openBookings}
                           aria-current={currentPage === 'bookings' ? 'page' : undefined}
                           aria-label={hasUnreadBookings ? 'Trips, unread updates' : 'Trips'}
@@ -515,6 +529,20 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                     >
                       <LayoutDashboard className="w-5 h-5" />
                       My account
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onNavigate('cart');
+                        setIsMobileMenuOpen(false);
+                      }}
+                      aria-current={currentPage === 'cart' ? 'page' : undefined}
+                      className={`lux-flat w-full text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux flex items-center gap-2 ${
+                        currentPage === 'cart' ? 'bg-finland/10 font-semibold text-finland' : 'text-ink hover:bg-black/[0.04]'
+                      }`}
+                    >
+                      <ShoppingBag className="w-5 h-5" />
+                      Cart
                     </button>
                     <button
                       type="button"

@@ -320,7 +320,7 @@ export async function resumePendingBookingCheckout(params: {
     typeof window !== 'undefined' && typeof window.location?.origin === 'string'
       ? window.location.origin
       : undefined;
-  const cancelPath = `/bookings?payment=cancelled&booking=${encodeURIComponent(params.bookingId)}`;
+  const cancelPath = `/cart?payment=cancelled&booking=${encodeURIComponent(params.bookingId)}`;
   const customerName = String(params.customerName ?? '').trim();
   const { data, error } = await supabase.functions.invoke('create-booking-checkout-session', {
     body: {
