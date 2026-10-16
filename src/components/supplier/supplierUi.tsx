@@ -12,7 +12,8 @@ import { X } from 'lucide-react';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 /** Full-width supplier portal pages — fills the main column on desktop, fluid on mobile. */
-export const SUPPLIER_PAGE_CLASS = 'partner-stack w-full min-w-0 max-w-full motion-safe:animate-fade-in';
+export const SUPPLIER_PAGE_CLASS =
+  'partner-stack w-full min-w-0 max-w-full lux-page-enter lux-page-enter--slide';
 
 /** Main column width modes for SupplierLayout `partner-page-frame`. */
 export type PartnerPageFrameMode = 'default' | 'home' | 'ops';
