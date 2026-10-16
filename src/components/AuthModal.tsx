@@ -20,7 +20,7 @@ type TravelerFieldKey = 'firstName' | 'lastName' | 'email' | 'phoneNumber' | 'pa
 type TravelerFieldErrors = Partial<Record<TravelerFieldKey, string>>;
 
 export default function AuthModal() {
-  const { authModalOpen, closeAuthModal, signIn, signUp, triggerAuthSuccess } = useAuth();
+  const { authModalOpen, authIntent, closeAuthModal, signIn, signUp, triggerAuthSuccess } = useAuth();
   const [tab, setTab] = useState<Tab>('signin');
   const [authSlide, setAuthSlide] = useState<'forward' | 'back'>('forward');
   const [firstName, setFirstName] = useState('');
@@ -232,14 +232,18 @@ export default function AuthModal() {
   const modalSubtitle =
     tab === 'signin' && passwordResetPanel
       ? 'We will email a reset link if an account exists for that address.'
-      : tab === 'signin'
-        ? 'Manage trips, confirmations, and bookings.'
-        : 'Save trips and book experiences. Takes under a minute.';
+      : authIntent === 'checkout' && tab === 'signin'
+        ? 'Log in to continue to checkout. Your selection stays on this page.'
+        : authIntent === 'checkout'
+          ? 'Create an account to continue to checkout. Your selection stays on this page.'
+          : tab === 'signin'
+            ? 'Manage trips, confirmations, and bookings.'
+            : 'Save trips and book experiences. Takes under a minute.';
 
   return (
     <div
       ref={dialogRef}
-      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-[2px] animate-fade-in"
+      className="fixed inset-0 z-[30000] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-[2px] animate-fade-in"
       style={{ animationDuration: '0.2s' }}
       role="dialog"
       aria-modal="true"

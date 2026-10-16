@@ -106,6 +106,8 @@ import { tourSlotMaxSpotsFromOption } from '../lib/tour-slot-capacity';
 import { tourDepartureSlotCapacity } from '../../supabase/functions/_shared/booking-quote.ts';
 import { tourStickyBookCtaLabel } from '../lib/tour-sticky-cta';
 import { tourQuoteFailureFocusTarget } from '../lib/tour-quote-failure-focus';
+import { loadTravelerCart, saveTravelerCart } from '../lib/travelerCart';
+import { loadAccountCartForListing, rememberAccountCart } from '../data/supabase-cart';
 import { travelerDisplayNameFromSources } from '../lib/traveler-display-name';
 import { fetchWishlistListingIds, toggleWishlist } from '../data/supabase-wishlist';
 import { formatMoney, normalizeCurrency } from '../lib/money';
@@ -142,10 +144,12 @@ interface TourDetailsProps {
   onBack: () => void;
   /** Label for the back control — reflects where the traveler came from. */
   backLabel?: string;
+  /** True while the checkout sheet is on screen, so the marketplace header can step aside. */
+  onCheckoutActive?: (active: boolean) => void;
 }
 
-export default function TourDetails({ tourId, onBack, backLabel = 'Tours' }: TourDetailsProps) {
-  const { user, requestAuth } = useAuth();
+export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onCheckoutActive }: TourDetailsProps) {
+  const { user, loading: authLoading, requestAuth } = useAuth();
   const [tour, setTour] = useState<TourPackage | null>(null);
   const [tourLoadError, setTourLoadError] = useState<string | null>(null);
   /** Phase 1731: loaded for Leave a review when draft/season-ended (not a live bookable PDP). */
@@ -188,6 +192,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours' }: Tou
   useDialogFocus(legalModal !== null, legalSheetRef, closeLegalModal);
   useDialogFocus(galleryLightboxOpen, gallerySheetRef, closeGalleryLightbox);
   const [bookingCardError, setBookingCardError] = useState<string | null>(null);
+  const [selectionRestored, setSelectionRestored] = useState(false);
   const [selfBookBlocked, setSelfBookBlocked] = useState(false);
   const [selfBookCheckFailed, setSelfBookCheckFailed] = useState(false);
   const [bookingVariantsOpen, setBookingVariantsOpen] = useState(() => Boolean(readSearchPrefill().date));
@@ -217,6 +222,8 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours' }: Tou
   const optionsSectionRef = useRef<HTMLDivElement>(null);
   // Phase 1708: effect sync only — per-render wipe broke Save→sign-in wishlist resume (1704 parity).
   const userRef = useRef(user);
+  const bookingDateRef = useRef(bookingDate);
+  bookingDateRef.current = bookingDate;
   useEffect(() => {
     userRef.current = user;
   }, [user]);
@@ -965,6 +972,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours' }: Tou
     setLocationSearch(window.location.search);
   }, []);
 
+  const checkoutAuthPromptedRef = useRef(false);
   const closeBookingModal = useCallback(() => {
     if (!tour) return;
     const listing = tourListingPath(tour.id, {
@@ -996,6 +1004,31 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours' }: Tou
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
+
+  const checkoutUnlocked =
+    Boolean(checkoutFromUrl && checkoutVariant && canBook) &&
+    (!isSupabaseConfigured() || Boolean(user));
+
+  useEffect(() => {
+    onCheckoutActive?.(checkoutUnlocked);
+    return () => onCheckoutActive?.(false);
+  }, [checkoutUnlocked, onCheckoutActive]);
+
+  useEffect(() => {
+    if (!checkoutFromUrl || !checkoutVariant || !canBook || !isSupabaseConfigured() || authLoading || user) {
+      if (!checkoutFromUrl) checkoutAuthPromptedRef.current = false;
+      return;
+    }
+    if (checkoutAuthPromptedRef.current) return;
+    checkoutAuthPromptedRef.current = true;
+    requestAuth({
+      intent: 'checkout',
+      onDismiss: () => {
+        checkoutAuthPromptedRef.current = false;
+        closeBookingModal();
+      },
+    });
+  }, [checkoutFromUrl, checkoutVariant, canBook, authLoading, user, requestAuth, closeBookingModal]);
 
   useEffect(() => {
     if (!checkoutFromUrl || !tour) return;
@@ -1046,8 +1079,42 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours' }: Tou
     if (sel.optionId) {
       const restored = resolveTourCheckoutVariant(tourVariants, sel.optionId);
       if (restored) setSelectedBookingVariant(restored);
+    } else if (!sel.date) {
+      const saved = loadTravelerCart();
+      if (saved && saved.tourId === tour.id && saved.date) {
+        setBookingDate(saved.date);
+        setBookingVariantsOpen(true);
+        if (saved.guests > 0) setGuests(saved.guests);
+        if (saved.mix) setParticipantMix(saved.mix);
+        if (saved.startTime) setSelectedDepartureTime(saved.startTime);
+        const restored = saved.optionId ? resolveTourCheckoutVariant(tourVariants, saved.optionId) : null;
+        if (restored) setSelectedBookingVariant(restored);
+        setSelectionRestored(true);
+      }
     }
   }, [tour, checkoutFromUrl, tourVariants, scrollToOptionsSection]);
+
+  useEffect(() => {
+    if (!tour || checkoutFromUrl || !user?.id || !isSupabaseConfigured()) return;
+    if (bookingDate.trim()) return;
+    let cancelled = false;
+    void loadAccountCartForListing(user.id, tour.id).then((row) => {
+      if (cancelled || !row?.booking_date || bookingDateRef.current.trim()) return;
+      setBookingDate(row.booking_date);
+      setGuests((current) => (current > 1 ? current : Math.max(1, row.guests || 1)));
+      setBookingVariantsOpen(true);
+      if (row.participant_mix) setParticipantMix(row.participant_mix);
+      if (row.start_time) setSelectedDepartureTime(row.start_time);
+      if (row.option_id) {
+        const restored = resolveTourCheckoutVariant(getTourBookingVariants(tour), row.option_id);
+        if (restored) setSelectedBookingVariant(restored);
+      }
+      setSelectionRestored(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [tour, checkoutFromUrl, user?.id, bookingDate]);
 
   useEffect(() => {
     if (!tour || checkoutFromUrl) return;
@@ -1311,13 +1378,54 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours' }: Tou
         );
         return;
       }
+      if (isSupabaseConfigured() && !userRef.current && supabase) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData.session?.user) userRef.current = sessionData.session.user;
+      }
+      if (isSupabaseConfigured() && !userRef.current) {
+        requestAuth({
+          intent: 'checkout',
+          onSuccess: () => {
+            void (async () => {
+              if (supabase) {
+                const { data: sessionData } = await supabase.auth.getSession();
+                if (sessionData.session?.user) {
+                  userRef.current = sessionData.session.user;
+                }
+              }
+              if (userRef.current) void handleContinueToCheckout();
+            })();
+          },
+        });
+        return;
+      }
+      saveTravelerCart({
+        tourId: tour.id,
+        optionId: selectedBookingVariant.id,
+        date: bookingDate.trim(),
+        guests: partySize,
+        mix: optionUsesAgePricing(selectedOptionApplied) ? participantMix : null,
+        startTime: selectedDepartureTime.trim() || undefined,
+        currency: tour.price?.currency,
+      });
+      if (userRef.current?.id) {
+        void rememberAccountCart(userRef.current.id, {
+          listingId: tour.id,
+          bookingDate: bookingDate.trim(),
+          guests: partySize,
+          optionId: selectedBookingVariant.id,
+          startTime: selectedDepartureTime.trim() || null,
+          participantMix: optionUsesAgePricing(selectedOptionApplied) ? participantMix : null,
+          currency: tour.price?.currency,
+        });
+      }
       analytics.bookStart(tour.id);
       const checkoutState: TourCheckoutState = {
         date: bookingDate.trim(),
         optionId: selectedBookingVariant.id,
         guests: partySize,
         mix: optionUsesAgePricing(selectedOptionApplied) ? participantMix : null,
-        step: 'review',
+        step: 'contact',
         paymentCancelled: false,
         startTime: selectedDepartureTime.trim() || undefined,
       };
@@ -1409,7 +1517,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours' }: Tou
   const hasGallery = images.length > 0;
   const review = publicReviewLabel(reviewAggregate);
 
-  if (checkoutFromUrl && checkoutVariant && canBook) {
+  if (checkoutUnlocked && checkoutFromUrl && checkoutVariant) {
     return (
       <BookingPage
         tour={tour}
@@ -1675,6 +1783,11 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours' }: Tou
                 className="tv-booking-sticky lg:sticky lg:top-[calc(4.75rem+env(safe-area-inset-top,0px))] h-fit scroll-mt-28"
               >
                 <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">Book this experience</p>
+                {selectionRestored ? (
+                  <p className="mb-3 text-sm text-ink-muted">
+                    Your last selection is restored. Price and availability are checked again before payment.
+                  </p>
+                ) : null}
                 {!canBook ? (
                   <div>
                     <p className="text-lg font-semibold text-ink">Not bookable yet</p>

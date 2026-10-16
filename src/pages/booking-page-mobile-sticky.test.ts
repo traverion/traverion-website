@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 describe('BookingPage mobile sticky bar overflow', () => {
   it('constrains the fixed dock and truncates sticky total copy', () => {
     const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'BookingPage.tsx'), 'utf8');
-    expect(src).toMatch(/lg:hidden fixed inset-x-0 bottom-0[\s\S]*max-w-5xl/);
+    expect(src).toMatch(/lg:hidden shrink-0 border-t border-black\/\[0\.08\][\s\S]*max-w-6xl/);
     expect(src).toMatch(
       /truncate text-sm text-ink-muted[\s\S]*font-semibold tabular-nums text-ink/
     );

@@ -646,6 +646,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
     // Phase 1704: gate on userRef — AuthModal onSuccess can fire before React `user` state updates.
     if (isSupabaseConfigured() && !userRef.current) {
       requestAuth({
+        intent: 'checkout',
         onSuccess: () => {
           void (async () => {
             if (supabase) {

@@ -5,7 +5,6 @@
 import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  ArrowLeft,
   User,
   Mail,
   MessageSquare,
@@ -15,6 +14,7 @@ import {
   X,
   Phone,
   Check,
+  Lock,
 } from 'lucide-react';
 import { TourPackage } from '../types/tour';
 import { useAuth } from '../contexts/AuthContext';
@@ -112,6 +112,9 @@ import CheckoutConsentCheckbox from '../components/booking/CheckoutConsentCheckb
 import { checkoutPayBlockedByConsent } from '../lib/checkout-consent';
 import { tourStickyBookCtaLabel } from '../lib/tour-sticky-cta';
 import { bookingPageQuoteFailureFocusTarget } from '../lib/tour-quote-failure-focus';
+import { BRAND_LOGO_SRC } from '../lib/brandAssets';
+import { clearTravelerCart, saveTravelerCart } from '../lib/travelerCart';
+import { rememberAccountCart } from '../data/supabase-cart';
 
 interface BookingPageProps {
   tour: TourPackage;
@@ -532,6 +535,51 @@ export default function BookingPage({
       specialRequests,
     });
   }, [presentation, tour.id, step, date, guests, leadGuestName, email, placeOfStay, specialRequests]);
+
+  const checkoutScrollRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (presentation === 'modal') return;
+    checkoutScrollRef.current?.scrollTo(0, 0);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [presentation, step]);
+
+  useEffect(() => {
+    if (presentation === 'modal' || !date.trim()) return;
+    saveTravelerCart({
+      tourId: tour.id,
+      optionId: selectedVariant?.id && selectedVariant.id !== '__default__' ? selectedVariant.id : '',
+      date: date.trim(),
+      guests: Math.max(1, partySizeForCapacity),
+      mix: Object.keys(participantMix).length > 0 ? participantMix : null,
+      startTime: departureTime || undefined,
+      currency,
+    });
+    if (!user?.id || !isSupabaseConfigured()) return;
+    void rememberAccountCart(user.id, {
+      listingId: tour.id,
+      bookingDate: date.trim(),
+      guests: Math.max(1, partySizeForCapacity),
+      optionId: selectedVariant?.id && selectedVariant.id !== '__default__' ? selectedVariant.id : null,
+      startTime: departureTime || null,
+      participantMix: Object.keys(participantMix).length > 0 ? participantMix : null,
+      currency,
+    });
+  }, [
+    presentation,
+    tour.id,
+    date,
+    guests,
+    partySizeForCapacity,
+    participantMix,
+    selectedVariant?.id,
+    departureTime,
+    currency,
+    user?.id,
+  ]);
 
   // Phase 1283: do not advertise book OG for season-ended / unpublished tours.
   useEffect(() => {
@@ -1075,6 +1123,7 @@ export default function BookingPage({
     }
     if (isSupabaseConfigured() && !userRef.current) {
       requestAuth({
+        intent: 'checkout',
         onSuccess: () => {
           // Phase 1704: wait for session before resume (AuthModal can fire before React user).
           void (async () => {
@@ -1241,6 +1290,7 @@ export default function BookingPage({
         analytics.bookComplete(tour.id, quoted.guests);
         if (user?.id) markBookingsUnread(user.id);
         clearBookingDraft(tour.id);
+        clearTravelerCart(tour.id);
         window.location.assign(checkout.checkoutUrl);
         // Keep submitting true until unload so Pay cannot double-fire.
         return;
@@ -1267,6 +1317,15 @@ export default function BookingPage({
       : `${guests} ${guests === 1 ? 'guest' : 'guests'}`;
   const priceFromQualifier = usesAgePricingOnVariant ? 'per adult' : 'per person';
   const departureLabel = departureTime || null;
+  const quotedOriginalTotal =
+    quoted && !usesAgePricingOnVariant ? quoted.originalUnitPrice * quoted.guests : null;
+  const quotedSavings =
+    quoted &&
+    quoted.discountLabel &&
+    quotedOriginalTotal != null &&
+    quotedOriginalTotal > quoted.totalAmount + 0.004
+      ? quotedOriginalTotal - quoted.totalAmount
+      : null;
   const summaryLineModal = [
     dateDisplay || date || '—',
     departureLabel,
@@ -1524,15 +1583,15 @@ export default function BookingPage({
         )}
 
         {step === 'contact' && (
-          <div className="tv-card p-4 sm:p-5">
+          <div className="tv-card p-4 sm:p-6 lg:p-8 lg:ring-finland/15">
             <BookingProgress step={step} flow={progressFlow} />
-            <h2 className="text-xl font-semibold text-ink mb-2">Contact</h2>
+            <h2 className="text-2xl font-semibold tracking-tight text-ink mb-2">Your details</h2>
             <p className="text-sm text-ink-muted mb-6 flex items-start gap-2">
               <Shield className="w-4 h-4 text-finland shrink-0 mt-0.5" aria-hidden />
               <span>{bookingContactIntroCopy(Boolean(user?.email))}</span>
             </p>
             <div className="space-y-4">
-              <div className="rounded-2xl bg-finland/[0.05] ring-1 ring-finland/15 p-3.5 text-sm text-ink-muted">
+              <div className={`rounded-xl bg-finland/[0.05] p-3.5 text-sm text-ink-muted ring-1 ring-finland/15 ${presentation !== 'modal' ? 'lg:hidden' : ''}`}>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-finland mb-1.5">Your booking</p>
                 <p className="font-medium text-ink">{tour.title}</p>
                 <dl className="mt-2 space-y-1 text-xs">
@@ -2128,61 +2187,128 @@ export default function BookingPage({
   return (
     <>
       {presentation === 'modal' ? createPortal(modalShell, document.body) : null}
-      {presentation !== 'modal' ? (
-        <div className="min-h-screen bg-paper tv-page pb-[calc(8.5rem+env(safe-area-inset-bottom,0px))] lg:pb-12">
-          <div className="max-w-2xl mx-auto px-4 sm:px-6">
-            <button
-              type="button"
-              onClick={handleLeaveBooking}
-              className="lux-flat flex items-center gap-2 text-ink-muted hover:text-ink mb-8"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to tour
-            </button>
+      {presentation !== 'modal'
+        ? createPortal(
+        <div className="fixed inset-0 z-[10000] flex flex-col bg-white">
+          <header className="shrink-0 border-b border-black/[0.08] bg-white pt-[env(safe-area-inset-top,0px)]">
+            <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
+              <button
+                type="button"
+                onClick={handleLeaveBooking}
+                className="lux-flat inline-flex h-11 min-w-0 items-center gap-2 rounded-md pr-2 text-ink"
+              >
+                <img src={BRAND_LOGO_SRC} alt="" className="h-8 w-8 object-contain" />
+                <span className="font-sans text-[11px] font-semibold tracking-[0.18em]">TRAVERION</span>
+                <span className="sr-only">Back to tour</span>
+              </button>
+              <p className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-muted">
+                <Lock className="h-3.5 w-3.5 text-finland" aria-hidden />
+                Secure checkout
+              </p>
+            </div>
+          </header>
+          <div ref={checkoutScrollRef} className="min-h-0 flex-1 overflow-y-auto">
+          <div className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
 
             {stripeReturnCancelled ? (
-              <div className="mb-6">
+              <div className="mb-5">
                 <NoticeCallout title="Checkout cancelled" tone="warn">
                   {STRIPE_CHECKOUT_CANCELLED_TOUR_COPY}
                 </NoticeCallout>
               </div>
             ) : null}
-            <div className="overflow-hidden rounded-2xl mb-6 shadow-soft ring-1 ring-black/[0.08]">
-              <div className="h-36 sm:h-44 bg-black/10 relative">
-                {/* Phase 1632: checkout hero images describe the listing for assistive tech. */}
-                <img src={tour.image} alt={tour.title} className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/20 to-transparent" />
-                <div className="absolute top-3 left-3">
-                  <span className="inline-flex items-center rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-finland shadow-sm ring-1 ring-black/[0.06]">
-                    Checkout
-                  </span>
+
+            <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_22.5rem] lg:items-start lg:gap-10">
+              <div className="min-w-0">
+                <div className="mb-5 overflow-hidden rounded-xl ring-1 ring-black/[0.08] lg:hidden">
+                  <div className="relative h-36 bg-black/10 sm:h-44">
+                    {/* Phase 1632: checkout hero images describe the listing for assistive tech. */}
+                    <img src={tour.image} alt={tour.title} className="h-full w-full object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/20 to-transparent" />
+                    <div className="absolute bottom-3 left-3 right-3 text-white">
+                      <h1 className="font-display text-xl tracking-tight sm:text-2xl">{tour.title}</h1>
+                      <p className="mt-1 text-sm text-white/90">
+                        {formatTourDurationDisplay(tour.duration)}
+                        {quoteFailed
+                          ? ' · Price unavailable'
+                          : ` · From ${formatMoney(pricePerPerson, currency)} ${priceFromQualifier}`}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div className="absolute bottom-3 left-3 right-3 text-white">
-                  <h1 className="font-display text-xl sm:text-2xl tracking-tight">{tour.title}</h1>
-                  <p className="mt-1 text-sm text-white/90">
-                    {/* Phase 1558: never invent catalog From when quoteBooking failed (1545/1557). */}
-                    {formatTourDurationDisplay(tour.duration)}
-                    {quoteFailed
-                      ? ' · Price unavailable'
-                      : ` · From ${formatMoney(pricePerPerson, currency)} ${priceFromQualifier}`}
-                  </p>
-                </div>
+                {flowInner}
               </div>
+
+              <aside className="mt-6 hidden lg:sticky lg:top-4 lg:mt-0 lg:block">
+                <div className="overflow-hidden rounded-xl bg-white ring-1 ring-finland/20">
+                  <div className="relative h-40 bg-black/10">
+                    <img src={tour.image} alt={tour.title} className="h-full w-full object-cover" />
+                  </div>
+                  <div className="space-y-4 p-5">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-finland">Your trip</p>
+                      <h2 className="mt-1 font-display text-xl leading-snug text-ink">{tour.title}</h2>
+                    </div>
+                    <dl className="space-y-2.5 border-t border-black/[0.06] pt-4 text-sm">
+                      <div className="flex justify-between gap-3">
+                        <dt className="text-ink-muted">Date</dt>
+                        <dd className="text-right font-medium text-ink">{dateDisplay || date || '—'}</dd>
+                      </div>
+                      {departureLabel ? (
+                        <div className="flex justify-between gap-3">
+                          <dt className="text-ink-muted">Departure</dt>
+                          <dd className="text-right font-medium tabular-nums text-ink">{departureLabel}</dd>
+                        </div>
+                      ) : null}
+                      {selectedVariant ? (
+                        <div className="flex justify-between gap-3">
+                          <dt className="text-ink-muted">Option</dt>
+                          <dd className="max-w-[65%] text-right font-medium text-ink">{selectedVariant.label}</dd>
+                        </div>
+                      ) : null}
+                      <div className="flex justify-between gap-3">
+                        <dt className="text-ink-muted">Participants</dt>
+                        <dd className="max-w-[65%] text-right font-medium text-ink">{participantsSummary}</dd>
+                      </div>
+                    </dl>
+                    <div className="border-t border-black/[0.08] pt-4">
+                      {quotedSavings != null && quotedOriginalTotal != null ? (
+                        <div className="mb-2 space-y-1">
+                          <p className="text-sm text-ink-muted">
+                            Regular price{' '}
+                            <span className="line-through tabular-nums">{formatMoney(quotedOriginalTotal, currency)}</span>
+                          </p>
+                          <p className="text-sm font-semibold text-emerald-800">
+                            You save {formatMoney(quotedSavings, currency)}
+                            {quoted?.discountLabel ? ` · ${quoted.discountLabel}` : ''}
+                          </p>
+                        </div>
+                      ) : quoted?.discountLabel ? (
+                        <p className="mb-2 text-sm font-semibold text-emerald-800">{quoted.discountLabel}</p>
+                      ) : null}
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">Total</p>
+                      <p className="mt-1 text-[1.75rem] font-semibold leading-none tabular-nums text-ink">{totalLabel}</p>
+                    </div>
+                    <p className="text-xs leading-relaxed text-ink-muted">{cancellationText}</p>
+                  </div>
+                </div>
+              </aside>
             </div>
-
-            {flowInner}
           </div>
-        </div>
+          <footer className="mx-auto mt-8 w-full max-w-6xl border-t border-black/[0.06] px-4 py-4 sm:px-6">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-muted">
+              <span>© {new Date().getFullYear()} Traverion</span>
+              <a href="/privacy" target="_blank" rel="noreferrer" className="underline-offset-2 hover:text-ink hover:underline">Privacy</a>
+              <a href="/terms" target="_blank" rel="noreferrer" className="underline-offset-2 hover:text-ink hover:underline">Terms</a>
+            </div>
+          </footer>
+          </div>
+          <div className="lg:hidden shrink-0 border-t border-black/[0.08] bg-white px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <div className="mx-auto w-full min-w-0 max-w-6xl">{checkoutDockInner}</div>
+          </div>
+        </div>,
+        document.body
       ) : null}
-
-      {presentation !== 'modal'
-        ? createPortal(
-            <div className="lg:hidden fixed inset-x-0 bottom-0 z-[60] border-t border-black/[0.06] bg-paper-raised/95 backdrop-blur-md px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-              <div className="mx-auto w-full min-w-0 max-w-5xl">{checkoutDockInner}</div>
-            </div>,
-            document.body
-          )
-        : null}
 
       <AvailabilityOptionsModal
         open={availabilityModalOpen}

@@ -99,6 +99,86 @@ export async function updateCartItem(
   return !error;
 }
 
+export type AccountCartSelection = {
+  listingId: string;
+  bookingDate: string;
+  guests: number;
+  optionId?: string | null;
+  startTime?: string | null;
+  participantMix?: Record<string, number> | null;
+  currency?: string | null;
+};
+
+/**
+ * Remember the latest selection for this listing. Does not hold seats or freeze a price.
+ * Falls back to date + guests if the selection columns are not migrated yet.
+ */
+export async function rememberAccountCart(userId: string, item: AccountCartSelection): Promise<void> {
+  if (!supabase || !userId || !item.listingId || !item.bookingDate) return;
+  const guests = item.guests >= 1 ? Math.min(99, Math.floor(item.guests)) : 1;
+  const rich = {
+    booking_date: item.bookingDate,
+    guests,
+    option_id: item.optionId || null,
+    start_time: item.startTime || null,
+    participant_mix: item.participantMix && Object.keys(item.participantMix).length > 0 ? item.participantMix : null,
+    currency: item.currency || null,
+  };
+  const basic = { booking_date: item.bookingDate, guests };
+  const { data } = await supabase
+    .from('cart_items')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('listing_id', item.listingId)
+    .order('created_at', { ascending: false })
+    .limit(1);
+  const existingId = (data?.[0] as { id?: string } | undefined)?.id;
+  if (existingId) {
+    const updated = await supabase.from('cart_items').update(rich).eq('id', existingId).eq('user_id', userId);
+    if (updated.error) {
+      await supabase.from('cart_items').update(basic).eq('id', existingId).eq('user_id', userId);
+    }
+    return;
+  }
+  const inserted = await supabase.from('cart_items').insert({
+    user_id: userId,
+    listing_id: item.listingId,
+    ...rich,
+  });
+  if (inserted.error) {
+    await supabase.from('cart_items').insert({
+      user_id: userId,
+      listing_id: item.listingId,
+      ...basic,
+    });
+  }
+}
+
+export async function loadAccountCartForListing(
+  userId: string,
+  listingId: string
+): Promise<(CartItemRow & {
+  option_id?: string | null;
+  start_time?: string | null;
+  participant_mix?: Record<string, number> | null;
+  currency?: string | null;
+}) | null> {
+  if (!supabase || !userId || !listingId) return null;
+  const { data, error } = await supabase
+    .from('cart_items')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('listing_id', listingId)
+    .order('created_at', { ascending: false })
+    .limit(1);
+  if (error || !data?.[0]) return null;
+  return data[0] as CartItemRow & {
+    option_id?: string | null;
+    start_time?: string | null;
+    participant_mix?: Record<string, number> | null;
+  };
+}
+
 /** Cart items count for header. */
 export async function fetchCartCount(userId: string): Promise<number> {
   const items = await fetchCartItems(userId);

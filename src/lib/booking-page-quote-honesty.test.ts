@@ -51,7 +51,7 @@ describe('BookingPage hero quote honesty (Phase 1558)', () => {
 
   it('hero From price gates on quoteFailed', () => {
     expect(src).toContain('Phase 1558');
-    expect(src).toMatch(/quoteFailed\s*\?\s*' · —'/);
+    expect(src).toMatch(/quoteFailed\s*\?\s*' · Price unavailable'/);
     expect(src).not.toMatch(
       /formatTourDurationDisplay\(tour\.duration\) · From \{formatMoney\(pricePerPerson/
     );

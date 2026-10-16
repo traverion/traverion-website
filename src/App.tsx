@@ -145,6 +145,7 @@ function readInitialRoute(): { page: string; destinationSlug: string | null } {
 function App() {
   const initialRoute = readInitialRoute();
   const [currentPage, setCurrentPage] = useState(initialRoute.page);
+  const [tourCheckoutOpen, setTourCheckoutOpen] = useState(false);
   const [destinationSlug, setDestinationSlug] = useState<string | null>(initialRoute.destinationSlug);
   const [selectedTour, setSelectedTour] = useState<TourPackageType | null>(null);
   // Partner portal: /login + /partner/* (and legacy /supplier* on localhost until migrated)
@@ -771,6 +772,7 @@ function App() {
               tourId={tourId}
               onBack={handleBackToTours}
               backLabel={listingBackLabel('Tours')}
+              onCheckoutActive={setTourCheckoutOpen}
             />
           );
         }
@@ -931,13 +933,15 @@ function App() {
         ) : (
           <div className="min-h-screen bg-paper relative flex flex-col">
             <SkipLink />
-            <UnifiedHeader currentPage={currentPage} onNavigate={handleNavigate} />
+            {tourCheckoutOpen ? null : (
+              <UnifiedHeader currentPage={currentPage} onNavigate={handleNavigate} />
+            )}
             <main id="main-content" tabIndex={-1} className="flex-grow min-w-0 outline-none">
               <div key={currentPage} className="min-h-[min(50vh,480px)]">
                 <Suspense fallback={<RouteFallback />}>{renderPage()}</Suspense>
               </div>
             </main>
-            <Footer onNavigate={handleNavigate} />
+            {tourCheckoutOpen ? null : <Footer onNavigate={handleNavigate} />}
             <AuthModal />
           </div>
         )}

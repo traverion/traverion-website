@@ -37,9 +37,10 @@ type AuthContextValue = {
     }
   ) => Promise<{ error?: string; hasSession?: boolean }>;
   signOut: () => Promise<void>;
-  /** Open the auth modal; call onSuccess after user signs in/up (e.g. to open booking). */
-  requestAuth: (options?: { onSuccess?: () => void }) => void;
+  /** Open the auth modal; call onSuccess after a session exists. onDismiss runs if the traveler closes it. */
+  requestAuth: (options?: { onSuccess?: () => void; onDismiss?: () => void; intent?: 'checkout' | null }) => void;
   authModalOpen: boolean;
+  authIntent: 'checkout' | null;
   closeAuthModal: () => void;
   triggerAuthSuccess: () => void;
 };
@@ -99,7 +100,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authIntent, setAuthIntent] = useState<'checkout' | null>(null);
   const pendingOnSuccess = useRef<(() => void) | null>(null);
+  const pendingOnDismiss = useRef<(() => void) | null>(null);
   const gateGen = useRef(0);
 
   useEffect(() => {
@@ -267,22 +270,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     clearSupabaseAuthStorage();
   }, []);
 
-  const requestAuth = useCallback((options?: { onSuccess?: () => void }) => {
+  const requestAuth = useCallback((options?: { onSuccess?: () => void; onDismiss?: () => void; intent?: 'checkout' | null }) => {
     pendingOnSuccess.current = options?.onSuccess ?? null;
+    pendingOnDismiss.current = options?.onDismiss ?? null;
+    setAuthIntent(options?.intent ?? null);
     setAuthModalOpen(true);
   }, []);
 
   const closeAuthModal = useCallback(() => {
     setAuthModalOpen(false);
+    setAuthIntent(null);
     pendingOnSuccess.current = null;
+    const dismiss = pendingOnDismiss.current;
+    pendingOnDismiss.current = null;
+    dismiss?.();
   }, []);
 
   const runPendingOnSuccess = useCallback(() => {
-    if (pendingOnSuccess.current) {
-      pendingOnSuccess.current();
-      pendingOnSuccess.current = null;
-    }
+    const success = pendingOnSuccess.current;
+    pendingOnSuccess.current = null;
+    pendingOnDismiss.current = null;
+    setAuthIntent(null);
     setAuthModalOpen(false);
+    success?.();
   }, []);
 
   const value: AuthContextValue = {
@@ -293,6 +303,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signOut,
     requestAuth,
     authModalOpen,
+    authIntent,
     closeAuthModal,
     triggerAuthSuccess: runPendingOnSuccess,
   };
