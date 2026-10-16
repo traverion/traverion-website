@@ -125,7 +125,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 e.currentTarget.style.display = 'none';
               }}
             />
-            <span className="font-sans text-[11px] font-semibold tracking-[0.18em] text-ink">TRAVERION</span>
+            <span className="font-sans text-[11px] font-bold tracking-[0.18em] text-ink">TRAVERION</span>
           </button>
 
           {/* Navigation */}
@@ -134,10 +134,10 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               type="button"
               onClick={() => onNavigate('home')}
               aria-current={currentPage === 'home' ? 'page' : undefined}
-              className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+              className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${
                 currentPage === 'home'
-                  ? 'bg-finland/10 font-semibold text-finland'
-                  : 'text-ink-muted hover:bg-black/[0.04] hover:text-ink'
+                  ? 'bg-finland/10 font-bold text-finland'
+                  : 'text-ink hover:bg-black/[0.04]'
               }`}
             >
               Explore
@@ -149,10 +149,10 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               aria-current={
                 currentPage === 'packages' || currentPage === 'tour-details' ? 'page' : undefined
               }
-              className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+              className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${
                 currentPage === 'packages' || currentPage === 'tour-details'
-                  ? 'bg-finland/10 font-semibold text-finland'
-                  : 'text-ink-muted hover:bg-black/[0.04] hover:text-ink'
+                  ? 'bg-finland/10 font-bold text-finland'
+                  : 'text-ink hover:bg-black/[0.04]'
               }`}
             >
               Tours
@@ -161,56 +161,13 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               type="button"
               onClick={() => onNavigate('stays')}
               aria-current={currentPage === 'stays' || currentPage === 'stay-details' ? 'page' : undefined}
-              className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+              className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${
                 currentPage === 'stays' || currentPage === 'stay-details'
-                  ? 'bg-finland/10 font-semibold text-finland'
-                  : 'text-ink-muted hover:bg-black/[0.04] hover:text-ink'
+                  ? 'bg-finland/10 font-bold text-finland'
+                  : 'text-ink hover:bg-black/[0.04]'
               }`}
             >
               Stays
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (!user) {
-                  window.history.pushState({}, '', '/log-in?next=wishlist');
-                  onNavigate('auth');
-                  return;
-                }
-                onNavigate('wishlist');
-              }}
-              aria-current={currentPage === 'wishlist' ? 'page' : undefined}
-              className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
-                currentPage === 'wishlist'
-                  ? 'bg-finland/10 font-semibold text-finland'
-                  : 'text-ink-muted hover:bg-black/[0.04] hover:text-ink'
-              }`}
-            >
-              Saved
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (!user) {
-                  window.history.pushState({}, '', '/log-in?next=bookings');
-                  onNavigate('auth');
-                  return;
-                }
-                openBookings();
-              }}
-              onPointerEnter={prefetchMyBookingsPage}
-              aria-current={currentPage === 'bookings' ? 'page' : undefined}
-              aria-label={hasUnreadBookings ? 'Trips, unread updates' : 'Trips'}
-              className={`lux-flat relative rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
-                currentPage === 'bookings'
-                  ? 'bg-finland/10 font-semibold text-finland'
-                  : 'text-ink-muted hover:bg-black/[0.04] hover:text-ink'
-              }`}
-            >
-              Trips
-              {hasUnreadBookings ? (
-                <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-paper-raised" aria-hidden />
-              ) : null}
             </button>
           </nav>
 
@@ -233,7 +190,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               <button
                 type="button"
                 onClick={() => setIsUserMenuOpen((o) => !o)}
-                className="lux-tap-target flex flex-col items-center gap-0.5 p-1.5 text-ink-muted hover:text-finland rounded-lg"
+                className="lux-tap-target flex flex-col items-center gap-0.5 p-1.5 text-ink hover:text-finland rounded-lg"
                 aria-label={hasUnreadBookings ? 'Profile, unread trip updates' : 'Profile'}
                 aria-expanded={isUserMenuOpen}
                 aria-haspopup="true"
@@ -255,7 +212,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                     <User className="w-4 h-4" />
                   </span>
                 )}
-                <span className="text-[10px] font-medium uppercase tracking-wide">Profile</span>
+                <span className="text-[10px] font-bold uppercase tracking-wide">Profile</span>
               </button>
               {isUserMenuOpen && (
                 <div
@@ -323,8 +280,11 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                         <button
                           type="button"
                           onClick={openBookings}
+                          aria-current={currentPage === 'bookings' ? 'page' : undefined}
                           aria-label={hasUnreadBookings ? 'Trips, unread updates' : 'Trips'}
-                          className="lux-flat lux-tap-target min-h-11 w-full flex items-center justify-between gap-2 px-3.5 py-2 text-sm text-ink hover:bg-black/[0.04] text-left"
+                          className={`lux-flat lux-tap-target min-h-11 w-full flex items-center justify-between gap-2 px-3.5 py-2 text-sm text-left ${
+                            currentPage === 'bookings' ? 'bg-finland/10 font-semibold text-finland' : 'text-ink hover:bg-black/[0.04]'
+                          }`}
                         >
                           <span className="inline-flex items-center gap-2.5">
                             <Calendar className="h-4 w-4 shrink-0 text-ink-muted" aria-hidden />
@@ -340,7 +300,10 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                             setIsUserMenuOpen(false);
                             onNavigate('wishlist');
                           }}
-                          className="lux-flat lux-tap-target min-h-11 w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-ink hover:bg-black/[0.04] text-left"
+                          aria-current={currentPage === 'wishlist' ? 'page' : undefined}
+                          className={`lux-flat lux-tap-target min-h-11 w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left ${
+                            currentPage === 'wishlist' ? 'bg-finland/10 font-semibold text-finland' : 'text-ink hover:bg-black/[0.04]'
+                          }`}
                         >
                           <Heart className="h-4 w-4 shrink-0 text-ink-muted" aria-hidden />
                           Saved
@@ -454,7 +417,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                   setIsMobileMenuOpen(false);
                 }}
                 aria-current={currentPage === 'home' ? 'page' : undefined}
-                className={`lux-flat text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux font-medium ${
+                className={`lux-flat text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux font-semibold ${
                   currentPage === 'home' ? 'bg-finland/10 text-finland' : 'text-ink hover:bg-black/[0.04]'
                 }`}
               >
@@ -470,7 +433,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 aria-current={
                   currentPage === 'packages' || currentPage === 'tour-details' ? 'page' : undefined
                 }
-                className={`lux-flat text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux font-medium ${
+                className={`lux-flat text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux font-semibold ${
                   currentPage === 'packages' || currentPage === 'tour-details'
                     ? 'bg-finland/10 text-finland'
                     : 'text-ink hover:bg-black/[0.04]'
@@ -485,54 +448,13 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                   setIsMobileMenuOpen(false);
                 }}
                 aria-current={currentPage === 'stays' || currentPage === 'stay-details' ? 'page' : undefined}
-                className={`lux-flat text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux font-medium ${
+                className={`lux-flat text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux font-semibold ${
                   currentPage === 'stays' || currentPage === 'stay-details'
                     ? 'bg-finland/10 text-finland'
                     : 'text-ink hover:bg-black/[0.04]'
                 }`}
               >
                 Stays
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!user) {
-                    window.history.pushState({}, '', '/log-in?next=wishlist');
-                    onNavigate('auth');
-                    setIsMobileMenuOpen(false);
-                    return;
-                  }
-                  onNavigate('wishlist');
-                  setIsMobileMenuOpen(false);
-                }}
-                aria-current={currentPage === 'wishlist' ? 'page' : undefined}
-                className={`lux-flat text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux font-medium ${
-                  currentPage === 'wishlist' ? 'bg-finland/10 text-finland' : 'text-ink hover:bg-black/[0.04]'
-                }`}
-              >
-                Saved
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!user) {
-                    window.history.pushState({}, '', '/log-in?next=bookings');
-                    onNavigate('auth');
-                    setIsMobileMenuOpen(false);
-                    return;
-                  }
-                  openBookings();
-                }}
-                aria-current={currentPage === 'bookings' ? 'page' : undefined}
-                aria-label={hasUnreadBookings ? 'Trips, unread updates' : 'Trips'}
-                className={`lux-flat text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux font-medium flex items-center justify-between ${
-                  currentPage === 'bookings' ? 'bg-finland/10 text-finland' : 'text-ink hover:bg-black/[0.04]'
-                }`}
-              >
-                <span>Trips</span>
-                {hasUnreadBookings ? (
-                  <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden />
-                ) : null}
               </button>
               {!isSupabaseConfigured() && (
                 <div className="mx-2 px-4 py-3 rounded-xl bg-finland/[0.06] ring-1 ring-finland/15 text-sm text-ink-muted">
@@ -599,7 +521,9 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                       onClick={openBookings}
                       aria-current={currentPage === 'bookings' ? 'page' : undefined}
                       aria-label={hasUnreadBookings ? 'Trips, unread updates' : 'Trips'}
-                      className="lux-flat w-full text-left px-4 py-3 rounded-lg text-ink hover:bg-black/[0.04] transition-colors duration-300 ease-lux flex items-center justify-between gap-2"
+                      className={`lux-flat w-full text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux flex items-center justify-between gap-2 ${
+                        currentPage === 'bookings' ? 'bg-finland/10 font-semibold text-finland' : 'text-ink hover:bg-black/[0.04]'
+                      }`}
                     >
                       <span className="inline-flex items-center gap-2">
                         <Calendar className="w-5 h-5" />
@@ -608,6 +532,20 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                       {hasUnreadBookings ? (
                         <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden />
                       ) : null}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onNavigate('wishlist');
+                        setIsMobileMenuOpen(false);
+                      }}
+                      aria-current={currentPage === 'wishlist' ? 'page' : undefined}
+                      className={`lux-flat w-full text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux flex items-center gap-2 ${
+                        currentPage === 'wishlist' ? 'bg-finland/10 font-semibold text-finland' : 'text-ink hover:bg-black/[0.04]'
+                      }`}
+                    >
+                      <Heart className="w-5 h-5" />
+                      Saved
                     </button>
                     <button
                       type="button"
