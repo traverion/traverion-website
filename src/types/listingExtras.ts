@@ -9,6 +9,7 @@ import {
   slotOverridesToDb,
   type ListingSlotOverride,
 } from '../lib/listing-slot-overrides';
+import { normalizeBookingCutoffHours } from '../lib/tour-departure-cutoff';
 
 /** Legacy preset values still parsed from stored `listing_extras` JSON. */
 export type CancellationPreset = 'free_24h' | 'free_48h' | 'free_7d' | 'non_refundable' | 'custom';
@@ -630,12 +631,8 @@ export function normalizeListingBookingOption(raw: Record<string, unknown>, fall
   if (raw.startMode === 'fixed' || raw.startMode === 'flexible') {
     out.startMode = raw.startMode;
   }
-  if (typeof raw.bookingCutoffHoursBeforeStart === 'number' && raw.bookingCutoffHoursBeforeStart > 0) {
-    out.bookingCutoffHoursBeforeStart = Math.min(168, Math.floor(raw.bookingCutoffHoursBeforeStart));
-  } else if (typeof raw.bookingCutoffHoursBeforeStart === 'string' && raw.bookingCutoffHoursBeforeStart.trim()) {
-    const n = Number(raw.bookingCutoffHoursBeforeStart);
-    if (Number.isFinite(n) && n > 0) out.bookingCutoffHoursBeforeStart = Math.min(168, Math.floor(n));
-  }
+  const cutoffHours = normalizeBookingCutoffHours(raw.bookingCutoffHoursBeforeStart);
+  if (cutoffHours > 0) out.bookingCutoffHoursBeforeStart = cutoffHours;
   if (isPrivate) {
     out.isPrivate = true;
     if (privatePricing) out.privatePricing = privatePricing;

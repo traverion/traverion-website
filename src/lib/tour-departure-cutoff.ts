@@ -34,7 +34,26 @@ const HM = /^\d{2}:\d{2}$/;
 export function normalizeBookingCutoffHours(raw: unknown): number {
   const n = typeof raw === 'number' ? raw : typeof raw === 'string' && raw.trim() ? Number(raw) : 0;
   if (!Number.isFinite(n) || n <= 0) return 0;
-  return Math.min(MAX_BOOKING_CUTOFF_HOURS, Math.floor(n));
+  const minutes = Math.round(n * 60);
+  if (minutes <= 0) return 0;
+  return Math.min(MAX_BOOKING_CUTOFF_HOURS * 60, minutes) / 60;
+}
+
+/** Traveler-facing length. Whole days and hours stay in those units; shorter cutoffs stay in minutes. */
+export function formatBookingCutoffLength(hours: number): string {
+  const n = normalizeBookingCutoffHours(hours);
+  if (n <= 0) return '';
+  const minutes = Math.round(n * 60);
+  if (minutes < 60) return minutes === 1 ? '1 minute' : `${minutes} minutes`;
+  if (minutes % (24 * 60) === 0) {
+    const days = minutes / (24 * 60);
+    return days === 1 ? '1 day' : `${days} days`;
+  }
+  if (minutes % 60 === 0) {
+    const wholeHours = minutes / 60;
+    return wholeHours === 1 ? '1 hour' : `${wholeHours} hours`;
+  }
+  return `${minutes} minutes`;
 }
 
 function tzOffsetMs(timeZone: string, instant: Date): number {
@@ -152,13 +171,11 @@ export function assertDepartureStillBookable(input: {
     };
   }
   if (now >= lastBookableMs) {
+    const length = formatBookingCutoffLength(cutoffHours);
     return {
       ok: false,
       code: 'cutoff',
-      error:
-        cutoffHours === 1
-          ? 'Online booking closes 1 hour before departure. Choose a later date or time.'
-          : `Online booking closes ${cutoffHours} hours before departure. Choose a later date or time.`,
+      error: `Online booking closes ${length} before departure. Choose a later date or time.`,
     };
   }
   return { ok: true, startMs, lastBookableMs };
@@ -175,10 +192,9 @@ export function isDepartureTimeStillBookable(input: {
 }
 
 export function bookingCutoffTravelerLabel(hours: number): string | null {
-  const n = normalizeBookingCutoffHours(hours);
-  if (n <= 0) return null;
-  if (n === 1) return 'Book at least 1 hour before departure';
-  return `Book at least ${n} hours before departure`;
+  const length = formatBookingCutoffLength(hours);
+  if (!length) return null;
+  return `Book at least ${length} before departure`;
 }
 
 /**

@@ -12,7 +12,8 @@ describe('normalizeBookingCutoffHours', () => {
   it('clamps non-positive and oversized values', () => {
     expect(normalizeBookingCutoffHours(undefined)).toBe(0);
     expect(normalizeBookingCutoffHours(-3)).toBe(0);
-    expect(normalizeBookingCutoffHours(2.9)).toBe(2);
+    expect(Math.round(normalizeBookingCutoffHours(2.9) * 60)).toBe(174);
+    expect(normalizeBookingCutoffHours(0.25)).toBe(0.25);
     expect(normalizeBookingCutoffHours(999)).toBe(168);
   });
 });
@@ -103,6 +104,49 @@ describe('assertDepartureStillBookable', () => {
       nowMs: startMs - 3 * 60 * 60 * 1000,
     });
     expect(res.ok).toBe(true);
+  });
+
+  it('treats 15 minutes as a quarter hour in the destination timezone', () => {
+    const startMs = wallTimeInZoneToUtcMs('2026-01-15', '18:00', 'Europe/Helsinki')!;
+    const closed = assertDepartureStillBookable({
+      bookingDate: '2026-01-15',
+      startTimeHm: '18:00',
+      cutoffHoursBeforeStart: 15 / 60,
+      nowMs: startMs - 10 * 60 * 1000,
+      timeZone: 'Europe/Helsinki',
+    });
+    expect(closed.ok).toBe(false);
+    if (!closed.ok) expect(closed.error).toMatch(/15 minutes/);
+    const open = assertDepartureStillBookable({
+      bookingDate: '2026-01-15',
+      startTimeHm: '18:00',
+      cutoffHoursBeforeStart: 15 / 60,
+      nowMs: startMs - 20 * 60 * 1000,
+      timeZone: 'Europe/Helsinki',
+    });
+    expect(open.ok).toBe(true);
+  });
+
+  it('keeps a 24-hour cutoff as 24 real hours across the Helsinki spring-forward', () => {
+    const startMs = wallTimeInZoneToUtcMs('2026-03-29', '04:00', 'Europe/Helsinki')!;
+    expect(startMs).not.toBeNull();
+    const res = assertDepartureStillBookable({
+      bookingDate: '2026-03-29',
+      startTimeHm: '04:00',
+      cutoffHoursBeforeStart: 24,
+      nowMs: startMs! - 24 * 60 * 60 * 1000 - 1000,
+      timeZone: 'Europe/Helsinki',
+    });
+    expect(res.ok).toBe(true);
+    if (res.ok) expect(res.lastBookableMs - res.startMs).toBe(-24 * 60 * 60 * 1000);
+    const inside = assertDepartureStillBookable({
+      bookingDate: '2026-03-29',
+      startTimeHm: '04:00',
+      cutoffHoursBeforeStart: 24,
+      nowMs: startMs! - 23 * 60 * 60 * 1000,
+      timeZone: 'Europe/Helsinki',
+    });
+    expect(inside.ok).toBe(false);
   });
 
   it('Phase 1481: bad_time when departure wall clock does not exist (spring-forward gap)', () => {

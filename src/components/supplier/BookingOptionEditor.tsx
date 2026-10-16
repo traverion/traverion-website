@@ -20,7 +20,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { TraverionSingleDateField } from '../calendar/TraverionSingleDateField';
 import PartnerSelect from './PartnerSelect';
-import AvailabilityCutoffField from './AvailabilityCutoffField';
+import BookingCutoffDurationField from './BookingCutoffDurationField';
 import {
   LISTING_CAPACITY_MAX,
   maxWholeGroupsForSlot,
@@ -1062,35 +1062,12 @@ export default function BookingOptionEditor({
           title="When can travelers book?"
           support="Cutoff applies to every schedule on this option."
         >
-          <div id="supplier-listing-field-option-cutoff" className="space-y-1.5">
-            <AvailabilityCutoffField
+          <div id="supplier-listing-field-option-cutoff">
+            <BookingCutoffDurationField
               id="option-booking-cutoff"
-              label="Booking cutoff"
-              allowInherit
-              inheritLabel={
-                listingCutoffHours > 0
-                  ? `Use listing default (${listingCutoffHours} hours before departure)`
-                  : 'Use listing default (until departure)'
-              }
-              className="max-w-md"
-              value={
-                typeof option.bookingCutoffHoursBeforeStart === 'number' &&
-                option.bookingCutoffHoursBeforeStart > 0
-                  ? String(option.bookingCutoffHoursBeforeStart)
-                  : ''
-              }
-              onChange={(raw) => {
-                if (!raw.trim()) {
-                  onChange({ bookingCutoffHoursBeforeStart: undefined });
-                  return;
-                }
-                const n = Math.floor(Number(raw));
-                if (!Number.isFinite(n) || n <= 0) {
-                  onChange({ bookingCutoffHoursBeforeStart: undefined });
-                  return;
-                }
-                onChange({ bookingCutoffHoursBeforeStart: Math.min(168, n) });
-              }}
+              hours={option.bookingCutoffHoursBeforeStart}
+              listingHours={listingCutoffHours}
+              onChange={(next) => onChange({ bookingCutoffHoursBeforeStart: next })}
             />
           </div>
           {onListingDepartureTimezoneChange ? (
