@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { haversineKm, notesWithVerifiedPickup, pickupAreaFromOption, travelerPickupAllowed, PICKUP_OUTSIDE_AREA_MESSAGE } from './pickup-area';
+import {
+  checkoutSummaryPickupAddress,
+  haversineKm,
+  notesWithVerifiedPickup,
+  pickupAreaFromOption,
+  restoredPickupForOption,
+  travelerPickupAllowed,
+  PICKUP_OUTSIDE_AREA_MESSAGE,
+} from './pickup-area';
 
 const rovaniemi = { lat: 66.5039, lng: 25.7294 };
 
@@ -74,5 +82,64 @@ describe('pickup area', () => {
       point: { lat: rovaniemi.lat, lng: rovaniemi.lng, placeId: '', formattedAddress: 'Arctic City', name: '' },
     });
     expect(result.ok).toBe(false);
+  });
+
+  it('hides a leftover pickup address when the option has no area', () => {
+    const leftover = {
+      lat: 66.5783616,
+      lng: 26.0153995,
+      placeId: 'ChIJ-example',
+      formattedAddress: 'Apukka Resort, Tutkijantie 28, Rovaniemi',
+      name: 'Apukka Resort',
+    };
+    expect(
+      checkoutSummaryPickupAddress({
+        fulfillment: 'pickup',
+        area: pickupAreaFromOption({ fulfillment: 'pickup', pickupPlace: 'Arctic city' }),
+        point: leftover,
+      })
+    ).toBe('');
+    expect(
+      checkoutSummaryPickupAddress({
+        fulfillment: 'pickup',
+        area: pickupAreaFromOption({
+          fulfillment: 'pickup',
+          pickupPlace: 'Rovaniemi city center',
+          pickupCenterLat: rovaniemi.lat,
+          pickupCenterLng: rovaniemi.lng,
+          pickupRadiusKm: 25,
+        }),
+        point: leftover,
+      })
+    ).toBe(leftover.formattedAddress);
+    expect(
+      checkoutSummaryPickupAddress({
+        fulfillment: 'pickup',
+        area: pickupAreaFromOption({
+          fulfillment: 'pickup',
+          pickupCenterLat: rovaniemi.lat,
+          pickupCenterLng: rovaniemi.lng,
+          pickupRadiusKm: 25,
+        }),
+        point: null,
+      })
+    ).toBe('');
+  });
+
+  it('drops a saved address that the current option cannot accept', () => {
+    const draft = {
+      placeOfStay: 'Apukka Resort, Tutkijantie 28, Rovaniemi',
+      travelerPickup: {
+        lat: 66.5783616,
+        lng: 26.0153995,
+        placeId: 'ChIJ-example',
+        formattedAddress: 'Apukka Resort, Tutkijantie 28, Rovaniemi',
+        name: 'Apukka Resort',
+      },
+    };
+    expect(
+      restoredPickupForOption({ fulfillment: 'pickup', pickupPlace: 'Arctic city' }, draft)
+    ).toEqual({ address: '', point: null });
+    expect(restoredPickupForOption(null, draft).address).toBe(draft.placeOfStay);
   });
 });

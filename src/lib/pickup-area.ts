@@ -123,3 +123,34 @@ export function travelerPickupAllowed(input: {
   if (distance > input.area.radiusKm + 0.05) return { ok: false, error: PICKUP_OUTSIDE_AREA_MESSAGE };
   return { ok: true, address: point.formattedAddress.trim() };
 }
+
+export function restoredPickupForOption(
+  option: Parameters<typeof pickupAreaFromOption>[0],
+  draft: { placeOfStay?: string | null; travelerPickup?: TravelerPickupPoint | null }
+): { address: string; point: TravelerPickupPoint | null } {
+  const typed = (draft.placeOfStay ?? '').trim();
+  const matched =
+    draft.travelerPickup && draft.travelerPickup.formattedAddress.trim() === typed ? draft.travelerPickup : null;
+  if (!option) return { address: typed, point: matched };
+  const address = checkoutSummaryPickupAddress({
+    fulfillment: option.fulfillment,
+    area: pickupAreaFromOption(option),
+    point: matched,
+  });
+  return { address, point: address ? matched : null };
+}
+
+/** Checkout summary address. Empty when this option does not currently accept the point. */
+export function checkoutSummaryPickupAddress(input: {
+  fulfillment: 'pickup' | 'meeting_point' | null | undefined;
+  area: PickupArea | null;
+  point: TravelerPickupPoint | null;
+}): string {
+  if (input.fulfillment !== 'pickup') return '';
+  const decision = travelerPickupAllowed({
+    fulfillment: 'pickup',
+    area: input.area,
+    point: input.point,
+  });
+  return decision.ok && decision.address ? decision.address : '';
+}

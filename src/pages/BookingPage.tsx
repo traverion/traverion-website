@@ -86,8 +86,10 @@ import {
 } from '../lib/tourCheckoutUrl';
 import PickupLocationSearch from '../components/checkout/PickupLocationSearch';
 import {
+  checkoutSummaryPickupAddress,
   PICKUP_AREA_MISSING_MESSAGE,
   pickupAreaFromOption,
+  restoredPickupForOption,
   travelerPickupAllowed,
   type TravelerPickupPoint,
 } from '../lib/pickup-area';
@@ -247,7 +249,6 @@ export default function BookingPage({
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState(user?.email ?? '');
-  const [placeOfStay, setPlaceOfStay] = useState('');
   const [selectedPickup, setSelectedPickup] = useState<TravelerPickupPoint | null>(null);
   const [specialRequests, setSpecialRequests] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -363,6 +364,11 @@ export default function BookingPage({
       ? (selectedVariant?.listingOption?.travelerStartInstructions ?? '').trim()
       : (pickupPlace.instructions ?? '').trim();
   const pickupArea = pickupAreaFromOption(selectedVariant?.listingOption ?? null);
+  const acceptedPickupAddress = checkoutSummaryPickupAddress({
+    fulfillment: optionFulfillment,
+    area: pickupArea,
+    point: selectedPickup,
+  });
   const meetingMapsHref =
     selectedVariant?.listingOption?.meetingLat != null && selectedVariant?.listingOption?.meetingLng != null
       ? `https://www.google.com/maps/search/?api=1&query=${selectedVariant.listingOption.meetingLat},${selectedVariant.listingOption.meetingLng}`
@@ -571,11 +577,13 @@ export default function BookingPage({
       guests,
       name: leadGuestName,
       email: email.trim(),
-      placeOfStay: placeOfStay.trim(),
+      placeOfStay: selectedVariant?.listingOption ? acceptedPickupAddress : (selectedPickup?.formattedAddress ?? ''),
       specialRequests,
-      travelerPickup: selectedPickup,
+      travelerPickup: selectedVariant?.listingOption
+        ? (acceptedPickupAddress ? selectedPickup : null)
+        : selectedPickup,
     });
-  }, [presentation, tour.id, step, date, guests, leadGuestName, email, placeOfStay, specialRequests, selectedPickup]);
+  }, [presentation, tour.id, step, date, guests, leadGuestName, email, acceptedPickupAddress, specialRequests, selectedPickup, selectedVariant?.listingOption]);
 
   const checkoutScrollRef = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
@@ -679,19 +687,14 @@ export default function BookingPage({
         setFirstName(parts[0] ?? '');
         setLastName(parts.slice(1).join(' '));
         setEmail(draft.email || user?.email || '');
-        setPlaceOfStay(draft.placeOfStay || '');
-        setSelectedPickup(
-          draft.travelerPickup && draft.travelerPickup.formattedAddress === (draft.placeOfStay || '').trim()
-            ? draft.travelerPickup
-            : null
-        );
+        const restored = restoredPickupForOption(selectedVariant?.listingOption ?? null, draft);
+        setSelectedPickup(restored.point);
         setSpecialRequests(draft.specialRequests);
       } else {
         setFirstName('');
         setLastName('');
         setPhone('');
         setEmail(user?.email ?? '');
-        setPlaceOfStay('');
         setSelectedPickup(null);
         setSpecialRequests('');
       }
@@ -722,12 +725,8 @@ export default function BookingPage({
       setLastName(parts.slice(1).join(' '));
       setPhone('');
       setEmail(draft.email || user?.email || '');
-      setPlaceOfStay(draft.placeOfStay || '');
-      setSelectedPickup(
-        draft.travelerPickup && draft.travelerPickup.formattedAddress === (draft.placeOfStay || '').trim()
-          ? draft.travelerPickup
-          : null
-      );
+      const restored = restoredPickupForOption(selectedVariant?.listingOption ?? null, draft);
+      setSelectedPickup(restored.point);
       setSpecialRequests(draft.specialRequests);
       setStep(sanitizeRestoredBookingStep(draft.step, Boolean(user), 'page'));
     } else {
@@ -735,7 +734,6 @@ export default function BookingPage({
       setLastName('');
       setPhone('');
       setEmail(user?.email ?? '');
-      setPlaceOfStay('');
       setSelectedPickup(null);
       setSpecialRequests('');
       setStep('date-guests');
@@ -822,7 +820,7 @@ export default function BookingPage({
       flushDraft();
     }, 400);
     return () => window.clearTimeout(t);
-  }, [tour.id, step, date, guests, leadGuestName, email, placeOfStay, specialRequests, flushDraft]);
+  }, [tour.id, step, date, guests, leadGuestName, email, acceptedPickupAddress, specialRequests, flushDraft]);
 
   const lastAppliedCheckoutStep = useRef<string | null>(null);
   useEffect(() => {
@@ -878,10 +876,10 @@ export default function BookingPage({
   const mergedSpecialRequests = useCallback(() => {
     // Phase 1852: phone is passed as customerPhone; claim builder adds "Guest phone:".
     // Do not also embed it here — that duplicated the line in special_requests.
-    const stayLine = placeOfStay.trim() ? `Place of stay: ${placeOfStay.trim()}` : '';
+    const stayLine = acceptedPickupAddress ? `Place of stay: ${acceptedPickupAddress}` : '';
     const rest = specialRequests.trim();
     return [stayLine, rest].filter(Boolean).join('\n\n');
-  }, [placeOfStay, specialRequests]);
+  }, [acceptedPickupAddress, specialRequests]);
 
   const proceedToContactAfterOption = async () => {
     // Phase 1178: defense in depth — never advance when remaining is unknown/sold out.
@@ -919,8 +917,11 @@ export default function BookingPage({
       guests,
       name: leadGuestName,
       email: email.trim(),
-      placeOfStay: placeOfStay.trim(),
+      placeOfStay: selectedVariant?.listingOption ? acceptedPickupAddress : (selectedPickup?.formattedAddress ?? ''),
       specialRequests,
+      travelerPickup: selectedVariant?.listingOption
+        ? (acceptedPickupAddress ? selectedPickup : null)
+        : selectedPickup,
     });
     // Sign-in is required when starting Stripe — not when opening the contact step.
     setError(null);
@@ -1780,7 +1781,6 @@ export default function BookingPage({
                   selected={selectedPickup}
                   onSelect={(place) => {
                     setSelectedPickup(place);
-                    setPlaceOfStay(place?.formattedAddress ?? '');
                     setError(null);
                   }}
                 />
@@ -2219,10 +2219,10 @@ export default function BookingPage({
                           <dd className="text-right font-medium text-ink">{departureLabel}</dd>
                         </div>
                       ) : null}
-                      {pickupMode === 'pickup' && placeOfStay.trim() ? (
+                      {acceptedPickupAddress ? (
                         <div className="flex justify-between gap-3">
                           <dt className="text-ink-muted">Pickup</dt>
-                          <dd className="max-w-[65%] text-right font-medium text-ink">{placeOfStay.trim()}</dd>
+                          <dd className="max-w-[65%] text-right font-medium text-ink">{acceptedPickupAddress}</dd>
                         </div>
                       ) : null}
                       {pickupMode === 'meet' && meetingAddress ? (
@@ -2271,10 +2271,10 @@ export default function BookingPage({
                         <dt className="text-ink-muted">Participants</dt>
                         <dd className="max-w-[65%] text-right font-medium text-ink">{participantsSummary}</dd>
                       </div>
-                      {pickupMode === 'pickup' && placeOfStay.trim() ? (
+                      {acceptedPickupAddress ? (
                         <div className="flex justify-between gap-3">
                           <dt className="text-ink-muted">Pickup</dt>
-                          <dd className="max-w-[65%] text-right font-medium text-ink">{placeOfStay.trim()}</dd>
+                          <dd className="max-w-[65%] text-right font-medium text-ink">{acceptedPickupAddress}</dd>
                         </div>
                       ) : null}
                       {pickupMode === 'meet' && meetingAddress ? (
