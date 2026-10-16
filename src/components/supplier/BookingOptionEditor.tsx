@@ -32,6 +32,7 @@ import {
 import { localYmd } from '../../lib/local-ymd';
 import { SchedulePricingEditor } from './listing-creation/SchedulePricingEditor';
 import PickupAreaFields from './PickupAreaFields';
+import { pickupFulfillmentPatch, type VerifiedDestination } from '../../lib/destination-place';
 
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -71,6 +72,8 @@ type Props = {
   listingCutoffHours?: number;
   timezoneAutoDetected?: boolean;
   timezoneDetectedLabel?: string | null;
+  /** Verified Basics destination. Used to prefill a new pickup center. Not a meeting point. */
+  tourDestination?: VerifiedDestination | null;
   /**
    * Cap for max guests on this editor (e.g. option max when editing a schedule).
    * Defaults to LISTING_CAPACITY_MAX.
@@ -188,6 +191,7 @@ export default function BookingOptionEditor({
   listingCutoffHours = 0,
   timezoneAutoDetected = false,
   timezoneDetectedLabel = null,
+  tourDestination = null,
   guestsCeiling: guestsCeilingProp,
   spotsCeiling: spotsCeilingProp,
   formatAmount,
@@ -561,14 +565,15 @@ export default function BookingOptionEditor({
               selected={option.fulfillment === 'pickup'}
               title="Pickup included"
               hint="Guests are collected from an eligible area."
-              onClick={() => onChange({ fulfillment: 'pickup' })}
+              onClick={() => onChange(pickupFulfillmentPatch(option, tourDestination))}
             />
           </div>
           {option.fulfillment || option.pickupPlace.trim() ? (
             <div id="supplier-listing-field-meeting" className="space-y-3.5">
+              {option.fulfillment === 'pickup' ? null : (
               <div className="space-y-1.5">
                 <label htmlFor="booking-option-place" className="block text-[13px] font-semibold text-ink">
-                  {option.fulfillment === 'pickup' ? 'Pickup place *' : 'Meeting point *'}
+                  Meeting point *
                 </label>
                 <textarea
                   id="booking-option-place"
@@ -576,15 +581,12 @@ export default function BookingOptionEditor({
                   onChange={(e) => onChange({ pickupPlace: e.target.value })}
                   rows={2}
                   className="tv-input text-[15px]"
-                  placeholder={
-                    option.fulfillment === 'pickup'
-                      ? 'e.g. Arctic City Hotel — or city hotel zone for this option'
-                      : 'e.g. Maakuntakatu 29, Rovaniemi — main entrance'
-                  }
+                  placeholder="e.g. Maakuntakatu 29, Rovaniemi — main entrance"
                   aria-invalid={placeInvalid || undefined}
                 />
               </div>
-              <PickupAreaFields option={option} onChange={onChange} />
+              )}
+              <PickupAreaFields option={option} destination={tourDestination} onChange={onChange} />
               <div className="space-y-1.5">
                 <label
                   htmlFor="booking-option-start-instructions"

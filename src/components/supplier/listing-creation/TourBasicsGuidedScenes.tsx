@@ -1,15 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   MAX_LISTING_TITLE_LENGTH,
   MIN_LISTING_TITLE_LENGTH,
   clampListingTitleInput,
 } from '../../../lib/listingQualityScore';
-import {
-  LISTING_CUSTOM_CITY_VALUE,
-  isCustomListingCity,
-  listingCitySelectOptions,
-  listingCountrySelectOptions,
-} from '../../../lib/listing-destinations';
+import DestinationSearch from '../DestinationSearch';
+import { travelerDestinationLabel, verifiedDestination, type VerifiedDestination } from '../../../lib/destination-place';
 import {
   TOUR_BASICS_SCENE_COUNT,
   TOUR_BASICS_SCENES,
@@ -36,6 +32,11 @@ type TourBasicsFormSlice = {
   experienceLanguage: string;
   city: string;
   country: string;
+  destinationPlaceId: string;
+  destinationCountryCode: string;
+  destinationLat: number | null;
+  destinationLng: number | null;
+  destinationFormatted: string;
   title: string;
   subtitle: string;
 };
@@ -64,9 +65,14 @@ export function TourBasicsGuidedScenes({
   const scene = TOUR_BASICS_SCENES[sceneIndex] ?? TOUR_BASICS_SCENES[0];
   const sceneLabels = TOUR_BASICS_SCENES.map((item) => item.label);
   const headingId = 'tour-basics-scene-heading';
-  const [cityModeCustom, setCityModeCustom] = useState(() =>
-    isCustomListingCity(form.country, form.city)
-  );
+  const selectedDestination = verifiedDestination({
+    placeId: form.destinationPlaceId,
+    city: form.city,
+    country: form.country,
+    countryCode: form.destinationCountryCode,
+    lat: form.destinationLat,
+    lng: form.destinationLng,
+  });
 
   useEffect(() => {
     if (skipFocusRef.current) {
@@ -76,14 +82,8 @@ export function TourBasicsGuidedScenes({
     headingRef.current?.focus();
   }, [sceneIndex]);
 
-  useEffect(() => {
-    setCityModeCustom(isCustomListingCity(form.country, form.city));
-  }, [form.country, form.city]);
-
   const identityQuestion = tourBasicsIdentityQuestion(form.experienceKind);
   const question = scene.id === 'identity' ? identityQuestion : scene.question;
-
-  const citySelectValue = cityModeCustom ? LISTING_CUSTOM_CITY_VALUE : form.city;
 
   return (
     <ListingCreationSceneFrame
@@ -166,80 +166,31 @@ export function TourBasicsGuidedScenes({
               ]}
             />
           </div>
-          <div id="supplier-listing-field-location" className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label htmlFor="supplier-listing-country" className="mb-1 block text-[13px] font-semibold text-ink">
-                Country *
-              </label>
-              <PartnerSelect
-                id="supplier-listing-country"
-                value={form.country}
-                placeholder="Select country…"
-                onChange={(country) => {
-                  const nextCountry = country;
-                  const keepCity =
-                    nextCountry &&
-                    listingCitySelectOptions(nextCountry, form.city).some(
-                      (o) => o.value && o.value === form.city
-                    );
-                  onChange({
-                    country: nextCountry,
-                    city: keepCity ? form.city : '',
-                  });
-                  setCityModeCustom(false);
-                }}
-                options={listingCountrySelectOptions()}
-              />
-            </div>
-            <div>
-              <label htmlFor="supplier-listing-city" className="mb-1 block text-[13px] font-semibold text-ink">
-                City / destination *
-              </label>
-              <PartnerSelect
-                id="supplier-listing-city"
-                value={citySelectValue}
-                placeholder={form.country.trim() ? 'Select city…' : 'Select a country first'}
-                disabled={!form.country.trim()}
-                onChange={(value) => {
-                  if (value === LISTING_CUSTOM_CITY_VALUE) {
-                    setCityModeCustom(true);
-                    onChange({ city: '' });
-                    return;
-                  }
-                  setCityModeCustom(false);
-                  onChange({ city: value });
-                }}
-                options={listingCitySelectOptions(form.country, form.city)}
-              />
-            </div>
-          </div>
-          {cityModeCustom ? (
-            <div>
-              <label htmlFor="supplier-listing-city-custom" className="mb-1 block text-[13px] font-semibold text-ink">
-                Custom city name *
-              </label>
-              <input
-                id="supplier-listing-city-custom"
-                type="text"
-                value={form.city}
-                onChange={(e) => onChange({ city: e.target.value })}
-                className="tv-input"
-                placeholder="e.g. Kilpisjärvi"
-                autoComplete="address-level2"
-              />
-              <p className="mt-1 text-[12px] text-ink-muted">
-                Use when your destination is not in the list. Shown to travelers as City, Country.
-              </p>
-            </div>
-          ) : (
-            <p className="text-[12px] text-ink-muted">
+          <div id="supplier-listing-field-location">
+            <DestinationSearch
+              id="supplier-listing-destination"
+              selected={selectedDestination}
+              savedLabel={travelerDestinationLabel(form.city, form.country)}
+              onSelect={(place: VerifiedDestination) =>
+                onChange({
+                  city: place.city,
+                  country: place.country,
+                  destinationPlaceId: place.placeId,
+                  destinationCountryCode: place.countryCode,
+                  destinationLat: place.lat,
+                  destinationLng: place.lng,
+                  destinationFormatted: place.formatted,
+                })
+              }
+            />
+            <p className="mt-2 text-[12px] text-ink-muted">
               Travelers see{' '}
               <span className="font-medium text-ink">
-                {[form.city.trim(), form.country.trim()].filter(Boolean).join(', ') || 'City, Country'}
+                {travelerDestinationLabel(form.city, form.country) || 'City, Country'}
               </span>
-              . Exact meeting points stay on each option.
+              . Meeting points stay on each option.
             </p>
-          )}
+          </div>
         </div>
       ) : null}
 

@@ -98,6 +98,13 @@ export interface ListingBookingOption {
   pickupRadiusKm?: number;
   pickupPlaceId?: string;
   pickupFormattedAddress?: string;
+  /**
+   * destination: center was copied from Basics and still follows that place.
+   * custom: the supplier chose a different center. Omitted on legacy options.
+   */
+  pickupCenterSource?: 'destination' | 'custom';
+  /** Destination place id this center was copied from. Absent when the center is custom or legacy. */
+  pickupCenterLinkedPlaceId?: string;
   /** Meeting-point coordinates when the supplier saved a searched place. */
   meetingLat?: number;
   meetingLng?: number;
@@ -246,6 +253,19 @@ export interface ListingExtras {
    * Omitted / false → timezone may follow Basics country/city auto-detect.
    */
   departureTimezoneManual?: boolean;
+  /**
+   * Verified Basics destination from Places. City and country stay the traveler-facing label.
+   * Absent on listings saved before destination search. Never inferred from a city name.
+   */
+  destinationPlace?: {
+    placeId: string;
+    city: string;
+    country: string;
+    countryCode: string;
+    formatted: string;
+    lat: number;
+    lng: number;
+  };
   /** Multiple bookable options under one tour (partner Options step). */
   bookingOptions?: ListingBookingOption[];
   /**
@@ -515,6 +535,12 @@ export function normalizeListingBookingOption(raw: Record<string, unknown>, fall
     }
     if (typeof raw.pickupFormattedAddress === 'string' && raw.pickupFormattedAddress.trim()) {
       out.pickupFormattedAddress = raw.pickupFormattedAddress.trim().slice(0, 300);
+    }
+    if (raw.pickupCenterSource === 'destination' || raw.pickupCenterSource === 'custom') {
+      out.pickupCenterSource = raw.pickupCenterSource;
+    }
+    if (typeof raw.pickupCenterLinkedPlaceId === 'string' && raw.pickupCenterLinkedPlaceId.trim()) {
+      out.pickupCenterLinkedPlaceId = raw.pickupCenterLinkedPlaceId.trim().slice(0, 256);
     }
     const meetLat = typeof raw.meetingLat === 'number' ? raw.meetingLat : Number.NaN;
     const meetLng = typeof raw.meetingLng === 'number' ? raw.meetingLng : Number.NaN;
@@ -837,6 +863,39 @@ export function parseListingExtras(raw: unknown): ListingExtras {
   }
   if (o.departureTimezoneManual === true) {
     out.departureTimezoneManual = true;
+  }
+  if (o.destinationPlace && typeof o.destinationPlace === 'object' && !Array.isArray(o.destinationPlace)) {
+    const place = o.destinationPlace as Record<string, unknown>;
+    const lat = Number(place.lat);
+    const lng = Number(place.lng);
+    const placeId = typeof place.placeId === 'string' ? place.placeId.trim() : '';
+    const city = typeof place.city === 'string' ? place.city.trim() : '';
+    const country = typeof place.country === 'string' ? place.country.trim() : '';
+    const countryCode = typeof place.countryCode === 'string' ? place.countryCode.trim().toUpperCase() : '';
+    const formatted = typeof place.formatted === 'string' ? place.formatted.trim() : '';
+    if (
+      placeId &&
+      city &&
+      country &&
+      /^[A-Z]{2}$/.test(countryCode) &&
+      formatted &&
+      Number.isFinite(lat) &&
+      lat >= -90 &&
+      lat <= 90 &&
+      Number.isFinite(lng) &&
+      lng >= -180 &&
+      lng <= 180
+    ) {
+      out.destinationPlace = {
+        placeId: placeId.slice(0, 256),
+        city: city.slice(0, 120),
+        country: country.slice(0, 120),
+        countryCode,
+        formatted: formatted.slice(0, 180),
+        lat,
+        lng,
+      };
+    }
   }
   if (Array.isArray(o.galleryImageUrls)) {
     out.galleryImageUrls = o.galleryImageUrls.map((x) => String(x ?? '').trim()).filter(Boolean);

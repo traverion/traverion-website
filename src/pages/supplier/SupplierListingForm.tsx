@@ -35,6 +35,7 @@ import { summarizeOptionPricing } from '../../lib/price-categories';
 import { headlineStartingAmountFromBookingOptions } from '../../lib/headline-price';
 import { listingDurationForPersist } from '../../lib/listing-option-ownership';
 import { itineraryForListingPersist } from '../../lib/tour-itinerary';
+import { syncLinkedPickupCenters, verifiedDestination } from '../../lib/destination-place';
 import {
   TOUR_OPTION_SCENE_COUNT,
   clampTourOptionSceneIndex,
@@ -800,6 +801,11 @@ type ListingFormState = {
   description: string;
   city: string;
   country: string;
+  destinationPlaceId: string;
+  destinationCountryCode: string;
+  destinationLat: number | null;
+  destinationLng: number | null;
+  destinationFormatted: string;
   tags: string[];
   difficulty: 'Easy' | 'Moderate' | 'Challenging';
   status: 'draft' | 'published';
@@ -962,6 +968,25 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
       ? { departureTimezone: resolveDepartureTimezone(form.departureTimezone) }
       : {}),
     ...(form.departureTimezoneManual ? { departureTimezoneManual: true } : {}),
+    ...(verifiedDestination({
+      placeId: form.destinationPlaceId,
+      city: form.city,
+      country: form.country,
+      countryCode: form.destinationCountryCode,
+      lat: form.destinationLat,
+      lng: form.destinationLng,
+    })
+      ? {
+          destinationPlace: verifiedDestination({
+            placeId: form.destinationPlaceId,
+            city: form.city,
+            country: form.country,
+            countryCode: form.destinationCountryCode,
+            lat: form.destinationLat,
+            lng: form.destinationLng,
+          })!,
+        }
+      : {}),
     ...(galleryList.length > 0 ? { galleryImageUrls: galleryList } : {}),
     ...(labelsNorm.some((l) => l.trim()) ? { photoSlotLabels: labelsNorm } : {}),
     ...(originalsNorm.some((u) => u.trim()) ? { photoOriginalUrls: originalsNorm } : {}),
@@ -1186,6 +1211,11 @@ const emptyForm: ListingFormState = {
   description: '',
   city: '',
   country: '',
+  destinationPlaceId: '',
+  destinationCountryCode: '',
+  destinationLat: null,
+  destinationLng: null,
+  destinationFormatted: '',
   tags: [] as string[],
   difficulty: 'Easy',
   status: 'draft',
@@ -1846,6 +1876,11 @@ export default function SupplierListingForm({
           description: existing.description,
           city: existing.city ?? '',
           country: existing.country ?? '',
+          destinationPlaceId: extras.destinationPlace?.placeId ?? '',
+          destinationCountryCode: extras.destinationPlace?.countryCode ?? '',
+          destinationLat: extras.destinationPlace?.lat ?? null,
+          destinationLng: extras.destinationPlace?.lng ?? null,
+          destinationFormatted: extras.destinationPlace?.formatted ?? '',
           tags: existing.tags ?? [],
           difficulty: existing.difficulty,
           status: existing.status === 'draft' || existing.status === 'published' ? existing.status : 'draft',
@@ -1959,20 +1994,20 @@ export default function SupplierListingForm({
   // Auto-detect listing departure timezone from Basics location unless manually overridden.
   useEffect(() => {
     if (isStayForm || form.departureTimezoneManual) return;
-    const detected = detectListingDepartureTimezone(form.country, form.city);
+    const detected = detectListingDepartureTimezone(form.country, form.city, form.destinationCountryCode);
     if (!detected.detected) return;
     const current = resolveDepartureTimezone(form.departureTimezone || TRAVERION_DEPARTURE_TIMEZONE);
     if (current === detected.timezone) return;
     setForm((f) => {
       if (f.departureTimezoneManual) return f;
-      const next = detectListingDepartureTimezone(f.country, f.city);
+      const next = detectListingDepartureTimezone(f.country, f.city, f.destinationCountryCode);
       if (!next.detected) return f;
       if (resolveDepartureTimezone(f.departureTimezone || TRAVERION_DEPARTURE_TIMEZONE) === next.timezone) {
         return f;
       }
       return { ...f, departureTimezone: next.timezone };
     });
-  }, [form.country, form.city, form.departureTimezoneManual, form.departureTimezone, isStayForm]);
+  }, [form.country, form.city, form.destinationCountryCode, form.departureTimezoneManual, form.departureTimezone, isStayForm]);
 
   useEffect(() => {
     if (!publishChecklistKey) {
@@ -3895,6 +3930,11 @@ export default function SupplierListingForm({
                 experienceLanguage: form.experienceLanguage,
                 city: form.city,
                 country: form.country,
+                destinationPlaceId: form.destinationPlaceId,
+                destinationCountryCode: form.destinationCountryCode,
+                destinationLat: form.destinationLat,
+                destinationLng: form.destinationLng,
+                destinationFormatted: form.destinationFormatted,
                 title: form.title,
                 subtitle: form.subtitle,
               }}
@@ -3913,7 +3953,30 @@ export default function SupplierListingForm({
                 }
                 setBasicsSceneIdxPersisted(index, index >= basicsSceneIdx ? 'forward' : 'back');
               }}
-              onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
+              onChange={(patch) =>
+                setForm((f) => {
+                  const next = { ...f, ...patch };
+                  const place = verifiedDestination({
+                    placeId: patch.destinationPlaceId,
+                    city: patch.city,
+                    country: patch.country,
+                    countryCode: patch.destinationCountryCode,
+                    lat: patch.destinationLat,
+                    lng: patch.destinationLng,
+                  });
+                  if (place && place.placeId !== f.destinationPlaceId) {
+                    next.destination = '';
+                    if (f.destinationPlaceId) {
+                      next.bookingOptions = syncLinkedPickupCenters(
+                        f.bookingOptions,
+                        f.destinationPlaceId,
+                        place
+                      );
+                    }
+                  }
+                  return next;
+                })
+              }
             />
           )}
 
@@ -4773,6 +4836,14 @@ export default function SupplierListingForm({
                   ? [form.city.trim(), form.country.trim()].filter(Boolean).join(', ')
                   : null
               }
+              tourDestination={verifiedDestination({
+                placeId: form.destinationPlaceId,
+                city: form.city,
+                country: form.country,
+                countryCode: form.destinationCountryCode,
+                lat: form.destinationLat,
+                lng: form.destinationLng,
+              })}
               onListingDepartureTimezoneChange={(departureTimezone) => {
                 const next = resolveDepartureTimezone(departureTimezone);
                 const current = resolveDepartureTimezone(

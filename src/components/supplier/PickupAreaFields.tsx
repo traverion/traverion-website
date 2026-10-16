@@ -1,10 +1,17 @@
 import PickupLocationSearch from '../checkout/PickupLocationSearch';
+import PickupCoverageMap from './PickupCoverageMap';
 import { pickupAreaFromOption, type TravelerPickupPoint } from '../../lib/pickup-area';
 import { placesSearchConfigured } from '../../lib/places-client';
+import {
+  customPickupCenterPatch,
+  pickupCenterPatchFromDestination,
+  type VerifiedDestination,
+} from '../../lib/destination-place';
 import type { ListingBookingOption } from '../../types/listingExtras';
 
 type Props = {
   option: ListingBookingOption;
+  destination?: VerifiedDestination | null;
   onChange: (patch: Partial<ListingBookingOption>) => void;
 };
 
@@ -19,7 +26,7 @@ function centerPoint(option: ListingBookingOption): TravelerPickupPoint | null {
   };
 }
 
-export default function PickupAreaFields({ option, onChange }: Props) {
+export default function PickupAreaFields({ option, destination = null, onChange }: Props) {
   const configured = placesSearchConfigured();
   const area = pickupAreaFromOption(option);
 
@@ -76,12 +83,25 @@ export default function PickupAreaFields({ option, onChange }: Props) {
 
   if (option.fulfillment !== 'pickup') return null;
 
+  const followsDestination = option.pickupCenterSource === 'destination';
+  const differs =
+    Boolean(destination && centerPoint(option) && option.pickupPlaceId && option.pickupPlaceId !== destination?.placeId);
+
   return (
     <div className="space-y-3">
       {!area ? (
         <p className="text-[13px] font-medium text-amber-800" role="status">
           Pickup area not configured. The saved place name is not used as a pickup center.
         </p>
+      ) : null}
+      {!centerPoint(option) && destination ? (
+        <button
+          type="button"
+          className="rounded-lg border border-black/10 bg-white px-3 py-2 text-left text-[13px] font-semibold text-finland hover:bg-finland/[0.04]"
+          onClick={() => onChange(pickupCenterPatchFromDestination(destination))}
+        >
+          Use tour destination · {destination.formatted}
+        </button>
       ) : null}
       {configured ? (
         <PickupLocationSearch
@@ -91,20 +111,17 @@ export default function PickupAreaFields({ option, onChange }: Props) {
           onSelect={(place) => {
             if (!place) {
               onChange({
+                pickupPlace: '',
                 pickupCenterLat: undefined,
                 pickupCenterLng: undefined,
                 pickupPlaceId: undefined,
                 pickupFormattedAddress: undefined,
+                pickupCenterSource: undefined,
+                pickupCenterLinkedPlaceId: undefined,
               });
               return;
             }
-            onChange({
-              pickupPlace: place.name || place.formattedAddress,
-              pickupFormattedAddress: place.formattedAddress,
-              pickupCenterLat: place.lat,
-              pickupCenterLng: place.lng,
-              pickupPlaceId: place.placeId,
-            });
+            onChange(customPickupCenterPatch(place, destination));
           }}
         />
       ) : (
@@ -113,16 +130,39 @@ export default function PickupAreaFields({ option, onChange }: Props) {
           center and radius are saved.
         </p>
       )}
+      {followsDestination ? (
+        <p className="text-[12px] text-ink-muted">Based on your tour destination. You can change this.</p>
+      ) : differs && destination ? (
+        <p className="text-[12px] text-ink-muted">
+          This pickup center differs from the tour destination ({destination.formatted}).
+        </p>
+      ) : null}
       <div className="space-y-1.5">
         <label htmlFor="booking-option-pickup-radius" className="block text-[13px] font-semibold text-ink">
           Pickup radius (km)
         </label>
         <input
           id="booking-option-pickup-radius"
+          type="range"
+          min={1}
+          max={150}
+          step={1}
+          value={option.pickupRadiusKm ?? 1}
+          aria-valuetext={option.pickupRadiusKm ? `${option.pickupRadiusKm} kilometres` : 'Not set'}
+          onChange={(event) => {
+            const next = Number(event.target.value);
+            onChange({
+              pickupRadiusKm: Number.isFinite(next) && next >= 1 ? Math.min(150, next) : undefined,
+            });
+          }}
+          className="w-full accent-finland"
+        />
+        <input
+          id="booking-option-pickup-radius-number"
           type="number"
           min={1}
           max={150}
-          step={0.5}
+          step={1}
           value={option.pickupRadiusKm ?? ''}
           onChange={(event) => {
             const next = Number(event.target.value);
@@ -131,29 +171,18 @@ export default function PickupAreaFields({ option, onChange }: Props) {
             });
           }}
           className="tv-input text-[15px]"
+          aria-label="Pickup radius in kilometres"
         />
         <p className="text-[12px] text-ink-muted">
-          Straight-line eligibility around the center. It is not a driving-distance promise.
+          Straight-line eligibility around the center, from 1 to 150 km. It is not a driving-distance promise.
         </p>
       </div>
-      {area ? (
-        <div className="flex items-center gap-4">
-          <svg viewBox="0 0 120 120" className="h-24 w-24 text-finland" aria-hidden>
-            <circle cx="60" cy="60" r="48" fill="none" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 3" />
-            <circle cx="60" cy="60" r="3.5" fill="currentColor" />
-          </svg>
-          <div>
-            <p className="text-sm font-semibold text-ink">{area.radiusKm} km radius</p>
-            <a
-              href={`https://www.google.com/maps/search/?api=1&query=${area.lat},${area.lng}`}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-1 inline-flex text-sm font-semibold text-finland hover:underline"
-            >
-              View center on Google Maps
-            </a>
-          </div>
-        </div>
+      {centerPoint(option) ? (
+        <PickupCoverageMap
+          lat={centerPoint(option)!.lat}
+          lng={centerPoint(option)!.lng}
+          radiusKm={area?.radiusKm ?? null}
+        />
       ) : null}
     </div>
   );

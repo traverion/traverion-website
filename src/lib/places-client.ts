@@ -101,3 +101,94 @@ export async function resolvePlace(placeId: string): Promise<ResolvedPlace | nul
     lng,
   };
 }
+
+const DESTINATION_TYPES = ['locality', 'postal_town', 'administrative_area_level_3', 'colloquial_area'];
+
+/** Cities, towns, municipalities, and destination areas. Not hotels or street addresses. */
+export async function autocompleteDestinations(input: string): Promise<PlaceSuggestion[]> {
+  const query = input.trim();
+  if (!placesSearchConfigured() || query.length < 2) return [];
+  const res = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': googleMapsBrowserKey(),
+    },
+    body: JSON.stringify({
+      input: query,
+      languageCode: 'en',
+      includedPrimaryTypes: DESTINATION_TYPES,
+    }),
+  });
+  if (!res.ok) throw new Error('Location search is unavailable.');
+  const data = (await res.json()) as {
+    suggestions?: Array<{
+      placePrediction?: {
+        placeId?: string;
+        text?: { text?: string };
+        structuredFormat?: { mainText?: { text?: string }; secondaryText?: { text?: string } };
+      };
+    }>;
+  };
+  const out: PlaceSuggestion[] = [];
+  for (const row of data.suggestions ?? []) {
+    const prediction = row.placePrediction;
+    const placeId = prediction?.placeId?.trim() ?? '';
+    if (!placeId) continue;
+    const name = prediction?.structuredFormat?.mainText?.text?.trim() || prediction?.text?.text?.trim() || '';
+    const address = prediction?.structuredFormat?.secondaryText?.text?.trim() || '';
+    if (!name) continue;
+    out.push({ placeId, name, address });
+    if (out.length >= 6) break;
+  }
+  return out;
+}
+
+export type ResolvedDestination = {
+  placeId: string;
+  city: string;
+  country: string;
+  countryCode: string;
+  formatted: string;
+  lat: number;
+  lng: number;
+};
+
+/** Place details for a destination. Returns null when the place has no country or coordinates. */
+export async function resolveDestination(placeId: string): Promise<ResolvedDestination | null> {
+  const id = placeId.trim();
+  if (!placesSearchConfigured() || !id) return null;
+  const res = await fetch(
+    `https://places.googleapis.com/v1/places/${encodeURIComponent(id)}?languageCode=en`,
+    {
+      headers: {
+        'X-Goog-Api-Key': googleMapsBrowserKey(),
+        'X-Goog-FieldMask': 'id,displayName,location,addressComponents',
+      },
+    }
+  );
+  if (!res.ok) throw new Error('That place could not be loaded.');
+  const data = (await res.json()) as {
+    id?: string;
+    displayName?: { text?: string };
+    location?: { latitude?: number; longitude?: number };
+    addressComponents?: Array<{ longText?: string; shortText?: string; types?: string[] }>;
+  };
+  const country = (data.addressComponents ?? []).find((row) => row.types?.includes('country'));
+  const countryName = country?.longText?.trim() ?? '';
+  const countryCode = (country?.shortText ?? '').trim().toUpperCase();
+  const city = data.displayName?.text?.trim() ?? '';
+  const lat = Number(data.location?.latitude);
+  const lng = Number(data.location?.longitude);
+  if (!city || countryName.length < 2 || !/^[A-Z]{2}$/.test(countryCode)) return null;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return {
+    placeId: (data.id ?? id).trim(),
+    city,
+    country: countryName,
+    countryCode,
+    formatted: `${city}, ${countryName}`,
+    lat,
+    lng,
+  };
+}

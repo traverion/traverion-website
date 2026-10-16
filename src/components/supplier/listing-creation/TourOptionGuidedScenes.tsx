@@ -10,6 +10,7 @@ import {
 } from '../../../lib/listing-option-scenes';
 import type { ListingCreationSceneDirection } from '../../../lib/listing-creation-scenes';
 import type { ListingBookingOption, ListingOptionSchedule } from '../../../types/listingExtras';
+import type { VerifiedDestination } from '../../../lib/destination-place';
 
 /** Short support under the scene question — keep empty when fields are self-explanatory. */
 const SUPPORT: Record<TourOptionSceneId, string> = {
@@ -46,6 +47,7 @@ export function TourOptionGuidedScenes({
   listingCutoffHours,
   timezoneAutoDetected,
   timezoneDetectedLabel,
+  tourDestination = null,
 }: {
   option: ListingBookingOption;
   sceneIndex: number;
@@ -73,6 +75,7 @@ export function TourOptionGuidedScenes({
   listingCutoffHours?: number;
   timezoneAutoDetected?: boolean;
   timezoneDetectedLabel?: string | null;
+  tourDestination?: VerifiedDestination | null;
 }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const scene = TOUR_OPTION_SCENES[sceneIndex] ?? TOUR_OPTION_SCENES[0];
@@ -138,6 +141,7 @@ export function TourOptionGuidedScenes({
           onChange={onChange}
           activeSection={scene.id === 'setup' || scene.id === 'meeting' || scene.id === 'pricing' ? scene.id : 'setup'}
           attempted={attempted}
+          tourDestination={tourDestination}
         />
       )}
     </ListingCreationSceneFrame>

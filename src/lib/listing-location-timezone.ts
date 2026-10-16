@@ -53,16 +53,18 @@ export type ListingLocationTimezoneResult = {
  */
 export function detectListingDepartureTimezone(
   country: string,
-  city: string
+  city: string,
+  countryCode?: string | null
 ): ListingLocationTimezoneResult {
   const match = findListingCountryByLabel(country);
-  if (match) {
-    const cityKey = normalizeCityKey(city, match.code);
+  const code = (match?.code || (countryCode ?? '')).trim().toUpperCase();
+  if (code) {
+    const cityKey = normalizeCityKey(city, code);
     const cityTz = CITY_TIMEZONE[cityKey];
     if (cityTz) {
       return { timezone: resolveDepartureTimezone(cityTz), detected: true, source: 'city' };
     }
-    const countryTz = COUNTRY_TIMEZONE[match.code];
+    const countryTz = COUNTRY_TIMEZONE[code];
     if (countryTz) {
       return { timezone: resolveDepartureTimezone(countryTz), detected: true, source: 'country' };
     }
@@ -78,9 +80,10 @@ export function detectListingDepartureTimezone(
 export function listingTimezoneMatchesAuto(
   country: string,
   city: string,
-  current: string
+  current: string,
+  countryCode?: string | null
 ): boolean {
-  const auto = detectListingDepartureTimezone(country, city);
+  const auto = detectListingDepartureTimezone(country, city, countryCode);
   if (!auto.detected) return false;
   return resolveDepartureTimezone(current) === auto.timezone;
 }
