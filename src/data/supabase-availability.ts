@@ -1,4 +1,5 @@
 import { listingTourCapacityFromOptions, capacitySpotsFromBookingOptions } from '../lib/availability-ops';
+import { confirmedDepartureKey } from '../lib/last-minute-booking';
 import { localYmd } from '../lib/local-ymd';
 import { supabase } from '../lib/supabase';
 import { tourAvailabilityCheckMessages, tourPublicAvailabilityRemaining } from '../lib/tour-check-availability';
@@ -61,6 +62,24 @@ export function tourPaidSlotKey(dayIso: string, startTimeHm?: string | null): st
     .match(/^(\d{1,2}):(\d{2})/);
   if (!hm) return `${day}|`;
   return `${day}|${hm[1].padStart(2, '0')}:${hm[2]}`;
+}
+
+/** Confirmed paid departures. Holds and unpaid checkout are not included. Missing RPC fails closed. */
+export async function fetchPublishedTourConfirmedDepartureKeys(listingId: string): Promise<Set<string>> {
+  if (!supabase) return new Set();
+  const { data, error } = await supabase.rpc('published_tour_confirmed_departures', {
+    p_listing_id: listingId,
+  });
+  if (error || !Array.isArray(data)) return new Set();
+  const out = new Set<string>();
+  for (const row of data as { departure?: unknown; start_time_hm?: unknown; booking_option_id?: unknown }[]) {
+    const day = String(row.departure ?? '').slice(0, 10);
+    const optionId = String(row.booking_option_id ?? '').trim();
+    const hm = String(row.start_time_hm ?? '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !optionId || !hm) continue;
+    out.add(confirmedDepartureKey(day, hm, optionId));
+  }
+  return out;
 }
 
 /** Occupying guests per date+startTime (paid + live holds). */

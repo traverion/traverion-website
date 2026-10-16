@@ -35,7 +35,8 @@ import { fetchConsumerProfileRow } from '../data/supabase-consumer-profile';
 import { setPageMetaWithOg, setTourJsonLd, clearTourJsonLd } from '../lib/seo';
 import { Skeleton } from '../components/ui/Skeleton';
 import { dateNotInPast } from '../lib/validation';
-import { checkAvailability, fetchAvailabilityByListingId, fetchPublishedTourPaidGuests, fetchPublishedTourPaidGuestsBySlot, tourPaidSlotKey } from '../data/supabase-availability';
+import { checkAvailability, fetchAvailabilityByListingId, fetchPublishedTourConfirmedDepartureKeys, fetchPublishedTourPaidGuests, fetchPublishedTourPaidGuestsBySlot, tourPaidSlotKey } from '../data/supabase-availability';
+import { confirmedDepartureKey, evaluateDepartureBookingWindow } from '../lib/last-minute-booking';
 import { optionRunsOnDate, formatOptionWeekdays, experienceTodayIsoForListing, listingHasUpcomingBookableSeason } from '../lib/booking-quote';
 import { isListingVisibleToTravelers, listingDetailVisibleToTraveler } from '../lib/product-workflows';
 import { listingIsOnTravelerCatalog } from '../lib/inventory';
@@ -96,11 +97,7 @@ import {
   optionCapacityForDepartureTime,
 } from '../lib/listing-option-schedules';
 import { tourBookableSellingDeparturesOnDate } from '../lib/booking-quote';
-import {
-  isDepartureTimeStillBookable,
-  normalizeBookingCutoffHours,
-  resolveDepartureTimezone,
-} from '../lib/tour-departure-cutoff';
+import { normalizeBookingCutoffHours, resolveDepartureTimezone } from '../lib/tour-departure-cutoff';
 import { formatTourAvailabilityHeading, optionsOnDate } from '../lib/tour-available-options';
 import { tourSlotMaxSpotsFromOption } from '../lib/tour-slot-capacity';
 import { tourDepartureSlotCapacity } from '../../supabase/functions/_shared/booking-quote.ts';
@@ -211,6 +208,8 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
   const [savePop, setSavePop] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
   const [soldOutDates, setSoldOutDates] = useState<ReadonlySet<string>>(() => new Set());
+  const [confirmedDepartureKeys, setConfirmedDepartureKeys] = useState<ReadonlySet<string>>(() => new Set());
+  const [departureClosedNote, setDepartureClosedNote] = useState('');
   const [dayCapacitySnap, setDayCapacitySnap] = useState<{
     paidByDay: Record<string, number>;
     paidBySlot: Record<string, number>;
@@ -333,25 +332,32 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
     if (!selectedOption || !bookingDate.trim()) return [] as string[];
     const times = departureTimesOnDate(selectedOption, bookingDate.trim());
     return times.filter((time) =>
-      isDepartureTimeStillBookable({
+      evaluateDepartureBookingWindow({
         bookingDate: bookingDate.trim(),
         startTimeHm: time,
         cutoffHoursBeforeStart: bookingCutoffHours,
         timeZone: departureTimezone,
-      })
+        lastMinuteEnabled: selectedOption.lastMinuteBookings === true,
+        lastMinuteUntil: selectedOption.lastMinuteUntil,
+        confirmedPaidOnDeparture: confirmedDepartureKeys.has(
+          confirmedDepartureKey(bookingDate.trim(), time, selectedOption.id)
+        ),
+      }).ok
     );
-  }, [selectedOption, bookingDate, bookingCutoffHours, departureTimezone]);
+  }, [selectedOption, bookingDate, bookingCutoffHours, departureTimezone, confirmedDepartureKeys]);
 
+  const selectedDepartureRef = useRef(selectedDepartureTime);
+  selectedDepartureRef.current = selectedDepartureTime;
   useEffect(() => {
-    if (departureTimes.length === 1) {
-      setSelectedDepartureTime(departureTimes[0]);
-      return;
+    const prev = selectedDepartureRef.current;
+    const next =
+      departureTimes.length === 1 ? departureTimes[0] : departureTimes.includes(prev) ? prev : '';
+    if (prev && next !== prev) {
+      setDepartureClosedNote('This departure is no longer available for online booking. Choose another time.');
+    } else if (next) {
+      setDepartureClosedNote('');
     }
-    if (departureTimes.length === 0) {
-      setSelectedDepartureTime('');
-      return;
-    }
-    setSelectedDepartureTime((prev) => (departureTimes.includes(prev) ? prev : ''));
+    if (next !== prev) setSelectedDepartureTime(next);
   }, [departureTimes]);
 
   const selectedOptionApplied = useMemo(() => {
@@ -386,6 +392,13 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
       participantMix: usesAgePricing ? participantMix : null,
       startTime: selectedDepartureTime || undefined,
       todayIso: experienceTodayIso,
+      confirmedPaidOnDeparture: Boolean(
+        selectedDepartureTime &&
+          optionId &&
+          confirmedDepartureKeys.has(
+            confirmedDepartureKey(bookingDate.trim(), selectedDepartureTime, optionId)
+          )
+      ),
     });
   }, [
     tour,
@@ -398,6 +411,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
     discountsByListing,
     selectedDepartureTime,
     experienceTodayIso,
+    confirmedDepartureKeys,
   ]);
 
   const scrollToOptionsSection = useCallback(() => {
@@ -423,6 +437,8 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
   useEffect(() => {
     setDayCapacitySnap(null);
     setSoldOutDates(new Set());
+    setConfirmedDepartureKeys(new Set());
+    setDepartureClosedNote('');
     setDayCapacityError(null);
   }, [tourId]);
 
@@ -441,9 +457,11 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
       fetchAvailabilityByListingId(tour.id, { fromDate: experienceTodayIso }),
       fetchPublishedTourPaidGuests(tour.id),
       fetchPublishedTourPaidGuestsBySlot(tour.id),
+      fetchPublishedTourConfirmedDepartureKeys(tour.id),
     ])
-      .then(([caps, paidByDay, paidBySlot]) => {
+      .then(([caps, paidByDay, paidBySlot, confirmedKeys]) => {
         if (cancelled || reloadGen !== dayCapacityReloadGenRef.current) return;
+        setConfirmedDepartureKeys(confirmedKeys);
         const fallbackCap = listingTourCapacityFromOptions(capacitySpotsFromBookingOptions(optionsSnapshot));
         const capByDay = new Map<string, number>();
         for (const row of caps) {
@@ -463,6 +481,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
               tourBookableSellingDeparturesOnDate(optionsSnapshot, day, {
                 cutoffHoursBeforeStart: bookingCutoffHours,
                 timeZone: departureTimezone,
+                confirmedDepartureKeys: confirmedKeys,
               }).map((d) => ({
                 startTimeHm: d.startTime,
                 maxSpots: d.maxSpotsPerSlot,
@@ -493,6 +512,15 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
     document.addEventListener('visibilitychange', onVis);
     return () => document.removeEventListener('visibilitychange', onVis);
   }, [reloadTourDayCapacity]);
+
+  const departureClosedReloadRef = useRef('');
+  useEffect(() => {
+    const err = panelQuote && !panelQuote.ok ? panelQuote.error : '';
+    if (!/no longer available|Online booking closes/i.test(err)) return;
+    if (departureClosedReloadRef.current === err) return;
+    departureClosedReloadRef.current = err;
+    reloadTourDayCapacity();
+  }, [panelQuote, reloadTourDayCapacity]);
 
   const selectedDaySpotsLeft = useMemo(() => {
     const day = bookingDate.trim();
@@ -1977,6 +2005,9 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                             </div>
                           ) : departureTimes.length === 1 ? (
                             <p className="text-sm text-ink-muted">Starts {departureTimes[0]}</p>
+                          ) : null}
+                          {departureClosedNote ? (
+                            <p className="text-sm text-ink">{departureClosedNote}</p>
                           ) : null}
                           {usesAgePricing && selectedOptionApplied ? (
                             <div className="space-y-2">

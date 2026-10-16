@@ -8,63 +8,53 @@ import {
   hoursFromCutoffSelection,
   type BookingCutoffUnit,
 } from '../../lib/booking-cutoff-duration';
+import { isLastMinuteUntil, type LastMinuteUntil } from '../../lib/last-minute-booking';
 import { normalizeBookingCutoffHours } from '../../lib/tour-departure-cutoff';
+
+const LAST_MINUTE_UNTIL: Array<{ id: LastMinuteUntil; label: string }> = [
+  { id: 'departure', label: 'Departure time' },
+  { id: '30m', label: '30 minutes before' },
+  { id: '1h', label: '1 hour before' },
+];
 
 type Props = {
   id: string;
-  /** Stored hours. Empty means this option uses the listing default. */
+  /** Stored hours. Empty means this option still inherits the listing cutoff until the supplier picks an amount. */
   hours?: number;
   listingHours?: number;
+  lastMinuteEnabled?: boolean;
+  lastMinuteUntil?: LastMinuteUntil | null;
   onChange: (hours: number | undefined) => void;
+  onLastMinuteChange: (enabled: boolean, until: LastMinuteUntil) => void;
 };
 
-export default function BookingCutoffDurationField({ id, hours, listingHours = 0, onChange }: Props) {
+export default function BookingCutoffDurationField({
+  id,
+  hours,
+  listingHours = 0,
+  lastMinuteEnabled = false,
+  lastMinuteUntil,
+  onChange,
+  onLastMinuteChange,
+}: Props) {
   const stored = normalizeBookingCutoffHours(hours);
-  const custom = stored > 0;
-  const selection = custom ? cutoffSelectionFromHours(stored) : null;
+  const inherited = stored > 0 ? stored : normalizeBookingCutoffHours(listingHours);
+  const selection = inherited > 0 ? cutoffSelectionFromHours(inherited) : null;
   const [pendingUnit, setPendingUnit] = useState<BookingCutoffUnit | null>(null);
+  const until = isLastMinuteUntil(lastMinuteUntil) ? lastMinuteUntil : 'departure';
 
   useEffect(() => {
     setPendingUnit(null);
-  }, [stored]);
+  }, [stored, inherited]);
 
   const unit = pendingUnit ?? selection?.unit ?? 'hours';
   const amountValue =
-    pendingUnit && pendingUnit !== selection?.unit
-      ? ''
-      : selection
-        ? String(selection.amount)
-        : '';
-  const explanationHours = custom ? stored : normalizeBookingCutoffHours(listingHours);
+    pendingUnit && pendingUnit !== selection?.unit ? '' : selection ? String(selection.amount) : '';
 
   return (
-    <div className="space-y-2">
-      <p className="text-[13px] font-semibold text-ink">Booking cutoff</p>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <button
-          type="button"
-          aria-pressed={!custom}
-          onClick={() => onChange(undefined)}
-          className={`rounded-lg px-3 py-2.5 text-left text-[13px] font-semibold ring-1 ${
-            !custom ? 'bg-[#eef3fb] text-finland ring-finland' : 'bg-white text-ink ring-black/10'
-          }`}
-        >
-          Use listing default
-        </button>
-        <button
-          type="button"
-          aria-pressed={custom}
-          onClick={() => {
-            if (!custom) onChange(1);
-          }}
-          className={`rounded-lg px-3 py-2.5 text-left text-[13px] font-semibold ring-1 ${
-            custom ? 'bg-[#eef3fb] text-finland ring-finland' : 'bg-white text-ink ring-black/10'
-          }`}
-        >
-          Custom cutoff
-        </button>
-      </div>
-      {custom ? (
+    <div className="space-y-3">
+      <div className="space-y-2">
+        <p className="text-[13px] font-semibold text-ink">Booking cutoff</p>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <PartnerSelect
             id={`${id}-unit`}
@@ -87,7 +77,7 @@ export default function BookingCutoffDurationField({ id, hours, listingHours = 0
             searchable={false}
             placeholder="Choose"
             value={amountValue}
-            options={cutoffAmountOptions(unit, stored)}
+            options={cutoffAmountOptions(unit, inherited)}
             onChange={(next) => {
               const amount = Number(next);
               if (!Number.isFinite(amount) || amount <= 0) return;
@@ -95,8 +85,52 @@ export default function BookingCutoffDurationField({ id, hours, listingHours = 0
             }}
           />
         </div>
-      ) : null}
-      <p className="text-[12px] leading-snug text-ink-muted">{bookingCutoffExplanation(explanationHours)}</p>
+        <p className="text-[12px] leading-snug text-ink-muted">{bookingCutoffExplanation(inherited)}</p>
+      </div>
+
+      <div className="space-y-2 border-t border-black/[0.06] pt-3">
+        <label className="flex cursor-pointer items-start gap-2.5">
+          <input
+            id={`${id}-last-minute`}
+            type="checkbox"
+            checked={lastMinuteEnabled}
+            onChange={(e) => onLastMinuteChange(e.target.checked, until)}
+            className="mt-0.5 h-4 w-4 shrink-0 rounded border-black/35 text-finland focus:ring-finland"
+          />
+          <span>
+            <span className="block text-[13px] font-semibold text-ink">Allow last-minute bookings</span>
+            <span className="mt-0.5 block text-[12px] leading-snug text-ink-muted">
+              Accept additional guests after the normal cutoff when a departure already has confirmed bookings.
+            </span>
+          </span>
+        </label>
+        {lastMinuteEnabled ? (
+          <div className="space-y-2 pl-6">
+            <p className="text-[13px] font-semibold text-ink">Accept additional bookings until</p>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              {LAST_MINUTE_UNTIL.map((choice) => {
+                const selected = until === choice.id;
+                return (
+                  <button
+                    key={choice.id}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => onLastMinuteChange(true, choice.id)}
+                    className={`rounded-lg px-3 py-2 text-left text-[13px] font-semibold ring-1 ${
+                      selected ? 'bg-[#eef3fb] text-finland ring-finland' : 'bg-white text-ink ring-black/10'
+                    }`}
+                  >
+                    {choice.label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[12px] leading-snug text-ink-muted">
+              This can fill remaining seats on a departure that is already operating.
+            </p>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

@@ -2,7 +2,13 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
-import { listingHasUpcomingBookableSeason, quoteListingBooking, resolveTourDepartureHmForCutoff, stayCheckoutNightsAlreadyBooked, stayNightIsOperatorBlocked, stayRangeFromBooking, tourDepartureRemainingSeats, tourDepartureSlotCapacity, type DiscountRow, type ListingQuoteRow, type StayCheckoutOccupancyRow } from '../_shared/booking-quote.ts';
+import { effectiveBookingCutoffHours, listingHasUpcomingBookableSeason, quoteListingBooking, resolveTourDepartureHmForCutoff, stayCheckoutNightsAlreadyBooked, stayNightIsOperatorBlocked, stayRangeFromBooking, tourDepartureRemainingSeats, tourDepartureSlotCapacity, type DiscountRow, type ListingQuoteRow, type StayCheckoutOccupancyRow } from '../_shared/booking-quote.ts';
+import {
+  departureHasConfirmedPaidBooking,
+  evaluateDepartureBookingWindow,
+  lastMinutePolicyFromListingExtras,
+} from '../_shared/last-minute-booking.ts';
+import { resolveDepartureTimezone } from '../_shared/tour-departure-cutoff.ts';
 import {
   checkoutHoldExpiresAtUnix,
   tourCheckoutOccupiedGuests,
@@ -413,6 +419,23 @@ serve(async (req) => {
       );
     }
 
+    let confirmedOccupancy: Array<{
+      status?: string | null;
+      payment_status?: string | null;
+      booking_date?: string | null;
+      booking_option_id?: string | null;
+      start_time?: string | null;
+      purchase_snapshot?: unknown;
+    }> = [];
+    if (extrasFamily !== 'stay') {
+      const confirmedLookup = await admin
+        .from('bookings')
+        .select('status, payment_status, booking_date, booking_option_id, start_time, purchase_snapshot')
+        .eq('listing_id', listingId)
+        .eq('booking_date', bookingDate);
+      if (!confirmedLookup.error) confirmedOccupancy = confirmedLookup.data ?? [];
+    }
+
     const quote = quoteListingBooking({
       listing,
       discounts,
@@ -422,6 +445,8 @@ serve(async (req) => {
       checkoutDate: checkoutDate || null,
       participantMix,
       startTime: startTime || null,
+      confirmedOccupancy,
+      existingHold: Boolean(targetBookingId),
     });
     if (!quote.ok) {
       return json({ success: false, error: quote.error }, 400);
@@ -604,10 +629,10 @@ serve(async (req) => {
       {
         const withTime = await admin
           .from('bookings')
-          .select('id, booking_date, guests, status, payment_status, hold_expires_at, created_at, start_time, purchase_snapshot')
+          .select('id, booking_date, guests, status, payment_status, hold_expires_at, created_at, start_time, purchase_snapshot, booking_option_id')
           .eq('listing_id', listingId)
           .eq('booking_date', bookingDate);
-        if (withTime.error && /start_time|purchase_snapshot/i.test(withTime.error.message)) {
+        if (withTime.error && /start_time|purchase_snapshot|booking_option_id/i.test(withTime.error.message)) {
           const fallback = await admin
             .from('bookings')
             .select('id, booking_date, guests, status, payment_status, hold_expires_at, created_at, start_time')
@@ -707,6 +732,35 @@ serve(async (req) => {
           },
           409
         );
+      }
+      if (!targetBookingId && startTime) {
+        const optionId = String(quote.optionId ?? storedOptionId ?? '');
+        const policy = lastMinutePolicyFromListingExtras(listingRow.listing_extras, optionId);
+        const zone =
+          listingRow.listing_extras && typeof listingRow.listing_extras === 'object'
+            ? resolveDepartureTimezone(
+                (listingRow.listing_extras as { departureTimezone?: unknown }).departureTimezone
+              )
+            : resolveDepartureTimezone(null);
+        const window = evaluateDepartureBookingWindow({
+          bookingDate,
+          startTimeHm: startTime,
+          cutoffHoursBeforeStart: effectiveBookingCutoffHours({
+            listingExtras: listingRow.listing_extras,
+            bookingOptionId: optionId,
+            bookingDate,
+            startTimeHm: startTime,
+          }),
+          timeZone: zone,
+          lastMinuteEnabled: policy.enabled,
+          lastMinuteUntil: policy.until,
+          confirmedPaidOnDeparture: departureHasConfirmedPaidBooking(tourRows ?? [], {
+            date: bookingDate,
+            startTimeHm: startTime,
+            optionId,
+          }),
+        });
+        if (!window.ok) return json({ success: false, error: window.error }, 409);
       }
     }
 

@@ -19,9 +19,8 @@ import { DEFAULT_CURRENCY, normalizeCurrency } from './money';
 import { ymdInTimeZone } from './booking-lifecycle-calendar';
 import { localYmd } from './local-ymd';
 import { STAY_MAX_OCCUPIED_NIGHTS } from './stayOccupancy';
+import { confirmedDepartureKey, evaluateDepartureBookingWindow } from './last-minute-booking';
 import {
-  assertDepartureStillBookable,
-  isDepartureTimeStillBookable,
   normalizeBookingCutoffHours,
   resolveDepartureTimezone,
   TRAVERION_DEPARTURE_TIMEZONE,
@@ -165,6 +164,8 @@ export function tourBookableSellingDeparturesOnDate(
     nowMs?: number;
     /** Date-specific cutoff overrides from listing_extras.slotOverrides */
     slotOverrides?: Array<{ date: string; startTimeHm: string; cutoffHours?: number }> | null;
+    /** `YYYY-MM-DD|HH:MM|optionId` for departures that already have a confirmed paid booking. */
+    confirmedDepartureKeys?: ReadonlySet<string>;
   } = {}
 ): TourSellingDeparture[] {
   const listingCutoff = normalizeBookingCutoffHours(params.cutoffHoursBeforeStart);
@@ -183,13 +184,18 @@ export function tourBookableSellingDeparturesOnDate(
     const cutoff =
       ov?.cutoffHours != null ? normalizeBookingCutoffHours(ov.cutoffHours) : baseline;
     if (!hm) return cutoff <= 0;
-    return isDepartureTimeStillBookable({
+    const option = byId.get(d.optionId);
+    const confirmed = params.confirmedDepartureKeys?.has(confirmedDepartureKey(isoDate, hm, d.optionId)) === true;
+    return evaluateDepartureBookingWindow({
       bookingDate: isoDate,
       startTimeHm: hm,
       cutoffHoursBeforeStart: cutoff,
       nowMs: params.nowMs,
       timeZone,
-    });
+      lastMinuteEnabled: option?.lastMinuteBookings === true,
+      lastMinuteUntil: option?.lastMinuteUntil,
+      confirmedPaidOnDeparture: confirmed,
+    }).ok;
   });
 }
 
@@ -337,6 +343,12 @@ export function quoteBooking(input: {
   todayIso?: string;
   /** Epoch ms for cut-off tests; defaults to Date.now(). */
   nowMs?: number;
+  /**
+   * True only when this exact departure already has a confirmed paid booking.
+   * The checkout server recomputes this from booking rows; the client uses it
+   * so the calendar and quote agree before payment.
+   */
+  confirmedPaidOnDeparture?: boolean;
 }): BookingQuoteResult {
   const date = (input.bookingDate ?? '').trim();
   let guests = Number(input.guests);
@@ -404,12 +416,15 @@ export function quoteBooking(input: {
       // Option-level cutoff overrides listing-level when set (Phase 5).
       const optionCutoff = normalizeBookingCutoffHours(option.bookingCutoffHoursBeforeStart);
       const effectiveCutoff = optionCutoff > 0 ? optionCutoff : cutoffHours;
-      const cut = assertDepartureStillBookable({
+      const cut = evaluateDepartureBookingWindow({
         bookingDate: date,
         startTimeHm: departureHm,
         cutoffHoursBeforeStart: effectiveCutoff,
         nowMs,
         timeZone: departureTimezone,
+        lastMinuteEnabled: option.lastMinuteBookings === true,
+        lastMinuteUntil: option.lastMinuteUntil,
+        confirmedPaidOnDeparture: input.confirmedPaidOnDeparture === true,
       });
       if (!cut.ok) {
         // Phase 1531: cutoff/past-start are departure-time failures (sticky Pick time).

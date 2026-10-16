@@ -6,7 +6,11 @@
 import { bookingOccupiesInventory, type InventoryHoldRow } from './booking-hold.ts';
 import { ymdInTimeZone } from './booking-lifecycle-calendar.ts';
 import {
-  assertDepartureStillBookable,
+  departureHasConfirmedPaidBooking,
+  evaluateDepartureBookingWindow,
+  type LastMinuteUntil,
+} from './last-minute-booking.ts';
+import {
   normalizeBookingCutoffHours,
   resolveDepartureTimezone,
   TRAVERION_DEPARTURE_TIMEZONE,
@@ -70,6 +74,8 @@ type Option = {
   maxSpotsPerSlot?: number;
   /** Overrides listing-level bookingCutoffHoursBeforeStart when > 0. */
   bookingCutoffHoursBeforeStart?: number;
+  lastMinuteBookings?: boolean;
+  lastMinuteUntil?: LastMinuteUntil;
   schedules?: OptionSchedule[];
 };
 
@@ -610,6 +616,13 @@ function parseOptions(extras: unknown): Option[] {
     }
     const optionCutoff = normalizeBookingCutoffHours(o.bookingCutoffHoursBeforeStart);
     if (optionCutoff > 0) opt.bookingCutoffHoursBeforeStart = optionCutoff;
+    if (o.lastMinuteBookings === true) {
+      opt.lastMinuteBookings = true;
+      opt.lastMinuteUntil =
+        o.lastMinuteUntil === '30m' || o.lastMinuteUntil === '1h' || o.lastMinuteUntil === 'departure'
+          ? o.lastMinuteUntil
+          : 'departure';
+    }
     if (!isEmptyOption(opt)) opts.push(opt);
   }
   return coalesceLegacyParticipantTicketOptions(opts);
@@ -922,6 +935,17 @@ export function quoteListingBooking(input: {
   participantMix?: Record<string, number> | null;
   startTime?: string | null;
   nowMs?: number;
+  /** Booking rows for this date. Confirmed paid on the resolved departure unlocks last-minute. */
+  confirmedOccupancy?: Array<{
+    status?: string | null;
+    payment_status?: string | null;
+    booking_date?: string | null;
+    booking_option_id?: string | null;
+    start_time?: string | null;
+    purchase_snapshot?: unknown;
+  }>;
+  /** Live checkout hold already owns this seat. Cutoff does not cancel that hold. */
+  existingHold?: boolean;
 }): QuoteOk | QuoteErr {
   const date = (input.bookingDate ?? '').trim();
   let guests = Number(input.guests);
@@ -999,14 +1023,24 @@ export function quoteListingBooking(input: {
     if (departureHm) {
       const optionCutoff = normalizeBookingCutoffHours(option.bookingCutoffHoursBeforeStart);
       const cutoffHours = optionCutoff > 0 ? optionCutoff : listingCutoffHours;
-      const cut = assertDepartureStillBookable({
+      const confirmedPaid = departureHasConfirmedPaidBooking(input.confirmedOccupancy ?? [], {
+        date,
+        startTimeHm: departureHm,
+        optionId: option.id,
+      });
+      const cut = evaluateDepartureBookingWindow({
         bookingDate: date,
         startTimeHm: departureHm,
         cutoffHoursBeforeStart: cutoffHours,
         nowMs,
         timeZone: departureTimezone,
+        lastMinuteEnabled: option.lastMinuteBookings === true,
+        lastMinuteUntil: option.lastMinuteUntil,
+        confirmedPaidOnDeparture: confirmedPaid,
       });
-      if (!cut.ok) return { ok: false, error: cut.error };
+      if (!cut.ok && !(input.existingHold && cut.code === 'cutoff')) {
+        return { ok: false, error: cut.error };
+      }
     }
 
     if (option.isPrivate && option.privatePricing === 'flat_group') {

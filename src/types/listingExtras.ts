@@ -186,6 +186,13 @@ export interface ListingBookingOption {
    * Overrides listing-level bookingCutoffHoursBeforeStart when set.
    */
   bookingCutoffHoursBeforeStart?: number;
+  /**
+   * When true, extra guests can book after the normal cutoff if this exact
+   * departure already has a confirmed paid booking. Omitted means off.
+   */
+  lastMinuteBookings?: boolean;
+  /** How close to departure those extra bookings stay open. Only with lastMinuteBookings. */
+  lastMinuteUntil?: 'departure' | '30m' | '1h';
   /** Traveler can book this option as a private group. */
   isPrivate?: boolean;
   /** How private bookings are priced when isPrivate. */
@@ -633,6 +640,13 @@ export function normalizeListingBookingOption(raw: Record<string, unknown>, fall
   }
   const cutoffHours = normalizeBookingCutoffHours(raw.bookingCutoffHoursBeforeStart);
   if (cutoffHours > 0) out.bookingCutoffHoursBeforeStart = cutoffHours;
+  if (raw.lastMinuteBookings === true) {
+    out.lastMinuteBookings = true;
+    out.lastMinuteUntil =
+      raw.lastMinuteUntil === '30m' || raw.lastMinuteUntil === '1h' || raw.lastMinuteUntil === 'departure'
+        ? raw.lastMinuteUntil
+        : 'departure';
+  }
   if (isPrivate) {
     out.isPrivate = true;
     if (privatePricing) out.privatePricing = privatePricing;

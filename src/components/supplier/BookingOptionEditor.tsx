@@ -1067,7 +1067,16 @@ export default function BookingOptionEditor({
               id="option-booking-cutoff"
               hours={option.bookingCutoffHoursBeforeStart}
               listingHours={listingCutoffHours}
+              lastMinuteEnabled={option.lastMinuteBookings === true}
+              lastMinuteUntil={option.lastMinuteUntil}
               onChange={(next) => onChange({ bookingCutoffHoursBeforeStart: next })}
+              onLastMinuteChange={(enabled, until) =>
+                onChange(
+                  enabled
+                    ? { lastMinuteBookings: true, lastMinuteUntil: until }
+                    : { lastMinuteBookings: undefined, lastMinuteUntil: undefined }
+                )
+              }
             />
           </div>
           {onListingDepartureTimezoneChange ? (

@@ -30,6 +30,7 @@ import {
 } from '../lib/traveler-checkout-autofill';
 import { getDisplayPriceForBookingVariant } from '../lib/discount-display';
 import { quoteBooking, formatOptionWeekdays, tourBookableSellingDeparturesOnDate, experienceTodayIsoForListing, listingHasUpcomingBookableSeason } from '../lib/booking-quote';
+import { confirmedDepartureKey, evaluateDepartureBookingWindow } from '../lib/last-minute-booking';
 import {
   listingOptionHasSchedules,
   listingOptionReadySchedules,
@@ -38,13 +39,14 @@ import {
   departureTimesOnDate,
   optionCapacityForDepartureTime,
 } from '../lib/listing-option-schedules';
-import { normalizeBookingCutoffHours, resolveDepartureTimezone, isDepartureTimeStillBookable } from '../lib/tour-departure-cutoff';
+import { normalizeBookingCutoffHours, resolveDepartureTimezone } from '../lib/tour-departure-cutoff';
 import { formatMoney, normalizeCurrency } from '../lib/money';
 import { CHECKOUT_HOLD_MINUTES } from '../lib/booking-hold';
 import { isListingVisibleToTravelers } from '../lib/product-workflows';
 import {
   checkAvailability,
   fetchAvailabilityByListingId,
+  fetchPublishedTourConfirmedDepartureKeys,
   fetchPublishedTourPaidGuests,
   fetchPublishedTourPaidGuestsBySlot,
   tourPaidSlotKey,
@@ -262,6 +264,8 @@ export default function BookingPage({
   const [availabilityOptions, setAvailabilityOptions] = useState<AvailabilityCheckOption[]>([]);
   const [availabilityModalNote, setAvailabilityModalNote] = useState<string | null>(null);
   const [soldOutDates, setSoldOutDates] = useState<ReadonlySet<string>>(() => new Set());
+  const [confirmedDepartureKeys, setConfirmedDepartureKeys] = useState<ReadonlySet<string>>(() => new Set());
+  const [confirmedDepartureReady, setConfirmedDepartureReady] = useState(false);
   const [dayCapacitySnap, setDayCapacitySnap] = useState<{
     paidByDay: Record<string, number>;
     paidBySlot: Record<string, number>;
@@ -303,6 +307,11 @@ export default function BookingPage({
       participantMix: Object.keys(participantMix).length > 0 ? participantMix : null,
       startTime: departureTime,
       todayIso: experienceTodayIso,
+      confirmedPaidOnDeparture: Boolean(
+        departureTime &&
+          optionId &&
+          confirmedDepartureKeys.has(confirmedDepartureKey(day, departureTime, optionId))
+      ),
     });
     if (quoted.ok) {
       return {
@@ -330,6 +339,7 @@ export default function BookingPage({
     participantMix,
     departureTime,
     experienceTodayIso,
+    confirmedDepartureKeys,
   ]);
 
   const pricePerPerson = priceInfo.price;
@@ -417,9 +427,12 @@ export default function BookingPage({
       fetchAvailabilityByListingId(tour.id, { fromDate: experienceTodayIso }),
       fetchPublishedTourPaidGuests(tour.id),
       fetchPublishedTourPaidGuestsBySlot(tour.id),
+      fetchPublishedTourConfirmedDepartureKeys(tour.id),
     ])
-      .then(([caps, paidByDay, paidBySlot]) => {
+      .then(([caps, paidByDay, paidBySlot, confirmedKeys]) => {
         if (cancelled || reloadGen !== dayCapacityReloadGenRef.current) return;
+        setConfirmedDepartureKeys(confirmedKeys);
+        setConfirmedDepartureReady(true);
         const fallbackCap = listingTourCapacityFromOptions(capacitySpotsFromBookingOptions(calendarOptions));
         const capByDay = new Map<string, number>();
         for (const row of caps) {
@@ -439,6 +452,7 @@ export default function BookingPage({
               tourBookableSellingDeparturesOnDate(calendarOptions, day, {
                 cutoffHoursBeforeStart: bookingCutoffHours,
                 timeZone: departureTimezone,
+                confirmedDepartureKeys: confirmedKeys,
               }).map((d) => ({
                 startTimeHm: d.startTime,
                 maxSpots: d.maxSpotsPerSlot,
@@ -449,6 +463,7 @@ export default function BookingPage({
       .catch((e) => {
         if (cancelled || reloadGen !== dayCapacityReloadGenRef.current) return;
         // Phase 1103: keep prior sold-out marks — never invent a fully open calendar.
+        setConfirmedDepartureReady(true);
         setDayCapacityError(
           userFacingError(e, 'We could not check departure capacity. Check your connection and try again.')
         );
@@ -475,14 +490,17 @@ export default function BookingPage({
     const opt = appliedOption ?? selectedVariant?.listingOption ?? null;
     if (!opt || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return [] as string[];
     return departureTimesOnDate(opt, day).filter((time) =>
-      isDepartureTimeStillBookable({
+      evaluateDepartureBookingWindow({
         bookingDate: day,
         startTimeHm: time,
         cutoffHoursBeforeStart: bookingCutoffHours,
         timeZone: departureTimezone,
-      })
+        lastMinuteEnabled: opt.lastMinuteBookings === true,
+        lastMinuteUntil: opt.lastMinuteUntil,
+        confirmedPaidOnDeparture: confirmedDepartureKeys.has(confirmedDepartureKey(day, time, opt.id)),
+      }).ok
     );
-  }, [date, appliedOption, selectedVariant, bookingCutoffHours, departureTimezone]);
+  }, [date, appliedOption, selectedVariant, bookingCutoffHours, departureTimezone, confirmedDepartureKeys]);
 
   const selectedDaySpotsLeft = useMemo(() => {
     const day = date.trim();
@@ -1290,9 +1308,15 @@ export default function BookingPage({
           bookingOptionId: optionId,
           participantMix: Object.keys(participantMix).length > 0 ? participantMix : null,
           startTime: departureTime,
+          confirmedPaidOnDeparture: Boolean(
+            departureTime &&
+              optionId &&
+              confirmedDepartureKeys.has(confirmedDepartureKey(date.trim(), departureTime, optionId))
+          ),
         });
         if (!quoted.ok) {
           setError(userFacingError(quoted.error, USER_ERROR.checkout));
+          if (/no longer available|Online booking closes/i.test(quoted.error)) reloadBookingDayCapacity();
           stopSubmitting();
           return;
         }
@@ -1409,6 +1433,13 @@ export default function BookingPage({
               {selectedVariant.label}
               {departureLabel ? <span className="font-medium text-ink-muted"> · {departureLabel}</span> : null}
             </p>
+            {confirmedDepartureReady &&
+            departureTime &&
+            !bookableDepartureTimes.includes(departureTime) ? (
+              <p className="mb-4 text-sm text-ink">
+                This departure is no longer available for online booking. Choose another time.
+              </p>
+            ) : null}
             <div className="mb-5">
               <TourDatePicker
                 id="booking-review-date-input"
