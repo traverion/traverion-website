@@ -271,11 +271,21 @@ export function resolveBookingTiedContent(params: {
           ? 'Transport: Car'
           : snapshotString(snap, 'transportMode') === 'minivan'
             ? 'Transport: Minivan'
-            : snapshotString(snap, 'transportMode') === 'bus'
-              ? 'Transport: Bus / coach'
-              : snapshotString(snap, 'transportMode') === 'other'
-                ? 'Transport: Other'
-                : '',
+            : snapshotString(snap, 'transportMode') === 'van'
+              ? 'Transport: Van / shuttle'
+              : snapshotString(snap, 'transportMode') === 'bus'
+                ? 'Transport: Bus / coach'
+                : snapshotString(snap, 'transportMode') === 'suv'
+                  ? 'Transport: SUV / 4×4'
+                  : snapshotString(snap, 'transportMode') === 'limousine'
+                    ? 'Transport: Limousine'
+                    : snapshotString(snap, 'transportMode') === 'motorcycle'
+                      ? 'Transport: Motorcycle'
+                      : snapshotString(snap, 'transportMode') === 'boat'
+                        ? 'Transport: Boat'
+                        : snapshotString(snap, 'transportMode') === 'other'
+                          ? `Transport: ${snapshotString(snap, 'transportOther') || 'Other'}`
+                          : '',
       ]
         .filter(Boolean)
         .join(' ');

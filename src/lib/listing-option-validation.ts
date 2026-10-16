@@ -102,20 +102,26 @@ export function bookingOptionMeetingIssues(option: ListingBookingOption): string
   if (option.dropoffMode === 'different' && (option.dropoffPlace ?? '').trim().length < 8) {
     return ['Choose the drop-off location from search.'];
   }
-  if (option.transportIncluded && !option.transportMode) {
-    return ['Choose the vehicle used for transportation.'];
+  const issues: string[] = [];
+  const vehicle =
+    option.transportMode && option.transportMode !== 'none' ? option.transportMode : null;
+  if (fulfillment === 'pickup' && !vehicle) {
+    issues.push('Choose the transport vehicle.');
+  }
+  if (vehicle === 'other' && (option.transportOther ?? '').trim().length < 2) {
+    issues.push('Describe the vehicle.');
   }
   const startInstructions = (option.travelerStartInstructions ?? '').trim();
   if (startInstructions.length < 8) {
     if (fulfillment === 'pickup') {
-      return ['Add pickup start instructions (e.g. wait outside, how to spot the vehicle).'];
+      issues.push('Add pickup start instructions (e.g. wait outside, how to spot the vehicle).');
+    } else if (fulfillment === 'meeting_point') {
+      issues.push('Add meeting start instructions (e.g. arrive 15 minutes early, where to stand).');
+    } else {
+      issues.push('Add traveler start instructions for this option (at least 8 characters).');
     }
-    if (fulfillment === 'meeting_point') {
-      return ['Add meeting start instructions (e.g. arrive 15 minutes early, where to stand).'];
-    }
-    return ['Add traveler start instructions for this option (at least 8 characters).'];
   }
-  return [];
+  return issues;
 }
 
 /** Availability scene: schedules (preferred) or legacy weekday/date/time fields. */

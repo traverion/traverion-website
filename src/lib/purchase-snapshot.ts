@@ -59,7 +59,8 @@ export type PurchaseSnapshot = {
   pickupTimeConfirmation?: 'at_booking' | 'day_before' | null;
   dropoffMode?: 'same' | 'different' | 'none' | null;
   dropoffPlace?: string | null;
-  transportMode?: 'car' | 'minivan' | 'bus' | 'other' | null;
+  transportMode?: 'car' | 'minivan' | 'van' | 'bus' | 'suv' | 'limousine' | 'motorcycle' | 'boat' | 'other' | 'none' | null;
+  transportOther?: string | null;
 };
 
 export function isPurchaseSnapshot(value: unknown): value is PurchaseSnapshot {
@@ -169,7 +170,8 @@ export function buildPurchaseSnapshot(input: {
   pickupTimeConfirmation?: 'at_booking' | 'day_before' | null;
   dropoffMode?: 'same' | 'different' | 'none' | null;
   dropoffPlace?: string | null;
-  transportMode?: 'car' | 'minivan' | 'bus' | 'other' | null;
+  transportMode?: 'car' | 'minivan' | 'van' | 'bus' | 'suv' | 'limousine' | 'motorcycle' | 'boat' | 'other' | 'none' | null;
+  transportOther?: string | null;
   capturedAt?: string;
 }): PurchaseSnapshot {
   const title = input.listingTitle.trim() || 'Experience';
@@ -261,11 +263,19 @@ export function buildPurchaseSnapshot(input: {
   if (
     input.transportMode === 'car' ||
     input.transportMode === 'minivan' ||
+    input.transportMode === 'van' ||
     input.transportMode === 'bus' ||
-    input.transportMode === 'other'
+    input.transportMode === 'suv' ||
+    input.transportMode === 'limousine' ||
+    input.transportMode === 'motorcycle' ||
+    input.transportMode === 'boat' ||
+    input.transportMode === 'other' ||
+    input.transportMode === 'none'
   ) {
     snap.transportMode = input.transportMode;
   }
+  const transportOther = (input.transportOther ?? '').trim();
+  if (snap.transportMode === 'other' && transportOther) snap.transportOther = transportOther.slice(0, 80);
   return snap;
 }
 

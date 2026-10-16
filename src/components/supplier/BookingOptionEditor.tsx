@@ -34,6 +34,7 @@ import { SchedulePricingEditor } from './listing-creation/SchedulePricingEditor'
 import PickupAreaFields from './PickupAreaFields';
 import PickupLocationSearch from '../checkout/PickupLocationSearch';
 import { pickupFulfillmentPatch, type VerifiedDestination } from '../../lib/destination-place';
+import { TRANSPORT_VEHICLES } from '../../lib/option-logistics';
 
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -704,40 +705,43 @@ export default function BookingOptionEditor({
                   />
                 ) : null}
               </div>
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-[13px] font-semibold text-ink">
-                  <input
-                    type="checkbox"
-                    checked={option.transportIncluded === true}
-                    onChange={(e) =>
-                      onChange(
-                        e.target.checked
-                          ? { transportIncluded: true }
-                          : { transportIncluded: undefined, transportMode: undefined }
-                      )
-                    }
-                  />
-                  Transportation is included
+              <div className="space-y-1.5">
+                <label htmlFor="booking-option-transport" className="block text-[13px] font-semibold text-ink">
+                  Transport vehicle *
                 </label>
-                {option.transportIncluded ? (
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                    {(
-                      [
-                        ['car', 'Car'],
-                        ['minivan', 'Minivan'],
-                        ['bus', 'Bus / coach'],
-                        ['other', 'Other'],
-                      ] as const
-                    ).map(([mode, label]) => (
-                      <ChoiceCard
-                        key={mode}
-                        selected={option.transportMode === mode}
-                        title={label}
-                        hint=""
-                        onClick={() => onChange({ transportMode: mode, transportIncluded: true })}
-                      />
-                    ))}
-                  </div>
+                <PartnerSelect
+                  id="booking-option-transport"
+                  searchable
+                  placeholder="Select a vehicle"
+                  aria-label="Transport vehicle"
+                  value={
+                    option.transportMode &&
+                    (option.fulfillment === 'meeting_point' || option.transportMode !== 'none')
+                      ? option.transportMode
+                      : ''
+                  }
+                  options={
+                    option.fulfillment === 'meeting_point'
+                      ? [{ value: 'none', label: 'No transportation' }, ...TRANSPORT_VEHICLES]
+                      : TRANSPORT_VEHICLES
+                  }
+                    onChange={(value) =>
+                      onChange({
+                        transportMode: value as ListingBookingOption['transportMode'],
+                        transportOther: value === 'other' ? option.transportOther : undefined,
+                      })
+                    }
+                />
+                {option.transportMode === 'other' ? (
+                  <input
+                    id="booking-option-transport-other"
+                    value={option.transportOther ?? ''}
+                    onChange={(e) => onChange({ transportOther: e.target.value.slice(0, 80) })}
+                    className="tv-input text-[15px]"
+                    placeholder="Specify the vehicle"
+                    aria-label="Specify the vehicle"
+                    maxLength={80}
+                  />
                 ) : null}
               </div>
               <div className="space-y-1.5">

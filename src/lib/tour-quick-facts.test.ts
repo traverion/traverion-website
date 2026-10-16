@@ -135,5 +135,30 @@ describe('tourQuickFacts', () => {
       })
     );
     expect(mixed.find((f) => f.label === 'Start')?.value).toBe('Pickup or meet');
+    expect(mixed.find((f) => f.label === 'Transport')).toBeUndefined();
+
+    const withVehicle = tourQuickFacts(
+      tour({
+        listingExtras: {
+          bookingOptions: [
+            {
+              id: 'o1',
+              name: 'Small group',
+              priceUsd: 119,
+              duration: '4 hours',
+              fulfillment: 'pickup',
+              pickupPlace: 'Your Rovaniemi hotel',
+              optionInfo: 'Pickup',
+              minPersons: 1,
+              maxPersons: 8,
+              maxSpotsPerSlot: 8,
+              schedules: [],
+              transportMode: 'suv',
+            },
+          ],
+        },
+      })
+    );
+    expect(withVehicle.find((f) => f.label === 'Transport')?.value).toBe('SUV / 4×4');
   });
 });

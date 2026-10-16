@@ -26,6 +26,7 @@ describe('Phase 1059: pickup place vs traveler start instructions', () => {
         optionInfo: 'Includes hotel pickup · English guide',
         travelerStartInstructions:
           'Please wait outside the main entrance 10 minutes before pickup. The guide will arrive in a marked vehicle.',
+        transportMode: 'minivan',
         minPersons: 1,
         maxPersons: 8,
         maxSpotsPerSlot: 8,

@@ -81,6 +81,7 @@ import { parseListingExtras, materializedBookingOptions } from '../../types/list
 import { comparePartnerBookingsOperational } from '../../lib/partner-bookings-order';
 import { partnerBookingNumberMatchesFilterQuery } from '../../lib/partner-bookings-search';
 import { displayListingTitleFromPurchase, displayOptionLabelFromPurchase, displayFulfillmentFromPurchase, displayDurationFromPurchase, displayStayCheckInTimeFromPurchase, displayStayCheckOutTimeFromPurchase, displayCheckInAddressFromPurchase, displayStayHouseRulesFromPurchase, partnerOpsDepartureDisplay, isPurchaseSnapshot, partnerListingFilterLabelFromBookings, type PurchaseSnapshot } from '../../lib/purchase-snapshot';
+import { optionLogisticsLines, readOptionLogistics } from '../../lib/option-logistics';
 
 const BOOKINGS_PAGE_SIZE = 10;
 
@@ -1371,6 +1372,10 @@ export default function SupplierBookings({
             const meetingPoint = partnerPickup.meetingPoint;
             const pickupInstructions = partnerPickup.pickupInstructions;
             const fulfillment = displayFulfillmentFromPurchase(booking.purchase_snapshot);
+            const bookingLogistics = optionLogisticsLines({
+              ...readOptionLogistics(booking.purchase_snapshot),
+              fulfillment,
+            }).join(' ');
             const purchasedDuration = displayDurationFromPurchase(
               booking.purchase_snapshot,
               meta?.duration ?? null
@@ -1466,6 +1471,11 @@ export default function SupplierBookings({
                       {placeShown && !isStay ? (
                         <p className="mt-0.5 break-words text-xs text-ink-muted [overflow-wrap:anywhere] line-clamp-2">
                           {placePrefix} · {placeShown}
+                        </p>
+                      ) : null}
+                      {bookingLogistics && !isStay ? (
+                        <p className="mt-0.5 break-words text-xs text-ink-muted [overflow-wrap:anywhere]">
+                          {bookingLogistics}
                         </p>
                       ) : null}
                       {meta ? (

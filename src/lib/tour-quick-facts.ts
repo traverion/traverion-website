@@ -1,6 +1,7 @@
 import type { TourPackage } from '../types/tour';
 import { formatTourDurationDisplay, materializedBookingOptions } from '../types/listingExtras';
 import { listingShowsFreeCancellation } from './listingTruth';
+import { transportVehicleLabel } from './option-logistics';
 
 const LANGUAGE_LABELS: Record<string, string> = {
   en: 'English',
@@ -70,6 +71,11 @@ export function tourQuickFacts(tour: TourPackage): { label: string; value: strin
   }
   const pickup = pickupFact(tour);
   if (pickup) facts.push({ label: 'Start', value: pickup });
+  const options = materializedBookingOptions(tour.listingExtras?.bookingOptions);
+  const vehicles = options.map((option) => transportVehicleLabel(option.transportMode, option.transportOther));
+  if (options.length > 0 && vehicles.every((label) => label) && new Set(vehicles).size === 1) {
+    facts.push({ label: 'Transport', value: vehicles[0] as string });
+  }
   if (listingShowsFreeCancellation(tour)) {
     facts.push({ label: 'Cancellation', value: 'Free within 24 hours' });
   }

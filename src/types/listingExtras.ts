@@ -117,9 +117,23 @@ export interface ListingBookingOption {
   dropoffPlaceId?: string;
   dropoffLat?: number;
   dropoffLng?: number;
-  /** Set only when this option includes transportation. */
-  transportIncluded?: boolean;
-  transportMode?: 'car' | 'minivan' | 'bus' | 'other';
+  /**
+   * Vehicle used when this option provides transport.
+   * `none` is an explicit meeting-point choice. Omitted means not chosen — not "transport included".
+   */
+  transportMode?:
+    | 'car'
+    | 'minivan'
+    | 'van'
+    | 'bus'
+    | 'suv'
+    | 'limousine'
+    | 'motorcycle'
+    | 'boat'
+    | 'other'
+    | 'none';
+  /** Required when transportMode is other. */
+  transportOther?: string;
   /** Meeting-point coordinates when the supplier saved a searched place. */
   meetingLat?: number;
   meetingLng?: number;
@@ -579,15 +593,22 @@ export function normalizeListingBookingOption(raw: Record<string, unknown>, fall
       out.dropoffLat = dropLat;
       out.dropoffLng = dropLng;
     }
-    if (raw.transportIncluded === true) out.transportIncluded = true;
     if (
       raw.transportMode === 'car' ||
       raw.transportMode === 'minivan' ||
+      raw.transportMode === 'van' ||
       raw.transportMode === 'bus' ||
-      raw.transportMode === 'other'
+      raw.transportMode === 'suv' ||
+      raw.transportMode === 'limousine' ||
+      raw.transportMode === 'motorcycle' ||
+      raw.transportMode === 'boat' ||
+      raw.transportMode === 'other' ||
+      raw.transportMode === 'none'
     ) {
       out.transportMode = raw.transportMode;
-      out.transportIncluded = true;
+    }
+    if (out.transportMode === 'other' && typeof raw.transportOther === 'string' && raw.transportOther.trim()) {
+      out.transportOther = raw.transportOther.trim().slice(0, 80);
     }
     const meetLat = typeof raw.meetingLat === 'number' ? raw.meetingLat : Number.NaN;
     const meetLng = typeof raw.meetingLng === 'number' ? raw.meetingLng : Number.NaN;

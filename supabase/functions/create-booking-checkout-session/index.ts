@@ -529,6 +529,7 @@ serve(async (req) => {
       dropoffMode: optionFields.dropoffMode,
       dropoffPlace: optionFields.dropoffPlace,
       transportMode: optionFields.transportMode,
+      transportOther: optionFields.transportOther,
       departureTimezone:
         typeof (listingRow.listing_extras as { departureTimezone?: unknown } | null)?.departureTimezone ===
         'string'

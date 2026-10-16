@@ -1,7 +1,47 @@
 export type PickupTiming = 'at_start' | 'before_start';
 export type PickupTimeConfirmation = 'at_booking' | 'day_before';
 export type OptionDropoffMode = 'same' | 'different' | 'none';
-export type OptionTransportMode = 'car' | 'minivan' | 'bus' | 'other';
+
+export const TRANSPORT_VEHICLES = [
+  { value: 'car', label: 'Car' },
+  { value: 'minivan', label: 'Minivan' },
+  { value: 'van', label: 'Van / shuttle' },
+  { value: 'bus', label: 'Bus / coach' },
+  { value: 'suv', label: 'SUV / 4×4' },
+  { value: 'limousine', label: 'Limousine' },
+  { value: 'motorcycle', label: 'Motorcycle' },
+  { value: 'boat', label: 'Boat' },
+  { value: 'other', label: 'Other' },
+] as const;
+
+export type TransportVehicleMode = (typeof TRANSPORT_VEHICLES)[number]['value'];
+export type OptionTransportMode = TransportVehicleMode | 'none';
+
+const TRANSPORT_LABEL: Record<TransportVehicleMode, string> = {
+  car: 'Car',
+  minivan: 'Minivan',
+  van: 'Van / shuttle',
+  bus: 'Bus / coach',
+  suv: 'SUV / 4×4',
+  limousine: 'Limousine',
+  motorcycle: 'Motorcycle',
+  boat: 'Boat',
+  other: 'Other',
+};
+
+export function isTransportVehicleMode(value: unknown): value is TransportVehicleMode {
+  return typeof value === 'string' && value in TRANSPORT_LABEL;
+}
+
+/** Traveler-facing vehicle. "No transportation" and an empty choice produce no label. */
+export function transportVehicleLabel(mode: unknown, other?: string | null): string | null {
+  if (!isTransportVehicleMode(mode)) return null;
+  if (mode === 'other') {
+    const custom = (other ?? '').trim();
+    return custom || 'Other';
+  }
+  return TRANSPORT_LABEL[mode];
+}
 
 export type OptionLogistics = {
   fulfillment?: 'pickup' | 'meeting_point' | null;
@@ -11,13 +51,7 @@ export type OptionLogistics = {
   dropoffMode?: OptionDropoffMode | null;
   dropoffPlace?: string | null;
   transportMode?: OptionTransportMode | null;
-};
-
-const TRANSPORT_LABEL: Record<OptionTransportMode, string> = {
-  car: 'Car',
-  minivan: 'Minivan',
-  bus: 'Bus / coach',
-  other: 'Other',
+  transportOther?: string | null;
 };
 
 /**
@@ -45,9 +79,8 @@ export function optionLogisticsLines(input: OptionLogistics | null | undefined):
     const place = (input.dropoffPlace ?? '').trim();
     if (place) lines.push(`Drop-off: ${place}`);
   }
-  if (input.transportMode && TRANSPORT_LABEL[input.transportMode]) {
-    lines.push(`Transport: ${TRANSPORT_LABEL[input.transportMode]}`);
-  }
+  const vehicle = transportVehicleLabel(input.transportMode, input.transportOther);
+  if (vehicle) lines.push(`Transport: ${vehicle}`);
   return lines;
 }
 
@@ -67,8 +100,9 @@ export function readOptionLogistics(raw: unknown): OptionLogistics | null {
     out.dropoffMode = v.dropoffMode;
   }
   if (typeof v.dropoffPlace === 'string' && v.dropoffPlace.trim()) out.dropoffPlace = v.dropoffPlace.trim();
-  if (v.transportMode === 'car' || v.transportMode === 'minivan' || v.transportMode === 'bus' || v.transportMode === 'other') {
-    out.transportMode = v.transportMode;
+  if (isTransportVehicleMode(v.transportMode) || v.transportMode === 'none') out.transportMode = v.transportMode;
+  if (typeof v.transportOther === 'string' && v.transportOther.trim()) {
+    out.transportOther = v.transportOther.trim();
   }
   return out;
 }

@@ -51,7 +51,8 @@ export type PurchaseSnapshot = {
   pickupTimeConfirmation?: 'at_booking' | 'day_before' | null;
   dropoffMode?: 'same' | 'different' | 'none' | null;
   dropoffPlace?: string | null;
-  transportMode?: 'car' | 'minivan' | 'bus' | 'other' | null;
+  transportMode?: 'car' | 'minivan' | 'van' | 'bus' | 'suv' | 'limousine' | 'motorcycle' | 'boat' | 'other' | 'none' | null;
+  transportOther?: string | null;
 };
 
 const ISO_CHECKOUT = /^\d{4}-\d{2}-\d{2}$/;
@@ -155,7 +156,8 @@ export function buildPurchaseSnapshot(input: {
   pickupTimeConfirmation?: 'at_booking' | 'day_before' | null;
   dropoffMode?: 'same' | 'different' | 'none' | null;
   dropoffPlace?: string | null;
-  transportMode?: 'car' | 'minivan' | 'bus' | 'other' | null;
+  transportMode?: 'car' | 'minivan' | 'van' | 'bus' | 'suv' | 'limousine' | 'motorcycle' | 'boat' | 'other' | 'none' | null;
+  transportOther?: string | null;
   capturedAt?: string;
 }): PurchaseSnapshot {
   const title = input.listingTitle.trim() || 'Experience';
@@ -247,11 +249,19 @@ export function buildPurchaseSnapshot(input: {
   if (
     input.transportMode === 'car' ||
     input.transportMode === 'minivan' ||
+    input.transportMode === 'van' ||
     input.transportMode === 'bus' ||
-    input.transportMode === 'other'
+    input.transportMode === 'suv' ||
+    input.transportMode === 'limousine' ||
+    input.transportMode === 'motorcycle' ||
+    input.transportMode === 'boat' ||
+    input.transportMode === 'other' ||
+    input.transportMode === 'none'
   ) {
     snap.transportMode = input.transportMode;
   }
+  const transportOther = (input.transportOther ?? '').trim();
+  if (snap.transportMode === 'other' && transportOther) snap.transportOther = transportOther.slice(0, 80);
   return snap;
 }
 
@@ -301,6 +311,7 @@ type RawOption = {
   dropoffMode?: unknown;
   dropoffPlace?: unknown;
   transportMode?: unknown;
+  transportOther?: unknown;
 };
 
 type RawSchedule = {
@@ -343,7 +354,8 @@ export function resolveOptionFieldsForSnapshot(input: {
   pickupTimeConfirmation: 'at_booking' | 'day_before' | null;
   dropoffMode: 'same' | 'different' | 'none' | null;
   dropoffPlace: string | null;
-  transportMode: 'car' | 'minivan' | 'bus' | 'other' | null;
+  transportMode: 'car' | 'minivan' | 'van' | 'bus' | 'suv' | 'limousine' | 'motorcycle' | 'boat' | 'other' | 'none' | null;
+  transportOther: string | null;
 } {
   const empty = {
     pickupPlace: null as string | null,
@@ -362,6 +374,7 @@ export function resolveOptionFieldsForSnapshot(input: {
     dropoffMode: null,
     dropoffPlace: null,
     transportMode: null,
+    transportOther: null,
   };
   const extras = input.listingExtras;
   if (!extras || typeof extras !== 'object') return empty;
@@ -455,9 +468,19 @@ export function resolveOptionFieldsForSnapshot(input: {
     transportMode:
       matched.transportMode === 'car' ||
       matched.transportMode === 'minivan' ||
+      matched.transportMode === 'van' ||
       matched.transportMode === 'bus' ||
-      matched.transportMode === 'other'
+      matched.transportMode === 'suv' ||
+      matched.transportMode === 'limousine' ||
+      matched.transportMode === 'motorcycle' ||
+      matched.transportMode === 'boat' ||
+      matched.transportMode === 'other' ||
+      matched.transportMode === 'none'
         ? matched.transportMode
+        : null,
+    transportOther:
+      matched.transportMode === 'other' && typeof matched.transportOther === 'string'
+        ? matched.transportOther.trim().slice(0, 80) || null
         : null,
   };
 }
