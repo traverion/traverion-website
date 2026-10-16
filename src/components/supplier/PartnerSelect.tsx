@@ -85,12 +85,17 @@ export default function PartnerSelect({
       left = Math.max(edge, window.innerWidth - width - edge);
     }
     if (left < edge) left = edge;
-    const spaceBelow = window.innerHeight - rect.bottom - gap - edge;
-    const spaceAbove = rect.top - gap - edge;
-    const preferBelow = spaceBelow >= 160 || spaceBelow >= spaceAbove;
-    const maxCap = isNarrow ? Math.min(320, window.innerHeight * 0.45) : 256;
-    const maxHeight = Math.min(maxCap, Math.max(120, preferBelow ? spaceBelow : spaceAbove));
-    const top = preferBelow ? rect.bottom + gap : Math.max(edge, rect.top - gap - maxHeight);
+    const searchHeight = showSearch ? 44 : 0;
+    const listCap = isNarrow ? Math.min(280, window.innerHeight * 0.45) : 240;
+    const spaceBelow = Math.max(0, window.innerHeight - rect.bottom - gap - edge);
+    const spaceAbove = Math.max(0, rect.top - gap - edge);
+    const needed = listCap + searchHeight;
+    const openUp = spaceBelow < needed && spaceAbove >= spaceBelow;
+    const room = openUp ? spaceAbove : spaceBelow;
+    const maxHeight = Math.max(72, Math.min(listCap, room - searchHeight));
+    const top = openUp
+      ? Math.max(edge, rect.top - gap - maxHeight - searchHeight)
+      : rect.bottom + gap;
     setMenuBox({ top, left, width, maxHeight });
   };
 
