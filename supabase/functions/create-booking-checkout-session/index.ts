@@ -523,6 +523,12 @@ serve(async (req) => {
       travelerPickupPlaceId: pickupDecision.address ? travelerPoint?.placeId ?? null : null,
       travelerPickupLat: pickupDecision.address ? travelerPoint?.lat ?? null : null,
       travelerPickupLng: pickupDecision.address ? travelerPoint?.lng ?? null : null,
+      pickupTiming: optionFields.pickupTiming,
+      pickupWindowMinutes: optionFields.pickupWindowMinutes,
+      pickupTimeConfirmation: optionFields.pickupTimeConfirmation,
+      dropoffMode: optionFields.dropoffMode,
+      dropoffPlace: optionFields.dropoffPlace,
+      transportMode: optionFields.transportMode,
       departureTimezone:
         typeof (listingRow.listing_extras as { departureTimezone?: unknown } | null)?.departureTimezone ===
         'string'

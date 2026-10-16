@@ -53,6 +53,7 @@ export default function PickupAreaFields({ option, destination = null, onChange 
           <PickupLocationSearch
             id="supplier-meeting-point-search"
             label="Meeting point"
+            placeholder="Search the meeting address"
             selected={meeting}
             onSelect={(place) => {
               if (!place) {

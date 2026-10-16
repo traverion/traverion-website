@@ -118,6 +118,13 @@ function snapshotString(snapshot: unknown, key: string): string | undefined {
   return typeof v === 'string' && v.trim() ? v.trim() : undefined;
 }
 
+function snapshotNumber(snapshot: unknown, key: string): number | undefined {
+  const rec = snapshotRecord(snapshot);
+  if (!rec) return undefined;
+  const v = rec[key];
+  return typeof v === 'number' && Number.isFinite(v) ? v : undefined;
+}
+
 /** Phase 1741: keyed lines from bookings.special_requests (Pickup planner). */
 function keyedSpecialRequestLine(notes: string | null | undefined, key: string): string | undefined {
   const raw = String(notes ?? '');
@@ -248,9 +255,35 @@ export function resolveBookingTiedContent(params: {
   const snapInstructions = snapshotString(snap, 'pickupInstructions');
   const travelerPickup =
     snapshotString(snap, 'fulfillment') === 'pickup' ? snapshotString(snap, 'travelerPickupAddress') : '';
+  const logisticsNote = isStay
+    ? ''
+    : [
+        snapshotString(snap, 'pickupTiming') === 'at_start' ? 'Pickup is at the departure time.' : '',
+        snapshotString(snap, 'pickupTiming') === 'before_start' &&
+        Number(snapshotNumber(snap, 'pickupWindowMinutes')) >= 5
+          ? `Pickup window: up to ${snapshotNumber(snap, 'pickupWindowMinutes')} minutes before departure.`
+          : '',
+        snapshotString(snap, 'dropoffMode') === 'same' ? 'Drop-off is at the same place.' : '',
+        snapshotString(snap, 'dropoffMode') === 'different' && snapshotString(snap, 'dropoffPlace')
+          ? `Drop-off: ${snapshotString(snap, 'dropoffPlace')}`
+          : '',
+        snapshotString(snap, 'transportMode') === 'car'
+          ? 'Transport: Car'
+          : snapshotString(snap, 'transportMode') === 'minivan'
+            ? 'Transport: Minivan'
+            : snapshotString(snap, 'transportMode') === 'bus'
+              ? 'Transport: Bus / coach'
+              : snapshotString(snap, 'transportMode') === 'other'
+                ? 'Transport: Other'
+                : '',
+      ]
+        .filter(Boolean)
+        .join(' ');
   const meetingPoint = isStay
     ? undefined
-    : [travelerPickup || notePlace || snapPlace, noteInstructions || snapInstructions].filter(Boolean).join(' — ') ||
+    : [travelerPickup || notePlace || snapPlace, noteInstructions || snapInstructions, logisticsNote]
+        .filter(Boolean)
+        .join(' — ') ||
       undefined;
 
   const paymentCollected = paymentWasCollectedForContent(params.bookingRow.payment_status);

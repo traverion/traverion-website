@@ -85,6 +85,7 @@ import {
   type TourCheckoutFlowStep,
 } from '../lib/tourCheckoutUrl';
 import PickupLocationSearch from '../components/checkout/PickupLocationSearch';
+import { optionLogisticsLines } from '../lib/option-logistics';
 import {
   checkoutSummaryPickupAddress,
   PICKUP_AREA_MISSING_MESSAGE,
@@ -369,6 +370,7 @@ export default function BookingPage({
     area: pickupArea,
     point: selectedPickup,
   });
+  const logisticsLines = optionLogisticsLines(selectedVariant?.listingOption ?? null);
   const meetingMapsHref =
     selectedVariant?.listingOption?.meetingLat != null && selectedVariant?.listingOption?.meetingLng != null
       ? `https://www.google.com/maps/search/?api=1&query=${selectedVariant.listingOption.meetingLat},${selectedVariant.listingOption.meetingLng}`
@@ -2231,6 +2233,12 @@ export default function BookingPage({
                           <dd className="max-w-[65%] text-right font-medium text-ink">{meetingAddress}</dd>
                         </div>
                       ) : null}
+                      {logisticsLines.map((line) => (
+                        <div key={line} className="flex justify-between gap-3">
+                          <dt className="sr-only">Logistics</dt>
+                          <dd className="max-w-full text-right text-ink-muted">{line}</dd>
+                        </div>
+                      ))}
                       <div className="flex justify-between gap-3">
                         <dt className="text-ink-muted">Cancellation</dt>
                         <dd className="max-w-[65%] text-right font-medium text-ink">{cancellationShort}</dd>
@@ -2283,6 +2291,12 @@ export default function BookingPage({
                           <dd className="max-w-[65%] text-right font-medium text-ink">{meetingAddress}</dd>
                         </div>
                       ) : null}
+                      {logisticsLines.map((line) => (
+                        <div key={line} className="flex justify-between gap-3">
+                          <dt className="sr-only">Logistics</dt>
+                          <dd className="max-w-full text-right text-ink-muted">{line}</dd>
+                        </div>
+                      ))}
                     </dl>
                     <div className="border-t border-black/[0.08] pt-4">
                       {quotedSavings != null && quotedOriginalTotal != null ? (

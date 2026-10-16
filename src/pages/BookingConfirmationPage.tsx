@@ -33,6 +33,7 @@ import {
   type PurchaseSnapshot,
 } from '../lib/purchase-snapshot';
 import { confirmationArrival } from '../lib/confirmation-arrival';
+import { optionLogisticsLines, readOptionLogistics } from '../lib/option-logistics';
 import { travelerPickupAddressFromRecord } from '../lib/pickup-area';
 import { travelerPublicBookingReference } from '../lib/public-booking-reference';
 import { formatBookingContactForDisplay } from '../lib/listing-booking-contact-phone';
@@ -528,6 +529,12 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
         }),
       })
     : null;
+  const logistics = readOptionLogistics(booking?.purchase_snapshot);
+  const logisticsLines = optionLogisticsLines({
+    ...logistics,
+    fulfillment: displayFulfillmentFromPurchase(booking?.purchase_snapshot) ?? logistics?.fulfillment,
+  });
+  const hideExactPickupClock = logistics?.pickupTiming === 'before_start';
   const cancellationPolicy = booking
     ? displayCancellationPolicyFromPurchase(booking.purchase_snapshot, '')
     : '';
@@ -727,7 +734,10 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                           <dd className="font-semibold text-ink break-words" data-pending={pickupPending && !arrival.value ? 'true' : 'false'}>
                             {arrival.value ?? `${arrival.label} is not confirmed yet.`}
                           </dd>
-                          {arrival.time ? <dd className="text-ink-muted">Pickup time {arrival.time}</dd> : null}
+                          {arrival.time && !hideExactPickupClock ? <dd className="text-ink-muted">Pickup time {arrival.time}</dd> : null}
+                          {logisticsLines.map((line) => (
+                            <dd key={line} className="text-ink-muted">{line}</dd>
+                          ))}
                         </div>
                       </div>
                     ) : null}

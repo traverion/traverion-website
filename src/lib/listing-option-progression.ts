@@ -1,7 +1,7 @@
 /**
  * Tour option wizard: 5 supplier-facing steps with strict forward gating for NEW options.
  *
- * Scenes: Setup → Meeting → Pricing → Availability → Booking settings.
+ * Scenes: Setup → Meeting & Pickups → Pricing → Availability → Booking settings.
  * Schedules own dates, days, departure, price and booking size on Availability.
  * Option Pricing owns charge model and travelers-per-start-time capacity.
  * Cutoff (option) and listing timezone live on Booking settings.
@@ -25,7 +25,7 @@ import {
 
 export const TOUR_OPTION_SCENES = [
   { id: 'setup', label: 'Setup', question: 'What are you offering?' },
-  { id: 'meeting', label: 'Meeting', question: 'Where will guests start?' },
+  { id: 'meeting', label: 'Meeting & Pickups', question: 'Where will guests start and finish?' },
   { id: 'pricing', label: 'Pricing', question: 'How will guests be charged?' },
   { id: 'availability', label: 'Availability', question: 'When can guests book?' },
   { id: 'booking_settings', label: 'Booking settings', question: 'Booking cutoff and timezone' },
@@ -104,7 +104,7 @@ export function tourOptionSceneContinueHint(input: {
   const scene = TOUR_OPTION_SCENES[clampTourOptionSceneIndex(input.sceneIndex)];
   if (scene?.id === 'setup') return bookingOptionSetupIssues(input.option)[0] ?? 'Finish Setup to continue.';
   if (scene?.id === 'meeting') {
-    return bookingOptionMeetingIssues(input.option)[0] ?? 'Finish Meeting to continue.';
+    return bookingOptionMeetingIssues(input.option)[0] ?? 'Finish Meeting & Pickups to continue.';
   }
   if (scene?.id === 'pricing') {
     return bookingOptionPricingSceneIssues(input.option)[0] ?? 'Finish Pricing to continue.';

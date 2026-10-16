@@ -60,6 +60,7 @@ import {
   partnerOpsDepartureDisplay,
   isPurchaseSnapshot,
 } from '../../lib/purchase-snapshot';
+import { optionLogisticsLines, readOptionLogistics } from '../../lib/option-logistics';
 
 type AttentionTone = 'danger' | 'warn' | 'info';
 
@@ -976,6 +977,10 @@ export default function SupplierDashboard() {
                       parseListingExtras(listing?.listingExtras as unknown).bookingOptions
                     ),
               }).meetingPoint;
+              const supplierLogistics = optionLogisticsLines({
+                ...readOptionLogistics(b.purchase_snapshot),
+                fulfillment: displayFulfillmentFromPurchase(b.purchase_snapshot),
+              }).join(' ');
               const placePrefix =
                 displayFulfillmentFromPurchase(b.purchase_snapshot) === 'pickup' ? 'Pickup' : 'Meet';
               const isLast = idx === todayDepartures.length - 1;
@@ -1014,6 +1019,11 @@ export default function SupplierDashboard() {
                       {meetingPoint ? (
                         <span className="mt-0.5 block text-[12px] text-slate-400 break-words [overflow-wrap:anywhere]">
                           {placePrefix} · {meetingPoint}
+                        </span>
+                      ) : null}
+                      {supplierLogistics ? (
+                        <span className="mt-0.5 block text-[12px] text-slate-400 break-words [overflow-wrap:anywhere]">
+                          {supplierLogistics}
                         </span>
                       ) : null}
                       {dep.purchasedNote ? (

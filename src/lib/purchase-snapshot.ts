@@ -54,6 +54,12 @@ export type PurchaseSnapshot = {
   travelerPickupPlaceId?: string | null;
   travelerPickupLat?: number | null;
   travelerPickupLng?: number | null;
+  pickupTiming?: 'at_start' | 'before_start' | null;
+  pickupWindowMinutes?: number | null;
+  pickupTimeConfirmation?: 'at_booking' | 'day_before' | null;
+  dropoffMode?: 'same' | 'different' | 'none' | null;
+  dropoffPlace?: string | null;
+  transportMode?: 'car' | 'minivan' | 'bus' | 'other' | null;
 };
 
 export function isPurchaseSnapshot(value: unknown): value is PurchaseSnapshot {
@@ -158,6 +164,12 @@ export function buildPurchaseSnapshot(input: {
   travelerPickupPlaceId?: string | null;
   travelerPickupLat?: number | null;
   travelerPickupLng?: number | null;
+  pickupTiming?: 'at_start' | 'before_start' | null;
+  pickupWindowMinutes?: number | null;
+  pickupTimeConfirmation?: 'at_booking' | 'day_before' | null;
+  dropoffMode?: 'same' | 'different' | 'none' | null;
+  dropoffPlace?: string | null;
+  transportMode?: 'car' | 'minivan' | 'bus' | 'other' | null;
   capturedAt?: string;
 }): PurchaseSnapshot {
   const title = input.listingTitle.trim() || 'Experience';
@@ -229,6 +241,30 @@ export function buildPurchaseSnapshot(input: {
   }
   if (typeof input.travelerPickupLng === 'number' && Number.isFinite(input.travelerPickupLng)) {
     snap.travelerPickupLng = input.travelerPickupLng;
+  }
+  if (input.pickupTiming === 'at_start' || input.pickupTiming === 'before_start') snap.pickupTiming = input.pickupTiming;
+  if (
+    typeof input.pickupWindowMinutes === 'number' &&
+    input.pickupWindowMinutes >= 5 &&
+    input.pickupWindowMinutes <= 180
+  ) {
+    snap.pickupWindowMinutes = Math.round(input.pickupWindowMinutes);
+  }
+  if (input.pickupTimeConfirmation === 'at_booking' || input.pickupTimeConfirmation === 'day_before') {
+    snap.pickupTimeConfirmation = input.pickupTimeConfirmation;
+  }
+  if (input.dropoffMode === 'same' || input.dropoffMode === 'different' || input.dropoffMode === 'none') {
+    snap.dropoffMode = input.dropoffMode;
+  }
+  const dropoffPlace = (input.dropoffPlace ?? '').trim();
+  if (dropoffPlace) snap.dropoffPlace = dropoffPlace.slice(0, 300);
+  if (
+    input.transportMode === 'car' ||
+    input.transportMode === 'minivan' ||
+    input.transportMode === 'bus' ||
+    input.transportMode === 'other'
+  ) {
+    snap.transportMode = input.transportMode;
   }
   return snap;
 }

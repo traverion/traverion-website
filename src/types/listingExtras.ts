@@ -105,6 +105,21 @@ export interface ListingBookingOption {
   pickupCenterSource?: 'destination' | 'custom';
   /** Destination place id this center was copied from. Absent when the center is custom or legacy. */
   pickupCenterLinkedPlaceId?: string;
+  /** at_start: pickup happens at the departure. before_start: a window before departure, not an exact clock time. */
+  pickupTiming?: 'at_start' | 'before_start';
+  /** Minutes before departure the pickup window opens. Only with before_start. */
+  pickupWindowMinutes?: number;
+  /** When the traveler is told the exact pickup time. */
+  pickupTimeConfirmation?: 'at_booking' | 'day_before';
+  /** same: end where they started. different: a searched place. none: no drop-off. Omitted on legacy options. */
+  dropoffMode?: 'same' | 'different' | 'none';
+  dropoffPlace?: string;
+  dropoffPlaceId?: string;
+  dropoffLat?: number;
+  dropoffLng?: number;
+  /** Set only when this option includes transportation. */
+  transportIncluded?: boolean;
+  transportMode?: 'car' | 'minivan' | 'bus' | 'other';
   /** Meeting-point coordinates when the supplier saved a searched place. */
   meetingLat?: number;
   meetingLng?: number;
@@ -541,6 +556,38 @@ export function normalizeListingBookingOption(raw: Record<string, unknown>, fall
     }
     if (typeof raw.pickupCenterLinkedPlaceId === 'string' && raw.pickupCenterLinkedPlaceId.trim()) {
       out.pickupCenterLinkedPlaceId = raw.pickupCenterLinkedPlaceId.trim().slice(0, 256);
+    }
+    if (raw.pickupTiming === 'at_start' || raw.pickupTiming === 'before_start') out.pickupTiming = raw.pickupTiming;
+    if (typeof raw.pickupWindowMinutes === 'number' && raw.pickupWindowMinutes >= 5 && raw.pickupWindowMinutes <= 180) {
+      out.pickupWindowMinutes = Math.round(raw.pickupWindowMinutes);
+    }
+    if (raw.pickupTimeConfirmation === 'at_booking' || raw.pickupTimeConfirmation === 'day_before') {
+      out.pickupTimeConfirmation = raw.pickupTimeConfirmation;
+    }
+    if (raw.dropoffMode === 'same' || raw.dropoffMode === 'different' || raw.dropoffMode === 'none') {
+      out.dropoffMode = raw.dropoffMode;
+    }
+    if (typeof raw.dropoffPlace === 'string' && raw.dropoffPlace.trim()) {
+      out.dropoffPlace = raw.dropoffPlace.trim().slice(0, 300);
+    }
+    if (typeof raw.dropoffPlaceId === 'string' && raw.dropoffPlaceId.trim()) {
+      out.dropoffPlaceId = raw.dropoffPlaceId.trim().slice(0, 256);
+    }
+    const dropLat = typeof raw.dropoffLat === 'number' ? raw.dropoffLat : Number.NaN;
+    const dropLng = typeof raw.dropoffLng === 'number' ? raw.dropoffLng : Number.NaN;
+    if (dropLat >= -90 && dropLat <= 90 && dropLng >= -180 && dropLng <= 180) {
+      out.dropoffLat = dropLat;
+      out.dropoffLng = dropLng;
+    }
+    if (raw.transportIncluded === true) out.transportIncluded = true;
+    if (
+      raw.transportMode === 'car' ||
+      raw.transportMode === 'minivan' ||
+      raw.transportMode === 'bus' ||
+      raw.transportMode === 'other'
+    ) {
+      out.transportMode = raw.transportMode;
+      out.transportIncluded = true;
     }
     const meetLat = typeof raw.meetingLat === 'number' ? raw.meetingLat : Number.NaN;
     const meetLng = typeof raw.meetingLng === 'number' ? raw.meetingLng : Number.NaN;

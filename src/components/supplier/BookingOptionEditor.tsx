@@ -32,6 +32,7 @@ import {
 import { localYmd } from '../../lib/local-ymd';
 import { SchedulePricingEditor } from './listing-creation/SchedulePricingEditor';
 import PickupAreaFields from './PickupAreaFields';
+import PickupLocationSearch from '../checkout/PickupLocationSearch';
 import { pickupFulfillmentPatch, type VerifiedDestination } from '../../lib/destination-place';
 
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -160,7 +161,7 @@ function ChoiceCard({
       </span>
       <span className="min-w-0">
         <span className="block text-[13px] font-semibold text-ink">{title}</span>
-        <span className="mt-0.5 block text-[11.5px] leading-snug text-ink-muted">{hint}</span>
+        {hint ? <span className="mt-0.5 block text-[11.5px] leading-snug text-ink-muted">{hint}</span> : null}
       </span>
     </button>
   );
@@ -314,7 +315,6 @@ export default function BookingOptionEditor({
 
   const nameInvalid = attempted && !option.name.trim();
   const infoInvalid = attempted && option.optionInfo.trim().length < 3;
-  const placeInvalid = attempted && option.pickupPlace.trim().length < 8;
   const startInstructionsInvalid =
     attempted && (option.travelerStartInstructions ?? '').trim().length < 8;
   const startInvalid =
@@ -569,30 +569,183 @@ export default function BookingOptionEditor({
             />
           </div>
           {option.fulfillment || option.pickupPlace.trim() ? (
-            <div id="supplier-listing-field-meeting" className="space-y-3.5">
-              {option.fulfillment === 'pickup' ? null : (
-              <div className="space-y-1.5">
-                <label htmlFor="booking-option-place" className="block text-[13px] font-semibold text-ink">
-                  Meeting point *
-                </label>
-                <textarea
-                  id="booking-option-place"
-                  value={option.pickupPlace}
-                  onChange={(e) => onChange({ pickupPlace: e.target.value })}
-                  rows={2}
-                  className="tv-input text-[15px]"
-                  placeholder="e.g. Maakuntakatu 29, Rovaniemi — main entrance"
-                  aria-invalid={placeInvalid || undefined}
-                />
-              </div>
-              )}
+            <div id="supplier-listing-field-meeting" className="space-y-5">
               <PickupAreaFields option={option} destination={tourDestination} onChange={onChange} />
+              {option.fulfillment === 'pickup' ? (
+                <div className="space-y-2">
+                  <p className="text-[13px] font-semibold text-ink">Pickup timing</p>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <ChoiceCard
+                      selected={option.pickupTiming === 'at_start'}
+                      title="At activity start time"
+                      hint="Collected at the scheduled departure."
+                      onClick={() =>
+                        onChange({ pickupTiming: 'at_start', pickupWindowMinutes: undefined, pickupTimeConfirmation: undefined })
+                      }
+                    />
+                    <ChoiceCard
+                      selected={option.pickupTiming === 'before_start'}
+                      title="Before activity starts"
+                      hint="A window before departure, not an exact time."
+                      onClick={() => onChange({ pickupTiming: 'before_start' })}
+                    />
+                  </div>
+                  {option.pickupTiming === 'before_start' ? (
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <label className="space-y-1.5">
+                        <span className="block text-[13px] font-semibold text-ink">Window before departure</span>
+                        <select
+                          className="tv-input text-[15px]"
+                          value={option.pickupWindowMinutes ?? ''}
+                          onChange={(e) =>
+                            onChange({ pickupWindowMinutes: e.target.value ? Number(e.target.value) : undefined })
+                          }
+                        >
+                          <option value="">Choose</option>
+                          {[15, 30, 45, 60, 90, 120].map((minutes) => (
+                            <option key={minutes} value={minutes}>
+                              {minutes} minutes
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <div className="space-y-1.5">
+                        <p className="text-[13px] font-semibold text-ink">Exact time confirmed</p>
+                        <div className="grid grid-cols-1 gap-2">
+                          <ChoiceCard
+                            selected={option.pickupTimeConfirmation === 'at_booking'}
+                            title="At booking confirmation"
+                            hint=""
+                            onClick={() => onChange({ pickupTimeConfirmation: 'at_booking' })}
+                          />
+                          <ChoiceCard
+                            selected={option.pickupTimeConfirmation === 'day_before'}
+                            title="Day before the activity"
+                            hint=""
+                            onClick={() => onChange({ pickupTimeConfirmation: 'day_before' })}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+              <div className="space-y-2">
+                <p className="text-[13px] font-semibold text-ink">Drop-off</p>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <ChoiceCard
+                    selected={option.dropoffMode === 'same'}
+                    title="Same location"
+                    hint="Where the guest started."
+                    onClick={() =>
+                      onChange({
+                        dropoffMode: 'same',
+                        dropoffPlace: undefined,
+                        dropoffPlaceId: undefined,
+                        dropoffLat: undefined,
+                        dropoffLng: undefined,
+                      })
+                    }
+                  />
+                  <ChoiceCard
+                    selected={option.dropoffMode === 'different'}
+                    title="Different location"
+                    hint="A verified address."
+                    onClick={() => onChange({ dropoffMode: 'different' })}
+                  />
+                  <ChoiceCard
+                    selected={option.dropoffMode === 'none'}
+                    title="No drop-off"
+                    hint="Guests arrange their own way back."
+                    onClick={() =>
+                      onChange({
+                        dropoffMode: 'none',
+                        dropoffPlace: undefined,
+                        dropoffPlaceId: undefined,
+                        dropoffLat: undefined,
+                        dropoffLng: undefined,
+                      })
+                    }
+                  />
+                </div>
+                {option.dropoffMode === 'different' ? (
+                  <PickupLocationSearch
+                    id="supplier-dropoff-search"
+                    label="Drop-off location"
+                    placeholder="Search the drop-off address"
+                    selected={
+                      option.dropoffPlaceId && option.dropoffLat != null && option.dropoffLng != null
+                        ? {
+                            placeId: option.dropoffPlaceId,
+                            formattedAddress: option.dropoffPlace ?? '',
+                            name: option.dropoffPlace ?? '',
+                            lat: option.dropoffLat,
+                            lng: option.dropoffLng,
+                          }
+                        : null
+                    }
+                    onSelect={(place) =>
+                      onChange(
+                        place
+                          ? {
+                              dropoffPlace: place.formattedAddress,
+                              dropoffPlaceId: place.placeId,
+                              dropoffLat: place.lat,
+                              dropoffLng: place.lng,
+                            }
+                          : {
+                              dropoffPlace: undefined,
+                              dropoffPlaceId: undefined,
+                              dropoffLat: undefined,
+                              dropoffLng: undefined,
+                            }
+                      )
+                    }
+                  />
+                ) : null}
+              </div>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-[13px] font-semibold text-ink">
+                  <input
+                    type="checkbox"
+                    checked={option.transportIncluded === true}
+                    onChange={(e) =>
+                      onChange(
+                        e.target.checked
+                          ? { transportIncluded: true }
+                          : { transportIncluded: undefined, transportMode: undefined }
+                      )
+                    }
+                  />
+                  Transportation is included
+                </label>
+                {option.transportIncluded ? (
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {(
+                      [
+                        ['car', 'Car'],
+                        ['minivan', 'Minivan'],
+                        ['bus', 'Bus / coach'],
+                        ['other', 'Other'],
+                      ] as const
+                    ).map(([mode, label]) => (
+                      <ChoiceCard
+                        key={mode}
+                        selected={option.transportMode === mode}
+                        title={label}
+                        hint=""
+                        onClick={() => onChange({ transportMode: mode, transportIncluded: true })}
+                      />
+                    ))}
+                  </div>
+                ) : null}
+              </div>
               <div className="space-y-1.5">
                 <label
                   htmlFor="booking-option-start-instructions"
                   className="block text-[13px] font-semibold text-ink"
                 >
-                  Traveler start instructions *
+                  {option.fulfillment === 'pickup' ? 'Traveler pickup instructions *' : 'Traveler meeting instructions *'}
                 </label>
                 <textarea
                   id="booking-option-start-instructions"

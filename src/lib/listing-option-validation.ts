@@ -78,14 +78,32 @@ export function bookingOptionMeetingIssues(option: ListingBookingOption): string
   if (!fulfillment && place.length < 8) {
     return ['Choose how travelers meet you.'];
   }
-  if (place.length < 8) {
-    if (fulfillment === 'pickup') {
-      return ['Describe the pickup area (at least 8 characters).'];
+  if (fulfillment === 'pickup') {
+    const hasCenter =
+      Boolean(option.pickupPlaceId) && option.pickupCenterLat != null && option.pickupCenterLng != null;
+    if (hasCenter && (option.pickupRadiusKm == null || option.pickupRadiusKm < 1)) {
+      return ['Set the pickup radius.'];
     }
+    if (!hasCenter && place.length < 8) {
+      return ['Choose a pickup center and set the radius.'];
+    }
+    if (
+      option.pickupTiming === 'before_start' &&
+      (option.pickupWindowMinutes == null || option.pickupWindowMinutes < 5)
+    ) {
+      return ['Choose how long before departure the pickup window opens.'];
+    }
+  } else if (place.length < 8) {
     if (fulfillment === 'meeting_point') {
-      return ['Describe the meeting point (at least 8 characters).'];
+      return ['Choose the meeting point from search.'];
     }
-    return ['Describe where guests meet or where you pick them up (at least 8 characters).'];
+    return ['Choose where guests meet or where you pick them up.'];
+  }
+  if (option.dropoffMode === 'different' && (option.dropoffPlace ?? '').trim().length < 8) {
+    return ['Choose the drop-off location from search.'];
+  }
+  if (option.transportIncluded && !option.transportMode) {
+    return ['Choose the vehicle used for transportation.'];
   }
   const startInstructions = (option.travelerStartInstructions ?? '').trim();
   if (startInstructions.length < 8) {

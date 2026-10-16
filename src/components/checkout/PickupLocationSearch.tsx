@@ -14,9 +14,17 @@ type Props = {
   bias?: { lat: number; lng: number; radiusKm: number } | null;
   selected: TravelerPickupPoint | null;
   onSelect: (place: TravelerPickupPoint | null) => void;
+  placeholder?: string;
 };
 
-export default function PickupLocationSearch({ id, label, bias, selected, onSelect }: Props) {
+export default function PickupLocationSearch({
+  id,
+  label,
+  bias,
+  selected,
+  onSelect,
+  placeholder = 'Hotel or address',
+}: Props) {
   const configured = placesSearchConfigured();
   const listId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -139,7 +147,7 @@ export default function PickupLocationSearch({ id, label, bias, selected, onSele
               aria-autocomplete="list"
               aria-activedescendant={open && items[active] ? `${id}-opt-${active}` : undefined}
               value={query}
-              placeholder="Hotel or address"
+              placeholder={placeholder}
               autoComplete="off"
               className="tv-checkout-input"
               onChange={(event) => {

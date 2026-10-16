@@ -61,6 +61,7 @@ import {
   displayExcludesFromPurchase,
   type PurchaseSnapshot,
 } from '../lib/purchase-snapshot';
+import { optionLogisticsLines, readOptionLogistics } from '../lib/option-logistics';
 import { TRAVERION_STANDARD_CANCELLATION_POLICY } from '../types/listingExtras';
 import { formatBookingContactForDisplay } from '../lib/listing-booking-contact-phone';
 import { decrementAvailabilityBooked } from '../data/supabase-availability';
@@ -916,6 +917,11 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               const tripPlaceHeading =
                 tripFulfillment === 'pickup' ? (chosenPickup ? 'Pickup location' : 'Pickup area') : 'Meeting point';
               const tripPlaceValue = chosenPickup || tripMeeting;
+              const tripLogistics = optionLogisticsLines({
+                ...readOptionLogistics(b.purchase_snapshot),
+                fulfillment: tripFulfillment,
+              });
+              const tripHidesExactPickup = readOptionLogistics(b.purchase_snapshot)?.pickupTiming === 'before_start';
               const tripCancelPolicy = displayCancellationPolicyFromPurchase(
                 b.purchase_snapshot,
                 TRAVERION_STANDARD_CANCELLATION_POLICY
@@ -1220,6 +1226,9 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                           {tripPlaceHeading}
                         </dt>
                         <dd className="mt-0.5 text-sm text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{tripPlaceValue}</dd>
+                        {tripLogistics.map((line) => (
+                          <dd key={line} className="mt-0.5 text-sm text-ink-muted">{line}</dd>
+                        ))}
                       </div>
                     ) : null}
                     {!isStay && tripPickupInstructions && !pickupMissing ? (
@@ -1228,7 +1237,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                           Pickup
                         </dt>
                         <dd className="mt-0.5 text-sm text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
-                          {b.pickup_time ? `${pgTimeToHm(b.pickup_time)} · ` : ''}
+                          {b.pickup_time && !tripHidesExactPickup ? `${pgTimeToHm(b.pickup_time)} · ` : ''}
                           {tripPickupInstructions}
                         </dd>
                       </div>
@@ -1324,7 +1333,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       </div>
                     ) : null}
                   </dl>
-                  {b.pickup_time && (pickupMissing || !tripPickupInstructions) ? (
+                  {b.pickup_time && !tripHidesExactPickup && (pickupMissing || !tripPickupInstructions) ? (
                     <p className="text-sm text-ink-muted">Pickup {pgTimeToHm(b.pickup_time)}</p>
                   ) : pickupMissing ? (
                     <NoticeCallout title="Pickup details pending" tone="warn">
