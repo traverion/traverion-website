@@ -204,7 +204,7 @@ describe('booking inventory holds', () => {
     expect(
       bookingOccupiesInventory({ status: 'pending', payment_status: 'failed' }, now)
     ).toBe(false);
-    expect(CHECKOUT_HOLD_MINUTES).toBe(30);
+    expect(CHECKOUT_HOLD_MINUTES).toBe(60);
     expect(
       bookingOccupiesInventory(
         {

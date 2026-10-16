@@ -251,6 +251,7 @@ export default function BookingPage({
   const [selectedPickup, setSelectedPickup] = useState<TravelerPickupPoint | null>(null);
   const [specialRequests, setSpecialRequests] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const payInFlightRef = useRef(false);
   const [checkoutConsentAccepted, setCheckoutConsentAccepted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
@@ -1136,8 +1137,13 @@ export default function BookingPage({
     setStep('confirm');
   };
 
+  const stopSubmitting = () => {
+    payInFlightRef.current = false;
+    setSubmitting(false);
+  };
+
   const handleConfirmBooking = async () => {
-    if (submitting) return;
+    if (submitting || payInFlightRef.current) return;
     if (checkoutPayBlockedByConsent(checkoutConsentAccepted)) {
       // Phase 1662: “Accept terms to pay” focuses the checkbox without a red error flash.
       setError(null);
@@ -1193,6 +1199,7 @@ export default function BookingPage({
         return;
       }
     }
+    payInFlightRef.current = true;
     setSubmitting(true);
     setError(null);
     try {
@@ -1211,7 +1218,7 @@ export default function BookingPage({
           });
           if (slotCap == null) {
             setError('No bookable capacity for this departure.');
-            setSubmitting(false);
+            stopSubmitting();
             return;
           }
           slotMaxSpots = slotCap;
@@ -1224,7 +1231,7 @@ export default function BookingPage({
           // Phase 1192: load/check errors must not look like sold-out.
           if (avail.error) {
             setError('Could not verify availability. Check your connection and try again.');
-            setSubmitting(false);
+            stopSubmitting();
             return;
           }
           setError(
@@ -1236,7 +1243,7 @@ export default function BookingPage({
                 ? `Not enough spots left for the ${departureTime} departure. Adjust guests or choose another time.`
                 : 'Not enough capacity left for your party. Adjust guests or choose another date.'
           );
-          setSubmitting(false);
+          stopSubmitting();
           return;
         }
       }
@@ -1254,7 +1261,7 @@ export default function BookingPage({
         const offerGate = payTimeDiscountsOrBlock(offerLoad);
         if (!offerGate.proceed) {
           setError('Could not load offers for this tour. Try again.');
-          setSubmitting(false);
+          stopSubmitting();
           return;
         }
         // Phase 1161: mirror edge 1122 — unresolved departure capacity must not open Stripe.
@@ -1268,7 +1275,7 @@ export default function BookingPage({
           });
           if (slotCap == null) {
             setError('No bookable capacity for this departure.');
-            setSubmitting(false);
+            stopSubmitting();
             return;
           }
         }
@@ -1283,7 +1290,7 @@ export default function BookingPage({
         });
         if (!quoted.ok) {
           setError(userFacingError(quoted.error, USER_ERROR.checkout));
-          setSubmitting(false);
+          stopSubmitting();
           return;
         }
         const mixNote =
@@ -1298,7 +1305,7 @@ export default function BookingPage({
           });
           if (!decision.ok) {
             setError(decision.error);
-            setSubmitting(false);
+            stopSubmitting();
             setStep('pickup');
             return;
           }
@@ -1335,7 +1342,7 @@ export default function BookingPage({
         });
         if (!checkout.success || !checkout.checkoutUrl) {
           setError(userFacingError(checkout.error, USER_ERROR.checkout));
-          setSubmitting(false);
+          stopSubmitting();
           return;
         }
         analytics.bookComplete(tour.id, quoted.guests);
@@ -1350,11 +1357,11 @@ export default function BookingPage({
       setError(
         'Card checkout is not available in this environment. No booking was created, and nothing was charged.'
       );
-      setSubmitting(false);
+      stopSubmitting();
       return;
     } catch (err) {
       setError(humanizeBookingSubmitError(err instanceof Error ? err.message : undefined));
-      setSubmitting(false);
+      stopSubmitting();
     }
   };
 

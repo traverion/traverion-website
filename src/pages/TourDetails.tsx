@@ -204,6 +204,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
   const [selectedDepartureTime, setSelectedDepartureTime] = useState('');
   const [participantMix, setParticipantMix] = useState<ParticipantMixSelection>({});
   const [variantChecking, setVariantChecking] = useState(false);
+  const checkoutContinueRef = useRef(false);
   const [savedToWishlist, setSavedToWishlist] = useState(false);
   const [wishlistHeartKnown, setWishlistHeartKnown] = useState(false);
   const [wishlistBusy, setWishlistBusy] = useState(false);
@@ -1341,6 +1342,8 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
         return;
       }
     }
+    if (checkoutContinueRef.current) return;
+    checkoutContinueRef.current = true;
     setBookingCardError(null);
     setVariantChecking(true);
     try {
@@ -1380,8 +1383,19 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
         return;
       }
       if (isSupabaseConfigured() && !userRef.current && supabase) {
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (sessionData.session?.user) userRef.current = sessionData.session.user;
+        try {
+          const sessionResult = await Promise.race([
+            supabase.auth.getSession(),
+            new Promise<null>((resolve) => {
+              window.setTimeout(() => resolve(null), 8_000);
+            }),
+          ]);
+          const sessionUser =
+            sessionResult && 'data' in sessionResult ? sessionResult.data.session?.user : null;
+          if (sessionUser) userRef.current = sessionUser;
+        } catch {
+          /* AuthContext already has no user; the sign-in modal opens below. */
+        }
       }
       if (isSupabaseConfigured() && !userRef.current) {
         requestAuth({
@@ -1435,6 +1449,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
     } catch {
       setBookingCardError('Could not verify availability. Check your connection and try again.');
     } finally {
+      checkoutContinueRef.current = false;
       setVariantChecking(false);
     }
   };

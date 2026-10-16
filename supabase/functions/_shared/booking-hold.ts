@@ -1,5 +1,5 @@
-/** Pending Stripe checkout occupies inventory until this many minutes after claim. Matches Stripe Checkout min expires_at. */
-export const CHECKOUT_HOLD_MINUTES = 30;
+/** Stripe Checkout allows 30 minutes to 24 hours. Inventory holds use one hour. */
+export const CHECKOUT_HOLD_MINUTES = 60;
 
 export type InventoryHoldRow = {
   status?: string | null;

@@ -116,6 +116,24 @@ export type AvailabilityCheckOption = {
   selectable: boolean;
 };
 
+const AVAILABILITY_CHECK_TIMEOUT_MS = 12_000;
+
+function withDeadline<T>(work: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('Availability check timed out.')), ms);
+    work.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      }
+    );
+  });
+}
+
 /** Check if a date has capacity. Public remaining matches checkout: paid + live pending holds. */
 export async function checkAvailability(
   listingId: string,
@@ -145,12 +163,17 @@ export async function checkAvailability(
       ],
     };
   }
-  const { data, error } = await supabase
-    .from('listing_availability')
-    .select('capacity, booked')
-    .eq('listing_id', listingId)
-    .eq('available_date', date)
-    .maybeSingle();
+  const { data, error } = await withDeadline(
+    Promise.resolve(
+      supabase
+        .from('listing_availability')
+        .select('capacity, booked')
+        .eq('listing_id', listingId)
+        .eq('available_date', date)
+        .maybeSingle()
+    ),
+    AVAILABILITY_CHECK_TIMEOUT_MS
+  );
   if (error) {
     return {
       available: false,
@@ -170,12 +193,21 @@ export async function checkAvailability(
   let paidSlot = 0;
   const startHm = (opts?.startTimeHm ?? '').trim();
   try {
-    paidByDay = await fetchPublishedTourPaidGuests(listingId);
-    fallbackCap = await fetchTourOptionCapacity(listingId);
-    // Phase 1112: slot occupancy applies even when a day capacity override exists.
-    if (startHm) {
-      const paidBySlot = await fetchPublishedTourPaidGuestsBySlot(listingId);
-      paidSlot = paidBySlot[tourPaidSlotKey(date, startHm)] ?? 0;
+    const occupancy = await withDeadline(
+      (async () => {
+        const [paidByDayResult, fallbackCapResult, paidBySlotResult] = await Promise.all([
+          fetchPublishedTourPaidGuests(listingId),
+          fetchTourOptionCapacity(listingId),
+          startHm ? fetchPublishedTourPaidGuestsBySlot(listingId) : Promise.resolve(null),
+        ]);
+        return { paidByDayResult, fallbackCapResult, paidBySlotResult };
+      })(),
+      AVAILABILITY_CHECK_TIMEOUT_MS
+    );
+    paidByDay = occupancy.paidByDayResult;
+    fallbackCap = occupancy.fallbackCapResult;
+    if (startHm && occupancy.paidBySlotResult) {
+      paidSlot = occupancy.paidBySlotResult[tourPaidSlotKey(date, startHm)] ?? 0;
     }
   } catch (e) {
     // Phase 1192: occupancy/capacity RPC failure → error path (not unhandled reject / sold-out UX).

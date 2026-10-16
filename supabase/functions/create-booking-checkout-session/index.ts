@@ -3,7 +3,12 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
 import { listingHasUpcomingBookableSeason, quoteListingBooking, resolveTourDepartureHmForCutoff, stayCheckoutNightsAlreadyBooked, stayNightIsOperatorBlocked, stayRangeFromBooking, tourDepartureRemainingSeats, tourDepartureSlotCapacity, type DiscountRow, type ListingQuoteRow, type StayCheckoutOccupancyRow } from '../_shared/booking-quote.ts';
-import { tourCheckoutOccupiedGuests, inventoryStartTimeHmFromBooking, type TourCheckoutOccupancyRow } from '../_shared/booking-hold.ts';
+import {
+  checkoutHoldExpiresAtUnix,
+  tourCheckoutOccupiedGuests,
+  inventoryStartTimeHmFromBooking,
+  type TourCheckoutOccupancyRow,
+} from '../_shared/booking-hold.ts';
 import { checkoutPaymentStatusCanResume, resumeStayCheckoutDate, checkoutResumeLostRaceToPaid, resumeListingIdMismatch, resumeStoredOptionId, participantMixFromGuestBreakdown } from '../_shared/checkout-resume.ts';
 import { resumeStayLeadGuestName, stayCheckoutLeadGuestNameReady, stayBookingColumnsForCheckoutUpdate } from '../_shared/stay-checkout-guest.ts';
 import {
@@ -700,7 +705,7 @@ serve(async (req) => {
 
     const totalAmount = quote.totalAmount;
     const currency = quote.currency;
-    const holdExpiresAtUnix = Math.floor(Date.now() / 1000) + 30 * 60;
+    const holdExpiresAtUnix = checkoutHoldExpiresAtUnix();
     const holdExpiresAtIso = new Date(holdExpiresAtUnix * 1000).toISOString();
     // Phase 1522: strip client-planted machine keys (check_out:, meeting_point:, …)
     // before claim; only server-derived optionId / checkoutDate may append those lines.
