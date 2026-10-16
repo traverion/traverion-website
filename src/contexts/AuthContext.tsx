@@ -15,7 +15,8 @@ import {
 import { PARTNER_LOGIN_PATH } from '../lib/partnerPortalPaths';
 import { clearSupabaseAuthStorage } from '../lib/clearSupabaseAuthStorage';
 import { sanitizeAuthRedirectTo } from '../lib/authRedirect';
-import { sanitizeTravelerAuthNext } from '../lib/travelerAuthLinks';
+import { travelerEmailConfirmRedirectUrl } from '../lib/emailVerifiedLanding';
+import { splitTravelerFullName } from '../lib/splitTravelerFullName';
 import { travelerSessionIsPartnerOnly } from '../lib/traveler-session-authority';
 import { userHasSupplierProfile } from '../lib/supplierPortalAccess';
 import { isPasswordRecoveryActive } from '../lib/passwordRecoveryFlow';
@@ -30,9 +31,10 @@ type AuthContextValue = {
     options?: {
       redirectTo?: string;
       phoneNumber?: string;
+      fullName?: string;
       firstName?: string;
       lastName?: string;
-      /** `next` query preserved for post-confirm sign-in redirect (default `account`). */
+      /** Unused for the confirm link. Verification always returns to the homepage. */
       afterConfirmNext?: string;
     }
   ) => Promise<{ error?: string; hasSession?: boolean }>;
@@ -190,23 +192,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return {};
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string, options?: { redirectTo?: string; phoneNumber?: string; firstName?: string; lastName?: string; afterConfirmNext?: string }) => {
+  const signUp = useCallback(async (email: string, password: string, options?: { redirectTo?: string; phoneNumber?: string; fullName?: string; firstName?: string; lastName?: string; afterConfirmNext?: string }) => {
     if (!supabase) return { error: 'Not configured' };
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedPhone = normalizeConsumerPhone(options?.phoneNumber ?? '');
     if (!normalizedPhone) return { error: 'Phone number is required' };
 
-    const first = (options?.firstName ?? '').trim();
-    const last = (options?.lastName ?? '').trim();
-    const displayNameFromSignup = [first, last].filter(Boolean).join(' ').trim() || null;
+    const fromFullName = options?.fullName != null ? splitTravelerFullName(options.fullName) : null;
+    const first = (fromFullName?.firstName ?? options?.firstName ?? '').trim();
+    const last = (fromFullName?.lastName ?? options?.lastName ?? '').trim();
+    const displayNameFromSignup = fromFullName?.displayName || [first, last].filter(Boolean).join(' ').trim() || null;
 
     const availability = await isPhoneAvailableForSignup(options?.phoneNumber ?? '');
     if (availability.error) return { error: availability.error };
     if (!availability.available) return { error: 'An account with this phone number already exists. Try signing in instead.' };
 
-    const next = sanitizeTravelerAuthNext(options?.afterConfirmNext ?? 'account');
-    const confirmQs = new URLSearchParams({ next }).toString();
-    const fallbackRedirect = `${publicSiteBaseUrl()}/email-confirmed?${confirmQs}`;
+    const fallbackRedirect = travelerEmailConfirmRedirectUrl();
     const redirectTo = sanitizeAuthRedirectTo(options?.redirectTo ?? fallbackRedirect, publicSiteBaseUrl(), fallbackRedirect);
     const { data, error } = await supabase.auth.signUp({
       email: normalizedEmail,

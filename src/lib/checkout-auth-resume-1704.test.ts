@@ -25,10 +25,11 @@ describe('Phase 1704: checkout auth resume waits for session', () => {
   });
 
   it('AuthModal awaits getSession before triggerAuthSuccess', () => {
-    const src = readFileSync(resolve(__dirname, '../components/AuthModal.tsx'), 'utf8');
-    expect(src).toContain('Phase 1704');
-    expect(src).toContain('await supabase.auth.getSession()');
-    expect(src).toContain('triggerAuthSuccess()');
+    const form = readFileSync(resolve(__dirname, '../components/auth/TravelerAuthForm.tsx'), 'utf8');
+    const modal = readFileSync(resolve(__dirname, '../components/AuthModal.tsx'), 'utf8');
+    expect(form).toContain('Phase 1704');
+    expect(form).toContain('await supabase.auth.getSession()');
+    expect(modal).toContain('triggerAuthSuccess()');
   });
 
   it('Phase 1852: TourDetails does not clear tour on auth (preserves checkout step)', () => {

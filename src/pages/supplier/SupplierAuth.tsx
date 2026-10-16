@@ -464,9 +464,11 @@ export default function SupplierAuth({
             </div>
           ) : null}
           {!(mode === 'signin' && passwordResetPanel) && !compact && (
-          <div className="flex gap-1 rounded-full bg-paper p-1 mb-5 w-fit shadow-soft ring-1 ring-black/[0.06]">
+          <div className="tv-auth-tabs" role="tablist" aria-label="Partner account">
             <button
               type="button"
+              role="tab"
+              aria-selected={mode === 'signin'}
               onClick={() => {
                 setMode('signin');
                 setFieldErrors({});
@@ -474,16 +476,13 @@ export default function SupplierAuth({
                 exitPartnerPasswordReset();
                 onModeChange?.('signin');
               }}
-              className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
-                mode === 'signin'
-                  ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
-                  : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
-              }`}
             >
               Log in
             </button>
             <button
               type="button"
+              role="tab"
+              aria-selected={mode === 'signup'}
               onClick={() => {
                 setMode('signup');
                 setFieldErrors({});
@@ -491,11 +490,6 @@ export default function SupplierAuth({
                 exitPartnerPasswordReset();
                 onModeChange?.('signup');
               }}
-              className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
-                mode === 'signup'
-                  ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
-                  : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
-              }`}
             >
               Sign up
             </button>
@@ -518,7 +512,7 @@ export default function SupplierAuth({
               emailInputId="supplier-forgot-reset-email"
             />
           ) : (
-          <form noValidate onSubmit={handleSubmit} className={`${compact ? 'space-y-4' : 'p-6 sm:p-8 space-y-4 sm:space-y-5'} motion-safe:animate-fade-in`} key={mode}>
+          <form noValidate onSubmit={handleSubmit} className={`tv-auth-fields ${compact ? 'space-y-3.5' : 'p-6 sm:p-8 space-y-4'} motion-safe:animate-fade-in`} key={mode}>
             {fieldErrors.form ? (
               <NoticeCallout title="Could not continue" tone="danger">
                 {fieldErrors.form}
@@ -555,7 +549,7 @@ export default function SupplierAuth({
                   });
                 }}
                 placeholder="you@company.com"
-                className="tv-input"
+                className="tv-auth-input"
                 autoComplete="email"
                 aria-invalid={fieldErrors.email ? true : undefined}
                 aria-describedby={fieldErrors.email ? 'supplier-auth-email-error' : undefined}
@@ -619,7 +613,7 @@ export default function SupplierAuth({
                     });
                   }}
                   placeholder="e.g. Royal Nordic"
-                  className="tv-input"
+                  className="tv-auth-input"
                   autoComplete="organization"
                   aria-invalid={fieldErrors.businessName ? true : undefined}
                   aria-describedby={fieldErrors.businessName ? 'supplier-auth-business-error' : undefined}
@@ -651,7 +645,7 @@ export default function SupplierAuth({
                     });
                   }}
                   placeholder="+358 40 123 4567"
-                  className="tv-input"
+                  className="tv-auth-input"
                   autoComplete="tel"
                   aria-invalid={fieldErrors.phoneNumber ? true : undefined}
                   aria-describedby={fieldErrors.phoneNumber ? 'supplier-auth-phone-error' : undefined}
@@ -683,7 +677,7 @@ export default function SupplierAuth({
                     });
                   }}
                   placeholder="••••••••"
-                  className="tv-input pr-11"
+                  className="tv-auth-input pr-12"
                   autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                   aria-invalid={fieldErrors.password ? true : undefined}
                   aria-describedby={fieldErrors.password ? 'supplier-auth-password-error' : undefined}
@@ -727,7 +721,7 @@ export default function SupplierAuth({
                       });
                     }}
                     placeholder="••••••••"
-                    className="tv-input pr-11"
+                    className="tv-auth-input pr-12"
                     autoComplete="new-password"
                     aria-invalid={fieldErrors.confirmPassword ? true : undefined}
                     aria-describedby={fieldErrors.confirmPassword ? 'supplier-auth-confirm-error' : undefined}

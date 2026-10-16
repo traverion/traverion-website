@@ -72,7 +72,7 @@ export default function PartnerAuthPage({ mode, onAuthenticated, isSupabase }: P
                 Sell your products. Run the day.
               </p>
               <p className="mt-3 text-sm text-white/80 leading-relaxed hidden sm:block">
-                Listings, calendar, bookings, and money — built for operators, not travelers.
+                Partner account for listings, calendar, bookings, and money.
               </p>
             </div>
           </div>
@@ -84,27 +84,11 @@ export default function PartnerAuthPage({ mode, onAuthenticated, isSupabase }: P
           <a href={traveler} className="lux-flat text-sm text-ink-muted hover:bg-finland/10 hover:text-finland rounded-full px-3 py-1.5">
             For travelers
           </a>
-          <nav className="flex gap-1 rounded-full bg-paper-raised p-1 shadow-soft ring-1 ring-black/[0.06]" aria-label="Partner account mode">
-            <a
-              href={PARTNER_LOGIN_PATH}
-              onClick={goMode('signin')}
-              className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
-                mode === 'signin'
-                  ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
-                  : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
-              }`}
-            >
+          <nav className="tv-auth-tabs mb-0" aria-label="Partner account mode">
+            <a href={PARTNER_LOGIN_PATH} onClick={goMode('signin')} aria-current={mode === 'signin' ? 'page' : undefined}>
               Log in
             </a>
-            <a
-              href={PARTNER_SIGNUP_PATH}
-              onClick={goMode('signup')}
-              className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
-                mode === 'signup'
-                  ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
-                  : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
-              }`}
-            >
+            <a href={PARTNER_SIGNUP_PATH} onClick={goMode('signup')} aria-current={mode === 'signup' ? 'page' : undefined}>
               Sign up
             </a>
           </nav>
@@ -115,16 +99,13 @@ export default function PartnerAuthPage({ mode, onAuthenticated, isSupabase }: P
               key={mode}
               className={`tv-auth-panel ${slide === 'forward' ? 'tv-auth-slide--forward' : 'tv-auth-slide--back'}`}
             >
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">
-                Partner account
-              </p>
-              <h1 className="font-display text-2xl sm:text-3xl tracking-tight mb-1.5 text-ink">
-                {mode === 'signin' ? 'Log in' : 'Create your partner account'}
+              <h1 className="font-display text-[1.65rem] font-semibold leading-tight tracking-tight text-ink">
+                {mode === 'signin' ? 'Welcome back' : 'Create your partner account'}
               </h1>
-              <p className="text-sm text-ink-muted mb-4 leading-relaxed">
+              <p className="mt-1.5 mb-4 text-sm leading-relaxed text-ink-muted">
                 {mode === 'signin'
-                  ? 'This is the supplier product — listings, calendar, bookings, and money.'
-                  : 'Step 1 of 2 — account and brand name travelers will see. Legal business details come next, after you confirm email.'}
+                  ? 'Log in to manage listings, bookings, and the day.'
+                  : 'Account and the brand name travelers will see. Legal details come after you confirm email.'}
               </p>
               <SupplierAuth
                 onAuthenticated={onAuthenticated}

@@ -8,6 +8,7 @@ import { SupplierAuthProvider } from './contexts/SupplierAuthContext';
 import { SupplierRoleProvider } from './contexts/SupplierRoleContext';
 import { AuthProvider } from './contexts/AuthContext';
 import AuthModal from './components/AuthModal';
+import EmailVerifiedModal from './components/EmailVerifiedModal';
 import {
   setPageMetaWithOg,
   setCanonicalUrl,
@@ -53,6 +54,15 @@ import {
 } from './lib/navReturn';
 import { failCloseOrphanStayCheckout } from './lib/marketplaceBrowse';
 import { takeTravelerReturnStay } from './lib/travelerAuthLinks';
+import {
+  clearEmailVerifyNotice,
+  emailConfirmHashNotice,
+  isTravelerEmailConfirmLanding,
+  peekEmailVerifyNotice,
+  rememberEmailVerifyNotice,
+  type EmailVerifyNotice,
+} from './lib/emailVerifiedLanding';
+import { settleTravelerEmailConfirm } from './lib/settleTravelerEmailConfirm';
 import type { TourPackage as TourPackageType } from './types/tour';
 import { SkeletonCardGrid, SkeletonPageHero } from './components/ui/Skeleton';
 import { HERO_IMG } from './lib/heroImages';
@@ -63,7 +73,6 @@ const AccountPage = lazy(() => import('./pages/AccountPage'));
 const WishlistPage = lazy(() => import('./pages/WishlistPage'));
 const Contact = lazy(() => import('./pages/Contact'));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
-const EmailConfirmedSuccess = lazy(() => import('./pages/EmailConfirmedSuccess'));
 const DestinationPage = lazy(() => import('./pages/DestinationPage'));
 const AdminGate = lazy(() => import('./components/AdminGate'));
 const AdminStaffLogin = lazy(() => import('./components/admin/AdminStaffLogin'));
@@ -145,6 +154,7 @@ function readInitialRoute(): { page: string; destinationSlug: string | null } {
 function App() {
   const initialRoute = readInitialRoute();
   const [currentPage, setCurrentPage] = useState(initialRoute.page);
+  const [emailVerifyNotice, setEmailVerifyNotice] = useState<EmailVerifyNotice | null>(null);
   const [tourCheckoutOpen, setTourCheckoutOpen] = useState(false);
   const [destinationSlug, setDestinationSlug] = useState<string | null>(initialRoute.destinationSlug);
   const [selectedTour, setSelectedTour] = useState<TourPackageType | null>(null);
@@ -246,12 +256,59 @@ function App() {
     };
   }, [isSupplierArea]);
 
+  /**
+   * Confirmation links open the homepage and a modal. replaceState drops the verify URL
+   * so Back cannot return to a separate verification screen.
+   */
+  useEffect(() => {
+    if (isSupplierArea) return;
+    if (isTraverionAdminHost()) return;
+    let cancelled = false;
+
+    const show = (notice: EmailVerifyNotice) => {
+      rememberEmailVerifyNotice(notice);
+      const path = window.location.pathname.replace(/\/$/, '') || '/';
+      const search = window.location.search;
+      const onHomeAlready = path === '/' && !search.includes('verified=1') && !window.location.hash;
+      if (!onHomeAlready) window.history.replaceState({}, '', '/');
+      setEmailVerifyNotice(notice);
+      setCurrentPage('home');
+    };
+
+    const raw = window.location.hash?.replace(/^#/, '') ?? '';
+    const hashNotice = emailConfirmHashNotice(raw);
+    const landing = isTravelerEmailConfirmLanding();
+    if (hashNotice && landing) {
+      show(hashNotice);
+      return;
+    }
+    if (!landing) {
+      const path = window.location.pathname.replace(/\/$/, '') || '/';
+      if (path === '/') {
+        const stored = peekEmailVerifyNotice();
+        if (stored) setEmailVerifyNotice(stored);
+      }
+      return;
+    }
+
+    void (async () => {
+      const notice = await settleTravelerEmailConfirm();
+      if (cancelled) return;
+      show(notice);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isSupplierArea]);
+
   /** Supabase puts confirm/recovery failures in the URL hash; redirect root loads would hide them. */
   useEffect(() => {
     if (isSupplierArea) return;
     if (isTraverionAdminHost()) return;
     const raw = window.location.hash?.replace(/^#/, '') ?? '';
     if (!raw.includes('error=')) return;
+    if (isTravelerEmailConfirmLanding()) return;
     const p = new URLSearchParams(raw);
     const code = p.get('error_code') ?? '';
     const desc = (p.get('error_description') ?? '').replace(/\+/g, ' ');
@@ -391,6 +448,19 @@ function App() {
       'content-creator': '/content-creator',
       'home': '/'
     };
+
+    const pathNow = window.location.pathname.replace(/\/$/, '') || '/';
+    const hashNow = window.location.hash;
+    if (
+      pathNow === '/email-confirmed' ||
+      pathNow === '/email-verified' ||
+      hashNow.includes('access_token=') ||
+      hashNow.includes('refresh_token=') ||
+      hashNow.includes('error=') ||
+      new URLSearchParams(window.location.search).get('verified') === '1'
+    ) {
+      return;
+    }
 
     const newUrl =
       currentPage === 'destination'
@@ -796,7 +866,7 @@ function App() {
       case 'reset-password':
         return <ResetPasswordPage onNavigate={handleNavigate} />;
       case 'email-confirmed':
-        return <EmailConfirmedSuccess />;
+        return <Home onTourSelect={handleTourSelect} onNavigate={handleNavigate} />;
       case 'bookings':
         return (
           <MyBookings
@@ -914,8 +984,7 @@ function App() {
   const minimalTravelerChrome =
     currentPage === 'booking-confirmed' ||
     currentPage === 'reset-password' ||
-    currentPage === 'auth' ||
-    currentPage === 'email-confirmed';
+    currentPage === 'auth';
 
   return (
     <TranslationProvider>
@@ -945,6 +1014,19 @@ function App() {
             <AuthModal />
           </div>
         )}
+        {emailVerifyNotice && !staffShell ? (
+          <EmailVerifiedModal
+            notice={emailVerifyNotice}
+            onClose={() => {
+              clearEmailVerifyNotice();
+              setEmailVerifyNotice(null);
+              if (window.location.pathname !== '/' || window.location.search || window.location.hash) {
+                window.history.replaceState({}, '', '/');
+              }
+              setCurrentPage('home');
+            }}
+          />
+        ) : null}
       </AuthProvider>
     </TranslationProvider>
   );

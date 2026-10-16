@@ -15,6 +15,7 @@ type Props = {
   onBack: () => void;
   emailInputId: string;
   className?: string;
+  showHeading?: boolean;
 };
 
 const DEFAULT_DESCRIPTION =
@@ -32,6 +33,7 @@ export default function ForgotPasswordInline({
   onBack,
   emailInputId,
   className = 'space-y-4',
+  showHeading = true,
 }: Props) {
   return (
     <form noValidate onSubmit={onSubmit} className={`${className} motion-safe:animate-fade-in`}>
@@ -39,8 +41,8 @@ export default function ForgotPasswordInline({
         <button type="button" onClick={onBack} className="lux-flat self-start text-xs text-ink-muted hover:text-ink">
           Back to sign in
         </button>
-        <h2 className="font-display text-xl text-ink tracking-tight pt-1.5">{title}</h2>
-        <p className="text-xs text-ink-muted leading-snug">{description}</p>
+        {showHeading ? <h2 className="font-display text-xl text-ink tracking-tight pt-1.5">{title}</h2> : null}
+        {showHeading ? <p className="text-xs text-ink-muted leading-snug">{description}</p> : null}
       </div>
 
       {successMessage ? (
@@ -55,19 +57,20 @@ export default function ForgotPasswordInline({
       ) : (
         <>
           <div>
-            <label htmlFor={emailInputId} className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
+            <label htmlFor={emailInputId} className="tv-auth-label">
               Email for reset link
             </label>
             <input
               id={emailInputId}
               type="email"
               name="email"
+              inputMode="email"
               value={email}
               onChange={(e) => onEmailChange(e.target.value)}
               placeholder="you@example.com"
               autoComplete="email"
               disabled={sending}
-              className="tv-input"
+              className="tv-auth-input"
               aria-invalid={fieldError ? true : undefined}
               aria-describedby={fieldError ? `${emailInputId}-err` : undefined}
             />
