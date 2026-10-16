@@ -183,13 +183,6 @@ export function TourBasicsGuidedScenes({
                 })
               }
             />
-            <p className="mt-2 text-[12px] text-ink-muted">
-              Travelers see{' '}
-              <span className="font-medium text-ink">
-                {travelerDestinationLabel(form.city, form.country) || 'City, Country'}
-              </span>
-              . Meeting points stay on each option.
-            </p>
           </div>
         </div>
       ) : null}
