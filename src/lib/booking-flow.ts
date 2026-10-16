@@ -14,7 +14,7 @@ import { optionHeadlineUnitPrice } from './price-categories';
 
 const DRAFT_KEY = (tourId: string) => `traverion_booking_draft_v1_${tourId}`;
 
-export type BookingFlowStep = 'date-guests' | 'review' | 'contact' | 'confirm' | 'done';
+export type BookingFlowStep = 'date-guests' | 'review' | 'contact' | 'pickup' | 'confirm' | 'done';
 
 /** One bookable row for the traveler (partner option or synthesized default). */
 export type TourBookingVariant = {
@@ -251,7 +251,7 @@ export function sanitizeRestoredBookingStep(
 ): BookingFlowStep {
   if (step === 'done') return mode === 'modal' ? 'review' : 'date-guests';
   if (mode === 'page' && step === 'review') return 'date-guests';
-  if (step === 'confirm' && !hasSessionUser) return 'contact';
+  if ((step === 'confirm' || step === 'pickup') && !hasSessionUser) return 'contact';
   return step;
 }
 

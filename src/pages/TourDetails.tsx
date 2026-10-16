@@ -1158,7 +1158,8 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
       });
       const current = `${window.location.pathname}${window.location.search}`;
       if (current !== href) {
-        window.history.replaceState({}, '', href);
+        if (patch.step !== checkoutFromUrl.step) window.history.pushState({}, '', href);
+        else window.history.replaceState({}, '', href);
       }
       // Phase 1852: keep React locationSearch in sync (commitLocation parity) so a
       // remount cannot revive a stale step=review while the traveler is on Contact/Pay.
@@ -1425,7 +1426,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
         optionId: selectedBookingVariant.id,
         guests: partySize,
         mix: optionUsesAgePricing(selectedOptionApplied) ? participantMix : null,
-        step: 'contact',
+        step: 'review',
         paymentCancelled: false,
         startTime: selectedDepartureTime.trim() || undefined,
       };

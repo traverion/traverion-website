@@ -1,16 +1,13 @@
 /**
- * Traveler booking flow vocabulary (Trip → Contact → Pay):
- * Full page and tour-page modal share the same steps: trip details, contact, then pay.
+ * Traveler booking flow: booking details, contact, pickup or meeting point, then payment.
  */
 import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import {
   User,
   Mail,
-  MessageSquare,
   MapPin,
-  Shield,
-  ClipboardList,
+  ChevronDown,
   X,
   Phone,
   Check,
@@ -100,11 +97,7 @@ import {
 import { activePriceCategories } from '../lib/price-categories';
 import { markBookingsUnread } from '../lib/customerBookingNotifications';
 import {
-  BOOKING_CONTACT_EMAIL_FIELD_NOTE,
-  bookingContactIntroCopy,
-  bookingPayConfirmAfterPayCopy,
   STRIPE_CHECKOUT_CANCELLED_TOUR_COPY,
-  STRIPE_TEST_UNTIL_LIVE,
 } from '../lib/booking-confirmation-copy';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import NoticeCallout from '../components/NoticeCallout';
@@ -112,6 +105,8 @@ import CheckoutConsentCheckbox from '../components/booking/CheckoutConsentCheckb
 import { checkoutPayBlockedByConsent } from '../lib/checkout-consent';
 import { tourStickyBookCtaLabel } from '../lib/tour-sticky-cta';
 import { bookingPageQuoteFailureFocusTarget } from '../lib/tour-quote-failure-focus';
+import { resolveTourPickupMeetingDisplay } from '../lib/tour-pickup-meeting';
+import { listingShowsFreeCancellation } from '../lib/listingTruth';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
 import { clearTravelerCart, saveTravelerCart } from '../lib/travelerCart';
 import { rememberAccountCart } from '../data/supabase-cart';
@@ -155,9 +150,11 @@ function BookingProgress({
   flow: 'page' | 'modal' | 'variant';
 }) {
   if (step === 'done') return null;
-  const labels = (['Trip', 'Contact', 'Pay'] as const);
+  const labels = (['Details', 'Contact', 'Pickup', 'Pay'] as const);
   const order: Step[] =
-    flow === 'page' ? ['date-guests', 'contact', 'confirm'] : ['review', 'contact', 'confirm'];
+    flow === 'page'
+      ? ['date-guests', 'contact', 'pickup', 'confirm']
+      : ['review', 'contact', 'pickup', 'confirm'];
   const idx = order.indexOf(step);
   const currentIndex = idx >= 0 ? idx : -1;
   const progressPct =
@@ -168,7 +165,7 @@ function BookingProgress({
       <div className="tv-booking-progress__track" aria-hidden>
         <div className="tv-booking-progress__fill" style={{ width: `${progressPct}%` }} />
       </div>
-      <ol className="relative z-[1] grid grid-cols-3 gap-1">
+      <ol className="relative z-[1] grid grid-cols-4 gap-1">
         {labels.map((label, i) => {
           const done = currentIndex >= 0 && i < currentIndex;
           const current = currentIndex >= 0 && i === currentIndex;
@@ -247,6 +244,7 @@ export default function BookingPage({
   const [submitting, setSubmitting] = useState(false);
   const [checkoutConsentAccepted, setCheckoutConsentAccepted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [summaryOpen, setSummaryOpen] = useState(false);
   const [availabilityModalOpen, setAvailabilityModalOpen] = useState(false);
   const [availabilityChecking, setAvailabilityChecking] = useState(false);
   const [availabilityOptions, setAvailabilityOptions] = useState<AvailabilityCheckOption[]>([]);
@@ -331,6 +329,29 @@ export default function BookingPage({
   const totalLabel = total == null ? (quoteFailed ? 'Price unavailable' : '—') : formatMoney(total, currency);
   const cancellationText =
     tour.cancellationPolicy?.trim() || TRAVERION_STANDARD_CANCELLATION_POLICY;
+  const freeCancellation = listingShowsFreeCancellation({
+    tags: tour.tags,
+    cancellationPolicy: tour.cancellationPolicy,
+  });
+  const cancellationShort = freeCancellation
+    ? 'Free cancellation up to 24 hours before departure'
+    : cancellationText.split(/(?<=\.)\s/)[0]?.trim() || 'Cancellation terms apply to this booking';
+  const pickupPlace = resolveTourPickupMeetingDisplay(tour, selectedVariant?.listingOption ?? null);
+  const optionFulfillment = selectedVariant?.listingOption?.fulfillment;
+  const pickupMode: 'pickup' | 'meet' | 'none' =
+    optionFulfillment === 'pickup'
+      ? 'pickup'
+      : optionFulfillment === 'meeting_point' || Boolean(pickupPlace.place)
+        ? 'meet'
+        : 'none';
+  const meetingAddress =
+    optionFulfillment === 'meeting_point'
+      ? (selectedVariant?.listingOption?.pickupPlace ?? '').trim()
+      : (pickupPlace.place ?? '').trim();
+  const meetingInstructions =
+    optionFulfillment === 'meeting_point'
+      ? (selectedVariant?.listingOption?.travelerStartInstructions ?? '').trim()
+      : (pickupPlace.instructions ?? '').trim();
 
   const weekdayHint = useMemo(() => {
     const opt = selectedVariant?.listingOption;
@@ -694,7 +715,7 @@ export default function BookingPage({
   // Phase 1186: URL/draft restore must not land on contact/confirm for own/team listings.
   useEffect(() => {
     if (!hydratedRef.current) return;
-    if (step !== 'contact' && step !== 'confirm') return;
+    if (step !== 'contact' && step !== 'pickup' && step !== 'confirm') return;
     if (!isSupabaseConfigured() || !userRef.current?.id) return;
     let cancelled = false;
     void viewerIsListingSupplierSide(userRef.current.id, tour.supplierId)
@@ -771,11 +792,21 @@ export default function BookingPage({
     return () => window.clearTimeout(t);
   }, [tour.id, step, date, guests, leadGuestName, email, placeOfStay, specialRequests, flushDraft]);
 
+  const lastAppliedCheckoutStep = useRef<string | null>(null);
+  useEffect(() => {
+    if (!hydratedRef.current || presentation === 'modal' || !initialCheckoutStep) return;
+    if (lastAppliedCheckoutStep.current === initialCheckoutStep) return;
+    lastAppliedCheckoutStep.current = initialCheckoutStep;
+    const next = sanitizeTourCheckoutFlowStep(initialCheckoutStep, Boolean(userRef.current));
+    const mapped: BookingFlowStep = next === 'review' && !selectedVariant ? 'date-guests' : next;
+    setStep((current) => (current === mapped || current === 'done' ? current : mapped));
+  }, [initialCheckoutStep, presentation, selectedVariant]);
+
   useEffect(() => {
     if (!hydratedRef.current || !onCheckoutUrlState || presentation === 'modal') return;
     if (!selectedVariant) return;
     const urlStep: TourCheckoutFlowStep =
-      step === 'contact' || step === 'confirm' ? step : 'review';
+      step === 'contact' || step === 'pickup' || step === 'confirm' ? step : 'review';
     onCheckoutUrlState({
       step: urlStep,
       date: date.trim(),
@@ -1008,6 +1039,11 @@ export default function BookingPage({
       setError(emailCheck.message ?? 'Valid email is required');
       return;
     }
+    const phoneDigits = phone.replace(/\D/g, '');
+    if (phoneDigits.length < 8 || phoneDigits.length > 15) {
+      setError('Enter a valid phone number, including the country code.');
+      return;
+    }
     if (appliedOption && optionUsesAgePricing(appliedOption)) {
       const mixErr = validateParticipantMix(appliedOption, participantMix);
       if (mixErr) {
@@ -1050,53 +1086,16 @@ export default function BookingPage({
       }
     }
     setError(null);
-    setStep('confirm');
+    setStep('pickup');
   };
 
-  const handleContinueFromReview = async () => {
+  const handleContinueFromPickup = () => {
+    if (pickupMode === 'pickup' && placeOfStay.trim().length < 3) {
+      setError('Enter the hotel or address where you would like to be picked up.');
+      return;
+    }
     setError(null);
-    if (usesAgePricingOnVariant && appliedOption) {
-      const mixErr = validateParticipantMix(appliedOption, participantMix);
-      if (mixErr) {
-        setError(mixErr);
-        return;
-      }
-    }
-    if (priceInfo.quote && !priceInfo.quote.ok) {
-      setError(priceInfo.quote.error);
-      return;
-    }
-    // Phase 1177: unknown remaining must not advance to contact (1174 parity).
-    if (capacityUnknown) {
-      setError(
-        dayCapacityError ||
-          'We could not verify departure capacity. Check your connection and try again.'
-      );
-      return;
-    }
-    // Phase 1180: sold-out must not advance to contact (1178 parity).
-    if (capacityBlocksPay) {
-      setError(
-        departureTime
-          ? `The ${departureTime} departure no longer has enough spots for your party.`
-          : 'This date no longer has enough spots for your party.'
-      );
-      return;
-    }
-    // Phase 1179: mirror TourDetails 1164 — block own/team listings before contact/Pay.
-    if (isSupabaseConfigured() && userRef.current?.id) {
-      try {
-        const selfBook = await viewerIsListingSupplierSide(userRef.current.id, tour.supplierId);
-        if (selfBook) {
-          setError(LISTING_SELF_BOOK_BLOCKED);
-          return;
-        }
-      } catch {
-        setError(LISTING_SELF_BOOK_CHECK_FAILED);
-        return;
-      }
-    }
-    setStep('contact');
+    setStep('confirm');
   };
 
   const handleConfirmBooking = async () => {
@@ -1342,48 +1341,29 @@ export default function BookingPage({
         {step === 'review' && selectedVariant && (
           <div className="tv-card p-4 sm:p-5">
             <BookingProgress step={step} flow={progressFlow} />
-            <h2 className="font-display text-xl text-ink mb-1.5">Trip</h2>
-            <p className="text-sm text-ink-muted mb-6">
-              {/* Phase 1595: Stripe TEST as a clear clause (StayDetails 1594 parity). */}
-              Confirm date, option, and participants. Next you will enter contact details, then pay via{' '}
-              {STRIPE_TEST_UNTIL_LIVE}.
+            <h2 className="text-xl font-bold text-ink mb-1">Booking details</h2>
+            <p className="text-sm text-ink-muted mb-5">Confirm your date and participants.</p>
+            <p className="mb-5 text-sm font-semibold text-ink break-words">
+              {selectedVariant.label}
+              {departureLabel ? <span className="font-medium text-ink-muted"> · {departureLabel}</span> : null}
             </p>
-            <dl className="mb-6 divide-y divide-black/[0.06] border-y border-black/[0.06] text-sm">
-              <div className="grid gap-1 py-2.5 sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:gap-3">
-                <dt className="font-semibold text-ink">Tour</dt>
-                <dd className="text-ink-muted break-words">{tour.title}</dd>
-              </div>
-              <div className="grid gap-1 py-2.5 sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:gap-3">
-                <dt className="font-semibold text-ink">Option</dt>
-                <dd className="text-ink-muted break-words">
-                  {selectedVariant.label}
-                  {selectedVariant.subtitle ? ` · ${selectedVariant.subtitle}` : ''}
-                </dd>
-              </div>
-              <div className="grid gap-1 py-2.5 sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:gap-3">
-                <dt className="font-semibold text-ink">Date</dt>
-                <dd className="text-ink-muted">{dateDisplay || date}</dd>
-              </div>
-              {departureLabel ? (
-                <div className="grid gap-1 py-2.5 sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:gap-3">
-                  <dt className="font-semibold text-ink">Departure</dt>
-                  <dd className="text-ink-muted">{departureLabel}</dd>
-                </div>
-              ) : null}
-              <div className="grid gap-1 py-2.5 sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:gap-3">
-                <dt className="font-semibold text-ink">Participants</dt>
-                <dd className="text-ink-muted">{participantsSummary}</dd>
-              </div>
-              {selectedVariant.listingOption?.pickupPlace?.trim() ? (
-                <div className="grid gap-1 py-2.5 sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:gap-3">
-                  <dt className="font-semibold text-ink">Meeting</dt>
-                  <dd className="text-ink-muted break-words">{selectedVariant.listingOption.pickupPlace.trim()}</dd>
-                </div>
-              ) : null}
-            </dl>
+            <div className="mb-5">
+              <TourDatePicker
+                id="booking-review-date-input"
+                value={date}
+                onChange={(next) => {
+                  setDate(next);
+                  setError(null);
+                }}
+                options={calendarOptions}
+                soldOutDates={soldOutDates}
+                todayIso={experienceTodayIso}
+                hint={weekdayHint}
+              />
+            </div>
             {usesAgePricingOnVariant && appliedOption ? (
-              <div className="mb-6 space-y-2">
-                <p className="text-sm font-medium text-ink">Adjust participants</p>
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-ink">Participants</p>
                 {activePriceCategories(appliedOption).map((cat) => (
                     <ParticipantCategoryStepper
                       key={cat.id}
@@ -1404,44 +1384,30 @@ export default function BookingPage({
                     />
                 ))}
               </div>
-            ) : null}
-            <div className="mb-6">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint mb-2">Total</p>
-              {quoted ? (
-                <PriceBreakdown
-                  currency={quoted.currency}
-                  lines={tourQuotePriceLines(quoted)}
-                  total={quoted.totalAmount}
-                  originalTotal={quoted.originalUnitPrice * quoted.guests}
-                  discountLabel={quoted.discountLabel}
-                  footnote={`${quoted.optionLabel} · ${participantsSummary}`}
-                />
-              ) : quoteFailed && priceInfo.quote && !priceInfo.quote.ok ? (
-                <p className="text-sm text-red-700">{priceInfo.quote.error}</p>
-              ) : (
-                <div className="flex justify-between text-sm text-ink-muted">
-                  <span>
-                    {participantsSummary}
-                    {priceInfo.label ? (
-                      <span className="block text-xs text-green-600 mt-1">{priceInfo.label}</span>
-                    ) : null}
-                  </span>
-                  <span className="font-medium text-ink">{totalLabel}</span>
-                </div>
-              )}
-            </div>
-            <div className="mb-6">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint mb-1.5">Cancellation</p>
-              <p className="text-sm text-ink-muted leading-relaxed">{cancellationText}</p>
-            </div>
+            ) : (
+              <GuestStepper
+                id="booking-review-guests"
+                label="Participants"
+                value={guests}
+                min={partyBounds.min}
+                max={partyMaxForSelectedDay}
+                onChange={(n) => {
+                  setGuests(n);
+                  setError(null);
+                }}
+                onBoundaryAttempt={setError}
+              />
+            )}
             {presentation !== 'modal' ? (
             <div className="mt-6 hidden justify-end lg:flex">
               <button
                 type="button"
-                onClick={handleContinueFromReview}
-                className="tv-btn-primary w-full sm:w-auto"
+                onClick={() => void handleCheckAvailability()}
+                disabled={quoteFailed || availabilityChecking}
+                className="tv-btn-primary w-full sm:w-auto disabled:opacity-50"
               >
-                Go to checkout
+                {/* Phase 1631 */}
+                {quoteFailed ? 'Price unavailable' : availabilityChecking ? 'Checking…' : 'Continue to contact info'}
               </button>
             </div>
             ) : null}
@@ -1451,7 +1417,8 @@ export default function BookingPage({
         {step === 'date-guests' && (
           <div className="tv-card p-4 sm:p-5">
             <BookingProgress step={step} flow={progressFlow} />
-            <h2 className="text-xl font-semibold text-ink mb-4">Trip</h2>
+            <h2 className="text-xl font-bold text-ink mb-1">Booking details</h2>
+            <p className="text-sm text-ink-muted mb-4">Confirm your date and participants.</p>
             <div className="space-y-4">
               <TourDatePicker
                 id="booking-flow-date-input"
@@ -1585,71 +1552,18 @@ export default function BookingPage({
         {step === 'contact' && (
           <div className="tv-card p-4 sm:p-6 lg:p-8 lg:ring-finland/15">
             <BookingProgress step={step} flow={progressFlow} />
-            <h2 className="text-2xl font-semibold tracking-tight text-ink mb-2">Your details</h2>
-            <p className="text-sm text-ink-muted mb-6 flex items-start gap-2">
-              <Shield className="w-4 h-4 text-finland shrink-0 mt-0.5" aria-hidden />
-              <span>{bookingContactIntroCopy(Boolean(user?.email))}</span>
+            <h2 className="text-xl font-bold text-ink mb-1">Contact information</h2>
+            <p className="text-sm text-ink-muted mb-5">
+              Confirm your details so we can send your booking information.
             </p>
             <div className="space-y-4">
-              <div className={`rounded-xl bg-finland/[0.05] p-3.5 text-sm text-ink-muted ring-1 ring-finland/15 ${presentation !== 'modal' ? 'lg:hidden' : ''}`}>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-finland mb-1.5">Your booking</p>
-                <p className="font-medium text-ink">{tour.title}</p>
-                <dl className="mt-2 space-y-1 text-xs">
-                  <div className="flex justify-between gap-3">
-                    <dt className="text-ink-faint">Date</dt>
-                    <dd className="font-medium text-ink text-right">{dateDisplay || date || '—'}</dd>
-                  </div>
-                  {departureLabel ? (
-                    <div className="flex justify-between gap-3">
-                      <dt className="text-ink-faint">Departure</dt>
-                      <dd className="font-medium text-ink text-right tabular-nums">{departureLabel}</dd>
-                    </div>
-                  ) : null}
-                  {selectedVariant ? (
-                    <div className="flex justify-between gap-3">
-                      <dt className="text-ink-faint">Option</dt>
-                      <dd className="font-medium text-ink text-right">
-                        {selectedVariant.label}
-                        {selectedVariant.listingOption?.isPrivate ? (
-                          <span className="mt-0.5 block text-[11px] font-semibold text-ink">
-                            Private · your group only
-                          </span>
-                        ) : null}
-                      </dd>
-                    </div>
-                  ) : null}
-                  <div className="flex justify-between gap-3">
-                    <dt className="text-ink-faint">Participants</dt>
-                    <dd className="font-medium text-ink text-right">{participantsSummary}</dd>
-                  </div>
-                  {selectedVariant?.listingOption?.pickupPlace?.trim() ? (
-                    <div className="flex justify-between gap-3">
-                      <dt className="text-ink-faint">Pickup / meeting</dt>
-                      <dd className="font-medium text-ink text-right max-w-[60%] line-clamp-2">
-                        {selectedVariant.listingOption.pickupPlace.trim()}
-                      </dd>
-                    </div>
-                  ) : tour.meetingPoint?.trim() ? (
-                    <div className="flex justify-between gap-3">
-                      <dt className="text-ink-faint">Meeting</dt>
-                      <dd className="font-medium text-ink text-right max-w-[60%] line-clamp-2">
-                        {tour.meetingPoint.trim()}
-                      </dd>
-                    </div>
-                  ) : null}
-                  <div className="flex justify-between gap-3 pt-1 border-t border-finland/15">
-                    <dt className="text-ink-faint">Total</dt>
-                    <dd className="font-semibold text-ink tabular-nums">{totalLabel}</dd>
-                  </div>
-                </dl>
-              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="booking-first-name" className="block text-sm font-medium text-ink mb-1">
+                  <label htmlFor="booking-first-name" className="block text-sm font-semibold text-ink mb-1.5">
                     First name
                   </label>
                   <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-faint pointer-events-none" />
+                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint pointer-events-none" />
                     <input
                       id="booking-first-name"
                       type="text"
@@ -1659,16 +1573,16 @@ export default function BookingPage({
                       autoComplete="given-name"
                       autoCapitalize="words"
                       enterKeyHint="next"
-                      className="tv-input pl-10"
+                      className="tv-checkout-input"
                     />
                   </div>
                 </div>
                 <div>
-                  <label htmlFor="booking-last-name" className="block text-sm font-medium text-ink mb-1">
+                  <label htmlFor="booking-last-name" className="block text-sm font-semibold text-ink mb-1.5">
                     Last name
                   </label>
                   <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-faint pointer-events-none" />
+                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint pointer-events-none" />
                     <input
                       id="booking-last-name"
                       type="text"
@@ -1678,58 +1592,36 @@ export default function BookingPage({
                       autoComplete="family-name"
                       autoCapitalize="words"
                       enterKeyHint="next"
-                      className="tv-input pl-10"
+                      className="tv-checkout-input"
                     />
                   </div>
                 </div>
               </div>
               <div>
-                <label htmlFor="booking-phone" className="block text-sm font-medium text-ink mb-1">
-                  Phone (optional)
+                <label htmlFor="booking-phone" className="block text-sm font-semibold text-ink mb-1.5">
+                  Phone number
                 </label>
                 <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-faint pointer-events-none" />
+                  <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint pointer-events-none" />
                   <input
                     id="booking-phone"
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+358 …"
+                    placeholder="+358 40 123 4567"
                     autoComplete="tel"
                     inputMode="tel"
                     enterKeyHint="next"
-                    className="tv-input pl-10"
+                    className="tv-checkout-input"
                   />
                 </div>
               </div>
               <div>
-                <label htmlFor="booking-place-of-stay" className="block text-sm font-medium text-ink mb-1">
-                  Place of stay (optional)
+                <label htmlFor="booking-email" className="block text-sm font-semibold text-ink mb-1.5">
+                  Email address
                 </label>
                 <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-faint pointer-events-none" />
-                  <input
-                    id="booking-place-of-stay"
-                    type="text"
-                    value={placeOfStay}
-                    onChange={(e) => setPlaceOfStay(e.target.value)}
-                    placeholder="Hotel name or address"
-                    autoComplete="street-address"
-                    className="tv-input pl-10"
-                  />
-                </div>
-                {tour.meetingPoint?.trim() ? (
-                  <p className="mt-1 text-xs text-ink-muted">
-                    Meeting point is still {tour.meetingPoint.trim()}. Add your stay location for easier coordination.
-                  </p>
-                ) : null}
-              </div>
-              <div>
-                <label htmlFor="booking-email" className="block text-sm font-medium text-ink mb-1">
-                  Email
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-faint pointer-events-none" />
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint pointer-events-none" />
                   <input
                     id="booking-email"
                     type="email"
@@ -1744,36 +1636,29 @@ export default function BookingPage({
                     enterKeyHint="next"
                     aria-readonly={Boolean(user?.email)}
                     aria-describedby="booking-email-hint"
-                    className={`tv-input pl-10 ${user?.email ? 'bg-black/[0.04] text-ink-muted cursor-not-allowed' : ''}`}
+                    className="tv-checkout-input"
                   />
                 </div>
                 {user?.email ? (
-                  <p id="booking-email-hint" className="mt-1 text-xs text-ink-muted">
-                    This must match your signed-in account.
+                  <p id="booking-email-hint" className="mt-1.5 text-xs text-ink-muted">
+                    Linked to your Traverion account.
                   </p>
-                ) : (
-                  <p id="booking-email-hint" className="mt-1 text-xs text-ink-muted">
-                    {BOOKING_CONTACT_EMAIL_FIELD_NOTE}
-                  </p>
-                )}
+                ) : null}
               </div>
               <div>
-                <label htmlFor="booking-special-requests" className="block text-sm font-medium text-ink mb-1">
-                  Special requests (optional)
+                <label htmlFor="booking-special-requests" className="block text-sm font-semibold text-ink mb-1.5">
+                  Special requests <span className="font-medium text-ink-muted">(optional)</span>
                 </label>
-                <div className="relative">
-                  <MessageSquare className="absolute left-3 top-3 w-5 h-5 text-ink-faint pointer-events-none" />
-                  <textarea
-                    id="booking-special-requests"
-                    value={specialRequests}
-                    onChange={(e) => setSpecialRequests(e.target.value.slice(0, 2000))}
-                    placeholder="Dietary needs, accessibility, questions for the provider…"
-                    rows={3}
-                    maxLength={2000}
-                    className="tv-input pl-10 min-h-[5.5rem] py-3 resize-none"
-                    aria-describedby="booking-special-requests-hint"
-                  />
-                </div>
+                <textarea
+                  id="booking-special-requests"
+                  value={specialRequests}
+                  onChange={(e) => setSpecialRequests(e.target.value.slice(0, 2000))}
+                  placeholder="Anything you'd like the operator to know?"
+                  rows={2}
+                  maxLength={2000}
+                  className="tv-checkout-input tv-checkout-input--plain min-h-[4.5rem] py-3 resize-y"
+                  aria-describedby="booking-special-requests-hint"
+                />
                 {/* Phase 1695: calm limit hint for optional special requests. */}
                 <p id="booking-special-requests-hint" className="mt-1.5 text-xs text-ink-faint">
                   Up to 2000 characters
@@ -1799,12 +1684,106 @@ export default function BookingPage({
               </button>
               <button
                 type="button"
-                onClick={handleContinueFromContact}
+                onClick={() => void handleContinueFromContact()}
                 className="tv-btn-primary w-full sm:w-auto"
               >
-                Continue to Pay
+                Continue to pickup details
               </button>
             </div>
+            ) : null}
+          </div>
+        )}
+
+        {step === 'pickup' && (
+          <div className="tv-card p-4 sm:p-6 lg:p-8">
+            <BookingProgress step={step} flow={progressFlow} />
+            {pickupMode === 'pickup' ? (
+              <>
+                <h2 className="text-xl font-bold text-ink mb-1">Choose your pickup location</h2>
+                <p className="text-sm text-ink-muted mb-5">
+                  Enter the hotel or address where you'd like to be picked up.
+                </p>
+                <label htmlFor="booking-pickup-location" className="block text-sm font-semibold text-ink mb-1.5">
+                  Pickup location
+                </label>
+                <div className="relative">
+                  <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint pointer-events-none" />
+                  <input
+                    id="booking-pickup-location"
+                    type="text"
+                    value={placeOfStay}
+                    onChange={(e) => setPlaceOfStay(e.target.value)}
+                    placeholder="Hotel or address"
+                    autoComplete="street-address"
+                    className="tv-checkout-input"
+                  />
+                </div>
+                <p className="mt-2 text-xs text-ink-muted">
+                  This location is sent to the operator with your booking.
+                </p>
+              </>
+            ) : pickupMode === 'meet' ? (
+              <>
+                <h2 className="text-xl font-bold text-ink mb-1">Your meeting point</h2>
+                <p className="text-sm text-ink-muted mb-5">
+                  Please arrive at the meeting point before your scheduled departure.
+                </p>
+                <div className="rounded-2xl border border-black/10 bg-white p-4">
+                  <div className="flex items-start gap-3">
+                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-finland" aria-hidden />
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-ink break-words">
+                        {meetingAddress || 'Meeting point'}
+                      </p>
+                      {meetingInstructions ? (
+                        <p className="mt-2 text-sm leading-relaxed text-ink-muted whitespace-pre-wrap">
+                          {meetingInstructions}
+                        </p>
+                      ) : (
+                        <p className="mt-2 text-sm text-ink-muted">
+                          {meetingAddress
+                            ? 'The operator has not added extra arrival instructions for this option.'
+                            : 'The operator has not added a meeting address for this option.'}
+                        </p>
+                      )}
+                      {meetingAddress ? (
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(meetingAddress)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-3 inline-flex text-sm font-semibold text-finland hover:underline"
+                        >
+                          Directions
+                        </a>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 className="text-xl font-bold text-ink mb-1">Pickup and meeting point</h2>
+                <p className="text-sm text-ink-muted">
+                  This option does not include a pickup or a meeting point. You can continue to payment.
+                </p>
+              </>
+            )}
+            {error ? (
+              <div className="mt-3">
+                <NoticeCallout title="Could not continue" tone="danger">
+                  {error}
+                </NoticeCallout>
+              </div>
+            ) : null}
+            {presentation !== 'modal' ? (
+              <div className="mt-6 hidden flex-col-reverse gap-3 sm:flex-row sm:justify-end lg:flex">
+                <button type="button" onClick={() => setStep('contact')} className="tv-btn-ghost w-full sm:w-auto">
+                  Back
+                </button>
+                <button type="button" onClick={handleContinueFromPickup} className="tv-btn-primary w-full sm:w-auto">
+                  Continue to payment
+                </button>
+              </div>
             ) : null}
           </div>
         )}
@@ -1812,14 +1791,11 @@ export default function BookingPage({
         {step === 'confirm' && (
           <div className="tv-card p-4 sm:p-5">
             <BookingProgress step={step} flow={progressFlow} />
-            <h2 className="font-display text-xl text-ink mb-1.5">Pay</h2>
-            <p className="text-sm text-ink-muted mb-6 flex items-start gap-2 rounded-xl bg-finland/5 ring-1 ring-finland/15 px-3 py-2.5">
-              <ClipboardList className="w-4 h-4 text-finland shrink-0 mt-0.5" aria-hidden />
-              <span>
-                {isSupabaseConfigured()
-                  ? `Confirm the details below, then pay ${totalLabel} via ${STRIPE_TEST_UNTIL_LIVE}. Your spots are held for ${CHECKOUT_HOLD_MINUTES} minutes while you check out.`
-                  : 'Live card checkout is not configured in this environment. We will not pretend a payment succeeded.'}
-              </span>
+            <h2 className="text-xl font-bold text-ink mb-1">Secure payment</h2>
+            <p className="text-sm text-ink-muted mb-5">
+              {isSupabaseConfigured()
+                ? `Pay ${totalLabel}. Your spots are held for ${CHECKOUT_HOLD_MINUTES} minutes while you check out.`
+                : 'Card checkout is not configured in this environment.'}
             </p>
 
             <section className="mb-6">
@@ -1894,9 +1870,9 @@ export default function BookingPage({
                     <dd className="break-all font-medium text-ink text-right [overflow-wrap:anywhere]">{phone.trim()}</dd>
                   </div>
                 ) : null}
-                {placeOfStay.trim() ? (
+                {pickupMode === 'pickup' && placeOfStay.trim() ? (
                   <div className="flex justify-between gap-4">
-                    <dt className="text-ink-muted">Place of stay</dt>
+                    <dt className="text-ink-muted">Pickup</dt>
                     <dd className="break-words font-medium text-ink text-right [overflow-wrap:anywhere]">{placeOfStay.trim()}</dd>
                   </div>
                 ) : null}
@@ -1907,7 +1883,6 @@ export default function BookingPage({
                   </div>
                 ) : null}
               </dl>
-              {/* Phase 1593: Trips email honesty lives in After you pay (bookingPayConfirmAfterPayCopy) — do not repeat field note here. */}
             </section>
 
             <section className="mb-6 border-t border-black/[0.06] pt-5">
@@ -1919,8 +1894,8 @@ export default function BookingPage({
                   total={quoted.totalAmount}
                   originalTotal={quoted.originalUnitPrice * quoted.guests}
                   discountLabel={quoted.discountLabel}
-                  holdNote={`Spots are held for ${CHECKOUT_HOLD_MINUTES} minutes after you continue to Stripe. If checkout expires, the hold is released.`}
-                  footnote={`This is the amount charged via ${STRIPE_TEST_UNTIL_LIVE}. Currency matches the listing.`}
+                  holdNote={`Spots are held for ${CHECKOUT_HOLD_MINUTES} minutes while you pay. If checkout expires, the hold is released.`}
+                  footnote="This is the amount you pay."
                 />
               ) : (
                 <>
@@ -1938,16 +1913,12 @@ export default function BookingPage({
               )}
             </section>
 
-            <div className="mb-6 rounded-xl bg-paper px-4 py-3 ring-1 ring-black/[0.05]">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint mb-1.5">Cancellation</p>
-              <p className="text-sm text-ink-muted leading-relaxed">{cancellationText}</p>
-            </div>
-
             <div className="mb-6">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint mb-1.5">After you pay</p>
-              <p className="text-sm text-ink-muted leading-relaxed">
-                {bookingPayConfirmAfterPayCopy(CHECKOUT_HOLD_MINUTES)}
-              </p>
+              <p className="text-sm font-semibold text-ink">{cancellationShort}</p>
+              <details className="mt-1">
+                <summary className="cursor-pointer text-sm font-semibold text-finland">Full cancellation terms</summary>
+                <p className="mt-2 text-sm leading-relaxed text-ink-muted">{cancellationText}</p>
+              </details>
             </div>
 
             <div className="mb-6">
@@ -1995,7 +1966,7 @@ export default function BookingPage({
               <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                 <button
                   type="button"
-                  onClick={() => setStep('contact')}
+                  onClick={() => setStep('pickup')}
                   className="tv-btn-ghost w-full sm:w-auto"
                 >
                   Back
@@ -2010,7 +1981,7 @@ export default function BookingPage({
                   className="tv-btn-primary w-full sm:w-auto whitespace-normal text-center disabled:opacity-50"
                 >
                   {submitting
-                    ? 'Redirecting to Stripe…'
+                    ? 'Processing…'
                     : capacityUnknown
                       ? 'Capacity unavailable'
                     : capacitySoldOut
@@ -2020,7 +1991,7 @@ export default function BookingPage({
                     : checkoutPayBlockedByConsent(checkoutConsentAccepted)
                       ? 'Accept terms to pay'
                     : isSupabaseConfigured()
-                      ? `Pay with ${STRIPE_TEST_UNTIL_LIVE} · ${totalLabel}`
+                      ? `Pay ${totalLabel}`
                       : 'Continue to payment'}
                 </button>
               </div>
@@ -2036,12 +2007,12 @@ export default function BookingPage({
       {step === 'review' ? (
         <button
           type="button"
-          onClick={handleContinueFromReview}
+          onClick={() => void handleCheckAvailability()}
           // Phase 1631: do not invite checkout when the quote already failed (handler also blocks).
-          disabled={quoteFailed}
+          disabled={quoteFailed || availabilityChecking}
           className="tv-btn-primary w-full disabled:opacity-60"
         >
-          {quoteFailed ? 'Price unavailable' : 'Go to checkout'}
+          {quoteFailed ? 'Price unavailable' : availabilityChecking ? 'Checking…' : 'Continue to contact info'}
         </button>
       ) : null}
       {step === 'date-guests' ? (
@@ -2078,8 +2049,18 @@ export default function BookingPage({
           <button type="button" onClick={() => setStep(contactBackStep)} className="tv-btn-ghost w-full">
             Back
           </button>
-          <button type="button" onClick={handleContinueFromContact} className="tv-btn-primary w-full">
-            Continue to Pay
+          <button type="button" onClick={() => void handleContinueFromContact()} className="tv-btn-primary w-full">
+            Continue to pickup details
+          </button>
+        </div>
+      ) : null}
+      {step === 'pickup' ? (
+        <div className="flex flex-col-reverse gap-2">
+          <button type="button" onClick={() => setStep('contact')} className="tv-btn-ghost w-full">
+            Back
+          </button>
+          <button type="button" onClick={handleContinueFromPickup} className="tv-btn-primary w-full">
+            Continue to payment
           </button>
         </div>
       ) : null}
@@ -2092,7 +2073,7 @@ export default function BookingPage({
           >
             Edit trip details
           </button>
-          <button type="button" onClick={() => setStep('contact')} className="tv-btn-ghost w-full">
+          <button type="button" onClick={() => setStep('pickup')} className="tv-btn-ghost w-full">
             Back
           </button>
           <button
@@ -2105,7 +2086,7 @@ export default function BookingPage({
             className="tv-btn-primary min-w-0 w-full max-w-full text-center text-sm leading-snug line-clamp-3 disabled:opacity-50"
           >
             {submitting
-              ? 'Redirecting to Stripe…'
+              ? 'Processing…'
               : capacityUnknown
                 ? 'Capacity unavailable'
               : capacitySoldOut
@@ -2115,7 +2096,7 @@ export default function BookingPage({
               : checkoutPayBlockedByConsent(checkoutConsentAccepted)
                 ? 'Accept terms to pay'
               : isSupabaseConfigured()
-                ? `Pay with ${STRIPE_TEST_UNTIL_LIVE} · ${totalLabel}`
+                ? `Pay ${totalLabel}`
                 : 'Continue to payment'}
           </button>
         </div>
@@ -2164,7 +2145,7 @@ export default function BookingPage({
               <img src={tour.image} alt={tour.title} className="h-full w-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/15 to-transparent" />
               <div className="absolute bottom-2 left-3 right-3 text-white">
-                <p className="line-clamp-2 font-display text-base font-semibold leading-tight tracking-tight sm:text-lg">{tour.title}</p>
+                <p className="line-clamp-2 font-sans text-base font-bold leading-tight tracking-tight sm:text-lg">{tour.title}</p>
                 <p className="text-[11px] text-white/90">
                   {/* Phase 1558: never invent catalog From when quoteBooking failed (1545/1557). */}
                   {formatTourDurationDisplay(tour.duration)}
@@ -2220,34 +2201,70 @@ export default function BookingPage({
 
             <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_22.5rem] lg:items-start lg:gap-10">
               <div className="min-w-0">
-                <div className="mb-5 overflow-hidden rounded-xl ring-1 ring-black/[0.08] lg:hidden">
-                  <div className="relative h-36 bg-black/10 sm:h-44">
+                <div className="mb-4 overflow-hidden rounded-xl border border-black/10 bg-white lg:hidden">
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-3 p-3 text-left"
+                    aria-expanded={summaryOpen}
+                    onClick={() => setSummaryOpen((open) => !open)}
+                  >
                     {/* Phase 1632: checkout hero images describe the listing for assistive tech. */}
-                    <img src={tour.image} alt={tour.title} className="h-full w-full object-cover" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/20 to-transparent" />
-                    <div className="absolute bottom-3 left-3 right-3 text-white">
-                      <h1 className="font-display text-xl tracking-tight sm:text-2xl">{tour.title}</h1>
-                      <p className="mt-1 text-sm text-white/90">
-                        {formatTourDurationDisplay(tour.duration)}
-                        {quoteFailed
-                          ? ' · Price unavailable'
-                          : ` · From ${formatMoney(pricePerPerson, currency)} ${priceFromQualifier}`}
-                      </p>
-                    </div>
-                  </div>
+                    <img src={tour.image} alt={tour.title} className="h-14 w-14 shrink-0 rounded-lg object-cover" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-bold text-ink">{tour.title}</span>
+                      <span className="mt-0.5 block truncate text-xs text-ink-muted">
+                        {dateDisplay || 'Date'} · {participantsSummary}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-right">
+                      <span className="block text-sm font-bold tabular-nums text-ink">{totalLabel}</span>
+                      <ChevronDown className={`ml-auto h-4 w-4 text-ink-muted transition-transform ${summaryOpen ? 'rotate-180' : ''}`} aria-hidden />
+                    </span>
+                  </button>
+                  {summaryOpen ? (
+                    <dl className="space-y-2 border-t border-black/[0.06] px-3 py-3 text-sm">
+                      {selectedVariant ? (
+                        <div className="flex justify-between gap-3">
+                          <dt className="text-ink-muted">Option</dt>
+                          <dd className="max-w-[65%] text-right font-medium text-ink line-clamp-2">{selectedVariant.label}</dd>
+                        </div>
+                      ) : null}
+                      {departureLabel ? (
+                        <div className="flex justify-between gap-3">
+                          <dt className="text-ink-muted">Departure</dt>
+                          <dd className="text-right font-medium text-ink">{departureLabel}</dd>
+                        </div>
+                      ) : null}
+                      {pickupMode === 'pickup' && placeOfStay.trim() ? (
+                        <div className="flex justify-between gap-3">
+                          <dt className="text-ink-muted">Pickup</dt>
+                          <dd className="max-w-[65%] text-right font-medium text-ink">{placeOfStay.trim()}</dd>
+                        </div>
+                      ) : null}
+                      {pickupMode === 'meet' && meetingAddress ? (
+                        <div className="flex justify-between gap-3">
+                          <dt className="text-ink-muted">Meeting point</dt>
+                          <dd className="max-w-[65%] text-right font-medium text-ink">{meetingAddress}</dd>
+                        </div>
+                      ) : null}
+                      <div className="flex justify-between gap-3">
+                        <dt className="text-ink-muted">Cancellation</dt>
+                        <dd className="max-w-[65%] text-right font-medium text-ink">{cancellationShort}</dd>
+                      </div>
+                    </dl>
+                  ) : null}
                 </div>
                 {flowInner}
               </div>
 
               <aside className="mt-6 hidden lg:sticky lg:top-4 lg:mt-0 lg:block">
                 <div className="overflow-hidden rounded-xl bg-white ring-1 ring-finland/20">
-                  <div className="relative h-40 bg-black/10">
+                  <div className="relative h-28 bg-black/10">
                     <img src={tour.image} alt={tour.title} className="h-full w-full object-cover" />
                   </div>
                   <div className="space-y-4 p-5">
                     <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-finland">Your trip</p>
-                      <h2 className="mt-1 font-display text-xl leading-snug text-ink">{tour.title}</h2>
+                      <h2 className="font-sans text-base font-bold leading-snug text-ink line-clamp-3">{tour.title}</h2>
                     </div>
                     <dl className="space-y-2.5 border-t border-black/[0.06] pt-4 text-sm">
                       <div className="flex justify-between gap-3">
@@ -2263,13 +2280,25 @@ export default function BookingPage({
                       {selectedVariant ? (
                         <div className="flex justify-between gap-3">
                           <dt className="text-ink-muted">Option</dt>
-                          <dd className="max-w-[65%] text-right font-medium text-ink">{selectedVariant.label}</dd>
+                          <dd className="max-w-[65%] text-right font-medium text-ink line-clamp-2">{selectedVariant.label}</dd>
                         </div>
                       ) : null}
                       <div className="flex justify-between gap-3">
                         <dt className="text-ink-muted">Participants</dt>
                         <dd className="max-w-[65%] text-right font-medium text-ink">{participantsSummary}</dd>
                       </div>
+                      {pickupMode === 'pickup' && placeOfStay.trim() ? (
+                        <div className="flex justify-between gap-3">
+                          <dt className="text-ink-muted">Pickup</dt>
+                          <dd className="max-w-[65%] text-right font-medium text-ink">{placeOfStay.trim()}</dd>
+                        </div>
+                      ) : null}
+                      {pickupMode === 'meet' && meetingAddress ? (
+                        <div className="flex justify-between gap-3">
+                          <dt className="text-ink-muted">Meeting point</dt>
+                          <dd className="max-w-[65%] text-right font-medium text-ink">{meetingAddress}</dd>
+                        </div>
+                      ) : null}
                     </dl>
                     <div className="border-t border-black/[0.08] pt-4">
                       {quotedSavings != null && quotedOriginalTotal != null ? (
@@ -2287,9 +2316,15 @@ export default function BookingPage({
                         <p className="mb-2 text-sm font-semibold text-emerald-800">{quoted.discountLabel}</p>
                       ) : null}
                       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">Total</p>
-                      <p className="mt-1 text-[1.75rem] font-semibold leading-none tabular-nums text-ink">{totalLabel}</p>
+                      <p className="mt-1 text-[1.65rem] font-bold leading-none tabular-nums text-ink">{totalLabel}</p>
                     </div>
-                    <p className="text-xs leading-relaxed text-ink-muted">{cancellationText}</p>
+                    <div>
+                      <p className="text-sm font-semibold text-ink">{cancellationShort}</p>
+                      <details className="mt-1">
+                        <summary className="cursor-pointer text-xs font-semibold text-finland">Full cancellation terms</summary>
+                        <p className="mt-2 text-xs leading-relaxed text-ink-muted">{cancellationText}</p>
+                      </details>
+                    </div>
                   </div>
                 </div>
               </aside>

@@ -58,6 +58,7 @@ import {
   clearEmailVerifyNotice,
   emailConfirmHashNotice,
   isTravelerEmailConfirmLanding,
+  immediateEmailVerifyNotice,
   peekEmailVerifyNotice,
   rememberEmailVerifyNotice,
   type EmailVerifyNotice,
@@ -154,7 +155,6 @@ function readInitialRoute(): { page: string; destinationSlug: string | null } {
 function App() {
   const initialRoute = readInitialRoute();
   const [currentPage, setCurrentPage] = useState(initialRoute.page);
-  const [emailVerifyNotice, setEmailVerifyNotice] = useState<EmailVerifyNotice | null>(null);
   const [tourCheckoutOpen, setTourCheckoutOpen] = useState(false);
   const [destinationSlug, setDestinationSlug] = useState<string | null>(initialRoute.destinationSlug);
   const [selectedTour, setSelectedTour] = useState<TourPackageType | null>(null);
@@ -167,6 +167,9 @@ function App() {
     supplierPath === '/supplier-log-in' ||
     supplierPath === '/supplier' ||
     supplierPath.startsWith('/supplier/');
+  const [emailVerifyNotice, setEmailVerifyNotice] = useState<EmailVerifyNotice | null>(() =>
+    isSupplierArea || isTraverionAdminHost() ? null : immediateEmailVerifyNotice(),
+  );
   // Sync internal route from the URL (initial load + browser back/forward)
   const syncRouteFromUrl = useCallback(() => {
     if (isSupplierArea) return;
@@ -291,9 +294,15 @@ function App() {
       return;
     }
 
+    // Modal is already on screen. Keep the auth hash until the session is read, then drop the verify URL.
     void (async () => {
       const notice = await settleTravelerEmailConfirm();
       if (cancelled) return;
+      if (notice === 'success') {
+        rememberEmailVerifyNotice('success');
+        window.history.replaceState({}, '', '/');
+        return;
+      }
       show(notice);
     })();
 

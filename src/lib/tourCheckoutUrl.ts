@@ -14,7 +14,7 @@ export const TOUR_CHECKOUT_STEP = 'step';
 export const TOUR_CHECKOUT_PAYMENT = 'payment';
 export const TOUR_CHECKOUT_TIME = 'time';
 
-export type TourCheckoutFlowStep = 'review' | 'contact' | 'confirm';
+export type TourCheckoutFlowStep = 'review' | 'contact' | 'pickup' | 'confirm';
 
 export type TourCheckoutState = {
   date: string;
@@ -43,7 +43,7 @@ const CHECKOUT_ONLY_KEYS = [
 const TIME_HM = /^\d{1,2}:\d{2}$/;
 
 export function isTourCheckoutFlowStep(raw: string | null | undefined): raw is TourCheckoutFlowStep {
-  return raw === 'review' || raw === 'contact' || raw === 'confirm';
+  return raw === 'review' || raw === 'contact' || raw === 'pickup' || raw === 'confirm';
 }
 
 export function sanitizeTourCheckoutFlowStep(
@@ -51,7 +51,7 @@ export function sanitizeTourCheckoutFlowStep(
   hasSessionUser: boolean
 ): TourCheckoutFlowStep {
   if (!isTourCheckoutFlowStep(step)) return 'review';
-  if (step === 'confirm' && !hasSessionUser) return 'contact';
+  if ((step === 'confirm' || step === 'pickup') && !hasSessionUser) return 'contact';
   return step;
 }
 

@@ -34,6 +34,22 @@ export function isTravelerEmailConfirmLanding(loc?: LocationLike): boolean {
   return type === 'signup' || type === 'email' || type === 'email_change';
 }
 
+/**
+ * Notice to paint on the first frame of a confirmation link, before profile checks finish.
+ * A successful link shows "Email verified" immediately. A bad hash shows the error instead.
+ */
+export function immediateEmailVerifyNotice(loc?: LocationLike): EmailVerifyNotice | null {
+  const location = locationOf(loc);
+  if (!location) return null;
+  const path = location.pathname.replace(/\/$/, '') || '/';
+  const hashNotice = emailConfirmHashNotice(location.hash);
+  const landing = isTravelerEmailConfirmLanding(location);
+  if (hashNotice && landing) return hashNotice;
+  if (landing) return 'success';
+  if (path === '/') return peekEmailVerifyNotice();
+  return null;
+}
+
 export function emailConfirmHashNotice(hashRaw: string): EmailVerifyNotice | null {
   const hash = new URLSearchParams(hashRaw.replace(/^#/, ''));
   if (!hash.get('error')) return null;

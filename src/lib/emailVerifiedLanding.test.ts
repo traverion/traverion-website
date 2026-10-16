@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { emailConfirmHashNotice, isTravelerEmailConfirmLanding } from './emailVerifiedLanding';
+import { emailConfirmHashNotice, immediateEmailVerifyNotice, isTravelerEmailConfirmLanding } from './emailVerifiedLanding';
 
 describe('email confirmation landing', () => {
   it('treats the homepage flag and legacy confirm path as a landing', () => {
@@ -17,6 +17,21 @@ describe('email confirmation landing', () => {
       false,
     );
     expect(isTravelerEmailConfirmLanding({ pathname: '/packages', search: '', hash: '' })).toBe(false);
+  });
+
+  it('shows the success modal on the first frame of a confirmation link', () => {
+    expect(immediateEmailVerifyNotice({ pathname: '/', search: '?verified=1', hash: '' })).toBe('success');
+    expect(
+      immediateEmailVerifyNotice({ pathname: '/email-confirmed', search: '', hash: '#access_token=abc&type=signup' }),
+    ).toBe('success');
+    expect(
+      immediateEmailVerifyNotice({
+        pathname: '/',
+        search: '?verified=1',
+        hash: '#error=access_denied&error_code=otp_expired&type=signup',
+      }),
+    ).toBe('expired');
+    expect(immediateEmailVerifyNotice({ pathname: '/packages', search: '', hash: '' })).toBe(null);
   });
 
   it('classifies an expired confirmation hash without sending it to login', () => {

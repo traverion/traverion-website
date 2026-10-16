@@ -1,5 +1,4 @@
 import { useRef, useState } from 'react';
-import { CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { customerSignInPartnerOnlyMessage } from '../lib/customerSupplierAuthMessages';
 import {
@@ -69,21 +68,17 @@ export default function EmailVerifiedModal({ notice, onClose }: Props) {
   return (
     <div
       ref={dialogRef}
-      className="fixed inset-0 z-[30000] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-[2px]"
+      className="tv-verify-overlay fixed inset-0 z-[30000] flex items-end sm:items-center justify-center p-0 sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="email-verified-title"
       onClick={dismiss}
     >
       <div
-        className="bg-paper-raised text-ink rounded-t-2xl sm:rounded-2xl shadow-soft-xl ring-1 ring-black/[0.06] w-full max-w-md p-6"
+        className="tv-verify-card bg-paper-raised text-ink rounded-t-2xl sm:rounded-2xl shadow-soft-xl ring-1 ring-black/[0.06] w-full max-w-md p-6"
         onClick={(e) => e.stopPropagation()}
       >
-        {notice === 'success' ? (
-          <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
-            <CheckCircle2 className="w-7 h-7 text-emerald-600" aria-hidden />
-          </div>
-        ) : null}
+        {notice === 'success' ? <VerifiedCheck /> : null}
         <h2 id="email-verified-title" className="font-display text-2xl text-ink tracking-tight">
           {title}
         </h2>
@@ -167,6 +162,17 @@ export default function EmailVerifiedModal({ notice, onClose }: Props) {
           ) : null}
         </div>
       </div>
+    </div>
+  );
+}
+
+function VerifiedCheck() {
+  return (
+    <div className="tv-verify-check mb-4" aria-hidden>
+      <svg viewBox="0 0 52 52">
+        <circle className="tv-verify-check__circle" cx="26" cy="26" r="23" />
+        <path className="tv-verify-check__tick" d="M15.5 27.2l6.4 6.4 14.6-16" />
+      </svg>
     </div>
   );
 }

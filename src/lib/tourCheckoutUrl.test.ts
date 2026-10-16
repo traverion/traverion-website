@@ -46,6 +46,12 @@ describe('tour checkout URL', () => {
     });
   });
 
+  it('round-trips the pickup step', () => {
+    const href = tourCheckoutPath(TOUR_ID, { ...baseState, step: 'pickup' });
+    expect(href).toContain('step=pickup');
+    expect(parseTourCheckoutSearch(href.slice(href.indexOf('?')))).toMatchObject({ step: 'pickup' });
+  });
+
   it('round-trips path, option, guests, mix, and step', () => {
     const href = tourCheckoutPath(TOUR_ID, {
       ...baseState,
