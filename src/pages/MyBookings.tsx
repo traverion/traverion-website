@@ -42,6 +42,7 @@ import BookingMessageThread from '../components/BookingMessageThread';
 import StatusChip, { toneForPaymentLabel, toneForTravelerTripCard } from '../components/StatusChip';
 import NoticeCallout from '../components/NoticeCallout';
 import { bookingIsStayNight, listingPickupCopyIncomplete, resolvePartnerPickupCopy } from '../lib/pickup-completeness';
+import { travelerPickupAddressFromRecord } from '../lib/pickup-area';
 import {
   displayListingTitleFromPurchase,
   displayOptionLabelFromPurchase,
@@ -924,8 +925,16 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               const tripPickupInstructions = tripPickup.pickupInstructions;
               const tripDuration = displayDurationFromPurchase(b.purchase_snapshot, null);
               const tripFulfillment = displayFulfillmentFromPurchase(b.purchase_snapshot);
+              const chosenPickup =
+                tripFulfillment === 'pickup'
+                  ? travelerPickupAddressFromRecord({
+                      snapshot: b.purchase_snapshot,
+                      specialRequests: b.special_requests,
+                    })
+                  : '';
               const tripPlaceHeading =
-                tripFulfillment === 'pickup' ? 'Pickup area' : 'Meeting point';
+                tripFulfillment === 'pickup' ? (chosenPickup ? 'Pickup location' : 'Pickup area') : 'Meeting point';
+              const tripPlaceValue = chosenPickup || tripMeeting;
               const tripCancelPolicy = displayCancellationPolicyFromPurchase(
                 b.purchase_snapshot,
                 TRAVERION_STANDARD_CANCELLATION_POLICY
@@ -1224,12 +1233,12 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         </dd>
                       </div>
                     ) : null}
-                    {!isStay && tripMeeting ? (
+                    {!isStay && tripPlaceValue ? (
                       <div className="sm:col-span-2">
                         <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
                           {tripPlaceHeading}
                         </dt>
-                        <dd className="mt-0.5 text-sm text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{tripMeeting}</dd>
+                        <dd className="mt-0.5 text-sm text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{tripPlaceValue}</dd>
                       </div>
                     ) : null}
                     {!isStay && tripPickupInstructions && !pickupMissing ? (

@@ -25,6 +25,13 @@ import {
   travelerOwnsCheckoutBooking,
 } from '../_shared/booking-traveler-ownership.ts';
 import { buildCheckoutClaimSpecialRequests } from '../_shared/booking-notes.ts';
+import {
+  notesWithoutPlaceOfStay,
+  notesWithVerifiedPickup,
+  parseTravelerPickupPoint,
+  pickupAreaFromOption,
+  travelerPickupAllowed,
+} from '../_shared/pickup-area.ts';
 
 type RequestBody = {
   bookingId?: string;
@@ -35,6 +42,7 @@ type RequestBody = {
   customerName?: string;
   customerPhone?: string;
   specialRequests?: string;
+  travelerPickup?: unknown;
   /** Ignored for pricing. Kept so old clients do not break; server recomputes. */
   totalAmount?: number;
   currency?: string;
@@ -436,6 +444,34 @@ serve(async (req) => {
       startTimeHm: startTime || null,
     });
 
+    const travelerPoint = parseTravelerPickupPoint(body.travelerPickup);
+    const pickupDecision =
+      extrasFamily === 'stay'
+        ? { ok: true as const, address: null as string | null }
+        : travelerPickupAllowed({
+            fulfillment: optionFields.fulfillment,
+            area: pickupAreaFromOption({
+              fulfillment: optionFields.fulfillment,
+              pickupPlace: optionFields.pickupPlace,
+              pickupCenterLat: optionFields.pickupCenterLat,
+              pickupCenterLng: optionFields.pickupCenterLng,
+              pickupRadiusKm: optionFields.pickupRadiusKm,
+              pickupPlaceId: optionFields.pickupPlaceId,
+            }),
+            point: travelerPoint,
+          });
+    if (!pickupDecision.ok) {
+      return json({ success: false, error: pickupDecision.error }, 400);
+    }
+    const notesForClaim =
+      extrasFamily === 'stay'
+        ? specialRequests
+        : optionFields.fulfillment === 'meeting_point'
+          ? notesWithoutPlaceOfStay(specialRequests)
+          : pickupDecision.address
+            ? notesWithVerifiedPickup(specialRequests, pickupDecision.address)
+            : specialRequests;
+
     // Phase 1325: do not freeze listing_stay_private onto pending holds.
     // promote-paid-from-checkout merges checkInAddress when payment is collected.
     const stayFields =
@@ -478,6 +514,10 @@ serve(async (req) => {
       checkIn: stayFields?.checkIn ?? null,
       checkOut: stayFields?.checkOut ?? null,
       nights: stayFields?.nights ?? null,
+      travelerPickupAddress: pickupDecision.address,
+      travelerPickupPlaceId: pickupDecision.address ? travelerPoint?.placeId ?? null : null,
+      travelerPickupLat: pickupDecision.address ? travelerPoint?.lat ?? null : null,
+      travelerPickupLng: pickupDecision.address ? travelerPoint?.lng ?? null : null,
       departureTimezone:
         typeof (listingRow.listing_extras as { departureTimezone?: unknown } | null)?.departureTimezone ===
         'string'
@@ -666,7 +706,7 @@ serve(async (req) => {
     // before claim; only server-derived optionId / checkoutDate may append those lines.
     const claimSpecialRequests = buildCheckoutClaimSpecialRequests({
       customerPhone,
-      specialRequests,
+      specialRequests: notesForClaim,
       optionId: quote.optionId,
       checkOutDate: checkoutDate || null,
     });
@@ -808,6 +848,13 @@ serve(async (req) => {
 
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
+      locale: 'en',
+      custom_text: {
+        submit: {
+          message:
+            'Traverion uses Stripe to process this payment. Your booking is confirmed only after payment succeeds.',
+        },
+      },
       customer_email: email,
       expires_at: holdExpiresAtUnix,
       success_url: `${publicSiteUrl}${successPath}${successPath.includes('?') ? '&' : '?'}session_id={CHECKOUT_SESSION_ID}`,

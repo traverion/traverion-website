@@ -33,6 +33,7 @@ import {
   type PurchaseSnapshot,
 } from '../lib/purchase-snapshot';
 import { confirmationArrival } from '../lib/confirmation-arrival';
+import { travelerPickupAddressFromRecord } from '../lib/pickup-area';
 import { travelerPublicBookingReference } from '../lib/public-booking-reference';
 import { formatBookingContactForDisplay } from '../lib/listing-booking-contact-phone';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
@@ -521,6 +522,10 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
         meetingPoint,
         specialRequests: booking.special_requests,
         pickupTime: booking.pickup_time ? pgTimeToHm(booking.pickup_time) : '',
+        travelerPickupAddress: travelerPickupAddressFromRecord({
+          snapshot: booking.purchase_snapshot,
+          specialRequests: booking.special_requests,
+        }),
       })
     : null;
   const cancellationPolicy = booking

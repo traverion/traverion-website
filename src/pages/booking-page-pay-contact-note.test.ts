@@ -14,7 +14,8 @@ describe('BookingPage checkout copy', () => {
   });
 
   it('pays the verified total without a test-mode label on the button', () => {
-    expect(src).toMatch(/`Pay \$\{totalLabel\}`/);
+    expect(src).toContain('Continue to secure payment');
+    expect(src).not.toMatch(/`Pay \$\{totalLabel\}`/);
     expect(src).not.toMatch(/then pay \$\{totalLabel\} via \$\{STRIPE_TEST_UNTIL_LIVE\}/);
     expect(src).not.toContain('STRIPE_TEST_UNTIL_LIVE');
   });

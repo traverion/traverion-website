@@ -41,6 +41,11 @@ export type PurchaseSnapshot = {
   excludes?: string[] | null;
   departureTimezone?: string | null;
   termsAcceptedAt?: string | null;
+  /** Traveler-selected pickup. Not the supplier pickup-area center. */
+  travelerPickupAddress?: string | null;
+  travelerPickupPlaceId?: string | null;
+  travelerPickupLat?: number | null;
+  travelerPickupLng?: number | null;
 };
 
 const ISO_CHECKOUT = /^\d{4}-\d{2}-\d{2}$/;
@@ -135,6 +140,10 @@ export function buildPurchaseSnapshot(input: {
   excludes?: string[] | null;
   departureTimezone?: string | null;
   termsAcceptedAt?: string | null;
+  travelerPickupAddress?: string | null;
+  travelerPickupPlaceId?: string | null;
+  travelerPickupLat?: number | null;
+  travelerPickupLng?: number | null;
   capturedAt?: string;
 }): PurchaseSnapshot {
   const title = input.listingTitle.trim() || 'Experience';
@@ -197,6 +206,16 @@ export function buildPurchaseSnapshot(input: {
   if (excludes) snap.excludes = excludes;
   if (departureTimezone) snap.departureTimezone = departureTimezone;
   if (termsAcceptedAt) snap.termsAcceptedAt = termsAcceptedAt;
+  const travelerPickupAddress = (input.travelerPickupAddress ?? '').trim() || null;
+  const travelerPickupPlaceId = (input.travelerPickupPlaceId ?? '').trim() || null;
+  if (travelerPickupAddress) snap.travelerPickupAddress = travelerPickupAddress;
+  if (travelerPickupPlaceId) snap.travelerPickupPlaceId = travelerPickupPlaceId;
+  if (typeof input.travelerPickupLat === 'number' && Number.isFinite(input.travelerPickupLat)) {
+    snap.travelerPickupLat = input.travelerPickupLat;
+  }
+  if (typeof input.travelerPickupLng === 'number' && Number.isFinite(input.travelerPickupLng)) {
+    snap.travelerPickupLng = input.travelerPickupLng;
+  }
   return snap;
 }
 
@@ -236,6 +255,10 @@ type RawOption = {
   duration?: unknown;
   fulfillment?: unknown;
   schedules?: unknown;
+  pickupCenterLat?: unknown;
+  pickupCenterLng?: unknown;
+  pickupRadiusKm?: unknown;
+  pickupPlaceId?: unknown;
 };
 
 type RawSchedule = {
@@ -269,6 +292,10 @@ export function resolveOptionFieldsForSnapshot(input: {
   duration: string | null;
   fulfillment: PurchaseFulfillment | null;
   scheduleId: string | null;
+  pickupCenterLat: number | null;
+  pickupCenterLng: number | null;
+  pickupRadiusKm: number | null;
+  pickupPlaceId: string | null;
 } {
   const empty = {
     pickupPlace: null as string | null,
@@ -277,6 +304,10 @@ export function resolveOptionFieldsForSnapshot(input: {
     duration: null as string | null,
     fulfillment: null as PurchaseFulfillment | null,
     scheduleId: null as string | null,
+    pickupCenterLat: null as number | null,
+    pickupCenterLng: null as number | null,
+    pickupRadiusKm: null as number | null,
+    pickupPlaceId: null as string | null,
   };
   const extras = input.listingExtras;
   if (!extras || typeof extras !== 'object') return empty;
@@ -339,6 +370,10 @@ export function resolveOptionFieldsForSnapshot(input: {
       }
     }
   }
+  const centerLat = typeof matched.pickupCenterLat === 'number' ? matched.pickupCenterLat : null;
+  const centerLng = typeof matched.pickupCenterLng === 'number' ? matched.pickupCenterLng : null;
+  const radiusKm = typeof matched.pickupRadiusKm === 'number' ? matched.pickupRadiusKm : null;
+  const centerPlaceId = typeof matched.pickupPlaceId === 'string' ? matched.pickupPlaceId.trim() : '';
   return {
     pickupPlace: place || null,
     optionInfo: info || null,
@@ -346,6 +381,10 @@ export function resolveOptionFieldsForSnapshot(input: {
     duration: duration || null,
     fulfillment,
     scheduleId,
+    pickupCenterLat: centerLat,
+    pickupCenterLng: centerLng,
+    pickupRadiusKm: radiusKm,
+    pickupPlaceId: centerPlaceId || null,
   };
 }
 

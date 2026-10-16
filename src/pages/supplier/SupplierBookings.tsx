@@ -76,6 +76,7 @@ import { formatPartnerCheckoutHoldLabel, partnerUnpaidCheckoutHoldsInventory } f
 import { formatStayNightHuman } from '../../lib/stay-calendar';
 import { formatBookingDateDisplay } from '../../lib/booking-flow';
 import { bookingIsStayNight, partnerBookingHasPickupAttention, resolvePartnerPickupCopy } from '../../lib/pickup-completeness';
+import { travelerPickupAddressFromRecord } from '../../lib/pickup-area';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 import { comparePartnerBookingsOperational } from '../../lib/partner-bookings-order';
 import { partnerBookingNumberMatchesFilterQuery } from '../../lib/partner-bookings-search';
@@ -1374,7 +1375,15 @@ export default function SupplierBookings({
               booking.purchase_snapshot,
               meta?.duration ?? null
             );
-            const placePrefix = fulfillment === 'pickup' ? 'Pickup' : 'Meet';
+            const chosenPickup =
+              fulfillment === 'pickup'
+                ? travelerPickupAddressFromRecord({
+                    snapshot: booking.purchase_snapshot,
+                    specialRequests: booking.special_requests,
+                  })
+                : '';
+            const placeShown = chosenPickup || meetingPoint;
+            const placePrefix = chosenPickup ? 'Pickup' : fulfillment === 'pickup' ? 'Pickup area' : 'Meet';
             const stayRange = isStay ? stayRangeFromBooking(booking) : null;
             const stayOut = stayRange?.checkOut ?? null;
             // Phase 1590: detail Nights field matches list meta 1584/1588 when paid+nightly (date range keeps occupancy).
@@ -1454,9 +1463,9 @@ export default function SupplierBookings({
                           {optionLabel}
                         </p>
                       ) : null}
-                      {meetingPoint && !isStay ? (
+                      {placeShown && !isStay ? (
                         <p className="mt-0.5 break-words text-xs text-ink-muted [overflow-wrap:anywhere] line-clamp-2">
-                          {placePrefix} · {meetingPoint}
+                          {placePrefix} · {placeShown}
                         </p>
                       ) : null}
                       {meta ? (

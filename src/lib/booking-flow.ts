@@ -11,6 +11,7 @@ import {
   resolveScheduleForDate,
 } from './listing-option-schedules';
 import { optionHeadlineUnitPrice } from './price-categories';
+import { parseTravelerPickupPoint, type TravelerPickupPoint } from './pickup-area';
 
 const DRAFT_KEY = (tourId: string) => `traverion_booking_draft_v1_${tourId}`;
 
@@ -36,6 +37,7 @@ export type BookingDraftV1 = {
   placeOfStay: string;
   specialRequests: string;
   savedAt: string;
+  travelerPickup?: TravelerPickupPoint | null;
 };
 
 export function parseGroupSizeRange(groupSize: string | undefined): { min: number; max: number } | null {
@@ -277,6 +279,7 @@ export function loadBookingDraft(tourId: string): BookingDraftV1 | null {
       email: typeof parsed.email === 'string' ? parsed.email : '',
       placeOfStay: typeof parsed.placeOfStay === 'string' ? parsed.placeOfStay : '',
       specialRequests: typeof parsed.specialRequests === 'string' ? parsed.specialRequests : '',
+      travelerPickup: parseTravelerPickupPoint(parsed.travelerPickup),
       savedAt: parsed.savedAt ?? new Date().toISOString(),
     };
   } catch {

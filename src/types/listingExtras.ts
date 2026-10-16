@@ -88,6 +88,20 @@ export interface ListingBookingOption {
   duration: string;
   /** Where guests meet or are picked up for this option (place only — not how-to copy). */
   pickupPlace: string;
+  /**
+   * Pickup-area center. Present only when the supplier saved a searched place.
+   * Never inferred from pickupPlace text.
+   */
+  pickupCenterLat?: number;
+  pickupCenterLng?: number;
+  /** Straight-line eligibility radius in kilometres. Not a driving distance. */
+  pickupRadiusKm?: number;
+  pickupPlaceId?: string;
+  pickupFormattedAddress?: string;
+  /** Meeting-point coordinates when the supplier saved a searched place. */
+  meetingLat?: number;
+  meetingLng?: number;
+  meetingPlaceId?: string;
   /** Optional: meet at a point vs pickup. Omitted on legacy options that only stored pickupPlace. */
   fulfillment?: ListingOptionFulfillment;
   minPersons: number;
@@ -484,6 +498,33 @@ export function normalizeListingBookingOption(raw: Record<string, unknown>, fall
   }
   if (raw.fulfillment === 'meeting_point' || raw.fulfillment === 'pickup') {
     out.fulfillment = raw.fulfillment;
+  }
+  {
+    const lat = typeof raw.pickupCenterLat === 'number' ? raw.pickupCenterLat : Number.NaN;
+    const lng = typeof raw.pickupCenterLng === 'number' ? raw.pickupCenterLng : Number.NaN;
+    const radius = typeof raw.pickupRadiusKm === 'number' ? raw.pickupRadiusKm : Number.NaN;
+    if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+      out.pickupCenterLat = lat;
+      out.pickupCenterLng = lng;
+    }
+    if (Number.isFinite(radius) && radius >= 1 && radius <= 150) {
+      out.pickupRadiusKm = Math.round(radius * 10) / 10;
+    }
+    if (typeof raw.pickupPlaceId === 'string' && raw.pickupPlaceId.trim()) {
+      out.pickupPlaceId = raw.pickupPlaceId.trim().slice(0, 256);
+    }
+    if (typeof raw.pickupFormattedAddress === 'string' && raw.pickupFormattedAddress.trim()) {
+      out.pickupFormattedAddress = raw.pickupFormattedAddress.trim().slice(0, 300);
+    }
+    const meetLat = typeof raw.meetingLat === 'number' ? raw.meetingLat : Number.NaN;
+    const meetLng = typeof raw.meetingLng === 'number' ? raw.meetingLng : Number.NaN;
+    if (meetLat >= -90 && meetLat <= 90 && meetLng >= -180 && meetLng <= 180) {
+      out.meetingLat = meetLat;
+      out.meetingLng = meetLng;
+    }
+    if (typeof raw.meetingPlaceId === 'string' && raw.meetingPlaceId.trim()) {
+      out.meetingPlaceId = raw.meetingPlaceId.trim().slice(0, 256);
+    }
   }
   if (pricingMode) out.pricingMode = pricingMode;
   if (priceCategories) out.priceCategories = priceCategories;

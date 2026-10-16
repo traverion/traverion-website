@@ -243,6 +243,13 @@ export async function createBookingCheckoutSession(params: {
   customerName?: string;
   customerPhone?: string;
   specialRequests?: string;
+  travelerPickup?: {
+    placeId: string;
+    name: string;
+    formattedAddress: string;
+    lat: number;
+    lng: number;
+  } | null;
   /** Display-only; Stripe amount is computed on the server from listing + discounts. */
   totalAmount?: number;
   currency?: string;
@@ -275,6 +282,7 @@ export async function createBookingCheckoutSession(params: {
       customerName: params.customerName,
       customerPhone: params.customerPhone,
       specialRequests: params.specialRequests,
+      travelerPickup: params.travelerPickup ?? undefined,
       currency: params.currency,
       bookingOptionId: params.bookingOptionId,
       startTime: params.startTime,

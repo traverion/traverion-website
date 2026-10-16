@@ -7,6 +7,6 @@ describe('Phase 1631: disable Go to checkout when quote failed', () => {
     const src = readFileSync(resolve(__dirname, 'BookingPage.tsx'), 'utf8');
     expect(src).toContain('Phase 1631');
     expect(src).toMatch(/disabled=\{quoteFailed \|\| availabilityChecking\}/);
-    expect(src).toMatch(/quoteFailed \? 'Price unavailable' : availabilityChecking \? 'Checking…' : 'Continue to contact info'/);
+    expect(src).toMatch(/quoteFailed \? 'Price unavailable' : availabilityChecking \? 'Checking…' : 'Continue to contact information'/);
   });
 });

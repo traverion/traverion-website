@@ -31,6 +31,7 @@ import {
 } from '../../lib/listing-option-schedules';
 import { localYmd } from '../../lib/local-ymd';
 import { SchedulePricingEditor } from './listing-creation/SchedulePricingEditor';
+import PickupAreaFields from './PickupAreaFields';
 
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -583,6 +584,7 @@ export default function BookingOptionEditor({
                   aria-invalid={placeInvalid || undefined}
                 />
               </div>
+              <PickupAreaFields option={option} onChange={onChange} />
               <div className="space-y-1.5">
                 <label
                   htmlFor="booking-option-start-instructions"

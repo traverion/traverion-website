@@ -49,6 +49,11 @@ export type PurchaseSnapshot = {
   departureTimezone?: string | null;
   /** ISO timestamp when traveler accepted checkout terms (server-stamped). */
   termsAcceptedAt?: string | null;
+  /** Traveler-selected pickup. Not the supplier pickup-area center. */
+  travelerPickupAddress?: string | null;
+  travelerPickupPlaceId?: string | null;
+  travelerPickupLat?: number | null;
+  travelerPickupLng?: number | null;
 };
 
 export function isPurchaseSnapshot(value: unknown): value is PurchaseSnapshot {
@@ -149,6 +154,10 @@ export function buildPurchaseSnapshot(input: {
   excludes?: string[] | null;
   departureTimezone?: string | null;
   termsAcceptedAt?: string | null;
+  travelerPickupAddress?: string | null;
+  travelerPickupPlaceId?: string | null;
+  travelerPickupLat?: number | null;
+  travelerPickupLng?: number | null;
   capturedAt?: string;
 }): PurchaseSnapshot {
   const title = input.listingTitle.trim() || 'Experience';
@@ -211,6 +220,16 @@ export function buildPurchaseSnapshot(input: {
   if (excludes) snap.excludes = excludes;
   if (departureTimezone) snap.departureTimezone = departureTimezone;
   if (termsAcceptedAt) snap.termsAcceptedAt = termsAcceptedAt;
+  const travelerPickupAddress = (input.travelerPickupAddress ?? '').trim() || null;
+  const travelerPickupPlaceId = (input.travelerPickupPlaceId ?? '').trim() || null;
+  if (travelerPickupAddress) snap.travelerPickupAddress = travelerPickupAddress;
+  if (travelerPickupPlaceId) snap.travelerPickupPlaceId = travelerPickupPlaceId;
+  if (typeof input.travelerPickupLat === 'number' && Number.isFinite(input.travelerPickupLat)) {
+    snap.travelerPickupLat = input.travelerPickupLat;
+  }
+  if (typeof input.travelerPickupLng === 'number' && Number.isFinite(input.travelerPickupLng)) {
+    snap.travelerPickupLng = input.travelerPickupLng;
+  }
   return snap;
 }
 

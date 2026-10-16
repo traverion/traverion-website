@@ -246,9 +246,11 @@ export function resolveBookingTiedContent(params: {
   );
   const snapPlace = snapshotString(snap, 'meetingPoint');
   const snapInstructions = snapshotString(snap, 'pickupInstructions');
+  const travelerPickup =
+    snapshotString(snap, 'fulfillment') === 'pickup' ? snapshotString(snap, 'travelerPickupAddress') : '';
   const meetingPoint = isStay
     ? undefined
-    : [notePlace || snapPlace, noteInstructions || snapInstructions].filter(Boolean).join(' — ') ||
+    : [travelerPickup || notePlace || snapPlace, noteInstructions || snapInstructions].filter(Boolean).join(' — ') ||
       undefined;
 
   const paymentCollected = paymentWasCollectedForContent(params.bookingRow.payment_status);

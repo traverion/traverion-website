@@ -29,7 +29,7 @@ import {
   type TravelerCheckoutAuthMetadata,
 } from '../lib/traveler-checkout-autofill';
 import { getDisplayPriceForBookingVariant } from '../lib/discount-display';
-import { quoteBooking, formatOptionWeekdays, tourQuotePriceLines, tourBookableSellingDeparturesOnDate, experienceTodayIsoForListing, listingHasUpcomingBookableSeason } from '../lib/booking-quote';
+import { quoteBooking, formatOptionWeekdays, tourBookableSellingDeparturesOnDate, experienceTodayIsoForListing, listingHasUpcomingBookableSeason } from '../lib/booking-quote';
 import {
   listingOptionHasSchedules,
   listingOptionReadySchedules,
@@ -40,7 +40,6 @@ import {
 } from '../lib/listing-option-schedules';
 import { normalizeBookingCutoffHours, resolveDepartureTimezone, isDepartureTimeStillBookable } from '../lib/tour-departure-cutoff';
 import { formatMoney, normalizeCurrency } from '../lib/money';
-import PriceBreakdown from '../components/PriceBreakdown';
 import { CHECKOUT_HOLD_MINUTES } from '../lib/booking-hold';
 import { isListingVisibleToTravelers } from '../lib/product-workflows';
 import {
@@ -85,6 +84,13 @@ import {
   tourCheckoutCancelPath,
   type TourCheckoutFlowStep,
 } from '../lib/tourCheckoutUrl';
+import PickupLocationSearch from '../components/checkout/PickupLocationSearch';
+import {
+  PICKUP_AREA_MISSING_MESSAGE,
+  pickupAreaFromOption,
+  travelerPickupAllowed,
+  type TravelerPickupPoint,
+} from '../lib/pickup-area';
 import {
   buildParticipantMixLines,
   formatMixSummaryCompact,
@@ -145,12 +151,14 @@ type Step = BookingFlowStep;
 function BookingProgress({
   step,
   flow,
+  pickupLabel = 'Pickup',
 }: {
   step: Step;
   flow: 'page' | 'modal' | 'variant';
+  pickupLabel?: string;
 }) {
   if (step === 'done') return null;
-  const labels = (['Details', 'Contact', 'Pickup', 'Pay'] as const);
+  const labels = ['Details', 'Contact', pickupLabel, 'Pay'];
   const order: Step[] =
     flow === 'page'
       ? ['date-guests', 'contact', 'pickup', 'confirm']
@@ -240,6 +248,7 @@ export default function BookingPage({
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState(user?.email ?? '');
   const [placeOfStay, setPlaceOfStay] = useState('');
+  const [selectedPickup, setSelectedPickup] = useState<TravelerPickupPoint | null>(null);
   const [specialRequests, setSpecialRequests] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [checkoutConsentAccepted, setCheckoutConsentAccepted] = useState(false);
@@ -352,6 +361,15 @@ export default function BookingPage({
     optionFulfillment === 'meeting_point'
       ? (selectedVariant?.listingOption?.travelerStartInstructions ?? '').trim()
       : (pickupPlace.instructions ?? '').trim();
+  const pickupArea = pickupAreaFromOption(selectedVariant?.listingOption ?? null);
+  const meetingMapsHref =
+    selectedVariant?.listingOption?.meetingLat != null && selectedVariant?.listingOption?.meetingLng != null
+      ? `https://www.google.com/maps/search/?api=1&query=${selectedVariant.listingOption.meetingLat},${selectedVariant.listingOption.meetingLng}`
+      : meetingAddress
+        ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(meetingAddress)}`
+        : '';
+  const step3Label = pickupMode === 'meet' ? 'Meeting point' : 'Pickup';
+  const contactContinueLabel = pickupMode === 'meet' ? 'Continue to meeting point' : 'Continue to pickup details';
 
   const weekdayHint = useMemo(() => {
     const opt = selectedVariant?.listingOption;
@@ -554,8 +572,9 @@ export default function BookingPage({
       email: email.trim(),
       placeOfStay: placeOfStay.trim(),
       specialRequests,
+      travelerPickup: selectedPickup,
     });
-  }, [presentation, tour.id, step, date, guests, leadGuestName, email, placeOfStay, specialRequests]);
+  }, [presentation, tour.id, step, date, guests, leadGuestName, email, placeOfStay, specialRequests, selectedPickup]);
 
   const checkoutScrollRef = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
@@ -660,6 +679,11 @@ export default function BookingPage({
         setLastName(parts.slice(1).join(' '));
         setEmail(draft.email || user?.email || '');
         setPlaceOfStay(draft.placeOfStay || '');
+        setSelectedPickup(
+          draft.travelerPickup && draft.travelerPickup.formattedAddress === (draft.placeOfStay || '').trim()
+            ? draft.travelerPickup
+            : null
+        );
         setSpecialRequests(draft.specialRequests);
       } else {
         setFirstName('');
@@ -667,6 +691,7 @@ export default function BookingPage({
         setPhone('');
         setEmail(user?.email ?? '');
         setPlaceOfStay('');
+        setSelectedPickup(null);
         setSpecialRequests('');
       }
       if (!fromDraft) setPhone('');
@@ -697,6 +722,11 @@ export default function BookingPage({
       setPhone('');
       setEmail(draft.email || user?.email || '');
       setPlaceOfStay(draft.placeOfStay || '');
+      setSelectedPickup(
+        draft.travelerPickup && draft.travelerPickup.formattedAddress === (draft.placeOfStay || '').trim()
+          ? draft.travelerPickup
+          : null
+      );
       setSpecialRequests(draft.specialRequests);
       setStep(sanitizeRestoredBookingStep(draft.step, Boolean(user), 'page'));
     } else {
@@ -705,6 +735,7 @@ export default function BookingPage({
       setPhone('');
       setEmail(user?.email ?? '');
       setPlaceOfStay('');
+      setSelectedPickup(null);
       setSpecialRequests('');
       setStep('date-guests');
     }
@@ -1090,9 +1121,16 @@ export default function BookingPage({
   };
 
   const handleContinueFromPickup = () => {
-    if (pickupMode === 'pickup' && placeOfStay.trim().length < 3) {
-      setError('Enter the hotel or address where you would like to be picked up.');
-      return;
+    if (pickupMode === 'pickup') {
+      const decision = travelerPickupAllowed({
+        fulfillment: 'pickup',
+        area: pickupArea,
+        point: selectedPickup,
+      });
+      if (!decision.ok) {
+        setError(decision.error);
+        return;
+      }
     }
     setError(null);
     setStep('confirm');
@@ -1252,6 +1290,19 @@ export default function BookingPage({
           quoted.guestBreakdown && quoted.guestBreakdown.length > 0
             ? `Participants: ${quoted.guestBreakdown.map((r) => formatParticipantQuantityLabel(r.quantity, r.label)).join(' · ')}`
             : '';
+        if (pickupMode === 'pickup') {
+          const decision = travelerPickupAllowed({
+            fulfillment: 'pickup',
+            area: pickupArea,
+            point: selectedPickup,
+          });
+          if (!decision.ok) {
+            setError(decision.error);
+            setSubmitting(false);
+            setStep('pickup');
+            return;
+          }
+        }
         const baseSpecial = mergedSpecialRequests();
         const specialWithMix = [baseSpecial, mixNote].filter(Boolean).join('\n');
         const checkout = await createBookingCheckoutSession({
@@ -1262,6 +1313,7 @@ export default function BookingPage({
           customerName: leadGuestName,
           customerPhone: phone.trim() || undefined,
           specialRequests: specialWithMix || undefined,
+          travelerPickup: pickupMode === 'pickup' ? selectedPickup : null,
           bookingOptionId: quoted.optionId ?? undefined,
           startTime: departureTime,
           guestBreakdown: quoted.guestBreakdown,
@@ -1340,7 +1392,7 @@ export default function BookingPage({
     <>
         {step === 'review' && selectedVariant && (
           <div className="tv-card p-4 sm:p-5">
-            <BookingProgress step={step} flow={progressFlow} />
+            <BookingProgress step={step} flow={progressFlow} pickupLabel={step3Label} />
             <h2 className="text-xl font-bold text-ink mb-1">Booking details</h2>
             <p className="text-sm text-ink-muted mb-5">Confirm your date and participants.</p>
             <p className="mb-5 text-sm font-semibold text-ink break-words">
@@ -1350,6 +1402,7 @@ export default function BookingPage({
             <div className="mb-5">
               <TourDatePicker
                 id="booking-review-date-input"
+                presentation="field"
                 value={date}
                 onChange={(next) => {
                   setDate(next);
@@ -1407,7 +1460,7 @@ export default function BookingPage({
                 className="tv-btn-primary w-full sm:w-auto disabled:opacity-50"
               >
                 {/* Phase 1631 */}
-                {quoteFailed ? 'Price unavailable' : availabilityChecking ? 'Checking…' : 'Continue to contact info'}
+                {quoteFailed ? 'Price unavailable' : availabilityChecking ? 'Checking…' : 'Continue to contact information'}
               </button>
             </div>
             ) : null}
@@ -1416,12 +1469,13 @@ export default function BookingPage({
 
         {step === 'date-guests' && (
           <div className="tv-card p-4 sm:p-5">
-            <BookingProgress step={step} flow={progressFlow} />
+            <BookingProgress step={step} flow={progressFlow} pickupLabel={step3Label} />
             <h2 className="text-xl font-bold text-ink mb-1">Booking details</h2>
             <p className="text-sm text-ink-muted mb-4">Confirm your date and participants.</p>
             <div className="space-y-4">
               <TourDatePicker
                 id="booking-flow-date-input"
+                presentation="field"
                 value={date}
                 onChange={setDate}
                 options={calendarOptions}
@@ -1551,7 +1605,7 @@ export default function BookingPage({
 
         {step === 'contact' && (
           <div className="tv-card p-4 sm:p-6 lg:p-8 lg:ring-finland/15">
-            <BookingProgress step={step} flow={progressFlow} />
+            <BookingProgress step={step} flow={progressFlow} pickupLabel={step3Label} />
             <h2 className="text-xl font-bold text-ink mb-1">Contact information</h2>
             <p className="text-sm text-ink-muted mb-5">
               Confirm your details so we can send your booking information.
@@ -1687,7 +1741,7 @@ export default function BookingPage({
                 onClick={() => void handleContinueFromContact()}
                 className="tv-btn-primary w-full sm:w-auto"
               >
-                Continue to pickup details
+                {contactContinueLabel}
               </button>
             </div>
             ) : null}
@@ -1696,31 +1750,33 @@ export default function BookingPage({
 
         {step === 'pickup' && (
           <div className="tv-card p-4 sm:p-6 lg:p-8">
-            <BookingProgress step={step} flow={progressFlow} />
+            <BookingProgress step={step} flow={progressFlow} pickupLabel={step3Label} />
             {pickupMode === 'pickup' ? (
               <>
                 <h2 className="text-xl font-bold text-ink mb-1">Choose your pickup location</h2>
                 <p className="text-sm text-ink-muted mb-5">
-                  Enter the hotel or address where you'd like to be picked up.
+                  Enter your hotel or address within the available pickup area.
                 </p>
-                <label htmlFor="booking-pickup-location" className="block text-sm font-semibold text-ink mb-1.5">
-                  Pickup location
-                </label>
-                <div className="relative">
-                  <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint pointer-events-none" />
-                  <input
-                    id="booking-pickup-location"
-                    type="text"
-                    value={placeOfStay}
-                    onChange={(e) => setPlaceOfStay(e.target.value)}
-                    placeholder="Hotel or address"
-                    autoComplete="street-address"
-                    className="tv-checkout-input"
-                  />
-                </div>
-                <p className="mt-2 text-xs text-ink-muted">
-                  This location is sent to the operator with your booking.
-                </p>
+                {pickupArea ? (
+                  <p className="mb-4 text-xs text-ink-muted">
+                    Pickup area: {pickupArea.label || 'operator center'} · {pickupArea.radiusKm} km radius
+                  </p>
+                ) : (
+                  <p className="mb-4 text-sm text-amber-800" role="status">
+                    {PICKUP_AREA_MISSING_MESSAGE}
+                  </p>
+                )}
+                <PickupLocationSearch
+                  id="booking-pickup-location"
+                  label="Pickup location"
+                  bias={pickupArea ? { lat: pickupArea.lat, lng: pickupArea.lng, radiusKm: pickupArea.radiusKm } : null}
+                  selected={selectedPickup}
+                  onSelect={(place) => {
+                    setSelectedPickup(place);
+                    setPlaceOfStay(place?.formattedAddress ?? '');
+                    setError(null);
+                  }}
+                />
               </>
             ) : pickupMode === 'meet' ? (
               <>
@@ -1746,14 +1802,14 @@ export default function BookingPage({
                             : 'The operator has not added a meeting address for this option.'}
                         </p>
                       )}
-                      {meetingAddress ? (
+                      {meetingMapsHref ? (
                         <a
-                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(meetingAddress)}`}
+                          href={meetingMapsHref}
                           target="_blank"
                           rel="noreferrer"
                           className="mt-3 inline-flex text-sm font-semibold text-finland hover:underline"
                         >
-                          Directions
+                          Open in Google Maps
                         </a>
                       ) : null}
                     </div>
@@ -1790,136 +1846,57 @@ export default function BookingPage({
 
         {step === 'confirm' && (
           <div className="tv-card p-4 sm:p-5">
-            <BookingProgress step={step} flow={progressFlow} />
-            <h2 className="text-xl font-bold text-ink mb-1">Secure payment</h2>
-            <p className="text-sm text-ink-muted mb-5">
-              {isSupabaseConfigured()
-                ? `Pay ${totalLabel}. Your spots are held for ${CHECKOUT_HOLD_MINUTES} minutes while you check out.`
-                : 'Card checkout is not configured in this environment.'}
-            </p>
+            <BookingProgress step={step} flow={progressFlow} pickupLabel={step3Label} />
+            <h2 className="text-xl font-bold text-ink mb-1">Review & payment</h2>
+            <p className="text-sm text-ink-muted mb-5">Review your details before completing your booking.</p>
 
-            <section className="mb-6">
-              <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint mb-3">Your booking</h3>
-              <dl className="space-y-2.5 text-sm">
-                <div className="flex justify-between gap-4">
-                  <dt className="text-ink-muted">Tour</dt>
-                  <dd className="font-medium text-ink text-right max-w-[65%]">{tour.title}</dd>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <dt className="text-ink-muted">Date</dt>
-                  <dd className="font-medium text-ink text-right">{dateDisplay || date}</dd>
-                </div>
-                {selectedVariant ? (
-                  <div className="flex justify-between gap-4">
-                    <dt className="text-ink-muted">Option</dt>
-                    <dd className="font-medium text-ink text-right">
-                      {selectedVariant.label}
-                      {selectedVariant.listingOption?.isPrivate ? (
-                        <span className="mt-0.5 block text-[11px] font-semibold text-ink">
-                          Private · your group only
-                        </span>
-                      ) : null}
-                    </dd>
-                  </div>
-                ) : null}
-                <div className="flex justify-between gap-4">
-                  <dt className="text-ink-muted">Participants</dt>
-                  <dd className="font-medium text-ink text-right">
-                    {quoted?.guestBreakdown?.length ? (
-                      <ul className="space-y-1">
-                        {quoted.guestBreakdown.map((r) => (
-                          <li key={r.categoryId}>
-                            {r.quantity} × {r.label}
-                            <span className="text-ink-muted font-normal">
-                              {' '}
-                              · {formatMoney(r.unitPrice, quoted.currency)} each
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      `${guests} ${guests === 1 ? 'guest' : 'guests'}`
-                    )}
-                  </dd>
-                </div>
-                {selectedVariant?.listingOption?.pickupPlace?.trim() || tour.meetingPoint?.trim() ? (
-                  <div className="flex justify-between gap-4">
-                    <dt className="text-ink-muted">Pickup / meeting</dt>
-                    <dd className="font-medium text-ink text-right max-w-[65%]">
-                      {selectedVariant?.listingOption?.pickupPlace?.trim() || tour.meetingPoint?.trim()}
-                    </dd>
-                  </div>
-                ) : null}
-              </dl>
+            <section className="border-t border-black/[0.06] py-4">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <h3 className="text-sm font-bold text-ink">Contact details</h3>
+                <button type="button" onClick={() => setStep('contact')} className="text-sm font-semibold text-finland hover:underline">
+                  Edit
+                </button>
+              </div>
+              <p className="text-sm text-ink break-words">{leadGuestName || 'Name missing'}</p>
+              <p className="text-sm text-ink-muted break-all">{email}</p>
+              {phone.trim() ? <p className="text-sm text-ink-muted">{phone.trim()}</p> : null}
             </section>
 
-            <section className="mb-6 border-t border-black/[0.06] pt-5">
-              <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint mb-3">Contact</h3>
-              <dl className="space-y-2.5 text-sm">
-                <div className="flex justify-between gap-4">
-                  <dt className="text-ink-muted">Lead guest</dt>
-                  <dd className="break-words font-medium text-ink text-right [overflow-wrap:anywhere]">{leadGuestName}</dd>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <dt className="text-ink-muted">Email</dt>
-                  <dd className="break-all font-medium text-ink text-right [overflow-wrap:anywhere]">{email}</dd>
-                </div>
-                {phone.trim() ? (
-                  <div className="flex justify-between gap-4">
-                    <dt className="text-ink-muted">Phone</dt>
-                    <dd className="break-all font-medium text-ink text-right [overflow-wrap:anywhere]">{phone.trim()}</dd>
-                  </div>
+            <section className="border-t border-black/[0.06] py-4">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <h3 className="text-sm font-bold text-ink">{pickupMode === 'meet' ? 'Meeting point' : 'Pickup'}</h3>
+                {pickupMode === 'pickup' ? (
+                  <button type="button" onClick={() => setStep('pickup')} className="text-sm font-semibold text-finland hover:underline">
+                    Edit
+                  </button>
                 ) : null}
-                {pickupMode === 'pickup' && placeOfStay.trim() ? (
-                  <div className="flex justify-between gap-4">
-                    <dt className="text-ink-muted">Pickup</dt>
-                    <dd className="break-words font-medium text-ink text-right [overflow-wrap:anywhere]">{placeOfStay.trim()}</dd>
-                  </div>
-                ) : null}
-                {specialRequests.trim() ? (
-                  <div className="flex justify-between gap-4">
-                    <dt className="text-ink-muted">Requests</dt>
-                    <dd className="max-w-[65%] break-words font-medium text-ink text-right [overflow-wrap:anywhere]">{specialRequests.trim()}</dd>
-                  </div>
-                ) : null}
-              </dl>
+              </div>
+              <p className="text-sm text-ink break-words">
+                {pickupMode === 'pickup'
+                  ? selectedPickup?.formattedAddress || 'No pickup location selected'
+                  : pickupMode === 'meet'
+                    ? meetingAddress || 'Meeting point not set'
+                    : 'No pickup or meeting point for this option'}
+              </p>
             </section>
 
-            <section className="mb-6 border-t border-black/[0.06] pt-5">
-              <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint mb-2">Payment</h3>
-              {quoted ? (
-                <PriceBreakdown
-                  currency={quoted.currency}
-                  lines={tourQuotePriceLines(quoted)}
-                  total={quoted.totalAmount}
-                  originalTotal={quoted.originalUnitPrice * quoted.guests}
-                  discountLabel={quoted.discountLabel}
-                  holdNote={`Spots are held for ${CHECKOUT_HOLD_MINUTES} minutes while you pay. If checkout expires, the hold is released.`}
-                  footnote="This is the amount you pay."
-                />
-              ) : (
-                <>
-                  <div className="flex justify-between text-sm text-ink">
-                    <span>
-                      {participantsSummary}
-                      {!usesAgePricingOnVariant && !quoteFailed
-                        ? ` · ${formatMoney(pricePerPerson, currency)} each`
-                        : ''}
-                    </span>
-                    <span className="font-medium">{totalLabel}</span>
-                  </div>
-                  <p className="text-xs text-ink-muted mt-2">This is the amount you pay at checkout.</p>
-                </>
-              )}
-            </section>
-
-            <div className="mb-6">
-              <p className="text-sm font-semibold text-ink">{cancellationShort}</p>
+            <section className="border-t border-black/[0.06] py-4">
+              <h3 className="text-sm font-bold text-ink">Payment</h3>
+              <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">Total payable</p>
+              <p className="mt-1 text-2xl font-bold tabular-nums text-ink">{totalLabel}</p>
+              <p className="mt-2 text-sm text-ink-muted">
+                Spots are held for {CHECKOUT_HOLD_MINUTES} minutes while you pay.
+              </p>
+              <p className="mt-3 text-sm font-semibold text-ink">{cancellationShort}</p>
               <details className="mt-1">
                 <summary className="cursor-pointer text-sm font-semibold text-finland">Full cancellation terms</summary>
                 <p className="mt-2 text-sm leading-relaxed text-ink-muted">{cancellationText}</p>
               </details>
-            </div>
+              <p className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-ink-muted">
+                <Lock className="h-3.5 w-3.5 text-finland" aria-hidden />
+                Secure payment
+              </p>
+            </section>
 
             <div className="mb-6">
               <CheckoutConsentCheckbox
@@ -1991,7 +1968,7 @@ export default function BookingPage({
                     : checkoutPayBlockedByConsent(checkoutConsentAccepted)
                       ? 'Accept terms to pay'
                     : isSupabaseConfigured()
-                      ? `Pay ${totalLabel}`
+                      ? 'Continue to secure payment'
                       : 'Continue to payment'}
                 </button>
               </div>
@@ -2012,7 +1989,7 @@ export default function BookingPage({
           disabled={quoteFailed || availabilityChecking}
           className="tv-btn-primary w-full disabled:opacity-60"
         >
-          {quoteFailed ? 'Price unavailable' : availabilityChecking ? 'Checking…' : 'Continue to contact info'}
+          {quoteFailed ? 'Price unavailable' : availabilityChecking ? 'Checking…' : 'Continue to contact information'}
         </button>
       ) : null}
       {step === 'date-guests' ? (
@@ -2050,7 +2027,7 @@ export default function BookingPage({
             Back
           </button>
           <button type="button" onClick={() => void handleContinueFromContact()} className="tv-btn-primary w-full">
-            Continue to pickup details
+            {contactContinueLabel}
           </button>
         </div>
       ) : null}
@@ -2096,7 +2073,7 @@ export default function BookingPage({
               : checkoutPayBlockedByConsent(checkoutConsentAccepted)
                 ? 'Accept terms to pay'
               : isSupabaseConfigured()
-                ? `Pay ${totalLabel}`
+                ? 'Continue to secure payment'
                 : 'Continue to payment'}
           </button>
         </div>
@@ -2226,7 +2203,7 @@ export default function BookingPage({
                       {selectedVariant ? (
                         <div className="flex justify-between gap-3">
                           <dt className="text-ink-muted">Option</dt>
-                          <dd className="max-w-[65%] text-right font-medium text-ink line-clamp-2">{selectedVariant.label}</dd>
+                          <dd className="max-w-[65%] text-right font-medium text-ink break-words">{selectedVariant.label}</dd>
                         </div>
                       ) : null}
                       {departureLabel ? (
@@ -2257,7 +2234,7 @@ export default function BookingPage({
                 {flowInner}
               </div>
 
-              <aside className="mt-6 hidden lg:sticky lg:top-4 lg:mt-0 lg:block">
+              <aside className="mt-6 hidden lg:sticky lg:top-0 lg:mt-0 lg:block lg:max-h-[calc(100dvh-3.5rem)] lg:overflow-y-auto">
                 <div className="overflow-hidden rounded-xl bg-white ring-1 ring-finland/20">
                   <div className="relative h-28 bg-black/10">
                     <img src={tour.image} alt={tour.title} className="h-full w-full object-cover" />
@@ -2280,7 +2257,7 @@ export default function BookingPage({
                       {selectedVariant ? (
                         <div className="flex justify-between gap-3">
                           <dt className="text-ink-muted">Option</dt>
-                          <dd className="max-w-[65%] text-right font-medium text-ink line-clamp-2">{selectedVariant.label}</dd>
+                          <dd className="max-w-[65%] text-right font-medium text-ink break-words">{selectedVariant.label}</dd>
                         </div>
                       ) : null}
                       <div className="flex justify-between gap-3">

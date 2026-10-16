@@ -29,9 +29,10 @@ export function confirmationArrival(input: {
   meetingPoint?: string | null;
   specialRequests?: string | null;
   pickupTime?: string | null;
+  travelerPickupAddress?: string | null;
 }): ConfirmationArrival | null {
   const meeting = (input.meetingPoint ?? '').trim();
-  const stay = placeOfStay(input.specialRequests);
+  const stay = (input.travelerPickupAddress ?? '').trim() || placeOfStay(input.specialRequests);
   const time = clock(input.pickupTime);
 
   if (input.fulfillment === 'pickup') {

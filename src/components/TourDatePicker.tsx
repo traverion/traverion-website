@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ListingBookingOption } from '../types/listingExtras';
 import { monthGrid } from '../lib/stay-calendar';
 import { formatBookingDateDisplay } from '../lib/booking-flow';
@@ -19,6 +19,8 @@ type Props = {
   todayIso?: string;
   hint?: string;
   soldOutDates?: ReadonlySet<string>;
+  /** inline keeps the month open. field opens it from the selected date. */
+  presentation?: 'inline' | 'field';
 };
 
 function visualForTourState(state: ReturnType<typeof tourDayState>): TraverionCalendarDayVisual {
@@ -44,8 +46,11 @@ export default function TourDatePicker({
   todayIso: todayProp,
   hint,
   soldOutDates,
+  presentation = 'inline',
 }: Props) {
   const todayIso = todayProp ?? localYmd();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
   const start = value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : todayIso;
   const [cursor, setCursor] = useState(() => {
     const [y, m] = start.split('-').map(Number);
@@ -70,6 +75,22 @@ export default function TourDatePicker({
   );
   const monthNote = useMemo(() => tourMonthAvailabilityNote(monthStates), [monthStates]);
 
+  useEffect(() => {
+    if (presentation !== 'field' || !open) return;
+    const onDoc = (event: MouseEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open, presentation]);
+
   const shift = (delta: number) => {
     setCursor((c) => {
       const d = new Date(Date.UTC(c.y, c.m + delta, 1));
@@ -77,12 +98,8 @@ export default function TourDatePicker({
     });
   };
 
-  return (
-    <div>
-      <p id={`${id}-label`} className="mb-1.5 block text-sm font-medium tracking-tight text-ink">
-        {label}
-      </p>
-      <div id={id} tabIndex={-1} className="outline-none focus-visible:ring-2 focus-visible:ring-finland/40 rounded-2xl">
+  const month = (
+      <div id={presentation === 'field' ? undefined : id} tabIndex={-1} className="outline-none focus-visible:ring-2 focus-visible:ring-finland/40 rounded-2xl">
         <TraverionCalendarMonth
           year={cursor.y}
           month0={cursor.m}
@@ -118,12 +135,49 @@ export default function TourDatePicker({
                 disabled={disabled}
                 ariaLabel={formatTourDayAria(iso, state)}
                 ariaPressed={state === 'selected'}
-                onSelect={onChange}
+                onSelect={(iso) => {
+                  onChange(iso);
+                  if (presentation === 'field') setOpen(false);
+                }}
               />
             );
           })}
         </TraverionCalendarMonth>
       </div>
+  );
+
+  if (presentation === 'field') {
+    return (
+      <div ref={rootRef} className="relative">
+        <label htmlFor={id} className="mb-1.5 block text-sm font-medium tracking-tight text-ink">
+          {label}
+        </label>
+        <button
+          id={id}
+          type="button"
+          aria-expanded={open}
+          aria-haspopup="dialog"
+          onClick={() => setOpen((next) => !next)}
+          className="tv-checkout-input text-left"
+        >
+          {value.trim() ? formatBookingDateDisplay(value) : 'Select a date'}
+        </button>
+        {open ? (
+          <div className="absolute z-30 mt-2 w-full max-w-md rounded-xl border border-black/10 bg-white p-3 shadow-lg">
+            {month}
+          </div>
+        ) : null}
+        {hint ? <p className="mt-1 text-xs text-ink-faint">{hint}</p> : null}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <p id={`${id}-label`} className="mb-1.5 block text-sm font-medium tracking-tight text-ink">
+        {label}
+      </p>
+      {month}
       {hint ? <p className="mt-1 text-xs text-ink-faint">{hint}</p> : null}
     </div>
   );
