@@ -15,7 +15,7 @@ describe('Phase 1823: booking confirmation receipt polish', () => {
     const src = readFileSync(resolve(__dirname, '../pages/BookingConfirmationPage.tsx'), 'utf8');
     expect(src).toContain('tv-confirm-shell');
     expect(src).toContain('tv-confirm-fact');
-    expect(src).toContain('font-display text-2xl font-semibold tabular-nums');
-    expect(src).toContain('STRIPE_TEST_UNTIL_LIVE');
+    expect(src).toContain('font-sans text-2xl font-bold tabular-nums');
+    expect(src).toContain('Booking confirmed!');
   });
 });

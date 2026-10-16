@@ -92,8 +92,10 @@ export type BookingRow = {
   start_time?: string | null;
   /** Assigned guest pickup time (local). */
   pickup_time?: string | null;
-  /** App-wide sequential order # (1 = first booking ever); display as #N. */
+  /** App-wide sequential order # (1 = first booking ever). Internal — not the customer reference. */
   booking_number?: number | null;
+  /** Stable customer-facing code (TV-XXXXXXXX). Null until migration 245 is applied. */
+  public_reference?: string | null;
   /** Present when selected with payment columns (supplier list, dashboard). */
   payment_status?: string;
   checkout_session_id?: string | null;
@@ -124,7 +126,7 @@ export type BookingRow = {
 export type BookingWithPaymentRow = BookingRow;
 
 const BOOKING_LIST_COLUMNS =
-  'id, listing_id, guest_email, guest_name, guests, booking_date, check_out, nights, nightly_amount, cleaning_fee, status, special_requests, cancellation_reason, refund_choice, cancelled_at, acknowledged_at, created_at, start_time, pickup_time, booking_number, guest_breakdown, booking_option_id, hold_expires_at, purchase_snapshot';
+  'id, listing_id, guest_email, guest_name, guests, booking_date, check_out, nights, nightly_amount, cleaning_fee, status, special_requests, cancellation_reason, refund_choice, cancelled_at, acknowledged_at, created_at, start_time, pickup_time, booking_number, public_reference, guest_breakdown, booking_option_id, hold_expires_at, purchase_snapshot';
 
 const BOOKING_PAYMENT_COLUMNS = `${BOOKING_LIST_COLUMNS}, payment_status, checkout_session_id, amount_paid, currency`;
 
