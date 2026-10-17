@@ -720,13 +720,17 @@ export default function SupplierDashboard() {
         <section>
           <button
             type="button"
-            onClick={() =>
+            onClick={() => {
+              const businessOk = (profile?.verification_status || '').trim().toLowerCase() === 'verified';
+              const payoutOk = (profile?.payout_verification_status || '').trim().toLowerCase() === 'verified';
               navigateSupplierUrl(
                 accountStatus.kind === 'setup'
                   ? `${PARTNER_APP_BASE}/onboarding`
-                  : `${PARTNER_APP_BASE}/business-profile#company`
-              )
-            }
+                  : businessOk && !payoutOk
+                    ? `${PARTNER_APP_BASE}/money?tab=settings#income-payout-account`
+                    : `${PARTNER_APP_BASE}/business-profile#company`
+              );
+            }}
             className={`partner-surface-panel partner-surface-panel--quiet lux-flat partner-row-interact flex w-full items-start gap-3 px-3.5 py-3 text-left ${
               accountStatus.kind === 'operational'
                 ? 'border-emerald-200/80 bg-emerald-50/40'
@@ -891,7 +895,15 @@ export default function SupplierDashboard() {
                 tone="danger"
                 title={accountStatus.title}
                 detail={accountStatus.detail}
-                onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile#company`)}
+                onClick={() => {
+                  const businessOk = (profile?.verification_status || '').trim().toLowerCase() === 'verified';
+                  const payoutOk = (profile?.payout_verification_status || '').trim().toLowerCase() === 'verified';
+                  navigateSupplierUrl(
+                    businessOk && !payoutOk
+                      ? `${PARTNER_APP_BASE}/money?tab=settings#income-payout-account`
+                      : `${PARTNER_APP_BASE}/business-profile#company`
+                  );
+                }}
               />
             )}
             {verificationNeedsAction && accountStatus?.kind === 'setup' && (

@@ -751,11 +751,11 @@ export default function SupplierListings() {
         setProfileGateMessage(PARTNER_LISTINGS_BUSINESS_REVIEW_NOTE);
       } else if (!payoutConfigured) {
         setProfileGateMessage(
-          'Business is verified. Add IBAN and BIC under Payment & payouts in Settings and save to submit your bank details for verification.'
+          'Business is verified. Add IBAN and BIC in Income settings and save to submit your bank details for verification.'
         );
       } else if ((pv ?? '').trim().toLowerCase() === 'rejected') {
         setProfileGateMessage(
-          'Payout verification was not approved. Update IBAN and BIC in Settings and save again to resubmit.'
+          'Payout verification was not approved. Update IBAN and BIC in Income settings and submit again.'
         );
       } else if (!payoutVerified) {
         setProfileGateMessage(PARTNER_LISTINGS_PAYOUT_REVIEW_NOTE);
@@ -1220,7 +1220,7 @@ export default function SupplierListings() {
         const primaryHref =
           missingBusinessDetails || businessReview === 'rejected' || businessReview === 'pending' || businessReview === 'incomplete'
             ? `${PARTNER_APP_BASE}/business-profile#supplier-business-company`
-            : `${PARTNER_APP_BASE}/business-profile#supplier-business-payout`;
+            : `${PARTNER_APP_BASE}/money?tab=settings#income-payout-account`;
         return (
           <div
             className={`mb-4 flex flex-col gap-3 rounded-lg border border-l-[3px] px-3.5 py-3 text-sm sm:flex-row sm:items-center sm:justify-between ${
@@ -1260,13 +1260,13 @@ export default function SupplierListings() {
                 {missingPayoutForPublish || payoutReview === 'rejected' ? (
                   <button
                     type="button"
-                    onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile#supplier-business-payout`)}
+                    onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/money?tab=settings#income-payout-account`)}
                     className="tv-btn-ghost text-xs"
                   >
                     {payoutReview === 'rejected'
                       ? 'Fix payout details'
                       : payoutOnFile
-                        ? 'Payment & payouts'
+                        ? 'Income settings'
                         : 'Add IBAN & BIC'}
                   </button>
                 ) : null}

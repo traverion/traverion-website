@@ -184,7 +184,7 @@ export const PARTNER_PAYOUT_REVIEW_STATUS_NOTE =
 
 /** Partner Listings gate when business is under review — status in Settings, not mail. */
 export const PARTNER_LISTINGS_BUSINESS_REVIEW_NOTE =
-  'Your business details are under review. You can still add or update IBAN and BIC under Payment & payouts in Settings. Publishing requires both business verification and payout verification. Status updates appear in Settings — Traverion does not treat email as the decision.';
+  'Your business details are under review. You can still add or update IBAN and BIC in Income settings. Publishing requires both business verification and payout verification. Status updates appear in Settings — Traverion does not treat email as the decision.';
 
 /** Partner Listings gate when payout is under review — status in Settings, not mail. */
 export const PARTNER_LISTINGS_PAYOUT_REVIEW_NOTE =

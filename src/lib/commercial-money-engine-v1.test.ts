@@ -12,7 +12,10 @@ const checkout = readFileSync(
   resolve(root, 'supabase/functions/create-booking-checkout-session/index.ts'),
   'utf8'
 );
-const earningsUi = readFileSync(resolve(root, 'src/pages/supplier/SupplierEarnings.tsx'), 'utf8');
+const earningsUi = [
+  readFileSync(resolve(root, 'src/pages/supplier/SupplierEarnings.tsx'), 'utf8'),
+  readFileSync(resolve(root, 'src/components/supplier/IncomeFinancialSettings.tsx'), 'utf8'),
+].join('\n');
 const adminUi = readFileSync(resolve(root, 'src/components/admin/AdminCommercialPanel.tsx'), 'utf8');
 
 describe('commercial money engine V1 — migration contracts', () => {

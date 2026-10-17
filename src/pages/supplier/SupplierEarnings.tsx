@@ -2,7 +2,7 @@ import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } fr
 import { Wallet } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
-import { canManageFinance } from '../../lib/supplierTeamRoles';
+import { canManageBookings, canManageFinance } from '../../lib/supplierTeamRoles';
 import {
   earningItemsMajorByStatus,
   fetchSupplierActiveCommercialTerms,
@@ -35,7 +35,7 @@ import {
 import { formatBpsAsPercent, fromMinorUnits, planDefinition } from '../../lib/commercial-money';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchSupplierLedger, type SupplierLedgerEntry } from '../../data/supabase-booking-ops';
-import { PARTNER_MONEY_PAYOUT_STATUS_NOTE, PARTNER_MONEY_EMPTY_TITLE, PARTNER_MONEY_EMPTY_BODY, PARTNER_MONEY_LOAD_ERROR_TITLE, PARTNER_MONEY_FILTER_EMPTY_BODY, PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL } from '../../lib/booking-confirmation-copy';
+import { PARTNER_MONEY_PAYOUT_STATUS_NOTE, PARTNER_MONEY_EMPTY_TITLE, PARTNER_MONEY_EMPTY_BODY, PARTNER_MONEY_LOAD_ERROR_TITLE, PARTNER_MONEY_FILTER_EMPTY_BODY, PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL, STRIPE_TEST_UNTIL_LIVE } from '../../lib/booking-confirmation-copy';
 import NoticeCallout from '../../components/NoticeCallout';
 import { localYmd } from '../../lib/local-ymd';
 import {
@@ -62,6 +62,7 @@ import {
   payoutStatementLines,
   statementPdf,
 } from '../../lib/supplier-finance-pdf';
+import IncomeFinancialSettings from '../../components/supplier/IncomeFinancialSettings';
 
 function incomeDate(value: string | null | undefined): string {
   if (!value) return '—';
@@ -89,6 +90,7 @@ export default function SupplierEarnings() {
   // Phase 1760: Money CSV is finance/owner; viewers must not export or audit-log.
   const { role } = useSupplierRole();
   const canExportFinance = canManageFinance(role);
+  const canEditPayoutSettings = canManageBookings(role);
   const [earnings, setEarnings] = useState<SupplierEarning[]>([]);
   const [paidBookings, setPaidBookings] = useState<BookingRow[]>([]);
   const [refundDueBookings, setRefundDueBookings] = useState<BookingRow[]>([]);
@@ -662,7 +664,10 @@ export default function SupplierEarnings() {
   return (
     <div className={`${SUPPLIER_PAGE_CLASS} tv-income font-sans`}>
       <div className="flex items-center justify-between gap-3">
-        <h1 className="font-sans text-lg font-bold tracking-tight text-[#18181b]">Income</h1>
+        <div>
+          <h1 className="font-sans text-lg font-bold tracking-tight text-[#18181b]">Income</h1>
+          <p className="text-[12px] text-[#71717a]">{`Guest checkout uses ${STRIPE_TEST_UNTIL_LIVE}. Amounts on this page are not completed bank transfers.`}</p>
+        </div>
         <button
           type="button"
           onClick={exportCsv}
@@ -975,41 +980,19 @@ export default function SupplierEarnings() {
         </div>
       ) : null}
 
-      {tab === 'settings' ? (
-        <div className="grid gap-3 lg:grid-cols-3">
-          <section className="rounded-lg border border-[#e5e7eb] bg-white p-3">
-            <h2 className="font-sans text-sm font-bold">Business & tax</h2>
-            <dl className="mt-2 space-y-1 text-[13px]">
-              <div><dt className="text-[11px] text-[#71717a]">Registered name</dt><dd>{profile?.company_legal_name || 'Not on file'}</dd></div>
-              <div><dt className="text-[11px] text-[#71717a]">Business ID</dt><dd>{profile?.company_registration_number || 'Not on file'}</dd></div>
-              <div><dt className="text-[11px] text-[#71717a]">VAT number</dt><dd>{profile?.vat_id || 'Not on file'}</dd></div>
-              <div><dt className="text-[11px] text-[#71717a]">Country</dt><dd>{profile?.address_country || 'Not on file'}</dd></div>
-              <div><dt className="text-[11px] text-[#71717a]">Address</dt><dd>{supplierAddress || 'Not on file'}</dd></div>
-            </dl>
-          </section>
-          <section className="rounded-lg border border-[#e5e7eb] bg-white p-3">
-            <h2 className="font-sans text-sm font-bold">Payout account</h2>
-            <dl className="mt-2 space-y-1 text-[13px]">
-              <div><dt className="text-[11px] text-[#71717a]">Account holder</dt><dd>{profile?.company_legal_name || profile?.display_name || 'Not on file'}</dd></div>
-              <div><dt className="text-[11px] text-[#71717a]">IBAN</dt><dd>{maskIban(profile?.payout_iban) || 'Not on file'}</dd></div>
-              <div><dt className="text-[11px] text-[#71717a]">BIC</dt><dd>{profile?.payout_bic ? 'On file' : 'Not on file'}</dd></div>
-              <div><dt className="text-[11px] text-[#71717a]">Currency</dt><dd>{summaryCurrency}</dd></div>
-              <div><dt className="text-[11px] text-[#71717a]">Verification</dt><dd>{profile?.payout_verification_status || 'Not submitted'}</dd></div>
-            </dl>
-            <button type="button" className="mt-2 text-[13px] font-semibold text-[#073b83]" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile#supplier-business-payout`)}>
-              Update payout account
-            </button>
-          </section>
-          <section className="rounded-lg border border-[#e5e7eb] bg-white p-3">
-            <h2 className="font-sans text-sm font-bold">Commercial agreement</h2>
-            <dl className="mt-2 space-y-1 text-[13px]">
-              <div><dt className="text-[11px] text-[#71717a]">Commission</dt><dd>{commercialTerms ? formatBpsAsPercent(commercialTerms.commission_bps) : 'Not set'}</dd></div>
-              <div><dt className="text-[11px] text-[#71717a]">Payout frequency</dt><dd>{commercialTerms?.payout_cadence === 'semimonthly' ? 'Twice monthly' : commercialTerms ? 'Monthly' : 'Not set'}</dd></div>
-              <div><dt className="text-[11px] text-[#71717a]">Payout currency</dt><dd>{summaryCurrency}</dd></div>
-            </dl>
-            <p className="mt-2 text-[12px] text-[#71717a]">Contact Traverion to change payout plan.</p>
-          </section>
-        </div>
+      {tab === 'settings' && user?.id ? (
+        <IncomeFinancialSettings
+          userId={user.id}
+          profile={profile}
+          commercialTerms={commercialTerms}
+          payoutCurrency={
+            snapshots.find((row) => row.currency?.trim())?.currency?.trim().toUpperCase() ||
+            paidBookings.find((row) => row.currency?.trim())?.currency?.trim().toUpperCase() ||
+            null
+          }
+          canEdit={canEditPayoutSettings}
+          onProfile={setProfile}
+        />
       ) : null}
 
       {selectedEarning ? (

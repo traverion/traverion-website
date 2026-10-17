@@ -29,7 +29,7 @@ describe('listing vs account publish truth', () => {
       listingReady: true,
       accountEligible: false,
       listingMissing: null,
-      accountReason: 'Business is verified. Add IBAN and BIC under Payment & payouts in Settings.',
+      accountReason: 'Business is verified. Add IBAN and BIC in Income settings.',
     });
     expect(truth.listingLine).toBe('Your listing is ready.');
     expect(truth.canPublish).toBe(false);

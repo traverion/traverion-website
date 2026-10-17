@@ -755,6 +755,10 @@ export default function SupplierLayout() {
     if (section !== 'business-profile') return;
     const applyHash = () => {
       const h = window.location.hash.replace(/^#/, '');
+      if (h === 'supplier-business-payout') {
+        navigateSupplierUrl(`${PARTNER_APP_BASE}/money?tab=settings`);
+        return;
+      }
       if (h === 'legal') setBusinessProfileTab('legal');
       else if (h === 'team') setBusinessProfileTab('team');
       else setBusinessProfileTab('company');
@@ -814,6 +818,10 @@ export default function SupplierLayout() {
   const openSettingsFocus = (target: AccountShortcutTarget) => {
     if (target === 'security') {
       handleNavigate('change-password');
+      return;
+    }
+    if (target === 'payout') {
+      navigateSupplierUrl(`${PARTNER_APP_BASE}/money?tab=settings`);
       return;
     }
     setSettingsFocus(target);

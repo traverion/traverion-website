@@ -6,7 +6,6 @@ import {
   Landmark,
   MapPin,
   Shield,
-  Wallet,
   Mail,
   KeyRound,
   ChevronRight,
@@ -27,15 +26,14 @@ import {
 import { formatSupplierBusinessAddressFromParts } from '../../lib/supplierAddress';
 import {
   getSupplierBusinessProfileMissingReasons,
-  partnerPayoutVerifiedStatusNote,
 } from '../../lib/supplierOnboarding';
 import {
   isSupplierBusinessIdentityLocked,
-  isSupplierPayoutDetailsLocked,
   SUPPLIER_SENSITIVE_CHANGES_SUPPORT_EMAIL,
 } from '../../lib/supplierVerificationLocks';
+import { PARTNER_APP_BASE, PARTNER_EMAIL_VERIFIED_PATH } from '../../lib/partnerPortalPaths';
+import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { supplierPortalPublicBaseUrl } from '../../lib/partnerHost';
-import { PARTNER_EMAIL_VERIFIED_PATH } from '../../lib/partnerPortalPaths';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { notifySupplierEvent } from '../../data/supabase-supplier-messaging';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
@@ -47,13 +45,6 @@ import NoticeCallout from '../NoticeCallout';
 import StatusChip from '../StatusChip';
 import {
   PARTNER_BUSINESS_REVIEW_STATUS_NOTE,
-  PARTNER_PAYOUT_REVIEW_STATUS_NOTE,
-  PARTNER_PAYOUT_THRESHOLD_HINT,
-  PARTNER_PAYOUT_FREQUENCY_HINT,
-  PARTNER_PAYOUT_FREQUENCY_MONTHLY_LABEL,
-  PARTNER_PAYOUT_FREQUENCY_MONTHLY_DETAIL,
-  PARTNER_PAYOUT_FREQUENCY_TWICE_MONTHLY_LABEL,
-  PARTNER_PAYOUT_FREQUENCY_TWICE_MONTHLY_DETAIL,
   PARTNER_BUSINESS_READY_TO_SUBMIT_NOTE,
   PARTNER_VERIFICATION_EMAIL_REQUESTED,
 } from '../../lib/booking-confirmation-copy';
@@ -382,7 +373,6 @@ function BusinessProfilePage(p: Props) {
   const [companyRegDisplayName, setCompanyRegDisplayName] = useState('');
   const [docError, setDocError] = useState<string | null>(null);
   const [companySaveError, setCompanySaveError] = useState<string | null>(null);
-  const [payoutSaveError, setPayoutSaveError] = useState<string | null>(null);
   // Phase 1754: finance/viewer read company/payout/legal; editors mutate (RLS 224).
   const { role } = useSupplierRole();
   const canEditProfile = canManageBookings(role);
@@ -392,12 +382,7 @@ function BusinessProfilePage(p: Props) {
     p.verificationSubmittedAt,
     p.businessTypeAtLastFetch
   );
-  const payoutLocked = isSupplierPayoutDetailsLocked(
-    p.payoutVerificationStatus,
-    p.payoutVerificationSubmittedAt
-  );
   const identityFieldsDisabled = businessLocked || !canEditProfile;
-  const payoutDestinationLocked = payoutLocked || !canEditProfile;
 
   const businessProfileMissingReasons = getSupplierBusinessProfileMissingReasons({
     display_name: p.profileDisplayName,
@@ -474,7 +459,6 @@ function BusinessProfilePage(p: Props) {
     };
   }, [p.legalDocModal]);
 
-  const vPay = p.payoutVerificationStatus.trim().toLowerCase();
   const businessReview = partnerBusinessReviewState({
     verificationStatus: p.verificationStatus,
     submittedAt: p.verificationSubmittedAt,
@@ -500,7 +484,7 @@ function BusinessProfilePage(p: Props) {
       <SupplierPageHero
         badge="Business"
         title={displayName}
-        description="Company details, payouts, legal documents, and who can help run this account."
+        description="Company details, legal documents, and who can help run this account. Payout account and preferences are in Income settings."
       >
         <div className="mt-3 flex flex-wrap items-center gap-2" aria-label="Verification status">
           <StatusChip tone={busChip.tone}>{busChip.label}</StatusChip>
@@ -508,8 +492,8 @@ function BusinessProfilePage(p: Props) {
         </div>
         {!canEditProfile ? (
           <NoticeCallout tone="info" className="mt-4">
-            Your role can view business profile details but cannot change company, payout, or legal
-            settings. Ask an owner, manager, or ops teammate.
+            Your role can view business profile details but cannot change company or legal settings.
+            Ask an owner, manager, or ops teammate.
           </NoticeCallout>
         ) : null}
         <nav className="mt-5 flex gap-x-1 border-b border-black/[0.06]" aria-label="Business profile sections">
@@ -1061,7 +1045,7 @@ function BusinessProfilePage(p: Props) {
               >
                 {p.payoutVerificationStatus.trim().toLowerCase() === 'verified'
                   ? 'Your business details are approved and your payout (IBAN/BIC) is verified. You can publish listings when your tours meet listing quality checks.'
-                  : 'Your business details are approved. You still need Traverion to verify your payout (IBAN/BIC) before you can publish listings.'}
+                  : 'Your business details are approved. You still need Traverion to verify your payout (IBAN/BIC) before you can publish listings. Bank details are in Income settings.'}
               </NoticeCallout>
             )}
             {p.verificationStatus.trim().toLowerCase() === 'rejected' && (
@@ -1093,6 +1077,18 @@ function BusinessProfilePage(p: Props) {
               </NoticeCallout>
             )}
           </section>
+
+          <p className="text-sm text-ink-muted">
+            Payout account, frequency, and minimum threshold are managed in{' '}
+            <button
+              type="button"
+              className="font-semibold text-finland"
+              onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/money?tab=settings`)}
+            >
+              Income settings
+            </button>
+            .
+          </p>
 
           <SaveBar
             saving={p.companySaving}
@@ -1203,213 +1199,6 @@ function BusinessProfilePage(p: Props) {
             }}
           />
 
-          <ProfileSection
-            id="supplier-business-payout"
-            icon={Wallet}
-            title="Payment & payouts"
-            description="Bank transfer only (IBAN + BIC). Verified separately from your business profile — both required to publish listings."
-            badge={<StatusChip tone={payChip.tone}>{payChip.label}</StatusChip>}
-          >
-            {payoutLocked && (
-              <div className="text-sm text-ink">
-                  <p className="font-medium">
-                    {p.payoutVerificationStatus.trim().toLowerCase() === 'verified'
-                      ? 'Payout bank details are locked'
-                      : 'Payout details under review'}
-                  </p>
-                  <p className="mt-1.5 text-sm text-ink-muted leading-relaxed">
-                    {p.payoutVerificationStatus.trim().toLowerCase() === 'verified' ? (
-                      <>
-                        You cannot change IBAN or BIC here. Business details are managed separately above. You can still
-                        change payout frequency and minimum threshold. To change bank details, email{' '}
-                        <a
-                          href={`mailto:${SUPPLIER_SENSITIVE_CHANGES_SUPPORT_EMAIL}?subject=Supplier%20payout%20change%20request`}
-                          className="font-medium text-finland hover:underline"
-                        >
-                          {SUPPLIER_SENSITIVE_CHANGES_SUPPORT_EMAIL}
-                        </a>
-                        .
-                      </>
-                    ) : (
-                      <>
-                        IBAN and BIC cannot be edited while Traverion reviews your payout submission. You can still
-                        update payout frequency and threshold.
-                      </>
-                    )}
-                  </p>
-                </div>
-              )}
-            <div>
-              <p className="text-sm text-ink-muted mb-4">
-                Enter the account that should receive payouts. Saving IBAN and BIC submits them for verification.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-ink mb-1.5">IBAN</label>
-                  <input
-                    type="text"
-                    value={p.payoutIban}
-                    disabled={payoutDestinationLocked}
-                    onChange={(e) => p.setPayoutIban(e.target.value)}
-                    placeholder="International bank account number"
-                    className={profileInputClass(payoutDestinationLocked)}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-ink mb-1.5">BIC / SWIFT</label>
-                  <input
-                    type="text"
-                    value={p.payoutBic}
-                    disabled={payoutDestinationLocked}
-                    onChange={(e) => p.setPayoutBic(e.target.value)}
-                    placeholder="Bank identifier"
-                    className={profileInputClass(payoutDestinationLocked)}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {p.payoutIban.trim() && p.payoutBic.trim() && vPay === 'verified' && (
-              <NoticeCallout title="Payout verified" tone="success">
-                {partnerPayoutVerifiedStatusNote(vBus === 'verified')}
-              </NoticeCallout>
-            )}
-            {p.payoutIban.trim() && p.payoutBic.trim() && vPay === 'rejected' && (
-              <NoticeCallout title="Payout details need an update" tone="danger">
-                <p>Update IBAN and BIC, then save again to resubmit.</p>
-                {p.payoutVerificationFeedback.trim() ? (
-                  <p className="mt-2 break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{p.payoutVerificationFeedback.trim()}</p>
-                ) : null}
-              </NoticeCallout>
-            )}
-            {p.payoutIban.trim() &&
-              p.payoutBic.trim() &&
-              vPay !== 'verified' &&
-              vPay !== 'rejected' &&
-              (p.payoutVerificationSubmittedAt ?? '').trim() !== '' && (
-                <NoticeCallout title="Payout under review" tone="info">
-                  {PARTNER_PAYOUT_REVIEW_STATUS_NOTE}
-                </NoticeCallout>
-              )}
-
-            <div className="space-y-4">
-              <fieldset className="min-w-0">
-                <legend className="block text-sm font-medium text-ink mb-1.5">Payout frequency</legend>
-                <p className="text-xs text-ink-muted mb-3">{PARTNER_PAYOUT_FREQUENCY_HINT}</p>
-                <div className="space-y-2" role="radiogroup" aria-label="Payout frequency">
-                  {(
-                    [
-                      {
-                        value: 'monthly' as const,
-                        label: PARTNER_PAYOUT_FREQUENCY_MONTHLY_LABEL,
-                        detail: PARTNER_PAYOUT_FREQUENCY_MONTHLY_DETAIL,
-                      },
-                      {
-                        value: 'biweekly' as const,
-                        label: PARTNER_PAYOUT_FREQUENCY_TWICE_MONTHLY_LABEL,
-                        detail: PARTNER_PAYOUT_FREQUENCY_TWICE_MONTHLY_DETAIL,
-                      },
-                    ] as const
-                  ).map((opt) => {
-                    const selected = p.paymentCycle === opt.value;
-                    return (
-                      <label
-                        key={opt.value}
-                        className={`flex cursor-pointer items-start gap-3 rounded-lg border px-3.5 py-3 text-left transition-colors ${
-                          selected
-                            ? 'border-finland/40 bg-finland/[0.04]'
-                            : 'border-black/[0.08] bg-paper hover:border-black/[0.14]'
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="partner-payout-frequency"
-                          value={opt.value}
-                          checked={selected}
-                          onChange={() => p.setPaymentCycle(opt.value)}
-                          className="mt-1 h-4 w-4 shrink-0 border-black/[0.2] text-finland focus:ring-finland"
-                        />
-                        <span className="min-w-0">
-                          <span className="block text-sm font-semibold text-ink">{opt.label}</span>
-                          <span className="mt-0.5 block text-xs leading-snug text-ink-muted">{opt.detail}</span>
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </fieldset>
-              <div className="max-w-sm">
-                <label className="block text-sm font-medium text-ink mb-1.5">Minimum payout threshold</label>
-                <p className="text-xs text-ink-muted mb-2">{PARTNER_PAYOUT_THRESHOLD_HINT}</p>
-                <input
-                  type="number"
-                  min={0}
-                  value={p.payoutThreshold}
-                  onChange={(e) => p.setPayoutThreshold(e.target.value)}
-                  placeholder="0"
-                  className={profileInputClass()}
-                />
-              </div>
-            </div>
-          </ProfileSection>
-
-          <SaveBar
-            saving={p.payoutSaving}
-            disabled={!canEditProfile}
-            label="Save payout details"
-            savingLabel="Saving…"
-            success={p.payoutMessage === 'success'}
-            error={p.payoutMessage === 'error'}
-            errorText={payoutSaveError}
-            onClick={async () => {
-              if (!p.user?.id) return;
-              if (!canEditProfile) {
-                setPayoutSaveError('Your role can view payout details but cannot change them.');
-                return;
-              }
-              setPayoutSaveError(null);
-              p.setPayoutMessage(null);
-              if (!payoutDestinationLocked) {
-                if (!p.payoutIban.trim() || !p.payoutBic.trim()) {
-                  setPayoutSaveError('Enter both IBAN and BIC before saving payout details.');
-                  return;
-                }
-              }
-              p.setPayoutSaving(true);
-              const submittedNow = new Date().toISOString();
-              const res = payoutDestinationLocked
-                ? await p.updateSupplierPayout(p.user.id, {
-                    payment_cycle: p.paymentCycle || null,
-                    payout_threshold_min: p.payoutThreshold !== '' ? Number(p.payoutThreshold) : null,
-                  })
-                : await p.updateSupplierPayout(p.user.id, {
-                    payout_method: 'bank',
-                    payout_iban: p.payoutIban.trim() || null,
-                    payout_bic: p.payoutBic.trim() || null,
-                    payout_paypal_email: null,
-                    payout_verification_status: 'pending',
-                    payout_verification_submitted_at: submittedNow,
-                    payout_verification_feedback: null,
-                    payment_cycle: p.paymentCycle || null,
-                    payout_threshold_min: p.payoutThreshold !== '' ? Number(p.payoutThreshold) : null,
-                  });
-              p.setPayoutSaving(false);
-              if (res.success) {
-                if (!payoutDestinationLocked) {
-                  p.setPayoutVerificationStatus('pending');
-                  p.setPayoutVerificationSubmittedAt(submittedNow);
-                  p.setPayoutVerificationFeedback('');
-                }
-                p.setPayoutMessage('success');
-                p.onPayoutSaved();
-              } else {
-                p.setPayoutMessage('error');
-                setPayoutSaveError(
-                  userFacingError(res.error ?? 'Could not save payout details.', USER_ERROR.generic)
-                );
-              }
-            }}
-          />
         </div>
       )}
 
