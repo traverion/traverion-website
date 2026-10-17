@@ -271,7 +271,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Traveler</p>
           <h1
             id={ACCOUNT_HEADING_ID}
-            className="font-display text-3xl sm:text-4xl lg:text-[2.75rem] text-ink tracking-tight"
+            className="font-sans text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]"
           >
             Account
           </h1>

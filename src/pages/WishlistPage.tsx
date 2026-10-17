@@ -283,10 +283,10 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
         <header className="mb-6 border-b border-black/[0.06] pb-5">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Your travel</p>
-              <h1 id={WISHLIST_HEADING_ID} className="font-display text-3xl sm:text-4xl text-ink tracking-tight">
-                Saved
+              <h1 id={WISHLIST_HEADING_ID} className="font-sans text-2xl font-bold tracking-tight text-ink sm:text-[1.65rem]">
+                Saved experiences
               </h1>
+              <p className="mt-1 text-sm text-ink-muted">Your favorite experiences, all in one place.</p>
               <p className="mt-2 text-sm text-ink-muted max-w-xl leading-relaxed">
                 Tours and stays you want to come back to — open one to check dates and book.
               </p>
@@ -364,7 +364,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
             body={
               unavailableCount > 0
                 ? `${unavailableCount} saved listing${unavailableCount === 1 ? '' : 's'} are unpublished or gone, so they are not shown as bookable. Clear them here or browse for something new.`
-                : 'You have not saved a tour or stay yet. Save one while browsing and it will show up here.'
+                : 'Save experiences you love and find them here later.'
             }
             action={
               <div className="flex flex-wrap gap-2">

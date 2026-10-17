@@ -363,16 +363,16 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
           className="absolute inset-0 bg-gradient-to-r from-black/45 via-black/15 to-transparent"
           aria-hidden
         />
-        <div className="relative z-10 w-full tv-shell px-4 sm:px-6 lg:px-8 pb-10 sm:pb-14 page-hero-content">
+        <div className="tv-rise relative z-10 w-full tv-shell px-4 sm:px-6 lg:px-8 pb-10 sm:pb-14 page-hero-content">
           {/* Phase 1801: brand dominates first viewport — headline must not overpower TRAVERION. */}
           <p className="font-display text-4xl sm:text-5xl tracking-[0.04em] text-white mb-3 leading-none">
             TRAVERION
           </p>
           <h1 className="page-hero-title font-display text-xl sm:text-2xl lg:text-[1.75rem] tracking-tight max-w-xl leading-snug mb-3 sm:mb-4 font-medium">
-            Tours and stays from people who run the day.
+            Discover experiences worth traveling for.
           </h1>
           <p className="page-hero-subtitle text-sm sm:text-base mb-7 max-w-md font-normal text-white/90 leading-relaxed">
-            Book directly with independent operators — experiences and nights in one trip.
+            Book tours and stays directly with the people who run them.
           </p>
 
           {/* Mobile: compact trigger → dedicated search sheet */}
@@ -532,7 +532,8 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                         family: 'destination',
                       });
                       setInterestSignals(readTravelerInterestSignals());
-                      onNavigate ? onNavigate(`destinations/${p.id}`) : goToPackages({ destination: p.id });
+                      if (onNavigate) onNavigate(`destinations/${p.id}`);
+                      else goToPackages({ destination: p.id });
                     }}
                     className="tv-dest-tile lux-flat focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
                   >

@@ -125,7 +125,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
           : `From ${formatMoney(originalPrice, currency)} ${unitLabel}`;
 
   return (
-    <article className="group relative">
+    <article className="tv-browse-card group relative">
       {showWishlist && wishlist ? (
         <button
           type="button"

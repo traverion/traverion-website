@@ -134,7 +134,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               type="button"
               onClick={() => onNavigate('home')}
               aria-current={currentPage === 'home' ? 'page' : undefined}
-              className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${
+              className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors duration-200 ease-out ${
                 currentPage === 'home'
                   ? 'bg-finland/10 font-bold text-finland'
                   : 'text-ink hover:bg-black/[0.04]'
@@ -185,6 +185,32 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
             >
               <Search className="h-4 w-4" aria-hidden />
             </button>
+            {user ? (
+              <>
+                <button
+                  type="button"
+                  className="lux-flat hidden h-11 w-11 items-center justify-center rounded-full text-ink transition-colors duration-200 hover:bg-black/[0.04] lg:inline-flex"
+                  aria-label="Saved"
+                  aria-current={currentPage === 'wishlist' ? 'page' : undefined}
+                  onClick={() => onNavigate('wishlist')}
+                >
+                  <Heart className={`h-4 w-4 ${currentPage === 'wishlist' ? 'fill-finland text-finland' : ''}`} aria-hidden />
+                </button>
+                <button
+                  type="button"
+                  className="lux-flat relative hidden h-11 w-11 items-center justify-center rounded-full text-ink transition-colors duration-200 hover:bg-black/[0.04] lg:inline-flex"
+                  aria-label={hasUnreadBookings ? 'Trips, unread updates' : 'Trips'}
+                  aria-current={currentPage === 'bookings' ? 'page' : undefined}
+                  onPointerEnter={prefetchMyBookingsPage}
+                  onClick={openBookings}
+                >
+                  <Calendar className="h-4 w-4" aria-hidden />
+                  {hasUnreadBookings ? (
+                    <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500" aria-hidden />
+                  ) : null}
+                </button>
+              </>
+            ) : null}
             <TravelerTestModeBanner variant="chip" />
             <div className="relative hidden lg:block">
               <button
