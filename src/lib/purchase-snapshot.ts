@@ -387,6 +387,19 @@ export function formatTripDepartureWithTimezone(
   return `${hm} · ${tz}`;
 }
 
+/** Traveler-facing clock. Keeps the IANA zone for calculations; shows the city name. */
+export function formatTravelerDepartureClock(
+  startTimeHm: string | null | undefined,
+  timezone: string | null | undefined
+): string {
+  const hm = (startTimeHm ?? '').trim();
+  if (!hm) return '';
+  const tz = (timezone ?? '').trim();
+  if (!tz) return hm;
+  const city = (tz.split('/').pop() ?? tz).replace(/_/g, ' ');
+  return `${hm} · ${city} time`;
+}
+
 export function displayDurationFromPurchase(
   snapshot: unknown,
   liveDuration: string | null | undefined

@@ -11,7 +11,7 @@ import { travelerLoginHref } from '../lib/travelerAuthLinks';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import { SkeletonListItem, SkeletonConsumerPage } from '../components/ui/Skeleton';
 import { useAuth } from '../contexts/AuthContext';
-import { isSupabaseConfigured } from '../lib/supabase';
+import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import {
   fetchMyBookings,
   cancelBookingAsCustomer,
@@ -48,7 +48,7 @@ import {
   displayOptionLabelFromPurchase,
   displayStartTimeFromPurchase,
   displayDepartureTimezoneFromPurchase,
-  formatTripDepartureWithTimezone,
+  formatTravelerDepartureClock,
   displayDurationFromPurchase,
   displayCancellationPolicyFromPurchase,
   displayCheckInAddressFromPurchase,
@@ -68,6 +68,7 @@ import { decrementAvailabilityBooked } from '../data/supabase-availability';
 import { clearBookingsUnread } from '../lib/customerBookingNotifications';
 import { guestFacingBookingNotes } from '../lib/booking-notes';
 import { bookingMatchesTripView, travelerTripIsLive, travelerBookingNeedsPayNow, travelerTripReferenceLabel, sortTravelerCancelledTrips, tripAllowsBrowseLiveListing, tripAllowsLeaveReview } from '../lib/trip-views';
+import { travelerPublicBookingReference } from '../lib/public-booking-reference';
 import { bookingEligibleForReview } from '../lib/review-eligibility';
 import { partnerBookingNumberMatchesFilterQuery } from '../lib/partner-bookings-search';
 import {
@@ -153,6 +154,8 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   const [tripView, setTripView] = useState<'upcoming' | 'past' | 'cancelled'>('upcoming');
   const [tripSearchQuery, setTripSearchQuery] = useState('');
   const [openTripId, setOpenTripId] = useState<string | null>(null);
+  const [tripDetailTab, setTripDetailTab] = useState<'overview' | 'details' | 'messages'>('overview');
+  const [reviewedListingIds, setReviewedListingIds] = useState<Set<string>>(new Set());
   const [actionSuccess, setActionSuccess] = useState<{ title: string; body: string } | null>(null);
   // Phase 1677: copy feedback for expanded trip reference.
   const [copiedTripRefId, setCopiedTripRefId] = useState<string | null>(null);
@@ -213,6 +216,15 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
         if (gen !== loadGenRef.current) return;
         // Keep prior open-cancel map — infrastructure failure must not hide Accept/Decline.
         setCancelRequestsError(userFacingError(cancelErr, USER_ERROR.trips));
+      }
+      if (supabase && user?.id) {
+        const { data: reviewed, error: reviewErr } = await supabase
+          .from('reviews')
+          .select('listing_id')
+          .eq('user_id', user.id);
+        if (gen === loadGenRef.current && !reviewErr) {
+          setReviewedListingIds(new Set((reviewed ?? []).map((row) => row.listing_id).filter(Boolean)));
+        }
       }
     } catch (e) {
       if (gen !== loadGenRef.current) return;
@@ -486,8 +498,9 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   const refundDueCount = useMemo(() => bookings.filter(isRefundDueBooking).length, [bookings]);
   const tripViewBookings = useMemo(() => {
     const rows = bookings.filter((b) => bookingMatchesTripView(b, tripView));
-    if (tripView !== 'cancelled') return rows;
-    return sortTravelerCancelledTrips(rows);
+    if (tripView === 'cancelled') return sortTravelerCancelledTrips(rows);
+    const dir = tripView === 'past' ? -1 : 1;
+    return [...rows].sort((a, b) => dir * (a.booking_date ?? '').localeCompare(b.booking_date ?? ''));
   }, [bookings, tripView]);
 
   const visibleBookings = useMemo(() => {
@@ -503,9 +516,13 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
         isStay ? 'Stay' : 'Tour'
       ).toLowerCase();
       // Phase 1486: desk parity — match Ref # on collapsed cards (Partner Bookings 1484 / admin 1053).
+      const publicRef = (travelerPublicBookingReference(b.public_reference) ?? '').toLowerCase();
+      const destination = `${ops?.city ?? ''} ${ops?.destination ?? ''}`.toLowerCase();
       return (
         partnerBookingNumberMatchesFilterQuery(q, b.booking_number) ||
-        title.includes(qLower)
+        title.includes(qLower) ||
+        (publicRef.length > 0 && publicRef.includes(qLower)) ||
+        destination.includes(qLower)
       );
     });
   }, [tripViewBookings, tripSearchQuery, listingOps, titles]);
@@ -613,12 +630,11 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
         <header className="mb-6 border-b border-black/[0.06] pb-5">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Your travel</p>
-              <h1 id={TRIPS_HEADING_ID} className="font-display text-3xl sm:text-4xl text-ink tracking-tight">
-                Trips
+              <h1 id={TRIPS_HEADING_ID} className="font-sans text-2xl font-bold tracking-tight text-ink sm:text-[1.65rem]">
+                Your trips
               </h1>
-              <p className="mt-2 text-sm text-ink-muted max-w-xl leading-relaxed">
-                Manage upcoming, past, and cancelled tours and stays — payment, pickup, and references in one place.
+              <p className="mt-1 text-sm text-ink-muted max-w-xl">
+                Manage your upcoming adventures and past experiences.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -770,7 +786,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 type="search"
                 value={tripSearchQuery}
                 onChange={(e) => setTripSearchQuery(e.target.value)}
-                placeholder="Trip name or booking #"
+                placeholder="Experience, reference, or destination"
                 className="tv-input mt-1"
               />
             </div>
@@ -817,7 +833,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   icon={CalendarDays}
                   className="py-8"
                   title="No trips match your search"
-                  body="Try the booking number from your confirmation (for example #42) or a word from the trip name."
+                  body="Try the booking reference from your confirmation (for example TV- or #42) or a word from the trip name or destination."
                   action={
                     <button type="button" onClick={() => setTripSearchQuery('')} className="tv-btn-secondary">
                       Clear search
@@ -978,12 +994,14 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 const live = b.start_time ? pgTimeToHm(b.start_time) : null;
                 const shown = displayStartTimeFromPurchase(b.purchase_snapshot, live);
                 if (!shown) return null;
-                return formatTripDepartureWithTimezone(
+                return formatTravelerDepartureClock(
                   shown,
                   displayDepartureTimezoneFromPurchase(b.purchase_snapshot)
                 );
               })();
-              const ref = travelerTripReferenceLabel(b.booking_number);
+              const ref =
+                travelerPublicBookingReference(b.public_reference) ??
+                travelerTripReferenceLabel(b.booking_number);
               const needsPay = travelerBookingNeedsPayNow(b);
               const statusTone = toneForTravelerTripCard(lifecycle, payLabel, {
                 hostCancellation: Boolean(openCancel),
@@ -1013,6 +1031,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   onClick={() => {
                     const next = open ? null : b.id;
                     setOpenTripId(next);
+                    if (next) setTripDetailTab('overview');
                     const url = new URL(window.location.href);
                     if (next) url.searchParams.set('booking', next);
                     else url.searchParams.delete('booking');
@@ -1032,7 +1051,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     <img
                       src={thumb}
                       alt=""
-                      className="h-16 w-16 sm:h-20 sm:w-20 rounded-xl object-cover shrink-0 bg-black/[0.04]"
+                      className="h-12 w-12 rounded-md object-cover shrink-0 bg-black/[0.04]"
                       width={80}
                       height={80}
                       loading="lazy"
@@ -1040,7 +1059,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     />
                   ) : (
                     <div
-                      className="flex h-16 w-16 sm:h-20 sm:w-20 shrink-0 items-center justify-center rounded-xl bg-finland/[0.06] ring-1 ring-finland/10"
+                      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-finland/[0.06] ring-1 ring-finland/10"
                       aria-hidden
                     >
                       <CalendarDays className="h-6 w-6 text-finland/50" />
@@ -1060,10 +1079,13 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                           <p className="mt-0.5 text-sm text-ink-muted line-clamp-1">{tripOption}</p>
                         ) : null}
                       </div>
-                      <ChevronDown
-                        className={`mt-1 h-4 w-4 shrink-0 text-ink-faint transition-transform duration-200 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`}
-                        aria-hidden
-                      />
+                      <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-finland">
+                        {open ? 'Close' : 'View booking'}
+                        <ChevronDown
+                          className={`h-4 w-4 text-ink-faint transition-transform duration-200 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`}
+                          aria-hidden
+                        />
+                      </span>
                     </div>
                     <div className="mt-2.5 flex flex-wrap gap-1.5">
                       {openCancel ? <StatusChip tone="warn">Host cancellation</StatusChip> : null}
@@ -1094,9 +1116,9 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       bookingPaymentWasCollected(b.payment_status) ? (
                         <span className="font-display text-[0.95rem] font-semibold tabular-nums tracking-tight text-ink">
                           {formatMoney(Number(b.amount_paid), b.currency)}
-                          {isStripeTestCheckoutSession(b.checkout_session_id) || appStripeIsTestMode()
-                            ? ' TEST'
-                            : ''}
+                          {isStripeTestCheckoutSession(b.checkout_session_id) || appStripeIsTestMode() ? (
+                            <span className="ml-2 text-[11px] font-semibold uppercase tracking-wide text-amber-800">Test mode</span>
+                          ) : null}
                         </span>
                       ) : null}
                     </p>
@@ -1141,7 +1163,28 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   id={`trip-panel-${b.id}`}
                   className="space-y-3 border-t border-black/[0.06] px-3.5 py-3.5 sm:px-4 motion-safe:animate-fade-in"
                 >
-                  <dl className="tv-trip-card__facts">
+                  <div className="flex gap-1" role="tablist" aria-label="Booking sections">
+                    {([
+                      ['overview', 'Overview'],
+                      ['details', 'Details'],
+                      ['messages', 'Messages'],
+                    ] as const).map(([id, label]) => (
+                      <button
+                        key={id}
+                        type="button"
+                        role="tab"
+                        aria-selected={tripDetailTab === id}
+                        onClick={() => setTripDetailTab(id)}
+                        className={`min-h-9 rounded-full px-3 text-sm font-semibold ${
+                          tripDetailTab === id ? 'bg-finland text-white' : 'text-ink-muted hover:bg-black/[0.04]'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <dl className={`tv-trip-card__facts ${tripDetailTab === 'messages' ? 'hidden' : ''}`}>
+                    {tripDetailTab === 'overview' ? (
                     <div>
                       <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
                         {isStay ? 'Stay dates' : 'Departure'}
@@ -1151,7 +1194,8 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         {timeBit ? ` · ${timeBit}` : ''}
                       </dd>
                     </div>
-                    {placeLine ? (
+                    ) : null}
+                    {tripDetailTab === 'overview' && placeLine ? (
                       <div>
                         <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
                           {placeLabel}
@@ -1182,7 +1226,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         </div>
                       );
                     })()}
-                    {isStay && displayStayHouseRulesFromPurchase(b.purchase_snapshot) ? (
+                    {isStay && tripDetailTab === 'details' && displayStayHouseRulesFromPurchase(b.purchase_snapshot) ? (
                       <div className="sm:col-span-2">
                         <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
                           House rules (when you booked)
@@ -1192,7 +1236,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         </dd>
                       </div>
                     ) : null}
-                    {!isStay && (displayIncludesFromPurchase(b.purchase_snapshot)?.length ?? 0) > 0 ? (
+                    {tripDetailTab === 'details' && !isStay && (displayIncludesFromPurchase(b.purchase_snapshot)?.length ?? 0) > 0 ? (
                       <div className="sm:col-span-2">
                         <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
                           Included (when you booked)
@@ -1206,7 +1250,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         </dd>
                       </div>
                     ) : null}
-                    {!isStay && (displayExcludesFromPurchase(b.purchase_snapshot)?.length ?? 0) > 0 ? (
+                    {tripDetailTab === 'details' && !isStay && (displayExcludesFromPurchase(b.purchase_snapshot)?.length ?? 0) > 0 ? (
                       <div className="sm:col-span-2">
                         <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
                           Not included (when you booked)
@@ -1220,18 +1264,28 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         </dd>
                       </div>
                     ) : null}
-                    {!isStay && tripPlaceValue ? (
+                    {tripDetailTab === 'overview' && !isStay && tripPlaceValue ? (
                       <div className="sm:col-span-2">
                         <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
                           {tripPlaceHeading}
                         </dt>
-                        <dd className="mt-0.5 text-sm text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{tripPlaceValue}</dd>
+                        <dd className="mt-0.5 text-sm text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
+                          {tripPlaceValue}
+                          <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(tripPlaceValue)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-1 block text-sm font-semibold text-finland underline-offset-2 hover:underline"
+                          >
+                            Directions
+                          </a>
+                        </dd>
                         {tripLogistics.map((line) => (
                           <dd key={line} className="mt-0.5 text-sm text-ink-muted">{line}</dd>
                         ))}
                       </div>
                     ) : null}
-                    {!isStay && tripPickupInstructions && !pickupMissing ? (
+                    {tripDetailTab === 'details' && !isStay && tripPickupInstructions && !pickupMissing ? (
                       <div className="sm:col-span-2">
                         <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
                           Pickup
@@ -1242,7 +1296,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         </dd>
                       </div>
                     ) : null}
-                    {!isStay &&
+                    {tripDetailTab === 'details' && !isStay &&
                     (() => {
                       const phone = displayBookingContactPhoneFromPurchase(
                         b.purchase_snapshot,
@@ -1265,7 +1319,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         </div>
                       );
                     })()}
-                    {!isStay && tripDuration ? (
+                    {tripDetailTab === 'details' && !isStay && tripDuration ? (
                       <div>
                         <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
                           Duration
@@ -1273,6 +1327,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         <dd className="mt-0.5 text-sm text-ink">{tripDuration}</dd>
                       </div>
                     ) : null}
+                    {tripDetailTab === 'overview' ? (
                     <div>
                       <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
                         {b.guest_breakdown && b.guest_breakdown.length > 0 ? 'Participants' : 'Guests'}
@@ -1282,7 +1337,8 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         {stayNightsSuffix}
                       </dd>
                     </div>
-                    {ref ? (
+                    ) : null}
+                    {tripDetailTab === 'overview' && ref ? (
                       <div>
                         <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
                           Reference
@@ -1322,7 +1378,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         </dd>
                       </div>
                     ) : null}
-                    {tripCancelPolicy ? (
+                    {tripDetailTab === 'details' && tripCancelPolicy ? (
                       <div className="sm:col-span-2">
                         <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
                           Cancellation (at purchase)
@@ -1333,14 +1389,14 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       </div>
                     ) : null}
                   </dl>
-                  {b.pickup_time && !tripHidesExactPickup && (pickupMissing || !tripPickupInstructions) ? (
+                  {tripDetailTab === 'overview' && b.pickup_time && !tripHidesExactPickup && (pickupMissing || !tripPickupInstructions) ? (
                     <p className="text-sm text-ink-muted">Pickup {pgTimeToHm(b.pickup_time)}</p>
-                  ) : pickupMissing ? (
+                  ) : tripDetailTab === 'overview' && pickupMissing ? (
                     <NoticeCallout title="Pickup details pending" tone="warn">
                       {TRAVELER_PICKUP_PENDING_UI_NOTE}
                     </NoticeCallout>
                   ) : null}
-                  {openCancel ? (
+                  {tripDetailTab === 'overview' && openCancel ? (
                     <NoticeCallout
                       title="The host requested cancellation"
                       tone="danger"
@@ -1378,7 +1434,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       </p>
                     </NoticeCallout>
                   ) : null}
-                  {b.status === 'cancelled' && payLabel === 'Refund due' ? (
+                  {tripDetailTab === 'overview' && b.status === 'cancelled' && payLabel === 'Refund due' ? (
                     <NoticeCallout title="Refund due" tone="warn">
                       {REFUND_DUE_MANUAL_COPY}
                     </NoticeCallout>
@@ -1386,9 +1442,12 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   {b.status === 'cancelled' && guestNotes ? (
                     <p className="text-sm text-ink-muted break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{guestNotes}</p>
                   ) : null}
-                  {liveTrip &&
+                  {tripDetailTab === 'details' &&
+                  liveTrip &&
                     (b.status === 'pending' || b.status === 'confirmed') &&
-                    !isStay && (
+                    !isStay &&
+                    tripFulfillment === 'pickup' &&
+                    !chosenPickup && (
                     <div className="max-w-lg">
                       <label htmlFor={`stay-${b.id}`} className="block text-xs font-medium text-ink-muted mb-1">
                         Place of stay
@@ -1416,7 +1475,14 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       </button>
                     </div>
                   )}
-                  <div className="flex flex-wrap gap-2">
+                  <div className={`flex flex-wrap gap-2 ${tripDetailTab === 'overview' ? '' : 'hidden'}`}>
+                    <button
+                      type="button"
+                      onClick={() => setTripDetailTab('messages')}
+                      className="tv-btn-secondary"
+                    >
+                      Contact operator
+                    </button>
                     {/* Phase 1678 + Phase 1709 + Phase 1731: Leave a review for published or draft (unpublish); not live-season. */}
                     {onTourSelect &&
                     tripView === 'past' &&
@@ -1434,7 +1500,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         }}
                         className="tv-btn-secondary"
                       >
-                        Leave a review
+                        {reviewedListingIds.has(b.listing_id) ? 'Your review' : 'Leave a review'}
                       </button>
                     ) : null}
                     {onTourSelect &&
@@ -1493,6 +1559,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       openCancellation: Boolean(openCancel),
                     };
                     const block = messagingComposeBlock(msg);
+                    if (tripDetailTab !== 'messages') return null;
                     return (
                     <BookingMessageThread
                       bookingId={b.id}
@@ -1575,7 +1642,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       cancelConfirm.start_time ? pgTimeToHm(cancelConfirm.start_time) : null
                     );
                     if (!shown) return null;
-                    return ` · ${formatTripDepartureWithTimezone(
+                    return ` · ${formatTravelerDepartureClock(
                       shown,
                       displayDepartureTimezoneFromPurchase(cancelConfirm.purchase_snapshot)
                     )}`;

@@ -16,6 +16,7 @@ import {
   displayStartTimeFromPurchase,
   displayDepartureTimezoneFromPurchase,
   formatTripDepartureWithTimezone,
+  formatTravelerDepartureClock,
   displayCheckInAddressFromPurchase,
   displayBookingContactPhoneFromPurchase,
   redactUnpaidStayCheckInAddress,
@@ -298,6 +299,9 @@ describe('resolveOptionFieldsForSnapshot (checkout freeze helpers)', () => {
       '20:00 · Europe/Helsinki'
     );
     expect(formatTripDepartureWithTimezone('20:00', null)).toBe('20:00');
+    expect(formatTravelerDepartureClock('18:30', 'Europe/Helsinki')).toBe('18:30 · Helsinki time');
+    expect(formatTravelerDepartureClock('09:00', 'America/New_York')).toBe('09:00 · New York time');
+    expect(formatTravelerDepartureClock('18:30', null)).toBe('18:30');
     expect(displayDepartureTimezoneFromPurchase({ listingTitle: 'x', capturedAt: 't' })).toBeNull();
   });
 
