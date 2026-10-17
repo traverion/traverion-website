@@ -90,7 +90,7 @@ describe('progressive listing lines', () => {
   });
 
   it('keeps stay highlights at five maximum', () => {
-    expect(STAY_HIGHLIGHT_MIN_VISIBLE).toBe(2);
+    expect(STAY_HIGHLIGHT_MIN_VISIBLE).toBe(0);
     expect(STAY_HIGHLIGHT_MAX).toBe(5);
   });
 

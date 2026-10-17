@@ -7,7 +7,8 @@ export const TOUR_INCLUDE_MAX = 10;
 export const TOUR_EXCLUDE_MIN_VISIBLE = 0;
 export const TOUR_EXCLUDE_MIN_REQUIRED = 0;
 export const TOUR_EXCLUDE_MAX = 10;
-export const STAY_HIGHLIGHT_MIN_VISIBLE = 2;
+/** Stay highlights start empty. A row appears only after Add highlight. */
+export const STAY_HIGHLIGHT_MIN_VISIBLE = 0;
 export const STAY_HIGHLIGHT_MAX = 5;
 
 /** Per inclusion/exclusion line — empty rows are ignored; filled rows must meet this floor. */

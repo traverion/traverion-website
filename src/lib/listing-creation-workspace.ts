@@ -16,6 +16,8 @@ export type ListingCreationNavItem = {
   requirementsMet?: boolean;
   /** Short operator summary when the step has content (shown under the state caption). */
   summary?: string | null;
+  /** Stay creator: the open step stays “In progress” until the supplier leaves it. */
+  keepCurrentInProgress?: boolean;
 };
 
 /** Nested object editor nav. Supply only when a real nested workflow exists. */
@@ -46,6 +48,7 @@ export function listingCreationNavItems(
   options?: {
     isNewCreation?: boolean;
     summaryForIndex?: (index: number) => string | null | undefined;
+    keepCurrentInProgress?: boolean;
   }
 ): ListingCreationNavItem[] {
   const isNewCreation = options?.isNewCreation === true;
@@ -63,6 +66,7 @@ export function listingCreationNavItems(
       }),
       requirementsMet,
       summary: summary || null,
+      keepCurrentInProgress: options?.keepCurrentInProgress === true,
     };
   });
 }

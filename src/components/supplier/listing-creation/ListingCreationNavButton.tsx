@@ -10,7 +10,7 @@ const STATE_CAPTION: Record<ListingCreationNavItem['state'], string> = {
 
 function navStateCaption(item: ListingCreationNavItem): string {
   // Current step that already meets requirements should not read as unfinished.
-  if (item.state === 'current' && item.requirementsMet) return 'Complete';
+  if (item.state === 'current' && item.requirementsMet && !item.keepCurrentInProgress) return 'Complete';
   return STATE_CAPTION[item.state];
 }
 
@@ -34,7 +34,7 @@ export function ListingCreationNavButton({
   const stateLabel = complete
     ? ', complete'
     : current
-      ? item.requirementsMet
+      ? item.requirementsMet && !item.keepCurrentInProgress
         ? ', complete'
         : ', current'
       : locked

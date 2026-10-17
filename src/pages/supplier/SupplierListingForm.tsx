@@ -35,7 +35,7 @@ import { summarizeOptionPricing } from '../../lib/price-categories';
 import { headlineStartingAmountFromBookingOptions } from '../../lib/headline-price';
 import { listingDurationForPersist } from '../../lib/listing-option-ownership';
 import { itineraryForListingPersist } from '../../lib/tour-itinerary';
-import { syncLinkedPickupCenters, verifiedDestination } from '../../lib/destination-place';
+import { syncLinkedPickupCenters, travelerDestinationLabel, verifiedDestination } from '../../lib/destination-place';
 import {
   TOUR_OPTION_SCENE_COUNT,
   clampTourOptionSceneIndex,
@@ -129,6 +129,7 @@ import {
 import {
   canContinueFromPhotos,
   canVisitListingCreationStep,
+  listingCreationCompletedCount,
   listingCreationContinueHint,
   listingCreationLockedReason,
   listingCreationMissingHint,
@@ -219,10 +220,79 @@ import {
   PARTNER_LISTING_PUBLISH_STEP_TITLE,
 } from '../../lib/booking-confirmation-copy';
 import { DEFAULT_CURRENCY, formatMoney, normalizeCurrency } from '../../lib/money';
-import { STAY_AMENITY_PRESETS } from '../../lib/stay-amenities';
+import { formatStayAmenityLabel, STAY_AMENITY_GROUPS, STAY_AMENITY_PRESETS } from '../../lib/stay-amenities';
+import DestinationSearch from '../../components/supplier/DestinationSearch';
+import { placesSearchConfigured } from '../../lib/places-client';
 import { publicStayListingUrl, publicTourListingUrl } from '../../lib/publicSiteUrl';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import NoticeCallout from '../../components/NoticeCallout';
+
+function StayCountField({
+  id,
+  label,
+  hint,
+  value,
+  min,
+  max,
+  step = 1,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  hint?: string;
+  value: string;
+  min: number;
+  max: number;
+  step?: number;
+  onChange: (next: string) => void;
+}) {
+  const parsed = Number.parseFloat(value);
+  const has = Number.isFinite(parsed);
+  const format = (n: number) => (Number.isInteger(n) ? String(n) : String(Math.round(n * 2) / 2));
+  const decrease = () => {
+    if (!has) return;
+    const next = Math.round((parsed - step) * 2) / 2;
+    onChange(next < min ? '' : format(next));
+  };
+  const increase = () => {
+    const base = has ? parsed : min - step;
+    const next = Math.min(max, Math.round((base + step) * 2) / 2);
+    onChange(format(next < min ? min : next));
+  };
+  return (
+    <div>
+      <label htmlFor={id} className="block text-sm font-semibold text-ink">
+        {label}
+      </label>
+      {hint ? <p className="mt-0.5 text-xs leading-relaxed text-ink-muted">{hint}</p> : null}
+      <div className="mt-2 flex h-11 max-w-[12rem] items-center rounded-xl border border-[#E6EAF0] bg-white">
+        <button
+          type="button"
+          className="h-11 w-11 shrink-0 text-lg text-ink"
+          onClick={decrease}
+          aria-label={`Decrease ${label}`}
+        >
+          −
+        </button>
+        <input
+          id={id}
+          inputMode="decimal"
+          value={value}
+          onChange={(e) => onChange(e.target.value.replace(/[^\d.]/g, ''))}
+          className="w-full bg-transparent text-center text-sm font-semibold tabular-nums text-ink outline-none"
+        />
+        <button
+          type="button"
+          className="h-11 w-11 shrink-0 text-lg text-ink"
+          onClick={increase}
+          aria-label={`Increase ${label}`}
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function stayAmenityTokens(raw: string): string[] {
   return raw
@@ -540,7 +610,7 @@ function focusListingField(fieldId: string | null) {
 }
 
 function normalizeHighlightSlots(fromDb: string[] | undefined): string[] {
-  return normalizeProgressiveSlots(fromDb, STAY_HIGHLIGHT_MIN_VISIBLE, STAY_HIGHLIGHT_MAX);
+  return persistableProgressiveSlots(fromDb ?? [], STAY_HIGHLIGHT_MAX);
 }
 
 function ProgressiveLinesEditor({
@@ -626,7 +696,7 @@ function ProgressiveLinesEditor({
                   )}
                 </span>
               ) : null}
-              <div className="min-w-0">
+              <div className={sectioned ? 'min-w-0' : 'min-w-0 flex-1'}>
                 <input
                   type="text"
                   value={line}
@@ -674,15 +744,19 @@ function ProgressiveLinesEditor({
                   </p>
                 ) : null}
               </div>
+              {sectioned || index >= minVisible || line.trim() ? (
               <button
                 type="button"
                 onClick={() => onChange(removeProgressiveSlot(values, index, minVisible))}
-                className={`lux-flat mt-1.5 w-full shrink-0 px-1 py-1.5 text-center text-[12px] font-medium text-ink-muted hover:text-ink ${
-                  sectioned ? '' : 'w-auto px-2'
-                }`}
+                className={
+                  sectioned
+                    ? 'lux-flat mt-1.5 w-full shrink-0 px-1 py-1.5 text-center text-[12px] font-medium text-ink-muted hover:text-ink'
+                    : 'lux-flat mt-1.5 shrink-0 rounded-lg px-2.5 py-2 text-[12px] font-semibold text-ink-muted hover:text-ink'
+                }
               >
-                {index < minVisible && !line.trim() ? 'Clear' : 'Remove'}
+                {sectioned && index < minVisible && !line.trim() ? 'Clear' : 'Remove'}
               </button>
+              ) : null}
             </div>
           );
         })}
@@ -1242,10 +1316,10 @@ const emptyForm: ListingFormState = {
   additionalLanguages: [] as string[],
   inventoryFamily: 'tour',
   stayPropertyType: 'Apartment',
-  stayBedrooms: '1',
-  stayBeds: '1',
-  stayBathrooms: '1',
-  stayMaxGuests: '4',
+  stayBedrooms: '',
+  stayBeds: '',
+  stayBathrooms: '',
+  stayMaxGuests: '',
   stayNightly: '',
   stayMinNights: '1',
   stayCheckIn: '16:00',
@@ -1589,7 +1663,13 @@ export default function SupplierListingForm({
           label: 'Property',
           summary: form.title.trim() || 'Untitled stay',
           ready: isStepSatisfied(0, form),
-          missing: !form.title.trim() ? 'Add a clear title.' : null,
+          missing: !isStepSatisfied(0, form)
+            ? !isListingTitleLengthValid(form.title)
+              ? 'Add a title guests will recognize.'
+              : !form.subtitle.trim()
+                ? 'Add a subtitle.'
+                : 'Add a description of the stay.'
+            : null,
         },
         {
           step: 1,
@@ -1919,10 +1999,10 @@ export default function SupplierListingForm({
           additionalLanguages: normalizeSpokenLanguageIds(extras.additionalLanguages),
           inventoryFamily: extras.inventoryFamily === 'stay' ? 'stay' : 'tour',
           stayPropertyType: extras.stay?.propertyType ?? 'Apartment',
-          stayBedrooms: extras.stay?.bedrooms != null ? String(extras.stay.bedrooms) : '1',
-          stayBeds: extras.stay?.beds != null ? String(extras.stay.beds) : '1',
-          stayBathrooms: extras.stay?.bathrooms != null ? String(extras.stay.bathrooms) : '1',
-          stayMaxGuests: extras.stay?.maxGuests != null ? String(extras.stay.maxGuests) : '4',
+          stayBedrooms: extras.stay?.bedrooms != null ? String(extras.stay.bedrooms) : '',
+          stayBeds: extras.stay?.beds != null ? String(extras.stay.beds) : '',
+          stayBathrooms: extras.stay?.bathrooms != null ? String(extras.stay.bathrooms) : '',
+          stayMaxGuests: extras.stay?.maxGuests != null ? String(extras.stay.maxGuests) : '',
           stayNightly: extras.stay?.nightlyPriceUsd != null ? String(extras.stay.nightlyPriceUsd) : '',
           stayMinNights: extras.stay?.minNights != null ? String(extras.stay.minNights) : '1',
           stayCheckIn: stayFormCheckInOutFromExtras(extras.stay).stayCheckIn,
@@ -1968,7 +2048,7 @@ export default function SupplierListingForm({
                 experienceLanguage: 'en',
                 duration: 'Per night',
                 experienceKind: 'tour' as const,
-                highlights: Array.from({ length: STAY_HIGHLIGHT_MIN_VISIBLE }, () => ''),
+                highlights: [],
               }
             : {}),
         };
@@ -3434,8 +3514,10 @@ export default function SupplierListingForm({
     : createFamily === 'stay'
       ? 'Create stay steps'
       : 'Create tour steps';
+  const stayProgress = isStayForm;
   const creationNavItems = listingCreationNavItems(steps, stepIdx, (idx) => isStepSatisfied(idx, form), {
     isNewCreation: sessionOpenedAsCreateRef.current === true,
+    keepCurrentInProgress: stayProgress,
     summaryForIndex: (idx) => {
       const row = reviewRows.find((r) => r.step === idx);
       if (!row) return null;
@@ -3444,7 +3526,12 @@ export default function SupplierListingForm({
     },
   });
   const creationProgressCopy = listingCreationProgressCopy(
-    steps.filter((_, idx) => isStepSatisfied(idx, form)).length,
+    stayProgress
+      ? listingCreationCompletedCount(
+          steps.map((_, idx) => isStepSatisfied(idx, form)),
+          stepIdx
+        )
+      : steps.filter((_, idx) => isStepSatisfied(idx, form)).length,
     steps.length
   );
 
@@ -3735,9 +3822,11 @@ export default function SupplierListingForm({
                       ? 'max-w-[72rem]'
                       : stepIdx === 4
                         ? 'max-w-5xl'
-                        : stepIdx === 2 && !isStayForm
-                          ? 'max-w-[48rem]'
-                          : 'max-w-xl'
+                        : isStayForm
+                          ? 'mx-auto max-w-[52rem]'
+                          : stepIdx === 2
+                            ? 'max-w-[48rem]'
+                            : 'max-w-xl'
                   }`
             }`}
           >
@@ -3749,7 +3838,13 @@ export default function SupplierListingForm({
             (isStayForm && (stepIdx === 2 || stepIdx === 3))
           ) ? (
             <header className="mb-6 sm:mb-7">
-              <h3 className="font-display text-[1.65rem] font-bold tracking-tight text-ink sm:text-[1.85rem]">
+              <h3
+                className={
+                  isStayForm
+                    ? 'font-sans text-2xl font-bold tracking-tight text-[#111827] sm:text-[1.75rem]'
+                    : 'font-display text-[1.65rem] font-bold tracking-tight text-ink sm:text-[1.85rem]'
+                }
+              >
                 {steps[stepIdx].label}
               </h3>
               {stepGuidance[stepIdx]?.trim() ? (
@@ -3764,16 +3859,17 @@ export default function SupplierListingForm({
                 <div id="supplier-listing-field-stay-type">
                   <label className="block text-sm font-semibold text-ink mb-1">Property type *</label>
                   <p className="text-xs text-ink-muted mb-3">What travelers are booking — not a tour option.</p>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                  <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
                     {(['Apartment', 'House', 'Cabin', 'Room', 'Cottage', 'Other'] as const).map((type) => {
                       const selected = (form.stayPropertyType || 'Apartment') === type;
                       return (
                         <button
                           key={type}
                           type="button"
+                          aria-pressed={selected}
                           onClick={() => setForm((f) => ({ ...f, stayPropertyType: type }))}
-                          className={`lc-choice rounded-xl px-3 py-3 text-left text-sm font-bold ${
-                            selected ? 'lc-choice--selected text-ink' : 'text-ink-muted'
+                          className={`lc-choice rounded-xl px-3 py-3 text-left text-sm font-semibold ${
+                            selected ? 'lc-choice--selected text-[#111827]' : 'text-ink-muted hover:text-ink'
                           }`}
                         >
                           {type}
@@ -3781,6 +3877,11 @@ export default function SupplierListingForm({
                       );
                     })}
                   </div>
+                  <p className="mt-2 text-xs leading-relaxed text-ink-muted">
+                    {(form.stayPropertyType || 'Apartment') === 'Room'
+                      ? 'Guests book this room, not the whole property. On Space, use 0 bedrooms if it is a single room.'
+                      : 'Guests book the whole place. Bedrooms and beds are set separately on Space.'}
+                  </p>
                 </div>
               <div id="supplier-listing-field-title">
                 <label htmlFor="supplier-listing-title" className="block text-sm font-semibold text-ink mb-1">
@@ -3830,9 +3931,9 @@ export default function SupplierListingForm({
                   value={form.subtitle}
                   maxLength={MAX_SUBTITLE_LENGTH}
                   onChange={(e) => setForm((f) => ({ ...f, subtitle: e.target.value.slice(0, MAX_SUBTITLE_LENGTH) }))}
-                  rows={3}
-                  className="tv-input min-h-[5.5rem] resize-y"
-                  placeholder="e.g. Quiet apartment near the harbour"
+                  rows={2}
+                  className="tv-input min-h-[4.5rem] resize-y"
+                  placeholder="e.g. Quiet cabin with a sauna, a short walk from the lake"
                 />
                 <p className="text-xs text-ink-muted mt-1 tabular-nums">
                   {form.subtitle.length}/{MAX_SUBTITLE_LENGTH}
@@ -3844,6 +3945,7 @@ export default function SupplierListingForm({
                   title={form.title}
                   subtitle={form.subtitle}
                   languageLabel={null}
+                  sans
                 />
               </div>
               <div id="supplier-listing-field-description">
@@ -3866,14 +3968,14 @@ export default function SupplierListingForm({
                       description: clampListingDescriptionInput(e.target.value, f.description),
                     }))
                   }
-                  rows={8}
-                  className={`tv-input min-h-[10rem] ${
+                  rows={6}
+                  className={`tv-input min-h-[8.5rem] ${
                     form.description.trim().length > 0 &&
                     form.description.trim().length < MIN_LISTING_DESCRIPTION_LENGTH
                       ? 'border-amber-300 focus:ring-amber-200 focus:border-amber-400'
                       : ''
                   }`}
-                  placeholder="What guests do, what makes it special, practical notes…"
+                  placeholder="Describe the place, who it suits, and what guests should expect when they arrive."
                   aria-invalid={
                     form.description.trim().length > 0 &&
                     form.description.trim().length < MIN_LISTING_DESCRIPTION_LENGTH
@@ -3913,13 +4015,15 @@ export default function SupplierListingForm({
               </div>
               <ProgressiveLinesEditor
                 fieldId="supplier-listing-field-highlights"
-                label="Highlights (optional)"
-                hint={`Short selling points. You can add up to ${STAY_HIGHLIGHT_MAX}.`}
+                label="Highlights"
+                hint={`Optional. Add up to ${STAY_HIGHLIGHT_MAX} short points guests will notice.`}
                 values={form.highlights}
                 minVisible={STAY_HIGHLIGHT_MIN_VISIBLE}
                 max={STAY_HIGHLIGHT_MAX}
-                placeholder={(index) => (index === 0 ? 'e.g. River view' : `Optional highlight ${index + 1}`)}
+                placeholder={() => 'e.g. Lakeside sauna'}
                 onChange={(highlights) => setForm((f) => ({ ...f, highlights }))}
+                addLabel="Add highlight"
+                emptyHint={null}
               />
             </div>
           )}
@@ -4152,14 +4256,41 @@ export default function SupplierListingForm({
           )}
 
           {stepIdx === 1 && form.inventoryFamily === 'stay' && (
-            <div className="space-y-10">
+            <div className="space-y-8">
               <section className="space-y-4" aria-labelledby="listing-details-place">
-                <h4 id="listing-details-place" className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
-                  Where it is
+                <h4 id="listing-details-place" className="text-sm font-semibold text-[#111827]">
+                  Where guests will find it
                 </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" id="supplier-listing-field-location">
+                {placesSearchConfigured() ? (
+                  <DestinationSearch
+                    id="supplier-listing-stay-destination"
+                    selected={verifiedDestination({
+                      placeId: form.destinationPlaceId,
+                      city: form.city,
+                      country: form.country,
+                      countryCode: form.destinationCountryCode,
+                      lat: form.destinationLat,
+                      lng: form.destinationLng,
+                      formatted: form.destinationFormatted,
+                    })}
+                    savedLabel={travelerDestinationLabel(form.city, form.country)}
+                    onSelect={(place) =>
+                      setForm((f) => ({
+                        ...f,
+                        city: place.city,
+                        country: place.country,
+                        destinationPlaceId: place.placeId,
+                        destinationCountryCode: place.countryCode,
+                        destinationLat: place.lat,
+                        destinationLng: place.lng,
+                        destinationFormatted: place.formatted,
+                      }))
+                    }
+                  />
+                ) : null}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2" id="supplier-listing-field-location">
                   <div>
-                    <label className="block text-sm font-semibold text-ink mb-1">City *</label>
+                    <label className="mb-1 block text-sm font-semibold text-ink">City *</label>
                     <input
                       type="text"
                       value={form.city}
@@ -4170,7 +4301,7 @@ export default function SupplierListingForm({
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-ink mb-1">Country *</label>
+                    <label className="mb-1 block text-sm font-semibold text-ink">Country *</label>
                     <input
                       type="text"
                       value={form.country}
@@ -4203,7 +4334,7 @@ export default function SupplierListingForm({
                     value={form.stayCheckInAddress}
                     onChange={(e) => setForm((f) => ({ ...f, stayCheckInAddress: e.target.value }))}
                     className="tv-input min-h-[4.5rem] resize-y"
-                    placeholder="Street, building, apartment, entry code — for booked guests only"
+                    placeholder="Street, postal code, building, and entry notes — for booked guests only"
                     maxLength={400}
                     required
                   />
@@ -4219,79 +4350,80 @@ export default function SupplierListingForm({
           {stepIdx === 2 && form.inventoryFamily === 'stay' && (
             <div className="space-y-5">
               <div>
-                <h3 className="font-display text-[1.85rem] font-bold tracking-tight text-ink">Space</h3>
-                <p className="mt-1 text-sm text-ink-muted leading-snug max-w-xl">
-                  How many guests can stay, and what rooms they get.
+                <h3 className="font-sans text-2xl font-bold tracking-tight text-[#111827] sm:text-[1.75rem]">Space</h3>
+                <p className="mt-1 max-w-xl text-sm leading-relaxed text-ink-muted">
+                  Maximum guests is who can stay. Bedrooms and beds are separate — four beds can be two rooms.
                 </p>
               </div>
               <div className="lc-section space-y-4 rounded-xl px-4 py-4 sm:px-5">
-                <div className="grid sm:grid-cols-2 gap-3">
-                  <label className="block text-sm">
-                    Max guests *
-                    <input
-                      type="number"
-                      min={1}
-                      value={form.stayMaxGuests}
-                      onChange={(e) => setForm((f) => ({ ...f, stayMaxGuests: e.target.value }))}
-                      className="tv-input mt-1 w-full"
-                    />
-                  </label>
-                  <label className="block text-sm">
-                    Bedrooms
-                    <input
-                      type="number"
-                      min={0}
-                      value={form.stayBedrooms}
-                      onChange={(e) => setForm((f) => ({ ...f, stayBedrooms: e.target.value }))}
-                      className="tv-input mt-1 w-full"
-                    />
-                  </label>
-                  <label className="block text-sm">
-                    Beds
-                    <input
-                      type="number"
-                      min={0}
-                      value={form.stayBeds}
-                      onChange={(e) => setForm((f) => ({ ...f, stayBeds: e.target.value }))}
-                      className="tv-input mt-1 w-full"
-                    />
-                  </label>
-                  <label className="block text-sm">
-                    Bathrooms
-                    <input
-                      type="number"
-                      min={0}
-                      step={0.5}
-                      value={form.stayBathrooms}
-                      onChange={(e) => setForm((f) => ({ ...f, stayBathrooms: e.target.value }))}
-                      className="tv-input mt-1 w-full"
-                    />
-                  </label>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <StayCountField
+                    id="supplier-listing-field-stay-guests"
+                    label="Maximum guests *"
+                    hint="How many people can stay at once."
+                    value={form.stayMaxGuests}
+                    min={1}
+                    max={50}
+                    onChange={(stayMaxGuests) => setForm((f) => ({ ...f, stayMaxGuests }))}
+                  />
+                  <StayCountField
+                    id="supplier-listing-field-stay-bedrooms"
+                    label="Bedrooms"
+                    hint={(form.stayPropertyType || 'Apartment') === 'Room' ? 'Use 0 for a single room.' : 'Rooms with a bed, not the bed count.'}
+                    value={form.stayBedrooms}
+                    min={0}
+                    max={30}
+                    onChange={(stayBedrooms) => setForm((f) => ({ ...f, stayBedrooms }))}
+                  />
+                  <StayCountField
+                    id="supplier-listing-field-stay-beds"
+                    label="Beds"
+                    hint="Places to sleep. This can be higher than the bedroom count."
+                    value={form.stayBeds}
+                    min={0}
+                    max={50}
+                    onChange={(stayBeds) => setForm((f) => ({ ...f, stayBeds }))}
+                  />
+                  <StayCountField
+                    id="supplier-listing-field-stay-bathrooms"
+                    label="Bathrooms"
+                    hint="Half baths count as 0.5."
+                    value={form.stayBathrooms}
+                    min={0}
+                    max={20}
+                    step={0.5}
+                    onChange={(stayBathrooms) => setForm((f) => ({ ...f, stayBathrooms }))}
+                  />
                 </div>
               </div>
-              <div id="supplier-listing-field-stay-amenities" className="lc-section space-y-3 rounded-xl px-4 py-4 sm:px-5">
+              <div id="supplier-listing-field-stay-amenities" className="lc-section space-y-4 rounded-xl px-4 py-4 sm:px-5">
                 <p className="text-sm font-semibold text-ink">Amenities</p>
-                <p className="text-xs text-ink-muted">Travelers see these on the stay page. Tick what is actually there.</p>
-                <div className="flex flex-wrap gap-2">
-                  {STAY_AMENITY_PRESETS.map((label) => {
-                    const on = stayAmenityHas(form.stayAmenities, label);
-                    return (
-                      <button
-                        key={label}
-                        type="button"
-                        aria-pressed={on}
-                        onClick={() => setForm((f) => ({ ...f, stayAmenities: toggleStayAmenity(f.stayAmenities, label) }))}
-                        className={`lux-flat rounded-full px-3 py-1.5 text-sm transition-colors ${
-                          on
-                            ? 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
-                            : 'text-ink-muted ring-1 ring-black/[0.08] hover:bg-finland/10 hover:text-finland'
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
+                <p className="text-xs text-ink-muted">Guests see these on the stay page. Tick only what is actually there.</p>
+                {STAY_AMENITY_GROUPS.map((group) => (
+                  <div key={group.label}>
+                    <p className="mb-2 text-[12px] font-semibold text-ink-muted">{group.label}</p>
+                    <div className="flex flex-wrap gap-2">
+                      {group.items.map((label) => {
+                        const on = stayAmenityHas(form.stayAmenities, label);
+                        return (
+                          <button
+                            key={label}
+                            type="button"
+                            aria-pressed={on}
+                            onClick={() => setForm((f) => ({ ...f, stayAmenities: toggleStayAmenity(f.stayAmenities, label) }))}
+                            className={`lux-flat rounded-full px-3 py-1.5 text-sm transition-colors ${
+                              on
+                                ? 'bg-[#0B397E] text-white'
+                                : 'text-ink-muted ring-1 ring-[#E6EAF0] hover:text-ink'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
                 <label className="block text-sm mt-1">
                   Other (comma separated)
                   <input
@@ -4315,18 +4447,19 @@ export default function SupplierListingForm({
           {stepIdx === 3 && form.inventoryFamily === 'stay' && (
             <div className="space-y-5">
               <div>
-                <h3 id="supplier-listing-field-stay-price" className="font-display text-[1.85rem] font-bold tracking-tight text-ink">
+                <h3 id="supplier-listing-field-stay-price" className="font-sans text-2xl font-bold tracking-tight text-[#111827] sm:text-[1.75rem]">
                   Price
                 </h3>
-                <p className="mt-1 text-sm text-ink-muted leading-snug max-w-xl">
-                  Nightly rate for the whole place, not per guest. Block unavailable nights on Calendar after you publish —
-                  this price does not close dates.
+                <p className="mt-1 max-w-xl text-sm leading-relaxed text-ink-muted">
+                  Nightly rate for the whole place, not per guest. After you publish, block unavailable nights on Calendar.
+                  This price does not close dates by itself.
                 </p>
               </div>
               <div className="lc-section space-y-4 rounded-xl px-4 py-4 sm:px-5">
                 <div className="grid sm:grid-cols-2 gap-3">
-                  <label className="block text-sm">
+                  <label className="block text-sm font-semibold text-ink">
                     Nightly price ({listingCurrency}) *
+                    <span className="mt-0.5 block text-xs font-normal text-ink-muted">Per night, for the whole place.</span>
                     <input
                       type="number"
                       min={1}
@@ -4390,7 +4523,7 @@ export default function SupplierListingForm({
                         ? ` + ${formatMoney(Number.parseFloat(form.stayCleaningFee), listingCurrency)} cleaning`
                         : ''}
                       {' = '}
-                      <span className="font-semibold">
+                      <span className="font-bold text-[#111827]">
                         {formatMoney(
                           Number.parseFloat(form.stayNightly) *
                             Math.max(1, Number.parseInt(form.stayMinNights, 10) || 1) +
@@ -4717,6 +4850,28 @@ export default function SupplierListingForm({
                 knowBeforeYouGo={form.knowBeforeYouGo ?? ''}
                 whatToBring={form.whatToBring ?? ''}
                 additionalLanguages={form.additionalLanguages ?? []}
+                stayFacts={
+                  isStayForm
+                    ? {
+                        propertyType: form.stayPropertyType.trim(),
+                        space: [
+                          form.stayMaxGuests.trim() ? `Up to ${form.stayMaxGuests} guests` : '',
+                          form.stayBedrooms.trim() ? `${form.stayBedrooms} bedrooms` : '',
+                          form.stayBeds.trim() ? `${form.stayBeds} beds` : '',
+                          form.stayBathrooms.trim() ? `${form.stayBathrooms} bathrooms` : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' · '),
+                        amenities: stayAmenityTokens(form.stayAmenities)
+                          .map((item) => formatStayAmenityLabel(item))
+                          .filter(Boolean),
+                        checkIn: form.stayCheckIn.trim(),
+                        checkOut: form.stayCheckOut.trim(),
+                        minNights: form.stayMinNights.trim(),
+                        houseRules: form.stayHouseRules.trim(),
+                      }
+                    : null
+                }
                 reviewRows={reviewRows}
                 truth={truth}
                 settingsHref={`${PARTNER_APP_BASE}/business-profile`}

@@ -11,6 +11,13 @@ export const STAY_AMENITY_PRESETS = [
   'Self check-in',
 ] as const;
 
+/** Same stored tokens, grouped so the creator is easier to scan. */
+export const STAY_AMENITY_GROUPS: { label: string; items: readonly (typeof STAY_AMENITY_PRESETS)[number][] }[] = [
+  { label: 'Essentials', items: ['Wifi', 'Kitchen', 'Heating'] },
+  { label: 'Comfort', items: ['Washer', 'TV', 'Hair dryer', 'Workspace'] },
+  { label: 'Arrival', items: ['Parking', 'Self check-in'] },
+];
+
 const PRESET_BY_KEY = new Map(STAY_AMENITY_PRESETS.map((label) => [label.toLowerCase(), label]));
 
 const ALIASES: Record<string, string> = {

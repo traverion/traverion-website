@@ -52,6 +52,17 @@ export function listingCreationNavItemsWithAccess(
   }));
 }
 
+/** Satisfied steps, optionally ignoring the step the supplier is editing now. */
+export function listingCreationCompletedCount(
+  satisfied: readonly boolean[],
+  excludeIndex?: number
+): number {
+  return satisfied.reduce((count, ok, index) => {
+    if (!ok || index === excludeIndex) return count;
+    return count + 1;
+  }, 0);
+}
+
 export function listingCreationProgressCopy(completeCount: number, total: number): string {
   if (total <= 0) return '';
   if (completeCount >= total) return 'All steps complete';
@@ -84,7 +95,7 @@ export function listingCreationLockedReason(input: {
 export function listingCreationStepRequirement(stepIndex: number, isStay: boolean): string {
   if (isStay) {
     if (stepIndex === 0) return 'Add a title, subtitle and description to continue.';
-    if (stepIndex === 1) return 'Add city and country to continue.';
+    if (stepIndex === 1) return 'Add city, country, and the check-in address to continue.';
     if (stepIndex === 2) return 'Set how many guests can stay to continue.';
     if (stepIndex === 3) return 'Set nightly rate and check-in times to continue.';
     if (stepIndex === 4) return 'Add at least four photos to continue.';

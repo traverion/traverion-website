@@ -3,6 +3,7 @@ import {
   canContinueFromPhotos,
   canVisitListingCreationStep,
   listingCreationAccessState,
+  listingCreationCompletedCount,
   listingCreationContinueHint,
   listingCreationLockedReason,
   listingCreationMissingHint,
@@ -96,8 +97,17 @@ describe('missing-requirement copy', () => {
   });
 
   it('uses stay copy for stay steps', () => {
+    expect(listingCreationStepRequirement(1, true)).toContain('check-in address');
     expect(listingCreationStepRequirement(2, true)).toContain('guests');
     expect(listingCreationStepRequirement(3, true)).toContain('nightly rate');
+  });
+});
+
+describe('stay progress does not count the step being edited', () => {
+  it('stays at zero while only the current step would otherwise qualify', () => {
+    expect(listingCreationCompletedCount([false, false, true, false, false, false], 0)).toBe(1);
+    expect(listingCreationCompletedCount([true, false, false, false, false, false], 0)).toBe(0);
+    expect(listingCreationCompletedCount([true, false, false, false, false, false], 1)).toBe(1);
   });
 });
 

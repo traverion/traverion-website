@@ -256,6 +256,7 @@ export function ListingPreviewPublishStage({
   knowBeforeYouGo,
   whatToBring,
   additionalLanguages,
+  stayFacts = null,
   reviewRows,
   truth,
   settingsHref,
@@ -280,6 +281,15 @@ export function ListingPreviewPublishStage({
   knowBeforeYouGo: string;
   whatToBring: string;
   additionalLanguages: string[];
+  stayFacts?: {
+    propertyType: string;
+    space: string;
+    amenities: string[];
+    checkIn: string;
+    checkOut: string;
+    minNights: string;
+    houseRules: string;
+  } | null;
   reviewRows: PreviewPublishReviewRow[];
   truth: PreviewPublishTruth;
   settingsHref: string;
@@ -344,8 +354,8 @@ export function ListingPreviewPublishStage({
         <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#98A2B3]">
           Traveler preview
         </p>
-        <h3 className="mt-1 text-[1.35rem] font-semibold tracking-tight text-[#17191D] sm:text-[1.5rem]">
-          Preview & Publish
+        <h3 className="mt-1 font-sans text-[1.35rem] font-bold tracking-tight text-[#17191D] sm:text-[1.5rem]">
+          {isStay ? 'Review' : 'Preview & Publish'}
         </h3>
       </header>
 
@@ -383,7 +393,7 @@ export function ListingPreviewPublishStage({
                 </>
               ) : null}
             </p>
-            <h4 className="mt-2 font-display text-[1.55rem] font-semibold leading-[1.15] tracking-tight text-[#17191D] [overflow-wrap:anywhere] sm:text-[1.85rem]">
+            <h4 className={`mt-2 text-[1.55rem] font-bold leading-[1.15] tracking-tight text-[#17191D] [overflow-wrap:anywhere] sm:text-[1.85rem] ${isStay ? 'font-sans' : 'font-display font-semibold'}`}>
               {title.trim() || (isStay ? 'Untitled stay' : 'Untitled listing')}
             </h4>
             {subtitle.trim() ? (
@@ -426,10 +436,12 @@ export function ListingPreviewPublishStage({
               aria-labelledby="preview-highlights-heading"
               className="max-w-2xl border-t border-[#E5E7EB] pt-7"
             >
-              <SectionTitle id="preview-highlights-heading">Experience highlights</SectionTitle>
+              <SectionTitle id="preview-highlights-heading">{isStay ? 'Highlights' : 'Experience highlights'}</SectionTitle>
+              {isStay ? null : (
               <p className="mt-1 text-[12.5px] text-[#667085]">
                 Product-wide highlights apply to this listing as a whole.
               </p>
+              )}
               <ul className="mt-3 grid gap-2 sm:grid-cols-2 sm:gap-x-5 sm:gap-y-2">
                 {highlights.map((line) => (
                   <li key={line} className="flex gap-2 text-[14px] leading-snug text-[#17191D]">
@@ -486,6 +498,50 @@ export function ListingPreviewPublishStage({
                   </ul>
                 </div>
               ) : null}
+            </section>
+          ) : null}
+
+          {isStay && stayFacts ? (
+            <section aria-labelledby="preview-stay-facts-heading" className="max-w-2xl border-t border-[#E5E7EB] pt-7">
+              <SectionTitle id="preview-stay-facts-heading">The stay</SectionTitle>
+              <dl className="mt-3 space-y-3">
+                {stayFacts.propertyType ? (
+                  <div className="grid gap-0.5 sm:grid-cols-[7.25rem_minmax(0,1fr)] sm:gap-x-3">
+                    <dt className="text-[12.5px] font-medium text-[#667085]">Type</dt>
+                    <dd className="text-[14px] font-semibold text-[#17191D]">{stayFacts.propertyType}</dd>
+                  </div>
+                ) : null}
+                {stayFacts.space ? (
+                  <div className="grid gap-0.5 sm:grid-cols-[7.25rem_minmax(0,1fr)] sm:gap-x-3">
+                    <dt className="text-[12.5px] font-medium text-[#667085]">Space</dt>
+                    <dd className="text-[14px] text-[#17191D]">{stayFacts.space}</dd>
+                  </div>
+                ) : null}
+                {stayFacts.checkIn || stayFacts.checkOut ? (
+                  <div className="grid gap-0.5 sm:grid-cols-[7.25rem_minmax(0,1fr)] sm:gap-x-3">
+                    <dt className="text-[12.5px] font-medium text-[#667085]">Arrival</dt>
+                    <dd className="text-[14px] text-[#17191D]">
+                      {stayFacts.checkIn ? `Check-in ${stayFacts.checkIn}` : 'Check-in not set'}
+                      {stayFacts.checkOut ? ` · Check-out ${stayFacts.checkOut}` : ''}
+                      {stayFacts.minNights ? ` · ${stayFacts.minNights} night minimum` : ''}
+                    </dd>
+                  </div>
+                ) : null}
+                {stayFacts.amenities.length > 0 ? (
+                  <div className="grid gap-0.5 sm:grid-cols-[7.25rem_minmax(0,1fr)] sm:gap-x-3">
+                    <dt className="text-[12.5px] font-medium text-[#667085]">Amenities</dt>
+                    <dd className="text-[14px] text-[#17191D]">{stayFacts.amenities.join(' · ')}</dd>
+                  </div>
+                ) : null}
+                {stayFacts.houseRules ? (
+                  <div className="grid gap-0.5 sm:grid-cols-[7.25rem_minmax(0,1fr)] sm:gap-x-3">
+                    <dt className="text-[12.5px] font-medium text-[#667085]">House rules</dt>
+                    <dd className="max-w-prose whitespace-pre-wrap text-[14px] leading-relaxed text-[#17191D]">
+                      {stayFacts.houseRules}
+                    </dd>
+                  </div>
+                ) : null}
+              </dl>
             </section>
           ) : null}
 

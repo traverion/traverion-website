@@ -4,10 +4,12 @@ export function ListingCreationIdentityPreview({
   title,
   subtitle,
   languageLabel,
+  sans = false,
 }: {
   title: string;
   subtitle: string;
   languageLabel: string | null;
+  sans?: boolean;
 }) {
   const name = title.trim();
   if (!name) return null;
@@ -22,7 +24,7 @@ export function ListingCreationIdentityPreview({
       <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
         Travelers see
       </p>
-      <p className="mt-3.5 break-words font-display text-[1.35rem] font-bold leading-[1.2] tracking-tight text-ink [overflow-wrap:anywhere] sm:text-[1.5rem]">
+      <p className={`mt-3.5 break-words text-[1.35rem] font-bold leading-[1.2] tracking-tight text-ink [overflow-wrap:anywhere] sm:text-[1.5rem] ${sans ? 'font-sans' : 'font-display'}`}>
         {name}
       </p>
       {previewSubtitle ? (
