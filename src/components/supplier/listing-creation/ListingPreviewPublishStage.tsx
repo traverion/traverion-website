@@ -355,7 +355,7 @@ export function ListingPreviewPublishStage({
           Traveler preview
         </p>
         <h3 className="mt-1 font-sans text-[1.35rem] font-bold tracking-tight text-[#17191D] sm:text-[1.5rem]">
-          {isStay ? 'Review' : 'Preview & Publish'}
+          {isStay ? 'Preview & publish' : 'Preview & Publish'}
         </h3>
       </header>
 
