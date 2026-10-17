@@ -1,5 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { installStaleChunkReload } from './lib/stale-chunk-reload';
 import {
   redirectIfPasswordRecoveryLandingInWrongPlace,
   redirectLegacyTravelerResetPasswordPath,
@@ -13,6 +14,8 @@ import {
 } from './lib/partnerHost';
 import App from './App.tsx';
 import './index.css';
+
+installStaleChunkReload();
 
 redirectIfPasswordRecoveryLandingInWrongPlace();
 redirectLegacyTravelerResetPasswordPath();
