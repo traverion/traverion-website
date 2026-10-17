@@ -16,7 +16,6 @@ import {
 import type { TourPackage } from '../../types/tour';
 import { listingHeroImageSrc, orderedPhotoUrls, photoSlotsFromTourPackage } from '../../lib/listingPhotoGrid';
 import { formatMoney, normalizeCurrency } from '../../lib/money';
-import { formatBpsAsPercent } from '../../lib/commercial-money';
 import { fetchBookingCommercialSnapshot, type BookingCommercialSnapshotRow } from '../../data/supabase-earnings';
 import { isPaidPaymentStatus, partnerPaymentLabel, partnerCollectedAmountCaption, bookingPaymentWasCollected, REFUND_DUE_MANUAL_COPY } from '../../lib/payment-states';
 import { PARTNER_BOOKINGS_CSV_HEADER, partnerBookingCsvValues } from '../../lib/partner-bookings-csv';
@@ -159,11 +158,6 @@ function formatSnapshotMinor(minor: number, currency: string): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(Number.isFinite(major) ? major : 0);
-}
-
-function snapshotCommissionPercent(bps: number): string | null {
-  if (!Number.isInteger(bps) || bps < 0 || bps > 10000) return null;
-  return formatBpsAsPercent(bps);
 }
 
 function bookingStatusClass(status: string, paymentStatus?: string | null): string {
@@ -1836,10 +1830,6 @@ export default function SupplierBookings({
                 openCancel ||
                 isStay
             );
-            const commissionPercent =
-              commercialSnapshot && commercialState === 'ready'
-                ? snapshotCommissionPercent(commercialSnapshot.commission_bps)
-                : null;
             const commissionAdjusted =
               commercialSnapshot != null &&
               Number(commercialSnapshot.remaining_gross_minor) !== Number(commercialSnapshot.gross_minor);
@@ -2065,31 +2055,14 @@ export default function SupplierBookings({
                   ) : null}
 
                   <DrawerSection title="Payment">
-                    {bookingTotalLabel ? (
-                      <DrawerFact label="Customer total">
-                        <span className="tabular-nums">{bookingTotalLabel}</span>
-                      </DrawerFact>
-                    ) : null}
                     {commercialState === 'loading' ? (
-                      <p className="text-[13px] text-ink-muted">Loading commission…</p>
+                      <p className="text-[13px] text-ink-muted">Loading earnings…</p>
                     ) : commercialSnapshot && commercialState === 'ready' ? (
                       <>
-                        <DrawerFact label={commissionPercent ? `Commission (${commissionPercent})` : 'Commission'}>
+                        <DrawerFact label="Your earnings">
                           <span className="tabular-nums">
                             {formatSnapshotMinor(
-                              commissionAdjusted
-                                ? commercialSnapshot.remaining_commission_minor
-                                : commercialSnapshot.commission_minor,
-                              commercialSnapshot.currency
-                            )}
-                          </span>
-                        </DrawerFact>
-                        <DrawerFact label="Supplier earnings">
-                          <span className="tabular-nums">
-                            {formatSnapshotMinor(
-                              commissionAdjusted
-                                ? commercialSnapshot.remaining_supplier_minor
-                                : commercialSnapshot.supplier_minor,
+                              commercialSnapshot.remaining_supplier_minor,
                               commercialSnapshot.currency
                             )}
                           </span>
@@ -2097,12 +2070,19 @@ export default function SupplierBookings({
                         <p className="text-[12px] leading-4 text-ink-faint">
                           {commissionAdjusted
                             ? 'Earnings follow the refund recorded on this booking. This is not a payout.'
-                            : 'Supplier earnings are not a payout.'}
+                            : 'Your earnings are not a payout.'}
                         </p>
+                        <button
+                          type="button"
+                          className="text-[13px] font-semibold text-finland"
+                          onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/money?tab=documents`)}
+                        >
+                          View financial statement
+                        </button>
                       </>
                     ) : (
                       <p className="text-[13px] text-ink-muted">
-                        Commission and supplier earnings are not recorded for this booking.
+                        Your earnings are not recorded for this booking.
                       </p>
                     )}
                     <DrawerFact label="Status">{partnerPaymentLabel(booking)}</DrawerFact>

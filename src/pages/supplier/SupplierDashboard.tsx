@@ -17,6 +17,8 @@ import {
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
+import { fetchSupplierCommercialSnapshots } from '../../data/supabase-earnings';
+import { fromMinorUnits } from '../../lib/commercial-money';
 import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 import {
   fetchCancellationRequestsForBookings,
@@ -547,6 +549,29 @@ export default function SupplierDashboard() {
   /** Bookings batch failed — empty schedule metrics must not look like a quiet day (Trips 659 parity). */
   const bookingsLoadFailed = dashboardError === USER_ERROR.bookings;
 
+  const [netByBookingId, setNetByBookingId] = useState<Record<string, number>>({});
+  useEffect(() => {
+    const uid = user?.id;
+    if (!isSupabase || !uid) {
+      setNetByBookingId({});
+      return;
+    }
+    let cancelled = false;
+    void fetchSupplierCommercialSnapshots(uid)
+      .then((rows) => {
+        if (cancelled) return;
+        setNetByBookingId(
+          Object.fromEntries(rows.map((row) => [row.booking_id, fromMinorUnits(Number(row.remaining_supplier_minor) || 0)]))
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setNetByBookingId({});
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isSupabase, user?.id]);
+
   const performance30d = useMemo(() => {
     const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
     const collected = supplierBookings.filter((b) => {
@@ -558,7 +583,7 @@ export default function SupplierDashboard() {
     for (const b of collected) {
       const code = normalizeCurrency(b.currency);
       const cur = byCurrency.get(code) ?? { revenue: 0, count: 0 };
-      cur.revenue += Number(b.amount_paid ?? 0);
+      cur.revenue += netByBookingId[b.id] ?? Number(b.amount_paid ?? 0);
       cur.count += 1;
       byCurrency.set(code, cur);
     }
@@ -568,7 +593,7 @@ export default function SupplierDashboard() {
       currencies,
       primary: currencies[0] ?? null,
     };
-  }, [supplierBookings]);
+  }, [supplierBookings, netByBookingId]);
 
   const bookingsById = useMemo(
     () => Object.fromEntries(supplierBookings.map((b) => [b.id, b])),
@@ -1074,7 +1099,7 @@ export default function SupplierDashboard() {
           <div className="partner-surface-panel overflow-hidden">
             <div className="grid grid-cols-3 divide-x divide-slate-100">
               <div className="px-4 py-4">
-                <p className="text-[12px] font-medium text-slate-500">Collected</p>
+                <p className="text-[12px] font-medium text-slate-500">Your earnings</p>
                 <p className="mt-1.5 text-[1.25rem] font-semibold tabular-nums tracking-tight text-slate-900 leading-none">
                   {performance30d.primary
                     ? formatMoney(performance30d.primary[1].revenue, performance30d.primary[0])
@@ -1086,7 +1111,7 @@ export default function SupplierDashboard() {
                     {performance30d.currencies.length - 1 === 1 ? '' : 'ies'}
                   </p>
                 ) : (
-                  <p className="mt-1.5 text-[11px] text-slate-400">Paid traveler bookings</p>
+                  <p className="mt-1.5 text-[11px] text-slate-400">Net, last 30 days</p>
                 )}
               </div>
               <div className="px-4 py-4">
@@ -1227,12 +1252,9 @@ export default function SupplierDashboard() {
             <ul>
               {recentBookings.map((b) => {
                 // Phase 1792: match Money Collected — not refunded / refund-due amounts.
-                const paid =
-                  b.amount_paid != null &&
-                  Number.isFinite(Number(b.amount_paid)) &&
-                  isCollectedBooking(b)
-                    ? Number(b.amount_paid)
-                    : null;
+                const legacyPaid =
+                  b.amount_paid != null && Number.isFinite(Number(b.amount_paid)) ? Number(b.amount_paid) : null;
+                const paid = isCollectedBooking(b) ? (netByBookingId[b.id] ?? legacyPaid) : null;
                 const money = paid == null ? null : formatMoney(paid, b.currency);
                 return (
                   <li key={b.id} className="border-b border-slate-100 last:border-b-0">

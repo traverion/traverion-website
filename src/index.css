@@ -5550,6 +5550,31 @@ a:focus-visible,
   }
 }
 
+.tv-income .tv-money-row {
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 8px 12px;
+}
+
+.tv-income .tv-money-row__amount {
+  font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  font-size: 13px;
+}
+
+.tv-income .tv-pickup-toolbar .tv-input {
+  width: auto;
+  height: 40px;
+  min-height: 40px;
+  box-shadow: none;
+}
+
+@media (max-width: 720px) {
+  .tv-income .tv-pickup-toolbar .tv-input {
+    width: 100%;
+  }
+}
+
 .tv-pickup-page.partner-stack {
   gap: 8px;
 }

@@ -152,6 +152,61 @@ export async function fetchSupplierCommercialSnapshots(
   return (data ?? []) as BookingCommercialSnapshotRow[];
 }
 
+export type SupplierPayoutPeriodRow = {
+  id: string;
+  supplier_id: string;
+  currency: string;
+  cadence: string;
+  period_key: string;
+  period_start: string;
+  period_end: string;
+  scheduled_for: string;
+  status: 'drafting' | 'ready' | 'processing' | 'paid' | 'failed' | 'cancelled';
+  amount_minor: number;
+  item_count: number;
+  paid_at: string | null;
+  paid_via: string | null;
+  note: string | null;
+};
+
+export type SupplierPayoutPeriodItemRow = {
+  id: string;
+  period_id: string;
+  earning_item_id: string;
+  booking_id: string;
+  amount_minor: number;
+};
+
+export async function fetchSupplierPayoutPeriods(supplierId: string): Promise<SupplierPayoutPeriodRow[]> {
+  if (!supabase) return [];
+  const ownerSupplierId = await resolveSupplierId(supplierId);
+  const { data, error } = await supabase
+    .from('supplier_payout_periods')
+    .select(
+      'id, supplier_id, currency, cadence, period_key, period_start, period_end, scheduled_for, status, amount_minor, item_count, paid_at, paid_via, note'
+    )
+    .eq('supplier_id', ownerSupplierId)
+    .order('scheduled_for', { ascending: false });
+  if (error) {
+    if (/supplier_payout_periods|does not exist|42P01/i.test(error.message)) return [];
+    throw new Error(error.message);
+  }
+  return (data ?? []) as SupplierPayoutPeriodRow[];
+}
+
+export async function fetchSupplierPayoutPeriodItems(periodId: string): Promise<SupplierPayoutPeriodItemRow[]> {
+  if (!supabase || !periodId) return [];
+  const { data, error } = await supabase
+    .from('supplier_payout_period_items')
+    .select('id, period_id, earning_item_id, booking_id, amount_minor')
+    .eq('period_id', periodId);
+  if (error) {
+    if (/supplier_payout_period_items|does not exist|42P01/i.test(error.message)) return [];
+    throw new Error(error.message);
+  }
+  return (data ?? []) as SupplierPayoutPeriodItemRow[];
+}
+
 export function earningItemsMajorByStatus(
   items: SupplierEarningItemRow[],
   currency: string

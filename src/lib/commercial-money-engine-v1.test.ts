@@ -89,13 +89,16 @@ describe('commercial money engine V1 — edge + UI wiring', () => {
     expect(adminEdge).toContain('commercialConfirm === true');
   });
 
-  it('supplier Money shows plan + GMV/commission/earnings/pending/eligible/paid', () => {
-    expect(earningsUi).toContain('Gross bookings');
-    expect(earningsUi).toContain('Traverion commission');
+  it('supplier Money shows net earnings and keeps the commission split on the statement', () => {
     expect(earningsUi).toContain('Your earnings');
     expect(earningsUi).toContain('Eligible for next payout');
     expect(earningsUi).toContain('Contact Traverion to change payout plan');
     expect(earningsUi).not.toContain('formatMoney(s.paid + s.included');
+    expect(earningsUi).not.toContain('>Gross bookings<');
+    const pdf = readFileSync(resolve(root, 'src/lib/supplier-finance-pdf.ts'), 'utf8');
+    expect(pdf).toContain('Traverion commission');
+    expect(pdf).toContain('Net supplier earnings');
+    expect(pdf).toContain('Customer booking amount');
   });
 
   it('admin commercial panel requires CONFIRM', () => {

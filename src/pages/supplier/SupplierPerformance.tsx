@@ -3,6 +3,8 @@ import { TrendingUp, Award } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
+import { fetchSupplierCommercialSnapshots } from '../../data/supabase-earnings';
+import { fromMinorUnits } from '../../lib/commercial-money';
 import type { TourPackage } from '../../types/tour';
 import {
   SUPPLIER_PAGE_CLASS,
@@ -43,6 +45,7 @@ export default function SupplierPerformance() {
   const { user, isSupabase } = useSupplierAuth();
   const [listings, setListings] = useState<TourPackage[]>([]);
   const [bookings, setBookings] = useState<BookingRow[]>([]);
+  const [netByBookingId, setNetByBookingId] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [windowKey, setWindowKey] = useState<WindowKey>(() => {
@@ -58,6 +61,7 @@ export default function SupplierPerformance() {
     if (!isSupabase || !uid) {
       setListings([]);
       setBookings([]);
+      setNetByBookingId({});
       setError(null);
       setLoading(false);
       return;
@@ -65,7 +69,11 @@ export default function SupplierPerformance() {
     const gen = ++loadGenRef.current;
     setLoading(true);
     setError(null);
-    const settled = await Promise.allSettled([fetchMyListings(uid), fetchBookingsForSupplier(uid)]);
+    const settled = await Promise.allSettled([
+      fetchMyListings(uid),
+      fetchBookingsForSupplier(uid),
+      fetchSupplierCommercialSnapshots(uid),
+    ]);
     if (gen !== loadGenRef.current) return;
     // Phase 1304: keep prior listings/bookings on failure — do not invent empty Performance.
     if (settled[0].status === 'fulfilled') {
@@ -73,6 +81,13 @@ export default function SupplierPerformance() {
     }
     if (settled[1].status === 'fulfilled') {
       setBookings(settled[1].value);
+    }
+    if (settled[2].status === 'fulfilled') {
+      setNetByBookingId(
+        Object.fromEntries(
+          settled[2].value.map((row) => [row.booking_id, fromMinorUnits(Number(row.remaining_supplier_minor) || 0)])
+        )
+      );
     }
     if (settled[0].status === 'rejected' || settled[1].status === 'rejected') {
       setError(PERFORMANCE_LOAD_ERROR);
@@ -84,6 +99,7 @@ export default function SupplierPerformance() {
     const clearPerformancePartnerWorkspace = () => {
       setListings([]);
       setBookings([]);
+      setNetByBookingId({});
       setError(null);
     };
     if (!user?.id) {
@@ -165,11 +181,11 @@ export default function SupplierPerformance() {
       };
       cur.bookingsCount += 1;
       cur.guestsCount += Number(b.guests) > 0 ? Number(b.guests) : 0;
-      cur.revenue += Number(b.amount_paid ?? 0);
+      cur.revenue += netByBookingId[b.id] ?? Number(b.amount_paid ?? 0);
       byKey.set(key, cur);
     }
     return [...byKey.values()].sort((a, b) => b.revenue - a.revenue);
-  }, [collectedInWindow, titleByListingId]);
+  }, [collectedInWindow, titleByListingId, netByBookingId]);
 
   /** Revenue is never blended across currencies (this platform genuinely supports several) —
    * bucket by currency so every revenue figure always names a real, single currency. */
@@ -179,12 +195,12 @@ export default function SupplierPerformance() {
     for (const b of collectedInWindow) {
       const code = normalizeCurrency(b.currency);
       const cur = byCurrency.get(code) ?? { currency: code, revenue: 0, count: 0 };
-      cur.revenue += Number(b.amount_paid ?? 0);
+      cur.revenue += netByBookingId[b.id] ?? Number(b.amount_paid ?? 0);
       cur.count += 1;
       byCurrency.set(code, cur);
     }
     return [...byCurrency.values()].sort((a, b) => b.revenue - a.revenue);
-  }, [collectedInWindow]);
+  }, [collectedInWindow, netByBookingId]);
 
   const revenueTotalByCurrency = useMemo(
     () => new Map(revenueByCurrency.map((r) => [r.currency, r.revenue])),
@@ -335,10 +351,10 @@ export default function SupplierPerformance() {
             {revenueByCurrency.map((r) => (
               <div key={`revenue-${r.currency}`} className="tv-metric-tile">
                 <p className="tv-metric-tile__label">
-                  Revenue{isMultiCurrency ? ` (${r.currency})` : ''}
+                  Your earnings{isMultiCurrency ? ` (${r.currency})` : ''}
                 </p>
                 <p className="tv-metric-tile__value">{formatMoney(r.revenue, r.currency)}</p>
-                <p className="text-[11px] text-ink-muted mt-1.5">paid · no refunds</p>
+                <p className="text-[11px] text-ink-muted mt-1.5">net earnings</p>
               </div>
             ))}
             {revenueByCurrency.map((r) => (
@@ -349,7 +365,7 @@ export default function SupplierPerformance() {
                 <p className="tv-metric-tile__value">
                   {formatMoney(r.count > 0 ? r.revenue / r.count : 0, r.currency)}
                 </p>
-                <p className="text-[11px] text-ink-muted mt-1.5">per paid booking</p>
+                <p className="text-[11px] text-ink-muted mt-1.5">average net</p>
               </div>
             ))}
           </div>

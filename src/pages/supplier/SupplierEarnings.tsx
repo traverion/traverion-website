@@ -9,20 +9,23 @@ import {
   fetchSupplierCommercialSnapshots,
   fetchSupplierEarningItems,
   fetchSupplierEarnings,
+  fetchSupplierPayoutPeriodItems,
+  fetchSupplierPayoutPeriods,
   type BookingCommercialSnapshotRow,
   type SupplierCommercialTermsRow,
   type SupplierEarning,
   type SupplierEarningItemRow,
+  type SupplierPayoutPeriodRow,
 } from '../../data/supabase-earnings';
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
 import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 import { insertSupplierExportRun } from '../../data/supabase-supplier-campaigns-exports';
-import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierListSkeleton, SupplierPageHero } from '../../components/supplier/supplierUi';
+import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierListSkeleton } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { navigateSupplierUrl, openSupplierBooking } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
-import { formatMoney, isStripeTestCheckoutSession, appStripeIsTestMode, normalizeCurrency } from '../../lib/money';
+import { formatMoney, normalizeCurrency } from '../../lib/money';
 import { isCollectedBooking, isRefundDueBooking } from '../../lib/payment-states';
 import {
   isCollectedEarningKind,
@@ -32,10 +35,8 @@ import {
 import { formatBpsAsPercent, fromMinorUnits, planDefinition } from '../../lib/commercial-money';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchSupplierLedger, type SupplierLedgerEntry } from '../../data/supabase-booking-ops';
-import { PARTNER_MONEY_PAYOUT_STATUS_NOTE, PARTNER_MONEY_EMPTY_TITLE, PARTNER_MONEY_EMPTY_BODY, PARTNER_MONEY_LOAD_ERROR_TITLE, PARTNER_MONEY_FILTER_EMPTY_BODY, PARTNER_MONEY_AVAILABLE_BALANCE_LABEL, PARTNER_MONEY_NEGATIVE_BALANCE_LABEL, PARTNER_MONEY_NEGATIVE_BALANCE_NOTE, PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL, PARTNER_MONEY_THRESHOLD_PREFERENCE_NOTE, STRIPE_TEST_UNTIL_LIVE } from '../../lib/booking-confirmation-copy';
-import { formatBookingDateDisplay } from '../../lib/booking-flow';
+import { PARTNER_MONEY_PAYOUT_STATUS_NOTE, PARTNER_MONEY_EMPTY_TITLE, PARTNER_MONEY_EMPTY_BODY, PARTNER_MONEY_LOAD_ERROR_TITLE, PARTNER_MONEY_FILTER_EMPTY_BODY, PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL } from '../../lib/booking-confirmation-copy';
 import NoticeCallout from '../../components/NoticeCallout';
-import StatusChip from '../../components/StatusChip';
 import { localYmd } from '../../lib/local-ymd';
 import {
   PARTNER_MONEY_CSV_HEADER,
@@ -44,8 +45,30 @@ import {
 } from '../../lib/partner-money-csv';
 import { csvSafeCell } from '../../lib/csv-export';
 import { displayListingTitleFromPurchase } from '../../lib/purchase-snapshot';
-import { bookingIsStayNight } from '../../lib/pickup-completeness';
-import { stayRangeFromBooking } from '../../lib/stayOccupancy';
+import { travelerPublicBookingReference } from '../../lib/public-booking-reference';
+import {
+  buildIncomeEarningRows,
+  earningStatusLabel,
+  maskIban,
+  payoutMaySayPaid,
+  payoutPresentationStatus,
+  sumNetMinor,
+  type IncomeEarningRow,
+} from '../../lib/supplier-income';
+import {
+  downloadPdf,
+  earningsStatementLines,
+  openPdf,
+  payoutStatementLines,
+  statementPdf,
+} from '../../lib/supplier-finance-pdf';
+
+function incomeDate(value: string | null | undefined): string {
+  if (!value) return '—';
+  const d = new Date(`${value.slice(0, 10)}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return value.slice(0, 10);
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
 
 function ledgerKindLabel(kind: string): string {
   const k = kind.trim().toLowerCase();
@@ -78,6 +101,23 @@ export default function SupplierEarnings() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [ledgerError, setLedgerError] = useState<string | null>(null);
+  const [payoutPeriods, setPayoutPeriods] = useState<SupplierPayoutPeriodRow[]>([]);
+  const [earningQuery, setEarningQuery] = useState('');
+  const [earningFrom, setEarningFrom] = useState('');
+  const [earningTo, setEarningTo] = useState('');
+  const [earningListing, setEarningListing] = useState('');
+  const [earningStatus, setEarningStatus] = useState('all');
+  const [earningSort, setEarningSort] = useState<'activity' | 'purchase' | 'earnings'>('activity');
+  const [earningPage, setEarningPage] = useState(0);
+  const [selectedEarningId, setSelectedEarningId] = useState<string | null>(null);
+  const [selectedPayoutId, setSelectedPayoutId] = useState<string | null>(null);
+  const [docKind, setDocKind] = useState<'all' | 'statements' | 'payouts' | 'confirmations'>('all');
+  const [docYear, setDocYear] = useState('all');
+  const [tab, setTab] = useState<'overview' | 'earnings' | 'payouts' | 'documents' | 'settings'>(() => {
+    if (typeof window === 'undefined') return 'overview';
+    const value = new URLSearchParams(window.location.search).get('tab');
+    return value === 'earnings' || value === 'payouts' || value === 'documents' || value === 'settings' ? value : 'overview';
+  });
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'paid'>(() => {
     if (typeof window === 'undefined') return 'all';
     const s = new URLSearchParams(window.location.search).get('status');
@@ -92,13 +132,13 @@ export default function SupplierEarnings() {
   const profileLoadGenRef = useRef(0);
   const earningsHubUserIdRef = useRef<string | null>(null);
 
-  const setStatusFilterAndUrl = useCallback((next: 'all' | 'pending' | 'paid') => {
-    setStatusFilter(next);
+  const setTabAndUrl = useCallback((next: 'overview' | 'earnings' | 'payouts' | 'documents' | 'settings') => {
+    setTab(next);
     if (typeof window === 'undefined') return;
     const url = new URL(window.location.href);
-    if (next === 'all') url.searchParams.delete('status');
-    else url.searchParams.set('status', next);
-    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+    if (next === 'overview') url.searchParams.delete('tab');
+    else url.searchParams.set('tab', next);
+    window.history.pushState({}, '', `${url.pathname}${url.search}`);
   }, []);
 
   const setListWindowAndUrl = useCallback((next: '30d' | '90d' | 'all') => {
@@ -117,6 +157,8 @@ export default function SupplierEarnings() {
       setStatusFilter(s === 'pending' || s === 'paid' ? s : 'all');
       const w = params.get('window');
       setListWindow(w === '30d' || w === '90d' || w === 'all' ? w : 'all');
+      const nextTab = params.get('tab');
+      setTab(nextTab === 'earnings' || nextTab === 'payouts' || nextTab === 'documents' || nextTab === 'settings' ? nextTab : 'overview');
     };
     window.addEventListener('popstate', syncFromUrl);
     return () => window.removeEventListener('popstate', syncFromUrl);
@@ -139,13 +181,15 @@ export default function SupplierEarnings() {
       fetchSupplierActiveCommercialTerms(uid),
       fetchSupplierEarningItems(uid),
       fetchSupplierCommercialSnapshots(uid),
+      fetchSupplierPayoutPeriods(uid),
     ])
-      .then(async ([data, bookings, listings, terms, items, snaps]) => {
+      .then(async ([data, bookings, listings, terms, items, snaps, periods]) => {
         if (gen !== loadGenRef.current) return;
         setEarnings(data);
         setCommercialTerms(terms);
         setEarningItems(items);
         setSnapshots(snaps);
+        setPayoutPeriods(periods);
         setListingTitles(Object.fromEntries(listings.map((l) => [l.id, l.title])));
         setPaidBookings(bookings.filter(isCollectedBooking));
         setRefundDueBookings(bookings.filter(isRefundDueBooking));
@@ -176,6 +220,7 @@ export default function SupplierEarnings() {
       setPaidBookings([]);
       setRefundDueBookings([]);
       setLedger([]);
+      setPayoutPeriods([]);
       setListingTitles({});
       setProfile(null);
       setError(null);
@@ -394,12 +439,57 @@ export default function SupplierEarnings() {
   /** Negative = supplier owes Traverion after post-payout refund/chargeback recovery. */
   const recoveryBalance = useMemo(() => ledgerRecoveryTotal(ledger), [ledger]);
 
+  const incomeRows = useMemo(() => {
+    const bookings = [...paidBookings, ...refundDueBookings];
+    const seen = new Set<string>();
+    const unique = bookings.filter((booking) => {
+      if (seen.has(booking.id)) return false;
+      seen.add(booking.id);
+      return true;
+    });
+    return buildIncomeEarningRows({
+      bookings: unique,
+      snapshots,
+      items: earningItems,
+      experienceTitle: (booking) =>
+        displayListingTitleFromPurchase(
+          paidBookings.find((row) => row.id === booking.id)?.purchase_snapshot ??
+            refundDueBookings.find((row) => row.id === booking.id)?.purchase_snapshot,
+          booking.listing_id ? listingTitles[booking.listing_id] : undefined,
+          'Experience'
+        ),
+      referenceLabel: (booking) =>
+        travelerPublicBookingReference(booking.public_reference) ||
+        (typeof booking.booking_number === 'number' ? `#${booking.booking_number}` : booking.id.slice(0, 8)),
+    });
+  }, [paidBookings, refundDueBookings, snapshots, earningItems, listingTitles]);
+
+  const filteredIncomeRows = useMemo(() => {
+    const query = earningQuery.trim().toLowerCase();
+    const rows = incomeRows.filter((row) => {
+      if (earningStatus !== 'all' && row.status !== earningStatus) return false;
+      if (earningListing) {
+        const booking = paidBookings.find((item) => item.id === row.bookingId) ?? refundDueBookings.find((item) => item.id === row.bookingId);
+        if (booking?.listing_id !== earningListing) return false;
+      }
+      if (earningFrom && (row.activityDate ?? '') < earningFrom) return false;
+      if (earningTo && (row.activityDate ?? '') > earningTo) return false;
+      if (!query) return true;
+      return `${row.reference} ${row.experience}`.toLowerCase().includes(query);
+    });
+    rows.sort((a, b) => {
+      if (earningSort === 'earnings') return b.netMinor - a.netMinor;
+      if (earningSort === 'purchase') return (b.purchaseDate ?? '').localeCompare(a.purchaseDate ?? '');
+      return (b.activityDate ?? '').localeCompare(a.activityDate ?? '');
+    });
+    return rows;
+  }, [incomeRows, earningQuery, earningStatus, earningListing, earningFrom, earningTo, earningSort, paidBookings, refundDueBookings]);
+
   const earningsForInvoices = useMemo(
     () => earnings.filter((e) => e.status !== 'cancelled'),
     [earnings]
   );
 
-  const threshold = profile?.payout_threshold_min ?? 0;
   const nextPayoutLabel = PARTNER_MONEY_PAYOUT_STATUS_NOTE;
 
   const exportCsv = async () => {
@@ -484,13 +574,125 @@ export default function SupplierEarnings() {
     ledger.length > 0 ||
     refundDueBookings.length > 0;
 
+  const pageSize = 20;
+  const pageCount = Math.max(1, Math.ceil(filteredIncomeRows.length / pageSize));
+  const pageRows = filteredIncomeRows.slice(earningPage * pageSize, earningPage * pageSize + pageSize);
+  const summaryCurrency = moneyByCurrency[0]?.currency ?? primaryCurrency;
+  const totalNet = sumNetMinor(incomeRows, summaryCurrency);
+  const pendingNet = sumNetMinor(incomeRows, summaryCurrency, ['pending', 'recorded']);
+  const availableNet = sumNetMinor(incomeRows, summaryCurrency, ['eligible']);
+  const paidNet = sumNetMinor(incomeRows, summaryCurrency, ['paid']);
+  const processingNet = sumNetMinor(incomeRows, summaryCurrency, ['included']);
+  const nextPeriod = [...payoutPeriods]
+    .filter((period) => period.status === 'ready' || period.status === 'processing' || period.status === 'drafting')
+    .sort((a, b) => a.scheduled_for.localeCompare(b.scheduled_for))[0];
+  const selectedEarning = incomeRows.find((row) => row.bookingId === selectedEarningId) ?? null;
+  const selectedPayout = payoutPeriods.find((period) => period.id === selectedPayoutId) ?? null;
+  const supplierAddress = [profile?.address_street, profile?.address_postal_code, profile?.address_city, profile?.address_country]
+    .filter(Boolean)
+    .join(', ');
+  const adjustmentRows = ledger.filter((row) => !isCollectedEarningKind(row.kind) && !isPlatformCommissionKind(row.kind));
+  const docYears = [...new Set(incomeRows.map((row) => (row.activityDate ?? row.purchaseDate ?? '').slice(0, 4)).filter((year) => year.length === 4))];
+
+  const openEarningStatement = (row: IncomeEarningRow, download: boolean) => {
+    if (row.grossMinor == null || row.commissionMinor == null || row.commissionBps == null) return;
+    const bytes = statementPdf(
+      earningsStatementLines({
+        reference: `ES-${row.reference}`,
+        issueDate: localYmd(),
+        supplierName: profile?.company_legal_name ?? profile?.display_name ?? null,
+        supplierAddress: supplierAddress || null,
+        businessId: profile?.company_registration_number ?? null,
+        vatId: profile?.vat_id ?? null,
+        bookingReference: row.reference,
+        experience: row.experience,
+        activityDate: row.activityDate,
+        purchaseDate: row.purchaseDate,
+        currency: row.currency,
+        grossMinor: row.grossMinor,
+        commissionMinor: row.commissionMinor,
+        commissionBps: row.commissionBps,
+        netMinor: row.netMinor,
+        payoutStatus: earningStatusLabel(row.status),
+      })
+    );
+    if (download) downloadPdf(`traverion-earnings-${row.reference}.pdf`, bytes);
+    else openPdf(bytes);
+  };
+
+  const openPayoutStatement = async (period: SupplierPayoutPeriodRow, download: boolean) => {
+    const included = await fetchSupplierPayoutPeriodItems(period.id);
+    const bytes = statementPdf(
+      payoutStatementLines({
+        reference: `PS-${period.period_key}`,
+        issueDate: localYmd(),
+        supplierName: profile?.company_legal_name ?? profile?.display_name ?? null,
+        currency: period.currency,
+        periodStart: period.period_start,
+        periodEnd: period.period_end,
+        statusLabel: payoutPresentationStatus(period.status, period.paid_at),
+        paidAt: period.paid_at,
+        totalNetMinor: Number(period.amount_minor) || 0,
+        lines: included.map((item) => {
+          const row = incomeRows.find((earning) => earning.bookingId === item.booking_id);
+          return {
+            reference: row?.reference ?? item.booking_id.slice(0, 8),
+            experience: row?.experience ?? 'Booking',
+            grossMinor: row?.grossMinor ?? null,
+            commissionMinor: row?.commissionMinor ?? null,
+            commissionBps: row?.commissionBps ?? null,
+            netMinor: Number(item.amount_minor) || 0,
+          };
+        }),
+      })
+    );
+    if (download) downloadPdf(`traverion-payout-${period.period_key}.pdf`, bytes);
+    else openPdf(bytes);
+  };
+
+  const metric = (label: string, minor: number) => (
+    <div className="rounded-lg border border-[#e5e7eb] bg-white px-3 py-2.5">
+      <p className="text-[11px] font-semibold text-[#71717a]">{label}</p>
+      <p className="mt-1 font-sans text-xl font-bold tabular-nums tracking-tight text-[#18181b]">
+        {formatMoney(minor / 100, summaryCurrency)}
+      </p>
+    </div>
+  );
+
   return (
-    <div className={SUPPLIER_PAGE_CLASS}>
-      <SupplierPageHero
-        badge="Business"
-        title="Income"
-        description={`Gross, commission, and net. Eligibility follows activity date — not a bank transfer. ${STRIPE_TEST_UNTIL_LIVE}.`}
-      />
+    <div className={`${SUPPLIER_PAGE_CLASS} tv-income font-sans`}>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="font-sans text-lg font-bold tracking-tight text-[#18181b]">Income</h1>
+        <button
+          type="button"
+          onClick={exportCsv}
+          disabled={!canExportFinance || !canExportMoney}
+          className="tv-btn-secondary h-9 shrink-0 px-2.5 text-[13px] disabled:opacity-40"
+          title={!canExportFinance ? 'Your role can view Income but cannot export CSV' : undefined}
+        >
+          Export
+        </button>
+      </div>
+      <div className="flex gap-1 overflow-x-auto" role="tablist" aria-label="Income">
+        {([
+          ['overview', 'Overview'],
+          ['earnings', 'Earnings'],
+          ['payouts', 'Payouts'],
+          ['documents', 'Documents'],
+          ['settings', 'Settings'],
+        ] as const).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            className={`h-9 shrink-0 rounded-md px-3 text-[13px] font-semibold ${tab === id ? 'bg-[#f0f4fa] text-[#073b83]' : 'text-[#52525b]'}`}
+            onClick={() => setTabAndUrl(id)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       {error && (
         <ErrorState
@@ -498,390 +700,354 @@ export default function SupplierEarnings() {
           title={PARTNER_MONEY_LOAD_ERROR_TITLE}
           body={userFacingError(error, USER_ERROR.money)}
           retry={{ onClick: () => void load() }}
-          extra={
-            <a href="/contact" className="tv-btn-ghost inline-flex">
-              Contact support
-            </a>
-          }
+          extra={<a href="/contact" className="tv-btn-ghost inline-flex">Contact support</a>}
         />
       )}
       {!error && ledgerError ? (
-        <div className="mb-5 max-w-lg">
-          <NoticeCallout title="Ledger adjustments unavailable" tone="warn">
-            <p>{ledgerError}</p>
-            <button type="button" onClick={() => void load()} className="tv-btn-ghost mt-3 -ml-2">
-              Retry
-            </button>
-          </NoticeCallout>
-        </div>
+        <NoticeCallout title="Ledger adjustments unavailable" tone="warn">
+          <p>{ledgerError}</p>
+          <button type="button" onClick={() => void load()} className="tv-btn-ghost mt-2 -ml-2">Retry</button>
+        </NoticeCallout>
+      ) : null}
+      {loading && !hasMoney ? <SupplierListSkeleton rows={3} /> : null}
+
+      {!loading && !hasMoney && !error ? (
+        <SupplierEmptyState
+          icon={Wallet}
+          title={PARTNER_MONEY_EMPTY_TITLE}
+          body={PARTNER_MONEY_EMPTY_BODY}
+          action={
+            <div className="flex flex-wrap gap-2">
+              {/* Phase 1647 */}
+              <button type="button" className="tv-btn-primary" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings`)}>
+                Open bookings
+              </button>
+              <button type="button" className="tv-btn-ghost" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings`)}>
+                Your listings
+              </button>
+            </div>
+          }
+        />
       ) : null}
 
-      {loading && !hasMoney ? (
-        <SupplierListSkeleton rows={3} />
-      ) : error && !hasMoney ? null : (
-        <>
-          {moneyByCurrency.length === 0 ? (
-            <section className="pb-5 border-b border-black/[0.06]">
-              <p className="partner-label mb-1.5">
-                {PARTNER_MONEY_AVAILABLE_BALANCE_LABEL}
-              </p>
-              <p className="font-display text-[2rem] sm:text-[2.35rem] font-semibold tabular-nums tracking-tight text-ink leading-none">
-                {formatMoney(0, primaryCurrency)}
-              </p>
-              <p className="mt-2 partner-section-desc">{nextPayoutLabel}</p>
-              <button
-                type="button"
-                onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile#supplier-business-payout`)}
-                className="tv-btn-ghost mt-4 -ml-2"
-              >
-                Payout account
-              </button>
-            </section>
-          ) : (
-            moneyByCurrency.map((s) => {
-              return (
-                <section
-                  key={s.currency}
-                  className="border-b border-black/[0.06] pb-5"
-                >
-                  <p className="partner-label mb-1">
-                    {moneyByCurrency.length > 1 ? `${s.currency} · ` : ''}
-                    {s.available < 0 ? PARTNER_MONEY_NEGATIVE_BALANCE_LABEL : 'Eligible for next payout'}
-                  </p>
-                  <p
-                    className={`font-display text-[1.85rem] sm:text-[2.15rem] font-semibold tabular-nums tracking-tight leading-none ${s.available < 0 ? 'text-red-800' : 'text-ink'}`}
-                  >
-                    {formatMoney(s.available, s.currency)}
-                  </p>
-                  {planSummary ? (
-                    <p className="mt-2 partner-section-desc">
-                      Plan: <span className="font-medium text-ink">{planSummary}</span>
-                      . Contact Traverion to change.
-                    </p>
-                  ) : null}
-                  {recoveryBalance < 0 ? (
-                    <div className="mt-3 max-w-lg">
-                      <NoticeCallout title="Balance adjustment after payout" tone="warn">
-                        A refund or dispute after a recorded payout created a recovery balance of{' '}
-                        <span className="tabular-nums font-semibold">
-                          {formatMoney(Math.abs(recoveryBalance), s.currency)}
-                        </span>
-                        . Future payouts may be reduced until this is settled. Traverion will contact
-                        you if action is needed.
-                      </NoticeCallout>
-                    </div>
-                  ) : null}
-                  <dl className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3 border-t border-black/[0.06] pt-4">
-                    <div>
-                      <dt className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Gross bookings</dt>
-                      <dd className="mt-0.5 text-sm font-semibold tabular-nums text-ink">
-                        {formatMoney(s.gross, s.currency)}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Traverion commission</dt>
-                      <dd className="mt-0.5 text-sm font-semibold tabular-nums text-ink">
-                        {formatMoney(s.commission, s.currency)}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Your earnings</dt>
-                      <dd className="mt-0.5 text-sm font-semibold tabular-nums text-ink">
-                        {formatMoney(s.yourEarnings, s.currency)}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Pending</dt>
-                      <dd className="mt-0.5 text-sm font-semibold tabular-nums text-ink">
-                        {formatMoney(s.pending, s.currency)}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Eligible</dt>
-                      <dd className="mt-0.5 text-sm font-semibold tabular-nums text-ink">
-                        {formatMoney(s.eligible, s.currency)}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">In payout prep</dt>
-                      <dd className="mt-0.5 text-sm font-semibold tabular-nums text-ink">
-                        {formatMoney(s.included, s.currency)}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Paid out</dt>
-                      <dd className="mt-0.5 text-sm font-semibold tabular-nums text-ink">
-                        {formatMoney(s.paid, s.currency)}
-                      </dd>
-                    </div>
-                  </dl>
-                  <p className="mt-3 text-xs text-ink-muted max-w-lg">{nextPayoutLabel}</p>
-                  {s.available < 0 ? (
-                    <div className="mt-4 max-w-lg">
-                      <NoticeCallout title={PARTNER_MONEY_NEGATIVE_BALANCE_LABEL} tone="danger">
-                        {PARTNER_MONEY_NEGATIVE_BALANCE_NOTE}
-                      </NoticeCallout>
-                    </div>
-                  ) : null}
-                  {threshold > 0 &&
-                  (moneyByCurrency.length === 1 || moneyByCurrency[0]?.currency === s.currency) ? (
-                    <p className="mt-3 text-sm text-ink-muted max-w-lg">
-                      Saved minimum preference: {formatMoney(threshold, s.currency)}.{' '}
-                      {PARTNER_MONEY_THRESHOLD_PREFERENCE_NOTE}
-                    </p>
-                  ) : null}
-                  {s.refundDueCount > 0 ? (
-                    <div className="mt-4 max-w-xl rounded-lg border border-black/[0.06] border-l-[3px] border-l-amber-500 bg-paper px-3.5 py-3">
-                      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                        <p className="text-sm font-semibold text-ink">
-                          Refund due ·{' '}
-                          <span className="tabular-nums">
-                            {formatMoney(s.refundDue, s.currency)}
-                          </span>
-                          <span className="font-normal text-ink-muted">
-                            {' '}
-                            · {s.refundDueCount} booking{s.refundDueCount === 1 ? '' : 's'}
-                          </span>
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings?ops=refund_due`)}
-                          className="text-xs font-semibold text-finland hover:underline"
-                        >
-                          Open in Bookings
-                        </button>
-                      </div>
-                      <p className="mt-1 text-xs text-ink-muted leading-snug">
-                        Not in Collected. Stripe refunds are manual — status stays Refund due until issued.
-                      </p>
-                    </div>
-                  ) : null}
-                  <button
-                    type="button"
-                    onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile#supplier-business-payout`)}
-                    className="tv-btn-ghost mt-4 -ml-2"
-                  >
-                    Payout account
-                  </button>
-                </section>
-              );
-            })
-          )}
-
-          {!hasMoney ? (
-            <SupplierEmptyState
-              icon={Wallet}
-              title={PARTNER_MONEY_EMPTY_TITLE}
-              body={PARTNER_MONEY_EMPTY_BODY}
-              // Phase 1647: empty Money needs an ops path (Performance / Inbox empty parity).
-              action={
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    className="tv-btn-primary"
-                    onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings`)}
-                  >
-                    Open bookings
-                  </button>
-                  <button
-                    type="button"
-                    className="tv-btn-ghost"
-                    onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings`)}
-                  >
-                    Your listings
-                  </button>
-                </div>
-              }
-            />
-          ) : (
+      {hasMoney && tab === 'overview' ? (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+            {metric('Total earnings', totalNet)}
+            {metric('Pending', pendingNet)}
+            {metric('Available for payout', availableNet)}
+            {metric('Paid out', paidNet)}
+          </div>
+          <p className="text-[12px] text-[#71717a]">Eligible for next payout is the available amount. A customer payment is not a payout.</p>
+          <div className="grid gap-2 rounded-lg border border-[#e5e7eb] bg-white px-3 py-2.5 text-[13px] sm:grid-cols-4">
+            <p><span className="block text-[11px] text-[#71717a]">Payout frequency</span>{planSummary ?? 'Not set'}</p>
+            <p><span className="block text-[11px] text-[#71717a]">Next payout</span>{nextPeriod ? formatMoney(Number(nextPeriod.amount_minor) / 100, nextPeriod.currency) : 'Not scheduled'}</p>
+            <p><span className="block text-[11px] text-[#71717a]">Next date</span>{nextPeriod ? incomeDate(nextPeriod.scheduled_for) : 'Not scheduled'}</p>
+            <p><span className="block text-[11px] text-[#71717a]">Payout account</span>{profile?.payout_verification_status === 'verified' ? 'Verified' : profile?.payout_iban ? 'Saved, not verified' : 'Missing'}</p>
+          </div>
+          {processingNet > 0 ? <p className="text-[13px] text-[#52525b]">Processing: {formatMoney(processingNet / 100, summaryCurrency)}</p> : null}
+          {!nextPeriod ? <p className="text-[12px] text-[#71717a]">{nextPayoutLabel}</p> : null}
+          {recoveryBalance < 0 ? (
+            <NoticeCallout title="Balance adjustment after payout" tone="warn">
+              A refund or dispute after a recorded payout created a recovery balance of {formatMoney(Math.abs(recoveryBalance), summaryCurrency)}. Future payouts may be reduced until this is settled.
+            </NoticeCallout>
+          ) : null}
           <section>
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-              <h2 className="text-[11px] uppercase tracking-[0.18em] text-ink-faint">
-                {filteredEarningsInWindow.length > 0 ? 'Payout periods' : 'Collected'}
-              </h2>
-              <div className="flex flex-wrap items-center gap-1.5">
-                {(['30d', '90d', 'all'] as const).map((w) => (
-                  <button
-                    key={w}
-                    type="button"
-                    onClick={() => setListWindowAndUrl(w)}
-                    className={`lux-flat rounded-md px-2.5 py-1 text-xs font-semibold ring-1 transition-colors ${
-                      listWindow === w
-                        ? 'bg-finland text-white ring-finland'
-                        : 'bg-transparent text-ink-muted ring-black/[0.08] hover:text-ink'
-                    }`}
-                  >
-                    {w === '30d' ? '30d' : w === '90d' ? '90d' : 'All time'}
+            <h2 className="font-sans text-sm font-bold text-[#18181b]">Recent earnings</h2>
+            <ul className="mt-2 divide-y divide-[#e5e7eb] overflow-hidden rounded-lg border border-[#e5e7eb] bg-white">
+              {incomeRows.slice(0, 5).map((row) => (
+                <li key={row.bookingId}>
+                  <button type="button" className="tv-money-row w-full border-0 bg-transparent px-3 py-2 text-left shadow-none" onClick={() => setSelectedEarningId(row.bookingId)}>
+                    <span className="min-w-0">
+                      <span className="block truncate text-[13px] font-semibold text-[#18181b]">{row.reference} · {row.experience}</span>
+                      <span className="text-[12px] text-[#71717a]">{incomeDate(row.activityDate)} · {earningStatusLabel(row.status)}</span>
+                    </span>
+                    <span className="tv-money-row__amount text-[#18181b]">{formatMoney(row.netMinor / 100, row.currency)}</span>
                   </button>
-                ))}
-              </div>
-            </div>
-            <p className="mb-3 text-xs text-ink-faint">
-              List and export use this window. Available balance above stays all-time.
-            </p>
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-              <div className="flex flex-wrap items-center gap-1 rounded-full bg-paper-raised p-1 shadow-soft ring-1 ring-black/[0.06]">
-                {(['all', 'pending', 'paid'] as const).map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setStatusFilterAndUrl(s)}
-                    className={`lux-flat rounded-full px-3 py-2 min-h-11 text-sm font-medium transition-colors ${
-                      statusFilter === s
-                        ? s === 'pending'
-                          ? 'bg-amber-500 text-white shadow-sm'
-                          : s === 'paid'
-                            ? 'bg-emerald-600 text-white shadow-sm'
-                            : 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
-                        : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
-                    }`}
-                  >
-                    {s === 'all' ? 'All' : s === 'pending' ? PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL : s.charAt(0).toUpperCase() + s.slice(1)}
-                  </button>
-                ))}
-              </div>
-              <button
-                type="button"
-                onClick={exportCsv}
-                disabled={!canExportFinance || !canExportMoney}
-                className="tv-btn-ghost text-sm disabled:opacity-40"
-                title={
-                  !canExportFinance
-                    ? 'Your role can view Income but cannot export CSV'
-                    : undefined
-                }
-              >
-                Export
-              </button>
-            </div>
-            {ledgerInWindow.length > 0 ? (
-              <div className="mb-8">
-                <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint mb-2.5">Ledger</h3>
-              <ul className="space-y-2">
-                {ledgerInWindow.map((e) => (
-                  <li key={e.id} className="tv-money-row">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-ink leading-snug">{e.reason}</p>
-                      <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.08em] text-ink-faint">
-                        {ledgerKindLabel(e.kind)}
-                        {e.booking_id ? ' · linked booking' : ''}
-                        {e.policy_id ? ` · ${e.policy_id}` : ''}
-                        {' · '}
-                        {new Date(e.created_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
-                      </p>
-                    </div>
-                    <p className={`tv-money-row__amount ${Number(e.amount) < 0 ? 'text-red-800' : 'text-ink'}`}>
-                      {formatMoney(Number(e.amount), e.currency)}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-              </div>
-            ) : null}
-            {filteredEarningsInWindow.length === 0 ? (
-              statusFilter === 'all' && paidBookingsInWindow.length > 0 ? (
-                <ul className="space-y-2">
-                  {paidBookingsInWindow.map((b) => (
-                    <li key={b.id}>
-                      <button
-                        type="button"
-                        onClick={() => openSupplierBooking(b.id)}
-                        className="lux-flat tv-money-row w-full text-left hover:shadow-[0_0_0_1px_rgba(0,53,128,0.18)] transition-shadow"
-                      >
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-ink truncate leading-snug">
-                            {b.booking_number != null ? `#${b.booking_number} · ` : ''}
-                            {displayListingTitleFromPurchase(
-                              b.purchase_snapshot,
-                              listingTitles[b.listing_id],
-                              b.guest_name?.trim() || 'Guest'
-                            )}
-                          </p>
-                          <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.08em] text-ink-faint truncate">
-                            {b.guest_name?.trim() || 'Guest'} ·{' '}
-                            {(() => {
-                              // Phase 1575: stays show purchased exclusive range (1564), not check-in alone.
-                              if (bookingIsStayNight(b)) {
-                                const range = stayRangeFromBooking(b);
-                                if (range) {
-                                  return `${formatBookingDateDisplay(range.checkIn)} → ${formatBookingDateDisplay(range.checkOut)}`;
-                                }
-                              }
-                              return b.booking_date ? formatBookingDateDisplay(b.booking_date) : 'Date TBC';
-                            })()}
-                            {isStripeTestCheckoutSession(b.checkout_session_id) || appStripeIsTestMode()
-                              ? ' · Stripe TEST'
-                              : ''}
-                            {' · collected, not paid out'}
-                          </p>
-                        </div>
-                        <p className="tv-money-row__amount text-ink">
-                          {formatMoney(Number(b.amount_paid ?? 0), normalizeCurrency(b.currency ?? primaryCurrency))}
-                        </p>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-              <SupplierEmptyState
-                icon={Wallet}
-                className="py-6"
-                title="No rows for this filter"
-                body={PARTNER_MONEY_FILTER_EMPTY_BODY}
-                action={
-                  statusFilter !== 'all' || listWindow !== 'all' ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setStatusFilterAndUrl('all');
-                        setListWindowAndUrl('all');
-                      }}
-                      className="tv-btn-secondary"
-                    >
-                      Show all money
-                    </button>
-                  ) : undefined
-                }
-              />
-              )
+                </li>
+              ))}
+            </ul>
+          </section>
+          <section>
+            <h2 className="font-sans text-sm font-bold text-[#18181b]">Recent payouts</h2>
+            {payoutPeriods.length === 0 && filteredEarningsInWindow.length === 0 ? (
+              <p className="mt-1 text-[13px] text-[#71717a]">No payout records yet.</p>
             ) : (
-              <ul className="space-y-2">
-                {filteredEarningsInWindow.map((e) => (
-                  <li key={e.id} className="tv-money-row">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-semibold text-ink leading-snug">
-                          {e.period_start} – {e.period_end}
-                        </p>
-                        <StatusChip tone={e.status === 'paid' ? 'good' : e.status === 'pending' ? 'warn' : 'neutral'}>
-                          {e.status === 'paid'
-                            ? 'Paid'
-                            : e.status === 'pending'
-                              ? PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL
-                              : e.status}
-                        </StatusChip>
-                      </div>
-                      <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.08em] text-ink-faint">
-                        {e.invoice_number ? e.invoice_number : null}
-                        {e.status === 'paid' && e.payment_reference
-                          ? `${e.invoice_number ? ' · ' : ''}${e.payment_reference}`
-                          : null}
-                        {!e.invoice_number && !(e.status === 'paid' && e.payment_reference) ? (
-                          <span>Payout period</span>
-                        ) : null}
-                      </p>
-                    </div>
-                    <p className="tv-money-row__amount text-ink">
-                      {formatMoney(Number(e.amount), e.currency)}
-                    </p>
+              <ul className="mt-2 divide-y divide-[#e5e7eb] overflow-hidden rounded-lg border border-[#e5e7eb] bg-white">
+                {payoutPeriods.slice(0, 4).map((period) => (
+                  <li key={period.id} className="tv-money-row px-3 py-2">
+                    <span className="text-[13px] text-[#18181b]">{period.period_key} · {payoutPresentationStatus(period.status, period.paid_at)}</span>
+                    <span className="tv-money-row__amount">{formatMoney(Number(period.amount_minor) / 100, period.currency)}</span>
                   </li>
                 ))}
+                {payoutPeriods.length === 0
+                  ? filteredEarningsInWindow.slice(0, 4).map((period) => (
+                      <li key={period.id} className="tv-money-row px-3 py-2">
+                        <span className="text-[13px] text-[#18181b]">
+                          {period.period_start} – {period.period_end} · {period.status === 'paid' && period.payment_reference ? 'Paid' : PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL}
+                        </span>
+                        <span className="tv-money-row__amount">{formatMoney(Number(period.amount), period.currency)}</span>
+                      </li>
+                    ))
+                  : null}
               </ul>
             )}
           </section>
+          {adjustmentRows.length > 0 ? (
+            <section>
+              <h2 className="font-sans text-sm font-bold text-[#18181b]">Adjustments</h2>
+              <ul className="mt-2">
+                {adjustmentRows.slice(0, 4).map((row) => (
+                  <li key={row.id} className="tv-money-row px-0 py-2">
+                    <span className="text-[13px]">{ledgerKindLabel(row.kind)}</span>
+                    <span className={`tv-money-row__amount ${Number(row.amount) < 0 ? 'text-red-800' : ''}`}>{formatMoney(Number(row.amount), row.currency)}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+        </div>
+      ) : null}
+
+      {hasMoney && tab === 'earnings' ? (
+        <div className="space-y-3">
+          <div className="tv-pickup-toolbar">
+            <input className="tv-input" type="search" aria-label="Search earnings" placeholder="Reference or experience" value={earningQuery} onChange={(event) => { setEarningQuery(event.target.value); setEarningPage(0); }} />
+            <input className="tv-input" type="date" aria-label="Activity from" value={earningFrom} onChange={(event) => { setEarningFrom(event.target.value); setEarningPage(0); }} />
+            <input className="tv-input" type="date" aria-label="Activity to" value={earningTo} onChange={(event) => { setEarningTo(event.target.value); setEarningPage(0); }} />
+            <select className="tv-input" aria-label="Experience" value={earningListing} onChange={(event) => { setEarningListing(event.target.value); setEarningPage(0); }}>
+              <option value="">All experiences</option>
+              {Object.entries(listingTitles).map(([id, title]) => <option key={id} value={id}>{title}</option>)}
+            </select>
+            <select className="tv-input" aria-label="Payout status" value={earningStatus} onChange={(event) => { setEarningStatus(event.target.value); setEarningPage(0); }}>
+              <option value="all">All statuses</option>
+              <option value="pending">Pending</option>
+              <option value="eligible">Available</option>
+              <option value="included">Processing</option>
+              <option value="paid">Paid out</option>
+              <option value="reversed">Reversed</option>
+              <option value="recorded">Recorded</option>
+            </select>
+            <select className="tv-input" aria-label="Sort earnings" value={earningSort} onChange={(event) => setEarningSort(event.target.value as 'activity' | 'purchase' | 'earnings')}>
+              <option value="activity">Activity date</option>
+              <option value="purchase">Purchase date</option>
+              <option value="earnings">Your earnings</option>
+            </select>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {(['30d', '90d', 'all'] as const).map((w) => (
+              <button key={w} type="button" className={`h-8 rounded-md px-2 text-[12px] font-semibold ${listWindow === w ? 'bg-[#f0f4fa] text-[#073b83]' : 'text-[#52525b]'}`} onClick={() => setListWindowAndUrl(w)}>
+                {w === 'all' ? 'Export: all time' : `Export: ${w}`}
+              </button>
+            ))}
+          </div>
+          {pageRows.length === 0 ? (
+            <SupplierEmptyState icon={Wallet} className="py-6" title="No rows for this filter" body={PARTNER_MONEY_FILTER_EMPTY_BODY} />
+          ) : (
+            <>
+              <div className="hidden overflow-hidden rounded-lg border border-[#e5e7eb] bg-white md:block">
+                <table className="w-full text-left text-[13px]">
+                  <thead className="border-b border-[#e5e7eb] text-[11px] uppercase tracking-wide text-[#71717a]">
+                    <tr>
+                      <th className="px-3 py-2 font-semibold">Booking</th>
+                      <th className="px-3 py-2 font-semibold">Experience</th>
+                      <th className="px-3 py-2 font-semibold">Activity date</th>
+                      <th className="px-3 py-2 font-semibold">Purchase date</th>
+                      <th className="px-3 py-2 font-semibold">Your earnings</th>
+                      <th className="px-3 py-2 font-semibold">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageRows.map((row) => (
+                      <tr key={row.bookingId} className="cursor-pointer border-t border-[#e5e7eb]" onClick={() => setSelectedEarningId(row.bookingId)}>
+                        <td className="px-3 py-2 font-semibold">{row.reference}</td>
+                        <td className="max-w-[16rem] truncate px-3 py-2">{row.experience}</td>
+                        <td className="px-3 py-2">{incomeDate(row.activityDate)}</td>
+                        <td className="px-3 py-2">{incomeDate(row.purchaseDate)}</td>
+                        <td className="px-3 py-2 font-bold tabular-nums">{formatMoney(row.netMinor / 100, row.currency)}</td>
+                        <td className="px-3 py-2">{earningStatusLabel(row.status)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <ul className="divide-y divide-[#e5e7eb] overflow-hidden rounded-lg border border-[#e5e7eb] bg-white md:hidden">
+                {pageRows.map((row) => (
+                  <li key={row.bookingId}>
+                    <button type="button" className="tv-money-row w-full px-3 py-2 text-left" onClick={() => setSelectedEarningId(row.bookingId)}>
+                      <span>
+                        <span className="block font-semibold">{row.reference}</span>
+                        <span className="block truncate text-[12px] text-[#71717a]">{row.experience} · {incomeDate(row.activityDate)} · {earningStatusLabel(row.status)}</span>
+                      </span>
+                      <span className="tv-money-row__amount">{formatMoney(row.netMinor / 100, row.currency)}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <div className="flex items-center justify-between text-[13px]">
+                <button type="button" className="tv-btn-secondary h-9 px-3" disabled={earningPage === 0} onClick={() => setEarningPage((page) => Math.max(0, page - 1))}>Previous</button>
+                <span className="text-[#71717a]">{earningPage + 1} / {pageCount}</span>
+                <button type="button" className="tv-btn-secondary h-9 px-3" disabled={earningPage + 1 >= pageCount} onClick={() => setEarningPage((page) => page + 1)}>Next</button>
+              </div>
+            </>
           )}
-        </>
-      )}
+        </div>
+      ) : null}
+
+      {hasMoney && tab === 'payouts' ? (
+        <div className="space-y-3">
+          <p className="text-[12px] text-[#71717a]">{nextPayoutLabel}</p>
+          {payoutPeriods.length === 0 && filteredEarningsInWindow.length === 0 ? (
+            <p className="text-[13px] text-[#52525b]">No payout has been scheduled or recorded.</p>
+          ) : (
+            <ul className="divide-y divide-[#e5e7eb] overflow-hidden rounded-lg border border-[#e5e7eb] bg-white">
+              {payoutPeriods.map((period) => (
+                <li key={period.id}>
+                  <button type="button" className="tv-money-row w-full px-3 py-2 text-left" onClick={() => setSelectedPayoutId(period.id)}>
+                    <span>
+                      <span className="block text-[13px] font-semibold">{period.period_key}</span>
+                      <span className="text-[12px] text-[#71717a]">{incomeDate(period.period_start)} – {incomeDate(period.period_end)} · {payoutPresentationStatus(period.status, period.paid_at)}</span>
+                    </span>
+                    <span className="tv-money-row__amount">{formatMoney(Number(period.amount_minor) / 100, period.currency)}</span>
+                  </button>
+                </li>
+              ))}
+              {filteredEarningsInWindow.map((period) => (
+                <li key={period.id} className="tv-money-row px-3 py-2">
+                  <span>
+                    <span className="block text-[13px] font-semibold">{period.invoice_number || 'Payout record'}</span>
+                    <span className="text-[12px] text-[#71717a]">
+                      {period.period_start} – {period.period_end} · {period.status === 'paid' && period.payment_reference ? `Paid · ${period.payment_reference}` : PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL}
+                    </span>
+                  </span>
+                  <span className="tv-money-row__amount">{formatMoney(Number(period.amount), period.currency)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : null}
+
+      {hasMoney && tab === 'documents' ? (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {(['all', 'statements', 'payouts', 'confirmations'] as const).map((kind) => (
+              <button key={kind} type="button" className={`h-8 rounded-md px-2.5 text-[12px] font-semibold ${docKind === kind ? 'bg-[#f0f4fa] text-[#073b83]' : 'text-[#52525b]'}`} onClick={() => setDocKind(kind)}>
+                {kind === 'all' ? 'All' : kind === 'statements' ? 'Earnings statements' : kind === 'payouts' ? 'Payout statements' : 'Payment confirmations'}
+              </button>
+            ))}
+            <select className="tv-input h-8 w-auto" aria-label="Year" value={docYear} onChange={(event) => setDocYear(event.target.value)}>
+              <option value="all">All years</option>
+              {docYears.map((year) => <option key={year} value={year}>{year}</option>)}
+            </select>
+          </div>
+          <ul className="divide-y divide-[#e5e7eb] overflow-hidden rounded-lg border border-[#e5e7eb] bg-white">
+            {incomeRows
+              .filter((row) => row.grossMinor != null && (docKind === 'all' || docKind === 'statements') && (docYear === 'all' || (row.activityDate ?? '').startsWith(docYear)))
+              .map((row) => (
+                <li key={row.bookingId} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+                  <span className="min-w-0">
+                    <span className="block text-[13px] font-semibold">Earnings statement · {row.reference}</span>
+                    <span className="text-[12px] text-[#71717a]">{incomeDate(row.activityDate)} · Net {formatMoney(row.netMinor / 100, row.currency)}</span>
+                  </span>
+                  <span className="flex gap-2">
+                    <button type="button" className="text-[13px] font-semibold text-[#073b83]" onClick={() => openEarningStatement(row, false)}>View PDF</button>
+                    <button type="button" className="text-[13px] font-semibold text-[#073b83]" onClick={() => openEarningStatement(row, true)}>Download PDF</button>
+                  </span>
+                </li>
+              ))}
+            {payoutPeriods
+              .filter((period) => (docKind === 'all' || docKind === 'payouts' || (docKind === 'confirmations' && payoutMaySayPaid(period.status, period.paid_at))) && (docYear === 'all' || period.period_end.startsWith(docYear)))
+              .map((period) => (
+                <li key={period.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+                  <span>
+                    <span className="block text-[13px] font-semibold">{payoutMaySayPaid(period.status, period.paid_at) ? 'Payment confirmation' : 'Payout statement'} · {period.period_key}</span>
+                    <span className="text-[12px] text-[#71717a]">{payoutPresentationStatus(period.status, period.paid_at)} · {formatMoney(Number(period.amount_minor) / 100, period.currency)}</span>
+                  </span>
+                  <span className="flex gap-2">
+                    <button type="button" className="text-[13px] font-semibold text-[#073b83]" onClick={() => void openPayoutStatement(period, false)}>View PDF</button>
+                    <button type="button" className="text-[13px] font-semibold text-[#073b83]" onClick={() => void openPayoutStatement(period, true)}>Download PDF</button>
+                  </span>
+                </li>
+              ))}
+          </ul>
+          <p className="text-[12px] text-[#71717a]">Statements are generated from the frozen booking split. A payout statement is not a transfer receipt unless a completion time is recorded.</p>
+        </div>
+      ) : null}
+
+      {tab === 'settings' ? (
+        <div className="grid gap-3 lg:grid-cols-3">
+          <section className="rounded-lg border border-[#e5e7eb] bg-white p-3">
+            <h2 className="font-sans text-sm font-bold">Business & tax</h2>
+            <dl className="mt-2 space-y-1 text-[13px]">
+              <div><dt className="text-[11px] text-[#71717a]">Registered name</dt><dd>{profile?.company_legal_name || 'Not on file'}</dd></div>
+              <div><dt className="text-[11px] text-[#71717a]">Business ID</dt><dd>{profile?.company_registration_number || 'Not on file'}</dd></div>
+              <div><dt className="text-[11px] text-[#71717a]">VAT number</dt><dd>{profile?.vat_id || 'Not on file'}</dd></div>
+              <div><dt className="text-[11px] text-[#71717a]">Country</dt><dd>{profile?.address_country || 'Not on file'}</dd></div>
+              <div><dt className="text-[11px] text-[#71717a]">Address</dt><dd>{supplierAddress || 'Not on file'}</dd></div>
+            </dl>
+          </section>
+          <section className="rounded-lg border border-[#e5e7eb] bg-white p-3">
+            <h2 className="font-sans text-sm font-bold">Payout account</h2>
+            <dl className="mt-2 space-y-1 text-[13px]">
+              <div><dt className="text-[11px] text-[#71717a]">Account holder</dt><dd>{profile?.company_legal_name || profile?.display_name || 'Not on file'}</dd></div>
+              <div><dt className="text-[11px] text-[#71717a]">IBAN</dt><dd>{maskIban(profile?.payout_iban) || 'Not on file'}</dd></div>
+              <div><dt className="text-[11px] text-[#71717a]">BIC</dt><dd>{profile?.payout_bic ? 'On file' : 'Not on file'}</dd></div>
+              <div><dt className="text-[11px] text-[#71717a]">Currency</dt><dd>{summaryCurrency}</dd></div>
+              <div><dt className="text-[11px] text-[#71717a]">Verification</dt><dd>{profile?.payout_verification_status || 'Not submitted'}</dd></div>
+            </dl>
+            <button type="button" className="mt-2 text-[13px] font-semibold text-[#073b83]" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile#supplier-business-payout`)}>
+              Update payout account
+            </button>
+          </section>
+          <section className="rounded-lg border border-[#e5e7eb] bg-white p-3">
+            <h2 className="font-sans text-sm font-bold">Commercial agreement</h2>
+            <dl className="mt-2 space-y-1 text-[13px]">
+              <div><dt className="text-[11px] text-[#71717a]">Commission</dt><dd>{commercialTerms ? formatBpsAsPercent(commercialTerms.commission_bps) : 'Not set'}</dd></div>
+              <div><dt className="text-[11px] text-[#71717a]">Payout frequency</dt><dd>{commercialTerms?.payout_cadence === 'semimonthly' ? 'Twice monthly' : commercialTerms ? 'Monthly' : 'Not set'}</dd></div>
+              <div><dt className="text-[11px] text-[#71717a]">Payout currency</dt><dd>{summaryCurrency}</dd></div>
+            </dl>
+            <p className="mt-2 text-[12px] text-[#71717a]">Contact Traverion to change payout plan.</p>
+          </section>
+        </div>
+      ) : null}
+
+      {selectedEarning ? (
+        <div className="fixed inset-0 z-[80] flex justify-end bg-black/30" role="presentation" onMouseDown={() => setSelectedEarningId(null)}>
+          <aside className="h-full w-full max-w-md overflow-y-auto bg-white p-4" role="dialog" aria-modal="true" aria-label="Earning details" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h2 className="font-sans text-base font-bold">{selectedEarning.reference}</h2>
+              <button type="button" className="tv-btn-ghost h-9" onClick={() => setSelectedEarningId(null)}>Close</button>
+            </div>
+            <p className="mt-2 text-[13px]">{selectedEarning.experience}</p>
+            <p className="text-[12px] text-[#71717a]">Activity {incomeDate(selectedEarning.activityDate)} · Purchased {incomeDate(selectedEarning.purchaseDate)}</p>
+            <p className="mt-3 text-[12px] text-[#71717a]">Your earnings</p>
+            <p className="font-sans text-2xl font-bold tabular-nums">{formatMoney(selectedEarning.netMinor / 100, selectedEarning.currency)}</p>
+            <p className="text-[13px]">{earningStatusLabel(selectedEarning.status)}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button type="button" className="tv-btn-primary h-9 px-3 text-[13px]" disabled={selectedEarning.grossMinor == null} onClick={() => openEarningStatement(selectedEarning, false)}>View financial statement</button>
+              <button type="button" className="tv-btn-secondary h-9 px-3 text-[13px]" onClick={() => openSupplierBooking(selectedEarning.bookingId)}>Open booking</button>
+            </div>
+          </aside>
+        </div>
+      ) : null}
+
+      {selectedPayout ? (
+        <div className="fixed inset-0 z-[80] flex justify-end bg-black/30" role="presentation" onMouseDown={() => setSelectedPayoutId(null)}>
+          <aside className="h-full w-full max-w-md overflow-y-auto bg-white p-4" role="dialog" aria-modal="true" aria-label="Payout details" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h2 className="font-sans text-base font-bold">{selectedPayout.period_key}</h2>
+              <button type="button" className="tv-btn-ghost h-9" onClick={() => setSelectedPayoutId(null)}>Close</button>
+            </div>
+            <p className="mt-3 font-sans text-2xl font-bold tabular-nums">{formatMoney(Number(selectedPayout.amount_minor) / 100, selectedPayout.currency)}</p>
+            <p className="text-[13px]">{payoutPresentationStatus(selectedPayout.status, selectedPayout.paid_at)}</p>
+            <p className="text-[12px] text-[#71717a]">{incomeDate(selectedPayout.period_start)} – {incomeDate(selectedPayout.period_end)}</p>
+            <p className="text-[12px] text-[#71717a]">Account {maskIban(profile?.payout_iban) || 'not on file'}</p>
+            {selectedPayout.paid_at ? <p className="text-[12px] text-[#71717a]">Completed {new Date(selectedPayout.paid_at).toLocaleString()}</p> : <p className="text-[12px] text-[#71717a]">No completion time is recorded.</p>}
+            <button type="button" className="tv-btn-primary mt-3 h-9 px-3 text-[13px]" onClick={() => void openPayoutStatement(selectedPayout, true)}>Download payout statement</button>
+          </aside>
+        </div>
+      ) : null}
     </div>
   );
 }
