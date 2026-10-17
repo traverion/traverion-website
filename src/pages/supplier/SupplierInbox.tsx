@@ -595,7 +595,7 @@ export default function SupplierInbox() {
                           onClick={() => setOpenBookingId(b.id)}
                         >
                           <div className="flex items-start justify-between gap-2">
-                            <p className={`min-w-0 flex-1 truncate text-[0.95rem] tracking-tight ${unread ? 'font-bold text-ink' : 'font-semibold text-ink'}`}>
+                            <p className="min-w-0 flex-1 truncate text-[0.95rem] font-bold tracking-tight text-ink">
                               <span
                                 className={`mr-2 inline-block h-1.5 w-1.5 rounded-full align-middle ${unread ? 'bg-finland' : 'bg-transparent'}`}
                                 aria-hidden={!unread}
@@ -661,7 +661,7 @@ export default function SupplierInbox() {
                     {activityWhen(openBooking) ? ` · ${activityWhen(openBooking)}` : ''}
                   </p>
                 </div>
-                <button type="button" className="tv-btn-ghost shrink-0" onClick={() => setDetailsOpen(true)}>
+                <button type="button" className="tv-inbox-details-link tv-btn-ghost shrink-0" onClick={() => setDetailsOpen(true)}>
                   Booking details
                 </button>
               </header>
