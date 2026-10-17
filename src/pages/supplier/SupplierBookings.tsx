@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   CheckCircle,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Clock,
+  Copy,
   Download,
   Mail,
-  MapPin,
   RefreshCw,
   Trash2,
   Users,
@@ -14,7 +15,9 @@ import {
 } from 'lucide-react';
 import type { TourPackage } from '../../types/tour';
 import { listingHeroImageSrc, orderedPhotoUrls, photoSlotsFromTourPackage } from '../../lib/listingPhotoGrid';
-import { formatMoney } from '../../lib/money';
+import { formatMoney, normalizeCurrency } from '../../lib/money';
+import { formatBpsAsPercent } from '../../lib/commercial-money';
+import { fetchBookingCommercialSnapshot, type BookingCommercialSnapshotRow } from '../../data/supabase-earnings';
 import { isPaidPaymentStatus, partnerPaymentLabel, partnerCollectedAmountCaption, bookingPaymentWasCollected, REFUND_DUE_MANUAL_COPY } from '../../lib/payment-states';
 import { PARTNER_BOOKINGS_CSV_HEADER, partnerBookingCsvValues } from '../../lib/partner-bookings-csv';
 import { csvSafeCell } from '../../lib/csv-export';
@@ -146,6 +149,23 @@ function formatBookingMoney(amount: number | null | undefined, currency: string 
   return formatMoney(Number(amount), currency);
 }
 
+/** Minor units from booking_commercial_snapshots. Includes zero. Does not invent a rate. */
+function formatSnapshotMinor(minor: number, currency: string): string {
+  const major = Math.round(Number(minor)) / 100;
+  const code = normalizeCurrency(currency);
+  return new Intl.NumberFormat('en-GB', {
+    style: 'currency',
+    currency: code,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number.isFinite(major) ? major : 0);
+}
+
+function snapshotCommissionPercent(bps: number): string | null {
+  if (!Number.isInteger(bps) || bps < 0 || bps > 10000) return null;
+  return formatBpsAsPercent(bps);
+}
+
 function bookingStatusClass(status: string, paymentStatus?: string | null): string {
   const pay = (paymentStatus ?? '').trim().toLowerCase();
   if (status === 'cancelled' || pay === 'refunded') return 'bg-slate-100 text-slate-600 ring-slate-200/80';
@@ -256,7 +276,7 @@ function customerRequestNotes(raw: string | null | undefined): string {
 
 function DrawerFact({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="grid grid-cols-[6.25rem_minmax(0,1fr)] items-baseline gap-x-2 text-[13px] leading-5">
+    <div className="grid grid-cols-[8.25rem_minmax(0,1fr)] items-baseline gap-x-2 text-[13px] leading-5">
       <dt className="text-ink-faint">{label}</dt>
       <dd className="min-w-0 break-words text-ink">{children}</dd>
     </div>
@@ -379,7 +399,10 @@ export default function SupplierBookings({
   });
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
   const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
-  const [drawerExtra, setDrawerExtra] = useState<null | 'notes' | 'activity' | 'rules'>(null);
+  const [drawerExtra, setDrawerExtra] = useState<null | 'notes' | 'activity' | 'rules' | 'instructions'>(null);
+  const [commercialSnapshot, setCommercialSnapshot] = useState<BookingCommercialSnapshotRow | null>(null);
+  const [commercialState, setCommercialState] = useState<'loading' | 'ready' | 'missing' | 'error'>('missing');
+  const [copiedBookingId, setCopiedBookingId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(() => new Set());
   const [activityEvents, setActivityEvents] = useState<SupplierBookingEventRow[]>([]);
   const [filterListingId, setFilterListingId] = useState(() => {
@@ -839,14 +862,28 @@ export default function SupplierBookings({
 
   useEffect(() => {
     setDrawerExtra(null);
+    setCommercialSnapshot(null);
     if (!user?.id || !highlightBookingId) {
       setActivityEvents([]);
+      setCommercialState('missing');
       return;
     }
     let cancelled = false;
+    setCommercialState('loading');
     void fetchSupplierBookingEvents(user.id, [highlightBookingId]).then((rows) => {
       if (!cancelled) setActivityEvents(rows);
     });
+    void fetchBookingCommercialSnapshot(highlightBookingId)
+      .then((row) => {
+        if (cancelled) return;
+        setCommercialSnapshot(row);
+        setCommercialState(row ? 'ready' : 'missing');
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setCommercialSnapshot(null);
+        setCommercialState('error');
+      });
     return () => {
       cancelled = true;
     };
@@ -1447,9 +1484,7 @@ export default function SupplierBookings({
               const dateLine = stayOut
                 ? `${formatStayNightHuman(booking.booking_date ?? '')} → ${formatStayNightHuman(stayOut)}`
                 : formatActivityDateLong(booking.booking_date, startHm);
-              const paidLabel = customerBookingTotal(booking);
               const purchaseDateLabel = formatPurchaseDate(booking.created_at);
-              const needsAck = partnerBookingNeedsLook(booking);
               const pickupGap = partnerBookingHasPickupAttention(
                 booking,
                 rowMeeting,
@@ -1465,8 +1500,20 @@ export default function SupplierBookings({
                 })
                   ? openCancelRaw
                   : undefined;
-              const needsAttention = Boolean(openCancel || pickupGap || needsAck);
-              const guestName = booking.guest_name?.trim() || 'Guest';
+              const paymentIssue =
+                partnerPaymentLabel(booking) === 'Refund due'
+                  ? 'Refund due'
+                  : partnerBookingIsUnpaidCheckout(booking)
+                    ? partnerUnpaidCheckoutHoldsInventory(booking)
+                      ? 'Payment not completed'
+                      : 'Payment hold expired'
+                    : null;
+              const cardWarning = openCancel
+                ? 'Cancellation requested'
+                : pickupGap
+                  ? 'Pickup details missing'
+                  : paymentIssue;
+              const needsAttention = Boolean(cardWarning);
               const referenceLabel = bookingReferenceLabel(booking);
               const participantLabel = formatBookingParticipantsLabel(booking);
               const stayNightLabel =
@@ -1517,32 +1564,35 @@ export default function SupplierBookings({
                     type="button"
                     onClick={() => setSelectedBookingId(booking.id)}
                     className="lux-flat tv-ops-booking-row__btn"
+                    aria-label={`View details for ${listingTitle}`}
                   >
                     {meta?.imageUrl ? (
                       <img
                         src={meta.imageUrl}
                         alt=""
-                        className="h-12 w-12 rounded-md object-cover shrink-0 ring-1 ring-black/[0.06]"
+                        className="h-[3.25rem] w-[3.25rem] shrink-0 rounded-md object-cover ring-1 ring-black/[0.06]"
                       />
                     ) : (
-                      <div className="h-12 w-12 rounded-md bg-finland/10 shrink-0 ring-1 ring-finland/15" aria-hidden />
+                      <div className="h-[3.25rem] w-[3.25rem] shrink-0 rounded-md bg-finland/10 ring-1 ring-finland/15" aria-hidden />
                     )}
                     <div className="min-w-0 flex-1">
-                      <div className="flex min-w-0 flex-col sm:flex-row sm:items-baseline sm:gap-x-2">
-                        <p className="min-w-0 truncate font-display text-[1.02rem] font-semibold tracking-tight text-ink sm:max-w-[16rem] sm:shrink-0" title={guestName}>
-                          {guestName}
-                        </p>
-                        <p className="min-w-0 truncate text-[13px] font-medium text-ink" title={listingTitle}>
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="line-clamp-2 min-w-0 flex-1 text-[14px] font-semibold leading-5 tracking-tight text-ink" title={listingTitle}>
                           {listingTitle}
                         </p>
+                        <span className="mt-0.5 inline-flex shrink-0 items-center gap-0.5">
+                          <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-semibold ring-1 ${bookingStatusClass(booking.status, booking.payment_status)}`}>
+                            {partnerBookingLifecycleLabel(booking.status)}
+                          </span>
+                          <ChevronRight className="h-4 w-4 text-ink-faint" aria-hidden />
+                        </span>
                       </div>
                       {optionLabel ? (
-                        <p className="truncate text-[12px] font-medium text-ink-muted" title={optionLabel}>
+                        <p className="truncate text-[12.5px] leading-4 text-ink-muted" title={optionLabel}>
                           {optionLabel}
                         </p>
                       ) : null}
-                      <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[12px] leading-4 text-ink-muted">
-                        <span className="hidden font-mono text-[12px] font-semibold tracking-wide text-finland sm:inline">{referenceLabel}</span>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12px] leading-4 text-ink-muted">
                         <span className="inline-flex min-w-0 items-center gap-1">
                           <CalendarDays className="h-3.5 w-3.5 shrink-0 text-ink-faint" aria-hidden />
                           {stayDayChip ? <span className="font-semibold text-finland">{stayDayChip}</span> : null}
@@ -1551,55 +1601,43 @@ export default function SupplierBookings({
                             {dep.purchasedNote ? ` · ${dep.purchasedNote}` : ''}
                           </span>
                         </span>
-                        <span className="inline-flex items-center gap-1" title={participantLabel}>
+                        <span className="inline-flex min-w-0 items-center gap-1" title={participantLabel}>
                           <Users className="h-3.5 w-3.5 shrink-0 text-ink-faint" aria-hidden />
-                          <span className="max-w-[14rem] truncate">{participantLabel}</span>
+                          <span className="truncate">{participantLabel}</span>
                           {stayNightLabel ? <span className="shrink-0 text-ink-faint">· {stayNightLabel}</span> : null}
                         </span>
+                      </div>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12px] leading-4 text-ink-muted">
+                        <span className="font-mono text-[12px] font-semibold tracking-wide text-finland">{referenceLabel}</span>
                         {purchaseDateLabel ? (
-                          <span className="hidden whitespace-nowrap sm:inline" title="Purchase date, when the booking was created">Purchase date {purchaseDateLabel}</span>
-                        ) : null}
-                        {paidLabel ? (
-                          <span className="inline-flex items-baseline gap-1 whitespace-nowrap" title="Customer booking total">
-                            <span className="text-[11px] font-medium text-ink-faint">Total</span>
-                            <span className="font-display text-[0.95rem] font-semibold tabular-nums tracking-tight text-ink">
-                              {paidLabel}
-                            </span>
-                          </span>
+                          <span className="whitespace-nowrap" title="Purchase date, when the booking was created">Purchased {purchaseDateLabel}</span>
                         ) : null}
                       </div>
-                      {partnerBookingIsUnpaidCheckout(booking) ? (
-                        <p
-                          className={`mt-0.5 text-[12px] font-medium leading-4 ${
-                            partnerUnpaidCheckoutHoldsInventory(booking) ? 'text-amber-900' : 'text-ink-faint'
-                          }`}
-                        >
-                          {formatPartnerCheckoutHoldLabel(booking)}
-                        </p>
-                      ) : null}
-                      {needsAck ? (
-                        <p className="mt-0.5 text-[12px] font-medium leading-4 text-finland">Awaiting acknowledgement</p>
-                      ) : null}
-                      {pickupGap ? (
-                        <p className="mt-0.5 text-[12px] font-medium leading-4 text-amber-800">Pickup details missing</p>
-                      ) : null}
-                      {openCancel ? (
-                        <p className="mt-0.5 text-[12px] font-medium leading-4 text-red-800">Awaiting traveler cancellation response</p>
+                      {cardWarning ? (
+                        <p className="mt-0.5 text-[12px] font-medium leading-4 text-amber-800">{cardWarning}</p>
                       ) : null}
                     </div>
-                    <span className="tv-ops-booking-row__actions flex shrink-0 flex-col items-end gap-1 self-center pl-1">
-                      <span className="flex flex-wrap justify-end gap-1">
-                        <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-semibold ring-1 ${bookingStatusClass(booking.status, booking.payment_status)}`}>
-                          {partnerBookingLifecycleLabel(booking.status)}
-                        </span>
-                        <span className="rounded-md bg-black/[0.04] px-1.5 py-0.5 text-[11px] font-semibold text-ink-muted">
-                          {partnerPaymentLabel(booking)}
-                        </span>
-                      </span>
-                      <span className="pointer-events-none whitespace-nowrap text-[13px] font-semibold text-finland">
-                        View details
-                      </span>
-                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="tv-ops-booking-row__copy"
+                    aria-label={`Copy booking reference ${referenceLabel}`}
+                    onClick={() => {
+                      void navigator.clipboard.writeText(referenceLabel).then(() => {
+                        setCopiedBookingId(booking.id);
+                        window.setTimeout(() => {
+                          setCopiedBookingId((current) => (current === booking.id ? null : current));
+                        }, 1500);
+                      }).catch(() => {
+                        setCopiedBookingId(null);
+                      });
+                    }}
+                  >
+                    {copiedBookingId === booking.id ? (
+                      <CheckCircle className="h-3.5 w-3.5 text-finland" aria-hidden />
+                    ) : (
+                      <Copy className="h-3.5 w-3.5" aria-hidden />
+                    )}
                   </button>
                 </article>
               );
@@ -1786,6 +1824,7 @@ export default function SupplierBookings({
             const hasOperations = Boolean(
               houseTimes ||
                 checkInAddress ||
+                (!isStay && placeShown) ||
                 (showPickup && pickupHm) ||
                 (pickupInstructions && (showPickup || showMeeting)) ||
                 bookingLogistics ||
@@ -1797,6 +1836,13 @@ export default function SupplierBookings({
                 openCancel ||
                 isStay
             );
+            const commissionPercent =
+              commercialSnapshot && commercialState === 'ready'
+                ? snapshotCommissionPercent(commercialSnapshot.commission_bps)
+                : null;
+            const commissionAdjusted =
+              commercialSnapshot != null &&
+              Number(commercialSnapshot.remaining_gross_minor) !== Number(commercialSnapshot.gross_minor);
             return (
               <>
                 <SupplierModalHeader
@@ -1806,12 +1852,7 @@ export default function SupplierBookings({
                       {partnerBookingLifecycleLabel(booking.status)}
                     </span>
                   }
-                  subtitle={
-                    <>
-                      <span className="font-medium text-finland">{referenceLabel}</span>
-                      <span className="mt-0.5 block truncate" title={whenLabel}>{whenLabel}</span>
-                    </>
-                  }
+                  subtitle={<span className="font-medium text-finland">{referenceLabel}</span>}
                   onClose={() => setSelectedBookingId(null)}
                 />
                 <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3 sm:px-5">
@@ -1827,7 +1868,7 @@ export default function SupplierBookings({
                         <div className="h-11 w-11 shrink-0 rounded-md bg-black/[0.04] ring-1 ring-black/[0.06]" aria-hidden />
                       )}
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-ink" title={listingTitle}>
+                        <p className="line-clamp-2 text-sm font-semibold leading-5 text-ink" title={listingTitle}>
                           {listingTitle}
                         </p>
                         {optionLabel ? (
@@ -1843,22 +1884,12 @@ export default function SupplierBookings({
                               {purchasedDuration}
                             </p>
                           ) : null}
-                          {isStay && stayNightCount > 0 ? (
-                            <p className="text-[13px] tabular-nums text-ink">
-                              {stayNightCount} night{stayNightCount === 1 ? '' : 's'}
-                            </p>
-                          ) : null}
-                          {!isStay && placeShown ? (
-                            <p className="line-clamp-2 text-[13px] text-ink sm:col-span-2" title={`${placePrefix}: ${placeShown}`}>
-                              <MapPin className="mr-1 inline h-3 w-3 shrink-0 text-ink-faint" aria-hidden />
-                              {placePrefix}: {placeShown}
-                            </p>
-                          ) : null}
-                          {!placeShown && meta?.location ? (
-                            <p className="truncate text-[12px] text-ink-faint sm:col-span-2" title={meta.location}>
-                              {meta.location}
-                            </p>
-                          ) : null}
+                          <p className="text-[13px] text-ink sm:col-span-2">
+                            {formatBookingParticipantsLabel(booking)}
+                            {isStay && stayNightCount > 0
+                              ? ` · ${stayNightCount} night${stayNightCount === 1 ? '' : 's'}`
+                              : ''}
+                          </p>
                         </div>
                         {dep.purchasedNote ? (
                           <p className="mt-0.5 text-[12px] text-ink-muted">{dep.purchasedNote}</p>
@@ -1867,6 +1898,7 @@ export default function SupplierBookings({
                     </div>
                   </DrawerSection>
 
+                  {booking.guest_email || guestPhone || requestNotes ? (
                   <DrawerSection title="Customer">
                     <dl className="space-y-1">
                       {booking.guest_email ? (
@@ -1886,19 +1918,55 @@ export default function SupplierBookings({
                           </a>
                         </DrawerFact>
                       ) : null}
-                      <DrawerFact label={isStay ? 'Guests' : 'Participants'}>
-                        {formatBookingParticipantsLabel(booking)}
-                      </DrawerFact>
                     </dl>
+                    {requestNotes ? (
+                      <div className="pt-1">
+                        <p className="text-[12px] text-ink-faint">Notes</p>
+                        <p className="whitespace-pre-wrap break-words text-[13px] leading-5 text-ink [overflow-wrap:anywhere]">
+                          {drawerExtra === 'notes' || requestNotes.length <= 160
+                            ? requestNotes
+                            : `${requestNotes.slice(0, 160).trimEnd()}…`}
+                        </p>
+                        {requestNotes.length > 160 ? (
+                          <button
+                            type="button"
+                            className="text-[13px] font-semibold text-finland"
+                            aria-expanded={drawerExtra === 'notes'}
+                            onClick={() => setDrawerExtra(drawerExtra === 'notes' ? null : 'notes')}
+                          >
+                            {drawerExtra === 'notes' ? 'Show less' : 'Show full note'}
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </DrawerSection>
+                  ) : null}
 
                   {hasOperations ? (
-                  <DrawerSection title={isStay ? 'Check-in' : 'Meeting & operations'}>
+                  <DrawerSection title={isStay ? 'Check-in' : 'Operations'}>
+                    {!isStay && placeShown ? <DrawerFact label={placePrefix}>{placeShown}</DrawerFact> : null}
                     {houseTimes ? <DrawerFact label="Times">{houseTimes}</DrawerFact> : null}
                     {checkInAddress ? <DrawerFact label="Address">{checkInAddress}</DrawerFact> : null}
                     {showPickup && pickupHm ? <DrawerFact label="Pickup time">{pickupHm}</DrawerFact> : null}
                     {pickupInstructions && (showPickup || showMeeting) ? (
-                      <DrawerFact label="Instructions">{pickupInstructions}</DrawerFact>
+                      <div>
+                        <p className="text-[12px] text-ink-faint">Instructions</p>
+                        <p className="whitespace-pre-wrap break-words text-[13px] leading-5 text-ink">
+                          {drawerExtra === 'instructions' || pickupInstructions.length <= 140
+                            ? pickupInstructions
+                            : `${pickupInstructions.slice(0, 140).trimEnd()}…`}
+                        </p>
+                        {pickupInstructions.length > 140 ? (
+                          <button
+                            type="button"
+                            className="text-[13px] font-semibold text-finland"
+                            aria-expanded={drawerExtra === 'instructions'}
+                            onClick={() => setDrawerExtra(drawerExtra === 'instructions' ? null : 'instructions')}
+                          >
+                            {drawerExtra === 'instructions' ? 'Show less' : 'Show instructions'}
+                          </button>
+                        ) : null}
+                      </div>
                     ) : null}
                     {bookingLogistics ? <DrawerFact label="Transfer">{bookingLogistics}</DrawerFact> : null}
                     {needsAck ? (
@@ -1998,10 +2066,45 @@ export default function SupplierBookings({
 
                   <DrawerSection title="Payment">
                     {bookingTotalLabel ? (
-                      <DrawerFact label="Total">
-                        <span title="Customer booking total">{bookingTotalLabel}</span>
+                      <DrawerFact label="Customer total">
+                        <span className="tabular-nums">{bookingTotalLabel}</span>
                       </DrawerFact>
                     ) : null}
+                    {commercialState === 'loading' ? (
+                      <p className="text-[13px] text-ink-muted">Loading commission…</p>
+                    ) : commercialSnapshot && commercialState === 'ready' ? (
+                      <>
+                        <DrawerFact label={commissionPercent ? `Commission (${commissionPercent})` : 'Commission'}>
+                          <span className="tabular-nums">
+                            {formatSnapshotMinor(
+                              commissionAdjusted
+                                ? commercialSnapshot.remaining_commission_minor
+                                : commercialSnapshot.commission_minor,
+                              commercialSnapshot.currency
+                            )}
+                          </span>
+                        </DrawerFact>
+                        <DrawerFact label="Supplier earnings">
+                          <span className="tabular-nums">
+                            {formatSnapshotMinor(
+                              commissionAdjusted
+                                ? commercialSnapshot.remaining_supplier_minor
+                                : commercialSnapshot.supplier_minor,
+                              commercialSnapshot.currency
+                            )}
+                          </span>
+                        </DrawerFact>
+                        <p className="text-[12px] leading-4 text-ink-faint">
+                          {commissionAdjusted
+                            ? 'Earnings follow the refund recorded on this booking. This is not a payout.'
+                            : 'Supplier earnings are not a payout.'}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-[13px] text-ink-muted">
+                        Commission and supplier earnings are not recorded for this booking.
+                      </p>
+                    )}
                     <DrawerFact label="Status">{partnerPaymentLabel(booking)}</DrawerFact>
                     {collectedLabel && (collectedLabel !== bookingTotalLabel || collectedCaption !== 'Paid') ? (
                       <DrawerFact label={collectedCaption}>{collectedLabel}</DrawerFact>
@@ -2024,34 +2127,18 @@ export default function SupplierBookings({
                     ) : null}
                   </DrawerSection>
 
-                  {requestNotes ? (
-                    <DrawerSection title="Notes">
-                      <p className="whitespace-pre-wrap break-words text-[13px] leading-5 text-ink [overflow-wrap:anywhere]">
-                        {drawerExtra === 'notes' || requestNotes.length <= 160
-                          ? requestNotes
-                          : `${requestNotes.slice(0, 160).trimEnd()}…`}
-                      </p>
-                      {requestNotes.length > 160 ? (
-                        <button
-                          type="button"
-                          className="text-[13px] font-semibold text-finland"
-                          aria-expanded={drawerExtra === 'notes'}
-                          onClick={() => setDrawerExtra(drawerExtra === 'notes' ? null : 'notes')}
-                        >
-                          {drawerExtra === 'notes' ? 'Show less' : 'Show full note'}
-                        </button>
-                      ) : null}
-                    </DrawerSection>
-                  ) : null}
-
-                  <DrawerSection title="Booking activity">
+                  <div className="border-t border-black/[0.06] pt-2">
                     <button
                       type="button"
-                      className="text-[13px] font-semibold text-finland"
+                      className="flex w-full items-center justify-between py-1 text-[13px] font-semibold text-ink"
                       aria-expanded={drawerExtra === 'activity'}
                       onClick={() => setDrawerExtra(drawerExtra === 'activity' ? null : 'activity')}
                     >
-                      {drawerExtra === 'activity' ? 'Hide activity' : 'Show activity'}
+                      Booking activity
+                      <ChevronDown
+                        className={`h-4 w-4 text-ink-faint transition-transform ${drawerExtra === 'activity' ? 'rotate-180' : ''}`}
+                        aria-hidden
+                      />
                     </button>
                     {drawerExtra === 'activity' ? (
                       <div>
@@ -2102,19 +2189,8 @@ export default function SupplierBookings({
                           ))}
                         </ol>
                       </div>
-                    ) : (
-                      <p className="text-[13px] text-ink-muted">
-                        Booked{' '}
-                        {booking.created_at
-                          ? new Date(booking.created_at).toLocaleString(undefined, {
-                              dateStyle: 'medium',
-                              timeStyle: 'short',
-                            })
-                          : ''}
-                        {booking.acknowledged_at ? ' · Acknowledged' : ''}
-                      </p>
-                    )}
-                  </DrawerSection>
+                    ) : null}
+                  </div>
                 </div>
                 <footer className="flex shrink-0 flex-wrap items-center gap-2 border-t border-black/[0.06] bg-white px-4 py-2.5 pb-[max(0.65rem,env(safe-area-inset-bottom))]">
                   {canEditBookings && partnerBookingIsOperatingTrip(booking) && booking.status === 'pending' ? (

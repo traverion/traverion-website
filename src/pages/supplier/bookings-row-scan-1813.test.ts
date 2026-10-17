@@ -9,12 +9,13 @@ describe('Phase 1813: supplier bookings row scanability', () => {
     expect(css).toContain('.tv-ops-booking-row');
   });
 
-  it('separates amount from meta line with display hierarchy', () => {
+  it('leads the card with the experience, not the guest or the total', () => {
     const src = readFileSync(resolve(__dirname, 'SupplierBookings.tsx'), 'utf8');
     expect(src).toContain('tv-ops-booking-row');
     expect(src).toContain('tv-ops-booking-row__btn');
-    expect(src).toContain('font-display text-[1.02rem]');
-    expect(src).toContain('font-display text-[0.95rem] font-semibold tabular-nums');
+    expect(src).toContain('line-clamp-2 min-w-0 flex-1 text-[14px] font-semibold leading-5 tracking-tight text-ink');
+    expect(src).toContain('Copy booking reference');
+    expect(src).not.toContain('font-display text-[1.02rem]');
     expect(src).not.toContain('{paidLabel ? ` · ${paidLabel}` : \'\'}');
   });
 });

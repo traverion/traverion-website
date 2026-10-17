@@ -115,6 +115,25 @@ export async function fetchSupplierEarningItems(supplierId: string): Promise<Sup
   return (data ?? []) as SupplierEarningItemRow[];
 }
 
+/** One booking's frozen commercial split. Null when this booking has no snapshot. */
+export async function fetchBookingCommercialSnapshot(
+  bookingId: string
+): Promise<BookingCommercialSnapshotRow | null> {
+  if (!supabase || !bookingId) return null;
+  const { data, error } = await supabase
+    .from('booking_commercial_snapshots')
+    .select(
+      'booking_id, currency, gross_minor, commission_minor, supplier_minor, remaining_gross_minor, remaining_commission_minor, remaining_supplier_minor, plan_code, commission_bps, payout_cadence'
+    )
+    .eq('booking_id', bookingId)
+    .maybeSingle();
+  if (error) {
+    if (/booking_commercial_snapshots|does not exist|42P01/i.test(error.message)) return null;
+    throw new Error(error.message);
+  }
+  return (data as BookingCommercialSnapshotRow) ?? null;
+}
+
 export async function fetchSupplierCommercialSnapshots(
   supplierId: string
 ): Promise<BookingCommercialSnapshotRow[]> {
