@@ -113,6 +113,27 @@ export function emptyMixSelection(option: ListingBookingOption): ParticipantMixS
   return sel;
 }
 
+/** Keep traveler counts when category ids differ between options that share the same kinds. */
+export function remapMixToOption(
+  nextOption: ListingBookingOption,
+  previousOption: ListingBookingOption | null,
+  previous: ParticipantMixSelection
+): ParticipantMixSelection {
+  const seeded = emptyMixSelection(nextOption);
+  if (Object.keys(previous).length === 0) return seeded;
+  const qtyByKind = new Map<string, number>();
+  if (previousOption) {
+    for (const line of buildParticipantMixLines(previousOption, previous)) {
+      qtyByKind.set(line.kind, (qtyByKind.get(line.kind) ?? 0) + line.quantity);
+    }
+  }
+  for (const category of activePriceCategories(nextOption)) {
+    if (typeof previous[category.id] === 'number') seeded[category.id] = previous[category.id];
+    else if (qtyByKind.has(category.kind)) seeded[category.id] = qtyByKind.get(category.kind)!;
+  }
+  return seeded;
+}
+
 /**
  * Per-category stepper ceiling when inventory has limited spots left.
  * Each category shares one capacity pool (partyMax), not independent caps.

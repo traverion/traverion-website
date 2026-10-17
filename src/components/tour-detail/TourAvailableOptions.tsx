@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Check } from 'lucide-react';
 import type { TourBookingVariant } from '../../lib/booking-flow';
 import {
   formatTourAvailabilityHeading,
@@ -8,6 +9,7 @@ import {
 import { optionUsesAgePricing, optionUsesPrivateFlatPrice } from '../../lib/participant-mix';
 import { travelerOptionPriceFacts } from '../../lib/price-categories';
 import { formatMoney } from '../../lib/money';
+import { departureTimesOnDate, FLEXIBLE_DEPARTURE_HM } from '../../lib/listing-option-schedules';
 import NoticeCallout from '../NoticeCallout';
 
 type Props = {
@@ -23,6 +25,7 @@ type Props = {
    */
   hideSelectedCatalogPrice?: boolean;
   onChoose: (variant: TourBookingVariant) => void;
+  onChooseTime?: (variant: TourBookingVariant, time: string) => void;
   onChangeDate: () => void;
   onChangeGuests?: () => void;
 };
@@ -36,6 +39,7 @@ export default function TourAvailableOptions({
   currency,
   hideSelectedCatalogPrice = false,
   onChoose,
+  onChooseTime,
   onChangeDate,
   onChangeGuests,
 }: Props) {
@@ -49,7 +53,7 @@ export default function TourAvailableOptions({
     >
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          <h2 id="tour-availability-heading" className="font-display text-xl text-ink">
+          <h2 id="tour-availability-heading" className="text-xl font-semibold text-ink">
             {kind === 'none' ? 'No availability' : `Available ${headingDate}`}
           </h2>
           {kind !== 'none' ? (
@@ -88,12 +92,14 @@ export default function TourAvailableOptions({
             hideCatalogPrice={hideSelectedCatalogPrice && selectedId === available[0].id}
             compact
             onChoose={onChoose}
+            onChooseTime={onChooseTime}
+            date={date}
           />
         </div>
       ) : null}
 
       {kind === 'many' ? (
-        <ul className="mt-4 space-y-3">
+        <ul className="mt-4 grid gap-3">
           {available.map((variant) => (
             <li key={variant.id}>
               <OptionRow
@@ -102,6 +108,8 @@ export default function TourAvailableOptions({
                 currency={currency}
                 hideCatalogPrice={hideSelectedCatalogPrice && selectedId === variant.id}
                 onChoose={onChoose}
+                onChooseTime={onChooseTime}
+                date={date}
               />
             </li>
           ))}
@@ -116,20 +124,26 @@ function OptionRow({
   selected,
   currency,
   hideCatalogPrice,
-  compact,
+  date,
   onChoose,
+  onChooseTime,
 }: {
   variant: TourBookingVariant;
   selected: boolean;
   currency: string;
   hideCatalogPrice?: boolean;
   compact?: boolean;
+  date: string;
   onChoose: (variant: TourBookingVariant) => void;
+  onChooseTime?: (variant: TourBookingVariant, time: string) => void;
 }) {
   const opt = variant.listingOption;
-  const meta = optionMetaParts(variant);
-  const detail = opt?.optionInfo?.trim() || (meta.length === 0 ? variant.subtitle : '');
-  const [detailsOpen, setDetailsOpen] = useState(false);
+  const meta = optionMetaParts(variant).filter((part) => !part.startsWith('Starts '));
+  const detail = opt?.optionInfo?.trim() || '';
+  const [pricesOpen, setPricesOpen] = useState(false);
+  const times = opt
+    ? departureTimesOnDate(opt, date).filter((time) => time && time !== FLEXIBLE_DEPARTURE_HM)
+    : [];
   const priced = hideCatalogPrice
     ? null
     : opt && optionUsesAgePricing(opt)
@@ -138,58 +152,93 @@ function OptionRow({
           lead: `${formatMoney(variant.pricePerPerson, currency)} ${
             optionUsesPrivateFlatPrice(opt) ? 'for your group' : 'per person'
           }`,
-          facts: [],
+          facts: [] as { label: string; ages?: string; amountLabel: string }[],
         };
   return (
-    <div
-      className={`rounded-lg px-3 ring-1 ${compact ? 'py-2' : 'py-2.5'} ${
-        selected ? 'bg-[#073b83]/[0.04] ring-[#073b83]' : 'bg-white ring-black/[0.08]'
+    <article
+      className={`rounded-xl border p-4 transition-[background-color,border-color,box-shadow] duration-200 ${
+        selected
+          ? 'border-[#073b83] bg-[#073b83]/[0.045] shadow-[0_0_0_1px_#073b83]'
+          : 'border-black/[0.08] bg-white hover:border-black/15'
       }`}
     >
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h3 className="text-base font-semibold leading-snug text-ink">{variant.label}</h3>
+          {detail ? <p className="mt-1 text-sm leading-snug text-ink-muted">{detail}</p> : null}
+        </div>
+        <p className="shrink-0 text-right text-lg font-semibold tabular-nums leading-tight text-ink">
+          {hideCatalogPrice ? 'Price unavailable' : priced?.lead}
+        </p>
+      </div>
+      {meta.length > 0 ? (
+        <ul className="mt-3 flex flex-wrap gap-1.5">
+          {meta.map((part) => (
+            <li key={part} className="rounded-md bg-[#f4f5f7] px-2 py-1 text-xs text-ink">
+              {part}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {times.length > 1 ? (
+        <div className="mt-3">
+          <p className="mb-1.5 text-xs font-medium text-ink-muted">Departure</p>
+          <div className="flex flex-wrap gap-2" role="group" aria-label={`Departure times for ${variant.label}`}>
+            {times.map((time) => (
+              <button
+                key={time}
+                type="button"
+                className="min-h-9 rounded-lg border border-black/10 px-3 text-sm font-semibold text-ink transition-colors duration-200 hover:border-[#073b83] hover:text-[#073b83]"
+                onClick={() => (onChooseTime ? onChooseTime(variant, time) : onChoose(variant))}
+              >
+                {time}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : times.length === 1 ? (
+        <p className="mt-3 text-sm text-ink">
+          <span className="text-ink-muted">Departs </span>
+          <span className="font-semibold">{times[0]}</span>
+        </p>
+      ) : null}
+      {priced && priced.facts.length > 0 ? (
+        <div className="mt-3">
+          <button
+            type="button"
+            className="text-sm font-semibold text-[#073b83]"
+            aria-expanded={pricesOpen}
+            onClick={() => setPricesOpen((open) => !open)}
+          >
+            {pricesOpen ? 'Hide price details' : 'Price details'}
+          </button>
+          {pricesOpen ? (
+            <dl className="mt-2 space-y-1">
+              {priced.facts.map((fact) => (
+                <div key={`${fact.label}-${fact.amountLabel}`} className="flex items-baseline justify-between gap-3 text-sm">
+                  <dt className="text-ink">
+                    {fact.label}
+                    {fact.ages ? <span className="text-ink-muted"> · {fact.ages}</span> : null}
+                  </dt>
+                  <dd className="shrink-0 font-medium tabular-nums text-ink">{fact.amountLabel}</dd>
+                </div>
+              ))}
+            </dl>
+          ) : null}
+        </div>
+      ) : null}
       <button
         type="button"
         data-tour-option-cta="choose"
         onClick={() => onChoose(variant)}
         aria-pressed={selected}
-        className="flex w-full items-start justify-between gap-3 text-left"
+        className={`mt-4 inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg px-4 text-sm font-semibold transition-colors duration-200 ${
+          selected ? 'bg-[#073b83] text-white' : 'bg-[#073b83] text-white hover:bg-[#052e68]'
+        }`}
       >
-        <span className="min-w-0">
-          <span className="block text-sm font-semibold text-ink">{variant.label}</span>
-          {meta.length > 0 ? (
-            <span className="mt-0.5 block text-[12px] leading-snug text-ink-muted">{meta.join(' · ')}</span>
-          ) : null}
-        </span>
-        <span className="shrink-0 text-right text-[13px] font-semibold tabular-nums text-ink">
-          {hideCatalogPrice ? 'Price unavailable' : priced?.lead}
-          <span className="mt-1 block text-[11px] font-semibold text-[#073b83]">{selected ? 'Selected' : 'Select'}</span>
-        </span>
+        {selected ? <Check className="h-4 w-4" aria-hidden /> : null}
+        {selected ? 'Selected' : 'Select'}
       </button>
-      {priced && priced.facts.length > 0 ? (
-        <dl className="mt-2 space-y-0.5 border-t border-black/[0.06] pt-2">
-          {priced.facts.map((fact) => (
-            <div key={`${fact.label}-${fact.amountLabel}`} className="flex items-baseline justify-between gap-3 text-[13px]">
-              <dt className="text-ink">
-                {fact.label}
-                {fact.ages ? <span className="text-ink-muted"> · {fact.ages}</span> : null}
-              </dt>
-              <dd className="shrink-0 font-medium tabular-nums text-ink">{fact.amountLabel}</dd>
-            </div>
-          ))}
-        </dl>
-      ) : null}
-      {detail ? (
-        <div className="mt-1.5">
-          <button
-            type="button"
-            className="text-[12px] font-semibold text-[#073b83]"
-            aria-expanded={detailsOpen}
-            onClick={() => setDetailsOpen((open) => !open)}
-          >
-            {detailsOpen ? 'Hide details' : 'More details'}
-          </button>
-          {detailsOpen ? <p className="mt-1 text-[13px] leading-snug text-ink-muted">{detail}</p> : null}
-        </div>
-      ) : null}
-    </div>
+    </article>
   );
 }

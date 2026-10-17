@@ -10,6 +10,7 @@ import {
   Heart,
   ChevronLeft,
   ChevronRight,
+  Users,
 } from 'lucide-react';
 import ErrorState from '../components/ErrorState';
 import { useAuth } from '../contexts/AuthContext';
@@ -37,7 +38,7 @@ import { Skeleton } from '../components/ui/Skeleton';
 import { dateNotInPast } from '../lib/validation';
 import { checkAvailability, fetchAvailabilityByListingId, fetchPublishedTourConfirmedDepartureKeys, fetchPublishedTourPaidGuests, fetchPublishedTourPaidGuestsBySlot, tourPaidSlotKey } from '../data/supabase-availability';
 import { confirmedDepartureKey, evaluateDepartureBookingWindow } from '../lib/last-minute-booking';
-import { optionRunsOnDate, formatOptionWeekdays, experienceTodayIsoForListing, listingHasUpcomingBookableSeason } from '../lib/booking-quote';
+import { optionRunsOnDate, experienceTodayIsoForListing, listingHasUpcomingBookableSeason } from '../lib/booking-quote';
 import { isListingVisibleToTravelers, listingDetailVisibleToTraveler } from '../lib/product-workflows';
 import { listingIsOnTravelerCatalog } from '../lib/inventory';
 import { reviewOnlyPackageFromListingOps } from '../lib/trip-views';
@@ -50,7 +51,6 @@ import { departureSlotSpotsLeft, maxSpotsLeftAcrossDepartures, partyMaxCappedByR
 import { tourSoldOutDates } from '../lib/tour-calendar';
 import BookingPage from './BookingPage';
 import {
-  TOUR_LISTING_CONFIRMATION_NOTE,
   LISTING_REVIEWS_EMPTY_COPY,
   STRIPE_TEST_UNTIL_LIVE,
 } from '../lib/booking-confirmation-copy';
@@ -77,6 +77,7 @@ import { useDialogFocus } from '../hooks/useDialogFocus';
 import {
   buildParticipantMixLines,
   emptyMixSelection,
+  remapMixToOption,
   formatMixSummaryCompact,
   optionUsesAgePricing,
   optionUsesPrivateFlatPrice,
@@ -112,7 +113,6 @@ import { PriceHero } from '../components/PriceBreakdown';
 import NoticeCallout from '../components/NoticeCallout';
 import TourQuickFacts from '../components/tour-detail/TourQuickFacts';
 import { experienceLanguageLabel, tourKindLabel } from '../lib/tour-quick-facts';
-import { formatTourDurationDisplay } from '../types/listingExtras';
 import TourOverview from '../components/tour-detail/TourOverview';
 import TourAvailableOptions from '../components/tour-detail/TourAvailableOptions';
 import TourListingSections, { TourOperatorBlock } from '../components/tour-detail/TourListingSections';
@@ -204,6 +204,8 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
   const gallerySheetRef = useRef<HTMLDivElement>(null);
   const galleryTouchX = useRef<number | null>(null);
   const [galleryLightboxOpen, setGalleryLightboxOpen] = useState(false);
+  const [participantsOpen, setParticipantsOpen] = useState(false);
+  const participantsRef = useRef<HTMLDivElement>(null);
   const closeLegalModal = useCallback(() => setLegalModal(null), []);
   const closeGalleryLightbox = useCallback(() => setGalleryLightboxOpen(false), []);
   useDialogFocus(legalModal !== null, legalSheetRef, closeLegalModal);
@@ -218,6 +220,23 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
       window.scrollTo(0, y);
     };
   }, [galleryLightboxOpen]);
+  useEffect(() => {
+    if (!participantsOpen) return;
+    const onPointer = (event: MouseEvent) => {
+      if (!participantsRef.current?.contains(event.target as Node)) setParticipantsOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setParticipantsOpen(false);
+    };
+    document.addEventListener('mousedown', onPointer);
+    document.addEventListener('keydown', onKey);
+    const first = participantsRef.current?.querySelector<HTMLElement>('[role="dialog"] button');
+    first?.focus();
+    return () => {
+      document.removeEventListener('mousedown', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [participantsOpen]);
   const [bookingCardError, setBookingCardError] = useState<string | null>(null);
   const [selectionRestored, setSelectionRestored] = useState(false);
   const [selfBookBlocked, setSelfBookBlocked] = useState(false);
@@ -289,25 +308,6 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
         .join('|'),
     [calendarOptions]
   );
-  const weekdayHint = useMemo(() => {
-    const labels = new Set<string>();
-    for (const v of tourVariants) {
-      const o = v.listingOption;
-      if (!o) continue;
-      if (listingOptionHasSchedules(o)) {
-        for (const s of listingOptionReadySchedules(o)) {
-          labels.add(formatOptionWeekdays(s.weekdays));
-        }
-      } else {
-        labels.add(formatOptionWeekdays(o.weekdays));
-      }
-    }
-    const unique = [...labels];
-    if (unique.length === 1) return `Runs ${unique[0]}`;
-    if (unique.length > 1) return 'Each option has its own schedule';
-    return undefined;
-  }, [tourVariants]);
-
   const optionsForSelectedDate = useMemo(
     () => optionsOnDate(tourVariants, bookingDate.trim()),
     [tourVariants, bookingDate]
@@ -405,6 +405,52 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
 
   const usesAgePricing = optionUsesAgePricing(selectedOptionApplied);
   const usesPrivateFlat = optionUsesPrivateFlatPrice(selectedOptionApplied);
+  const sharedParticipantOption = useMemo(() => {
+    const aged = tourVariants
+      .map((variant) => variant.listingOption)
+      .filter((option): option is NonNullable<typeof option> => Boolean(option && optionUsesAgePricing(option)));
+    if (aged.length === 0) return null;
+    const signature = (option: (typeof aged)[number]) =>
+      activePriceCategories(option)
+        .map((category) => `${category.kind}:${category.ageMin ?? ''}:${category.ageMax ?? ''}:${category.label}`)
+        .join('|');
+    const first = signature(aged[0]);
+    return aged.every((option) => signature(option) === first) ? aged[0] : null;
+  }, [tourVariants]);
+  const participantFieldOption =
+    selectedOptionApplied && optionUsesAgePricing(selectedOptionApplied)
+      ? selectedOptionApplied
+      : sharedParticipantOption;
+  useEffect(() => {
+    if (selectedOptionApplied || !sharedParticipantOption) return;
+    const known = new Set(activePriceCategories(sharedParticipantOption).map((category) => category.id));
+    setParticipantMix((prev) => {
+      const foreign = Object.keys(prev).some((id) => !known.has(id));
+      if (!foreign) return prev;
+      const owner = tourVariants
+        .map((variant) => variant.listingOption)
+        .find(
+          (option) =>
+            option &&
+            Object.keys(prev).every((id) => activePriceCategories(option).some((category) => category.id === id))
+        );
+      if (!owner) return prev;
+      return remapMixToOption(sharedParticipantOption, owner, prev);
+    });
+  }, [selectedOptionApplied, sharedParticipantOption, tourVariants]);
+  const participantPricesAgree = useMemo(() => {
+    if (selectedOptionApplied && optionUsesAgePricing(selectedOptionApplied)) return true;
+    const aged = tourVariants
+      .map((variant) => variant.listingOption)
+      .filter((option): option is NonNullable<typeof option> => Boolean(option && optionUsesAgePricing(option)));
+    if (aged.length === 0) return false;
+    const priceSignature = (option: (typeof aged)[number]) =>
+      activePriceCategories(option)
+        .map((category) => `${category.kind}:${category.priceUsd}`)
+        .join('|');
+    const first = priceSignature(aged[0]);
+    return aged.every((option) => priceSignature(option) === first);
+  }, [selectedOptionApplied, tourVariants]);
 
   const panelQuote = useMemo(() => {
     if (!tour || !bookingDate.trim() || !selectedBookingVariant) return null;
@@ -1205,10 +1251,11 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
     if (kind === 'one' && available[0] && selectedBookingVariant?.id !== available[0].id) {
       setSelectedBookingVariant(available[0]);
       if (optionUsesAgePricing(available[0].listingOption)) {
-        setParticipantMix(emptyMixSelection(available[0].listingOption!));
+        const option = available[0].listingOption!;
+        setParticipantMix((prev) => remapMixToOption(option, participantFieldOption, prev));
       }
     }
-  }, [bookingDate, bookingVariantsOpen, optionsForSelectedDate, selectedBookingVariant?.id]);
+  }, [bookingDate, bookingVariantsOpen, optionsForSelectedDate, selectedBookingVariant?.id, participantFieldOption]);
 
   const handleCheckoutUrlState = useCallback(
     (patch: {
@@ -1301,7 +1348,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
     scrollToOptionsSection();
   };
 
-  const handleSelectTourVariant = (variant: TourBookingVariant) => {
+  const handleSelectTourVariant = (variant: TourBookingVariant, departureTime?: string) => {
     if (!tour) return;
     if (!isListingVisibleToTravelers(tour.status)) {
       setBookingCardError('This tour is not available to book.');
@@ -1316,10 +1363,16 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
     }
     setBookingCardError(null);
     setSelectedBookingVariant(variant);
-    setSelectedDepartureTime('');
+    setSelectedDepartureTime(departureTime ?? '');
     setBookingVariantsOpen(true);
     if (optionUsesAgePricing(variant.listingOption)) {
-      setParticipantMix(emptyMixSelection(variant.listingOption!));
+      const option = variant.listingOption!;
+      setParticipantMix((prev) => {
+        const next = remapMixToOption(option, participantFieldOption, prev);
+        const party = totalGuestsFromMix(buildParticipantMixLines(option, next));
+        setGuests(Math.max(1, party));
+        return next;
+      });
     } else {
       const bounds = getPartySizeBoundsForVariant(tour, variant, bookingDate);
       setGuests((g) => Math.min(bounds.max, Math.max(bounds.min, g)));
@@ -1725,7 +1778,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
             <span aria-hidden>/</span>
             <span>{tour.destination}</span>
           </nav>
-          <h1 className="font-display text-[1.65rem] sm:text-[1.85rem] lg:text-[2.15rem] text-ink tracking-tight leading-[1.15] break-words [overflow-wrap:anywhere]">
+          <h1 className="font-sans text-[1.65rem] font-semibold sm:text-[1.85rem] lg:text-[2.05rem] text-ink tracking-tight leading-[1.15] break-words [overflow-wrap:anywhere]">
             {tour.title}
           </h1>
           {tour.subtitle?.trim() ? (
@@ -1827,9 +1880,15 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                     available={optionsForSelectedDate.available}
                     selectedId={selectedBookingVariant?.id ?? null}
                     guestsLabel={
-                      usesAgePricing && selectedOptionApplied
-                        ? formatMixSummaryCompact(buildParticipantMixLines(selectedOptionApplied, participantMix)) ||
-                          `${guests} ${guests === 1 ? 'guest' : 'guests'}`
+                      participantFieldOption
+                        ? formatMixSummaryCompact(
+                            buildParticipantMixLines(
+                              participantFieldOption,
+                              Object.keys(participantMix).length
+                                ? participantMix
+                                : emptyMixSelection(participantFieldOption)
+                            )
+                          ) || `${guests} ${guests === 1 ? 'guest' : 'guests'}`
                         : `${guests} ${guests === 1 ? 'guest' : 'guests'}`
                     }
                     currency={normalizeCurrency(tour.price?.currency)}
@@ -1837,6 +1896,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                       selectedBookingVariant && panelQuote && !panelQuote.ok
                     )}
                     onChoose={handleSelectTourVariant}
+                    onChooseTime={(variant, time) => handleSelectTourVariant(variant, time)}
                     onChangeDate={() => {
                       scrollElementIntoView('tour-booking-date-input', { behavior: 'smooth', block: 'center' });
                       window.requestAnimationFrame(() => {
@@ -1846,7 +1906,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                       });
                     }}
                     onChangeGuests={() => {
-                      scrollElementIntoView('tour-booking-guests', { behavior: 'smooth', block: 'center' });
+                      scrollElementIntoView('tour-participant-field', { behavior: 'smooth', block: 'center' });
                     }}
                   />
                 </div>
@@ -1877,7 +1937,6 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                 id="tour-booking-panel"
                 className="tv-booking-sticky tv-booking-sticky--fit lg:sticky lg:top-[calc(4.75rem+env(safe-area-inset-top,0px))] h-fit scroll-mt-28"
               >
-                <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">Book this experience</p>
                 {selectionRestored ? (
                   <p className="mb-3 text-sm text-ink-muted">
                     Your last selection is restored. Price and availability are checked again before payment.
@@ -1901,10 +1960,24 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                       }
                       // Phase 1561: successful quote is the hero total (sticky parity — not catalog From).
                       if (selectedBookingVariant && panelQuote?.ok) {
+                        const lines = (panelQuote.lineItems ?? []).filter((line) => line.quantity > 0);
+                        const several = panelQuote.guests > 1 || lines.length > 1;
                         return (
-                          <p className="mb-4 text-lg font-semibold text-ink">
-                            {quotedOfferPrice(panelQuote)}
-                          </p>
+                          <div className="mb-3">
+                            <p className="text-2xl font-semibold tracking-tight text-ink">{quotedOfferPrice(panelQuote)}</p>
+                            <p className="mt-0.5 text-xs text-ink-muted">
+                              {several ? 'Total for this booking' : lines[0]?.label ? `Per ${lines[0].label.toLowerCase()}` : 'Per person'}
+                            </p>
+                            {several && lines.length > 0 ? (
+                              <ul className="mt-1.5 space-y-0.5 text-xs text-ink-muted">
+                                {lines.map((line) => (
+                                  <li key={`${line.label}-${line.quantity}`}>
+                                    {line.quantity} × {line.label} · {formatMoney(line.amount, panelQuote.currency)}
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : null}
+                          </div>
                         );
                       }
                       // Phase 1561: catalog From only before a live quote (ok/fail already returned above).
@@ -1913,7 +1986,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                           <p className="mb-4 text-sm font-medium text-ink-faint">Checking offers…</p>
                         );
                       }
-                      const { price, originalPrice, label, qualifier, summary } = getDisplayPriceForTour(
+                      const { price, originalPrice, label, qualifier } = getDisplayPriceForTour(
                         tour,
                         discountsByListing
                       );
@@ -1929,7 +2002,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                             originalAmount={hasDiscount ? originalPrice : null}
                             discountLabel={hasDiscount ? label : null}
                           />
-                          {summary ? <p className="text-sm text-ink-muted mt-1 mb-4">{summary}</p> : <div className="mb-4" />}
+                          <div className="mb-3" />
                         </>
                       );
                     })()}
@@ -1951,8 +2024,103 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                         options={calendarOptions}
                         soldOutDates={soldOutDates}
                         todayIso={experienceTodayIso}
-                        hint={weekdayHint}
                       />
+                      <div id="tour-participant-field" ref={participantsRef} className="relative">
+                        <p className="mb-1.5 text-sm font-medium tracking-tight text-ink">Participants</p>
+                        <button
+                          type="button"
+                          className="tv-checkout-input tv-checkout-input--plain relative flex w-full items-center justify-between gap-3 pr-3 text-left"
+                          aria-expanded={participantsOpen}
+                          aria-haspopup="dialog"
+                          onClick={() => setParticipantsOpen((open) => !open)}
+                        >
+                          <span className="font-medium text-ink">
+                            {participantFieldOption
+                              ? formatMixSummaryCompact(
+                                  buildParticipantMixLines(
+                                    participantFieldOption,
+                                    Object.keys(participantMix).length
+                                      ? participantMix
+                                      : emptyMixSelection(participantFieldOption)
+                                  )
+                                ) || 'Add participants'
+                              : `${guests} ${guests === 1 ? 'guest' : 'guests'}`}
+                          </span>
+                          <Users className="h-4 w-4 shrink-0 text-ink-faint" aria-hidden />
+                        </button>
+                        {participantsOpen ? (
+                          <div
+                            role="dialog"
+                            aria-label="Participants"
+                            className="absolute z-30 mt-2 w-full rounded-xl border border-black/10 bg-white p-3 shadow-lg"
+                          >
+                            {participantFieldOption ? (
+                              <div className="space-y-2">
+                                {activePriceCategories(participantFieldOption).map((cat) => (
+                                  <ParticipantCategoryStepper
+                                    key={cat.id}
+                                    category={cat}
+                                    quantity={
+                                      participantMix[cat.id] ??
+                                      (emptyMixSelection(participantFieldOption)[cat.id] ?? 0)
+                                    }
+                                    currency={normalizeCurrency(tour.price?.currency)}
+                                    max={participantCategoryQuantityMax({
+                                      option: participantFieldOption,
+                                      categoryId: cat.id,
+                                      selection:
+                                        Object.keys(participantMix).length > 0
+                                          ? participantMix
+                                          : emptyMixSelection(participantFieldOption),
+                                      partyMax: partyMaxForSelectedDay,
+                                    })}
+                                    onChange={(qty) => {
+                                      setParticipantMix((prev) => {
+                                        const base =
+                                          Object.keys(prev).length > 0
+                                            ? prev
+                                            : emptyMixSelection(participantFieldOption);
+                                        const next = { ...base, [cat.id]: qty };
+                                        const party = totalGuestsFromMix(
+                                          buildParticipantMixLines(participantFieldOption, next)
+                                        );
+                                        setGuests(Math.max(1, party));
+                                        return next;
+                                      });
+                                      setBookingCardError(null);
+                                    }}
+                                    onBoundaryAttempt={(message) => setBookingCardError(message)}
+                                    showUnitPrice={participantPricesAgree}
+                                  />
+                                ))}
+                              </div>
+                            ) : (
+                              <GuestStepper
+                                id="tour-booking-guests"
+                                value={guests}
+                                min={
+                                  selectedBookingVariant
+                                    ? getPartySizeBoundsForVariant(
+                                        tour,
+                                        selectedBookingVariant,
+                                        bookingDate,
+                                        selectedDepartureTime
+                                      ).min
+                                    : 1
+                                }
+                                max={partyMaxForSelectedDay}
+                                onChange={(next) => {
+                                  setGuests(next);
+                                  setBookingCardError(null);
+                                }}
+                                onBoundaryAttempt={(message) => setBookingCardError(message)}
+                                label={usesPrivateFlat ? 'Group size' : 'Guests'}
+                                ariaDescribedBy={bookingCardError ? 'tour-booking-card-error' : undefined}
+                              />
+                            )}
+                          </div>
+                        ) : null}
+                      </div>
                       {selectedDaySpotsLeft != null ? (
                         <p
                           className={`-mt-2 text-xs font-medium ${
@@ -1983,32 +2151,22 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                         <div className="space-y-3 border-t border-black/[0.06] pt-3">
                           <div className="rounded-lg bg-finland/[0.06] px-3 py-2 ring-1 ring-finland/15">
                             <div className="flex items-start justify-between gap-3">
-                              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-finland">Selected option</p>
+                              <p className="text-sm font-semibold text-ink">
+                                {selectedBookingVariant.label}
+                                {selectedDepartureTime ? (
+                                  <span className="font-medium text-ink-muted"> · {selectedDepartureTime}</span>
+                                ) : null}
+                              </p>
                               <button
                                 type="button"
-                                className="text-[12px] font-semibold text-[#073b83]"
+                                className="shrink-0 text-xs font-semibold text-[#073b83]"
                                 onClick={scrollToOptionsSection}
                               >
                                 Change
                               </button>
                             </div>
-                            <p className="text-sm font-semibold text-ink">{selectedBookingVariant.label}</p>
-                            {selectedOptionApplied ? (
-                              <p className="text-xs text-ink-muted">
-                                {[
-                                  formatTourDurationDisplay(selectedOptionApplied.duration).trim(),
-                                  selectedOptionApplied.fulfillment === 'pickup'
-                                    ? 'Pickup included'
-                                    : selectedOptionApplied.fulfillment === 'meeting_point'
-                                      ? 'Meeting point'
-                                      : '',
-                                ]
-                                  .filter(Boolean)
-                                  .join(' · ')}
-                              </p>
-                            ) : null}
                           </div>
-                          {departureTimes.length > 1 ? (
+                          {departureTimes.length > 1 && !selectedDepartureTime ? (
                             <div id="tour-departure-times">
                               <p className="text-sm font-medium text-ink mb-2">Departure time</p>
                               <div className="flex flex-wrap gap-2" role="group" aria-label="Departure time">
@@ -2056,7 +2214,9 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                                               time
                                             );
                                             if (optionUsesAgePricing(applied)) {
-                                              setParticipantMix(emptyMixSelection(applied));
+                                              setParticipantMix((prev) =>
+                                                remapMixToOption(applied, selectedOption, prev)
+                                              );
                                             }
                                           }
                                         }
@@ -2075,75 +2235,10 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                                 })}
                               </div>
                             </div>
-                          ) : departureTimes.length === 1 ? (
-                            <p className="text-sm text-ink-muted">Starts {departureTimes[0]}</p>
                           ) : null}
                           {departureClosedNote ? (
                             <p className="text-sm text-ink">{departureClosedNote}</p>
                           ) : null}
-                          {usesAgePricing && selectedOptionApplied ? (
-                            <details className="rounded-lg border border-[#e5e7eb] px-3 py-2">
-                              <summary className="cursor-pointer text-sm">
-                                <span className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
-                                  Participants
-                                </span>
-                                <span className="font-semibold text-ink">
-                                  {formatMixSummaryCompact(
-                                    buildParticipantMixLines(selectedOptionApplied, participantMix)
-                                  ) || 'Add participants'}
-                                </span>
-                              </summary>
-                              <div className="mt-2 space-y-2">
-                              {activePriceCategories(selectedOptionApplied).map((cat) => (
-                                <ParticipantCategoryStepper
-                                  key={cat.id}
-                                  category={cat}
-                                  quantity={participantMix[cat.id] ?? 0}
-                                  currency={normalizeCurrency(tour.price?.currency)}
-                                  max={participantCategoryQuantityMax({
-                                    option: selectedOptionApplied,
-                                    categoryId: cat.id,
-                                    selection: participantMix,
-                                    partyMax: partyMaxForSelectedDay,
-                                  })}
-                                  onChange={(qty) => {
-                                    setParticipantMix((prev) => {
-                                      const next = { ...prev, [cat.id]: qty };
-                                      const party = totalGuestsFromMix(
-                                        buildParticipantMixLines(selectedOptionApplied, next)
-                                      );
-                                      setGuests(Math.max(1, party));
-                                      return next;
-                                    });
-                                    setBookingCardError(null);
-                                  }}
-                                  onBoundaryAttempt={(message) => setBookingCardError(message)}
-                                />
-                              ))}
-                              </div>
-                            </details>
-                          ) : (
-                            <GuestStepper
-                              id="tour-booking-guests"
-                              value={guests}
-                              min={
-                                getPartySizeBoundsForVariant(
-                                  tour,
-                                  selectedBookingVariant,
-                                  bookingDate,
-                                  selectedDepartureTime
-                                ).min
-                              }
-                              max={partyMaxForSelectedDay}
-                              onChange={(next) => {
-                                setGuests(next);
-                                setBookingCardError(null);
-                              }}
-                              onBoundaryAttempt={(message) => setBookingCardError(message)}
-                              label={usesPrivateFlat ? 'Group size' : 'Guests'}
-                              ariaDescribedBy={bookingCardError ? 'tour-booking-card-error' : undefined}
-                            />
-                          )}
                           {panelQuote && !panelQuote.ok ? (
                             <p className="text-xs text-red-700">{panelQuote.error}</p>
                           ) : null}
@@ -2246,9 +2341,6 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                               capacityUnknown,
                             })}
                           </button>
-                          {listingShowsFreeCancellation(tour) ? (
-                            <p className="text-xs text-ink-muted">Free cancellation on this experience.</p>
-                          ) : null}
                         </div>
                       ) : (
                         <div className="space-y-3">
@@ -2256,7 +2348,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                             {!bookingDate.trim()
                               ? 'Choose a date to see available options.'
                               : bookingVariantsOpen
-                                ? 'Choose an option to continue.'
+                                ? 'Choose an available option below.'
                                 : 'Check availability to see times and options for this date.'}
                           </p>
                           <button
@@ -2273,7 +2365,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                           </button>
                         </div>
                       )}
-                      <div id="tour-booking-card-error" className="min-h-[1.25rem]">
+                      <div id="tour-booking-card-error">
                         {dayCapacityError ||
                         (capacityUnknown && !bookingCardError) ? (
                           <NoticeCallout title="Capacity unavailable" tone="danger">
@@ -2297,13 +2389,10 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                           </NoticeCallout>
                         ) : null}
                       </div>
-                      <div className="space-y-1.5 text-xs text-ink-muted">
-                        <p className="flex items-start gap-2">
-                          <Shield className="w-3.5 h-3.5 text-finland flex-shrink-0 mt-0.5" aria-hidden />
-                          Secure checkout · {STRIPE_TEST_UNTIL_LIVE}
-                        </p>
-                        <p className="leading-relaxed">{TOUR_LISTING_CONFIRMATION_NOTE}</p>
-                      </div>
+                      <p className="flex items-start gap-2 text-xs text-ink-muted">
+                        <Shield className="w-3.5 h-3.5 text-finland flex-shrink-0 mt-0.5" aria-hidden />
+                        Secure checkout · {STRIPE_TEST_UNTIL_LIVE}
+                      </p>
                     </div>
                   </>
                 )}
@@ -2315,7 +2404,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
       <section className="py-8 bg-paper border-t border-black/[0.06]">
         <div className="tv-shell mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-            <h2 className="font-display text-xl sm:text-2xl text-ink">Reviews</h2>
+            <h2 className="text-xl font-semibold text-ink">Reviews</h2>
             {reviews.length > 0 ? (
               <button
                 type="button"
@@ -2397,7 +2486,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
 
           {showReviewForm && user && (
             <div className="tv-review-compose max-w-xl">
-              <h3 className="font-display text-xl sm:text-2xl tracking-tight text-ink mb-1">Write a review</h3>
+              <h3 className="mb-1 text-xl font-semibold tracking-tight text-ink sm:text-2xl">Write a review</h3>
               <p className="text-sm text-ink-muted mb-4 leading-relaxed">
                 Share what stood out — rating and a short note help other travelers.
               </p>
@@ -2586,7 +2675,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                             : 'From · per person';
                   return (
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-display text-base font-semibold tabular-nums tracking-tight text-ink">
+                      <p className="truncate text-base font-semibold tabular-nums tracking-tight text-ink">
                         {priceLine}
                       </p>
                       <p className="truncate text-xs text-ink-muted">{subLine}</p>
@@ -2782,7 +2871,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
           />
           <div className="tv-sheet-panel relative z-[71] max-w-2xl flex flex-col motion-safe:animate-slide-up">
             <div className="flex items-center justify-between gap-3 mb-4">
-              <h3 id="tour-legal-title" className="font-display text-2xl text-ink">
+              <h3 id="tour-legal-title" className="text-2xl font-semibold text-ink">
                 {legalModal === 'privacy' ? 'Privacy policy' : 'Terms & conditions'}
               </h3>
               <button

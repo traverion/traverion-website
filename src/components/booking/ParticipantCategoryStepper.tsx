@@ -10,6 +10,8 @@ export type ParticipantCategoryStepperProps = {
   max: number;
   onChange: (quantity: number) => void;
   onBoundaryAttempt?: (message: string) => void;
+  /** Hide the unit price when options disagree and none is selected yet. */
+  showUnitPrice?: boolean;
 };
 
 export default function ParticipantCategoryStepper({
@@ -19,6 +21,7 @@ export default function ParticipantCategoryStepper({
   max,
   onChange,
   onBoundaryAttempt,
+  showUnitPrice = true,
 }: ParticipantCategoryStepperProps) {
   const atMin = quantity <= 0;
   const atMax = quantity >= max;
@@ -48,10 +51,12 @@ export default function ParticipantCategoryStepper({
           {age || 'All ages'}
           {category.requiresAdult ? ' · Needs an adult' : ''}
         </p>
-        <p className="text-sm font-medium text-ink tabular-nums mt-1">
-          {formatMoney(category.priceUsd, currency)}
-          <span className="text-ink-muted font-normal"> each</span>
-        </p>
+        {showUnitPrice ? (
+          <p className="text-sm font-medium text-ink tabular-nums mt-1">
+            {formatMoney(category.priceUsd, currency)}
+            <span className="text-ink-muted font-normal"> each</span>
+          </p>
+        ) : null}
       </div>
       <div
         className="flex overflow-hidden rounded-xl bg-paper shadow-[0_0_0_1px_rgba(28,25,23,0.08)] shrink-0"

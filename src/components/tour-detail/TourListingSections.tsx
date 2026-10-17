@@ -1,4 +1,4 @@
-import { Check, X } from 'lucide-react';
+import { Check, MapPin, X } from 'lucide-react';
 import type { TourPackage } from '../../types/tour';
 import {
   TRAVERION_STANDARD_CANCELLATION_POLICY,
@@ -35,8 +35,8 @@ type Props = {
   showOperator?: boolean;
 };
 
-const sectionClass = 'border-t border-black/[0.06] pt-8';
-const headingClass = 'font-display text-xl text-ink mb-3';
+const sectionClass = 'border-t border-black/[0.06] pt-6';
+const headingClass = 'mb-3 text-lg font-semibold text-ink';
 
 function Fact({ label, children }: { label: string; children: string }) {
   const value = children.trim();
@@ -146,10 +146,12 @@ export default function TourListingSections({
       {highlights.length > 0 ? (
         <section className={sectionClass}>
           <h2 className={headingClass}>Highlights</h2>
-          <ul className="space-y-2">
+          <ul className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
             {highlights.map((highlight) => (
               <li key={highlight} className="flex items-start gap-2.5 text-[15px] text-ink">
-                <Check className="mt-0.5 h-4 w-4 shrink-0 text-finland" strokeWidth={2.25} aria-hidden />
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#f4f5f7] text-[#073b83]">
+                  <Check className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
+                </span>
                 <span className="break-words [overflow-wrap:anywhere]">{highlight}</span>
               </li>
             ))}
@@ -175,7 +177,7 @@ export default function TourListingSections({
                     className="absolute -left-[1.45rem] top-1.5 h-2 w-2 rounded-full bg-finland"
                     aria-hidden
                   />
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+                  <p className="text-xs font-medium text-ink-muted">
                     {label}
                     {locationSuffix}
                   </p>
@@ -256,29 +258,34 @@ export default function TourListingSections({
       {pickup.visible ? (
         <section className={sectionClass}>
           <h2 className={headingClass}>Pickup and meeting</h2>
-          <div className="max-w-2xl space-y-2 text-[15px] leading-relaxed text-ink">
+          <div className="flex max-w-2xl gap-3 text-[15px] leading-relaxed text-ink">
+            <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#f4f5f7] text-[#073b83]">
+              <MapPin className="h-4 w-4" aria-hidden />
+            </span>
+            <div className="min-w-0 space-y-2">
             {pickup.optionScoped && pickup.optionName ? (
               <p className="text-sm font-semibold text-ink">For option · {pickup.optionName}</p>
             ) : null}
             {pickup.multiOptionHint ? (
               <p className="text-ink-muted">{pickup.multiOptionHint}</p>
             ) : null}
-            {pickup.modeIntro ? <p>{pickup.modeIntro}</p> : null}
-            {pickup.place ? (
+            {!pickup.multiOptionHint && pickup.modeIntro ? <p>{pickup.modeIntro}</p> : null}
+            {!pickup.multiOptionHint && pickup.place ? (
               <div>
                 {pickup.placeLabel ? (
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+                  <p className="text-xs font-medium text-ink-muted">
                     {pickup.placeLabel}
                   </p>
                 ) : null}
                 <p className="mt-0.5 break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{pickup.place}</p>
               </div>
             ) : null}
-            {pickup.instructions ? (
+            {!pickup.multiOptionHint && pickup.instructions ? (
               <p className="break-words [overflow-wrap:anywhere] whitespace-pre-wrap text-ink-muted">
                 {pickup.instructions}
               </p>
             ) : null}
+            </div>
           </div>
         </section>
       ) : null}
