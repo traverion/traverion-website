@@ -113,6 +113,7 @@ describe('tour checkout URL', () => {
       date: '2026-10-12',
       guests: 2,
       optionId: OPTION_ID,
+      mix: null,
     });
   });
 

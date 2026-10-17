@@ -1,15 +1,20 @@
 import type { TourPackage } from '../../types/tour';
+import type { ListingBookingOption } from '../../types/listingExtras';
 import { tourQuickFacts } from '../../lib/tour-quick-facts';
 
 type Props = {
   tour: TourPackage;
+  option?: Pick<
+    ListingBookingOption,
+    'duration' | 'fulfillment' | 'maxPersons' | 'transportMode' | 'transportOther'
+  > | null;
 };
 
-export default function TourQuickFacts({ tour }: Props) {
-  const facts = tourQuickFacts(tour);
+export default function TourQuickFacts({ tour, option }: Props) {
+  const facts = tourQuickFacts(tour, option);
   if (facts.length === 0) return null;
   return (
-    <dl className="mb-8 grid grid-cols-2 gap-x-6 gap-y-4 rounded-2xl bg-paper-raised px-4 py-4 sm:grid-cols-3 sm:px-5 sm:py-5 lg:grid-cols-5 ring-1 ring-black/[0.06] shadow-soft">
+    <dl className="mb-6 grid grid-cols-2 gap-x-4 gap-y-3 rounded-lg border border-[#e5e7eb] bg-white px-3 py-2.5 sm:grid-cols-3 lg:grid-cols-5">
       {facts.map((fact) => (
         <div key={fact.label} className="min-w-0">
           <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">{fact.label}</dt>

@@ -161,4 +161,43 @@ describe('tourQuickFacts', () => {
     );
     expect(withVehicle.find((f) => f.label === 'Transport')?.value).toBe('SUV / 4×4');
   });
+
+  it('uses the selected option for duration, group size, and start', () => {
+    const facts = tourQuickFacts(
+      tour({
+        duration: '5 hours',
+        groupSize: 'Up to 50',
+        experienceStartStyle: 'either_available',
+        listingExtras: {
+          bookingOptions: [
+            {
+              id: 'a',
+              name: 'Small group',
+              priceUsd: 119,
+              duration: '4 hours',
+              fulfillment: 'pickup',
+              pickupPlace: 'Hotel zone',
+              optionInfo: 'Pickup',
+              minPersons: 1,
+              maxPersons: 8,
+              maxSpotsPerSlot: 8,
+              schedules: [],
+              transportMode: 'minivan',
+            },
+          ],
+        },
+      }),
+      {
+        duration: '4 hours',
+        fulfillment: 'pickup',
+        maxPersons: 8,
+        transportMode: 'minivan',
+        transportOther: '',
+      }
+    );
+    expect(facts.find((f) => f.label === 'Duration')?.value).toBe('4 hours');
+    expect(facts.find((f) => f.label === 'Group size')?.value).toBe('Up to 8');
+    expect(facts.find((f) => f.label === 'Start')?.value).toBe('Pickup included');
+    expect(facts.find((f) => f.label === 'Transport')?.value).toBe('Minivan');
+  });
 });

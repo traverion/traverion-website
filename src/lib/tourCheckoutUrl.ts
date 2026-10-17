@@ -126,7 +126,12 @@ export function stripTourCheckoutSearch(params: URLSearchParams): URLSearchParam
 
 export function tourListingPath(
   tourId: string,
-  extras?: { date?: string; guests?: number; optionId?: string | null }
+  extras?: {
+    date?: string;
+    guests?: number;
+    optionId?: string | null;
+    mix?: Record<string, number> | null;
+  }
 ): string {
   const params = new URLSearchParams();
   params.set('tour', tourId);
@@ -137,6 +142,8 @@ export function tourListingPath(
   }
   const optionId = extras?.optionId?.trim() ?? '';
   if (OPTION_ID.test(optionId)) params.set(TOUR_CHECKOUT_OPTION, optionId);
+  const mix = serializeParticipantMixQuery(extras?.mix);
+  if (mix) params.set(TOUR_CHECKOUT_MIX, mix);
   return `${TOUR_CHECKOUT_PATH}?${params.toString()}`;
 }
 
@@ -145,6 +152,7 @@ export function parseTourListingSelection(search: string | URLSearchParams): {
   date: string;
   guests: number;
   optionId: string | null;
+  mix: Record<string, number> | null;
 } {
   const params = typeof search === 'string' ? new URLSearchParams(search.startsWith('?') ? search.slice(1) : search) : search;
   const dateRaw = (params.get('date') ?? '').trim();
@@ -155,6 +163,7 @@ export function parseTourListingSelection(search: string | URLSearchParams): {
     date,
     guests: Number.isFinite(g) && g >= 1 ? Math.min(99, Math.floor(g)) : 1,
     optionId: OPTION_ID.test(optionRaw) ? optionRaw : null,
+    mix: parseParticipantMixQuery(params.get(TOUR_CHECKOUT_MIX)),
   };
 }
 

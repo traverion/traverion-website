@@ -1,5 +1,9 @@
 import type { TourPackage } from '../types/tour';
-import { formatTourDurationDisplay, materializedBookingOptions } from '../types/listingExtras';
+import {
+  formatTourDurationDisplay,
+  materializedBookingOptions,
+  type ListingBookingOption,
+} from '../types/listingExtras';
 import { listingShowsFreeCancellation } from './listingTruth';
 import { transportVehicleLabel } from './option-logistics';
 
@@ -59,21 +63,39 @@ export function pickupFact(tour: TourPackage): string | null {
   return null;
 }
 
-export function tourQuickFacts(tour: TourPackage): { label: string; value: string }[] {
+export function tourQuickFacts(
+  tour: TourPackage,
+  selected?: Pick<
+    ListingBookingOption,
+    'duration' | 'fulfillment' | 'maxPersons' | 'transportMode' | 'transportOther'
+  > | null
+): { label: string; value: string }[] {
   const facts: { label: string; value: string }[] = [];
-  const duration = formatTourDurationDisplay(tour.duration).trim();
+  const duration = formatTourDurationDisplay(selected?.duration?.trim() || tour.duration).trim();
   if (duration) facts.push({ label: 'Duration', value: duration });
-  if (tour.groupSize?.trim() && !/option/i.test(tour.groupSize)) {
+  if (selected && selected.maxPersons >= 1) {
+    facts.push({ label: 'Group size', value: `Up to ${selected.maxPersons}` });
+  } else if (tour.groupSize?.trim() && !/option/i.test(tour.groupSize)) {
     facts.push({ label: 'Group size', value: tour.groupSize.trim() });
   }
   if (tour.experienceLanguage?.trim()) {
     facts.push({ label: 'Language', value: experienceLanguageLabel(tour.experienceLanguage) });
   }
-  const pickup = pickupFact(tour);
+  const pickup =
+    selected?.fulfillment === 'pickup'
+      ? 'Pickup included'
+      : selected?.fulfillment === 'meeting_point'
+        ? 'Meeting point'
+        : pickupFact(tour);
   if (pickup) facts.push({ label: 'Start', value: pickup });
   const options = materializedBookingOptions(tour.listingExtras?.bookingOptions);
+  const selectedVehicle = selected
+    ? transportVehicleLabel(selected.transportMode, selected.transportOther)
+    : null;
   const vehicles = options.map((option) => transportVehicleLabel(option.transportMode, option.transportOther));
-  if (options.length > 0 && vehicles.every((label) => label) && new Set(vehicles).size === 1) {
+  if (selectedVehicle) {
+    facts.push({ label: 'Transport', value: selectedVehicle });
+  } else if (options.length > 0 && vehicles.every((label) => label) && new Set(vehicles).size === 1) {
     facts.push({ label: 'Transport', value: vehicles[0] as string });
   }
   if (listingShowsFreeCancellation(tour)) {

@@ -18,7 +18,10 @@ export function tourQuoteFailureFocusTarget(params: {
     code === 'bad_date' ||
     /choose a (valid )?date|today or later|season|cutoff|no longer bookable/i.test(err)
   ) {
-    return { scrollId: 'tour-booking-panel', focusSelector: '#tour-booking-date-input button:not([disabled])' };
+    return {
+      scrollId: 'tour-booking-panel',
+      focusSelector: '#tour-booking-date-input:is(button), #tour-booking-date-input button:not([disabled])',
+    };
   }
   if (code === 'party' || /guest count|guests|party|age mix|participant/i.test(err)) {
     return { scrollId: 'tour-booking-panel' };

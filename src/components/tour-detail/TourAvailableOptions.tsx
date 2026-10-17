@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react';
+import { useState } from 'react';
 import type { TourBookingVariant } from '../../lib/booking-flow';
 import {
   formatTourAvailabilityHeading,
@@ -128,6 +128,8 @@ function OptionRow({
 }) {
   const opt = variant.listingOption;
   const meta = optionMetaParts(variant);
+  const detail = opt?.optionInfo?.trim() || (meta.length === 0 ? variant.subtitle : '');
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const priced = hideCatalogPrice
     ? null
     : opt && optionUsesAgePricing(opt)
@@ -140,34 +142,32 @@ function OptionRow({
         };
   return (
     <div
-      className={`rounded-xl px-4 py-3.5 ring-1 sm:px-5 ${
-        selected ? 'bg-finland/[0.05] ring-finland' : 'bg-white ring-black/[0.08]'
-      } ${compact ? '' : ''}`}
+      className={`rounded-lg px-3 ring-1 ${compact ? 'py-2' : 'py-2.5'} ${
+        selected ? 'bg-[#073b83]/[0.04] ring-[#073b83]' : 'bg-white ring-black/[0.08]'
+      }`}
     >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <p className="font-semibold text-ink">{variant.label}</p>
+      <button
+        type="button"
+        data-tour-option-cta="choose"
+        onClick={() => onChoose(variant)}
+        aria-pressed={selected}
+        className="flex w-full items-start justify-between gap-3 text-left"
+      >
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold text-ink">{variant.label}</span>
           {meta.length > 0 ? (
-            <ul className="mt-1.5 space-y-0.5 text-sm text-ink-muted">
-              {meta.map((part) => (
-                <li key={part}>{part}</li>
-              ))}
-            </ul>
+            <span className="mt-0.5 block text-[12px] leading-snug text-ink-muted">{meta.join(' · ')}</span>
           ) : null}
-          {opt?.optionInfo?.trim() ? (
-            <p className="mt-1.5 text-sm leading-snug text-ink-muted">{opt.optionInfo.trim()}</p>
-          ) : variant.subtitle && meta.length === 0 ? (
-            <p className="mt-1.5 text-sm text-ink-muted">{variant.subtitle}</p>
-          ) : null}
-        </div>
-        <p className="shrink-0 text-sm font-semibold tabular-nums text-ink">
+        </span>
+        <span className="shrink-0 text-right text-[13px] font-semibold tabular-nums text-ink">
           {hideCatalogPrice ? 'Price unavailable' : priced?.lead}
-        </p>
-      </div>
+          <span className="mt-1 block text-[11px] font-semibold text-[#073b83]">{selected ? 'Selected' : 'Select'}</span>
+        </span>
+      </button>
       {priced && priced.facts.length > 0 ? (
-        <dl className="mt-3 space-y-1 border-t border-black/[0.06] pt-3">
+        <dl className="mt-2 space-y-0.5 border-t border-black/[0.06] pt-2">
           {priced.facts.map((fact) => (
-            <div key={`${fact.label}-${fact.amountLabel}`} className="flex items-baseline justify-between gap-3 text-sm">
+            <div key={`${fact.label}-${fact.amountLabel}`} className="flex items-baseline justify-between gap-3 text-[13px]">
               <dt className="text-ink">
                 {fact.label}
                 {fact.ages ? <span className="text-ink-muted"> · {fact.ages}</span> : null}
@@ -177,26 +177,19 @@ function OptionRow({
           ))}
         </dl>
       ) : null}
-      <button
-        type="button"
-        data-tour-option-cta="choose"
-        onClick={() => onChoose(variant)}
-        aria-pressed={selected}
-        className={
-          selected
-            ? 'tv-btn-secondary mt-3 min-h-11'
-            : 'tv-btn-primary mt-3 min-h-11'
-        }
-      >
-        {selected ? (
-          <span className="inline-flex items-center gap-1.5">
-            <Check className="h-4 w-4" aria-hidden />
-            Selected
-          </span>
-        ) : (
-          'Select'
-        )}
-      </button>
+      {detail ? (
+        <div className="mt-1.5">
+          <button
+            type="button"
+            className="text-[12px] font-semibold text-[#073b83]"
+            aria-expanded={detailsOpen}
+            onClick={() => setDetailsOpen((open) => !open)}
+          >
+            {detailsOpen ? 'Hide details' : 'More details'}
+          </button>
+          {detailsOpen ? <p className="mt-1 text-[13px] leading-snug text-ink-muted">{detail}</p> : null}
+        </div>
+      ) : null}
     </div>
   );
 }

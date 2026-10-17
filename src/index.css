@@ -2771,6 +2771,14 @@ a:focus-visible,
     overflow-y: auto;
     overscroll-behavior: contain;
   }
+  .tv-booking-sticky.tv-booking-sticky--fit {
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+details:not([open]) > :not(summary) {
+  display: none;
 }
 @media (min-width: 640px) {
   .tv-booking-sticky {
