@@ -29,7 +29,8 @@ import { travelerPaymentLabel, REFUND_DUE_MANUAL_COPY, bookingPaymentWasCollecte
 import { formatBookingParticipantsLabel } from '../lib/participant-mix';
 import { formatBookingDateDisplay } from '../lib/booking-flow';
 import { bookingLifecycleLabel } from '../lib/status-language';
-import { travelerSelfCancelRefundChoice, supplierCancellationReasonLabel, travelerSelfCancelBlock, travelerSelfCancelError, travelerSelfCancelIsUnpaidCheckout } from '../lib/cancellation-policy';
+import { travelerSelfCancelRefundChoice, travelerSelfCancelDeadlineMs, supplierCancellationReasonLabel, travelerSelfCancelBlock, travelerSelfCancelError, travelerSelfCancelIsUnpaidCheckout } from '../lib/cancellation-policy';
+import { resolveDepartureTimezone } from '../lib/tour-departure-cutoff';
 import { openHostCancelRequestVisible } from '../lib/host-cancel-request-visibility';
 import {
   messagingComposeBlock,
@@ -155,6 +156,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   const [tripSearchQuery, setTripSearchQuery] = useState('');
   const [openTripId, setOpenTripId] = useState<string | null>(null);
   const [tripDetailTab, setTripDetailTab] = useState<'overview' | 'details' | 'messages'>('overview');
+  const [focusMessageId, setFocusMessageId] = useState<string | null>(null);
   const [reviewedListingIds, setReviewedListingIds] = useState<Set<string>>(new Set());
   const [actionSuccess, setActionSuccess] = useState<{ title: string; body: string } | null>(null);
   // Phase 1677: copy feedback for expanded trip reference.
@@ -426,8 +428,14 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const id = new URLSearchParams(window.location.search).get('booking')?.trim();
-    if (id) setOpenTripId(id);
+    const read = () => {
+      const id = new URLSearchParams(window.location.search).get('booking')?.trim() || null;
+      setOpenTripId(id);
+      if (id) setTripDetailTab('overview');
+    };
+    read();
+    window.addEventListener('popstate', read);
+    return () => window.removeEventListener('popstate', read);
   }, []);
 
   useEffect(() => {
@@ -627,7 +635,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   return (
     <div className="min-h-screen bg-paper tv-page">
       <div className="tv-shell px-4 sm:px-6 lg:px-8 py-8 pb-12">
-        <header className="mb-6 border-b border-black/[0.06] pb-5">
+        <header className="mx-auto mb-6 max-w-3xl border-b border-black/[0.06] pb-5">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <h1 id={TRIPS_HEADING_ID} className="font-sans text-2xl font-bold tracking-tight text-ink sm:text-[1.65rem]">
@@ -659,7 +667,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           </div>
         </header>
 
-        <section aria-labelledby={TRIPS_HEADING_ID}>
+        <section className="mx-auto max-w-3xl" aria-labelledby={TRIPS_HEADING_ID}>
         {loadError && (
           <ErrorState
             className="py-6"
@@ -1051,7 +1059,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     <img
                       src={thumb}
                       alt=""
-                      className="h-12 w-12 rounded-md object-cover shrink-0 bg-black/[0.04]"
+                      className="h-16 w-24 rounded-md object-cover shrink-0 bg-black/[0.04]"
                       width={80}
                       height={80}
                       loading="lazy"
@@ -1059,7 +1067,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     />
                   ) : (
                     <div
-                      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-finland/[0.06] ring-1 ring-finland/10"
+                      className="flex h-16 w-24 shrink-0 items-center justify-center rounded-md bg-finland/[0.06] ring-1 ring-finland/10"
                       aria-hidden
                     >
                       <CalendarDays className="h-6 w-6 text-finland/50" />
@@ -1124,6 +1132,29 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     </p>
                   </div>
                 </button>
+                {!open &&
+                tripView === 'past' &&
+                onTourSelect &&
+                tripAllowsLeaveReview(ops) &&
+                bookingEligibleForReview(b) ? (
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-t border-black/[0.05] px-3.5 py-2.5 sm:px-4">
+                    <p className="text-sm text-ink">
+                      {reviewedListingIds.has(b.listing_id) ? 'Your review is saved.' : 'How was your experience?'}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onTourSelect({
+                          id: b.listing_id,
+                          ...(isStay ? { listingExtras: { inventoryFamily: 'stay' as const } } : {}),
+                        });
+                      }}
+                      className="tv-btn-secondary min-h-9"
+                    >
+                      {reviewedListingIds.has(b.listing_id) ? 'Your review' : 'Write a review'}
+                    </button>
+                  </div>
+                ) : null}
                 {(needsPay && !open) || (openCancel && !open) ? (
                   <div className="flex flex-wrap gap-2 border-t border-black/[0.05] px-3.5 py-3 sm:px-4">
                     {needsPay && !open ? (
@@ -1478,7 +1509,10 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   <div className={`flex flex-wrap gap-2 ${tripDetailTab === 'overview' ? '' : 'hidden'}`}>
                     <button
                       type="button"
-                      onClick={() => setTripDetailTab('messages')}
+                      onClick={() => {
+                        setTripDetailTab('messages');
+                        setFocusMessageId(b.id);
+                      }}
                       className="tv-btn-secondary"
                     >
                       Contact operator
@@ -1577,6 +1611,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       customerName={b.guest_name}
                       bookingNumber={typeof b.booking_number === 'number' ? b.booking_number : undefined}
                       bookingDate={b.booking_date}
+                      autoFocus={focusMessageId === b.id}
                     />
                     );
                   })()}
@@ -1600,10 +1635,10 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">Cancellation</p>
-                  <h3 id="cancel-trip-title" className="mt-2 font-display text-2xl sm:text-3xl text-ink tracking-tight">
+                  <h3 id="cancel-trip-title" className="mt-2 font-sans text-xl font-bold tracking-tight text-ink">
                     {travelerSelfCancelIsUnpaidCheckout(cancelConfirm)
                       ? 'Cancel checkout?'
-                      : 'Cancel booking?'}
+                      : 'Cancel your booking?'}
                   </h3>
                 </div>
                 <button
@@ -1647,8 +1682,8 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       displayDepartureTimezoneFromPurchase(cancelConfirm.purchase_snapshot)
                     )}`;
                   })()}
-                  {typeof cancelConfirm.booking_number === 'number' && cancelConfirm.booking_number > 0
-                    ? ` · #${cancelConfirm.booking_number}`
+                  {travelerPublicBookingReference(cancelConfirm.public_reference)
+                    ? ` · ${travelerPublicBookingReference(cancelConfirm.public_reference)}`
                     : ''}
                 </p>
                 <p className="mt-1.5 text-sm text-ink">
@@ -1661,25 +1696,49 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   <p className="mt-1.5 text-sm text-ink leading-relaxed">{TRAVELER_CANCEL_UNPAID_CHECKOUT_POLICY}</p>
                 </div>
               ) : getRefundChoiceForCancel(cancelConfirm) === 'full_refund' ? (
-                <div className="mt-4 rounded-2xl bg-emerald-50 px-4 py-3.5 ring-1 ring-emerald-200/80">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-800">
-                    Eligible for refund
+                <div className="mt-4 rounded-xl bg-emerald-50 px-4 py-3.5 ring-1 ring-emerald-200/80">
+                  <p className="text-sm text-ink leading-relaxed">
+                    {(() => {
+                      const isStay = bookingIsStayNight(cancelConfirm);
+                      const startHm = isStay
+                        ? displayStayCheckInTimeFromPurchase(cancelConfirm.purchase_snapshot, null) || '16:00'
+                        : displayStartTimeFromPurchase(
+                            cancelConfirm.purchase_snapshot,
+                            cancelConfirm.start_time ? pgTimeToHm(cancelConfirm.start_time) : null
+                          ) || '00:00';
+                      const tz = resolveDepartureTimezone(
+                        displayDepartureTimezoneFromPurchase(cancelConfirm.purchase_snapshot)
+                      );
+                      const deadline = travelerSelfCancelDeadlineMs({
+                        bookingDate: cancelConfirm.booking_date,
+                        startTimeHm: startHm,
+                        departureTimezone: tz,
+                      });
+                      const when = deadline
+                        ? new Intl.DateTimeFormat('en-GB', {
+                            timeZone: tz,
+                            day: 'numeric',
+                            month: 'long',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hourCycle: 'h23',
+                          }).format(new Date(deadline))
+                        : null;
+                      return when
+                        ? `You can cancel this experience for a full refund until ${when}.`
+                        : TRAVELER_SELF_CANCEL_FULL_REFUND_POLICY;
+                    })()}
                   </p>
-                  <p className="mt-1.5 text-sm text-ink leading-relaxed">
-                    More than 24 hours before scheduled{' '}
-                    {bookingIsStayNight(cancelConfirm) ? 'check-in' : 'start'}
-                    . {TRAVELER_SELF_CANCEL_FULL_REFUND_POLICY}
-                  </p>
+                  {cancelConfirm.amount_paid != null && Number(cancelConfirm.amount_paid) > 0 ? (
+                    <p className="mt-2 text-sm font-semibold text-ink">
+                      Refund: {formatMoney(Number(cancelConfirm.amount_paid), cancelConfirm.currency)}
+                    </p>
+                  ) : null}
                 </div>
               ) : (
-                <div className="mt-4 rounded-2xl bg-amber-50 px-4 py-3.5 ring-1 ring-amber-200/80">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-900">
-                    No refund
-                  </p>
-                  <p className="mt-1.5 text-sm text-ink leading-relaxed">
-                    This{' '}
-                    {bookingIsStayNight(cancelConfirm) ? 'check-in is' : 'start is'}{' '}
-                    within 24 hours. No refund applies for a traveler-initiated cancellation.
+                <div className="mt-4 rounded-xl bg-amber-50 px-4 py-3.5 ring-1 ring-amber-200/80">
+                  <p className="text-sm text-ink leading-relaxed">
+                    The free-cancellation window for this booking has passed. You can still cancel, and no refund is due.
                   </p>
                 </div>
               )}
@@ -1702,7 +1761,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     ? 'Cancelling…'
                     : travelerSelfCancelIsUnpaidCheckout(cancelConfirm)
                       ? TRAVELER_CANCEL_UNPAID_CHECKOUT_CTA
-                      : TRAVELER_SELF_CANCEL_CTA}
+                      : 'Confirm cancellation'}
                 </button>
               </div>
             </div>

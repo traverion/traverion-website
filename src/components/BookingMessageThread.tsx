@@ -31,6 +31,8 @@ type Props = {
   bookingDate?: string | null;
   /** Fires only after mark_booking_messages_read succeeds (Phase 1500). */
   onMarkedRead?: () => void;
+  /** Focus the composer after the thread loads. */
+  autoFocus?: boolean;
 };
 
 function stampInboundMessagesRead(
@@ -52,7 +54,7 @@ function roleLabel(role: string, viewer: 'traveler' | 'supplier'): string {
   if (role === 'system') return 'Traverion';
   if (role === viewer) return 'You';
   if (role === 'traveler') return 'Traveler';
-  return 'Host';
+  return viewer === 'traveler' ? 'Operator' : 'Supplier';
 }
 
 export default function BookingMessageThread({
@@ -68,6 +70,7 @@ export default function BookingMessageThread({
   bookingNumber,
   bookingDate,
   onMarkedRead,
+  autoFocus = false,
 }: Props) {
   const [rows, setRows] = useState<BookingMessageRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -119,6 +122,11 @@ export default function BookingMessageThread({
     setLoadError(null);
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!autoFocus || loading || !canCompose) return;
+    document.getElementById(`msg-${bookingId}`)?.focus();
+  }, [autoFocus, loading, canCompose, bookingId]);
 
   const send = async () => {
     const body = draft.trim();

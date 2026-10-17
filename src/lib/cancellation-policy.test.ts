@@ -13,6 +13,7 @@ import {
   travelerSelfCancelBlock,
   travelerSelfCancelError,
   travelerSelfCancelRefundChoice,
+  travelerSelfCancelDeadlineMs,
   partnerBookingStatusRewriteBlock,
   partnerManualConfirmBlock,
   partnerManualConfirmError,
@@ -101,6 +102,25 @@ describe('supplier cancellation policy', () => {
         paymentStatus: 'paid',
       })
     ).toBe('no_refund');
+  });
+
+  it('places a 24-hour deadline on the experience clock', () => {
+    const deadline = travelerSelfCancelDeadlineMs({
+      bookingDate: '2026-10-23',
+      startTimeHm: '18:30',
+      departureTimezone: 'Europe/Helsinki',
+    });
+    expect(deadline).not.toBeNull();
+    const label = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Europe/Helsinki',
+      day: 'numeric',
+      month: 'long',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).format(new Date(deadline!));
+    expect(label).toContain('22');
+    expect(label).toContain('18:30');
   });
 
   it('never offers a refund for unpaid or failed checkouts', () => {

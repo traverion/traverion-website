@@ -116,6 +116,20 @@ export function travelerSelfCancelRefundChoice(params: {
   return startMs - now > 24 * 60 * 60 * 1000 ? 'full_refund' : 'no_refund';
 }
 
+/** Instant when the free-cancellation window closes: 24 hours before departure in the experience zone. */
+export function travelerSelfCancelDeadlineMs(params: {
+  bookingDate: string | null;
+  startTimeHm?: string | null;
+  departureTimezone?: string | null;
+}): number | null {
+  if (!params.bookingDate) return null;
+  const tz = resolveDepartureTimezone(params.departureTimezone);
+  const hm = (params.startTimeHm ?? '00:00').slice(0, 5);
+  const startMs = wallTimeInZoneToUtcMs(params.bookingDate, hm, tz);
+  if (startMs == null || !Number.isFinite(startMs)) return null;
+  return startMs - 24 * 60 * 60 * 1000;
+}
+
 /** True when Trips Cancel removes an unpaid checkout (no Stripe money collected). */
 export function travelerSelfCancelIsUnpaidCheckout(row: {
   payment_status?: string | null;
