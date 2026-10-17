@@ -144,7 +144,7 @@ function wrapCustomerDocument(params: {
   const base = siteBase(params.publicSiteUrl);
   const ctaUrl = params.ctaUrl ?? `${base}/trips`;
   const ctaLabel = params.ctaLabel ?? 'Manage booking';
-  const logo = `${base}/traverionlogotransparent.png?v=3`;
+  const logo = `${base}/traverionlogotransparent.png?v=4`;
   return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f4f6f8;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f6f8;padding:24px 12px;">
 <tr><td align="center">

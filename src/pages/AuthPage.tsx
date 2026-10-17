@@ -101,7 +101,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
               className="flex w-fit items-center gap-2.5"
               aria-label="Traverion home"
             >
-              <img src={BRAND_LOGO_SRC} alt="" className="h-10 w-10 object-contain brightness-0 invert" />
+              <img src={BRAND_LOGO_SRC} alt="" className="h-10 w-10 object-contain" />
               <span className="font-sans text-sm font-semibold tracking-[0.18em] text-white">TRAVERION</span>
             </a>
             <div className="max-w-sm pb-1 lg:pb-4">

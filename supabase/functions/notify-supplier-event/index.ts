@@ -118,7 +118,7 @@ function siteBase(_payload: Payload): string {
 }
 
 function logoUrl(base: string): string {
-  return `${base}/traverionlogotransparent.png?v=3`;
+  return `${base}/traverionlogotransparent.png?v=4`;
 }
 
 function eventSubject(payload: Payload): string {

@@ -63,7 +63,7 @@ export default function PartnerAuthPage({ mode, onAuthenticated, isSupabase }: P
           />
           <div className="relative z-10 flex h-full flex-col justify-between p-5 sm:p-8 lg:p-10">
             <a href={landing} className="flex items-center gap-2.5 no-lux-interaction w-fit" aria-label="Traverion Partner">
-              <img src={BRAND_LOGO_SRC} alt="" className="h-10 w-10 object-contain brightness-0 invert" />
+              <img src={BRAND_LOGO_SRC} alt="" className="h-10 w-10 object-contain" />
               <span className="font-sans text-sm font-semibold tracking-[0.18em] text-white">TRAVERION</span>
             </a>
             <div className="max-w-sm pb-1 lg:pb-4">
