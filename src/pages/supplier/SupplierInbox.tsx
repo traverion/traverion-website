@@ -109,6 +109,24 @@ export default function SupplierInbox() {
   const [detailsOpen, setDetailsOpen] = useState(false);
 
   useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const apply = () => {
+      document.documentElement.style.setProperty('--tv-vv-height', `${Math.round(vv.height)}px`);
+      document.documentElement.style.setProperty('--tv-vv-offset', `${Math.round(vv.offsetTop)}px`);
+    };
+    apply();
+    vv.addEventListener('resize', apply);
+    vv.addEventListener('scroll', apply);
+    return () => {
+      vv.removeEventListener('resize', apply);
+      vv.removeEventListener('scroll', apply);
+      document.documentElement.style.removeProperty('--tv-vv-height');
+      document.documentElement.style.removeProperty('--tv-vv-offset');
+    };
+  }, []);
+
+  useEffect(() => {
     const mq = window.matchMedia('(max-width: 1023px)');
     const onChange = () => setMobileSheet(mq.matches);
     onChange();
@@ -590,12 +608,12 @@ export default function SupplierInbox() {
                               </time>
                             ) : null}
                           </div>
-                          <p className="mt-0.5 truncate pl-3.5 text-[13px] text-ink-muted">
-                            {inboxListingLine(b, titles[b.listing_id], listingsById[b.listing_id])}
+                          <p className={`mt-0.5 truncate pl-3.5 text-[13px] ${unread ? 'font-medium text-ink' : 'text-ink-muted'}`}>
+                            {last?.body ?? 'Start a conversation'}
                           </p>
-                          <p className="mt-0.5 truncate pl-3.5 text-[12px] text-ink-faint">{activityWhen(b)}</p>
-                          <p className={`mt-1 truncate pl-3.5 text-[13px] ${unread ? 'font-medium text-ink' : 'text-ink-muted'}`}>
-                            {last?.body ?? 'No messages yet'}
+                          <p className="mt-0.5 truncate pl-3.5 text-[12px] text-ink-faint">
+                            {displayListingTitleFromPurchase(b.purchase_snapshot, titles[b.listing_id], 'Listing')}
+                            {activityWhen(b) ? ` · ${activityWhen(b)}` : ''}
                           </p>
                         </button>
                       </li>
@@ -631,16 +649,16 @@ export default function SupplierInbox() {
                   <ArrowLeft className="h-4 w-4" aria-hidden />
                 </button>
                 <div className="min-w-0 flex-1">
-                  <h2 className="truncate text-base font-bold tracking-tight text-ink">
+                  <h2 className="truncate text-[15px] font-bold tracking-tight text-ink">
                     {openBooking.guest_name?.trim() || 'Traveler'}
                   </h2>
-                  <p className="truncate text-[13px] text-ink-muted">
-                    {inboxListingLine(openBooking, titles[openBooking.listing_id], listingsById[openBooking.listing_id])}
-                  </p>
-                  <p className="truncate text-[12px] text-ink-faint">
-                    {activityWhen(openBooking)}
-                    {openBooking.status ? ` · ${openBooking.status}` : ''}
-                    {openCancelIds.has(openBooking.id) ? ' · Cancellation pending' : ''}
+                  <p className="truncate text-[12px] text-ink-muted">
+                    {displayListingTitleFromPurchase(
+                      openBooking.purchase_snapshot,
+                      titles[openBooking.listing_id],
+                      'Listing'
+                    )}
+                    {activityWhen(openBooking) ? ` · ${activityWhen(openBooking)}` : ''}
                   </p>
                 </div>
                 <button type="button" className="tv-btn-ghost shrink-0" onClick={() => setDetailsOpen(true)}>

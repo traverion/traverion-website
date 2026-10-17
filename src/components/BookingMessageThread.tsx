@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, Send } from 'lucide-react';
 import {
   fetchBookingMessages,
   markBookingMessagesRead,
@@ -52,6 +52,41 @@ function stampInboundMessagesRead(
   });
 }
 
+const panelDrafts = new Map<string, string>();
+
+const LINK_RE = /https?:\/\/[^\s<>"']+/g;
+
+function MessageText({ text, mine }: { text: string; mine: boolean }) {
+  const parts: Array<string | { href: string }> = [];
+  let last = 0;
+  for (const match of text.matchAll(LINK_RE)) {
+    const index = match.index ?? 0;
+    if (index > last) parts.push(text.slice(last, index));
+    parts.push({ href: match[0] });
+    last = index + match[0].length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return (
+    <p className="whitespace-pre-wrap break-words leading-snug [overflow-wrap:anywhere]">
+      {parts.map((part, index) =>
+        typeof part === 'string' ? (
+          <span key={index}>{part}</span>
+        ) : (
+          <a
+            key={index}
+            href={part.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={mine ? 'underline decoration-white/70' : 'underline text-finland'}
+          >
+            {part.href}
+          </a>
+        )
+      )}
+    </p>
+  );
+}
+
 function roleLabel(role: string, viewer: 'traveler' | 'supplier'): string {
   if (role === 'system') return 'Traverion';
   if (role === viewer) return 'You';
@@ -86,7 +121,8 @@ export default function BookingMessageThread({
   const [markReadError, setMarkReadError] = useState<string | null>(null);
   const loadGenRef = useRef(0);
   const sendingRef = useRef(false);
-  const logRef = useRef<HTMLUListElement>(null);
+  const logRef = useRef<HTMLElement | null>(null);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
   const stickToBottomRef = useRef(true);
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
@@ -127,11 +163,11 @@ export default function BookingMessageThread({
   useEffect(() => {
     stickToBottomRef.current = true;
     setRows([]);
-    setDraft('');
+    setDraft(layout === 'panel' ? panelDrafts.get(bookingId) ?? '' : '');
     setError(null);
     setLoadError(null);
     void load();
-  }, [load]);
+  }, [load, layout, bookingId]);
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -168,6 +204,8 @@ export default function BookingMessageThread({
       return;
     }
     setDraft('');
+    if (layout === 'panel') panelDrafts.delete(bookingId);
+    stickToBottomRef.current = true;
     await load();
     // Phase 1859: message RPC already succeeded — soft-warn if email notify fails.
     const notify = await notifyNewBookingMessage({
@@ -192,6 +230,158 @@ export default function BookingMessageThread({
   };
 
   const panel = layout === 'panel';
+
+  useEffect(() => {
+    if (!panel) return;
+    const el = composerRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 128)}px`;
+  }, [draft, panel, canCompose, loading, loadError]);
+
+  if (panel) {
+    const nearLimit = draft.length >= 3800;
+    return (
+      <div className="tv-chat">
+        <h2 className="sr-only">Messages</h2>
+        {loadError ? (
+          <NoticeCallout title="Messages unavailable" tone="warn">
+            <p className="text-sm text-ink-muted">{loadError}</p>
+            <button type="button" className="mt-2 text-xs font-semibold text-finland hover:underline" onClick={() => void load()}>
+              Try again
+            </button>
+          </NoticeCallout>
+        ) : null}
+        {markReadError ? (
+          <NoticeCallout title="Still marked unread" tone="warn">
+            <p className="text-sm text-ink-muted">{markReadError}</p>
+            <button type="button" className="mt-2 text-xs font-semibold text-finland hover:underline" onClick={() => void load()}>
+              Try again
+            </button>
+          </NoticeCallout>
+        ) : null}
+        <div
+          ref={(node) => {
+            logRef.current = node;
+          }}
+          className="tv-chat__log"
+          aria-busy={loading && rows.length === 0 ? true : undefined}
+          onScroll={() => {
+            const el = logRef.current;
+            if (!el) return;
+            stickToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+          }}
+        >
+          {loading && rows.length === 0 ? (
+            <p className="text-sm text-ink-muted">Loading messages…</p>
+          ) : rows.length === 0 && !loadError ? (
+            <div className="tv-chat__empty">
+              <MessageSquare className="h-5 w-5 text-finland" aria-hidden />
+              <p className="mt-2 text-sm font-semibold text-ink">No messages yet</p>
+              {canCompose ? <p className="mt-0.5 text-sm text-ink-muted">Send a message to your traveler.</p> : null}
+            </div>
+          ) : (
+            rows.map((m, index) => {
+              const day = new Date(m.created_at).toLocaleDateString(undefined, {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+              });
+              const prev = index > 0 ? rows[index - 1] : null;
+              const prevDay = prev
+                ? new Date(prev.created_at).toLocaleDateString(undefined, {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                  })
+                : '';
+              const mine = m.sender_role === viewerRole;
+              const grouped =
+                prev != null &&
+                prev.sender_role === m.sender_role &&
+                day === prevDay &&
+                Math.abs(new Date(m.created_at).getTime() - new Date(prev.created_at).getTime()) < 8 * 60 * 1000;
+              const tone =
+                m.sender_role === 'system' ? 'system' : mine ? 'mine' : 'theirs';
+              return (
+                <div key={m.id} className={grouped ? 'tv-chat__item tv-chat__item--grouped' : 'tv-chat__item'}>
+                  {day !== prevDay ? <p className="tv-msg-day">{day}</p> : null}
+                  <div className={`tv-chat__bubble tv-chat__bubble--${tone}`}>
+                    <MessageText text={m.body} mine={tone === 'mine'} />
+                    <time dateTime={m.created_at} className="tv-chat__time">
+                      {new Date(m.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                    </time>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+        {error ? (
+          <div className="tv-chat__alert" role="alert">
+            <p>{error}</p>
+            <button type="button" disabled={sending || !draft.trim()} onClick={() => void send()}>
+              Retry
+            </button>
+          </div>
+        ) : null}
+        {notifyWarning ? <p className="tv-chat__note">{notifyWarning}</p> : null}
+        {canCompose && !loadError && !loading ? (
+          <form
+            className="tv-chat__composer"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!sendingRef.current && draft.trim()) void send();
+            }}
+          >
+            <label htmlFor={`msg-${bookingId}`} className="sr-only">
+              Message about this booking
+            </label>
+            <textarea
+              ref={composerRef}
+              id={`msg-${bookingId}`}
+              value={draft}
+              rows={1}
+              maxLength={4000}
+              placeholder="Write a message..."
+              className="tv-chat__input"
+              onChange={(e) => {
+                setDraft(e.target.value);
+                panelDrafts.set(bookingId, e.target.value);
+              }}
+              onKeyDown={(e) => {
+                if (e.key !== 'Enter' || e.shiftKey) return;
+                e.preventDefault();
+                if (!sendingRef.current && draft.trim()) void send();
+              }}
+            />
+            <button
+              type="submit"
+              className="tv-chat__send"
+              aria-label="Send message"
+              disabled={sending || !draft.trim()}
+            >
+              {sending ? <span className="tv-chat__send-dot" aria-hidden /> : <Send className="h-4 w-4" aria-hidden />}
+            </button>
+            {nearLimit ? (
+              <p className="tv-chat__limit">{4000 - draft.length} characters left</p>
+            ) : null}
+            <p className="sr-only">{viewerRole === 'supplier' ? PARTNER_INBOX_MESSAGE_DELIVERY_NOTE : TRAVELER_BOOKING_THREAD_DELIVERY_NOTE}</p>
+          </form>
+        ) : canCompose && loadError ? (
+          <p className="tv-chat__note">Reload messages to continue this conversation.</p>
+        ) : !canCompose ? (
+          <p className="tv-chat__note">
+            {composeBlock === 'closed'
+              ? 'This booking is closed. You can still read earlier messages.'
+              : composeBlock === 'role'
+                ? 'Your role can read booking messages but cannot send them.'
+                : 'Chat is limited to paid bookings you are part of.'}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div className={panel ? 'flex min-h-0 flex-1 flex-col' : 'space-y-3'}>
@@ -257,7 +447,9 @@ export default function BookingMessageThread({
         )
       ) : rows.length > 0 ? (
         <ul
-          ref={logRef}
+          ref={(node) => {
+            logRef.current = node;
+          }}
           className={`space-y-2.5 overflow-y-auto pr-0.5 ${panel ? 'tv-msg-log tv-msg-log--panel min-h-0 flex-1' : 'max-h-72'}`}
           onScroll={() => {
             const el = logRef.current;
