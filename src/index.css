@@ -2664,26 +2664,16 @@ a:focus-visible,
 /* Destination discovery: compact photo tiles (fixed-ish width so few destinations do not balloon) */
 .tv-dest-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(9.25rem, 12.5rem));
+  justify-content: start;
   gap: var(--tv-discover-gap);
-}
-
-@media (min-width: 640px) {
-  .tv-dest-grid {
-    grid-template-columns: repeat(auto-fill, minmax(9.75rem, 11.25rem));
-    justify-content: start;
-  }
-}
-
-@media (min-width: 1024px) {
-  .tv-dest-grid {
-    grid-template-columns: repeat(auto-fill, minmax(10rem, 11.5rem));
-  }
 }
 
 .tv-dest-tile {
   position: relative;
   display: block;
+  width: 100%;
+  max-width: 12.5rem;
   overflow: hidden;
   border-radius: 1rem;
   aspect-ratio: 3 / 4;
@@ -2724,6 +2714,19 @@ a:focus-visible,
   .tv-dest-tile:active {
     transform: none;
   }
+}
+
+.tv-footer-logo-glow {
+  position: absolute;
+  left: -0.35rem;
+  top: 50%;
+  width: 3.75rem;
+  height: 3.75rem;
+  transform: translateY(-50%);
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(147, 186, 255, 0.55) 0%, rgba(7, 26, 58, 0) 68%);
+  filter: blur(10px);
+  pointer-events: none;
 }
 
 .tv-dest-tile-label {
@@ -5135,12 +5138,43 @@ details:not([open]) > :not(summary) {
   transform: scale(0.96);
 }
 
+.tv-gallery-lightbox__close {
+  display: inline-flex;
+  height: 3.25rem;
+  width: 3.25rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: 2px solid #fff;
+  background: transparent;
+  color: #fff;
+  transition: background 0.15s ease, transform 0.12s ease;
+}
+
+.tv-gallery-lightbox__close:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.tv-gallery-lightbox__close:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+
+.tv-gallery-lightbox__close:active {
+  transform: scale(0.96);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .tv-gallery-lightbox__nav {
     transition: none;
   }
-  .tv-gallery-lightbox__nav:active {
+  .tv-gallery-lightbox__nav:active,
+  .tv-gallery-lightbox__close:active {
     transform: none;
+  }
+  .tv-gallery-lightbox__close {
+    transition: none;
   }
 }
 

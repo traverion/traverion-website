@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, MapPin, Heart, Star, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, MapPin, Heart, Star, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { getListingById, getListingByIdAsync } from '../data/listings';
 import { parseListingExtras, TRAVERION_STANDARD_CANCELLATION_POLICY } from '../types/listingExtras';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
@@ -1576,10 +1576,11 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
             </p>
             <button
               type="button"
-              className="tv-btn-ghost min-h-11 text-white hover:bg-white/10"
+              className="tv-gallery-lightbox__close"
+              aria-label="Close"
               onClick={closeGalleryLightbox}
             >
-              Close
+              <X className="h-6 w-6" strokeWidth={2.25} aria-hidden />
             </button>
           </div>
           <div className="relative flex flex-1 items-center justify-center px-4 pb-6">

@@ -1,4 +1,4 @@
-import { ArrowRight, Search, ShieldCheck, Compass, X } from 'lucide-react';
+import { ArrowRight, CalendarCheck, Compass, MapPin, Search, ShieldCheck, X } from 'lucide-react';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { getAllListings } from '../data/listings';
 import { filterCatalogByFamily, listingIsFamily } from '../lib/inventory';
@@ -136,7 +136,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
     return ranked.slice(0, MAX_RESULTS_HOME);
   }, [allListings, interestSignals]);
   const interestPlace = useMemo(() => topDestinationInterestLabel(interestSignals), [interestSignals]);
-  const toursSectionTitle = interestPlace ? `Because you explored ${interestPlace}` : 'What can I book?';
+  const toursSectionTitle = interestPlace ? `Because you explored ${interestPlace}` : 'Find your next extraordinary experience';
   const toursSectionEyebrow = interestPlace ? 'For you' : 'Experiences';
   const displayedStayListings = useMemo(() => {
     const ranked = sortListingsByInterest(stayListings, (item) =>
@@ -151,7 +151,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
     );
     return ranked.slice(0, 8);
   }, [stayListings, interestSignals]);
-  const staysSectionTitle = interestPlace ? `More stays near ${interestPlace}` : 'Where to stay';
+  const staysSectionTitle = interestPlace ? `More stays near ${interestPlace}` : 'Places to stay';
   const staysSectionEyebrow = interestPlace ? 'For you' : 'Stays';
   const staysSectionSubtitle = interestPlace
     ? 'Ranked from your recent browsing on this device — still only published stays.'
@@ -353,7 +353,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
 
   return (
     <div className="min-h-screen bg-paper">
-      <section className="relative text-white min-h-[min(68dvh,34rem)] flex flex-col justify-end overflow-hidden tv-page bg-ink">
+      <section className="relative text-white min-h-[min(56dvh,30rem)] flex flex-col justify-end overflow-hidden tv-page bg-ink">
         <div className="page-hero-media" aria-hidden>
           <img src={HERO_IMG.vacation} alt="" fetchPriority="high" decoding="async" width={1600} height={1067} />
         </div>
@@ -365,14 +365,12 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         />
         <div className="tv-rise relative z-10 w-full tv-shell px-4 sm:px-6 lg:px-8 pb-10 sm:pb-14 page-hero-content">
           {/* Phase 1801: brand dominates first viewport — headline must not overpower TRAVERION. */}
-          <p className="font-display text-4xl sm:text-5xl tracking-[0.04em] text-white mb-3 leading-none">
-            TRAVERION
-          </p>
-          <h1 className="page-hero-title font-display text-xl sm:text-2xl lg:text-[1.75rem] tracking-tight max-w-xl leading-snug mb-3 sm:mb-4 font-medium">
-            Discover experiences worth traveling for.
+          <p className="mb-2 text-xs font-semibold tracking-[0.18em] text-white/80">TRAVERION</p>
+          <h1 className="page-hero-title mb-3 max-w-2xl font-sans text-3xl font-bold leading-[1.08] tracking-tight sm:text-4xl lg:text-[2.65rem]">
+            Discover remarkable experiences and stays.
           </h1>
-          <p className="page-hero-subtitle text-sm sm:text-base mb-7 max-w-md font-normal text-white/90 leading-relaxed">
-            Book tours and stays directly with the people who run them.
+          <p className="page-hero-subtitle mb-6 max-w-md text-sm font-normal leading-relaxed text-white/90 sm:text-base">
+            Book tours and nights directly with the people who run them.
           </p>
 
           {/* Mobile: compact trigger → dedicated search sheet */}
@@ -493,7 +491,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         <div className="tv-content">
           <div className="mb-5">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Destinations</p>
-            <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Where can I go?</h2>
+            <h2 className="font-sans text-2xl font-bold tracking-tight text-[#111827] sm:text-3xl">Explore somewhere unforgettable</h2>
             <p className="mt-2 text-sm text-ink-muted max-w-lg">
               Places with published tours and stays on Traverion.
             </p>
@@ -591,7 +589,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
           <div className="flex items-end justify-between gap-3 mb-5">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">{toursSectionEyebrow}</p>
-              <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">{toursSectionTitle}</h2>
+              <h2 className="font-sans text-2xl font-bold tracking-tight text-[#111827] sm:text-3xl">{toursSectionTitle}</h2>
               <p className="mt-2 text-sm text-ink-muted">
                 {interestPlace
                   ? 'Ranked from your recent browsing on this device — still only published tours.'
@@ -657,7 +655,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                   <div className="absolute bottom-5 left-5 right-5 text-white">
                     <p className="text-[11px] uppercase tracking-[0.16em] text-white/70 mb-1.5">Featured tour</p>
                     <p className="text-sm text-white/80">{featuredListing.city || featuredListing.destination}</p>
-                    <p className="font-display text-2xl sm:text-3xl mt-0.5 break-words [overflow-wrap:anywhere]">
+                    <p className="mt-0.5 break-words font-sans text-2xl font-bold leading-tight [overflow-wrap:anywhere] sm:text-3xl">
                       {featuredListing.title}
                     </p>
                     {(() => {
@@ -666,17 +664,30 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                           <p className="mt-2 text-sm sm:text-base font-medium text-white/80">Checking offers…</p>
                         );
                       }
-                      const { price, qualifier, summary } = getDisplayPriceForTour(
+                      const { price, originalPrice, label, qualifier, summary } = getDisplayPriceForTour(
                         featuredListing,
                         discountsForDisplayedCatalog ?? new Map()
                       );
                       const currency = normalizeCurrency(featuredListing.price?.currency);
+                      const discounted = Boolean(label && price < originalPrice);
                       return (
-                        <p className="mt-2 text-sm sm:text-base font-semibold tabular-nums text-white">
-                          From {formatMoney(Number(price), currency)}
+                        <p className="mt-2 text-sm font-semibold tabular-nums text-white sm:text-base">
+                          {discounted ? (
+                            <span className="mr-2 text-sm font-medium text-white/70 line-through">
+                              {formatMoney(originalPrice, currency)}
+                            </span>
+                          ) : null}
+                          <span className={discounted ? 'text-[#F6B4B4]' : undefined}>
+                            From {formatMoney(Number(price), currency)}
+                          </span>
                           {qualifier ? ` per ${qualifier}` : ' per person'}
+                          {discounted && label ? (
+                            <span className="ml-2 rounded bg-[#FDECEC] px-1.5 py-0.5 text-xs font-semibold text-[#B42318]">
+                              {label}
+                            </span>
+                          ) : null}
                           {summary ? (
-                            <span className="block mt-0.5 font-medium text-white/80">{summary}</span>
+                            <span className="mt-0.5 block font-medium text-white/80">{summary}</span>
                           ) : null}
                         </p>
                       );
@@ -722,7 +733,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">
                 {staysSectionEyebrow}
               </p>
-              <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">{staysSectionTitle}</h2>
+              <h2 className="font-sans text-2xl font-bold tracking-tight text-[#111827] sm:text-3xl">{staysSectionTitle}</h2>
               <p className="mt-2 text-sm text-ink-muted">{staysSectionSubtitle}</p>
             </div>
             {!catalogLoading && stayListings.length > 0 ? (
@@ -788,34 +799,47 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
 
       <section className="tv-section tv-section-muted tv-section-divider">
         <div className="tv-content">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Trust</p>
-          <h2 className="font-display text-3xl sm:text-4xl text-ink tracking-tight mb-2">Why book on Traverion</h2>
-          <p className="text-sm text-ink-muted mb-6 max-w-xl leading-relaxed">
-            Book local operators with clear trip details — tours and stays in one place you can manage.
+          <h2 className="mb-2 font-sans text-2xl font-bold tracking-tight text-[#111827] sm:text-3xl">Why book with Traverion</h2>
+          <p className="mb-6 max-w-xl text-sm leading-relaxed text-ink-muted">
+            Experiences and stays in one place, with the price and details shown before you pay.
           </p>
-          <div className="grid sm:grid-cols-3 gap-4 sm:gap-5">
-            <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 ring-1 ring-black/[0.06]">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">01</p>
-              <p className="font-semibold text-ink mb-1.5">Independent operators</p>
-              <p className="text-sm leading-relaxed text-ink-muted">
-                You book the people who run the day — local guides and hosts, not anonymous packages.
-              </p>
-            </div>
-            <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 ring-1 ring-black/[0.06]">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">02</p>
-              <p className="font-semibold text-ink mb-1.5">Clear booking</p>
-              <p className="text-sm leading-relaxed text-ink-muted">
-                Pay to confirm your dates. Trips keeps your booking record and upcoming travel in one place.
-              </p>
-            </div>
-            <div className="rounded-2xl bg-paper-raised p-5 sm:p-6 ring-1 ring-black/[0.06]">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">03</p>
-              <p className="font-semibold text-ink mb-1.5">Experiences and stays</p>
-              <p className="text-sm leading-relaxed text-ink-muted">
-                Departures and nights stay separate — each product keeps its own calendar, options, and rules.
-              </p>
-            </div>
-          </div>
+          <ul className="grid gap-6 border-t border-[#E6EAF0] pt-6 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              {
+                icon: Compass,
+                title: 'Discover more',
+                body: 'Explore experiences and stays from independent operators in one place.',
+              },
+              {
+                icon: ShieldCheck,
+                title: 'Book with confidence',
+                body: 'See the option, the date, and the price before you continue to checkout.',
+              },
+              {
+                icon: MapPin,
+                title: 'Experiences worth remembering',
+                body: 'Book distinctive activities from the operators who actually run them.',
+              },
+              {
+                icon: CalendarCheck,
+                title: 'Your journey, organized',
+                body: 'Upcoming and past bookings stay available in Trips.',
+              },
+            ].map((item) => {
+              const Icon = item.icon;
+              return (
+              <li key={item.title} className="flex gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F5F6F8] text-[#0B397E]">
+                  <Icon className="h-4 w-4" aria-hidden />
+                </span>
+                <div>
+                  <p className="font-semibold text-[#111827]">{item.title}</p>
+                  <p className="mt-1 text-sm leading-relaxed text-ink-muted">{item.body}</p>
+                </div>
+              </li>
+              );
+            })}
+          </ul>
           <a href={supplierPortalLandingHref()} className="tv-btn-ghost mt-6 -ml-2 inline-flex">
             For operators
           </a>

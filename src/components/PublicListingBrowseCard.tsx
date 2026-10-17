@@ -195,7 +195,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
           </div>
           {hasDiscount && label ? (
             <div className="absolute bottom-2.5 left-2.5">
-              <span className="rounded-md bg-finland px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-white">
+              <span className="rounded-md bg-[#FDECEC] px-2 py-0.5 text-[11px] font-semibold text-[#B42318]">
                 {label}
               </span>
             </div>
@@ -205,7 +205,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
           <p className="truncate text-[12px] sm:text-[13px] text-ink-muted">{locationLine}</p>
           <h3
             title={tour.title}
-            className={`mt-0.5 line-clamp-2 break-words leading-snug tracking-tight text-ink [overflow-wrap:anywhere] font-display font-semibold ${
+            className={`mt-0.5 line-clamp-2 break-words font-sans font-bold leading-snug tracking-tight text-[#111827] [overflow-wrap:anywhere] ${
               size === 'compact' ? 'text-[15px] sm:text-[16px]' : 'text-[15px] sm:text-base'
             }`}
           >
@@ -248,7 +248,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
                     {formatMoney(originalPrice, currency)}
                   </span>
                 ) : null}
-                <span className={`font-bold tracking-tight ${hasDiscount && !isStay ? 'text-finland' : 'text-ink'}`}>
+                <span className={`font-bold tracking-tight ${hasDiscount && !isStay ? 'text-[#B42318]' : 'text-[#111827]'}`}>
                   {formatMoney(isStay ? stayNightly : fromAmount, currency)}
                 </span>
                 <span className="text-[13px] font-medium text-ink-muted">{unitLabel}</span>
