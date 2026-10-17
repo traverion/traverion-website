@@ -35,7 +35,7 @@ type Props = {
   showOperator?: boolean;
 };
 
-const sectionClass = 'border-t border-black/[0.06] pt-6';
+const sectionClass = 'mt-6 border-t border-[#E8EBF0] pt-6';
 const headingClass = 'mb-3 text-xl font-bold tracking-tight text-[#111827]';
 
 function Fact({ label, children }: { label: string; children: string }) {
@@ -142,13 +142,13 @@ export default function TourListingSections({
   );
 
   return (
-    <div className="space-y-8">
+    <div>
       {highlights.length > 0 ? (
         <section className={sectionClass}>
           <h2 className={headingClass}>Highlights</h2>
           <ul className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
             {highlights.map((highlight) => (
-              <li key={highlight} className="flex items-start gap-2.5 text-[15px] text-ink">
+              <li key={highlight} className="flex items-start gap-2.5 text-[15px] font-medium text-[#111827]">
                 <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#EAF2FF] text-[#0758CB]">
                   <Check className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
                 </span>
@@ -221,7 +221,7 @@ export default function TourListingSections({
                 <h2 className={headingClass}>Included</h2>
                 <ul className="space-y-2">
                   {includes.map((item) => (
-                    <li key={item} className="flex items-start gap-2.5 text-[15px] text-ink">
+                    <li key={item} className="flex items-start gap-2.5 text-[15px] font-medium text-[#111827]">
                       <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#0758CB]" strokeWidth={2.25} aria-hidden />
                       <span className="break-words [overflow-wrap:anywhere]">{item}</span>
                     </li>
@@ -293,7 +293,7 @@ export default function TourListingSections({
       {showImportant ? (
         <section className={sectionClass}>
           <h2 className={headingClass}>Good to know</h2>
-          <dl className="max-w-2xl divide-y divide-black/[0.06] border-y border-black/[0.06]">
+          <dl className="max-w-2xl divide-y divide-[#E8EBF0] border-y border-[#E8EBF0]">
             {tour.difficulty ? <Fact label="Difficulty">{tour.difficulty}</Fact> : null}
             {extras?.knowBeforeYouGo?.trim() ? (
               <Fact label="Before you go">{extras.knowBeforeYouGo.trim()}</Fact>

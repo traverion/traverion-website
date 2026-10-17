@@ -154,12 +154,14 @@ function quotedOfferPrice(quote: BookingQuoteOk) {
     return formatMoney(quote.totalAmount, quote.currency);
   }
   return (
-    <span className="inline-flex max-w-full flex-wrap items-baseline gap-x-2 gap-y-0.5">
+    <span className="inline-flex max-w-full flex-wrap items-baseline gap-x-2 gap-y-1">
       <span className="text-sm font-medium text-ink-muted line-through tabular-nums">
         {formatMoney(quote.originalTotalAmount, quote.currency)}
       </span>
-      <span className="tabular-nums">{formatMoney(quote.totalAmount, quote.currency)}</span>
-      <span className="text-sm font-semibold text-finland">{quote.discountLabel}</span>
+      <span className="font-bold tabular-nums text-[#B42318]">{formatMoney(quote.totalAmount, quote.currency)}</span>
+      <span className="rounded bg-[#FDECEC] px-1.5 py-0.5 text-xs font-semibold text-[#B42318]">
+        {quote.discountLabel}
+      </span>
     </span>
   );
 }
@@ -1683,7 +1685,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
   return (
     <div className="min-h-screen bg-paper tv-page pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-0">
       <div className="tv-shell mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6">
-        <div className="flex items-center justify-between gap-3 mb-4 sm:mb-5">
+        <div className="mb-3 flex items-center justify-between gap-3">
           <button
             type="button"
             onClick={onBack}
@@ -1738,49 +1740,48 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
           </div>
         </div>
 
-        <header className="mb-5 sm:mb-6 max-w-3xl">
-          <p className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-muted">
+        <header className="mb-3 max-w-3xl sm:mb-4">
+          <h1 className="font-sans text-[1.7rem] font-bold leading-[1.12] tracking-tight text-[#111827] break-words [overflow-wrap:anywhere] sm:text-[2rem] lg:text-[2.2rem]">
+            {tour.title}
+          </h1>
+          {review.score ? (
+            <button
+              type="button"
+              className="mt-1.5 inline-flex items-center gap-1.5 rounded-md text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0758CB]"
+              onClick={() => {
+                document.getElementById('tour-reviews')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+            >
+              <Star size={15} className="shrink-0 fill-[#C9A227] text-[#C9A227]" aria-hidden />
+              <span className="font-bold tabular-nums text-[#111827]">{review.score}</span>
+              <span className="font-medium text-ink-muted underline decoration-[#E8EBF0] underline-offset-2">
+                {review.count} {review.count === 1 ? 'review' : 'reviews'}
+              </span>
+            </button>
+          ) : null}
+          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-ink-muted">
             <span className="font-semibold text-[#0B397E]">{tourKindLabel(tour.experienceKind)}</span>
             <span aria-hidden>·</span>
-            <span className="inline-flex items-center gap-1.5">
-              <MapPin size={14} className="shrink-0 text-[#0B397E]" aria-hidden />
+            <span className="inline-flex items-center gap-1">
+              <MapPin size={13} className="shrink-0 text-[#0B397E]" aria-hidden />
               {tour.destination}
             </span>
-            {review.score ? (
-              <>
-                <span className="text-ink-faint" aria-hidden>
-                  ·
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <Star size={14} className="text-finland fill-finland shrink-0" aria-hidden />
-                  <strong className="text-ink tabular-nums">{review.score}</strong>
-                  <span>
-                    ({review.count} {review.count === 1 ? 'review' : 'reviews'})
-                  </span>
-                </span>
-              </>
-            ) : null}
             {supplierLegal?.operatorName ? (
               <>
-                <span className="text-ink-faint" aria-hidden>
-                  ·
-                </span>
+                <span aria-hidden>·</span>
                 <span>Hosted by {supplierLegal.operatorName}</span>
               </>
             ) : null}
           </p>
-          <h1 className="font-sans text-[1.85rem] font-bold leading-[1.15] tracking-tight text-[#111827] break-words [overflow-wrap:anywhere] sm:text-[2.15rem] lg:text-[2.4rem]">
-            {tour.title}
-          </h1>
           {tour.subtitle?.trim() ? (
-            <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-ink-muted line-clamp-3 break-words [overflow-wrap:anywhere] sm:text-base">
+            <p className="mt-1.5 max-w-2xl text-sm leading-snug text-ink-muted line-clamp-2 break-words [overflow-wrap:anywhere]">
               {tour.subtitle.trim()}
             </p>
           ) : null}
         </header>
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1.85fr)_minmax(17.5rem,22rem)] lg:gap-8">
-          <div className="min-w-0 space-y-8">
+          <div className="min-w-0">
         <div>
           {hasGallery ? (
             <div className={`grid grid-cols-1 gap-2 ${images.length > 1 ? 'lg:grid-cols-4 lg:grid-rows-2 lg:h-[22rem] lg:gap-2.5' : ''}`}>
@@ -1862,9 +1863,11 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
           ) : null}
         </div>
 
-        <TourQuickFacts tour={tour} option={selectedOptionApplied} />
+        <div className="mt-5">
+          <TourQuickFacts tour={tour} option={selectedOptionApplied} />
+        </div>
               {canBook && bookingVariantsOpen && bookingDate.trim() ? (
-                <div ref={optionsSectionRef} className="tv-availability-reveal">
+                <div ref={optionsSectionRef} className="tv-availability-reveal mt-6 border-t border-[#E8EBF0] pt-6">
                   <TourAvailableOptions
                     date={bookingDate.trim()}
                     kind={optionsForSelectedDate.kind}
@@ -1883,6 +1886,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                         : `${guests} ${guests === 1 ? 'guest' : 'guests'}`
                     }
                     currency={normalizeCurrency(tour.price?.currency)}
+                    discounts={discountsByListing?.get(tour.id) ?? []}
                     hideSelectedCatalogPrice={Boolean(
                       selectedBookingVariant && panelQuote && !panelQuote.ok
                     )}
@@ -1902,7 +1906,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                   />
                 </div>
               ) : canBook ? (
-                <p className="text-sm text-ink-muted">
+                <p className="mt-6 border-t border-[#E8EBF0] pt-6 text-sm text-ink-muted">
                   {bookingDate.trim()
                     ? 'Check availability to see times and options for this date.'
                     : 'Pick a date to see times and options for this tour.'}
@@ -1991,13 +1995,15 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                               {formatMoney(originalPrice, currency)}
                             </p>
                           ) : null}
-                          <p className="text-[1.85rem] font-bold leading-none tracking-tight text-[#111827] tabular-nums">
+                          <p className={`text-[1.85rem] font-bold leading-none tracking-tight tabular-nums ${hasDiscount ? 'text-[#B42318]' : 'text-[#111827]'}`}>
                             {formatMoney(Number(price), currency)}
                           </p>
-                          <p className="mt-1.5 text-sm text-ink-muted">{unit}</p>
-                          {hasDiscount && label ? (
-                            <p className="mt-1 text-sm font-semibold text-[#0F766E]">{label}</p>
-                          ) : null}
+                          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                            <p className="text-sm text-ink-muted">{unit}</p>
+                            {hasDiscount && label ? (
+                              <span className="rounded bg-[#FDECEC] px-1.5 py-0.5 text-xs font-semibold text-[#B42318]">{label}</span>
+                            ) : null}
+                          </div>
                         </div>
                       );
                     })()}
@@ -2021,7 +2027,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                         todayIso={experienceTodayIso}
                       />
                       <div id="tour-participant-field" ref={participantsRef} className="relative">
-                        <p className="mb-1.5 text-sm font-medium tracking-tight text-ink">Participants</p>
+                        <p className="mb-1.5 text-sm font-semibold tracking-tight text-[#111827]">Participants</p>
                         <button
                           type="button"
                           className="tv-checkout-input tv-checkout-input--plain relative flex w-full items-center justify-between gap-3 pr-3 text-left"
@@ -2143,23 +2149,21 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                         </p>
                       ) : null}
                       {selectedBookingVariant ? (
-                        <div className="space-y-3 border-t border-black/[0.06] pt-3">
-                          <div className="rounded-lg bg-finland/[0.06] px-3 py-2 ring-1 ring-finland/15">
-                            <div className="flex items-start justify-between gap-3">
-                              <p className="text-sm font-semibold text-ink">
-                                {selectedBookingVariant.label}
-                                {selectedDepartureTime ? (
-                                  <span className="font-medium text-ink-muted"> · {selectedDepartureTime}</span>
-                                ) : null}
-                              </p>
-                              <button
-                                type="button"
-                                className="shrink-0 text-xs font-semibold text-[#073b83]"
-                                onClick={scrollToOptionsSection}
-                              >
-                                Change
-                              </button>
-                            </div>
+                        <div className="space-y-2.5 border-t border-[#E8EBF0] pt-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <p className="text-sm font-semibold leading-snug text-[#111827]">
+                              {selectedBookingVariant.label}
+                              {selectedDepartureTime ? (
+                                <span className="font-medium text-ink-muted"> · {selectedDepartureTime}</span>
+                              ) : null}
+                            </p>
+                            <button
+                              type="button"
+                              className="shrink-0 text-sm font-semibold text-[#0758CB]"
+                              onClick={scrollToOptionsSection}
+                            >
+                              Change
+                            </button>
                           </div>
                           {departureTimes.length > 1 && !selectedDepartureTime ? (
                             <div id="tour-departure-times">
@@ -2406,7 +2410,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
           </div>
         </div>
 
-      <section className="py-8 bg-paper border-t border-black/[0.06]">
+      <section id="tour-reviews" className="scroll-mt-28 border-t border-[#E8EBF0] bg-paper pt-6">
         <div className="tv-shell mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
             <h2 className="text-xl font-bold tracking-tight text-[#111827]">Reviews</h2>
@@ -2414,53 +2418,71 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
               <button
                 type="button"
                 onClick={() => setReviewsModalOpen(true)}
-                className="text-sm font-semibold text-finland hover:underline"
+                className="text-sm font-semibold text-[#0758CB] hover:underline"
               >
                 See all reviews
               </button>
             ) : null}
           </div>
           {reviewsLoadError ? (
-            <div className="mb-6 max-w-xl">
-              <p className="text-ink-muted leading-relaxed">{reviewsLoadError}</p>
+            <div className="mb-5 max-w-xl rounded-xl border border-[#E8EBF0] px-4 py-3">
+              <p className="text-sm text-ink-muted leading-relaxed">{reviewsLoadError}</p>
               <button
                 type="button"
-                className="mt-2 text-sm font-semibold text-finland hover:underline"
+                className="mt-2 text-sm font-semibold text-[#0758CB] hover:underline"
                 onClick={() => loadReviews()}
               >
                 Try again
               </button>
             </div>
           ) : reviews.length === 0 && !showReviewForm ? (
-            <p className="text-ink-muted mb-6 max-w-xl leading-relaxed">
+            <p className="mb-5 max-w-xl rounded-xl border border-[#E8EBF0] px-4 py-3 text-sm leading-relaxed text-ink-muted">
               {LISTING_REVIEWS_EMPTY_COPY}
             </p>
-          ) : null}
-          <div className="space-y-4 mb-5">
-            {reviews.slice(0, 3).map((r) => (
-              <div key={r.id} className="border-b border-black/[0.06] pb-6 last:border-0">
-                <div className="flex items-center gap-3 mb-2">
-                  <span className="font-medium text-ink">{r.guest_name}</span>
-                  {r.verified && (
-                    <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">Verified</span>
-                  )}
-                  <span className="text-sm text-ink-muted">{new Date(r.created_at).toLocaleDateString()}</span>
-                </div>
-                {/* Phase 1620: announce rating to assistive tech (supplier Reviews parity). */}
-                <div className="flex gap-1 mb-1" aria-label={`${r.rating} out of 5 stars`}>
+          ) : review.score ? (
+            <div className="mb-4 flex items-center gap-3">
+              <p className="text-4xl font-bold tabular-nums leading-none tracking-tight text-[#111827]">{review.score}</p>
+              <div>
+                <div className="flex gap-0.5" aria-hidden>
                   {[1, 2, 3, 4, 5].map((i) => (
                     <Star
                       key={i}
                       size={16}
+                      className={i <= Math.round(Number(review.score)) ? 'fill-[#C9A227] text-[#C9A227]' : 'text-[#E8EBF0]'}
+                    />
+                  ))}
+                </div>
+                <p className="mt-1 text-sm text-ink-muted">
+                  {review.count} {review.count === 1 ? 'review' : 'reviews'}
+                </p>
+              </div>
+            </div>
+          ) : null}
+          <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {reviews.slice(0, 3).map((r) => (
+              <article key={r.id} className="rounded-xl border border-[#E8EBF0] bg-white p-3.5">
+                <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className="font-semibold text-[#111827]">{r.guest_name}</span>
+                  {r.verified && (
+                    <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">Verified</span>
+                  )}
+                  <span className="text-xs text-ink-muted">{new Date(r.created_at).toLocaleDateString()}</span>
+                </div>
+                {/* Phase 1620: announce rating to assistive tech (supplier Reviews parity). */}
+                <div className="mb-1.5 flex gap-0.5" aria-label={`${r.rating} out of 5 stars`}>
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <Star
+                      key={i}
+                      size={14}
                       aria-hidden
-                      className={i <= r.rating ? 'text-finland fill-finland' : 'text-ink-faint'}
+                      className={i <= r.rating ? 'fill-[#C9A227] text-[#C9A227]' : 'text-[#E8EBF0]'}
                     />
                   ))}
                 </div>
                 {r.title && (
-                  <p className="font-medium text-ink mb-1 break-words [overflow-wrap:anywhere]">{r.title}</p>
+                  <p className="mb-1 text-sm font-semibold text-[#111827] break-words [overflow-wrap:anywhere]">{r.title}</p>
                 )}
-                <p className="text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{r.comment}</p>
+                <p className="line-clamp-4 text-sm leading-relaxed text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{r.comment}</p>
                 {reviewReplies[r.id]?.reply_text ? (
                   <div className="mt-3 rounded-xl bg-finland/[0.04] px-3.5 py-3 ring-1 ring-finland/10">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-finland mb-1">
@@ -2469,7 +2491,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                     <p className="text-sm text-ink leading-relaxed break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{reviewReplies[r.id]!.reply_text}</p>
                   </div>
                 ) : null}
-              </div>
+              </article>
             ))}
           </div>
 

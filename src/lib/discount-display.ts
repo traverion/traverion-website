@@ -46,6 +46,23 @@ function catalogOfferAnchorDate(tour: TourPackage, at: Date): Date {
   return new Date(`${day}T12:00:00`);
 }
 
+/**
+ * Lowest genuine unit after offers that apply to this option on the departure day.
+ * Returns no label when nothing reduces the price.
+ */
+export function discountedCatalogUnit(
+  base: number,
+  discounts: ListingDiscount[],
+  optionId: string,
+  dayIso: string,
+  currency: string
+): { price: number; originalPrice: number; label?: string } {
+  const applicable = discountsApplicableToOption(discounts, optionId, dayIso, dayIso);
+  const { price, label } = bestDiscountedPrice(base, applicable, currency);
+  const reduced = price < base - 0.004;
+  return { price: reduced ? price : base, originalPrice: base, label: reduced ? label : undefined };
+}
+
 function bestDiscountedPrice(
   base: number,
   applicable: ListingDiscount[],

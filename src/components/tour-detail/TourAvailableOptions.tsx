@@ -1,5 +1,8 @@
 import { useState } from 'react';
-import { Check } from 'lucide-react';
+import { Check, Clock, MapPin, Users } from 'lucide-react';
+import type { ListingDiscount } from '../../data/supabase-discounts';
+import { discountedCatalogUnit } from '../../lib/discount-display';
+import { activePriceCategories } from '../../lib/price-categories';
 import type { TourBookingVariant } from '../../lib/booking-flow';
 import {
   formatTourAvailabilityHeading,
@@ -19,6 +22,8 @@ type Props = {
   selectedId: string | null;
   guestsLabel: string;
   currency: string;
+  /** Offers that may reduce this option's catalog unit. Empty until discounts have loaded. */
+  discounts?: ListingDiscount[];
   /**
    * Phase 1560: selected option + failed panel quote — hide catalog price on that row
    * (PriceHero 1550 / sticky 1547 parity).
@@ -37,6 +42,7 @@ export default function TourAvailableOptions({
   selectedId,
   guestsLabel,
   currency,
+  discounts = [],
   hideSelectedCatalogPrice = false,
   onChoose,
   onChooseTime,
@@ -89,6 +95,7 @@ export default function TourAvailableOptions({
             variant={available[0]}
             selected={selectedId === available[0].id}
             currency={currency}
+            discounts={discounts}
             hideCatalogPrice={hideSelectedCatalogPrice && selectedId === available[0].id}
             compact
             onChoose={onChoose}
@@ -106,6 +113,7 @@ export default function TourAvailableOptions({
                 variant={variant}
                 selected={selectedId === variant.id}
                 currency={currency}
+                discounts={discounts}
                 hideCatalogPrice={hideSelectedCatalogPrice && selectedId === variant.id}
                 onChoose={onChoose}
                 onChooseTime={onChooseTime}
@@ -119,10 +127,39 @@ export default function TourAvailableOptions({
   );
 }
 
+function catalogUnit(variant: TourBookingVariant): { amount: number; basis: string } | null {
+  const opt = variant.listingOption;
+  if (!opt) {
+    return variant.pricePerPerson > 0
+      ? { amount: variant.pricePerPerson, basis: 'per person' }
+      : null;
+  }
+  if (optionUsesPrivateFlatPrice(opt)) {
+    const flat = opt.privateGroupPriceUsd ?? opt.priceUsd;
+    return flat > 0 ? { amount: flat, basis: 'for your group' } : null;
+  }
+  if (optionUsesAgePricing(opt)) {
+    const priced = activePriceCategories(opt)
+      .map((category) => category.priceUsd)
+      .filter((amount) => amount > 0);
+    const from = priced.length ? Math.min(...priced) : 0;
+    return from > 0 ? { amount: from, basis: 'from' } : null;
+  }
+  return opt.priceUsd > 0 ? { amount: opt.priceUsd, basis: 'per person' } : null;
+}
+
+function metaIcon(part: string) {
+  if (/guest|private/i.test(part)) return Users;
+  if (/hour|min|day/i.test(part)) return Clock;
+  if (/pickup|meet/i.test(part)) return MapPin;
+  return null;
+}
+
 function OptionRow({
   variant,
   selected,
   currency,
+  discounts,
   hideCatalogPrice,
   date,
   onChoose,
@@ -131,6 +168,7 @@ function OptionRow({
   variant: TourBookingVariant;
   selected: boolean;
   currency: string;
+  discounts: ListingDiscount[];
   hideCatalogPrice?: boolean;
   compact?: boolean;
   date: string;
@@ -140,7 +178,14 @@ function OptionRow({
   const opt = variant.listingOption;
   const meta = optionMetaParts(variant).filter((part) => !part.startsWith('Starts '));
   const detail = opt?.optionInfo?.trim() || '';
+  const detailLong = detail.length > 140;
+  const [detailOpen, setDetailOpen] = useState(false);
   const [pricesOpen, setPricesOpen] = useState(false);
+  const unit = catalogUnit(variant);
+  const offer =
+    unit && opt
+      ? discountedCatalogUnit(unit.amount, discounts, opt.id, date, currency)
+      : null;
   const times = opt
     ? departureTimesOnDate(opt, date).filter((time) => time && time !== FLEXIBLE_DEPARTURE_HM)
     : [];
@@ -154,39 +199,64 @@ function OptionRow({
           }`,
           facts: [] as { label: string; ages?: string; amountLabel: string }[],
         };
+  const discounted = Boolean(offer?.label);
+  const priceLabel = hideCatalogPrice
+    ? null
+    : offer
+      ? unit?.basis === 'from'
+        ? `From ${formatMoney(offer.price, currency)}`
+        : formatMoney(offer.price, currency)
+      : priced?.lead ?? null;
   return (
     <article
-      className={`rounded-2xl border p-4 transition-[background-color,border-color] duration-200 ${
-        selected ? 'border-[#0758CB] bg-[#EAF2FF]' : 'border-black/[0.08] bg-white hover:border-black/15'
+      className={`flex flex-col rounded-2xl border px-4 py-3.5 transition-[background-color,border-color] duration-200 ${
+        selected ? 'border-[#0758CB] bg-[#EAF2FF]' : 'border-[#E8EBF0] bg-white hover:border-black/15'
       }`}
     >
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h3 className="text-base font-bold leading-snug text-[#111827]">{variant.label}</h3>
-          {detail ? <p className="mt-1 text-sm leading-snug text-ink-muted">{detail}</p> : null}
-        </div>
-        <p className="shrink-0 text-right text-lg font-bold tabular-nums leading-tight text-[#111827]">
-          {hideCatalogPrice ? 'Price unavailable' : priced?.lead}
+      <h3 className="text-base font-bold leading-snug text-[#111827]">{variant.label}</h3>
+      {detail ? (
+        <p className={`mt-1 text-sm leading-snug text-ink-muted ${detailLong && !detailOpen ? 'line-clamp-2' : ''}`}>
+          {detail}
         </p>
-      </div>
-      {meta.length > 0 ? (
-        <ul className="mt-3 flex flex-wrap gap-1.5">
-          {meta.map((part) => (
-            <li key={part} className="rounded-md bg-[#f4f5f7] px-2 py-1 text-xs text-ink">
-              {part}
+      ) : null}
+      {detailLong ? (
+        <button
+          type="button"
+          className="mt-1 self-start text-sm font-semibold text-[#0758CB]"
+          aria-expanded={detailOpen}
+          onClick={() => setDetailOpen((open) => !open)}
+        >
+          {detailOpen ? 'Show less' : 'Show more'}
+        </button>
+      ) : null}
+      {meta.length > 0 || times.length === 1 ? (
+        <ul className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1.5">
+          {meta.map((part) => {
+            const Icon = metaIcon(part);
+            return (
+              <li key={part} className="inline-flex min-w-0 items-center gap-1.5 text-[13px] font-medium text-[#111827]">
+                {Icon ? <Icon className="h-3.5 w-3.5 shrink-0 text-[#0B397E]" aria-hidden /> : null}
+                <span className="break-words">{part}</span>
+              </li>
+            );
+          })}
+          {times.length === 1 ? (
+            <li className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#111827]">
+              <Clock className="h-3.5 w-3.5 shrink-0 text-[#0B397E]" aria-hidden />
+              Departs {times[0]}
             </li>
-          ))}
+          ) : null}
         </ul>
       ) : null}
       {times.length > 1 ? (
-        <div className="mt-3">
-          <p className="mb-1.5 text-xs font-medium text-ink-muted">Departure</p>
+        <div className="mt-2.5">
+          <p className="mb-1.5 text-xs font-semibold text-ink-muted">Departure</p>
           <div className="flex flex-wrap gap-2" role="group" aria-label={`Departure times for ${variant.label}`}>
             {times.map((time) => (
               <button
                 key={time}
                 type="button"
-                className="min-h-9 rounded-lg border border-black/10 px-3 text-sm font-semibold text-ink transition-colors duration-200 hover:border-[#073b83] hover:text-[#073b83]"
+                className="min-h-9 rounded-lg border border-[#E8EBF0] px-3 text-sm font-semibold text-ink transition-colors duration-200 hover:border-[#0758CB] hover:text-[#0758CB]"
                 onClick={() => (onChooseTime ? onChooseTime(variant, time) : onChoose(variant))}
               >
                 {time}
@@ -194,17 +264,12 @@ function OptionRow({
             ))}
           </div>
         </div>
-      ) : times.length === 1 ? (
-        <p className="mt-3 text-sm text-ink">
-          <span className="text-ink-muted">Departs </span>
-          <span className="font-semibold">{times[0]}</span>
-        </p>
       ) : null}
       {priced && priced.facts.length > 0 ? (
-        <div className="mt-3">
+        <div className="mt-2">
           <button
             type="button"
-            className="text-sm font-semibold text-[#073b83]"
+            className="text-sm font-semibold text-[#0758CB]"
             aria-expanded={pricesOpen}
             onClick={() => setPricesOpen((open) => !open)}
           >
@@ -214,31 +279,59 @@ function OptionRow({
             <dl className="mt-2 space-y-1">
               {priced.facts.map((fact) => (
                 <div key={`${fact.label}-${fact.amountLabel}`} className="flex items-baseline justify-between gap-3 text-sm">
-                  <dt className="text-ink">
+                  <dt className="font-medium text-ink">
                     {fact.label}
-                    {fact.ages ? <span className="text-ink-muted"> · {fact.ages}</span> : null}
+                    {fact.ages ? <span className="font-normal text-ink-muted"> · {fact.ages}</span> : null}
                   </dt>
-                  <dd className="shrink-0 font-medium tabular-nums text-ink">{fact.amountLabel}</dd>
+                  <dd className="shrink-0 font-semibold tabular-nums text-ink">{fact.amountLabel}</dd>
                 </div>
               ))}
             </dl>
           ) : null}
         </div>
       ) : null}
-      <button
-        type="button"
-        data-tour-option-cta="choose"
-        onClick={() => onChoose(variant)}
-        aria-pressed={selected}
-        className={`mt-4 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg px-4 text-sm font-semibold transition-colors duration-200 ${
-          selected
-            ? 'bg-[#0758CB] text-white'
-            : 'border border-[#0758CB] bg-white text-[#0758CB] hover:bg-[#EAF2FF]'
-        }`}
-      >
-        {selected ? <Check className="h-4 w-4" aria-hidden /> : null}
-        {selected ? 'Selected' : 'Select'}
-      </button>
+      <div className="mt-3 flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          {hideCatalogPrice ? (
+            <p className="text-sm font-semibold text-[#111827]">Price unavailable</p>
+          ) : priceLabel ? (
+            <>
+              {discounted && offer ? (
+                <p className="text-xs font-medium text-ink-muted line-through tabular-nums">
+                  {unit?.basis === 'from' ? `From ${formatMoney(offer.originalPrice, currency)}` : formatMoney(offer.originalPrice, currency)}
+                </p>
+              ) : null}
+              <p className={`text-lg font-bold leading-none tabular-nums ${discounted ? 'text-[#B42318]' : 'text-[#111827]'}`}>
+                {priceLabel}
+              </p>
+              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                {unit && unit.basis !== 'from' ? (
+                  <span className="text-xs text-ink-muted">{unit.basis === 'for your group' ? 'For your group' : 'Per person'}</span>
+                ) : null}
+                {discounted && offer?.label ? (
+                  <span className="rounded bg-[#FDECEC] px-1.5 py-0.5 text-[11px] font-semibold text-[#B42318]">
+                    {offer.label}
+                  </span>
+                ) : null}
+              </div>
+            </>
+          ) : null}
+        </div>
+        <button
+          type="button"
+          data-tour-option-cta="choose"
+          onClick={() => onChoose(variant)}
+          aria-pressed={selected}
+          className={`inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-lg px-4 text-sm font-semibold transition-colors duration-200 ${
+            selected
+              ? 'bg-[#0758CB] text-white'
+              : 'border border-[#0758CB] bg-white text-[#0758CB] hover:bg-[#EAF2FF]'
+          }`}
+        >
+          {selected ? <Check className="h-4 w-4" aria-hidden /> : null}
+          {selected ? 'Selected' : 'Select'}
+        </button>
+      </div>
     </article>
   );
 }

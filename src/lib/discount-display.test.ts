@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { catalogHeadlineAmount, catalogOfferTodayIso, getDisplayPriceForTour } from './discount-display';
+import { catalogHeadlineAmount, catalogOfferTodayIso, discountedCatalogUnit, getDisplayPriceForTour } from './discount-display';
 import type { TourPackage } from '../types/tour';
 import type { ListingBookingOption } from '../types/listingExtras';
 import type { ListingDiscount } from '../data/supabase-discounts';
@@ -120,6 +120,34 @@ describe('stay money truth vs leftover listing discounts', () => {
     expect(shown.price).toBe(200);
     expect(shown.originalPrice).toBe(200);
     expect(shown.label).toBeUndefined();
+  });
+});
+
+describe('discountedCatalogUnit', () => {
+  it('reduces an option unit only when an offer applies that day', () => {
+    const discounts: ListingDiscount[] = [
+      {
+        id: 'disc-opt',
+        listing_id: 'c2d25217-84f0-46d4-8eaa-83949143fa06',
+        type: 'percent',
+        value: 15,
+        code: null,
+        valid_from: '2026-10-01',
+        valid_until: '2026-10-31',
+        booking_option_id: null,
+        created_at: '2026-01-01T00:00:00Z',
+      },
+    ];
+    expect(discountedCatalogUnit(119, discounts, 'opt-1', '2026-10-20', 'EUR')).toEqual({
+      price: 101.15,
+      originalPrice: 119,
+      label: '15% off',
+    });
+    expect(discountedCatalogUnit(119, discounts, 'opt-1', '2026-11-02', 'EUR').label).toBeUndefined();
+    expect(discountedCatalogUnit(119, [], 'opt-1', '2026-10-20', 'EUR')).toEqual({
+      price: 119,
+      originalPrice: 119,
+    });
   });
 });
 

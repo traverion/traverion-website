@@ -47,7 +47,7 @@ export default function TourQuickFacts({ tour, option }: Props) {
               <Icon className="h-4 w-4" aria-hidden />
             </span>
             <div className="min-w-0 pt-0.5">
-              <dd className="text-[15px] font-bold leading-snug text-[#111827]">{value}</dd>
+              <dd className="text-[15px] font-semibold leading-snug text-[#111827]">{value}</dd>
               <dt className="mt-0.5 text-xs text-ink-muted">{label}</dt>
             </div>
           </div>

@@ -14,7 +14,7 @@ export default function TourOverview({ description, extras = [] }: Props) {
   const shown = long && !open ? `${text.slice(0, COLLAPSE_AT).replace(/\s+\S*$/, '')}…` : text;
   if (!text && extras.length === 0) return null;
   return (
-    <section className="max-w-2xl">
+    <section className="mt-6 max-w-2xl border-t border-[#E8EBF0] pt-6">
       <h2 className="mb-2 text-xl font-bold tracking-tight text-[#111827]">What you’ll do</h2>
       {text ? (
         <>
