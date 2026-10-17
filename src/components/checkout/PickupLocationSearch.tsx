@@ -6,12 +6,19 @@ import {
   resolvePlace,
   type PlaceSuggestion,
 } from '../../lib/places-client';
-import type { TravelerPickupPoint } from '../../lib/pickup-area';
+import {
+  haversineKm,
+  PICKUP_AREA_MISSING_MESSAGE,
+  travelerPickupAllowed,
+  type PickupArea,
+  type TravelerPickupPoint,
+} from '../../lib/pickup-area';
 
 type Props = {
   id: string;
   label: string;
   bias?: { lat: number; lng: number; radiusKm: number } | null;
+  area?: PickupArea | null;
   selected: TravelerPickupPoint | null;
   onSelect: (place: TravelerPickupPoint | null) => void;
   placeholder?: string;
@@ -21,6 +28,7 @@ export default function PickupLocationSearch({
   id,
   label,
   bias,
+  area = null,
   selected,
   onSelect,
   placeholder = 'Hotel or address',
@@ -86,6 +94,11 @@ export default function PickupLocationSearch({
   }, [open]);
 
   const choose = async (suggestion: PlaceSuggestion) => {
+    if (!area) {
+      setSearchError(PICKUP_AREA_MISSING_MESSAGE);
+      onSelect(null);
+      return;
+    }
     setResolving(true);
     setSearchError(null);
     try {
@@ -94,13 +107,26 @@ export default function PickupLocationSearch({
         setSearchError('That place could not be loaded.');
         return;
       }
-      onSelect({
+      const point = {
         placeId: place.placeId,
         name: place.name,
         formattedAddress: place.formattedAddress,
         lat: place.lat,
         lng: place.lng,
-      });
+      };
+      const decision = travelerPickupAllowed({ fulfillment: 'pickup', area, point });
+      if (!decision.ok) {
+        const distance = haversineKm(area, point);
+        const km = Number.isFinite(distance) ? Math.max(1, Math.round(distance)) : null;
+        setSearchError(
+          km != null
+            ? `This location is about ${km} km from ${area.label || 'the pickup center'}, outside the ${area.radiusKm} km area.`
+            : decision.error
+        );
+        onSelect(null);
+        return;
+      }
+      onSelect(point);
       setQuery('');
       setOpen(false);
       setItems([]);
@@ -119,6 +145,7 @@ export default function PickupLocationSearch({
         {selected.name && selected.formattedAddress && selected.name !== selected.formattedAddress ? (
           <p className="mt-0.5 text-sm text-ink-muted break-words">{selected.formattedAddress}</p>
         ) : null}
+        <p className="mt-1 text-xs font-medium text-emerald-800">Inside the pickup area.</p>
         <button
           type="button"
           className="mt-2 text-sm font-semibold text-finland hover:underline"

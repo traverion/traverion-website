@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Calendar } from 'lucide-react';
 import type { ListingBookingOption } from '../types/listingExtras';
 import { monthGrid } from '../lib/stay-calendar';
 import { formatBookingDateDisplay } from '../lib/booking-flow';
@@ -158,9 +159,12 @@ export default function TourDatePicker({
           aria-expanded={open}
           aria-haspopup="dialog"
           onClick={() => setOpen((next) => !next)}
-          className="tv-checkout-input text-left"
+          className="tv-checkout-input tv-checkout-input--plain relative flex items-center justify-between gap-3 pr-3 text-left"
         >
-          {value.trim() ? formatBookingDateDisplay(value) : 'Select a date'}
+          <span className={value.trim() ? 'font-medium text-ink' : 'text-ink-faint'}>
+            {value.trim() ? formatBookingDateDisplay(value) : 'Select a date'}
+          </span>
+          <Calendar className="h-4 w-4 shrink-0 text-ink-faint" aria-hidden />
         </button>
         {open ? (
           <div className="absolute z-30 mt-2 w-full max-w-md rounded-xl border border-black/10 bg-white p-3 shadow-lg">

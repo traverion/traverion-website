@@ -34,12 +34,16 @@ export async function autocompletePlaces(
   if (!placesSearchConfigured() || query.length < 2) return [];
   const body: Record<string, unknown> = { input: query };
   if (bias && Number.isFinite(bias.lat) && Number.isFinite(bias.lng) && bias.radiusKm > 0) {
-    body.locationBias = {
-      circle: {
-        center: { latitude: bias.lat, longitude: bias.lng },
-        radius: Math.min(50000, Math.round(bias.radiusKm * 1000)),
-      },
+    const meters = Math.round(bias.radiusKm * 1000);
+    const circle = {
+      center: { latitude: bias.lat, longitude: bias.lng },
+      radius: Math.min(50000, Math.max(1, meters)),
     };
+    // Places rejects a circle larger than 50 km. Inside that limit, restrict
+    // suggestions to the supplier radius. Wider areas stay biased, and the
+    // caller still rejects coordinates outside the real radius.
+    if (meters <= 50000) body.locationRestriction = { circle };
+    else body.locationBias = { circle };
   }
   const res = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
     method: 'POST',

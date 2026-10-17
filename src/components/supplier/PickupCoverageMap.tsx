@@ -13,9 +13,14 @@ type GoogleCircle = {
   setMap: (map: GoogleMap | null) => void;
   getBounds: () => GoogleBounds | null;
 };
+type GoogleMarker = {
+  setPosition: (position: GoogleLatLng) => void;
+  setMap: (map: GoogleMap | null) => void;
+};
 type GoogleMapsNamespace = {
   Map: new (el: HTMLElement, opts: Record<string, unknown>) => GoogleMap;
   Circle: new (opts: Record<string, unknown>) => GoogleCircle;
+  Marker: new (opts: Record<string, unknown>) => GoogleMarker;
   LatLngBounds: new () => GoogleBounds;
 };
 
@@ -48,14 +53,19 @@ type Props = {
   lat: number;
   lng: number;
   radiusKm: number | null;
+  marker?: { lat: number; lng: number } | null;
+  fallback?: string;
 };
 
-export default function PickupCoverageMap({ lat, lng, radiusKm }: Props) {
+export default function PickupCoverageMap({ lat, lng, radiusKm, marker = null, fallback }: Props) {
   const nodeRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<GoogleMap | null>(null);
   const circleRef = useRef<GoogleCircle | null>(null);
+  const markerRef = useRef<GoogleMarker | null>(null);
   const [failed, setFailed] = useState(false);
   const key = googleMapsBrowserKey();
+  const markerLat = marker?.lat;
+  const markerLng = marker?.lng;
 
   useEffect(() => {
     if (!key || !nodeRef.current) return;
@@ -93,9 +103,29 @@ export default function PickupCoverageMap({ lat, lng, radiusKm }: Props) {
             circleRef.current.setRadius(radiusKm * 1000);
           }
           const bounds = circleRef.current.getBounds();
-          if (bounds) mapRef.current.fitBounds(bounds);
+          if (bounds) {
+            if (markerLat != null && markerLng != null && Number.isFinite(markerLat) && Number.isFinite(markerLng)) {
+              bounds.extend({ lat: markerLat, lng: markerLng });
+            }
+            mapRef.current.fitBounds(bounds);
+          }
         } else if (circleRef.current) {
           circleRef.current.setMap(null);
+        }
+        if (markerLat != null && markerLng != null && Number.isFinite(markerLat) && Number.isFinite(markerLng)) {
+          const position = { lat: markerLat, lng: markerLng };
+          if (!markerRef.current) {
+            markerRef.current = new maps.Marker({
+              map: mapRef.current,
+              position,
+              title: 'Selected pickup',
+            });
+          } else {
+            markerRef.current.setMap(mapRef.current);
+            markerRef.current.setPosition(position);
+          }
+        } else if (markerRef.current) {
+          markerRef.current.setMap(null);
         }
       })
       .catch(() => {
@@ -104,13 +134,13 @@ export default function PickupCoverageMap({ lat, lng, radiusKm }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [key, lat, lng, radiusKm]);
+  }, [key, lat, lng, markerLat, markerLng, radiusKm]);
 
   if (!key) return null;
   if (failed) {
     return (
       <p className="text-[12px] text-ink-muted" role="status">
-        The coverage map could not be loaded. The saved center and radius are unchanged.
+        {fallback ?? 'The coverage map could not be loaded. The saved center and radius are unchanged.'}
       </p>
     );
   }

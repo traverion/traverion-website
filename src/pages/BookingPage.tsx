@@ -87,6 +87,7 @@ import {
   type TourCheckoutFlowStep,
 } from '../lib/tourCheckoutUrl';
 import PickupLocationSearch from '../components/checkout/PickupLocationSearch';
+import PickupCoverageMap from '../components/supplier/PickupCoverageMap';
 import { optionLogisticsLines } from '../lib/option-logistics';
 import {
   checkoutSummaryPickupAddress,
@@ -212,6 +213,20 @@ function BookingProgress({
         })}
       </ol>
     </nav>
+  );
+}
+
+function CheckoutLogisticsDetails({ lines }: { lines: string[] }) {
+  if (lines.length === 0) return null;
+  return (
+    <details className="rounded-lg border border-black/[0.06] bg-paper/60 px-3 py-2">
+      <summary className="cursor-pointer text-xs font-semibold text-finland">Pickup and transport details</summary>
+      <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-ink-muted">
+        {lines.map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+      </ul>
+    </details>
   );
 }
 
@@ -375,6 +390,12 @@ export default function BookingPage({
       ? (selectedVariant?.listingOption?.travelerStartInstructions ?? '').trim()
       : (pickupPlace.instructions ?? '').trim();
   const pickupArea = pickupAreaFromOption(selectedVariant?.listingOption ?? null);
+  const pickupSelection = travelerPickupAllowed({
+    fulfillment: pickupMode === 'pickup' ? 'pickup' : null,
+    area: pickupArea,
+    point: selectedPickup,
+  });
+  const pickupContinueBlocked = pickupMode === 'pickup' && !pickupSelection.ok;
   const acceptedPickupAddress = checkoutSummaryPickupAddress({
     fulfillment: optionFulfillment,
     area: pickupArea,
@@ -1799,9 +1820,22 @@ export default function BookingPage({
                   Enter your hotel or address within the available pickup area.
                 </p>
                 {pickupArea ? (
-                  <p className="mb-4 text-xs text-ink-muted">
-                    Pickup area: {pickupArea.label || 'operator center'} · {pickupArea.radiusKm} km radius
-                  </p>
+                  <div className="mb-4 space-y-3">
+                    <p className="text-xs text-ink-muted">
+                      Pickup area: {pickupArea.label || 'operator center'} · {pickupArea.radiusKm} km radius
+                    </p>
+                    <PickupCoverageMap
+                      lat={pickupArea.lat}
+                      lng={pickupArea.lng}
+                      radiusKm={pickupArea.radiusKm}
+                      marker={
+                        selectedPickup
+                          ? { lat: selectedPickup.lat, lng: selectedPickup.lng }
+                          : null
+                      }
+                      fallback={`Pickup area ${pickupArea.label || 'set by the operator'}, ${pickupArea.radiusKm} km radius. The map could not be loaded. Choose a place inside that area.`}
+                    />
+                  </div>
                 ) : (
                   <p className="mb-4 text-sm text-amber-800" role="status">
                     {PICKUP_AREA_MISSING_MESSAGE}
@@ -1811,12 +1845,18 @@ export default function BookingPage({
                   id="booking-pickup-location"
                   label="Pickup location"
                   bias={pickupArea ? { lat: pickupArea.lat, lng: pickupArea.lng, radiusKm: pickupArea.radiusKm } : null}
+                  area={pickupArea}
                   selected={selectedPickup}
                   onSelect={(place) => {
                     setSelectedPickup(place);
                     setError(null);
                   }}
                 />
+                {pickupContinueBlocked ? (
+                  <p id="booking-pickup-eligibility" className="mt-3 text-sm text-red-800" role="status">
+                    {pickupSelection.error}
+                  </p>
+                ) : null}
               </>
             ) : pickupMode === 'meet' ? (
               <>
@@ -1876,7 +1916,13 @@ export default function BookingPage({
                 <button type="button" onClick={() => setStep('contact')} className="tv-btn-ghost w-full sm:w-auto">
                   Back
                 </button>
-                <button type="button" onClick={handleContinueFromPickup} className="tv-btn-primary w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={handleContinueFromPickup}
+                  disabled={pickupContinueBlocked}
+                  aria-describedby={pickupContinueBlocked ? 'booking-pickup-eligibility' : undefined}
+                  className="tv-btn-primary w-full sm:w-auto"
+                >
                   Continue to payment
                 </button>
               </div>
@@ -2076,7 +2122,13 @@ export default function BookingPage({
           <button type="button" onClick={() => setStep('contact')} className="tv-btn-ghost w-full">
             Back
           </button>
-          <button type="button" onClick={handleContinueFromPickup} className="tv-btn-primary w-full">
+          <button
+            type="button"
+            onClick={handleContinueFromPickup}
+            disabled={pickupContinueBlocked}
+            aria-describedby={pickupContinueBlocked ? 'booking-pickup-eligibility' : undefined}
+            className="tv-btn-primary w-full"
+          >
             Continue to payment
           </button>
         </div>
@@ -2264,12 +2316,14 @@ export default function BookingPage({
                           <dd className="max-w-[65%] text-right font-medium text-ink">{meetingAddress}</dd>
                         </div>
                       ) : null}
-                      {logisticsLines.map((line) => (
-                        <div key={line} className="flex justify-between gap-3">
-                          <dt className="sr-only">Logistics</dt>
-                          <dd className="max-w-full text-right text-ink-muted">{line}</dd>
+                      {logisticsLines.length > 0 ? (
+                        <div>
+                          <dt className="sr-only">Pickup and transport</dt>
+                          <dd>
+                            <CheckoutLogisticsDetails lines={logisticsLines} />
+                          </dd>
                         </div>
-                      ))}
+                      ) : null}
                       <div className="flex justify-between gap-3">
                         <dt className="text-ink-muted">Cancellation</dt>
                         <dd className="max-w-[65%] text-right font-medium text-ink">{cancellationShort}</dd>
@@ -2280,7 +2334,7 @@ export default function BookingPage({
                 {flowInner}
               </div>
 
-              <aside className="mt-6 hidden lg:sticky lg:top-0 lg:mt-0 lg:block lg:max-h-[calc(100dvh-3.5rem)] lg:overflow-y-auto">
+              <aside className="mt-6 hidden lg:sticky lg:top-4 lg:mt-0 lg:block lg:self-start">
                 <div className="overflow-hidden rounded-xl bg-white ring-1 ring-finland/20">
                   <div className="relative h-28 bg-black/10">
                     <img src={tour.image} alt={tour.title} className="h-full w-full object-cover" />
@@ -2322,12 +2376,14 @@ export default function BookingPage({
                           <dd className="max-w-[65%] text-right font-medium text-ink">{meetingAddress}</dd>
                         </div>
                       ) : null}
-                      {logisticsLines.map((line) => (
-                        <div key={line} className="flex justify-between gap-3">
-                          <dt className="sr-only">Logistics</dt>
-                          <dd className="max-w-full text-right text-ink-muted">{line}</dd>
+                      {logisticsLines.length > 0 ? (
+                        <div>
+                          <dt className="sr-only">Pickup and transport</dt>
+                          <dd>
+                            <CheckoutLogisticsDetails lines={logisticsLines} />
+                          </dd>
                         </div>
-                      ))}
+                      ) : null}
                     </dl>
                     <div className="border-t border-black/[0.08] pt-4">
                       {quotedSavings != null && quotedOriginalTotal != null ? (
