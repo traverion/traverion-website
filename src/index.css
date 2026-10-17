@@ -5090,7 +5090,7 @@ details:not([open]) > :not(summary) {
 .tv-gallery-lightbox {
   position: fixed;
   inset: 0;
-  z-index: 80;
+  z-index: 10060;
   display: flex;
   flex-direction: column;
   background: rgba(12, 10, 9, 0.94);
@@ -5124,6 +5124,27 @@ details:not([open]) > :not(summary) {
   }
   .tv-gallery-lightbox__nav:active {
     transform: none;
+  }
+}
+
+.tv-availability-reveal {
+  animation: tv-availability-in 240ms ease;
+}
+
+@keyframes tv-availability-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tv-availability-reveal {
+    animation: none;
   }
 }
 

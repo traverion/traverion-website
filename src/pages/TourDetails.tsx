@@ -115,7 +115,7 @@ import { experienceLanguageLabel, tourKindLabel } from '../lib/tour-quick-facts'
 import { formatTourDurationDisplay } from '../types/listingExtras';
 import TourOverview from '../components/tour-detail/TourOverview';
 import TourAvailableOptions from '../components/tour-detail/TourAvailableOptions';
-import TourListingSections from '../components/tour-detail/TourListingSections';
+import TourListingSections, { TourOperatorBlock } from '../components/tour-detail/TourListingSections';
 import { ListingReviewsModal } from '../components/ListingReviewsModal';
 
 function readSearchPrefill(): { date: string; guests: number } {
@@ -208,6 +208,16 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
   const closeGalleryLightbox = useCallback(() => setGalleryLightboxOpen(false), []);
   useDialogFocus(legalModal !== null, legalSheetRef, closeLegalModal);
   useDialogFocus(galleryLightboxOpen, gallerySheetRef, closeGalleryLightbox);
+  useEffect(() => {
+    if (!galleryLightboxOpen) return;
+    const y = window.scrollY;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previous;
+      window.scrollTo(0, y);
+    };
+  }, [galleryLightboxOpen]);
   const [bookingCardError, setBookingCardError] = useState<string | null>(null);
   const [selectionRestored, setSelectionRestored] = useState(false);
   const [selfBookBlocked, setSelfBookBlocked] = useState(false);
@@ -1708,6 +1718,13 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
               </>
             ) : null}
           </p>
+          <nav aria-label="Breadcrumb" className="mb-2 flex flex-wrap items-center gap-x-1.5 text-xs text-ink-muted">
+            <button type="button" onClick={onBack} className="font-semibold text-[#073b83] hover:underline">
+              {backLabel}
+            </button>
+            <span aria-hidden>/</span>
+            <span>{tour.destination}</span>
+          </nav>
           <h1 className="font-display text-[1.65rem] sm:text-[1.85rem] lg:text-[2.15rem] text-ink tracking-tight leading-[1.15] break-words [overflow-wrap:anywhere]">
             {tour.title}
           </h1>
@@ -1718,7 +1735,9 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
           ) : null}
         </header>
 
-        <div className="mb-6 sm:mb-8">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1.85fr)_minmax(17.5rem,22rem)] lg:gap-8">
+          <div className="min-w-0 space-y-8">
+        <div>
           {hasGallery ? (
             <div className={`grid grid-cols-1 gap-2 sm:gap-2.5 ${images.length > 1 ? 'lg:grid-cols-4 lg:grid-rows-2 lg:h-[20rem]' : ''}`}>
               <button
@@ -1800,18 +1819,8 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
         </div>
 
         <TourQuickFacts tour={tour} option={selectedOptionApplied} />
-      </div>
-
-      <section className="bg-paper pb-10">
-        <div className="tv-shell mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1.85fr)_minmax(17.5rem,22rem)] lg:gap-8">
-            <div className="min-w-0 space-y-10">
-              <TourOverview
-                description={tour.description}
-                extras={overviewExtras}
-              />
               {canBook && bookingVariantsOpen && bookingDate.trim() ? (
-                <div ref={optionsSectionRef}>
+                <div ref={optionsSectionRef} className="tv-availability-reveal">
                   <TourAvailableOptions
                     date={bookingDate.trim()}
                     kind={optionsForSelectedDate.kind}
@@ -1842,14 +1851,24 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                   />
                 </div>
               ) : canBook ? (
-                <p className="text-sm text-ink-muted">Pick a date to see times and options for this tour.</p>
+                <p className="text-sm text-ink-muted">
+                  {bookingDate.trim()
+                    ? 'Check availability to see times and options for this date.'
+                    : 'Pick a date to see times and options for this tour.'}
+                </p>
               ) : null}
+
+              <TourOverview
+                description={tour.description}
+                extras={overviewExtras}
+              />
 
               <TourListingSections
                 tour={tour}
                 selectedOption={selectedOption}
                 supplierLegal={supplierLegal}
                 onOpenLegal={setLegalModal}
+                showOperator={false}
               />
             </div>
 
@@ -1925,10 +1944,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                           setSelectedBookingVariant(null);
                           setSelectedDepartureTime('');
                           const dateCheck = dateNotInPast(next.trim(), experienceTodayIso);
-                          if (dateCheck.valid && isListingVisibleToTravelers(tour.status)) {
-                            setBookingVariantsOpen(true);
-                            scrollToOptionsSection();
-                          } else {
+                          if (!(dateCheck.valid && isListingVisibleToTravelers(tour.status))) {
                             setBookingVariantsOpen(false);
                           }
                         }}
@@ -2235,11 +2251,27 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                           ) : null}
                         </div>
                       ) : (
-                        <p className="text-sm text-ink-muted">
-                          {bookingDate.trim()
-                            ? 'Choose an option next to continue.'
-                            : 'Choose a date to see available options.'}
-                        </p>
+                        <div className="space-y-3">
+                          <p className="text-sm text-ink-muted">
+                            {!bookingDate.trim()
+                              ? 'Choose a date to see available options.'
+                              : bookingVariantsOpen
+                                ? 'Choose an option to continue.'
+                                : 'Check availability to see times and options for this date.'}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={handleStickyBookCta}
+                            className="tv-btn-primary w-full"
+                          >
+                            {tourStickyBookCtaLabel({
+                              hasDate: Boolean(bookingDate.trim()),
+                              hasOption: false,
+                              needsDeparture: false,
+                              variantsOpen: bookingVariantsOpen,
+                            })}
+                          </button>
+                        </div>
                       )}
                       <div id="tour-booking-card-error" className="min-h-[1.25rem]">
                         {dayCapacityError ||
@@ -2279,7 +2311,6 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
             </div>
           </div>
         </div>
-      </section>
 
       <section className="py-8 bg-paper border-t border-black/[0.06]">
         <div className="tv-shell mx-auto px-4 sm:px-6 lg:px-8">
@@ -2492,6 +2523,14 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
         </div>
       </section>
 
+      {supplierLegal ? (
+        <section className="bg-paper pb-10">
+          <div className="tv-shell mx-auto px-4 sm:px-6 lg:px-8">
+            <TourOperatorBlock supplierLegal={supplierLegal} onOpenLegal={setLegalModal} />
+          </div>
+        </section>
+      ) : null}
+
       {canBook && !checkoutFromUrl
         ? createPortal(
             <div className="lg:hidden fixed inset-x-0 bottom-0 z-[60] tv-booking-mobile-bar">
@@ -2621,7 +2660,8 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
         : null}
 
 
-      {galleryLightboxOpen && hasGallery ? (
+      {galleryLightboxOpen && hasGallery
+        ? createPortal(
         <div
           ref={gallerySheetRef}
           className="tv-gallery-lightbox"
@@ -2678,7 +2718,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
             ) : null}
             <img
               src={images[Math.min(selectedImage, images.length - 1)]}
-              alt=""
+              alt={`${tour.title}, photo ${Math.min(selectedImage, images.length - 1) + 1} of ${images.length}`}
               className="max-h-[min(78vh,900px)] max-w-full rounded-lg object-contain shadow-2xl"
               decoding="async"
             />
@@ -2713,7 +2753,8 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
               ))}
             </div>
           ) : null}
-        </div>
+        </div>,
+        document.body
       ) : null}
 
       <ListingReviewsModal

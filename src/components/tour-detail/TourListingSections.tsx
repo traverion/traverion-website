@@ -31,6 +31,8 @@ type Props = {
   selectedOption?: ListingBookingOption | null;
   supplierLegal: Legal | null;
   onOpenLegal: (kind: 'privacy' | 'terms') => void;
+  /** Reviews sit before the operator. Pass false and render TourOperatorBlock after them. */
+  showOperator?: boolean;
 };
 
 const sectionClass = 'border-t border-black/[0.06] pt-8';
@@ -49,11 +51,60 @@ function Fact({ label, children }: { label: string; children: string }) {
   );
 }
 
+export function TourOperatorBlock({
+  supplierLegal,
+  onOpenLegal,
+}: {
+  supplierLegal: Legal;
+  onOpenLegal: (kind: 'privacy' | 'terms') => void;
+}) {
+  return (
+    <section className={sectionClass}>
+      <h2 className={headingClass}>About the operator</h2>
+      <div className="flex items-center gap-4">
+        {supplierLegal.business_logo_url ? (
+          <img
+            src={supplierLegal.business_logo_url}
+            alt=""
+            className="h-12 w-12 shrink-0 rounded-lg object-cover ring-1 ring-black/[0.06]"
+          />
+        ) : (
+          <div
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[#073b83]/10 text-sm font-semibold text-[#073b83]"
+            aria-hidden
+          >
+            {supplierLegal.operatorName.slice(0, 1).toUpperCase()}
+          </div>
+        )}
+        <div className="min-w-0">
+          <p className="font-semibold text-ink">{supplierLegal.operatorName}</p>
+          <p className="text-sm text-ink-muted">Runs this experience on Traverion</p>
+        </div>
+      </div>
+      {supplierLegal.privacy_policy_text?.trim() || supplierLegal.terms_conditions_text?.trim() ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {supplierLegal.privacy_policy_text?.trim() ? (
+            <button type="button" onClick={() => onOpenLegal('privacy')} className="tv-btn-ghost">
+              Privacy policy
+            </button>
+          ) : null}
+          {supplierLegal.terms_conditions_text?.trim() ? (
+            <button type="button" onClick={() => onOpenLegal('terms')} className="tv-btn-ghost">
+              Terms & conditions
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 export default function TourListingSections({
   tour,
   selectedOption = null,
   supplierLegal,
   onOpenLegal,
+  showOperator = true,
 }: Props) {
   const highlights = tour.highlights.map((h) => String(h).trim()).filter(Boolean);
   const itinerary = travelerItinerary(tour);
@@ -284,44 +335,8 @@ export default function TourListingSections({
         </p>
       </section>
 
-      {supplierLegal ? (
-        <section className={sectionClass}>
-          <h2 className={headingClass}>Operator</h2>
-          <div className="flex items-center gap-4">
-            {supplierLegal.business_logo_url ? (
-              <img
-                src={supplierLegal.business_logo_url}
-                alt=""
-                className="h-14 w-14 shrink-0 rounded-xl object-cover ring-1 ring-black/[0.06]"
-              />
-            ) : (
-              <div
-                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-finland/10 text-sm font-semibold text-finland"
-                aria-hidden
-              >
-                {supplierLegal.operatorName.slice(0, 1).toUpperCase()}
-              </div>
-            )}
-            <div className="min-w-0">
-              <p className="font-semibold text-ink">{supplierLegal.operatorName}</p>
-              <p className="text-sm text-ink-muted">Runs this tour on Traverion</p>
-            </div>
-          </div>
-          {supplierLegal.privacy_policy_text?.trim() || supplierLegal.terms_conditions_text?.trim() ? (
-            <div className="mt-4 flex flex-wrap gap-2">
-              {supplierLegal.privacy_policy_text?.trim() ? (
-                <button type="button" onClick={() => onOpenLegal('privacy')} className="tv-btn-ghost">
-                  Privacy policy
-                </button>
-              ) : null}
-              {supplierLegal.terms_conditions_text?.trim() ? (
-                <button type="button" onClick={() => onOpenLegal('terms')} className="tv-btn-ghost">
-                  Terms & conditions
-                </button>
-              ) : null}
-            </div>
-          ) : null}
-        </section>
+      {showOperator && supplierLegal ? (
+        <TourOperatorBlock supplierLegal={supplierLegal} onOpenLegal={onOpenLegal} />
       ) : null}
     </div>
   );

@@ -69,5 +69,5 @@ export function tourStickyBookCtaLabel(params: {
   }
   if (params.hasOption) return TRAVELER_CONTINUE_TEST_CTA;
   if (params.variantsOpen) return 'Choose option';
-  return 'See options';
+  return 'Check availability';
 }
