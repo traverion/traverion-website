@@ -384,7 +384,7 @@ export function formatTripDepartureWithTimezone(
   if (!hm) return '';
   const tz = (timezone ?? '').trim();
   if (!tz) return hm;
-  return `${hm} · ${tz} local`;
+  return `${hm} · ${tz}`;
 }
 
 export function displayDurationFromPurchase(

@@ -95,6 +95,13 @@ type Payload = {
   cancelledRefundDue?: boolean;
   /** Explicit idempotency key. */
   idempotencyKey?: string;
+  /** Purchased option, clock, place, and contact. Re-derived from the booking row. */
+  optionLabel?: string;
+  startTimeLabel?: string;
+  guestEmail?: string;
+  arrivalLabel?: string;
+  arrivalPlace?: string;
+  publicReference?: string;
 };
 
 function json(body: unknown, status = 200): Response {
@@ -271,7 +278,14 @@ function eventBody(payload: Payload): string {
     lines.push(`Date: ${payload.bookingDate}`);
   }
   if (typeof payload.guests === 'number' && payload.guests > 0) lines.push(`Guests: ${payload.guests}`);
+  if (payload.publicReference) lines.push(`Reference: ${payload.publicReference}`);
+  if (payload.optionLabel) lines.push(`Option: ${payload.optionLabel}`);
+  if (payload.startTimeLabel) lines.push(`Start time: ${payload.startTimeLabel}`);
   if (payload.guestName) lines.push(`Guest: ${payload.guestName}`);
+  if (payload.guestEmail) lines.push(`Guest email: ${payload.guestEmail}`);
+  if (payload.arrivalLabel && payload.arrivalPlace) {
+    lines.push(`${payload.arrivalLabel}: ${payload.arrivalPlace}`);
+  }
   if (typeof payload.reviewRating === 'number' && payload.reviewRating > 0) lines.push(`Rating: ${payload.reviewRating}/5`);
   if (payload.reviewTitle) lines.push(`Review: ${payload.reviewTitle}`);
   if (payload.messagePreview) {
@@ -437,9 +451,34 @@ ${bodyText}
       `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Guests</td><td style="padding:6px 0;font-size:14px;color:#111827;">${payload.guests}</td></tr>`,
     );
   }
+  if (payload.publicReference) {
+    rows.push(
+      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Reference</td><td style="padding:6px 0;font-size:14px;color:#111827;font-weight:600;">${escapeHtml(payload.publicReference)}</td></tr>`,
+    );
+  }
+  if (payload.optionLabel) {
+    rows.push(
+      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Option</td><td style="padding:6px 0;font-size:14px;color:#111827;">${escapeHtml(payload.optionLabel)}</td></tr>`,
+    );
+  }
+  if (payload.startTimeLabel) {
+    rows.push(
+      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Start time</td><td style="padding:6px 0;font-size:14px;color:#111827;">${escapeHtml(payload.startTimeLabel)}</td></tr>`,
+    );
+  }
   if (payload.guestName) {
     rows.push(
       `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Guest</td><td style="padding:6px 0;font-size:14px;color:#111827;">${escapeHtml(payload.guestName)}</td></tr>`,
+    );
+  }
+  if (payload.guestEmail) {
+    rows.push(
+      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Guest email</td><td style="padding:6px 0;font-size:14px;color:#111827;">${escapeHtml(payload.guestEmail)}</td></tr>`,
+    );
+  }
+  if (payload.arrivalLabel && payload.arrivalPlace) {
+    rows.push(
+      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">${escapeHtml(payload.arrivalLabel)}</td><td style="padding:6px 0;font-size:14px;color:#111827;">${escapeHtml(payload.arrivalPlace)}</td></tr>`,
     );
   }
   // Phase 1738: refund amounts for host Money honesty (parity with traveler mail).
@@ -756,12 +795,15 @@ serve(async (req) => {
           id?: string | null;
           listing_id?: string | null;
           guest_name?: string | null;
+          guest_email?: string | null;
           booking_date?: string | null;
           guests?: number | null;
           booking_number?: number | null;
+          public_reference?: string | null;
           payment_status?: string | null;
           status?: string | null;
           refund_choice?: string | null;
+          purchase_snapshot?: unknown;
         }
       | null = null;
     let reviewRow:
@@ -780,7 +822,7 @@ serve(async (req) => {
           const { data } = await admin
             .from('bookings')
             .select(
-              'id, listing_id, guest_name, booking_date, check_out, nights, guests, booking_number, payment_status, status, purchase_snapshot, refund_choice'
+              'id, listing_id, guest_name, guest_email, booking_date, check_out, nights, guests, booking_number, public_reference, payment_status, status, purchase_snapshot, refund_choice'
             )
             .eq('id', bookingId)
             .maybeSingle();
@@ -839,6 +881,32 @@ serve(async (req) => {
     }
 
     const effectivePayload: Payload = { ...payload, ...resolved.overrides };
+    if (bookingRow && effectivePayload.eventType === 'new_booking') {
+      const snap = bookingRow.purchase_snapshot && typeof bookingRow.purchase_snapshot === 'object'
+        ? (bookingRow.purchase_snapshot as Record<string, unknown>)
+        : null;
+      const snapText = (key: string) => (typeof snap?.[key] === 'string' ? String(snap[key]).trim() : '');
+      const hm = snapText('startTimeHm');
+      const tz = snapText('departureTimezone');
+      effectivePayload.optionLabel = snapText('optionLabel') || undefined;
+      effectivePayload.startTimeLabel = hm ? (tz ? `${hm} · ${tz}` : hm) : undefined;
+      effectivePayload.publicReference =
+        typeof bookingRow.public_reference === 'string' && bookingRow.public_reference.trim()
+          ? bookingRow.public_reference.trim()
+          : undefined;
+      effectivePayload.guestEmail =
+        typeof bookingRow.guest_email === 'string' && bookingRow.guest_email.trim()
+          ? bookingRow.guest_email.trim()
+          : undefined;
+      const fulfillment = snapText('fulfillment');
+      if (fulfillment === 'pickup' && snapText('travelerPickupAddress')) {
+        effectivePayload.arrivalLabel = 'Pickup';
+        effectivePayload.arrivalPlace = snapText('travelerPickupAddress');
+      } else if (fulfillment === 'meeting_point' && snapText('meetingPoint')) {
+        effectivePayload.arrivalLabel = 'Meeting point';
+        effectivePayload.arrivalPlace = snapText('meetingPoint');
+      }
+    }
     // Phase 1129: cancel unpaid copy from booking payment_status, not caller flag.
     if (effectivePayload.eventType === 'booking_cancelled' && bookingRow) {
       effectivePayload.unpaidCheckout = notifyUnpaidCheckoutFromPaymentStatus(bookingRow.payment_status);

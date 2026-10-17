@@ -174,6 +174,48 @@ function detailRow(label: string, value: string): string {
   return `<tr><td style="padding:6px 0;font-size:13px;color:#6b7280;width:130px;vertical-align:top;">${escapeHtml(label)}</td><td style="padding:6px 0;font-size:14px;color:#111827;">${escapeHtml(value)}</td></tr>`;
 }
 
+function confirmedPaidMailFacts(row: {
+  public_reference?: string | null;
+  guest_breakdown?: unknown;
+  purchase_snapshot?: unknown;
+}): { html: string; lines: string[] } {
+  const snap = row.purchase_snapshot && typeof row.purchase_snapshot === 'object'
+    ? (row.purchase_snapshot as Record<string, unknown>)
+    : null;
+  const text = (key: string) => (typeof snap?.[key] === 'string' ? String(snap[key]).trim() : '');
+  const rows: string[] = [];
+  const lines: string[] = [];
+  const push = (label: string, value: string) => {
+    if (!value) return;
+    rows.push(detailRow(label, value));
+    lines.push(`${label}: ${value}`);
+  };
+  push('Booking reference', typeof row.public_reference === 'string' ? row.public_reference.trim() : '');
+  push('Option', text('optionLabel'));
+  const hm = text('startTimeHm');
+  const tz = text('departureTimezone');
+  push('Start time', hm ? (tz ? `${hm} · ${tz}` : hm) : '');
+  const breakdown = Array.isArray(row.guest_breakdown)
+    ? row.guest_breakdown
+        .map((item) => {
+          if (!item || typeof item !== 'object') return '';
+          const label = typeof (item as { label?: unknown }).label === 'string'
+            ? String((item as { label: string }).label).trim()
+            : '';
+          const qty = (item as { quantity?: unknown }).quantity;
+          return label && typeof qty === 'number' && qty > 0 ? `${qty} ${label}` : '';
+        })
+        .filter(Boolean)
+        .join(' · ')
+    : '';
+  push('Participants', breakdown);
+  const fulfillment = text('fulfillment');
+  if (fulfillment === 'pickup') push('Pickup', text('travelerPickupAddress'));
+  else if (fulfillment === 'meeting_point') push('Meeting point', text('meetingPoint'));
+  push('Cancellation', text('cancellationPolicy'));
+  return { html: rows.join(''), lines };
+}
+
 function htmlBulletList(items: string[] | undefined, title: string): string {
   if (!items?.length) return '';
   const lis = items
@@ -533,6 +575,7 @@ serve(async (req) => {
     // Phase 1132: receipt PDF metadata from bookings row, not caller body.
     let paidAtIsoFromDb: string | undefined;
     let paymentIntentIdFromDb: string | undefined;
+    let confirmedPaidExtra: { html: string; lines: string[] } | null = null;
 
     // Phase 562/578/1052: recipient + static content re-derived from booking.
     // Phase 1092: anonymous callers never reach this path for booking-tied kinds.
@@ -541,7 +584,7 @@ serve(async (req) => {
       const { data: bookingRowRaw } = await admin
         .from('bookings')
         .select(
-          'status, payment_status, guest_email, guest_user_id, amount_paid, total_amount, currency, guest_name, booking_date, check_out, nights, guests, booking_number, purchase_snapshot, listing_id, paid_at, payment_intent_id, refund_choice, special_requests'
+          'status, payment_status, guest_email, guest_user_id, amount_paid, total_amount, currency, guest_name, booking_date, check_out, nights, guests, guest_breakdown, booking_number, public_reference, purchase_snapshot, listing_id, paid_at, payment_intent_id, refund_choice, special_requests'
         )
         .eq('id', bookingId)
         .maybeSingle();
@@ -674,6 +717,9 @@ serve(async (req) => {
       houseRules = content.overrides.houseRules;
       includes = content.overrides.includes;
       excludes = content.overrides.excludes;
+      if (kind === 'booking_confirmed_paid' && bookingRow) {
+        confirmedPaidExtra = confirmedPaidMailFacts(bookingRow);
+      }
     }
 
     const greeting = name ? `Hi ${name},` : 'Hi,';
@@ -939,7 +985,9 @@ serve(async (req) => {
             ? 'Explore Traverion'
           : kind === 'review_request'
             ? 'Open Trips'
-            : 'Manage booking';
+            : kind === 'booking_confirmed_paid'
+              ? 'View booking in Trips'
+              : 'Manage booking';
     const detailPayload: Payload = {
       ...body,
       listingTitle: title,
@@ -954,7 +1002,7 @@ serve(async (req) => {
       checkInTime,
       checkOutTime,
     };
-    const detailRows = buildDetailRows(detailPayload);
+    const detailRows = `${buildDetailRows(detailPayload)}${confirmedPaidExtra?.html ?? ''}`;
     const html = wrapCustomerDocument({
       headline,
       intro,
@@ -988,6 +1036,7 @@ serve(async (req) => {
       }
     }
     if (typeof guests === 'number') textParts.push(`Guests: ${guests}`);
+    if (confirmedPaidExtra?.lines.length) textParts.push(...confirmedPaidExtra.lines);
     if (!refDigits && body.bookingId) textParts.push(`Reference: ${body.bookingId}`);
     if (typeof amount === 'number' && kind === 'booking_confirmed_paid') {
       textParts.push('', `Payment receipt: ${currency} ${amount.toFixed(2)}`);
@@ -998,7 +1047,7 @@ serve(async (req) => {
     if (diffs.length) {
       textParts.push('', fieldDiffPlainText(diffs));
     }
-    textParts.push('', `Manage booking: ${bookingCta}`, '', '— Traverion');
+    textParts.push('', `${ctaLabel}: ${bookingCta}`, '', '— Traverion');
     const text = textParts.filter(Boolean).join('\n');
 
     const attachments: { filename: string; content: string }[] = [];

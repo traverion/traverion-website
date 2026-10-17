@@ -295,7 +295,7 @@ describe('resolveOptionFieldsForSnapshot (checkout freeze helpers)', () => {
     });
     expect(displayDepartureTimezoneFromPurchase(snap)).toBe('Europe/Helsinki');
     expect(formatTripDepartureWithTimezone('20:00', 'Europe/Helsinki')).toBe(
-      '20:00 · Europe/Helsinki local'
+      '20:00 · Europe/Helsinki'
     );
     expect(formatTripDepartureWithTimezone('20:00', null)).toBe('20:00');
     expect(displayDepartureTimezoneFromPurchase({ listingTitle: 'x', capturedAt: 't' })).toBeNull();

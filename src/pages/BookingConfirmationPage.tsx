@@ -8,7 +8,7 @@ import { Skeleton } from '../components/ui/Skeleton';
 import ErrorState from '../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { useAuth } from '../contexts/AuthContext';
-import { isSupabaseConfigured } from '../lib/supabase';
+import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { fetchMyBookingByCheckoutSessionId,
   reconcileCheckoutSession,
   resumePendingBookingCheckout,
@@ -62,6 +62,35 @@ import {
 
 const SESSION_RETURN_KEY = 'traverion_checkout_return_session_id';
 
+function confirmationMapHref(address: string, lat: number | null, lng: number | null): string {
+  if (
+    lat != null &&
+    lng != null &&
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    Math.abs(lat) <= 90 &&
+    Math.abs(lng) <= 180
+  ) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${lat},${lng}`)}`;
+  }
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+}
+
+function confirmationEmailSentence(
+  notice: 'idle' | 'sent' | 'failed' | 'pending' | 'unknown',
+  email: string
+): string | null {
+  if (!email || notice === 'idle') return null;
+  if (notice === 'sent') return `We've sent your booking confirmation to ${email}.`;
+  if (notice === 'failed') {
+    return `We couldn't send the confirmation email to ${email}. Your booking is saved in Trips.`;
+  }
+  if (notice === 'pending') {
+    return `Your confirmation email to ${email} is still being sent. Open Trips if it does not arrive.`;
+  }
+  return `A confirmation email goes to ${email} when the mail provider accepts it. If it does not arrive, open Trips.`;
+}
+
 function readStoredSessionId(): string {
   if (typeof window === 'undefined') return '';
   const fromUrl = new URLSearchParams(window.location.search).get('session_id')?.trim() ?? '';
@@ -100,6 +129,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
   const [payingNow, setPayingNow] = useState(false);
   const [payNowError, setPayNowError] = useState<string | null>(null);
   const [copiedRef, setCopiedRef] = useState(false);
+  const [emailNotice, setEmailNotice] = useState<'idle' | 'sent' | 'failed' | 'pending' | 'unknown'>('idle');
   const [coverImage, setCoverImage] = useState('');
   const [meetingPoint, setMeetingPoint] = useState('');
   const loadGenRef = useRef(0);
@@ -381,6 +411,31 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
     if (paidActive && user?.id) clearBookingsUnread(user.id);
   }, [paidActive, user?.id]);
 
+  useEffect(() => {
+    if (!paidActive || !booking?.id || !supabase) {
+      setEmailNotice('idle');
+      return;
+    }
+    let cancelled = false;
+    setEmailNotice('pending');
+    void supabase
+      .rpc('traveler_confirmation_email_status', { p_booking_id: booking.id })
+      .then(({ data, error: rpcError }) => {
+        if (cancelled) return;
+        if (rpcError) {
+          setEmailNotice('unknown');
+          return;
+        }
+        const status = typeof data === 'string' ? data : '';
+        if (status === 'sent' || status === 'skipped') setEmailNotice('sent');
+        else if (status === 'failed') setEmailNotice('failed');
+        else setEmailNotice('pending');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [booking?.id, paidActive]);
+
   const startHm = formatTripDepartureWithTimezone(
     displayStartTimeFromPurchase(
       booking?.purchase_snapshot,
@@ -538,6 +593,24 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
   const cancellationPolicy = booking
     ? displayCancellationPolicyFromPurchase(booking.purchase_snapshot, '')
     : '';
+  const purchaseSnap =
+    booking?.purchase_snapshot && typeof booking.purchase_snapshot === 'object'
+      ? (booking.purchase_snapshot as PurchaseSnapshot)
+      : null;
+  const pickupMapLat =
+    displayFulfillmentFromPurchase(booking?.purchase_snapshot) === 'pickup' &&
+    typeof purchaseSnap?.travelerPickupLat === 'number'
+      ? purchaseSnap.travelerPickupLat
+      : null;
+  const pickupMapLng =
+    displayFulfillmentFromPurchase(booking?.purchase_snapshot) === 'pickup' &&
+    typeof purchaseSnap?.travelerPickupLng === 'number'
+      ? purchaseSnap.travelerPickupLng
+      : null;
+  const arrivalInstructions = (purchaseSnap?.pickupInstructions ?? '').trim();
+  const emailLine = booking
+    ? confirmationEmailSentence(emailNotice, (booking.guest_email ?? user?.email ?? '').trim())
+    : null;
 
   const copyBookingRef = () => {
     if (!publicRef) return;
@@ -551,10 +624,10 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
   };
 
   return (
-    <div className="min-h-screen bg-white px-4 py-6 sm:px-6 sm:py-8">
-      <div className="mx-auto w-full max-w-[1000px]">
-      <header className="mb-5">
-        <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-8 w-auto" />
+    <div className="min-h-screen bg-white px-4 py-4 sm:px-6 sm:py-5">
+      <div className="mx-auto w-full max-w-[880px]">
+      <header className="mb-3">
+        <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-7 w-auto" />
       </header>
         {error && !booking && (
           <ErrorState
@@ -603,19 +676,24 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
               }`}
             >
               {paidActive ? (
-                <div className="flex items-start gap-3">
-                  <span className="mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
-                    <CheckCircle className="h-4 w-4" aria-hidden />
+                <div className="flex items-start gap-2.5">
+                  <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
+                    <CheckCircle className="h-3.5 w-3.5" aria-hidden />
                   </span>
-                  <div>
-                    <h1 className="font-sans text-3xl font-bold tracking-tight text-ink">Booking confirmed!</h1>
-                    <p className="mt-1 text-sm text-ink-muted">You're all set. Your adventure is booked.</p>
+                  <div className="min-w-0">
+                    <h1 className="font-sans text-2xl font-bold tracking-tight text-ink sm:text-[1.65rem]">Booking confirmed!</h1>
+                    <p className="mt-0.5 text-sm text-ink-muted">Your adventure is booked.</p>
+                    {emailLine ? (
+                      <p className="mt-1 max-w-xl text-sm leading-snug text-ink-muted break-words [overflow-wrap:anywhere]">
+                        {emailLine}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
               ) : (
                 <div>
                   <StatusChip tone={statusChipTone}>{statusChipLabel}</StatusChip>
-                  <h1 className="mt-2 font-sans text-3xl font-bold tracking-tight text-ink">
+                  <h1 className="mt-2 font-sans text-2xl font-bold tracking-tight text-ink">
                     {cancelled
                       ? 'Booking cancelled'
                       : confirming
@@ -641,13 +719,18 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
               )}
             </div>
 
-            <div className="space-y-0 px-5 sm:px-6 py-5">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/[0.08] pb-4">
-                  <div>
+            <div className="space-y-0 px-4 py-3 sm:px-5">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-black/[0.08] pb-3">
+                  <div className="min-w-0">
                     <p className="text-xs font-semibold text-ink-muted">Booking reference</p>
-                    <p className="mt-0.5 font-mono text-lg font-bold tracking-wide text-ink">
+                    <p className="mt-0.5 font-mono text-lg font-bold tracking-wide text-ink break-all">
                       {publicRef ?? 'Reference pending'}
                     </p>
+                    {(booking.guest_name ?? '').trim() ? (
+                      <p className="mt-0.5 text-xs text-ink-muted break-words [overflow-wrap:anywhere]">
+                        Booked for {(booking.guest_name ?? '').trim()}
+                      </p>
+                    ) : null}
                   </div>
                   <div className="tv-confirm-no-print flex shrink-0 items-center gap-1">
                     <button
@@ -673,36 +756,29 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                   </div>
                 </div>
 
-              <div className="grid gap-5 border-b border-black/[0.08] py-5 md:grid-cols-[220px_minmax(0,1fr)] md:items-start">
-                <div className="overflow-hidden rounded-lg bg-black/[0.04]">
-                  {coverImage ? (
-                    <img src={coverImage} alt="" className="aspect-[5/4] w-full object-cover md:aspect-[4/5]" />
-                  ) : (
-                    <div className="aspect-[5/4] w-full md:aspect-[4/5]" />
-                  )}
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold leading-snug text-ink break-words">{listingTitle || (stayCheckOut ? 'Your stay' : 'Your experience')}</h2>
-                  {optionLabel ? <p className="mt-1 text-sm font-semibold text-ink-muted break-words">{optionLabel}</p> : null}
-                  <dl className="mt-4 space-y-2.5 text-sm">
-                <div>
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">
-                    {stayCheckOut ? 'Stay' : 'Tour'}
-                  </p>
-                  <p className="mt-1 text-base font-semibold text-ink break-words [overflow-wrap:anywhere]">
-                    {listingTitle || (stayCheckOut ? 'Your stay' : 'Your tour')}
-                  </p>
+              <div className="flex gap-3 border-b border-black/[0.08] py-3">
+                {coverImage ? (
+                  <img
+                    src={coverImage}
+                    alt=""
+                    className="h-16 w-24 shrink-0 rounded-md object-cover sm:h-[4.5rem] sm:w-28"
+                  />
+                ) : null}
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-base font-bold leading-snug text-ink break-words [overflow-wrap:anywhere]">
+                    {listingTitle || (stayCheckOut ? 'Your stay' : 'Your experience')}
+                  </h2>
                   {optionLabel ? (
-                    <p className="mt-1 text-sm text-ink-muted break-words [overflow-wrap:anywhere]">
-                      Option · <span className="font-medium text-ink">{optionLabel}</span>
-                    </p>
+                    <p className="mt-0.5 text-sm text-ink-muted break-words [overflow-wrap:anywhere]">{optionLabel}</p>
                   ) : null}
                 </div>
+              </div>
+              <dl className="grid gap-2 border-b border-black/[0.08] py-3 text-sm sm:grid-cols-3">
                     <div className="tv-confirm-fact">
                       <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-ink-muted" aria-hidden />
-                      <div>
+                      <div className="min-w-0">
                         <dt className="text-xs font-semibold text-ink-muted">{stayCheckOut ? 'Stay dates' : 'Date'}</dt>
-                        <dd className="font-semibold text-ink">{dateLabel}</dd>
+                        <dd className="font-semibold text-ink break-words">{dateLabel}</dd>
                         {confirmationNightCount ? (
                           <dd className="text-ink-muted">
                             {confirmationNightCount} night{confirmationNightCount === 1 ? '' : 's'}
@@ -713,58 +789,85 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                     {!stayCheckOut && startHm ? (
                       <div className="tv-confirm-fact">
                         <Clock className="mt-0.5 h-4 w-4 shrink-0 text-ink-muted" aria-hidden />
-                        <div>
-                          <dt className="text-xs font-semibold text-ink-muted">Departure</dt>
-                          <dd className="font-semibold text-ink">{startHm}</dd>
+                        <div className="min-w-0">
+                          <dt className="text-xs font-semibold text-ink-muted">Start time</dt>
+                          <dd className="font-semibold text-ink break-words">{startHm}</dd>
                         </div>
                       </div>
                     ) : null}
                     <div className="tv-confirm-fact">
                       <Users className="mt-0.5 h-4 w-4 shrink-0 text-ink-muted" aria-hidden />
-                      <div>
+                      <div className="min-w-0">
                         <dt className="text-xs font-semibold text-ink-muted">Participants</dt>
-                        <dd className="font-semibold text-ink">{formatBookingParticipantsLabel(booking)}</dd>
+                        <dd className="font-semibold text-ink break-words">{formatBookingParticipantsLabel(booking)}</dd>
                       </div>
                     </div>
-                    {arrival ? (
-                      <div className="tv-confirm-fact">
-                        <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-ink-muted" aria-hidden />
-                        <div>
-                          <dt className="text-xs font-semibold text-ink-muted">{arrival.label}</dt>
-                          <dd className="font-semibold text-ink break-words" data-pending={pickupPending && !arrival.value ? 'true' : 'false'}>
-                            {arrival.value ?? `${arrival.label} is not confirmed yet.`}
-                          </dd>
-                          {arrival.time && !hideExactPickupClock ? <dd className="text-ink-muted">Pickup time {arrival.time}</dd> : null}
-                          {logisticsLines.map((line) => (
-                            <dd key={line} className="text-ink-muted">{line}</dd>
-                          ))}
-                        </div>
+              </dl>
+              {arrival ? (
+                <div className="border-b border-black/[0.08] py-3">
+                  <div className="tv-confirm-fact">
+                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-ink-muted" aria-hidden />
+                    <div className="min-w-0">
+                      <dt className="text-xs font-semibold text-ink-muted">{arrival.label}</dt>
+                      <dd
+                        className="font-semibold text-ink break-words [overflow-wrap:anywhere]"
+                        data-pending={pickupPending && !arrival.value ? 'true' : 'false'}
+                      >
+                        {arrival.value ?? `${arrival.label} is not confirmed yet.`}
+                      </dd>
+                      {arrival.value ? (
+                        <dd className="mt-1">
+                          <a
+                            href={confirmationMapHref(arrival.value, pickupMapLat, pickupMapLng)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-sm font-semibold text-finland hover:underline"
+                          >
+                            View on map
+                          </a>
+                        </dd>
+                      ) : null}
+                      {arrival.time && !hideExactPickupClock ? (
+                        <dd className="mt-1 text-ink-muted">Pickup time {arrival.time}</dd>
+                      ) : null}
+                    </div>
+                  </div>
+                  {logisticsLines.length > 0 || arrivalInstructions ? (
+                    <details className="mt-2">
+                      <summary className="cursor-pointer text-sm font-semibold text-finland">Pickup and transport details</summary>
+                      <div className="mt-1.5 space-y-1 text-sm leading-relaxed text-ink-muted">
+                        {arrivalInstructions ? <p className="whitespace-pre-wrap break-words">{arrivalInstructions}</p> : null}
+                        {logisticsLines.map((line) => (
+                          <p key={line}>{line}</p>
+                        ))}
                       </div>
-                    ) : null}
-                    {!isStayBooking &&
-                    collected &&
-                    (() => {
-                      const phone = displayBookingContactPhoneFromPurchase(
-                        booking.purchase_snapshot,
-                        booking.payment_status
-                      );
-                      if (!phone) return null;
-                      return (
-                        <div className="tv-confirm-fact">
-                          <div>
-                            <dt className="text-xs font-semibold text-ink-muted">Operator</dt>
-                            <dd className="font-semibold text-ink">
-                              <a href={`tel:${phone}`} className="underline-offset-2 hover:underline">
-                                {formatBookingContactForDisplay(phone)}
-                              </a>
-                            </dd>
-                          </div>
-                        </div>
-                      );
-                    })()}
-                  </dl>
+                    </details>
+                  ) : null}
                 </div>
-              </div>
+              ) : null}
+              {!isStayBooking &&
+              collected &&
+              (() => {
+                const phone = displayBookingContactPhoneFromPurchase(
+                  booking.purchase_snapshot,
+                  booking.payment_status
+                );
+                if (!phone) return null;
+                return (
+                  <div className="border-b border-black/[0.08] py-3">
+                    <div className="tv-confirm-fact">
+                      <div>
+                        <dt className="text-xs font-semibold text-ink-muted">Operator</dt>
+                        <dd className="font-semibold text-ink">
+                          <a href={`tel:${phone}`} className="underline-offset-2 hover:underline">
+                            {formatBookingContactForDisplay(phone)}
+                          </a>
+                        </dd>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {collected && booking.amount_paid != null && (
                 <div className="flex flex-wrap items-end justify-between gap-3 border-b border-black/[0.08] py-4">
@@ -798,7 +901,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                 </details>
               ) : null}
 
-              <p className="py-4 text-sm text-ink-muted">
+              <p className="py-3 text-sm text-ink-muted">
                 {cancelled
                   ? bookingConfirmationCancelledNextStep(booking)
                   : needsPay
@@ -835,7 +938,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                 <button
                   type="button"
                   onClick={() => onNavigate(stayCheckOut ? 'stays' : 'packages')}
-                  className="tv-btn-ghost w-full justify-center sm:w-auto"
+                  className="px-1 py-2 text-left text-sm font-semibold text-finland hover:underline"
                 >
                   Explore more experiences
                 </button>
