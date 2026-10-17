@@ -4,18 +4,17 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 /**
- * Layer C: Partner Bookings schedule tabs (Today/Tomorrow/…) wire to a tabpanel
- * (MyBookings Trips tabpanel parity).
+ * Bookings list is a named region. Schedule tabs were replaced by the filter toolbar.
  */
-describe('SupplierBookings schedule tabpanel', () => {
-  it('connects schedule tabs to the bookings list tabpanel', () => {
+describe('SupplierBookings list region', () => {
+  it('names the bookings list for assistive tech', () => {
     const src = readFileSync(
       join(dirname(fileURLToPath(import.meta.url)), 'SupplierBookings.tsx'),
       'utf8'
     );
-    expect(src).toMatch(/aria-controls=\{PARTNER_BOOKINGS_TABPANEL_ID\}/);
-    expect(src).toMatch(/id=\{PARTNER_BOOKINGS_TABPANEL_ID\}/);
-    expect(src).toMatch(/role="tabpanel"/);
-    expect(src).toMatch(/aria-labelledby=\{partnerBookingsTabId\(view\)\}/);
+    expect(src).toMatch(/id=\{PARTNER_BOOKINGS_LIST_ID\}/);
+    expect(src).toMatch(/role="region"/);
+    expect(src).toMatch(/aria-label="Bookings"/);
+    expect(src).toMatch(/aria-label="Search name, email or booking ID"/);
   });
 });

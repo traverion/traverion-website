@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 describe('SupplierBookings search booking number (Phase 1484)', () => {
   it('uses partnerBookingNumberMatchesFilterQuery in guest search', () => {
     const here = dirname(fileURLToPath(import.meta.url));
-    const src = readFileSync(join(here, 'SupplierBookings.tsx'), 'utf8');
+    const src = readFileSync(join(here, '../../lib/partner-bookings-desk.ts'), 'utf8');
     expect(src).toMatch(/partnerBookingNumberMatchesFilterQuery/);
     expect(src).toMatch(/Phase 1484|partnerBookingNumberMatchesFilterQuery\(q, b\.booking_number\)/);
   });

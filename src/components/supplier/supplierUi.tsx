@@ -292,3 +292,45 @@ export function SupplierModalShell({
   if (typeof document === 'undefined') return layer;
   return createPortal(layer, document.body);
 }
+
+/** Right-side booking sheet. Full width on small screens, about 45% on desktop. */
+export function SupplierDetailDrawer({
+  onClose,
+  children,
+  label,
+}: {
+  onClose: () => void;
+  children: ReactNode;
+  label: string;
+}) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  useDialogFocus(true, panelRef, onClose);
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
+  const layer = (
+    <div className="tv-sheet-overlay tv-sheet-overlay--portal">
+      <button type="button" tabIndex={-1} className="absolute inset-0 cursor-default" aria-label="Close" onClick={onClose} />
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={label}
+        aria-labelledby={titleId}
+        className="absolute inset-y-0 right-0 flex w-full min-w-0 max-w-[42rem] flex-col bg-white shadow-xl ring-1 ring-black/10 sm:w-[min(45vw,42rem)]"
+      >
+        <SupplierModalTitleIdContext.Provider value={titleId}>{children}</SupplierModalTitleIdContext.Provider>
+      </div>
+    </div>
+  );
+
+  if (typeof document === 'undefined') return layer;
+  return createPortal(layer, document.body);
+}

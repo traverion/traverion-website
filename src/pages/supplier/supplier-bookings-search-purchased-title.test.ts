@@ -10,10 +10,12 @@ import { describe, expect, it } from 'vitest';
 describe('SupplierBookings search purchased title (Phase 1481)', () => {
   it('filters by displayListingTitleFromPurchase, not raw listingMeta title', () => {
     const here = dirname(fileURLToPath(import.meta.url));
-    const src = readFileSync(join(here, 'SupplierBookings.tsx'), 'utf8');
-    expect(src).toMatch(/Phase 1481/);
-    const filterBlock = src.slice(src.indexOf('if (!q) return true;'), src.indexOf('idLower.includes(q)'));
-    expect(filterBlock).toMatch(/displayListingTitleFromPurchase\(\s*b\.purchase_snapshot/);
-    expect(filterBlock).not.toMatch(/listingMeta\[b\.listing_id\]\?\.title \?\? ''\)\.toLowerCase\(\)/);
+    const desk = readFileSync(join(here, '../../lib/partner-bookings-desk.ts'), 'utf8');
+    const page = readFileSync(join(here, 'SupplierBookings.tsx'), 'utf8');
+    expect(desk).toMatch(/Phase 1481/);
+    const filterBlock = desk.slice(desk.indexOf('if (!q) return true;'), desk.indexOf('idLower.includes(q)'));
+    expect(filterBlock).toMatch(/extras\.title\(b\)/);
+    expect(page).toMatch(/displayListingTitleFromPurchase\(\s*b\.purchase_snapshot/);
+    expect(page).not.toMatch(/listingMeta\[b\.listing_id\]\?\.title \?\? ''\)\.toLowerCase\(\)/);
   });
 });

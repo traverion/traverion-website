@@ -15,7 +15,7 @@ import {
 import type { TourPackage } from '../../types/tour';
 import { listingHeroImageSrc, orderedPhotoUrls, photoSlotsFromTourPackage } from '../../lib/listingPhotoGrid';
 import { formatMoney } from '../../lib/money';
-import { isPaidPaymentStatus, partnerPaymentLabel, partnerCollectedAmountCaption, bookingPaymentWasCollected, isRefundDueBooking, REFUND_DUE_MANUAL_COPY } from '../../lib/payment-states';
+import { isPaidPaymentStatus, partnerPaymentLabel, partnerCollectedAmountCaption, bookingPaymentWasCollected, REFUND_DUE_MANUAL_COPY } from '../../lib/payment-states';
 import { PARTNER_BOOKINGS_CSV_HEADER, partnerBookingCsvValues } from '../../lib/partner-bookings-csv';
 import { csvSafeCell } from '../../lib/csv-export';
 import { localYmd } from '../../lib/local-ymd';
@@ -46,6 +46,7 @@ import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import {
   SUPPLIER_PAGE_CLASS,
+  SupplierDetailDrawer,
   SupplierEmptyState,
   SupplierModalHeader,
   SupplierModalShell,
@@ -70,7 +71,7 @@ import { nightsOccupiedByStay, stayRangeFromBooking } from '../../lib/stayOccupa
 import {
   stayPaidAdjacentNightCount,
 } from '../../lib/booking-confirmation-copy';
-import { partnerBookingIsLiveTrip, partnerBookingIsOperatingTrip, partnerBookingNeedsLook, partnerBookingIsUnpaidCheckout, partnerBookingIsActiveUnpaidCheckout, partnerBookingShowsCancelAction, partnerBookingIsPastSchedule, partnerStayTouchesScheduleDay, scheduleTodayIsoForBooking } from '../../lib/trip-views';
+import { partnerBookingIsLiveTrip, partnerBookingIsOperatingTrip, partnerBookingNeedsLook, partnerBookingIsUnpaidCheckout, partnerBookingShowsCancelAction, scheduleTodayIsoForBooking } from '../../lib/trip-views';
 import { addCalendarDaysYmd } from '../../lib/booking-lifecycle-calendar';
 import { formatPartnerCheckoutHoldLabel, partnerUnpaidCheckoutHoldsInventory } from '../../lib/booking-hold';
 import { formatStayNightHuman } from '../../lib/stay-calendar';
@@ -78,12 +79,22 @@ import { formatBookingDateDisplay } from '../../lib/booking-flow';
 import { bookingIsStayNight, partnerBookingHasPickupAttention, resolvePartnerPickupCopy } from '../../lib/pickup-completeness';
 import { travelerPickupAddressFromRecord } from '../../lib/pickup-area';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
-import { comparePartnerBookingsOperational } from '../../lib/partner-bookings-order';
-import { partnerBookingNumberMatchesFilterQuery } from '../../lib/partner-bookings-search';
+import {
+  applyPartnerBookingsDesk,
+  partnerBookingLifecycleLabel,
+  PARTNER_BOOKINGS_SORTS,
+  PARTNER_BOOKINGS_TRAVEL,
+  type PartnerBookingsOps,
+  type PartnerBookingsPaymentFilter,
+  type PartnerBookingsSort,
+  type PartnerBookingsTravelWindow,
+} from '../../lib/partner-bookings-desk';
+import { travelerPublicBookingReference } from '../../lib/public-booking-reference';
+import { fetchSupplierBookingEvents, type SupplierBookingEventRow } from '../../data/supabase-booking-events';
 import { displayListingTitleFromPurchase, displayOptionLabelFromPurchase, displayFulfillmentFromPurchase, displayDurationFromPurchase, displayStayCheckInTimeFromPurchase, displayStayCheckOutTimeFromPurchase, displayCheckInAddressFromPurchase, displayStayHouseRulesFromPurchase, partnerOpsDepartureDisplay, isPurchaseSnapshot, partnerListingFilterLabelFromBookings, type PurchaseSnapshot } from '../../lib/purchase-snapshot';
 import { optionLogisticsLines, readOptionLogistics } from '../../lib/option-logistics';
 
-const BOOKINGS_PAGE_SIZE = 10;
+const BOOKINGS_PAGE_SIZE = 20;
 
 type ListingBookingMeta = {
   title: string;
@@ -152,14 +163,10 @@ const CANCELLATION_REASONS = SUPPLIER_CANCELLATION_REASON_CODES.map((id) => ({
 
 /** refund_choice values only — never label these “Full refund” as if Stripe already paid out. */
 type RefundChoice = 'full_refund' | 'no_refund' | 'reschedule';
-type BookingView = 'today' | 'tomorrow' | 'upcoming' | 'past' | 'all';
-type OpsFilter = 'all' | 'unpaid' | 'pickup' | 'cancel' | 'refund_due';
+type BookingView = PartnerBookingsTravelWindow;
+type OpsFilter = PartnerBookingsOps;
 
-const PARTNER_BOOKINGS_TABPANEL_ID = 'partner-bookings-tabpanel';
-
-function partnerBookingsTabId(view: BookingView): string {
-  return `partner-bookings-tab-${view}`;
-}
+const PARTNER_BOOKINGS_LIST_ID = 'partner-bookings-list';
 
 function bookingPaginationRange(totalPages: number, current: number): (number | 'ellipsis')[] {
   if (totalPages <= 1) return [];
@@ -172,6 +179,36 @@ function bookingPaginationRange(totalPages: number, current: number): (number | 
     out.push(sorted[i]);
   }
   return out;
+}
+
+function readTravelWindow(raw: string | null): PartnerBookingsTravelWindow {
+  if (raw === 'today' || raw === 'tomorrow' || raw === 'upcoming' || raw === 'past' || raw === 'range' || raw === 'all') {
+    return raw;
+  }
+  return 'all';
+}
+
+function readSort(raw: string | null): PartnerBookingsSort {
+  if (
+    raw === 'oldest' ||
+    raw === 'travel_asc' ||
+    raw === 'travel_desc' ||
+    raw === 'value_asc' ||
+    raw === 'value_desc' ||
+    raw === 'newest'
+  ) {
+    return raw;
+  }
+  return 'newest';
+}
+
+function bookingReferenceLabel(booking: BookingRow): string {
+  return (
+    travelerPublicBookingReference(booking.public_reference) ||
+    (typeof booking.booking_number === 'number' && booking.booking_number > 0
+      ? `#${booking.booking_number}`
+      : booking.id.slice(0, 8))
+  );
 }
 
 function formatActivityDateLong(bookingDate: string | null, startHm: string | null): string {
@@ -259,10 +296,36 @@ export default function SupplierBookings({
 
   const [view, setView] = useState<BookingView>(() => {
     if (typeof window === 'undefined') return 'all';
-    const v = new URLSearchParams(window.location.search).get('view');
-    return v === 'today' || v === 'tomorrow' || v === 'upcoming' || v === 'past' || v === 'all' ? v : 'all';
+    return readTravelWindow(new URLSearchParams(window.location.search).get('view'));
   });
   const [opsFilter, setOpsFilter] = useState<OpsFilter>('all');
+  const [sortBy, setSortBy] = useState<PartnerBookingsSort>(() => {
+    if (typeof window === 'undefined') return 'newest';
+    return readSort(new URLSearchParams(window.location.search).get('sort'));
+  });
+  const [statusFilter, setStatusFilter] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    const s = (new URLSearchParams(window.location.search).get('status') ?? '').trim().toLowerCase();
+    return s === 'confirmed' || s === 'pending' || s === 'cancelled' ? s : '';
+  });
+  const [paymentFilter, setPaymentFilter] = useState<PartnerBookingsPaymentFilter>(() => {
+    if (typeof window === 'undefined') return '';
+    const p = (new URLSearchParams(window.location.search).get('pay') ?? '').trim();
+    return p === 'paid' || p === 'unpaid' || p === 'refund_due' || p === 'refunded' ? p : '';
+  });
+  const [purchaseFrom, setPurchaseFrom] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    const d = (new URLSearchParams(window.location.search).get('purchasedFrom') ?? '').trim();
+    return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : '';
+  });
+  const [purchaseTo, setPurchaseTo] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    const d = (new URLSearchParams(window.location.search).get('purchasedTo') ?? '').trim();
+    return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : '';
+  });
+  const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(() => new Set());
+  const [activityEvents, setActivityEvents] = useState<SupplierBookingEventRow[]>([]);
   const [filterListingId, setFilterListingId] = useState(() => {
     if (typeof window === 'undefined') return '';
     return (new URLSearchParams(window.location.search).get('listing') ?? '').trim();
@@ -277,12 +340,11 @@ export default function SupplierBookings({
     const d = (new URLSearchParams(window.location.search).get('to') ?? '').trim();
     return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : '';
   });
-  const [filterQuery, setFilterQuery] = useState('');
-  const [showSearch, setShowSearch] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    const p = new URLSearchParams(window.location.search);
-    return Boolean(p.get('listing') || p.get('from') || p.get('to'));
+  const [filterQuery, setFilterQuery] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return new URLSearchParams(window.location.search).get('q') ?? '';
   });
+  const [searchDraft, setSearchDraft] = useState(filterQuery);
 
   const [bookingsListPage, setBookingsListPage] = useState(1);
   const [highlightBookingId, setHighlightBookingId] = useState<string | null>(null);
@@ -384,16 +446,27 @@ export default function SupplierBookings({
         if (ops === 'all') setOpsFilter('all');
       }
       const v = params.get('view');
-      if (v === 'today' || v === 'tomorrow' || v === 'upcoming' || v === 'past' || v === 'all') {
+      if (v === 'today' || v === 'tomorrow' || v === 'upcoming' || v === 'past' || v === 'range' || v === 'all') {
         if (!(ops === 'refund_due' || ops === 'unpaid' || ops === 'cancel')) setView(v);
       }
+      setSortBy(readSort(params.get('sort')));
+      const status = (params.get('status') ?? '').trim().toLowerCase();
+      setStatusFilter(status === 'confirmed' || status === 'pending' || status === 'cancelled' ? status : '');
+      const pay = (params.get('pay') ?? '').trim();
+      setPaymentFilter(pay === 'paid' || pay === 'unpaid' || pay === 'refund_due' || pay === 'refunded' ? pay : '');
+      const purchasedFrom = (params.get('purchasedFrom') ?? '').trim();
+      const purchasedTo = (params.get('purchasedTo') ?? '').trim();
+      setPurchaseFrom(/^\d{4}-\d{2}-\d{2}$/.test(purchasedFrom) ? purchasedFrom : '');
+      setPurchaseTo(/^\d{4}-\d{2}-\d{2}$/.test(purchasedTo) ? purchasedTo : '');
+      const q = params.get('q') ?? '';
+      setFilterQuery(q);
+      setSearchDraft(q);
       const listing = (params.get('listing') ?? '').trim();
       setFilterListingId(listing);
       const from = (params.get('from') ?? '').trim();
       const to = (params.get('to') ?? '').trim();
       setFilterDateFrom(/^\d{4}-\d{2}-\d{2}$/.test(from) ? from : '');
       setFilterDateTo(/^\d{4}-\d{2}-\d{2}$/.test(to) ? to : '');
-      if (listing || from || to) setShowSearch(true);
     };
     syncFromUrl();
     window.addEventListener('popstate', syncFromUrl);
@@ -406,15 +479,36 @@ export default function SupplierBookings({
       from?: string;
       to?: string;
       view?: BookingView;
+      sort?: PartnerBookingsSort;
+      status?: string;
+      pay?: PartnerBookingsPaymentFilter;
+      purchasedFrom?: string;
+      purchasedTo?: string;
+      q?: string;
     }) => {
       const listingId = patch.listingId !== undefined ? patch.listingId : filterListingId;
       const from = patch.from !== undefined ? patch.from : filterDateFrom;
       const to = patch.to !== undefined ? patch.to : filterDateTo;
       const nextView = patch.view !== undefined ? patch.view : view;
+      const nextSort = patch.sort !== undefined ? patch.sort : sortBy;
+      const nextStatus = patch.status !== undefined ? patch.status : statusFilter;
+      const nextPay = patch.pay !== undefined ? patch.pay : paymentFilter;
+      const nextPurchasedFrom = patch.purchasedFrom !== undefined ? patch.purchasedFrom : purchaseFrom;
+      const nextPurchasedTo = patch.purchasedTo !== undefined ? patch.purchasedTo : purchaseTo;
+      const nextQuery = patch.q !== undefined ? patch.q : filterQuery;
       if (patch.listingId !== undefined) setFilterListingId(patch.listingId);
       if (patch.from !== undefined) setFilterDateFrom(patch.from);
       if (patch.to !== undefined) setFilterDateTo(patch.to);
       if (patch.view !== undefined) setView(patch.view);
+      if (patch.sort !== undefined) setSortBy(patch.sort);
+      if (patch.status !== undefined) setStatusFilter(patch.status);
+      if (patch.pay !== undefined) setPaymentFilter(patch.pay);
+      if (patch.purchasedFrom !== undefined) setPurchaseFrom(patch.purchasedFrom);
+      if (patch.purchasedTo !== undefined) setPurchaseTo(patch.purchasedTo);
+      if (patch.q !== undefined) {
+        setFilterQuery(patch.q);
+        setSearchDraft(patch.q);
+      }
       const url = new URL(window.location.href);
       if (!listingId) url.searchParams.delete('listing');
       else url.searchParams.set('listing', listingId);
@@ -424,10 +518,31 @@ export default function SupplierBookings({
       else url.searchParams.set('to', to);
       if (nextView === 'all') url.searchParams.delete('view');
       else url.searchParams.set('view', nextView);
+      if (nextSort === 'newest') url.searchParams.delete('sort');
+      else url.searchParams.set('sort', nextSort);
+      if (!nextStatus) url.searchParams.delete('status');
+      else url.searchParams.set('status', nextStatus);
+      if (!nextPay) url.searchParams.delete('pay');
+      else url.searchParams.set('pay', nextPay);
+      if (!nextPurchasedFrom) url.searchParams.delete('purchasedFrom');
+      else url.searchParams.set('purchasedFrom', nextPurchasedFrom);
+      if (!nextPurchasedTo) url.searchParams.delete('purchasedTo');
+      else url.searchParams.set('purchasedTo', nextPurchasedTo);
+      if (!nextQuery.trim()) url.searchParams.delete('q');
+      else url.searchParams.set('q', nextQuery.trim());
       window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+      setBookingsListPage(1);
     },
-    [filterListingId, filterDateFrom, filterDateTo, view]
+    [filterListingId, filterDateFrom, filterDateTo, view, sortBy, statusFilter, paymentFilter, purchaseFrom, purchaseTo, filterQuery]
   );
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      if (searchDraft === filterQuery) return;
+      writeBookingsSearchToUrl({ q: searchDraft });
+    }, 250);
+    return () => window.clearTimeout(handle);
+  }, [searchDraft, filterQuery, writeBookingsSearchToUrl]);
 
   const setSelectedBookingId = useCallback((id: string | null) => {
     const url = new URL(window.location.href);
@@ -447,143 +562,55 @@ export default function SupplierBookings({
   }, []);
 
   const filteredBookings = useMemo(() => {
-    const q = filterQuery.trim().toLowerCase();
     const nowMs = Date.now();
-    const rows = bookings.filter((b) => {
-      if (!partnerBookingIsLiveTrip(b)) return false;
-      const meta = listingMeta[b.listing_id];
-      const isStay = meta?.family === 'stay' || bookingIsStayNight(b);
-      const stayRange = isStay ? stayRangeFromBooking(b) : null;
-      const experienceToday = scheduleTodayIsoForBooking(b, nowMs);
-      const experienceTomorrow = addCalendarDaysYmd(experienceToday, 1) ?? experienceToday;
-      if (view === 'today' || view === 'tomorrow') {
-        const dayIso = view === 'today' ? experienceToday : experienceTomorrow;
-        if (opsFilter === 'refund_due' || opsFilter === 'unpaid' || opsFilter === 'cancel') {
-          /* Ops filters are money/hold/cancel work — not schedule-scoped. */
-        } else if (!partnerBookingIsOperatingTrip(b)) {
-          return false;
-        } else if (stayRange) {
-          if (!partnerStayTouchesScheduleDay(stayRange.checkIn, stayRange.checkOut, dayIso)) return false;
-        } else if (b.booking_date !== dayIso) {
-          return false;
-        }
-      }
-      if (view === 'upcoming') {
-        if (opsFilter === 'refund_due' || opsFilter === 'unpaid' || opsFilter === 'cancel') {
-          /* keep */
-        } else if (!partnerBookingIsOperatingTrip(b)) {
-          return false;
-        } else if (stayRange) {
-          if (stayRange.checkIn <= experienceToday) return false;
-        } else if (!b.booking_date || b.booking_date <= experienceToday) {
-          return false;
-        }
-      }
-      if (view === 'past') {
-        if (opsFilter === 'refund_due' || opsFilter === 'unpaid' || opsFilter === 'cancel') {
-          /* keep */
-        } else if (!partnerBookingIsPastSchedule(b, experienceToday)) {
-          return false;
-        }
-      }
-      if (opsFilter === 'unpaid') {
-        if (!partnerBookingIsUnpaidCheckout(b)) return false;
-      }
-      if (opsFilter === 'pickup') {
-        const meta = listingMeta[b.listing_id];
-        // Phase 1751: pickup queue must honor note overrides (1742 Meet display parity).
-        const copy = resolvePartnerPickupCopy({
-          purchaseSnapshot: b.purchase_snapshot,
-          bookingOptionId: b.booking_option_id,
-          specialRequests: b.special_requests,
-          listingMeetingPoint: meta?.meetingPoint,
-          listingPickupInstructions: meta?.pickupInstructions,
-          bookingOptions: isPurchaseSnapshot(b.purchase_snapshot) ? null : meta?.bookingOptions,
-        });
-        if (
-          !partnerBookingHasPickupAttention(
+    return applyPartnerBookingsDesk(bookings.filter(partnerBookingIsLiveTrip), {
+      search: filterQuery,
+      travel: view === 'range' || filterDateFrom || filterDateTo ? (view === 'all' && (filterDateFrom || filterDateTo) ? 'range' : view) : view,
+      travelFrom: filterDateFrom,
+      travelTo: filterDateTo,
+      purchaseFrom,
+      purchaseTo,
+      status: statusFilter,
+      payment: paymentFilter,
+      listingId: filterListingId,
+      ops: opsFilter,
+      sort: sortBy,
+      inventoryFamily,
+      highlightBookingId,
+    }, {
+      nowMs,
+      isStay: (b) => listingMeta[b.listing_id]?.family === 'stay' || bookingIsStayNight(b),
+      pickupAttention: (b) => {
+        if (opsFilter === 'pickup') {
+          const meta = listingMeta[b.listing_id];
+          // Phase 1751: pickup queue must honor note overrides (1742 Meet display parity).
+          const copy = resolvePartnerPickupCopy({
+            purchaseSnapshot: b.purchase_snapshot,
+            bookingOptionId: b.booking_option_id,
+            specialRequests: b.special_requests,
+            listingMeetingPoint: meta?.meetingPoint,
+            listingPickupInstructions: meta?.pickupInstructions,
+            bookingOptions: isPurchaseSnapshot(b.purchase_snapshot) ? null : meta?.bookingOptions,
+          });
+          return partnerBookingHasPickupAttention(
             b,
             copy.meetingPoint,
             copy.pickupInstructions,
             isPurchaseSnapshot(b.purchase_snapshot) ? null : meta?.bookingOptions
-          )
-        )
-          return false;
-      }
-      if (opsFilter === 'cancel') {
-        if (
-          !openHostCancelRequestVisible({
-            bookingStatus: b.status,
-            requestStatus: openCancels[b.id]?.status,
-          })
-        )
-          return false;
-      }
-      if (opsFilter === 'refund_due') {
-        if (!isRefundDueBooking(b)) return false;
-      }
-      if (inventoryFamily === 'stay' && !isStay && b.id !== highlightBookingId) return false;
-      if (inventoryFamily === 'tour' && isStay && b.id !== highlightBookingId) return false;
-      if (filterListingId && b.listing_id !== filterListingId) return false;
-      if (filterDateFrom || filterDateTo) {
-        if (stayRange) {
-          const nights = nightsOccupiedByStay(stayRange.checkIn, stayRange.checkOut);
-          const overlapsFrom = !filterDateFrom || nights.some((n) => n >= filterDateFrom);
-          const overlapsTo = !filterDateTo || nights.some((n) => n <= filterDateTo);
-          if (!overlapsFrom || !overlapsTo) return false;
-        } else {
-          if (filterDateFrom && (!b.booking_date || b.booking_date < filterDateFrom)) return false;
-          if (filterDateTo && (!b.booking_date || b.booking_date > filterDateTo)) return false;
+          );
         }
-      }
-      if (!q) return true;
-
-      // Phase 1481: search must match purchased titles shown on rows, not live listing renames.
-      // Phase 1484: search must match booking # shown on rows (admin 1053 parity).
-      const title = displayListingTitleFromPurchase(
-        b.purchase_snapshot,
-        listingMeta[b.listing_id]?.title,
-        ''
-      ).toLowerCase();
-      const idLower = b.id.toLowerCase();
-      const guestName = (b.guest_name ?? '').toLowerCase();
-      const guestEmail = (b.guest_email ?? '').toLowerCase();
-      return (
-        title.includes(q) ||
-        partnerBookingNumberMatchesFilterQuery(q, b.booking_number) ||
-        idLower.includes(q) ||
-        guestName.includes(q) ||
-        guestEmail.includes(q)
-      );
+        return false;
+      },
+      openCancel: (b) =>
+        openHostCancelRequestVisible({
+          bookingStatus: b.status,
+          requestStatus: openCancels[b.id]?.status,
+        }),
+      title: (b) =>
+        displayListingTitleFromPurchase(b.purchase_snapshot, listingMeta[b.listing_id]?.title, ''),
+      startHm: (b) => (b.start_time ? pgTimeToHm(b.start_time) ?? '' : ''),
     });
-    if (opsFilter === 'unpaid') {
-      rows.sort((a, b) => {
-        const aLive = partnerBookingIsActiveUnpaidCheckout(a) ? 0 : 1;
-        const bLive = partnerBookingIsActiveUnpaidCheckout(b) ? 0 : 1;
-        if (aLive !== bLive) return aLive - bLive;
-        return b.created_at.localeCompare(a.created_at);
-      });
-    } else {
-      // Operational desk: same-day bookings cluster by departure time (multi-schedule).
-      const pastFirst = view === 'past';
-      rows.sort((a, b) =>
-        comparePartnerBookingsOperational(
-          {
-            booking_date: a.booking_date,
-            start_time_hm: a.start_time ? pgTimeToHm(a.start_time) ?? '' : '',
-            created_at: a.created_at,
-          },
-          {
-            booking_date: b.booking_date,
-            start_time_hm: b.start_time ? pgTimeToHm(b.start_time) ?? '' : '',
-            created_at: b.created_at,
-          },
-          { pastFirst }
-        )
-      );
-    }
-    return rows;
-  }, [bookings, filterDateFrom, filterDateTo, filterListingId, filterQuery, listingMeta, view, opsFilter, openCancels, inventoryFamily, highlightBookingId]);
+  }, [bookings, filterDateFrom, filterDateTo, filterListingId, filterQuery, listingMeta, view, opsFilter, openCancels, inventoryFamily, highlightBookingId, purchaseFrom, purchaseTo, statusFilter, paymentFilter, sortBy]);
 
   const totalPages = Math.max(1, Math.ceil(filteredBookings.length / BOOKINGS_PAGE_SIZE));
   const safePage = Math.min(Math.max(bookingsListPage, 1), totalPages);
@@ -754,6 +781,20 @@ export default function SupplierBookings({
     [bookings, highlightBookingId]
   );
 
+  useEffect(() => {
+    if (!user?.id || !highlightBookingId) {
+      setActivityEvents([]);
+      return;
+    }
+    let cancelled = false;
+    void fetchSupplierBookingEvents(user.id, [highlightBookingId]).then((rows) => {
+      if (!cancelled) setActivityEvents(rows);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, highlightBookingId]);
+
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
       <SupplierPageHero
@@ -775,6 +816,39 @@ export default function SupplierBookings({
               <RefreshCw className="h-4 w-4" aria-hidden />
               Refresh
             </button>
+            {selectedIds.size > 0 ? (
+              <button
+                type="button"
+                onClick={() => {
+                  if (!canExportBookingsCsv || !user?.id) return;
+                  const chosen = filteredBookings.filter((b) => selectedIds.has(b.id));
+                  if (chosen.length === 0) return;
+                  void (async () => {
+                    const audited = await downloadBookingsCsv(chosen, listingMeta, {
+                      supplierId: user.id,
+                      actorId: user.id,
+                      dateFrom: filterDateFrom || undefined,
+                      dateTo: filterDateTo || undefined,
+                      filtersSnapshot: {
+                        surface: 'bookings',
+                        scope: 'selected',
+                        view,
+                        opsFilter,
+                        rowCount: chosen.length,
+                      },
+                    });
+                    if (!audited) {
+                      setError('Export downloaded, but the audit log failed. Try again or contact support.');
+                    }
+                  })();
+                }}
+                disabled={!canExportBookingsCsv}
+                className="tv-btn-ghost disabled:opacity-50"
+              >
+                <Download className="h-4 w-4" aria-hidden />
+                Export selected
+              </button>
+            ) : null}
             <button
               type="button"
               // Phase 1763/1768: guest-PII export for editors + finance (+ audit insert).
@@ -791,6 +865,9 @@ export default function SupplierBookings({
                       surface: 'bookings',
                       view,
                       opsFilter,
+                      sort: sortBy,
+                      status: statusFilter || null,
+                      payment: paymentFilter || null,
                       listingId: filterListingId || null,
                       query: filterQuery.trim() || null,
                       inventoryFamily: inventoryFamily ?? null,
@@ -818,146 +895,176 @@ export default function SupplierBookings({
           ) : undefined
         }
       >
-        {bookings.length > 0 && (
-          <div className="mt-4 flex flex-wrap gap-x-1 gap-y-1 border-b border-black/[0.06]" role="tablist" aria-label="Schedule">
-            {([
-              ['today', 'Today'],
-              ['tomorrow', 'Tomorrow'],
-              ['upcoming', 'Upcoming'],
-              ['past', 'Past'],
-              ['all', 'All'],
-            ] as const).map(([id, label]) => (
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                id={partnerBookingsTabId(id)}
-                aria-controls={PARTNER_BOOKINGS_TABPANEL_ID}
-                aria-selected={view === id}
-                onClick={() => writeBookingsSearchToUrl({ view: id })}
-                className={`lux-flat relative px-3.5 py-2.5 text-sm font-medium transition-colors ${
-                  view === id ? 'text-finland' : 'text-ink-muted hover:text-ink'
-                }`}
-              >
-                {label}
-                {view === id ? (
-                  <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-finland" aria-hidden />
-                ) : null}
-              </button>
-            ))}
-          </div>
-        )}
-        {bookings.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="Operational filters">
-            {([
-              ['all', 'All states'],
-              ['unpaid', 'Unpaid'],
-              ...(inventoryFamily === 'stay' ? [] : [['pickup', 'Pickup details'] as const]),
-              ['cancel', 'Cancellation'],
-              ['refund_due', 'Refund due'],
-            ] as const).map(([id, label]) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setOpsFilterAndUrl(id)}
-                className={`lux-flat rounded-md px-3 py-1.5 text-xs font-semibold ring-1 transition-colors ${
-                  opsFilter === id
-                    ? id === 'cancel'
-                      ? 'bg-rose-600 text-white ring-rose-600'
-                      : id === 'unpaid' || id === 'pickup' || id === 'refund_due'
-                        ? 'bg-amber-500 text-white ring-amber-500'
-                        : 'bg-finland text-white ring-finland'
-                    : 'bg-transparent text-ink-muted ring-black/[0.08] hover:text-ink hover:ring-black/[0.14]'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        )}
       </SupplierPageHero>
 
       {bookings.length > 0 && (
-      <div className="mb-8">
-        <button
-          type="button"
-          onClick={() => setShowSearch((v) => !v)}
-          className="tv-btn-ghost -ml-2"
-        >
-          {/* Phase 1663: ops chips count as active filters in the Search · on cue. */}
-          Search{filterQuery || filterListingId || filterDateFrom || filterDateTo || opsFilter !== 'all' ? ' · on' : ''}
-        </button>
-        {showSearch && (
-        <div className="mt-4 space-y-4 motion-safe:animate-fade-in">
-        <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
-            <div className="flex min-w-[min(100%,12rem)] flex-1 flex-col gap-1 sm:flex-none sm:min-w-[11rem]">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-ink-faint" id="bookings-filter-listing-label">
-                Listing
-              </span>
-              <PartnerSelect
-                aria-labelledby="bookings-filter-listing-label"
-                value={filterListingId}
-                onChange={(listingId) => writeBookingsSearchToUrl({ listingId })}
-                options={[
-                  { value: '', label: 'All listings' },
-                  ...listingOptions.map((option) => ({ value: option.id, label: option.title })),
-                ]}
+      <div className="mb-4 space-y-3">
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+          <label className="min-w-0 flex-1">
+            <span className="sr-only">Search bookings</span>
+            <input
+              type="search"
+              value={searchDraft}
+              onChange={(e) => setSearchDraft(e.target.value)}
+              placeholder="Search name, email or booking ID..."
+              className="tv-input w-full"
+              aria-label="Search name, email or booking ID"
+            />
+          </label>
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+            <PartnerSelect
+              id="bookings-filter-status"
+              aria-label="Booking status"
+              searchable={false}
+              value={statusFilter}
+              onChange={(status) => writeBookingsSearchToUrl({ status })}
+              options={[
+                { value: '', label: 'All statuses' },
+                { value: 'confirmed', label: 'Confirmed' },
+                { value: 'pending', label: 'Pending' },
+                { value: 'cancelled', label: 'Cancelled' },
+              ]}
+            />
+            <PartnerSelect
+              id="bookings-filter-listing"
+              aria-labelledby="bookings-filter-listing-label"
+              value={filterListingId}
+              onChange={(listingId) => writeBookingsSearchToUrl({ listingId })}
+              options={[
+                { value: '', label: 'All experiences' },
+                ...listingOptions.map((option) => ({ value: option.id, label: option.title })),
+              ]}
+            />
+            <span id="bookings-filter-listing-label" className="sr-only">Experience</span>
+            <PartnerSelect
+              id="bookings-filter-travel"
+              aria-label="Travel date"
+              searchable={false}
+              value={view}
+              onChange={(next) => writeBookingsSearchToUrl({ view: next as BookingView })}
+              options={PARTNER_BOOKINGS_TRAVEL.map((item) => ({ value: item.value, label: item.label }))}
+            />
+            <PartnerSelect
+              id="bookings-filter-sort"
+              aria-label="Sort bookings"
+              searchable={false}
+              value={sortBy}
+              onChange={(next) => writeBookingsSearchToUrl({ sort: next as PartnerBookingsSort })}
+              options={PARTNER_BOOKINGS_SORTS.map((item) => ({ value: item.value, label: item.label }))}
+            />
+            <button
+              type="button"
+              aria-expanded={moreFiltersOpen}
+              onClick={() => setMoreFiltersOpen((open) => !open)}
+              className="tv-btn-ghost"
+            >
+              More filters
+            </button>
+          </div>
+        </div>
+        {view === 'range' || filterDateFrom || filterDateTo ? (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <input
+              type="date"
+              value={filterDateFrom}
+              onChange={(e) => writeBookingsSearchToUrl({ view: 'range', from: e.target.value })}
+              className="tv-input w-[9.25rem]"
+              aria-label="Travel date from"
+            />
+            <span className="shrink-0 text-sm text-ink-faint">–</span>
+            <input
+              type="date"
+              value={filterDateTo}
+              onChange={(e) => writeBookingsSearchToUrl({ view: 'range', to: e.target.value })}
+              className="tv-input w-[9.25rem]"
+              aria-label="Travel date to"
+            />
+          </div>
+        ) : null}
+        {moreFiltersOpen ? (
+          <div className="grid grid-cols-1 gap-3 rounded-lg border border-black/[0.08] bg-white p-3 sm:grid-cols-2 lg:grid-cols-4">
+            <PartnerSelect
+              id="bookings-filter-payment"
+              aria-label="Payment status"
+              searchable={false}
+              value={paymentFilter}
+              onChange={(pay) => writeBookingsSearchToUrl({ pay: pay as PartnerBookingsPaymentFilter })}
+              options={[
+                { value: '', label: 'Any payment' },
+                { value: 'paid', label: 'Paid' },
+                { value: 'unpaid', label: 'Unpaid' },
+                { value: 'refund_due', label: 'Refund due' },
+                { value: 'refunded', label: 'Refunded' },
+              ]}
+            />
+            <PartnerSelect
+              id="bookings-filter-ops"
+              aria-label="Operational attention"
+              searchable={false}
+              value={opsFilter}
+              onChange={(next) => setOpsFilterAndUrl(next as OpsFilter)}
+              options={[
+                { value: 'all', label: 'Any attention' },
+                { value: 'unpaid', label: 'Unpaid checkout' },
+                ...(inventoryFamily === 'stay' ? [] : [{ value: 'pickup', label: 'Pickup details' }]),
+                { value: 'cancel', label: 'Cancellation waiting' },
+                { value: 'refund_due', label: 'Refund due' },
+              ]}
+            />
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Purchased from</label>
+              <input
+                type="date"
+                value={purchaseFrom}
+                onChange={(e) => writeBookingsSearchToUrl({ purchasedFrom: e.target.value })}
+                className="tv-input"
+                aria-label="Purchase date from"
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Dates</label>
-              <div className="flex flex-wrap items-center gap-1.5">
-                <input
-                  type="date"
-                  value={filterDateFrom}
-                  onChange={(e) => writeBookingsSearchToUrl({ from: e.target.value })}
-                  className="tv-input w-[9.25rem]"
-                  aria-label="Activity date from"
-                />
-                <span className="shrink-0 text-sm text-ink-faint">–</span>
-                <input
-                  type="date"
-                  value={filterDateTo}
-                  onChange={(e) => writeBookingsSearchToUrl({ to: e.target.value })}
-                  className="tv-input w-[9.25rem]"
-                  aria-label="Activity date to"
-                />
-              </div>
-            </div>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end sm:gap-3">
-            <div className="flex min-w-[min(100%,14rem)] flex-1 flex-col gap-1">
-              <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Guest</label>
+              <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Purchased to</label>
               <input
-                type="search"
-                value={filterQuery}
-                onChange={(e) => setFilterQuery(e.target.value)}
-                placeholder="Name, email, or booking #"
+                type="date"
+                value={purchaseTo}
+                onChange={(e) => writeBookingsSearchToUrl({ purchasedTo: e.target.value })}
                 className="tv-input"
+                aria-label="Purchase date to"
               />
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  writeBookingsSearchToUrl({ view: 'all', listingId: '', from: '', to: '' });
-                  setOpsFilterAndUrl('all');
-                  setFilterQuery('');
-                  setBookingsListPage(1);
-                }}
-                className="tv-btn-ghost"
-              >
-                Clear
-              </button>
-              {!loading && (
-                <span className="text-sm text-ink-muted">
-                  {filteredBookings.length} of {bookings.length}
-                </span>
-              )}
-            </div>
           </div>
+        ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Phase 1663: ops filters count as active filters. */}
+          {filterQuery || filterListingId || filterDateFrom || filterDateTo || opsFilter !== 'all' || statusFilter || paymentFilter || sortBy !== 'newest' || purchaseFrom || purchaseTo || view !== 'all' ? (
+            <button
+              type="button"
+              onClick={() => {
+                writeBookingsSearchToUrl({
+                  view: 'all',
+                  listingId: '',
+                  from: '',
+                  to: '',
+                  sort: 'newest',
+                  status: '',
+                  pay: '',
+                  purchasedFrom: '',
+                  purchasedTo: '',
+                  q: '',
+                });
+                setOpsFilterAndUrl('all');
+                setSelectedIds(new Set());
+              }}
+              className="tv-btn-ghost"
+            >
+              Reset filters
+            </button>
+          ) : null}
+          {!loading ? (
+            <span className="text-sm text-ink-muted">
+              {filteredBookings.length} of {bookings.length}
+            </span>
+          ) : null}
         </div>
-        )}
       </div>
       )}
 
@@ -1040,9 +1147,9 @@ export default function SupplierBookings({
         />
       ) : (
         <div
-          id={PARTNER_BOOKINGS_TABPANEL_ID}
-          role="tabpanel"
-          aria-labelledby={partnerBookingsTabId(view)}
+          id={PARTNER_BOOKINGS_LIST_ID}
+          role="region"
+          aria-label="Bookings"
         >
         {filteredBookings.length === 0 ? (
         <SupplierEmptyState
@@ -1050,37 +1157,33 @@ export default function SupplierBookings({
           title="Nothing in this view"
           body={
             opsFilter === 'unpaid'
-              ? 'No unpaid checkouts match these filters. Live holds appear first when present; expired holds stay here until you clear them.'
-              : view === 'tomorrow'
-                ? 'No tours or stays on tomorrow’s schedule. Switch to Upcoming or All to see the rest.'
-                : view === 'today'
-                  ? 'Nothing on today’s schedule. Check Tomorrow or Upcoming if guests are arriving later.'
-                  : 'You have bookings, but none match this tab, date range, or search. That is a filter — not a missing page.'
+              ? 'No unpaid checkouts match these filters. Live holds stay here until you clear them.'
+              : 'You have bookings, but none match this search or these filters. That is a filter — not a missing page.'
           }
           action={
-            view === 'today' || view === 'tomorrow' ? (
-              <button
-                type="button"
-                onClick={() => writeBookingsSearchToUrl({ view: 'all' })}
-                className="tv-btn-secondary"
-              >
-                Show all bookings
-              </button>
-            ) : (
-              // Phase 1609: filtered empty — same reset as toolbar Clear (search/ops/date/listing).
+              // Phase 1609: filtered empty — same reset as toolbar Reset filters.
               <button
                 type="button"
                 onClick={() => {
-                  writeBookingsSearchToUrl({ view: 'all', listingId: '', from: '', to: '' });
+                  writeBookingsSearchToUrl({
+                    view: 'all',
+                    listingId: '',
+                    from: '',
+                    to: '',
+                    sort: 'newest',
+                    status: '',
+                    pay: '',
+                    purchasedFrom: '',
+                    purchasedTo: '',
+                    q: '',
+                  });
                   setOpsFilterAndUrl('all');
-                  setFilterQuery('');
                   setBookingsListPage(1);
                 }}
                 className="tv-btn-secondary"
               >
                 Clear filters
               </button>
-            )
           }
         />
       ) : (
@@ -1173,6 +1276,22 @@ export default function SupplierBookings({
                   data-highlight={highlightBookingId === booking.id ? 'true' : 'false'}
                   className={`tv-ops-booking-row ${statusAccent}`}
                 >
+                  <label className="flex shrink-0 items-center pl-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(booking.id)}
+                      aria-label={`Select booking ${bookingReferenceLabel(booking)}`}
+                      onChange={() => {
+                        setSelectedIds((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(booking.id)) next.delete(booking.id);
+                          else next.add(booking.id);
+                          return next;
+                        });
+                      }}
+                      className="h-4 w-4 rounded border-black/30 text-finland focus:ring-finland"
+                    />
+                  </label>
                   <button
                     type="button"
                     onClick={() => setSelectedBookingId(booking.id)}
@@ -1182,18 +1301,23 @@ export default function SupplierBookings({
                       <img
                         src={meta.imageUrl}
                         alt=""
-                        className="h-14 w-14 rounded-xl object-cover shrink-0 ring-1 ring-black/[0.06]"
+                        className="h-10 w-10 rounded-md object-cover shrink-0 ring-1 ring-black/[0.06]"
                       />
                     ) : (
-                      <div className="h-14 w-14 rounded-xl bg-finland/10 shrink-0 ring-1 ring-finland/15" aria-hidden />
+                      <div className="h-10 w-10 rounded-md bg-finland/10 shrink-0 ring-1 ring-finland/15" aria-hidden />
                     )}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-3">
-                        <p className="min-w-0 break-words text-[0.95rem] font-semibold tracking-tight text-ink [overflow-wrap:anywhere] line-clamp-2 leading-snug">
+                        <p className="min-w-0 truncate font-display text-[1.02rem] font-semibold tracking-tight text-ink" title={booking.guest_name || 'Guest'}>
                           {booking.guest_name || 'Guest'}
                         </p>
-                        <span className="shrink-0 rounded-md bg-black/[0.04] px-2 py-0.5 text-[11px] font-semibold text-ink-muted">
-                          {partnerPaymentLabel(booking)}
+                        <span className="flex shrink-0 items-center gap-1">
+                          <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-semibold ring-1 ${bookingStatusClass(booking.status, booking.payment_status)}`}>
+                            {partnerBookingLifecycleLabel(booking.status)}
+                          </span>
+                          <span className="rounded-md bg-black/[0.04] px-1.5 py-0.5 text-[11px] font-semibold text-ink-muted">
+                            {partnerPaymentLabel(booking)}
+                          </span>
                         </span>
                       </div>
                       <p className="mt-1 break-words text-[13px] font-medium text-ink-muted [overflow-wrap:anywhere] line-clamp-2">
@@ -1254,7 +1378,7 @@ export default function SupplierBookings({
                         </p>
                       ) : null}
                       {needsAck ? (
-                        <p className="mt-1.5 text-xs font-medium text-finland">Needs a look</p>
+                        <p className="mt-1.5 text-xs font-medium text-finland">Awaiting acknowledgement</p>
                       ) : null}
                       {pickupGap ? (
                         <p className="mt-1.5 text-xs font-medium text-amber-800">Pickup details missing</p>
@@ -1336,7 +1460,7 @@ export default function SupplierBookings({
       )}
 
       {selectedBooking && (
-        <SupplierModalShell onClose={() => setSelectedBookingId(null)} maxWidth="lg">
+        <SupplierDetailDrawer onClose={() => setSelectedBookingId(null)} label={selectedBooking.guest_name || 'Booking'}>
           {(() => {
             const booking = selectedBooking;
             const opsStartHm = booking.start_time ? pgTimeToHm(booking.start_time) ?? null : null;
@@ -1442,7 +1566,7 @@ export default function SupplierBookings({
                   subtitle={`${listingTitle} · ${refLabel}`}
                   onClose={() => setSelectedBookingId(null)}
                 />
-                <div className="space-y-4 p-4 sm:p-5">
+                <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
                   <div className="flex items-start gap-3">
                     {meta?.imageUrl ? (
                       <img
@@ -1800,6 +1924,16 @@ export default function SupplierBookings({
                         </li>
                       ) : null}
                       {booking.status === 'cancelled' ? <li>Cancelled</li> : null}
+                      {activityEvents.map((event) => (
+                        <li key={event.id}>
+                          {event.event_type.replace(/_/g, ' ')}
+                          {event.details ? ` · ${event.details}` : ''} ·{' '}
+                          {new Date(event.created_at).toLocaleString(undefined, {
+                            dateStyle: 'medium',
+                            timeStyle: 'short',
+                          })}
+                        </li>
+                      ))}
                     </ol>
                   </div>
                   <BookingMessageThread
@@ -1844,7 +1978,7 @@ export default function SupplierBookings({
               </>
             );
           })()}
-        </SupplierModalShell>
+        </SupplierDetailDrawer>
       )}
 
       {cancelModal && partnerBookingShowsCancelAction(cancelModal) && (
