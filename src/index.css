@@ -2887,6 +2887,122 @@ a:focus-visible,
   }
 }
 
+/* Inbox workspace: conversation list beside the open thread. */
+.tv-inbox-workspace {
+  gap: 0;
+  min-height: 0;
+  height: calc(100dvh - 8.5rem - env(safe-area-inset-bottom));
+}
+
+.tv-inbox-split {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 0.85rem;
+  background: #fff;
+}
+
+.tv-inbox-list-pane {
+  width: 100%;
+  min-width: 0;
+  background: #fff;
+}
+
+.tv-inbox-list-pane__head {
+  padding: 0.85rem 0.9rem 0.7rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.tv-inbox-chat {
+  position: relative;
+  background: #fafafa;
+}
+
+.tv-inbox-chat__head {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  background: #fff;
+}
+
+.tv-inbox-chat__body {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  padding: 0.75rem 0.85rem calc(0.75rem + env(safe-area-inset-bottom));
+}
+
+.tv-inbox-details {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  width: min(22rem, 100%);
+  flex-direction: column;
+  background: #fff;
+  border-left: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: -12px 0 28px -22px rgba(15, 23, 42, 0.35);
+}
+
+.tv-inbox-workspace .tv-inbox-list {
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.tv-inbox-workspace .tv-inbox-thread[data-unread='true'] {
+  background: #fff;
+}
+
+.tv-inbox-workspace .tv-inbox-thread[data-open='true'] {
+  background: rgba(0, 53, 128, 0.08);
+}
+
+.tv-msg-day {
+  margin: 0.35rem 0 0.15rem;
+  text-align: center;
+  font-size: 11px;
+  color: #78716c;
+}
+
+.tv-msg-log--panel .tv-msg-bubble {
+  max-width: min(32rem, 88%);
+}
+
+.tv-msg-log--panel .tv-msg-bubble--mine {
+  margin-left: auto;
+}
+
+.tv-msg-log--panel .tv-msg-bubble--theirs,
+.tv-msg-log--panel .tv-msg-bubble--system {
+  margin-right: auto;
+}
+
+@media (min-width: 1024px) {
+  .tv-inbox-workspace {
+    height: calc(100dvh - 7.5rem);
+  }
+
+  .tv-inbox-list-pane {
+    width: min(22.5rem, 36%);
+    flex: none;
+    border-right: 1px solid rgba(15, 23, 42, 0.06);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tv-inbox-details {
+    box-shadow: none;
+  }
+}
+
 /* Availability workspace 2.0 */
 .tv-avail-page-head {
   display: flex;

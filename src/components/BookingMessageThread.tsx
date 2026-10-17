@@ -33,6 +33,8 @@ type Props = {
   onMarkedRead?: () => void;
   /** Focus the composer after the thread loads. */
   autoFocus?: boolean;
+  /** Supplier Inbox fills the conversation column. Traveler Trips keeps the stacked thread. */
+  layout?: 'stack' | 'panel';
 };
 
 function stampInboundMessagesRead(
@@ -71,6 +73,7 @@ export default function BookingMessageThread({
   bookingDate,
   onMarkedRead,
   autoFocus = false,
+  layout = 'stack',
 }: Props) {
   const [rows, setRows] = useState<BookingMessageRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,23 +85,29 @@ export default function BookingMessageThread({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [markReadError, setMarkReadError] = useState<string | null>(null);
   const loadGenRef = useRef(0);
+  const sendingRef = useRef(false);
+  const logRef = useRef<HTMLUListElement>(null);
+  const stickToBottomRef = useRef(true);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
+    const silent = opts?.silent === true;
     const gen = ++loadGenRef.current;
-    setLoading(true);
-    setLoadError(null);
-    setMarkReadError(null);
+    if (!silent) {
+      setLoading(true);
+      setLoadError(null);
+      setMarkReadError(null);
+    }
     try {
       const list = await fetchBookingMessages(bookingId);
       if (gen !== loadGenRef.current) return;
       setRows(list);
     } catch (e) {
-      if (gen !== loadGenRef.current) return;
+      if (gen !== loadGenRef.current || silent) return;
       // Phase 1340: keep prior thread visible — load failure ≠ empty conversation.
       setLoadError(userFacingError(e, 'We could not load messages. Check your connection and try again.'));
       return;
     } finally {
-      if (gen === loadGenRef.current) setLoading(false);
+      if (!silent && gen === loadGenRef.current) setLoading(false);
     }
     // Phase 1767: finance/viewer composeBlock=role — RPC no-ops but returns ok; do not clear Unread locally.
     if (composeBlock === 'role') {
@@ -116,12 +125,27 @@ export default function BookingMessageThread({
   }, [bookingId, composeBlock, onMarkedRead, viewerRole]);
 
   useEffect(() => {
+    stickToBottomRef.current = true;
     setRows([]);
     setDraft('');
     setError(null);
     setLoadError(null);
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (document.visibilityState !== 'visible' || sendingRef.current) return;
+      void load({ silent: true });
+    }, 20000);
+    return () => window.clearInterval(id);
+  }, [load]);
+
+  useEffect(() => {
+    const el = logRef.current;
+    if (!el || !stickToBottomRef.current) return;
+    el.scrollTop = el.scrollHeight;
+  }, [rows]);
 
   useEffect(() => {
     if (!autoFocus || loading || !canCompose) return;
@@ -131,10 +155,13 @@ export default function BookingMessageThread({
   const send = async () => {
     const body = draft.trim();
     if (!body) return;
+    if (sendingRef.current) return;
+    sendingRef.current = true;
     setSending(true);
     setError(null);
     setNotifyWarning(null);
     const res = await postBookingMessage(bookingId, body);
+    sendingRef.current = false;
     setSending(false);
     if (!res.ok) {
       setError(userFacingError(res.error, BOOKING_MESSAGE_SUBMIT_ERROR));
@@ -164,9 +191,13 @@ export default function BookingMessageThread({
     }
   };
 
+  const panel = layout === 'panel';
+
   return (
-    <div className="space-y-3">
-      <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint m-0">Messages</h2>
+    <div className={panel ? 'flex min-h-0 flex-1 flex-col' : 'space-y-3'}>
+      <h2 className={panel ? 'sr-only' : 'text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint m-0'}>
+        Messages
+      </h2>
       {loadError ? (
         <NoticeCallout title="Messages unavailable" tone="warn">
           <p className="text-sm text-ink-muted">{loadError}</p>
@@ -225,10 +256,35 @@ export default function BookingMessageThread({
           </NoticeCallout>
         )
       ) : rows.length > 0 ? (
-        <ul className="space-y-2.5 max-h-72 overflow-y-auto pr-0.5">
-          {rows.map((m) => (
-            <li
-              key={m.id}
+        <ul
+          ref={logRef}
+          className={`space-y-2.5 overflow-y-auto pr-0.5 ${panel ? 'tv-msg-log tv-msg-log--panel min-h-0 flex-1' : 'max-h-72'}`}
+          onScroll={() => {
+            const el = logRef.current;
+            if (!el) return;
+            stickToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+          }}
+        >
+          {rows.map((m, index) => {
+            const day = new Date(m.created_at).toLocaleDateString(undefined, {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric',
+            });
+            const prev = index > 0 ? rows[index - 1] : null;
+            const prevDay = prev
+              ? new Date(prev.created_at).toLocaleDateString(undefined, {
+                  year: 'numeric',
+                  month: 'short',
+                  day: 'numeric',
+                })
+              : '';
+            return (
+            <li key={m.id} className="tv-msg-row">
+              {day !== prevDay ? (
+                <p className="tv-msg-day">{day}</p>
+              ) : null}
+            <div
               className={`tv-msg-bubble ${
                 m.sender_role === 'system'
                   ? 'tv-msg-bubble--system'
@@ -244,13 +300,23 @@ export default function BookingMessageThread({
                 </span>
               </p>
               <p className="mt-1.5 leading-relaxed break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{m.body}</p>
+            </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
       ) : null}
       {error ? (
         <NoticeCallout title={BOOKING_MESSAGE_SUBMIT_ERROR_TITLE} tone="danger">
-          {error}
+          <p>{error}</p>
+          <button
+            type="button"
+            className="tv-btn-secondary mt-2"
+            disabled={sending || !draft.trim()}
+            onClick={() => void send()}
+          >
+            Retry
+          </button>
         </NoticeCallout>
       ) : null}
       {notifyWarning ? (
@@ -259,7 +325,7 @@ export default function BookingMessageThread({
         </NoticeCallout>
       ) : null}
       {canCompose && !loadError && !loading ? (
-        <div className="tv-msg-composer">
+        <div className={`tv-msg-composer shrink-0 ${panel ? 'mt-2' : ''}`}>
           <label htmlFor={`msg-${bookingId}`} className="sr-only">
             Message about this booking
           </label>
@@ -267,10 +333,15 @@ export default function BookingMessageThread({
             id={`msg-${bookingId}`}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            rows={3}
+            rows={panel ? 2 : 3}
             maxLength={4000}
             placeholder="Write a message about this booking"
-            className="tv-input min-h-[5.5rem] border-0 bg-transparent shadow-none focus:ring-0"
+            className={`tv-input border-0 bg-transparent shadow-none focus:ring-0 ${panel ? 'min-h-[2.75rem]' : 'min-h-[5.5rem]'}`}
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter' || e.shiftKey) return;
+              e.preventDefault();
+              if (!sendingRef.current && draft.trim()) void send();
+            }}
             aria-describedby={`msg-hint-${bookingId}`}
           />
           {/* Phase 1671: calm 4000-char limit hint while composing. */}

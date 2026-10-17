@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { MessageSquare } from 'lucide-react';
+import { ArrowLeft, MessageSquare } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
@@ -16,9 +16,6 @@ import {
   SUPPLIER_PAGE_CLASS,
   SupplierEmptyState,
   SupplierListSkeleton,
-  SupplierModalHeader,
-  SupplierModalShell,
-  SupplierPageHero,
 } from '../../components/supplier/supplierUi';
 import NoticeCallout from '../../components/NoticeCallout';
 import ErrorState from '../../components/ErrorState';
@@ -26,10 +23,9 @@ import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { navigateSupplierUrl, openSupplierBooking } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import BookingMessageThread from '../../components/BookingMessageThread';
-import { PARTNER_INBOX_MESSAGE_DELIVERY_NOTE } from '../../lib/booking-confirmation-copy';
 import { bookingPaymentWasCollected, partnerPaymentLabel } from '../../lib/payment-states';
 import { partnerInboxListsBooking } from '../../lib/messaging-authorization';
-import StatusChip, { toneForPaymentLabel } from '../../components/StatusChip';
+import { travelerPublicBookingReference } from '../../lib/public-booking-reference';
 import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
 import {
   PARTNER_INBOX_MESSAGE_FETCH_CAP,
@@ -37,7 +33,13 @@ import {
 } from '../../lib/partner-inbox-cap';
 import { formatStayNightHuman } from '../../lib/stay-calendar';
 import { formatBookingDateDisplay } from '../../lib/booking-flow';
-import { displayListingTitleFromPurchase, displayOptionLabelFromPurchase, partnerOpsDepartureDisplay } from '../../lib/purchase-snapshot';
+import {
+  displayListingTitleFromPurchase,
+  displayMeetingPointFromPurchase,
+  displayOptionLabelFromPurchase,
+  displayPickupInstructionsFromPurchase,
+  partnerOpsDepartureDisplay,
+} from '../../lib/purchase-snapshot';
 import { partnerBookingNumberMatchesFilterQuery } from '../../lib/partner-bookings-search';
 import { bookingIsStayNight } from '../../lib/pickup-completeness';
 import { stayRangeFromBooking } from '../../lib/stayOccupancy';
@@ -102,11 +104,12 @@ export default function SupplierInbox() {
   });
   const [filterQuery, setFilterQuery] = useState('');
   const [mobileSheet, setMobileSheet] = useState(() =>
-    typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)').matches : false
+    typeof window !== 'undefined' ? window.matchMedia('(max-width: 1023px)').matches : false
   );
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   useEffect(() => {
-    const mq = window.matchMedia('(max-width: 767px)');
+    const mq = window.matchMedia('(max-width: 1023px)');
     const onChange = () => setMobileSheet(mq.matches);
     onChange();
     mq.addEventListener('change', onChange);
@@ -317,9 +320,11 @@ export default function SupplierInbox() {
         const guestName = (b.guest_name ?? '').toLowerCase();
         const guestEmail = (b.guest_email ?? '').toLowerCase();
         const lastBody = (lastByBooking[b.id]?.body ?? '').toLowerCase();
+        const publicRef = (travelerPublicBookingReference(b.public_reference) ?? '').toLowerCase();
         return (
           title.includes(qLower) ||
           option.includes(qLower) ||
+          publicRef.includes(qLower) ||
           partnerBookingNumberMatchesFilterQuery(qRaw, b.booking_number) ||
           b.id.toLowerCase().includes(qLower) ||
           guestName.includes(qLower) ||
@@ -338,179 +343,75 @@ export default function SupplierInbox() {
   );
 
   useEffect(() => {
+    setDetailsOpen(false);
+  }, [openId]);
+
+  useEffect(() => {
     if (!openId || loading) return;
     const el = document.getElementById(`supplier-inbox-row-${openId}`);
     el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [openId, loading, threads]);
 
-  const renderThreadBody = (b: BookingRow) => {
-    const opsHm = pgTimeToHm(b.start_time);
-    const dep = partnerOpsDepartureDisplay(b.purchase_snapshot, opsHm);
-    const pickupHm = pgTimeToHm(b.pickup_time);
-    const isStay = bookingIsStayNight(b);
-    const timeBits = isStay
-      ? null
-      : [
-          dep.displayHm ? `Start ${dep.displayHm}` : null,
-          dep.purchasedNote,
-          pickupHm ? `Pickup ${pickupHm}` : null,
-        ]
-          .filter(Boolean)
-          .join(' · ');
-    const whenBits = (() => {
-      if (isStay) {
-        const stay = stayRangeFromBooking(b);
-        if (stay) {
-          return `${formatStayNightHuman(stay.checkIn)} → ${formatStayNightHuman(stay.checkOut)}`;
-        }
-      }
-      return b.booking_date ? formatBookingDateDisplay(b.booking_date) : '';
-    })();
-    return (
-      <>
-        <div className="mb-2.5 flex flex-wrap items-start justify-between gap-2">
-          <p className="text-xs text-ink-muted leading-snug">
-            {typeof b.booking_number === 'number' ? `#${b.booking_number} · ` : ''}
-            {isStay ? 'Stay' : 'Tour'} · {inboxListingLine(b, titles[b.listing_id], listingsById[b.listing_id])} ·{' '}
-            {b.guest_name?.trim() || 'Traveler'} ·{' '}
-            {formatBookingParticipantsLabel(b)}
-            {whenBits ? ` · ${whenBits}` : ''}
-            {timeBits ? ` · ${timeBits}` : ''}
-          </p>
-          <button
-            type="button"
-            className="tv-btn-ghost shrink-0 -mr-2"
-            onClick={() => openSupplierBooking(b.id)}
-          >
-            Open in Bookings
-          </button>
-        </div>
-        {openCancelIds.has(b.id) ? (
-          <div className="mb-2.5 rounded-lg border border-amber-200/80 border-l-[3px] border-l-amber-500 bg-amber-50/50 px-3 py-2">
-            <p className="text-xs font-semibold text-ink">Cancellation pending</p>
-            <p className="mt-0.5 text-xs text-ink-muted leading-snug">
-              Waiting on the traveler. You can still message them about this booking.
-            </p>
-          </div>
-        ) : null}
-        <BookingMessageThread
-          bookingId={b.id}
-          canCompose={
-            canEditBookings &&
-            bookingAllowsMessaging({
-              status: b.status,
-              payment_status: b.payment_status,
-              openCancellation: openCancelIds.has(b.id),
-            })
-          }
-          composeBlock={
-            !canEditBookings
-              ? 'role'
-              : messagingComposeBlock({
-                    status: b.status,
-                    payment_status: b.payment_status,
-                    openCancellation: openCancelIds.has(b.id),
-                  }) === 'closed'
-                ? 'closed'
-                : 'unpaid'
-          }
-          viewerRole="supplier"
-          listingTitle={inboxListingLine(b, titles[b.listing_id], listingsById[b.listing_id])}
-          listingId={b.listing_id}
-          supplierId={user?.id}
-          customerEmail={b.guest_email}
-          customerName={b.guest_name}
-          bookingNumber={typeof b.booking_number === 'number' ? b.booking_number : undefined}
-          bookingDate={b.booking_date}
-          onMarkedRead={() => markInboxThreadRead(b.id)}
-        />
-      </>
-    );
+  const activityWhen = (b: BookingRow) => {
+    if (bookingIsStayNight(b)) {
+      const stay = stayRangeFromBooking(b);
+      if (stay) return `${formatStayNightHuman(stay.checkIn)} → ${formatStayNightHuman(stay.checkOut)}`;
+    }
+    const date = b.booking_date ? formatBookingDateDisplay(b.booking_date) : 'Date to be confirmed';
+    const dep = partnerOpsDepartureDisplay(b.purchase_snapshot, pgTimeToHm(b.start_time));
+    return dep.displayHm ? `${date} · ${dep.displayHm}` : date;
   };
 
+  const messageClock = (iso: string) => {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    const now = new Date();
+    if (d.toDateString() === now.toDateString()) {
+      return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    }
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  };
+
+  const renderOpenThread = (b: BookingRow) => (
+    <BookingMessageThread
+      bookingId={b.id}
+      layout="panel"
+      canCompose={
+        canEditBookings &&
+        bookingAllowsMessaging({
+          status: b.status,
+          payment_status: b.payment_status,
+          openCancellation: openCancelIds.has(b.id),
+        })
+      }
+      composeBlock={
+        !canEditBookings
+          ? 'role'
+          : messagingComposeBlock({
+                status: b.status,
+                payment_status: b.payment_status,
+                openCancellation: openCancelIds.has(b.id),
+              }) === 'closed'
+            ? 'closed'
+            : 'unpaid'
+      }
+      viewerRole="supplier"
+      listingTitle={inboxListingLine(b, titles[b.listing_id], listingsById[b.listing_id])}
+      listingId={b.listing_id}
+      supplierId={user?.id}
+      customerEmail={b.guest_email}
+      customerName={b.guest_name}
+      bookingNumber={typeof b.booking_number === 'number' ? b.booking_number : undefined}
+      bookingDate={b.booking_date}
+      onMarkedRead={() => markInboxThreadRead(b.id)}
+    />
+  );
+
+  const showList = !mobileSheet || !openId;
+  const showChat = !mobileSheet || Boolean(openId);
+
   return (
-    <div className={SUPPLIER_PAGE_CLASS}>
-      <SupplierPageHero
-        badge="Operate"
-        title="Inbox"
-        description={
-          unreadCount > 0
-            ? `${unreadCount} unread · Paid-booking threads. ${PARTNER_INBOX_MESSAGE_DELIVERY_NOTE}`
-            : `Paid-booking threads. ${PARTNER_INBOX_MESSAGE_DELIVERY_NOTE}`
-        }
-      />
-      {threads.length > 0 ? (
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end sm:gap-x-3 sm:gap-y-2">
-          <div className="flex min-w-[min(100%,14rem)] flex-1 flex-col gap-1">
-            <label htmlFor="partner-inbox-search" className="partner-label">
-              Search
-            </label>
-            <input
-              id="partner-inbox-search"
-              type="search"
-              value={filterQuery}
-              onChange={(e) => setFilterQuery(e.target.value)}
-              placeholder="Guest, purchased title, or booking #"
-              className="tv-input"
-            />
-          </div>
-          {filterQuery.trim() ? (
-            <button type="button" className="tv-btn-ghost shrink-0" onClick={() => setFilterQuery('')}>
-              Clear search
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-      {threads.length > 0 ? (
-        <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Inbox filter">
-          <button
-            type="button"
-            role="tab"
-            id={partnerInboxTabId(false)}
-            aria-controls={PARTNER_INBOX_TABPANEL_ID}
-            aria-selected={!unreadOnly}
-            onClick={() => setUnreadOnlyAndUrl(false)}
-            className={`lux-flat rounded-md px-2.5 py-1.5 text-[12px] font-semibold ring-1 transition-colors ${
-              !unreadOnly
-                ? 'bg-finland text-white ring-finland'
-                : 'bg-transparent text-ink-muted ring-black/[0.08] hover:text-ink'
-            }`}
-          >
-            All
-          </button>
-          <button
-            type="button"
-            role="tab"
-            id={partnerInboxTabId(true)}
-            aria-controls={PARTNER_INBOX_TABPANEL_ID}
-            aria-selected={unreadOnly}
-            onClick={() => setUnreadOnlyAndUrl(true)}
-            className={`lux-flat rounded-md px-2.5 py-1.5 text-[12px] font-semibold ring-1 transition-colors ${
-              unreadOnly
-                ? 'bg-amber-500 text-white ring-amber-500'
-                : 'bg-transparent text-ink-muted ring-black/[0.08] hover:text-ink'
-            }`}
-          >
-            Unread{unreadCount > 0 ? ` · ${unreadCount}` : ''}
-          </button>
-        </div>
-      ) : null}
-      {olderConversationsHidden ? (
-        <div className="flex flex-col gap-2 rounded-[var(--partner-radius,0.5rem)] border border-finland/15 bg-finland/[0.035] px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
-          <p className="partner-meta">
-            Showing the {messageFetchCap} most recent paid bookings. Load older or open Bookings.
-          </p>
-          <button
-            type="button"
-            className="tv-btn-secondary shrink-0"
-            onClick={() => {
-              setMessageFetchCap((c) => partnerInboxNextFetchCap(c));
-            }}
-          >
-            Load older
-          </button>
-        </div>
-      ) : null}
+    <div className={`${SUPPLIER_PAGE_CLASS} tv-inbox-workspace`}>
       {error ? (
         <ErrorState
           className="py-6"
@@ -532,203 +433,307 @@ export default function SupplierInbox() {
           </button>
         </NoticeCallout>
       ) : null}
-      {!loading && deepLinkMissing && openId ? (
-        <NoticeCallout title="Booking not in Inbox" tone="warn">
-          <p>
-            That booking link is missing from your paid Inbox list (wrong id, unpaid, or not yours). Open it from
-            Bookings if you still need the thread.
-          </p>
-          <button type="button" className="tv-btn-ghost mt-3 -ml-2" onClick={() => openSupplierBooking(openId)}>
-            Open in Bookings
-          </button>
-        </NoticeCallout>
-      ) : null}
-      {loading && threads.length === 0 ? (
-        <SupplierListSkeleton rows={4} />
-      ) : threads.length === 0 ? (
-        error ? null : (
-        <SupplierEmptyState
-          icon={MessageSquare}
-          title="No booking conversations yet"
-          body="When a traveler pays for one of your tours or stays, you can message them here about that booking."
-          action={
-            <div className="flex flex-wrap gap-2">
-              <button type="button" className="tv-btn-primary" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings`)}>
-                Open bookings
-              </button>
-              {/* Phase 1641: new suppliers need a path to listings while waiting for paid threads. */}
-              <button type="button" className="tv-btn-ghost" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings`)}>
-                Your listings
-              </button>
+      <div className="tv-inbox-split">
+        <section className={`tv-inbox-list-pane min-h-0 flex-col ${showList ? 'flex' : 'hidden'}`} aria-label="Conversations">
+          <header className="tv-inbox-list-pane__head">
+            <div className="flex items-baseline justify-between gap-3">
+              <h1 className="font-sans text-xl font-bold tracking-tight text-ink">Inbox</h1>
+              {unreadCount > 0 ? (
+                <p className="text-xs font-semibold text-finland">{unreadCount} unread</p>
+              ) : null}
             </div>
-          }
-        />
-        )
-      ) : (
-        <div
-          id={PARTNER_INBOX_TABPANEL_ID}
-          role="tabpanel"
-          aria-labelledby={partnerInboxTabId(unreadOnly)}
-        >
-        {visibleThreads.length === 0 ? (
-        filterQuery.trim() ? (
-          <SupplierEmptyState
-            icon={MessageSquare}
-            title="No conversations match your search"
-            body="Try another guest name, purchased listing title, or booking number."
-            action={
-              <button type="button" className="tv-btn-secondary" onClick={() => setFilterQuery('')}>
-                Clear search
-              </button>
-            }
-          />
-        ) : (
-        <SupplierEmptyState
-          icon={MessageSquare}
-          title="No unread messages"
-          body="You’re caught up. Switch to All to see every booking thread."
-          action={
-            <button type="button" className="tv-btn-secondary" onClick={() => setUnreadOnlyAndUrl(false)}>
-              Show all conversations
-            </button>
-          }
-        />
-        )
-      ) : (
-        <ul className="tv-inbox-list" aria-busy={loading || undefined}>
-          {visibleThreads.map((b) => {
-            const open = openId === b.id;
-            const last = lastByBooking[b.id];
-            const unread = isUnreadThread(b);
-            const payLabel = partnerPaymentLabel(b);
-            const showMoneyChip =
-              payLabel === 'Refund due' || payLabel === 'Refunded' || payLabel === 'No refund';
-            const isClosed =
-              messagingComposeBlock({
-                status: b.status,
-                payment_status: b.payment_status,
-                openCancellation: openCancelIds.has(b.id),
-              }) === 'closed';
-            return (
-              <li
-                key={b.id}
-                id={`supplier-inbox-row-${b.id}`}
-                data-unread={unread ? 'true' : 'false'}
-                data-open={open && !mobileSheet ? 'true' : 'false'}
-                className="tv-inbox-thread border-b border-slate-100 last:border-b-0"
-              >
+            {threads.length > 0 ? (
+              <div className="mt-3">
+                <label htmlFor="partner-inbox-search" className="sr-only">
+                  Search
+                </label>
+                <input
+                  id="partner-inbox-search"
+                  type="search"
+                  value={filterQuery}
+                  onChange={(e) => setFilterQuery(e.target.value)}
+                  placeholder="Name, reference, or experience"
+                  className="tv-input h-10"
+                />
+              </div>
+            ) : null}
+            {threads.length > 0 ? (
+              <div className="mt-2 flex gap-1.5" role="tablist" aria-label="Inbox filter">
                 <button
                   type="button"
-                  className="partner-row-interact lux-flat tv-inbox-thread__btn"
-                  aria-expanded={open}
-                  onClick={() => {
-                    const opening = !open;
-                    setOpenBookingId(opening ? b.id : null);
-                  }}
+                  role="tab"
+                  id={partnerInboxTabId(false)}
+                  aria-controls={PARTNER_INBOX_TABPANEL_ID}
+                  aria-selected={!unreadOnly}
+                  onClick={() => setUnreadOnlyAndUrl(false)}
+                  className={`lux-flat rounded-md px-2.5 py-1.5 text-[12px] font-semibold ring-1 transition-colors ${
+                    !unreadOnly
+                      ? 'bg-finland text-white ring-finland'
+                      : 'bg-transparent text-ink-muted ring-black/[0.08] hover:text-ink'
+                  }`}
                 >
-                  <div className="flex items-start justify-between gap-2.5">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span
-                          className={`mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full ${unread ? 'bg-amber-500' : 'bg-transparent'}`}
-                          aria-hidden={!unread}
-                          aria-label={unread ? 'Unread' : undefined}
-                        />
-                        <p
-                          className={`min-w-0 break-words text-[0.9rem] leading-snug tracking-tight [overflow-wrap:anywhere] line-clamp-1 ${
-                            unread ? 'font-semibold text-ink' : 'font-medium text-ink'
-                          }`}
-                        >
-                          {b.guest_name?.trim() || 'Traveler'}
-                        </p>
-                      </div>
-                      <p className="mt-0.5 break-words pl-3.5 partner-meta [overflow-wrap:anywhere] line-clamp-1">
-                        {inboxListingLine(b, titles[b.listing_id], listingsById[b.listing_id])}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap items-center justify-end gap-1.5 shrink-0 max-w-[45%]">
-                      {showMoneyChip ? (
-                        <StatusChip tone={toneForPaymentLabel(payLabel)}>{payLabel}</StatusChip>
-                      ) : null}
-                      {openCancelIds.has(b.id) ? <StatusChip tone="warn">Cancel pending</StatusChip> : null}
-                      {isClosed ? <StatusChip tone="neutral">Closed</StatusChip> : null}
-                      {typeof b.booking_number === 'number' ? (
-                        <span className="text-xs font-mono font-semibold text-finland">#{b.booking_number}</span>
-                      ) : null}
-                    </div>
-                  </div>
-                  <p className="mt-1 partner-label pl-3.5 normal-case tracking-normal font-medium text-ink-faint">
-                    {(() => {
-                      if (bookingIsStayNight(b)) {
-                        const stay = stayRangeFromBooking(b);
-                        if (stay) {
-                          return `${formatStayNightHuman(stay.checkIn)} → ${formatStayNightHuman(stay.checkOut)}`;
-                        }
-                      }
-                      return b.booking_date ? formatBookingDateDisplay(b.booking_date) : 'Date TBC';
-                    })()}
-                    {` · ${formatBookingParticipantsLabel(b)}`}
-                    {(() => {
-                      if (bookingIsStayNight(b)) return '';
-                      const opsHm = pgTimeToHm(b.start_time);
-                      const dep = partnerOpsDepartureDisplay(b.purchase_snapshot, opsHm);
-                      if (!dep.displayHm) return '';
-                      return dep.purchasedNote
-                        ? ` · ${dep.displayHm} (${dep.purchasedNote})`
-                        : ` · ${dep.displayHm}`;
-                    })()}
-                  </p>
-                  <div className="mt-1 flex items-baseline justify-between gap-2 pl-3.5">
-                    <p className={`min-w-0 flex-1 text-[13px] line-clamp-1 ${unread ? 'font-medium text-ink' : 'text-ink-muted'}`}>
-                      {last?.body ?? 'No messages yet — open to write.'}
-                    </p>
-                    {last?.created_at ? (
-                      <time
-                        dateTime={last.created_at}
-                        className="shrink-0 text-[11px] tabular-nums text-ink-faint"
-                      >
-                        {new Date(last.created_at).toLocaleString(undefined, {
-                          dateStyle: 'medium',
-                          timeStyle: 'short',
-                        })}
-                      </time>
-                    ) : null}
-                  </div>
+                  All
                 </button>
-                {open && !mobileSheet ? (
-                  <div className="px-4 pb-4 motion-safe:animate-fade-in border-t border-black/[0.05] pt-3 bg-paper/40">
-                    {renderThreadBody(b)}
+                <button
+                  type="button"
+                  role="tab"
+                  id={partnerInboxTabId(true)}
+                  aria-controls={PARTNER_INBOX_TABPANEL_ID}
+                  aria-selected={unreadOnly}
+                  onClick={() => setUnreadOnlyAndUrl(true)}
+                  className={`lux-flat rounded-md px-2.5 py-1.5 text-[12px] font-semibold ring-1 transition-colors ${
+                    unreadOnly
+                      ? 'bg-finland text-white ring-finland'
+                      : 'bg-transparent text-ink-muted ring-black/[0.08] hover:text-ink'
+                  }`}
+                >
+                  Unread{unreadCount > 0 ? ` · ${unreadCount}` : ''}
+                </button>
+              </div>
+            ) : null}
+          </header>
+          {olderConversationsHidden ? (
+            <div className="flex items-center justify-between gap-2 border-b border-black/[0.06] px-3 py-2">
+              <p className="text-xs text-ink-muted">Showing the {messageFetchCap} most recent paid bookings.</p>
+              <button
+                type="button"
+                className="tv-btn-ghost shrink-0"
+                onClick={() => setMessageFetchCap((c) => partnerInboxNextFetchCap(c))}
+              >
+                Load older
+              </button>
+            </div>
+          ) : null}
+          {loading && threads.length === 0 ? (
+            <SupplierListSkeleton rows={4} />
+          ) : threads.length === 0 ? (
+            error ? null : (
+              <SupplierEmptyState
+                icon={MessageSquare}
+                title="No booking conversations yet"
+                body="When a traveler pays for one of your tours or stays, you can message them here about that booking."
+                action={
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" className="tv-btn-primary" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings`)}>
+                      Open bookings
+                    </button>
+                    {/* Phase 1641: new suppliers need a path to listings while waiting for paid threads. */}
+                    <button type="button" className="tv-btn-ghost" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings`)}>
+                      Your listings
+                    </button>
                   </div>
-                ) : null}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-        </div>
-      )}
-      {mobileSheet && openBooking ? (
-        <SupplierModalShell onClose={() => setOpenBookingId(null)} maxWidth="lg">
-          <SupplierModalHeader
-            icon={MessageSquare}
-            title={openBooking.guest_name?.trim() || 'Traveler'}
-            subtitle={inboxListingLine(
-              openBooking,
-              titles[openBooking.listing_id],
-              listingsById[openBooking.listing_id]
-            )}
-            onClose={() => setOpenBookingId(null)}
-          />
-          <div className="p-4 sm:p-5 space-y-3 max-h-[min(70vh,32rem)] overflow-y-auto">
-            {renderThreadBody(openBooking)}
-          </div>
-        </SupplierModalShell>
-      ) : null}
-      {!loading && openId && !openBooking && !deepLinkMissing && threads.length > 0 ? (
-        <NoticeCallout title="Thread not in this list" tone="info">
-          The booking from the link is not among the conversations above. Try Bookings or clear filters by reopening Inbox.
-        </NoticeCallout>
-      ) : null}
+                }
+              />
+            )
+          ) : (
+            <div
+              id={PARTNER_INBOX_TABPANEL_ID}
+              role="tabpanel"
+              aria-labelledby={partnerInboxTabId(unreadOnly)}
+              className="min-h-0 flex-1 overflow-y-auto"
+            >
+              {visibleThreads.length === 0 ? (
+                filterQuery.trim() ? (
+                  <SupplierEmptyState
+                    icon={MessageSquare}
+                    title="No conversations match your search"
+                    body="Try another guest name, purchased listing title, or booking number."
+                    action={
+                      <button type="button" className="tv-btn-secondary" onClick={() => setFilterQuery('')}>
+                        Clear search
+                      </button>
+                    }
+                  />
+                ) : (
+                  <SupplierEmptyState
+                    icon={MessageSquare}
+                    title="No unread messages"
+                    body="You’re caught up. Switch to All to see every booking thread."
+                    action={
+                      <button type="button" className="tv-btn-secondary" onClick={() => setUnreadOnlyAndUrl(false)}>
+                        Show all conversations
+                      </button>
+                    }
+                  />
+                )
+              ) : (
+                <ul className="tv-inbox-list" aria-busy={loading || undefined}>
+                  {visibleThreads.map((b) => {
+                    const open = openId === b.id;
+                    const last = lastByBooking[b.id];
+                    const unread = isUnreadThread(b);
+                    return (
+                      <li
+                        key={b.id}
+                        id={`supplier-inbox-row-${b.id}`}
+                        data-unread={unread ? 'true' : 'false'}
+                        data-open={open ? 'true' : 'false'}
+                        className="tv-inbox-thread border-b border-slate-100 last:border-b-0"
+                      >
+                        <button
+                          type="button"
+                          className="partner-row-interact lux-flat tv-inbox-thread__btn"
+                          aria-current={open ? 'true' : undefined}
+                          onClick={() => setOpenBookingId(b.id)}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <p className={`min-w-0 flex-1 truncate text-[0.95rem] tracking-tight ${unread ? 'font-bold text-ink' : 'font-semibold text-ink'}`}>
+                              <span
+                                className={`mr-2 inline-block h-1.5 w-1.5 rounded-full align-middle ${unread ? 'bg-finland' : 'bg-transparent'}`}
+                                aria-hidden={!unread}
+                              />
+                              {b.guest_name?.trim() || 'Traveler'}
+                            </p>
+                            {last?.created_at ? (
+                              <time dateTime={last.created_at} className="shrink-0 text-[11px] tabular-nums text-ink-faint">
+                                {messageClock(last.created_at)}
+                              </time>
+                            ) : null}
+                          </div>
+                          <p className="mt-0.5 truncate pl-3.5 text-[13px] text-ink-muted">
+                            {inboxListingLine(b, titles[b.listing_id], listingsById[b.listing_id])}
+                          </p>
+                          <p className="mt-0.5 truncate pl-3.5 text-[12px] text-ink-faint">{activityWhen(b)}</p>
+                          <p className={`mt-1 truncate pl-3.5 text-[13px] ${unread ? 'font-medium text-ink' : 'text-ink-muted'}`}>
+                            {last?.body ?? 'No messages yet'}
+                          </p>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          )}
+        </section>
+        <section className={`tv-inbox-chat min-h-0 min-w-0 flex-1 flex-col ${showChat ? 'flex' : 'hidden'}`} aria-label="Conversation">
+          {!loading && deepLinkMissing && openId ? (
+            <div className="p-4">
+              <NoticeCallout title="Booking not in Inbox" tone="warn">
+                <p>
+                  That booking link is missing from your paid Inbox list (wrong id, unpaid, or not yours). Open it from
+                  Bookings if you still need the thread.
+                </p>
+                <button type="button" className="tv-btn-ghost mt-3 -ml-2" onClick={() => openSupplierBooking(openId)}>
+                  Open in Bookings
+                </button>
+              </NoticeCallout>
+            </div>
+          ) : openBooking ? (
+            <>
+              <header className="tv-inbox-chat__head">
+                <button
+                  type="button"
+                  className="lux-flat mr-1 inline-flex h-11 w-11 items-center justify-center rounded-full text-ink lg:hidden"
+                  aria-label="Back to inbox"
+                  onClick={() => setOpenBookingId(null)}
+                >
+                  <ArrowLeft className="h-4 w-4" aria-hidden />
+                </button>
+                <div className="min-w-0 flex-1">
+                  <h2 className="truncate text-base font-bold tracking-tight text-ink">
+                    {openBooking.guest_name?.trim() || 'Traveler'}
+                  </h2>
+                  <p className="truncate text-[13px] text-ink-muted">
+                    {inboxListingLine(openBooking, titles[openBooking.listing_id], listingsById[openBooking.listing_id])}
+                  </p>
+                  <p className="truncate text-[12px] text-ink-faint">
+                    {activityWhen(openBooking)}
+                    {openBooking.status ? ` · ${openBooking.status}` : ''}
+                    {openCancelIds.has(openBooking.id) ? ' · Cancellation pending' : ''}
+                  </p>
+                </div>
+                <button type="button" className="tv-btn-ghost shrink-0" onClick={() => setDetailsOpen(true)}>
+                  Booking details
+                </button>
+              </header>
+              <div className="tv-inbox-chat__body">
+                {renderOpenThread(openBooking)}
+              </div>
+              {detailsOpen ? (
+                <div className="tv-inbox-details" role="dialog" aria-label="Booking details">
+                  <div className="flex items-center justify-between gap-2 border-b border-black/[0.06] px-4 py-3">
+                    <h3 className="text-sm font-bold text-ink">Booking details</h3>
+                    <button type="button" className="tv-btn-ghost" onClick={() => setDetailsOpen(false)}>
+                      Close
+                    </button>
+                  </div>
+                  <dl className="space-y-3 px-4 py-4 text-sm">
+                    <div>
+                      <dt className="text-xs text-ink-faint">Reference</dt>
+                      <dd className="font-semibold text-ink">
+                        {travelerPublicBookingReference(openBooking.public_reference) ?? 'Reference pending'}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-ink-faint">Experience</dt>
+                      <dd className="break-words text-ink [overflow-wrap:anywhere]">
+                        {inboxListingLine(openBooking, titles[openBooking.listing_id], listingsById[openBooking.listing_id])}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-ink-faint">When</dt>
+                      <dd className="text-ink">{activityWhen(openBooking)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-ink-faint">Participants</dt>
+                      <dd className="text-ink">{formatBookingParticipantsLabel(openBooking)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-ink-faint">Traveler</dt>
+                      <dd className="break-words text-ink [overflow-wrap:anywhere]">
+                        {openBooking.guest_name?.trim() || 'Traveler'}
+                        {openBooking.guest_email ? ` · ${openBooking.guest_email}` : ''}
+                      </dd>
+                    </div>
+                    {displayMeetingPointFromPurchase(openBooking.purchase_snapshot, '') ? (
+                      <div>
+                        <dt className="text-xs text-ink-faint">Meeting point</dt>
+                        <dd className="break-words text-ink [overflow-wrap:anywhere]">
+                          {displayMeetingPointFromPurchase(openBooking.purchase_snapshot, '')}
+                        </dd>
+                      </div>
+                    ) : null}
+                    {displayPickupInstructionsFromPurchase(openBooking.purchase_snapshot, '') ? (
+                      <div>
+                        <dt className="text-xs text-ink-faint">Pickup</dt>
+                        <dd className="break-words text-ink [overflow-wrap:anywhere]">
+                          {displayPickupInstructionsFromPurchase(openBooking.purchase_snapshot, '')}
+                        </dd>
+                      </div>
+                    ) : null}
+                    <div>
+                      <dt className="text-xs text-ink-faint">Status</dt>
+                      <dd className="text-ink">
+                        {openBooking.status}
+                        {partnerPaymentLabel(openBooking) ? ` · ${partnerPaymentLabel(openBooking)}` : ''}
+                      </dd>
+                    </div>
+                  </dl>
+                  <div className="px-4 pb-4">
+                    <button type="button" className="tv-btn-secondary" onClick={() => openSupplierBooking(openBooking.id)}>
+                      Open in Bookings
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
+              <MessageSquare className="h-6 w-6 text-finland" aria-hidden />
+              <h2 className="mt-3 text-base font-bold text-ink">Select a conversation</h2>
+              <p className="mt-1 max-w-xs text-sm text-ink-muted">
+                Choose a booking to view messages or contact your traveler.
+              </p>
+            </div>
+          )}
+          {!loading && openId && !openBooking && !deepLinkMissing && threads.length > 0 ? (
+            <NoticeCallout title="Thread not in this list" tone="info">
+              The booking from the link is not among the conversations above. Try Bookings or clear filters by reopening Inbox.
+            </NoticeCallout>
+          ) : null}
+        </section>
+      </div>
     </div>
   );
 }
