@@ -6,6 +6,41 @@ const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 /** A stalled browser request must not leave checkout on “Checking…” forever. */
 const SUPABASE_FETCH_TIMEOUT_MS = 45_000;
 
+/**
+ * supabase-js asks for the auth lock with no timeout (`-1`). Another partner tab
+ * that still holds that lock leaves `getSession()` pending, so the partner shell
+ * stays on the skeleton. Wait briefly, then continue without the lock.
+ */
+export const SUPABASE_AUTH_LOCK_MS = 3_000;
+
+export async function supabaseAuthLock<R>(
+  name: string,
+  _acquireTimeout: number,
+  fn: () => Promise<R>
+): Promise<R> {
+  const request = globalThis.navigator?.locks?.request;
+  if (!request) return fn();
+
+  const abort = new AbortController();
+  let acquired = false;
+  const timer = setTimeout(() => {
+    if (!acquired) abort.abort();
+  }, SUPABASE_AUTH_LOCK_MS);
+
+  try {
+    return await request(name, { mode: 'exclusive', signal: abort.signal }, async () => {
+      acquired = true;
+      clearTimeout(timer);
+      return fn();
+    });
+  } catch (err) {
+    if (abort.signal.aborted) return fn();
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), SUPABASE_FETCH_TIMEOUT_MS);
@@ -16,6 +51,11 @@ function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit): Promise
 }
 
 export const supabase =
-  url && anonKey ? createClient(url, anonKey, { global: { fetch: fetchWithTimeout } }) : null;
+  url && anonKey
+    ? createClient(url, anonKey, {
+        global: { fetch: fetchWithTimeout },
+        auth: { lock: supabaseAuthLock },
+      })
+    : null;
 
 export const isSupabaseConfigured = (): boolean => !!supabase;
