@@ -3,6 +3,7 @@ import { localYmd } from '../lib/local-ymd';
 import { formatMoney } from '../lib/money';
 import { partnerOfferMayBePersistedForListing } from '../lib/partner-offers-honesty';
 import { queryRowsOrThrow } from '../lib/query-rows-or-throw';
+import { offerApplies, validateOfferDateWindow } from '../lib/offer-eligibility';
 
 export type ListingDiscount = {
   id: string;
@@ -15,6 +16,17 @@ export type ListingDiscount = {
   /** When set, discount applies only to this booking option id from listing extras; null = all options. */
   booking_option_id: string | null;
   created_at: string;
+  /** Booking window. Null on legacy rows, which still use valid_from/valid_until as the departure window. */
+  book_from?: string | null;
+  book_until?: string | null;
+  activity_from?: string | null;
+  activity_until?: string | null;
+  paused?: boolean;
+  booking_limit?: number | null;
+  deleted_at?: string | null;
+  offer_group_id?: string | null;
+  /** Filled by checkout before quoting. Not a database column. */
+  redeemed_count?: number | null;
 };
 
 export type ListingDiscountInsert = Omit<ListingDiscount, 'id' | 'created_at'>;
@@ -22,8 +34,11 @@ export type ListingDiscountInsert = Omit<ListingDiscount, 'id' | 'created_at'>;
 /** Partner UI: percent offers must be within this range (stored as positive numbers, e.g. 15 = 15% off). */
 export const SUPPLIER_DISCOUNT_PERCENT_MIN = 5;
 export const SUPPLIER_DISCOUNT_PERCENT_MAX = 50;
-/** Inclusive calendar days between valid_from and valid_until (partner-created offers). */
-export const SUPPLIER_DISCOUNT_MAX_RANGE_DAYS = 30;
+/**
+ * Inclusive calendar-day cap for a booking or activity window.
+ * Raised from the old 30-day product cap. Enforced before insert; see offer-eligibility.ts.
+ */
+export const SUPPLIER_DISCOUNT_MAX_RANGE_DAYS = 730;
 
 function rowToDiscount(row: Record<string, unknown>): ListingDiscount {
   return {
@@ -38,7 +53,29 @@ function rowToDiscount(row: Record<string, unknown>): ListingDiscount {
       row.booking_option_id != null && String(row.booking_option_id).trim()
         ? String(row.booking_option_id).trim()
         : null,
-    created_at: String(row.created_at),
+    created_at: String(row.created_at ?? ''),
+    book_from: row.book_from != null ? String(row.book_from).slice(0, 10) : null,
+    book_until: row.book_until != null ? String(row.book_until).slice(0, 10) : null,
+    activity_from: row.activity_from != null ? String(row.activity_from).slice(0, 10) : null,
+    activity_until: row.activity_until != null ? String(row.activity_until).slice(0, 10) : null,
+    paused: row.paused === true,
+    booking_limit:
+      row.booking_limit != null && Number(row.booking_limit) > 0 ? Math.floor(Number(row.booking_limit)) : null,
+    deleted_at: row.deleted_at != null ? String(row.deleted_at) : null,
+    offer_group_id: row.offer_group_id != null ? String(row.offer_group_id) : null,
+  };
+}
+
+function offerWriteColumns(d: Partial<ListingDiscountInsert>) {
+  return {
+    ...(d.book_from !== undefined && { book_from: d.book_from }),
+    ...(d.book_until !== undefined && { book_until: d.book_until }),
+    ...(d.activity_from !== undefined && { activity_from: d.activity_from }),
+    ...(d.activity_until !== undefined && { activity_until: d.activity_until }),
+    ...(d.paused !== undefined && { paused: d.paused === true }),
+    ...(d.booking_limit !== undefined && { booking_limit: d.booking_limit }),
+    ...(d.deleted_at !== undefined && { deleted_at: d.deleted_at }),
+    ...(d.offer_group_id !== undefined && { offer_group_id: d.offer_group_id }),
   };
 }
 
@@ -77,6 +114,7 @@ export async function insertDiscount(d: ListingDiscountInsert): Promise<ListingD
       valid_from: d.valid_from ?? null,
       valid_until: d.valid_until ?? null,
       booking_option_id: d.booking_option_id?.trim() ? d.booking_option_id.trim() : null,
+      ...offerWriteColumns(d),
     })
     .select()
     .single();
@@ -109,6 +147,7 @@ export async function updateDiscount(id: string, d: Partial<ListingDiscountInser
       ...(d.booking_option_id !== undefined && {
         booking_option_id: d.booking_option_id?.trim() ? d.booking_option_id.trim() : null,
       }),
+      ...offerWriteColumns(d),
     })
     .eq('id', id)
     .select()
@@ -124,9 +163,7 @@ export async function deleteDiscount(id: string): Promise<boolean> {
 }
 
 function isDiscountActiveOnDate(d: ListingDiscount, t: string): boolean {
-  if (d.valid_from && t < d.valid_from) return false;
-  if (d.valid_until && t > d.valid_until) return false;
-  return true;
+  return offerApplies(d, { optionId: d.booking_option_id, activityDay: t, bookingDay: t });
 }
 
 /** Check if a listing has a valid discount now (for display price). Legacy: first active row; prefer option-aware APIs on the site. */
@@ -142,31 +179,23 @@ export function getValidDiscount(
 export function discountsApplicableToOption(
   discounts: ListingDiscount[],
   optionId: string,
-  at: Date = new Date()
+  at: Date | string = new Date(),
+  bookingDayIso?: string
 ): ListingDiscount[] {
-  const t = localYmd(at);
-  return discounts.filter((d) => {
-    if (!isDiscountActiveOnDate(d, t)) return false;
-    const scope = d.booking_option_id?.trim();
-    if (!scope) return true;
-    return scope === optionId;
-  });
+  const activityDay =
+    typeof at === 'string'
+      ? /^\d{4}-\d{2}-\d{2}/.test(at)
+        ? at.slice(0, 10)
+        : localYmd(new Date())
+      : localYmd(at);
+  const bookingDay =
+    bookingDayIso && /^\d{4}-\d{2}-\d{2}$/.test(bookingDayIso) ? bookingDayIso : activityDay;
+  return discounts.filter((d) => offerApplies(d, { optionId, activityDay, bookingDay }));
 }
 
-/** Validate partner offer date range (YYYY-MM-DD). Returns error message or null if OK. */
+/** Validate a booking or activity window (YYYY-MM-DD). Returns an error message or null. */
 export function validateSupplierDiscountDateRange(validFrom: string, validUntil: string): string | null {
-  const from = validFrom.trim();
-  const until = validUntil.trim();
-  if (!from || !until) return 'Choose both a start and end date.';
-  if (until < from) return 'End date must be on or after the start date.';
-  const a = new Date(from + 'T12:00:00');
-  const b = new Date(until + 'T12:00:00');
-  const days = Math.round((b.getTime() - a.getTime()) / 86400000) + 1;
-  if (days > SUPPLIER_DISCOUNT_MAX_RANGE_DAYS) {
-    return `Offers can run at most ${SUPPLIER_DISCOUNT_MAX_RANGE_DAYS} days (inclusive). This range is ${days} days.`;
-  }
-  if (days < 1) return 'Invalid date range.';
-  return null;
+  return validateOfferDateWindow(validFrom, validUntil, 'booking period');
 }
 
 /** Fetch discounts for multiple listings in one call (for cards/detail). */
@@ -193,6 +222,169 @@ export async function fetchDiscountsByListingIds(listingIds: string[]): Promise<
  * partner Offers wizard, but real rows can still be live) so the label shows the listing's
  * real currency instead of assuming USD.
  */
+export type SaveSupplierOfferInput = {
+  listingId: string;
+  existing: ListingDiscount[];
+  optionIds: string[];
+  listingWide: boolean;
+  type: 'percent' | 'fixed';
+  value: number;
+  bookFrom: string;
+  bookUntil: string;
+  activityFrom: string | null;
+  activityUntil: string | null;
+  bookingLimit: number | null;
+};
+
+function newOfferGroupId(): string {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
+  return `offer-${Date.now()}`;
+}
+
+/** Create or replace the rows that make up one supplier offer. Soft-deletes options that were removed. */
+export async function saveSupplierOffer(
+  input: SaveSupplierOfferInput
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!supabase) return { ok: false, error: 'Could not save this offer. Try again.' };
+  if (!(await listingAllowsPartnerOffer(input.listingId))) {
+    return { ok: false, error: 'Offers can only be saved on a tour listing.' };
+  }
+  const bookErr = validateOfferDateWindow(input.bookFrom, input.bookUntil, 'booking period');
+  if (bookErr) return { ok: false, error: bookErr };
+  if (input.activityFrom || input.activityUntil) {
+    const actErr = validateOfferDateWindow(input.activityFrom ?? '', input.activityUntil ?? '', 'activity period');
+    if (actErr) return { ok: false, error: actErr };
+  }
+  if (input.type === 'percent') {
+    const p = Math.round(input.value);
+    if (p < SUPPLIER_DISCOUNT_PERCENT_MIN || p > SUPPLIER_DISCOUNT_PERCENT_MAX) {
+      return {
+        ok: false,
+        error: `Discount must be between ${SUPPLIER_DISCOUNT_PERCENT_MIN}% and ${SUPPLIER_DISCOUNT_PERCENT_MAX}%.`,
+      };
+    }
+  }
+  if (input.bookingLimit != null && (!Number.isInteger(input.bookingLimit) || input.bookingLimit < 1)) {
+    return { ok: false, error: 'Booking limit must be a positive whole number.' };
+  }
+  const optionIds = input.listingWide ? [] : input.optionIds.map((id) => id.trim()).filter(Boolean);
+  if (!input.listingWide && optionIds.length === 0) {
+    return { ok: false, error: 'Choose at least one booking option.' };
+  }
+
+  const groupId = input.existing.find((row) => row.offer_group_id)?.offer_group_id ?? newOfferGroupId();
+  const liveExisting = input.existing.filter((row) => !row.deleted_at);
+  const keepPaused = liveExisting.length > 0 && liveExisting.every((row) => row.paused === true);
+  const shared = {
+    listing_id: input.listingId,
+    type: input.type,
+    value: input.type === 'percent' ? Math.round(input.value) : input.value,
+    code: null,
+    valid_from: input.bookFrom,
+    valid_until: input.bookUntil,
+    book_from: input.bookFrom,
+    book_until: input.bookUntil,
+    activity_from: input.activityFrom,
+    activity_until: input.activityUntil,
+    paused: keepPaused,
+    booking_limit: input.bookingLimit,
+    deleted_at: null,
+    offer_group_id: groupId,
+  };
+
+  const targets = input.listingWide ? [null] : optionIds;
+  const used = new Set<string>();
+  for (const optionId of targets) {
+    const match = input.existing.find((row) => {
+      if (used.has(row.id) || row.deleted_at) return false;
+      const scope = row.booking_option_id?.trim() || null;
+      return scope === optionId;
+    });
+    if (match) {
+      used.add(match.id);
+      const updated = await updateDiscount(match.id, { ...shared, booking_option_id: optionId });
+      if (!updated) return { ok: false, error: 'Could not update this offer. Refresh and try again.' };
+    } else {
+      const inserted = await insertDiscount({ ...shared, booking_option_id: optionId });
+      if (!inserted) return { ok: false, error: 'Could not create this offer. Check your connection and try again.' };
+    }
+  }
+  for (const row of input.existing) {
+    if (used.has(row.id) || row.deleted_at) continue;
+    const removed = await updateDiscount(row.id, { deleted_at: new Date().toISOString(), paused: true });
+    if (!removed) return { ok: false, error: 'Could not update this offer. Refresh and try again.' };
+  }
+  return { ok: true };
+}
+
+export async function setOfferPaused(ids: string[], paused: boolean): Promise<boolean> {
+  if (!supabase || ids.length === 0) return false;
+  const { error } = await supabase.from('listing_discounts').update({ paused }).in('id', ids);
+  return !error;
+}
+
+export async function softDeleteOffers(ids: string[]): Promise<boolean> {
+  if (!supabase || ids.length === 0) return false;
+  const { error } = await supabase
+    .from('listing_discounts')
+    .update({ deleted_at: new Date().toISOString(), paused: true })
+    .in('id', ids);
+  return !error;
+}
+
+export type OfferRedemptionStats = {
+  available: boolean;
+  bookings: number;
+  guests: number;
+  supplierNetMinor: number | null;
+};
+
+/** Confirmed paid bookings that stored this offer id. Earnings stay null when snapshots cannot be read. */
+export async function fetchOfferRedemptionStats(
+  discountIds: string[]
+): Promise<Map<string, OfferRedemptionStats>> {
+  const map = new Map<string, OfferRedemptionStats>();
+  if (!supabase || discountIds.length === 0) return map;
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('id, applied_discount_id, guests, payment_status, status')
+    .in('applied_discount_id', discountIds);
+  if (error) return map;
+  const bookingIds: string[] = [];
+  const bookingToOffer = new Map<string, string>();
+  for (const row of data ?? []) {
+    const offerId = row.applied_discount_id ? String(row.applied_discount_id) : '';
+    if (!offerId) continue;
+    const current = map.get(offerId) ?? { available: true, bookings: 0, guests: 0, supplierNetMinor: null };
+    current.available = true;
+    const paid = String(row.payment_status ?? '') === 'paid' && String(row.status ?? '') !== 'cancelled';
+    if (paid) {
+      current.bookings += 1;
+      current.guests += Math.max(0, Math.floor(Number(row.guests) || 0));
+      const bookingId = String(row.id);
+      bookingIds.push(bookingId);
+      bookingToOffer.set(bookingId, offerId);
+    }
+    map.set(offerId, current);
+  }
+  if (bookingIds.length === 0) return map;
+  const snaps = await supabase
+    .from('booking_commercial_snapshots')
+    .select('booking_id, remaining_supplier_minor')
+    .in('booking_id', bookingIds);
+  if (snaps.error) return map;
+  for (const snap of snaps.data ?? []) {
+    const offerId = bookingToOffer.get(String(snap.booking_id));
+    if (!offerId) continue;
+    const current = map.get(offerId);
+    if (!current) continue;
+    const net = Number(snap.remaining_supplier_minor);
+    if (!Number.isFinite(net)) continue;
+    current.supplierNetMinor = (current.supplierNetMinor ?? 0) + Math.round(net);
+  }
+  return map;
+}
+
 export function applyDiscount(
   price: number,
   discount: ListingDiscount,

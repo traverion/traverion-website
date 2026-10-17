@@ -11,7 +11,8 @@ import {
   type ListingBookingOption,
 } from '../types/listingExtras';
 import type { ListingDiscount } from '../data/supabase-discounts';
-import { applyDiscount, discountsApplicableToOption } from '../data/supabase-discounts';
+import { discountsApplicableToOption } from '../data/supabase-discounts';
+import { bestCustomerDiscount } from './offer-eligibility';
 import { getPartySizeBounds, getPartySizeBoundsForVariant, guestCountValidationError } from './booking-flow';
 import { listingCanUseTravelerQuote } from './inventory';
 import { travelerFacingBookingOptions } from './legacy-participant-options';
@@ -63,7 +64,20 @@ import { optionHeadlineUnitPrice } from './price-categories';
 
 export type BookingQuoteDiscount = Pick<
   ListingDiscount,
-  'type' | 'value' | 'valid_from' | 'valid_until' | 'booking_option_id'
+  | 'id'
+  | 'type'
+  | 'value'
+  | 'valid_from'
+  | 'valid_until'
+  | 'booking_option_id'
+  | 'book_from'
+  | 'book_until'
+  | 'activity_from'
+  | 'activity_until'
+  | 'paused'
+  | 'deleted_at'
+  | 'booking_limit'
+  | 'redeemed_count'
 >;
 
 export type BookingQuoteOk = {
@@ -77,6 +91,8 @@ export type BookingQuoteOk = {
   optionId: string | null;
   optionLabel: string;
   discountLabel?: string;
+  /** Undiscounted customer total for the same party. Equals totalAmount when no offer applies. */
+  originalTotalAmount?: number;
   /** Present when age-dependent pricing was used. */
   lineItems?: { label: string; quantity: number; unitPrice: number; amount: number }[];
   guestBreakdown?: { categoryId: string; label: string; kind: string; quantity: number; unitPrice: number }[];
@@ -280,12 +296,17 @@ export function formatOptionWeekdays(weekdays: boolean[] | undefined | null): st
   return on.join(', ');
 }
 
-function listingWideDiscounts(discounts: BookingQuoteDiscount[], day: string): BookingQuoteDiscount[] {
-  return discounts.filter((d) => {
-    if (d.valid_from && day < d.valid_from) return false;
-    if (d.valid_until && day > d.valid_until) return false;
-    return !(d.booking_option_id && d.booking_option_id.trim());
-  });
+function listingWideDiscounts(
+  discounts: BookingQuoteDiscount[],
+  activityDay: string,
+  bookingDay: string
+): BookingQuoteDiscount[] {
+  return discountsApplicableToOption(
+    discounts as ListingDiscount[],
+    '',
+    activityDay,
+    bookingDay
+  ).filter((d) => !(d.booking_option_id && d.booking_option_id.trim()));
 }
 
 function bestUnitPrice(
@@ -293,17 +314,8 @@ function bestUnitPrice(
   applicable: BookingQuoteDiscount[],
   currency: string
 ): { price: number; label?: string } {
-  if (applicable.length === 0 || base <= 0) return { price: base };
-  let min = base;
-  let label: string | undefined;
-  for (const d of applicable) {
-    const { price, label: l } = applyDiscount(base, d as ListingDiscount, currency);
-    if (price < min) {
-      min = price;
-      label = l;
-    }
-  }
-  return { price: money(min), label: min < base ? label : undefined };
+  const best = bestCustomerDiscount(base, applicable, currency);
+  return { price: money(best.price), label: best.label };
 }
 
 function isListingBookable(status: TourPackage['status'] | string | null | undefined): boolean {
@@ -449,8 +461,7 @@ export function quoteBooking(input: {
       if (!(flat > 0)) {
         return { ok: false, code: 'price', error: 'This tour does not have a bookable price yet.' };
       }
-      const at = new Date(`${date}T12:00:00`);
-      const applicable = discountsApplicableToOption(input.discounts as ListingDiscount[], option.id, at);
+      const applicable = discountsApplicableToOption(input.discounts as ListingDiscount[], option.id, date, today);
       const { price: discountedFlat, label } = bestUnitPrice(flat, applicable, currency);
       // Phase 584 (supabase/functions/_shared/booking-quote.ts) closed this exact
       // gap in the server-authoritative Deno copy: every sibling pricing branch
@@ -476,6 +487,7 @@ export function quoteBooking(input: {
         optionId: option.id,
         optionLabel: option.name.trim() || 'Private tour',
         discountLabel: label,
+        originalTotalAmount: money(flat),
         lineItems: [{ label: 'Private group', quantity: 1, unitPrice: money(discountedFlat), amount: money(discountedFlat) }],
       };
     }
@@ -489,8 +501,10 @@ export function quoteBooking(input: {
       if (!Number.isFinite(guests) || guests < 1 || guests > 99) {
         return { ok: false, code: 'party', error: 'Guest count must be between 1 and 99.' };
       }
-      const at = new Date(`${date}T12:00:00`);
-      const applicable = discountsApplicableToOption(input.discounts as ListingDiscount[], option.id, at);
+      const applicable = discountsApplicableToOption(input.discounts as ListingDiscount[], option.id, date, today);
+      const originalTotal = money(
+        lines.filter((l) => l.quantity > 0).reduce((sum, l) => sum + l.unitPrice * l.quantity, 0)
+      );
       const pricedLines = lines
         .filter((l) => l.quantity > 0)
         .map((l) => {
@@ -525,6 +539,7 @@ export function quoteBooking(input: {
         optionId: option.id,
         optionLabel: option.name.trim() || 'Tour option',
         discountLabel: applicable.length ? bestUnitPrice(headline, applicable, currency).label : undefined,
+        originalTotalAmount: originalTotal,
         lineItems,
         guestBreakdown: guestBreakdownFromLines(pricedLines),
       };
@@ -549,8 +564,7 @@ export function quoteBooking(input: {
     if (!(base > 0)) {
       return { ok: false, code: 'price', error: 'This tour does not have a bookable price yet.' };
     }
-    const at = new Date(`${date}T12:00:00`);
-    const applicable = discountsApplicableToOption(input.discounts as ListingDiscount[], option.id, at);
+    const applicable = discountsApplicableToOption(input.discounts as ListingDiscount[], option.id, date, today);
     const { price: unitPrice, label } = bestUnitPrice(base, applicable, currency);
     if (!(unitPrice > 0)) {
       return { ok: false, code: 'price', error: 'This tour does not have a bookable price yet.' };
@@ -566,6 +580,7 @@ export function quoteBooking(input: {
       optionId: option.id,
       optionLabel: variant.label,
       discountLabel: label,
+      originalTotalAmount: money(base * guests),
     };
   }
 
@@ -579,7 +594,11 @@ export function quoteBooking(input: {
   if (!(fallbackBase > 0)) {
     return { ok: false, code: 'price', error: 'This tour does not have a bookable price yet.' };
   }
-  const { price: unitPrice, label } = bestUnitPrice(fallbackBase, listingWideDiscounts(input.discounts, date), currency);
+  const { price: unitPrice, label } = bestUnitPrice(
+    fallbackBase,
+    listingWideDiscounts(input.discounts, date, today),
+    currency
+  );
   if (!(unitPrice > 0)) {
     return { ok: false, code: 'price', error: 'This tour does not have a bookable price yet.' };
   }
@@ -594,6 +613,7 @@ export function quoteBooking(input: {
     optionId: null,
     optionLabel: 'Standard tour',
     discountLabel: label,
+    originalTotalAmount: money(fallbackBase * guests),
   };
 }
 

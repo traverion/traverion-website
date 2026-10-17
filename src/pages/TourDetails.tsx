@@ -86,7 +86,7 @@ import {
   type ParticipantMixSelection,
 } from '../lib/participant-mix';
 import { activePriceCategories } from '../lib/price-categories';
-import { quoteBooking } from '../lib/booking-quote';
+import { quoteBooking, type BookingQuoteOk } from '../lib/booking-quote';
 import {
   allScheduleDepartureTimes,
   listingOptionHasSchedules,
@@ -143,6 +143,25 @@ interface TourDetailsProps {
   backLabel?: string;
   /** True while the checkout sheet is on screen, so the marketplace header can step aside. */
   onCheckoutActive?: (active: boolean) => void;
+}
+
+function quotedOfferPrice(quote: BookingQuoteOk) {
+  const show =
+    Boolean(quote.discountLabel) &&
+    quote.originalTotalAmount != null &&
+    quote.originalTotalAmount > quote.totalAmount + 0.004;
+  if (!show || quote.originalTotalAmount == null) {
+    return formatMoney(quote.totalAmount, quote.currency);
+  }
+  return (
+    <span className="inline-flex max-w-full flex-wrap items-baseline justify-end gap-x-2 gap-y-0.5">
+      <span className="text-sm font-medium text-ink-muted line-through tabular-nums">
+        {formatMoney(quote.originalTotalAmount, quote.currency)}
+      </span>
+      <span className="tabular-nums">{formatMoney(quote.totalAmount, quote.currency)}</span>
+      <span className="text-sm font-semibold text-finland">{quote.discountLabel}</span>
+    </span>
+  );
 }
 
 export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onCheckoutActive }: TourDetailsProps) {
@@ -1851,8 +1870,8 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                       // Phase 1561: successful quote is the hero total (sticky parity — not catalog From).
                       if (selectedBookingVariant && panelQuote?.ok) {
                         return (
-                          <p className="mb-4 text-lg font-semibold tabular-nums text-ink">
-                            {formatMoney(panelQuote.totalAmount, panelQuote.currency)}
+                          <p className="mb-4 text-lg font-semibold text-ink">
+                            {quotedOfferPrice(panelQuote)}
                           </p>
                         );
                       }
@@ -2057,9 +2076,9 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                           {panelQuote?.ok ? (
                             <div className="flex items-end justify-between gap-3 pt-1 border-t border-black/[0.06]">
                               <p className="text-xs text-ink-muted">Total</p>
-                              <p className="text-lg font-semibold tabular-nums text-ink">
-                                {formatMoney(panelQuote.totalAmount, panelQuote.currency)}
-                              </p>
+                              <div className="text-lg font-semibold text-ink text-right">
+                                {quotedOfferPrice(panelQuote)}
+                              </div>
                             </div>
                           ) : panelQuote && !panelQuote.ok ? (
                             <p className="text-xs text-red-700">{panelQuote.error}</p>
@@ -2455,7 +2474,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                   const quoteFailed = Boolean(selectedBookingVariant && panelQuote && !panelQuote.ok);
                   const priceLine =
                     selectedBookingVariant && panelQuote?.ok
-                      ? formatMoney(panelQuote.totalAmount, panelQuote.currency)
+                      ? quotedOfferPrice(panelQuote)
                       : quoteFailed
                         ? 'Price unavailable'
                         : `From ${formatMoney(Number(price), currency)}`;

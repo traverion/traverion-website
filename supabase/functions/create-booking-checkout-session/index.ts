@@ -365,10 +365,19 @@ serve(async (req) => {
     if (listingRow.title?.trim()) listingTitle = listingRow.title.trim();
     await admin.rpc('expire_stale_checkout_holds', { p_listing_id: listingId });
 
-    const { data: discountRows, error: discountError } = await admin
+    const discountSelect =
+      'id, type, value, valid_from, valid_until, booking_option_id, book_from, book_until, activity_from, activity_until, paused, booking_limit, deleted_at';
+    let discountResult = await admin
       .from('listing_discounts')
-      .select('type, value, valid_from, valid_until, booking_option_id')
+      .select(discountSelect)
       .eq('listing_id', listingId);
+    if (discountResult.error && /book_from|paused|deleted_at|booking_limit/i.test(discountResult.error.message)) {
+      discountResult = await admin
+        .from('listing_discounts')
+        .select('type, value, valid_from, valid_until, booking_option_id')
+        .eq('listing_id', listingId);
+    }
+    const { data: discountRows, error: discountError } = discountResult;
     // Fail closed: never quote full price because discount rows failed to load (Phase 1088).
     if (discountError) {
       return json({ success: false, error: 'Could not load offers for this listing. Try again.' }, 500);
@@ -383,6 +392,37 @@ serve(async (req) => {
       title: listingRow.title,
     };
     const discounts = (discountRows ?? []) as DiscountRow[];
+    const limitedIds = discounts
+      .filter((d) => d.id && d.booking_limit != null && d.booking_limit > 0 && !d.deleted_at && !d.paused)
+      .map((d) => d.id as string);
+    if (limitedIds.length > 0) {
+      const redemptionLookup = await admin
+        .from('bookings')
+        .select('id, applied_discount_id, status, payment_status, hold_expires_at')
+        .eq('listing_id', listingId)
+        .in('applied_discount_id', limitedIds);
+      if (redemptionLookup.error && !/applied_discount_id/i.test(redemptionLookup.error.message)) {
+        return json({ success: false, error: 'Could not load offers for this listing. Try again.' }, 500);
+      }
+      const counts = new Map<string, number>();
+      const nowMs = Date.now();
+      for (const row of redemptionLookup.data ?? []) {
+        if (targetBookingId && row.id === targetBookingId) continue;
+        if ((row.status ?? '') === 'cancelled') continue;
+        const paid = row.payment_status === 'paid';
+        const held =
+          row.payment_status === 'pending' &&
+          row.hold_expires_at != null &&
+          new Date(row.hold_expires_at).getTime() > nowMs;
+        if (!paid && !held) continue;
+        const offerId = String(row.applied_discount_id ?? '');
+        if (!offerId) continue;
+        counts.set(offerId, (counts.get(offerId) ?? 0) + 1);
+      }
+      for (const row of discounts) {
+        if (row.id) row.redeemed_count = counts.get(row.id) ?? 0;
+      }
+    }
 
     const extrasFamily =
       listingRow.listing_extras && typeof listingRow.listing_extras === 'object'
@@ -907,12 +947,46 @@ serve(async (req) => {
     }
 
     const stripe = new Stripe(stripeSecret);
+    const appliedDiscountId = quote.appliedDiscountId ?? null;
+    if (appliedDiscountId) {
+      const claimedOffer = await admin.rpc('claim_offer_redemption', {
+        p_discount_id: appliedDiscountId,
+        p_booking_id: targetBookingId,
+      });
+      if (claimedOffer.error) {
+        if (!isMissingPostgresFunctionError(claimedOffer.error.message)) {
+          return json({ success: false, error: 'Could not reserve this offer. Try again.' }, 500);
+        }
+      } else if (claimedOffer.data !== true) {
+        return json(
+          {
+            success: false,
+            error:
+              'This offer has reached its booking limit. The regular price is still available — go back and book again.',
+          },
+          409
+        );
+      }
+    } else {
+      const cleared = await admin
+        .from('bookings')
+        .update({ applied_discount_id: null })
+        .eq('id', targetBookingId);
+      if (cleared.error && !/applied_discount_id/i.test(cleared.error.message)) {
+        return json({ success: false, error: 'Could not reserve this offer. Try again.' }, 500);
+      }
+    }
     const amountMinor = Math.round(totalAmount * 100);
     if (!Number.isFinite(amountMinor) || amountMinor < 1) {
+      if (appliedDiscountId) {
+        await admin.from('bookings').update({ applied_discount_id: null }).eq('id', targetBookingId);
+      }
       return json({ success: false, error: 'Booking amount must be > 0' }, 400);
     }
 
-    const session = await stripe.checkout.sessions.create({
+    let session: Awaited<ReturnType<typeof stripe.checkout.sessions.create>>;
+    try {
+      session = await stripe.checkout.sessions.create({
       mode: 'payment',
       locale: 'en',
       custom_text: {
@@ -956,6 +1030,12 @@ serve(async (req) => {
         },
       },
     });
+    } catch {
+      if (appliedDiscountId) {
+        await admin.from('bookings').update({ applied_discount_id: null }).eq('id', targetBookingId);
+      }
+      return json({ success: false, error: 'Could not start payment. Try again.' }, 500);
+    }
 
     const sessionUpdateBase: Record<string, unknown> = {
       checkout_session_id: session.id,

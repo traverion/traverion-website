@@ -28,11 +28,20 @@ function experienceTodayIsoForListing(departureTimezone: unknown, nowMs: number 
 }
 
 export type DiscountRow = {
+  id?: string | null;
   type: string;
   value: number;
   valid_from: string | null;
   valid_until: string | null;
   booking_option_id: string | null;
+  book_from?: string | null;
+  book_until?: string | null;
+  activity_from?: string | null;
+  activity_until?: string | null;
+  paused?: boolean | null;
+  deleted_at?: string | null;
+  booking_limit?: number | null;
+  redeemed_count?: number | null;
 };
 
 export type ListingQuoteRow = {
@@ -164,6 +173,8 @@ export type QuoteOk = {
   guestBreakdown?: { categoryId: string; label: string; kind: string; quantity: number; unitPrice: number }[];
   /** Stay quotes only. */
   nights?: number;
+  /** Offer row that produced the customer price. Null when no offer applied. */
+  appliedDiscountId?: string | null;
 };
 
 export type QuoteErr = { ok: false; error: string };
@@ -832,10 +843,43 @@ function coalesceLegacyParticipantTicketOptions(opts: Option[]): Option[] {
   ];
 }
 
-function discountActive(d: DiscountRow, day: string): boolean {
-  if (d.valid_from && day < d.valid_from) return false;
-  if (d.valid_until && day > d.valid_until) return false;
+function civilDay(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const day = value.slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null;
+}
+
+function civilDayInRange(day: string, from: string | null, until: string | null): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return false;
+  if (from && day < from) return false;
+  if (until && day > until) return false;
   return true;
+}
+
+/**
+ * Mirror of src/lib/offer-eligibility.ts offerApplies.
+ * Legacy rows (no book_from) constrain the departure. New rows constrain the booking day
+ * and, when set, the activity day. Paused, deleted, and limit-reached rows do not apply.
+ */
+export function discountRowApplies(
+  d: DiscountRow,
+  optionId: string | null,
+  activityDay: string,
+  bookingDay: string,
+): boolean {
+  if (d.paused) return false;
+  if (d.deleted_at) return false;
+  const scope = (d.booking_option_id ?? '').trim();
+  if (scope && scope !== (optionId ?? '')) return false;
+  if (d.booking_limit != null && d.booking_limit > 0 && (d.redeemed_count ?? 0) >= d.booking_limit) return false;
+  const bookFrom = civilDay(d.book_from);
+  if (bookFrom) {
+    if (!civilDayInRange(bookingDay, bookFrom, civilDay(d.book_until))) return false;
+    const activityFrom = civilDay(d.activity_from);
+    if (activityFrom && !civilDayInRange(activityDay, activityFrom, civilDay(d.activity_until))) return false;
+    return true;
+  }
+  return civilDayInRange(activityDay, civilDay(d.valid_from), civilDay(d.valid_until));
 }
 
 function applyDiscount(price: number, d: DiscountRow): number {
@@ -843,23 +887,34 @@ function applyDiscount(price: number, d: DiscountRow): number {
   return money(Math.max(0, price - Number(d.value)));
 }
 
-function bestPrice(base: number, discounts: DiscountRow[]): number {
-  if (discounts.length === 0 || base <= 0) return money(base);
+function bestOffer(base: number, discounts: DiscountRow[]): { price: number; id: string | null } {
+  if (discounts.length === 0 || !(base > 0)) return { price: money(base), id: null };
   let min = base;
+  let id: string | null = null;
   for (const d of discounts) {
     const p = applyDiscount(base, d);
-    if (p < min) min = p;
+    const cheaper = p < min - 0.0001;
+    const tie =
+      id != null &&
+      Math.abs(p - min) <= 0.0001 &&
+      p < base - 0.0001 &&
+      (d.id ?? '') !== '' &&
+      (d.id ?? '') < id;
+    if (cheaper || tie) {
+      min = p;
+      id = p < base - 0.0001 ? (d.id ?? null) : null;
+    }
   }
-  return money(min);
+  return { price: money(min), id: min < base - 0.0001 ? id : null };
 }
 
-function applicable(discounts: DiscountRow[], optionId: string | null, day: string): DiscountRow[] {
-  return discounts.filter((d) => {
-    if (!discountActive(d, day)) return false;
-    const scope = (d.booking_option_id ?? '').trim();
-    if (!scope) return true;
-    return optionId != null && scope === optionId;
-  });
+function applicable(
+  discounts: DiscountRow[],
+  optionId: string | null,
+  activityDay: string,
+  bookingDay: string,
+): DiscountRow[] {
+  return discounts.filter((d) => discountRowApplies(d, optionId, activityDay, bookingDay));
 }
 
 function optionRunsOnDate(option: Option, isoDate: string, startTime?: string | null): string | null {
@@ -1055,7 +1110,8 @@ export function quoteListingBooking(input: {
       }
       const flat = option.privateGroupPriceUsd ?? option.priceUsd;
       if (!(flat > 0)) return { ok: false, error: 'This tour does not have a bookable price yet.' };
-      const unit = bestPrice(flat, applicable(input.discounts, option.id, date));
+      const flatOffer = bestOffer(flat, applicable(input.discounts, option.id, date, today));
+      const unit = flatOffer.price;
       // Phase 584: every sibling pricing branch (age-dependent categories,
       // the standard per-guest option, and the no-option fallback)
       // re-checks the price for positivity AFTER discounts are applied --
@@ -1075,6 +1131,7 @@ export function quoteListingBooking(input: {
         optionId: option.id,
         optionLabel: option.name.trim() || 'Private tour',
         guests,
+        appliedDiscountId: flatOffer.id,
       };
     }
 
@@ -1108,12 +1165,23 @@ export function quoteListingBooking(input: {
         }
       }
       guests = capacityGuests;
-      const disc = applicable(input.discounts, option.id, date);
+      const disc = applicable(input.discounts, option.id, date, today);
       let total = 0;
+      let appliedDiscountId: string | null = null;
+      let bestSave = 0;
       const breakdown: { categoryId: string; label: string; kind: string; quantity: number; unitPrice: number }[] = [];
       for (const line of lines) {
         if (line.quantity <= 0) continue;
-        const unit = bestPrice(line.unitPrice, disc);
+        const offer = bestOffer(line.unitPrice, disc);
+        const unit = offer.price;
+        const save = line.unitPrice - unit;
+        if (
+          save > bestSave + 0.0001 ||
+          (offer.id && Math.abs(save - bestSave) <= 0.0001 && (appliedDiscountId == null || offer.id < appliedDiscountId))
+        ) {
+          bestSave = save;
+          appliedDiscountId = save > 0.0001 ? offer.id : null;
+        }
         total += unit * line.quantity;
         breakdown.push({
           categoryId: line.categoryId,
@@ -1134,6 +1202,7 @@ export function quoteListingBooking(input: {
         optionLabel: option.name.trim() || 'Tour option',
         guests,
         guestBreakdown: breakdown,
+        appliedDiscountId,
       };
     }
 
@@ -1148,7 +1217,8 @@ export function quoteListingBooking(input: {
     }
     const base = option.priceUsd > 0 ? option.priceUsd : fallbackBase;
     if (!(base > 0)) return { ok: false, error: 'This tour does not have a bookable price yet.' };
-    const unit = bestPrice(base, applicable(input.discounts, option.id, date));
+    const personOffer = bestOffer(base, applicable(input.discounts, option.id, date, today));
+    const unit = personOffer.price;
     if (!(unit > 0)) return { ok: false, error: 'This tour does not have a bookable price yet.' };
     return {
       ok: true,
@@ -1158,6 +1228,7 @@ export function quoteListingBooking(input: {
       optionId: option.id,
       optionLabel: option.name.trim() || 'Tour option',
       guests,
+      appliedDiscountId: personOffer.id,
     };
   }
 
@@ -1175,7 +1246,8 @@ export function quoteListingBooking(input: {
     return { ok: false, error: `No more than ${bounds.max} guests allowed for this tour.` };
   }
   if (!(fallbackBase > 0)) return { ok: false, error: 'This tour does not have a bookable price yet.' };
-  const unit = bestPrice(fallbackBase, applicable(input.discounts, null, date));
+  const fallbackOffer = bestOffer(fallbackBase, applicable(input.discounts, null, date, today));
+  const unit = fallbackOffer.price;
   if (!(unit > 0)) return { ok: false, error: 'This tour does not have a bookable price yet.' };
   return {
     ok: true,
@@ -1185,5 +1257,6 @@ export function quoteListingBooking(input: {
     optionId: null,
     optionLabel: 'Standard tour',
     guests,
+    appliedDiscountId: fallbackOffer.id,
   };
 }

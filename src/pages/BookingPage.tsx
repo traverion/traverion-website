@@ -1424,7 +1424,8 @@ export default function BookingPage({
   const priceFromQualifier = usesAgePricingOnVariant ? 'per adult' : 'per person';
   const departureLabel = departureTime || null;
   const quotedOriginalTotal =
-    quoted && !usesAgePricingOnVariant ? quoted.originalUnitPrice * quoted.guests : null;
+    quoted?.originalTotalAmount ??
+    (quoted && !usesAgePricingOnVariant ? quoted.originalUnitPrice * quoted.guests : null);
   const quotedSavings =
     quoted &&
     quoted.discountLabel &&
