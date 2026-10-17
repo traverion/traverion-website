@@ -74,7 +74,7 @@ const TAB_IDS = new Set(NAV.map((n) => n.id));
 
 function tabFromHash(): AdminTab {
   if (typeof window === 'undefined') return 'overview';
-  const h = window.location.hash.replace(/^#/, '') as AdminTab;
+  const h = window.location.hash.replace(/^#/, '').split(/[?&]/)[0] as AdminTab;
   return TAB_IDS.has(h) ? h : 'overview';
 }
 

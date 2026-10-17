@@ -7,6 +7,12 @@ describe('adminBookingSearchOrParts (Phase 1053)', () => {
     expect(parts).toContain('guest_name.ilike.%42%');
     expect(parts).toContain('guest_email.ilike.%42%');
     expect(parts).toContain('booking_number.eq.42');
+    expect(parts).toContain('public_reference.ilike.%42%');
+  });
+
+  it('matches a customer booking reference and a hash-prefixed number', () => {
+    expect(adminBookingSearchOrParts('TV-AB23CD4E')).toContain('public_reference.ilike.%TV-AB23CD4E%');
+    expect(adminBookingSearchOrParts('#42')).toContain('booking_number.eq.42');
   });
 
   it('matches booking UUID exactly', () => {

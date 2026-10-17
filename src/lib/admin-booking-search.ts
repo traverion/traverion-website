@@ -13,10 +13,15 @@ export function adminBookingSearchOrParts(safeSearch: string): string[] {
   const q = safeSearch.trim();
   if (!q) return [];
 
-  const parts = [`guest_name.ilike.%${q}%`, `guest_email.ilike.%${q}%`];
+  const parts = [
+    `guest_name.ilike.%${q}%`,
+    `guest_email.ilike.%${q}%`,
+    `public_reference.ilike.%${q}%`,
+  ];
 
-  const asNumber = Number.parseInt(q, 10);
-  if (Number.isFinite(asNumber) && asNumber > 0 && String(asNumber) === q) {
+  const numeric = q.replace(/^#/, '');
+  const asNumber = Number.parseInt(numeric, 10);
+  if (Number.isFinite(asNumber) && asNumber > 0 && String(asNumber) === numeric) {
     parts.push(`booking_number.eq.${asNumber}`);
   }
 

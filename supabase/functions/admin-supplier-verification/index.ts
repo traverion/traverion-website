@@ -121,6 +121,8 @@ type Body = {
     | 'create_portal_notification'
     | 'delete_portal_notification'
     | 'bookings_list'
+    | 'booking_filter_options'
+    | 'booking_ops_detail'
     | 'finance_summary'
     | 'record_supplier_payout'
     | 'list_contact_inquiries'
@@ -154,6 +156,16 @@ type Body = {
   bookingStatus?: string;
   bookingSearch?: string;
   bookingSupplierId?: string;
+  bookingListingId?: string;
+  bookingPage?: number;
+  bookingPageSize?: number;
+  bookingSort?: string;
+  bookingTravelFrom?: string;
+  bookingTravelTo?: string;
+  bookingCreatedFrom?: string;
+  bookingCreatedTo?: string;
+  bookingPaymentStatus?: string;
+  opsBookingId?: string;
   inquiryId?: string;
   inquiryStatus?: string;
   payoutSupplierId?: string;
@@ -386,12 +398,46 @@ serve(async (req) => {
     });
   }
 
+  if (body.action === 'booking_filter_options') {
+    const { data: bookingRows, error } = await admin.from('bookings').select('listing_id').limit(1000);
+    if (error) return json({ error: error.message }, 500);
+    const listingIds = [...new Set((bookingRows ?? []).map((r: any) => r.listing_id as string).filter(Boolean))];
+    if (listingIds.length === 0) return json({ listings: [], suppliers: [] });
+    const { data: listingRows, error: listingErr } = await admin
+      .from('listings')
+      .select('id, title, supplier_id')
+      .in('id', listingIds.slice(0, 200));
+    if (listingErr) return json({ error: listingErr.message }, 500);
+    const supplierIds = [...new Set((listingRows ?? []).map((l: any) => l.supplier_id as string).filter(Boolean))];
+    const { data: supplierRows, error: supplierErr } =
+      supplierIds.length > 0
+        ? await admin.from('supplier_profiles').select('id, display_name, company_legal_name').in('id', supplierIds)
+        : { data: [] as any[], error: null };
+    if (supplierErr) return json({ error: supplierErr.message }, 500);
+    return json({
+      listings: (listingRows ?? []).map((l: any) => ({ id: l.id, title: l.title, supplier_id: l.supplier_id })),
+      suppliers: (supplierRows ?? []).map((s: any) => ({
+        id: s.id,
+        name: s.display_name || s.company_legal_name || 'Supplier',
+      })),
+    });
+  }
+
   if (body.action === 'bookings_list') {
-    const BOOKINGS_FETCH_CAP = 500;
+    const pageSize = Math.min(50, Math.max(1, Number(body.bookingPageSize) || 25));
+    const page = Math.max(1, Number(body.bookingPage) || 1);
     const statusFilter = typeof body.bookingStatus === 'string' ? body.bookingStatus.trim().toLowerCase() : 'all';
     const rawSearch = typeof body.bookingSearch === 'string' ? body.bookingSearch.trim() : '';
     const safeSearch = rawSearch.replace(/[,()%]/g, '').slice(0, 128);
     const supplierFilter = typeof body.bookingSupplierId === 'string' ? body.bookingSupplierId.trim() : '';
+    const listingFilter = typeof body.bookingListingId === 'string' ? body.bookingListingId.trim() : '';
+    const sort = typeof body.bookingSort === 'string' ? body.bookingSort.trim() : 'created_desc';
+    const paymentFilter = typeof body.bookingPaymentStatus === 'string' ? body.bookingPaymentStatus.trim().toLowerCase() : '';
+    const isoDay = (value: unknown) => (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : '');
+    const travelFrom = isoDay(body.bookingTravelFrom);
+    const travelTo = isoDay(body.bookingTravelTo);
+    const createdFrom = isoDay(body.bookingCreatedFrom);
+    const createdTo = isoDay(body.bookingCreatedTo);
 
     let supplierListingIds: string[] | null = null;
     if (supplierFilter) {
@@ -399,29 +445,20 @@ serve(async (req) => {
       if (error) return json({ error: error.message }, 500);
       supplierListingIds = (rows ?? []).map((r: any) => r.id as string);
       if (supplierListingIds.length === 0) {
-        return json({ items: [], truncated: false, fetchedCount: 0 });
+        return json({ items: [], total: 0, page, pageSize, truncated: false, fetchedCount: 0 });
       }
     }
 
-    const bookingCols =
-      'id, listing_id, guest_email, guest_name, guests, booking_date, check_out, nights, purchase_snapshot, status, payment_status, amount_paid, currency, checkout_session_id, payment_intent_id, refund_choice, booking_number, created_at, hold_expires_at';
-
-    let query = admin
-      .from('bookings')
-      .select(bookingCols)
-      .order('created_at', { ascending: false })
-      .limit(BOOKINGS_FETCH_CAP);
-    if (statusFilter === 'pending' || statusFilter === 'confirmed' || statusFilter === 'cancelled') {
-      query = query.eq('status', statusFilter);
-    }
-    if (supplierListingIds) {
-      query = query.in('listing_id', supplierListingIds);
-    }
+    let searchIds: string[] | null = null;
     if (safeSearch) {
-      // Phase 1053: guest / # / booking UUID / Stripe cs_ / pi_ (mirrors src/lib/admin-booking-search.ts).
-      const orParts = [`guest_name.ilike.%${safeSearch}%`, `guest_email.ilike.%${safeSearch}%`];
-      const asNumber = Number.parseInt(safeSearch, 10);
-      if (Number.isFinite(asNumber) && asNumber > 0 && String(asNumber) === safeSearch) {
+      const orParts = [
+        `guest_name.ilike.%${safeSearch}%`,
+        `guest_email.ilike.%${safeSearch}%`,
+        `public_reference.ilike.%${safeSearch}%`,
+      ];
+      const numeric = safeSearch.replace(/^#/, '');
+      const asNumber = Number.parseInt(numeric, 10);
+      if (Number.isFinite(asNumber) && asNumber > 0 && String(asNumber) === numeric) {
         orParts.push(`booking_number.eq.${asNumber}`);
       }
       const uuid = safeSearch.replace(/^\{|\}$/g, '');
@@ -429,25 +466,95 @@ serve(async (req) => {
         orParts.push(`id.eq.${uuid}`);
       }
       const lower = safeSearch.toLowerCase();
-      if (lower.startsWith('cs_')) {
-        orParts.push(`checkout_session_id.eq.${safeSearch}`);
-      } else if (lower.startsWith('pi_')) {
-        orParts.push(`payment_intent_id.eq.${safeSearch}`);
-      } else if (safeSearch.length >= 8) {
+      if (lower.startsWith('cs_')) orParts.push(`checkout_session_id.eq.${safeSearch}`);
+      else if (lower.startsWith('pi_')) orParts.push(`payment_intent_id.eq.${safeSearch}`);
+      else if (safeSearch.length >= 8) {
         orParts.push(`checkout_session_id.ilike.%${safeSearch}%`);
         orParts.push(`payment_intent_id.ilike.%${safeSearch}%`);
       }
-      query = query.or(orParts.join(','));
+      const [{ data: titleHits }, { data: brandHits }] = await Promise.all([
+        admin.from('listings').select('id').ilike('title', `%${safeSearch}%`).limit(40),
+        admin
+          .from('supplier_profiles')
+          .select('id')
+          .or(`display_name.ilike.%${safeSearch}%,company_legal_name.ilike.%${safeSearch}%`)
+          .limit(20),
+      ]);
+      const titleIds = (titleHits ?? []).map((r: any) => r.id as string);
+      const brandIds = (brandHits ?? []).map((r: any) => r.id as string);
+      if (brandIds.length > 0) {
+        const { data: brandListings } = await admin.from('listings').select('id').in('supplier_id', brandIds).limit(80);
+        for (const row of brandListings ?? []) titleIds.push((row as any).id as string);
+      }
+      const uniqueTitleIds = [...new Set(titleIds)].slice(0, 40);
+      if (uniqueTitleIds.length > 0) orParts.push(`listing_id.in.(${uniqueTitleIds.join(',')})`);
+      const { data: matched, error: searchErr } = await admin.from('bookings').select('id').or(orParts.join(',')).limit(300);
+      if (searchErr) return json({ error: searchErr.message }, 500);
+      searchIds = (matched ?? []).map((r: any) => r.id as string);
+      if (searchIds.length === 0) {
+        return json({ items: [], total: 0, page, pageSize, truncated: false, fetchedCount: 0 });
+      }
     }
 
-    const { data: bookingRows, error: bookingErr } = await query;
+    let partialIds: string[] | null = null;
+    if (statusFilter === 'partial_refund') {
+      const { data: instructions, error } = await admin
+        .from('booking_refund_instructions')
+        .select('booking_id')
+        .eq('kind', 'partial')
+        .limit(300);
+      if (error) return json({ error: error.message }, 500);
+      partialIds = [...new Set((instructions ?? []).map((r: any) => r.booking_id as string).filter(Boolean))];
+      if (partialIds.length === 0) {
+        return json({ items: [], total: 0, page, pageSize, truncated: false, fetchedCount: 0 });
+      }
+    }
+
+    const bookingCols =
+      'id, listing_id, guest_email, guest_name, guests, guest_breakdown, booking_date, check_out, nights, special_requests, purchase_snapshot, status, payment_status, amount_paid, currency, checkout_session_id, payment_intent_id, refund_choice, dispute_status, booking_number, public_reference, start_time, pickup_time, created_at, hold_expires_at';
+
+    let query = admin.from('bookings').select(bookingCols, { count: 'exact' });
+    if (statusFilter === 'pending') query = query.eq('status', 'pending').neq('payment_status', 'failed');
+    else if (statusFilter === 'confirmed') query = query.eq('status', 'confirmed');
+    else if (statusFilter === 'cancelled') query = query.eq('status', 'cancelled');
+    else if (statusFilter === 'payment_failed') query = query.eq('payment_status', 'failed');
+    else if (statusFilter === 'refunded') query = query.eq('payment_status', 'refunded');
+    else if (statusFilter === 'refund_due') {
+      query = query
+        .eq('status', 'cancelled')
+        .in('payment_status', ['paid', 'complete', 'succeeded'])
+        .or('refund_choice.is.null,refund_choice.neq.no_refund');
+    } else if (statusFilter === 'disputed') {
+      query = query.in('dispute_status', ['open', 'needs_response', 'under_review', 'lost']);
+    }
+    if (paymentFilter === 'paid') query = query.in('payment_status', ['paid', 'complete', 'succeeded']);
+    else if (paymentFilter === 'pending' || paymentFilter === 'failed' || paymentFilter === 'refunded') {
+      query = query.eq('payment_status', paymentFilter);
+    }
+    if (supplierListingIds) query = query.in('listing_id', supplierListingIds);
+    if (listingFilter) query = query.eq('listing_id', listingFilter);
+    if (searchIds) query = query.in('id', searchIds);
+    if (partialIds) query = query.in('id', partialIds);
+    if (travelFrom) query = query.gte('booking_date', travelFrom);
+    if (travelTo) query = query.lte('booking_date', travelTo);
+    if (createdFrom) query = query.gte('created_at', `${createdFrom}T00:00:00.000Z`);
+    if (createdTo) query = query.lte('created_at', `${createdTo}T23:59:59.999Z`);
+    if (sort === 'created_asc') query = query.order('created_at', { ascending: true });
+    else if (sort === 'departure_asc') query = query.order('booking_date', { ascending: true, nullsFirst: false });
+    else if (sort === 'amount_desc') query = query.order('amount_paid', { ascending: false, nullsFirst: false });
+    else if (sort === 'amount_asc') query = query.order('amount_paid', { ascending: true, nullsFirst: false });
+    else query = query.order('created_at', { ascending: false });
+
+    const from = (page - 1) * pageSize;
+    const { data: bookingRows, error: bookingErr, count } = await query.range(from, from + pageSize - 1);
     if (bookingErr) return json({ error: bookingErr.message }, 500);
     const rows = (bookingRows ?? []) as any[];
+    const total = count ?? rows.length;
 
     const listingIds = [...new Set(rows.map((r) => r.listing_id as string).filter(Boolean))];
     const { data: listingRows, error: listingErr } =
       listingIds.length > 0
-        ? await admin.from('listings').select('id, title, supplier_id, city, country').in('id', listingIds)
+        ? await admin.from('listings').select('id, title, supplier_id, city, country, image').in('id', listingIds)
         : { data: [] as any[], error: null };
     if (listingErr) return json({ error: listingErr.message }, 500);
     const listingById = new Map((listingRows ?? []).map((l: any) => [l.id as string, l]));
@@ -468,14 +575,80 @@ serve(async (req) => {
       return {
         ...b,
         listing_title: listing?.title ?? null,
+        listing_image: listing?.image ?? null,
         listing_city: listing?.city ?? null,
         listing_country: listing?.country ?? null,
         supplier_id: listing?.supplier_id ?? null,
-        supplier_name: (supplier?.company_legal_name || supplier?.display_name || null) as string | null,
+        supplier_name: (supplier?.display_name || supplier?.company_legal_name || null) as string | null,
       };
     });
 
-    return json({ items, truncated: rows.length >= BOOKINGS_FETCH_CAP, fetchedCount: rows.length });
+    return json({
+      items,
+      total,
+      page,
+      pageSize,
+      truncated: total > from + rows.length,
+      fetchedCount: rows.length,
+    });
+  }
+
+  if (body.action === 'booking_ops_detail') {
+    const bookingId = typeof body.opsBookingId === 'string' ? body.opsBookingId.trim() : '';
+    if (!/^[0-9a-f-]{36}$/i.test(bookingId)) return json({ error: 'opsBookingId required' }, 400);
+    const { data: booking, error } = await admin.from('bookings').select('*').eq('id', bookingId).maybeSingle();
+    if (error) return json({ error: error.message }, 500);
+    if (!booking) return json({ error: 'Booking not found' }, 404);
+
+    const listingId = (booking as any).listing_id as string | null;
+    const { data: listing } = listingId
+      ? await admin.from('listings').select('id, title, supplier_id, city, country, image').eq('id', listingId).maybeSingle()
+      : { data: null };
+    const supplierId = (listing as any)?.supplier_id as string | undefined;
+    const { data: supplier } = supplierId
+      ? await admin
+          .from('supplier_profiles')
+          .select('id, display_name, company_legal_name')
+          .eq('id', supplierId)
+          .maybeSingle()
+      : { data: null };
+    const [eventsRes, emailRes, cancelRes, investigationRes] = await Promise.all([
+      admin
+        .from('booking_payment_events')
+        .select('id, event_id, event_type, payment_intent_id, checkout_session_id, amount, currency, created_at')
+        .eq('booking_id', bookingId)
+        .order('created_at', { ascending: true })
+        .limit(40),
+      admin
+        .from('transactional_email_log')
+        .select('id, template_key, channel, status, error_message, created_at')
+        .eq('entity_type', 'booking')
+        .eq('entity_id', bookingId)
+        .order('created_at', { ascending: true })
+        .limit(20),
+      admin
+        .from('cancellation_requests')
+        .select('id, requested_by, reason_code, status, created_at, responded_at')
+        .eq('booking_id', bookingId)
+        .order('created_at', { ascending: true })
+        .limit(10),
+      admin.rpc('admin_booking_financial_investigation', { p_booking_id: bookingId }),
+    ]);
+    if (eventsRes.error) return json({ error: eventsRes.error.message }, 500);
+    if (emailRes.error) return json({ error: emailRes.error.message }, 500);
+    if (cancelRes.error) return json({ error: cancelRes.error.message }, 500);
+    if (investigationRes.error) return json({ error: investigationRes.error.message }, 500);
+
+    return json({
+      ok: true,
+      booking,
+      listing: listing ?? null,
+      supplier: supplier ?? null,
+      paymentEvents: eventsRes.data ?? [],
+      emails: emailRes.data ?? [],
+      cancellations: cancelRes.data ?? [],
+      investigation: investigationRes.data ?? { ok: false },
+    });
   }
 
   if (body.action === 'finance_summary') {
