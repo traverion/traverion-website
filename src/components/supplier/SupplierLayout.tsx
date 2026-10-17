@@ -1,4 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
+import { ChunkLoadErrorBoundary } from '../ChunkLoadErrorBoundary';
 import {
   LayoutDashboard,
   MapPin,
@@ -1152,6 +1153,7 @@ export default function SupplierLayout() {
             )}
           >
             <div className="lux-page-enter w-full min-w-0">
+              <ChunkLoadErrorBoundary resetKey={section}>
               <Suspense fallback={<PartnerSectionFallback />}>
                 {unknownPartnerPath ? (
                   <div className="py-16 max-w-md">
@@ -1322,6 +1324,7 @@ export default function SupplierLayout() {
                   </>
                 )}
               </Suspense>
+              </ChunkLoadErrorBoundary>
             </div>
           </main>
         </div>

@@ -41,7 +41,7 @@
       "destination": "/robots-admin.txt"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!assets/).*)",
       "destination": "/index.html"
     }
   ],

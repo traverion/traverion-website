@@ -1,4 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useCallback, lazy, Suspense } from 'react';
+import { ChunkLoadErrorBoundary } from './components/ChunkLoadErrorBoundary';
 import UnifiedHeader from './components/UnifiedHeader';
 import Footer from './components/Footer';
 import SkipLink from './components/SkipLink';
@@ -979,9 +980,11 @@ function App() {
         <AuthProvider>
           <SupplierAuthProvider>
             <SupplierRoleProvider>
-              <Suspense fallback={<PartnerRouteFallback />}>
-                <SupplierLayout />
-              </Suspense>
+              <ChunkLoadErrorBoundary resetKey="supplier">
+                <Suspense fallback={<PartnerRouteFallback />}>
+                  <SupplierLayout />
+                </Suspense>
+              </ChunkLoadErrorBoundary>
             </SupplierRoleProvider>
           </SupplierAuthProvider>
         </AuthProvider>
@@ -1005,12 +1008,16 @@ function App() {
       <AuthProvider>
         {staffShell ? (
           <>
-            <Suspense fallback={<RouteFallback />}>{renderPage()}</Suspense>
+            <ChunkLoadErrorBoundary resetKey={currentPage}>
+              <Suspense fallback={<RouteFallback />}>{renderPage()}</Suspense>
+            </ChunkLoadErrorBoundary>
             <AuthModal />
           </>
         ) : minimalTravelerChrome ? (
           <div key={currentPage} className="min-h-screen bg-paper lux-page-enter lux-page-enter--slide">
-            <Suspense fallback={<RouteFallback />}>{renderPage()}</Suspense>
+            <ChunkLoadErrorBoundary resetKey={currentPage}>
+              <Suspense fallback={<RouteFallback />}>{renderPage()}</Suspense>
+            </ChunkLoadErrorBoundary>
             <AuthModal />
           </div>
         ) : (
@@ -1021,7 +1028,9 @@ function App() {
             )}
             <main id="main-content" tabIndex={-1} className="flex-grow min-w-0 outline-none">
               <div key={currentPage} className="min-h-[min(50vh,480px)]">
-                <Suspense fallback={<RouteFallback />}>{renderPage()}</Suspense>
+                <ChunkLoadErrorBoundary resetKey={currentPage}>
+                  <Suspense fallback={<RouteFallback />}>{renderPage()}</Suspense>
+                </ChunkLoadErrorBoundary>
               </div>
             </main>
             {tourCheckoutOpen ? null : <Footer onNavigate={handleNavigate} />}
