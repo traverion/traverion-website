@@ -573,68 +573,82 @@ export default function SupplierPickupPlanner() {
   const departureCount = new Set(listBookings.map((row) => pickupDepartureKey(row))).size;
   const departureRows = departureId ? listBookings.filter((row) => pickupDepartureKey(row) === departureId) : [];
   const editorListingId = departureRows[0]?.listing_id ?? listBookings[0]?.listing_id ?? '';
+  const listingActions = editorListingId ? (
+    <div className="flex gap-3">
+      {/* Phase 1756: listing logistics stay in the editor. */}
+      <button type="button" className="text-[12px] font-semibold text-[#073b83] disabled:opacity-40" disabled={!canEditBookings} onClick={() => openSupplierListingEditor(editorListingId, 'meeting')}>
+        Edit meeting
+      </button>
+      <button type="button" className="text-[12px] font-semibold text-[#073b83] disabled:opacity-40" disabled={!canEditBookings} onClick={() => openSupplierListingEditor(editorListingId, 'pickup')}>
+        Edit pickup
+      </button>
+    </div>
+  ) : null;
+  const rangeActive = !showAllDates && !dateFrom && !dateTo && !dayPreset;
 
   return (
-    <div className={`${SUPPLIER_PAGE_CLASS} font-sans`}>
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="font-sans text-xl font-bold tracking-tight text-[#18181b]">Pickups</h1>
-          <p className="text-sm text-[#52525b]">Manage departures, pickup locations and guest collection.</p>
-          <p className="mt-1 text-[12px] text-[#71717a]">
-            {departureCount} departures · {listBookings.length} bookings · {plannerStats.guests} guests
-            {plannerStats.needsPickup > 0 ? ` · ${plannerStats.needsPickup} missing pickup details` : ''}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {departureId ? (
-            <button type="button" className="tv-btn-secondary" onClick={printDeparture}>
-              Print manifest
+    <div className={`${SUPPLIER_PAGE_CLASS} tv-pickup-page font-sans`}>
+      {departureId ? null : (
+        <>
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h1 className="font-sans text-lg font-bold tracking-tight text-[#18181b]">Pickups</h1>
+              <p className="truncate text-[12px] text-[#71717a]">
+                {departureCount} departures · {listBookings.length} bookings · {plannerStats.guests} guests
+                {plannerStats.needsPickup > 0 ? ` · ${plannerStats.needsPickup} missing pickup details` : ''}
+              </p>
+            </div>
+            <button type="button" className="tv-btn-secondary h-9 shrink-0 px-2.5 text-[13px]" disabled={!canExportPickupCsv} onClick={() => void exportCsv()}>
+              <Download className="mr-1 h-4 w-4" aria-hidden />
+              Export
             </button>
-          ) : null}
-          <button type="button" className="tv-btn-secondary" disabled={!canExportPickupCsv} onClick={() => void exportCsv()}>
-            <Download className="mr-1 h-4 w-4" aria-hidden />
-            Export
-          </button>
-        </div>
-      </div>
+          </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button type="button" className={`rounded-full px-3 py-1 text-[12px] font-semibold ${!showAllDates && !dateFrom && !dateTo && !dayPreset ? 'bg-[#f0f4fa] text-[#073b83]' : 'text-[#52525b]'}`} onClick={() => { writePickupFiltersToUrl({ from: '', to: '', day: '' }); setShowAllDatesAndUrl(false); }}>
-          Upcoming
-        </button>
-        <button type="button" className={`rounded-full px-3 py-1 text-[12px] font-semibold ${showAllDates ? 'bg-[#f0f4fa] text-[#073b83]' : 'text-[#52525b]'}`} onClick={() => setShowAllDatesAndUrl(!showAllDates)}>
-          All dates
-        </button>
-        <input type="date" className="tv-input h-9 w-36" value={dateFrom} aria-label="From" onChange={(e) => writePickupFiltersToUrl({ from: e.target.value, day: '' })} />
-        <input type="date" className="tv-input h-9 w-36" value={dateTo} aria-label="To" onChange={(e) => writePickupFiltersToUrl({ to: e.target.value, day: '' })} />
-        <select
-          className="tv-input h-9 max-w-xs"
-          aria-label="Experience"
-          value={listingFilterId}
-          onChange={(e) => writePickupFiltersToUrl({ listingId: e.target.value })}
-        >
-          <option value="">All experiences</option>
-          {listingSelectOptions.map((option) => (
-            <option key={option.id} value={option.id}>{option.title}</option>
-          ))}
-        </select>
-        <input
-          type="search"
-          className="tv-input h-9 min-w-0 flex-1"
-          placeholder="Guest, reference, experience, or pickup"
-          value={filterQuery}
-          aria-label="Search pickups"
-          onChange={(e) => setFilterQuery(e.target.value)}
-        />
-        <button
-          type="button"
-          className={`rounded-full px-3 py-1 text-[12px] font-semibold ${needsPickupOnly ? 'bg-[#f0f4fa] text-[#073b83]' : 'text-[#52525b]'}`}
-          onClick={() => writePickupFiltersToUrl({ needsOnly: !needsPickupOnly })}
-        >
-          Needs attention
-        </button>
-      </div>
-      {/* Phase 1483: listing options use partnerListingFilterLabelFromBookings. */}
+          <div className="flex items-center gap-1">
+            <button type="button" className={`h-8 rounded-md px-2.5 text-[12px] font-semibold ${rangeActive ? 'bg-[#f0f4fa] text-[#073b83]' : 'text-[#52525b]'}`} onClick={() => { writePickupFiltersToUrl({ from: '', to: '', day: '' }); setShowAllDatesAndUrl(false); }}>
+              Upcoming
+            </button>
+            <button type="button" className={`h-8 rounded-md px-2.5 text-[12px] font-semibold ${showAllDates ? 'bg-[#f0f4fa] text-[#073b83]' : 'text-[#52525b]'}`} onClick={() => setShowAllDatesAndUrl(!showAllDates)}>
+              All dates
+            </button>
+          </div>
+
+          <div className="tv-pickup-toolbar">
+            <div className="tv-pickup-range" role="group" aria-label="Date range">
+              <input type="date" className="tv-input" value={dateFrom} aria-label="From" onChange={(e) => writePickupFiltersToUrl({ from: e.target.value, day: '' })} />
+              <span className="text-[#a1a1aa]" aria-hidden>–</span>
+              <input type="date" className="tv-input" value={dateTo} aria-label="To" onChange={(e) => writePickupFiltersToUrl({ to: e.target.value, day: '' })} />
+            </div>
+            <select
+              className="tv-input"
+              aria-label="Experience"
+              value={listingFilterId}
+              onChange={(e) => writePickupFiltersToUrl({ listingId: e.target.value })}
+            >
+              <option value="">All experiences</option>
+              {listingSelectOptions.map((option) => (
+                <option key={option.id} value={option.id}>{option.title}</option>
+              ))}
+            </select>
+            <input
+              type="search"
+              className="tv-input"
+              placeholder="Guest, reference, experience"
+              value={filterQuery}
+              aria-label="Search pickups"
+              onChange={(e) => setFilterQuery(e.target.value)}
+            />
+            <button
+              type="button"
+              className={`h-10 shrink-0 rounded-md border px-3 text-[13px] font-semibold ${needsPickupOnly ? 'border-[#073b83] bg-[#f0f4fa] text-[#073b83]' : 'border-[#e5e7eb] bg-white text-[#52525b]'}`}
+              onClick={() => writePickupFiltersToUrl({ needsOnly: !needsPickupOnly })}
+            >
+              Needs attention
+            </button>
+          </div>
+          {/* Phase 1483: listing options use partnerListingFilterLabelFromBookings. */}
+        </>
+      )}
 
       {error ? <ErrorState title="Pickups unavailable" body={error} retry={{ onClick: () => void load() }} /> : null}
       {loading && bookings.length === 0 ? <SupplierListSkeleton rows={4} /> : null}
@@ -658,20 +672,8 @@ export default function SupplierPickupPlanner() {
         />
       ) : null}
 
-      {/* Phase 1756: listing logistics stay in the editor. */}
-      {editorListingId ? (
-        <div className="mt-2 flex gap-2">
-          <button type="button" className="tv-btn-ghost" disabled={!canEditBookings} onClick={() => openSupplierListingEditor(editorListingId, 'meeting')}>
-            Edit meeting
-          </button>
-          <button type="button" className="tv-btn-ghost" disabled={!canEditBookings} onClick={() => openSupplierListingEditor(editorListingId, 'pickup')}>
-            Edit pickup
-          </button>
-        </div>
-      ) : null}
-
-      {filtersOn && listBookings.length === 0 && activeBookingsCount > 0 ? (
-        <p className="mt-4 text-sm text-[#52525b]">No departures match these filters.</p>
+      {filtersOn && listBookings.length === 0 && activeBookingsCount > 0 && !departureId ? (
+        <p className="text-sm text-[#52525b]">No departures match these filters.</p>
       ) : (
         <PickupPlannerWorkspace
           bookings={listBookings}
@@ -687,6 +689,10 @@ export default function SupplierPickupPlanner() {
           onMessage={(id) => openSupplierInbox(id)}
           onSave={saveOnePickup}
           onSaveMany={saveStopTime}
+          onExport={() => void exportCsv()}
+          exportDisabled={!canExportPickupCsv}
+          onPrint={departureId ? printDeparture : undefined}
+          listingActions={listingActions}
         />
       )}
     </div>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ArrowLeft, ChevronDown } from 'lucide-react';
 import PickupLocationSearch from '../checkout/PickupLocationSearch';
 import PickupCoverageMap from './PickupCoverageMap';
@@ -8,7 +8,6 @@ import {
   bookingFulfillment,
   confirmedPickupPoint,
   departureStartHm,
-  departureTimezone,
   operationalPickupTimeHm,
   pickupAttention,
   pickupDepartureKey,
@@ -24,7 +23,6 @@ import {
 import { displayListingTitleFromPurchase, displayOptionLabelFromPurchase, isPurchaseSnapshot } from '../../lib/purchase-snapshot';
 import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
 import { travelerPublicBookingReference } from '../../lib/public-booking-reference';
-import { guestFacingBookingNotes } from '../../lib/booking-notes';
 import type { BookingRow } from '../../data/supabase-bookings';
 import type { SaveSupplierPickupInput } from '../../data/supabase-bookings';
 
@@ -57,6 +55,10 @@ type Props = {
   onMessage: (bookingId: string) => void;
   onSave: (bookingId: string, input: SaveSupplierPickupInput) => Promise<PickupSaveResult>;
   onSaveMany: (bookingIds: string[], timeHm: string, notify: boolean) => Promise<PickupSaveResult>;
+  onExport?: () => void;
+  exportDisabled?: boolean;
+  onPrint?: () => void;
+  listingActions?: ReactNode;
 };
 
 function attentionLabel(flags: PickupAttention[]): string | null {
@@ -79,6 +81,12 @@ function optionFor(b: BookingRow, options: OptionMeta[]): OptionMeta | null {
   const snap = isPurchaseSnapshot(b.purchase_snapshot) ? b.purchase_snapshot : null;
   const id = (snap?.optionId || b.booking_option_id || '').trim();
   return options.find((option) => option.id === id) ?? null;
+}
+
+function splitAddress(address: string): { name: string; rest: string } {
+  const parts = address.split(',').map((part) => part.trim()).filter(Boolean);
+  if (parts.length === 0) return { name: 'Location not set', rest: '' };
+  return { name: parts[0], rest: parts.slice(1).join(', ') };
 }
 
 function formatWhen(b: BookingRow): string {
@@ -126,6 +134,10 @@ export default function PickupPlannerWorkspace(props: Props) {
         onMessage={props.onMessage}
         onSave={props.onSave}
         onSaveMany={props.onSaveMany}
+        onExport={props.onExport}
+        exportDisabled={props.exportDisabled}
+        onPrint={props.onPrint}
+        listingActions={props.listingActions}
       />
     );
   }
@@ -133,7 +145,7 @@ export default function PickupPlannerWorkspace(props: Props) {
   if (props.bookings.length === 0) return null;
 
   return (
-    <div className="mt-4 space-y-2">
+    <div className="space-y-2">
       {groups.map(([id, rows]) => {
         const sample = rows[0];
         const title = displayListingTitleFromPurchase(sample.purchase_snapshot, props.titles[sample.listing_id], 'Experience');
@@ -201,6 +213,10 @@ function DeparturePlanner({
   onMessage,
   onSave,
   onSaveMany,
+  onExport,
+  exportDisabled,
+  onPrint,
+  listingActions,
 }: {
   departureId: string;
   rows: BookingRow[];
@@ -214,6 +230,10 @@ function DeparturePlanner({
   onMessage: (bookingId: string) => void;
   onSave: Props['onSave'];
   onSaveMany: Props['onSaveMany'];
+  onExport?: () => void;
+  exportDisabled?: boolean;
+  onPrint?: () => void;
+  listingActions?: ReactNode;
 }) {
   const sample = rows[0];
   const title = displayListingTitleFromPurchase(sample.purchase_snapshot, titles[sample.listing_id], 'Experience');
@@ -242,49 +262,59 @@ function DeparturePlanner({
   const managed = rows.find((row) => row.id === manageId) ?? null;
 
   return (
-    <div className="mt-3">
-      <button type="button" className="tv-btn-ghost -ml-2 mb-2" onClick={onBack}>
-        <ArrowLeft className="mr-1 h-4 w-4" aria-hidden />
-        Back to Pickups
-      </button>
-      <div className="flex items-start gap-3 border-b border-[#e5e7eb] pb-3">
+    <div>
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" className="tv-btn-ghost -ml-2 h-9 shrink-0 px-2" onClick={onBack}>
+          <ArrowLeft className="mr-1 h-4 w-4" aria-hidden />
+          Back to Pickups
+        </button>
         {thumbs[sample.listing_id] ? (
-          <img src={thumbs[sample.listing_id]} alt="" className="h-14 w-14 shrink-0 rounded-md object-cover" />
-        ) : null}
-        <div className="min-w-0">
-          <h2 className="font-sans text-lg font-bold text-[#18181b]">{title}</h2>
-          <p className="text-sm text-[#52525b]">
-            {[option, formatWhen(sample)].filter(Boolean).join(' · ')}
+          <img src={thumbs[sample.listing_id]} alt="" className="h-10 w-10 shrink-0 rounded-md object-cover" />
+        ) : (
+          <div className="h-10 w-10 shrink-0 rounded-md bg-[#f4f4f5]" aria-hidden />
+        )}
+        <div className="min-w-0 flex-1 basis-48">
+          <h2 className="truncate font-sans text-[15px] font-bold text-[#18181b]">{title}</h2>
+          <p className="truncate text-[12px] text-[#52525b]">
+            {[option, formatWhen(sample), `${rows.length} bookings`, `${guestCount(rows)} guests`].filter(Boolean).join(' · ')}
           </p>
-          <p className="text-[12px] text-[#71717a]">
-            {rows.length} bookings · {guestCount(rows)} guests
-            {departureTimezone(sample) ? ` · ${departureTimezone(sample)}` : ''}
-          </p>
+        </div>
+        <div className="flex shrink-0 gap-1.5">
+          {onPrint ? (
+            <button type="button" className="tv-btn-secondary h-9 px-2.5 text-[13px]" onClick={onPrint}>
+              Print
+            </button>
+          ) : null}
+          {onExport ? (
+            <button type="button" className="tv-btn-secondary h-9 px-2.5 text-[13px]" disabled={exportDisabled} onClick={onExport}>
+              Export
+            </button>
+          ) : null}
         </div>
       </div>
 
-      <section className="mt-4">
+      <section className="mt-3">
         <h3 className="font-sans text-sm font-bold text-[#18181b]">Pickup itinerary</h3>
         <div className="mt-2 divide-y divide-[#e5e7eb] overflow-hidden rounded-lg border border-[#e5e7eb] bg-white">
           {stops.map(([key, stopRows]) => {
             const first = stopRows[0];
             const point = confirmedPickupPoint(first);
             const draft = parsePickupDraft(first.special_requests);
-            const name = (draft?.address || point.address || 'Location not set').split(',')[0];
-            const address = draft?.address || point.address;
+            const place = splitAddress(draft?.address || point.address || '');
             const time = operationalPickupTimeHm(first);
             const open = openStop === key;
             return (
               <div key={key}>
-                <button type="button" className="flex w-full items-start justify-between gap-3 px-3 py-2.5 text-left" onClick={() => setOpenStop(open ? null : key)}>
+                <button type="button" className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left" onClick={() => setOpenStop(open ? null : key)}>
                   <span className="min-w-0">
-                    <span className="block truncate font-sans text-sm font-bold text-[#18181b]">{name}</span>
-                    {address && address !== name ? <span className="block truncate text-[12px] text-[#71717a]">{address}</span> : null}
-                    <span className="block text-[13px] text-[#52525b]">
-                      {time || 'Time not set'} · {guestCount(stopRows)} guests · {stopRows.length} booking{stopRows.length === 1 ? '' : 's'}
+                    <span className="block truncate font-sans text-[13px] font-bold text-[#18181b]">{place.name}</span>
+                    {place.rest ? <span className="block truncate text-[12px] text-[#71717a]">{place.rest}</span> : null}
+                    <span className="block text-[12px] text-[#52525b]">
+                      {time ? <span className="font-semibold text-[#18181b]">{time} pickup</span> : 'Time not set'}
+                      {` · ${guestCount(stopRows)} guest${guestCount(stopRows) === 1 ? '' : 's'} · ${stopRows.length} booking${stopRows.length === 1 ? '' : 's'}`}
                     </span>
                   </span>
-                  <ChevronDown className={`mt-1 h-4 w-4 shrink-0 text-[#71717a] ${open ? 'rotate-180' : ''}`} aria-hidden />
+                  <ChevronDown className={`h-4 w-4 shrink-0 text-[#71717a] ${open ? 'rotate-180' : ''}`} aria-hidden />
                 </button>
                 {open ? (
                   <div className="border-t border-[#e5e7eb] bg-[#fafafa] px-3 py-2">
@@ -293,7 +323,7 @@ function DeparturePlanner({
                         <label className="text-[12px] font-semibold text-[#52525b]" htmlFor={`stop-time-${key}`}>
                           Pickup time for this stop
                         </label>
-                        <input id={`stop-time-${key}`} type="time" className="tv-input h-9 w-32" value={stopTime} onChange={(e) => { setStopTime(e.target.value); setConfirmStop(false); }} />
+                        <input id={`stop-time-${key}`} type="time" className="tv-pickup-time" value={stopTime} onChange={(e) => { setStopTime(e.target.value); setConfirmStop(false); }} />
                         <button type="button" className="tv-btn-secondary" disabled={!stopTime} onClick={() => setConfirmStop(true)}>
                           Apply to {stopRows.length}
                         </button>
@@ -344,7 +374,7 @@ function DeparturePlanner({
                     <span className="block truncate text-sm font-semibold text-[#18181b]">{row.guest_name?.trim() || 'Traveler'}</span>
                     <span className="text-[12px] text-[#52525b]">{label} · {referenceLabel(row)}</span>
                   </span>
-                  <button type="button" className="tv-btn-secondary shrink-0" onClick={() => onManage(row.id)}>
+                  <button type="button" className="tv-btn-secondary h-9 shrink-0 px-2.5 text-[13px]" onClick={() => onManage(row.id)}>
                     Manage details
                   </button>
                 </li>
@@ -360,6 +390,7 @@ function DeparturePlanner({
           option={optionFor(managed, options)}
           title={title}
           canEdit={canEdit}
+          listingActions={listingActions}
           onClose={() => onManage(null)}
           onSave={onSave}
         />
@@ -373,6 +404,7 @@ function PickupManageModal({
   option,
   title,
   canEdit,
+  listingActions,
   onClose,
   onSave,
 }: {
@@ -380,6 +412,7 @@ function PickupManageModal({
   option: OptionMeta | null;
   title: string;
   canEdit: boolean;
+  listingActions?: ReactNode;
   onClose: () => void;
   onSave: Props['onSave'];
 }) {
@@ -387,8 +420,7 @@ function PickupManageModal({
   const meetingOnly = fulfillment === 'meeting_point';
   const confirmed = confirmedPickupPoint(booking);
   const draft = parsePickupDraft(booking.special_requests);
-  const start = departureStartHm(booking) || 'Not set';
-  const zone = departureTimezone(booking);
+  const start = departureStartHm(booking);
   const initial = {
     time: draft?.timeHm || (booking.pickup_time ? booking.pickup_time.slice(0, 5) : ''),
     address: draft?.address || confirmed.address,
@@ -411,6 +443,8 @@ function PickupManageModal({
   const [source, setSource] = useState(draft ? 'Adjusted in draft' : confirmed.source === 'supplier' ? 'Supplier adjusted' : confirmed.source === 'customer' ? 'Customer selected' : 'Not set');
   const [saving, setSaving] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  const [editingPlace, setEditingPlace] = useState(false);
+  const [showCoords, setShowCoords] = useState(false);
   const dirty =
     time !== initial.time ||
     address !== initial.address ||
@@ -469,8 +503,8 @@ function PickupManageModal({
   };
 
   const phone = guestPhoneFromBookingNotes(booking.special_requests);
-  const requests = guestFacingBookingNotes(booking.special_requests);
-  const windowMin = isPurchaseSnapshot(booking.purchase_snapshot) ? booking.purchase_snapshot.pickupWindowMinutes : null;
+  const place = splitAddress(address);
+  const productLine = [title, displayOptionLabelFromPurchase(booking.purchase_snapshot, null)].filter(Boolean).join(' · ');
 
   return (
     <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40 sm:items-center" role="presentation" onMouseDown={requestClose}>
@@ -478,66 +512,83 @@ function PickupManageModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="pickup-manage-title"
-        className="flex max-h-[100dvh] w-full flex-col bg-white pb-[env(safe-area-inset-bottom)] sm:max-h-[min(88dvh,760px)] sm:w-[min(720px,calc(100vw-2rem))] sm:rounded-xl sm:border sm:border-[#e5e7eb]"
+        className="flex h-[100dvh] w-full max-w-full flex-col bg-white pb-[env(safe-area-inset-bottom)] sm:h-auto sm:max-h-[min(88dvh,720px)] sm:w-[min(640px,calc(100vw-2rem))] sm:rounded-xl sm:border sm:border-[#e5e7eb]"
         onMouseDown={(event) => event.stopPropagation()}
       >
         <header className="flex items-center justify-between gap-3 border-b border-[#e5e7eb] px-4 py-3">
           <h2 id="pickup-manage-title" className="font-sans text-base font-bold text-[#18181b]">Manage pickup</h2>
           <button type="button" className="tv-btn-ghost" onClick={requestClose}>Close</button>
         </header>
-        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-3">
           <section>
-            <p className="font-sans text-sm font-bold text-[#18181b]">{booking.guest_name?.trim() || 'Traveler'}</p>
-            <p className="text-[13px] text-[#52525b]">
-              {referenceLabel(booking)} · {formatBookingParticipantsLabel(booking)}
+            <p className="font-sans text-[15px] font-bold leading-5 text-[#18181b]">{booking.guest_name?.trim() || 'Traveler'}</p>
+            <p className="text-[13px] leading-5 text-[#52525b]">
+              {referenceLabel(booking)} · {formatBookingParticipantsLabel(booking)} · {formatWhen(booking)}
             </p>
-            <p className="text-[13px] text-[#52525b]">
-              {title}{displayOptionLabelFromPurchase(booking.purchase_snapshot, null) ? ` · ${displayOptionLabelFromPurchase(booking.purchase_snapshot, null)}` : ''} · {formatWhen(booking)}
-            </p>
-            {phone ? <p className="text-[13px] text-[#18181b]">{phone}</p> : null}
-            {requests ? <p className="mt-1 text-[13px] text-[#52525b]">{requests}</p> : null}
+            {productLine ? <p className="truncate text-[12px] leading-5 text-[#71717a]">{productLine}</p> : null}
+            {phone ? (
+              <a className="text-[13px] font-semibold leading-5 text-[#073b83]" href={`tel:${phone.replace(/\s/g, '')}`}>
+                {phone}
+              </a>
+            ) : null}
           </section>
 
           <section>
-            <h3 className="font-sans text-sm font-bold text-[#18181b]">Pickup location</h3>
+            <h3 className="font-sans text-sm font-bold text-[#18181b]">Pickup details</h3>
             {meetingOnly ? (
-              <p className="mt-1 text-[13px] text-[#52525b]">This booking uses a meeting point. A hotel pickup address is not required.</p>
+              <>
+                <p className="mt-1 text-[13px] text-[#52525b]">This booking uses a meeting point. A hotel pickup address is not required.</p>
+                {listingActions ? <div className="mt-2">{listingActions}</div> : null}
+              </>
             ) : (
               <>
-                <p className="mt-1 text-[12px] text-[#71717a]">{source}</p>
-                <div className="mt-2">
-                  <PickupLocationSearch
-                    id={`pickup-search-${booking.id}`}
-                    label="Pickup location"
-                    area={area}
-                    bias={area ? { lat: area.lat, lng: area.lng, radiusKm: area.radiusKm } : null}
-                    selected={selectedPlace}
-                    onSelect={(place) => {
-                      if (!place) return;
-                      setAddress(place.formattedAddress);
-                      setPlaceId(place.placeId);
-                      setLat(place.lat);
-                      setLng(place.lng);
-                      setSource('Supplier adjusted');
-                    }}
-                  />
+                <div className="mt-2 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-[#18181b]">{place.name}</p>
+                    {place.rest ? <p className="truncate text-[12px] text-[#71717a]">{place.rest}</p> : null}
+                    {!address ? <p className="text-[13px] text-[#52525b]">No pickup location yet.</p> : null}
+                    <p className="text-[11px] text-[#71717a]">{source}</p>
+                  </div>
+                  {canEdit ? (
+                    <button type="button" className="shrink-0 text-[13px] font-semibold text-[#073b83]" onClick={() => setEditingPlace((open) => !open)}>
+                      {editingPlace ? 'Done' : 'Change'}
+                    </button>
+                  ) : null}
                 </div>
-                {!placesSearchConfigured() ? (
-                  <p className="mt-2 text-[12px] text-[#52525b]">Address search is unavailable until Google Maps is configured.</p>
-                ) : null}
-                {address ? <p className="mt-2 text-[13px] text-[#18181b]">{address}</p> : <p className="mt-2 text-[13px] text-[#52525b]">No pickup location yet.</p>}
-                {lat != null && lng != null ? (
-                  <p className="text-[12px] text-[#71717a]">{lat.toFixed(5)}, {lng.toFixed(5)}</p>
+                {editingPlace ? (
+                  <div className="mt-2">
+                    <PickupLocationSearch
+                      id={`pickup-search-${booking.id}`}
+                      label="Pickup location"
+                      area={area}
+                      bias={area ? { lat: area.lat, lng: area.lng, radiusKm: area.radiusKm } : null}
+                      selected={selectedPlace}
+                      onSelect={(next) => {
+                        if (!next) return;
+                        setAddress(next.formattedAddress);
+                        setPlaceId(next.placeId);
+                        setLat(next.lat);
+                        setLng(next.lng);
+                        setSource('Supplier adjusted');
+                      }}
+                    />
+                    {!placesSearchConfigured() ? (
+                      <p className="mt-1 text-[12px] text-[#52525b]">Address search is unavailable until Google Maps is configured.</p>
+                    ) : null}
+                  </div>
                 ) : null}
                 {outside ? <p className="mt-1 text-[12px] font-semibold text-[#9f1239]">This pin is outside the pickup area.</p> : null}
-                {area || (lat != null && lng != null) ? (
+                {lat != null && lng != null ? (
                   <div className="mt-2">
                     <PickupCoverageMap
-                      lat={lat ?? area?.lat ?? 0}
-                      lng={lng ?? area?.lng ?? 0}
+                      lat={area?.lat ?? lat}
+                      lng={area?.lng ?? lng}
                       radiusKm={area?.radiusKm ?? null}
-                      marker={lat != null && lng != null ? { lat, lng } : null}
-                      draggable={canEdit && lat != null && lng != null}
+                      marker={{ lat, lng }}
+                      pinZoom={16}
+                      showRadius={editingPlace && area != null}
+                      draggable={canEdit && editingPlace}
+                      className="h-40 w-full overflow-hidden rounded-lg border border-[#e5e7eb] bg-white"
                       fallback="The map could not be loaded. You can still save a searched address."
                       onMarkerDrag={(point) => {
                         setLat(point.lat);
@@ -548,34 +599,37 @@ function PickupManageModal({
                         });
                       }}
                     />
+                    <button type="button" className="mt-1 text-[12px] font-semibold text-[#52525b]" onClick={() => setShowCoords((open) => !open)}>
+                      {showCoords ? 'Hide coordinates' : 'Coordinates'}
+                    </button>
+                    {showCoords ? (
+                      <p className="text-[12px] text-[#71717a]">{lat.toFixed(5)}, {lng.toFixed(5)}</p>
+                    ) : null}
                   </div>
                 ) : null}
+                {listingActions ? <div className="mt-2">{listingActions}</div> : null}
               </>
             )}
           </section>
 
           <section>
             <h3 className="font-sans text-sm font-bold text-[#18181b]">Pickup time</h3>
-            <p className="mt-1 text-[13px] text-[#52525b]">
-              Departure {start}
-              {zone ? ` · ${zone}` : ''}
-              {windowMin ? ` · pickup window ${windowMin} min before departure` : ''}
-            </p>
             <input
               type="time"
-              className="tv-input mt-2 h-10 w-36"
+              className="tv-pickup-time mt-1.5"
               value={time}
               disabled={!canEdit}
               onChange={(event) => setTime(event.target.value)}
               aria-label="Pickup time"
             />
-            {!time ? <p className="mt-1 text-[12px] text-[#52525b]">Time not set</p> : null}
+            {start ? <p className="mt-1 text-[12px] text-[#71717a]">Tour starts {start}</p> : null}
           </section>
 
           <section>
-            <h3 className="font-sans text-sm font-bold text-[#18181b]">Instructions for the guest</h3>
+            <h3 className="font-sans text-sm font-bold text-[#18181b]">Guest instructions</h3>
             <textarea
-              className="tv-input mt-2 min-h-20 w-full"
+              className="tv-input mt-1.5 min-h-0 w-full py-2 text-sm"
+              rows={2}
               maxLength={500}
               value={instructions}
               disabled={!canEdit}
@@ -584,13 +638,13 @@ function PickupManageModal({
           </section>
           {note ? <p className="text-sm text-[#9f1239]" role="status">{note}</p> : null}
         </div>
-        <footer className="flex flex-wrap items-center justify-end gap-2 border-t border-[#e5e7eb] px-4 py-3">
-          <button type="button" className="tv-btn-secondary" onClick={requestClose}>Cancel</button>
-          <button type="button" className="tv-btn-secondary" disabled={!canEdit || saving || outside} onClick={() => void save(false)}>
+        <footer className="grid grid-cols-2 gap-2 border-t border-[#e5e7eb] px-4 py-2.5 sm:flex sm:justify-end">
+          <button type="button" className="tv-btn-secondary h-10" onClick={requestClose}>Cancel</button>
+          <button type="button" className="tv-btn-secondary h-10" disabled={!canEdit || saving || outside} onClick={() => void save(false)}>
             Save draft
           </button>
-          <button type="button" className="tv-btn-primary" disabled={!canEdit || saving || outside} onClick={() => void save(true)}>
-            {saving ? 'Saving…' : 'Save & notify customer'}
+          <button type="button" className="tv-btn-primary col-span-2 h-10 sm:col-span-1" disabled={!canEdit || saving || outside} onClick={() => void save(true)}>
+            {saving ? 'Saving…' : 'Save & notify'}
           </button>
         </footer>
       </div>

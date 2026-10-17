@@ -5,6 +5,7 @@ type GoogleLatLng = { lat: number; lng: number };
 type GoogleMap = {
   fitBounds: (bounds: GoogleBounds) => void;
   setCenter: (center: GoogleLatLng) => void;
+  setZoom: (zoom: number) => void;
 };
 type GoogleBounds = { extend: (point: GoogleLatLng) => void };
 type GoogleCircle = {
@@ -60,6 +61,10 @@ type Props = {
   fallback?: string;
   draggable?: boolean;
   onMarkerDrag?: (point: { lat: number; lng: number }) => void;
+  /** Street-level view of the pickup pin. Skips fitting the whole coverage radius. */
+  pinZoom?: number | null;
+  showRadius?: boolean;
+  className?: string;
 };
 
 export default function PickupCoverageMap({
@@ -70,6 +75,9 @@ export default function PickupCoverageMap({
   fallback,
   draggable = false,
   onMarkerDrag,
+  pinZoom = null,
+  showRadius = true,
+  className,
 }: Props) {
   const nodeRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<GoogleMap | null>(null);
@@ -99,30 +107,35 @@ export default function PickupCoverageMap({
             gestureHandling: 'cooperative',
           });
         }
-        mapRef.current.setCenter({ lat, lng });
-        if (radiusKm != null && radiusKm >= 1) {
+        const focus = markerLat != null && markerLng != null ? { lat: markerLat, lng: markerLng } : { lat, lng };
+        mapRef.current.setCenter(focus);
+        const drawRadius = showRadius && radiusKm != null && radiusKm >= 1;
+        if (pinZoom != null) mapRef.current.setZoom(pinZoom);
+        if (drawRadius && radiusKm != null) {
           if (!circleRef.current) {
             circleRef.current = new maps.Circle({
               map: mapRef.current,
               center: { lat, lng },
               radius: radiusKm * 1000,
               fillColor: '#073B83',
-              fillOpacity: 0.14,
+              fillOpacity: 0.12,
               strokeColor: '#073B83',
-              strokeOpacity: 0.9,
-              strokeWeight: 1.5,
+              strokeOpacity: 0.7,
+              strokeWeight: 1,
             });
           } else {
             circleRef.current.setMap(mapRef.current);
             circleRef.current.setCenter({ lat, lng });
             circleRef.current.setRadius(radiusKm * 1000);
           }
-          const bounds = circleRef.current.getBounds();
-          if (bounds) {
-            if (markerLat != null && markerLng != null && Number.isFinite(markerLat) && Number.isFinite(markerLng)) {
-              bounds.extend({ lat: markerLat, lng: markerLng });
+          if (pinZoom == null) {
+            const bounds = circleRef.current.getBounds();
+            if (bounds) {
+              if (markerLat != null && markerLng != null && Number.isFinite(markerLat) && Number.isFinite(markerLng)) {
+                bounds.extend({ lat: markerLat, lng: markerLng });
+              }
+              mapRef.current.fitBounds(bounds);
             }
-            mapRef.current.fitBounds(bounds);
           }
         } else if (circleRef.current) {
           circleRef.current.setMap(null);
@@ -156,7 +169,7 @@ export default function PickupCoverageMap({
     return () => {
       cancelled = true;
     };
-  }, [key, lat, lng, markerLat, markerLng, radiusKm, draggable]);
+  }, [key, lat, lng, markerLat, markerLng, radiusKm, draggable, pinZoom, showRadius]);
 
   if (!key) return null;
   if (failed) {
@@ -169,7 +182,7 @@ export default function PickupCoverageMap({
   return (
     <div
       ref={nodeRef}
-      className="h-48 w-full overflow-hidden rounded-xl border border-black/10 bg-paper"
+      className={className ?? 'h-48 w-full overflow-hidden rounded-lg border border-[#e5e7eb] bg-white'}
       role="img"
       aria-label={
         radiusKm != null
