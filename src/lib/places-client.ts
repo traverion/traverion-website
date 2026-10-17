@@ -77,6 +77,20 @@ export async function autocompletePlaces(
   return out;
 }
 
+/** Best-effort address for a moved pin. Null when geocoding is unavailable. */
+export async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
+  if (!placesSearchConfigured() || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  const url = new URL('https://maps.googleapis.com/maps/api/geocode/json');
+  url.searchParams.set('latlng', `${lat},${lng}`);
+  url.searchParams.set('key', googleMapsBrowserKey());
+  const res = await fetch(url.toString());
+  if (!res.ok) return null;
+  const data = (await res.json()) as { status?: string; results?: Array<{ formatted_address?: string }> };
+  if (data.status !== 'OK') return null;
+  const formatted = (data.results?.[0]?.formatted_address ?? '').trim();
+  return formatted.length >= 3 ? formatted : null;
+}
+
 export async function resolvePlace(placeId: string): Promise<ResolvedPlace | null> {
   const id = placeId.trim();
   if (!placesSearchConfigured() || !id) return null;

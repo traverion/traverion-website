@@ -2,59 +2,41 @@
  * Supplier: pickup planner – bookings with meeting / pickup, filters, CSV, deep link to edit listing pickup fields.
  */
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
-import {
-  AlertCircle,
-  ExternalLink,
-  Download,
-  ChevronDown,
-  ArrowLeft,
-  CheckCircle2,
-  CalendarDays,
-} from 'lucide-react';
+import { Download, CalendarDays } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import {
   fetchBookingsForSupplier,
-  updateBookingStatus,
-  acknowledgeBooking,
-  updateBookingSchedule,
-  updateBookingPickupCopy,
+  saveSupplierPickupDetails,
+  type SaveSupplierPickupInput,
 } from '../../data/supabase-bookings';
 import { fetchMyListings, fetchListingById, pgTimeToHm } from '../../data/supabase-listings';
 import type { BookingRow } from '../../data/supabase-bookings';
-import { openSupplierListingEditor, openSupplierBooking, openSupplierInbox, navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
+import { openSupplierListingEditor, openSupplierInbox, navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
-import { decrementAvailabilityBooked } from '../../data/supabase-availability';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings, canManageFinance } from '../../lib/supplierTeamRoles';
 import { insertSupplierExportRun } from '../../data/supabase-supplier-campaigns-exports';
 import {
   isPurchaseSnapshot,
   displayListingTitleFromPurchase,
-  displayDurationFromPurchase,
   partnerListingFilterLabelFromBookings,
+  displayOptionLabelFromPurchase,
+  displayFulfillmentFromPurchase,
 } from '../../lib/purchase-snapshot';
-import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierListSkeleton, SupplierPageHero } from '../../components/supplier/supplierUi';
+import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierListSkeleton } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
-import { partnerBookingIsLiveTrip, partnerBookingIsOperatingTrip, partnerBookingNeedsLook, partnerTourMatchesExperienceDayOffset, pickupMissingIsUrgentSoon } from '../../lib/trip-views';
+import { partnerBookingIsLiveTrip, partnerBookingIsOperatingTrip, partnerTourMatchesExperienceDayOffset } from '../../lib/trip-views';
 import { PARTNER_PICKUP_CSV_HEADER, partnerPickupCsvValues } from '../../lib/partner-pickup-csv';
+import PickupPlannerWorkspace from '../../components/supplier/PickupPlannerWorkspace';
+import { pickupAreaFromOption, travelerPickupAddressFromRecord } from '../../lib/pickup-area';
+import { parseBookingPickupInstructionsOverride, parsePickupDraft } from '../../lib/booking-notes';
+import { pickupDepartureKey } from '../../lib/pickup-planner';
+import { travelerPublicBookingReference } from '../../lib/public-booking-reference';
 import { csvSafeCell } from '../../lib/csv-export';
 import { bookingIsStayNight, bookingNeedsPickupCopy, resolvePartnerPickupCopy } from '../../lib/pickup-completeness';
-import { guestFacingBookingNotes } from '../../lib/booking-notes';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
-import { partnerPickupAllowsForceCancel, partnerManualConfirmBlock } from '../../lib/cancellation-policy';
-import { PARTNER_CANCEL_REQUEST_REFUND_POLICY } from '../../lib/booking-confirmation-copy';
-import { formatBookingDateDisplay } from '../../lib/booking-flow';
-import NoticeCallout from '../../components/NoticeCallout';
-import PartnerSelect from '../../components/supplier/PartnerSelect';
-import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
-import { partnerPaymentLabel } from '../../lib/payment-states';
-import {
-  formatPartnerCheckoutHoldLabel,
-  partnerUnpaidCheckoutHoldsInventory,
-} from '../../lib/booking-hold';
-import { partnerBookingIsUnpaidCheckout } from '../../lib/trip-views';
 import { partnerBookingNumberMatchesFilterQuery } from '../../lib/partner-bookings-search';
 
 function toYmd(d: Date): string {
@@ -62,145 +44,6 @@ function toYmd(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
-}
-
-type ListingGuideMeta = {
-  duration: string;
-  bestTime: string;
-  startLocation: string;
-  defaultStartTime?: string;
-  pickupWindowMin: number | null;
-  pickupWindowMax: number | null;
-};
-
-const CANCELLATION_REASONS = [
-  { id: 'customer_request', label: 'Customer requested cancellation' },
-  { id: 'force_majeure', label: 'Force majeure' },
-  { id: 'operational', label: 'Operational reasons' },
-];
-function parseYmdLocal(ymd: string): Date | null {
-  if (!ymd) return null;
-  const [y, m, d] = ymd.split('-').map(Number);
-  if (!y || !m || !d) return null;
-  return new Date(y, m - 1, d);
-}
-
-function formatPickupSectionDate(ymd: string): string {
-  const d = parseYmdLocal(ymd);
-  if (!d) return ymd;
-  return d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-}
-
-function guideScheduleSummary(meta: ListingGuideMeta | undefined): string {
-  if (!meta) return '';
-  const parts: string[] = [];
-  if (meta.duration && meta.duration !== '—') parts.push(meta.duration);
-  if (meta.bestTime && meta.bestTime !== '—') parts.push(meta.bestTime);
-  if (meta.defaultStartTime) {
-    parts.push(`Start ${meta.defaultStartTime}`);
-    if (meta.pickupWindowMin != null && meta.pickupWindowMax != null) {
-      parts.push(`Pickup ${meta.pickupWindowMin}–${meta.pickupWindowMax} min before`);
-    }
-  }
-  if (meta.startLocation && meta.startLocation !== '—') parts.push(meta.startLocation);
-  return parts.join(' · ');
-}
-
-function bookingTimesLine(b: BookingRow): string | null {
-  const s = b.start_time ? pgTimeToHm(b.start_time) : '';
-  const p = b.pickup_time ? pgTimeToHm(b.pickup_time) : '';
-  if (!s && !p) return null;
-  if (s && p) return `Start ${s} · Pickup ${p}`;
-  if (s) return `Start ${s}`;
-  return `Pickup ${p}`;
-}
-
-function plannerInputClass(): string {
-  return 'tv-input';
-}
-
-type PlannerBookingCardProps = {
-  booking: BookingRow;
-  listingTitle: string;
-  guideMeta: ListingGuideMeta | undefined;
-  missingPickup: boolean;
-  urgentSoon?: boolean;
-  showActivityDate?: boolean;
-  selected?: boolean;
-  onOpen: () => void;
-};
-
-function PlannerBookingCard({
-  booking,
-  listingTitle,
-  guideMeta,
-  missingPickup,
-  urgentSoon,
-  showActivityDate,
-  selected,
-  onOpen,
-}: PlannerBookingCardProps) {
-  const participants = formatBookingParticipantsLabel(booking);
-  const actDate =
-    showActivityDate && booking.booking_date ? formatBookingDateDisplay(booking.booking_date) : null;
-  const times = bookingTimesLine(booking);
-  const guide = guideScheduleSummary(guideMeta);
-  const ref =
-    typeof booking.booking_number === 'number' ? `#${booking.booking_number}` : null;
-  const payLabel = partnerPaymentLabel(booking);
-  const holdLine = partnerBookingIsUnpaidCheckout(booking)
-    ? formatPartnerCheckoutHoldLabel(booking)
-    : null;
-  const holdLive = partnerUnpaidCheckoutHoldsInventory(booking);
-  const accent = urgentSoon
-    ? 'border-l-red-500'
-    : missingPickup
-      ? 'border-l-amber-500'
-      : holdLine && holdLive
-        ? 'border-l-amber-400'
-        : holdLine
-          ? 'border-l-black/15'
-          : 'border-l-finland';
-
-  return (
-    <article
-      className={`overflow-hidden rounded-lg border border-black/[0.06] border-l-[3px] bg-paper ${accent} ${
-        selected ? 'ring-1 ring-finland/35' : ''
-      } ${missingPickup || urgentSoon ? 'ring-1 ring-amber-200/70' : ''}`}
-    >
-      <button type="button" onClick={onOpen} className="lux-flat w-full px-3 py-2 text-left">
-        {urgentSoon ? (
-          <p className="mb-0.5 text-[11px] font-medium text-red-700">
-            Starts within 24 hours — pickup details still incomplete
-          </p>
-        ) : null}
-        {!urgentSoon && missingPickup ? (
-          <p className="mb-0.5 text-[11px] font-medium text-amber-800">Pickup details still incomplete</p>
-        ) : null}
-        <div className="flex items-baseline justify-between gap-3">
-          <p className="min-w-0 break-words text-sm font-semibold text-ink [overflow-wrap:anywhere] line-clamp-2">
-            {booking.guest_name ?? booking.guest_email ?? 'Guest'}
-          </p>
-          <span className="text-[11px] font-medium text-ink-muted shrink-0">{payLabel}</span>
-        </div>
-        <p className="mt-0.5 break-words text-xs text-ink-muted [overflow-wrap:anywhere] line-clamp-2">
-          {ref ? `${ref} · ` : ''}
-          {listingTitle}
-        </p>
-        <p className="mt-0.5 text-xs text-ink-muted">
-          {actDate ? `${actDate} · ` : ''}
-          {participants}
-          {times ? ` · ${times}` : ''}
-        </p>
-        {holdLine ? (
-          <p className={`mt-0.5 text-[11px] font-medium ${holdLive ? 'text-amber-900' : 'text-ink-faint'}`}>
-            {holdLine}
-          </p>
-        ) : null}
-        {guide ? <p className="mt-0.5 line-clamp-1 text-[11px] text-ink-faint">{guide}</p> : null}
-      </button>
-    </article>
-  );
 }
 
 export default function SupplierPickupPlanner() {
@@ -224,7 +67,10 @@ export default function SupplierPickupPlanner() {
       }>
     >
   >({});
-  const [listingGuideMeta, setListingGuideMeta] = useState<Record<string, ListingGuideMeta>>({});
+  const [thumbs, setThumbs] = useState<Record<string, string>>({});
+  const [plannerOptions, setPlannerOptions] = useState<
+    Record<string, Array<{ id: string; label: string; fulfillment: 'pickup' | 'meeting_point' | null; area: ReturnType<typeof pickupAreaFromOption>; instructions: string }>>
+  >({});
   const [stayListingIds, setStayListingIds] = useState<Set<string>>(() => new Set());
   const [loading, setLoading] = useState(true);
   const [dateFrom, setDateFrom] = useState(() => {
@@ -243,28 +89,26 @@ export default function SupplierPickupPlanner() {
     return d === 'today' || d === 'tomorrow' ? d : null;
   });
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [cancelReason, setCancelReason] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [listingFilterId, setListingFilterId] = useState(() => {
     if (typeof window === 'undefined') return '';
     return (new URLSearchParams(window.location.search).get('listing') ?? '').trim();
   });
+  const [departureId, setDepartureId] = useState(() => {
+    if (typeof window === 'undefined') return null;
+    const id = new URLSearchParams(window.location.search).get('departure');
+    return id && id.length > 0 ? id : null;
+  });
+  const [showAllDates, setShowAllDates] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return new URLSearchParams(window.location.search).get('range') === 'all';
+  });
   const [needsPickupOnly, setNeedsPickupOnly] = useState(() => {
     if (typeof window === 'undefined') return false;
     return new URLSearchParams(window.location.search).get('needs') === '1';
   });
-  const [sortDate, setSortDate] = useState<'asc' | 'desc'>('asc');
+  const sortDate = 'asc' as const;
   const [filterQuery, setFilterQuery] = useState('');
-  const [showSearch, setShowSearch] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    const p = new URLSearchParams(window.location.search);
-    return Boolean(p.get('from') || p.get('to') || p.get('listing') || p.get('needs') || p.get('day'));
-  });
-  const [dateSectionOpen, setDateSectionOpen] = useState<Record<string, boolean>>({});
-  const [scheduleDraft, setScheduleDraft] = useState({ start: '', pickup: '' });
-  const [pickupCopyDraft, setPickupCopyDraft] = useState({ meeting: '', instructions: '' });
-  const [actionFeedback, setActionFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const loadGenRef = useRef(0);
   const pickupPlannerHubUserIdRef = useRef<string | null>(null);
@@ -296,41 +140,35 @@ export default function SupplierPickupPlanner() {
           travelerStartInstructions?: string;
         }>
       > = {};
-      const guideMeta: Record<string, ListingGuideMeta> = {};
       const stayIds = new Set<string>();
+      const images: Record<string, string> = {};
+      const planner: Record<string, Array<{ id: string; label: string; fulfillment: 'pickup' | 'meeting_point' | null; area: ReturnType<typeof pickupAreaFromOption>; instructions: string }>> = {};
       const absorbListing = (l: {
         id: string;
         title: string;
         meetingPoint?: string | null;
         pickupInstructions?: string | null;
         listingExtras?: unknown;
-        duration?: string | null;
-        bestTime?: string | null;
-        startLocation?: string | null;
-        defaultStartTime?: string | null;
-        pickupWindowMinutesBeforeMin?: number | null;
-        pickupWindowMinutesBeforeMax?: number | null;
+        image?: string | null;
       }) => {
         titles[l.id] = l.title;
         points[l.id] = l.meetingPoint?.trim() ?? '';
         instructions[l.id] = l.pickupInstructions?.trim() ?? '';
-        optionsMap[l.id] = materializedBookingOptions(
-          parseListingExtras(l.listingExtras as unknown).bookingOptions
-        ).map((o) => ({
+        const materialized = materializedBookingOptions(parseListingExtras(l.listingExtras as unknown).bookingOptions);
+        optionsMap[l.id] = materialized.map((o) => ({
           id: o.id,
           pickupPlace: o.pickupPlace,
           optionInfo: o.optionInfo,
           travelerStartInstructions: o.travelerStartInstructions,
         }));
-        guideMeta[l.id] = {
-          duration: l.duration?.trim() || '—',
-          bestTime: l.bestTime?.trim() || '—',
-          startLocation: l.startLocation?.trim() || '—',
-          defaultStartTime: l.defaultStartTime ?? undefined,
-          // Phase 1262: null pickup window stays null (no invent 0/30; map 1253 parity).
-          pickupWindowMin: l.pickupWindowMinutesBeforeMin ?? null,
-          pickupWindowMax: l.pickupWindowMinutesBeforeMax ?? null,
-        };
+        planner[l.id] = materialized.map((o) => ({
+          id: o.id,
+          label: o.optionInfo?.trim() || o.pickupPlace?.trim() || 'Option',
+          fulfillment: o.fulfillment === 'pickup' || o.fulfillment === 'meeting_point' ? o.fulfillment : null,
+          area: pickupAreaFromOption(o),
+          instructions: (o.travelerStartInstructions || o.optionInfo || '').trim(),
+        }));
+        if (l.image) images[l.id] = l.image;
       };
       listings.forEach((l) => {
         absorbListing(l);
@@ -358,7 +196,8 @@ export default function SupplierPickupPlanner() {
       setMeetingPoints(points);
       setPickupInstructions(instructions);
       setOptionsByListing(optionsMap);
-      setListingGuideMeta(guideMeta);
+      setPlannerOptions(planner);
+      setThumbs(images);
     } catch (e) {
       if (gen !== loadGenRef.current) return;
       setError(userFacingError(e, USER_ERROR.pickup));
@@ -374,16 +213,11 @@ export default function SupplierPickupPlanner() {
       setMeetingPoints({});
       setPickupInstructions({});
       setOptionsByListing({});
-      setListingGuideMeta({});
+      setPlannerOptions({});
+      setThumbs({});
       setStayListingIds(new Set());
       setError(null);
       setSelectedBookingId(null);
-      setUpdatingId(null);
-      setCancelReason('');
-      setScheduleDraft({ start: '', pickup: '' });
-      setPickupCopyDraft({ meeting: '', instructions: '' });
-      setActionFeedback(null);
-      setDateSectionOpen({});
     };
     if (!user?.id) {
       pickupPlannerHubUserIdRef.current = null;
@@ -419,9 +253,11 @@ export default function SupplierPickupPlanner() {
       setDateTo(!scheduleDay && /^\d{4}-\d{2}-\d{2}$/.test(to) ? to : '');
       setListingFilterId((params.get('listing') ?? '').trim());
       setNeedsPickupOnly(params.get('needs') === '1');
-      if (params.get('from') || params.get('to') || params.get('listing') || params.get('needs') || params.get('day')) {
-        setShowSearch(true);
-      }
+      const departure = params.get('departure');
+      setDepartureId(departure && departure.length > 0 ? departure : null);
+      setShowAllDates(params.get('range') === 'all');
+      const query = params.get('q') ?? '';
+      if (query) setFilterQuery(query);
     };
     syncFromUrl();
     window.addEventListener('popstate', syncFromUrl);
@@ -493,9 +329,12 @@ export default function SupplierPickupPlanner() {
       if (dateFrom && bd && bd < dateFrom) return false;
       if (dateTo && bd && bd > dateTo) return false;
       if ((dateFrom || dateTo) && !bd) return false;
+      if (!dayPreset && !dateFrom && !dateTo && !showAllDates) {
+        if (!bd || bd < toYmd(new Date())) return false;
+      }
       return true;
     });
-  }, [bookings, dateFrom, dateTo, dayPreset, stayListingIds]);
+  }, [bookings, dateFrom, dateTo, dayPreset, showAllDates, stayListingIds]);
 
   const sorted = useMemo(
     () =>
@@ -543,12 +382,19 @@ export default function SupplierPickupPlanner() {
         ).toLowerCase();
         const guestName = (b.guest_name ?? '').toLowerCase();
         const guestEmail = (b.guest_email ?? '').toLowerCase();
+        const place = travelerPickupAddressFromRecord({
+          snapshot: b.purchase_snapshot,
+          specialRequests: b.special_requests,
+        }).toLowerCase();
+        const draftPlace = (parsePickupDraft(b.special_requests)?.address ?? '').toLowerCase();
         return (
           title.includes(q) ||
           partnerBookingNumberMatchesFilterQuery(q, b.booking_number) ||
           b.id.toLowerCase().includes(q) ||
           guestName.includes(q) ||
-          guestEmail.includes(q)
+          guestEmail.includes(q) ||
+          place.includes(q) ||
+          draftPlace.includes(q)
         );
       });
     }
@@ -556,24 +402,6 @@ export default function SupplierPickupPlanner() {
       (a.booking_date ?? '').localeCompare(b.booking_date ?? '') || a.created_at.localeCompare(b.created_at);
     return sortDate === 'asc' ? [...rows].sort(cmp) : [...rows].sort((a, b) => cmp(b, a));
   }, [sorted, listingFilterId, needsPickupOnly, sortDate, needsPickupInfo, filterQuery, listingTitles]);
-
-  const bookingsGroupedByDate = useMemo(() => {
-    const withDate: BookingRow[] = [];
-    const noDate: BookingRow[] = [];
-    for (const b of listBookings) {
-      if (b.booking_date) withDate.push(b);
-      else noDate.push(b);
-    }
-    const byDay = new Map<string, BookingRow[]>();
-    for (const b of withDate) {
-      const d = b.booking_date as string;
-      const arr = byDay.get(d) ?? [];
-      arr.push(b);
-      byDay.set(d, arr);
-    }
-    const orderedKeys = [...byDay.keys()].sort((a, b) => (sortDate === 'asc' ? a.localeCompare(b) : b.localeCompare(a)));
-    return { byDay, orderedKeys, noDate };
-  }, [listBookings, sortDate]);
 
   const listingSelectOptions = useMemo(
     () =>
@@ -586,134 +414,6 @@ export default function SupplierPickupPlanner() {
         .sort((a, b) => a.title.localeCompare(b.title)),
     [listingTitles, stayListingIds, bookings]
   );
-
-  const selectedBooking = useMemo(
-    () => bookings.find((b) => b.id === selectedBookingId) ?? null,
-    [bookings, selectedBookingId]
-  );
-
-  const deepLinkMissing = Boolean(
-    selectedBookingId && !loading && !selectedBooking
-  );
-
-  useEffect(() => {
-    if (!selectedBooking) return;
-    setScheduleDraft({
-      start: selectedBooking.start_time ? pgTimeToHm(selectedBooking.start_time) ?? '' : '',
-      pickup: selectedBooking.pickup_time ? pgTimeToHm(selectedBooking.pickup_time) ?? '' : '',
-    });
-    const copy = pickupCopyFor(selectedBooking);
-    setPickupCopyDraft({ meeting: copy.meetingPoint, instructions: copy.pickupInstructions });
-  }, [
-    selectedBooking?.id,
-    selectedBooking?.start_time,
-    selectedBooking?.pickup_time,
-    selectedBooking?.special_requests,
-    pickupCopyFor,
-  ]);
-
-  const handleSavePickupCopy = async () => {
-    if (!canEditBookings || !selectedBooking || !partnerBookingIsOperatingTrip(selectedBooking)) return;
-    setUpdatingId(selectedBooking.id);
-    const res = await updateBookingPickupCopy(selectedBooking.id, {
-      meetingPoint: pickupCopyDraft.meeting,
-      pickupInstructions: pickupCopyDraft.instructions,
-    });
-    if (res.ok) {
-      setBookings((prev) =>
-        prev.map((b) =>
-          b.id === selectedBooking.id
-            ? { ...b, special_requests: res.special_requests ?? b.special_requests }
-            : b
-        )
-      );
-      showActionFeedback('success', 'Pickup location saved for this booking.');
-    } else {
-      showActionFeedback('error', res.error || 'Could not save pickup location. Try again.');
-    }
-    setUpdatingId(null);
-  };
-
-  useEffect(() => {
-    if (!selectedBookingId) {
-      setCancelReason('');
-    }
-  }, [selectedBookingId]);
-
-  useEffect(() => {
-    if (!actionFeedback) return;
-    const timer = window.setTimeout(() => setActionFeedback(null), 4000);
-    return () => window.clearTimeout(timer);
-  }, [actionFeedback]);
-
-  useEffect(() => {
-    if (!selectedBookingId) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setSelectedBookingAndUrl(null);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [selectedBookingId, setSelectedBookingAndUrl]);
-
-  const showActionFeedback = (type: 'success' | 'error', text: string) => {
-    setActionFeedback({ type, text });
-  };
-
-  const actionFeedbackBanner = actionFeedback ? (
-    <div
-      className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium ${
-        actionFeedback.type === 'success'
-          ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-          : 'border-red-200 bg-red-50 text-red-700'
-      }`}
-      role="status"
-    >
-      {actionFeedback.type === 'success' ? (
-        <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden />
-      ) : (
-        <AlertCircle className="h-4 w-4 shrink-0" aria-hidden />
-      )}
-      {actionFeedback.text}
-    </div>
-  ) : null;
-
-  const handleSaveScheduleTimes = async () => {
-    if (!canEditBookings || !selectedBooking || !partnerBookingIsOperatingTrip(selectedBooking)) return;
-    setUpdatingId(selectedBooking.id);
-    const startTrim = scheduleDraft.start.trim();
-    const pickupTrim = scheduleDraft.pickup.trim();
-    const res = await updateBookingSchedule(selectedBooking.id, {
-      start_time: startTrim || null,
-      pickup_time: pickupTrim || null,
-    });
-    if (res.ok) {
-      setBookings((prev) =>
-        prev.map((b) =>
-          b.id === selectedBooking.id
-            ? {
-                ...b,
-                start_time: startTrim ? `${startTrim}:00` : null,
-                pickup_time: pickupTrim ? `${pickupTrim}:00` : null,
-              }
-            : b
-        )
-      );
-      const purchasedStart =
-        isPurchaseSnapshot(selectedBooking.purchase_snapshot) &&
-        selectedBooking.purchase_snapshot.startTimeHm?.trim();
-      const startChangedFromPurchase =
-        Boolean(purchasedStart) && purchasedStart !== startTrim;
-      showActionFeedback(
-        'success',
-        startChangedFromPurchase
-          ? `Times saved for ops. Traveler Trips still show the purchased ${purchasedStart} departure.`
-          : 'Times saved for this booking.'
-      );
-    } else {
-      showActionFeedback('error', res.error || 'Could not save times. Try again.');
-    }
-    setUpdatingId(null);
-  };
 
   const exportCsv = async () => {
     // Phase 1763/1768: guest-PII pickup export for editors + finance (+ audit insert).
@@ -764,797 +464,230 @@ export default function SupplierPickupPlanner() {
     }
   };
 
-  const handleAcknowledgeSelected = async () => {
-    if (!canEditBookings) return;
-    if (!selectedBooking || !partnerBookingNeedsLook(selectedBooking)) return;
-    setUpdatingId(selectedBooking.id);
-    const ok = await acknowledgeBooking(selectedBooking.id);
-    if (ok) {
-      setBookings((prev) =>
-        prev.map((b) =>
-          b.id === selectedBooking.id ? { ...b, acknowledged_at: new Date().toISOString() } : b
-        )
-      );
-      showActionFeedback('success', 'Booking acknowledged.');
-    } else {
-      showActionFeedback('error', 'Could not acknowledge booking. Try again.');
-    }
-    setUpdatingId(null);
-  };
-
-  const handleConfirmSelected = async () => {
-    if (!canEditBookings) return;
-    if (!selectedBooking || selectedBooking.status === 'confirmed' || selectedBooking.status === 'cancelled') return;
-    if (partnerManualConfirmBlock(selectedBooking) !== 'none') {
-      showActionFeedback(
-        'error',
-        'Only paid bookings can be confirmed. Unpaid checkouts stay pending until the traveler pays or the hold is released.'
-      );
-      return;
-    }
-    setUpdatingId(selectedBooking.id);
-    const res = await updateBookingStatus(selectedBooking.id, 'confirmed');
-    if (res.ok) {
-      setBookings((prev) =>
-        prev.map((b) => (b.id === selectedBooking.id ? { ...b, status: 'confirmed' } : b))
-      );
-      showActionFeedback('success', 'Booking confirmed.');
-    } else {
-      showActionFeedback('error', res.error || 'Could not confirm booking. Try again.');
-    }
-    setUpdatingId(null);
-  };
-
-  const handleCancelSelected = async () => {
-    if (!canEditBookings) return;
-    if (!selectedBooking || !partnerBookingIsOperatingTrip(selectedBooking) || !cancelReason) return;
-    if (!partnerPickupAllowsForceCancel(selectedBooking)) {
-      showActionFeedback(
-        'error',
-        'Paid bookings must use Request cancellation in Bookings. Traverion does not force-cancel paid trips from Pickup.'
-      );
-      return;
-    }
-    setUpdatingId(selectedBooking.id);
-    const previousStatus = selectedBooking.status;
-    const res = await updateBookingStatus(selectedBooking.id, 'cancelled', {
-      cancellation_reason: cancelReason,
-    });
-    if (res.ok) {
-      if (previousStatus === 'confirmed' && selectedBooking.booking_date) {
-        await decrementAvailabilityBooked(
-          selectedBooking.listing_id,
-          selectedBooking.booking_date,
-          selectedBooking.guests ?? 1
-        );
-      }
-      setBookings((prev) =>
-        prev.map((b) =>
-          b.id === selectedBooking.id
-            ? {
-                ...b,
-                status: 'cancelled',
-                cancelled_at: new Date().toISOString(),
-                cancellation_reason: cancelReason,
-              }
-            : b
-        )
-      );
-      showActionFeedback('success', 'Unpaid booking cancelled. The hold is released.');
-      setCancelReason('');
-      setSelectedBookingAndUrl(null);
-    } else {
-      showActionFeedback('error', res.error || 'Could not cancel booking. Try again.');
-    }
-    setUpdatingId(null);
-  };
-
   const plannerStats = useMemo(() => {
     const guestTotal = listBookings.reduce((sum, b) => sum + Number(b.guests ?? 0), 0);
     const needsPickup = listBookings.filter((b) => needsPickupInfo(b)).length;
     return { bookings: listBookings.length, guests: guestTotal, needsPickup };
   }, [listBookings, needsPickupInfo]);
+  const setDepartureAndUrl = (id: string | null) => {
+    setDepartureId(id);
+    const url = new URL(window.location.href);
+    if (id) url.searchParams.set('departure', id);
+    else {
+      url.searchParams.delete('departure');
+      url.searchParams.delete('booking');
+      setSelectedBookingId(null);
+    }
+    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+  };
+
+  const setShowAllDatesAndUrl = (all: boolean) => {
+    setShowAllDates(all);
+    const url = new URL(window.location.href);
+    if (all) url.searchParams.set('range', 'all');
+    else url.searchParams.delete('range');
+    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+  };
+
+  const applyPickupSave = (
+    bookingId: string,
+    res: { special_requests?: string; pickup_time?: string | null }
+  ) => {
+    setBookings((prev) =>
+      prev.map((row) =>
+        row.id === bookingId
+          ? {
+              ...row,
+              special_requests: res.special_requests ?? row.special_requests,
+              pickup_time: res.pickup_time === undefined ? row.pickup_time : res.pickup_time,
+            }
+          : row
+      )
+    );
+  };
+
+  const saveOnePickup = async (bookingId: string, input: SaveSupplierPickupInput) => {
+    const res = await saveSupplierPickupDetails(bookingId, input);
+    if (res.ok) applyPickupSave(bookingId, res);
+    return res;
+  };
+
+  const saveStopTime = async (bookingIds: string[], timeHm: string, notify: boolean) => {
+    let notifyError: string | null = null;
+    for (const bookingId of bookingIds) {
+      const booking = bookings.find((row) => row.id === bookingId);
+      if (!booking) continue;
+      const draft = parsePickupDraft(booking.special_requests);
+      const address =
+        draft?.address ||
+        travelerPickupAddressFromRecord({
+          snapshot: booking.purchase_snapshot,
+          specialRequests: booking.special_requests,
+        });
+      const res = await saveSupplierPickupDetails(bookingId, {
+        notify,
+        pickupTimeHm: timeHm,
+        address,
+        placeId: draft?.placeId ?? null,
+        lat: draft?.lat ?? null,
+        lng: draft?.lng ?? null,
+        instructions:
+          draft?.instructions ||
+          parseBookingPickupInstructionsOverride(booking.special_requests) ||
+          '',
+        meetingPointOnly: displayFulfillmentFromPurchase(booking.purchase_snapshot) === 'meeting_point',
+      });
+      if (!res.ok) return res;
+      applyPickupSave(bookingId, res);
+      if (res.notifyError) notifyError = res.notifyError;
+    }
+    return { ok: true, notified: notify && !notifyError, notifyError };
+  };
+
+  const printDeparture = () => {
+    const rows = listBookings.filter((row) => pickupDepartureKey(row) === departureId);
+    if (rows.length === 0) return;
+    const sample = rows[0];
+    const title = displayListingTitleFromPurchase(sample.purchase_snapshot, listingTitles[sample.listing_id], 'Experience');
+    const option = displayOptionLabelFromPurchase(sample.purchase_snapshot, null) || '';
+    const body = rows
+      .map((row) => {
+        const copy = pickupCopyFor(row);
+        const phone = (row.special_requests ?? '').match(/^Guest phone:\s*(.+)$/im)?.[1]?.trim() || '';
+        const ref = travelerPublicBookingReference(row.public_reference) || (typeof row.booking_number === 'number' ? `#${row.booking_number}` : row.id);
+        return `<tr><td>${ref}</td><td>${row.guest_name ?? ''}</td><td>${row.guests ?? ''}</td><td>${travelerPickupAddressFromRecord({ snapshot: row.purchase_snapshot, specialRequests: row.special_requests })}</td><td>${row.pickup_time ? pgTimeToHm(row.pickup_time) ?? '' : ''}</td><td>${phone}</td><td>${copy.pickupInstructions}</td></tr>`;
+      })
+      .join('');
+    const popup = window.open('', '_blank', 'noopener,noreferrer');
+    if (!popup) return;
+    popup.document.write(`<!doctype html><title>${title} manifest</title><style>body{font:13px sans-serif;color:#18181b}table{border-collapse:collapse;width:100%}td,th{border:1px solid #e5e7eb;padding:6px;text-align:left}</style><h1>${title}</h1><p>${option} · ${sample.booking_date ?? ''} · ${sample.purchase_snapshot && typeof sample.purchase_snapshot === 'object' && 'startTimeHm' in sample.purchase_snapshot ? String((sample.purchase_snapshot as { startTimeHm?: string }).startTimeHm ?? '') : ''}</p><table><thead><tr><th>Reference</th><th>Traveler</th><th>Guests</th><th>Pickup location</th><th>Pickup time</th><th>Phone</th><th>Instructions</th></tr></thead><tbody>${body}</tbody></table>`);
+    popup.document.close();
+    popup.focus();
+    popup.print();
+  };
 
   if (!user) return null;
 
-  const filtersOn = Boolean(dateFrom || dateTo || dayPreset || listingFilterId || needsPickupOnly || filterQuery.trim());
+  const filtersOn = Boolean(dateFrom || dateTo || dayPreset || listingFilterId || needsPickupOnly || filterQuery.trim() || showAllDates);
   const activeBookingsCount = bookings.filter((b) => partnerBookingIsOperatingTrip(b)).length;
+  const departureCount = new Set(listBookings.map((row) => pickupDepartureKey(row))).size;
+  const departureRows = departureId ? listBookings.filter((row) => pickupDepartureKey(row) === departureId) : [];
+  const editorListingId = departureRows[0]?.listing_id ?? listBookings[0]?.listing_id ?? '';
 
-  if (selectedBooking) {
-    const listingTitle = displayListingTitleFromPurchase(
-      selectedBooking.purchase_snapshot,
-      listingTitles[selectedBooking.listing_id],
-      'Listing'
-    );
-    const guideMeta = listingGuideMeta[selectedBooking.listing_id];
-    const purchasedDuration = displayDurationFromPurchase(
-      selectedBooking.purchase_snapshot,
-      guideMeta?.duration ?? null
-    );
-    const activityDate = selectedBooking.booking_date
-      ? formatPickupSectionDate(selectedBooking.booking_date)
-      : 'No activity date';
-
-    return (
-      <div className={SUPPLIER_PAGE_CLASS}>
-        <button
-          type="button"
-          onClick={() => setSelectedBookingAndUrl(null)}
-          className="lux-flat lux-tap-target inline-flex min-h-11 items-center gap-1.5 px-1 text-sm text-ink-muted hover:text-ink"
-        >
-          <ArrowLeft className="w-4 h-4" aria-hidden />
-          Pickup
-        </button>
-
-        {actionFeedbackBanner}
-
-        <div className="mt-6 mb-6 rounded-xl bg-paper-raised p-3.5 sm:p-4 shadow-soft ring-1 ring-black/[0.06]">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-1.5">Pickup detail</p>
-          <h1 className="font-display text-xl sm:text-2xl text-ink tracking-tight">{listingTitle}</h1>
-          <p className="mt-1.5 text-sm text-ink-muted">
-            {selectedBooking.guest_name ?? selectedBooking.guest_email ?? 'Guest'} · {activityDate}
-            {' · '}
-            {partnerPaymentLabel(selectedBooking)}
-            {' · '}
-            {formatBookingParticipantsLabel(selectedBooking)}
-            {bookingTimesLine(selectedBooking) ? ` · ${bookingTimesLine(selectedBooking)}` : ''}
+  return (
+    <div className={`${SUPPLIER_PAGE_CLASS} font-sans`}>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="font-sans text-xl font-bold tracking-tight text-[#18181b]">Pickups</h1>
+          <p className="text-sm text-[#52525b]">Manage departures, pickup locations and guest collection.</p>
+          <p className="mt-1 text-[12px] text-[#71717a]">
+            {departureCount} departures · {listBookings.length} bookings · {plannerStats.guests} guests
+            {plannerStats.needsPickup > 0 ? ` · ${plannerStats.needsPickup} missing pickup details` : ''}
           </p>
-          {partnerBookingIsUnpaidCheckout(selectedBooking) ? (
-            <p
-              className={`mt-1.5 text-xs font-medium ${
-                partnerUnpaidCheckoutHoldsInventory(selectedBooking) ? 'text-amber-900' : 'text-ink-faint'
-              }`}
-            >
-              {formatPartnerCheckoutHoldLabel(selectedBooking)}
-            </p>
-          ) : null}
-          {typeof selectedBooking.booking_number === 'number' ? (
-            <p className="mt-1 text-xs text-ink-faint">Booking #{selectedBooking.booking_number}</p>
-          ) : null}
         </div>
-
-        <div className="space-y-6 max-w-2xl">
-          <div>
-            <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Guest</h2>
-            <p className="font-semibold text-ink">
-              {selectedBooking.guest_name ?? selectedBooking.guest_email ?? '—'}
-            </p>
-            {selectedBooking.guest_name && selectedBooking.guest_email ? (
-              <p className="mt-0.5 text-sm text-ink-muted break-all">{selectedBooking.guest_email}</p>
-            ) : null}
-            <p className="mt-3 text-sm text-ink">
-              <span className="text-ink-faint uppercase tracking-[0.12em] text-[10px] block mb-1">Participants</span>
-              {formatBookingParticipantsLabel(selectedBooking)}
-            </p>
-            <p className="mt-3 text-sm text-ink-muted break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
-              {guestFacingBookingNotes(selectedBooking.special_requests) ||
-                'No special requests or address notes.'}
-            </p>
-          </div>
-
-          {guideMeta || purchasedDuration ? (
-            <div>
-              <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Listing timing</h2>
-              {purchasedDuration || guideScheduleSummary(guideMeta) ? (
-                <div className="space-y-1 text-sm text-ink">
-                  {purchasedDuration ? <p>Duration: {purchasedDuration}</p> : null}
-                  {guideMeta?.bestTime && guideMeta.bestTime !== '—' ? (
-                    <p>Typical time / season: {guideMeta.bestTime}</p>
-                  ) : null}
-                  {guideMeta?.startLocation && guideMeta.startLocation !== '—' ? (
-                    <p>Start location: {guideMeta.startLocation}</p>
-                  ) : null}
-                </div>
-              ) : (
-                <p className="text-sm text-ink-muted">
-                  Add duration, typical time, and start location on the listing for clearer timing context.
-                </p>
-              )}
-              {guideMeta?.defaultStartTime ? (
-                <p className="mt-2 text-xs text-ink-faint">
-                  Listing default start {guideMeta.defaultStartTime}
-                  {guideMeta.pickupWindowMin != null && guideMeta.pickupWindowMax != null
-                    ? `. Assign pickup between ${guideMeta.pickupWindowMin}–${guideMeta.pickupWindowMax} minutes before.`
-                    : '.'}
-                </p>
-              ) : null}
-            </div>
+        <div className="flex flex-wrap gap-2">
+          {departureId ? (
+            <button type="button" className="tv-btn-secondary" onClick={printDeparture}>
+              Print manifest
+            </button>
           ) : null}
-
-          {partnerBookingIsOperatingTrip(selectedBooking) && (
-            <div>
-              <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Times for this booking</h2>
-              <p className="text-sm text-ink-muted mb-4">
-                Adjust start and pickup if this instance differs from the listing default.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md">
-                <div>
-                  <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">Start</label>
-                  <input
-                    type="time"
-                    value={scheduleDraft.start}
-                    onChange={(e) => setScheduleDraft((d) => ({ ...d, start: e.target.value }))}
-                    disabled={!canEditBookings}
-                    className={plannerInputClass()}
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">Pickup</label>
-                  <input
-                    type="time"
-                    value={scheduleDraft.pickup}
-                    onChange={(e) => setScheduleDraft((d) => ({ ...d, pickup: e.target.value }))}
-                    disabled={!canEditBookings}
-                    className={plannerInputClass()}
-                  />
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={handleSaveScheduleTimes}
-                disabled={!canEditBookings || updatingId === selectedBooking.id}
-                className="tv-btn-primary mt-4 disabled:opacity-50"
-              >
-                {updatingId === selectedBooking.id ? 'Saving…' : 'Save times'}
-              </button>
-            </div>
-          )}
-
-          <div className="space-y-3">
-            <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint">Pickup location for this booking</h2>
-            <p className="text-xs text-ink-muted leading-snug">
-              Overrides the listing option for this guest only. Leave blank fields to clear the override after save
-              (catalog option copy returns).
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1">
-                  Meeting point
-                </label>
-                <textarea
-                  className="tv-input min-h-[72px] text-sm"
-                  value={pickupCopyDraft.meeting}
-                  disabled={!canEditBookings || !partnerBookingIsOperatingTrip(selectedBooking)}
-                  onChange={(e) => setPickupCopyDraft((d) => ({ ...d, meeting: e.target.value }))}
-                  placeholder="Hotel lobby / gate / address"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1">
-                  Pickup instructions
-                </label>
-                <textarea
-                  className="tv-input min-h-[72px] text-sm"
-                  value={pickupCopyDraft.instructions}
-                  disabled={!canEditBookings || !partnerBookingIsOperatingTrip(selectedBooking)}
-                  onChange={(e) => setPickupCopyDraft((d) => ({ ...d, instructions: e.target.value }))}
-                  placeholder="Look for the van / call on arrival"
-                />
-              </div>
-            </div>
-            {partnerBookingIsOperatingTrip(selectedBooking) ? (
-              <button
-                type="button"
-                onClick={() => void handleSavePickupCopy()}
-                disabled={!canEditBookings || updatingId === selectedBooking.id}
-                className="tv-btn-secondary disabled:opacity-50"
-              >
-                {updatingId === selectedBooking.id ? 'Saving…' : 'Save pickup location'}
-              </button>
-            ) : null}
-          </div>
-
-          {partnerBookingIsOperatingTrip(selectedBooking) && (
-            <div>
-              <h2 className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Cancel booking</h2>
-              {partnerPickupAllowsForceCancel(selectedBooking) ? (
-                <div className="max-w-xl">
-                  <span className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5" id="pickup-cancel-reason-label">
-                    Reason
-                  </span>
-                  <PartnerSelect
-                    aria-labelledby="pickup-cancel-reason-label"
-                    value={cancelReason}
-                    onChange={setCancelReason}
-                    disabled={!canEditBookings}
-                    placeholder="Select reason"
-                    options={[
-                      { value: '', label: 'Select reason' },
-                      ...CANCELLATION_REASONS.map((r) => ({ value: r.id, label: r.label })),
-                    ]}
-                  />
-                  <p className="mt-2 text-xs text-ink-muted">
-                    This checkout is unpaid. Cancelling releases the hold immediately — no Stripe refund applies.
-                  </p>
-                </div>
-              ) : (
-                <NoticeCallout title="Paid bookings need traveler acceptance" tone="warn">
-                  <p>{PARTNER_CANCEL_REQUEST_REFUND_POLICY}</p>
-                  <p className="mt-2">
-                    Pickup does not force-cancel paid trips. Open Bookings to request cancellation.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => openSupplierBooking(selectedBooking.id)}
-                    className="tv-btn-ghost mt-3 -ml-2"
-                  >
-                    Open in Bookings
-                  </button>
-                </NoticeCallout>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="mt-10 flex flex-wrap gap-2">
-          {partnerBookingIsOperatingTrip(selectedBooking) && (
-            <>
-              {partnerBookingNeedsLook(selectedBooking) && (
-                <button
-                  type="button"
-                  disabled={!canEditBookings || updatingId === selectedBooking.id}
-                  onClick={handleAcknowledgeSelected}
-                  className="tv-btn-secondary disabled:opacity-60"
-                >
-                  Acknowledge
-                </button>
-              )}
-              {selectedBooking.status !== 'confirmed' && (
-                <button
-                  type="button"
-                  disabled={!canEditBookings || updatingId === selectedBooking.id}
-                  onClick={handleConfirmSelected}
-                  className="tv-btn-secondary disabled:opacity-60"
-                >
-                  Confirm
-                </button>
-              )}
-              {partnerPickupAllowsForceCancel(selectedBooking) ? (
-                <button
-                  type="button"
-                  disabled={!canEditBookings || updatingId === selectedBooking.id || !cancelReason}
-                  onClick={handleCancelSelected}
-                  className="tv-btn-ghost disabled:opacity-60"
-                >
-                  Cancel unpaid booking
-                </button>
-              ) : null}
-            </>
-          )}
-          <button
-            type="button"
-            onClick={() => openSupplierBooking(selectedBooking.id)}
-            className="tv-btn-ghost"
-          >
-            Open in bookings
-          </button>
-          <button
-            type="button"
-            onClick={() => openSupplierInbox(selectedBooking.id)}
-            className="tv-btn-ghost"
-          >
-            Message traveler
-          </button>
-          <button
-            type="button"
-            // Phase 1756: listing editor deep-links are editor-only (listings write RLS).
-            disabled={!canEditBookings}
-            onClick={() =>
-              openSupplierListingEditor(
-                selectedBooking.listing_id,
-                'meeting',
-                selectedBooking.booking_option_id ?? undefined
-              )
-            }
-            className="tv-btn-ghost disabled:opacity-40"
-          >
-            Edit meeting
-          </button>
-          <button
-            type="button"
-            disabled={!canEditBookings}
-            onClick={() => openSupplierListingEditor(selectedBooking.listing_id, 'schedule')}
-            className="tv-btn-ghost disabled:opacity-40"
-          >
-            Edit schedule
-          </button>
-          <button
-            type="button"
-            disabled={!canEditBookings}
-            onClick={() =>
-              openSupplierListingEditor(
-                selectedBooking.listing_id,
-                'pickup',
-                selectedBooking.booking_option_id ?? undefined
-              )
-            }
-            className="tv-btn-primary inline-flex items-center gap-1.5 disabled:opacity-40"
-          >
-            <ExternalLink className="w-4 h-4" aria-hidden />
-            Edit pickup
+          <button type="button" className="tv-btn-secondary" disabled={!canExportPickupCsv} onClick={() => void exportCsv()}>
+            <Download className="mr-1 h-4 w-4" aria-hidden />
+            Export
           </button>
         </div>
       </div>
-    );
-  }
 
-  return (
-    <div className={SUPPLIER_PAGE_CLASS}>
-      <SupplierPageHero
-        badge="Operate"
-        title="Pickups"
-        description="Today’s pickups, missing details, and export."
-        actions={
-          !loading && listBookings.length > 0 ? (
-            <button
-              type="button"
-              onClick={exportCsv}
-              disabled={!canExportPickupCsv}
-              className="tv-btn-ghost disabled:opacity-40"
-              title={
-                !canExportPickupCsv
-                  ? 'Your role can view Pickup but cannot export guest details'
-                  : undefined
-              }
-            >
-              <Download className="h-4 w-4" aria-hidden />
-              Export
-            </button>
-          ) : undefined
-        }
-      >
-        {!canEditBookings ? (
-          <p className="mt-3 text-sm text-amber-800">
-            Your role is {role}. You can view plans, but booking actions are restricted.
-          </p>
-        ) : null}
-        {!loading && listBookings.length > 0 ? (
-          <p className="mt-2 text-xs text-ink-muted">
-            {`${plannerStats.bookings} booking${plannerStats.bookings === 1 ? '' : 's'} · ${plannerStats.guests} guest${plannerStats.guests === 1 ? '' : 's'}`}
-            {plannerStats.needsPickup > 0 ? ` · ${plannerStats.needsPickup} need pickup copy` : ''}
-          </p>
-        ) : null}
-      </SupplierPageHero>
-
-      {activeBookingsCount > 0 && (
-        <div className="mb-4 space-y-2.5">
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Day preset">
-            {(
-              [
-                { id: 'all', label: 'All dates' },
-                { id: 'today', label: 'Today' },
-                { id: 'tomorrow', label: 'Tomorrow' },
-              ] as const
-            ).map((tab) => {
-              const selected =
-                tab.id === 'all'
-                  ? !dateFrom && !dateTo && !dayPreset
-                  : tab.id === 'today'
-                    ? dayPreset === 'today'
-                    : dayPreset === 'tomorrow';
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => {
-                    if (tab.id === 'all') writePickupFiltersToUrl({ day: '', from: '', to: '' });
-                    else if (tab.id === 'today') writePickupFiltersToUrl({ day: 'today' });
-                    else writePickupFiltersToUrl({ day: 'tomorrow' });
-                  }}
-                  className={`lux-flat rounded-md px-3 py-1.5 text-xs font-semibold ring-1 transition-colors ${
-                    selected
-                      ? 'bg-finland text-white ring-finland'
-                      : 'bg-transparent text-ink-muted ring-black/[0.08] hover:text-ink'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
-            <button
-              type="button"
-              onClick={() => writePickupFiltersToUrl({ needsOnly: !needsPickupOnly })}
-              className={`lux-flat rounded-md px-3 py-1.5 text-xs font-semibold ring-1 transition-colors ${
-                needsPickupOnly
-                  ? 'bg-amber-500 text-white ring-amber-500'
-                  : 'bg-transparent text-ink-muted ring-black/[0.08] hover:text-ink'
-              }`}
-            >
-              Needs details
-            </button>
-          </div>
-          <button type="button" onClick={() => setShowSearch((v) => !v)} className="tv-btn-ghost -ml-2">
-            Search{filtersOn ? ' · on' : ''}
-          </button>
-          {showSearch && (
-            <div className="mt-1 space-y-4 motion-safe:animate-fade-in">
-              <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
-                <div className="flex min-w-[min(100%,14rem)] flex-1 flex-col gap-1">
-                  <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Guest</label>
-                  <input
-                    type="search"
-                    value={filterQuery}
-                    onChange={(e) => setFilterQuery(e.target.value)}
-                    placeholder="Name, email, or booking #"
-                    className="tv-input"
-                  />
-                </div>
-                <div className="flex min-w-[min(100%,12rem)] flex-1 flex-col gap-1 sm:flex-none sm:min-w-[11rem]">
-                  <span className="text-[11px] font-medium uppercase tracking-wide text-ink-faint" id="pickup-filter-listing-label">
-                    Listing
-                  </span>
-                  <PartnerSelect
-                    aria-labelledby="pickup-filter-listing-label"
-                    value={listingFilterId}
-                    onChange={(listingId) => writePickupFiltersToUrl({ listingId })}
-                    options={[
-                      { value: '', label: 'All listings' },
-                      ...listingSelectOptions.map((opt) => ({ value: opt.id, label: opt.title })),
-                    ]}
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Dates</label>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <input
-                      type="date"
-                      value={dateFrom}
-                      onChange={(e) => writePickupFiltersToUrl({ day: '', from: e.target.value })}
-                      className="tv-input w-[9.25rem]"
-                      aria-label="Activity date from"
-                    />
-                    <span className="shrink-0 text-sm text-ink-faint">–</span>
-                    <input
-                      type="date"
-                      value={dateTo}
-                      onChange={(e) => writePickupFiltersToUrl({ day: '', to: e.target.value })}
-                      className="tv-input w-[9.25rem]"
-                      aria-label="Activity date to"
-                    />
-                  </div>
-                </div>
-                <div className="flex flex-col gap-1 min-w-[10rem]">
-                  <span className="text-[11px] font-medium uppercase tracking-wide text-ink-faint" id="pickup-sort-label">
-                    Sort
-                  </span>
-                  <PartnerSelect
-                    aria-labelledby="pickup-sort-label"
-                    value={sortDate}
-                    onChange={(v) => setSortDate(v as 'asc' | 'desc')}
-                    options={[
-                      { value: 'asc', label: 'Earliest first' },
-                      { value: 'desc', label: 'Latest first' },
-                    ]}
-                  />
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <label className="flex cursor-pointer items-center gap-2 text-sm text-ink">
-                  <input
-                    type="checkbox"
-                    checked={needsPickupOnly}
-                    onChange={(e) => writePickupFiltersToUrl({ needsOnly: e.target.checked })}
-                    className="rounded border-black/20 text-finland focus:ring-finland"
-                  />
-                  Needs pickup copy only
-                </label>
-                {filtersOn ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      writePickupFiltersToUrl({ day: '', from: '', to: '', listingId: '', needsOnly: false });
-                      setSortDate('asc');
-                      setFilterQuery('');
-                    }}
-                    className="tv-btn-ghost"
-                  >
-                    Clear
-                  </button>
-                ) : null}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {error && (
-        <ErrorState
-          className="py-6"
-          title="Pickups unavailable"
-          body={userFacingError(error, USER_ERROR.pickup)}
-          retry={{ onClick: () => void load() }}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <button type="button" className={`rounded-full px-3 py-1 text-[12px] font-semibold ${!showAllDates && !dateFrom && !dateTo && !dayPreset ? 'bg-[#f0f4fa] text-[#073b83]' : 'text-[#52525b]'}`} onClick={() => { writePickupFiltersToUrl({ from: '', to: '', day: '' }); setShowAllDatesAndUrl(false); }}>
+          Upcoming
+        </button>
+        <button type="button" className={`rounded-full px-3 py-1 text-[12px] font-semibold ${showAllDates ? 'bg-[#f0f4fa] text-[#073b83]' : 'text-[#52525b]'}`} onClick={() => setShowAllDatesAndUrl(!showAllDates)}>
+          All dates
+        </button>
+        <input type="date" className="tv-input h-9 w-36" value={dateFrom} aria-label="From" onChange={(e) => writePickupFiltersToUrl({ from: e.target.value, day: '' })} />
+        <input type="date" className="tv-input h-9 w-36" value={dateTo} aria-label="To" onChange={(e) => writePickupFiltersToUrl({ to: e.target.value, day: '' })} />
+        <select
+          className="tv-input h-9 max-w-xs"
+          aria-label="Experience"
+          value={listingFilterId}
+          onChange={(e) => writePickupFiltersToUrl({ listingId: e.target.value })}
+        >
+          <option value="">All experiences</option>
+          {listingSelectOptions.map((option) => (
+            <option key={option.id} value={option.id}>{option.title}</option>
+          ))}
+        </select>
+        <input
+          type="search"
+          className="tv-input h-9 min-w-0 flex-1"
+          placeholder="Guest, reference, experience, or pickup"
+          value={filterQuery}
+          aria-label="Search pickups"
+          onChange={(e) => setFilterQuery(e.target.value)}
         />
-      )}
+        <button
+          type="button"
+          className={`rounded-full px-3 py-1 text-[12px] font-semibold ${needsPickupOnly ? 'bg-[#f0f4fa] text-[#073b83]' : 'text-[#52525b]'}`}
+          onClick={() => writePickupFiltersToUrl({ needsOnly: !needsPickupOnly })}
+        >
+          Needs attention
+        </button>
+      </div>
+      {/* Phase 1483: listing options use partnerListingFilterLabelFromBookings. */}
 
-      {deepLinkMissing ? (
-        <NoticeCallout title="Booking not on Pickup" tone="warn">
-          <p>
-            That booking is not in this Pickup list (stay night, cancelled, unpaid, or not yours). Open it from
-            Bookings instead.
-          </p>
-          <button
-            type="button"
-            className="tv-btn-ghost mt-3 -ml-2"
-            onClick={() => {
-              const id = selectedBookingId;
-              setSelectedBookingAndUrl(null);
-              if (id) openSupplierBooking(id);
-            }}
-          >
-            Open in Bookings
-          </button>
-        </NoticeCallout>
-      ) : null}
+      {error ? <ErrorState title="Pickups unavailable" body={error} retry={{ onClick: () => void load() }} /> : null}
+      {loading && bookings.length === 0 ? <SupplierListSkeleton rows={4} /> : null}
 
-      {actionFeedbackBanner}
-
-      {loading && bookings.length === 0 ? (
-        <SupplierListSkeleton rows={3} />
-      ) : error ? null : activeBookingsCount === 0 ? (
+      {!loading && activeBookingsCount === 0 ? (
         <SupplierEmptyState
           icon={CalendarDays}
           title="No bookings yet"
-          body="Pickup times show up after a traveler books a tour. Stay nights are on Reservations."
-          // Phase 1651: empty Pickup needs an ops path.
+          body="When a traveler pays for a tour, their pickup appears here."
           action={
             <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                className="tv-btn-primary"
-                onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings`)}
-              >
+              {/* Phase 1651 */}
+              <button type="button" className="tv-btn-primary" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings`)}>
                 Open bookings
               </button>
-              <button
-                type="button"
-                className="tv-btn-ghost"
-                onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings`)}
-              >
+              <button type="button" className="tv-btn-ghost" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings`)}>
                 Your listings
               </button>
             </div>
           }
         />
-      ) : listBookings.length === 0 ? (
-        <SupplierEmptyState
-          icon={CalendarDays}
-          title="Nothing in this view"
-          body="You have tour bookings, but none match these dates, listing, or pickup filter. Stay nights, cancelled, and refunded trips stay hidden. Clear filters to see the rest."
-          action={
-            <button
-              type="button"
-              onClick={() => {
-                writePickupFiltersToUrl({ day: '', from: '', to: '', listingId: '', needsOnly: false });
-                setSortDate('asc');
-              }}
-              className="tv-btn-primary"
-            >
-              Clear filters
-            </button>
-          }
-        />
-      ) : (
-        <div className="space-y-8" aria-busy={loading || undefined}>
-          {bookingsGroupedByDate.orderedKeys.map((ymd) => {
-            const sectionOpen = dateSectionOpen[ymd] !== false;
-            const dayRows = bookingsGroupedByDate.byDay.get(ymd) ?? [];
-            const dayGuestTotal = dayRows.reduce((sum, b) => sum + Number(b.guests ?? 0), 0);
-            const dayNeedsPickup = dayRows.filter((b) => needsPickupInfo(b)).length;
-            return (
-              <section key={ymd}>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setDateSectionOpen((prev) => {
-                      const open = prev[ymd] !== false;
-                      return { ...prev, [ymd]: !open };
-                    })
-                  }
-                  className="lux-flat flex w-full items-baseline justify-between gap-3 py-2 text-left"
-                >
-                  <div className="min-w-0">
-                    <p className="partner-section-title font-display tracking-tight">
-                      {formatPickupSectionDate(ymd)}
-                    </p>
-                    <p className="mt-0.5 text-sm text-ink-muted">
-                      {`${dayRows.length} booking${dayRows.length === 1 ? '' : 's'} · ${dayGuestTotal} guest${dayGuestTotal === 1 ? '' : 's'}`}
-                      {dayNeedsPickup > 0 ? ` · ${dayNeedsPickup} need pickup copy` : ''}
-                    </p>
-                  </div>
-                  <ChevronDown
-                    className={`h-5 w-5 shrink-0 text-ink-faint transition-transform duration-300 ease-out ${
-                      sectionOpen ? 'rotate-0' : '-rotate-90'
-                    }`}
-                    aria-hidden
-                  />
-                </button>
-                <div
-                  className={`grid transition-[grid-template-rows] duration-300 ease-out ${
-                    sectionOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
-                  }`}
-                >
-                  <div className="overflow-hidden">
-                    <div className="space-y-2 pt-1">
-                      {dayRows.map((b) => {
-                        const missing = needsPickupInfo(b);
-                        const urgentSoon = pickupMissingIsUrgentSoon(b, missing);
-                        return (
-                          <PlannerBookingCard
-                            key={b.id}
-                            booking={b}
-                            listingTitle={displayListingTitleFromPurchase(
-                              b.purchase_snapshot,
-                              listingTitles[b.listing_id],
-                              'Listing'
-                            )}
-                            guideMeta={listingGuideMeta[b.listing_id]}
-                            missingPickup={missing}
-                            urgentSoon={urgentSoon}
-                            selected={selectedBookingId === b.id}
-                            onOpen={() => setSelectedBookingAndUrl(b.id)}
-                          />
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </section>
-            );
-          })}
-          {bookingsGroupedByDate.noDate.length > 0 && (
-            <section>
-              <button
-                type="button"
-                onClick={() =>
-                  setDateSectionOpen((prev) => {
-                    const k = '__nodate';
-                    const open = prev[k] !== false;
-                    return { ...prev, [k]: !open };
-                  })
-                }
-                className="lux-flat flex w-full items-baseline justify-between gap-3 py-2 text-left"
-              >
-                <div>
-                  <p className="partner-section-title font-display tracking-tight">No activity date</p>
-                  <p className="mt-0.5 text-sm text-ink-muted">
-                    {`${bookingsGroupedByDate.noDate.length} booking${bookingsGroupedByDate.noDate.length === 1 ? '' : 's'}`}
-                  </p>
-                </div>
-                <ChevronDown
-                  className={`h-5 w-5 shrink-0 text-ink-faint transition-transform duration-300 ease-out ${
-                    dateSectionOpen.__nodate !== false ? 'rotate-0' : '-rotate-90'
-                  }`}
-                  aria-hidden
-                />
-              </button>
-              <div
-                className={`grid transition-[grid-template-rows] duration-300 ease-out ${
-                  dateSectionOpen.__nodate !== false ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
-                }`}
-              >
-                <div className="overflow-hidden">
-                  <div className="space-y-2 pt-1">
-                    {bookingsGroupedByDate.noDate.map((b) => (
-                      <PlannerBookingCard
-                        key={b.id}
-                        booking={b}
-                        listingTitle={displayListingTitleFromPurchase(
-                          b.purchase_snapshot,
-                          listingTitles[b.listing_id],
-                          'Listing'
-                        )}
-                        guideMeta={listingGuideMeta[b.listing_id]}
-                        missingPickup={needsPickupInfo(b)}
-                        selected={selectedBookingId === b.id}
-                        onOpen={() => setSelectedBookingAndUrl(b.id)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </section>
-          )}
+      ) : null}
+
+      {/* Phase 1756: listing logistics stay in the editor. */}
+      {editorListingId ? (
+        <div className="mt-2 flex gap-2">
+          <button type="button" className="tv-btn-ghost" disabled={!canEditBookings} onClick={() => openSupplierListingEditor(editorListingId, 'meeting')}>
+            Edit meeting
+          </button>
+          <button type="button" className="tv-btn-ghost" disabled={!canEditBookings} onClick={() => openSupplierListingEditor(editorListingId, 'pickup')}>
+            Edit pickup
+          </button>
         </div>
+      ) : null}
+
+      {filtersOn && listBookings.length === 0 && activeBookingsCount > 0 ? (
+        <p className="mt-4 text-sm text-[#52525b]">No departures match these filters.</p>
+      ) : (
+        <PickupPlannerWorkspace
+          bookings={listBookings}
+          titles={listingTitles}
+          thumbs={thumbs}
+          optionsByListing={plannerOptions}
+          departureId={departureId}
+          manageId={selectedBookingId}
+          canEdit={canEditBookings}
+          onOpenDeparture={setDepartureAndUrl}
+          onBack={() => setDepartureAndUrl(null)}
+          onManage={setSelectedBookingAndUrl}
+          onMessage={(id) => openSupplierInbox(id)}
+          onSave={saveOnePickup}
+          onSaveMany={saveStopTime}
+        />
       )}
     </div>
   );

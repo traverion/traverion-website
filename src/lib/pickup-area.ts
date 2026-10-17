@@ -97,6 +97,12 @@ export function travelerPickupAddressFromRecord(input: {
   snapshot?: unknown;
   specialRequests?: string | null;
 }): string {
+  const confirmed = (input.specialRequests ?? '')
+    .split(/\n+/)
+    .map((part) => part.trim())
+    .find((part) => /^supplier_pickup_address\s*:/i.test(part));
+  const supplierAddress = confirmed ? confirmed.replace(/^supplier_pickup_address\s*:/i, '').trim() : '';
+  if (supplierAddress.length >= 3) return supplierAddress;
   const snap = input.snapshot && typeof input.snapshot === 'object' ? (input.snapshot as Record<string, unknown>) : null;
   const fromSnap = typeof snap?.travelerPickupAddress === 'string' ? snap.travelerPickupAddress.trim() : '';
   if (fromSnap.length >= 3) return fromSnap;

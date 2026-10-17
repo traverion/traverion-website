@@ -16,6 +16,9 @@ type GoogleCircle = {
 type GoogleMarker = {
   setPosition: (position: GoogleLatLng) => void;
   setMap: (map: GoogleMap | null) => void;
+  setDraggable: (draggable: boolean) => void;
+  addListener: (event: string, handler: () => void) => void;
+  getPosition: () => { lat: () => number; lng: () => number } | null;
 };
 type GoogleMapsNamespace = {
   Map: new (el: HTMLElement, opts: Record<string, unknown>) => GoogleMap;
@@ -55,13 +58,25 @@ type Props = {
   radiusKm: number | null;
   marker?: { lat: number; lng: number } | null;
   fallback?: string;
+  draggable?: boolean;
+  onMarkerDrag?: (point: { lat: number; lng: number }) => void;
 };
 
-export default function PickupCoverageMap({ lat, lng, radiusKm, marker = null, fallback }: Props) {
+export default function PickupCoverageMap({
+  lat,
+  lng,
+  radiusKm,
+  marker = null,
+  fallback,
+  draggable = false,
+  onMarkerDrag,
+}: Props) {
   const nodeRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<GoogleMap | null>(null);
   const circleRef = useRef<GoogleCircle | null>(null);
   const markerRef = useRef<GoogleMarker | null>(null);
+  const onDragRef = useRef(onMarkerDrag);
+  onDragRef.current = onMarkerDrag;
   const [failed, setFailed] = useState(false);
   const key = googleMapsBrowserKey();
   const markerLat = marker?.lat;
@@ -119,10 +134,17 @@ export default function PickupCoverageMap({ lat, lng, radiusKm, marker = null, f
               map: mapRef.current,
               position,
               title: 'Selected pickup',
+              draggable,
+            });
+            markerRef.current.addListener('dragend', () => {
+              const pos = markerRef.current?.getPosition();
+              if (!pos) return;
+              onDragRef.current?.({ lat: pos.lat(), lng: pos.lng() });
             });
           } else {
             markerRef.current.setMap(mapRef.current);
             markerRef.current.setPosition(position);
+            markerRef.current.setDraggable(draggable);
           }
         } else if (markerRef.current) {
           markerRef.current.setMap(null);
@@ -134,7 +156,7 @@ export default function PickupCoverageMap({ lat, lng, radiusKm, marker = null, f
     return () => {
       cancelled = true;
     };
-  }, [key, lat, lng, markerLat, markerLng, radiusKm]);
+  }, [key, lat, lng, markerLat, markerLng, radiusKm, draggable]);
 
   if (!key) return null;
   if (failed) {

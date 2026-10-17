@@ -8,7 +8,15 @@ import { notifySupplierEvent } from './supabase-supplier-messaging';
 import { postBookingMessage } from './supabase-booking-ops';
 import { resolveSupplierId } from './supabase-supplier-team';
 import { hmToPgTime, pgTimeToHm, fetchListingSupplierMetaForParty } from './supabase-listings';
-import { upsertBookingPickupNoteOverrides, parseBookingMeetingPointOverride, parseBookingPickupInstructionsOverride } from '../lib/booking-notes';
+import {
+  upsertBookingPickupNoteOverrides,
+  parseBookingMeetingPointOverride,
+  parseBookingPickupInstructionsOverride,
+  upsertPickupDraft,
+  upsertSupplierPickupPoint,
+  type PickupDraftRecord,
+  type SupplierPickupPoint,
+} from '../lib/booking-notes';
 import { travelerSelfCancelBlock, travelerSelfCancelError, travelerSelfCancelIsUnpaidCheckout, partnerBookingStatusRewriteBlock, partnerManualConfirmBlock, partnerManualConfirmError } from '../lib/cancellation-policy';
 import {
   TRAVELER_SELF_CANCEL_EMAIL_DIFF_FULL_REFUND,
@@ -884,6 +892,152 @@ export async function updateBookingPickupCopy(
   }
 
   return { ok: true, special_requests: nextNotes };
+}
+
+export type SaveSupplierPickupInput = {
+  /** Persist a supplier draft. Customer Trips keep the last confirmed details. */
+  notify: boolean;
+  pickupTimeHm: string | null;
+  address: string;
+  placeId: string | null;
+  lat: number | null;
+  lng: number | null;
+  instructions: string;
+  /** Meeting-point bookings do not store a hotel pickup. */
+  meetingPointOnly: boolean;
+};
+
+/**
+ * Save one booking's pickup plan.
+ * Draft writes internal note keys only. Notify writes the customer-visible time,
+ * place, and instructions, then sends one email.
+ */
+export async function saveSupplierPickupDetails(
+  bookingId: string,
+  input: SaveSupplierPickupInput
+): Promise<{
+  ok: boolean;
+  error?: string;
+  special_requests?: string;
+  pickup_time?: string | null;
+  notified?: boolean;
+  notifyError?: string | null;
+}> {
+  if (!supabase) return { ok: false, error: 'Supabase not configured' };
+  const { data: prior, error: priorErr } = await supabase
+    .from('bookings')
+    .select(
+      'special_requests, status, payment_status, guest_email, guest_name, listing_id, booking_date, guests, booking_number, purchase_snapshot, pickup_time, start_time'
+    )
+    .eq('id', bookingId)
+    .maybeSingle();
+  if (priorErr || !prior) return { ok: false, error: priorErr?.message || 'This booking is not available.' };
+  const closed = travelerSelfCancelBlock(prior);
+  if (closed !== 'none') return { ok: false, error: travelerSelfCancelError(closed) };
+
+  const timeHm = (input.pickupTimeHm ?? '').trim();
+  const address = input.meetingPointOnly ? '' : input.address.trim().replace(/\s+/g, ' ');
+  const instructions = input.instructions.trim().replace(/\s+/g, ' ');
+  const point: SupplierPickupPoint | null =
+    !input.meetingPointOnly && address.length >= 3
+      ? { address, placeId: input.placeId, lat: input.lat, lng: input.lng }
+      : null;
+
+  if (!input.notify) {
+    const draft: PickupDraftRecord = {
+      timeHm: timeHm || null,
+      address: address || null,
+      placeId: input.placeId,
+      lat: input.lat,
+      lng: input.lng,
+      instructions: instructions || null,
+    };
+    const nextNotes = upsertPickupDraft(prior.special_requests, draft);
+    const { data: updated, error } = await supabase
+      .from('bookings')
+      .update({ special_requests: nextNotes || null })
+      .eq('id', bookingId)
+      .select('id')
+      .maybeSingle();
+    if (error) return { ok: false, error: error.message || 'Could not save the pickup draft.' };
+    if (!updated?.id) return { ok: false, error: 'You do not have permission to update this booking.' };
+    return { ok: true, special_requests: nextNotes, pickup_time: prior.pickup_time, notified: false, notifyError: null };
+  }
+
+  const prevMeeting = parseBookingMeetingPointOverride(prior.special_requests) ?? '';
+  const prevInstructions = parseBookingPickupInstructionsOverride(prior.special_requests) ?? '';
+  let notes = upsertBookingPickupNoteOverrides(
+    prior.special_requests,
+    input.meetingPointOnly ? prevMeeting : address,
+    instructions
+  );
+  notes = upsertSupplierPickupPoint(notes, point);
+  notes = upsertPickupDraft(notes, null);
+  const nextPickupPg = hmToPgTime(timeHm || null);
+  const { data: updated, error } = await supabase
+    .from('bookings')
+    .update({ special_requests: notes || null, pickup_time: nextPickupPg })
+    .eq('id', bookingId)
+    .select('id')
+    .maybeSingle();
+  if (error) return { ok: false, error: error.message || 'Could not save pickup details.' };
+  if (!updated?.id) return { ok: false, error: 'You do not have permission to update this booking.' };
+
+  const fieldDiffs: { label: string; before: string; after: string }[] = [];
+  const priorTime = timeForEmail(prior.pickup_time);
+  const nextTime = timeHm || '—';
+  if (priorTime !== nextTime) {
+    fieldDiffs.push({ label: 'Pickup time', before: priorTime, after: nextTime });
+  }
+  if (!input.meetingPointOnly && prevMeeting !== address) {
+    fieldDiffs.push({ label: 'Pickup location', before: prevMeeting || '—', after: address || '—' });
+  }
+  if (prevInstructions !== instructions) {
+    fieldDiffs.push({ label: 'Instructions', before: prevInstructions || '—', after: instructions || '—' });
+  }
+  if (fieldDiffs.length === 0) {
+    return { ok: true, special_requests: notes, pickup_time: nextPickupPg, notified: false, notifyError: null };
+  }
+
+  const guestEmail = (prior.guest_email ?? '').trim().toLowerCase();
+  let listingTitle = displayListingTitleFromPurchase(prior.purchase_snapshot, null, 'Your experience');
+  if (prior.listing_id) {
+    const meta = await fetchListingSupplierMetaForParty(prior.listing_id);
+    listingTitle = displayListingTitleFromPurchase(prior.purchase_snapshot, meta.title, 'Your experience');
+  }
+  const ord =
+    typeof prior.booking_number === 'number' && Number.isFinite(prior.booking_number)
+      ? Math.floor(prior.booking_number)
+      : undefined;
+  const priorEmpty = !String(prior.pickup_time ?? '').trim() && !prevInstructions.trim() && !prevMeeting.trim();
+  const emailKind = priorEmpty ? 'pickup_confirmed' : 'pickup_changed';
+  const idempotencyKey = `customer:${emailKind}:${bookingId}:pickup:${fieldDiffs.map((d) => d.after).join('|').slice(0, 80)}`;
+  const invoked = await supabase.functions.invoke('notify-customer-booking', {
+    body: {
+      customerEmail: guestEmail || 'resolve@guest.local',
+      customerName: prior.guest_name ?? undefined,
+      listingTitle,
+      bookingId,
+      bookingNumber: ord,
+      bookingDate: prior.booking_date ?? undefined,
+      guests: prior.guests ?? undefined,
+      emailKind,
+      fieldDiffs,
+      publicSiteUrl: publicSiteBaseUrl(),
+      idempotencyKey,
+    },
+  });
+  const notify = softNotifyFromEdgePayload(
+    invoked.data as { success?: boolean; skipped?: boolean; error?: string } | null,
+    invoked.error
+  );
+  return {
+    ok: true,
+    special_requests: notes,
+    pickup_time: nextPickupPg,
+    notified: notify.sent || Boolean(notify.skipped),
+    notifyError: notify.sent || notify.skipped ? null : notify.error || 'Email notification was not sent.',
+  };
 }
 
 /** Acknowledge a booking (supplier confirms receipt). */
