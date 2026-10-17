@@ -5,6 +5,8 @@ import {
   escapeHtml,
   fieldDiffPlainText,
   fieldDiffTableHtml,
+  transactionalEmailDocument,
+  travelerTimeLabel,
   type FieldDiff,
 } from '../_shared/transactional-html.ts';
 import {
@@ -124,38 +126,44 @@ function siteBase(_payload: Payload): string {
   return 'https://partner.traverion.com';
 }
 
-function logoUrl(base: string): string {
-  return `${base}/traverionlogotransparent.png?v=4`;
-}
-
 function eventSubject(payload: Payload): string {
   if (payload.eventType === 'supplier_welcome') return 'Welcome to Traverion for suppliers';
   if (payload.eventType === 'verification_submitted') {
     return 'We received your Traverion business verification';
   }
   const listing = payload.listingTitle ?? 'your listing';
-  const refTag =
-    typeof payload.bookingNumber === 'number' && payload.bookingNumber > 0
-      ? `#${payload.bookingNumber} — `
-      : '';
+  const ref = (payload.publicReference ?? '').trim();
+  const dated = payload.bookingDate ? ` · ${payload.bookingDate}` : '';
   if (payload.eventType === 'new_booking') {
-    if (payload.bookingPaymentStatus === 'paid') return `${refTag}New paid booking: ${listing}`;
-    return `${refTag}New booking: ${listing}`;
+    if (payload.bookingPaymentStatus === 'paid') return `New booking · ${listing}${dated}`;
+    return `New booking · ${listing}${dated}`;
   }
-  if (payload.eventType === 'booking_cancelled') return `${refTag}Booking cancelled: ${listing}`;
+  if (payload.eventType === 'booking_cancelled') {
+    return ref ? `Booking cancelled · ${ref}` : `Booking cancelled · ${listing}`;
+  }
   if (payload.eventType === 'cancellation_accepted') {
-    return `${refTag}Traveler accepted cancellation: ${listing}`;
+    return ref ? `Booking cancelled · ${ref}` : `Traveler accepted cancellation · ${listing}`;
   }
-  if (payload.eventType === 'cancellation_declined') return `${refTag}Traveler declined cancellation: ${listing}`;
+  if (payload.eventType === 'cancellation_declined') {
+    return ref ? `Cancellation declined · ${ref}` : `Traveler declined cancellation · ${listing}`;
+  }
   if (payload.eventType === 'guest_message') {
-    if (payload.fieldDiffs?.length) return `${refTag}Guest updated booking details: ${listing}`;
-    return `${refTag}Message from a guest: ${listing}`;
+    if (payload.fieldDiffs?.length) return ref ? `Booking updated · ${ref}` : `Guest updated booking details · ${listing}`;
+    return ref ? `New message · ${ref}` : `Message from a guest · ${listing}`;
   }
-  if (payload.eventType === 'booking_detail_changed') return `${refTag}Booking updated: ${listing}`;
-  if (payload.eventType === 'host_schedule_updated') return `${refTag}Schedule saved (your update): ${listing}`;
-  if (payload.eventType === 'refund_completed') return `${refTag}Refund recorded: ${listing}`;
-  if (payload.eventType === 'partial_refund_recorded') return `${refTag}Partial refund recorded: ${listing}`;
-  return `New review received: ${listing}`;
+  if (payload.eventType === 'booking_detail_changed') {
+    return ref ? `Booking updated · ${ref}` : `Booking updated · ${listing}`;
+  }
+  if (payload.eventType === 'host_schedule_updated') {
+    return ref ? `Schedule updated · ${ref}` : `Schedule updated · ${listing}`;
+  }
+  if (payload.eventType === 'refund_completed') {
+    return ref ? `Refund complete · ${ref}` : `Refund recorded · ${listing}`;
+  }
+  if (payload.eventType === 'partial_refund_recorded') {
+    return ref ? `Partial refund · ${ref}` : `Partial refund recorded · ${listing}`;
+  }
+  return `New review · ${listing}`;
 }
 
 function eventBody(payload: Payload): string {
@@ -179,7 +187,7 @@ function eventBody(payload: Payload): string {
     return [
       'Traverion received your business verification submission.',
       '',
-      'Our team will review your details and registration document. Status updates appear in partner Settings — Traverion does not treat email as the decision.',
+      'Our team will review your details and registration document. Status updates appear in partner Settings.',
       '',
       `Open Settings: ${base}/partner/settings`,
       '',
@@ -192,7 +200,7 @@ function eventBody(payload: Payload): string {
     lines.push('Schedule update confirmation (saved by you)');
     lines.push(`Listing: ${listing}`);
     // Keep in sync with SUPPLIER_HOST_SCHEDULE_UPDATED_NOTIFY_SUB
-    lines.push('The guest sees the update on Trips; Traverion does not treat email delivery as proof they saw it.');
+    lines.push('The guest can see the update on their booking.');
   } else if (payload.eventType === 'booking_cancelled') {
     lines.push(payload.unpaidCheckout === true ? 'Unpaid checkout cancelled (traveler)' : 'Booking cancelled (traveler)');
     lines.push(`Listing: ${listing}`);
@@ -225,7 +233,7 @@ function eventBody(payload: Payload): string {
       lines.push(`Refunded: ${cur} ${payload.refundAmount.toFixed(2)}`);
     }
     lines.push(
-      'Payment status is Refunded. Collected earnings for this booking were reversed. Check Bookings and Money — Traverion does not treat email delivery as proof you saw this.'
+      'Stripe recorded a full refund for this booking. Payment status is Refunded. Collected earnings for this booking were reversed. Check Bookings and Income — Traverion does not treat email delivery as proof you saw this.'
     );
   } else if (payload.eventType === 'partial_refund_recorded') {
     // Phase 1735/1738/1740
@@ -248,11 +256,11 @@ function eventBody(payload: Payload): string {
     }
     if (payload.cancelledRefundDue) {
       lines.push(
-        'The booking is already cancelled (Refund due). This partial refund reduces the remaining charge — it does not keep inventory held as Paid. Check Bookings and Money — Traverion does not treat email delivery as proof you saw this.'
+        'The booking is already cancelled (Refund due). This partial refund reduces the remaining charge.'
       );
     } else {
       lines.push(
-        'The booking stays Paid. Collected amount was reduced to the remaining charge. Inventory is still held. Check Bookings and Money — Traverion does not treat email delivery as proof you saw this.'
+        'The booking stays paid. The collected amount was reduced to the remaining charge.'
       );
     }
   } else {
@@ -264,13 +272,7 @@ function eventBody(payload: Payload): string {
   } else if (payload.eventType === 'new_booking') {
     lines.push('Payment: pending / not via online checkout');
   }
-  if (
-    typeof payload.bookingNumber === 'number' &&
-    payload.bookingNumber > 0
-  ) {
-    lines.push(`Booking #: ${payload.bookingNumber}`);
-  }
-  if (payload.bookingId) lines.push(`Booking id: ${payload.bookingId}`);
+  if (payload.publicReference) lines.push(`Booking reference: ${payload.publicReference}`);
   if (payload.listingKind === 'stay' && payload.bookingDate) {
     lines.push(`Check-in: ${payload.bookingDate}`);
     if (payload.checkOutDate) lines.push(`Check-out: ${payload.checkOutDate}`);
@@ -278,7 +280,6 @@ function eventBody(payload: Payload): string {
     lines.push(`Date: ${payload.bookingDate}`);
   }
   if (typeof payload.guests === 'number' && payload.guests > 0) lines.push(`Guests: ${payload.guests}`);
-  if (payload.publicReference) lines.push(`Reference: ${payload.publicReference}`);
   if (payload.optionLabel) lines.push(`Option: ${payload.optionLabel}`);
   if (payload.startTimeLabel) lines.push(`Start time: ${payload.startTimeLabel}`);
   if (payload.guestName) lines.push(`Guest: ${payload.guestName}`);
@@ -304,7 +305,6 @@ function eventBody(payload: Payload): string {
 
 function eventHtml(payload: Payload): string {
   const base = siteBase(payload);
-  const logo = logoUrl(base);
   const portal = `${base}/partner`;
   const bookingsUrl = payload.bookingId
     ? `${base}/partner/bookings?booking=${encodeURIComponent(payload.bookingId)}`
@@ -312,35 +312,26 @@ function eventHtml(payload: Payload): string {
 
   if (payload.eventType === 'supplier_welcome') {
     const bodyText = escapeHtml(eventBody(payload)).replace(/\n/g, '<br/>');
-    return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f4f6f8;font-family:Georgia,serif;">
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f6f8;padding:24px 12px;">
-<tr><td align="center">
-<table role="presentation" width="560" cellspacing="0" cellpadding="0" style="background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
-<tr><td style="padding:28px 28px 16px;text-align:center;background:#ffffff;">
-<img src="${logo}" width="200" height="auto" alt="Traverion" style="display:block;margin:0 auto;max-width:85%;height:auto;border:0;"/>
-</td></tr>
-<tr><td style="padding:0 32px 32px;font-size:15px;line-height:1.6;color:#1f2937;">
-${bodyText}
-<p style="margin:20px 0 0;"><a href="${portal}" style="display:inline-block;padding:12px 20px;background:#003580;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-family:system-ui,sans-serif;">Open supplier portal</a></p>
-</td></tr>
-</table>
-<p style="font-size:12px;color:#9ca3af;margin-top:16px;font-family:system-ui,sans-serif;"><a href="${base}" style="color:#003580;">traverion.com</a></p>
-</td></tr></table></body></html>`;
+    return transactionalEmailDocument({
+      headline: 'Welcome to Traverion',
+      introHtml: `<p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#3d4450;">${bodyText}</p>`,
+      bodyHtml: '',
+      ctaUrl: portal,
+      ctaLabel: 'Open supplier portal',
+      siteUrl: 'https://www.traverion.com',
+    });
   }
 
   if (payload.eventType === 'verification_submitted') {
     const settingsUrl = `${base}/partner/settings`;
-    return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f4f6f8;font-family:system-ui,-apple-system,sans-serif;">
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f6f8;padding:24px 12px;">
-<tr><td align="center">
-<table role="presentation" width="560" cellspacing="0" cellpadding="0" style="background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
-<tr><td style="padding:28px 28px 12px;text-align:center;"><img src="${logo}" width="200" height="auto" alt="Traverion" style="display:block;margin:0 auto;max-width:85%;height:auto;border:0;"/></td></tr>
-<tr><td style="padding:8px 32px 8px;font-size:20px;font-weight:700;color:#003580;font-family:Georgia,serif;">Verification received</td></tr>
-<tr><td style="padding:0 32px 16px;font-size:14px;line-height:1.5;color:#4b5563;">Traverion successfully received your business verification submission. Our team will review it. Status updates appear in Settings.</td></tr>
-<tr><td style="padding:0 32px 32px;"><a href="${settingsUrl}" style="display:inline-block;padding:12px 20px;background:#003580;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Open Settings</a></td></tr>
-</table>
-<p style="font-size:12px;color:#9ca3af;margin-top:16px;"><a href="${base}" style="color:#003580;">traverion.com</a></p>
-</td></tr></table></body></html>`;
+    return transactionalEmailDocument({
+      headline: 'Verification received',
+      introHtml: '<p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#3d4450;">We received your business verification. Status updates appear in Settings.</p>',
+      bodyHtml: '',
+      ctaUrl: settingsUrl,
+      ctaLabel: 'Open Settings',
+      siteUrl: 'https://www.traverion.com',
+    });
   }
 
   const listing = escapeHtml(payload.listingTitle ?? 'Your listing');
@@ -348,15 +339,15 @@ ${bodyText}
   let sub = '';
   if (payload.eventType === 'new_booking') {
     if (payload.bookingPaymentStatus === 'paid') {
-      headline = 'New paid booking';
+      headline = 'New booking confirmed';
       // Keep in sync with SUPPLIER_NEW_BOOKING_PAID_NOTIFY_SUB
       sub =
-        'A traveler completed payment online. The booking is confirmed — review details in Bookings. Traverion does not treat email delivery as proof you saw this booking.';
+        'Payment is confirmed. The booking details are below.';
     } else {
       headline = 'New booking';
       // Keep in sync with SUPPLIER_NEW_BOOKING_PENDING_NOTIFY_SUB
       sub =
-        'A traveler has a booking on your listing. Open Bookings to review details. If payment is still pending, the traveler completes checkout on Traverion — Traverion does not treat email delivery as proof you saw this booking.';
+        'A traveler started this booking. Payment is not confirmed yet.';
     }
   } else if (payload.eventType === 'booking_cancelled') {
     headline = payload.unpaidCheckout === true ? 'Unpaid checkout cancelled' : 'Booking cancelled';
@@ -366,7 +357,7 @@ ${bodyText}
       payload.unpaidCheckout === true
         ? 'The traveler cancelled an unpaid checkout. No payment was collected. The hold is released; nothing is Refund due. Check Bookings if you need the record.'
         : payload.refundChoice === 'full_refund'
-          ? 'The traveler cancelled this booking. A full refund is due until Stripe records it — Traverion does not send refunds automatically. Inventory is released; check Bookings and Money.'
+          ? 'The traveler cancelled this booking. A full refund is due until Stripe records it — Traverion does not send refunds automatically. Inventory is released; check Bookings and Income.'
           : payload.refundChoice === 'no_refund'
             ? 'The traveler cancelled this booking. No refund applies for this traveler-initiated cancellation. Inventory is released; check Bookings.'
             : 'The traveler cancelled this booking. When a refund applies, traveler status is Refund due until Stripe records a refund — Traverion does not send refunds automatically. Inventory is released; check Bookings and Money.';
@@ -378,58 +369,48 @@ ${bodyText}
     headline = 'Traveler declined cancellation';
     // Keep in sync with SUPPLIER_CANCELLATION_DECLINED_NOTIFY_SUB
     sub =
-      'The traveler declined your cancellation request. The booking stays active. Open Bookings — Traverion does not treat email delivery as proof you saw this update.';
+      'The traveler declined your cancellation request. The booking stays active.';
   } else if (payload.eventType === 'refund_completed') {
     headline = 'Refund recorded';
     // Keep in sync with SUPPLIER_REFUND_COMPLETED_NOTIFY_SUB
     sub =
-      'Stripe recorded a full refund for this booking. Payment status is Refunded. Collected earnings for this booking were reversed. Check Bookings and Money — Traverion does not treat email delivery as proof you saw this.';
+      'Stripe recorded a full refund for this booking. Payment status is Refunded. Collected earnings for this booking were reversed. Check Bookings and Income — Traverion does not treat email delivery as proof you saw this.';
   } else if (payload.eventType === 'partial_refund_recorded') {
     headline = 'Partial refund recorded';
     sub = payload.cancelledRefundDue
-      ? 'Stripe recorded a partial refund on a cancelled booking that was Refund due. Remaining charge was reduced. This does not keep the trip Paid or inventory held. Check Bookings and Money — Traverion does not treat email delivery as proof you saw this.'
-      : 'Stripe recorded a partial refund for this booking. The booking stays Paid. Collected amount was reduced to the remaining charge. Inventory is still held. Check Bookings and Money — Traverion does not treat email delivery as proof you saw this.';
+      ? 'The booking is already cancelled (Refund due). Stripe recorded a partial refund and reduced the remaining charge. The booking stays cancelled.'
+      : 'Stripe recorded a partial refund. The booking stays paid for the remaining amount.';
   } else if (payload.eventType === 'new_review') {
     headline = 'New review';
     // Keep in sync with SUPPLIER_NEW_REVIEW_NOTIFY_SUB in booking-confirmation-copy.ts
     sub =
-      'Someone left a review on your tour. Open Reviews in the partner portal — Traverion does not treat email delivery as proof you saw it.';
+      'A traveler left a review. Open Reviews to read it.';
   } else if (payload.eventType === 'guest_message') {
     if (payload.fieldDiffs?.length) {
       headline = 'Guest updated their booking details';
       // Keep in sync with SUPPLIER_GUEST_DETAILS_UPDATED_NOTIFY_SUB
       sub =
-        'A guest changed notes or meeting / place-of-stay information. Compare previous vs new values below. Bookings is the durable record; Traverion does not treat email delivery as proof you saw the update.';
+        'A guest updated their booking details. Previous and new values are below.';
     } else {
       headline = 'Message from a guest';
       // Keep in sync with SUPPLIER_GUEST_INBOX_MESSAGE_NOTIFY_SUB
       sub =
-        'A guest posted a message on this booking. Open Inbox or Bookings — Traverion does not treat email delivery as proof you saw it.';
+        'A guest sent a message on this booking.';
     }
   } else if (payload.eventType === 'booking_detail_changed') {
     headline = 'Booking details updated';
     // Keep in sync with SUPPLIER_BOOKING_DETAIL_CHANGED_NOTIFY_SUB in booking-confirmation-copy.ts
     sub =
-      'Details changed for a booking — review in Bookings. Traverion does not treat email delivery as proof you saw the update.';
+      'Details changed for this booking.';
   } else if (payload.eventType === 'host_schedule_updated') {
     headline = 'Schedule update saved';
     // Keep in sync with SUPPLIER_HOST_SCHEDULE_UPDATED_NOTIFY_SUB in booking-confirmation-copy.ts
     sub =
-      'You just updated start or pickup times for this booking. Below is a record of what changed. The guest sees the update on Trips; Traverion does not treat email delivery as proof they saw it.';
+      'You updated the start or pickup time. The change is shown below.';
   }
 
   const rows: string[] = [];
-  rows.push(`<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;width:120px;vertical-align:top;">Experience</td><td style="padding:6px 0;font-size:14px;color:#111827;font-weight:600;">${listing}</td></tr>`);
-  if (typeof payload.bookingNumber === 'number' && payload.bookingNumber > 0) {
-    rows.push(
-      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Booking no.</td><td style="padding:6px 0;font-size:14px;color:#111827;font-weight:600;">#${payload.bookingNumber}</td></tr>`,
-    );
-  }
-  if (payload.bookingId) {
-    rows.push(
-      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Booking id</td><td style="padding:6px 0;font-size:14px;color:#111827;font-family:ui-monospace,monospace;">${escapeHtml(payload.bookingId)}</td></tr>`,
-    );
-  }
+  rows.push(`<tr><td style="padding:6px 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#6b7280;width:140px;vertical-align:top;">Experience</td><td style="padding:6px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#0b1f44;font-weight:700;">${listing}</td></tr>`);
   if (payload.bookingDate) {
     if (payload.listingKind === 'stay') {
       rows.push(
@@ -534,29 +515,21 @@ ${bodyText}
       ? `<tr><td colspan="2" style="padding:12px 0 0;">${fieldDiffTableHtml(payload.fieldDiffs)}</td></tr>`
       : '';
 
-  return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f4f6f8;font-family:system-ui,-apple-system,sans-serif;">
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f6f8;padding:24px 12px;">
-<tr><td align="center">
-<table role="presentation" width="560" cellspacing="0" cellpadding="0" style="background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
-<tr><td style="padding:28px 28px 12px;text-align:center;background:#ffffff;">
-<img src="${logo}" width="200" height="auto" alt="Traverion" style="display:block;margin:0 auto;max-width:85%;height:auto;border:0;"/>
-</td></tr>
-<tr><td style="padding:8px 32px 8px;font-size:20px;font-weight:700;color:#003580;font-family:Georgia,serif;">${escapeHtml(headline)}</td></tr>
-<tr><td style="padding:0 32px 16px;font-size:14px;line-height:1.5;color:#4b5563;">${escapeHtml(sub)}</td></tr>
-<tr><td style="padding:0 32px 24px;">
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-top:1px solid #e5e7eb;padding-top:16px;">
-${rows.join('')}
-${diffBlock}
-</table>
-</td></tr>
-<tr><td style="padding:0 32px 32px;">
-<a href="${bookingsUrl}" style="display:inline-block;padding:12px 20px;background:#003580;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">${payload.bookingId ? 'Open booking' : 'View in supplier dashboard'}</a>
-<a href="${portal}" style="display:inline-block;margin-left:8px;padding:12px 16px;color:#003580;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;border:1px solid #003580;">Supplier home</a>
-</td></tr>
-</table>
-<p style="font-size:12px;color:#9ca3af;margin-top:16px;">You are receiving this because you manage listings on Traverion.</p>
-<p style="font-size:12px;color:#9ca3af;"><a href="${base}" style="color:#003580;">traverion.com</a></p>
-</td></tr></table></body></html>`;
+  const ctaLabel =
+    payload.eventType === 'guest_message' && !(payload.fieldDiffs?.length)
+      ? 'View message'
+      : payload.eventType === 'new_review'
+        ? 'View review'
+        : 'View booking';
+  return transactionalEmailDocument({
+    headline,
+    introHtml: `<p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#3d4450;">${escapeHtml(sub)}</p>`,
+    bodyHtml: `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-top:1px solid #e6e8ec;">${rows.join('')}${diffBlock}</table>`,
+    ctaUrl: bookingsUrl,
+    ctaLabel,
+    preheader: headline,
+    siteUrl: 'https://www.traverion.com',
+  });
 }
 
 serve(async (req) => {
@@ -889,7 +862,7 @@ serve(async (req) => {
       const hm = snapText('startTimeHm');
       const tz = snapText('departureTimezone');
       effectivePayload.optionLabel = snapText('optionLabel') || undefined;
-      effectivePayload.startTimeLabel = hm ? (tz ? `${hm} · ${tz}` : hm) : undefined;
+      effectivePayload.startTimeLabel = hm ? travelerTimeLabel(hm, tz) : undefined;
       effectivePayload.publicReference =
         typeof bookingRow.public_reference === 'string' && bookingRow.public_reference.trim()
           ? bookingRow.public_reference.trim()

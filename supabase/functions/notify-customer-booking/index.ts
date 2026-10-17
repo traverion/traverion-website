@@ -5,6 +5,8 @@ import {
   escapeHtml,
   fieldDiffPlainText,
   fieldDiffTableHtml,
+  transactionalEmailDocument,
+  travelerTimeLabel,
   type FieldDiff,
 } from '../_shared/transactional-html.ts';
 import { buildReceiptPdfBytes, uint8ToBase64 } from '../_shared/receipt-pdf.ts';
@@ -107,6 +109,8 @@ type Payload = {
   checkOutDate?: string;
   /** Reminder/review/confirmation copy: tour vs stay. */
   listingKind?: 'tour' | 'stay' | string;
+  /** Customer-facing TV- reference. Not the sequential booking number. */
+  publicReference?: string;
 };
 
 function json(body: unknown, status = 200): Response {
@@ -143,30 +147,17 @@ function wrapCustomerDocument(params: {
 }): string {
   const base = siteBase(params.publicSiteUrl);
   const ctaUrl = params.ctaUrl ?? `${base}/trips`;
-  const ctaLabel = params.ctaLabel ?? 'Manage booking';
-  const logo = `${base}/traverionlogotransparent.png?v=4`;
-  return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f4f6f8;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f6f8;padding:24px 12px;">
-<tr><td align="center">
-<table role="presentation" width="560" cellspacing="0" cellpadding="0" style="background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
-<tr><td style="padding:24px 28px 12px;text-align:center;">
-<img src="${logo}" width="180" height="auto" alt="Traverion" style="display:block;margin:0 auto;max-width:85%;height:auto;border:0;"/>
-</td></tr>
-<tr><td style="padding:8px 32px 4px;font-size:20px;font-weight:700;color:#003580;">${escapeHtml(params.headline)}</td></tr>
-<tr><td style="padding:8px 32px 16px;font-size:15px;line-height:1.6;color:#374151;">${params.intro}</td></tr>
-<tr><td style="padding:0 32px 8px;">
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-top:1px solid #e5e7eb;padding-top:12px;">
-${params.detailRowsHtml}
-</table>
-</td></tr>
-<tr><td style="padding:8px 32px 24px;font-size:14px;line-height:1.6;color:#374151;">
-${params.extraHtml}
-${params.footerNote ? `<p style="margin:16px 0 0;font-size:13px;color:#6b7280;">${params.footerNote}</p>` : ''}
-<p style="margin:20px 0 0;"><a href="${ctaUrl}" style="display:inline-block;padding:12px 20px;background:#003580;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">${escapeHtml(ctaLabel)}</a></p>
-</td></tr>
-</table>
-<p style="font-size:12px;color:#9ca3af;margin-top:16px;">You are receiving this about a Traverion booking. <a href="${base}" style="color:#003580;">traverion.com</a></p>
-</td></tr></table></body></html>`;
+  const ctaLabel = params.ctaLabel ?? 'View your booking';
+  return transactionalEmailDocument({
+    headline: params.headline,
+    introHtml: params.intro,
+    bodyHtml: `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-top:1px solid #e6e8ec;">${params.detailRowsHtml}</table>${params.extraHtml}`,
+    ctaUrl,
+    ctaLabel,
+    preheader: params.headline,
+    footerNote: params.footerNote,
+    siteUrl: base,
+  });
 }
 
 function detailRow(label: string, value: string): string {
@@ -190,11 +181,10 @@ function confirmedPaidMailFacts(row: {
     rows.push(detailRow(label, value));
     lines.push(`${label}: ${value}`);
   };
-  push('Booking reference', typeof row.public_reference === 'string' ? row.public_reference.trim() : '');
   push('Option', text('optionLabel'));
   const hm = text('startTimeHm');
   const tz = text('departureTimezone');
-  push('Start time', hm ? (tz ? `${hm} · ${tz}` : hm) : '');
+  push('Start time', hm ? travelerTimeLabel(hm, tz) : '');
   const breakdown = Array.isArray(row.guest_breakdown)
     ? row.guest_breakdown
         .map((item) => {
@@ -287,18 +277,16 @@ function confirmationListingLabel(kind: string | undefined): string {
   return listingKindIsStay(kind) ? 'Stay' : 'Tour';
 }
 
-function paidReceiptLine(kind: string | undefined): string {
-  return listingKindIsStay(kind)
-    ? 'Charged for this stay. Trips is the durable receipt — keep this email if it arrives.'
-    : 'Charged for this tour. Trips is the durable receipt — keep this email if it arrives.';
+function paidReceiptLine(_kind: string | undefined): string {
+  return 'Paid';
 }
 
 function buildDetailRows(p: Payload): string {
   const title = String(p.listingTitle ?? 'Your booking').trim() || 'Your booking';
   const rows: string[] = [];
-  const ref = orderTag(p.bookingNumber);
   rows.push(detailRow(confirmationListingLabel(p.listingKind), title));
-  if (ref) rows.push(detailRow('Booking number', `#${ref}`));
+  const publicRef = String(p.publicReference ?? '').trim();
+  if (publicRef) rows.push(detailRow('Booking reference', publicRef));
   const checkOut = String(p.checkOutDate ?? '').trim();
   if (listingKindIsStay(p.listingKind) && p.bookingDate && /^\d{4}-\d{2}-\d{2}$/.test(checkOut)) {
     rows.push(detailRow('Check-in', p.bookingDate));
@@ -315,56 +303,56 @@ function buildDetailRows(p: Payload): string {
     const outT = String(p.checkOutTime ?? '').trim().slice(0, 5);
     if (outT) rows.push(detailRow('Check-out by', outT));
   }
-  if (!ref && p.bookingId) rows.push(detailRow('Internal id', p.bookingId));
   return rows.join('');
 }
 
 function subjectForKind(
   kind: EmailKind,
   title: string,
-  refDigits?: string,
+  publicReference?: string,
   listingKind?: string
 ): string {
   const t = title.trim() || 'Your booking';
-  const tag = refDigits ? `#${refDigits} — ` : '';
+  const ref = (publicReference ?? '').trim();
+  const withRef = (label: string) => (ref ? `${label} · ${ref}` : `${label} — ${t}`);
   const isStay = String(listingKind ?? '').toLowerCase() === 'stay';
   switch (kind) {
     case 'booking_confirmed_paid':
-      return `${tag}Confirmed & paid: ${t}`;
+      return `Your Traverion booking is confirmed — ${t}`;
     case 'your_details_updated':
-      return `${tag}We saved your booking details — ${t}`;
+      return withRef('Your booking details were saved');
     case 'host_updated_schedule':
-      return `${tag}Updated meeting times — ${t}`;
+      return withRef('Your schedule was updated');
     case 'pickup_confirmed':
-      return `${tag}Pickup time confirmed — ${t}`;
+      return withRef('Pickup time confirmed');
     case 'pickup_changed':
-      return `${tag}Pickup details changed — ${t}`;
+      return withRef('Pickup details changed');
     case 'booking_cancelled':
-      return `${tag}Booking cancelled — ${t}`;
+      return ref ? `Your booking has been cancelled · ${ref}` : `Your booking has been cancelled — ${t}`;
     case 'cancellation_requested_by_supplier':
-      return `Action needed: supplier cannot operate this booking — ${tag}${t}`;
+      return withRef('Action needed on your booking');
     case 'cancellation_accepted':
-      return `${tag}Cancellation confirmed — ${t}`;
+      return withRef('Cancellation confirmed');
     case 'cancellation_declined':
-      return `${tag}Cancellation request declined — ${t}`;
+      return withRef('Your booking stays confirmed');
     case 'new_booking_message':
-      return `${tag}New message about your booking — ${t}`;
+      return withRef('New message about your booking');
     case 'pickup_action_required':
-      return `${tag}Pickup details still needed — ${t}`;
+      return withRef('Pickup details still needed');
     case 'traveler_welcome':
       return 'Welcome to Traverion';
     case 'refund_completed':
-      return `${tag}Refund completed — ${t}`;
+      return withRef('Your refund is complete');
     case 'partial_refund_recorded':
-      return `${tag}Partial refund recorded — ${t}`;
+      return withRef('A partial refund was recorded');
     case 'experience_reminder':
-      return isStay ? `${tag}Your stay is coming up — ${t}` : `${tag}Your tour is coming up — ${t}`;
+      return withRef(isStay ? 'Your stay is coming up' : 'Your experience is coming up');
     case 'review_request':
-      return isStay ? `${tag}How was your stay? — ${t}` : `${tag}How was your tour? — ${t}`;
+      return withRef(isStay ? 'How was your stay?' : 'How was your experience?');
     case 'checkout_payment_reversed':
-      return `${tag}Checkout payment reversed — ${t}`;
+      return withRef('A payment was reversed');
     default:
-      return `${tag}Booking received — ${t}`;
+      return withRef('We received your booking request');
   }
 }
 
@@ -576,6 +564,7 @@ serve(async (req) => {
     let paidAtIsoFromDb: string | undefined;
     let paymentIntentIdFromDb: string | undefined;
     let confirmedPaidExtra: { html: string; lines: string[] } | null = null;
+    let publicReference = '';
 
     // Phase 562/578/1052: recipient + static content re-derived from booking.
     // Phase 1092: anonymous callers never reach this path for booking-tied kinds.
@@ -624,6 +613,9 @@ serve(async (req) => {
         }
         if (typeof bookingRow.payment_intent_id === 'string' && bookingRow.payment_intent_id.trim()) {
           paymentIntentIdFromDb = bookingRow.payment_intent_id.trim();
+        }
+        if (typeof bookingRow.public_reference === 'string' && bookingRow.public_reference.trim()) {
+          publicReference = bookingRow.public_reference.trim();
         }
       }
 
@@ -722,7 +714,8 @@ serve(async (req) => {
       }
     }
 
-    const greeting = name ? `Hi ${name},` : 'Hi,';
+    const firstName = name.split(/\s+/).filter(Boolean)[0] ?? '';
+    const greeting = firstName ? `Hi ${firstName},` : 'Hi,';
     const refDigits = orderTag(bookingNumber);
     // Phase 1510: client idempotencyKey may only extend customer:${kind}:… —
     // never overwrite a different template's slot (paid/refund poison).
@@ -790,17 +783,16 @@ serve(async (req) => {
     let footerNote: string | undefined;
 
     if (kind === 'booking_confirmed_paid') {
-      headline = 'Your booking is confirmed';
-      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Thank you — your payment was successful and your reservation is <strong>confirmed</strong>. Below is your receipt summary.</p>`;
+      headline = 'Your adventure is confirmed.';
+      intro = `<p style="margin:0;">${escapeHtml(greeting)} your booking is confirmed. Here are the details for your experience.</p>`;
       if (refDigits) {
-        intro += `<p style="margin:12px 0 0;font-size:14px;color:#111827;">Booking number: <strong>#${escapeHtml(refDigits)}</strong></p><p style="margin:8px 0 0;font-size:13px;color:#4b5563;">A printable receipt is attached as a PDF.</p>`;
+        intro += `<p style="margin:8px 0 0;font-size:13px;color:#5c6570;">A receipt is attached as a PDF.</p>`;
       }
       if (typeof amount === 'number') {
-        // Receipt cell copy: keep in sync with BOOKING_CONFIRMED_PAID_RECEIPT_LINE
-        extraHtml = `<table role="presentation" style="margin:12px 0 0;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px 16px;width:100%;">
-<tr><td style="font-size:12px;color:#166534;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;">Payment receipt</td></tr>
-<tr><td style="font-size:22px;font-weight:700;color:#14532d;padding-top:4px;">${escapeHtml(currency)} ${amount.toFixed(2)}</td></tr>
-<tr><td style="font-size:13px;color:#15803d;padding-top:6px;">${escapeHtml(paidReceiptLine(listingKind))}</td></tr>
+        extraHtml = `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:12px 0 0;border-top:1px solid #e6e8ec;">
+<tr><td style="padding-top:12px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#6b7280;">Amount paid</td></tr>
+<tr><td style="font-family:Arial,Helvetica,sans-serif;font-size:22px;font-weight:700;color:#0b1f44;padding-top:2px;">${escapeHtml(currency)} ${amount.toFixed(2)}</td></tr>
+<tr><td style="font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#0f766e;padding-top:4px;">${escapeHtml(paidReceiptLine(listingKind))}</td></tr>
 </table>`;
       }
       const logistics = purchasedLogisticsExtraHtml({
@@ -810,28 +802,23 @@ serve(async (req) => {
         checkInTime,
         checkOutTime,
         houseRules,
-        meetingPoint,
-        includes,
-        excludes,
       });
       if (logistics) extraHtml += logistics;
-      footerNote =
-        // Keep in sync with BOOKING_CONFIRMED_PAID_FOLLOWUP_NOTE in booking-confirmation-copy.ts
-        'Watch Trips for schedule or meeting updates from the host. Traverion does not treat email delivery as proof you received a notice.';
+      footerNote = 'Open your booking for pickup details, messages, and changes.';
     } else if (kind === 'your_details_updated') {
       headline = 'Your booking details were saved';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">We updated the notes on your booking. Here is what changed (previous value → new value):</p>`;
       extraHtml = fieldDiffTableHtml(diffs);
       footerNote =
         // Keep in sync with TRAVELER_DETAILS_UPDATED_EMAIL_NOTE in booking-confirmation-copy.ts
-        'Your updates are saved on this booking in Trips. Traverion does not treat email delivery as proof of the change. If you did not make this change, contact the host or Traverion support immediately.';
+        'If you did not make this change, contact your operator or Traverion support.';
     } else if (kind === 'host_updated_schedule') {
       headline = 'Your host updated meeting times';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">The tour operator updated the schedule for your booking. Compare the previous and new times below.</p>`;
       extraHtml = fieldDiffTableHtml(diffs);
       footerNote =
         // Keep in sync with TRAVELER_HOST_SCHEDULE_UPDATED_EMAIL_NOTE in booking-confirmation-copy.ts
-        'Updated times appear in Trips. Traverion does not treat email delivery as proof you received this update. Reply to the host in Trips if you need help.';
+        'The new times are in your booking. Message your operator if you need help.';
     } else if (kind === 'booking_cancelled') {
       // Phase 1129: unpaid copy follows payment_status, not body.unpaidCheckout.
       const unpaid =
@@ -864,20 +851,20 @@ serve(async (req) => {
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">You declined the host’s cancellation request. The booking remains active.</p>`;
       footerNote =
         // Keep in sync with TRAVELER_CANCELLATION_DECLINED_EMAIL_NOTE in booking-confirmation-copy.ts
-        'Your booking stays active in Trips. Traverion does not treat email delivery as proof of this update.';
+        'Your booking stays active.';
     } else if (kind === 'new_booking_message') {
       headline = 'New message about your booking';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">You have a new message about this booking. Open Trips to read and reply.</p>`;
       if (diffs.length) extraHtml = fieldDiffTableHtml(diffs);
       footerNote =
         // Keep in sync with TRAVELER_NEW_BOOKING_MESSAGE_EMAIL_NOTE in booking-confirmation-copy.ts
-        'Open Trips for the durable message thread. Traverion does not treat email delivery as proof you saw the message.';
+        'Open the message to read and reply.';
     } else if (kind === 'pickup_action_required') {
       headline = 'Pickup details still needed';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your booking is confirmed. The host still needs to confirm pickup or meeting details — they will appear in Trips when ready.</p>`;
       footerNote =
         // Keep in sync with TRAVELER_PICKUP_ACTION_EMAIL_NOTE in booking-confirmation-copy.ts
-        'Pickup and meeting details appear in Trips when the host confirms them. Traverion does not treat email delivery as proof you received an update.';
+        'Pickup details will appear on your booking when your operator confirms them.';
     } else if (kind === 'pickup_confirmed') {
       headline = 'Pickup time confirmed';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your host confirmed the pickup time for this booking. Details below — also visible in Trips.</p>`;
@@ -885,7 +872,7 @@ serve(async (req) => {
       if (meetingPoint?.trim()) {
         extraHtml += `<p style="margin:12px 0 0;font-size:14px;color:#111827;"><strong>Meeting / pickup place:</strong> ${escapeHtml(meetingPoint.trim())}</p>`;
       }
-      footerNote = 'Times appear in Trips. Traverion does not treat email delivery as proof you received this update.';
+      footerNote = 'The confirmed time is also on your booking.';
     } else if (kind === 'pickup_changed') {
       headline = 'Pickup details changed';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your host updated pickup or meeting details. Compare previous → new below.</p>`;
@@ -903,7 +890,7 @@ serve(async (req) => {
       }
       footerNote =
         body.refundStatusNote?.trim() ||
-        'Trips shows Refunded for this booking. Traverion does not treat email delivery as proof of bank settlement.';
+        'Your booking shows this refund as complete. Your bank may take a few days to post it.';
     } else if (kind === 'partial_refund_recorded') {
       // Phase 1735: active paid booking stays Paid; inventory held.
       // Phase 1740: cancelled Refund due — do not claim reservation still active.
@@ -911,11 +898,11 @@ serve(async (req) => {
       if (cancelledRefundDuePartial) {
         intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Stripe recorded a partial refund toward the amount due on this cancelled booking. Trips still shows Refund due for any remaining charge until Stripe records a full refund.</p>`;
         footerNote =
-          'Timing to your bank depends on your card issuer. Trips is the durable record — Traverion does not treat email delivery as proof of bank settlement.';
+          'Your bank may take a few days to post this refund. Any remaining amount still shows as due on your booking.';
       } else {
         intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Stripe recorded a partial refund for this booking. Your reservation stays active and Trips still shows Paid for the remaining amount.</p>`;
         footerNote =
-          'Timing to your bank depends on your card issuer. Trips is the durable record — Traverion does not treat email delivery as proof of bank settlement.';
+          'Your bank may take a few days to post this refund. The remaining amount stays paid on your booking.';
       }
       if (typeof amount === 'number') {
         extraHtml = `<p style="margin:0;font-size:14px;color:#374151;"><strong>Refunded this time:</strong> ${escapeHtml(currency)} ${amount.toFixed(2)}</p>`;
@@ -954,7 +941,7 @@ serve(async (req) => {
         extraHtml += `<p style="margin:12px 0 0;font-size:14px;color:#374151;"><strong>Amount reversed:</strong> ${escapeHtml(currency)} ${amount.toFixed(2)}</p>`;
       }
       footerNote =
-        'Open Trips to confirm your booking. Traverion does not treat email delivery as proof of a bank refund timeline.';
+        'Open your booking if you want to confirm the status.';
     } else {
       headline = 'We received your booking request';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your request is recorded for <strong>${escapeHtml(title)}</strong>. Complete payment when prompted in the app, or wait for confirmation if no payment is required.</p>`;
@@ -963,7 +950,7 @@ serve(async (req) => {
       }
       footerNote =
         // Keep in sync with BOOKING_REQUEST_EMAIL_FOLLOWUP_NOTE in booking-confirmation-copy.ts
-        'Watch Trips for payment and confirmation status. Traverion does not treat email delivery as proof of a later confirmation.';
+        'You will get another email when payment is confirmed.';
     }
 
     const bookingCta =
@@ -978,16 +965,16 @@ serve(async (req) => {
       kind === 'cancellation_requested_by_supplier'
         ? 'Choose in Trips'
         : kind === 'new_booking_message'
-          ? 'Open message'
+          ? 'View message'
           : kind === 'pickup_action_required' || kind === 'pickup_confirmed' || kind === 'pickup_changed'
-            ? 'Open booking'
+            ? 'View your booking'
           : kind === 'traveler_welcome'
             ? 'Explore Traverion'
           : kind === 'review_request'
-            ? 'Open Trips'
+            ? 'Leave a review'
             : kind === 'booking_confirmed_paid'
-              ? 'View booking in Trips'
-              : 'Manage booking';
+              ? 'View your booking'
+              : 'View your booking';
     const detailPayload: Payload = {
       ...body,
       listingTitle: title,
@@ -1001,6 +988,7 @@ serve(async (req) => {
       checkInAddress,
       checkInTime,
       checkOutTime,
+      publicReference,
     };
     const detailRows = `${buildDetailRows(detailPayload)}${confirmedPaidExtra?.html ?? ''}`;
     const html = wrapCustomerDocument({
@@ -1017,10 +1005,10 @@ serve(async (req) => {
     const textParts: string[] = [
       greeting,
       '',
-      subjectForKind(kind, title, refDigits || undefined, listingKind),
+      subjectForKind(kind, title, publicReference || undefined, listingKind),
       '',
     ];
-    if (refDigits) textParts.push(`Booking #: ${refDigits}`);
+    if (publicReference) textParts.push(`Booking reference: ${publicReference}`);
     // Phase 1576: stay text mirrors HTML Check-in / Check-out (not Date alone).
     {
       const checkOut = String(checkOutDate ?? '').trim();
@@ -1037,7 +1025,7 @@ serve(async (req) => {
     }
     if (typeof guests === 'number') textParts.push(`Guests: ${guests}`);
     if (confirmedPaidExtra?.lines.length) textParts.push(...confirmedPaidExtra.lines);
-    if (!refDigits && body.bookingId) textParts.push(`Reference: ${body.bookingId}`);
+    if (!publicReference && refDigits) textParts.push(`Booking reference: ${refDigits}`);
     if (typeof amount === 'number' && kind === 'booking_confirmed_paid') {
       textParts.push('', `Payment receipt: ${currency} ${amount.toFixed(2)}`);
     }
@@ -1079,7 +1067,7 @@ serve(async (req) => {
       apiKey,
       from: fromEmail,
       to: [to],
-      subject: subjectForKind(kind, title, refDigits || undefined, listingKind),
+      subject: subjectForKind(kind, title, publicReference || undefined, listingKind),
       text,
       html,
       attachments: attachments.length ? attachments : undefined,
