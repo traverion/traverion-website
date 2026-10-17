@@ -4193,7 +4193,7 @@ a:focus-visible,
 /* Phase 1813: partner Bookings operating console rows */
 .tv-ops-booking-row {
   display: flex;
-  align-items: stretch;
+  align-items: center;
   overflow: hidden;
   border-radius: 0.5rem;
   background: #ffffff;
@@ -4206,19 +4206,54 @@ a:focus-visible,
     0 12px 28px -16px rgba(15, 23, 42, 0.22);
 }
 
+/* Attention only: acknowledgement, missing pickup, or a cancellation waiting on the traveler. */
+.tv-ops-booking-row[data-attention='true'] {
+  box-shadow:
+    inset 3px 0 0 #b45309,
+    0 0 0 1px rgba(180, 83, 9, 0.22);
+}
+
+.tv-ops-booking-row[data-highlight='true'][data-attention='true'] {
+  box-shadow:
+    inset 3px 0 0 #b45309,
+    0 0 0 1px rgba(0, 53, 128, 0.28),
+    0 12px 28px -16px rgba(15, 23, 42, 0.22);
+}
+
 .tv-ops-booking-row__btn {
   display: flex;
   flex: 1 1 auto;
   width: auto;
   min-width: 0;
   align-items: center;
-  gap: 0.65rem;
-  padding: 0.55rem 0.75rem 0.55rem 0.35rem;
+  gap: 0.55rem;
+  padding: 0.35rem 0.65rem 0.35rem 0.3rem;
   text-align: left;
 }
 
 .tv-ops-booking-row__btn:hover {
   background: rgba(15, 23, 42, 0.03);
+}
+
+.tv-ops-booking-row__btn:focus-visible {
+  outline: 2px solid #003580;
+  outline-offset: -2px;
+  background: rgba(0, 53, 128, 0.04);
+}
+
+@media (max-width: 639px) {
+  .tv-ops-booking-row__btn {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .tv-ops-booking-row__actions {
+    flex: 1 0 100%;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding-left: 0;
+  }
 }
 
 /* Phase 1814: shared empty/error state surface */

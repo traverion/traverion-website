@@ -218,6 +218,24 @@ function formatActivityDateLong(bookingDate: string | null, startHm: string | nu
   return startHm ? `${datePart} · ${startHm}` : datePart;
 }
 
+/** Booking creation time — not the activity or stay date. */
+function formatPurchaseDate(createdAt: string | null | undefined): string | null {
+  if (!createdAt) return null;
+  const d = new Date(createdAt);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+/** Customer booking total from the checkout snapshot, otherwise the collected amount. */
+function customerBookingTotal(booking: BookingRow): string | null {
+  const snap = isPurchaseSnapshot(booking.purchase_snapshot) ? booking.purchase_snapshot : null;
+  const quoted =
+    snap && typeof snap.totalAmount === 'number' && Number.isFinite(snap.totalAmount) && snap.totalAmount > 0
+      ? snap.totalAmount
+      : null;
+  return formatBookingMoney(quoted ?? booking.amount_paid, (quoted != null ? snap?.currency : null) || booking.currency);
+}
+
 async function downloadBookingsCsv(
   rows: BookingRow[],
   listingMeta: Record<string, ListingBookingMeta>,
@@ -1059,11 +1077,6 @@ export default function SupplierBookings({
               Reset filters
             </button>
           ) : null}
-          {!loading ? (
-            <span className="text-sm text-ink-muted">
-              {filteredBookings.length} of {bookings.length}
-            </span>
-          ) : null}
         </div>
       </div>
       )}
@@ -1187,8 +1200,8 @@ export default function SupplierBookings({
           }
         />
       ) : (
-        <div className="space-y-4" aria-busy={loading || undefined}>
-          <div className="space-y-3">
+        <div className="space-y-3" aria-busy={loading || undefined}>
+          <div className="space-y-2">
             {paginatedBookings.map((booking) => {
               const opsStartHm = booking.start_time ? pgTimeToHm(booking.start_time) ?? null : null;
               const dep = partnerOpsDepartureDisplay(booking.purchase_snapshot, opsStartHm);
@@ -1243,7 +1256,8 @@ export default function SupplierBookings({
               const dateLine = stayOut
                 ? `${formatStayNightHuman(booking.booking_date ?? '')} → ${formatStayNightHuman(stayOut)}`
                 : formatActivityDateLong(booking.booking_date, startHm);
-              const paidLabel = formatBookingMoney(booking.amount_paid, booking.currency);
+              const paidLabel = customerBookingTotal(booking);
+              const purchaseDateLabel = formatPurchaseDate(booking.created_at);
               const needsAck = partnerBookingNeedsLook(booking);
               const pickupGap = partnerBookingHasPickupAttention(
                 booking,
@@ -1260,27 +1274,43 @@ export default function SupplierBookings({
                 })
                   ? openCancelRaw
                   : undefined;
-              const pay = (booking.payment_status ?? '').trim().toLowerCase();
-              const statusAccent =
-                openCancel || pickupGap || needsAck
-                  ? 'border-l-[3px] border-l-amber-500'
-                  : booking.status === 'cancelled' || pay === 'refunded'
-                    ? 'border-l-[3px] border-l-slate-400'
-                    : booking.status === 'confirmed' || pay === 'paid'
-                      ? 'border-l-[3px] border-l-emerald-500'
-                      : 'border-l-[3px] border-l-amber-400';
+              const needsAttention = Boolean(openCancel || pickupGap || needsAck);
+              const guestName = booking.guest_name?.trim() || 'Guest';
+              const referenceLabel = bookingReferenceLabel(booking);
+              const participantLabel = formatBookingParticipantsLabel(booking);
+              const stayNightLabel =
+                meta?.family === 'stay' || bookingIsStayNight(booking)
+                  ? (() => {
+                      // Phase 1584/1588: meta nights beside paidLabel via stayPaidAdjacentNightCount.
+                      const range = stayRangeFromBooking(booking);
+                      if (!range) return '';
+                      const stayNights = nightsOccupiedByStay(range.checkIn, range.checkOut).length;
+                      const n = stayPaidAdjacentNightCount({
+                        amountPaid: booking.amount_paid,
+                        nightlyAmount: booking.nightly_amount,
+                        cleaningFee: booking.cleaning_fee,
+                        paymentCollected: bookingPaymentWasCollected(booking.payment_status),
+                        columnNights: booking.nights,
+                        snapshotNights: (booking.purchase_snapshot as PurchaseSnapshot | null | undefined)?.nights,
+                        occupancyNights: stayNights,
+                      });
+                      return n != null && n > 0 ? `${n} night${n === 1 ? '' : 's'}` : '';
+                    })()
+                  : '';
               return (
                 <article
                   key={booking.id}
                   id={`supplier-booking-row-${booking.id}`}
                   data-highlight={highlightBookingId === booking.id ? 'true' : 'false'}
-                  className={`tv-ops-booking-row ${statusAccent}`}
+                  data-attention={needsAttention ? 'true' : 'false'}
+                  className="tv-ops-booking-row"
                 >
-                  <label className="flex shrink-0 items-center pl-3">
+                  <label className="flex shrink-0 items-center self-center pl-2.5" onClick={(event) => event.stopPropagation()}>
                     <input
                       type="checkbox"
                       checked={selectedIds.has(booking.id)}
-                      aria-label={`Select booking ${bookingReferenceLabel(booking)}`}
+                      aria-label={`Select booking ${referenceLabel}`}
+                      onClick={(event) => event.stopPropagation()}
                       onChange={() => {
                         setSelectedIds((prev) => {
                           const next = new Set(prev);
@@ -1301,76 +1331,55 @@ export default function SupplierBookings({
                       <img
                         src={meta.imageUrl}
                         alt=""
-                        className="h-10 w-10 rounded-md object-cover shrink-0 ring-1 ring-black/[0.06]"
+                        className="h-12 w-12 rounded-md object-cover shrink-0 ring-1 ring-black/[0.06]"
                       />
                     ) : (
-                      <div className="h-10 w-10 rounded-md bg-finland/10 shrink-0 ring-1 ring-finland/15" aria-hidden />
+                      <div className="h-12 w-12 rounded-md bg-finland/10 shrink-0 ring-1 ring-finland/15" aria-hidden />
                     )}
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-3">
-                        <p className="min-w-0 truncate font-display text-[1.02rem] font-semibold tracking-tight text-ink" title={booking.guest_name || 'Guest'}>
-                          {booking.guest_name || 'Guest'}
+                      <div className="flex min-w-0 flex-col sm:flex-row sm:items-baseline sm:gap-x-2">
+                        <p className="min-w-0 truncate font-display text-[1.02rem] font-semibold tracking-tight text-ink sm:max-w-[16rem] sm:shrink-0" title={guestName}>
+                          {guestName}
                         </p>
-                        <span className="flex shrink-0 items-center gap-1">
-                          <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-semibold ring-1 ${bookingStatusClass(booking.status, booking.payment_status)}`}>
-                            {partnerBookingLifecycleLabel(booking.status)}
-                          </span>
-                          <span className="rounded-md bg-black/[0.04] px-1.5 py-0.5 text-[11px] font-semibold text-ink-muted">
-                            {partnerPaymentLabel(booking)}
-                          </span>
-                        </span>
+                        <p className="min-w-0 truncate text-[13px] font-medium text-ink" title={listingTitle}>
+                          {listingTitle}
+                        </p>
                       </div>
-                      <p className="mt-1 break-words text-[13px] font-medium text-ink-muted [overflow-wrap:anywhere] line-clamp-2">
-                        {listingTitle}
-                        {optionLabel ? ` · ${optionLabel}` : ''}
-                      </p>
-                      <p className="mt-1.5 text-[11px] font-medium uppercase tracking-[0.08em] text-ink-faint">
-                        {typeof booking.booking_number === 'number' && booking.booking_number > 0 ? (
-                          <>
-                            <span className="font-mono normal-case tracking-wide text-finland font-semibold">
-                              #{booking.booking_number}
-                            </span>
-                            {' · '}
-                          </>
-                        ) : null}
-                        {stayDayChip ? (
-                          <>
-                            <span className="font-semibold normal-case tracking-normal text-finland">{stayDayChip}</span>
-                            {' · '}
-                          </>
-                        ) : null}
-                        {dateLine}
-                        {dep.purchasedNote ? ` · ${dep.purchasedNote}` : ''}
-                        {' · '}
-                        {formatBookingParticipantsLabel(booking)}
-                        {meta?.family === 'stay' || bookingIsStayNight(booking)
-                          ? (() => {
-                              // Phase 1584/1588: meta nights beside paidLabel via stayPaidAdjacentNightCount.
-                              const range = stayRangeFromBooking(booking);
-                              if (!range) return '';
-                              const stayNights = nightsOccupiedByStay(range.checkIn, range.checkOut).length;
-                              const n = stayPaidAdjacentNightCount({
-                                amountPaid: booking.amount_paid,
-                                nightlyAmount: booking.nightly_amount,
-                                cleaningFee: booking.cleaning_fee,
-                                paymentCollected: bookingPaymentWasCollected(booking.payment_status),
-                                columnNights: booking.nights,
-                                snapshotNights: (booking.purchase_snapshot as PurchaseSnapshot | null | undefined)
-                                  ?.nights,
-                                occupancyNights: stayNights,
-                              });
-                              return n != null && n > 0 ? ` · ${n} night${n === 1 ? '' : 's'}` : '';
-                            })()
-                          : ''}
-                      </p>
-                      {paidLabel ? (
-                        <p className="mt-1.5 font-display text-[0.95rem] font-semibold tabular-nums tracking-tight text-ink">
-                          {paidLabel}
+                      {optionLabel ? (
+                        <p className="truncate text-[12px] font-medium text-ink-muted" title={optionLabel}>
+                          {optionLabel}
                         </p>
                       ) : null}
+                      <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[12px] leading-4 text-ink-muted">
+                        <span className="font-mono text-[12px] font-semibold tracking-wide text-finland">{referenceLabel}</span>
+                        <span className="inline-flex min-w-0 items-center gap-1">
+                          <CalendarDays className="h-3.5 w-3.5 shrink-0 text-ink-faint" aria-hidden />
+                          {stayDayChip ? <span className="font-semibold text-finland">{stayDayChip}</span> : null}
+                          <span className="truncate" title={dep.purchasedNote ? `${dateLine}. ${dep.purchasedNote}` : dateLine}>
+                            {dateLine}
+                            {dep.purchasedNote ? ` · ${dep.purchasedNote}` : ''}
+                          </span>
+                        </span>
+                        <span className="inline-flex items-center gap-1" title={participantLabel}>
+                          <Users className="h-3.5 w-3.5 shrink-0 text-ink-faint" aria-hidden />
+                          <span className="max-w-[14rem] truncate">{participantLabel}</span>
+                          {stayNightLabel ? <span className="shrink-0 text-ink-faint">· {stayNightLabel}</span> : null}
+                        </span>
+                        {purchaseDateLabel ? (
+                          <span className="whitespace-nowrap" title="Purchase date, when the booking was created">Purchase date {purchaseDateLabel}</span>
+                        ) : null}
+                        {paidLabel ? (
+                          <span className="inline-flex items-baseline gap-1 whitespace-nowrap" title="Customer booking total">
+                            <span className="text-[11px] font-medium text-ink-faint">Total</span>
+                            <span className="font-display text-[0.95rem] font-semibold tabular-nums tracking-tight text-ink">
+                              {paidLabel}
+                            </span>
+                          </span>
+                        ) : null}
+                      </div>
                       {partnerBookingIsUnpaidCheckout(booking) ? (
                         <p
-                          className={`mt-1.5 text-xs font-medium ${
+                          className={`mt-0.5 text-[12px] font-medium leading-4 ${
                             partnerUnpaidCheckoutHoldsInventory(booking) ? 'text-amber-900' : 'text-ink-faint'
                           }`}
                         >
@@ -1378,17 +1387,27 @@ export default function SupplierBookings({
                         </p>
                       ) : null}
                       {needsAck ? (
-                        <p className="mt-1.5 text-xs font-medium text-finland">Awaiting acknowledgement</p>
+                        <p className="mt-0.5 text-[12px] font-medium leading-4 text-finland">Awaiting acknowledgement</p>
                       ) : null}
                       {pickupGap ? (
-                        <p className="mt-1.5 text-xs font-medium text-amber-800">Pickup details missing</p>
+                        <p className="mt-0.5 text-[12px] font-medium leading-4 text-amber-800">Pickup details missing</p>
                       ) : null}
                       {openCancel ? (
-                        <p className="mt-1.5 text-xs font-medium text-red-800">Awaiting traveler cancellation response</p>
+                        <p className="mt-0.5 text-[12px] font-medium leading-4 text-red-800">Awaiting traveler cancellation response</p>
                       ) : null}
                     </div>
-                    <span className="tv-btn-ghost shrink-0 pointer-events-none inline-flex text-xs sm:text-sm">
-                      Open
+                    <span className="tv-ops-booking-row__actions flex shrink-0 flex-col items-end gap-1 self-center pl-1">
+                      <span className="flex flex-wrap justify-end gap-1">
+                        <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-semibold ring-1 ${bookingStatusClass(booking.status, booking.payment_status)}`}>
+                          {partnerBookingLifecycleLabel(booking.status)}
+                        </span>
+                        <span className="rounded-md bg-black/[0.04] px-1.5 py-0.5 text-[11px] font-semibold text-ink-muted">
+                          {partnerPaymentLabel(booking)}
+                        </span>
+                      </span>
+                      <span className="pointer-events-none whitespace-nowrap text-[13px] font-semibold text-finland">
+                        View details
+                      </span>
                     </span>
                   </button>
                 </article>
@@ -1398,16 +1417,14 @@ export default function SupplierBookings({
           </div>
 
           <nav
-            className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+            className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
             aria-label="Bookings pages"
           >
-            <p className="text-sm text-gray-600">
-              <span className="font-medium text-gray-900">
-                {(safePage - 1) * BOOKINGS_PAGE_SIZE + 1}-
-                {(safePage - 1) * BOOKINGS_PAGE_SIZE + paginatedBookings.length}
+            <p className="text-[13px] text-ink-muted">
+              <span className="font-medium tabular-nums text-ink">
+                {(safePage - 1) * BOOKINGS_PAGE_SIZE + 1}–{(safePage - 1) * BOOKINGS_PAGE_SIZE + paginatedBookings.length}
               </span>{' '}
               of {filteredBookings.length}
-              {totalPages > 1 ? ` · Page ${safePage} of ${totalPages}` : ''}
             </p>
             {totalPages > 1 ? (
               <div className="flex flex-wrap items-center justify-center gap-1.5 sm:justify-end">
@@ -1533,7 +1550,9 @@ export default function SupplierBookings({
             const whenLabel = stayOut
               ? `${formatStayNightHuman(booking.booking_date ?? '')} → ${formatStayNightHuman(stayOut)}`
               : formatActivityDateLong(booking.booking_date, startHm);
-            const paidLabel = formatBookingMoney(booking.amount_paid, booking.currency);
+            const bookingTotalLabel = customerBookingTotal(booking);
+            const collectedLabel = formatBookingMoney(booking.amount_paid, booking.currency);
+            const collectedCaption = partnerCollectedAmountCaption(booking);
             const needsAck = partnerBookingNeedsLook(booking);
             const pickupGap =
               !isStay &&
@@ -1718,12 +1737,20 @@ export default function SupplierBookings({
                         <dd className="mt-0.5 text-ink">{pickupHm}</dd>
                       </div>
                     ) : null}
-                    {paidLabel ? (
+                    {bookingTotalLabel ? (
                       <div>
                         <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">
-                          {partnerCollectedAmountCaption(booking)}
+                          Customer booking total
                         </dt>
-                        <dd className="mt-0.5 text-ink">{paidLabel}</dd>
+                        <dd className="mt-0.5 text-ink">{bookingTotalLabel}</dd>
+                      </div>
+                    ) : null}
+                    {collectedLabel && (collectedLabel !== bookingTotalLabel || collectedCaption !== 'Paid') ? (
+                      <div>
+                        <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">
+                          {collectedCaption}
+                        </dt>
+                        <dd className="mt-0.5 text-ink">{collectedLabel}</dd>
                       </div>
                     ) : null}
                     {booking.guest_email ? (
