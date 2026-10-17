@@ -21,21 +21,34 @@ const ICONS: Record<string, LucideIcon> = {
   Cancellation: CalendarCheck,
 };
 
+function mentionsGuide(tour: TourPackage): boolean {
+  return /\bguides?\b/i.test([...(tour.highlights ?? []), ...(tour.includes ?? [])].join(' '));
+}
+
 export default function TourQuickFacts({ tour, option }: Props) {
   const facts = tourQuickFacts(tour, option);
   if (facts.length === 0) return null;
   return (
-    <dl className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3">
+    <dl className="grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-3">
       {facts.map((fact) => {
         const Icon = ICONS[fact.label] ?? Clock;
+        let value = fact.value;
+        let label = fact.label;
+        if (fact.label === 'Language' && mentionsGuide(tour)) label = 'Guide language';
+        if (fact.value === 'Pickup included') label = 'Pickup';
+        else if (fact.value === 'Meeting point') label = 'Meeting';
+        if (fact.label === 'Cancellation' && /free/i.test(fact.value)) {
+          value = 'Free cancellation';
+          label = 'Up to 24 hours before';
+        }
         return (
-          <div key={fact.label} className="flex min-w-0 items-start gap-2.5">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#f4f5f7] text-[#073b83]">
+          <div key={fact.label} className="flex min-w-0 items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F5F6F8] text-[#0B397E]">
               <Icon className="h-4 w-4" aria-hidden />
             </span>
-            <div className="min-w-0">
-              <dd className="text-sm font-semibold leading-snug text-ink">{fact.value}</dd>
-              <dt className="mt-0.5 text-xs text-ink-muted">{fact.label}</dt>
+            <div className="min-w-0 pt-0.5">
+              <dd className="text-[15px] font-bold leading-snug text-[#111827]">{value}</dd>
+              <dt className="mt-0.5 text-xs text-ink-muted">{label}</dt>
             </div>
           </div>
         );

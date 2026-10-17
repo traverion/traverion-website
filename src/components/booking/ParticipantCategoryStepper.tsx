@@ -25,7 +25,10 @@ export default function ParticipantCategoryStepper({
 }: ParticipantCategoryStepperProps) {
   const atMin = quantity <= 0;
   const atMax = quantity >= max;
-  const age = formatPriceCategoryAgeRange(category);
+  const age =
+    category.ageMin != null && (category.ageMax == null || category.ageMax >= 99)
+      ? `Ages ${category.ageMin}+`
+      : formatPriceCategoryAgeRange(category).replace(/^Age /, 'Ages ');
 
   const tryDecrease = () => {
     if (atMin) {

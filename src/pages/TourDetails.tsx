@@ -109,7 +109,6 @@ import { loadAccountCartForListing, rememberAccountCart } from '../data/supabase
 import { travelerDisplayNameFromSources } from '../lib/traveler-display-name';
 import { fetchWishlistListingIds, toggleWishlist } from '../data/supabase-wishlist';
 import { formatMoney, normalizeCurrency } from '../lib/money';
-import { PriceHero } from '../components/PriceBreakdown';
 import NoticeCallout from '../components/NoticeCallout';
 import TourQuickFacts from '../components/tour-detail/TourQuickFacts';
 import { experienceLanguageLabel, tourKindLabel } from '../lib/tour-quick-facts';
@@ -155,7 +154,7 @@ function quotedOfferPrice(quote: BookingQuoteOk) {
     return formatMoney(quote.totalAmount, quote.currency);
   }
   return (
-    <span className="inline-flex max-w-full flex-wrap items-baseline justify-end gap-x-2 gap-y-0.5">
+    <span className="inline-flex max-w-full flex-wrap items-baseline gap-x-2 gap-y-0.5">
       <span className="text-sm font-medium text-ink-muted line-through tabular-nums">
         {formatMoney(quote.originalTotalAmount, quote.currency)}
       </span>
@@ -1740,12 +1739,11 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
         </div>
 
         <header className="mb-5 sm:mb-6 max-w-3xl">
-          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-muted mb-2">
-            <span className="inline-flex items-center rounded-md bg-finland/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-finland ring-1 ring-finland/15">
-              {tourKindLabel(tour.experienceKind)}
-            </span>
+          <p className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-muted">
+            <span className="font-semibold text-[#0B397E]">{tourKindLabel(tour.experienceKind)}</span>
+            <span aria-hidden>·</span>
             <span className="inline-flex items-center gap-1.5">
-              <MapPin size={14} className="shrink-0 text-finland" aria-hidden />
+              <MapPin size={14} className="shrink-0 text-[#0B397E]" aria-hidden />
               {tour.destination}
             </span>
             {review.score ? (
@@ -1771,18 +1769,11 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
               </>
             ) : null}
           </p>
-          <nav aria-label="Breadcrumb" className="mb-2 flex flex-wrap items-center gap-x-1.5 text-xs text-ink-muted">
-            <button type="button" onClick={onBack} className="font-semibold text-[#073b83] hover:underline">
-              {backLabel}
-            </button>
-            <span aria-hidden>/</span>
-            <span>{tour.destination}</span>
-          </nav>
-          <h1 className="font-sans text-[1.65rem] font-semibold sm:text-[1.85rem] lg:text-[2.05rem] text-ink tracking-tight leading-[1.15] break-words [overflow-wrap:anywhere]">
+          <h1 className="font-sans text-[1.85rem] font-bold leading-[1.15] tracking-tight text-[#111827] break-words [overflow-wrap:anywhere] sm:text-[2.15rem] lg:text-[2.4rem]">
             {tour.title}
           </h1>
           {tour.subtitle?.trim() ? (
-            <p className="mt-1.5 max-w-2xl text-sm sm:text-[15px] text-ink-muted leading-snug line-clamp-2 break-words [overflow-wrap:anywhere]">
+            <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-ink-muted line-clamp-3 break-words [overflow-wrap:anywhere] sm:text-base">
               {tour.subtitle.trim()}
             </p>
           ) : null}
@@ -1792,14 +1783,14 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
           <div className="min-w-0 space-y-8">
         <div>
           {hasGallery ? (
-            <div className={`grid grid-cols-1 gap-2 sm:gap-2.5 ${images.length > 1 ? 'lg:grid-cols-4 lg:grid-rows-2 lg:h-[20rem]' : ''}`}>
+            <div className={`grid grid-cols-1 gap-2 ${images.length > 1 ? 'lg:grid-cols-4 lg:grid-rows-2 lg:h-[22rem] lg:gap-2.5' : ''}`}>
               <button
                 type="button"
                 onClick={() => {
                   setSelectedImage(0);
                   setGalleryLightboxOpen(true);
                 }}
-                className={`relative overflow-hidden rounded-xl bg-ink/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-finland ${images.length > 1 ? 'lg:col-span-2 lg:row-span-2 aspect-[4/3] lg:aspect-auto' : 'aspect-[16/10] max-h-[28rem]'}`}
+                className={`relative overflow-hidden rounded-2xl bg-ink/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0758CB] ${images.length > 1 ? 'lg:col-span-2 lg:row-span-2 aspect-[4/3] lg:aspect-auto' : 'aspect-[16/10] max-h-[28rem]'}`}
                 aria-label={`Open gallery, photo 1 of ${images.length}`}
               >
                   <img
@@ -1818,7 +1809,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                     setSelectedImage(i + 1);
                     setGalleryLightboxOpen(true);
                   }}
-                  className="relative hidden overflow-hidden rounded-xl bg-ink/10 aspect-[4/3] lg:block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-finland"
+                  className="relative hidden overflow-hidden rounded-2xl bg-ink/10 aspect-[4/3] lg:block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0758CB]"
                   aria-label={`Open gallery, photo ${i + 2} of ${images.length}`}
                 >
                   <img src={img} alt={`${tour.title}, photo ${i + 2}`} loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
@@ -1839,7 +1830,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                         setSelectedImage(index);
                         setGalleryLightboxOpen(true);
                       }}
-                      className={`relative shrink-0 snap-start overflow-hidden rounded-xl ${
+                      className={`relative shrink-0 snap-start overflow-hidden rounded-2xl ${
                         index === 0 ? 'hidden' : 'w-[42%] aspect-[4/3]'
                       }`}
                       aria-label={`Photo ${index + 1} of ${images.length}`}
@@ -1964,8 +1955,8 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                         const several = panelQuote.guests > 1 || lines.length > 1;
                         return (
                           <div className="mb-3">
-                            <p className="text-2xl font-semibold tracking-tight text-ink">{quotedOfferPrice(panelQuote)}</p>
-                            <p className="mt-0.5 text-xs text-ink-muted">
+                            <p className="text-[1.85rem] font-bold leading-none tracking-tight text-[#111827]">{quotedOfferPrice(panelQuote)}</p>
+                            <p className="mt-1.5 text-sm text-ink-muted">
                               {several ? 'Total for this booking' : lines[0]?.label ? `Per ${lines[0].label.toLowerCase()}` : 'Per person'}
                             </p>
                             {several && lines.length > 0 ? (
@@ -1992,18 +1983,22 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                       );
                       const hasDiscount = label && price < originalPrice;
                       const currency = normalizeCurrency(tour.price?.currency);
-                      const unit = qualifier ? `From · per ${qualifier}` : 'From · per person';
+                      const unit = qualifier ? `From / ${qualifier}` : 'From / person';
                       return (
-                        <>
-                          <PriceHero
-                            amount={Number(price)}
-                            currency={currency}
-                            basis={unit}
-                            originalAmount={hasDiscount ? originalPrice : null}
-                            discountLabel={hasDiscount ? label : null}
-                          />
-                          <div className="mb-3" />
-                        </>
+                        <div className="mb-3">
+                          {hasDiscount ? (
+                            <p className="text-sm font-medium text-ink-muted line-through tabular-nums">
+                              {formatMoney(originalPrice, currency)}
+                            </p>
+                          ) : null}
+                          <p className="text-[1.85rem] font-bold leading-none tracking-tight text-[#111827] tabular-nums">
+                            {formatMoney(Number(price), currency)}
+                          </p>
+                          <p className="mt-1.5 text-sm text-ink-muted">{unit}</p>
+                          {hasDiscount && label ? (
+                            <p className="mt-1 text-sm font-semibold text-[#0F766E]">{label}</p>
+                          ) : null}
+                        </div>
                       );
                     })()}
                     <div className="space-y-3">
@@ -2308,7 +2303,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                                 ? 'tour-booking-card-error'
                                 : undefined
                             }
-                            className="tv-btn-primary w-full disabled:opacity-60"
+                            className="tv-btn-primary tv-tour-book w-full disabled:opacity-60"
                           >
                             {tourStickyBookCtaLabel({
                               hasDate: Boolean(bookingDate.trim()),
@@ -2354,7 +2349,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                           <button
                             type="button"
                             onClick={handleStickyBookCta}
-                            className="tv-btn-primary w-full"
+                            className="tv-btn-primary tv-tour-book w-full"
                           >
                             {tourStickyBookCtaLabel({
                               hasDate: Boolean(bookingDate.trim()),
@@ -2389,10 +2384,20 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                           </NoticeCallout>
                         ) : null}
                       </div>
-                      <p className="flex items-start gap-2 text-xs text-ink-muted">
-                        <Shield className="w-3.5 h-3.5 text-finland flex-shrink-0 mt-0.5" aria-hidden />
-                        Secure checkout · {STRIPE_TEST_UNTIL_LIVE}
-                      </p>
+                      <div className="space-y-1 text-xs leading-relaxed text-ink-muted">
+                        {listingShowsFreeCancellation(tour) ? (
+                          <p className="flex items-start gap-2">
+                            <Shield className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#0F766E]" aria-hidden />
+                            Free cancellation up to 24 hours before start
+                          </p>
+                        ) : null}
+                        <p className={listingShowsFreeCancellation(tour) ? 'pl-[1.375rem]' : 'flex items-start gap-2'}>
+                          {listingShowsFreeCancellation(tour) ? null : (
+                            <Shield className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#0F766E]" aria-hidden />
+                          )}
+                          Secure checkout · {STRIPE_TEST_UNTIL_LIVE}
+                        </p>
+                      </div>
                     </div>
                   </>
                 )}
@@ -2404,7 +2409,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
       <section className="py-8 bg-paper border-t border-black/[0.06]">
         <div className="tv-shell mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-            <h2 className="text-xl font-semibold text-ink">Reviews</h2>
+            <h2 className="text-xl font-bold tracking-tight text-[#111827]">Reviews</h2>
             {reviews.length > 0 ? (
               <button
                 type="button"
@@ -2705,7 +2710,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                         selectedDaySpotsLeft < partyForCap)
                     );
                   })()}
-                  className="tv-btn-primary min-h-11 shrink-0 disabled:opacity-60"
+                  className="tv-btn-primary tv-tour-book min-h-11 shrink-0 disabled:opacity-60"
                 >
                   {tourStickyBookCtaLabel({
                     hasDate: Boolean(bookingDate.trim()),

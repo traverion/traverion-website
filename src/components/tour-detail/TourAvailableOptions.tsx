@@ -53,7 +53,7 @@ export default function TourAvailableOptions({
     >
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          <h2 id="tour-availability-heading" className="text-xl font-semibold text-ink">
+          <h2 id="tour-availability-heading" className="text-xl font-bold tracking-tight text-[#111827]">
             {kind === 'none' ? 'No availability' : `Available ${headingDate}`}
           </h2>
           {kind !== 'none' ? (
@@ -156,18 +156,16 @@ function OptionRow({
         };
   return (
     <article
-      className={`rounded-xl border p-4 transition-[background-color,border-color,box-shadow] duration-200 ${
-        selected
-          ? 'border-[#073b83] bg-[#073b83]/[0.045] shadow-[0_0_0_1px_#073b83]'
-          : 'border-black/[0.08] bg-white hover:border-black/15'
+      className={`rounded-2xl border p-4 transition-[background-color,border-color] duration-200 ${
+        selected ? 'border-[#0758CB] bg-[#EAF2FF]' : 'border-black/[0.08] bg-white hover:border-black/15'
       }`}
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h3 className="text-base font-semibold leading-snug text-ink">{variant.label}</h3>
+          <h3 className="text-base font-bold leading-snug text-[#111827]">{variant.label}</h3>
           {detail ? <p className="mt-1 text-sm leading-snug text-ink-muted">{detail}</p> : null}
         </div>
-        <p className="shrink-0 text-right text-lg font-semibold tabular-nums leading-tight text-ink">
+        <p className="shrink-0 text-right text-lg font-bold tabular-nums leading-tight text-[#111827]">
           {hideCatalogPrice ? 'Price unavailable' : priced?.lead}
         </p>
       </div>
@@ -232,8 +230,10 @@ function OptionRow({
         data-tour-option-cta="choose"
         onClick={() => onChoose(variant)}
         aria-pressed={selected}
-        className={`mt-4 inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg px-4 text-sm font-semibold transition-colors duration-200 ${
-          selected ? 'bg-[#073b83] text-white' : 'bg-[#073b83] text-white hover:bg-[#052e68]'
+        className={`mt-4 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg px-4 text-sm font-semibold transition-colors duration-200 ${
+          selected
+            ? 'bg-[#0758CB] text-white'
+            : 'border border-[#0758CB] bg-white text-[#0758CB] hover:bg-[#EAF2FF]'
         }`}
       >
         {selected ? <Check className="h-4 w-4" aria-hidden /> : null}

@@ -10,7 +10,7 @@ describe('tourStickyBookCtaLabel', () => {
     ).toBe('Pick a date');
     expect(
       tourStickyBookCtaLabel({ hasDate: true, hasOption: false, needsDeparture: false, variantsOpen: true })
-    ).toBe('Choose option');
+    ).toBe('Select an option');
     expect(
       tourStickyBookCtaLabel({ hasDate: true, hasOption: true, needsDeparture: true })
     ).toBe('Pick time');

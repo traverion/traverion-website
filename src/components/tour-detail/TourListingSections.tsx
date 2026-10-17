@@ -36,7 +36,7 @@ type Props = {
 };
 
 const sectionClass = 'border-t border-black/[0.06] pt-6';
-const headingClass = 'mb-3 text-lg font-semibold text-ink';
+const headingClass = 'mb-3 text-xl font-bold tracking-tight text-[#111827]';
 
 function Fact({ label, children }: { label: string; children: string }) {
   const value = children.trim();
@@ -149,7 +149,7 @@ export default function TourListingSections({
           <ul className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
             {highlights.map((highlight) => (
               <li key={highlight} className="flex items-start gap-2.5 text-[15px] text-ink">
-                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#f4f5f7] text-[#073b83]">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#EAF2FF] text-[#0758CB]">
                   <Check className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
                 </span>
                 <span className="break-words [overflow-wrap:anywhere]">{highlight}</span>
@@ -222,7 +222,7 @@ export default function TourListingSections({
                 <ul className="space-y-2">
                   {includes.map((item) => (
                     <li key={item} className="flex items-start gap-2.5 text-[15px] text-ink">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-finland" strokeWidth={2.25} aria-hidden />
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#0758CB]" strokeWidth={2.25} aria-hidden />
                       <span className="break-words [overflow-wrap:anywhere]">{item}</span>
                     </li>
                   ))}

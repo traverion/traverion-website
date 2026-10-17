@@ -2525,6 +2525,16 @@ a:focus-visible,
   cursor: not-allowed;
   transform: none;
 }
+.tv-btn-primary.tv-tour-book {
+  border-radius: 0.75rem;
+  background: #0758cb;
+}
+.tv-btn-primary.tv-tour-book:hover {
+  background: #0548a8;
+}
+.tv-btn-primary.tv-tour-book:focus-visible {
+  outline-color: #0758cb;
+}
 .tv-btn-secondary {
   display: inline-flex;
   align-items: center;
