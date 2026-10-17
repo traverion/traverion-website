@@ -2931,6 +2931,21 @@ a:focus-visible,
   flex: 1 1 auto;
   flex-direction: column;
   gap: 0;
+  scrollbar-color: #d4d4d8 transparent;
+}
+
+.tv-inbox-workspace ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.tv-inbox-workspace ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tv-inbox-workspace ::-webkit-scrollbar-thumb {
+  background: #d4d4d8;
+  border-radius: 999px;
 }
 
 .tv-inbox-split {
@@ -2938,7 +2953,7 @@ a:focus-visible,
   min-height: 0;
   flex: 1;
   overflow: hidden;
-  border: 1px solid #4e5563;
+  border: 1px solid #e5e7eb;
   border-radius: 0.85rem;
   background: #fff;
 }
@@ -2951,7 +2966,7 @@ a:focus-visible,
 
 .tv-inbox-list-pane__head {
   padding: 0.85rem 0.9rem 0.7rem;
-  border-bottom: 1px solid #6b7280;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .tv-inbox-chat {
@@ -2967,7 +2982,7 @@ a:focus-visible,
   align-items: center;
   gap: 0.35rem;
   padding: 0 0.85rem;
-  border-bottom: 1px solid #6b7280;
+  border-bottom: 1px solid #e5e7eb;
   background: #fff;
 }
 
@@ -3034,9 +3049,8 @@ a:focus-visible,
 .tv-chat__bubble--theirs {
   margin-right: auto;
   border-radius: 1.05rem 1.05rem 1.05rem 0.35rem;
-  background: #eef0f3;
-  color: #12151a;
-  box-shadow: inset 0 0 0 1px #c5ccd6;
+  background: #f4f4f5;
+  color: #18181b;
 }
 
 .tv-chat__bubble--system {
@@ -3051,7 +3065,7 @@ a:focus-visible,
   margin-top: 0.15rem;
   font-size: 10px;
   line-height: 1.2;
-  color: #3d4454;
+  color: #71717a;
 }
 
 .tv-chat__bubble--mine .tv-chat__time {
@@ -3063,7 +3077,7 @@ a:focus-visible,
   flex: none;
   align-items: flex-end;
   gap: 0.4rem;
-  border-top: 1px solid #6b7280;
+  border-top: 1px solid #e5e7eb;
   background: #fff;
   padding: 0.55rem 0.7rem 0.6rem;
 }
@@ -3073,23 +3087,42 @@ a:focus-visible,
   min-height: 2.5rem;
   flex: 1;
   resize: none;
-  border: 1px solid #6b7280;
+  overflow: hidden;
+  border: 1px solid transparent;
   border-radius: 1.15rem;
-  background: #f7f8fa;
+  background: #f4f4f5;
   padding: 0.6rem 0.85rem;
   font: inherit;
   line-height: 1.4;
-  color: #12151a;
+  color: #18181b;
+  scrollbar-width: thin;
+  scrollbar-color: #d4d4d8 transparent;
+}
+
+.tv-chat__input::-webkit-scrollbar {
+  width: 4px;
+}
+
+.tv-chat__input::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tv-chat__input::-webkit-scrollbar-thumb {
+  background: #d4d4d8;
+  border-radius: 999px;
 }
 
 .tv-chat__input::placeholder {
-  color: #3d4454;
+  color: #71717a;
 }
 
 .tv-chat__input:focus {
-  border-color: #073b83;
-  outline: 2px solid #073b83;
-  outline-offset: 1px;
+  outline: none;
+}
+
+.tv-chat__input:focus-visible {
+  outline: 2px solid #18181b;
+  outline-offset: 2px;
 }
 
 .tv-chat__send {
@@ -3106,8 +3139,8 @@ a:focus-visible,
 }
 
 .tv-chat__send:disabled {
-  background: #e4e7ec;
-  color: #3d4454;
+  background: #e4e4e7;
+  color: #52525b;
 }
 
 .tv-chat__send:focus-visible {
@@ -3155,7 +3188,7 @@ a:focus-visible,
   width: min(22rem, 100%);
   flex-direction: column;
   background: #fff;
-  border-left: 1px solid #4e5563;
+  border-left: 1px solid #e5e7eb;
   box-shadow: none;
 }
 
@@ -3170,8 +3203,8 @@ a:focus-visible,
 }
 
 .tv-inbox-workspace .tv-inbox-thread[data-open='true'] {
-  background: rgba(7, 59, 131, 0.1);
-  box-shadow: inset 3px 0 0 #073b83;
+  background: #f0f4fa;
+  box-shadow: inset 2px 0 0 #073b83;
 }
 
 .tv-inbox-workspace .tv-inbox-thread {
@@ -3179,11 +3212,11 @@ a:focus-visible,
 }
 
 .tv-inbox-workspace .tv-inbox-thread:hover {
-  background: rgba(7, 59, 131, 0.045);
+  background: #f4f4f5;
 }
 
 .tv-inbox-workspace .tv-inbox-thread[data-open='true']:hover {
-  background: rgba(7, 59, 131, 0.11);
+  background: #f0f4fa;
 }
 
 .tv-inbox-workspace .tv-inbox-thread__btn {
@@ -3197,40 +3230,70 @@ a:focus-visible,
 }
 
 .tv-inbox-workspace .text-ink {
-  color: #12151a;
+  color: #18181b;
 }
 
 .tv-inbox-workspace .text-ink-muted,
+.tv-inbox-workspace .tv-chat__empty {
+  color: #52525b;
+}
+
 .tv-inbox-workspace .text-ink-faint,
-.tv-inbox-workspace .tv-chat__empty,
 .tv-inbox-workspace .tv-msg-day {
-  color: #3d4454;
+  color: #71717a;
 }
 
 .tv-inbox-workspace .tv-inbox-thread {
-  border-bottom: 1px solid #d0d5dd;
+  border: 0;
 }
 
 .tv-inbox-workspace #partner-inbox-search {
-  border: 1px solid #6b7280;
-  background: #fff;
-  color: #12151a;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  background: #f4f4f5;
+  color: #18181b;
   box-shadow: none;
 }
 
 .tv-inbox-workspace #partner-inbox-search::placeholder {
-  color: #3d4454;
+  color: #71717a;
 }
 
 .tv-inbox-workspace #partner-inbox-search:focus {
-  border-color: #073b83;
-  outline: 2px solid #073b83;
-  outline-offset: 1px;
+  outline: none;
 }
 
-.tv-inbox-workspace [role='tab'][aria-selected='false'] {
-  color: #1f2430;
-  box-shadow: inset 0 0 0 1px #6b7280;
+.tv-inbox-workspace #partner-inbox-search:focus-visible {
+  outline: 2px solid #18181b;
+  outline-offset: 2px;
+}
+
+.tv-inbox-tab {
+  border-radius: 999px;
+  background: transparent;
+  padding: 0.3rem 0.7rem;
+  font-size: 12px;
+  font-weight: 600;
+  color: #52525b;
+  box-shadow: none;
+}
+
+.tv-inbox-tab[aria-selected='true'] {
+  background: #f0f4fa;
+  color: #073b83;
+}
+
+.tv-inbox-tab:hover {
+  background: #f4f4f5;
+}
+
+.tv-inbox-tab[aria-selected='true']:hover {
+  background: #f0f4fa;
+}
+
+.tv-inbox-tab:focus-visible {
+  outline: 2px solid #18181b;
+  outline-offset: 2px;
 }
 
 .tv-inbox-details-link {
@@ -3271,7 +3334,7 @@ a:focus-visible,
   .tv-inbox-list-pane {
     width: min(22.5rem, 36%);
     flex: none;
-    border-right: 1px solid #5c6370;
+    border-right: 1px solid #e5e7eb;
   }
 }
 

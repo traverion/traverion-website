@@ -235,8 +235,12 @@ export default function BookingMessageThread({
     if (!panel) return;
     const el = composerRef.current;
     if (!el) return;
+    el.style.overflowY = 'hidden';
     el.style.height = 'auto';
-    el.style.height = `${Math.min(el.scrollHeight, 128)}px`;
+    const frame = el.offsetHeight - el.clientHeight;
+    const full = el.scrollHeight + frame;
+    el.style.height = `${Math.min(full, 128)}px`;
+    if (full > 128) el.style.overflowY = 'auto';
   }, [draft, panel, canCompose, loading, loadError]);
 
   if (panel) {

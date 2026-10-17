@@ -484,11 +484,7 @@ export default function SupplierInbox() {
                   aria-controls={PARTNER_INBOX_TABPANEL_ID}
                   aria-selected={!unreadOnly}
                   onClick={() => setUnreadOnlyAndUrl(false)}
-                  className={`lux-flat rounded-md px-2.5 py-1.5 text-[12px] font-semibold ring-1 transition-colors ${
-                    !unreadOnly
-                      ? 'bg-finland text-white ring-finland'
-                      : 'bg-transparent text-ink-muted ring-black/[0.08] hover:text-ink'
-                  }`}
+                  className="tv-inbox-tab lux-flat"
                 >
                   All
                 </button>
@@ -499,11 +495,7 @@ export default function SupplierInbox() {
                   aria-controls={PARTNER_INBOX_TABPANEL_ID}
                   aria-selected={unreadOnly}
                   onClick={() => setUnreadOnlyAndUrl(true)}
-                  className={`lux-flat rounded-md px-2.5 py-1.5 text-[12px] font-semibold ring-1 transition-colors ${
-                    unreadOnly
-                      ? 'bg-finland text-white ring-finland'
-                      : 'bg-transparent text-ink-muted ring-black/[0.08] hover:text-ink'
-                  }`}
+                  className="tv-inbox-tab lux-flat"
                 >
                   Unread{unreadCount > 0 ? ` · ${unreadCount}` : ''}
                 </button>
@@ -586,7 +578,7 @@ export default function SupplierInbox() {
                         id={`supplier-inbox-row-${b.id}`}
                         data-unread={unread ? 'true' : 'false'}
                         data-open={open ? 'true' : 'false'}
-                        className="tv-inbox-thread border-b border-slate-100 last:border-b-0"
+                        className="tv-inbox-thread"
                       >
                         <button
                           type="button"
