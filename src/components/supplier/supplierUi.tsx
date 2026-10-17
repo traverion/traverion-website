@@ -116,33 +116,43 @@ export function SupplierPageHero({ title, description, actions, children, badge 
 const SupplierModalTitleIdContext = createContext<string | null>(null);
 
 type SupplierModalHeaderProps = {
-  icon: LucideIcon;
+  icon?: LucideIcon;
   title: string;
-  subtitle?: string;
+  subtitle?: ReactNode;
+  /** Compact status beside the title. */
+  badge?: ReactNode;
   onClose?: () => void;
   /** When used outside SupplierModalShell, pass the same id as the dialog’s aria-labelledby. */
   titleId?: string;
 };
 
-export function SupplierModalHeader({ icon: Icon, title, subtitle, onClose, titleId }: SupplierModalHeaderProps) {
+export function SupplierModalHeader({ icon: Icon, title, subtitle, badge, onClose, titleId }: SupplierModalHeaderProps) {
   const shellTitleId = useContext(SupplierModalTitleIdContext);
   const headingId = titleId ?? shellTitleId ?? undefined;
   return (
-    <div className="flex w-full shrink-0 flex-nowrap items-start gap-3 border-b border-black/[0.06] px-4 py-3.5 sm:px-5">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-finland/10">
-        <Icon className="h-5 w-5 text-finland" aria-hidden />
-      </div>
-      <div className="min-w-0 flex-1 pt-0.5">
-        <h2
-          id={headingId}
-          className="font-display text-base font-semibold tracking-tight text-ink sm:text-xl"
-        >
-          {title}
-        </h2>
-        {subtitle ? (
+    <div className="flex w-full shrink-0 flex-nowrap items-start gap-3 border-b border-black/[0.06] px-4 py-2.5 sm:px-5">
+      {Icon ? (
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-finland/10">
+          <Icon className="h-5 w-5 text-finland" aria-hidden />
+        </div>
+      ) : null}
+      <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 items-center gap-2">
+          <h2
+            id={headingId}
+            className="min-w-0 truncate font-display text-base font-semibold tracking-tight text-ink"
+            title={title}
+          >
+            {title}
+          </h2>
+          {badge ? <div className="shrink-0">{badge}</div> : null}
+        </div>
+        {typeof subtitle === 'string' && subtitle ? (
           <p className="mt-0.5 line-clamp-2 text-xs leading-snug text-ink-muted sm:truncate" title={subtitle}>
             {subtitle}
           </p>
+        ) : subtitle ? (
+          <div className="mt-0.5 text-xs leading-snug text-ink-muted">{subtitle}</div>
         ) : null}
       </div>
       {onClose ? (
@@ -298,10 +308,13 @@ export function SupplierDetailDrawer({
   onClose,
   children,
   label,
+  variant = 'drawer',
 }: {
   onClose: () => void;
   children: ReactNode;
   label: string;
+  /** `sheet` covers the viewport. Used for the mobile filters panel. */
+  variant?: 'drawer' | 'sheet';
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
@@ -324,7 +337,11 @@ export function SupplierDetailDrawer({
         aria-modal="true"
         aria-label={label}
         aria-labelledby={titleId}
-        className="absolute inset-y-0 right-0 flex w-full min-w-0 max-w-[42rem] flex-col bg-white shadow-xl ring-1 ring-black/10 sm:w-[min(45vw,42rem)]"
+        className={
+          variant === 'sheet'
+            ? 'absolute inset-0 flex w-full min-w-0 flex-col bg-white'
+            : 'absolute inset-y-0 right-0 flex w-full min-w-0 max-w-[42rem] flex-col bg-white shadow-xl ring-1 ring-black/10 sm:w-[min(45vw,42rem)]'
+        }
       >
         <SupplierModalTitleIdContext.Provider value={titleId}>{children}</SupplierModalTitleIdContext.Provider>
       </div>
