@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, MapPin, Heart, Star, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { getListingById, getListingByIdAsync } from '../data/listings';
-import { parseListingExtras, TRAVERION_STANDARD_CANCELLATION_POLICY } from '../types/listingExtras';
+import { parseListingExtras, STAY_GUEST_CANCELLATION_POLICY } from '../types/listingExtras';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 import { listingIsFamily } from '../lib/inventory';
 import { listingDetailVisibleToTraveler } from '../lib/product-workflows';
@@ -1055,7 +1055,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
             <div>
               <h2 className="font-display text-xl mb-2">Cancellation</h2>
               <p className="text-ink-muted break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
-                {stay.cancellationPolicy?.trim() || TRAVERION_STANDARD_CANCELLATION_POLICY}
+                {STAY_GUEST_CANCELLATION_POLICY}
               </p>
             </div>
             {hostName ? (

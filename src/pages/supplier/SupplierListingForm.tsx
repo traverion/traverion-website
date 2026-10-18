@@ -11,6 +11,7 @@ import {
   parseBookingOptionDuration,
   parseListingExtras,
   TRAVERION_STANDARD_CANCELLATION_POLICY,
+  STAY_GUEST_CANCELLATION_POLICY,
 } from '../../types/listingExtras';
 import ListingImageFields from '../../components/supplier/ListingImageFields';
 import ListingInformationStage from '../../components/supplier/listing-creation/ListingInformationStage';
@@ -129,7 +130,6 @@ import {
 import {
   canContinueFromPhotos,
   canVisitListingCreationStep,
-  listingCreationCompletedCount,
   listingCreationContinueHint,
   listingCreationLockedReason,
   listingCreationMissingHint,
@@ -215,10 +215,6 @@ import {
   isListingDescriptionLengthValid,
   isListingTitleLengthValid,
 } from '../../lib/listingQualityScore';
-import {
-  PARTNER_LISTING_PUBLISH_STEP_NOTE,
-  PARTNER_LISTING_PUBLISH_STEP_TITLE,
-} from '../../lib/booking-confirmation-copy';
 import { DEFAULT_CURRENCY, formatMoney, normalizeCurrency } from '../../lib/money';
 import { formatStayAmenityLabel, STAY_AMENITY_GROUPS, STAY_AMENITY_PRESETS } from '../../lib/stay-amenities';
 import TraverionLocationSelector from '../../components/supplier/TraverionLocationSelector';
@@ -3642,10 +3638,8 @@ export default function SupplierListingForm({
     : createFamily === 'stay'
       ? 'Create stay steps'
       : 'Create tour steps';
-  const stayProgress = isStayForm;
   const creationNavItems = listingCreationNavItems(steps, stepIdx, (idx) => isStepSatisfied(idx, form), {
     isNewCreation: sessionOpenedAsCreateRef.current === true,
-    keepCurrentInProgress: stayProgress,
     summaryForIndex: (idx) => {
       const row = reviewRows.find((r) => r.step === idx);
       if (!row) return null;
@@ -3654,12 +3648,7 @@ export default function SupplierListingForm({
     },
   });
   const creationProgressCopy = listingCreationProgressCopy(
-    stayProgress
-      ? listingCreationCompletedCount(
-          steps.map((_, idx) => isStepSatisfied(idx, form)),
-          stepIdx
-        )
-      : steps.filter((_, idx) => isStepSatisfied(idx, form)).length,
+    steps.filter((_, idx) => isStepSatisfied(idx, form)).length,
     steps.length
   );
 
@@ -3911,7 +3900,7 @@ export default function SupplierListingForm({
                     title={publishButtonTitle}
                     className="touch-manipulation tv-btn-primary !min-h-12 w-full sm:!min-h-11 sm:w-auto disabled:opacity-50"
                   >
-                    {submitting || shellExiting ? 'Publishing…' : 'Publish experience'}
+                    {submitting || shellExiting ? 'Publishing…' : isStayForm ? 'Publish stay' : 'Publish experience'}
                   </button>
                 )}
               </div>
@@ -4467,10 +4456,6 @@ export default function SupplierListingForm({
 
           {stepIdx === 1 && form.inventoryFamily === 'stay' && (
             <div className="mx-auto max-w-xl space-y-6">
-              <div>
-                <h3 className="text-lg font-bold text-ink">Location</h3>
-                <p className="mt-1 text-sm text-ink-muted">Where is your property located?</p>
-              </div>
               <TraverionLocationSelector
                 id="supplier-listing-stay-destination"
                 selected={verifiedDestination({
@@ -4589,6 +4574,18 @@ export default function SupplierListingForm({
                   max={50}
                   onChange={(stayMaxGuests) => setForm((f) => ({ ...f, stayMaxGuests }))}
                 />
+                {(() => {
+                  const guests = Number.parseInt(form.stayMaxGuests, 10);
+                  const beds = Number.parseInt(form.stayBeds, 10);
+                  if (!Number.isFinite(guests) || guests < 1 || !Number.isFinite(beds) || beds < 1) return null;
+                  if (guests <= beds * 2) return null;
+                  return (
+                    <p className="text-xs leading-relaxed text-ink-muted">
+                      {guests} guests with {beds} {beds === 1 ? 'bed' : 'beds'} is more than two people per bed. You can
+                      keep this if the sleeping setup supports it.
+                    </p>
+                  );
+                })()}
               </section>
               <section className="space-y-4 border-t border-[#E6EAF0] pt-6" aria-labelledby="stay-sleep-heading">
                 <div>
@@ -4876,8 +4873,38 @@ export default function SupplierListingForm({
                   Cancellation
                 </h4>
                 <p className="max-w-xl text-sm leading-relaxed text-ink-muted">
-                  {TRAVERION_STANDARD_CANCELLATION_POLICY}
+                  {STAY_GUEST_CANCELLATION_POLICY}
                 </p>
+              </section>
+              <section className="space-y-3 border-t border-[#E6EAF0] pt-6" aria-labelledby="stay-address-heading">
+                <div>
+                  <h4 id="stay-address-heading" className="text-sm font-semibold text-[#111827]">
+                    Arrival address
+                  </h4>
+                  <p className="mt-1 text-xs leading-relaxed text-ink-muted">
+                    Booked guests see this in Trips after payment. It is not shown on the public listing.
+                  </p>
+                </div>
+                <label className="block text-sm font-semibold text-ink" htmlFor="stay-check-in-address">
+                  Street and arrival notes
+                  <textarea
+                    id="stay-check-in-address"
+                    value={form.stayCheckInAddress}
+                    onChange={(e) => {
+                      const stayCheckInAddress = e.target.value.slice(0, 400);
+                      setForm((f) => ({
+                        ...f,
+                        stayCheckInAddress,
+                        stayAddressStreet: stayCheckInAddress,
+                        stayAddressPostal: '',
+                        stayAddressNotes: '',
+                      }));
+                    }}
+                    className="tv-input mt-1 min-h-[4.5rem] w-full resize-y font-normal"
+                    placeholder="Street, building, and how to arrive"
+                    maxLength={400}
+                  />
+                </label>
               </section>
               <section className="space-y-3 border-t border-[#E6EAF0] pt-6" aria-labelledby="stay-rules-heading">
                 <div>
@@ -5130,16 +5157,6 @@ export default function SupplierListingForm({
                     <li>If you use per-date capacity, keep future dates updated so bookings stay accurate.</li>
                   </ul>
                 </div>
-              )}
-              {(form.inventoryFamily === 'stay' || createFamily === 'stay') && (
-              <div>
-                <p className="font-medium text-ink">
-                  {form.status === 'published' ? 'Update your live listing' : PARTNER_LISTING_PUBLISH_STEP_TITLE}
-                </p>
-                <p className="mt-2 text-sm text-ink-muted leading-relaxed">
-                  {PARTNER_LISTING_PUBLISH_STEP_NOTE}
-                </p>
-              </div>
               )}
             </div>
             );

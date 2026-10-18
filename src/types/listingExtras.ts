@@ -22,6 +22,14 @@ export type CancellationPreset = 'free_24h' | 'free_48h' | 'free_7d' | 'non_refu
 export const TRAVERION_STANDARD_CANCELLATION_POLICY =
   'You may cancel free of charge up to 24 hours before the scheduled start time. After that, guest-initiated cancellations are not available. If the operator cancels or needs to reschedule (for example due to weather or safety), that is handled from your booking details.';
 
+/**
+ * Guest-facing stay wording for the same 24-hour rule.
+ * Stays are measured from the check-in date (midnight in the property timezone), not a tour start time.
+ * Stored listings keep TRAVERION_STANDARD_CANCELLATION_POLICY so refund checks stay unchanged.
+ */
+export const STAY_GUEST_CANCELLATION_POLICY =
+  'You may cancel free of charge up to 24 hours before the check-in date. After that, guest-initiated cancellations are not available. If the host cancels, that is handled from your booking details.';
+
 export type VenueSetting = 'unspecified' | 'indoor' | 'outdoor' | 'mixed';
 
 export type ScheduleStyle = 'flexible' | 'fixed_slots' | 'on_request';
