@@ -4141,7 +4141,7 @@ export default function SupplierListingForm({
                     title={publishButtonTitle}
                     className="touch-manipulation tv-btn-primary !min-h-12 w-full sm:!min-h-11 sm:w-auto disabled:opacity-50"
                   >
-                    {submitting || shellExiting ? 'Publishing…' : isStayForm ? 'Publish stay' : 'Publish experience'}
+                    {submitting || shellExiting ? 'Publishing…' : isStayForm ? 'Publish property' : 'Publish experience'}
                   </button>
                 )}
               </div>
@@ -4188,6 +4188,7 @@ export default function SupplierListingForm({
               currency={listingCurrency}
               userId={user?.id}
               uploadsEnabled={isSupabaseConfigured() && !!user?.id}
+              publishIssues={publishBlockersPreview}
               locationConfirmed={stayLocationConfirmed}
               onConfirmLocation={(confirmed) => {
                 setStayLocationConfirmed(confirmed);

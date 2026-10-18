@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { STAY_ONBOARDING_SCREENS, quietHoursMentioned, stayScreenIndex } from '../../../lib/stay-onboarding';
+import { STAY_ONBOARDING_SCREENS, quietHoursMentioned, stayScreenIndex, stayStageBlocker, type StayOnboardingCheck } from '../../../lib/stay-onboarding';
 import { stayAmenityDisplayList } from '../../../lib/stay-amenities';
 import { stayPropertyTypesForMode } from '../../../lib/stay-accommodation';
 import { STAY_ARRIVAL_METHODS, stayArrivalMethodHint, stayArrivalMethodLabel } from '../../../lib/stay-arrival';
@@ -101,6 +101,7 @@ type Props = {
   minDescription: number;
   maxDescription: number;
   maxSubtitle: number;
+  publishIssues?: string[];
 };
 
 function primaryOption(values: Values): StayAccommodationOption {
@@ -121,7 +122,7 @@ export default function StayOnboardingFlow(props: Props) {
       .then((row) => {
         if (cancelled) return;
         const bps = row?.commission_bps;
-        setCommissionBps(Number.isInteger(bps) ? bps : null);
+        setCommissionBps(typeof bps === 'number' && Number.isInteger(bps) ? bps : null);
       })
       .catch(() => {
         if (!cancelled) setCommissionBps(null);
@@ -1061,26 +1062,86 @@ function PreviewStage({ values, currency, onEditStage, option }: Props & { optio
   );
 }
 
-function PublishStage({ values, onEditStage, option }: Props & { option: StayAccommodationOption }) {
-  const propertyType = option.propertyType || values.stayPropertyType;
-  const rows: { label: string; ok: boolean; stage: number }[] = [
-    { label: 'Location', ok: Boolean(values.city && values.stayAddressStreet), stage: stayScreenIndex('location') },
-    { label: 'Property', ok: Boolean(propertyType && values.title.trim().length >= 10), stage: stayScreenIndex('property-name') },
-    { label: 'Sleeping', ok: staySleepCapacity(option.bedMix) >= 1, stage: stayScreenIndex('rooms') },
-    { label: 'Price', ok: Number.parseFloat(values.stayNightly) > 0, stage: stayScreenIndex('price') },
-    { label: 'Photos', ok: values.photoSlots.some((url) => url.startsWith('http')), stage: stayScreenIndex('photos') },
-    { label: 'Arrival', ok: Boolean(values.stayArrivalMethod && values.stayCheckInAddress.trim().length >= 8), stage: stayScreenIndex('arrival-notes') },
-    { label: 'House rules', ok: Boolean(values.stayPets && values.staySmoking && values.stayParties), stage: stayScreenIndex('house-rules') },
+function PublishStage({ values, onEditStage, option, locationConfirmed, minTitle, minDescription, publishIssues = [] }: Props & { option: StayAccommodationOption }) {
+  const cover = values.photoSlots.find((url) => url.startsWith('http'));
+  const areasWithBeds = option.sleepingAreas.filter((area) => area.beds.some((bed) => bed.count > 0)).length;
+  const check: StayOnboardingCheck = {
+    city: values.city,
+    country: values.country,
+    hasPlace: Boolean(values.destinationPlaceId || (values.city && values.country)),
+    street: values.stayAddressStreet,
+    postal: values.stayAddressPostal,
+    locationConfirmed,
+    pinReady: stayPinMatchesAddress({
+      source: values.stayPinSource,
+      addressKey: values.stayPinAddressKey,
+      street: values.stayAddressStreet,
+      postal: values.stayAddressPostal,
+      city: values.city,
+      lat: values.stayPinLat,
+      lng: values.stayPinLng,
+    }),
+    title: values.title,
+    propertyType: option.propertyType || values.stayPropertyType,
+    areasWithBeds,
+    maxGuests: Number.parseInt(values.stayMaxGuests, 10) || null,
+    minNights: Number.parseInt(values.stayMinNights, 10) || null,
+    maxNights: option.schedules[0]?.maxNights ?? null,
+    sleepCapacity: staySleepCapacity(option.bedMix),
+    nightly: Number.parseFloat(values.stayNightly) || null,
+    checkIn: values.stayCheckIn,
+    checkOut: values.stayCheckOut,
+    arrivalMethod: values.stayArrivalMethod,
+    photoCount: values.photoSlots.filter((url) => url.startsWith('http')).length,
+    address: values.stayCheckInAddress,
+    rulesChosen: Boolean(values.stayPets && values.staySmoking && values.stayParties),
+    descriptionLength: values.description.trim().length,
+    minDescription,
+    minTitle,
+    exteriorCamera: values.stayExteriorCamera,
+    safetyNote: values.staySafetyNote,
+  };
+  const rows: { id: string; label: string }[] = [
+    { id: 'location', label: 'Location' },
+    { id: 'confirm', label: 'Map pin' },
+    { id: 'property-name', label: 'Name' },
+    { id: 'description', label: 'Description' },
+    { id: 'rooms', label: 'Sleeping' },
+    { id: 'guests', label: 'Guests' },
+    { id: 'booking-times', label: 'Check-in times' },
+    { id: 'price', label: 'Nightly price' },
+    { id: 'photos', label: 'Photos' },
+    { id: 'arrival-notes', label: 'Arrival' },
+    { id: 'house-rules', label: 'House rules' },
+    { id: 'safety', label: 'Safety' },
   ];
+  const issues = rows.map((row) => ({ ...row, issue: stayStageBlocker(row.id, check) }));
+  const open = issues.filter((row) => row.issue);
   return (
-    <ul className="space-y-2">
-      {rows.map((row) => (
-        <li key={row.label} className="flex items-center justify-between gap-3 rounded-xl px-3 py-3 ring-1 ring-[#E6EAF0]">
-          <p className="text-sm text-ink"><span className="font-semibold">{row.ok ? 'Ready' : 'Needs attention'}</span> · {row.label}</p>
-          <button type="button" className="min-h-11 text-sm font-semibold text-finland" onClick={() => onEditStage(row.stage)}>Edit</button>
-        </li>
-      ))}
-    </ul>
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        {cover ? <img src={cover} alt="" className="h-16 w-24 rounded-lg object-cover" /> : <div className="h-16 w-24 rounded-lg bg-[#F4F6F8]" />}
+        <div>
+          <p className="font-semibold text-ink">{values.title || 'Untitled stay'}</p>
+          <p className="text-sm text-ink-muted">{[values.city, values.country].filter(Boolean).join(', ') || 'Location not set'}</p>
+        </div>
+      </div>
+      <p className="text-sm text-ink-muted">{open.length === 0 && publishIssues.length === 0 ? 'The stay checks on this screen passed. Publishing happens only when you use the button below.' : `${open.length + publishIssues.length} item${open.length + publishIssues.length === 1 ? '' : 's'} still need attention.`}</p>
+      <ul className="space-y-2">
+        {issues.map((row) => (
+          <li key={row.id} className="flex items-center justify-between gap-3 rounded-xl px-3 py-2 ring-1 ring-[#E6EAF0]">
+            <p className="text-sm text-ink"><span className="font-semibold">{row.issue ? 'Needs attention' : 'Ready'}</span> · {row.label}{row.issue ? ` — ${row.issue}` : ''}</p>
+            <button type="button" className="min-h-11 text-sm font-semibold text-finland" onClick={() => onEditStage(stayScreenIndex(row.id))}>Edit</button>
+          </li>
+        ))}
+      </ul>
+      {publishIssues.length > 0 ? (
+        <ul className="space-y-1 text-sm text-ink">
+          {publishIssues.map((issue) => <li key={issue}>{issue}</li>)}
+        </ul>
+      ) : null}
+      <p className="text-sm text-ink-muted">After publication the listing can appear in search. Guests still see only the city until a booking is paid. A live listing uses Save changes instead of publishing again.</p>
+    </div>
   );
 }
 
