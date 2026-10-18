@@ -15,6 +15,7 @@ import {
   resolveDepartureTimezone,
   TRAVERION_DEPARTURE_TIMEZONE,
 } from './tour-departure-cutoff.ts';
+import { normalizeStaySeasons, quoteStayLodging } from './stay-season-quote.ts';
 
 /** Calendar “today” for quote past-date gates — listing departure TZ, not UTC. */
 function experienceTodayIsoForListing(departureTimezone: unknown, nowMs: number = Date.now()): string {
@@ -173,6 +174,10 @@ export type QuoteOk = {
   guestBreakdown?: { categoryId: string; label: string; kind: string; quantity: number; unitPrice: number }[];
   /** Stay quotes only. */
   nights?: number;
+  /** Stay quotes only. Exact cleaning fee; do not re-derive it from a mixed nightly rate. */
+  cleaningFee?: number;
+  /** Stay quotes only. Sum of each occupied night before fees. */
+  lodgingAmount?: number;
   /** Offer row that produced the customer price. Null when no offer applied. */
   appliedDiscountId?: string | null;
 };
@@ -304,10 +309,6 @@ function quoteStayListing(input: {
   if (input.checkIn < input.today) return { ok: false, error: 'Check-in must be today or later.' };
   const nights = nightsBetween(input.checkIn, input.checkOut);
   if (nights == null) return { ok: false, error: 'Check-out must be after check-in.' };
-  const minNights = typeof stay.minNights === 'number' && stay.minNights >= 1 ? Math.floor(stay.minNights) : 1;
-  if (nights < minNights) {
-    return { ok: false, error: `Minimum stay is ${minNights} night${minNights === 1 ? '' : 's'}.` };
-  }
   const STAY_MAX_OCCUPIED_NIGHTS = 400;
   if (nights > STAY_MAX_OCCUPIED_NIGHTS) {
     return {
@@ -331,13 +332,28 @@ function quoteStayListing(input: {
       ? stay.nightlyPriceUsd
       : Number(input.listing.price_starting_from ?? 0);
   if (!(nightly > 0)) return { ok: false, error: 'This stay does not have a nightly price yet.' };
+  const lodging = quoteStayLodging({
+    checkIn: input.checkIn,
+    nights,
+    baseNightly: nightly,
+    baseMinNights: typeof stay.minNights === 'number' && stay.minNights >= 1 ? stay.minNights : 1,
+    availabilityMode: stay.availabilityMode === 'scheduled' ? 'scheduled' : 'open',
+    seasons: normalizeStaySeasons(stay.seasons),
+  });
+  if (!lodging.ok) return { ok: false, error: lodging.error };
+  if (nights < lodging.minNights) {
+    return { ok: false, error: `Minimum stay is ${lodging.minNights} night${lodging.minNights === 1 ? '' : 's'}.` };
+  }
   const cleaning = typeof stay.cleaningFeeUsd === 'number' && stay.cleaningFeeUsd > 0 ? stay.cleaningFeeUsd : 0;
   const currency = (input.listing.price_currency ?? 'EUR').trim().toUpperCase() || 'EUR';
+  const flat = lodging.nightlyPrices.every((price) => price === lodging.nightlyPrices[0]);
   return {
     ok: true,
     currency,
-    unitPrice: money(nightly),
-    totalAmount: money(nights * nightly + cleaning),
+    unitPrice: money(flat ? lodging.nightlyPrices[0] : nightly),
+    totalAmount: money(lodging.lodging + cleaning),
+    cleaningFee: money(cleaning),
+    lodgingAmount: lodging.lodging,
     optionId: null,
     optionLabel: `${nights} night${nights === 1 ? '' : 's'}`,
     nights,

@@ -876,7 +876,9 @@ serve(async (req) => {
         p_nightly_amount: stayNights != null && stayNights >= 1 ? quote.unitPrice : null,
         p_cleaning_fee:
           stayNights != null && stayNights >= 1
-            ? Math.round((quote.totalAmount - quote.unitPrice * stayNights) * 100) / 100
+            ? typeof quote.cleaningFee === 'number'
+              ? quote.cleaningFee
+              : Math.round((quote.totalAmount - quote.unitPrice * stayNights) * 100) / 100
             : null,
         p_hold_expires_at: holdExpiresAtIso,
         p_start_time: startTime || null,

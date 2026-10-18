@@ -12,6 +12,11 @@ import {
 import { normalizeBookingCutoffHours } from '../lib/tour-departure-cutoff';
 import { normalizeStayUnits, type StayUnitDraft } from '../lib/stay-accommodation';
 import { normalizeStayRestrictions, type StayRestrictions } from '../lib/stay-restrictions';
+import {
+  normalizeStaySeasons,
+  type StayAvailabilityMode,
+  type StaySeasonWindow,
+} from '../lib/stay-season-quote';
 
 /** Legacy preset values still parsed from stored `listing_extras` JSON. */
 export type CancellationPreset = 'free_24h' | 'free_48h' | 'free_7d' | 'non_refundable' | 'custom';
@@ -375,6 +380,9 @@ export type StayDetails = {
    */
   checkInAddress?: string;
   nightlyPriceUsd?: number;
+  /** open = bookable unless a night is blocked. scheduled = only nights inside a season. */
+  availabilityMode?: StayAvailabilityMode;
+  seasons?: StaySeasonWindow[];
   minNights?: number;
   maxGuests?: number;
   cleaningFeeUsd?: number;
@@ -407,6 +415,10 @@ function normalizeStayDetails(raw: unknown): StayDetails | undefined {
     out.checkInAddress = o.checkInAddress.trim().slice(0, 400);
   }
   if (typeof o.nightlyPriceUsd === 'number' && o.nightlyPriceUsd > 0) out.nightlyPriceUsd = o.nightlyPriceUsd;
+  if (o.availabilityMode === 'scheduled') out.availabilityMode = 'scheduled';
+  else if (o.availabilityMode === 'open') out.availabilityMode = 'open';
+  const seasons = normalizeStaySeasons(o.seasons);
+  if (seasons.length > 0) out.seasons = seasons;
   if (typeof o.minNights === 'number' && o.minNights >= 1) out.minNights = Math.floor(o.minNights);
   if (typeof o.maxGuests === 'number' && o.maxGuests >= 1) out.maxGuests = Math.floor(o.maxGuests);
   if (typeof o.cleaningFeeUsd === 'number' && o.cleaningFeeUsd >= 0) out.cleaningFeeUsd = o.cleaningFeeUsd;

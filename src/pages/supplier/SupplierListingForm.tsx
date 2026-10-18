@@ -228,76 +228,11 @@ import {
   type StayUnitDraft,
 } from '../../lib/stay-accommodation';
 import { normalizeStayRestrictions } from '../../lib/stay-restrictions';
+import { normalizeStaySeasons, type StaySeasonWindow } from '../../lib/stay-season-quote';
+import StayOptionsStep from '../../components/supplier/listing-creation/StayOptionsStep';
 import { publicStayListingUrl, publicTourListingUrl } from '../../lib/publicSiteUrl';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import NoticeCallout from '../../components/NoticeCallout';
-
-function StayCountField({
-  id,
-  label,
-  hint,
-  value,
-  min,
-  max,
-  step = 1,
-  onChange,
-}: {
-  id: string;
-  label: string;
-  hint?: string;
-  value: string;
-  min: number;
-  max: number;
-  step?: number;
-  onChange: (next: string) => void;
-}) {
-  const parsed = Number.parseFloat(value);
-  const has = Number.isFinite(parsed);
-  const format = (n: number) => (Number.isInteger(n) ? String(n) : String(Math.round(n * 2) / 2));
-  const decrease = () => {
-    if (!has) return;
-    const next = Math.round((parsed - step) * 2) / 2;
-    onChange(next < min ? '' : format(next));
-  };
-  const increase = () => {
-    const base = has ? parsed : min - step;
-    const next = Math.min(max, Math.round((base + step) * 2) / 2);
-    onChange(format(next < min ? min : next));
-  };
-  return (
-    <div>
-      <label htmlFor={id} className="block text-sm font-semibold text-ink">
-        {label}
-      </label>
-      {hint ? <p className="mt-0.5 text-xs leading-relaxed text-ink-muted">{hint}</p> : null}
-      <div className="mt-2 flex h-11 max-w-[12rem] items-center rounded-xl border border-[#E6EAF0] bg-white">
-        <button
-          type="button"
-          className="h-11 w-11 shrink-0 text-lg text-ink"
-          onClick={decrease}
-          aria-label={`Decrease ${label}`}
-        >
-          −
-        </button>
-        <input
-          id={id}
-          inputMode="decimal"
-          value={value}
-          onChange={(e) => onChange(e.target.value.replace(/[^\d.]/g, ''))}
-          className="w-full bg-transparent text-center text-sm font-semibold tabular-nums text-ink outline-none"
-        />
-        <button
-          type="button"
-          className="h-11 w-11 shrink-0 text-lg text-ink"
-          onClick={increase}
-          aria-label={`Increase ${label}`}
-        >
-          +
-        </button>
-      </div>
-    </div>
-  );
-}
 
 function stayAmenityTokens(raw: string): string[] {
   return raw
@@ -952,6 +887,8 @@ type ListingFormState = {
   stayBathrooms: string;
   stayMaxGuests: string;
   stayNightly: string;
+  stayAvailabilityMode: 'open' | 'scheduled';
+  staySeasons: StaySeasonWindow[];
   stayMinNights: string;
   stayCheckIn: string;
   stayCheckOut: string;
@@ -1160,6 +1097,8 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
             locationDisplayName: form.stayLocationDisplayName.trim().slice(0, 80) || undefined,
             checkInAddress: form.stayCheckInAddress.trim() || undefined,
             nightlyPriceUsd: Number.isFinite(stayNightly) && stayNightly > 0 ? stayNightly : undefined,
+            availabilityMode: form.stayAvailabilityMode === 'scheduled' ? 'scheduled' : 'open',
+            seasons: form.staySeasons.length > 0 ? form.staySeasons : undefined,
             minNights: Number.isFinite(stayMinNights) && stayMinNights >= 1 ? stayMinNights : 1,
             maxGuests: Number.isFinite(stayMaxGuests) && stayMaxGuests >= 1 ? stayMaxGuests : undefined,
             cleaningFeeUsd: Number.isFinite(stayCleaning) && stayCleaning >= 0 ? stayCleaning : undefined,
@@ -1412,6 +1351,8 @@ const emptyForm: ListingFormState = {
   stayBathrooms: '',
   stayMaxGuests: '',
   stayNightly: '',
+  stayAvailabilityMode: 'open',
+  staySeasons: [],
   stayMinNights: '1',
   stayCheckIn: '',
   stayCheckOut: '',
@@ -1471,6 +1412,8 @@ function coerceListingFormState(raw: Partial<ListingFormState> | null | undefine
       : '';
   merged.staySmoking = merged.staySmoking === 'allowed' || merged.staySmoking === 'not_allowed' ? merged.staySmoking : '';
   merged.stayParties = merged.stayParties === 'allowed' || merged.stayParties === 'not_allowed' ? merged.stayParties : '';
+  merged.stayAvailabilityMode = merged.stayAvailabilityMode === 'scheduled' ? 'scheduled' : 'open';
+  merged.staySeasons = normalizeStaySeasons(merged.staySeasons);
   merged.stayUnits = normalizeStayUnits(merged.stayUnits);
   if (
     !merged.stayAddressStreet.trim() &&
@@ -1532,6 +1475,7 @@ export default function SupplierListingForm({
   const [submitting, setSubmitting] = useState(false);
   const [publishBlockers, setPublishBlockers] = useState<string[] | null>(null);
   const [stayAmenityQuery, setStayAmenityQuery] = useState('');
+  const [stayAmenityMenu, setStayAmenityMenu] = useState(false);
   const [stayCustomAmenity, setStayCustomAmenity] = useState('');
   const isStayForm = form.inventoryFamily === 'stay' || createFamily === 'stay';
   const infoEnterFromOptionsBackRef = useRef(false);
@@ -1716,13 +1660,12 @@ export default function SupplierListingForm({
   const steps = useMemo(() => {
     const stay = form.inventoryFamily === 'stay' || createFamily === 'stay';
     if (stay) {
-      const multi = form.stayAccommodationMode === 'multi';
       return [
         { id: 'practical' as StepId, label: 'Location' },
         { id: 'the_experience' as StepId, label: 'Property' },
         { id: 'stay_description' as StepId, label: 'Description' },
         { id: 'information' as StepId, label: 'Amenities' },
-        { id: 'stay_price' as StepId, label: multi ? 'Rooms & pricing' : 'Pricing' },
+        { id: 'stay_price' as StepId, label: 'Options & availability' },
         { id: 'photos' as StepId, label: 'Photos' },
         { id: 'stay_policies' as StepId, label: 'Policies' },
         { id: 'review' as StepId, label: 'Preview' },
@@ -1736,7 +1679,7 @@ export default function SupplierListingForm({
       { id: 'photos' as StepId, label: 'Photos' },
       { id: 'review' as StepId, label: 'Preview & Publish' },
     ];
-  }, [form.inventoryFamily, form.stayAccommodationMode, createFamily]);
+  }, [form.inventoryFamily, createFamily]);
 
   const stepGuidance = useMemo(() => {
     const stay = form.inventoryFamily === 'stay' || createFamily === 'stay';
@@ -1749,7 +1692,7 @@ export default function SupplierListingForm({
         'Tick only facilities that are really there, then set pets, smoking, and parties.',
         multi
           ? 'Each room type has its own capacity and price. This property cannot be published until each type can be reserved.'
-          : 'Capacity, sleeping arrangements, nightly price, and check-in times for the one bookable stay.',
+          : 'Create the bookable stay, its price, and the dates guests can reserve.',
         'Add your strongest photo first — it becomes the cover in search.',
         'Cancellation terms guests actually get, the private arrival address, and extra house rules.',
         'Check what’s ready, fix gaps, then save as draft or publish.',
@@ -2156,6 +2099,8 @@ export default function SupplierListingForm({
           stayBathrooms: extras.stay?.bathrooms != null ? String(extras.stay.bathrooms) : '',
           stayMaxGuests: extras.stay?.maxGuests != null ? String(extras.stay.maxGuests) : '',
           stayNightly: extras.stay?.nightlyPriceUsd != null ? String(extras.stay.nightlyPriceUsd) : '',
+          stayAvailabilityMode: extras.stay?.availabilityMode === 'scheduled' ? 'scheduled' : 'open',
+          staySeasons: extras.stay?.seasons ?? [],
           stayMinNights: extras.stay?.minNights != null ? String(extras.stay.minNights) : '1',
           stayCheckIn: stayFormCheckInOutFromExtras(extras.stay).stayCheckIn,
           stayCheckOut: stayFormCheckInOutFromExtras(extras.stay).stayCheckOut,
@@ -4011,7 +3956,7 @@ export default function SupplierListingForm({
                 {isStayForm && stepIdx === 2
                   ? 'Describe your stay'
                   : isStayForm && stepIdx === 4
-                    ? 'Pricing & availability'
+                    ? 'Options & availability'
                     : steps[stepIdx].label}
               </h3>
               {stepGuidance[stepIdx]?.trim() ? (
@@ -4596,87 +4541,24 @@ export default function SupplierListingForm({
           )}
 
           {stepIdx === 4 && form.inventoryFamily === 'stay' && form.stayAccommodationMode !== 'multi' && (
-            <div className="space-y-8">
-              <section className="space-y-4" aria-labelledby="stay-capacity-heading">
-                <div>
-                  <h4 id="stay-capacity-heading" className="text-sm font-semibold text-[#111827]">
-                    Guest capacity
-                  </h4>
-                  <p className="mt-1 text-xs leading-relaxed text-ink-muted">
-                    How many people can stay. This is separate from the number of beds.
-                  </p>
-                </div>
-                <StayCountField
-                  id="supplier-listing-field-stay-guests"
-                  label="Maximum guests *"
-                  value={form.stayMaxGuests}
-                  min={1}
-                  max={50}
-                  onChange={(stayMaxGuests) => setForm((f) => ({ ...f, stayMaxGuests }))}
-                />
-                {(() => {
-                  const guests = Number.parseInt(form.stayMaxGuests, 10);
-                  const beds = Number.parseInt(form.stayBeds, 10);
-                  if (!Number.isFinite(guests) || guests < 1 || !Number.isFinite(beds) || beds < 1) return null;
-                  if (guests <= beds * 2) return null;
-                  return (
-                    <p className="text-xs leading-relaxed text-ink-muted">
-                      {guests} guests with {beds} {beds === 1 ? 'bed' : 'beds'} is more than two people per bed. You can
-                      keep this if the sleeping setup supports it.
-                    </p>
-                  );
-                })()}
-              </section>
-              <section className="space-y-4 border-t border-[#E6EAF0] pt-6" aria-labelledby="stay-sleep-heading">
-                <div>
-                  <h4 id="stay-sleep-heading" className="text-sm font-semibold text-[#111827]">
-                    Sleeping arrangements
-                  </h4>
-                  <p className="mt-1 text-xs leading-relaxed text-ink-muted">
-                    Bedrooms and beds are separate. Four beds can be two rooms.
-                    {(form.stayPropertyType || 'Apartment') === 'Room'
-                      ? ' For a room listing, use 0 bedrooms if guests book one room.'
-                      : ''}
-                  </p>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <StayCountField
-                    id="supplier-listing-field-stay-bedrooms"
-                    label="Bedrooms"
-                    hint={(form.stayPropertyType || 'Apartment') === 'Room' ? 'Use 0 for a single room.' : 'Rooms with a bed, not the bed count.'}
-                    value={form.stayBedrooms}
-                    min={0}
-                    max={30}
-                    onChange={(stayBedrooms) => setForm((f) => ({ ...f, stayBedrooms }))}
-                  />
-                  <StayCountField
-                    id="supplier-listing-field-stay-beds"
-                    label="Beds"
-                    hint="Places to sleep. This can be higher than the bedroom count."
-                    value={form.stayBeds}
-                    min={0}
-                    max={50}
-                    onChange={(stayBeds) => setForm((f) => ({ ...f, stayBeds }))}
-                  />
-                </div>
-              </section>
-              <section className="space-y-4 border-t border-[#E6EAF0] pt-6" aria-labelledby="stay-bath-heading">
-                <div>
-                  <h4 id="stay-bath-heading" className="text-sm font-semibold text-[#111827]">
-                    Bathrooms
-                  </h4>
-                  <p className="mt-1 text-xs leading-relaxed text-ink-muted">Half baths count as 0.5.</p>
-                </div>
-                <StayCountField
-                  id="supplier-listing-field-stay-bathrooms"
-                  label="Bathrooms"
-                  value={form.stayBathrooms}
-                  min={0}
-                  max={20}
-                  step={0.5}
-                  onChange={(stayBathrooms) => setForm((f) => ({ ...f, stayBathrooms }))}
-                />
-              </section>
+            <div id="supplier-listing-field-stay-price">
+              <StayOptionsStep
+                title={form.title}
+                currency={listingCurrency}
+                propertyType={form.stayPropertyType}
+                guests={form.stayMaxGuests}
+                bedrooms={form.stayBedrooms}
+                beds={form.stayBeds}
+                bathrooms={form.stayBathrooms}
+                nightly={form.stayNightly}
+                cleaning={form.stayCleaningFee}
+                minNights={form.stayMinNights}
+                checkIn={form.stayCheckIn}
+                checkOut={form.stayCheckOut}
+                availabilityMode={form.stayAvailabilityMode}
+                seasons={form.staySeasons}
+                onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
+              />
             </div>
           )}
           {stepIdx === 3 && form.inventoryFamily === 'stay' && (
@@ -4685,15 +4567,25 @@ export default function SupplierListingForm({
                 <div>
                   <h4 id="stay-amenities-heading" className="text-sm font-semibold text-[#111827]">Amenities</h4>
                   <p className="mt-1 text-xs text-ink-muted">Guests see these on the stay page. Tick only what is actually there.</p>
-                  <input
-                    value={stayAmenityQuery}
-                    onChange={(e) => setStayAmenityQuery(e.target.value)}
-                    className="tv-input mt-3 w-full"
-                    placeholder="Search amenities"
-                    aria-label="Search amenities"
-                  />
+                  <button
+                    type="button"
+                    className="tv-btn-secondary mt-3 !min-h-10 !px-4 text-sm"
+                    aria-expanded={stayAmenityMenu}
+                    onClick={() => setStayAmenityMenu((open) => !open)}
+                  >
+                    Add amenities
+                  </button>
+                  {stayAmenityMenu ? (
+                    <input
+                      value={stayAmenityQuery}
+                      onChange={(e) => setStayAmenityQuery(e.target.value)}
+                      className="tv-input mt-3 w-full"
+                      placeholder="Search amenities"
+                      aria-label="Search amenities"
+                    />
+                  ) : null}
                 </div>
-                {STAY_AMENITY_GROUPS.map((group) => {
+                {stayAmenityMenu ? STAY_AMENITY_GROUPS.map((group) => {
                   const query = stayAmenityQuery.trim().toLowerCase();
                   const items = group.items.filter((label) => !query || label.toLowerCase().includes(query));
                   if (items.length === 0) return null;
@@ -4722,7 +4614,7 @@ export default function SupplierListingForm({
                     </div>
                   </div>
                   );
-                })}
+                }) : null}
                 <div className="space-y-2">
                   <p className="text-sm font-semibold text-ink">Custom amenities</p>
                   <div className="flex flex-wrap gap-2">
@@ -4835,7 +4727,7 @@ export default function SupplierListingForm({
               </section>
             </div>
           )}
-          {stepIdx === 4 && form.inventoryFamily === 'stay' && (
+          {stepIdx === 4 && form.inventoryFamily === 'stay' && form.stayAccommodationMode === 'multi' && (
             <section className="mt-8 space-y-4 border-t border-[#E6EAF0] pt-6" aria-labelledby="stay-arrival-heading">
               <div>
                 <h4 id="stay-arrival-heading" className="text-sm font-semibold text-[#111827]">
@@ -4890,97 +4782,6 @@ export default function SupplierListingForm({
             </div>
           )}
 
-          {stepIdx === 4 && form.inventoryFamily === 'stay' && form.stayAccommodationMode !== 'multi' && (
-            <div id="supplier-listing-field-stay-price" className="space-y-8">
-              <section className="space-y-4" aria-labelledby="stay-nightly-heading">
-                <div>
-                  <h4 id="stay-nightly-heading" className="text-sm font-semibold text-[#111827]">Nightly pricing</h4>
-                  <p className="mt-1 text-xs leading-relaxed text-ink-muted">
-                    Per night, for the whole place, in {listingCurrency}. Not per guest.
-                  </p>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="block text-sm font-semibold text-ink">
-                    Base nightly price *
-                    <input
-                      type="number"
-                      min={1}
-                      value={form.stayNightly}
-                      onChange={(e) => setForm((f) => ({ ...f, stayNightly: e.target.value }))}
-                      className="tv-input mt-1 w-full"
-                    />
-                  </label>
-                  <label className="block text-sm font-semibold text-ink">
-                    Cleaning fee
-                    <span className="mt-0.5 block text-xs font-normal text-ink-muted">Optional, once per stay.</span>
-                    <input
-                      type="number"
-                      min={0}
-                      value={form.stayCleaningFee}
-                      onChange={(e) => setForm((f) => ({ ...f, stayCleaningFee: e.target.value }))}
-                      className="tv-input mt-1 w-full"
-                    />
-                  </label>
-                </div>
-                {Number.parseFloat(form.stayNightly) > 0 ? (
-                  <div className="rounded-xl bg-finland/[0.05] px-3.5 py-3.5 ring-1 ring-finland/15 space-y-1.5">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-finland">
-                      Traveler price preview
-                    </p>
-                    <p className="text-sm text-ink leading-relaxed">
-                      Example {Number.parseInt(form.stayMinNights, 10) > 1 ? `${form.stayMinNights}-night` : '1-night'}{' '}
-                      stay:{' '}
-                      {formatMoney(Number.parseFloat(form.stayNightly), listingCurrency)} ×{' '}
-                      {Math.max(1, Number.parseInt(form.stayMinNights, 10) || 1)} nights
-                      {Number.parseFloat(form.stayCleaningFee) > 0
-                        ? ` + ${formatMoney(Number.parseFloat(form.stayCleaningFee), listingCurrency)} cleaning`
-                        : ''}
-                      {' = '}
-                      <span className="font-bold text-[#111827]">
-                        {formatMoney(
-                          Number.parseFloat(form.stayNightly) *
-                            Math.max(1, Number.parseInt(form.stayMinNights, 10) || 1) +
-                            (Number.parseFloat(form.stayCleaningFee) > 0
-                              ? Number.parseFloat(form.stayCleaningFee)
-                              : 0),
-                          listingCurrency
-                        )}
-                      </span>
-                      .
-                    </p>
-                  </div>
-                ) : null}
-              </section>
-              <section className="space-y-4 border-t border-[#E6EAF0] pt-6" aria-labelledby="stay-nights-heading">
-                <div>
-                  <h4 id="stay-nights-heading" className="text-sm font-semibold text-[#111827]">
-                    Stay requirements
-                  </h4>
-                  <p className="mt-1 text-xs leading-relaxed text-ink-muted">
-                    Minimum nights is saved with the listing. A maximum stay is not enforced yet.
-                  </p>
-                </div>
-                <label className="block max-w-xs text-sm font-semibold text-ink">
-                  Minimum nights
-                  <input
-                    type="number"
-                    min={1}
-                    value={form.stayMinNights}
-                    onChange={(e) => setForm((f) => ({ ...f, stayMinNights: e.target.value }))}
-                    className="tv-input mt-1 w-full"
-                  />
-                </label>
-              </section>
-              <section className="space-y-2 border-t border-[#E6EAF0] pt-6" aria-labelledby="stay-availability-heading">
-                <h4 id="stay-availability-heading" className="text-sm font-semibold text-[#111827]">
-                  Availability
-                </h4>
-                <p className="max-w-xl text-xs leading-relaxed text-ink-muted">
-                  Nights stay open unless you block them. Saved drafts can be blocked on Calendar. Seasonal prices are not applied at checkout.
-                </p>
-              </section>
-            </div>
-          )}
           {stepIdx === 6 && form.inventoryFamily === 'stay' && (
             <div className="space-y-8">
               <section className="space-y-2" aria-labelledby="stay-cancel-heading">

@@ -20,6 +20,7 @@ import { DEFAULT_CURRENCY, normalizeCurrency } from './money';
 import { ymdInTimeZone } from './booking-lifecycle-calendar';
 import { localYmd } from './local-ymd';
 import { STAY_MAX_OCCUPIED_NIGHTS } from './stayOccupancy';
+import { quoteStayLodging } from './stay-season-quote';
 import { confirmedDepartureKey, evaluateDepartureBookingWindow } from './last-minute-booking';
 import {
   normalizeBookingCutoffHours,
@@ -622,6 +623,8 @@ export type StayQuoteOk = {
   currency: string;
   nights: number;
   nightlyPrice: number;
+  /** One price per occupied night. Absent on older callers; flat quotes repeat the base rate. */
+  nightlyPrices?: number[];
   cleaningFee: number;
   totalAmount: number;
   guests: number;
@@ -674,14 +677,6 @@ export function quoteStayNights(input: {
   if (nights == null) {
     return { ok: false, code: 'bad_date', error: 'Check-out must be after check-in.' };
   }
-  const minNights = stay?.minNights && stay.minNights >= 1 ? stay.minNights : 1;
-  if (nights < minNights) {
-    return {
-      ok: false,
-      code: 'bad_date',
-      error: `Minimum stay is ${minNights} night${minNights === 1 ? '' : 's'}.`,
-    };
-  }
   if (nights > STAY_MAX_OCCUPIED_NIGHTS) {
     return {
       ok: false,
@@ -707,15 +702,33 @@ export function quoteStayNights(input: {
   if (!(nightly > 0)) {
     return { ok: false, code: 'price', error: 'This stay does not have a nightly price yet.' };
   }
+  const lodging = quoteStayLodging({
+    checkIn,
+    nights,
+    baseNightly: nightly,
+    baseMinNights: stay?.minNights && stay.minNights >= 1 ? stay.minNights : 1,
+    availabilityMode: stay?.availabilityMode,
+    seasons: stay?.seasons,
+  });
+  if (!lodging.ok) return { ok: false, code: 'bad_date', error: lodging.error };
+  if (nights < lodging.minNights) {
+    return {
+      ok: false,
+      code: 'bad_date',
+      error: `Minimum stay is ${lodging.minNights} night${lodging.minNights === 1 ? '' : 's'}.`,
+    };
+  }
   const cleaning = stay?.cleaningFeeUsd && stay.cleaningFeeUsd > 0 ? stay.cleaningFeeUsd : 0;
   const currency = normalizeCurrency(input.tour.price?.currency ?? DEFAULT_CURRENCY);
+  const flat = lodging.nightlyPrices.every((price) => price === lodging.nightlyPrices[0]);
   return {
     ok: true,
     currency,
     nights,
-    nightlyPrice: money(nightly),
+    nightlyPrice: money(flat ? lodging.nightlyPrices[0] : nightly),
+    nightlyPrices: lodging.nightlyPrices,
     cleaningFee: money(cleaning),
-    totalAmount: money(nights * nightly + cleaning),
+    totalAmount: money(lodging.lodging + cleaning),
     guests,
     checkIn,
     checkOut,
@@ -740,12 +753,27 @@ export function tourQuotePriceLines(quote: BookingQuoteOk): { label: string; amo
 }
 
 export function stayQuotePriceLines(quote: StayQuoteOk): { label: string; amount: number }[] {
-  const lines: { label: string; amount: number }[] = [
-    {
+  const prices = quote.nightlyPrices ?? [];
+  const mixed = prices.length === quote.nights && prices.some((price) => price !== prices[0]);
+  const lines: { label: string; amount: number }[] = [];
+  if (mixed) {
+    let index = 0;
+    while (index < prices.length) {
+      const price = prices[index];
+      let count = 1;
+      while (index + count < prices.length && prices[index + count] === price) count += 1;
+      lines.push({
+        label: `${price} / night × ${count} night${count === 1 ? '' : 's'}`,
+        amount: Math.round(price * count * 100) / 100,
+      });
+      index += count;
+    }
+  } else {
+    lines.push({
       label: `Nightly rate × ${quote.nights} night${quote.nights === 1 ? '' : 's'}`,
       amount: quote.nightlyPrice * quote.nights,
-    },
-  ];
+    });
+  }
   if (quote.cleaningFee > 0) {
     lines.push({ label: 'Cleaning', amount: quote.cleaningFee });
   }

@@ -176,6 +176,36 @@ describe('quoteListingBooking (authoritative Deno pricing -- direct execution)',
       if (!res.ok) expect(res.error).toMatch(/nightly price/i);
     });
 
+    it('charges each night from its season and refuses a closed date', () => {
+      const seasons = [
+        { id: 'summer', name: 'Summer', start: '2026-04-15', end: '2026-08-15', enabled: true, nightlyPrice: 189, minNights: 2 },
+        { id: 'late', name: 'Late summer', start: '2026-08-16', end: '2026-08-20', enabled: true, nightlyPrice: 210, minNights: 1 },
+      ];
+      const crossed = quoteListingBooking({
+        listing: stayListing({}, { availabilityMode: 'scheduled', seasons, minNights: 1 }),
+        discounts: [],
+        bookingDate: '2026-08-15',
+        guests: 2,
+        checkoutDate: '2026-08-18',
+        todayIso: TODAY,
+      });
+      expect(crossed.ok).toBe(true);
+      if (crossed.ok) {
+        expect(crossed.lodgingAmount).toBe(189 + 210 + 210);
+        expect(crossed.totalAmount).toBe(189 + 210 + 210 + 30);
+        expect(crossed.cleaningFee).toBe(30);
+      }
+      const closed = quoteListingBooking({
+        listing: stayListing({}, { availabilityMode: 'scheduled', seasons }),
+        discounts: [],
+        bookingDate: '2026-09-01',
+        guests: 2,
+        checkoutDate: '2026-09-04',
+        todayIso: TODAY,
+      });
+      expect(closed.ok).toBe(false);
+    });
+
     it('defaults cleaning fee to 0 when unset', () => {
       const res = quoteListingBooking({
         listing: stayListing({}, { cleaningFeeUsd: undefined }),
