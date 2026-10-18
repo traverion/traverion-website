@@ -17,6 +17,7 @@ import {
   type StayAvailabilityMode,
   type StaySeasonWindow,
 } from '../lib/stay-season-quote';
+import { normalizeStayBedMix, type StayBedMix } from '../lib/stay-beds';
 
 /** Legacy preset values still parsed from stored `listing_extras` JSON. */
 export type CancellationPreset = 'free_24h' | 'free_48h' | 'free_7d' | 'non_refundable' | 'custom';
@@ -357,6 +358,8 @@ export type StayDetails = {
   propertyType?: string;
   bedrooms?: number;
   beds?: number;
+  /** Counts by bed type. beds remains the total number of beds. */
+  bedMix?: StayBedMix;
   bathrooms?: number;
   amenities?: string[];
   checkInTime?: string;
@@ -395,6 +398,8 @@ function normalizeStayDetails(raw: unknown): StayDetails | undefined {
   if (typeof o.propertyType === 'string' && o.propertyType.trim()) out.propertyType = o.propertyType.trim();
   if (typeof o.bedrooms === 'number' && o.bedrooms >= 0) out.bedrooms = Math.floor(o.bedrooms);
   if (typeof o.beds === 'number' && o.beds >= 0) out.beds = Math.floor(o.beds);
+  const bedMix = normalizeStayBedMix(o.bedMix);
+  if (bedMix) out.bedMix = bedMix;
   if (typeof o.bathrooms === 'number' && o.bathrooms >= 0) out.bathrooms = Math.round(o.bathrooms * 2) / 2;
   if (Array.isArray(o.amenities)) {
     out.amenities = o.amenities.map((x) => String(x ?? '').trim()).filter(Boolean).slice(0, 40);

@@ -216,7 +216,7 @@ import {
   isListingTitleLengthValid,
 } from '../../lib/listingQualityScore';
 import { DEFAULT_CURRENCY, formatMoney, normalizeCurrency } from '../../lib/money';
-import { formatStayAmenityLabel, STAY_AMENITY_GROUPS, STAY_AMENITY_PRESETS } from '../../lib/stay-amenities';
+import { formatStayAmenityLabel } from '../../lib/stay-amenities';
 import TraverionLocationSelector from '../../components/supplier/TraverionLocationSelector';
 import StayUnitsEditor from '../../components/supplier/listing-creation/StayUnitsEditor';
 import {
@@ -229,6 +229,8 @@ import {
 } from '../../lib/stay-accommodation';
 import { normalizeStayRestrictions } from '../../lib/stay-restrictions';
 import { normalizeStaySeasons, type StaySeasonWindow } from '../../lib/stay-season-quote';
+import { normalizeStayBedMix, type StayBedMix } from '../../lib/stay-beds';
+import StayAmenityPicker from '../../components/supplier/listing-creation/StayAmenityPicker';
 import StayOptionsStep from '../../components/supplier/listing-creation/StayOptionsStep';
 import { publicStayListingUrl, publicTourListingUrl } from '../../lib/publicSiteUrl';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
@@ -884,6 +886,7 @@ type ListingFormState = {
   stayPropertyType: string;
   stayBedrooms: string;
   stayBeds: string;
+  stayBedMix: StayBedMix;
   stayBathrooms: string;
   stayMaxGuests: string;
   stayNightly: string;
@@ -1081,6 +1084,7 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
             units: form.stayUnits.length > 0 ? form.stayUnits : undefined,
             bedrooms: Number.isFinite(stayBedrooms) ? stayBedrooms : undefined,
             beds: Number.isFinite(stayBeds) ? stayBeds : undefined,
+            bedMix: normalizeStayBedMix(form.stayBedMix),
             bathrooms: Number.isFinite(stayBaths) ? stayBaths : undefined,
             amenities: form.stayAmenities
               .split(',')
@@ -1348,6 +1352,7 @@ const emptyForm: ListingFormState = {
   stayPropertyType: 'Apartment',
   stayBedrooms: '',
   stayBeds: '',
+  stayBedMix: {},
   stayBathrooms: '',
   stayMaxGuests: '',
   stayNightly: '',
@@ -1414,6 +1419,7 @@ function coerceListingFormState(raw: Partial<ListingFormState> | null | undefine
   merged.stayParties = merged.stayParties === 'allowed' || merged.stayParties === 'not_allowed' ? merged.stayParties : '';
   merged.stayAvailabilityMode = merged.stayAvailabilityMode === 'scheduled' ? 'scheduled' : 'open';
   merged.staySeasons = normalizeStaySeasons(merged.staySeasons);
+  merged.stayBedMix = normalizeStayBedMix(merged.stayBedMix) ?? {};
   merged.stayUnits = normalizeStayUnits(merged.stayUnits);
   if (
     !merged.stayAddressStreet.trim() &&
@@ -1474,9 +1480,6 @@ export default function SupplierListingForm({
   const [form, setForm] = useState<ListingFormState>(emptyForm);
   const [submitting, setSubmitting] = useState(false);
   const [publishBlockers, setPublishBlockers] = useState<string[] | null>(null);
-  const [stayAmenityQuery, setStayAmenityQuery] = useState('');
-  const [stayAmenityMenu, setStayAmenityMenu] = useState(false);
-  const [stayCustomAmenity, setStayCustomAmenity] = useState('');
   const isStayForm = form.inventoryFamily === 'stay' || createFamily === 'stay';
   const infoEnterFromOptionsBackRef = useRef(false);
   const infoPendingSceneRef = useRef<number | null>(null);
@@ -2096,6 +2099,7 @@ export default function SupplierListingForm({
           stayPropertyType: extras.stay?.propertyType ?? 'Apartment',
           stayBedrooms: extras.stay?.bedrooms != null ? String(extras.stay.bedrooms) : '',
           stayBeds: extras.stay?.beds != null ? String(extras.stay.beds) : '',
+          stayBedMix: extras.stay?.bedMix ?? {},
           stayBathrooms: extras.stay?.bathrooms != null ? String(extras.stay.bathrooms) : '',
           stayMaxGuests: extras.stay?.maxGuests != null ? String(extras.stay.maxGuests) : '',
           stayNightly: extras.stay?.nightlyPriceUsd != null ? String(extras.stay.nightlyPriceUsd) : '',
@@ -4555,8 +4559,10 @@ export default function SupplierListingForm({
                 minNights={form.stayMinNights}
                 checkIn={form.stayCheckIn}
                 checkOut={form.stayCheckOut}
+                bedMix={form.stayBedMix}
                 availabilityMode={form.stayAvailabilityMode}
                 seasons={form.staySeasons}
+                persistLabel={persistLabel}
                 onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
               />
             </div>
@@ -4566,94 +4572,39 @@ export default function SupplierListingForm({
               <section id="supplier-listing-field-stay-amenities" className="space-y-4" aria-labelledby="stay-amenities-heading">
                 <div>
                   <h4 id="stay-amenities-heading" className="text-sm font-semibold text-[#111827]">Amenities</h4>
-                  <p className="mt-1 text-xs text-ink-muted">Guests see these on the stay page. Tick only what is actually there.</p>
-                  <button
-                    type="button"
-                    className="tv-btn-secondary mt-3 !min-h-10 !px-4 text-sm"
-                    aria-expanded={stayAmenityMenu}
-                    onClick={() => setStayAmenityMenu((open) => !open)}
-                  >
-                    Add amenities
-                  </button>
-                  {stayAmenityMenu ? (
-                    <input
-                      value={stayAmenityQuery}
-                      onChange={(e) => setStayAmenityQuery(e.target.value)}
-                      className="tv-input mt-3 w-full"
-                      placeholder="Search amenities"
-                      aria-label="Search amenities"
-                    />
-                  ) : null}
+                  <p className="mt-1 text-xs text-ink-muted">Guests see only what you select. Search and add them one at a time.</p>
                 </div>
-                {stayAmenityMenu ? STAY_AMENITY_GROUPS.map((group) => {
-                  const query = stayAmenityQuery.trim().toLowerCase();
-                  const items = group.items.filter((label) => !query || label.toLowerCase().includes(query));
-                  if (items.length === 0) return null;
-                  return (
-                  <div key={group.label}>
-                    <p className="mb-2 text-[12px] font-semibold text-ink-muted">{group.label}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {items.map((label) => {
-                        const on = stayAmenityHas(form.stayAmenities, label);
-                        return (
-                          <button
-                            key={label}
-                            type="button"
-                            aria-pressed={on}
-                            onClick={() => setForm((f) => ({ ...f, stayAmenities: toggleStayAmenity(f.stayAmenities, label) }))}
-                            className={`lux-flat rounded-full px-3 py-1.5 text-sm transition-colors ${
-                              on
-                                ? 'bg-white font-semibold text-[#0B397E] ring-2 ring-[#0B397E]'
-                                : 'text-ink-muted ring-1 ring-[#E6EAF0] hover:text-ink'
-                            }`}
-                          >
-                            {label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  );
-                }) : null}
-                <div className="space-y-2">
-                  <p className="text-sm font-semibold text-ink">Custom amenities</p>
-                  <div className="flex flex-wrap gap-2">
-                    {stayAmenityTokens(form.stayAmenities)
-                      .filter((item) => !STAY_AMENITY_PRESETS.some((preset) => preset.toLowerCase() === item.toLowerCase()))
-                      .map((item) => (
-                        <button
-                          key={item}
-                          type="button"
-                          className="lux-flat rounded-full bg-white px-3 py-1.5 text-sm font-semibold text-[#0B397E] ring-2 ring-[#0B397E]"
-                          onClick={() => setForm((f) => ({ ...f, stayAmenities: toggleStayAmenity(f.stayAmenities, item) }))}
-                        >
-                          {item} · remove
-                        </button>
-                      ))}
-                  </div>
-                  <div className="flex gap-2">
-                    <input
-                      value={stayCustomAmenity}
-                      onChange={(e) => setStayCustomAmenity(e.target.value.slice(0, 40))}
-                      onKeyDown={(e) => {
-                        if (e.key !== 'Enter') return;
-                        e.preventDefault();
-                        const next = stayCustomAmenity.trim();
-                        if (!next || stayAmenityHas(form.stayAmenities, next)) {
-                          setStayCustomAmenity('');
-                          return;
-                        }
-                        setForm((f) => ({
-                          ...f,
-                          stayAmenities: [...stayAmenityTokens(f.stayAmenities), next].join(', '),
-                        }));
-                        setStayCustomAmenity('');
-                      }}
-                      className="tv-input w-full"
-                      placeholder="Add one amenity, then press Enter"
-                      maxLength={40}
-                    />
-                  </div>
+                <StayAmenityPicker
+                  selected={stayAmenityTokens(form.stayAmenities)}
+                  onChange={(next) => setForm((f) => ({ ...f, stayAmenities: next.join(', ') }))}
+                />
+              </section>
+              <section className="space-y-3 border-t border-[#E6EAF0] pt-6" aria-labelledby="stay-access-heading">
+                <div>
+                  <h4 id="stay-access-heading" className="text-sm font-semibold text-[#111827]">
+                    Accessibility
+                  </h4>
+                  <p className="mt-1 text-xs leading-relaxed text-ink-muted">
+                    Select only features that are actually there. Traverion does not verify them.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {['Step-free entrance', 'Wheelchair-accessible bathroom', 'Elevator'].map((label) => {
+                    const on = stayAmenityHas(form.stayAmenities, label);
+                    return (
+                      <button
+                        key={label}
+                        type="button"
+                        aria-pressed={on}
+                        className={`lux-flat rounded-full px-3 py-1.5 text-sm ${
+                          on ? 'font-semibold text-[#0B397E] ring-2 ring-[#0B397E]' : 'text-ink-muted ring-1 ring-[#E6EAF0]'
+                        }`}
+                        onClick={() => setForm((f) => ({ ...f, stayAmenities: toggleStayAmenity(f.stayAmenities, label) }))}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
                 </div>
               </section>
               <section className="space-y-4 border-t border-[#E6EAF0] pt-6" aria-labelledby="stay-rules-choice-heading">

@@ -29,7 +29,8 @@ export const STAY_AMENITY_PRESETS = [
   'Elevator',
   'Crib',
   'High chair',
-  'Step-free access',
+  'Step-free entrance',
+  'Wheelchair-accessible bathroom',
 ] as const;
 
 /** Same stored tokens, grouped so the creator is easier to scan. */
@@ -40,7 +41,7 @@ export const STAY_AMENITY_GROUPS: { label: string; items: readonly (typeof STAY_
   { label: 'Outdoor', items: ['Terrace', 'Balcony', 'Garden', 'Outdoor furniture', 'Barbecue'] },
   { label: 'Parking and arrival', items: ['Free parking', 'Paid parking', 'EV charging', 'Self check-in', 'Elevator'] },
   { label: 'Family', items: ['Crib', 'High chair'] },
-  { label: 'Accessibility', items: ['Step-free access'] },
+  { label: 'Accessibility', items: ['Step-free entrance', 'Wheelchair-accessible bathroom', 'Elevator'] },
 ];
 
 const PRESET_BY_KEY = new Map(STAY_AMENITY_PRESETS.map((label) => [label.toLowerCase(), label]));
@@ -48,6 +49,7 @@ const PRESET_BY_KEY = new Map(STAY_AMENITY_PRESETS.map((label) => [label.toLower
 const ALIASES: Record<string, string> = {
   'wi-fi': 'Wifi',
   'wi fi': 'Wifi',
+  'step-free access': 'Step-free entrance',
 };
 
 function amenityLookupKey(raw: string): string {

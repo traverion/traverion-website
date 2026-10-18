@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { ArrowLeft, MapPin, Heart, Star, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { getListingById, getListingByIdAsync } from '../data/listings';
 import { stayRestrictionLines } from '../lib/stay-restrictions';
+import { stayBedSummary } from '../lib/stay-beds';
 import { parseListingExtras, STAY_GUEST_CANCELLATION_POLICY } from '../types/listingExtras';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 import { listingIsFamily } from '../lib/inventory';
@@ -983,7 +984,11 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
               {typeof s?.bedrooms === 'number' ? (
                 <li>{s.bedrooms === 1 ? '1 bedroom' : `${s.bedrooms} bedrooms`}</li>
               ) : null}
-              {typeof s?.beds === 'number' ? <li>{s.beds === 1 ? '1 bed' : `${s.beds} beds`}</li> : null}
+              {stayBedSummary(s?.bedMix) ? (
+                <li>{stayBedSummary(s?.bedMix)}</li>
+              ) : typeof s?.beds === 'number' ? (
+                <li>{s.beds === 1 ? '1 bed' : `${s.beds} beds`}</li>
+              ) : null}
               {typeof s?.bathrooms === 'number' ? (
                 <li>{s.bathrooms === 1 ? '1 bath' : `${s.bathrooms} baths`}</li>
               ) : null}
