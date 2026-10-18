@@ -1159,46 +1159,46 @@ function PublishStage({ values, onEditStage, option, locationConfirmed, minTitle
     exteriorCamera: values.stayExteriorCamera,
     safetyNote: values.staySafetyNote,
   };
-  const rows: { id: string; label: string }[] = [
-    { id: 'location', label: 'Location' },
-    { id: 'confirm', label: 'Map pin' },
-    { id: 'property-name', label: 'Name' },
-    { id: 'description', label: 'Description' },
-    { id: 'rooms', label: 'Sleeping' },
-    { id: 'guests', label: 'Guests' },
-    { id: 'booking-times', label: 'Check-in times' },
-    { id: 'price', label: 'Nightly price' },
-    { id: 'photos', label: 'Photos' },
-    { id: 'arrival-notes', label: 'Arrival' },
-    { id: 'house-rules', label: 'House rules' },
-    { id: 'safety', label: 'Safety' },
+  const groups: { title: string; rows: { id: string; label: string }[] }[] = [
+    { title: 'Place', rows: [{ id: 'location', label: 'Location' }, { id: 'confirm', label: 'Map pin' }] },
+    { title: 'Property', rows: [{ id: 'property-name', label: 'Name' }, { id: 'description', label: 'Description' }, { id: 'rooms', label: 'Sleeping' }, { id: 'guests', label: 'Guests' }] },
+    { title: 'Stay', rows: [{ id: 'booking-times', label: 'Check-in times' }, { id: 'price', label: 'Nightly price' }, { id: 'photos', label: 'Photos' }, { id: 'arrival-notes', label: 'Arrival' }, { id: 'house-rules', label: 'House rules' }, { id: 'safety', label: 'Safety' }] },
   ];
-  const issues = rows.map((row) => ({ ...row, issue: stayStageBlocker(row.id, check) }));
+  const issues = groups.flatMap((group) => group.rows.map((row) => ({ ...row, group: group.title, issue: stayStageBlocker(row.id, check) })));
   const open = issues.filter((row) => row.issue);
+  const ready = open.length === 0 && publishIssues.length === 0;
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        {cover ? <img src={cover} alt="" className="h-16 w-24 rounded-lg object-cover" /> : <div className="h-16 w-24 rounded-lg bg-[#F4F6F8]" />}
-        <div>
-          <p className="font-semibold text-ink">{values.title || 'Untitled stay'}</p>
+      <div className="stay-panel flex items-center gap-3">
+        {cover ? <img src={cover} alt="" className="h-20 w-28 rounded-lg object-cover" /> : <div className="flex h-20 w-28 items-center justify-center rounded-lg bg-[#F4F6F8] text-xs text-ink-muted">No photo</div>}
+        <div className="min-w-0">
+          <p className="truncate font-display text-lg font-semibold text-ink">{values.title || 'Untitled stay'}</p>
           <p className="text-sm text-ink-muted">{[values.city, values.country].filter(Boolean).join(', ') || 'Location not set'}</p>
+          <p className={`mt-1 text-sm font-semibold ${ready ? 'text-[#073b83]' : 'text-[#9f1239]'}`}>{ready ? 'Ready to publish' : `${open.length + publishIssues.length} still need attention`}</p>
         </div>
       </div>
-      <p className="text-sm text-ink-muted">{open.length === 0 && publishIssues.length === 0 ? 'The stay checks on this screen passed. Publishing happens only when you use the button below.' : `${open.length + publishIssues.length} item${open.length + publishIssues.length === 1 ? '' : 's'} still need attention.`}</p>
-      <ul className="space-y-2">
-        {issues.map((row) => (
-          <li key={row.id} className="flex items-center justify-between gap-3 rounded-xl px-3 py-2 ring-1 ring-[#E6EAF0]">
-            <p className="text-sm text-ink"><span className="font-semibold">{row.issue ? 'Needs attention' : 'Ready'}</span> · {row.label}{row.issue ? ` — ${row.issue}` : ''}</p>
-            <button type="button" className="min-h-11 text-sm font-semibold text-finland" onClick={() => onEditStage(stayScreenIndex(row.id))}>Edit</button>
-          </li>
-        ))}
-      </ul>
+      {groups.map((group) => (
+        <section key={group.title} className="space-y-2">
+          <h4 className="stay-kicker">{group.title}</h4>
+          <ul className="overflow-hidden rounded-xl ring-1 ring-[#E6EAF0]">
+            {group.rows.map((row) => {
+              const issue = stayStageBlocker(row.id, check);
+              return (
+                <li key={row.id} className="flex items-center justify-between gap-3 border-t border-[#E6EAF0] px-3 py-2 first:border-t-0">
+                  <p className="text-sm text-ink"><span className="font-semibold">{issue ? 'Needs attention' : 'Ready'}</span> · {row.label}{issue ? ` — ${issue}` : ''}</p>
+                  <button type="button" className="min-h-11 shrink-0 text-sm font-semibold text-finland" onClick={() => onEditStage(stayScreenIndex(row.id))}>Edit</button>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ))}
       {publishIssues.length > 0 ? (
-        <ul className="space-y-1 text-sm text-ink">
+        <ul className="stay-alert space-y-1">
           {publishIssues.map((issue) => <li key={issue}>{issue}</li>)}
         </ul>
       ) : null}
-      <p className="text-sm text-ink-muted">After publication the listing can appear in search. Guests still see only the city until a booking is paid. A live listing uses Save changes instead of publishing again.</p>
+      <StayHelp>{ready ? 'Use Publish property below. Nothing is published until you do. A listing that is already live uses Save changes.' : 'Finish the items above before publishing. Guests still see only the city until a booking is paid.'}</StayHelp>
     </div>
   );
 }
