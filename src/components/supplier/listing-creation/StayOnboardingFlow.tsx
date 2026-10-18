@@ -15,6 +15,7 @@ import StayExampleQuote from './StayExampleQuote';
 import ListingImageFields from '../ListingImageFields';
 import { TraverionSingleDateField } from '../../calendar/TraverionSingleDateField';
 import { localYmd } from '../../../lib/local-ymd';
+import { stayCutoffAmounts, stayCutoffFromMinutes, stayCutoffSummary, stayCutoffToMinutes, type StayCutoffUnit } from '../../../lib/stay-cutoff';
 import { composeStayCheckInAddress, stayAddressKey, stayPinMatchesAddress } from '../../../lib/stay-address';
 import StayAddressSearch from './StayAddressSearch';
 
@@ -595,26 +596,35 @@ function BookingTimesStage({ values, onChange, option }: Props & { option: StayA
   );
 }
 
-const CUTOFF_CHOICES: { label: string; minutes: number }[] = [
-  { label: 'Until check-in', minutes: 0 },
-  { label: '1 hour before', minutes: 60 },
-  { label: '5 hours before', minutes: 300 },
-  { label: '1 day before', minutes: 1440 },
-  { label: '2 days before', minutes: 2880 },
-];
-
 function CutoffStage({ option, writeOption }: { option: StayAccommodationOption; writeOption: (next: StayAccommodationOption) => void }) {
-  const current = option.cutoffMinutes ?? 0;
+  const saved = option.cutoffMinutes ?? 0;
+  const known = saved > 0 ? stayCutoffFromMinutes(saved) : null;
+  const unit: StayCutoffUnit = known?.unit ?? 'hours';
+  const amounts = stayCutoffAmounts(unit);
+  function write(nextUnit: StayCutoffUnit, amount: number) {
+    writeOption({ ...option, cutoffMinutes: stayCutoffToMinutes(nextUnit, amount) });
+  }
   return (
-    <div className="grid gap-2">
-      {CUTOFF_CHOICES.map((choice) => {
-        const on = current === choice.minutes;
-        return (
-          <button key={choice.minutes} type="button" aria-pressed={on} className={`min-h-11 rounded-xl px-3 text-left text-sm font-semibold ${on ? 'bg-[#F4F8FC] text-[#0B397E] ring-2 ring-[#0B397E]' : 'ring-1 ring-[#E6EAF0]'}`} onClick={() => writeOption({ ...option, cutoffMinutes: choice.minutes })}>
-            {choice.label}
-          </button>
-        );
-      })}
+    <div className="space-y-3">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Time unit">
+          <select className="tv-input w-full" value={unit} onChange={(event) => {
+            const nextUnit = event.target.value as StayCutoffUnit;
+            write(nextUnit, stayCutoffAmounts(nextUnit)[0]);
+          }}>
+            <option value="minutes">Minutes</option>
+            <option value="hours">Hours</option>
+            <option value="days">Days</option>
+          </select>
+        </Field>
+        <Field label="Amount">
+          <select className="tv-input w-full" value={known ? String(known.amount) : ''} onChange={(event) => write(unit, Number(event.target.value))}>
+            <option value="" disabled>Choose</option>
+            {amounts.map((amount) => <option key={amount} value={amount}>{amount}</option>)}
+          </select>
+        </Field>
+      </div>
+      <p className="text-sm text-ink-muted">{stayCutoffSummary(saved)}</p>
     </div>
   );
 }
