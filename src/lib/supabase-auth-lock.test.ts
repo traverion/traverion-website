@@ -39,4 +39,18 @@ describe('supabaseAuthLock', () => {
     expect(elapsed).toBeGreaterThanOrEqual(SUPABASE_AUTH_LOCK_MS - 50);
     expect(elapsed).toBeLessThan(SUPABASE_AUTH_LOCK_MS + 2_000);
   });
+
+  it('still runs when LockManager.request throws Illegal invocation', async () => {
+    Object.defineProperty(globalThis, 'navigator', {
+      value: {
+        locks: {
+          request() {
+            throw new TypeError("Failed to execute 'request' on 'LockManager': Illegal invocation");
+          },
+        },
+      },
+      configurable: true,
+    });
+    await expect(supabaseAuthLock('lock:sb', -1, async () => 'open')).resolves.toBe('open');
+  });
 });

@@ -46,6 +46,23 @@ export function isPasswordRecoveryLanding(): boolean {
   return false;
 }
 
+/** Tokens from a reset email, whether Supabase put them in the hash or the query. */
+export function readRecoverySessionTokens(
+  search: string,
+  hash: string
+): { accessToken: string; refreshToken: string } | null {
+  const fromHash = new URLSearchParams(hash.replace(/^#/, ''));
+  const fromSearch = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
+  const source =
+    fromHash.get('access_token') && fromHash.get('refresh_token') ? fromHash : fromSearch;
+  const accessToken = source.get('access_token')?.trim() ?? '';
+  const refreshToken = source.get('refresh_token')?.trim() ?? '';
+  if (!accessToken || !refreshToken) return null;
+  const type = source.get('type');
+  if (type && type !== 'recovery') return null;
+  return { accessToken, refreshToken };
+}
+
 /** True when the URL still carries tokens from a reset email (PKCE code or hash session). */
 export function hasPasswordRecoveryCredentialsInUrl(): boolean {
   if (typeof window === 'undefined') return false;
@@ -54,10 +71,8 @@ export function hasPasswordRecoveryCredentialsInUrl(): boolean {
   } catch {
     /* ignore */
   }
-  const hash = parseAuthHashParams();
-  if (hash.get('type') === 'recovery') return true;
-  if (hash.get('access_token') && hash.get('refresh_token')) return true;
-  return false;
+  if (isPasswordRecoveryLanding()) return true;
+  return readRecoverySessionTokens(window.location.search, window.location.hash) != null;
 }
 
 /** Remove tokens from the address bar after the client has read them. */
@@ -72,6 +87,11 @@ export function stripRecoveryQueryFromUrl(): void {
   const params = new URLSearchParams(window.location.search);
   params.delete('code');
   params.delete('type');
+  params.delete('access_token');
+  params.delete('refresh_token');
+  params.delete('expires_in');
+  params.delete('expires_at');
+  params.delete('token_type');
   const qs = params.toString();
   window.history.replaceState({}, document.title, window.location.pathname + (qs ? `?${qs}` : ''));
 }
@@ -130,14 +150,19 @@ async function establishPasswordRecoverySessionInner(
     return 'ready';
   }
 
-  const hash = parseAuthHashParams();
-  const access_token = hash.get('access_token');
-  const refresh_token = hash.get('refresh_token');
-  if (hash.get('type') === 'recovery' && access_token && refresh_token) {
-    const { data, error } = await client.auth.setSession({ access_token, refresh_token });
+  const tokens =
+    typeof window !== 'undefined'
+      ? readRecoverySessionTokens(window.location.search, window.location.hash)
+      : null;
+  if (tokens) {
+    const { data, error } = await client.auth.setSession({
+      access_token: tokens.accessToken,
+      refresh_token: tokens.refreshToken,
+    });
     if (error || !data.session) return 'invalid';
     markPasswordRecoveryActive();
     clearAuthHashFromUrl();
+    stripRecoveryQueryFromUrl();
     return 'ready';
   }
 
