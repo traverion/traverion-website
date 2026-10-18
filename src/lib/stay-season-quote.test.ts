@@ -31,7 +31,16 @@ describe('quoteStayLodging', () => {
       baseMinNights: 1,
       seasons: [],
     });
-    expect(q).toEqual({ ok: true, lodging: 567, nightlyPrices: [189, 189, 189], minNights: 1 });
+    expect(q).toEqual({
+      ok: true,
+      lodging: 567,
+      nightlyPrices: [189, 189, 189],
+      minNights: 1,
+      maxNights: null,
+      minGuests: null,
+      maxGuests: null,
+      cleaningFee: null,
+    });
   });
 
   it('sums each night when a stay crosses two seasons', () => {

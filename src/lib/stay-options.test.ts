@@ -70,6 +70,6 @@ describe('stay options', () => {
     ]);
     expect(lines[0]).toContain('Winter');
     expect(lines[0]).toContain('Christmas');
-    expect(lines[0]).toContain('shorter date range');
+    expect(lines[0]).toContain('Deactivate one');
   });
 });

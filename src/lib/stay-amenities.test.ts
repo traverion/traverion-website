@@ -20,5 +20,6 @@ describe('stay amenity display labels', () => {
     expect(stayAmenityDisplayList(['Wifi', 'kitchen', '', '  '])).toEqual(['Wifi', 'Kitchen']);
     expect(stayAmenityDisplayList(['kitchen', 'Kitchen'])).toEqual(['Kitchen']);
     expect(stayAmenityDisplayList(null)).toEqual([]);
+    expect(stayAmenityDisplayList(['Step-free entrance', 'step-free access'])).toEqual(['Step-free entrance']);
   });
 });

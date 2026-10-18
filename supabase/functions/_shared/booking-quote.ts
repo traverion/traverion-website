@@ -344,7 +344,21 @@ function quoteStayListing(input: {
   if (nights < lodging.minNights) {
     return { ok: false, error: `Minimum stay is ${lodging.minNights} night${lodging.minNights === 1 ? '' : 's'}.` };
   }
-  const cleaning = typeof stay.cleaningFeeUsd === 'number' && stay.cleaningFeeUsd > 0 ? stay.cleaningFeeUsd : 0;
+  if (lodging.maxNights != null && nights > lodging.maxNights) {
+    return { ok: false, error: `This period can be booked for up to ${lodging.maxNights} night${lodging.maxNights === 1 ? '' : 's'}.` };
+  }
+  if (lodging.minGuests != null && input.guests < lodging.minGuests) {
+    return { ok: false, error: `This period requires at least ${lodging.minGuests} guests.` };
+  }
+  if (lodging.maxGuests != null && input.guests > lodging.maxGuests) {
+    return { ok: false, error: `This period allows up to ${lodging.maxGuests} guests.` };
+  }
+  const cleaning =
+    lodging.cleaningFee != null
+      ? lodging.cleaningFee
+      : typeof stay.cleaningFeeUsd === 'number' && stay.cleaningFeeUsd > 0
+        ? stay.cleaningFeeUsd
+        : 0;
   const currency = (input.listing.price_currency ?? 'EUR').trim().toUpperCase() || 'EUR';
   const flat = lodging.nightlyPrices.every((price) => price === lodging.nightlyPrices[0]);
   return {

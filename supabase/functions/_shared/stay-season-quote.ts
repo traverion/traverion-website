@@ -15,6 +15,14 @@ export type StaySeasonWindow = {
   enabled: boolean;
   nightlyPrice: number | null;
   minNights: number | null;
+  /** Occupied nights cannot exceed this. Null means only the property minimum applies. */
+  maxNights?: number | null;
+  minGuests?: number | null;
+  /** Cannot exceed the option's physical capacity. Null means the option maximum applies. */
+  maxGuests?: number | null;
+  checkIn?: string;
+  checkOut?: string;
+  cleaningFee?: number | null;
 };
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -49,6 +57,13 @@ export function normalizeStaySeasons(raw: unknown): StaySeasonWindow[] {
       typeof o.nightlyPrice === 'number' && o.nightlyPrice > 0 ? Math.round(o.nightlyPrice * 100) / 100 : null;
     const minNights =
       typeof o.minNights === 'number' && o.minNights >= 1 ? Math.min(365, Math.floor(o.minNights)) : null;
+    const maxNights =
+      typeof o.maxNights === 'number' && o.maxNights >= 1 ? Math.min(365, Math.floor(o.maxNights)) : null;
+    const minGuests = typeof o.minGuests === 'number' && o.minGuests >= 1 ? Math.min(50, Math.floor(o.minGuests)) : null;
+    const maxGuests = typeof o.maxGuests === 'number' && o.maxGuests >= 1 ? Math.min(50, Math.floor(o.maxGuests)) : null;
+    const clock = (value: unknown) => (typeof value === 'string' && /^\d{2}:\d{2}$/.test(value.trim()) ? value.trim() : '');
+    const cleaning =
+      typeof o.cleaningFee === 'number' && o.cleaningFee >= 0 ? Math.round(o.cleaningFee * 100) / 100 : null;
     out.push({
       id,
       name: typeof o.name === 'string' ? o.name.trim().slice(0, 80) : '',
@@ -57,6 +72,12 @@ export function normalizeStaySeasons(raw: unknown): StaySeasonWindow[] {
       enabled: o.enabled !== false,
       nightlyPrice: nightly,
       minNights,
+      maxNights,
+      minGuests,
+      maxGuests: maxGuests != null && minGuests != null && maxGuests < minGuests ? minGuests : maxGuests,
+      checkIn: clock(o.checkIn),
+      checkOut: clock(o.checkOut),
+      cleaningFee: cleaning,
     });
     if (out.length >= 24) break;
   }
@@ -82,7 +103,18 @@ export function quoteStayLodging(input: {
   baseMinNights: number;
   availabilityMode?: StayAvailabilityMode | null;
   seasons?: readonly StaySeasonWindow[] | null;
-}): { ok: true; lodging: number; nightlyPrices: number[]; minNights: number } | { ok: false; error: string } {
+}):
+  | {
+      ok: true;
+      lodging: number;
+      nightlyPrices: number[];
+      minNights: number;
+      maxNights: number | null;
+      minGuests: number | null;
+      maxGuests: number | null;
+      cleaningFee: number | null;
+    }
+  | { ok: false; error: string } {
   const seasons = input.seasons ?? [];
   const mode: StayAvailabilityMode = input.availabilityMode === 'scheduled' ? 'scheduled' : 'open';
   const nights = stayNightDates(input.checkIn, input.nights);
@@ -102,5 +134,14 @@ export function quoteStayLodging(input: {
     checkInSeason?.minNights && checkInSeason.minNights >= 1 ? checkInSeason.minNights : 1
   );
   const lodging = Math.round(prices.reduce((sum, n) => sum + n, 0) * 100) / 100;
-  return { ok: true, lodging, nightlyPrices: prices, minNights };
+  return {
+    ok: true,
+    lodging,
+    nightlyPrices: prices,
+    minNights,
+    maxNights: checkInSeason?.maxNights && checkInSeason.maxNights >= 1 ? checkInSeason.maxNights : null,
+    minGuests: checkInSeason?.minGuests && checkInSeason.minGuests >= 1 ? checkInSeason.minGuests : null,
+    maxGuests: checkInSeason?.maxGuests && checkInSeason.maxGuests >= 1 ? checkInSeason.maxGuests : null,
+    cleaningFee: typeof checkInSeason?.cleaningFee === 'number' ? checkInSeason.cleaningFee : null,
+  };
 }

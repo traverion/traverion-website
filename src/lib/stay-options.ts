@@ -18,6 +18,7 @@ export const STAY_SCHEDULES_MAX = 12;
 export type StayAccommodationOption = {
   id: string;
   name: string;
+  description: string;
   propertyType: string;
   maxGuests: number | null;
   bedrooms: number | null;
@@ -73,6 +74,7 @@ export function emptyStayOption(id: string, propertyType: string): StayAccommoda
   return {
     id,
     name: '',
+    description: '',
     propertyType: propertyType.trim().slice(0, 40) || 'Apartment',
     maxGuests: null,
     bedrooms: null,
@@ -100,6 +102,7 @@ export function normalizeStayOption(raw: unknown): StayAccommodationOption | nul
   return {
     id,
     name: typeof o.name === 'string' ? o.name.trim().slice(0, 80) : '',
+    description: typeof o.description === 'string' ? o.description.trim().slice(0, 240) : '',
     propertyType: typeof o.propertyType === 'string' && o.propertyType.trim() ? o.propertyType.trim().slice(0, 40) : 'Apartment',
     maxGuests: count(o.maxGuests, 1, 50),
     bedrooms: count(o.bedrooms, 0, 30),
@@ -134,6 +137,7 @@ function optionFromUnit(unit: StayUnitDraft, propertyType: string, seasons: Stay
   return {
     id: unit.id,
     name: unit.name,
+    description: unit.description,
     propertyType,
     maxGuests: unit.maxGuests,
     bedrooms: unit.bedrooms,
@@ -173,6 +177,7 @@ export function ensureStayOptions(source: StayOptionLegacySource & { options?: u
     {
       ...emptyStayOption(LEGACY_OPTION_ID, source.propertyType?.trim() || 'Apartment'),
       name: (source.title ?? '').trim().slice(0, 80),
+      description: '',
       propertyType: source.propertyType?.trim().slice(0, 40) || 'Apartment',
       maxGuests: Number.isFinite(source.maxGuests) ? (source.maxGuests as number) : null,
       bedrooms: Number.isFinite(source.bedrooms) ? (source.bedrooms as number) : null,
@@ -216,10 +221,7 @@ export function stayOptionConfigured(option: StayAccommodationOption): boolean {
     option.name.trim().length > 0 &&
     option.maxGuests != null &&
     option.maxGuests >= 1 &&
-    option.nightlyPrice != null &&
-    option.nightlyPrice > 0 &&
-    (stayBedCount(option.bedMix) > 0 || (option.beds != null && option.beds > 0)) &&
-    (option.availabilityMode !== 'scheduled' || option.schedules.some((schedule) => schedule.enabled))
+    (stayBedCount(option.bedMix) > 0 || (option.beds != null && option.beds > 0))
   );
 }
 
@@ -227,7 +229,21 @@ export function stayOptionStatus(option: StayAccommodationOption, inventoryBlock
   if (option.archived) return 'Archived';
   if (!stayOptionConfigured(option)) return 'Incomplete';
   if (inventoryBlocked) return 'Not bookable yet';
+  if (stayStartingNightly(option) == null) return 'Add availability';
   return 'Configured';
+}
+
+/** Null when schedules do not set this clock. Empty string when active schedules disagree. */
+export function stayScheduleClock(
+  schedules: readonly StaySeasonWindow[],
+  key: 'checkIn' | 'checkOut'
+): string | null {
+  const enabled = schedules.filter((schedule) => schedule.enabled);
+  if (enabled.length === 0) return null;
+  const times = enabled.map((schedule) => (schedule[key] ?? '').trim());
+  if (times.every((time) => time === '')) return null;
+  if (times.every((time) => time === times[0] && /^\d{2}:\d{2}$/.test(time))) return times[0];
+  return '';
 }
 
 export function stayScheduleConflicts(schedules: readonly StaySeasonWindow[]): string[] {
@@ -240,7 +256,7 @@ export function stayScheduleConflicts(schedules: readonly StaySeasonWindow[]): s
       if (a.start <= b.end && b.start <= a.end) {
         const aName = a.name.trim() || a.start;
         const bName = b.name.trim() || b.start;
-        lines.push(`${aName} and ${bName} overlap. The shorter date range sets the nightly price.`);
+        lines.push(`${aName} and ${bName} cover the same nights. Deactivate one before both can stay active.`);
       }
     }
   }
@@ -270,13 +286,16 @@ export type StayOptionProjection = {
   stayMinNights: string;
   stayAvailabilityMode: StayAvailabilityMode;
   staySeasons: StaySeasonWindow[];
+  /** Null leaves the current property times unchanged. */
+  stayCheckIn: string | null;
+  stayCheckOut: string | null;
 };
 
 function unitFromOption(option: StayAccommodationOption): StayUnitDraft {
   return {
     id: option.id,
     name: option.name,
-    description: '',
+    description: option.description,
     maxGuests: option.maxGuests,
     bedrooms: option.bedrooms,
     beds: stayBedCount(option.bedMix) > 0 ? stayBedCount(option.bedMix) : option.beds,
@@ -295,6 +314,11 @@ export function projectStayOptions(options: readonly StayAccommodationOption[], 
   const separate = stayOptionsNeedSeparateInventory(options);
   const primary = active[0];
   const beds = primary ? (stayBedCount(primary.bedMix) > 0 ? stayBedCount(primary.bedMix) : primary.beds) : null;
+  const enabled = primary?.schedules.filter((schedule) => schedule.enabled) ?? [];
+  const scheduled = primary?.availabilityMode === 'scheduled';
+  const cleaningFees = enabled.map((schedule) => schedule.cleaningFee).filter((fee): fee is number => fee != null);
+  const sharedCleaning =
+    cleaningFees.length > 0 && cleaningFees.every((fee) => fee === cleaningFees[0]) ? cleaningFees[0] : primary?.cleaningFee ?? null;
   return {
     stayAccommodationMode: separate ? 'multi' : 'single',
     stayUnits: options.map(unitFromOption),
@@ -304,10 +328,12 @@ export function projectStayOptions(options: readonly StayAccommodationOption[], 
     stayBeds: beds != null ? String(beds) : '',
     stayBathrooms: primary?.bathrooms != null ? String(primary.bathrooms) : '',
     stayBedMix: primary?.bedMix ?? {},
-    stayNightly: primary?.nightlyPrice != null ? String(primary.nightlyPrice) : '',
-    stayCleaningFee: primary?.cleaningFee != null ? String(primary.cleaningFee) : '',
+    stayNightly: primary && stayStartingNightly(primary) != null ? String(stayStartingNightly(primary)) : '',
+    stayCleaningFee: sharedCleaning != null ? String(sharedCleaning) : '',
     stayMinNights: primary ? String(primary.minNights) : '1',
-    stayAvailabilityMode: primary?.availabilityMode === 'scheduled' ? 'scheduled' : 'open',
+    stayAvailabilityMode: scheduled ? 'scheduled' : 'open',
     staySeasons: !separate && primary ? primary.schedules : [],
+    stayCheckIn: primary ? stayScheduleClock(primary.schedules, 'checkIn') : null,
+    stayCheckOut: primary ? stayScheduleClock(primary.schedules, 'checkOut') : null,
   };
 }

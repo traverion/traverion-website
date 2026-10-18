@@ -718,7 +718,25 @@ export function quoteStayNights(input: {
       error: `Minimum stay is ${lodging.minNights} night${lodging.minNights === 1 ? '' : 's'}.`,
     };
   }
-  const cleaning = stay?.cleaningFeeUsd && stay.cleaningFeeUsd > 0 ? stay.cleaningFeeUsd : 0;
+  if (lodging.maxNights != null && nights > lodging.maxNights) {
+    return {
+      ok: false,
+      code: 'bad_date',
+      error: `This period can be booked for up to ${lodging.maxNights} night${lodging.maxNights === 1 ? '' : 's'}.`,
+    };
+  }
+  if (lodging.minGuests != null && guests < lodging.minGuests) {
+    return { ok: false, code: 'party', error: `This period requires at least ${lodging.minGuests} guests.` };
+  }
+  if (lodging.maxGuests != null && guests > lodging.maxGuests) {
+    return { ok: false, code: 'party', error: `This period allows up to ${lodging.maxGuests} guests.` };
+  }
+  const cleaning =
+    lodging.cleaningFee != null
+      ? lodging.cleaningFee
+      : stay?.cleaningFeeUsd && stay.cleaningFeeUsd > 0
+        ? stay.cleaningFeeUsd
+        : 0;
   const currency = normalizeCurrency(input.tour.price?.currency ?? DEFAULT_CURRENCY);
   const flat = lodging.nightlyPrices.every((price) => price === lodging.nightlyPrices[0]);
   return {

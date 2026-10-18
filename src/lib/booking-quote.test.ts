@@ -381,6 +381,51 @@ describe('quoteBooking', () => {
     expect(q.totalAmount).toBe(340);
   });
 
+  it('uses the check-in schedule guest cap, night cap, and cleaning fee', () => {
+    const stay = {
+      nightlyPriceUsd: 100,
+      maxGuests: 8,
+      minNights: 1,
+      cleaningFeeUsd: 10,
+      availabilityMode: 'scheduled' as const,
+      seasons: [
+        {
+          id: 'winter',
+          name: 'Winter',
+          start: '2026-11-01',
+          end: '2027-03-31',
+          enabled: true,
+          nightlyPrice: 189,
+          minNights: 2,
+          maxNights: 7,
+          minGuests: 2,
+          maxGuests: 6,
+          cleaningFee: 30,
+        },
+      ],
+    };
+    const tooMany = quoteStayNights({
+      tour: tour({ listingExtras: { inventoryFamily: 'stay', stay, bookingOptions: [] } }),
+      checkIn: '2026-12-01',
+      checkOut: '2026-12-04',
+      guests: 7,
+      todayIso: today,
+      nowMs: fixtureNowMs,
+    });
+    expect(tooMany.ok).toBe(false);
+    const priced = quoteStayNights({
+      tour: tour({ listingExtras: { inventoryFamily: 'stay', stay, bookingOptions: [] } }),
+      checkIn: '2026-12-01',
+      checkOut: '2026-12-04',
+      guests: 2,
+      todayIso: today,
+      nowMs: fixtureNowMs,
+    });
+    expect(priced.ok).toBe(true);
+    if (!priced.ok) return;
+    expect(priced.totalAmount).toBe(189 * 3 + 30);
+  });
+
   it('does not quote a multi-unit stay as one bookable property', () => {
     const q = quoteStayNights({
       tour: tour({

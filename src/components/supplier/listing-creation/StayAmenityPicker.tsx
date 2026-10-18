@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { STAY_AMENITY_GROUPS, formatStayAmenityLabel } from '../../../lib/stay-amenities';
+import { STAY_AMENITY_GROUPS, formatStayAmenityLabel, stayAmenityDisplayList } from '../../../lib/stay-amenities';
 
 type Props = {
   selected: string[];
@@ -8,8 +8,8 @@ type Props = {
 };
 
 function hasAmenity(selected: string[], label: string): boolean {
-  const key = label.toLowerCase();
-  return selected.some((item) => item.toLowerCase() === key);
+  const key = formatStayAmenityLabel(label).toLowerCase();
+  return stayAmenityDisplayList(selected).some((item) => item.toLowerCase() === key);
 }
 
 export default function StayAmenityPicker({ selected, onChange }: Props) {
@@ -57,14 +57,17 @@ export default function StayAmenityPicker({ selected, onChange }: Props) {
     };
   }, [open, listId]);
 
+  const canonical = stayAmenityDisplayList(selected);
+
   function toggle(label: string) {
     const clean = formatStayAmenityLabel(label);
     if (!clean) return;
-    if (hasAmenity(selected, clean)) {
-      onChange(selected.filter((item) => item.toLowerCase() !== clean.toLowerCase()));
+    const current = stayAmenityDisplayList(selected);
+    if (current.some((item) => item.toLowerCase() === clean.toLowerCase())) {
+      onChange(current.filter((item) => item.toLowerCase() !== clean.toLowerCase()));
       return;
     }
-    onChange([...selected, clean]);
+    onChange([...current, clean]);
   }
 
   const q = query.trim().toLowerCase();
@@ -87,13 +90,11 @@ export default function StayAmenityPicker({ selected, onChange }: Props) {
             autoFocus
           />
         </div>
-        {q && STAY_AMENITY_GROUPS.every((group) => group.items.filter((label) => !hasAmenity(selected, label) && label.toLowerCase().includes(q)).length === 0) ? (
+        {q && STAY_AMENITY_GROUPS.every((group) => group.items.filter((label) => label.toLowerCase().includes(q)).length === 0) ? (
           <p className="px-3 py-2 text-sm text-ink-muted">No amenities match.</p>
         ) : null}
         {STAY_AMENITY_GROUPS.map((group) => {
-          const items = group.items.filter(
-            (label) => !hasAmenity(selected, label) && (!q || label.toLowerCase().includes(q))
-          );
+          const items = group.items.filter((label) => !q || label.toLowerCase().includes(q));
           if (items.length === 0) return null;
           return (
             <div key={group.label} className="px-1 pb-1">
@@ -106,10 +107,13 @@ export default function StayAmenityPicker({ selected, onChange }: Props) {
                     type="button"
                     role="option"
                     aria-selected={on}
+                    aria-disabled={on}
                     className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm ${
                       on ? 'bg-finland/10 font-semibold text-ink' : 'text-ink hover:bg-black/[0.03]'
                     }`}
-                    onClick={() => toggle(label)}
+                    onClick={() => {
+                      if (!on) toggle(label);
+                    }}
                   >
                     <span>{label}</span>
                     {on ? <span className="text-xs text-finland">Selected</span> : null}
@@ -134,16 +138,18 @@ export default function StayAmenityPicker({ selected, onChange }: Props) {
       >
         Add amenities
       </button>
-      {selected.length > 0 ? (
+      {canonical.length > 0 ? (
         <ul className="flex flex-wrap gap-2">
-          {selected.map((item) => (
-            <li key={item}>
+          {canonical.map((item) => (
+            <li key={item} className="inline-flex items-center gap-1 rounded-full bg-[#F4F7FB] py-1 pl-3 pr-1 text-sm text-ink ring-1 ring-[#D5DEEA]">
+              <span>{item}</span>
               <button
                 type="button"
-                className="lux-flat rounded-full bg-white px-3 py-1.5 text-sm text-ink ring-1 ring-[#E6EAF0] hover:text-[#0B397E]"
+                className="inline-flex h-6 w-6 items-center justify-center rounded-full text-ink-muted hover:bg-white hover:text-[#0B397E]"
+                aria-label={`Remove ${item}`}
                 onClick={() => toggle(item)}
               >
-                {formatStayAmenityLabel(item)} · remove
+                ×
               </button>
             </li>
           ))}

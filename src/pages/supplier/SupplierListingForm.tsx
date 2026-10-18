@@ -216,13 +216,14 @@ import {
   isListingTitleLengthValid,
 } from '../../lib/listingQualityScore';
 import { DEFAULT_CURRENCY, formatMoney, normalizeCurrency } from '../../lib/money';
-import { formatStayAmenityLabel } from '../../lib/stay-amenities';
+import { formatStayAmenityLabel, stayAmenityDisplayList } from '../../lib/stay-amenities';
 import TraverionLocationSelector from '../../components/supplier/TraverionLocationSelector';
 import {
   activeStayOptions,
   ensureStayOptions,
   normalizeStayOptions,
   projectStayOptions,
+  stayStartingNightly,
   type StayAccommodationOption,
 } from '../../lib/stay-options';
 import {
@@ -1080,10 +1081,12 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
             beds: Number.isFinite(stayBeds) ? stayBeds : undefined,
             bedMix: normalizeStayBedMix(form.stayBedMix),
             bathrooms: Number.isFinite(stayBaths) ? stayBaths : undefined,
-            amenities: form.stayAmenities
-              .split(',')
-              .map((x) => x.trim())
-              .filter(Boolean),
+            amenities: stayAmenityDisplayList(
+              form.stayAmenities
+                .split(',')
+                .map((x) => x.trim())
+                .filter(Boolean)
+            ),
             checkInTime: form.stayCheckIn.trim() || undefined,
             checkOutTime: form.stayCheckOut.trim() || undefined,
             houseRules: form.stayHouseRules.trim() || undefined,
@@ -1279,9 +1282,7 @@ function stayPricingReady(form: ListingFormState): boolean {
   if (!stayTimesChosen(form)) return false;
   const options = activeStayOptions(form.stayOptions);
   if (options.length > 0) {
-    return options.some(
-      (option) => option.maxGuests != null && option.maxGuests >= 1 && option.nightlyPrice != null && option.nightlyPrice > 0
-    );
+    return options.some((option) => option.maxGuests != null && option.maxGuests >= 1 && stayStartingNightly(option) != null);
   }
   if (form.stayAccommodationMode === 'multi') return stayUnitsReady(form.stayUnits);
   const maxG = Number.parseInt(form.stayMaxGuests, 10);
@@ -1689,15 +1690,12 @@ export default function SupplierListingForm({
   const stepGuidance = useMemo(() => {
     const stay = form.inventoryFamily === 'stay' || createFamily === 'stay';
     if (stay) {
-      const multi = form.stayAccommodationMode === 'multi';
       return [
         'Search for the property location. A display name is optional.',
         'Choose one accommodation or several room types, then add a title guests will recognize.',
         'Help travelers understand what makes your property special.',
         'Tick only facilities that are really there, then set pets, smoking, and parties.',
-        multi
-          ? 'Each room type has its own capacity and price. This property cannot be published until each type can be reserved.'
-          : 'Create the bookable stay, its price, and the dates guests can reserve.',
+        'Create the accommodation choices guests can book and manage their availability.',
         'Add your strongest photo first — it becomes the cover in search.',
         'Cancellation terms guests actually get, the private arrival address, and extra house rules.',
         'Check what’s ready, fix gaps, then save as draft or publish.',
@@ -1712,7 +1710,7 @@ export default function SupplierListingForm({
       'Cover photo first, then supporting shots travelers swipe through.',
       'Review readiness, then save as draft or publish when Traverion verification allows.',
     ] as const;
-  }, [form.inventoryFamily, form.stayAccommodationMode, createFamily]);
+  }, [form.inventoryFamily, createFamily]);
 
   const reviewRows = useMemo(() => {
     const photoCount = orderedPhotoUrls(normalizePhotoSlots(form.photoSlots)).length;
@@ -4574,16 +4572,18 @@ export default function SupplierListingForm({
                         units: form.stayUnits,
                       })
                 }
-                checkIn={form.stayCheckIn}
-                checkOut={form.stayCheckOut}
                 persistLabel={persistLabel}
-                onTimes={(stayCheckIn, stayCheckOut) => setForm((f) => ({ ...f, stayCheckIn, stayCheckOut }))}
                 onChange={(stayOptions) =>
-                  setForm((f) => ({
-                    ...f,
-                    stayOptions,
-                    ...projectStayOptions(stayOptions, f.stayPropertyType),
-                  }))
+                  setForm((f) => {
+                    const projected = projectStayOptions(stayOptions, f.stayPropertyType);
+                    return {
+                      ...f,
+                      stayOptions,
+                      ...projected,
+                      stayCheckIn: projected.stayCheckIn === null ? f.stayCheckIn : projected.stayCheckIn,
+                      stayCheckOut: projected.stayCheckOut === null ? f.stayCheckOut : projected.stayCheckOut,
+                    };
+                  })
                 }
               />
             </div>
@@ -4596,7 +4596,7 @@ export default function SupplierListingForm({
                   <p className="mt-1 text-xs text-ink-muted">Guests see only what you select. Search and add them one at a time.</p>
                 </div>
                 <StayAmenityPicker
-                  selected={stayAmenityTokens(form.stayAmenities)}
+                  selected={stayAmenityDisplayList(stayAmenityTokens(form.stayAmenities))}
                   onChange={(next) => setForm((f) => ({ ...f, stayAmenities: next.join(', ') }))}
                 />
               </section>
