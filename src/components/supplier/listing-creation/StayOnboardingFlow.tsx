@@ -16,6 +16,9 @@ import ListingImageFields from '../ListingImageFields';
 import { TraverionSingleDateField } from '../../calendar/TraverionSingleDateField';
 import { localYmd } from '../../../lib/local-ymd';
 import { stayCutoffAmounts, stayCutoffFromMinutes, stayCutoffSummary, stayCutoffToMinutes, type StayCutoffUnit } from '../../../lib/stay-cutoff';
+import { formatBpsAsPercent, splitGrossByCommissionBps, toMinorUnits } from '../../../lib/commercial-money';
+import { normalizeCurrency } from '../../../lib/money';
+import { fetchSupplierActiveCommercialTerms } from '../../../data/supabase-earnings';
 import { composeStayCheckInAddress, stayAddressKey, stayPinMatchesAddress } from '../../../lib/stay-address';
 import StayAddressSearch from './StayAddressSearch';
 
@@ -110,6 +113,23 @@ function areasOf(option: StayAccommodationOption): StaySleepingArea[] {
 }
 
 export default function StayOnboardingFlow(props: Props) {
+  const [commissionBps, setCommissionBps] = useState<number | null>(null);
+  useEffect(() => {
+    if (!props.userId) return;
+    let cancelled = false;
+    void fetchSupplierActiveCommercialTerms(props.userId)
+      .then((row) => {
+        if (cancelled) return;
+        const bps = row?.commission_bps;
+        setCommissionBps(Number.isInteger(bps) ? bps : null);
+      })
+      .catch(() => {
+        if (!cancelled) setCommissionBps(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [props.userId]);
   const stage = STAY_ONBOARDING_SCREENS[props.stage] ?? STAY_ONBOARDING_SCREENS[0];
   const id = stage.id;
   const wide = id === 'photos' || id === 'room-photos' || id === 'preview';
@@ -168,7 +188,7 @@ export default function StayOnboardingFlow(props: Props) {
         {id === 'availability' ? <AvailabilityStage {...props} option={option} writeOption={writeOption} /> : null}
         {id === 'guests' ? <GuestsStage {...props} option={option} writeOption={writeOption} /> : null}
         {id === 'stay-length' ? <StayLengthStage {...props} option={option} writeOption={writeOption} /> : null}
-        {id === 'price' ? <PricingStage {...props} option={option} writeOption={writeOption} /> : null}
+        {id === 'price' ? <PricingStage {...props} option={option} writeOption={writeOption} commissionBps={commissionBps} /> : null}
         {id === 'fees' ? <FeesStage {...props} option={option} writeOption={writeOption} /> : null}
         {id === 'arrival-method' ? <ArrivalMethodStage {...props} /> : null}
         {id === 'arrival-notes' ? <ArrivalNotesStage {...props} /> : null}
@@ -730,8 +750,27 @@ function StayLengthStage({ values, option, writeOption }: Props & { option: Stay
   );
 }
 
-function PricingStage({ values, currency, option, writeOption }: Props & { option: StayAccommodationOption; writeOption: (next: StayAccommodationOption) => void }) {
+function exactMoney(amount: number, currency: string): string {
+  const code = normalizeCurrency(currency);
+  return new Intl.NumberFormat('en-GB', {
+    style: 'currency',
+    currency: code,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
+function PricingStage({ values, currency, option, writeOption, commissionBps }: Props & { option: StayAccommodationOption; writeOption: (next: StayAccommodationOption) => void; commissionBps: number | null }) {
   const nightly = Number.parseFloat(values.stayNightly);
+  const priced = Number.isFinite(nightly) && nightly > 0;
+  let split: ReturnType<typeof splitGrossByCommissionBps> | null = null;
+  if (priced && commissionBps != null) {
+    try {
+      split = splitGrossByCommissionBps(toMinorUnits(nightly), commissionBps);
+    } catch {
+      split = null;
+    }
+  }
   return (
     <div className="space-y-4">
       <Field label={`Price per night · ${currency}`}>
@@ -740,8 +779,15 @@ function PricingStage({ values, currency, option, writeOption }: Props & { optio
           writeOption({ ...option, nightlyPrice: Number.isFinite(next) && next > 0 ? Math.round(next * 100) / 100 : null });
         }} />
       </Field>
-      {Number.isFinite(nightly) && nightly > 0 ? (
-        <p className="text-sm text-ink-muted">Three nights at this rate are {Math.round(nightly * 3 * 100) / 100} {currency} before cleaning or extras. Checkout uses the same nightly rate.</p>
+      {priced && split ? (
+        <dl className="space-y-1 text-sm text-ink">
+          <div className="flex justify-between gap-3"><dt>Nightly price</dt><dd>{exactMoney(nightly, currency)}</dd></div>
+          <div className="flex justify-between gap-3"><dt>Traverion commission ({formatBpsAsPercent(split.commissionBps)})</dt><dd>{exactMoney(split.commissionMinor / 100, currency)}</dd></div>
+          <div className="flex justify-between gap-3 font-semibold"><dt>Estimated supplier earnings</dt><dd>{exactMoney(split.supplierMinor / 100, currency)}</dd></div>
+          <p className="pt-1 text-ink-muted">One night at this rate. Cleaning and extras are charged separately and are not part of this example.</p>
+        </dl>
+      ) : priced ? (
+        <p className="text-sm text-ink-muted">Estimated earnings appear when your supplier agreement is available. This example is one night. Cleaning and extras are charged separately.</p>
       ) : null}
     </div>
   );
