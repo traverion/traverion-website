@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Plus,
@@ -35,7 +35,9 @@ import {
 } from '../../lib/listing-unpublish-impact';
 import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
-import SupplierListingForm, { type ListingEditorSaveResult } from './SupplierListingForm';
+import type { ListingEditorSaveResult } from './SupplierListingForm';
+
+const SupplierListingForm = lazy(() => import('./SupplierListingForm'));
 import NoticeCallout from '../../components/NoticeCallout';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { PARTNER_APP_BASE, PARTNER_CREATE_PATH } from '../../lib/partnerPortalPaths';
@@ -1389,6 +1391,7 @@ export default function SupplierListings() {
       )}
 
       {showForm && (
+        <Suspense fallback={<div className="py-10" aria-busy="true" aria-label="Loading editor" />}>
         <SupplierListingForm
           key={`${editorInstanceKey}-${createFamily}`}
           editingId={editingId}
@@ -1417,6 +1420,7 @@ export default function SupplierListings() {
           focusSection={formFocusSection}
           onFocusConsumed={consumeListingFormFocus}
         />
+        </Suspense>
       )}
 
       {loading && listings.length === 0 ? (

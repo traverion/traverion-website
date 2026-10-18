@@ -15,10 +15,6 @@ import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
 import { supabase } from '../../lib/supabase';
-import SupplierDashboard from '../../pages/supplier/SupplierDashboard';
-import SupplierListings from '../../pages/supplier/SupplierListings';
-import SupplierBookings from '../../pages/supplier/SupplierBookings';
-import SupplierAvailability from '../../pages/supplier/SupplierAvailability';
 import PartnerAuthPage from './PartnerAuthPage';
 import PartnerLandingPage from './PartnerLandingPage';
 import PartnerSidebar from './PartnerSidebar';
@@ -98,6 +94,10 @@ import {
 } from '../../lib/partnerReturnPath';
 import { navigateSupplierUrl, openSupplierCalendar } from '../../lib/supplierPortalNavigation';
 
+const SupplierDashboard = lazy(() => import('../../pages/supplier/SupplierDashboard'));
+const SupplierListings = lazy(() => import('../../pages/supplier/SupplierListings'));
+const SupplierBookings = lazy(() => import('../../pages/supplier/SupplierBookings'));
+const SupplierAvailability = lazy(() => import('../../pages/supplier/SupplierAvailability'));
 const SupplierEarnings = lazy(() => import('../../pages/supplier/SupplierEarnings'));
 const SupplierPerformance = lazy(() => import('../../pages/supplier/SupplierPerformance'));
 const SupplierInbox = lazy(() => import('../../pages/supplier/SupplierInbox'));
