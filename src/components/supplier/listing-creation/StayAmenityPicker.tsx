@@ -139,13 +139,13 @@ export default function StayAmenityPicker({ selected, onChange }: Props) {
         Add amenities
       </button>
       {canonical.length > 0 ? (
-        <ul className="flex flex-wrap gap-2">
+        <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {canonical.map((item) => (
-            <li key={item} className="inline-flex items-center gap-1 rounded-full bg-[#F4F7FB] py-1 pl-3 pr-1 text-sm text-ink ring-1 ring-[#D5DEEA]">
-              <span>{item}</span>
+            <li key={item} className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-sm text-ink ring-1 ring-[#E6EAF0]">
+              <span className="min-w-0 truncate">{item === 'Wifi' ? 'Wi-Fi' : item}</span>
               <button
                 type="button"
-                className="inline-flex h-6 w-6 items-center justify-center rounded-full text-ink-muted hover:bg-white hover:text-[#0B397E]"
+                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-ink-muted hover:bg-[#F4F7FB] hover:text-[#0B397E]"
                 aria-label={`Remove ${item}`}
                 onClick={() => toggle(item)}
               >

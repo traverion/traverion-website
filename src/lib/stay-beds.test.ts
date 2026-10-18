@@ -10,8 +10,8 @@ describe('stay bed arrangements', () => {
   });
 
   it('warns when 8 guests share one single bed and allows two people on one double', () => {
-    expect(stayCapacityWarning(8, { single: 1 }, 1)).toMatch(/please review/i);
-    expect(stayCapacityWarning(8, undefined, 1)).toMatch(/please review/i);
+    expect(stayCapacityWarning(8, { single: 1 }, 1)).toMatch(/accommodate 1/);
+    expect(stayCapacityWarning(8, undefined, 1)).toMatch(/accommodate 2/);
     expect(stayCapacityWarning(2, { double: 1 }, 1)).toBeNull();
   });
 });

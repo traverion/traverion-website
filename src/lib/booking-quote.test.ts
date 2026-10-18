@@ -6,6 +6,7 @@ import type { ListingBookingOption } from '../types/listingExtras';
 import { getListingPublishBlockers, partnerListingDraftPublishSubtitle } from './listingPublishGate';
 import { parsePathname } from './appRouting';
 import { addCalendarDays } from './stayOccupancy';
+import { wallTimeInZoneToUtcMs } from './tour-departure-cutoff';
 
 function option(partial: Partial<ListingBookingOption> & Pick<ListingBookingOption, 'id' | 'name' | 'priceUsd'>): ListingBookingOption {
   return {
@@ -424,6 +425,36 @@ describe('quoteBooking', () => {
     expect(priced.ok).toBe(true);
     if (!priced.ok) return;
     expect(priced.totalAmount).toBe(189 * 3 + 30);
+  });
+
+  it('closes a stay reservation before the schedule check-in', () => {
+    const arrival = wallTimeInZoneToUtcMs('2026-12-01', '16:00', 'Europe/Helsinki');
+    expect(arrival).not.toBeNull();
+    const stay = {
+      nightlyPriceUsd: 100,
+      maxGuests: 4,
+      minNights: 1,
+      checkInTime: '16:00',
+      reservationCutoffMinutes: 120,
+    };
+    const closed = quoteStayNights({
+      tour: tour({ listingExtras: { inventoryFamily: 'stay', departureTimezone: 'Europe/Helsinki', stay, bookingOptions: [] } }),
+      checkIn: '2026-12-01',
+      checkOut: '2026-12-03',
+      guests: 2,
+      todayIso: '2026-11-01',
+      nowMs: (arrival ?? 0) - 60 * 60 * 1000,
+    });
+    expect(closed.ok).toBe(false);
+    const open = quoteStayNights({
+      tour: tour({ listingExtras: { inventoryFamily: 'stay', departureTimezone: 'Europe/Helsinki', stay, bookingOptions: [] } }),
+      checkIn: '2026-12-01',
+      checkOut: '2026-12-03',
+      guests: 2,
+      todayIso: '2026-11-01',
+      nowMs: (arrival ?? 0) - 3 * 60 * 60 * 1000,
+    });
+    expect(open.ok).toBe(true);
   });
 
   it('does not quote a multi-unit stay as one bookable property', () => {

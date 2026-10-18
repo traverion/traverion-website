@@ -14,6 +14,7 @@ import {
   normalizeBookingCutoffHours,
   resolveDepartureTimezone,
   TRAVERION_DEPARTURE_TIMEZONE,
+  wallTimeInZoneToUtcMs,
 } from './tour-departure-cutoff.ts';
 import { normalizeStaySeasons, quoteStayLodging } from './stay-season-quote.ts';
 
@@ -294,6 +295,8 @@ function quoteStayListing(input: {
   checkOut: string;
   guests: number;
   today: string;
+  nowMs?: number;
+  timeZone?: string;
 }): QuoteOk | QuoteErr {
   const extras =
     input.listing.listing_extras && typeof input.listing.listing_extras === 'object'
@@ -352,6 +355,18 @@ function quoteStayListing(input: {
   }
   if (lodging.maxGuests != null && input.guests > lodging.maxGuests) {
     return { ok: false, error: `This period allows up to ${lodging.maxGuests} guests.` };
+  }
+  const cutoffMinutes = stay.reservationCutoffMinutes;
+  if (typeof cutoffMinutes === 'number' && cutoffMinutes >= 0) {
+    const hm =
+      lodging.checkIn || (typeof stay.checkInTime === 'string' ? stay.checkInTime.trim().slice(0, 5) : '');
+    const arrivalMs = /^\d{2}:\d{2}$/.test(hm)
+      ? wallTimeInZoneToUtcMs(input.checkIn, hm, resolveDepartureTimezone(input.timeZone))
+      : null;
+    const closesAt = arrivalMs == null ? null : arrivalMs - Math.floor(cutoffMinutes) * 60_000;
+    if (closesAt != null && (input.nowMs ?? Date.now()) > closesAt) {
+      return { ok: false, error: 'Booking for this check-in has closed.' };
+    }
   }
   const cleaning =
     lodging.cleaningFee != null
@@ -1068,6 +1083,8 @@ export function quoteListingBooking(input: {
       checkOut: (input.checkoutDate ?? '').trim(),
       guests,
       today,
+      nowMs,
+      timeZone: departureTimezone,
     });
   }
   if (!ISO_DATE.test(date)) return { ok: false, error: 'Choose a valid date.' };

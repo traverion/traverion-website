@@ -40,6 +40,7 @@ describe('quoteStayLodging', () => {
       minGuests: null,
       maxGuests: null,
       cleaningFee: null,
+      checkIn: '',
     });
   });
 

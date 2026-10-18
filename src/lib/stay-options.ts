@@ -4,7 +4,16 @@
  * More than one option, or quantity above 1, is saved and is not bookable: inventory is still one unit per listing.
  */
 
-import { normalizeStayBedMix, stayBedCount, stayBedSummary, staySleepCapacity, type StayBedMix } from './stay-beds';
+import {
+  normalizeStayBedMix,
+  normalizeStaySleepingAreas,
+  stayBedCount,
+  stayBedSummary,
+  stayMixFromAreas,
+  staySleepCapacity,
+  type StayBedMix,
+  type StaySleepingArea,
+} from './stay-beds';
 import type { StayUnitDraft } from './stay-accommodation';
 import {
   normalizeStaySeasons,
@@ -24,6 +33,9 @@ export type StayAccommodationOption = {
   bedrooms: number | null;
   bathrooms: number | null;
   bedMix: StayBedMix;
+  sleepingAreas: StaySleepingArea[];
+  /** Minutes before the schedule check-in when booking closes. Null until the supplier sets it. 0 means until check-in. */
+  cutoffMinutes: number | null;
   /** Used when no bed types are set, so an older "1 bed" listing is not wiped. */
   beds: number | null;
   quantity: number;
@@ -80,6 +92,8 @@ export function emptyStayOption(id: string, propertyType: string): StayAccommoda
     bedrooms: null,
     bathrooms: null,
     bedMix: {},
+    sleepingAreas: [],
+    cutoffMinutes: null,
     beds: null,
     quantity: 1,
     nightlyPrice: null,
@@ -107,7 +121,15 @@ export function normalizeStayOption(raw: unknown): StayAccommodationOption | nul
     maxGuests: count(o.maxGuests, 1, 50),
     bedrooms: count(o.bedrooms, 0, 30),
     bathrooms: typeof o.bathrooms === 'number' && o.bathrooms >= 0 && o.bathrooms <= 20 ? Math.round(o.bathrooms * 2) / 2 : null,
-    bedMix: normalizeStayBedMix(o.bedMix) ?? {},
+    sleepingAreas: normalizeStaySleepingAreas(o.sleepingAreas),
+    bedMix:
+      stayBedCount(stayMixFromAreas(normalizeStaySleepingAreas(o.sleepingAreas))) > 0
+        ? stayMixFromAreas(normalizeStaySleepingAreas(o.sleepingAreas))
+        : (normalizeStayBedMix(o.bedMix) ?? {}),
+    cutoffMinutes:
+      typeof o.cutoffMinutes === 'number' && o.cutoffMinutes >= 0
+        ? Math.min(56 * 24 * 60, Math.floor(o.cutoffMinutes))
+        : null,
     beds: count(o.beds, 0, 50),
     quantity,
     nightlyPrice: money(o.nightlyPrice ?? o.nightlyPriceUsd, 1),
@@ -143,6 +165,8 @@ function optionFromUnit(unit: StayUnitDraft, propertyType: string, seasons: Stay
     bedrooms: unit.bedrooms,
     bathrooms: unit.bathrooms,
     bedMix: {},
+    sleepingAreas: [],
+    cutoffMinutes: null,
     beds: unit.beds,
     quantity: unit.quantity,
     nightlyPrice: unit.nightlyPriceUsd,
@@ -183,6 +207,8 @@ export function ensureStayOptions(source: StayOptionLegacySource & { options?: u
       bedrooms: Number.isFinite(source.bedrooms) ? (source.bedrooms as number) : null,
       bathrooms: Number.isFinite(source.bathrooms) ? (source.bathrooms as number) : null,
       bedMix: source.bedMix ?? {},
+      sleepingAreas: [],
+      cutoffMinutes: null,
       beds: Number.isFinite(source.beds) ? (source.beds as number) : null,
       nightlyPrice: Number.isFinite(source.nightlyPrice) && (source.nightlyPrice as number) > 0 ? (source.nightlyPrice as number) : null,
       cleaningFee: Number.isFinite(source.cleaningFee) && (source.cleaningFee as number) >= 0 ? (source.cleaningFee as number) : null,
@@ -289,6 +315,7 @@ export type StayOptionProjection = {
   /** Null leaves the current property times unchanged. */
   stayCheckIn: string | null;
   stayCheckOut: string | null;
+  stayCutoffMinutes: number | null;
 };
 
 function unitFromOption(option: StayAccommodationOption): StayUnitDraft {
@@ -335,5 +362,6 @@ export function projectStayOptions(options: readonly StayAccommodationOption[], 
     staySeasons: !separate && primary ? primary.schedules : [],
     stayCheckIn: primary ? stayScheduleClock(primary.schedules, 'checkIn') : null,
     stayCheckOut: primary ? stayScheduleClock(primary.schedules, 'checkOut') : null,
+    stayCutoffMinutes: !separate && primary ? primary.cutoffMinutes : null,
   };
 }

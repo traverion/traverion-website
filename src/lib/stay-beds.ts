@@ -42,7 +42,64 @@ export function stayBedSummary(mix: StayBedMix | null | undefined): string {
   return parts.join(', ');
 }
 
-/** Warn when declared guests exceed what the beds can reasonably sleep. Does not block a save. */
+export type StayBedPlacement = { kind: StayBedKind; count: number };
+
+export type StaySleepingArea = {
+  id: string;
+  name: string;
+  beds: StayBedPlacement[];
+};
+
+export function normalizeStaySleepingAreas(raw: unknown): StaySleepingArea[] {
+  if (!Array.isArray(raw)) return [];
+  const out: StaySleepingArea[] = [];
+  for (const item of raw) {
+    if (item == null || typeof item !== 'object') continue;
+    const row = item as Record<string, unknown>;
+    const id = typeof row.id === 'string' ? row.id.trim().slice(0, 80) : '';
+    if (!id) continue;
+    const beds: StayBedPlacement[] = [];
+    if (Array.isArray(row.beds)) {
+      for (const bed of row.beds) {
+        if (bed == null || typeof bed !== 'object') continue;
+        const b = bed as Record<string, unknown>;
+        const kind = typeof b.kind === 'string' && KIND_IDS.has(b.kind) ? (b.kind as StayBedKind) : null;
+        const count = typeof b.count === 'number' ? Math.floor(b.count) : 0;
+        if (!kind || count < 1 || count > 20) continue;
+        beds.push({ kind, count });
+      }
+    }
+    out.push({
+      id,
+      name: typeof row.name === 'string' && row.name.trim() ? row.name.trim().slice(0, 40) : `Sleeping area ${out.length + 1}`,
+      beds,
+    });
+    if (out.length >= 20) break;
+  }
+  return out;
+}
+
+export function stayMixFromAreas(areas: readonly StaySleepingArea[]): StayBedMix {
+  const mix: StayBedMix = {};
+  for (const area of areas) {
+    for (const bed of area.beds) {
+      mix[bed.kind] = (mix[bed.kind] ?? 0) + bed.count;
+    }
+  }
+  return stayBedCount(mix) > 0 ? mix : {};
+}
+
+/** Older listings stored only a count per bed type. Show that as one sleeping area. */
+export function stayAreasFromMix(mix: StayBedMix | null | undefined): StaySleepingArea[] {
+  const beds = STAY_BED_KINDS.flatMap((kind) => {
+    const count = mix?.[kind.id] ?? 0;
+    return count > 0 ? [{ kind: kind.id, count }] : [];
+  });
+  if (beds.length === 0) return [];
+  return [{ id: 'sleeping-saved', name: 'Sleeping area', beds }];
+}
+
+/** Warn when declared guests exceed what the beds can sleep. Does not block a draft save. */
 export function stayCapacityWarning(
   guests: number,
   mix: StayBedMix | null | undefined,
@@ -50,11 +107,9 @@ export function stayCapacityWarning(
 ): string | null {
   if (!Number.isFinite(guests) || guests < 1) return null;
   const counted = stayBedCount(mix);
-  if (counted > 0 && guests > staySleepCapacity(mix)) {
-    return 'Your guest capacity may be higher than the sleeping arrangements you have entered. Please review.';
-  }
-  if (counted === 0 && fallbackBeds >= 1 && guests > fallbackBeds * 2) {
-    return 'Your guest capacity may be higher than the sleeping arrangements you have entered. Please review.';
+  const sleeps = counted > 0 ? staySleepCapacity(mix) : fallbackBeds >= 1 ? fallbackBeds * 2 : 0;
+  if (sleeps > 0 && guests > sleeps) {
+    return `Your accommodation allows ${guests} guests, but the configured beds currently accommodate ${sleeps}. Add sleeping arrangements or adjust the guest capacity.`;
   }
   return null;
 }

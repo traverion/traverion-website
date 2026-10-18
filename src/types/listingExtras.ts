@@ -396,6 +396,8 @@ export type StayDetails = {
   minNights?: number;
   maxGuests?: number;
   cleaningFeeUsd?: number;
+  /** Minutes before check-in when booking closes. 0 means until check-in. Omitted on older stays. */
+  reservationCutoffMinutes?: number;
 };
 
 function normalizeStayDetails(raw: unknown): StayDetails | undefined {
@@ -436,6 +438,9 @@ function normalizeStayDetails(raw: unknown): StayDetails | undefined {
   if (typeof o.minNights === 'number' && o.minNights >= 1) out.minNights = Math.floor(o.minNights);
   if (typeof o.maxGuests === 'number' && o.maxGuests >= 1) out.maxGuests = Math.floor(o.maxGuests);
   if (typeof o.cleaningFeeUsd === 'number' && o.cleaningFeeUsd >= 0) out.cleaningFeeUsd = o.cleaningFeeUsd;
+  if (typeof o.reservationCutoffMinutes === 'number' && o.reservationCutoffMinutes >= 0) {
+    out.reservationCutoffMinutes = Math.min(56 * 24 * 60, Math.floor(o.reservationCutoffMinutes));
+  }
   return Object.keys(out).length > 0 ? out : undefined;
 }
 

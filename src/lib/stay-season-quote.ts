@@ -113,6 +113,7 @@ export function quoteStayLodging(input: {
       minGuests: number | null;
       maxGuests: number | null;
       cleaningFee: number | null;
+      checkIn: string;
     }
   | { ok: false; error: string } {
   const seasons = input.seasons ?? [];
@@ -143,5 +144,6 @@ export function quoteStayLodging(input: {
     minGuests: checkInSeason?.minGuests && checkInSeason.minGuests >= 1 ? checkInSeason.minGuests : null,
     maxGuests: checkInSeason?.maxGuests && checkInSeason.maxGuests >= 1 ? checkInSeason.maxGuests : null,
     cleaningFee: typeof checkInSeason?.cleaningFee === 'number' ? checkInSeason.cleaningFee : null,
+    checkIn: checkInSeason?.checkIn && /^\d{2}:\d{2}$/.test(checkInSeason.checkIn) ? checkInSeason.checkIn : '',
   };
 }

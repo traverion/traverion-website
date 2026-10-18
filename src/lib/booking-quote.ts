@@ -26,6 +26,7 @@ import {
   normalizeBookingCutoffHours,
   resolveDepartureTimezone,
   TRAVERION_DEPARTURE_TIMEZONE,
+  wallTimeInZoneToUtcMs,
 } from './tour-departure-cutoff';
 
 /** Calendar “today” for quote past-date gates — listing departure TZ, not browser/UTC. */
@@ -730,6 +731,17 @@ export function quoteStayNights(input: {
   }
   if (lodging.maxGuests != null && guests > lodging.maxGuests) {
     return { ok: false, code: 'party', error: `This period allows up to ${lodging.maxGuests} guests.` };
+  }
+  const cutoffMinutes = stay?.reservationCutoffMinutes;
+  if (typeof cutoffMinutes === 'number' && cutoffMinutes >= 0) {
+    const hm = lodging.checkIn || (stay?.checkInTime ?? '').trim().slice(0, 5);
+    const arrivalMs = /^\d{2}:\d{2}$/.test(hm)
+      ? wallTimeInZoneToUtcMs(checkIn, hm, resolveDepartureTimezone(extras.departureTimezone))
+      : null;
+    const closesAt = arrivalMs == null ? null : arrivalMs - cutoffMinutes * 60_000;
+    if (closesAt != null && (input.nowMs ?? Date.now()) > closesAt) {
+      return { ok: false, code: 'bad_date', error: 'Booking for this check-in has closed.' };
+    }
   }
   const cleaning =
     lodging.cleaningFee != null

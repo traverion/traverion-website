@@ -902,6 +902,7 @@ type ListingFormState = {
   stayAddressPostal: string;
   stayAddressNotes: string;
   stayCleaningFee: string;
+  stayCutoffMinutes: number | null;
 };
 
 function stayLocationDisplayNameFromListing(
@@ -1103,6 +1104,10 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
             minNights: Number.isFinite(stayMinNights) && stayMinNights >= 1 ? stayMinNights : 1,
             maxGuests: Number.isFinite(stayMaxGuests) && stayMaxGuests >= 1 ? stayMaxGuests : undefined,
             cleaningFeeUsd: Number.isFinite(stayCleaning) && stayCleaning >= 0 ? stayCleaning : undefined,
+            reservationCutoffMinutes:
+              typeof form.stayCutoffMinutes === 'number' && form.stayCutoffMinutes >= 0
+                ? Math.floor(form.stayCutoffMinutes)
+                : undefined,
           },
         }
       : {}),
@@ -1374,6 +1379,7 @@ const emptyForm: ListingFormState = {
   stayAddressPostal: '',
   stayAddressNotes: '',
   stayCleaningFee: '',
+  stayCutoffMinutes: null,
 };
 
 /**
@@ -1422,6 +1428,10 @@ function coerceListingFormState(raw: Partial<ListingFormState> | null | undefine
   merged.stayAvailabilityMode = merged.stayAvailabilityMode === 'scheduled' ? 'scheduled' : 'open';
   merged.staySeasons = normalizeStaySeasons(merged.staySeasons);
   merged.stayBedMix = normalizeStayBedMix(merged.stayBedMix) ?? {};
+  merged.stayCutoffMinutes =
+    typeof merged.stayCutoffMinutes === 'number' && merged.stayCutoffMinutes >= 0
+      ? Math.floor(merged.stayCutoffMinutes)
+      : null;
   merged.stayUnits = normalizeStayUnits(merged.stayUnits);
   merged.stayOptions = normalizeStayOptions(merged.stayOptions);
   if (
@@ -2140,6 +2150,8 @@ export default function SupplierListingForm({
           stayAddressPostal: '',
           stayAddressNotes: '',
           stayCleaningFee: extras.stay?.cleaningFeeUsd != null ? String(extras.stay.cleaningFeeUsd) : '',
+          stayCutoffMinutes:
+            typeof extras.stay?.reservationCutoffMinutes === 'number' ? extras.stay.reservationCutoffMinutes : null,
         };
         const coercedNext = coerceListingFormState(next);
         initialFormSnapshotRef.current = serializeListingFormState(coercedNext);
