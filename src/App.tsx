@@ -3,7 +3,6 @@ import { ChunkLoadErrorBoundary } from './components/ChunkLoadErrorBoundary';
 import UnifiedHeader from './components/UnifiedHeader';
 import Footer from './components/Footer';
 import SkipLink from './components/SkipLink';
-const Home = lazy(() => import('./pages/Home'));
 import { TranslationProvider } from './contexts/TranslationContext';
 import { SupplierAuthProvider } from './contexts/SupplierAuthContext';
 import { SupplierRoleProvider } from './contexts/SupplierRoleContext';
@@ -95,6 +94,7 @@ const Stays = lazy(() => import('./pages/Stays'));
 const StayDetails = lazy(() => import('./pages/StayDetails'));
 const ReservedInventoryPage = lazy(() => import('./pages/ReservedInventoryPage'));
 const SupplierLayout = lazy(() => import('./components/supplier/SupplierLayout'));
+const Home = lazy(() => import('./pages/Home'));
 
 function PartnerRouteFallback() {
   return (
