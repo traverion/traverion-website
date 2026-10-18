@@ -793,22 +793,36 @@ function PricingStage({ values, currency, option, writeOption, commissionBps }: 
   );
 }
 
+const EXTRA_CHARGE_LABEL: Record<string, string> = {
+  per_stay: 'per stay',
+  per_night: 'per night',
+  per_guest: 'per guest',
+  per_guest_night: 'per guest, per night',
+};
+
 function FeesStage({ values, currency, option, writeOption }: Props & { option: StayAccommodationOption; writeOption: (next: StayAccommodationOption) => void }) {
   const extras = option.schedules[0]?.extras ?? [];
   return (
     <div className="space-y-4">
-      <Field label={`Cleaning fee · ${currency}, optional`}>
+      <Field label={`Cleaning fee · ${currency}, per stay`}>
         <input className="tv-input w-full" inputMode="decimal" value={values.stayCleaningFee} onChange={(e) => {
           const cleaning = Number(e.target.value);
           writeOption({ ...option, cleaningFee: Number.isFinite(cleaning) && cleaning >= 0 ? Math.round(cleaning * 100) / 100 : null });
         }} />
       </Field>
+      <p className="text-sm text-ink-muted">An amount here is charged once for the stay. Leave it blank when there is no cleaning fee.</p>
       {extras.length > 0 ? (
         <ul className="space-y-1 text-sm text-ink">
-          {extras.map((extra) => <li key={extra.id}>{extra.name} · {extra.price} {currency}{extra.requestOnly ? ' · requested, not charged' : ''}</li>)}
+          {extras.map((extra) => (
+            <li key={extra.id}>
+              {extra.name} · {extra.price} {currency}
+              {EXTRA_CHARGE_LABEL[extra.charge] ? ` · ${EXTRA_CHARGE_LABEL[extra.charge]}` : ''}
+              {extra.mandatory ? ' · included' : extra.requestOnly ? ' · requested, not charged' : ' · guest can add'}
+            </li>
+          ))}
         </ul>
       ) : null}
-      <p className="text-sm text-ink-muted">Weekly and monthly discounts, extra-guest fees, and optional extras already saved on a schedule are charged by checkout. A first-guest discount is not offered until a booking can redeem it once.</p>
+      <p className="text-sm text-ink-muted">Weekly and monthly discounts and extra-guest fees already saved on a schedule are applied by checkout to the lodging price.</p>
     </div>
   );
 }
