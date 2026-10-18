@@ -998,6 +998,27 @@ function PreviewEdit({ label, onClick }: { label: string; onClick: () => void })
   return <button type="button" className="min-h-11 shrink-0 text-sm font-semibold text-finland" onClick={onClick}>{label}</button>;
 }
 
+function PreviewSection({ title, onEdit, children }: { title: string; onEdit: () => void; children: React.ReactNode }) {
+  return (
+    <section className="border-t border-[#E6EAF0] pt-4">
+      <div className="mb-2 flex items-baseline justify-between gap-3">
+        <h5 className="font-display text-lg font-semibold text-ink">{title}</h5>
+        <PreviewEdit label="Edit" onClick={onEdit} />
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function readableRule(value: string): string {
+  if (value === 'not_allowed') return 'Not allowed';
+  if (value === 'allowed') return 'Allowed';
+  if (value === 'approval') return 'Ask first';
+  if (value === 'welcome') return 'Welcome';
+  if (value === 'not_suitable') return 'Not suitable';
+  return value;
+}
+
 function PreviewStage({ values, currency, onEditStage, option }: Props & { option: StayAccommodationOption }) {
   const [viewport, setViewport] = useState<'desktop' | 'mobile'>('desktop');
   const propertyType = option.propertyType || values.stayPropertyType || 'Stay';
@@ -1010,10 +1031,10 @@ function PreviewStage({ values, currency, onEditStage, option }: Props & { optio
   const beds = stayBedSummary(option.bedMix);
   const guests = Number.parseInt(values.stayMaxGuests, 10);
   const rules = [
-    values.stayPets ? `Pets: ${values.stayPets}` : '',
-    values.staySmoking ? `Smoking: ${values.staySmoking}` : '',
-    values.stayParties ? `Parties: ${values.stayParties}` : '',
-    values.stayChildren ? `Children: ${values.stayChildren}` : '',
+    values.stayPets ? `Pets · ${readableRule(values.stayPets)}` : '',
+    values.staySmoking ? `Smoking · ${readableRule(values.staySmoking)}` : '',
+    values.stayParties ? `Parties · ${readableRule(values.stayParties)}` : '',
+    values.stayChildren ? `Children · ${readableRule(values.stayChildren)}` : '',
     values.stayQuietStart && values.stayQuietEnd ? `Quiet hours ${values.stayQuietStart}–${values.stayQuietEnd}` : '',
     values.stayHouseRules.trim(),
   ].filter(Boolean);
@@ -1024,64 +1045,60 @@ function PreviewStage({ values, currency, onEditStage, option }: Props & { optio
           <button key={size} type="button" aria-pressed={viewport === size} className={`stay-choice lc-choice min-h-11 rounded-full px-3 text-sm font-semibold capitalize ${viewport === size ? 'lc-choice--selected text-[#073b83]' : ''}`} onClick={() => setViewport(size)}>{size}</button>
         ))}
       </div>
-      <article className={`space-y-4 ${viewport === 'mobile' ? 'mx-auto max-w-sm' : ''}`}>
-        {cover ? <img src={cover} alt="" className="aspect-[16/10] w-full rounded-2xl object-cover" /> : <div className="flex aspect-[16/10] items-center justify-center rounded-2xl bg-[#F4F6F8] text-sm text-ink-muted">Add a cover photo</div>}
+      <article className={`overflow-hidden rounded-2xl bg-white ring-1 ring-[#E6EAF0] ${viewport === 'mobile' ? 'mx-auto max-w-sm' : ''}`}>
+        {cover ? <img src={cover} alt="" className="aspect-[16/10] w-full object-cover" /> : <div className="flex aspect-[16/10] items-center justify-center bg-[#F4F6F8] text-sm text-ink-muted">Add a cover photo</div>}
         {photos.length > 1 ? (
-          <div className="flex gap-2 overflow-x-auto">
-            {photos.slice(1, 6).map((url) => <img key={url} src={url} alt="" className="h-16 w-24 shrink-0 rounded-lg object-cover" />)}
+          <div className="flex gap-1.5 overflow-x-auto px-4 pt-3">
+            {photos.slice(0, 6).map((url, index) => <img key={url} src={url} alt="" className={`h-14 w-20 shrink-0 rounded-md object-cover ${index === 0 ? 'ring-2 ring-[#073b83]' : ''}`} />)}
           </div>
         ) : null}
-        <header className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{propertyType === 'Room' ? 'Private room' : propertyType}</p>
-            <h4 className="font-display text-2xl font-semibold text-ink">{values.title || 'Untitled stay'}</h4>
+        <div className="space-y-4 p-4 sm:p-5">
+          <header>
+            <p className="stay-kicker">{propertyType === 'Room' ? 'Private room' : propertyType}</p>
+            <div className="mt-1 flex items-start justify-between gap-3">
+              <h4 className="font-display text-2xl font-semibold tracking-tight text-ink">{values.title || 'Untitled stay'}</h4>
+              <PreviewEdit label="Edit" onClick={() => onEditStage(stayScreenIndex('property-name'))} />
+            </div>
             <p className="text-sm text-ink-muted">{[values.city, values.country].filter(Boolean).join(', ') || 'Location not set'}</p>
-          </div>
-          <PreviewEdit label="Edit" onClick={() => onEditStage(stayScreenIndex('property-name'))} />
-        </header>
-        {Number.isFinite(nightly) && nightly > 0 ? <p className="text-lg font-semibold tabular-nums text-ink">{formatMoney(nightly, currency)} <span className="text-sm font-medium text-ink-muted">per night</span></p> : null}
-        <div className="tv-card flex items-start justify-between gap-3 p-4">
-          <ul className="space-y-1 text-sm text-ink-muted">
-            {Number.isFinite(guests) && guests > 0 ? <li>Up to {guests} guests</li> : null}
-            <li>{values.stayBedrooms || option.bedrooms || 0} bedrooms{beds ? ` · ${beds}` : ''}</li>
-            {sleeps > 0 ? <li>Sleeps up to {sleeps}</li> : null}
-          </ul>
-          <PreviewEdit label="Edit" onClick={() => onEditStage(stayScreenIndex('rooms'))} />
+            {Number.isFinite(nightly) && nightly > 0 ? <p className="mt-3 text-lg font-semibold tabular-nums text-ink">{formatMoney(nightly, currency)} <span className="text-sm font-medium text-ink-muted">per night</span></p> : null}
+          </header>
+          <dl className="grid grid-cols-3 gap-2 border-t border-[#E6EAF0] pt-4 text-sm">
+            <div><dt className="stay-kicker">Guests</dt><dd className="mt-1 font-semibold text-ink">{Number.isFinite(guests) && guests > 0 ? guests : '—'}</dd></div>
+            <div><dt className="stay-kicker">Bedrooms</dt><dd className="mt-1 font-semibold text-ink">{values.stayBedrooms || option.bedrooms || 0}</dd></div>
+            <div><dt className="stay-kicker">Sleeps</dt><dd className="mt-1 font-semibold text-ink">{sleeps > 0 ? sleeps : '—'}</dd></div>
+          </dl>
+          {beds ? <p className="text-sm text-ink">{beds.charAt(0).toUpperCase()}{beds.slice(1)}</p> : null}
+          <div className="flex justify-end"><PreviewEdit label="Edit sleeping" onClick={() => onEditStage(stayScreenIndex('rooms'))} /></div>
+          {values.description.trim() ? (
+            <PreviewSection title="The place" onEdit={() => onEditStage(stayScreenIndex('description'))}>
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-muted">{values.description}</p>
+            </PreviewSection>
+          ) : null}
+          {highlights.length > 0 ? (
+            <PreviewSection title="Highlights" onEdit={() => onEditStage(stayScreenIndex('highlights'))}>
+              <ul className="flex flex-wrap gap-2">{highlights.map((line) => <li key={line} className="rounded-full bg-[#F4F6F8] px-3 py-1 text-sm text-ink">{line}</li>)}</ul>
+            </PreviewSection>
+          ) : null}
+          {amenities.length > 0 ? (
+            <PreviewSection title="Amenities" onEdit={() => onEditStage(stayScreenIndex('amenities'))}>
+              <ul className="flex flex-wrap gap-2">{amenities.map((item) => <li key={item} className="rounded-full bg-[#F4F6F8] px-3 py-1 text-sm text-ink">{item === 'Wifi' ? 'Wi-Fi' : item}</li>)}</ul>
+            </PreviewSection>
+          ) : null}
+          <PreviewSection title="Arrival" onEdit={() => onEditStage(stayScreenIndex('arrival-method'))}>
+            <p className="text-sm text-ink">{stayArrivalMethodLabel(values.stayArrivalMethod) || 'Arrival method not set'}</p>
+            {values.stayArrivalNote.trim() ? <p className="mt-1 text-sm text-ink-muted">{values.stayArrivalNote.trim()}</p> : null}
+          </PreviewSection>
+          {rules.length > 0 ? (
+            <PreviewSection title="House rules" onEdit={() => onEditStage(stayScreenIndex('house-rules'))}>
+              <ul className="space-y-1 text-sm text-ink">{rules.map((rule) => <li key={rule}>{rule}</li>)}</ul>
+            </PreviewSection>
+          ) : null}
+          {values.stayExteriorCamera || values.staySafetyNote.trim() ? (
+            <PreviewSection title="Safety" onEdit={() => onEditStage(stayScreenIndex('safety'))}>
+              <p className="text-sm text-ink">{values.stayExteriorCamera ? `Exterior security camera${values.staySafetyNote.trim() ? `: ${values.staySafetyNote.trim()}` : ''}` : values.staySafetyNote.trim()}</p>
+            </PreviewSection>
+          ) : null}
         </div>
-        {values.description.trim() ? (
-          <div className="tv-card flex items-start justify-between gap-3 p-4">
-            <p className="whitespace-pre-wrap text-sm text-ink-muted">{values.description}</p>
-            <PreviewEdit label="Edit" onClick={() => onEditStage(stayScreenIndex('description'))} />
-          </div>
-        ) : null}
-        {highlights.length > 0 ? (
-          <div className="flex items-start justify-between gap-3">
-            <ul className="flex flex-wrap gap-2">{highlights.map((line) => <li key={line} className="rounded-full bg-paper-raised px-3 py-1 text-sm text-ink ring-1 ring-black/[0.06]">{line}</li>)}</ul>
-            <PreviewEdit label="Edit" onClick={() => onEditStage(stayScreenIndex('highlights'))} />
-          </div>
-        ) : null}
-        {amenities.length > 0 ? (
-          <div className="flex items-start justify-between gap-3">
-            <ul className="flex flex-wrap gap-2">{amenities.map((item) => <li key={item} className="rounded-full bg-paper-raised px-3 py-1 text-sm text-ink ring-1 ring-black/[0.05]">{item}</li>)}</ul>
-            <PreviewEdit label="Edit" onClick={() => onEditStage(stayScreenIndex('amenities'))} />
-          </div>
-        ) : null}
-        <div className="tv-card flex items-start justify-between gap-3 p-4 text-sm text-ink">
-          <p>{stayArrivalMethodLabel(values.stayArrivalMethod) || 'Arrival method not set'}{values.stayArrivalNote.trim() ? ` · ${values.stayArrivalNote.trim()}` : ''}</p>
-          <PreviewEdit label="Edit" onClick={() => onEditStage(stayScreenIndex('arrival-method'))} />
-        </div>
-        {rules.length > 0 ? (
-          <div className="tv-card flex items-start justify-between gap-3 p-4">
-            <ul className="space-y-1 text-sm text-ink-muted">{rules.map((rule) => <li key={rule}>{rule}</li>)}</ul>
-            <PreviewEdit label="Edit" onClick={() => onEditStage(stayScreenIndex('house-rules'))} />
-          </div>
-        ) : null}
-        {values.stayExteriorCamera || values.staySafetyNote.trim() ? (
-          <div className="tv-card flex items-start justify-between gap-3 p-4 text-sm text-ink">
-            <p>{values.stayExteriorCamera ? `Exterior security camera${values.staySafetyNote.trim() ? `: ${values.staySafetyNote.trim()}` : ''}` : values.staySafetyNote.trim()}</p>
-            <PreviewEdit label="Edit" onClick={() => onEditStage(stayScreenIndex('safety'))} />
-          </div>
-        ) : null}
       </article>
       <details className="rounded-xl ring-1 ring-[#E6EAF0]">
         <summary className="min-h-11 cursor-pointer px-3 py-3 text-sm font-semibold text-ink">Example quote</summary>
