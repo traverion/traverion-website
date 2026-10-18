@@ -22,6 +22,7 @@ import { fetchSupplierActiveCommercialTerms } from '../../../data/supabase-earni
 import { composeStayCheckInAddress, stayAddressKey, stayPinMatchesAddress } from '../../../lib/stay-address';
 import StayAddressSearch from './StayAddressSearch';
 import { StayChoice, StayField, StayHelp } from './StayCreatorUi';
+import { stayArrivalIcon, stayBedIcon, stayPropertyIcon, staySafetyIcon } from './stay-creator-icons';
 
 type PhotoSlot = string;
 type Values = {
@@ -464,7 +465,7 @@ function PropertyTypeStage({ values, option, writeOption }: Props & { option: St
         {types.map((type) => {
           const on = selected === type;
           return (
-            <StayChoice key={type} pressed={on} onClick={() => writeOption({ ...option, propertyType: type })}>
+            <StayChoice key={type} pressed={on} icon={stayPropertyIcon(type)} onClick={() => writeOption({ ...option, propertyType: type })}>
               {type === 'Room' ? 'Private room' : type}
             </StayChoice>
           );
@@ -507,7 +508,8 @@ function RoomsStage({ areas, onChange }: { areas: StaySleepingArea[]; onChange: 
               const noun = `${bed.count} ${(kind?.label ?? 'bed').toLowerCase()}${bed.count === 1 ? '' : 's'}`;
               return (
               <li key={`${area.id}-${index}`} className="space-y-1">
-                <div className="grid grid-cols-[1fr_auto_auto] items-center gap-2">
+                <div className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-2">
+                  <span className="stay-choice-icon">{stayBedIcon(bed.kind)}</span>
                   <select className="tv-input w-full" value={bed.kind} onChange={(e) => onChange(areas.map((row) => row.id === area.id ? { ...row, beds: row.beds.map((item, i) => i === index ? { ...item, kind: e.target.value as StayBedKind } : item) } : row))}>
                     {STAY_BED_KINDS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
                   </select>
@@ -834,7 +836,7 @@ function ArrivalMethodStage({ values, onChange }: Props) {
         {STAY_ARRIVAL_METHODS.map(([id, label]) => {
           const on = values.stayArrivalMethod === id;
           return (
-            <StayChoice key={id} pressed={on} onClick={() => onChange({ stayArrivalMethod: id })}>
+            <StayChoice key={id} pressed={on} icon={stayArrivalIcon(id)} onClick={() => onChange({ stayArrivalMethod: id })}>
               {label}
             </StayChoice>
           );
@@ -921,8 +923,9 @@ function QuietHoursStage({ values, onChange }: Props) {
 function SafetyStage({ values, onChange }: Props) {
   return (
     <div className="space-y-4">
-      <label className="flex min-h-11 items-center gap-2 text-sm font-semibold text-ink">
-        <input type="checkbox" checked={values.stayExteriorCamera} onChange={(e) => onChange({ stayExteriorCamera: e.target.checked })} />
+      <label className="stay-panel flex min-h-11 items-center gap-2 text-sm font-semibold text-ink">
+        <span className="stay-choice-icon">{staySafetyIcon()}</span>
+        <input type="checkbox" className="h-4 w-4" checked={values.stayExteriorCamera} onChange={(e) => onChange({ stayExteriorCamera: e.target.checked })} />
         There is an exterior security camera
       </label>
       {values.stayExteriorCamera ? (

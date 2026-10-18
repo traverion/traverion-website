@@ -6,12 +6,14 @@ export function StayChoice({
   children,
   className = '',
   disabled = false,
+  icon,
 }: {
   pressed: boolean;
   onClick: () => void;
   children: ReactNode;
   className?: string;
   disabled?: boolean;
+  icon?: ReactNode;
 }) {
   return (
     <button
@@ -21,7 +23,8 @@ export function StayChoice({
       onClick={onClick}
       className={`stay-choice lc-choice flex min-h-11 w-full items-start gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-ink disabled:cursor-not-allowed disabled:opacity-45 ${pressed ? 'lc-choice--selected text-[#073b83]' : ''} ${className}`}
     >
-      {children}
+      {icon ? <span className="stay-choice-icon" aria-hidden>{icon}</span> : null}
+      <span className="min-w-0 flex-1">{children}</span>
     </button>
   );
 }

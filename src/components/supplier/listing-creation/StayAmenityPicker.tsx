@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { STAY_AMENITY_GROUPS, formatStayAmenityLabel, stayAmenityDisplayList } from '../../../lib/stay-amenities';
+import { stayAmenityIcon } from './stay-creator-icons';
 
 type Props = {
   selected: string[];
@@ -78,7 +79,7 @@ export default function StayAmenityPicker({ selected, onChange }: Props) {
         role="listbox"
         aria-multiselectable="true"
         style={{ position: 'fixed', top: box.top, left: box.left, width: box.width }}
-        className="z-[80] max-h-72 overflow-auto rounded-lg border border-black/10 bg-white py-1 shadow-lg"
+        className="stay-creator z-[80] max-h-72 overflow-auto rounded-lg border border-black/10 bg-white py-1 shadow-lg"
       >
         <div className="sticky top-0 bg-white px-2 py-2">
           <input
@@ -115,7 +116,7 @@ export default function StayAmenityPicker({ selected, onChange }: Props) {
                       if (!on) toggle(label);
                     }}
                   >
-                    <span>{label}</span>
+                    <span className="flex items-center gap-2">{stayAmenityIcon(label) ? <span className="stay-choice-icon">{stayAmenityIcon(label)}</span> : null}{label}</span>
                     {on ? <span className="text-xs text-finland">Selected</span> : null}
                   </button>
                 );
@@ -142,7 +143,7 @@ export default function StayAmenityPicker({ selected, onChange }: Props) {
         <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {canonical.map((item) => (
             <li key={item} className="flex items-center justify-between gap-3 rounded-lg border border-[#0B397E] bg-[#F4F8FC] px-3 py-2 text-sm font-medium text-ink">
-              <span className="min-w-0 truncate">{item === 'Wifi' ? 'Wi-Fi' : item}</span>
+              <span className="flex min-w-0 items-center gap-2">{stayAmenityIcon(item) ? <span className="stay-choice-icon">{stayAmenityIcon(item)}</span> : null}<span className="truncate">{item === 'Wifi' ? 'Wi-Fi' : item}</span></span>
               <button
                 type="button"
                 className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-ink-muted hover:bg-[#F4F7FB] hover:text-[#0B397E]"

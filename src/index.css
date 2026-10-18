@@ -5858,6 +5858,22 @@ details:not([open]) > :not(summary) {
   outline-offset: 2px;
 }
 
+.stay-creator .stay-choice-icon {
+  display: inline-flex;
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.05rem;
+  color: #073b83;
+}
+
+.stay-creator .stay-choice-icon svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
 .stay-creator .stay-panel {
   border: 1px solid var(--lc-line, #e5e7eb);
   border-radius: 0.9rem;
