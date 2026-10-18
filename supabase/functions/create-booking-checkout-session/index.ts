@@ -18,7 +18,7 @@ import {
 import { checkoutPaymentStatusCanResume, resumeStayCheckoutDate, checkoutResumeLostRaceToPaid, resumeListingIdMismatch, resumeStoredOptionId, participantMixFromGuestBreakdown } from '../_shared/checkout-resume.ts';
 import { resumeStayLeadGuestName, stayCheckoutLeadGuestNameReady, stayBookingColumnsForCheckoutUpdate } from '../_shared/stay-checkout-guest.ts';
 import { readStayGuestParty } from '../_shared/stay-guest-party.ts';
-import { readStayExtraSelection } from '../_shared/stay-price.ts';
+import { freezeStayBookingPrice, readStayExtraSelection } from '../_shared/stay-price.ts';
 import {
   buildPurchaseSnapshot,
   resolveMeetingPointForSnapshot,
@@ -587,6 +587,14 @@ serve(async (req) => {
       scheduleId: optionFields.scheduleId,
       currency: quote.currency,
       totalAmount: quote.totalAmount,
+      stayPrice:
+        extrasFamily === 'stay' && quote.stayPriceLines
+          ? freezeStayBookingPrice({
+              lines: quote.stayPriceLines,
+              total: quote.totalAmount,
+              requests: quote.stayRequests,
+            })
+          : null,
       checkIn: stayFields?.checkIn ?? null,
       checkOut: stayFields?.checkOut ?? null,
       nights: stayFields?.nights ?? null,

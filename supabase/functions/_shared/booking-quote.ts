@@ -182,6 +182,8 @@ export type QuoteOk = {
   /** Stay quotes only. Sum of each occupied night before fees. */
   lodgingAmount?: number;
   stayPriceLines?: { label: string; amount: number }[];
+  /** Request-only extras the guest asked for. They are not part of the charged total. */
+  stayRequests?: { id: string; name: string; quantity: number }[];
   /** Offer row that produced the customer price. Null when no offer applied. */
   appliedDiscountId?: string | null;
 };
@@ -426,6 +428,7 @@ function quoteStayListing(input: {
     guests,
     guestBreakdown,
     stayPriceLines,
+    stayRequests: addOns.requests.map((row) => ({ id: row.id, name: row.name, quantity: row.quantity })),
   };
 }
 

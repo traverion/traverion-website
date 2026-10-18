@@ -1,4 +1,5 @@
 /** Mirrors src/lib/purchase-snapshot.ts for Deno edge checkout. */
+import { freezeStayBookingPrice, type StayBookingPrice } from './stay-price.ts';
 
 /** Mirror of TRAVERION_STANDARD_CANCELLATION_POLICY (src/types/listingExtras.ts). */
 export const TRAVERION_STANDARD_CANCELLATION_POLICY =
@@ -28,6 +29,7 @@ export type PurchaseSnapshot = {
   scheduleId?: string | null;
   currency?: string | null;
   totalAmount?: number | null;
+  stayPrice?: StayBookingPrice | null;
   checkIn?: string | null;
   checkOut?: string | null;
   nights?: number | null;
@@ -134,6 +136,7 @@ export function buildPurchaseSnapshot(input: {
   scheduleId?: string | null;
   currency?: string | null;
   totalAmount?: number | null;
+  stayPrice?: StayBookingPrice | null;
   checkIn?: string | null;
   checkOut?: string | null;
   nights?: number | null;
@@ -207,6 +210,8 @@ export function buildPurchaseSnapshot(input: {
   if (scheduleId) snap.scheduleId = scheduleId;
   if (currency) snap.currency = currency;
   if (total != null) snap.totalAmount = total;
+  const stayPrice = input.stayPrice ? freezeStayBookingPrice(input.stayPrice) : null;
+  if (stayPrice) snap.stayPrice = stayPrice;
   if (checkIn) snap.checkIn = checkIn;
   if (checkOut) snap.checkOut = checkOut;
   if (nights != null) snap.nights = nights;

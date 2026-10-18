@@ -635,6 +635,7 @@ export type StayQuoteOk = {
   discount: number;
   discountLabel: string | null;
   extraLines: StayPricedExtra[];
+  requests: StayPricedExtra[];
   offeredExtras: StayPaidExtra[];
   guests: number;
   /** Present when the traveler chose adults, children, and infants. */
@@ -794,6 +795,7 @@ export function quoteStayNights(input: {
     discount: addOns.discount,
     discountLabel: addOns.discountLabel,
     extraLines: addOns.extraLines,
+    requests: addOns.requests,
     offeredExtras: addOns.offeredExtras,
     totalAmount: money(lodging.lodging + cleaning + addOns.extraGuestFee + extraSum - addOns.discount),
     guests,

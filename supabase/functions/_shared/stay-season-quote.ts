@@ -15,6 +15,7 @@ export type StaySeasonExtra = {
   price: number;
   charge: 'per_stay' | 'per_night' | 'per_guest' | 'per_guest_night';
   mandatory: boolean;
+  requestOnly?: boolean;
   maxQuantity: number;
 };
 
@@ -29,9 +30,11 @@ function normalizeSeasonExtras(raw: unknown): StaySeasonExtra[] {
     const o = row as Record<string, unknown>;
     const id = typeof o.id === 'string' ? o.id.trim().slice(0, 80) : '';
     const name = typeof o.name === 'string' ? o.name.trim().slice(0, 80) : '';
+    const requestOnly = o.requestOnly === true;
     const charge = typeof o.charge === 'string' && EXTRA_CHARGES.has(o.charge as StaySeasonExtra['charge']) ? (o.charge as StaySeasonExtra['charge']) : null;
-    const price = typeof o.price === 'number' && o.price > 0 ? Math.round(o.price * 100) / 100 : null;
-    if (!id || !name || !charge || price == null || price > 100000 || seen.has(id)) continue;
+    const price = typeof o.price === 'number' && Number.isFinite(o.price) ? Math.round(o.price * 100) / 100 : null;
+    if (!id || !name || !charge || price == null || price < 0 || price > 100000 || seen.has(id)) continue;
+    if (!requestOnly && price <= 0) continue;
     seen.add(id);
     const maxQuantity = typeof o.maxQuantity === 'number' ? Math.floor(o.maxQuantity) : 1;
     out.push({
@@ -40,7 +43,8 @@ function normalizeSeasonExtras(raw: unknown): StaySeasonExtra[] {
       description: typeof o.description === 'string' ? o.description.trim().slice(0, 160) : '',
       price,
       charge,
-      mandatory: o.mandatory === true,
+      mandatory: requestOnly ? false : o.mandatory === true,
+      requestOnly,
       maxQuantity: maxQuantity >= 1 && maxQuantity <= 20 ? maxQuantity : 1,
     });
     if (out.length >= 12) break;

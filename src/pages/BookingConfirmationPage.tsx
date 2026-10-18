@@ -52,6 +52,8 @@ import {
   stayPaidAdjacentNightCount,
 } from '../lib/booking-confirmation-copy';
 import { formatBookingParticipantsLabel } from '../lib/participant-mix';
+import SavedStayPrice from '../components/booking/SavedStayPrice';
+import { readStayBookingPrice } from '../lib/stay-price';
 import { formatBookingDateDisplay } from '../lib/booking-flow';
 import { travelerFacingBookingOptions } from '../lib/legacy-participant-options';
 import { travelerPaymentLabel, bookingPaymentWasCollected } from '../lib/payment-states';
@@ -872,7 +874,13 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
               {collected && booking.amount_paid != null && (
                 <div className="flex flex-wrap items-end justify-between gap-3 border-b border-black/[0.08] py-4">
                   <div>
-                    {paidNightlyBreakdown ? (
+                    <SavedStayPrice
+                      snapshot={booking.purchase_snapshot}
+                      currency={booking.currency}
+                      amountPaid={Number(booking.amount_paid)}
+                      totalLabel="Booked total"
+                    />
+                    {paidNightlyBreakdown && !readStayBookingPrice(booking.purchase_snapshot) ? (
                       <p className="text-sm text-ink-muted">
                         {paidNightlyBreakdown.nights} night{paidNightlyBreakdown.nights === 1 ? '' : 's'} ×{' '}
                         {formatMoney(Number(booking.nightly_amount), booking.currency)}

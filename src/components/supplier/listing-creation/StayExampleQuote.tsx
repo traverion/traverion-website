@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { formatMoney } from '../../../lib/money';
+import PriceBreakdown from '../../PriceBreakdown';
 import { quoteStayLodging, type StayAvailabilityMode, type StaySeasonWindow } from '../../../lib/stay-season-quote';
 import { normalizeStayGuestPolicy, stayGuestAgeCopy, validateStayGuestParty, type StayGuestParty, type StayGuestPolicy } from '../../../lib/stay-guest-party';
 import { priceStayAddOns, stayChargeLines, type StayExtraSelection } from '../../../lib/stay-price';
@@ -118,24 +119,25 @@ export default function StayExampleQuote({
                 className="mt-2 min-h-11 text-sm font-semibold text-finland"
                 onClick={() => setSelected((current) => (on ? current.filter((row) => row.id !== extra.id) : [...current, { id: extra.id, quantity: 1 }]))}
               >
-                {on ? `Remove ${extra.name}` : `Add ${extra.name}`}
+                {on ? (extra.requestOnly ? `Remove request · ${extra.name}` : `Remove ${extra.name}`) : extra.requestOnly ? `Request ${extra.name}` : `Add ${extra.name}`}
               </button>
             );
           })
         : null}
       {lines.length > 0 ? (
-        <ul className="mt-3 space-y-1 text-sm text-ink">
-          {lines.map((line) => (
-            <li key={line.label} className="flex justify-between gap-3">
-              <span>{line.label}</span>
-              <span className="tabular-nums">{formatMoney(line.amount, currency)}</span>
-            </li>
-          ))}
-          <li className="flex justify-between gap-3 border-t border-black/[0.06] pt-2 font-semibold">
-            <span>Example total</span>
-            <span className="tabular-nums">{formatMoney(total, currency)}</span>
-          </li>
-        </ul>
+        <div className="mt-3">
+          <PriceBreakdown
+            currency={currency}
+            lines={lines}
+            total={total}
+            totalLabel="Example total"
+            footnote={
+              addOns && addOns.ok && addOns.requests.length
+                ? `Requested, not charged: ${addOns.requests.map((row) => row.name).join(', ')}.`
+                : 'Example only. This is not a booking.'
+            }
+          />
+        </div>
       ) : nightly > 0 ? (
         <p className="mt-3 text-sm font-semibold text-ink">From {formatMoney(nightly, currency)} / night</p>
       ) : (

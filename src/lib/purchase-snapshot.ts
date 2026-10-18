@@ -3,6 +3,7 @@
  * rewrite what the traveler purchased (title, option, meeting copy, terms).
  */
 import { bookingPaymentWasCollected } from './payment-states';
+import { freezeStayBookingPrice, type StayBookingPrice } from './stay-price';
 
 export type PurchaseFulfillment = 'pickup' | 'meeting_point';
 
@@ -25,6 +26,8 @@ export type PurchaseSnapshot = {
   scheduleId?: string | null;
   currency?: string | null;
   totalAmount?: number | null;
+  /** Stay charges frozen at checkout. Absent on older bookings. */
+  stayPrice?: StayBookingPrice | null;
   /** Stay: check-in date YYYY-MM-DD. */
   checkIn?: string | null;
   /** Stay: check-out date YYYY-MM-DD. */
@@ -148,6 +151,7 @@ export function buildPurchaseSnapshot(input: {
   scheduleId?: string | null;
   currency?: string | null;
   totalAmount?: number | null;
+  stayPrice?: StayBookingPrice | null;
   checkIn?: string | null;
   checkOut?: string | null;
   nights?: number | null;
@@ -221,6 +225,8 @@ export function buildPurchaseSnapshot(input: {
   if (scheduleId) snap.scheduleId = scheduleId;
   if (currency) snap.currency = currency;
   if (total != null) snap.totalAmount = total;
+  const stayPrice = input.stayPrice ? freezeStayBookingPrice(input.stayPrice) : null;
+  if (stayPrice) snap.stayPrice = stayPrice;
   if (checkIn) snap.checkIn = checkIn;
   if (checkOut) snap.checkOut = checkOut;
   if (nights != null) snap.nights = nights;

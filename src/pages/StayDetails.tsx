@@ -1459,7 +1459,9 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                         <div>
                           <p className="text-sm font-medium text-ink">{extra.name}</p>
                           <p className="text-[12px] text-ink-muted">
-                            {stayExtraChargeLabel(extra.charge)}
+                            {extra.requestOnly
+                              ? 'Request only · not charged with this booking'
+                              : stayExtraChargeLabel(extra.charge)}
                             {extra.mandatory ? ' · Included in the total' : ''}
                             {extra.description ? ` · ${extra.description}` : ''}
                           </p>
@@ -1478,7 +1480,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                               setPayError(null);
                             }}
                           >
-                            {quantity > 0 ? 'Remove' : 'Add'}
+                            {quantity > 0 ? (extra.requestOnly ? 'Remove request' : 'Remove') : extra.requestOnly ? 'Request' : 'Add'}
                           </button>
                         )}
                       </div>
@@ -1528,6 +1530,13 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                   currency={stayQuote.currency}
                   lines={stayQuotePriceLines(stayQuote)}
                   total={stayQuote.totalAmount}
+                  footnote={
+                    stayQuote.requests.length
+                      ? `Requested, not charged: ${stayQuote.requests
+                          .map((row) => (row.quantity > 1 ? `${row.name} × ${row.quantity}` : row.name))
+                          .join(', ')}. The host confirms these separately.`
+                      : null
+                  }
                   // Phase 1657: release-on-expiry parity with tour checkout hold note.
                   holdNote={`Nights are held for ${CHECKOUT_HOLD_MINUTES} minutes after you continue to Stripe. If checkout expires, the hold is released.`}
                 />

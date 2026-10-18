@@ -683,7 +683,7 @@ function ScheduleEditor({
         </div>
       ) : null}
       {step === 1 ? (
-        <div id="stay-schedule-dates" className="mx-auto grid max-w-3xl gap-4 sm:grid-cols-2">
+        <div id="stay-schedule-dates" className="tv-step mx-auto grid max-w-3xl gap-4 rounded-xl bg-white p-4 ring-1 ring-[#E6EAF0] sm:grid-cols-2">
           <div className="sm:col-span-2">
             <h3 className="text-base font-semibold text-ink">Availability period</h3>
             {attempted && !datesOk ? <p className="mt-1 text-[12.5px] font-medium text-red-700">Choose the first and last occupied nights.</p> : null}
@@ -759,7 +759,13 @@ function ScheduleEditor({
             />
             <ReviewRow
               label="Extras"
-              text={(draft.extras ?? []).length > 0 ? `${draft.extras?.length} saved` : 'None'}
+              text={
+                (draft.extras ?? []).length > 0
+                  ? (draft.extras ?? [])
+                      .map((extra) => `${extra.name}${extra.requestOnly ? ' (request)' : extra.mandatory ? ' (required)' : ''}`)
+                      .join(', ')
+                  : 'None'
+              }
               onEdit={() => setStep(2)}
             />
           </section>
@@ -824,6 +830,7 @@ function SchedulePriceStep({
       price: 1,
       charge: 'per_stay',
       mandatory: false,
+      requestOnly: false,
       maxQuantity: 1,
     };
     onChange({ ...draft, extras: [...extras, created] });
@@ -863,7 +870,7 @@ function SchedulePriceStep({
       </section>
       <section className="rounded-xl bg-white p-4 ring-1 ring-[#E6EAF0]">
         <h3 className="text-base font-semibold text-ink">Optional extras</h3>
-        <p className="mt-1 text-sm text-ink-muted">Guests choose optional extras. Mandatory extras are included in the total and cannot be removed at checkout.</p>
+        <p className="mt-1 text-sm text-ink-muted">Guests choose optional extras. Mandatory fees are included in the total. Request-only extras are not charged until you confirm them separately.</p>
         <label className="mt-3 block text-sm font-semibold text-ink">
           Add extra
           <input className="tv-input mt-1 w-full font-normal" value={query} placeholder="Search parking, sauna, breakfast…" onChange={(e) => setQuery(e.target.value)} />
@@ -902,9 +909,24 @@ function SchedulePriceStep({
                   </select>
                 </label>
                 <Num label="Maximum quantity" value={extra.maxQuantity} min={1} max={20} onChange={(maxQuantity) => patchExtra(extra.id, { maxQuantity: maxQuantity ?? 1 })} />
-                <label className="mt-6 flex items-center gap-2 text-sm font-medium text-ink">
-                  <input type="checkbox" checked={extra.mandatory} onChange={(e) => patchExtra(extra.id, { mandatory: e.target.checked })} />
-                  Mandatory fee
+                <label className="block text-sm font-semibold text-ink">
+                  How it is charged
+                  <select
+                    className="tv-input mt-1 w-full font-normal"
+                    value={extra.requestOnly ? 'request' : extra.mandatory ? 'mandatory' : 'optional'}
+                    onChange={(e) => {
+                      const mode = e.target.value;
+                      patchExtra(extra.id, {
+                        requestOnly: mode === 'request',
+                        mandatory: mode === 'mandatory',
+                        price: mode === 'request' ? extra.price : extra.price > 0 ? extra.price : 1,
+                      });
+                    }}
+                  >
+                    <option value="optional">Optional, paid now</option>
+                    <option value="mandatory">Mandatory fee</option>
+                    <option value="request">Request only, not charged</option>
+                  </select>
                 </label>
               </div>
             </li>
@@ -924,7 +946,10 @@ function SchedulePriceStep({
           <p className="mt-1 text-sm font-semibold text-ink">
             Illustrative total {formatMoney(exampleLodging + cleaning + sample.extraGuestFee + sample.extraLines.reduce((sum, line) => sum + line.amount, 0) - sample.discount, currency)}
           </p>
-          <p className="mt-1 text-[12.5px] text-ink-muted">Optional extras are not included until a guest selects them. This is not a confirmed quote.</p>
+          {sample.requests.length > 0 ? (
+            <p className="text-sm text-ink">Request only, not charged: {sample.requests.map((row) => row.name).join(', ')}</p>
+          ) : null}
+          <p className="mt-1 text-[12.5px] text-ink-muted">Optional extras are not included until a guest selects them. Request-only extras stay off the paid total. This is not a confirmed quote.</p>
         </aside>
       ) : null}
     </div>

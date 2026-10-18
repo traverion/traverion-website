@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { priceStayAddOns, stayChargeLines, type StayPaidExtra } from './stay-price';
+import { freezeStayBookingPrice, priceStayAddOns, readStayBookingPrice, stayChargeLines, type StayPaidExtra } from './stay-price';
 import { quoteStayNights } from './booking-quote';
 
 const sauna: StayPaidExtra = {
@@ -48,6 +48,26 @@ describe('stay add-on pricing', () => {
     expect(priced.ok).toBe(true);
     if (!priced.ok) return;
     expect(priced.extraLines[0]?.amount).toBe(25);
+  });
+
+  it('records a request-only extra without adding it to the paid total', () => {
+    const priced = priceStayAddOns({
+      lodging: 200,
+      nights: 2,
+      countedGuests: 2,
+      extras: [{ ...sauna, requestOnly: true, price: 80 }],
+      selected: [{ id: 'sauna', quantity: 1 }],
+    });
+    expect(priced.ok).toBe(true);
+    if (!priced.ok) return;
+    expect(priced.extraLines).toEqual([]);
+    expect(priced.requests.map((row) => row.name)).toEqual(['Outdoor sauna']);
+    expect(priced.requests[0]?.amount).toBe(0);
+    const lines = stayChargeLines({ nights: 2, nightlyPrice: 100, cleaningFee: 0, extraLines: priced.extraLines });
+    const frozen = freezeStayBookingPrice({ lines, total: 200, requests: priced.requests });
+    expect(frozen?.total).toBe(200);
+    expect(frozen?.requests[0]?.name).toBe('Outdoor sauna');
+    expect(readStayBookingPrice({ stayPrice: { ...frozen, total: 199 } })).toBeNull();
   });
 
   it('rejects an extra that is not on the schedule', () => {

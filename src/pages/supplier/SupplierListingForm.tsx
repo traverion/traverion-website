@@ -116,7 +116,6 @@ import {
   reviewOptionsSummary,
   reviewPhotosSummary,
   reviewStayLocationSummary,
-  reviewStayPricingSummary,
 } from '../../lib/listing-creation-review';
 import { listingWizardPersistLabel } from '../../lib/listing-wizard-persist';
 import { normalizeScheduleToOptionChargeModel } from '../../lib/listing-option-charge-model';

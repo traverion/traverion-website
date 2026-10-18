@@ -63,6 +63,8 @@ import {
   type PurchaseSnapshot,
 } from '../lib/purchase-snapshot';
 import { optionLogisticsLines, readOptionLogistics } from '../lib/option-logistics';
+import SavedStayPrice from '../components/booking/SavedStayPrice';
+import { readStayBookingPrice } from '../lib/stay-price';
 import { TRAVERION_STANDARD_CANCELLATION_POLICY } from '../types/listingExtras';
 import { formatBookingContactForDisplay } from '../lib/listing-booking-contact-phone';
 import { decrementAvailabilityBooked } from '../data/supabase-availability';
@@ -1233,6 +1235,18 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         </dt>
                         <dd className="mt-1 text-sm font-semibold text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap leading-snug">
                           {placeLine}
+                        </dd>
+                      </div>
+                    ) : null}
+                    {isStay && tripDetailTab === 'overview' && readStayBookingPrice(b.purchase_snapshot) ? (
+                      <div className="sm:col-span-2">
+                        <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">Price</dt>
+                        <dd>
+                          <SavedStayPrice
+                            snapshot={b.purchase_snapshot}
+                            currency={b.currency}
+                            amountPaid={bookingPaymentWasCollected(b.payment_status) ? Number(b.amount_paid) : null}
+                          />
                         </dd>
                       </div>
                     ) : null}

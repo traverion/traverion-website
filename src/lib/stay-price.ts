@@ -24,7 +24,15 @@ export type StayPaidExtra = {
   price: number;
   charge: StayExtraCharge;
   mandatory: boolean;
+  /** Host confirms this separately. It is never added to the paid total. */
+  requestOnly?: boolean;
   maxQuantity: number;
+};
+
+export type StayBookingPrice = {
+  lines: { label: string; amount: number }[];
+  total: number;
+  requests: { id: string; name: string; quantity: number }[];
 };
 
 export type StayExtraSelection = {
@@ -59,8 +67,10 @@ export function normalizeStayPaidExtra(raw: unknown): StayPaidExtra | null {
   const id = typeof o.id === 'string' ? o.id.trim().slice(0, 80) : '';
   const name = typeof o.name === 'string' ? o.name.trim().slice(0, 80) : '';
   if (!id || !name) return null;
-  const price = typeof o.price === 'number' && o.price > 0 ? money(o.price) : null;
-  if (price == null || price > 100000) return null;
+  const requestOnly = o.requestOnly === true;
+  const price = typeof o.price === 'number' && Number.isFinite(o.price) ? money(o.price) : null;
+  if (price == null || price < 0 || price > 100000) return null;
+  if (!requestOnly && price <= 0) return null;
   const charge = typeof o.charge === 'string' && CHARGES.has(o.charge as StayExtraCharge) ? (o.charge as StayExtraCharge) : null;
   if (!charge) return null;
   return {
@@ -69,7 +79,8 @@ export function normalizeStayPaidExtra(raw: unknown): StayPaidExtra | null {
     description: typeof o.description === 'string' ? o.description.trim().slice(0, 160) : '',
     price,
     charge,
-    mandatory: o.mandatory === true,
+    mandatory: requestOnly ? false : o.mandatory === true,
+    requestOnly,
     maxQuantity: whole(o.maxQuantity, 1, 20) ?? 1,
   };
 }
@@ -142,6 +153,7 @@ export function priceStayAddOns(input: {
       discount: number;
       discountLabel: string | null;
       extraLines: StayPricedExtra[];
+      requests: StayPricedExtra[];
       offeredExtras: StayPaidExtra[];
     }
   | { ok: false; error: string } {
@@ -156,8 +168,20 @@ export function priceStayAddOns(input: {
     selected.set(row.id, row.quantity);
   }
   const extraLines: StayPricedExtra[] = [];
+  const requests: StayPricedExtra[] = [];
   for (const extra of catalog) {
     const asked = selected.get(extra.id) ?? 0;
+    if (extra.requestOnly) {
+      if (asked < 1) continue;
+      requests.push({
+        id: extra.id,
+        name: extra.name,
+        quantity: Math.min(extra.maxQuantity, asked),
+        mandatory: false,
+        amount: 0,
+      });
+      continue;
+    }
     const quantity = extra.mandatory ? Math.max(1, Math.min(extra.maxQuantity, asked || 1)) : Math.min(extra.maxQuantity, asked);
     if (!extra.mandatory && quantity < 1) continue;
     extraLines.push({
@@ -184,7 +208,58 @@ export function priceStayAddOns(input: {
     discount = money((input.lodging * weekly) / 100);
   }
   if (discount > input.lodging) discount = money(input.lodging);
-  return { ok: true, extraGuestCount, extraGuestFee, discount, discountLabel, extraLines, offeredExtras: catalog };
+  return { ok: true, extraGuestCount, extraGuestFee, discount, discountLabel, extraLines, requests, offeredExtras: catalog };
+}
+
+function cents(n: number): number {
+  return Math.round(n * 100);
+}
+
+/** Keep a breakdown only when its rows add up to the charged total. */
+export function freezeStayBookingPrice(input: {
+  lines: readonly { label: string; amount: number }[];
+  total: number;
+  requests?: readonly { id: string; name: string; quantity: number }[];
+}): StayBookingPrice | null {
+  if (!Number.isFinite(input.total) || input.total < 0) return null;
+  const lines = input.lines
+    .filter((line) => typeof line.label === 'string' && line.label.trim() && Number.isFinite(line.amount))
+    .slice(0, 24)
+    .map((line) => ({ label: line.label.trim().slice(0, 160), amount: money(line.amount) }));
+  if (!lines.length) return null;
+  const total = money(input.total);
+  const sum = lines.reduce((acc, line) => acc + cents(line.amount), 0);
+  if (sum !== cents(total)) return null;
+  const requests = (input.requests ?? [])
+    .filter((row) => row.id.trim() && row.name.trim() && row.quantity >= 1)
+    .slice(0, 12)
+    .map((row) => ({ id: row.id.trim().slice(0, 80), name: row.name.trim().slice(0, 80), quantity: Math.min(20, Math.floor(row.quantity)) }));
+  return { lines, total, requests };
+}
+
+/** Booking-time price. Returns nothing when the saved rows do not match the saved total. */
+export function readStayBookingPrice(snapshot: unknown): StayBookingPrice | null {
+  if (!snapshot || typeof snapshot !== 'object') return null;
+  const raw = (snapshot as { stayPrice?: unknown }).stayPrice;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const o = raw as Record<string, unknown>;
+  const lines = Array.isArray(o.lines)
+    ? o.lines.flatMap((line) => {
+        if (!line || typeof line !== 'object') return [];
+        const row = line as Record<string, unknown>;
+        return typeof row.label === 'string' && typeof row.amount === 'number' ? [{ label: row.label, amount: row.amount }] : [];
+      })
+    : [];
+  const requests = Array.isArray(o.requests)
+    ? o.requests.flatMap((line) => {
+        if (!line || typeof line !== 'object') return [];
+        const row = line as Record<string, unknown>;
+        return typeof row.id === 'string' && typeof row.name === 'string' && typeof row.quantity === 'number'
+          ? [{ id: row.id, name: row.name, quantity: row.quantity }]
+          : [];
+      })
+    : [];
+  return typeof o.total === 'number' ? freezeStayBookingPrice({ lines, total: o.total, requests }) : null;
 }
 
 export function stayChargeLines(input: {

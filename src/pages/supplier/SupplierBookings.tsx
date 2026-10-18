@@ -92,6 +92,8 @@ import { travelerPublicBookingReference } from '../../lib/public-booking-referen
 import { fetchSupplierBookingEvents, type SupplierBookingEventRow } from '../../data/supabase-booking-events';
 import { displayListingTitleFromPurchase, displayOptionLabelFromPurchase, displayFulfillmentFromPurchase, displayDurationFromPurchase, displayStayCheckInTimeFromPurchase, displayStayCheckOutTimeFromPurchase, displayCheckInAddressFromPurchase, displayStayHouseRulesFromPurchase, partnerOpsDepartureDisplay, isPurchaseSnapshot, partnerListingFilterLabelFromBookings, type PurchaseSnapshot } from '../../lib/purchase-snapshot';
 import { optionLogisticsLines, readOptionLogistics } from '../../lib/option-logistics';
+import SavedStayPrice from '../../components/booking/SavedStayPrice';
+import { readStayBookingPrice } from '../../lib/stay-price';
 
 const BOOKINGS_PAGE_SIZE = 20;
 
@@ -2086,6 +2088,14 @@ export default function SupplierBookings({
                       </p>
                     )}
                     <DrawerFact label="Status">{partnerPaymentLabel(booking)}</DrawerFact>
+                    {isStay && readStayBookingPrice(booking.purchase_snapshot) ? (
+                      <SavedStayPrice
+                        snapshot={booking.purchase_snapshot}
+                        currency={booking.currency}
+                        amountPaid={bookingPaymentWasCollected(booking.payment_status) ? Number(booking.amount_paid) : null}
+                        totalLabel="Guest total"
+                      />
+                    ) : null}
                     {collectedLabel && (collectedLabel !== bookingTotalLabel || collectedCaption !== 'Paid') ? (
                       <DrawerFact label={collectedCaption}>{collectedLabel}</DrawerFact>
                     ) : null}
