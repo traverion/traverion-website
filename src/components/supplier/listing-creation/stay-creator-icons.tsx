@@ -12,8 +12,12 @@ import {
   KeyRound,
   Lock,
   LockKeyhole,
+  Bus,
+  MapPin,
   Mountain,
   Sofa,
+  Trees,
+  Users,
   Sparkles,
   TreePine,
   Tv,
@@ -96,4 +100,20 @@ export function stayBedIcon(kind: string) {
 
 export function staySafetyIcon() {
   return glyph(Camera);
+}
+
+const HIGHLIGHT_ICONS: Record<string, LucideIcon> = {
+  'Peaceful surroundings': Trees,
+  'Private sauna': Flame,
+  'Central location': MapPin,
+  'Family-friendly': Users,
+  'Scenic views': Mountain,
+  'Spacious interiors': Home,
+  'Outdoor hot tub': Waves,
+  'Convenient transport': Bus,
+};
+
+export function stayHighlightIcon(label: string) {
+  const Icon = HIGHLIGHT_ICONS[label];
+  return Icon ? glyph(Icon) : null;
 }

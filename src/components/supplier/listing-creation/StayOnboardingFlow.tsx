@@ -22,7 +22,7 @@ import { fetchSupplierActiveCommercialTerms } from '../../../data/supabase-earni
 import { composeStayCheckInAddress, stayAddressKey, stayPinMatchesAddress } from '../../../lib/stay-address';
 import StayAddressSearch from './StayAddressSearch';
 import { StayChoice, StayField, StayHelp } from './StayCreatorUi';
-import { stayArrivalIcon, stayBedIcon, stayPropertyIcon, staySafetyIcon } from './stay-creator-icons';
+import { stayArrivalIcon, stayBedIcon, stayHighlightIcon, stayPropertyIcon, staySafetyIcon } from './stay-creator-icons';
 
 type PhotoSlot = string;
 type Values = {
@@ -543,12 +543,14 @@ function RoomsStage({ areas, onChange }: { areas: StaySleepingArea[]; onChange: 
 }
 
 function DescriptionStage({ values, onChange, minDescription, maxDescription }: Props) {
+  const length = values.description.trim().length;
+  const short = length < minDescription;
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <Field label="Description">
-        <textarea className="tv-input min-h-56 w-full resize-y" value={values.description} maxLength={maxDescription} onChange={(e) => onChange({ description: e.target.value.slice(0, maxDescription) })} />
+        <textarea className="tv-input min-h-48 w-full resize-y leading-relaxed" value={values.description} maxLength={maxDescription} onChange={(e) => onChange({ description: e.target.value.slice(0, maxDescription) })} />
       </Field>
-      <p className="text-xs text-ink-muted">{values.description.trim().length} / {maxDescription}. At least {minDescription} characters.</p>
+      <p className={`text-xs ${short ? 'font-semibold text-[#9f1239]' : 'text-ink-muted'}`}>{length} / {maxDescription}. At least {minDescription} characters.</p>
     </div>
   );
 }
@@ -565,33 +567,55 @@ const HIGHLIGHT_CHOICES = [
 ];
 
 function HighlightsStage({ values, onChange }: Props) {
+  const [draft, setDraft] = useState('');
   const chosen = values.highlights.map((line) => line.trim()).filter(Boolean);
   function toggle(label: string) {
     const has = chosen.some((line) => line.toLowerCase() === label.toLowerCase());
     const next = has ? chosen.filter((line) => line.toLowerCase() !== label.toLowerCase()) : [...chosen, label].slice(0, 8);
     onChange({ highlights: next });
   }
+  function addCustom() {
+    const value = draft.trim().slice(0, 80);
+    if (!value || chosen.some((line) => line.toLowerCase() === value.toLowerCase()) || chosen.length >= 8) return;
+    onChange({ highlights: [...chosen, value] });
+    setDraft('');
+  }
+  const custom = chosen.filter((line) => !HIGHLIGHT_CHOICES.some((choice) => choice.toLowerCase() === line.toLowerCase()));
   return (
     <div className="space-y-4">
+      {chosen.length > 0 ? (
+        <div>
+          <p className="stay-kicker">Confirmed</p>
+          <ul className="mt-2 flex flex-wrap gap-2">
+            {chosen.map((line) => (
+              <li key={line}>
+                <button type="button" className="stay-choice lc-choice lc-choice--selected min-h-11 rounded-full px-3 text-sm font-semibold text-[#073b83]" onClick={() => toggle(line)}>{line}</button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <StayHelp>Guests only see highlights you confirm.</StayHelp>
+      )}
       <div className="grid gap-2 sm:grid-cols-2">
         {HIGHLIGHT_CHOICES.map((label) => {
           const on = chosen.some((line) => line.toLowerCase() === label.toLowerCase());
           return (
-            <StayChoice key={label} pressed={on} onClick={() => toggle(label)}>{label}</StayChoice>
+            <StayChoice key={label} pressed={on} icon={stayHighlightIcon(label) ?? undefined} onClick={() => toggle(label)}>{label}</StayChoice>
           );
         })}
       </div>
+      {custom.length > 0 ? <StayHelp>Your own lines are in Confirmed. Select one there to remove it.</StayHelp> : null}
       <Field label="Your own highlight">
-        <input className="tv-input w-full" maxLength={80} placeholder="Only something this property has" onKeyDown={(e) => {
-          if (e.key !== 'Enter') return;
-          e.preventDefault();
-          const value = e.currentTarget.value.trim().slice(0, 80);
-          if (!value || chosen.some((line) => line.toLowerCase() === value.toLowerCase())) return;
-          onChange({ highlights: [...chosen, value].slice(0, 8) });
-          e.currentTarget.value = '';
-        }} />
+        <div className="flex gap-2">
+          <input className="tv-input min-w-0 flex-1" maxLength={80} value={draft} placeholder="Only something this property has" onChange={(e) => setDraft(e.target.value.slice(0, 80))} onKeyDown={(e) => {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            addCustom();
+          }} />
+          <button type="button" className="tv-btn-secondary !min-h-11 shrink-0" onClick={addCustom} disabled={!draft.trim() || chosen.length >= 8}>Add</button>
+        </div>
       </Field>
-      <p className="text-xs text-ink-muted">Press Enter to add your own line. Guests only see highlights you confirm.</p>
     </div>
   );
 }
