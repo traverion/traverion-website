@@ -22,6 +22,11 @@ import {
   type StayAccommodationOption,
 } from '../../../lib/stay-options';
 import { STAY_SINGLE_PROPERTY_TYPES } from '../../../lib/stay-accommodation';
+import {
+  normalizeStayGuestPolicy,
+  stayGuestAgeCopy,
+  type StayGuestPolicy,
+} from '../../../lib/stay-guest-party';
 import type { ListingCreationNavItem } from '../../../lib/listing-creation-workspace';
 import { TraverionSingleDateField } from '../../calendar/TraverionSingleDateField';
 import { TourOptionWorkspace } from './TourOptionWorkspace';
@@ -102,7 +107,7 @@ export default function StayOptionsStep({
                   setEditingId(option.id);
                 }}
                 onSchedules={() => {
-                  setEditingScene(1);
+                  setEditingScene(2);
                   setEditingId(option.id);
                 }}
                 onDuplicate={() => {
@@ -237,7 +242,8 @@ function OptionEditor({
   const [showCutoffErrors, setShowCutoffErrors] = useState(false);
   const guests = draft.maxGuests ?? 0;
   const warning = stayCapacityWarning(guests, draft.bedMix);
-  const accommodationReady = guests >= 1 && draft.name.trim().length > 0 && stayBedCount(draft.bedMix) >= 1 && !warning;
+  const identityReady = guests >= 1 && draft.name.trim().length > 0;
+  const sleepingReady = stayBedCount(draft.bedMix) >= 1 && !warning;
   const availabilityReady =
     draft.schedules.some(
       (row) => row.enabled && row.nightlyPrice && row.start && row.end && row.checkIn && row.checkOut
@@ -245,9 +251,10 @@ function OptionEditor({
   const cutoffReady = typeof draft.cutoffMinutes === 'number' && draft.cutoffMinutes >= 0;
   const conflicts = stayScheduleConflicts(draft.schedules);
   const nav: ListingCreationNavItem[] = [
-    { id: '0', label: 'Accommodation', state: scene === 0 ? 'current' : accommodationReady ? 'complete' : 'upcoming', requirementsMet: accommodationReady },
-    { id: '1', label: 'Availability', state: scene === 1 ? 'current' : availabilityReady ? 'complete' : 'upcoming', requirementsMet: availabilityReady },
-    { id: '2', label: 'Cutoff time', state: scene === 2 ? 'current' : cutoffReady ? 'complete' : 'upcoming', requirementsMet: cutoffReady },
+    { id: '0', label: 'Accommodation', state: scene === 0 ? 'current' : identityReady ? 'complete' : 'upcoming', requirementsMet: identityReady },
+    { id: '1', label: 'Sleeping arrangements', state: scene === 1 ? 'current' : sleepingReady ? 'complete' : 'upcoming', requirementsMet: sleepingReady },
+    { id: '2', label: 'Availability', state: scene === 2 ? 'current' : availabilityReady ? 'complete' : 'upcoming', requirementsMet: availabilityReady },
+    { id: '3', label: 'Cutoff time', state: scene === 3 ? 'current' : cutoffReady ? 'complete' : 'upcoming', requirementsMet: cutoffReady },
   ];
 
   return (
@@ -258,13 +265,15 @@ function OptionEditor({
         listingTitle={listingTitle}
         persistLabel={persistLabel}
         continueHint={
-          scene === 0 && !accommodationReady
-            ? warning ?? 'Add a name, guest capacity, and sleeping arrangements that fit those guests.'
-            : scene === 2 && !cutoffReady
+          scene === 0 && !identityReady
+            ? 'Add a name and the maximum number of guests.'
+            : scene === 1 && !sleepingReady
+              ? warning ?? 'Add the beds guests can sleep in.'
+              : scene === 3 && !cutoffReady
               ? 'Choose how long before check-in booking closes.'
               : null
         }
-        continueLabel={scene === 2 ? 'Save option' : 'Continue'}
+        continueLabel={scene === 3 ? 'Save option' : 'Continue'}
         continueDisabled={false}
         navItems={nav}
         onSelectNavId={(id) => setScene(Number(id))}
@@ -274,16 +283,25 @@ function OptionEditor({
         onSaveDraft={() => onCommit(alignScheduleOccupancy(draft))}
         onContinue={() => {
           if (scene === 0) {
-            if (!accommodationReady) {
+            if (!identityReady) {
               setShowAccommodationErrors(true);
-              document.getElementById('stay-option-sleeping')?.scrollIntoView({ block: 'center' });
+              document.getElementById('stay-option-name')?.scrollIntoView({ block: 'center' });
               return;
             }
             setScene(1);
             return;
           }
           if (scene === 1) {
+            if (!sleepingReady) {
+              setShowAccommodationErrors(true);
+              document.getElementById('stay-option-sleeping')?.scrollIntoView({ block: 'center' });
+              return;
+            }
             setScene(2);
+            return;
+          }
+          if (scene === 2) {
+            setScene(3);
             return;
           }
           if (!cutoffReady) {
@@ -297,8 +315,15 @@ function OptionEditor({
         saveDraftDisabled={false}
       >
         {scene === 0 ? (
-          <AccommodationScene draft={draft} warning={warning} showErrors={showAccommodationErrors} onChange={setDraft} />
-        ) : scene === 2 ? (
+          <div className="tv-step">
+            <AccommodationScene draft={draft} showErrors={showAccommodationErrors} onChange={setDraft} />
+          </div>
+        ) : scene === 1 ? (
+          <div className="mx-auto max-w-3xl space-y-4">
+            <p className="text-sm text-ink-muted">Bedroom photos are added with the listing photos, after the rooms exist here.</p>
+            <SleepingEditor draft={draft} warning={warning} onChange={setDraft} />
+          </div>
+        ) : scene === 3 ? (
           <CutoffScene draft={draft} showError={showCutoffErrors} onChange={setDraft} />
         ) : (
           <div className="space-y-4">
@@ -359,26 +384,36 @@ function OptionEditor({
                 <p className="mx-auto mt-1 max-w-md text-[12.5px] text-ink-muted">Guests cannot book nights until this option has an active schedule with dates and a price.</p>
               </div>
             ) : (
-              <ul className="divide-y divide-black/[0.07]">
+              <ul className="space-y-3">
                 {draft.schedules.map((row) => (
-                  <li key={row.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
-                    <button type="button" className="min-w-0 text-left" onClick={() => setScheduleDraft(row)}>
-                      <span className="block text-sm font-semibold text-ink">{row.name.trim() || 'Untitled schedule'}</span>
-                      <span className="mt-0.5 block text-[12.5px] text-ink-muted">
-                        {row.start && row.end ? `${row.start} – ${row.end}` : 'Dates not set'}
-                        {row.nightlyPrice ? ` · ${formatMoney(row.nightlyPrice, currency)} / night` : ''}
-                        {row.minNights ? ` · min ${row.minNights} night${row.minNights === 1 ? '' : 's'}` : ''}
-                        {row.checkIn && row.checkOut ? ` · ${row.checkIn}–${row.checkOut}` : ''}
-                        {row.enabled ? '' : ' · Inactive'}
-                      </span>
-                    </button>
-                    <span className="flex gap-2">
-                      <button type="button" className="text-[12.5px] font-semibold text-finland" onClick={() => setScheduleDraft(row)}>
-                        Edit schedule
+                  <li key={row.id} className="rounded-xl bg-white p-4 ring-1 ring-[#E6EAF0]">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-ink">{row.name.trim() || 'Untitled schedule'}</p>
+                        <p className={`mt-1 text-[12px] font-semibold ${row.enabled ? 'text-[#0B397E]' : 'text-ink-muted'}`}>
+                          {row.enabled ? 'Active' : 'Inactive'}
+                        </p>
+                      </div>
+                      <p className="shrink-0 text-sm font-semibold tabular-nums text-ink">
+                        {row.nightlyPrice ? `${formatMoney(row.nightlyPrice, currency)} / night` : 'Price not set'}
+                      </p>
+                    </div>
+                    <dl className="mt-3 grid grid-cols-1 gap-1 text-[12.5px] text-ink sm:grid-cols-2">
+                      <div>{row.start && row.end ? `${row.start} – ${row.end}` : 'Dates not set'}</div>
+                      <div>
+                        {row.minNights ? `${row.minNights} night minimum` : 'Minimum not set'}
+                        {row.maxNights ? ` · ${row.maxNights} night maximum` : ''}
+                      </div>
+                      <div>{row.checkIn && row.checkOut ? `${row.checkIn}–${row.checkOut}` : 'Check-in times not set'}</div>
+                      <div>{draft.quantity === 1 ? '1 unit' : `${draft.quantity} units`}</div>
+                    </dl>
+                    <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 border-t border-black/[0.06] pt-2">
+                      <button type="button" className="min-h-11 text-[12.5px] font-semibold text-finland" onClick={() => setScheduleDraft(row)}>
+                        Edit
                       </button>
                       <button
                         type="button"
-                        className="text-[12.5px] font-medium text-ink-muted"
+                        className="min-h-11 text-[12.5px] font-medium text-ink-muted"
                         onClick={() =>
                           setDraft({
                             ...draft,
@@ -390,7 +425,7 @@ function OptionEditor({
                       </button>
                       <button
                         type="button"
-                        className="text-[12.5px] font-medium text-ink-muted"
+                        className="min-h-11 text-[12.5px] font-medium text-ink-muted"
                         onClick={() =>
                           setDraft({
                             ...draft,
@@ -400,7 +435,7 @@ function OptionEditor({
                       >
                         Duplicate
                       </button>
-                    </span>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -434,18 +469,19 @@ function OptionEditor({
 
 function AccommodationScene({
   draft,
-  warning,
   showErrors,
   onChange,
 }: {
   draft: StayAccommodationOption;
-  warning: string | null;
   showErrors: boolean;
   onChange: (next: StayAccommodationOption) => void;
 }) {
-  const rows = STAY_BED_KINDS.filter((bed) => (draft.bedMix[bed.id] ?? 0) > 0);
-  const sleeps = rows.reduce((sum, bed) => sum + (draft.bedMix[bed.id] ?? 0) * bed.sleeps, 0);
-
+  const [agesOpen, setAgesOpen] = useState(false);
+  const policy = normalizeStayGuestPolicy(draft.guestPolicy);
+  const ages = stayGuestAgeCopy(policy);
+  function setPolicy(next: StayGuestPolicy) {
+    onChange({ ...draft, guestPolicy: normalizeStayGuestPolicy(next) });
+  }
   return (
     <div className="mx-auto max-w-[52rem] space-y-6">
       <section className="space-y-4">
@@ -474,10 +510,57 @@ function AccommodationScene({
         </label>
       </div>
       </section>
-      <p className="text-[12.5px] text-ink-muted">
-        {[draft.bedrooms != null ? `${draft.bedrooms} bedrooms` : null, sleeps > 0 ? `${rows.reduce((sum, bed) => sum + (draft.bedMix[bed.id] ?? 0), 0)} beds` : null, sleeps > 0 ? `Sleeps ${sleeps}` : null].filter(Boolean).join(' · ') || 'Add the beds guests can sleep in.'}
-      </p>
-      <SleepingEditor draft={draft} warning={warning} onChange={onChange} />
+      <section className="rounded-xl bg-white p-4 ring-1 ring-[#E6EAF0]">
+        <h3 className="text-base font-semibold text-ink">Guests and occupancy</h3>
+        <p className="mt-1 text-sm leading-relaxed text-ink-muted">{ages.summary}</p>
+        <button type="button" className="mt-3 text-sm font-semibold text-finland" aria-expanded={agesOpen} onClick={() => setAgesOpen((open) => !open)}>
+          {agesOpen ? 'Hide age categories' : 'Adjust age categories'}
+        </button>
+        {agesOpen ? (
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <label className="block text-sm font-semibold text-ink">
+              Adults start at
+              <select
+                className="tv-input mt-1 w-full font-normal"
+                value={policy.adultMinAge}
+                onChange={(e) => setPolicy({ ...policy, adultMinAge: Number(e.target.value) })}
+              >
+                {Array.from({ length: 9 }, (_, index) => 13 + index).map((age) => (
+                  <option key={age} value={age}>{age}</option>
+                ))}
+              </select>
+            </label>
+            <label className="block text-sm font-semibold text-ink">
+              Children start at
+              <select
+                className="tv-input mt-1 w-full font-normal"
+                value={policy.childMinAge}
+                onChange={(e) => setPolicy({ ...policy, childMinAge: Number(e.target.value) })}
+              >
+                {Array.from({ length: Math.max(1, policy.adultMinAge - 1) }, (_, index) => index + 1).map((age) => (
+                  <option key={age} value={age}>{age}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex items-start gap-2 text-sm font-medium text-ink sm:col-span-2">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={policy.infantsCountInOccupancy}
+                onChange={(e) => setPolicy({ ...policy, infantsCountInOccupancy: e.target.checked })}
+              />
+              Infants count toward the maximum number of guests
+            </label>
+            <Num
+              label="Maximum infants"
+              value={policy.maxInfants}
+              min={0}
+              max={20}
+              onChange={(maxInfants) => setPolicy({ ...policy, maxInfants })}
+            />
+          </div>
+        ) : null}
+      </section>
     </div>
   );
 }
@@ -621,7 +704,7 @@ function ScheduleEditor({
           <h3 className="text-base font-semibold text-ink">Nightly rate</h3>
           <div className="grid gap-4 sm:grid-cols-2">
             <Num label={`Price per night · ${currency}`} value={draft.nightlyPrice} min={1} max={1000000} error={attempted && price == null ? 'Enter a nightly price.' : null} onChange={(nightlyPrice) => setDraft({ ...draft, nightlyPrice })} />
-            <Num label={`Cleaning fee · ${currency}`} value={draft.cleaningFee} min={0} max={1000000} onChange={(cleaningFee) => setDraft({ ...draft, cleaningFee })} />
+            <Num label={`Cleaning fee · ${currency}`} value={draft.cleaningFee ?? null} min={0} max={1000000} onChange={(cleaningFee) => setDraft({ ...draft, cleaningFee })} />
           </div>
           <p className="text-sm leading-relaxed text-ink-muted">The cleaning fee is charged once per stay. It is not added again for each night.</p>
           {example && example.ok ? (
@@ -638,19 +721,19 @@ function ScheduleEditor({
         </div>
       ) : null}
       {step === 3 ? (
-        <div className="mx-auto max-w-3xl space-y-5 text-sm text-ink">
-          <section>
+        <div className="tv-step mx-auto max-w-3xl space-y-3 text-sm text-ink">
+          <section className="rounded-xl bg-white p-4 ring-1 ring-[#E6EAF0]">
             <h3 className="text-base font-semibold text-ink">Schedule</h3>
             <ReviewRow label="Name" text={draft.name.trim() || 'Untitled schedule'} onEdit={() => setStep(0)} />
             <ReviewRow label="Arrival" text={`${draft.checkIn || 'Check-in not set'} · ${draft.checkOut || 'Check-out not set'}`} onEdit={() => setStep(0)} />
           </section>
-          <section>
+          <section className="rounded-xl bg-white p-4 ring-1 ring-[#E6EAF0]">
             <h3 className="text-base font-semibold text-ink">Availability</h3>
             <ReviewRow label="Dates" text={draft.start && draft.end ? `${draft.start} – ${draft.end}` : 'Not set'} onEdit={() => setStep(1)} />
             <ReviewRow label="Nights" text={`${draft.minNights ?? baseMinNights} minimum${draft.maxNights ? ` · ${draft.maxNights} maximum` : ''}`} onEdit={() => setStep(1)} />
             <ReviewRow label="Guests" text={maxGuests != null ? `Up to ${maxGuests}, from the accommodation` : 'Set on the accommodation'} onEdit={() => setStep(0)} />
           </section>
-          <section>
+          <section className="rounded-xl bg-white p-4 ring-1 ring-[#E6EAF0]">
             <h3 className="text-base font-semibold text-ink">Pricing</h3>
             <ReviewRow label="Nightly rate" text={price != null ? `${formatMoney(price, currency)} / night` : 'Not set'} onEdit={() => setStep(2)} />
             <ReviewRow label="Cleaning fee" text={cleaning > 0 ? `${formatMoney(cleaning, currency)} once per stay` : 'None'} onEdit={() => setStep(2)} />
@@ -667,12 +750,12 @@ function ScheduleEditor({
 
 function ReviewRow({ label, text, onEdit }: { label: string; text: string; onEdit: () => void }) {
   return (
-    <div className="flex items-start justify-between gap-3 border-b border-black/[0.06] pb-3">
+    <div className="mt-3 flex items-start justify-between gap-3">
       <div>
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">{label}</p>
-        <p className="mt-1">{text}</p>
+        <p className="text-[12.5px] text-ink-muted">{label}</p>
+        <p className="mt-0.5 font-medium text-ink">{text}</p>
       </div>
-      <button type="button" className="text-[12.5px] font-semibold text-finland" onClick={onEdit}>Edit</button>
+      <button type="button" className="min-h-11 text-[12.5px] font-semibold text-finland" onClick={onEdit}>Edit</button>
     </div>
   );
 }
@@ -725,9 +808,9 @@ function SleepingEditor({
           </div>
           <ul className="space-y-2">
             {area.beds.map((bed, bedIndex) => (
-              <li key={`${area.id}-${bedIndex}`} className="flex flex-wrap items-center gap-2">
+              <li key={`${area.id}-${bedIndex}`} className="grid grid-cols-[minmax(0,1fr)_2.75rem_1.5rem_2.75rem_2.25rem] items-center gap-2">
                 <select
-                  className="tv-input w-40 font-normal"
+                  className="tv-input min-w-0 font-normal"
                   value={bed.kind}
                   aria-label="Bed type"
                   onChange={(e) => {
@@ -739,10 +822,10 @@ function SleepingEditor({
                     <option key={kind.id} value={kind.id}>{kind.label}</option>
                   ))}
                 </select>
-                <button type="button" className="tv-btn-secondary !min-h-10 !w-10 !px-0" aria-label="Fewer beds" onClick={() => commit(areas.map((item, index) => index === areaIndex ? { ...item, beds: item.beds.flatMap((row, i) => (i === bedIndex ? (row.count <= 1 ? [] : [{ ...row, count: row.count - 1 }]) : [row])) } : item))}>−</button>
-                <span className="w-6 text-center text-sm tabular-nums">{bed.count}</span>
-                <button type="button" className="tv-btn-secondary !min-h-10 !w-10 !px-0" aria-label="More beds" onClick={() => commit(areas.map((item, index) => index === areaIndex ? { ...item, beds: item.beds.map((row, i) => (i === bedIndex ? { ...row, count: Math.min(20, row.count + 1) } : row)) } : item))}>+</button>
-                <button type="button" className="ml-auto inline-flex h-10 w-10 items-center justify-center rounded-md text-ink-muted ring-1 ring-[#E6EAF0]" aria-label="Remove bed" onClick={() => commit(areas.map((item, index) => index === areaIndex ? { ...item, beds: item.beds.filter((_, i) => i !== bedIndex) } : item))}>×</button>
+                <button type="button" className="tv-btn-secondary !h-11 !min-h-11 !w-11 !px-0" aria-label="Fewer beds" onClick={() => commit(areas.map((item, index) => index === areaIndex ? { ...item, beds: item.beds.flatMap((row, i) => (i === bedIndex ? (row.count <= 1 ? [] : [{ ...row, count: row.count - 1 }]) : [row])) } : item))}>−</button>
+                <span className="text-center text-sm tabular-nums">{bed.count}</span>
+                <button type="button" className="tv-btn-secondary !h-11 !min-h-11 !w-11 !px-0" aria-label="More beds" onClick={() => commit(areas.map((item, index) => index === areaIndex ? { ...item, beds: item.beds.map((row, i) => (i === bedIndex ? { ...row, count: Math.min(20, row.count + 1) } : row)) } : item))}>+</button>
+                <button type="button" className="inline-flex h-9 w-9 items-center justify-center justify-self-end rounded-full text-sm leading-none text-ink-muted hover:bg-[#F4F7FB] hover:text-ink" aria-label="Remove bed" onClick={() => commit(areas.map((item, index) => index === areaIndex ? { ...item, beds: item.beds.filter((_, i) => i !== bedIndex) } : item))}>×</button>
               </li>
             ))}
           </ul>

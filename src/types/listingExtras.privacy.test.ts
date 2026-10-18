@@ -31,6 +31,21 @@ describe('stay checkInAddress privacy (Phase 1081)', () => {
     expect(stay.nightlyPriceUsd).toBe(120);
   });
 
+  it('keeps the public arrival note and drops the private street address', () => {
+    const payload = listingExtrasToDb({
+      inventoryFamily: 'stay',
+      stay: {
+        arrivalMethod: 'lockbox',
+        arrivalNote: 'Park in the marked bay.',
+        checkInAddress: 'Secret Road 1',
+      },
+    });
+    const stay = (payload as { stay: Record<string, unknown> }).stay;
+    expect(stay.arrivalMethod).toBe('lockbox');
+    expect(stay.arrivalNote).toBe('Park in the marked bay.');
+    expect(stay.checkInAddress).toBeUndefined();
+  });
+
   it('stripPublicStayCheckInAddress removes leaked extras keys', () => {
     const parsed = parseListingExtras({
       inventoryFamily: 'stay',

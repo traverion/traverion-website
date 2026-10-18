@@ -17,6 +17,7 @@ import {
   wallTimeInZoneToUtcMs,
 } from './tour-departure-cutoff.ts';
 import { normalizeStaySeasons, quoteStayLodging } from './stay-season-quote.ts';
+import { validateStayGuestParty, type StayGuestParty } from './stay-guest-party.ts';
 
 /** Calendar “today” for quote past-date gates — listing departure TZ, not UTC. */
 function experienceTodayIsoForListing(departureTimezone: unknown, nowMs: number = Date.now()): string {
@@ -294,6 +295,7 @@ function quoteStayListing(input: {
   checkIn: string;
   checkOut: string;
   guests: number;
+  party?: StayGuestParty | null;
   today: string;
   nowMs?: number;
   timeZone?: string;
@@ -324,10 +326,16 @@ function quoteStayListing(input: {
     return { ok: false, error: 'Guest capacity is unavailable for this stay.' };
   }
   const maxGuests = Math.floor(stay.maxGuests);
-  if (!Number.isFinite(input.guests) || input.guests < 1) {
+  let guests = Number(input.guests);
+  let guestBreakdown: QuoteOk['guestBreakdown'] = undefined;
+  if (input.party) {
+    const checked = validateStayGuestParty(input.party, stay.guestPolicy, maxGuests);
+    if (!checked.ok) return { ok: false, error: checked.error };
+    guests = checked.counted;
+    guestBreakdown = checked.breakdown;
+  } else if (!Number.isFinite(guests) || guests < 1) {
     return { ok: false, error: 'Enter how many guests will stay.' };
-  }
-  if (input.guests > maxGuests) {
+  } else if (guests > maxGuests) {
     return { ok: false, error: `This stay allows up to ${maxGuests} guests.` };
   }
   const nightly =
@@ -350,10 +358,10 @@ function quoteStayListing(input: {
   if (lodging.maxNights != null && nights > lodging.maxNights) {
     return { ok: false, error: `This period can be booked for up to ${lodging.maxNights} night${lodging.maxNights === 1 ? '' : 's'}.` };
   }
-  if (lodging.minGuests != null && input.guests < lodging.minGuests) {
+  if (lodging.minGuests != null && guests < lodging.minGuests) {
     return { ok: false, error: `This period requires at least ${lodging.minGuests} guests.` };
   }
-  if (lodging.maxGuests != null && input.guests > lodging.maxGuests) {
+  if (lodging.maxGuests != null && guests > lodging.maxGuests) {
     return { ok: false, error: `This period allows up to ${lodging.maxGuests} guests.` };
   }
   const cutoffMinutes = stay.reservationCutoffMinutes;
@@ -386,6 +394,8 @@ function quoteStayListing(input: {
     optionId: null,
     optionLabel: `${nights} night${nights === 1 ? '' : 's'}`,
     nights,
+    guests,
+    guestBreakdown,
   };
 }
 
@@ -1035,6 +1045,7 @@ export function quoteListingBooking(input: {
   bookingOptionId?: string | null;
   todayIso?: string;
   checkoutDate?: string | null;
+  stayParty?: StayGuestParty | null;
   participantMix?: Record<string, number> | null;
   startTime?: string | null;
   nowMs?: number;
@@ -1082,6 +1093,7 @@ export function quoteListingBooking(input: {
       checkIn: date,
       checkOut: (input.checkoutDate ?? '').trim(),
       guests,
+      party: input.stayParty,
       today,
       nowMs,
       timeZone: departureTimezone,

@@ -237,6 +237,8 @@ import {
 import { normalizeStayRestrictions, stayRestrictionLines } from '../../lib/stay-restrictions';
 import { normalizeStaySeasons, type StaySeasonWindow } from '../../lib/stay-season-quote';
 import { normalizeStayBedMix, type StayBedMix } from '../../lib/stay-beds';
+import { normalizeStayGuestPolicy } from '../../lib/stay-guest-party';
+import { STAY_ARRIVAL_METHODS, stayArrivalMethodHint } from '../../lib/stay-arrival';
 import StayAmenityPicker from '../../components/supplier/listing-creation/StayAmenityPicker';
 import StayOptionsStep from '../../components/supplier/listing-creation/StayOptionsStep';
 import { publicStayListingUrl, publicTourListingUrl } from '../../lib/publicSiteUrl';
@@ -260,9 +262,17 @@ const MAX_WHAT_TO_BRING_LENGTH = 500;
 const MAX_REQUIREMENTS_LENGTH = 500;
 const MAX_ADDITIONAL_INFO_LENGTH = 800;
 
-/** Tour stays at 6. Stay is 8: Location → Property → Description → Amenities → Pricing → Photos → Policies → Preview. */
+/** Tour stays at 6. Stay is 9: Location through Preview, with Arrival after Photos. */
 function wizardStepCount(isStay: boolean): number {
-  return isStay ? 8 : 6;
+  return isStay ? 9 : 6;
+}
+
+/** v7 index → v8. v7 policies (6) and preview (7) move forward for the arrival step. */
+function migrateStayWizardV7ToV8(legacy: number): number {
+  if (legacy <= 5) return legacy;
+  if (legacy === 6) return 7;
+  if (legacy === 7) return 8;
+  return 0;
 }
 
 /** v5 six-step stay index → v6 eight-step index. */
@@ -281,7 +291,7 @@ function migrateStayWizardV6ToV7(legacy: number): number {
 }
 
 function wizardStepStorageKey(editingId: string | null, isStay: boolean) {
-  const version = isStay ? 'v7' : 'v5';
+  const version = isStay ? 'v8' : 'v5';
   return `traverion-listing-wizard-step-${version}-${isStay ? 'stay' : 'tour'}-${editingId ?? 'create'}`;
 }
 
@@ -292,17 +302,24 @@ function readWizardStepFromStorage(editingId: string | null, isStay: boolean): n
     const raw = sessionStorage.getItem(wizardStepStorageKey(editingId, isStay));
     if (!raw && isStay) {
       const id = editingId ?? 'create';
+      const v7 = sessionStorage.getItem(`traverion-listing-wizard-step-v7-stay-${id}`);
+      if (v7) {
+        const n = Number.parseInt(v7, 10);
+        if (Number.isNaN(n)) return null;
+        const mapped = migrateStayWizardV7ToV8(n);
+        return mapped >= 0 && mapped < max ? mapped : null;
+      }
       const v6 = sessionStorage.getItem(`traverion-listing-wizard-step-v6-stay-${id}`);
       if (v6) {
         const n = Number.parseInt(v6, 10);
         if (Number.isNaN(n)) return null;
-        const mapped = migrateStayWizardV6ToV7(n);
+        const mapped = migrateStayWizardV7ToV8(migrateStayWizardV6ToV7(n));
         return mapped >= 0 && mapped < max ? mapped : null;
       }
       const legacy = sessionStorage.getItem(`traverion-listing-wizard-step-v5-stay-${id}`);
       const n = Number.parseInt(legacy ?? '', 10);
       if (Number.isNaN(n)) return null;
-      const mapped = migrateStayWizardV6ToV7(migrateStayWizardV5ToV6(n));
+      const mapped = migrateStayWizardV7ToV8(migrateStayWizardV6ToV7(migrateStayWizardV5ToV6(n)));
       return mapped >= 0 && mapped < max ? mapped : null;
     }
     if (!raw) return null;
@@ -898,6 +915,8 @@ type ListingFormState = {
   stayQuietStart: string;
   stayQuietEnd: string;
   stayCheckInAddress: string;
+  stayArrivalMethod: '' | 'self' | 'host' | 'lockbox' | 'smart_lock' | 'reception' | 'other';
+  stayArrivalNote: string;
   /** Guest-facing place label. Never written into the geographical destination. */
   stayLocationDisplayName: string;
   /** Parts of the private arrival address. Composed into stayCheckInAddress on edit. */
@@ -1106,6 +1125,11 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
             }),
             locationDisplayName: form.stayLocationDisplayName.trim().slice(0, 80) || undefined,
             checkInAddress: form.stayCheckInAddress.trim() || undefined,
+            arrivalMethod: form.stayArrivalMethod || undefined,
+            arrivalNote: form.stayArrivalNote.trim() || undefined,
+            guestPolicy: activeStayOptions(form.stayOptions)[0]
+              ? normalizeStayGuestPolicy(activeStayOptions(form.stayOptions)[0]?.guestPolicy)
+              : undefined,
             nightlyPriceUsd: Number.isFinite(stayNightly) && stayNightly > 0 ? stayNightly : undefined,
             availabilityMode: form.stayAvailabilityMode === 'scheduled' ? 'scheduled' : 'open',
             seasons: form.staySeasons.length > 0 ? form.staySeasons : undefined,
@@ -1271,9 +1295,12 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
     return form.status === 'published';
   }
   if (idx === 6 && form.inventoryFamily === 'stay') {
-    return form.stayCheckInAddress.trim().length > 0 && stayRulesChosen(form);
+    return Boolean(form.stayArrivalMethod);
   }
   if (idx === 7 && form.inventoryFamily === 'stay') {
+    return form.stayCheckInAddress.trim().length > 0 && stayRulesChosen(form);
+  }
+  if (idx === 8 && form.inventoryFamily === 'stay') {
     return form.status === 'published';
   }
   return true;
@@ -1385,6 +1412,8 @@ const emptyForm: ListingFormState = {
   stayQuietStart: '',
   stayQuietEnd: '',
   stayCheckInAddress: '',
+  stayArrivalMethod: '',
+  stayArrivalNote: '',
   stayLocationDisplayName: '',
   stayAddressStreet: '',
   stayAddressPostal: '',
@@ -1439,6 +1468,10 @@ function coerceListingFormState(raw: Partial<ListingFormState> | null | undefine
   merged.stayChildren = merged.stayChildren === 'welcome' || merged.stayChildren === 'not_suitable' ? merged.stayChildren : '';
   merged.stayQuietStart = /^\d{2}:\d{2}$/.test(merged.stayQuietStart ?? '') ? merged.stayQuietStart : '';
   merged.stayQuietEnd = /^\d{2}:\d{2}$/.test(merged.stayQuietEnd ?? '') ? merged.stayQuietEnd : '';
+  merged.stayArrivalMethod = ['self', 'host', 'lockbox', 'smart_lock', 'reception', 'other'].includes(merged.stayArrivalMethod)
+    ? merged.stayArrivalMethod
+    : '';
+  merged.stayArrivalNote = typeof merged.stayArrivalNote === 'string' ? merged.stayArrivalNote.slice(0, 160) : '';
   merged.stayAvailabilityMode = merged.stayAvailabilityMode === 'scheduled' ? 'scheduled' : 'open';
   merged.staySeasons = normalizeStaySeasons(merged.staySeasons);
   merged.stayBedMix = normalizeStayBedMix(merged.stayBedMix) ?? {};
@@ -1486,6 +1519,7 @@ type StepId =
   | 'cost_options'
   | 'stay_description'
   | 'stay_price'
+  | 'stay_arrival'
   | 'stay_policies'
   | 'photos'
   | 'review';
@@ -1697,6 +1731,7 @@ export default function SupplierListingForm({
         { id: 'information' as StepId, label: 'Amenities' },
         { id: 'stay_price' as StepId, label: 'Options & availability' },
         { id: 'photos' as StepId, label: 'Photos' },
+        { id: 'stay_arrival' as StepId, label: 'Arrival instructions' },
         { id: 'stay_policies' as StepId, label: 'Policies' },
         { id: 'review' as StepId, label: 'Preview' },
       ];
@@ -1721,6 +1756,7 @@ export default function SupplierListingForm({
         'Add the facilities guests can actually use.',
         'Create the accommodation choices guests can book and manage their availability.',
         'Add your strongest photo first — it becomes the cover in search.',
+        'Tell guests how they arrive. Access codes stay on the private address, not on the public page.',
         'Cancellation, the private arrival address, and the house rules guests read before they book.',
         'Check what’s ready, fix gaps, then save as draft or publish.',
       ] as const;
@@ -1794,7 +1830,7 @@ export default function SupplierListingForm({
         },
         {
           step: 4,
-          label: form.stayAccommodationMode === 'multi' ? 'Rooms & pricing' : 'Pricing',
+          label: 'Options & availability',
           summary:
             form.stayAccommodationMode === 'multi'
               ? `${activeStayUnits(form.stayUnits).length} room type${activeStayUnits(form.stayUnits).length === 1 ? '' : 's'}`
@@ -1815,14 +1851,21 @@ export default function SupplierListingForm({
         },
         {
           step: 6,
+          label: 'Arrival instructions',
+          summary: form.stayArrivalMethod ? 'Arrival method saved' : 'Arrival method not set',
+          ready: isStepSatisfied(6, form),
+          missing: !isStepSatisfied(6, form) ? 'Choose how guests arrive.' : null,
+        },
+        {
+          step: 7,
           label: 'Policies',
           summary: form.stayCheckInAddress.trim()
             ? rulesSummary === 3
               ? 'Arrival address and house rules saved'
               : 'House rules still need pets, smoking, and parties'
             : 'Arrival address missing',
-          ready: isStepSatisfied(6, form),
-          missing: !isStepSatisfied(6, form)
+          ready: isStepSatisfied(7, form),
+          missing: !isStepSatisfied(7, form)
             ? !form.stayCheckInAddress.trim()
               ? 'Add the private arrival address.'
               : 'Choose pets, smoking, and parties.'
@@ -2035,7 +2078,7 @@ export default function SupplierListingForm({
       gallery: photos,
       hero: photos,
       photos: photos,
-      review: stay ? 7 : 5,
+      review: stay ? 8 : 5,
     };
   }, [form.inventoryFamily]);
   useEffect(() => {
@@ -2165,6 +2208,8 @@ export default function SupplierListingForm({
           stayQuietStart: extras.stay?.restrictions?.quietHours?.start ?? '',
           stayQuietEnd: extras.stay?.restrictions?.quietHours?.end ?? '',
           stayCheckInAddress: extras.stay?.checkInAddress ?? '',
+          stayArrivalMethod: extras.stay?.arrivalMethod ?? '',
+          stayArrivalNote: extras.stay?.arrivalNote ?? '',
           stayLocationDisplayName: stayLocationDisplayNameFromListing(
             extras.stay?.locationDisplayName,
             existing.destination,
@@ -4651,6 +4696,49 @@ export default function SupplierListingForm({
             </div>
           )}
           {stepIdx === 6 && form.inventoryFamily === 'stay' && (
+            <div className="tv-step mx-auto max-w-3xl space-y-6">
+              <section className="rounded-xl bg-white p-4 ring-1 ring-[#E6EAF0] sm:p-5">
+                <h4 className="text-base font-semibold text-ink">Arrival method</h4>
+                <p className="mt-1 text-sm text-ink-muted">Guests see the method. Door codes and the street address stay private.</p>
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  {STAY_ARRIVAL_METHODS.map(([value, label]) => {
+                    const on = form.stayArrivalMethod === value;
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => setForm((f) => ({ ...f, stayArrivalMethod: value }))}
+                        className={`min-h-11 rounded-xl px-3 py-3 text-left text-sm font-semibold transition-colors duration-150 ${
+                          on ? 'bg-[#F4F8FC] text-[#0B397E] ring-2 ring-[#0B397E]' : 'text-ink ring-1 ring-[#E6EAF0] hover:bg-[#F7F8FA]'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {form.stayArrivalMethod ? (
+                  <p className="mt-3 text-sm leading-relaxed text-ink-muted">{stayArrivalMethodHint(form.stayArrivalMethod)}</p>
+                ) : null}
+              </section>
+              <section className="rounded-xl bg-white p-4 ring-1 ring-[#E6EAF0] sm:p-5">
+                <h4 className="text-base font-semibold text-ink">What guests can know beforehand</h4>
+                <p className="mt-1 text-sm text-ink-muted">
+                  A short public note, such as where to park. Put the access code in the private arrival address on Policies. Confirmed guests see that address in Trips after payment.
+                </p>
+                <textarea
+                  value={form.stayArrivalNote}
+                  maxLength={160}
+                  onChange={(e) => setForm((f) => ({ ...f, stayArrivalNote: e.target.value.slice(0, 160) }))}
+                  className="tv-input mt-3 min-h-[5rem] w-full font-normal"
+                  placeholder="Park in the marked bay. The building entrance faces the courtyard."
+                />
+                <p className="mt-1 text-xs tabular-nums text-ink-muted">{form.stayArrivalNote.length} / 160</p>
+              </section>
+            </div>
+          )}
+          {stepIdx === 7 && form.inventoryFamily === 'stay' && (
             <div className="space-y-8">
               <section className="space-y-2" aria-labelledby="stay-cancel-heading">
                 <h4 id="stay-cancel-heading" className="text-sm font-semibold text-[#111827]">

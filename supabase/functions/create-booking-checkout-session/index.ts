@@ -17,6 +17,7 @@ import {
 } from '../_shared/booking-hold.ts';
 import { checkoutPaymentStatusCanResume, resumeStayCheckoutDate, checkoutResumeLostRaceToPaid, resumeListingIdMismatch, resumeStoredOptionId, participantMixFromGuestBreakdown } from '../_shared/checkout-resume.ts';
 import { resumeStayLeadGuestName, stayCheckoutLeadGuestNameReady, stayBookingColumnsForCheckoutUpdate } from '../_shared/stay-checkout-guest.ts';
+import { readStayGuestParty } from '../_shared/stay-guest-party.ts';
 import {
   buildPurchaseSnapshot,
   resolveMeetingPointForSnapshot,
@@ -65,6 +66,7 @@ type RequestBody = {
   returnOrigin?: string;
   participantMix?: Record<string, number>;
   guestBreakdown?: unknown;
+  stayParty?: unknown;
   /** Must be true for new checkout holds; resume by bookingId may omit. */
   checkoutConsentAccepted?: boolean;
 };
@@ -483,6 +485,7 @@ serve(async (req) => {
       guests,
       bookingOptionId: storedOptionId,
       checkoutDate: checkoutDate || null,
+      stayParty: readStayGuestParty(body.stayParty),
       participantMix,
       startTime: startTime || null,
       confirmedOccupancy,

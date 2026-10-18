@@ -38,7 +38,9 @@ import { setPageMetaWithOg, setStayJsonLd, clearStayJsonLd } from '../lib/seo';
 import { formatMoney, normalizeCurrency } from '../lib/money';
 import PriceBreakdown, { PriceHero } from '../components/PriceBreakdown';
 import StayNightPicker from '../components/StayNightPicker';
-import GuestStepper from '../components/booking/GuestStepper';
+import StayGuestPartySelector from '../components/booking/StayGuestPartySelector';
+import { normalizeStayGuestPolicy, validateStayGuestParty, type StayGuestParty } from '../lib/stay-guest-party';
+import { stayArrivalMethodLabel } from '../lib/stay-arrival';
 import { ListingReviewsModal } from '../components/ListingReviewsModal';
 import NoticeCallout from '../components/NoticeCallout';
 import CheckoutConsentCheckbox from '../components/booking/CheckoutConsentCheckbox';
@@ -104,7 +106,11 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
   const [reviewOnlyAccess, setReviewOnlyAccess] = useState(false);
   const [checkIn, setCheckIn] = useState(() => readStayPrefill().checkIn);
   const [checkOut, setCheckOut] = useState(() => readStayPrefill().checkOut);
-  const [guests, setGuests] = useState(() => readStayPrefill().guests);
+  const [party, setParty] = useState<StayGuestParty>(() => ({
+    adults: readStayPrefill().guests,
+    children: 0,
+    infants: 0,
+  }));
   const [paying, setPaying] = useState(false);
   const [checkoutConsentAccepted, setCheckoutConsentAccepted] = useState(false);
   const checkoutLockRef = useRef(false);
@@ -448,12 +454,14 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
   const experienceTodayIso = experienceTodayIsoForListing(extras.departureTimezone);
   const amenities = stayAmenityDisplayList(s?.amenities);
   const gallery = (extras.galleryImageUrls ?? []).map((u) => String(u).trim()).filter(Boolean);
+  const guestPolicy = normalizeStayGuestPolicy(s?.guestPolicy);
   const stayQuote = stay
     ? quoteStayNights({
         tour: stay,
         checkIn,
         checkOut,
-        guests,
+        guests: party.adults,
+        party,
         todayIso: experienceTodayIso,
       })
     : null;
@@ -498,8 +506,16 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
 
   useEffect(() => {
     if (maxGuests == null) return;
-    setGuests((g) => Math.min(maxGuests, Math.max(1, g)));
-  }, [maxGuests]);
+    setParty((current) => {
+      const checked = validateStayGuestParty(current, guestPolicy, maxGuests);
+      if (checked.ok) return current;
+      const next = { ...current };
+      while (next.children > 0 && !validateStayGuestParty(next, guestPolicy, maxGuests).ok) next.children -= 1;
+      while (next.infants > 0 && !validateStayGuestParty(next, guestPolicy, maxGuests).ok) next.infants -= 1;
+      while (next.adults > 1 && !validateStayGuestParty(next, guestPolicy, maxGuests).ok) next.adults -= 1;
+      return next;
+    });
+  }, [maxGuests, guestPolicy]);
 
   const lastStayProfileUserIdRef = useRef<string | null>(null);
   useEffect(() => {
@@ -688,6 +704,8 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
       bookingDate: stayQuote.checkIn,
       checkoutDate: stayQuote.checkOut,
       guests: stayQuote.guests,
+      guestBreakdown: stayQuote.guestBreakdown,
+      stayParty: party,
       customerName: name,
       customerPhone: guestPhone.trim() || undefined,
       currency: stayQuote.currency,
@@ -1042,6 +1060,8 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
               <ul className="space-y-2 text-ink-muted">
                 {s?.checkInTime ? <li>Check-in from {s.checkInTime}</li> : null}
                 {s?.checkOutTime ? <li>Check-out by {s.checkOutTime}</li> : null}
+                {stayArrivalMethodLabel(s?.arrivalMethod) ? <li>{stayArrivalMethodLabel(s?.arrivalMethod)}</li> : null}
+                {s?.arrivalNote ? <li>{s.arrivalNote}</li> : null}
                 {(() => {
                   // Phase 1587: only times / missing-time honesty here — Trips email note lives on booking panel (1585/1586).
                   const missing = stayCheckInOutMissingCopy({
@@ -1351,19 +1371,15 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
               {checkOut ? formatStayNightHuman(checkOut) : 'Check-out'}
             </p>
             <div className="mt-3">
-              <GuestStepper
+              <StayGuestPartySelector
                 id="stay-guests"
-                value={guests}
-                min={1}
-                max={maxGuests ?? 0}
-                // Phase 1320: unknown stay capacity ≠ “No seats left on this departure”.
-                hint={maxGuests == null ? null : undefined}
-                ariaDescribedBy={maxGuests == null ? 'stay-guest-capacity-unavailable' : undefined}
+                party={party}
+                policy={guestPolicy}
+                maxGuests={maxGuests}
                 onChange={(next) => {
-                  setGuests(next);
+                  setParty(next);
                   setPayError(null);
                 }}
-                label="Guests"
               />
               {maxGuests == null ? (
                 <p id="stay-guest-capacity-unavailable" className="mt-2 text-sm text-red-700">

@@ -382,6 +382,39 @@ describe('quoteBooking', () => {
     expect(q.totalAmount).toBe(340);
   });
 
+  it('counts adults and children toward stay occupancy and keeps infants separate', () => {
+    const tourStay = tour({
+      listingExtras: {
+        inventoryFamily: 'stay',
+        stay: { nightlyPriceUsd: 100, maxGuests: 8, minNights: 1 },
+        bookingOptions: [],
+      },
+    });
+    const tooMany = quoteStayNights({
+      tour: tourStay,
+      checkIn: '2026-09-10',
+      checkOut: '2026-09-12',
+      guests: 1,
+      party: { adults: 5, children: 4, infants: 0 },
+      todayIso: today,
+      nowMs: fixtureNowMs,
+    });
+    expect(tooMany.ok).toBe(false);
+    const withInfant = quoteStayNights({
+      tour: tourStay,
+      checkIn: '2026-09-10',
+      checkOut: '2026-09-12',
+      guests: 1,
+      party: { adults: 2, children: 0, infants: 1 },
+      todayIso: today,
+      nowMs: fixtureNowMs,
+    });
+    expect(withInfant.ok).toBe(true);
+    if (!withInfant.ok) return;
+    expect(withInfant.guests).toBe(2);
+    expect(withInfant.guestBreakdown?.find((row) => row.kind === 'infant')?.quantity).toBe(1);
+  });
+
   it('uses the check-in schedule guest cap, night cap, and cleaning fee', () => {
     const stay = {
       nightlyPriceUsd: 100,

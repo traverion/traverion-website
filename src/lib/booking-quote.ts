@@ -21,6 +21,7 @@ import { ymdInTimeZone } from './booking-lifecycle-calendar';
 import { localYmd } from './local-ymd';
 import { STAY_MAX_OCCUPIED_NIGHTS } from './stayOccupancy';
 import { quoteStayLodging } from './stay-season-quote';
+import { validateStayGuestParty, type StayGuestBreakdownRow, type StayGuestParty } from './stay-guest-party';
 import { confirmedDepartureKey, evaluateDepartureBookingWindow } from './last-minute-booking';
 import {
   normalizeBookingCutoffHours,
@@ -629,6 +630,8 @@ export type StayQuoteOk = {
   cleaningFee: number;
   totalAmount: number;
   guests: number;
+  /** Present when the traveler chose adults, children, and infants. */
+  guestBreakdown?: StayGuestBreakdownRow[];
   checkIn: string;
   checkOut: string;
 };
@@ -649,6 +652,7 @@ export function quoteStayNights(input: {
   checkIn: string;
   checkOut: string;
   guests: number;
+  party?: StayGuestParty | null;
   todayIso?: string;
   nowMs?: number;
 }): StayQuoteResult {
@@ -667,7 +671,6 @@ export function quoteStayNights(input: {
   }
   const checkIn = (input.checkIn ?? '').trim();
   const checkOut = (input.checkOut ?? '').trim();
-  const guests = Number(input.guests);
   if (!ISO_DATE.test(checkIn) || !ISO_DATE.test(checkOut)) {
     return { ok: false, code: 'bad_date', error: 'Choose valid check-in and check-out dates.' };
   }
@@ -690,10 +693,16 @@ export function quoteStayNights(input: {
     return { ok: false, code: 'party', error: 'Guest capacity is unavailable for this stay.' };
   }
   const maxGuests = Math.floor(stay.maxGuests);
-  if (!Number.isFinite(guests) || guests < 1) {
+  let guests = Number(input.guests);
+  let guestBreakdown: StayGuestBreakdownRow[] | undefined = undefined;
+  if (input.party) {
+    const checked = validateStayGuestParty(input.party, stay.guestPolicy, maxGuests);
+    if (!checked.ok) return { ok: false, code: 'party', error: checked.error };
+    guests = checked.counted;
+    guestBreakdown = checked.breakdown;
+  } else if (!Number.isFinite(guests) || guests < 1) {
     return { ok: false, code: 'party', error: 'Enter how many guests will stay.' };
-  }
-  if (guests > maxGuests) {
+  } else if (guests > maxGuests) {
     return { ok: false, code: 'party', error: `This stay allows up to ${maxGuests} guests.` };
   }
   const nightly =
@@ -760,6 +769,7 @@ export function quoteStayNights(input: {
     cleaningFee: money(cleaning),
     totalAmount: money(lodging.lodging + cleaning),
     guests,
+    guestBreakdown,
     checkIn,
     checkOut,
   };

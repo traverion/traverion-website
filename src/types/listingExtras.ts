@@ -19,6 +19,8 @@ import {
 } from '../lib/stay-season-quote';
 import { normalizeStayBedMix, type StayBedMix } from '../lib/stay-beds';
 import { normalizeStayOptions, type StayAccommodationOption } from '../lib/stay-options';
+import { normalizeStayGuestPolicy, type StayGuestPolicy } from '../lib/stay-guest-party';
+import type { StayArrivalMethod } from '../lib/stay-arrival';
 
 /** Legacy preset values still parsed from stored `listing_extras` JSON. */
 export type CancellationPreset = 'free_24h' | 'free_48h' | 'free_7d' | 'non_refundable' | 'custom';
@@ -389,6 +391,12 @@ export type StayDetails = {
    * Frozen onto purchase_snapshot at checkout; shown in Trips. City/country for discovery.
    */
   checkInAddress?: string;
+  /** How guests enter. Not an access code. */
+  arrivalMethod?: StayArrivalMethod;
+  /** Short public note. Access codes belong in the private arrival address. */
+  arrivalNote?: string;
+  /** Age bands and whether infants count toward maxGuests. */
+  guestPolicy?: StayGuestPolicy;
   nightlyPriceUsd?: number;
   /** open = bookable unless a night is blocked. scheduled = only nights inside a season. */
   availabilityMode?: StayAvailabilityMode;
@@ -430,6 +438,18 @@ function normalizeStayDetails(raw: unknown): StayDetails | undefined {
   if (typeof o.checkInAddress === 'string' && o.checkInAddress.trim()) {
     out.checkInAddress = o.checkInAddress.trim().slice(0, 400);
   }
+  if (
+    o.arrivalMethod === 'self' ||
+    o.arrivalMethod === 'host' ||
+    o.arrivalMethod === 'lockbox' ||
+    o.arrivalMethod === 'smart_lock' ||
+    o.arrivalMethod === 'reception' ||
+    o.arrivalMethod === 'other'
+  ) {
+    out.arrivalMethod = o.arrivalMethod;
+  }
+  if (typeof o.arrivalNote === 'string' && o.arrivalNote.trim()) out.arrivalNote = o.arrivalNote.trim().slice(0, 160);
+  if (o.guestPolicy != null && typeof o.guestPolicy === 'object') out.guestPolicy = normalizeStayGuestPolicy(o.guestPolicy);
   if (typeof o.nightlyPriceUsd === 'number' && o.nightlyPriceUsd > 0) out.nightlyPriceUsd = o.nightlyPriceUsd;
   if (o.availabilityMode === 'scheduled') out.availabilityMode = 'scheduled';
   else if (o.availabilityMode === 'open') out.availabilityMode = 'open';

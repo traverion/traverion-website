@@ -20,6 +20,7 @@ import {
   type StayAvailabilityMode,
   type StaySeasonWindow,
 } from './stay-season-quote';
+import { normalizeStayGuestPolicy, type StayGuestPolicy } from './stay-guest-party';
 
 export const STAY_OPTIONS_MAX = 12;
 export const STAY_SCHEDULES_MAX = 12;
@@ -36,6 +37,8 @@ export type StayAccommodationOption = {
   sleepingAreas: StaySleepingArea[];
   /** Minutes before the schedule check-in when booking closes. Null until the supplier sets it. 0 means until check-in. */
   cutoffMinutes: number | null;
+  /** Age bands for this accommodation. Missing values use adults 18+, children 2–17, infants under 2. */
+  guestPolicy?: StayGuestPolicy;
   /** Used when no bed types are set, so an older "1 bed" listing is not wiped. */
   beds: number | null;
   quantity: number;
@@ -94,6 +97,7 @@ export function emptyStayOption(id: string, propertyType: string): StayAccommoda
     bedMix: {},
     sleepingAreas: [],
     cutoffMinutes: null,
+    guestPolicy: undefined,
     beds: null,
     quantity: 1,
     nightlyPrice: null,
@@ -130,6 +134,7 @@ export function normalizeStayOption(raw: unknown): StayAccommodationOption | nul
       typeof o.cutoffMinutes === 'number' && o.cutoffMinutes >= 0
         ? Math.min(56 * 24 * 60, Math.floor(o.cutoffMinutes))
         : null,
+    guestPolicy: o.guestPolicy != null ? normalizeStayGuestPolicy(o.guestPolicy) : undefined,
     beds: count(o.beds, 0, 50),
     quantity,
     nightlyPrice: money(o.nightlyPrice ?? o.nightlyPriceUsd, 1),

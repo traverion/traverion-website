@@ -240,7 +240,7 @@ describe('publishBlockerListingWizardStep', () => {
         'Add the check-in address guests need after they book (street / building / entry).',
         true
       )
-    ).toBe(6);
+    ).toBe(7);
   });
 
   it('keeps tour blocker jumps on tour step indices', () => {
