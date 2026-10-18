@@ -678,7 +678,7 @@ function CutoffStage({ option, writeOption }: { option: StayAccommodationOption;
           </select>
         </Field>
       </div>
-      <p className="text-sm text-ink-muted">{stayCutoffSummary(saved)}</p>
+      <StayHelp>{stayCutoffSummary(saved)}</StayHelp>
     </div>
   );
 }
@@ -749,7 +749,7 @@ function GuestsStage({ values, option, writeOption }: Props & { option: StayAcco
   return (
     <div className="space-y-4">
       <Stepper label="Maximum guests" value={guests} min={1} max={50} onChange={(maxGuests) => writeOption({ ...option, maxGuests })} />
-      {sleeps >= 1 ? <p className="text-sm text-ink-muted">The beds sleep up to {sleeps}. A higher guest limit cannot be published.</p> : null}
+      {sleeps >= 1 ? <StayHelp>The beds sleep up to {sleeps}. A higher guest limit cannot be published.</StayHelp> : null}
     </div>
   );
 }
@@ -811,14 +811,14 @@ function PricingStage({ values, currency, option, writeOption, commissionBps }: 
         }} />
       </Field>
       {priced && split ? (
-        <dl className="space-y-1 text-sm text-ink">
-          <div className="flex justify-between gap-3"><dt>Nightly price</dt><dd>{exactMoney(nightly, currency)}</dd></div>
-          <div className="flex justify-between gap-3"><dt>Traverion commission ({formatBpsAsPercent(split.commissionBps)})</dt><dd>{exactMoney(split.commissionMinor / 100, currency)}</dd></div>
-          <div className="flex justify-between gap-3 font-semibold"><dt>Estimated supplier earnings</dt><dd>{exactMoney(split.supplierMinor / 100, currency)}</dd></div>
-          <p className="pt-1 text-ink-muted">One night at this rate. Cleaning and extras are charged separately and are not part of this example.</p>
+        <dl className="stay-panel space-y-2 text-sm text-ink">
+          <div className="flex justify-between gap-3"><dt>Guest pays</dt><dd className="tabular-nums">{exactMoney(nightly, currency)}</dd></div>
+          <div className="flex justify-between gap-3"><dt>Traverion commission ({formatBpsAsPercent(split.commissionBps)})</dt><dd className="tabular-nums">{exactMoney(split.commissionMinor / 100, currency)}</dd></div>
+          <div className="flex justify-between gap-3 border-t border-[#E6EAF0] pt-2 font-semibold"><dt>Supplier receives</dt><dd className="tabular-nums">{exactMoney(split.supplierMinor / 100, currency)}</dd></div>
+          <p className="stay-help">One night only. Cleaning and extras are charged separately.</p>
         </dl>
       ) : priced ? (
-        <p className="text-sm text-ink-muted">Estimated earnings appear when your supplier agreement is available. This example is one night. Cleaning and extras are charged separately.</p>
+        <StayHelp>Supplier earnings appear when your active agreement is available. This example is one night. Cleaning and extras are charged separately.</StayHelp>
       ) : null}
     </div>
   );
@@ -841,19 +841,22 @@ function FeesStage({ values, currency, option, writeOption }: Props & { option: 
           writeOption({ ...option, cleaningFee: Number.isFinite(cleaning) && cleaning >= 0 ? Math.round(cleaning * 100) / 100 : null });
         }} />
       </Field>
-      <p className="text-sm text-ink-muted">An amount here is charged once for the stay. Leave it blank when there is no cleaning fee.</p>
+      <StayHelp>A cleaning amount is charged once per stay. It is not optional for the guest. Leave it blank when there is no cleaning fee.</StayHelp>
       {extras.length > 0 ? (
-        <ul className="space-y-1 text-sm text-ink">
+        <ul className="stay-panel space-y-2 text-sm text-ink">
           {extras.map((extra) => (
-            <li key={extra.id}>
-              {extra.name} · {extra.price} {currency}
-              {EXTRA_CHARGE_LABEL[extra.charge] ? ` · ${EXTRA_CHARGE_LABEL[extra.charge]}` : ''}
-              {extra.mandatory ? ' · included' : extra.requestOnly ? ' · requested, not charged' : ' · guest can add'}
+            <li key={extra.id} className="flex items-start justify-between gap-3">
+              <span>{extra.name}</span>
+              <span className="text-right text-ink-muted">
+                {extra.price} {currency}
+                {EXTRA_CHARGE_LABEL[extra.charge] ? ` · ${EXTRA_CHARGE_LABEL[extra.charge]}` : ''}
+                {extra.mandatory ? ' · mandatory' : extra.requestOnly ? ' · requested, not charged' : ' · optional'}
+              </span>
             </li>
           ))}
         </ul>
       ) : null}
-      <p className="text-sm text-ink-muted">Weekly and monthly discounts and extra-guest fees already saved on a schedule are applied by checkout to the lodging price.</p>
+      <StayHelp>Weekly and monthly discounts and extra-guest fees already saved on a schedule apply to the lodging price at checkout.</StayHelp>
     </div>
   );
 }
