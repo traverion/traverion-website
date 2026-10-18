@@ -1925,6 +1925,16 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
   }
 }
 
+@keyframes stay-stage-forward {
+  from { opacity: 0; transform: translateX(14px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes stay-stage-back {
+  from { opacity: 0; transform: translateX(-14px); }
+  to { opacity: 1; transform: none; }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .tv-rise {
     animation: tv-rise 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -1932,6 +1942,14 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
 
   .tv-step {
     animation: tv-step 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .stay-stage-forward {
+    animation: stay-stage-forward 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .stay-stage-back {
+    animation: stay-stage-back 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
   .tv-browse-card {

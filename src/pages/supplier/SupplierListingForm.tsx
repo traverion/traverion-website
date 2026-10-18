@@ -235,9 +235,11 @@ import {
 } from '../../lib/stay-accommodation';
 import { normalizeStayRestrictions, stayRestrictionLines } from '../../lib/stay-restrictions';
 import { normalizeStaySeasons, type StaySeasonWindow } from '../../lib/stay-season-quote';
-import { normalizeStayBedMix, type StayBedMix } from '../../lib/stay-beds';
+import { normalizeStayBedMix, staySleepCapacity, type StayBedMix } from '../../lib/stay-beds';
 import { normalizeStayGuestPolicy } from '../../lib/stay-guest-party';
 import { STAY_ARRIVAL_METHODS, stayArrivalMethodHint } from '../../lib/stay-arrival';
+import { STAY_ONBOARDING_STAGES, stayStageBlocker, stayStageForLegacyWizardStep } from '../../lib/stay-onboarding';
+import StayOnboardingFlow from '../../components/supplier/listing-creation/StayOnboardingFlow';
 import StayAmenityPicker from '../../components/supplier/listing-creation/StayAmenityPicker';
 import StayOptionsStep from '../../components/supplier/listing-creation/StayOptionsStep';
 import StayBedroomPhotos from '../../components/supplier/listing-creation/StayBedroomPhotos';
@@ -1550,6 +1552,19 @@ export default function SupplierListingForm({
     () => readWizardStepFromStorage(editingId, createFamily === 'stay') ?? 0
   );
   const [stayPhotoStage, setStayPhotoStage] = useState<0 | 1>(0);
+  const [stayStage, setStayStage] = useState(0);
+  const [stayStageDir, setStayStageDir] = useState<'forward' | 'back'>('forward');
+  const [stayStageAttempted, setStayStageAttempted] = useState(false);
+  const [stayLocationConfirmed, setStayLocationConfirmed] = useState(false);
+  const stayStageHydrated = useRef(false);
+  useEffect(() => {
+    if (!isStayForm || typeof window === 'undefined') return;
+    const key = `traverion-stay-onboarding-stage-v1-${editingId ?? 'create'}`;
+    const n = Number.parseInt(sessionStorage.getItem(key) ?? '', 10);
+    if (n >= 0 && n < STAY_ONBOARDING_STAGES.length) setStayStage(n);
+    setStayLocationConfirmed(sessionStorage.getItem(`${key}-pin`) === '1');
+    stayStageHydrated.current = true;
+  }, [isStayForm, editingId]);
   const formRef = useRef(form);
   formRef.current = form;
   const stepIdxRef = useRef(stepIdx);
@@ -2539,6 +2554,13 @@ export default function SupplierListingForm({
     (line: string) => {
       const t = line.toLowerCase();
       const step = publishBlockerListingWizardStep(line, isStayForm);
+      if (isStayForm) {
+        setStayStageDir('forward');
+        setStayStage(stayStageForLegacyWizardStep(step));
+        setStayStageAttempted(true);
+        setPublishBlockers(null);
+        return;
+      }
       setStepIdxPersisted(step);
       if (step === 0 && !isStayForm) {
         const scene = /subtitle|title|language/.test(t) ? 1 : /descri|highlight/.test(t) ? 2 : 0;
@@ -3716,6 +3738,55 @@ export default function SupplierListingForm({
     return null;
   })();
 
+  const stayOnboardingBlocker = isStayForm
+    ? stayStageBlocker(stayStage, {
+        city: form.city,
+        country: form.country,
+        hasPlace: Boolean(
+          verifiedDestination({
+            placeId: form.destinationPlaceId,
+            city: form.city,
+            country: form.country,
+            countryCode: form.destinationCountryCode,
+            lat: form.destinationLat,
+            lng: form.destinationLng,
+            formatted: form.destinationFormatted,
+          })
+        ),
+        street: form.stayAddressStreet,
+        postal: form.stayAddressPostal,
+        locationConfirmed: stayLocationConfirmed,
+        title: form.title,
+        propertyType: form.stayPropertyType,
+        areasWithBeds: (activeStayOptions(form.stayOptions)[0]?.sleepingAreas ?? []).filter((area) => area.beds.some((bed) => bed.count > 0)).length,
+        maxGuests: Number.parseInt(form.stayMaxGuests, 10) || null,
+        minNights: Number.parseInt(form.stayMinNights, 10) || null,
+        maxNights: activeStayOptions(form.stayOptions)[0]?.schedules[0]?.maxNights ?? null,
+        sleepCapacity: staySleepCapacity(activeStayOptions(form.stayOptions)[0]?.bedMix),
+        nightly: Number.parseFloat(form.stayNightly) || null,
+        checkIn: form.stayCheckIn,
+        checkOut: form.stayCheckOut,
+        arrivalMethod: form.stayArrivalMethod,
+        photoCount: orderedPhotoUrls(normalizePhotoSlots(form.photoSlots)).length,
+        address: form.stayCheckInAddress,
+        rulesChosen: stayRulesChosen(form),
+        descriptionLength: form.description.trim().length,
+        minDescription: MIN_LISTING_DESCRIPTION_LENGTH,
+        minTitle: MIN_LISTING_TITLE_LENGTH,
+      })
+    : null;
+
+  const onCreationLastStep = isStayForm ? stayStage >= STAY_ONBOARDING_STAGES.length - 1 : stepIdx >= steps.length - 1;
+
+  const rememberStayStage = (next: number, dir: 'forward' | 'back') => {
+    setStayStageDir(dir);
+    setStayStage(next);
+    setStayStageAttempted(false);
+    if (typeof window === 'undefined') return;
+    const key = `traverion-stay-onboarding-stage-v1-${editingId ?? 'create'}`;
+    sessionStorage.setItem(key, String(next));
+  };
+
   const creationTitle = editingId
     ? form.title.trim() || (form.inventoryFamily === 'stay' ? 'Stay' : 'Tour')
     : createFamily === 'stay'
@@ -3796,6 +3867,7 @@ export default function SupplierListingForm({
           contextNav={null}
           overlay={null}
           scrollRef={stepContainerRef}
+          focused={isStayForm}
           banners={
             <>
               {optionLockHint ? (
@@ -3870,6 +3942,10 @@ export default function SupplierListingForm({
                 <button
                   type="button"
                   onClick={() => {
+                    if (isStayForm) {
+                      rememberStayStage(Math.max(0, stayStage - 1), 'back');
+                      return;
+                    }
                     if (tourBasicsGuided && basicsSceneIdx > 0) {
                       setBasicsSceneIdxPersisted(previousTourBasicsScene(basicsSceneIdx), 'back');
                       return;
@@ -3884,7 +3960,9 @@ export default function SupplierListingForm({
                     setStepIdxPersisted((s) => Math.max(0, s - 1));
                   }}
                   disabled={
-                    (tourBasicsGuided
+                    (isStayForm
+                      ? stayStage === 0
+                      : tourBasicsGuided
                       ? basicsSceneIdx === 0
                       : tourInformationGuided
                         ? false
@@ -3896,7 +3974,7 @@ export default function SupplierListingForm({
                 >
                   Back
                 </button>
-                {stepIdx < steps.length - 1 ? (
+                {!onCreationLastStep ? (
                   <button
                     type="button"
                     onClick={() =>
@@ -3932,10 +4010,18 @@ export default function SupplierListingForm({
                 ) : null}
               </div>
               <div className="order-1 flex w-full min-w-0 sm:order-2 sm:w-auto">
-                {stepIdx < steps.length - 1 ? (
+                {!onCreationLastStep ? (
                   <button
                     type="button"
                     onClick={() => {
+                      if (isStayForm) {
+                        if (stayOnboardingBlocker) {
+                          setStayStageAttempted(true);
+                          return;
+                        }
+                        rememberStayStage(Math.min(STAY_ONBOARDING_STAGES.length - 1, stayStage + 1), 'forward');
+                        return;
+                      }
                       if (tourBasicsGuided && basicsSceneIdx < TOUR_BASICS_SCENE_COUNT - 1) {
                         setBasicsSceneIdxPersisted(nextTourBasicsScene(basicsSceneIdx), 'forward');
                         return;
@@ -3950,7 +4036,9 @@ export default function SupplierListingForm({
                       setStepIdxPersisted((s) => Math.min(steps.length - 1, s + 1));
                     }}
                     disabled={
-                      (tourBasicsGuided
+                      (isStayForm
+                        ? Boolean(stayOnboardingBlocker)
+                        : tourBasicsGuided
                         ? !canContinueBasicsScene
                         : tourInformationGuided
                           ? !canContinueInfoScene || !canContinueStep()
@@ -3995,10 +4083,13 @@ export default function SupplierListingForm({
                 )}
               </div>
             </div>
-            {stepIdx < steps.length - 1
+            {!onCreationLastStep
               ? (() => {
-                  const hint =
-                    form.inventoryFamily === 'stay' &&
+                  const hint = isStayForm
+                    ? stayStageAttempted
+                      ? stayOnboardingBlocker
+                      : null
+                    : form.inventoryFamily === 'stay' &&
                     form.stayAccommodationMode === 'multi' &&
                     !canContinueStep() &&
                     stepIdx === 4
@@ -4025,6 +4116,94 @@ export default function SupplierListingForm({
             </div>
           }
         >
+          {isStayForm ? (
+            <StayOnboardingFlow
+              stage={stayStage}
+              direction={stayStageDir}
+              attempted={stayStageAttempted}
+              blocker={stayOnboardingBlocker}
+              currency={listingCurrency}
+              userId={user?.id}
+              uploadsEnabled={isSupabaseConfigured() && !!user?.id}
+              locationConfirmed={stayLocationConfirmed}
+              onConfirmLocation={(confirmed) => {
+                setStayLocationConfirmed(confirmed);
+                const key = `traverion-stay-onboarding-stage-v1-${editingId ?? 'create'}`;
+                sessionStorage.setItem(`${key}-pin`, confirmed ? '1' : '0');
+              }}
+              selectedPlace={verifiedDestination({
+                placeId: form.destinationPlaceId,
+                city: form.city,
+                country: form.country,
+                countryCode: form.destinationCountryCode,
+                lat: form.destinationLat,
+                lng: form.destinationLng,
+                formatted: form.destinationFormatted,
+              })}
+              savedPlaceLabel={
+                verifiedDestination({
+                  placeId: form.destinationPlaceId,
+                  city: form.city,
+                  country: form.country,
+                  countryCode: form.destinationCountryCode,
+                  lat: form.destinationLat,
+                  lng: form.destinationLng,
+                  formatted: form.destinationFormatted,
+                })
+                  ? travelerDestinationLabel(form.city, form.country)
+                  : ''
+              }
+              legacyPlaceHint={
+                form.city.trim() && form.country.trim() && !form.destinationPlaceId
+                  ? `Previously saved as ${travelerDestinationLabel(form.city, form.country)}. Search and select it to confirm.`
+                  : undefined
+              }
+              onSelectPlace={(place) =>
+                setForm((current) => ({
+                  ...current,
+                  city: place.city,
+                  country: place.country,
+                  destinationPlaceId: place.placeId,
+                  destinationCountryCode: place.countryCode,
+                  destinationLat: place.lat,
+                  destinationLng: place.lng,
+                  destinationFormatted: place.formatted,
+                }))
+              }
+              onClearPlace={() =>
+                setForm((current) => ({
+                  ...current,
+                  city: '',
+                  country: '',
+                  destinationPlaceId: '',
+                  destinationCountryCode: '',
+                  destinationLat: null,
+                  destinationLng: null,
+                  destinationFormatted: '',
+                }))
+              }
+              values={form}
+              onChange={(patch) =>
+                setForm((current) => {
+                  const next = { ...current, ...patch };
+                  if (!patch.stayOptions) return next as ListingFormState;
+                  const projected = projectStayOptions(patch.stayOptions, next.stayPropertyType);
+                  return {
+                    ...next,
+                    ...projected,
+                    stayCheckIn: patch.stayCheckIn ?? (projected.stayCheckIn === null ? next.stayCheckIn : projected.stayCheckIn),
+                    stayCheckOut: patch.stayCheckOut ?? (projected.stayCheckOut === null ? next.stayCheckOut : projected.stayCheckOut),
+                  } as ListingFormState;
+                })
+              }
+              onEditStage={(stage) => rememberStayStage(stage, 'back')}
+              minTitle={MIN_LISTING_TITLE_LENGTH}
+              maxTitle={MAX_LISTING_TITLE_LENGTH}
+              minDescription={MIN_LISTING_DESCRIPTION_LENGTH}
+              maxDescription={MAX_LISTING_DESCRIPTION_LENGTH}
+              maxSubtitle={MAX_SUBTITLE_LENGTH}
+            />
+          ) : (
           <div
             key={stepIdx}
             className={`w-full ${
@@ -5298,6 +5477,7 @@ export default function SupplierListingForm({
             );
           })()}
           </div>
+          )}
         </ListingCreationWorkspace>
         {tourOptionGuided && optionModalDraft ? (
           <TourOptionWorkspace

@@ -24,6 +24,7 @@ export function ListingCreationWorkspace({
   scrollRef,
   footer,
   overlay,
+  focused,
   children,
 }: {
   title: string;
@@ -44,6 +45,8 @@ export function ListingCreationWorkspace({
   footer: ReactNode;
   /** Level-3 nested configuration surface. Covers the working column only. */
   overlay?: ReactNode;
+  /** Stay onboarding: one centered screen, no step rail. */
+  focused?: boolean;
   children: ReactNode;
 }) {
   const headerProps = {
@@ -63,10 +66,20 @@ export function ListingCreationWorkspace({
       <h2 id={titleId} className="sr-only">
         {title}
       </h2>
-      <ListingCreationRail {...headerProps} />
-      {contextNav ? <ListingCreationContextRail nav={contextNav} /> : null}
+      {focused ? null : <ListingCreationRail {...headerProps} />}
+      {!focused && contextNav ? <ListingCreationContextRail nav={contextNav} /> : null}
       <div className="listing-creation-main relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <ListingCreationMobileProgress {...headerProps} currentLabel={currentLabel} />
+        {focused ? (
+          <div className="flex items-center justify-between gap-3 border-b border-[#E5E7EB] px-4 py-2.5 pt-[max(0.6rem,env(safe-area-inset-top))] sm:px-6">
+            <button type="button" className="min-h-11 text-sm font-semibold text-ink" onClick={onExit} disabled={exitDisabled}>
+              {exitBusy ? 'Saving…' : 'Exit'}
+            </button>
+            <p className="truncate text-sm font-semibold text-ink">Traverion</p>
+            <p className={`min-w-16 text-right text-xs ${persistLabel === 'Save failed' ? 'text-red-700' : 'text-ink-muted'}`} aria-live="polite">{persistLabel ?? ''}</p>
+          </div>
+        ) : (
+          <ListingCreationMobileProgress {...headerProps} currentLabel={currentLabel} />
+        )}
         {banners}
         <div
           ref={scrollRef}
