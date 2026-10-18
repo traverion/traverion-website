@@ -3,7 +3,7 @@ import { STAY_ONBOARDING_SCREENS, quietHoursMentioned, stayScreenIndex } from '.
 import { stayAmenityDisplayList } from '../../../lib/stay-amenities';
 import { stayPropertyTypesForMode } from '../../../lib/stay-accommodation';
 import { STAY_ARRIVAL_METHODS, stayArrivalMethodHint, stayArrivalMethodLabel } from '../../../lib/stay-arrival';
-import { STAY_BED_KINDS, stayBedCount, stayMixFromAreas, staySleepCapacity, type StayBedKind, type StaySleepingArea } from '../../../lib/stay-beds';
+import { STAY_BED_KINDS, stayBedCount, stayBedSummary, stayMixFromAreas, staySleepCapacity, type StayBedKind, type StaySleepingArea } from '../../../lib/stay-beds';
 import { activeStayOptions, emptyStayOption, newStayOptionId, type StayAccommodationOption } from '../../../lib/stay-options';
 import { STAY_GUEST_CANCELLATION_POLICY } from '../../../types/listingExtras';
 import { googleMapsBrowserKey } from '../../../lib/places-client';
@@ -17,7 +17,7 @@ import { TraverionSingleDateField } from '../../calendar/TraverionSingleDateFiel
 import { localYmd } from '../../../lib/local-ymd';
 import { stayCutoffAmounts, stayCutoffFromMinutes, stayCutoffSummary, stayCutoffToMinutes, type StayCutoffUnit } from '../../../lib/stay-cutoff';
 import { formatBpsAsPercent, splitGrossByCommissionBps, toMinorUnits } from '../../../lib/commercial-money';
-import { normalizeCurrency } from '../../../lib/money';
+import { formatMoney, normalizeCurrency } from '../../../lib/money';
 import { fetchSupplierActiveCommercialTerms } from '../../../data/supabase-earnings';
 import { composeStayCheckInAddress, stayAddressKey, stayPinMatchesAddress } from '../../../lib/stay-address';
 import StayAddressSearch from './StayAddressSearch';
@@ -952,37 +952,111 @@ function Choice({ label, value, options, onChange }: { label: string; value: str
   );
 }
 
+function PreviewEdit({ label, onClick }: { label: string; onClick: () => void }) {
+  return <button type="button" className="min-h-11 shrink-0 text-sm font-semibold text-finland" onClick={onClick}>{label}</button>;
+}
+
 function PreviewStage({ values, currency, onEditStage, option }: Props & { option: StayAccommodationOption }) {
-  const propertyType = option.propertyType || values.stayPropertyType || 'Apartment';
-  const rows: { label: string; text: string; stage: number }[] = [
-    { label: 'Location', text: [values.city, values.country].filter(Boolean).join(', ') || 'Not set', stage: stayScreenIndex('location') },
-    { label: 'Property', text: `${propertyType === 'Room' ? 'Private room' : propertyType} · ${values.title || 'Untitled'}`, stage: stayScreenIndex('property-type') },
-    { label: 'Sleeping', text: `${values.stayBedrooms || option.bedrooms || 0} bedrooms · sleeps up to ${staySleepCapacity(option.bedMix) || '—'}`, stage: stayScreenIndex('rooms') },
-    { label: 'Price', text: values.stayNightly ? `${values.stayNightly} ${currency} per night` : 'Not set', stage: stayScreenIndex('price') },
-    { label: 'Arrival', text: stayArrivalMethodLabel(values.stayArrivalMethod) || 'Not set', stage: stayScreenIndex('arrival-method') },
-  ];
+  const [viewport, setViewport] = useState<'desktop' | 'mobile'>('desktop');
+  const propertyType = option.propertyType || values.stayPropertyType || 'Stay';
+  const photos = values.photoSlots.filter((url) => url.startsWith('http'));
+  const cover = photos[0];
+  const amenities = stayAmenityDisplayList(values.stayAmenities.split(',').map((item) => item.trim()));
+  const highlights = values.highlights.map((line) => line.trim()).filter(Boolean);
+  const nightly = Number.parseFloat(values.stayNightly);
+  const sleeps = staySleepCapacity(option.bedMix);
+  const beds = stayBedSummary(option.bedMix);
+  const guests = Number.parseInt(values.stayMaxGuests, 10);
+  const rules = [
+    values.stayPets ? `Pets: ${values.stayPets}` : '',
+    values.staySmoking ? `Smoking: ${values.staySmoking}` : '',
+    values.stayParties ? `Parties: ${values.stayParties}` : '',
+    values.stayChildren ? `Children: ${values.stayChildren}` : '',
+    values.stayQuietStart && values.stayQuietEnd ? `Quiet hours ${values.stayQuietStart}–${values.stayQuietEnd}` : '',
+    values.stayHouseRules.trim(),
+  ].filter(Boolean);
   return (
-    <div className="space-y-3">
-      {rows.map((row) => (
-        <div key={row.label} className="flex items-start justify-between gap-3 rounded-xl px-3 py-3 ring-1 ring-[#E6EAF0]">
-          <div>
-            <p className="text-xs text-ink-muted">{row.label}</p>
-            <p className="text-sm font-medium text-ink">{row.text}</p>
+    <div className="space-y-4">
+      <div className="flex gap-2" role="group" aria-label="Preview size">
+        {(['desktop', 'mobile'] as const).map((size) => (
+          <button key={size} type="button" aria-pressed={viewport === size} className={`min-h-11 rounded-full px-3 text-sm font-semibold capitalize ${viewport === size ? 'bg-[#F4F8FC] text-[#0B397E] ring-2 ring-[#0B397E]' : 'ring-1 ring-[#E6EAF0]'}`} onClick={() => setViewport(size)}>{size}</button>
+        ))}
+      </div>
+      <article className={`space-y-4 ${viewport === 'mobile' ? 'mx-auto max-w-sm' : ''}`}>
+        {cover ? <img src={cover} alt="" className="aspect-[16/10] w-full rounded-2xl object-cover" /> : <div className="flex aspect-[16/10] items-center justify-center rounded-2xl bg-[#F4F6F8] text-sm text-ink-muted">Add a cover photo</div>}
+        {photos.length > 1 ? (
+          <div className="flex gap-2 overflow-x-auto">
+            {photos.slice(1, 6).map((url) => <img key={url} src={url} alt="" className="h-16 w-24 shrink-0 rounded-lg object-cover" />)}
           </div>
-          <button type="button" className="min-h-11 text-sm font-semibold text-finland" onClick={() => onEditStage(row.stage)}>Edit</button>
+        ) : null}
+        <header className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{propertyType === 'Room' ? 'Private room' : propertyType}</p>
+            <h4 className="font-display text-2xl font-semibold text-ink">{values.title || 'Untitled stay'}</h4>
+            <p className="text-sm text-ink-muted">{[values.city, values.country].filter(Boolean).join(', ') || 'Location not set'}</p>
+          </div>
+          <PreviewEdit label="Edit" onClick={() => onEditStage(stayScreenIndex('property-name'))} />
+        </header>
+        {Number.isFinite(nightly) && nightly > 0 ? <p className="text-lg font-semibold tabular-nums text-ink">{formatMoney(nightly, currency)} <span className="text-sm font-medium text-ink-muted">per night</span></p> : null}
+        <div className="tv-card flex items-start justify-between gap-3 p-4">
+          <ul className="space-y-1 text-sm text-ink-muted">
+            {Number.isFinite(guests) && guests > 0 ? <li>Up to {guests} guests</li> : null}
+            <li>{values.stayBedrooms || option.bedrooms || 0} bedrooms{beds ? ` · ${beds}` : ''}</li>
+            {sleeps > 0 ? <li>Sleeps up to {sleeps}</li> : null}
+          </ul>
+          <PreviewEdit label="Edit" onClick={() => onEditStage(stayScreenIndex('rooms'))} />
         </div>
-      ))}
-      <StayExampleQuote
-        currency={currency}
-        nightly={Number.parseFloat(values.stayNightly) || 0}
-        cleaningFee={Number.parseFloat(values.stayCleaningFee) || 0}
-        minNights={Number.parseInt(values.stayMinNights, 10) || 1}
-        maxGuests={Number.parseInt(values.stayMaxGuests, 10) || null}
-        guestPolicy={option.guestPolicy}
-        availabilityMode={values.stayAvailabilityMode}
-        seasons={option.schedules}
-      />
-      <p className="text-xs text-ink-muted">The example uses the same pricing rules as checkout. It is not a booking.</p>
+        {values.description.trim() ? (
+          <div className="tv-card flex items-start justify-between gap-3 p-4">
+            <p className="whitespace-pre-wrap text-sm text-ink-muted">{values.description}</p>
+            <PreviewEdit label="Edit" onClick={() => onEditStage(stayScreenIndex('description'))} />
+          </div>
+        ) : null}
+        {highlights.length > 0 ? (
+          <div className="flex items-start justify-between gap-3">
+            <ul className="flex flex-wrap gap-2">{highlights.map((line) => <li key={line} className="rounded-full bg-paper-raised px-3 py-1 text-sm text-ink ring-1 ring-black/[0.06]">{line}</li>)}</ul>
+            <PreviewEdit label="Edit" onClick={() => onEditStage(stayScreenIndex('highlights'))} />
+          </div>
+        ) : null}
+        {amenities.length > 0 ? (
+          <div className="flex items-start justify-between gap-3">
+            <ul className="flex flex-wrap gap-2">{amenities.map((item) => <li key={item} className="rounded-full bg-paper-raised px-3 py-1 text-sm text-ink ring-1 ring-black/[0.05]">{item}</li>)}</ul>
+            <PreviewEdit label="Edit" onClick={() => onEditStage(stayScreenIndex('amenities'))} />
+          </div>
+        ) : null}
+        <div className="tv-card flex items-start justify-between gap-3 p-4 text-sm text-ink">
+          <p>{stayArrivalMethodLabel(values.stayArrivalMethod) || 'Arrival method not set'}{values.stayArrivalNote.trim() ? ` · ${values.stayArrivalNote.trim()}` : ''}</p>
+          <PreviewEdit label="Edit" onClick={() => onEditStage(stayScreenIndex('arrival-method'))} />
+        </div>
+        {rules.length > 0 ? (
+          <div className="tv-card flex items-start justify-between gap-3 p-4">
+            <ul className="space-y-1 text-sm text-ink-muted">{rules.map((rule) => <li key={rule}>{rule}</li>)}</ul>
+            <PreviewEdit label="Edit" onClick={() => onEditStage(stayScreenIndex('house-rules'))} />
+          </div>
+        ) : null}
+        {values.stayExteriorCamera || values.staySafetyNote.trim() ? (
+          <div className="tv-card flex items-start justify-between gap-3 p-4 text-sm text-ink">
+            <p>{values.stayExteriorCamera ? `Exterior security camera${values.staySafetyNote.trim() ? `: ${values.staySafetyNote.trim()}` : ''}` : values.staySafetyNote.trim()}</p>
+            <PreviewEdit label="Edit" onClick={() => onEditStage(stayScreenIndex('safety'))} />
+          </div>
+        ) : null}
+      </article>
+      <details className="rounded-xl ring-1 ring-[#E6EAF0]">
+        <summary className="min-h-11 cursor-pointer px-3 py-3 text-sm font-semibold text-ink">Example quote</summary>
+        <div className="px-3 pb-3">
+          <StayExampleQuote
+            currency={currency}
+            nightly={Number.parseFloat(values.stayNightly) || 0}
+            cleaningFee={Number.parseFloat(values.stayCleaningFee) || 0}
+            minNights={Number.parseInt(values.stayMinNights, 10) || 1}
+            maxGuests={Number.parseInt(values.stayMaxGuests, 10) || null}
+            guestPolicy={option.guestPolicy}
+            availabilityMode={values.stayAvailabilityMode}
+            seasons={option.schedules}
+          />
+          <p className="mt-2 text-xs text-ink-muted">The example uses the same pricing rules as checkout. It does not create a reservation. The street address stays private.</p>
+        </div>
+      </details>
     </div>
   );
 }
