@@ -123,11 +123,15 @@ export async function resolvePlace(placeId: string): Promise<ResolvedPlace | nul
 const DESTINATION_TYPES = ['locality', 'postal_town', 'administrative_area_level_3', 'colloquial_area'];
 
 /** Cities, towns, municipalities, and destination areas. Not hotels or street addresses. */
-export async function autocompleteDestinations(input: string): Promise<PlaceSuggestion[]> {
+export async function autocompleteDestinations(
+  input: string,
+  signal?: AbortSignal
+): Promise<PlaceSuggestion[]> {
   const query = input.trim();
   if (!placesSearchConfigured() || query.length < 2) return [];
   const res = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
     method: 'POST',
+    signal,
     headers: {
       'Content-Type': 'application/json',
       'X-Goog-Api-Key': googleMapsBrowserKey(),
@@ -173,12 +177,16 @@ export type ResolvedDestination = {
 };
 
 /** Place details for a destination. Returns null when the place has no country or coordinates. */
-export async function resolveDestination(placeId: string): Promise<ResolvedDestination | null> {
+export async function resolveDestination(
+  placeId: string,
+  signal?: AbortSignal
+): Promise<ResolvedDestination | null> {
   const id = placeId.trim();
   if (!placesSearchConfigured() || !id) return null;
   const res = await fetch(
     `https://places.googleapis.com/v1/places/${encodeURIComponent(id)}?languageCode=en`,
     {
+      signal,
       headers: {
         'X-Goog-Api-Key': googleMapsBrowserKey(),
         'X-Goog-FieldMask': 'id,displayName,location,addressComponents',

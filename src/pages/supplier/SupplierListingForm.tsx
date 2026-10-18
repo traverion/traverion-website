@@ -221,8 +221,7 @@ import {
 } from '../../lib/booking-confirmation-copy';
 import { DEFAULT_CURRENCY, formatMoney, normalizeCurrency } from '../../lib/money';
 import { formatStayAmenityLabel, STAY_AMENITY_GROUPS, STAY_AMENITY_PRESETS } from '../../lib/stay-amenities';
-import DestinationSearch from '../../components/supplier/DestinationSearch';
-import { placesSearchConfigured } from '../../lib/places-client';
+import TraverionLocationSelector from '../../components/supplier/TraverionLocationSelector';
 import { publicStayListingUrl, publicTourListingUrl } from '../../lib/publicSiteUrl';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import NoticeCallout from '../../components/NoticeCallout';
@@ -939,6 +938,8 @@ type ListingFormState = {
   stayAmenities: string;
   stayHouseRules: string;
   stayCheckInAddress: string;
+  /** Guest-facing place label. Never written into the geographical destination. */
+  stayLocationDisplayName: string;
   /** Parts of the private arrival address. Composed into stayCheckInAddress on edit. */
   stayAddressStreet: string;
   stayAddressPostal: string;
@@ -946,18 +947,28 @@ type ListingFormState = {
   stayCleaningFee: string;
 };
 
-function composeStayCheckInAddress(street: string, postal: string, notes: string): string {
-  return [street, postal, notes]
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .join('\n')
-    .slice(0, 400);
+function stayLocationDisplayNameFromListing(
+  stored: string | undefined,
+  destination: string,
+  city: string,
+  country: string
+): string {
+  const named = stored?.trim() ?? '';
+  if (named) return named.slice(0, 80);
+  const geo = travelerDestinationLabel(city, country);
+  const legacy = destination.trim();
+  if (legacy && legacy !== geo && legacy !== 'Various locations') return legacy.slice(0, 80);
+  return '';
 }
 
-/** Stored listing destination label: optional custom text, or derived from city/country, or “Various locations”. */
+/** Stored listing destination label. Stays always keep the geographical place, never the display name. */
 function resolveListingDestinationLabel(
-  form: Pick<ListingFormState, 'destination' | 'city' | 'country'>
+  form: Pick<ListingFormState, 'destination' | 'city' | 'country' | 'inventoryFamily'>
 ): string {
+  if (form.inventoryFamily === 'stay') {
+    const geo = travelerDestinationLabel(form.city, form.country);
+    return geo || 'Various locations';
+  }
   const custom = form.destination.trim();
   if (custom) return custom;
   const city = form.city.trim();
@@ -1116,6 +1127,7 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
             checkInTime: form.stayCheckIn.trim() || undefined,
             checkOutTime: form.stayCheckOut.trim() || undefined,
             houseRules: form.stayHouseRules.trim() || undefined,
+            locationDisplayName: form.stayLocationDisplayName.trim().slice(0, 80) || undefined,
             checkInAddress: form.stayCheckInAddress.trim() || undefined,
             nightlyPriceUsd: Number.isFinite(stayNightly) && stayNightly > 0 ? stayNightly : undefined,
             minNights: Number.isFinite(stayMinNights) && stayMinNights >= 1 ? stayMinNights : 1,
@@ -1236,9 +1248,15 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
   if (idx === 1) {
     if (isStay) {
       return (
-        form.city.trim().length > 0 &&
-        form.country.trim().length > 0 &&
-        form.stayCheckInAddress.trim().length > 0
+        verifiedDestination({
+          placeId: form.destinationPlaceId,
+          city: form.city,
+          country: form.country,
+          countryCode: form.destinationCountryCode,
+          lat: form.destinationLat,
+          lng: form.destinationLng,
+          formatted: form.destinationFormatted,
+        }) != null
       );
     }
     const incLines = form.includes.map((s) => s.trim()).filter(Boolean);
@@ -1359,6 +1377,7 @@ const emptyForm: ListingFormState = {
   stayAmenities: '',
   stayHouseRules: '',
   stayCheckInAddress: '',
+  stayLocationDisplayName: '',
   stayAddressStreet: '',
   stayAddressPostal: '',
   stayAddressNotes: '',
@@ -1726,12 +1745,7 @@ export default function SupplierListingForm({
           label: 'Location',
           summary: reviewStayLocationSummary(form.city, form.country),
           ready: isStepSatisfied(1, form),
-          missing:
-            !form.city.trim() || !form.country.trim()
-              ? 'Add city and country.'
-              : !form.stayCheckInAddress.trim()
-                ? 'Add the check-in address for booked guests.'
-                : null,
+          missing: !isStepSatisfied(1, form) ? 'Choose a location from search.' : null,
         },
         {
           step: 2,
@@ -2079,6 +2093,12 @@ export default function SupplierListingForm({
           stayAmenities: (extras.stay?.amenities ?? []).join(', '),
           stayHouseRules: extras.stay?.houseRules ?? '',
           stayCheckInAddress: extras.stay?.checkInAddress ?? '',
+          stayLocationDisplayName: stayLocationDisplayNameFromListing(
+            extras.stay?.locationDisplayName,
+            existing.destination,
+            existing.city ?? '',
+            existing.country ?? ''
+          ),
           stayAddressStreet: extras.stay?.checkInAddress ?? '',
           stayAddressPostal: '',
           stayAddressNotes: '',
@@ -4346,176 +4366,93 @@ export default function SupplierListingForm({
           )}
 
           {stepIdx === 1 && form.inventoryFamily === 'stay' && (
-            <div className="space-y-8">
-              <section className="space-y-4" aria-labelledby="listing-details-place">
-                <h4 id="listing-details-place" className="text-sm font-semibold text-[#111827]">
-                  Destination
-                </h4>
-                {placesSearchConfigured() ? (
-                  <DestinationSearch
-                    id="supplier-listing-stay-destination"
-                    selected={verifiedDestination({
-                      placeId: form.destinationPlaceId,
-                      city: form.city,
-                      country: form.country,
-                      countryCode: form.destinationCountryCode,
-                      lat: form.destinationLat,
-                      lng: form.destinationLng,
-                      formatted: form.destinationFormatted,
-                    })}
-                    savedLabel={travelerDestinationLabel(form.city, form.country)}
-                    onSelect={(place) =>
-                      setForm((f) => ({
-                        ...f,
-                        city: place.city,
-                        country: place.country,
-                        destinationPlaceId: place.placeId,
-                        destinationCountryCode: place.countryCode,
-                        destinationLat: place.lat,
-                        destinationLng: place.lng,
-                        destinationFormatted: place.formatted,
-                      }))
-                    }
-                  />
-                ) : null}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2" id="supplier-listing-field-location">
-                  <div>
-                    <label className="mb-1 block text-sm font-semibold text-ink">City *</label>
-                    <input
-                      type="text"
-                      value={form.city}
-                      onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
-                      className="tv-input"
-                      placeholder="e.g. Rovaniemi"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-semibold text-ink">Country *</label>
-                    <input
-                      type="text"
-                      value={form.country}
-                      onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))}
-                      className="tv-input"
-                      placeholder="Country of the property"
-                      required
-                    />
-                  </div>
-                </div>
-                <div id="supplier-listing-field-destination" className="space-y-2">
-                  <label className="block text-sm font-semibold text-ink">How it shows as a place (optional)</label>
-                  <input
-                    type="text"
-                    value={form.destination}
-                    onChange={(e) => setForm((f) => ({ ...f, destination: e.target.value }))}
-                    className="tv-input"
-                    placeholder="e.g. riverside neighbourhood — or leave blank"
-                  />
-                  <p className="text-xs text-ink-muted">
-                    If you skip this, we use city and country from above.
-                  </p>
-                </div>
-                {form.destinationLat != null && form.destinationLng != null ? (
-                  <p className="text-xs text-ink-muted">
-                    Location pin saved for {travelerDestinationLabel(form.city, form.country) || 'this place'}.
-                  </p>
-                ) : (
-                  <p className="text-xs text-ink-muted">
-                    Guests see the city and country. A map pin is saved when you choose a place from search.
-                  </p>
-                )}
-              </section>
-              <section className="space-y-4 border-t border-[#E6EAF0] pt-6" aria-labelledby="stay-address-heading">
-                <div>
-                  <h4 id="stay-address-heading" className="text-sm font-semibold text-[#111827]">
-                    Property address
-                  </h4>
-                  <p className="mt-1 text-xs leading-relaxed text-ink-muted">
-                    Booked guests see this in Trips. It is not shown on the public listing.
-                  </p>
-                </div>
-                <div id="supplier-listing-field-stay-check-in-address" className="space-y-4">
-                  <div>
-                    <label className="mb-1 block text-sm font-semibold text-ink" htmlFor="stay-address-street">
-                      Street address *
-                    </label>
-                    <textarea
-                      id="stay-address-street"
-                      value={form.stayAddressStreet}
-                      onChange={(e) =>
-                        setForm((f) => {
-                          const stayAddressStreet = e.target.value;
-                          return {
-                            ...f,
-                            stayAddressStreet,
-                            stayCheckInAddress: composeStayCheckInAddress(
-                              stayAddressStreet,
-                              f.stayAddressPostal,
-                              f.stayAddressNotes
-                            ),
-                          };
-                        })
-                      }
-                      className="tv-input min-h-[4.5rem] resize-y"
-                      placeholder="Street and building"
-                      maxLength={400}
-                      required
-                    />
-                  </div>
-                  <div className="max-w-xs">
-                    <label className="mb-1 block text-sm font-semibold text-ink" htmlFor="stay-address-postal">
-                      Postal code
-                    </label>
-                    <input
-                      id="stay-address-postal"
-                      value={form.stayAddressPostal}
-                      onChange={(e) =>
-                        setForm((f) => {
-                          const stayAddressPostal = e.target.value;
-                          return {
-                            ...f,
-                            stayAddressPostal,
-                            stayCheckInAddress: composeStayCheckInAddress(
-                              f.stayAddressStreet,
-                              stayAddressPostal,
-                              f.stayAddressNotes
-                            ),
-                          };
-                        })
-                      }
-                      className="tv-input"
-                      placeholder="96200"
-                      maxLength={20}
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-semibold text-ink" htmlFor="stay-address-notes">
-                      Arrival notes
-                    </label>
-                    <textarea
-                      id="stay-address-notes"
-                      value={form.stayAddressNotes}
-                      onChange={(e) =>
-                        setForm((f) => {
-                          const stayAddressNotes = e.target.value;
-                          return {
-                            ...f,
-                            stayAddressNotes,
-                            stayCheckInAddress: composeStayCheckInAddress(
-                              f.stayAddressStreet,
-                              f.stayAddressPostal,
-                              stayAddressNotes
-                            ),
-                          };
-                        })
-                      }
-                      className="tv-input min-h-[4.5rem] resize-y"
-                      placeholder="Apartment, entrance, or entry code"
-                      maxLength={400}
-                    />
-                  </div>
-                </div>
-              </section>
+            <div className="mx-auto max-w-xl space-y-6">
+              <div>
+                <h3 className="text-lg font-bold text-ink">Location</h3>
+                <p className="mt-1 text-sm text-ink-muted">Where is your property located?</p>
+              </div>
+              <TraverionLocationSelector
+                id="supplier-listing-stay-destination"
+                selected={verifiedDestination({
+                  placeId: form.destinationPlaceId,
+                  city: form.city,
+                  country: form.country,
+                  countryCode: form.destinationCountryCode,
+                  lat: form.destinationLat,
+                  lng: form.destinationLng,
+                  formatted: form.destinationFormatted,
+                })}
+                savedLabel={
+                  verifiedDestination({
+                    placeId: form.destinationPlaceId,
+                    city: form.city,
+                    country: form.country,
+                    countryCode: form.destinationCountryCode,
+                    lat: form.destinationLat,
+                    lng: form.destinationLng,
+                    formatted: form.destinationFormatted,
+                  })
+                    ? travelerDestinationLabel(form.city, form.country)
+                    : ''
+                }
+                legacyHint={
+                  form.city.trim() &&
+                  form.country.trim() &&
+                  !verifiedDestination({
+                    placeId: form.destinationPlaceId,
+                    city: form.city,
+                    country: form.country,
+                    countryCode: form.destinationCountryCode,
+                    lat: form.destinationLat,
+                    lng: form.destinationLng,
+                    formatted: form.destinationFormatted,
+                  })
+                    ? `Previously saved as ${travelerDestinationLabel(form.city, form.country)}. Search and select it to confirm.`
+                    : undefined
+                }
+                onSelect={(place) =>
+                  setForm((f) => ({
+                    ...f,
+                    city: place.city,
+                    country: place.country,
+                    destinationPlaceId: place.placeId,
+                    destinationCountryCode: place.countryCode,
+                    destinationLat: place.lat,
+                    destinationLng: place.lng,
+                    destinationFormatted: place.formatted,
+                  }))
+                }
+                onClear={() =>
+                  setForm((f) => ({
+                    ...f,
+                    city: '',
+                    country: '',
+                    destinationPlaceId: '',
+                    destinationCountryCode: '',
+                    destinationLat: null,
+                    destinationLng: null,
+                    destinationFormatted: '',
+                  }))
+                }
+              />
+              <div>
+                <label htmlFor="stay-location-display-name" className="mb-1 block text-sm font-semibold text-ink">
+                  Display name (optional)
+                </label>
+                <input
+                  id="stay-location-display-name"
+                  type="text"
+                  value={form.stayLocationDisplayName}
+                  onChange={(e) => setForm((f) => ({ ...f, stayLocationDisplayName: e.target.value.slice(0, 80) }))}
+                  className="tv-input"
+                  placeholder="e.g. Aurora Villa"
+                  maxLength={80}
+                />
+                <p className="mt-1.5 text-xs leading-relaxed text-ink-muted">
+                  Give this location a recognizable name, such as Aurora Villa or Arctic Retreat. Leave blank to use
+                  the selected location.
+                </p>
+              </div>
             </div>
           )}
 

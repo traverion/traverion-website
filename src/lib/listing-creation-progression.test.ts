@@ -98,7 +98,7 @@ describe('missing-requirement copy', () => {
 
   it('uses stay copy for stay steps', () => {
     expect(listingCreationStepRequirement(0, true)).toContain('title and subtitle');
-    expect(listingCreationStepRequirement(1, true)).toContain('check-in address');
+    expect(listingCreationStepRequirement(1, true)).toContain('location from search');
     expect(listingCreationStepRequirement(2, true)).toContain('guests');
     expect(listingCreationStepRequirement(3, true)).toContain('description');
     expect(listingCreationStepRequirement(5, true)).toContain('nightly rate');

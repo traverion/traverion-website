@@ -348,6 +348,11 @@ export type StayDetails = {
   checkOutTime?: string;
   houseRules?: string;
   /**
+   * Optional guest-facing label (for example "Aurora Villa").
+   * Does not replace city, country, place id, or coordinates.
+   */
+  locationDisplayName?: string;
+  /**
    * Exact arrival address for booked guests (street / building / entry notes).
    * Stored in listing_stay_private (owner/service only) — never in public listing_extras.
    * Frozen onto purchase_snapshot at checkout; shown in Trips. City/country for discovery.
@@ -373,6 +378,9 @@ function normalizeStayDetails(raw: unknown): StayDetails | undefined {
   if (typeof o.checkInTime === 'string' && o.checkInTime.trim()) out.checkInTime = o.checkInTime.trim().slice(0, 5);
   if (typeof o.checkOutTime === 'string' && o.checkOutTime.trim()) out.checkOutTime = o.checkOutTime.trim().slice(0, 5);
   if (typeof o.houseRules === 'string' && o.houseRules.trim()) out.houseRules = o.houseRules.trim().slice(0, 2000);
+  if (typeof o.locationDisplayName === 'string' && o.locationDisplayName.trim()) {
+    out.locationDisplayName = o.locationDisplayName.trim().slice(0, 80);
+  }
   if (typeof o.checkInAddress === 'string' && o.checkInAddress.trim()) {
     out.checkInAddress = o.checkInAddress.trim().slice(0, 400);
   }

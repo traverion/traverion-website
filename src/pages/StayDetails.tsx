@@ -906,7 +906,11 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
             ) : null}
             <p className="text-ink-muted flex items-center gap-2 text-sm m-0">
               <MapPin className="w-4 h-4 text-finland" aria-hidden />
-              {[stay.city, stay.country].filter(Boolean).join(', ') || stay.destination}
+              {s?.locationDisplayName?.trim() ? (
+                <span className="font-semibold text-ink">{s.locationDisplayName.trim()}</span>
+              ) : null}
+              {s?.locationDisplayName?.trim() ? <span aria-hidden>·</span> : null}
+              <span>{[stay.city, stay.country].filter(Boolean).join(', ') || stay.destination}</span>
             </p>
           </div>
           <h1 className="font-display text-3xl sm:text-4xl lg:text-[2.75rem] text-ink tracking-tight mb-4 break-words [overflow-wrap:anywhere] leading-[1.15]">

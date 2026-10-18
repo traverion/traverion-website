@@ -182,6 +182,17 @@ export function TourBasicsGuidedScenes({
                   destinationFormatted: place.formatted,
                 })
               }
+              onClear={() =>
+                onChange({
+                  city: '',
+                  country: '',
+                  destinationPlaceId: '',
+                  destinationCountryCode: '',
+                  destinationLat: null,
+                  destinationLng: null,
+                  destinationFormatted: '',
+                })
+              }
             />
           </div>
         </div>
