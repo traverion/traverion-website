@@ -80,19 +80,22 @@ export default function StayBedroomPhotos({ options, galleryUrls, userId, upload
         const urls = urlsFor(option, area.id);
         const unused = galleryUrls.filter((url) => !urls.includes(url));
         return (
-          <section key={`${option.id}-${area.id}`} className="rounded-xl bg-white p-4 ring-1 ring-[#E6EAF0]">
-            <h4 className="text-sm font-semibold text-ink">{area.name || 'Sleeping area'}</h4>
-            <p className="mt-1 text-[12.5px] text-ink-muted">{bedLine(area) || 'Beds not set'}{option.name.trim() ? ` · ${option.name.trim()}` : ''}</p>
+          <section key={`${option.id}-${area.id}`} className="stay-panel space-y-3">
+            <div>
+              <h4 className="text-sm font-semibold text-ink">{area.name || 'Sleeping area'}</h4>
+              <p className="stay-help mt-1">{bedLine(area) || 'Beds not set'}{option.name.trim() ? ` · ${option.name.trim()}` : ''}</p>
+            </div>
             {urls.length > 0 ? (
-              <ul className="mt-3 flex gap-2 overflow-x-auto">
+              <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {urls.map((url, index) => (
-                  <li key={url} className="w-24 shrink-0">
-                    <img src={url} alt="" className="h-20 w-24 rounded-lg object-cover" />
-                    <div className="mt-1 flex justify-between text-[12px]">
+                  <li key={url} className="space-y-1">
+                    <img src={url} alt="" className="aspect-[4/3] w-full rounded-lg object-cover" />
+                    <div className="flex items-center justify-between gap-1">
                       <button
                         type="button"
-                        className="min-h-11 text-ink-muted"
+                        className="min-h-11 text-xs font-semibold text-ink-muted disabled:opacity-30"
                         disabled={index === 0}
+                        aria-label={`Move ${area.name || 'room'} photo ${index + 1} earlier`}
                         onClick={() => {
                           const next = [...urls];
                           const [item] = next.splice(index, 1);
@@ -103,44 +106,49 @@ export default function StayBedroomPhotos({ options, galleryUrls, userId, upload
                       >
                         Earlier
                       </button>
-                      <button type="button" className="min-h-11 text-ink-muted" onClick={() => write(option.id, area.id, urls.filter((item) => item !== url))}>Remove</button>
+                      <span className="text-xs tabular-nums text-ink-muted">{index + 1}</span>
+                      <button type="button" className="min-h-11 text-xs font-semibold text-ink-muted" onClick={() => write(option.id, area.id, urls.filter((item) => item !== url))}>Remove</button>
                     </div>
                   </li>
                 ))}
               </ul>
-            ) : null}
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-              {unused.length > 0 ? (
-                <select
-                  className="tv-input min-w-0 flex-1 font-normal"
-                  value=""
-                  aria-label={`Use a main photo for ${area.name}`}
-                  onChange={(e) => {
-                    if (!e.target.value) return;
-                    write(option.id, area.id, [...urls, e.target.value].slice(0, 8));
-                  }}
-                >
-                  <option value="">Use a main photo</option>
+            ) : (
+              <p className="stay-help">No photos assigned. Guests only see this room when it has one.</p>
+            )}
+            {unused.length > 0 ? (
+              <div>
+                <p className="stay-kicker">Property photos</p>
+                <ul className="mt-2 flex gap-2 overflow-x-auto">
                   {unused.map((url, index) => (
-                    <option key={url} value={url}>Main photo {index + 1}</option>
+                    <li key={url}>
+                      <button
+                        type="button"
+                        className="block overflow-hidden rounded-lg ring-1 ring-[#E6EAF0] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#073b83]"
+                        aria-label={`Assign property photo ${index + 1} to ${area.name || 'this room'}`}
+                        disabled={urls.length >= 8}
+                        onClick={() => write(option.id, area.id, [...urls, url].slice(0, 8))}
+                      >
+                        <img src={url} alt="" className="h-16 w-24 object-cover" />
+                      </button>
+                    </li>
                   ))}
-                </select>
-              ) : null}
-              <label className="tv-btn-secondary inline-flex min-h-11 cursor-pointer items-center justify-center px-3 text-sm">
-                {busyId === area.id ? 'Uploading…' : 'Upload'}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="sr-only"
-                  disabled={!uploadsEnabled || busyId != null}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    e.target.value = '';
-                    void upload(option.id, area.id, file, urls);
-                  }}
-                />
-              </label>
-            </div>
+                </ul>
+              </div>
+            ) : null}
+            <label className="tv-btn-secondary inline-flex min-h-11 cursor-pointer items-center justify-center px-3 text-sm">
+              {busyId === area.id ? 'Uploading…' : 'Upload for this room'}
+              <input
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                disabled={!uploadsEnabled || busyId != null}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = '';
+                  void upload(option.id, area.id, file, urls);
+                }}
+              />
+            </label>
           </section>
         );
       })}
