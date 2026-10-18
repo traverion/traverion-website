@@ -39,7 +39,7 @@ export const STAY_AMENITY_GROUPS: { label: string; items: readonly (typeof STAY_
   { label: 'Comfort', items: ['TV', 'Washer', 'Dryer', 'Hair dryer', 'Workspace', 'Fireplace'] },
   { label: 'Wellness', items: ['Sauna', 'Hot tub', 'Bathtub', 'Pool'] },
   { label: 'Outdoor', items: ['Terrace', 'Balcony', 'Garden', 'Outdoor furniture', 'Barbecue'] },
-  { label: 'Parking and arrival', items: ['Free parking', 'Paid parking', 'EV charging', 'Self check-in', 'Elevator'] },
+  { label: 'Parking and arrival', items: ['Free parking', 'Paid parking', 'EV charging', 'Self check-in'] },
   { label: 'Family', items: ['Crib', 'High chair'] },
   { label: 'Accessibility', items: ['Step-free entrance', 'Wheelchair-accessible bathroom', 'Elevator'] },
 ];

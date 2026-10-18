@@ -18,6 +18,7 @@ import {
   type StaySeasonWindow,
 } from '../lib/stay-season-quote';
 import { normalizeStayBedMix, type StayBedMix } from '../lib/stay-beds';
+import { normalizeStayOptions, type StayAccommodationOption } from '../lib/stay-options';
 
 /** Legacy preset values still parsed from stored `listing_extras` JSON. */
 export type CancellationPreset = 'free_24h' | 'free_48h' | 'free_7d' | 'non_refundable' | 'custom';
@@ -377,6 +378,12 @@ export type StayDetails = {
   /** Room or unit types. Ignored by checkout until multi-unit inventory exists. */
   units?: StayUnitDraft[];
   /**
+   * Accommodation options and their seasonal schedules.
+   * A single option with quantity 1 is also copied onto the legacy price fields.
+   * More than one option is saved and is not bookable.
+   */
+  options?: StayAccommodationOption[];
+  /**
    * Exact arrival address for booked guests (street / building / entry notes).
    * Stored in listing_stay_private (owner/service only) — never in public listing_extras.
    * Frozen onto purchase_snapshot at checkout; shown in Trips. City/country for discovery.
@@ -416,6 +423,8 @@ function normalizeStayDetails(raw: unknown): StayDetails | undefined {
   else if (o.accommodationMode === 'single') out.accommodationMode = 'single';
   const units = normalizeStayUnits(o.units);
   if (units.length > 0) out.units = units;
+  const stayOptions = normalizeStayOptions(o.options);
+  if (stayOptions.length > 0) out.options = stayOptions;
   if (typeof o.checkInAddress === 'string' && o.checkInAddress.trim()) {
     out.checkInAddress = o.checkInAddress.trim().slice(0, 400);
   }

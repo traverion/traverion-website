@@ -218,7 +218,13 @@ import {
 import { DEFAULT_CURRENCY, formatMoney, normalizeCurrency } from '../../lib/money';
 import { formatStayAmenityLabel } from '../../lib/stay-amenities';
 import TraverionLocationSelector from '../../components/supplier/TraverionLocationSelector';
-import StayUnitsEditor from '../../components/supplier/listing-creation/StayUnitsEditor';
+import {
+  activeStayOptions,
+  ensureStayOptions,
+  normalizeStayOptions,
+  projectStayOptions,
+  type StayAccommodationOption,
+} from '../../lib/stay-options';
 import {
   activeStayUnits,
   normalizeStayUnits,
@@ -241,20 +247,6 @@ function stayAmenityTokens(raw: string): string[] {
     .split(',')
     .map((x) => x.trim())
     .filter(Boolean);
-}
-
-function stayAmenityHas(raw: string, label: string): boolean {
-  const key = label.toLowerCase();
-  return stayAmenityTokens(raw).some((x) => x.toLowerCase() === key);
-}
-
-function toggleStayAmenity(raw: string, label: string): string {
-  const cur = stayAmenityTokens(raw);
-  const key = label.toLowerCase();
-  const next = stayAmenityHas(raw, label)
-    ? cur.filter((x) => x.toLowerCase() !== key)
-    : [...cur, label];
-  return next.join(', ');
 }
 
 const MAX_SUBTITLE_LENGTH = TOUR_BASICS_SUBTITLE_MAX;
@@ -883,6 +875,7 @@ type ListingFormState = {
   inventoryFamily: 'tour' | 'stay';
   stayAccommodationMode: StayAccommodationMode;
   stayUnits: StayUnitDraft[];
+  stayOptions: StayAccommodationOption[];
   stayPropertyType: string;
   stayBedrooms: string;
   stayBeds: string;
@@ -1082,6 +1075,7 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
             propertyType: form.stayPropertyType.trim() || undefined,
             accommodationMode: form.stayAccommodationMode === 'multi' ? 'multi' : 'single',
             units: form.stayUnits.length > 0 ? form.stayUnits : undefined,
+            options: form.stayOptions.length > 0 ? form.stayOptions : undefined,
             bedrooms: Number.isFinite(stayBedrooms) ? stayBedrooms : undefined,
             beds: Number.isFinite(stayBeds) ? stayBeds : undefined,
             bedMix: normalizeStayBedMix(form.stayBedMix),
@@ -1283,6 +1277,12 @@ function stayRulesChosen(form: ListingFormState): boolean {
 
 function stayPricingReady(form: ListingFormState): boolean {
   if (!stayTimesChosen(form)) return false;
+  const options = activeStayOptions(form.stayOptions);
+  if (options.length > 0) {
+    return options.some(
+      (option) => option.maxGuests != null && option.maxGuests >= 1 && option.nightlyPrice != null && option.nightlyPrice > 0
+    );
+  }
   if (form.stayAccommodationMode === 'multi') return stayUnitsReady(form.stayUnits);
   const maxG = Number.parseInt(form.stayMaxGuests, 10);
   const nightly = Number.parseFloat(form.stayNightly);
@@ -1349,6 +1349,7 @@ const emptyForm: ListingFormState = {
   inventoryFamily: 'tour',
   stayAccommodationMode: 'single',
   stayUnits: [],
+  stayOptions: [],
   stayPropertyType: 'Apartment',
   stayBedrooms: '',
   stayBeds: '',
@@ -1421,6 +1422,7 @@ function coerceListingFormState(raw: Partial<ListingFormState> | null | undefine
   merged.staySeasons = normalizeStaySeasons(merged.staySeasons);
   merged.stayBedMix = normalizeStayBedMix(merged.stayBedMix) ?? {};
   merged.stayUnits = normalizeStayUnits(merged.stayUnits);
+  merged.stayOptions = normalizeStayOptions(merged.stayOptions);
   if (
     !merged.stayAddressStreet.trim() &&
     !merged.stayAddressPostal.trim() &&
@@ -2096,6 +2098,22 @@ export default function SupplierListingForm({
           inventoryFamily: extras.inventoryFamily === 'stay' ? 'stay' : 'tour',
           stayAccommodationMode: extras.stay?.accommodationMode === 'multi' ? 'multi' : 'single',
           stayUnits: extras.stay?.units ?? [],
+          stayOptions: ensureStayOptions({
+            options: extras.stay?.options,
+            units: extras.stay?.units,
+            title: existing.title,
+            propertyType: extras.stay?.propertyType,
+            maxGuests: extras.stay?.maxGuests,
+            bedrooms: extras.stay?.bedrooms,
+            bathrooms: extras.stay?.bathrooms,
+            beds: extras.stay?.beds,
+            bedMix: extras.stay?.bedMix,
+            nightlyPrice: extras.stay?.nightlyPriceUsd,
+            cleaningFee: extras.stay?.cleaningFeeUsd,
+            minNights: extras.stay?.minNights,
+            availabilityMode: extras.stay?.availabilityMode,
+            seasons: extras.stay?.seasons,
+          }),
           stayPropertyType: extras.stay?.propertyType ?? 'Apartment',
           stayBedrooms: extras.stay?.bedrooms != null ? String(extras.stay.bedrooms) : '',
           stayBeds: extras.stay?.beds != null ? String(extras.stay.beds) : '',
@@ -4531,39 +4549,42 @@ export default function SupplierListingForm({
             </div>
           )}
 
-          {stepIdx === 4 && form.inventoryFamily === 'stay' && form.stayAccommodationMode === 'multi' && (
-            <div className="space-y-8">
-              <StayUnitsEditor
-                units={form.stayUnits}
-                currency={listingCurrency}
-                onChange={(stayUnits) => setForm((f) => ({ ...f, stayUnits }))}
-              />
-              <p className="text-xs leading-relaxed text-ink-muted">
-                Check-in times are below. These room types are saved with the draft and are not bookable yet.
-              </p>
-            </div>
-          )}
-
-          {stepIdx === 4 && form.inventoryFamily === 'stay' && form.stayAccommodationMode !== 'multi' && (
+          {stepIdx === 4 && form.inventoryFamily === 'stay' && (
             <div id="supplier-listing-field-stay-price">
               <StayOptionsStep
                 title={form.title}
                 currency={listingCurrency}
                 propertyType={form.stayPropertyType}
-                guests={form.stayMaxGuests}
-                bedrooms={form.stayBedrooms}
-                beds={form.stayBeds}
-                bathrooms={form.stayBathrooms}
-                nightly={form.stayNightly}
-                cleaning={form.stayCleaningFee}
-                minNights={form.stayMinNights}
+                options={
+                  form.stayOptions.length > 0
+                    ? form.stayOptions
+                    : ensureStayOptions({
+                        title: form.title,
+                        propertyType: form.stayPropertyType,
+                        maxGuests: Number.parseInt(form.stayMaxGuests, 10),
+                        bedrooms: Number.parseInt(form.stayBedrooms, 10),
+                        bathrooms: Number.parseFloat(form.stayBathrooms),
+                        beds: Number.parseInt(form.stayBeds, 10),
+                        bedMix: form.stayBedMix,
+                        nightlyPrice: Number.parseFloat(form.stayNightly),
+                        cleaningFee: Number.parseFloat(form.stayCleaningFee),
+                        minNights: Number.parseInt(form.stayMinNights, 10),
+                        availabilityMode: form.stayAvailabilityMode,
+                        seasons: form.staySeasons,
+                        units: form.stayUnits,
+                      })
+                }
                 checkIn={form.stayCheckIn}
                 checkOut={form.stayCheckOut}
-                bedMix={form.stayBedMix}
-                availabilityMode={form.stayAvailabilityMode}
-                seasons={form.staySeasons}
                 persistLabel={persistLabel}
-                onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
+                onTimes={(stayCheckIn, stayCheckOut) => setForm((f) => ({ ...f, stayCheckIn, stayCheckOut }))}
+                onChange={(stayOptions) =>
+                  setForm((f) => ({
+                    ...f,
+                    stayOptions,
+                    ...projectStayOptions(stayOptions, f.stayPropertyType),
+                  }))
+                }
               />
             </div>
           )}
@@ -4578,34 +4599,6 @@ export default function SupplierListingForm({
                   selected={stayAmenityTokens(form.stayAmenities)}
                   onChange={(next) => setForm((f) => ({ ...f, stayAmenities: next.join(', ') }))}
                 />
-              </section>
-              <section className="space-y-3 border-t border-[#E6EAF0] pt-6" aria-labelledby="stay-access-heading">
-                <div>
-                  <h4 id="stay-access-heading" className="text-sm font-semibold text-[#111827]">
-                    Accessibility
-                  </h4>
-                  <p className="mt-1 text-xs leading-relaxed text-ink-muted">
-                    Select only features that are actually there. Traverion does not verify them.
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {['Step-free entrance', 'Wheelchair-accessible bathroom', 'Elevator'].map((label) => {
-                    const on = stayAmenityHas(form.stayAmenities, label);
-                    return (
-                      <button
-                        key={label}
-                        type="button"
-                        aria-pressed={on}
-                        className={`lux-flat rounded-full px-3 py-1.5 text-sm ${
-                          on ? 'font-semibold text-[#0B397E] ring-2 ring-[#0B397E]' : 'text-ink-muted ring-1 ring-[#E6EAF0]'
-                        }`}
-                        onClick={() => setForm((f) => ({ ...f, stayAmenities: toggleStayAmenity(f.stayAmenities, label) }))}
-                      >
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
               </section>
               <section className="space-y-4 border-t border-[#E6EAF0] pt-6" aria-labelledby="stay-rules-choice-heading">
                 <div>
@@ -4678,61 +4671,6 @@ export default function SupplierListingForm({
               </section>
             </div>
           )}
-          {stepIdx === 4 && form.inventoryFamily === 'stay' && form.stayAccommodationMode === 'multi' && (
-            <section className="mt-8 space-y-4 border-t border-[#E6EAF0] pt-6" aria-labelledby="stay-arrival-heading">
-              <div>
-                <h4 id="stay-arrival-heading" className="text-sm font-semibold text-[#111827]">
-                  Check-in and check-out
-                </h4>
-                <p className="mt-1 text-xs leading-relaxed text-ink-muted">
-                  These times apply to the whole property. They are not the same as which nights are open.
-                </p>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="block text-sm font-semibold text-ink">
-                  Check-in *
-                  <input
-                    type="time"
-                    value={form.stayCheckIn}
-                    onChange={(e) => setForm((f) => ({ ...f, stayCheckIn: e.target.value }))}
-                    className="tv-input mt-1 w-full"
-                    required
-                  />
-                </label>
-                <label className="block text-sm font-semibold text-ink">
-                  Check-out *
-                  <input
-                    type="time"
-                    value={form.stayCheckOut}
-                    onChange={(e) => setForm((f) => ({ ...f, stayCheckOut: e.target.value }))}
-                    className="tv-input mt-1 w-full"
-                    required
-                  />
-                </label>
-              </div>
-            </section>
-          )}
-          {stepIdx === 4 && form.inventoryFamily === 'stay' && form.stayAccommodationMode === 'multi' && (
-            <div className="mt-8 space-y-4">
-              <h4 className="text-sm font-semibold text-[#111827]">Prices live on each room type</h4>
-              <p className="text-sm leading-relaxed text-ink-muted">
-                Set the nightly price, quantity, and minimum stay on Rooms. A property with several room types cannot
-                be published until Traverion can reserve each type separately.
-              </p>
-              <ul className="space-y-2">
-                {activeStayUnits(form.stayUnits).map((unit) => (
-                  <li key={unit.id} className="flex justify-between gap-3 text-sm">
-                    <span className="font-semibold text-ink">{unit.name.trim() || 'Untitled room type'}</span>
-                    <span className="text-ink-muted">
-                      {unit.nightlyPriceUsd != null ? `${unit.nightlyPriceUsd} ${listingCurrency} / night` : 'Price not set'}
-                      {` · ${unit.quantity}`}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
           {stepIdx === 6 && form.inventoryFamily === 'stay' && (
             <div className="space-y-8">
               <section className="space-y-2" aria-labelledby="stay-cancel-heading">
@@ -5020,8 +4958,14 @@ export default function SupplierListingForm({
                   </div>
                   <ul className="mt-2 list-disc list-inside space-y-1 text-sm text-ink-muted">
                     <li>Open this listing on your phone and scroll the photos and description.</li>
-                    <li>Confirm meeting or pickup details match what you tell guests in messages.</li>
-                    <li>If you use per-date capacity, keep future dates updated so bookings stay accurate.</li>
+                    {isStayForm ? (
+                      <li>Confirm the arrival address is the one booked guests should receive after payment.</li>
+                    ) : (
+                      <>
+                        <li>Confirm meeting or pickup details match what you tell guests in messages.</li>
+                        <li>If you use per-date capacity, keep future dates updated so bookings stay accurate.</li>
+                      </>
+                    )}
                   </ul>
                 </div>
               )}

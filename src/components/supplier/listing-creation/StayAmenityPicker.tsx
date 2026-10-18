@@ -87,8 +87,13 @@ export default function StayAmenityPicker({ selected, onChange }: Props) {
             autoFocus
           />
         </div>
+        {q && STAY_AMENITY_GROUPS.every((group) => group.items.filter((label) => !hasAmenity(selected, label) && label.toLowerCase().includes(q)).length === 0) ? (
+          <p className="px-3 py-2 text-sm text-ink-muted">No amenities match.</p>
+        ) : null}
         {STAY_AMENITY_GROUPS.map((group) => {
-          const items = group.items.filter((label) => !q || label.toLowerCase().includes(q));
+          const items = group.items.filter(
+            (label) => !hasAmenity(selected, label) && (!q || label.toLowerCase().includes(q))
+          );
           if (items.length === 0) return null;
           return (
             <div key={group.label} className="px-1 pb-1">

@@ -25,6 +25,8 @@ export function TourOptionWorkspace({
   onContinue,
   saveDraftDisabled,
   children,
+  variant = 'option',
+  backLabel,
 }: {
   /** Short sidebar title: Create option / Edit option. */
   modeTitle: string;
@@ -44,6 +46,9 @@ export function TourOptionWorkspace({
   onContinue: () => void;
   saveDraftDisabled: boolean;
   children: ReactNode;
+  /** Schedule layer sits above the option editor and keeps Escape from closing both. */
+  variant?: 'option' | 'schedule';
+  backLabel?: string;
 }) {
   const titleId = useId();
   const hintId = useId();
@@ -71,11 +76,16 @@ export function TourOptionWorkspace({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  const schedule = variant === 'schedule';
   const layer = (
-    <div className="listing-creation-option-layer" role="presentation">
+    <div className={schedule ? 'listing-creation-schedule-layer' : 'listing-creation-option-layer'} role="presentation">
       <div
         ref={dialogRef}
-        className="listing-creation-option-shell listing-creation-option-shell--enter"
+        className={
+          schedule
+            ? 'listing-creation-schedule-workspace listing-creation-option-shell'
+            : 'listing-creation-option-shell listing-creation-option-shell--enter'
+        }
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -88,7 +98,7 @@ export function TourOptionWorkspace({
               onClick={onBackToOptions}
               className="lux-flat inline-flex min-h-9 items-center text-[13px] font-medium text-ink-muted hover:text-ink"
             >
-              ← Back to options
+              {backLabel ?? (schedule ? '← Back to option' : '← Back to options')}
             </button>
             <p className="mt-5 text-[1.05rem] font-semibold leading-snug tracking-tight text-ink">
               {modeTitle}

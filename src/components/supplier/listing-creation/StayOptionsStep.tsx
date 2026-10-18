@@ -4,167 +4,207 @@ import { quoteStayLodging, type StaySeasonWindow } from '../../../lib/stay-seaso
 import {
   STAY_BED_KINDS,
   stayBedCount,
-  stayBedSummary,
   stayCapacityWarning,
+  type StayBedKind,
   type StayBedMix,
 } from '../../../lib/stay-beds';
+import {
+  activeStayOptions,
+  emptyStayOption,
+  newStayOptionId,
+  stayOptionStatus,
+  stayOptionsNeedSeparateInventory,
+  stayScheduleConflicts,
+  staySleepingLabel,
+  stayStartingNightly,
+  type StayAccommodationOption,
+} from '../../../lib/stay-options';
+import { STAY_SINGLE_PROPERTY_TYPES } from '../../../lib/stay-accommodation';
 import type { ListingCreationNavItem } from '../../../lib/listing-creation-workspace';
 import { TourOptionWorkspace } from './TourOptionWorkspace';
-
-type Mode = 'open' | 'scheduled';
-
-type OptionDraft = {
-  guests: string;
-  bedrooms: string;
-  bathrooms: string;
-  nightly: string;
-  cleaning: string;
-  minNights: string;
-  checkIn: string;
-  checkOut: string;
-  bedMix: StayBedMix;
-};
 
 type Props = {
   title: string;
   currency: string;
   propertyType: string;
-  guests: string;
-  bedrooms: string;
-  beds: string;
-  bathrooms: string;
-  nightly: string;
-  cleaning: string;
-  minNights: string;
+  options: StayAccommodationOption[];
   checkIn: string;
   checkOut: string;
-  bedMix: StayBedMix;
-  availabilityMode: Mode;
-  seasons: StaySeasonWindow[];
   persistLabel: string | null;
-  onChange: (patch: {
-    stayMaxGuests?: string;
-    stayBedrooms?: string;
-    stayBeds?: string;
-    stayBathrooms?: string;
-    stayNightly?: string;
-    stayCleaningFee?: string;
-    stayMinNights?: string;
-    stayCheckIn?: string;
-    stayCheckOut?: string;
-    stayBedMix?: StayBedMix;
-    stayAvailabilityMode?: Mode;
-    staySeasons?: StaySeasonWindow[];
-  }) => void;
+  onChange: (options: StayAccommodationOption[]) => void;
+  onTimes: (checkIn: string, checkOut: string) => void;
 };
 
-const SCENES = ['Accommodation', 'Pricing', 'Arrival'] as const;
-
-function num(raw: string): number {
-  const n = Number.parseFloat(raw);
-  return Number.isFinite(n) ? n : 0;
+function newScheduleId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  return `stay-sch-${Date.now()}`;
 }
 
-function timeOk(value: string): boolean {
-  return /^\d{2}:\d{2}$/.test(value.trim());
-}
-
-function sceneReady(draft: OptionDraft, index: number): boolean {
-  if (index === 0) return Number.parseInt(draft.guests, 10) >= 1;
-  if (index === 1) return num(draft.nightly) > 0;
-  return timeOk(draft.checkIn) && timeOk(draft.checkOut);
-}
-
-function navItems(current: number, draft: OptionDraft): ListingCreationNavItem[] {
-  return SCENES.map((label, index) => ({
-    id: String(index),
-    label,
-    state: index === current ? 'current' : sceneReady(draft, index) ? 'complete' : 'upcoming',
-    requirementsMet: sceneReady(draft, index),
-  }));
-}
-
-export default function StayOptionsStep(props: Props) {
-  const [editing, setEditing] = useState(false);
-  const [availability, setAvailability] = useState(false);
-  const optionName = props.title.trim() || 'Entire place';
-  const warning = stayCapacityWarning(Number.parseInt(props.guests, 10), props.bedMix, Number.parseInt(props.beds, 10));
-  const bedLine = stayBedSummary(props.bedMix) || (props.beds.trim() ? `${props.beds} bed${props.beds === '1' ? '' : 's'}` : 'Beds not set');
-  const openSeasons = props.seasons.filter((season) => season.enabled);
-  const preview = quoteStayLodging({
-    checkIn: '2026-06-10',
-    nights: Math.max(1, Number.parseInt(props.minNights, 10) || 1),
-    baseNightly: num(props.nightly),
-    baseMinNights: Math.max(1, Number.parseInt(props.minNights, 10) || 1),
-    availabilityMode: props.availabilityMode,
-    seasons: props.seasons,
-  });
+export default function StayOptionsStep({
+  title,
+  currency,
+  propertyType,
+  options,
+  checkIn,
+  checkOut,
+  persistLabel,
+  onChange,
+  onTimes,
+}: Props) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingScene, setEditingScene] = useState(0);
+  const active = activeStayOptions(options);
+  const separate = stayOptionsNeedSeparateInventory(options);
+  const editing = options.find((option) => option.id === editingId) ?? null;
 
   return (
     <div className="space-y-4">
-      <article className="lc-tile rounded-xl px-4 py-3.5 sm:px-5 sm:py-4">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-          <h3 className="text-[1.05rem] font-semibold tracking-tight text-ink">{optionName}</h3>
-          <p className="text-[11px] font-medium tracking-wide text-ink-muted">
-            {num(props.nightly) > 0 && Number.parseInt(props.guests, 10) >= 1 ? 'Configured' : 'Incomplete'}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-[#111827]">Accommodation options</h3>
+          <p className="mt-1 max-w-xl text-xs leading-relaxed text-ink-muted">
+            {separate
+              ? 'These options are saved with the property. Guests cannot book more than one accommodation, or more than one identical unit, until each option has its own night inventory.'
+              : 'One accommodation can be reserved. Add another option when this property has a separate bookable space.'}
           </p>
         </div>
-        <dl className="mt-3 grid grid-cols-1 gap-x-8 gap-y-2 sm:grid-cols-2">
-          <Fact label="Type" text={props.propertyType || 'Accommodation'} />
-          <Fact label="Occupancy" text={props.guests.trim() ? `Up to ${props.guests} guests` : 'Not set'} />
-          <Fact label="Sleeping" text={[props.bedrooms.trim() ? `${props.bedrooms} bedrooms` : null, bedLine].filter(Boolean).join(' · ') || 'Not set'} />
-          <Fact label="Price" text={num(props.nightly) > 0 ? `${formatMoney(num(props.nightly), props.currency)} / night` : 'Not set'} />
-          <Fact
-            label="Availability"
-            text={
-              props.availabilityMode === 'scheduled'
-                ? `${openSeasons.length} bookable period${openSeasons.length === 1 ? '' : 's'}`
-                : 'Open unless a night is blocked'
-            }
-          />
-        </dl>
-        {warning ? <p className="mt-3 text-[12.5px] leading-relaxed text-ink-muted">{warning}</p> : null}
-        {preview.ok && num(props.nightly) > 0 ? (
-          <p className="mt-2 text-[13px] text-ink">
-            Example from 10 Jun 2026 · {preview.nightlyPrices.length} night{preview.nightlyPrices.length === 1 ? '' : 's'} ·{' '}
-            <span className="font-semibold">
-              {formatMoney(preview.lodging + (num(props.cleaning) > 0 ? num(props.cleaning) : 0), props.currency)}
-            </span>
-            {num(props.cleaning) > 0 ? ` including ${formatMoney(num(props.cleaning), props.currency)} cleaning` : ''}
+        <button
+          type="button"
+          className="tv-btn-primary !min-h-10 shrink-0 !px-3 text-sm"
+          onClick={() => {
+            const created = emptyStayOption(newStayOptionId(), propertyType);
+            onChange([...options, created]);
+            setEditingScene(0);
+            setEditingId(created.id);
+          }}
+        >
+          Add option
+        </button>
+      </div>
+
+      {active.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-[#E6EAF0] px-4 py-6 text-sm text-ink-muted">
+          Add the first accommodation option.
+        </p>
+      ) : (
+        <ul className="space-y-3">
+          {active.map((option) => (
+            <li key={option.id}>
+              <OptionCard
+                option={option}
+                currency={currency}
+                inventoryBlocked={separate}
+                onEdit={() => {
+                  setEditingScene(0);
+                  setEditingId(option.id);
+                }}
+                onSchedules={() => {
+                  setEditingScene(1);
+                  setEditingId(option.id);
+                }}
+                onDuplicate={() => {
+                  const copy: StayAccommodationOption = {
+                    ...option,
+                    id: newStayOptionId(),
+                    name: option.name ? `${option.name} copy`.slice(0, 80) : '',
+                    schedules: option.schedules.map((schedule) => ({ ...schedule, id: newScheduleId() })),
+                  };
+                  onChange([...options, copy]);
+                }}
+                onArchive={() => onChange(options.map((row) => (row.id === option.id ? { ...row, archived: true } : row)))}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <section className="space-y-3 border-t border-[#E6EAF0] pt-4" aria-labelledby="stay-arrival-heading">
+        <div>
+          <h4 id="stay-arrival-heading" className="text-sm font-semibold text-[#111827]">Check-in and check-out</h4>
+          <p className="mt-1 text-xs leading-relaxed text-ink-muted">
+            These times apply to the property. They are not a schedule, and the street address stays on Policies.
           </p>
-        ) : null}
-        <div className="mt-3 flex flex-wrap items-center gap-1 border-t border-black/[0.06] pt-2">
-          <button type="button" className="tv-btn-primary !min-h-8 !px-2.5 text-[12.5px]" onClick={() => setEditing(true)}>
-            Edit option
-          </button>
-          <button
-            type="button"
-            className="lux-flat inline-flex min-h-8 items-center rounded-md px-2 text-[12.5px] font-medium text-finland hover:bg-finland/[0.06]"
-            onClick={() => setAvailability(true)}
-          >
-            Manage availability
-          </button>
         </div>
-      </article>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="block text-sm font-semibold text-ink">
+            Check-in
+            <input className="tv-input mt-1 w-full font-normal" type="time" value={checkIn} onChange={(e) => onTimes(e.target.value, checkOut)} />
+          </label>
+          <label className="block text-sm font-semibold text-ink">
+            Check-out
+            <input className="tv-input mt-1 w-full font-normal" type="time" value={checkOut} onChange={(e) => onTimes(checkIn, e.target.value)} />
+          </label>
+        </div>
+      </section>
+
       {editing ? (
-        <StayOptionEditor
-          {...props}
-          optionName={optionName}
-          onClose={() => setEditing(false)}
-        />
-      ) : null}
-      {availability ? (
-        <StayAvailabilityEditor
-          listingTitle={optionName}
-          currency={props.currency}
-          mode={props.availabilityMode}
-          seasons={props.seasons}
-          persistLabel={props.persistLabel}
-          onClose={() => setAvailability(false)}
-          onSave={(mode, seasons) => props.onChange({ stayAvailabilityMode: mode, staySeasons: seasons })}
+        <OptionEditor
+          option={editing}
+          listingTitle={title}
+          currency={currency}
+          persistLabel={persistLabel}
+          inventoryBlocked={stayOptionsNeedSeparateInventory(
+            options.map((row) => (row.id === editing.id ? editing : row))
+          )}
+          initialScene={editingScene}
+          onClose={() => setEditingId(null)}
+          onCommit={(next) => {
+            onChange(options.map((row) => (row.id === next.id ? next : row)));
+          }}
         />
       ) : null}
     </div>
+  );
+}
+
+function OptionCard({
+  option,
+  currency,
+  inventoryBlocked,
+  onEdit,
+  onSchedules,
+  onDuplicate,
+  onArchive,
+}: {
+  option: StayAccommodationOption;
+  currency: string;
+  inventoryBlocked: boolean;
+  onEdit: () => void;
+  onSchedules: () => void;
+  onDuplicate: () => void;
+  onArchive: () => void;
+}) {
+  const price = stayStartingNightly(option);
+  const schedules = option.schedules.filter((schedule) => schedule.enabled);
+  return (
+    <article className="lc-tile rounded-xl px-4 py-3.5 sm:px-5 sm:py-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <h3 className="text-[1.05rem] font-semibold tracking-tight text-ink">{option.name.trim() || 'Untitled option'}</h3>
+        <p className="text-[11px] font-medium tracking-wide text-ink-muted">{stayOptionStatus(option, inventoryBlocked)}</p>
+      </div>
+      <dl className="mt-3 grid grid-cols-1 gap-x-8 gap-y-2 sm:grid-cols-2">
+        <Fact label="Type" text={option.propertyType || 'Accommodation'} />
+        <Fact label="Occupancy" text={option.maxGuests != null ? `Up to ${option.maxGuests} guests` : 'Not set'} />
+        <Fact label="Sleeping" text={[option.bedrooms != null ? `${option.bedrooms} bedrooms` : null, staySleepingLabel(option)].filter(Boolean).join(' · ')} />
+        <Fact label="Units" text={option.quantity === 1 ? '1 physical unit' : `${option.quantity} identical units`} />
+        <Fact label="Schedules" text={schedules.length === 0 ? 'No seasonal schedules' : `${schedules.length} schedule${schedules.length === 1 ? '' : 's'}`} />
+        <Fact label="Price" text={price != null ? `From ${formatMoney(price, currency)} / night` : 'Not set'} />
+      </dl>
+      <div className="mt-3 flex flex-wrap gap-1 border-t border-black/[0.06] pt-2">
+        <button type="button" className="tv-btn-primary !min-h-8 !px-2.5 text-[12.5px]" onClick={onEdit}>
+          Edit option
+        </button>
+        <button type="button" className="lux-flat inline-flex min-h-8 items-center rounded-md px-2 text-[12.5px] font-medium text-finland hover:bg-finland/[0.06]" onClick={onSchedules}>
+          Manage schedules
+        </button>
+        <button type="button" className="lux-flat inline-flex min-h-8 items-center rounded-md px-2 text-[12.5px] font-medium text-ink-muted" onClick={onDuplicate}>
+          Duplicate
+        </button>
+        <button type="button" className="lux-flat inline-flex min-h-8 items-center rounded-md px-2 text-[12.5px] font-medium text-ink-muted" onClick={onArchive}>
+          Archive
+        </button>
+      </div>
+    </article>
   );
 }
 
@@ -180,271 +220,412 @@ function Fact({ label, text }: { label: string; text: string }) {
   );
 }
 
-function StayOptionEditor({
-  optionName,
-  title,
+function OptionEditor({
+  option,
+  listingTitle,
   currency,
-  guests,
-  bedrooms,
-  bathrooms,
-  nightly,
-  cleaning,
-  minNights,
-  checkIn,
-  checkOut,
-  bedMix,
-  beds,
   persistLabel,
-  onChange,
+  inventoryBlocked,
+  initialScene,
   onClose,
-}: Props & { optionName: string; onClose: () => void }) {
-  const [scene, setScene] = useState(0);
-  const [draft, setDraft] = useState<OptionDraft>({
-    guests,
-    bedrooms,
-    bathrooms,
-    nightly,
-    cleaning,
-    minNights,
-    checkIn,
-    checkOut,
-    bedMix: { ...bedMix },
-  });
-  const warning = stayCapacityWarning(Number.parseInt(draft.guests, 10), draft.bedMix, Number.parseInt(beds, 10));
-
-  function commit() {
-    const counted = stayBedCount(draft.bedMix);
-    onChange({
-      stayMaxGuests: draft.guests,
-      stayBedrooms: draft.bedrooms,
-      stayBathrooms: draft.bathrooms,
-      stayNightly: draft.nightly,
-      stayCleaningFee: draft.cleaning,
-      stayMinNights: draft.minNights,
-      stayCheckIn: draft.checkIn,
-      stayCheckOut: draft.checkOut,
-      stayBedMix: draft.bedMix,
-      stayBeds: counted > 0 ? String(counted) : beds,
-    });
-  }
+  onCommit,
+}: {
+  option: StayAccommodationOption;
+  listingTitle: string;
+  currency: string;
+  persistLabel: string | null;
+  inventoryBlocked: boolean;
+  initialScene: number;
+  onClose: () => void;
+  onCommit: (option: StayAccommodationOption) => void;
+}) {
+  const [draft, setDraft] = useState(option);
+  const [scene, setScene] = useState(initialScene);
+  const [scheduleDraft, setScheduleDraft] = useState<StaySeasonWindow | null>(null);
+  const guests = draft.maxGuests ?? 0;
+  const beds = stayBedCount(draft.bedMix) > 0 ? stayBedCount(draft.bedMix) : draft.beds ?? 0;
+  const warning = stayCapacityWarning(guests, draft.bedMix, draft.beds ?? 0);
+  const accommodationReady = guests >= 1 && draft.name.trim().length > 0 && beds >= 1;
+  const conflicts = stayScheduleConflicts(draft.schedules);
+  const nav: ListingCreationNavItem[] = [
+    { id: '0', label: 'Accommodation', state: scene === 0 ? 'current' : accommodationReady ? 'complete' : 'upcoming', requirementsMet: accommodationReady },
+    { id: '1', label: 'Schedules', state: scene === 1 ? 'current' : 'upcoming', requirementsMet: true },
+  ];
 
   return (
-    <TourOptionWorkspace
-      modeTitle="Edit option"
-      optionName={optionName}
-      listingTitle={title.trim() || 'Stay'}
-      persistLabel={persistLabel}
-      continueHint={sceneReady(draft, scene) ? null : 'Finish this section to continue.'}
-      continueLabel={scene === SCENES.length - 1 ? 'Save option' : 'Continue'}
-      continueDisabled={!sceneReady(draft, scene)}
-      navItems={navItems(scene, draft)}
-      onSelectNavId={(id) => setScene(Number(id))}
-      onBackToOptions={onClose}
-      onPreviousScene={scene > 0 ? () => setScene((n) => n - 1) : null}
-      onClose={onClose}
-      onSaveDraft={commit}
-      onContinue={() => {
-        if (!sceneReady(draft, scene)) return;
-        if (scene < SCENES.length - 1) {
-          setScene((n) => n + 1);
-          return;
-        }
-        commit();
-        onClose();
-      }}
-      saveDraftDisabled={false}
-    >
-      {scene === 0 ? (
-        <section className="space-y-4">
-          <h3 className="text-sm font-semibold text-[#111827]">Accommodation details</h3>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Maximum guests *" value={draft.guests} onChange={(guests) => setDraft((d) => ({ ...d, guests }))} type="number" min={1} />
-            <Field label="Bedrooms" value={draft.bedrooms} onChange={(bedrooms) => setDraft((d) => ({ ...d, bedrooms }))} type="number" min={0} />
-            <Field label="Bathrooms" value={draft.bathrooms} onChange={(bathrooms) => setDraft((d) => ({ ...d, bathrooms }))} type="number" min={0} step={0.5} />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-ink">Sleeping arrangements</p>
-            <p className="mt-1 text-xs text-ink-muted">A double, queen, or king sleeps two. A single or sofa bed sleeps one. A bunk sleeps two.</p>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              {STAY_BED_KINDS.map((kind) => (
-                <Field
-                  key={kind.id}
-                  label={kind.label}
-                  value={draft.bedMix[kind.id] ? String(draft.bedMix[kind.id]) : ''}
-                  type="number"
-                  min={0}
-                  onChange={(raw) => {
-                    const n = Number.parseInt(raw, 10);
-                    setDraft((d) => {
-                      const next = { ...d.bedMix };
-                      if (Number.isFinite(n) && n >= 1) next[kind.id] = n;
-                      else delete next[kind.id];
-                      return { ...d, bedMix: next };
-                    });
-                  }}
-                />
-              ))}
+    <>
+      <TourOptionWorkspace
+        modeTitle={option.name.trim() ? 'Edit option' : 'Create option'}
+        optionName={draft.name}
+        listingTitle={listingTitle}
+        persistLabel={persistLabel}
+        continueHint={scene === 0 && !accommodationReady ? 'Add a name, guest capacity, and at least one bed.' : null}
+        continueLabel={scene === 1 ? 'Save option' : 'Continue'}
+        continueDisabled={scene === 0 && !accommodationReady}
+        navItems={nav}
+        onSelectNavId={(id) => setScene(Number(id))}
+        onBackToOptions={onClose}
+        onPreviousScene={scene > 0 ? () => setScene(0) : null}
+        onClose={onClose}
+        onSaveDraft={() => onCommit(draft)}
+        onContinue={() => {
+          if (scene === 0) {
+            if (!accommodationReady) return;
+            setScene(1);
+            return;
+          }
+          onCommit(draft);
+          onClose();
+        }}
+        saveDraftDisabled={false}
+      >
+        {scene === 0 ? (
+          <AccommodationScene draft={draft} warning={warning} onChange={setDraft} />
+        ) : (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-end justify-between gap-3 border-b border-black/[0.08] pb-3">
+              <div>
+                <h3 className="text-[1.05rem] font-semibold text-ink">Schedules</h3>
+                <p className="mt-1 text-[12.5px] text-ink-muted">
+                  {draft.schedules.length} schedule{draft.schedules.length === 1 ? '' : 's'} · nightly prices in {currency}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="tv-btn-primary !min-h-9 !px-3 text-sm"
+                onClick={() => {
+                  setScheduleDraft({
+                    id: newScheduleId(),
+                    name: '',
+                    start: '',
+                    end: '',
+                    enabled: true,
+                    nightlyPrice: draft.nightlyPrice,
+                    minNights: draft.minNights,
+                  });
+                }}
+              >
+                Add schedule
+              </button>
             </div>
+            {inventoryBlocked ? (
+              <p className="text-[12.5px] leading-relaxed text-ink-muted">
+                This property has more than one bookable space. Schedules are saved, and guests cannot reserve them yet.
+              </p>
+            ) : (
+              <p className="text-[12.5px] leading-relaxed text-ink-muted">
+                With no schedule, every night uses the base nightly price unless a night is already reserved. A schedule limits booking to its dates.
+              </p>
+            )}
+            {conflicts.map((line) => (
+              <p key={line} className="text-[12.5px] leading-relaxed text-amber-950">{line}</p>
+            ))}
+            {draft.schedules.length === 0 ? (
+              <p className="text-sm text-ink-muted">No schedules yet.</p>
+            ) : (
+              <ul className="divide-y divide-black/[0.07]">
+                {draft.schedules.map((row) => (
+                  <li key={row.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
+                    <button type="button" className="min-w-0 text-left" onClick={() => setScheduleDraft(row)}>
+                      <span className="block text-sm font-semibold text-ink">{row.name.trim() || 'Untitled schedule'}</span>
+                      <span className="mt-0.5 block text-[12.5px] text-ink-muted">
+                        {row.start && row.end ? `${row.start} – ${row.end}` : 'Dates not set'}
+                        {row.nightlyPrice ? ` · ${formatMoney(row.nightlyPrice, currency)} / night` : ''}
+                        {row.enabled ? '' : ' · Inactive'}
+                      </span>
+                    </button>
+                    <span className="flex gap-2">
+                      <button type="button" className="text-[12.5px] font-semibold text-finland" onClick={() => setScheduleDraft(row)}>
+                        Edit schedule
+                      </button>
+                      <button
+                        type="button"
+                        className="text-[12.5px] font-medium text-ink-muted"
+                        onClick={() =>
+                          setDraft({
+                            ...draft,
+                            schedules: draft.schedules.map((item) => (item.id === row.id ? { ...item, enabled: !item.enabled } : item)),
+                          })
+                        }
+                      >
+                        {row.enabled ? 'Deactivate' : 'Activate'}
+                      </button>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-          {warning ? <p className="text-xs leading-relaxed text-ink-muted">{warning}</p> : null}
-        </section>
+        )}
+      </TourOptionWorkspace>
+      {scheduleDraft ? (
+        <ScheduleEditor
+          schedule={scheduleDraft}
+          currency={currency}
+          optionName={draft.name}
+          baseNightly={draft.nightlyPrice}
+          baseMinNights={draft.minNights}
+          maxGuests={draft.maxGuests}
+          persistLabel={persistLabel}
+          onClose={() => setScheduleDraft(null)}
+          onCommit={(next) => {
+            const exists = draft.schedules.some((row) => row.id === next.id);
+            setDraft({
+              ...draft,
+              availabilityMode: 'scheduled',
+              schedules: exists ? draft.schedules.map((row) => (row.id === next.id ? next : row)) : [...draft.schedules, next],
+            });
+          }}
+        />
       ) : null}
-      {scene === 1 ? (
-        <section className="space-y-4">
-          <h3 className="text-sm font-semibold text-[#111827]">Pricing</h3>
-          <p className="text-xs text-ink-muted">Amounts are for the whole accommodation, in {currency}. Not per guest.</p>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Base nightly price *" value={draft.nightly} onChange={(nightly) => setDraft((d) => ({ ...d, nightly }))} type="number" min={1} hint={`per night · ${currency}`} />
-            <Field label="Cleaning fee" value={draft.cleaning} onChange={(cleaning) => setDraft((d) => ({ ...d, cleaning }))} type="number" min={0} hint="once per stay" />
-            <Field label="Minimum nights" value={draft.minNights} onChange={(minNights) => setDraft((d) => ({ ...d, minNights }))} type="number" min={1} />
-          </div>
-        </section>
-      ) : null}
-      {scene === 2 ? (
-        <section className="space-y-4">
-          <h3 className="text-sm font-semibold text-[#111827]">Arrival</h3>
-          <p className="text-xs text-ink-muted">These are times of day. Which nights can be booked is set in availability. The private street address stays on Policies.</p>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Check-in *" value={draft.checkIn} onChange={(checkIn) => setDraft((d) => ({ ...d, checkIn }))} type="time" />
-            <Field label="Check-out *" value={draft.checkOut} onChange={(checkOut) => setDraft((d) => ({ ...d, checkOut }))} type="time" />
-          </div>
-        </section>
-      ) : null}
-    </TourOptionWorkspace>
+    </>
   );
 }
 
-function StayAvailabilityEditor({
-  listingTitle,
-  currency,
-  mode,
-  seasons,
-  persistLabel,
-  onClose,
-  onSave,
+function AccommodationScene({
+  draft,
+  warning,
+  onChange,
 }: {
-  listingTitle: string;
-  currency: string;
-  mode: Mode;
-  seasons: StaySeasonWindow[];
-  persistLabel: string | null;
-  onClose: () => void;
-  onSave: (mode: Mode, seasons: StaySeasonWindow[]) => void;
+  draft: StayAccommodationOption;
+  warning: string | null;
+  onChange: (next: StayAccommodationOption) => void;
 }) {
-  const [draftMode, setDraftMode] = useState<Mode>(mode);
-  const [draftSeasons, setDraftSeasons] = useState<StaySeasonWindow[]>(seasons);
-  const [row, setRow] = useState({ name: '', start: '', end: '', nightly: '', minNights: '' });
+  const [kind, setKind] = useState<StayBedKind>('single');
+  const rows = STAY_BED_KINDS.filter((bed) => (draft.bedMix[bed.id] ?? 0) > 0);
+  const sleeps = rows.reduce((sum, bed) => sum + (draft.bedMix[bed.id] ?? 0) * bed.sleeps, 0);
 
-  function add() {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(row.start) || !/^\d{4}-\d{2}-\d{2}$/.test(row.end) || row.end < row.start) return;
-    const nightlyPrice = num(row.nightly);
-    const min = Number.parseInt(row.minNights, 10);
-    setDraftSeasons((current) => [
-      ...current,
-      {
-        id: `season-${Date.now().toString(36)}`,
-        name: row.name.trim().slice(0, 80),
-        start: row.start,
-        end: row.end,
-        enabled: true,
-        nightlyPrice: nightlyPrice > 0 ? nightlyPrice : null,
-        minNights: Number.isFinite(min) && min >= 1 ? min : null,
-      },
-    ].slice(0, 24));
-    setDraftMode('scheduled');
-    setRow({ name: '', start: '', end: '', nightly: '', minNights: '' });
+  function setMix(bedMix: StayBedMix) {
+    const count = stayBedCount(bedMix);
+    onChange({ ...draft, bedMix, beds: count > 0 ? count : draft.beds });
   }
 
   return (
-    <TourOptionWorkspace
-      modeTitle="Manage availability"
-      optionName={listingTitle}
-      listingTitle={listingTitle}
-      persistLabel={persistLabel}
-      continueHint={null}
-      continueLabel="Save availability"
-      continueDisabled={false}
-      navItems={[{ id: 'periods', label: 'Bookable nights', state: 'current', requirementsMet: true }]}
-      onSelectNavId={() => undefined}
-      onBackToOptions={onClose}
-      onClose={onClose}
-      onSaveDraft={() => onSave(draftMode, draftSeasons)}
-      onContinue={() => {
-        onSave(draftMode, draftSeasons);
-        onClose();
-      }}
-      saveDraftDisabled={false}
-    >
-      <section className="space-y-4">
-        <h3 className="text-sm font-semibold text-[#111827]">Bookable nights</h3>
-        <p className="text-xs leading-relaxed text-ink-muted">
-          A shorter period overrides a longer one on the same night. Checkout uses these prices. External calendars are not connected.
+    <div className="space-y-5">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="block text-sm font-semibold text-ink sm:col-span-2">
+          Option name
+          <input className="tv-input mt-1 w-full font-normal" value={draft.name} maxLength={80} onChange={(e) => onChange({ ...draft, name: e.target.value.slice(0, 80) })} />
+        </label>
+        <label className="block text-sm font-semibold text-ink">
+          Accommodation type
+          <select className="tv-input mt-1 w-full font-normal" value={draft.propertyType} onChange={(e) => onChange({ ...draft, propertyType: e.target.value })}>
+            {STAY_SINGLE_PROPERTY_TYPES.map((type) => (
+              <option key={type} value={type}>{type}</option>
+            ))}
+          </select>
+        </label>
+        <Num label="Maximum guests" value={draft.maxGuests} min={1} max={50} onChange={(maxGuests) => onChange({ ...draft, maxGuests })} />
+        <Num label="Bedrooms" value={draft.bedrooms} min={0} max={30} onChange={(bedrooms) => onChange({ ...draft, bedrooms })} />
+        <Num label="Bathrooms" value={draft.bathrooms} min={0} max={20} step={0.5} onChange={(bathrooms) => onChange({ ...draft, bathrooms })} />
+        <Num label="Identical physical units" value={draft.quantity} min={1} max={500} onChange={(quantity) => onChange({ ...draft, quantity: quantity ?? 1 })} />
+        <Num label={`Base nightly price`} value={draft.nightlyPrice} min={1} max={1000000} onChange={(nightlyPrice) => onChange({ ...draft, nightlyPrice })} />
+        <Num label="Cleaning fee" value={draft.cleaningFee} min={0} max={1000000} onChange={(cleaningFee) => onChange({ ...draft, cleaningFee })} />
+        <Num label="Minimum nights" value={draft.minNights} min={1} max={365} onChange={(minNights) => onChange({ ...draft, minNights: minNights ?? 1 })} />
+      </div>
+      <div className="space-y-2 border-t border-black/[0.08] pt-4">
+        <h3 className="text-sm font-semibold text-ink">Sleeping arrangements</h3>
+        <p className="text-[12.5px] text-ink-muted">
+          {sleeps > 0 ? `These beds sleep ${sleeps}.` : draft.beds ? `${draft.beds} bed${draft.beds === 1 ? '' : 's'} saved without a type.` : 'Add each bed guests can sleep in.'}
         </p>
-        <fieldset className="space-y-2">
-          <legend className="text-sm font-semibold text-ink">Which nights are open</legend>
-          <label className="flex items-start gap-2 text-sm text-ink">
-            <input type="radio" checked={draftMode === 'open'} onChange={() => setDraftMode('open')} />
-            Open unless blocked on Calendar. Periods only change the nightly price.
-          </label>
-          <label className="flex items-start gap-2 text-sm text-ink">
-            <input type="radio" checked={draftMode === 'scheduled'} onChange={() => setDraftMode('scheduled')} />
-            Only the periods below can be booked.
-          </label>
-        </fieldset>
         <ul className="space-y-2">
-          {draftSeasons.map((season) => (
-            <li key={season.id} className="flex items-start justify-between gap-3 border-b border-[#E6EAF0] py-2 text-sm">
-              <span>
-                <span className="font-semibold text-ink">{season.name || 'Period'}</span>
-                <span className="block text-ink-muted">
-                  {season.start} – {season.end}
-                  {season.nightlyPrice ? ` · ${formatMoney(season.nightlyPrice, currency)} / night` : ' · base price'}
-                  {season.minNights ? ` · min ${season.minNights} nights` : ''}
-                </span>
-              </span>
-              <button type="button" className="text-sm font-semibold text-finland" onClick={() => setDraftSeasons((current) => current.filter((item) => item.id !== season.id))}>
+          {rows.map((bed) => (
+            <li key={bed.id} className="flex items-center gap-2">
+              <span className="min-w-0 flex-1 text-sm text-ink">{bed.label}</span>
+              <input
+                className="tv-input w-20 font-normal"
+                type="number"
+                min={1}
+                max={30}
+                value={draft.bedMix[bed.id] ?? 1}
+                aria-label={`${bed.label} count`}
+                onChange={(e) => {
+                  const n = Math.floor(Number(e.target.value));
+                  setMix({ ...draft.bedMix, [bed.id]: Number.isFinite(n) && n >= 1 ? n : 1 });
+                }}
+              />
+              <button type="button" className="text-[12.5px] font-medium text-ink-muted" onClick={() => {
+                const next = { ...draft.bedMix };
+                delete next[bed.id];
+                setMix(next);
+              }}>
                 Remove
               </button>
             </li>
           ))}
         </ul>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Name" value={row.name} onChange={(name) => setRow((d) => ({ ...d, name }))} />
-          <Field label="Nightly price" value={row.nightly} onChange={(nightly) => setRow((d) => ({ ...d, nightly }))} type="number" min={0} hint="blank uses the base price" />
-          <Field label="Start" value={row.start} onChange={(start) => setRow((d) => ({ ...d, start }))} type="date" />
-          <Field label="End" value={row.end} onChange={(end) => setRow((d) => ({ ...d, end }))} type="date" />
-          <Field label="Minimum nights" value={row.minNights} onChange={(minNights) => setRow((d) => ({ ...d, minNights }))} type="number" min={1} />
+        <div className="flex flex-wrap gap-2">
+          <select className="tv-input w-auto font-normal" value={kind} aria-label="Bed type" onChange={(e) => setKind(e.target.value as StayBedKind)}>
+            {STAY_BED_KINDS.map((bed) => (
+              <option key={bed.id} value={bed.id}>{bed.label}</option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="tv-btn-secondary !min-h-10 !px-3 text-sm"
+            onClick={() => setMix({ ...draft.bedMix, [kind]: (draft.bedMix[kind] ?? 0) + 1 })}
+          >
+            Add bed
+          </button>
         </div>
-        <button type="button" className="tv-btn-secondary !min-h-10 !px-4" onClick={add}>
-          Add period
-        </button>
-      </section>
+        {warning ? <p className="text-[12.5px] leading-relaxed text-ink-muted">{warning}</p> : null}
+      </div>
+    </div>
+  );
+}
+
+function ScheduleEditor({
+  schedule,
+  currency,
+  optionName,
+  baseNightly,
+  baseMinNights,
+  maxGuests,
+  persistLabel,
+  onClose,
+  onCommit,
+}: {
+  schedule: StaySeasonWindow;
+  currency: string;
+  optionName: string;
+  baseNightly: number | null;
+  baseMinNights: number;
+  maxGuests: number | null;
+  persistLabel: string | null;
+  onClose: () => void;
+  onCommit: (schedule: StaySeasonWindow) => void;
+}) {
+  const [draft, setDraft] = useState(schedule);
+  const datesOk = /^\d{4}-\d{2}-\d{2}$/.test(draft.start) && /^\d{4}-\d{2}-\d{2}$/.test(draft.end) && draft.end >= draft.start;
+  const price = draft.nightlyPrice && draft.nightlyPrice > 0 ? draft.nightlyPrice : baseNightly;
+  const example = datesOk && price && price > 0
+    ? quoteStayLodging({
+        checkIn: draft.start,
+        nights: Math.max(1, draft.minNights ?? baseMinNights),
+        baseNightly: price,
+        baseMinNights: draft.minNights ?? baseMinNights,
+        availabilityMode: 'scheduled',
+        seasons: [{ ...draft, enabled: true, nightlyPrice: price }],
+      })
+    : null;
+
+  function commit() {
+    if (!datesOk) return;
+    onCommit({ ...draft, enabled: draft.enabled !== false, nightlyPrice: price });
+  }
+
+  return (
+    <TourOptionWorkspace
+      variant="schedule"
+      modeTitle={schedule.name.trim() ? 'Edit schedule' : 'Create schedule'}
+      optionName={draft.name || optionName}
+      listingTitle={optionName || 'Accommodation'}
+      persistLabel={persistLabel}
+      continueHint={datesOk ? null : 'Choose a start and end date.'}
+      continueLabel="Save schedule"
+      continueDisabled={!datesOk}
+      navItems={[{ id: 'dates', label: 'Dates and price', state: 'current', requirementsMet: datesOk }]}
+      onSelectNavId={() => undefined}
+      onBackToOptions={onClose}
+      onClose={onClose}
+      onSaveDraft={() => {
+        commit();
+      }}
+      onContinue={() => {
+        commit();
+        if (datesOk) onClose();
+      }}
+      saveDraftDisabled={!datesOk}
+    >
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="block text-sm font-semibold text-ink sm:col-span-2">
+          Schedule name
+          <input className="tv-input mt-1 w-full font-normal" value={draft.name} maxLength={80} placeholder="Winter, Christmas, Summer" onChange={(e) => setDraft({ ...draft, name: e.target.value.slice(0, 80) })} />
+        </label>
+        <label className="block text-sm font-semibold text-ink">
+          First night
+          <input className="tv-input mt-1 w-full font-normal" type="date" value={draft.start} onChange={(e) => setDraft({ ...draft, start: e.target.value })} />
+        </label>
+        <label className="block text-sm font-semibold text-ink">
+          Last night
+          <input className="tv-input mt-1 w-full font-normal" type="date" value={draft.end} onChange={(e) => setDraft({ ...draft, end: e.target.value })} />
+        </label>
+        <label className="block text-sm font-semibold text-ink">
+          Nightly price · {currency}
+          <input
+            className="tv-input mt-1 w-full font-normal"
+            type="number"
+            min={1}
+            value={draft.nightlyPrice ?? ''}
+            onChange={(e) => {
+              const n = Number(e.target.value);
+              setDraft({ ...draft, nightlyPrice: Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : null });
+            }}
+          />
+        </label>
+        <label className="block text-sm font-semibold text-ink">
+          Minimum nights
+          <input
+            className="tv-input mt-1 w-full font-normal"
+            type="number"
+            min={1}
+            max={365}
+            value={draft.minNights ?? baseMinNights}
+            onChange={(e) => {
+              const n = Math.floor(Number(e.target.value));
+              setDraft({ ...draft, minNights: Number.isFinite(n) && n >= 1 ? n : null });
+            }}
+          />
+        </label>
+        <p className="text-[12.5px] leading-relaxed text-ink-muted sm:col-span-2">
+          Guests on this schedule cannot exceed {maxGuests != null ? `${maxGuests} guests` : 'the accommodation maximum'}. Checkout uses this nightly price for each night inside the dates. A shorter overlapping schedule wins. Check-out morning is not a charged night.
+        </p>
+        {example && example.ok ? (
+          <p className="text-sm text-ink sm:col-span-2">
+            Example · {example.nightlyPrices.length} night{example.nightlyPrices.length === 1 ? '' : 's'} ·{' '}
+            <span className="font-semibold">{formatMoney(example.lodging, currency)}</span>
+          </p>
+        ) : null}
+      </div>
     </TourOptionWorkspace>
   );
 }
 
-function Field({
+function Num({
   label,
   value,
-  onChange,
-  type = 'text',
   min,
-  step,
-  hint,
+  max,
+  step = 1,
+  onChange,
 }: {
   label: string;
-  value: string;
-  onChange: (value: string) => void;
-  type?: string;
-  min?: number;
+  value: number | null;
+  min: number;
+  max: number;
   step?: number;
-  hint?: string;
+  onChange: (value: number | null) => void;
 }) {
   return (
     <label className="block text-sm font-semibold text-ink">
       {label}
-      {hint ? <span className="mt-0.5 block text-xs font-normal text-ink-muted">{hint}</span> : null}
-      <input className="tv-input mt-1 w-full font-normal" type={type} min={min} step={step} value={value} onChange={(e) => onChange(e.target.value)} />
+      <input
+        className="tv-input mt-1 w-full font-normal"
+        type="number"
+        min={min}
+        max={max}
+        step={step}
+        value={value ?? ''}
+        onChange={(e) => {
+          const raw = e.target.value.trim();
+          if (!raw) {
+            onChange(null);
+            return;
+          }
+          const n = Number(raw);
+          onChange(Number.isFinite(n) ? n : null);
+        }}
+      />
     </label>
   );
 }
