@@ -4,8 +4,8 @@
  */
 
 export const STAY_ONBOARDING_SCREENS = [
-  { id: 'location', group: 'Location', part: '1 of 1', title: 'Where is the property?', body: 'Search the city, then add the street address. Guests see the city before they book.' },
-  { id: 'confirm', group: 'Location', part: 'Pin', title: 'Confirm the pin', body: 'Move the pin onto the property. The public page shows the city, not the apartment door.' },
+  { id: 'location', group: 'Location', part: '1 of 2', title: 'Where is the property?', body: 'Search the street address. Guests see the city before they book.' },
+  { id: 'confirm', group: 'Location', part: '2 of 2', title: 'Confirm the location', body: 'The pin should sit on the property. Guests still see only the city before they book.' },
   { id: 'property-type', group: 'Property', part: '1 of 2', title: 'What kind of place is this?', body: 'One listing is one bookable place.' },
   { id: 'property-name', group: 'Property', part: '2 of 2', title: 'Name the accommodation', body: 'This is the title guests see in search.' },
   { id: 'amenities', group: 'Amenities', part: '1 of 1', title: 'What can guests use?', body: 'Select only what is actually there.' },
@@ -89,6 +89,7 @@ export type StayOnboardingCheck = {
   street: string;
   postal: string;
   locationConfirmed: boolean;
+  pinReady: boolean;
   title: string;
   propertyType: string;
   areasWithBeds: number;
@@ -115,12 +116,13 @@ const CLOCK = /^\d{2}:\d{2}$/;
 export function stayStageBlocker(screenId: string, draft: StayOnboardingCheck): string | null {
   switch (screenId) {
     case 'location':
-      if (!draft.hasPlace || !draft.city.trim() || !draft.country.trim()) return 'Search and select the city.';
+      if (!draft.city.trim() || !draft.country.trim()) return 'Add the city and country.';
       if (draft.street.trim().length < 3) return 'Add the street and building number.';
       if (draft.postal.trim().length < 2) return 'Add the postal code.';
       return null;
     case 'confirm':
-      return draft.locationConfirmed ? null : 'Confirm the pin before continuing.';
+      if (!draft.pinReady) return 'Place the pin on the property.';
+      return draft.locationConfirmed ? null : 'Confirm this is the correct location.';
     case 'property-type':
       return draft.propertyType.trim() ? null : 'Choose a property type.';
     case 'property-name':

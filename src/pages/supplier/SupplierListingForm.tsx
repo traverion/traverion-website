@@ -239,6 +239,7 @@ import { normalizeStayBedMix, staySleepCapacity, type StayBedMix } from '../../l
 import { normalizeStayGuestPolicy } from '../../lib/stay-guest-party';
 import { STAY_ARRIVAL_METHODS, stayArrivalMethodHint } from '../../lib/stay-arrival';
 import { STAY_ONBOARDING_SCREENS, stayScreenIndexForPublishLine, stayScreenIndexFromStorage, stayStageBlocker } from '../../lib/stay-onboarding';
+import { parseLegacyStayAddress, stayAddressKey, stayPinMatchesAddress } from '../../lib/stay-address';
 import StayOnboardingFlow from '../../components/supplier/listing-creation/StayOnboardingFlow';
 import StayAmenityPicker from '../../components/supplier/listing-creation/StayAmenityPicker';
 import StayOptionsStep from '../../components/supplier/listing-creation/StayOptionsStep';
@@ -926,8 +927,14 @@ type ListingFormState = {
   stayLocationDisplayName: string;
   /** Parts of the private arrival address. Composed into stayCheckInAddress on edit. */
   stayAddressStreet: string;
+  stayAddressUnit: string;
   stayAddressPostal: string;
   stayAddressNotes: string;
+  stayPinLat: number | null;
+  stayPinLng: number | null;
+  stayPinPlaceId: string;
+  stayPinSource: '' | 'address' | 'adjusted';
+  stayPinAddressKey: string;
   stayCleaningFee: string;
   stayCutoffMinutes: number | null;
 };
@@ -1132,6 +1139,12 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
             }),
             locationDisplayName: form.stayLocationDisplayName.trim().slice(0, 80) || undefined,
             checkInAddress: form.stayCheckInAddress.trim() || undefined,
+            addressStreet: form.stayAddressStreet.trim() || undefined,
+            addressUnit: form.stayAddressUnit.trim() || undefined,
+            addressPostal: form.stayAddressPostal.trim() || undefined,
+            pinLat: form.stayPinLat ?? undefined,
+            pinLng: form.stayPinLng ?? undefined,
+            pinPlaceId: form.stayPinPlaceId.trim() || undefined,
             arrivalMethod: form.stayArrivalMethod || undefined,
             arrivalNote: form.stayArrivalNote.trim() || undefined,
             guestPolicy: activeStayOptions(form.stayOptions)[0]
@@ -1425,8 +1438,14 @@ const emptyForm: ListingFormState = {
   stayArrivalNote: '',
   stayLocationDisplayName: '',
   stayAddressStreet: '',
+  stayAddressUnit: '',
   stayAddressPostal: '',
   stayAddressNotes: '',
+  stayPinLat: null,
+  stayPinLng: null,
+  stayPinPlaceId: '',
+  stayPinSource: '',
+  stayPinAddressKey: '',
   stayCleaningFee: '',
   stayCutoffMinutes: null,
 };
@@ -1465,8 +1484,14 @@ function coerceListingFormState(raw: Partial<ListingFormState> | null | undefine
   merged.photoOriginalUrls = normalizePhotoOriginalUrls(merged.photoOriginalUrls);
   merged.photoCropSettings = normalizePhotoCropSettings(merged.photoCropSettings);
   merged.stayAddressStreet = typeof merged.stayAddressStreet === 'string' ? merged.stayAddressStreet : '';
+  merged.stayAddressUnit = typeof merged.stayAddressUnit === 'string' ? merged.stayAddressUnit : '';
   merged.stayAddressPostal = typeof merged.stayAddressPostal === 'string' ? merged.stayAddressPostal : '';
   merged.stayAddressNotes = typeof merged.stayAddressNotes === 'string' ? merged.stayAddressNotes : '';
+  merged.stayPinLat = typeof merged.stayPinLat === 'number' && Number.isFinite(merged.stayPinLat) ? merged.stayPinLat : null;
+  merged.stayPinLng = typeof merged.stayPinLng === 'number' && Number.isFinite(merged.stayPinLng) ? merged.stayPinLng : null;
+  merged.stayPinPlaceId = typeof merged.stayPinPlaceId === 'string' ? merged.stayPinPlaceId : '';
+  merged.stayPinSource = merged.stayPinSource === 'address' || merged.stayPinSource === 'adjusted' ? merged.stayPinSource : '';
+  merged.stayPinAddressKey = typeof merged.stayPinAddressKey === 'string' ? merged.stayPinAddressKey : '';
   merged.stayAccommodationMode = merged.stayAccommodationMode === 'multi' ? 'multi' : 'single';
   merged.stayPets =
     merged.stayPets === 'allowed' || merged.stayPets === 'not_allowed' || merged.stayPets === 'approval'
@@ -1493,10 +1518,12 @@ function coerceListingFormState(raw: Partial<ListingFormState> | null | undefine
   if (
     !merged.stayAddressStreet.trim() &&
     !merged.stayAddressPostal.trim() &&
-    !merged.stayAddressNotes.trim() &&
     merged.stayCheckInAddress.trim()
   ) {
-    merged.stayAddressStreet = merged.stayCheckInAddress;
+    const parsed = parseLegacyStayAddress(merged.stayCheckInAddress, merged.city);
+    merged.stayAddressStreet = parsed.street;
+    if (!merged.stayAddressUnit.trim()) merged.stayAddressUnit = parsed.unit;
+    merged.stayAddressPostal = parsed.postal;
   }
   return merged;
 }
@@ -2129,6 +2156,12 @@ export default function SupplierListingForm({
           normalizePhotoCropSettings(extras.photoCropSettings)
         );
         const listingIsStay = extras.inventoryFamily === 'stay';
+        const loadedAddress = parseLegacyStayAddress(extras.stay?.checkInAddress ?? '', existing.city ?? '');
+        const loadedStreet = extras.stay?.addressStreet?.trim() || loadedAddress.street;
+        const loadedUnit = extras.stay?.addressUnit?.trim() || loadedAddress.unit;
+        const loadedPostal = extras.stay?.addressPostal?.trim() || loadedAddress.postal;
+        const loadedPinLat = typeof extras.stay?.pinLat === 'number' && Number.isFinite(extras.stay.pinLat) ? extras.stay.pinLat : null;
+        const loadedPinLng = typeof extras.stay?.pinLng === 'number' && Number.isFinite(extras.stay.pinLng) ? extras.stay.pinLng : null;
         const next: ListingFormState = {
           experienceLanguage: existing.experienceLanguage ?? '',
           experienceKind:
@@ -2242,9 +2275,18 @@ export default function SupplierListingForm({
             existing.city ?? '',
             existing.country ?? ''
           ),
-          stayAddressStreet: extras.stay?.checkInAddress ?? '',
-          stayAddressPostal: '',
+          stayAddressStreet: loadedStreet,
+          stayAddressUnit: loadedUnit,
+          stayAddressPostal: loadedPostal,
           stayAddressNotes: '',
+          stayPinLat: loadedPinLat,
+          stayPinLng: loadedPinLng,
+          stayPinPlaceId: extras.stay?.pinPlaceId ?? '',
+          stayPinSource: loadedPinLat != null && loadedPinLng != null ? 'address' : '',
+          stayPinAddressKey:
+            loadedPinLat != null && loadedPinLng != null
+              ? stayAddressKey(loadedStreet, loadedPostal, existing.city ?? '')
+              : '',
           stayCleaningFee: extras.stay?.cleaningFeeUsd != null ? String(extras.stay.cleaningFeeUsd) : '',
           stayCutoffMinutes:
             typeof extras.stay?.reservationCutoffMinutes === 'number' ? extras.stay.reservationCutoffMinutes : null,
@@ -3765,6 +3807,15 @@ export default function SupplierListingForm({
         street: form.stayAddressStreet,
         postal: form.stayAddressPostal,
         locationConfirmed: stayLocationConfirmed,
+        pinReady: stayPinMatchesAddress({
+          source: form.stayPinSource,
+          addressKey: form.stayPinAddressKey,
+          street: form.stayAddressStreet,
+          postal: form.stayAddressPostal,
+          city: form.city,
+          lat: form.stayPinLat,
+          lng: form.stayPinLng,
+        }),
         title: form.title,
         propertyType: form.stayPropertyType,
         areasWithBeds: (activeStayOptions(form.stayOptions)[0]?.sleepingAreas ?? []).filter((area) => area.beds.some((bed) => bed.count > 0)).length,
@@ -4153,20 +4204,10 @@ export default function SupplierListingForm({
                 formatted: form.destinationFormatted,
               })}
               savedPlaceLabel={
-                verifiedDestination({
-                  placeId: form.destinationPlaceId,
-                  city: form.city,
-                  country: form.country,
-                  countryCode: form.destinationCountryCode,
-                  lat: form.destinationLat,
-                  lng: form.destinationLng,
-                  formatted: form.destinationFormatted,
-                })
-                  ? travelerDestinationLabel(form.city, form.country)
-                  : ''
+                form.city.trim() && form.country.trim() ? travelerDestinationLabel(form.city, form.country) : ''
               }
               legacyPlaceHint={
-                form.city.trim() && form.country.trim() && !form.destinationPlaceId
+                form.city.trim() && form.country.trim() && !form.destinationPlaceId && !form.stayAddressStreet.trim()
                   ? `Previously saved as ${travelerDestinationLabel(form.city, form.country)}. Search and select it to confirm.`
                   : undefined
               }
@@ -4970,9 +5011,6 @@ export default function SupplierListingForm({
                       setForm((f) => ({
                         ...f,
                         stayCheckInAddress,
-                        stayAddressStreet: stayCheckInAddress,
-                        stayAddressPostal: '',
-                        stayAddressNotes: '',
                       }));
                     }}
                     className="tv-input mt-1 min-h-[4.5rem] w-full resize-y font-normal"

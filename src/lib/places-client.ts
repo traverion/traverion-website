@@ -3,6 +3,8 @@
  * Live suggestions require VITE_GOOGLE_MAPS_API_KEY. This module never invents results.
  */
 
+import { stayAddressFromGoogleComponents } from './stay-address';
+
 export type PlaceSuggestion = {
   placeId: string;
   name: string;
@@ -115,6 +117,105 @@ export async function resolvePlace(placeId: string): Promise<ResolvedPlace | nul
     placeId: (data.id ?? id).trim(),
     name: data.displayName?.text?.trim() || formattedAddress,
     formattedAddress,
+    lat,
+    lng,
+  };
+}
+
+export type ResolvedAddress = {
+  placeId: string;
+  formattedAddress: string;
+  street: string;
+  unit: string;
+  postal: string;
+  city: string;
+  country: string;
+  countryCode: string;
+  lat: number;
+  lng: number;
+};
+
+/**
+ * Street-address suggestions. Biased toward a selected city, never restricted to it.
+ * Uses the same Places autocomplete endpoint as destination search.
+ */
+export async function autocompleteAddresses(
+  input: string,
+  options?: { bias?: { lat: number; lng: number } | null; signal?: AbortSignal }
+): Promise<PlaceSuggestion[]> {
+  const query = input.trim();
+  if (!placesSearchConfigured() || query.length < 2) return [];
+  const body: Record<string, unknown> = { input: query, languageCode: 'en' };
+  const bias = options?.bias;
+  if (bias && Number.isFinite(bias.lat) && Number.isFinite(bias.lng)) {
+    body.locationBias = {
+      circle: {
+        center: { latitude: bias.lat, longitude: bias.lng },
+        radius: 50000,
+      },
+    };
+  }
+  const res = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
+    method: 'POST',
+    signal: options?.signal,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': googleMapsBrowserKey(),
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error('Address search is unavailable.');
+  const data = (await res.json()) as {
+    suggestions?: Array<{
+      placePrediction?: {
+        placeId?: string;
+        text?: { text?: string };
+        structuredFormat?: { mainText?: { text?: string }; secondaryText?: { text?: string } };
+      };
+    }>;
+  };
+  const out: PlaceSuggestion[] = [];
+  for (const row of data.suggestions ?? []) {
+    const prediction = row.placePrediction;
+    const placeId = prediction?.placeId?.trim() ?? '';
+    if (!placeId) continue;
+    const name = prediction?.structuredFormat?.mainText?.text?.trim() || prediction?.text?.text?.trim() || '';
+    const address = prediction?.structuredFormat?.secondaryText?.text?.trim() || '';
+    if (!name) continue;
+    out.push({ placeId, name, address });
+    if (out.length >= 6) break;
+  }
+  return out;
+}
+
+/** Place details for a street address. Null when the place has no coordinates. */
+export async function resolveAddress(placeId: string, signal?: AbortSignal): Promise<ResolvedAddress | null> {
+  const id = placeId.trim();
+  if (!placesSearchConfigured() || !id) return null;
+  const res = await fetch(`https://places.googleapis.com/v1/places/${encodeURIComponent(id)}?languageCode=en`, {
+    signal,
+    headers: {
+      'X-Goog-Api-Key': googleMapsBrowserKey(),
+      'X-Goog-FieldMask': 'id,formattedAddress,location,addressComponents',
+    },
+  });
+  if (!res.ok) throw new Error('That address could not be loaded.');
+  const data = (await res.json()) as {
+    id?: string;
+    formattedAddress?: string;
+    location?: { latitude?: number; longitude?: number };
+    addressComponents?: Array<{ longText?: string; shortText?: string; types?: string[] }>;
+  };
+  const lat = Number(data.location?.latitude);
+  const lng = Number(data.location?.longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  const formattedAddress = (data.formattedAddress ?? '').trim();
+  const parts = stayAddressFromGoogleComponents(data.addressComponents, formattedAddress);
+  if (!parts.street && formattedAddress.length < 3) return null;
+  return {
+    placeId: (data.id ?? id).trim(),
+    formattedAddress,
+    ...parts,
     lat,
     lng,
   };

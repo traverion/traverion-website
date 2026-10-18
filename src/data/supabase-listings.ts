@@ -268,30 +268,57 @@ export function tourPackageToRow(tour: Partial<TourPackage> & { title: string; d
   };
 }
 
-/** Owner-only: merge listing_stay_private.check_in_address into stay extras for edit UI. */
+type StayPrivateRow = {
+  listing_id: string;
+  check_in_address: string | null;
+  address_street?: string | null;
+  address_unit?: string | null;
+  address_postal?: string | null;
+  pin_lat?: number | null;
+  pin_lng?: number | null;
+  pin_place_id?: string | null;
+};
+
+/** Owner-only: merge listing_stay_private into stay extras for edit UI. */
 async function mergeOwnedStayPrivateAddresses(tours: TourPackage[]): Promise<TourPackage[]> {
   if (!supabase || tours.length === 0) return tours;
   const ids = tours.map((t) => t.id).filter(Boolean);
   if (ids.length === 0) return tours;
-  const { data, error } = await supabase
+  const full = await supabase
     .from('listing_stay_private')
-    .select('listing_id, check_in_address')
+    .select('listing_id, check_in_address, address_street, address_unit, address_postal, pin_lat, pin_lng, pin_place_id')
     .in('listing_id', ids);
+  const fallback =
+    full.error && /column|schema cache|address_street|pin_lat/i.test(full.error.message ?? '')
+      ? await supabase.from('listing_stay_private').select('listing_id, check_in_address').in('listing_id', ids)
+      : null;
+  const data = fallback ? fallback.data : full.data;
+  const error = fallback ? fallback.error : full.error;
   if (error || !data?.length) return tours;
-  const byId = new Map<string, string>();
-  for (const row of data as { listing_id: string; check_in_address: string | null }[]) {
-    const addr = (row.check_in_address ?? '').trim();
-    if (addr) byId.set(row.listing_id, addr.slice(0, 400));
+  const byId = new Map<string, StayPrivateRow>();
+  for (const row of data as StayPrivateRow[]) {
+    if ((row.check_in_address ?? '').trim() || row.pin_lat != null) byId.set(row.listing_id, row);
   }
   if (byId.size === 0) return tours;
   return tours.map((t) => {
-    const addr = byId.get(t.id);
-    if (!addr) return t;
+    const row = byId.get(t.id);
+    if (!row) return t;
+    const addr = (row.check_in_address ?? '').trim();
     return {
       ...t,
       listingExtras: {
         ...t.listingExtras,
-        stay: { ...t.listingExtras?.stay, checkInAddress: addr },
+        stay: {
+          ...t.listingExtras?.stay,
+          ...(addr ? { checkInAddress: addr.slice(0, 400) } : {}),
+          ...(row.address_street?.trim() ? { addressStreet: row.address_street.trim().slice(0, 160) } : {}),
+          ...(row.address_unit?.trim() ? { addressUnit: row.address_unit.trim().slice(0, 40) } : {}),
+          ...(row.address_postal?.trim() ? { addressPostal: row.address_postal.trim().slice(0, 16) } : {}),
+          ...(typeof row.pin_lat === 'number' && typeof row.pin_lng === 'number'
+            ? { pinLat: row.pin_lat, pinLng: row.pin_lng }
+            : {}),
+          ...(row.pin_place_id?.trim() ? { pinPlaceId: row.pin_place_id.trim().slice(0, 200) } : {}),
+        },
       },
     };
   });
@@ -333,14 +360,40 @@ async function mergeOwnedPrivateListingFields(tours: TourPackage[]): Promise<Tou
 
 async function upsertStayPrivateCheckInAddress(
   listingId: string,
-  checkInAddress: string | null | undefined
+  stay: {
+    checkInAddress?: string | null;
+    addressStreet?: string | null;
+    addressUnit?: string | null;
+    addressPostal?: string | null;
+    pinLat?: number | null;
+    pinLng?: number | null;
+    pinPlaceId?: string | null;
+  } | null | undefined
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!supabase) return { ok: false, error: 'Supabase is not configured.' };
-  const trimmed = (checkInAddress ?? '').trim().slice(0, 400);
+  const trimmed = (stay?.checkInAddress ?? '').trim().slice(0, 400);
   if (!trimmed) {
     const { error } = await supabase.from('listing_stay_private').delete().eq('listing_id', listingId);
     if (error) return { ok: false, error: formatSupabaseListingError('Could not clear check-in address', error) };
     return { ok: true };
+  }
+  const pinLat = typeof stay?.pinLat === 'number' && Number.isFinite(stay.pinLat) ? stay.pinLat : null;
+  const pinLng = typeof stay?.pinLng === 'number' && Number.isFinite(stay.pinLng) ? stay.pinLng : null;
+  const detailed = {
+    listing_id: listingId,
+    check_in_address: trimmed,
+    address_street: stay?.addressStreet?.trim().slice(0, 160) || null,
+    address_unit: stay?.addressUnit?.trim().slice(0, 40) || null,
+    address_postal: stay?.addressPostal?.trim().slice(0, 16) || null,
+    pin_lat: pinLat,
+    pin_lng: pinLng,
+    pin_place_id: stay?.pinPlaceId?.trim().slice(0, 200) || null,
+    updated_at: new Date().toISOString(),
+  };
+  const first = await supabase.from('listing_stay_private').upsert(detailed, { onConflict: 'listing_id' });
+  if (!first.error) return { ok: true };
+  if (!/column|schema cache|address_street|pin_lat/i.test(first.error.message ?? '')) {
+    return { ok: false, error: formatSupabaseListingError('Could not save check-in address', first.error) };
   }
   const { error } = await supabase.from('listing_stay_private').upsert(
     { listing_id: listingId, check_in_address: trimmed, updated_at: new Date().toISOString() },
@@ -448,7 +501,7 @@ function isUniqueViolation(error: { code?: string; message?: string }): boolean 
 export async function insertListing(tour: TourPackage, supplierId: string): Promise<ListingSaveResult> {
   if (!supabase) return { ok: false, error: 'Supabase is not configured.' };
   const ownerSupplierId = await resolveSupplierId(supplierId);
-  const privateAddress = tour.listingExtras?.stay?.checkInAddress?.trim() || null;
+  const privateStay = tour.listingExtras?.stay;
   const privatePhone = tour.listingExtras?.bookingContactPhoneE164?.trim() || null;
   const isStay = tour.listingExtras?.inventoryFamily === 'stay';
   // Phase 1252: stays that should go live insert as draft first so listing_stay_private
@@ -472,7 +525,7 @@ export async function insertListing(tour: TourPackage, supplierId: string): Prom
     return { ok: false, error: formatSupabaseListingError('Could not create listing', error) };
   }
   let saved = rowToTourPackage(data as ListingRow);
-  const priv = await upsertStayPrivateCheckInAddress(saved.id, privateAddress);
+  const priv = await upsertStayPrivateCheckInAddress(saved.id, privateStay);
   if (!priv.ok) return priv;
   const phonePriv = await upsertListingBookingContactPhone(saved.id, privatePhone);
   if (!phonePriv.ok) return phonePriv;
@@ -488,10 +541,8 @@ export async function insertListing(tour: TourPackage, supplierId: string): Prom
 /** Update an existing listing (requires auth; must be owner). */
 export async function updateListing(id: string, tour: Partial<TourPackage>): Promise<ListingSaveResult> {
   if (!supabase) return { ok: false, error: 'Supabase is not configured.' };
-  const privateAddress =
-    tour.listingExtras && 'stay' in (tour.listingExtras ?? {})
-      ? tour.listingExtras?.stay?.checkInAddress?.trim() || null
-      : undefined;
+  const privateStay =
+    tour.listingExtras && 'stay' in (tour.listingExtras ?? {}) ? tour.listingExtras?.stay : undefined;
   const privatePhone =
     tour.listingExtras != null
       ? tour.listingExtras.bookingContactPhoneE164?.trim() || null
@@ -507,8 +558,8 @@ export async function updateListing(id: string, tour: Partial<TourPackage>): Pro
     console.error('Supabase update listing:', error);
     return { ok: false, error: formatSupabaseListingError('Could not update listing', error) };
   }
-  if (privateAddress !== undefined) {
-    const priv = await upsertStayPrivateCheckInAddress(id, privateAddress);
+  if (privateStay !== undefined) {
+    const priv = await upsertStayPrivateCheckInAddress(id, privateStay);
     if (!priv.ok) return priv;
   }
   if (privatePhone !== undefined) {

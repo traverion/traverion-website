@@ -14,6 +14,7 @@ const ready: StayOnboardingCheck = {
   street: 'Koskikatu 12',
   postal: '96200',
   locationConfirmed: true,
+  pinReady: true,
   title: 'Quiet apartment by the river',
   propertyType: 'Apartment',
   areasWithBeds: 1,
@@ -43,7 +44,8 @@ describe('stay onboarding screens', () => {
   });
 
   it('blocks an unconfirmed pin and a guest count the beds cannot sleep', () => {
-    expect(stayStageBlocker('confirm', { ...ready, locationConfirmed: false })).toMatch(/Confirm the pin/);
+    expect(stayStageBlocker('confirm', { ...ready, locationConfirmed: false })).toMatch(/correct location/);
+    expect(stayStageBlocker('confirm', { ...ready, pinReady: false })).toMatch(/Place the pin/);
     expect(stayStageBlocker('guests', { ...ready, maxGuests: 6, sleepCapacity: 4 })).toMatch(/sleep 4/);
     expect(stayStageBlocker('price', ready)).toBeNull();
   });

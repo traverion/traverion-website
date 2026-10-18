@@ -38,12 +38,19 @@ describe('stay checkInAddress privacy (Phase 1081)', () => {
         arrivalMethod: 'lockbox',
         arrivalNote: 'Park in the marked bay.',
         checkInAddress: 'Secret Road 1',
+        addressStreet: 'Secret Road 1',
+        pinLat: 66.5,
+        pinLng: 25.7,
+        pinPlaceId: 'private-place',
       },
     });
     const stay = (payload as { stay: Record<string, unknown> }).stay;
     expect(stay.arrivalMethod).toBe('lockbox');
     expect(stay.arrivalNote).toBe('Park in the marked bay.');
     expect(stay.checkInAddress).toBeUndefined();
+    expect(stay.addressStreet).toBeUndefined();
+    expect(stay.pinLat).toBeUndefined();
+    expect(stay.pinPlaceId).toBeUndefined();
   });
 
   it('stripPublicStayCheckInAddress removes leaked extras keys', () => {
@@ -51,6 +58,9 @@ describe('stay checkInAddress privacy (Phase 1081)', () => {
       inventoryFamily: 'stay',
       stay: {
         checkInAddress: 'Secret Road 9',
+        addressStreet: 'Secret Road 9',
+        pinLat: 66.5,
+        pinLng: 25.7,
         checkInTime: '15:00',
         locationDisplayName: 'Aurora Villa',
       },
@@ -59,6 +69,8 @@ describe('stay checkInAddress privacy (Phase 1081)', () => {
     expect(parsed.stay?.locationDisplayName).toBe('Aurora Villa');
     const stripped = stripPublicStayCheckInAddress(parsed);
     expect(stripped?.stay?.checkInAddress).toBeUndefined();
+    expect(stripped?.stay?.addressStreet).toBeUndefined();
+    expect(stripped?.stay?.pinLat).toBeUndefined();
     expect(stripped?.stay?.checkInTime).toBe('15:00');
   });
 });

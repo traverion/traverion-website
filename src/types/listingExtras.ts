@@ -395,6 +395,14 @@ export type StayDetails = {
    * Frozen onto purchase_snapshot at checkout; shown in Trips. City/country for discovery.
    */
   checkInAddress?: string;
+  /** Private structured parts. Stripped from public listing JSON. */
+  addressStreet?: string;
+  addressUnit?: string;
+  addressPostal?: string;
+  /** Private property pin. Not the public city-center destination. */
+  pinLat?: number;
+  pinLng?: number;
+  pinPlaceId?: string;
   /** How guests enter. Not an access code. */
   arrivalMethod?: StayArrivalMethod;
   /** Short public note. Access codes belong in the private arrival address. */
@@ -444,6 +452,12 @@ function normalizeStayDetails(raw: unknown): StayDetails | undefined {
   if (typeof o.checkInAddress === 'string' && o.checkInAddress.trim()) {
     out.checkInAddress = o.checkInAddress.trim().slice(0, 400);
   }
+  if (typeof o.addressStreet === 'string' && o.addressStreet.trim()) out.addressStreet = o.addressStreet.trim().slice(0, 160);
+  if (typeof o.addressUnit === 'string' && o.addressUnit.trim()) out.addressUnit = o.addressUnit.trim().slice(0, 40);
+  if (typeof o.addressPostal === 'string' && o.addressPostal.trim()) out.addressPostal = o.addressPostal.trim().slice(0, 16);
+  if (typeof o.pinLat === 'number' && Number.isFinite(o.pinLat)) out.pinLat = o.pinLat;
+  if (typeof o.pinLng === 'number' && Number.isFinite(o.pinLng)) out.pinLng = o.pinLng;
+  if (typeof o.pinPlaceId === 'string' && o.pinPlaceId.trim()) out.pinPlaceId = o.pinPlaceId.trim().slice(0, 200);
   if (
     o.arrivalMethod === 'self' ||
     o.arrivalMethod === 'host' ||
@@ -1198,7 +1212,16 @@ export function listingExtrasToDb(extras: ListingExtras | undefined): Record<str
   }
   if (extras.stay && Object.keys(extras.stay).length > 0) {
     // checkInAddress is private (listing_stay_private) — never persist into public JSON.
-    const { checkInAddress: _privateAddr, ...publicStay } = extras.stay;
+    const {
+      checkInAddress: _privateAddr,
+      addressStreet: _street,
+      addressUnit: _unit,
+      addressPostal: _postal,
+      pinLat: _pinLat,
+      pinLng: _pinLng,
+      pinPlaceId: _pinPlace,
+      ...publicStay
+    } = extras.stay;
     if (Object.keys(publicStay).length > 0) payload.stay = publicStay;
   }
   return Object.keys(payload).length > 0 ? payload : null;
@@ -1215,8 +1238,28 @@ export function stripPublicBookingContactPhone(
 }
 
 export function stripPublicStayCheckInAddress(extras: ListingExtras | undefined): ListingExtras | undefined {
-  if (!extras?.stay?.checkInAddress) return extras;
-  const { checkInAddress: _drop, ...restStay } = extras.stay;
+  if (!extras?.stay) return extras;
+  const {
+    checkInAddress: _drop,
+    addressStreet: _street,
+    addressUnit: _unit,
+    addressPostal: _postal,
+    pinLat: _pinLat,
+    pinLng: _pinLng,
+    pinPlaceId: _pinPlace,
+    ...restStay
+  } = extras.stay;
+  if (
+    !_drop &&
+    !_street &&
+    !_unit &&
+    !_postal &&
+    _pinLat == null &&
+    _pinLng == null &&
+    !_pinPlace
+  ) {
+    return extras;
+  }
   const next: ListingExtras = { ...extras, stay: Object.keys(restStay).length > 0 ? restStay : undefined };
   if (!next.stay) {
     const { stay: _s, ...withoutStay } = next;

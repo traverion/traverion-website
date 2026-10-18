@@ -15,6 +15,8 @@ import StayExampleQuote from './StayExampleQuote';
 import ListingImageFields from '../ListingImageFields';
 import { TraverionSingleDateField } from '../../calendar/TraverionSingleDateField';
 import { localYmd } from '../../../lib/local-ymd';
+import { composeStayCheckInAddress, stayAddressKey, stayPinMatchesAddress } from '../../../lib/stay-address';
+import StayAddressSearch from './StayAddressSearch';
 
 type PhotoSlot = string;
 type Values = {
@@ -24,8 +26,17 @@ type Values = {
   destinationLng: number | null;
   stayLocationDisplayName: string;
   stayAddressStreet: string;
+  stayAddressUnit: string;
   stayAddressPostal: string;
+  stayAddressNotes: string;
   stayCheckInAddress: string;
+  stayPinLat: number | null;
+  stayPinLng: number | null;
+  stayPinPlaceId: string;
+  stayPinSource: '' | 'address' | 'adjusted';
+  stayPinAddressKey: string;
+  destinationPlaceId: string;
+  destinationCountryCode: string;
   stayPropertyType: string;
   stayAccommodationMode: 'single' | 'multi';
   title: string;
@@ -124,8 +135,8 @@ export default function StayOnboardingFlow(props: Props) {
     <div className={`mx-auto w-full ${wide ? 'max-w-3xl' : 'max-w-xl'} ${props.direction === 'back' ? 'stay-stage-back' : 'stay-stage-forward'}`}>
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-muted">
-          {stage.group} · {stage.part}
-          <span className="ml-2 font-medium normal-case tracking-normal">{props.stage + 1} of {STAY_ONBOARDING_SCREENS.length}</span>
+          {stage.group}
+          {stage.part && !/of 1$/.test(stage.part) ? ` · ${stage.part}` : ''}
         </p>
         {props.returnStage != null && props.stage !== props.returnStage ? (
           <button type="button" className="min-h-11 text-sm font-semibold text-finland" onClick={props.onReturn}>Back to preview</button>
@@ -185,73 +196,198 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function LocationStage({ values, onChange, selectedPlace, savedPlaceLabel, legacyPlaceHint, onSelectPlace, onClearPlace }: Props) {
-  const [unit, setUnit] = useState('');
-  function compose(street: string, postal: string, nextUnit: string) {
-    const line = [street.trim(), nextUnit.trim() ? `Unit ${nextUnit.trim()}` : '', postal.trim(), values.city.trim()].filter(Boolean).join(', ');
-    onChange({ stayAddressStreet: street, stayAddressPostal: postal, stayCheckInAddress: line.slice(0, 400) });
+function LocationStage({ values, onChange, onConfirmLocation, selectedPlace, savedPlaceLabel, legacyPlaceHint, onSelectPlace, onClearPlace }: Props) {
+  function writeParts(next: { street?: string; unit?: string; postal?: string; city?: string; notes?: string }) {
+    const street = next.street ?? values.stayAddressStreet;
+    const unit = next.unit ?? values.stayAddressUnit;
+    const postal = next.postal ?? values.stayAddressPostal;
+    const city = next.city ?? values.city;
+    const notes = next.notes ?? values.stayAddressNotes;
+    onChange({
+      stayAddressStreet: street,
+      stayAddressUnit: unit,
+      stayAddressPostal: postal,
+      stayAddressNotes: notes,
+      city,
+      stayCheckInAddress: composeStayCheckInAddress({ street, unit, postal, city, notes }),
+    });
+    onConfirmLocation(false);
   }
   return (
     <div className="space-y-4">
+      <StayAddressSearch
+        id="stay-onboarding-address"
+        bias={values.destinationLat != null && values.destinationLng != null ? { lat: values.destinationLat, lng: values.destinationLng } : null}
+        onUnresolved={() => onConfirmLocation(false)}
+        onSelect={(address) => {
+          const cityChanged = values.city.trim().toLowerCase() !== address.city.trim().toLowerCase() && Boolean(address.city.trim());
+          const street = address.street;
+          const unit = address.unit || values.stayAddressUnit;
+          const postal = address.postal;
+          const city = address.city || values.city;
+          const country = address.country || values.country;
+          onChange({
+            stayAddressStreet: street,
+            stayAddressUnit: unit,
+            stayAddressPostal: postal,
+            city,
+            country,
+            destinationCountryCode: address.countryCode || values.destinationCountryCode,
+            stayCheckInAddress: composeStayCheckInAddress({ street, unit, postal, city, notes: values.stayAddressNotes }),
+            stayPinLat: address.lat,
+            stayPinLng: address.lng,
+            stayPinPlaceId: address.placeId,
+            stayPinSource: 'address',
+            stayPinAddressKey: stayAddressKey(street, postal, city),
+            ...(cityChanged
+              ? { destinationPlaceId: '', destinationLat: null, destinationLng: null }
+              : {}),
+          });
+          onConfirmLocation(false);
+        }}
+      />
+      <Field label="Street and building number">
+        <input className="tv-input w-full" value={values.stayAddressStreet} maxLength={160} onChange={(e) => writeParts({ street: e.target.value.slice(0, 160) })} />
+      </Field>
+      <Field label="Apartment or unit, if any">
+        <input className="tv-input w-full" value={values.stayAddressUnit} maxLength={40} placeholder="For example 4B" onChange={(e) => writeParts({ unit: e.target.value.slice(0, 40) })} />
+      </Field>
+      <Field label="Postal code">
+        <input className="tv-input w-full" value={values.stayAddressPostal} maxLength={16} onChange={(e) => writeParts({ postal: e.target.value.slice(0, 16) })} />
+      </Field>
       <TraverionLocationSelector
         id="stay-onboarding-place"
+        label="City"
+        placeholder="Search a city or destination"
         selected={selectedPlace}
         savedLabel={savedPlaceLabel}
         legacyHint={legacyPlaceHint}
-        onSelect={onSelectPlace}
+        onSelect={(place) => {
+          onSelectPlace(place);
+          onConfirmLocation(false);
+        }}
         onClear={onClearPlace}
       />
-      <Field label="Street and building number">
-        <input className="tv-input w-full" value={values.stayAddressStreet} maxLength={160} onChange={(e) => compose(e.target.value.slice(0, 160), values.stayAddressPostal, unit)} />
-      </Field>
-      <Field label="Apartment or unit, if any">
-        <input className="tv-input w-full" value={unit} maxLength={40} placeholder="For example 4B" onChange={(e) => { const next = e.target.value.slice(0, 40); setUnit(next); compose(values.stayAddressStreet, values.stayAddressPostal, next); }} />
-      </Field>
-      <Field label="Postal code">
-        <input className="tv-input w-full" value={values.stayAddressPostal} maxLength={16} onChange={(e) => compose(values.stayAddressStreet, e.target.value.slice(0, 16), unit)} />
-      </Field>
-      <p className="text-xs leading-relaxed text-ink-muted">The street address is saved for booked guests. It is not shown on the public listing.</p>
+      <p className="text-xs leading-relaxed text-ink-muted">The street address is saved for booked guests. The public listing shows the city.</p>
     </div>
   );
 }
 
 function ConfirmStage({ values, locationConfirmed, onConfirmLocation, onChange }: Props) {
+  const address = values.stayCheckInAddress.trim() || composeStayCheckInAddress({
+    street: values.stayAddressStreet,
+    unit: values.stayAddressUnit,
+    postal: values.stayAddressPostal,
+    city: values.city,
+    notes: values.stayAddressNotes,
+  });
+  const pinReady = stayPinMatchesAddress({
+    source: values.stayPinSource,
+    addressKey: values.stayPinAddressKey,
+    street: values.stayAddressStreet,
+    postal: values.stayAddressPostal,
+    city: values.city,
+    lat: values.stayPinLat,
+    lng: values.stayPinLng,
+  });
+  const hasPin = values.stayPinLat != null && values.stayPinLng != null;
+  const viewLat = hasPin ? values.stayPinLat : values.destinationLat;
+  const viewLng = hasPin ? values.stayPinLng : values.destinationLng;
+  function placePin(lat: number, lng: number) {
+    onChange({
+      stayPinLat: lat,
+      stayPinLng: lng,
+      stayPinSource: 'adjusted',
+      stayPinAddressKey: stayAddressKey(values.stayAddressStreet, values.stayAddressPostal, values.city),
+    });
+    onConfirmLocation(false);
+  }
   return (
     <div className="space-y-4">
+      <p className="text-sm font-medium text-ink">{address || 'Address not added yet'}</p>
+      <p className="text-sm text-ink-muted">Public listing: {[values.city, values.country].filter(Boolean).join(', ') || 'City not set'}</p>
+      {!pinReady ? (
+        <p className="text-sm text-ink-muted">
+          {viewLat == null
+            ? 'Choose a street address, then place the pin on the property.'
+            : hasPin
+              ? 'This pin is from the previous address. Drag it onto the property.'
+              : 'This map is centered on the city. Tap the property to place the pin.'}
+        </p>
+      ) : null}
       <StayPin
-        lat={values.destinationLat}
-        lng={values.destinationLng}
-        onMove={(lat, lng) => onChange({ destinationLat: lat, destinationLng: lng })}
+        resetKey={values.stayPinPlaceId || (hasPin ? 'placed' : 'city')}
+        centerLat={viewLat}
+        centerLng={viewLng}
+        markerLat={hasPin ? values.stayPinLat : null}
+        markerLng={hasPin ? values.stayPinLng : null}
+        onMove={placePin}
       />
-      <p className="text-sm text-ink">Public listing: {[values.city, values.country].filter(Boolean).join(', ') || 'City not set'}</p>
-      <p className="text-sm text-ink-muted">Private arrival address: {values.stayCheckInAddress.trim() || values.stayAddressStreet.trim() || 'Not added yet'}</p>
       <label className="flex min-h-11 items-center gap-2 text-sm font-semibold text-ink">
-        <input type="checkbox" checked={locationConfirmed} onChange={(e) => onConfirmLocation(e.target.checked)} />
-        The pin is the property
+        <input
+          type="checkbox"
+          checked={locationConfirmed && pinReady}
+          disabled={!pinReady}
+          onChange={(e) => onConfirmLocation(e.target.checked)}
+        />
+        Is this the correct location?
       </label>
     </div>
   );
 }
 
-function StayPin({ lat, lng, onMove }: { lat: number | null; lng: number | null; onMove: (lat: number, lng: number) => void }) {
+function StayPin({
+  resetKey,
+  centerLat,
+  centerLng,
+  markerLat,
+  markerLng,
+  onMove,
+}: {
+  resetKey: string;
+  centerLat: number | null;
+  centerLng: number | null;
+  markerLat: number | null;
+  markerLng: number | null;
+  onMove: (lat: number, lng: number) => void;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const moveRef = useRef(onMove);
   moveRef.current = onMove;
+  const viewRef = useRef({ centerLat, centerLng, markerLat, markerLng });
+  viewRef.current = { centerLat, centerLng, markerLat, markerLng };
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     const key = googleMapsBrowserKey();
-    if (!key || lat == null || lng == null || !ref.current) return;
-    let marker: { setMap: (map: null) => void; addListener: (name: string, fn: () => void) => void; getPosition: () => { lat: () => number; lng: () => number } | null } | null = null;
+    const view = viewRef.current;
+    if (!key || view.centerLat == null || view.centerLng == null || !ref.current) return;
+    let marker: { setMap: (map: null) => void; setPosition: (pos: object) => void; addListener: (name: string, fn: () => void) => void; getPosition: () => { lat: () => number; lng: () => number } | null } | null = null;
     let cancelled = false;
     const scriptId = 'traverion-stay-pin-map';
     const start = () => {
-      const maps = window.google?.maps as { Map: new (el: HTMLElement, opts: object) => object; Marker: new (opts: object) => { setMap: (map: null) => void; addListener: (name: string, fn: () => void) => void; getPosition: () => { lat: () => number; lng: () => number } | null } } | undefined;
+      const maps = window.google?.maps as {
+        Map: new (el: HTMLElement, opts: object) => { addListener: (name: string, fn: (event: { latLng?: { lat: () => number; lng: () => number } | null }) => void) => void };
+        Marker: new (opts: object) => { setMap: (next: null) => void; setPosition: (pos: object) => void; addListener: (name: string, fn: () => void) => void; getPosition: () => { lat: () => number; lng: () => number } | null };
+      } | undefined;
       if (!maps || !ref.current || cancelled) return;
-      const map = new maps.Map(ref.current, { center: { lat, lng }, zoom: 16, disableDefaultUI: true, zoomControl: true, clickableIcons: false });
-      marker = new maps.Marker({ map, position: { lat, lng }, draggable: true });
-      marker.addListener('dragend', () => {
+      const zoom = view.markerLat != null ? 17 : 12;
+      const map = new maps.Map(ref.current, { center: { lat: view.centerLat, lng: view.centerLng }, zoom, disableDefaultUI: true, zoomControl: true, gestureHandling: 'greedy', clickableIcons: false });
+      const report = () => {
         const pos = marker?.getPosition();
         if (pos) moveRef.current(pos.lat(), pos.lng());
+      };
+      if (view.markerLat != null && view.markerLng != null) {
+        marker = new maps.Marker({ map, position: { lat: view.markerLat, lng: view.markerLng }, draggable: true });
+        marker.addListener('dragend', report);
+      }
+      map.addListener('click', (event) => {
+        const pos = event.latLng;
+        if (!pos) return;
+        if (!marker) {
+          marker = new maps.Marker({ map, position: pos, draggable: true });
+          marker.addListener('dragend', report);
+        } else marker.setPosition(pos);
+        moveRef.current(pos.lat(), pos.lng());
       });
     };
     if (window.google?.maps) start();
@@ -271,19 +407,24 @@ function StayPin({ lat, lng, onMove }: { lat: number | null; lng: number | null;
       cancelled = true;
       marker?.setMap(null);
     };
-  }, [lat, lng]);
-  if (lat == null || lng == null) return <p className="text-sm text-ink-muted">Select a city on the previous screen before confirming a pin.</p>;
+  }, [resetKey]);
+  if (centerLat == null || centerLng == null) {
+    return <p className="text-sm text-ink-muted">Search a street address, or choose the city, before placing the pin.</p>;
+  }
   return (
     <div>
       <div ref={ref} className="h-80 w-full overflow-hidden rounded-xl ring-1 ring-[#E6EAF0]" />
       {failed || !googleMapsBrowserKey() ? (
         <div className="mt-3 grid grid-cols-2 gap-2">
-          <button type="button" className="tv-btn-secondary !min-h-11" onClick={() => onMove(lat + 0.0004, lng)}>North</button>
-          <button type="button" className="tv-btn-secondary !min-h-11" onClick={() => onMove(lat - 0.0004, lng)}>South</button>
-          <button type="button" className="tv-btn-secondary !min-h-11" onClick={() => onMove(lat, lng - 0.0008)}>West</button>
-          <button type="button" className="tv-btn-secondary !min-h-11" onClick={() => onMove(lat, lng + 0.0008)}>East</button>
+          <p className="col-span-2 text-sm text-ink-muted">The map could not load. Move the pin onto the property.</p>
+          <button type="button" className="tv-btn-secondary !min-h-11" onClick={() => onMove(centerLat + 0.0004, centerLng)}>North</button>
+          <button type="button" className="tv-btn-secondary !min-h-11" onClick={() => onMove(centerLat - 0.0004, centerLng)}>South</button>
+          <button type="button" className="tv-btn-secondary !min-h-11" onClick={() => onMove(centerLat, centerLng - 0.0008)}>West</button>
+          <button type="button" className="tv-btn-secondary !min-h-11" onClick={() => onMove(centerLat, centerLng + 0.0008)}>East</button>
         </div>
-      ) : null}
+      ) : (
+        <p className="mt-2 text-xs text-ink-muted">Drag the pin, or tap the map, to set the property.</p>
+      )}
     </div>
   );
 }
@@ -638,7 +779,7 @@ function ArrivalNotesStage({ values, onChange }: Props) {
         <textarea className="tv-input min-h-20 w-full" maxLength={160} value={values.stayArrivalNote} onChange={(e) => onChange({ stayArrivalNote: e.target.value.slice(0, 160) })} />
       </Field>
       <Field label="Private arrival address">
-        <textarea className="tv-input min-h-24 w-full" maxLength={400} value={values.stayCheckInAddress} onChange={(e) => onChange({ stayCheckInAddress: e.target.value.slice(0, 400), stayAddressStreet: e.target.value.slice(0, 160) })} />
+        <textarea className="tv-input min-h-24 w-full" maxLength={400} value={values.stayCheckInAddress} onChange={(e) => onChange({ stayCheckInAddress: e.target.value.slice(0, 400) })} />
       </Field>
       <p className="text-xs text-ink-muted">Booked guests see the private address after payment. Do not put a door code in the public note.</p>
     </div>
