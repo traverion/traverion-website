@@ -368,6 +368,10 @@ export type StayDetails = {
   checkInTime?: string;
   checkOutTime?: string;
   houseRules?: string;
+  /** Supplier-confirmed exterior camera. Unset is not a claim that none exist. */
+  exteriorCamera?: boolean;
+  /** Public safety note shown before booking. Not a door code. */
+  safetyNote?: string;
   /** Guest-visible property rules. Not used to reject a booking. */
   restrictions?: StayRestrictions;
   /**
@@ -424,6 +428,8 @@ function normalizeStayDetails(raw: unknown): StayDetails | undefined {
   if (typeof o.checkInTime === 'string' && o.checkInTime.trim()) out.checkInTime = o.checkInTime.trim().slice(0, 5);
   if (typeof o.checkOutTime === 'string' && o.checkOutTime.trim()) out.checkOutTime = o.checkOutTime.trim().slice(0, 5);
   if (typeof o.houseRules === 'string' && o.houseRules.trim()) out.houseRules = o.houseRules.trim().slice(0, 2000);
+  if (o.exteriorCamera === true) out.exteriorCamera = true;
+  if (typeof o.safetyNote === 'string' && o.safetyNote.trim()) out.safetyNote = o.safetyNote.trim().slice(0, 160);
   const restrictions = normalizeStayRestrictions(o.restrictions);
   if (restrictions) out.restrictions = restrictions;
   if (typeof o.locationDisplayName === 'string' && o.locationDisplayName.trim()) {

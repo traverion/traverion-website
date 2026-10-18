@@ -1001,6 +1001,13 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                 </p>
               </div>
             ) : null}
+            {stay.highlights?.some((line) => line.trim()) ? (
+              <ul className="flex flex-wrap gap-2">
+                {stay.highlights.filter((line) => line.trim()).map((line) => (
+                  <li key={line} className="rounded-full bg-paper-raised px-3 py-1 text-sm text-ink ring-1 ring-black/[0.06]">{line}</li>
+                ))}
+              </ul>
+            ) : null}
             <div className="tv-card p-4 sm:p-5">
               <h2 className="font-display text-xl mb-2">About this place</h2>
               <ul className="space-y-2 text-ink-muted">
@@ -1130,6 +1137,15 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                 {s?.houseRules ? (
                   <p className="text-ink-muted break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{s.houseRules}</p>
                 ) : null}
+              </div>
+            ) : null}
+            {s?.exteriorCamera || s?.safetyNote ? (
+              <div>
+                <h2 className="font-display text-xl mb-2">Safety</h2>
+                <ul className="space-y-1 text-ink-muted">
+                  {s.exteriorCamera ? <li>Exterior security camera{s.safetyNote ? `: ${s.safetyNote}` : ''}</li> : null}
+                  {!s.exteriorCamera && s.safetyNote ? <li>{s.safetyNote}</li> : null}
+                </ul>
               </div>
             ) : null}
             <div>

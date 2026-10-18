@@ -238,7 +238,7 @@ import { normalizeStaySeasons, type StaySeasonWindow } from '../../lib/stay-seas
 import { normalizeStayBedMix, staySleepCapacity, type StayBedMix } from '../../lib/stay-beds';
 import { normalizeStayGuestPolicy } from '../../lib/stay-guest-party';
 import { STAY_ARRIVAL_METHODS, stayArrivalMethodHint } from '../../lib/stay-arrival';
-import { STAY_ONBOARDING_STAGES, stayStageBlocker, stayStageForLegacyWizardStep } from '../../lib/stay-onboarding';
+import { STAY_ONBOARDING_SCREENS, stayScreenIndexForPublishLine, stayScreenIndexFromStorage, stayStageBlocker } from '../../lib/stay-onboarding';
 import StayOnboardingFlow from '../../components/supplier/listing-creation/StayOnboardingFlow';
 import StayAmenityPicker from '../../components/supplier/listing-creation/StayAmenityPicker';
 import StayOptionsStep from '../../components/supplier/listing-creation/StayOptionsStep';
@@ -911,6 +911,8 @@ type ListingFormState = {
   stayCheckOut: string;
   stayAmenities: string;
   stayHouseRules: string;
+  stayExteriorCamera: boolean;
+  staySafetyNote: string;
   stayPets: '' | 'allowed' | 'not_allowed' | 'approval';
   staySmoking: '' | 'allowed' | 'not_allowed';
   stayParties: '' | 'allowed' | 'not_allowed';
@@ -1116,6 +1118,8 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
             checkInTime: form.stayCheckIn.trim() || undefined,
             checkOutTime: form.stayCheckOut.trim() || undefined,
             houseRules: form.stayHouseRules.trim() || undefined,
+            exteriorCamera: form.stayExteriorCamera ? true : undefined,
+            safetyNote: form.staySafetyNote.trim() || undefined,
             restrictions: normalizeStayRestrictions({
               pets: form.stayPets,
               smoking: form.staySmoking,
@@ -1408,6 +1412,8 @@ const emptyForm: ListingFormState = {
   stayCheckOut: '',
   stayAmenities: '',
   stayHouseRules: '',
+  stayExteriorCamera: false,
+  staySafetyNote: '',
   stayPets: '',
   staySmoking: '',
   stayParties: '',
@@ -1555,14 +1561,15 @@ export default function SupplierListingForm({
   const [stayStage, setStayStage] = useState(0);
   const [stayStageDir, setStayStageDir] = useState<'forward' | 'back'>('forward');
   const [stayStageAttempted, setStayStageAttempted] = useState(false);
+  const [stayReturnStage, setStayReturnStage] = useState<number | null>(null);
   const [stayLocationConfirmed, setStayLocationConfirmed] = useState(false);
   const stayStageHydrated = useRef(false);
   useEffect(() => {
     if (!isStayForm || typeof window === 'undefined') return;
-    const key = `traverion-stay-onboarding-stage-v1-${editingId ?? 'create'}`;
-    const n = Number.parseInt(sessionStorage.getItem(key) ?? '', 10);
-    if (n >= 0 && n < STAY_ONBOARDING_STAGES.length) setStayStage(n);
-    setStayLocationConfirmed(sessionStorage.getItem(`${key}-pin`) === '1');
+    const legacyKey = `traverion-stay-onboarding-stage-v1-${editingId ?? 'create'}`;
+    const key = `traverion-stay-onboarding-screen-v2-${editingId ?? 'create'}`;
+    setStayStage(stayScreenIndexFromStorage(sessionStorage.getItem(key), sessionStorage.getItem(legacyKey)));
+    setStayLocationConfirmed(sessionStorage.getItem(`${legacyKey}-pin`) === '1' || sessionStorage.getItem(`${key}-pin`) === '1');
     stayStageHydrated.current = true;
   }, [isStayForm, editingId]);
   const formRef = useRef(form);
@@ -2218,6 +2225,8 @@ export default function SupplierListingForm({
           stayCheckOut: stayFormCheckInOutFromExtras(extras.stay).stayCheckOut,
           stayAmenities: (extras.stay?.amenities ?? []).join(', '),
           stayHouseRules: extras.stay?.houseRules ?? '',
+          stayExteriorCamera: extras.stay?.exteriorCamera === true,
+          staySafetyNote: extras.stay?.safetyNote ?? '',
           stayPets: extras.stay?.restrictions?.pets ?? '',
           staySmoking: extras.stay?.restrictions?.smoking ?? '',
           stayParties: extras.stay?.restrictions?.parties ?? '',
@@ -2556,7 +2565,7 @@ export default function SupplierListingForm({
       const step = publishBlockerListingWizardStep(line, isStayForm);
       if (isStayForm) {
         setStayStageDir('forward');
-        setStayStage(stayStageForLegacyWizardStep(step));
+        setStayStage(stayScreenIndexForPublishLine(line));
         setStayStageAttempted(true);
         setPublishBlockers(null);
         return;
@@ -3739,7 +3748,7 @@ export default function SupplierListingForm({
   })();
 
   const stayOnboardingBlocker = isStayForm
-    ? stayStageBlocker(stayStage, {
+    ? stayStageBlocker(STAY_ONBOARDING_SCREENS[stayStage]?.id ?? 'location', {
         city: form.city,
         country: form.country,
         hasPlace: Boolean(
@@ -3773,18 +3782,21 @@ export default function SupplierListingForm({
         descriptionLength: form.description.trim().length,
         minDescription: MIN_LISTING_DESCRIPTION_LENGTH,
         minTitle: MIN_LISTING_TITLE_LENGTH,
+        exteriorCamera: form.stayExteriorCamera,
+        safetyNote: form.staySafetyNote,
       })
     : null;
 
-  const onCreationLastStep = isStayForm ? stayStage >= STAY_ONBOARDING_STAGES.length - 1 : stepIdx >= steps.length - 1;
+  const onCreationLastStep = isStayForm ? stayStage >= STAY_ONBOARDING_SCREENS.length - 1 : stepIdx >= steps.length - 1;
 
   const rememberStayStage = (next: number, dir: 'forward' | 'back') => {
+    const bounded = Math.max(0, Math.min(STAY_ONBOARDING_SCREENS.length - 1, next));
     setStayStageDir(dir);
-    setStayStage(next);
+    setStayStage(bounded);
     setStayStageAttempted(false);
     if (typeof window === 'undefined') return;
-    const key = `traverion-stay-onboarding-stage-v1-${editingId ?? 'create'}`;
-    sessionStorage.setItem(key, String(next));
+    const key = `traverion-stay-onboarding-screen-v2-${editingId ?? 'create'}`;
+    sessionStorage.setItem(key, STAY_ONBOARDING_SCREENS[bounded]?.id ?? 'location');
   };
 
   const creationTitle = editingId
@@ -4019,7 +4031,7 @@ export default function SupplierListingForm({
                           setStayStageAttempted(true);
                           return;
                         }
-                        rememberStayStage(Math.min(STAY_ONBOARDING_STAGES.length - 1, stayStage + 1), 'forward');
+                        rememberStayStage(stayStage + 1, 'forward');
                         return;
                       }
                       if (tourBasicsGuided && basicsSceneIdx < TOUR_BASICS_SCENE_COUNT - 1) {
@@ -4128,7 +4140,7 @@ export default function SupplierListingForm({
               locationConfirmed={stayLocationConfirmed}
               onConfirmLocation={(confirmed) => {
                 setStayLocationConfirmed(confirmed);
-                const key = `traverion-stay-onboarding-stage-v1-${editingId ?? 'create'}`;
+                const key = `traverion-stay-onboarding-screen-v2-${editingId ?? 'create'}`;
                 sessionStorage.setItem(`${key}-pin`, confirmed ? '1' : '0');
               }}
               selectedPlace={verifiedDestination({
@@ -4196,7 +4208,17 @@ export default function SupplierListingForm({
                   } as ListingFormState;
                 })
               }
-              onEditStage={(stage) => rememberStayStage(stage, 'back')}
+              returnStage={stayReturnStage}
+              onReturn={() => {
+                if (stayReturnStage == null) return;
+                const back = stayReturnStage;
+                setStayReturnStage(null);
+                rememberStayStage(back, 'forward');
+              }}
+              onEditStage={(stage) => {
+                setStayReturnStage(stayStage);
+                rememberStayStage(stage, 'back');
+              }}
               minTitle={MIN_LISTING_TITLE_LENGTH}
               maxTitle={MAX_LISTING_TITLE_LENGTH}
               minDescription={MIN_LISTING_DESCRIPTION_LENGTH}
