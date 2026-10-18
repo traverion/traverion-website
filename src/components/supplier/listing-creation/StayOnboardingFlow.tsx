@@ -461,12 +461,13 @@ function PropertyTypeStage({ values, option, writeOption }: Props & { option: St
           Several room types stay saved, and they cannot be booked yet. This listing publishes as one accommodation.
         </p>
       ) : null}
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="group" aria-label="Property type">
         {types.map((type) => {
           const on = selected === type;
+          const label = type === 'Room' ? 'Private room' : type;
           return (
-            <StayChoice key={type} pressed={on} icon={stayPropertyIcon(type)} onClick={() => writeOption({ ...option, propertyType: type })}>
-              {type === 'Room' ? 'Private room' : type}
+            <StayChoice key={type} pressed={on} icon={stayPropertyIcon(type)} className="stay-type-card min-h-[5.75rem] flex-col" onClick={() => writeOption({ ...option, propertyType: type })}>
+              <span className="mt-2 block">{label}</span>
             </StayChoice>
           );
         })}

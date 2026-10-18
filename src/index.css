@@ -5869,6 +5869,10 @@ details:not([open]) > :not(summary) {
   color: #073b83;
 }
 
+.stay-creator .stay-type-card {
+  justify-content: flex-start;
+}
+
 .stay-creator .stay-choice-icon svg {
   width: 1.125rem;
   height: 1.125rem;
