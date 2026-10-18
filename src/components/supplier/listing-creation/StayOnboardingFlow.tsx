@@ -901,6 +901,7 @@ function ArrivalNotesStage({ values, onChange }: Props) {
 function GalleryStage(props: Props) {
   return (
     <ListingImageFields
+      presentation="stay"
       photoSlots={props.values.photoSlots}
       photoSlotLabels={props.values.photoSlotLabels}
       photoOriginalUrls={props.values.photoOriginalUrls}

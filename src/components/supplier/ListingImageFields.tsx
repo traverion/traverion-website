@@ -46,6 +46,7 @@ type ListingImageFieldsProps = {
   onPhotosChange: (next: ListingPhotosValue) => void;
   userId: string | null | undefined;
   uploadsEnabled: boolean;
+  presentation?: 'default' | 'stay';
 };
 
 type PhotoIssue = { name: string; message: string; retryFiles?: File[] };
@@ -69,7 +70,9 @@ export default function ListingImageFields({
   onPhotosChange,
   userId,
   uploadsEnabled,
+  presentation = 'default',
 }: ListingImageFieldsProps) {
+  const stayGallery = presentation === 'stay';
   const slots = normalizePhotoSlots(photoSlots);
   const labels = normalizePhotoSlotLabels(photoSlotLabels);
   const originals = normalizePhotoOriginalUrls(photoOriginalUrls);
@@ -555,7 +558,7 @@ export default function ListingImageFields({
           ) : null}
 
           <div
-            className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 md:grid-cols-5"
+            className={stayGallery ? 'grid grid-cols-2 gap-2 sm:grid-cols-3' : 'grid grid-cols-3 gap-1.5 sm:grid-cols-4 md:grid-cols-5'}
             onDragOver={(e) => {
               if (!uploadsEnabled || busy || !e.dataTransfer.types.includes('Files')) return;
               e.preventDefault();
@@ -577,7 +580,9 @@ export default function ListingImageFields({
               return (
                 <div
                   key={`slot-${index}-${url.slice(-24)}`}
-                  className={`lc-tile group relative overflow-hidden rounded-[var(--partner-radius-sm,0.375rem)] ${
+                  className={`lc-tile group relative overflow-hidden ${stayGallery ? 'rounded-xl' : 'rounded-[var(--partner-radius-sm,0.375rem)]'} ${
+                    stayGallery && isCover ? 'col-span-2' : ''
+                  } ${
                     isCover && dragOverCover ? 'lc-tile--drop' : ''
                   } ${isCover && coverFlash ? 'lc-tile--just-cover' : ''} ${dropActive ? 'lc-tile--drop' : ''}`}
                   onDragOver={(e) => {
@@ -603,12 +608,17 @@ export default function ListingImageFields({
                     className="lux-flat block w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-finland/40"
                   >
                     {preview ? (
-                      <img src={preview} alt="" className="aspect-square w-full object-cover" />
+                      <img src={preview} alt="" className={`${stayGallery && isCover ? 'aspect-[16/10]' : stayGallery ? 'aspect-[4/3]' : 'aspect-square'} w-full object-cover`} />
                     ) : null}
                   </button>
                   {isCover ? (
-                    <span className="pointer-events-none absolute left-1 top-1 rounded bg-black/55 px-1 py-px text-[9px] font-semibold uppercase tracking-wide text-white">
+                    <span className={`pointer-events-none absolute left-1.5 top-1.5 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white ${stayGallery ? 'bg-[#073b83]' : 'bg-black/55'}`}>
                       Cover
+                    </span>
+                  ) : null}
+                  {stayGallery ? (
+                    <span className="pointer-events-none absolute bottom-1.5 left-1.5 rounded bg-black/55 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-white">
+                      {index + 1}
                     </span>
                   ) : null}
                   <button
@@ -666,7 +676,7 @@ export default function ListingImageFields({
                 type="button"
                 disabled={!uploadsEnabled || busy}
                 onClick={() => openPicker(null)}
-                className={`lc-upload lux-flat flex aspect-square w-full flex-col items-center justify-center gap-0.5 rounded-[var(--partner-radius-sm,0.375rem)] text-[12px] font-semibold text-finland focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland/30 disabled:opacity-40 ${
+                className={`lc-upload lux-flat flex w-full flex-col items-center justify-center gap-0.5 text-[12px] font-semibold text-finland focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland/30 disabled:opacity-40 ${stayGallery ? 'aspect-[4/3] rounded-xl' : 'aspect-square rounded-[var(--partner-radius-sm,0.375rem)]'} ${
                   dropActive ? 'lc-upload--active' : ''
                 }`}
               >
