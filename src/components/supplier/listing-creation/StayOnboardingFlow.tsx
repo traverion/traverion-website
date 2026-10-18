@@ -135,10 +135,13 @@ export default function StayOnboardingFlow(props: Props) {
   return (
     <div className={`mx-auto w-full ${wide ? 'max-w-3xl' : 'max-w-xl'} ${props.direction === 'back' ? 'stay-stage-back' : 'stay-stage-forward'}`}>
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-muted">
-          {stage.group}
-          {stage.part && !/of 1$/.test(stage.part) ? ` · ${stage.part}` : ''}
-        </p>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-muted">
+            {stage.group}
+            {stage.part && !/of 1$/.test(stage.part) ? ` · ${stage.part}` : ''}
+          </p>
+          <p className="mt-1 text-xs text-ink-muted">Step {props.stage + 1} of {STAY_ONBOARDING_SCREENS.length}</p>
+        </div>
         {props.returnStage != null && props.stage !== props.returnStage ? (
           <button type="button" className="min-h-11 text-sm font-semibold text-finland" onClick={props.onReturn}>Back to preview</button>
         ) : null}
