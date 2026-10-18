@@ -13,4 +13,10 @@ describe('stay booking cutoff', () => {
     expect(stayCutoffFromMinutes(2880)).toEqual({ unit: 'days', amount: 2 });
     expect(stayCutoffFromMinutes(15)).toEqual({ unit: 'minutes', amount: 15 });
   });
+
+  it('keeps a saved amount that is outside the preset lists', () => {
+    expect(stayCutoffFromMinutes(7)).toEqual({ unit: 'minutes', amount: 7 });
+    expect(stayCutoffFromMinutes(90)).toEqual({ unit: 'minutes', amount: 90 });
+    expect(stayCutoffToMinutes('minutes', 90)).toBe(90);
+  });
 });

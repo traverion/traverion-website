@@ -624,7 +624,10 @@ function CutoffStage({ option, writeOption }: { option: StayAccommodationOption;
   const saved = option.cutoffMinutes ?? 0;
   const known = saved > 0 ? stayCutoffFromMinutes(saved) : null;
   const unit: StayCutoffUnit = known?.unit ?? 'hours';
-  const amounts = stayCutoffAmounts(unit);
+  const presetAmounts = stayCutoffAmounts(unit);
+  const amounts = known && !presetAmounts.includes(known.amount)
+    ? [...presetAmounts, known.amount].sort((left, right) => left - right)
+    : presetAmounts;
   function write(nextUnit: StayCutoffUnit, amount: number) {
     writeOption({ ...option, cutoffMinutes: stayCutoffToMinutes(nextUnit, amount) });
   }
