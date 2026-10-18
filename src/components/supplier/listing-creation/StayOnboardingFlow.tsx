@@ -490,50 +490,54 @@ function PropertyNameStage({ values, onChange, minTitle, maxTitle, maxSubtitle }
   );
 }
 
+function roomSleepLine(area: StaySleepingArea): string {
+  const mix = stayMixFromAreas([area]);
+  const summary = stayBedSummary(mix);
+  const sleeps = staySleepCapacity(mix);
+  if (!summary || sleeps < 1) return 'Add a bed to show who can sleep here.';
+  return `${summary.charAt(0).toUpperCase()}${summary.slice(1)} · Sleeps up to ${sleeps}`;
+}
+
 function RoomsStage({ areas, onChange }: { areas: StaySleepingArea[]; onChange: (next: StaySleepingArea[]) => void }) {
   function add(living: boolean) {
     onChange([...areas, { id: newStayOptionId(), name: living ? 'Living area' : `Bedroom ${areas.filter((area) => !/living/i.test(area.name)).length + 1}`, beds: [] }]);
   }
+  function patch(areaId: string, next: StaySleepingArea) {
+    onChange(areas.map((row) => row.id === areaId ? next : row));
+  }
   return (
     <div className="space-y-3">
       {areas.map((area) => (
-        <section key={area.id} className="stay-stage-forward rounded-xl p-3 ring-1 ring-[#E6EAF0]">
+        <section key={area.id} className="stay-panel space-y-3">
           <div className="flex items-center gap-2">
-            <input className="tv-input min-w-0 flex-1" aria-label="Room name" value={area.name} maxLength={40} onChange={(e) => onChange(areas.map((row) => row.id === area.id ? { ...row, name: e.target.value.slice(0, 40) } : row))} />
-            <button type="button" className="min-h-11 px-2 text-sm text-ink-muted" onClick={() => onChange(areas.filter((row) => row.id !== area.id))}>Remove</button>
+            <input className="tv-input min-w-0 flex-1" aria-label="Room name" value={area.name} maxLength={40} onChange={(e) => patch(area.id, { ...area, name: e.target.value.slice(0, 40) })} />
+            <button type="button" className="min-h-11 px-2 text-sm font-semibold text-ink-muted" onClick={() => onChange(areas.filter((row) => row.id !== area.id))}>Remove</button>
           </div>
-          <ul className="mt-2 space-y-2">
-            {area.beds.map((bed, index) => {
-              const kind = STAY_BED_KINDS.find((row) => row.id === bed.kind);
-              const sleeps = (kind?.sleeps ?? 1) * bed.count;
-              const noun = `${bed.count} ${(kind?.label ?? 'bed').toLowerCase()}${bed.count === 1 ? '' : 's'}`;
-              return (
-              <li key={`${area.id}-${index}`} className="space-y-1">
-                <div className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-2">
-                  <span className="stay-choice-icon">{stayBedIcon(bed.kind)}</span>
-                  <select className="tv-input w-full" value={bed.kind} onChange={(e) => onChange(areas.map((row) => row.id === area.id ? { ...row, beds: row.beds.map((item, i) => i === index ? { ...item, kind: e.target.value as StayBedKind } : item) } : row))}>
-                    {STAY_BED_KINDS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-                  </select>
-                  <div className="flex items-center gap-1">
-                    <button type="button" className="stay-step" aria-label="Fewer beds" disabled={bed.count <= 1} onClick={() => onChange(areas.map((row) => row.id === area.id ? { ...row, beds: row.beds.map((item, i) => i === index ? { ...item, count: Math.max(1, item.count - 1) } : item) } : row))}>−</button>
-                    <span className="w-6 text-center text-sm tabular-nums">{bed.count}</span>
-                    <button type="button" className="stay-step" aria-label="More beds" disabled={bed.count >= 20} onClick={() => onChange(areas.map((row) => row.id === area.id ? { ...row, beds: row.beds.map((item, i) => i === index ? { ...item, count: Math.min(20, item.count + 1) } : item) } : row))}>+</button>
-                  </div>
-                  <button type="button" className="min-h-11 text-sm text-ink-muted" onClick={() => onChange(areas.map((row) => row.id === area.id ? { ...row, beds: row.beds.filter((_, i) => i !== index) } : row))}>Remove</button>
+          <p className="text-sm font-medium text-ink">{roomSleepLine(area)}</p>
+          <ul className="space-y-2">
+            {area.beds.map((bed, index) => (
+              <li key={`${area.id}-${index}`} className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-2">
+                <span className="stay-choice-icon">{stayBedIcon(bed.kind)}</span>
+                <select className="tv-input w-full" aria-label={`Bed type in ${area.name || 'room'}`} value={bed.kind} onChange={(e) => patch(area.id, { ...area, beds: area.beds.map((item, i) => i === index ? { ...item, kind: e.target.value as StayBedKind } : item) })}>
+                  {STAY_BED_KINDS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+                </select>
+                <div className="flex items-center gap-1">
+                  <button type="button" className="stay-step" aria-label="Fewer beds" disabled={bed.count <= 1} onClick={() => patch(area.id, { ...area, beds: area.beds.map((item, i) => i === index ? { ...item, count: Math.max(1, item.count - 1) } : item) })}>−</button>
+                  <span className="w-6 text-center text-sm tabular-nums">{bed.count}</span>
+                  <button type="button" className="stay-step" aria-label="More beds" disabled={bed.count >= 20} onClick={() => patch(area.id, { ...area, beds: area.beds.map((item, i) => i === index ? { ...item, count: Math.min(20, item.count + 1) } : item) })}>+</button>
                 </div>
-                <p className="text-xs text-ink-muted">{noun} · sleeps up to {sleeps}</p>
+                <button type="button" className="min-h-11 text-sm text-ink-muted" onClick={() => patch(area.id, { ...area, beds: area.beds.filter((_, i) => i !== index) })}>Remove</button>
               </li>
-              );
-            })}
+            ))}
           </ul>
-          <button type="button" className="mt-2 min-h-11 text-sm font-semibold text-finland" onClick={() => onChange(areas.map((row) => row.id === area.id ? { ...row, beds: [...row.beds, { kind: 'double', count: 1 }] } : row))}>Add a bed</button>
+          <button type="button" className="min-h-11 text-sm font-semibold text-finland" onClick={() => patch(area.id, { ...area, beds: [...area.beds, { kind: 'double', count: 1 }] })}>Add a bed</button>
         </section>
       ))}
-      <div className="flex gap-2">
-        <button type="button" className="tv-btn-secondary !min-h-11 flex-1" onClick={() => add(false)}>Add bedroom</button>
-        <button type="button" className="tv-btn-secondary !min-h-11 flex-1" onClick={() => add(true)}>Add living area</button>
+      <div className="grid grid-cols-2 gap-2">
+        <button type="button" className="tv-btn-secondary !min-h-11" onClick={() => add(false)}>Add bedroom</button>
+        <button type="button" className="tv-btn-secondary !min-h-11" onClick={() => add(true)}>Add living area</button>
       </div>
-      <p className="text-sm text-ink-muted">These beds sleep up to {staySleepCapacity(stayMixFromAreas(areas))} guests. Living areas are not counted as bedrooms.</p>
+      <StayHelp>These beds sleep up to {staySleepCapacity(stayMixFromAreas(areas))} guests. Living areas are not counted as bedrooms.</StayHelp>
     </div>
   );
 }
