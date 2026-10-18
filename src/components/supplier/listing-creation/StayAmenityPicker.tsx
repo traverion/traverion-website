@@ -1,6 +1,6 @@
-import { useEffect, useId, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { STAY_AMENITY_GROUPS, formatStayAmenityLabel, stayAmenityDisplayList } from '../../../lib/stay-amenities';
+import { useState } from 'react';
+import { STAY_AMENITY_GROUPS, STAY_AMENITY_PRESETS, formatStayAmenityLabel, stayAmenityDisplayList } from '../../../lib/stay-amenities';
+import { StayChoice, StayField } from './StayCreatorUi';
 import { stayAmenityIcon } from './stay-creator-icons';
 
 type Props = {
@@ -14,51 +14,12 @@ function hasAmenity(selected: string[], label: string): boolean {
 }
 
 export default function StayAmenityPicker({ selected, onChange }: Props) {
-  const listId = useId();
-  const rootRef = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [custom, setCustom] = useState('');
-  const [box, setBox] = useState<{ top: number; left: number; width: number } | null>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function place() {
-      const el = buttonRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      setBox({ top: rect.bottom + 4, left: rect.left, width: Math.max(rect.width, 280) });
-    }
-    place();
-    window.addEventListener('scroll', place, true);
-    window.addEventListener('resize', place);
-    return () => {
-      window.removeEventListener('scroll', place, true);
-      window.removeEventListener('resize', place);
-    };
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    function onPointer(event: MouseEvent) {
-      const target = event.target as Node;
-      if (rootRef.current?.contains(target)) return;
-      if (document.getElementById(listId)?.contains(target)) return;
-      setOpen(false);
-    }
-    function onKey(event: KeyboardEvent) {
-      if (event.key === 'Escape') setOpen(false);
-    }
-    document.addEventListener('mousedown', onPointer);
-    window.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onPointer);
-      window.removeEventListener('keydown', onKey);
-    };
-  }, [open, listId]);
-
   const canonical = stayAmenityDisplayList(selected);
+  const presetKeys = new Set(STAY_AMENITY_PRESETS.map((label) => label.toLowerCase()));
+  const customSelected = canonical.filter((item) => !presetKeys.has(item.toLowerCase()));
+  const q = query.trim().toLowerCase();
 
   function toggle(label: string) {
     const clean = formatStayAmenityLabel(label);
@@ -71,94 +32,44 @@ export default function StayAmenityPicker({ selected, onChange }: Props) {
     onChange([...current, clean]);
   }
 
-  const q = query.trim().toLowerCase();
-  const menu =
-    open && box ? (
-      <div
-        id={listId}
-        role="listbox"
-        aria-multiselectable="true"
-        style={{ position: 'fixed', top: box.top, left: box.left, width: box.width }}
-        className="stay-creator z-[80] max-h-72 overflow-auto rounded-lg border border-black/10 bg-white py-1 shadow-lg"
-      >
-        <div className="sticky top-0 bg-white px-2 py-2">
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="tv-input w-full"
-            placeholder="Search amenities"
-            aria-label="Search amenities"
-            autoFocus
-          />
-        </div>
-        {q && STAY_AMENITY_GROUPS.every((group) => group.items.filter((label) => label.toLowerCase().includes(q)).length === 0) ? (
-          <p className="px-3 py-2 text-sm text-ink-muted">No amenities match.</p>
-        ) : null}
-        {STAY_AMENITY_GROUPS.map((group) => {
-          const items = group.items.filter((label) => !q || label.toLowerCase().includes(q));
-          if (items.length === 0) return null;
-          return (
-            <div key={group.label} className="px-1 pb-1">
-              <p className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">{group.label}</p>
-              {items.map((label) => {
-                const on = hasAmenity(selected, label);
-                return (
-                  <button
-                    key={`${group.label}-${label}`}
-                    type="button"
-                    role="option"
-                    aria-selected={on}
-                    aria-disabled={on}
-                    className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm ${
-                      on ? 'bg-finland/10 font-semibold text-ink' : 'text-ink hover:bg-black/[0.03]'
-                    }`}
-                    onClick={() => {
-                      if (!on) toggle(label);
-                    }}
-                  >
-                    <span className="flex items-center gap-2">{stayAmenityIcon(label) ? <span className="stay-choice-icon">{stayAmenityIcon(label)}</span> : null}{label}</span>
-                    {on ? <span className="text-xs text-finland">Selected</span> : null}
-                  </button>
-                );
-              })}
-            </div>
-          );
-        })}
-      </div>
-    ) : null;
+  const visibleGroups = STAY_AMENITY_GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter((label) => !q || label.toLowerCase().includes(q)),
+  })).filter((group) => group.items.length > 0);
 
   return (
-    <div ref={rootRef} className="space-y-3">
-      <button
-        ref={buttonRef}
-        type="button"
-        className="tv-btn-secondary !min-h-10 !px-4 text-sm"
-        aria-expanded={open}
-        aria-controls={listId}
-        onClick={() => setOpen((value) => !value)}
-      >
-        Add amenities
-      </button>
-      {canonical.length > 0 ? (
-        <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {canonical.map((item) => (
-            <li key={item} className="flex items-center justify-between gap-3 rounded-lg border border-[#0B397E] bg-[#F4F8FC] px-3 py-2 text-sm font-medium text-ink">
-              <span className="flex min-w-0 items-center gap-2">{stayAmenityIcon(item) ? <span className="stay-choice-icon">{stayAmenityIcon(item)}</span> : null}<span className="truncate">{item === 'Wifi' ? 'Wi-Fi' : item}</span></span>
-              <button
-                type="button"
-                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-ink-muted hover:bg-[#F4F7FB] hover:text-[#0B397E]"
-                aria-label={`Remove ${item}`}
-                onClick={() => toggle(item)}
-              >
-                ×
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-xs text-ink-muted">No amenities selected.</p>
-      )}
-      <div className="flex gap-2">
+    <div className="stay-creator space-y-5">
+      <StayField label="Search">
+        <input value={query} onChange={(e) => setQuery(e.target.value)} className="tv-input w-full" placeholder="Wifi, sauna, parking" aria-label="Search amenities" />
+      </StayField>
+      {visibleGroups.length === 0 ? <p className="stay-help">No amenities match.</p> : null}
+      {visibleGroups.map((group) => (
+        <section key={group.label} className="space-y-2">
+          <h4 className="stay-kicker">{group.label}</h4>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {group.items.map((label) => {
+              const on = hasAmenity(selected, label);
+              const icon = stayAmenityIcon(label);
+              return (
+                <StayChoice key={label} pressed={on} icon={icon ?? undefined} onClick={() => toggle(label)}>
+                  {label === 'Wifi' ? 'Wi-Fi' : label}
+                </StayChoice>
+              );
+            })}
+          </div>
+        </section>
+      ))}
+      {customSelected.length > 0 ? (
+        <section className="space-y-2">
+          <h4 className="stay-kicker">Also selected</h4>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {customSelected.map((item) => (
+              <StayChoice key={item} pressed onClick={() => toggle(item)}>{item}</StayChoice>
+            ))}
+          </div>
+        </section>
+      ) : null}
+      <StayField label="Your own amenity">
         <input
           value={custom}
           onChange={(e) => setCustom(e.target.value.slice(0, 40))}
@@ -174,12 +85,12 @@ export default function StayAmenityPicker({ selected, onChange }: Props) {
             setCustom('');
           }}
           className="tv-input w-full"
-          placeholder="Custom amenity, then press Enter"
+          placeholder="Only something that is actually there"
           maxLength={40}
           aria-label="Custom amenity"
         />
-      </div>
-      {menu ? createPortal(menu, document.body) : null}
+      </StayField>
+      <p className="stay-help">Press Enter to add your own amenity. Select a tile again to remove it.</p>
     </div>
   );
 }

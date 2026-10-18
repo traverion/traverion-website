@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatStayAmenityLabel, stayAmenityDisplayList } from './stay-amenities';
+import { STAY_AMENITY_GROUPS, STAY_AMENITY_PRESETS, formatStayAmenityLabel, stayAmenityDisplayList } from './stay-amenities';
 
 describe('stay amenity display labels', () => {
   it('uses preset casing for known ticks, including lowercase stored tokens', () => {
@@ -14,6 +14,12 @@ describe('stay amenity display labels', () => {
     expect(formatStayAmenityLabel('washing machine')).toBe('Washing machine');
     expect(formatStayAmenityLabel('street parking')).toBe('Street parking');
     expect(formatStayAmenityLabel('  sauna  ')).toBe('Sauna');
+  });
+
+  it('groups every preset once and adds none', () => {
+    const grouped = STAY_AMENITY_GROUPS.flatMap((group) => [...group.items]);
+    expect(new Set(grouped).size).toBe(grouped.length);
+    expect([...grouped].sort()).toEqual([...STAY_AMENITY_PRESETS].sort());
   });
 
   it('does not invent amenities and drops blanks', () => {
