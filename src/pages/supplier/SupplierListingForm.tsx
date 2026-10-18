@@ -234,7 +234,7 @@ import {
   type StayAccommodationMode,
   type StayUnitDraft,
 } from '../../lib/stay-accommodation';
-import { normalizeStayRestrictions } from '../../lib/stay-restrictions';
+import { normalizeStayRestrictions, stayRestrictionLines } from '../../lib/stay-restrictions';
 import { normalizeStaySeasons, type StaySeasonWindow } from '../../lib/stay-season-quote';
 import { normalizeStayBedMix, type StayBedMix } from '../../lib/stay-beds';
 import StayAmenityPicker from '../../components/supplier/listing-creation/StayAmenityPicker';
@@ -894,6 +894,9 @@ type ListingFormState = {
   stayPets: '' | 'allowed' | 'not_allowed' | 'approval';
   staySmoking: '' | 'allowed' | 'not_allowed';
   stayParties: '' | 'allowed' | 'not_allowed';
+  stayChildren: '' | 'welcome' | 'not_suitable';
+  stayQuietStart: string;
+  stayQuietEnd: string;
   stayCheckInAddress: string;
   /** Guest-facing place label. Never written into the geographical destination. */
   stayLocationDisplayName: string;
@@ -1095,6 +1098,11 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
               pets: form.stayPets,
               smoking: form.staySmoking,
               parties: form.stayParties,
+              children: form.stayChildren,
+              quietHours:
+                form.stayQuietStart && form.stayQuietEnd
+                  ? { start: form.stayQuietStart, end: form.stayQuietEnd }
+                  : undefined,
             }),
             locationDisplayName: form.stayLocationDisplayName.trim().slice(0, 80) || undefined,
             checkInAddress: form.stayCheckInAddress.trim() || undefined,
@@ -1248,7 +1256,7 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
     return true;
   }
   if (idx === 3) {
-    if (form.inventoryFamily === 'stay') return stayRulesChosen(form);
+    if (form.inventoryFamily === 'stay') return true;
     const active = materializedBookingOptions(form.bookingOptions);
     const ready = readyBookingOptions(active, optionValidationMessages);
     return optionsWithFulfillment(ready).length >= 1;
@@ -1263,7 +1271,7 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
     return form.status === 'published';
   }
   if (idx === 6 && form.inventoryFamily === 'stay') {
-    return form.stayCheckInAddress.trim().length > 0;
+    return form.stayCheckInAddress.trim().length > 0 && stayRulesChosen(form);
   }
   if (idx === 7 && form.inventoryFamily === 'stay') {
     return form.status === 'published';
@@ -1373,6 +1381,9 @@ const emptyForm: ListingFormState = {
   stayPets: '',
   staySmoking: '',
   stayParties: '',
+  stayChildren: '',
+  stayQuietStart: '',
+  stayQuietEnd: '',
   stayCheckInAddress: '',
   stayLocationDisplayName: '',
   stayAddressStreet: '',
@@ -1425,6 +1436,9 @@ function coerceListingFormState(raw: Partial<ListingFormState> | null | undefine
       : '';
   merged.staySmoking = merged.staySmoking === 'allowed' || merged.staySmoking === 'not_allowed' ? merged.staySmoking : '';
   merged.stayParties = merged.stayParties === 'allowed' || merged.stayParties === 'not_allowed' ? merged.stayParties : '';
+  merged.stayChildren = merged.stayChildren === 'welcome' || merged.stayChildren === 'not_suitable' ? merged.stayChildren : '';
+  merged.stayQuietStart = /^\d{2}:\d{2}$/.test(merged.stayQuietStart ?? '') ? merged.stayQuietStart : '';
+  merged.stayQuietEnd = /^\d{2}:\d{2}$/.test(merged.stayQuietEnd ?? '') ? merged.stayQuietEnd : '';
   merged.stayAvailabilityMode = merged.stayAvailabilityMode === 'scheduled' ? 'scheduled' : 'open';
   merged.staySeasons = normalizeStaySeasons(merged.staySeasons);
   merged.stayBedMix = normalizeStayBedMix(merged.stayBedMix) ?? {};
@@ -1704,10 +1718,10 @@ export default function SupplierListingForm({
         'Search for the property location. A display name is optional.',
         'Choose one accommodation or several room types, then add a title guests will recognize.',
         'Help travelers understand what makes your property special.',
-        'Tick only facilities that are really there, then set pets, smoking, and parties.',
+        'Add the facilities guests can actually use.',
         'Create the accommodation choices guests can book and manage their availability.',
         'Add your strongest photo first — it becomes the cover in search.',
-        'Cancellation terms guests actually get, the private arrival address, and extra house rules.',
+        'Cancellation, the private arrival address, and the house rules guests read before they book.',
         'Check what’s ready, fix gaps, then save as draft or publish.',
       ] as const;
     }
@@ -1774,9 +1788,9 @@ export default function SupplierListingForm({
         {
           step: 3,
           label: 'Amenities',
-          summary: rulesSummary === 3 ? 'Pets, smoking, and parties set' : 'Restrictions not set',
+          summary: `${stayAmenityDisplayList(form.stayAmenities.split(',').map((item) => item.trim())).length} amenities selected`,
           ready: isStepSatisfied(3, form),
-          missing: !isStepSatisfied(3, form) ? 'Choose pets, smoking, and parties.' : null,
+          missing: null,
         },
         {
           step: 4,
@@ -1802,9 +1816,17 @@ export default function SupplierListingForm({
         {
           step: 6,
           label: 'Policies',
-          summary: form.stayCheckInAddress.trim() ? 'Arrival address saved' : 'Arrival address missing',
+          summary: form.stayCheckInAddress.trim()
+            ? rulesSummary === 3
+              ? 'Arrival address and house rules saved'
+              : 'House rules still need pets, smoking, and parties'
+            : 'Arrival address missing',
           ready: isStepSatisfied(6, form),
-          missing: !isStepSatisfied(6, form) ? 'Add the private arrival address.' : null,
+          missing: !isStepSatisfied(6, form)
+            ? !form.stayCheckInAddress.trim()
+              ? 'Add the private arrival address.'
+              : 'Choose pets, smoking, and parties.'
+            : null,
         },
       ];
     }
@@ -2139,6 +2161,9 @@ export default function SupplierListingForm({
           stayPets: extras.stay?.restrictions?.pets ?? '',
           staySmoking: extras.stay?.restrictions?.smoking ?? '',
           stayParties: extras.stay?.restrictions?.parties ?? '',
+          stayChildren: extras.stay?.restrictions?.children ?? '',
+          stayQuietStart: extras.stay?.restrictions?.quietHours?.start ?? '',
+          stayQuietEnd: extras.stay?.restrictions?.quietHours?.end ?? '',
           stayCheckInAddress: extras.stay?.checkInAddress ?? '',
           stayLocationDisplayName: stayLocationDisplayNameFromListing(
             extras.stay?.locationDisplayName,
@@ -4066,7 +4091,18 @@ export default function SupplierListingForm({
                           key={type}
                           type="button"
                           aria-pressed={selected}
-                          onClick={() => setForm((f) => ({ ...f, stayPropertyType: type }))}
+                          onClick={() =>
+                            setForm((f) => {
+                              const active = f.stayOptions.filter((option) => !option.archived);
+                              const stayOptions =
+                                active.length === 1
+                                  ? f.stayOptions.map((option) =>
+                                      option.id === active[0].id ? { ...option, propertyType: type } : option
+                                    )
+                                  : f.stayOptions;
+                              return { ...f, stayPropertyType: type, stayOptions };
+                            })
+                          }
                           className={`lc-choice rounded-xl px-3 py-3 text-left text-sm font-semibold ${
                             selected ? 'lc-choice--selected text-[#111827]' : 'text-ink-muted hover:text-ink'
                           }`}
@@ -4080,8 +4116,8 @@ export default function SupplierListingForm({
                   {form.stayAccommodationMode === 'single' ? (
                     <p className="mt-2 text-xs leading-relaxed text-ink-muted">
                       {(form.stayPropertyType || 'Apartment') === 'Room'
-                        ? 'Guests book this room, not the whole property. Set bedrooms on Pricing.'
-                        : 'Guests book the whole place. Bedrooms and beds are set on Pricing.'}
+                        ? 'Guests book this room, not the whole property. Set bedrooms on the accommodation option.'
+                        : 'Guests book the whole place. Bedrooms, beds, and guest capacity are set on the accommodation option.'}
                     </p>
                   ) : null}
                 </div>
@@ -4604,82 +4640,13 @@ export default function SupplierListingForm({
             <div className="space-y-8">
               <section id="supplier-listing-field-stay-amenities" className="space-y-4" aria-labelledby="stay-amenities-heading">
                 <div>
-                  <h4 id="stay-amenities-heading" className="text-sm font-semibold text-[#111827]">Amenities</h4>
-                  <p className="mt-1 text-xs text-ink-muted">Guests see only what you select. Search and add them one at a time.</p>
+                  <h4 id="stay-amenities-heading" className="text-lg font-semibold tracking-tight text-[#111827]">Amenities & facilities</h4>
+                  <p className="mt-1 max-w-xl text-sm text-ink-muted">Guests see only what you select. House rules stay on Policies.</p>
                 </div>
                 <StayAmenityPicker
                   selected={stayAmenityDisplayList(stayAmenityTokens(form.stayAmenities))}
                   onChange={(next) => setForm((f) => ({ ...f, stayAmenities: next.join(', ') }))}
                 />
-              </section>
-              <section className="space-y-4 border-t border-[#E6EAF0] pt-6" aria-labelledby="stay-rules-choice-heading">
-                <div>
-                  <h4 id="stay-rules-choice-heading" className="text-sm font-semibold text-[#111827]">
-                    Restrictions
-                  </h4>
-                  <p className="mt-1 text-xs leading-relaxed text-ink-muted">
-                    Guests see these before they book. They do not block a checkout by themselves.
-                  </p>
-                </div>
-                {(
-                  [
-                    {
-                      id: 'stay-pets',
-                      label: 'Pets',
-                      value: form.stayPets,
-                      options: [
-                        ['allowed', 'Allowed'],
-                        ['not_allowed', 'Not allowed'],
-                        ['approval', 'Ask first'],
-                      ] as const,
-                      apply: (stayPets: ListingFormState['stayPets']) => setForm((f) => ({ ...f, stayPets })),
-                    },
-                    {
-                      id: 'stay-smoking',
-                      label: 'Smoking',
-                      value: form.staySmoking,
-                      options: [
-                        ['allowed', 'Allowed'],
-                        ['not_allowed', 'Not allowed'],
-                      ] as const,
-                      apply: (staySmoking: ListingFormState['staySmoking']) => setForm((f) => ({ ...f, staySmoking })),
-                    },
-                    {
-                      id: 'stay-parties',
-                      label: 'Parties and events',
-                      value: form.stayParties,
-                      options: [
-                        ['allowed', 'Allowed'],
-                        ['not_allowed', 'Not allowed'],
-                      ] as const,
-                      apply: (stayParties: ListingFormState['stayParties']) => setForm((f) => ({ ...f, stayParties })),
-                    },
-                  ] as const
-                ).map((row) => (
-                  <fieldset key={row.id}>
-                    <legend className="mb-2 text-sm font-semibold text-ink">{row.label}</legend>
-                    <div className="flex flex-wrap gap-2">
-                      {row.options.map(([value, label]) => {
-                        const on = row.value === value;
-                        return (
-                          <button
-                            key={value}
-                            type="button"
-                            aria-pressed={on}
-                            onClick={() => row.apply(value as never)}
-                            className={`lux-flat rounded-full px-3 py-1.5 text-sm ${
-                              on
-                                ? 'bg-white font-semibold text-[#0B397E] ring-2 ring-[#0B397E]'
-                                : 'text-ink-muted ring-1 ring-[#E6EAF0] hover:text-ink'
-                            }`}
-                          >
-                            {label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </fieldset>
-                ))}
               </section>
             </div>
           )}
@@ -4723,23 +4690,129 @@ export default function SupplierListingForm({
                   />
                 </label>
               </section>
-              <section className="space-y-3 border-t border-[#E6EAF0] pt-6" aria-labelledby="stay-rules-heading">
+              <section className="space-y-5 border-t border-[#E6EAF0] pt-6" aria-labelledby="stay-rules-heading">
                 <div>
-                  <h4 id="stay-rules-heading" className="text-sm font-semibold text-[#111827]">
+                  <h4 id="stay-rules-heading" className="text-lg font-semibold tracking-tight text-[#111827]">
                     House rules
                   </h4>
-                  <p className="mt-1 text-xs leading-relaxed text-ink-muted">
-                    Optional. Guests see this on the stay.
+                  <p className="mt-1 max-w-xl text-sm leading-relaxed text-ink-muted">
+                    Guests read these before they book. They do not reject a checkout by themselves.
                   </p>
                 </div>
+                <fieldset>
+                  <legend className="mb-2 text-sm font-semibold text-ink">Quiet hours</legend>
+                  <p className="mb-2 text-xs text-ink-muted">Optional. A period can cross midnight, such as 22:00 to 08:00.</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="block text-sm font-semibold text-ink">
+                      Starts
+                      <select className="tv-input mt-1 w-full font-normal" value={form.stayQuietStart} onChange={(e) => setForm((f) => ({ ...f, stayQuietStart: e.target.value }))}>
+                        <option value="">No start</option>
+                        {Array.from({ length: 48 }, (_, index) => `${String(Math.floor(index / 2)).padStart(2, '0')}:${index % 2 === 0 ? '00' : '30'}`).map((time) => (
+                          <option key={time} value={time}>{time}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="block text-sm font-semibold text-ink">
+                      Ends
+                      <select className="tv-input mt-1 w-full font-normal" value={form.stayQuietEnd} onChange={(e) => setForm((f) => ({ ...f, stayQuietEnd: e.target.value }))}>
+                        <option value="">No end</option>
+                        {Array.from({ length: 48 }, (_, index) => `${String(Math.floor(index / 2)).padStart(2, '0')}:${index % 2 === 0 ? '00' : '30'}`).map((time) => (
+                          <option key={`end-${time}`} value={time}>{time}</option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  {form.stayQuietStart && form.stayQuietEnd && form.stayQuietStart === form.stayQuietEnd ? (
+                    <p className="mt-2 text-[12.5px] font-medium text-red-700">Choose two different times, or leave both empty.</p>
+                  ) : null}
+                </fieldset>
+                {(
+                  [
+                    {
+                      id: 'stay-pets',
+                      label: 'Pets',
+                      value: form.stayPets,
+                      options: [
+                        ['allowed', 'Allowed'],
+                        ['not_allowed', 'Not allowed'],
+                        ['approval', 'Ask first'],
+                      ] as const,
+                      apply: (stayPets: ListingFormState['stayPets']) => setForm((f) => ({ ...f, stayPets })),
+                    },
+                    {
+                      id: 'stay-smoking',
+                      label: 'Smoking',
+                      value: form.staySmoking,
+                      options: [
+                        ['allowed', 'Allowed'],
+                        ['not_allowed', 'Not allowed'],
+                      ] as const,
+                      apply: (staySmoking: ListingFormState['staySmoking']) => setForm((f) => ({ ...f, staySmoking })),
+                    },
+                    {
+                      id: 'stay-parties',
+                      label: 'Parties and events',
+                      value: form.stayParties,
+                      options: [
+                        ['allowed', 'Allowed'],
+                        ['not_allowed', 'Not allowed'],
+                      ] as const,
+                      apply: (stayParties: ListingFormState['stayParties']) => setForm((f) => ({ ...f, stayParties })),
+                    },
+                    {
+                      id: 'stay-children',
+                      label: 'Children and infants',
+                      value: form.stayChildren,
+                      options: [
+                        ['welcome', 'Welcome'],
+                        ['not_suitable', 'Not suitable'],
+                      ] as const,
+                      apply: (stayChildren: ListingFormState['stayChildren']) => setForm((f) => ({ ...f, stayChildren })),
+                    },
+                  ] as const
+                ).map((row) => (
+                  <fieldset key={row.id}>
+                    <legend className="mb-2 text-sm font-semibold text-ink">{row.label}</legend>
+                    <div className="flex flex-wrap gap-2">
+                      {row.options.map(([value, label]) => {
+                        const on = row.value === value;
+                        return (
+                          <button
+                            key={value}
+                            type="button"
+                            aria-pressed={on}
+                            onClick={() => row.apply(value as never)}
+                            className={`lux-flat rounded-full px-3 py-1.5 text-sm transition-colors duration-150 ${
+                              on
+                                ? 'bg-[#F4F8FC] font-semibold text-[#0B397E] ring-2 ring-[#0B397E]'
+                                : 'text-ink-muted ring-1 ring-[#E6EAF0] hover:text-ink'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
+                ))}
                 <label id="supplier-listing-field-stay-rules" className="block text-sm font-semibold text-ink">
-                  Guest instructions
+                  Additional house rules
                   <textarea
                     value={form.stayHouseRules}
-                    onChange={(e) => setForm((f) => ({ ...f, stayHouseRules: e.target.value }))}
+                    onChange={(e) =>
+                      setForm((f) => {
+                        const limit = Math.max(500, f.stayHouseRules.length);
+                        return { ...f, stayHouseRules: e.target.value.slice(0, limit) };
+                      })
+                    }
                     className="tv-input mt-1 w-full min-h-[5rem] font-normal"
-                    placeholder="Quiet hours, visitors, or anything else guests should know"
+                    placeholder="Property-specific instructions guests should know"
+                    maxLength={Math.max(500, form.stayHouseRules.length)}
                   />
+                  <span className="mt-1 block text-xs font-normal tabular-nums text-ink-muted">
+                    {form.stayHouseRules.length} / 500
+                    {form.stayHouseRules.length > 500 ? ' · shorten this when you edit' : ''}
+                  </span>
                 </label>
               </section>
             </div>
@@ -5061,7 +5134,23 @@ export default function SupplierListingForm({
                         checkIn: form.stayCheckIn.trim(),
                         checkOut: form.stayCheckOut.trim(),
                         minNights: form.stayMinNights.trim(),
-                        houseRules: form.stayHouseRules.trim(),
+                        houseRules: [
+                          ...stayRestrictionLines(
+                            normalizeStayRestrictions({
+                              pets: form.stayPets,
+                              smoking: form.staySmoking,
+                              parties: form.stayParties,
+                              children: form.stayChildren,
+                              quietHours:
+                                form.stayQuietStart && form.stayQuietEnd
+                                  ? { start: form.stayQuietStart, end: form.stayQuietEnd }
+                                  : undefined,
+                            })
+                          ),
+                          form.stayHouseRules.trim(),
+                        ]
+                          .filter(Boolean)
+                          .join('\n'),
                       }
                     : null
                 }

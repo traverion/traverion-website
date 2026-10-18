@@ -100,16 +100,34 @@ export function stayAreasFromMix(mix: StayBedMix | null | undefined): StaySleepi
 }
 
 /** Warn when declared guests exceed what the beds can sleep. Does not block a draft save. */
-export function stayCapacityWarning(
-  guests: number,
-  mix: StayBedMix | null | undefined,
-  fallbackBeds: number
-): string | null {
+export function stayCapacityWarning(guests: number, mix: StayBedMix | null | undefined): string | null {
   if (!Number.isFinite(guests) || guests < 1) return null;
   const counted = stayBedCount(mix);
-  const sleeps = counted > 0 ? staySleepCapacity(mix) : fallbackBeds >= 1 ? fallbackBeds * 2 : 0;
-  if (sleeps > 0 && guests > sleeps) {
-    return `Your accommodation allows ${guests} guests, but the configured beds currently accommodate ${sleeps}. Add sleeping arrangements or adjust the guest capacity.`;
+  if (counted < 1) {
+    return 'Add each bed guests can sleep in. A bedroom count does not set sleeping capacity.';
+  }
+  const sleeps = staySleepCapacity(mix);
+  if (guests > sleeps) {
+    return `This accommodation allows ${guests} guests, but the selected beds currently sleep only ${sleeps}. Add sleeping arrangements or reduce maximum occupancy.`;
   }
   return null;
+}
+
+/**
+ * Keep typed beds when a new empty sleeping area is added beside a saved bed mix.
+ * Clearing every bed in an area that already had types removes those types.
+ */
+export function applySleepingAreas(
+  previous: { sleepingAreas: StaySleepingArea[]; bedMix: StayBedMix; beds: number | null },
+  next: StaySleepingArea[]
+): { sleepingAreas: StaySleepingArea[]; bedMix: StayBedMix; beds: number | null } {
+  const mix = stayMixFromAreas(next);
+  const count = stayBedCount(mix);
+  if (count > 0) return { sleepingAreas: next, bedMix: mix, beds: count };
+  const previousTyped = stayBedCount(previous.bedMix) > 0;
+  const previousAreasTyped = previous.sleepingAreas.some((area) => area.beds.length > 0);
+  if (previousTyped && !previousAreasTyped) {
+    return { sleepingAreas: next, bedMix: previous.bedMix, beds: stayBedCount(previous.bedMix) };
+  }
+  return { sleepingAreas: next, bedMix: {}, beds: previousTyped ? null : previous.beds };
 }

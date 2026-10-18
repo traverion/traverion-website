@@ -141,7 +141,7 @@ export default function StayAmenityPicker({ selected, onChange }: Props) {
       {canonical.length > 0 ? (
         <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {canonical.map((item) => (
-            <li key={item} className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-sm text-ink ring-1 ring-[#E6EAF0]">
+            <li key={item} className="flex items-center justify-between gap-3 rounded-lg border border-[#0B397E] bg-[#F4F8FC] px-3 py-2 text-sm font-medium text-ink">
               <span className="min-w-0 truncate">{item === 'Wifi' ? 'Wi-Fi' : item}</span>
               <button
                 type="button"

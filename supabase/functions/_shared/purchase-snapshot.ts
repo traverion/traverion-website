@@ -485,6 +485,31 @@ export function resolveOptionFieldsForSnapshot(input: {
   };
 }
 
+function stayDisclosureLines(stay: unknown): string[] {
+  if (!stay || typeof stay !== 'object') return [];
+  const rules = (stay as { restrictions?: unknown }).restrictions;
+  if (!rules || typeof rules !== 'object' || Array.isArray(rules)) return [];
+  const row = rules as Record<string, unknown>;
+  const lines: string[] = [];
+  const quiet = row.quietHours;
+  if (quiet && typeof quiet === 'object' && !Array.isArray(quiet)) {
+    const hours = quiet as { start?: unknown; end?: unknown };
+    if (typeof hours.start === 'string' && typeof hours.end === 'string' && hours.start !== hours.end) {
+      lines.push(`Quiet hours ${hours.start}–${hours.end}`);
+    }
+  }
+  if (row.pets === 'not_allowed') lines.push('No pets');
+  if (row.pets === 'allowed') lines.push('Pets allowed');
+  if (row.pets === 'approval') lines.push('Pets allowed with host approval');
+  if (row.smoking === 'not_allowed') lines.push('No smoking');
+  if (row.smoking === 'allowed') lines.push('Smoking allowed');
+  if (row.parties === 'not_allowed') lines.push('No parties or events');
+  if (row.parties === 'allowed') lines.push('Parties and events allowed');
+  if (row.children === 'welcome') lines.push('Children and infants are welcome');
+  if (row.children === 'not_suitable') lines.push('Not suitable for children or infants');
+  return lines;
+}
+
 export function resolveStayFieldsForSnapshot(input: {
   listingExtras: unknown;
   checkIn?: string | null;
@@ -540,9 +565,10 @@ export function resolveStayFieldsForSnapshot(input: {
     if (stay && typeof stay.checkOutTime === 'string' && /^\d{2}:\d{2}/.test(stay.checkOutTime.trim())) {
       checkOutTime = stay.checkOutTime.trim().slice(0, 5);
     }
-    if (stay && typeof stay.houseRules === 'string' && stay.houseRules.trim()) {
-      houseRules = stay.houseRules.trim().slice(0, 2000);
-    }
+    const disclosed = stayDisclosureLines(stay);
+    const written = stay && typeof stay.houseRules === 'string' ? stay.houseRules.trim() : '';
+    const combined = [...disclosed, written].filter(Boolean).join('\n\n');
+    if (combined) houseRules = combined.slice(0, 2000);
   }
   return {
     checkIn,

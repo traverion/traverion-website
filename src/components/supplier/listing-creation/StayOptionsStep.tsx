@@ -3,10 +3,10 @@ import { formatMoney } from '../../../lib/money';
 import { quoteStayLodging, type StaySeasonWindow } from '../../../lib/stay-season-quote';
 import {
   STAY_BED_KINDS,
+  applySleepingAreas,
   stayAreasFromMix,
   stayBedCount,
   stayCapacityWarning,
-  stayMixFromAreas,
   type StayBedKind,
   type StaySleepingArea,
 } from '../../../lib/stay-beds';
@@ -34,6 +34,13 @@ type Props = {
   persistLabel: string | null;
   onChange: (options: StayAccommodationOption[]) => void;
 };
+
+function alignScheduleOccupancy(option: StayAccommodationOption): StayAccommodationOption {
+  return {
+    ...option,
+    schedules: option.schedules.map((schedule) => ({ ...schedule, minGuests: null, maxGuests: null })),
+  };
+}
 
 function newScheduleId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
@@ -107,7 +114,11 @@ export default function StayOptionsStep({
                   };
                   onChange([...options, copy]);
                 }}
-                onArchive={() => onChange(options.map((row) => (row.id === option.id ? { ...row, archived: true } : row)))}
+                onArchive={() => {
+                  const name = option.name.trim() || 'this option';
+                  if (!window.confirm(`Archive ${name}? Saved reservations stay on the listing.`)) return;
+                  onChange(options.map((row) => (row.id === option.id ? { ...row, archived: true } : row)));
+                }}
               />
             </li>
           ))}
@@ -153,20 +164,23 @@ function OptionCard({
 }) {
   const price = stayStartingNightly(option);
   const schedules = option.schedules.filter((schedule) => schedule.enabled);
+  const warning = stayCapacityWarning(option.maxGuests ?? 0, option.bedMix);
   return (
     <article className="lc-tile rounded-xl px-4 py-3.5 sm:px-5 sm:py-4">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <h3 className="text-[1.05rem] font-semibold tracking-tight text-ink">{option.name.trim() || 'Untitled option'}</h3>
-        <p className="text-[11px] font-medium tracking-wide text-ink-muted">{stayOptionStatus(option, inventoryBlocked)}</p>
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-[#0B397E]">{stayOptionStatus(option, inventoryBlocked)}</p>
       </div>
       <dl className="mt-3 grid grid-cols-1 gap-x-8 gap-y-2 sm:grid-cols-2">
         <Fact label="Type" text={option.propertyType || 'Accommodation'} />
         <Fact label="Occupancy" text={option.maxGuests != null ? `Up to ${option.maxGuests} guests` : 'Not set'} />
-        <Fact label="Sleeping" text={[option.bedrooms != null ? `${option.bedrooms} bedrooms` : null, staySleepingLabel(option)].filter(Boolean).join(' · ')} />
+        <Fact label="Rooms" text={[option.bedrooms != null ? `${option.bedrooms} bedrooms` : null, option.bathrooms != null ? `${option.bathrooms} bathrooms` : null].filter(Boolean).join(' · ') || 'Not set'} />
+        <Fact label="Sleeping" text={staySleepingLabel(option)} />
         <Fact label="Units" text={option.quantity === 1 ? '1 physical unit' : `${option.quantity} identical units`} />
-        <Fact label="Schedules" text={schedules.length === 0 ? 'No seasonal schedules' : `${schedules.length} schedule${schedules.length === 1 ? '' : 's'}`} />
+        <Fact label="Schedules" text={schedules.length === 0 ? 'No active schedules' : `${schedules.length} active schedule${schedules.length === 1 ? '' : 's'}`} />
         <Fact label="Price" text={price != null ? `From ${formatMoney(price, currency)} / night` : 'Not set'} />
       </dl>
+      {warning ? <p className="mt-3 text-[12.5px] font-medium leading-relaxed text-amber-950">{warning}</p> : null}
       <div className="mt-3 flex flex-wrap gap-1 border-t border-black/[0.06] pt-2">
         <button type="button" className="tv-btn-primary !min-h-8 !px-2.5 text-[12.5px]" onClick={onEdit}>
           Edit option
@@ -219,10 +233,11 @@ function OptionEditor({
   const [draft, setDraft] = useState(option);
   const [scene, setScene] = useState(initialScene);
   const [scheduleDraft, setScheduleDraft] = useState<StaySeasonWindow | null>(null);
+  const [showAccommodationErrors, setShowAccommodationErrors] = useState(false);
+  const [showCutoffErrors, setShowCutoffErrors] = useState(false);
   const guests = draft.maxGuests ?? 0;
-  const beds = stayBedCount(draft.bedMix) > 0 ? stayBedCount(draft.bedMix) : draft.beds ?? 0;
-  const warning = stayCapacityWarning(guests, draft.bedMix, draft.beds ?? 0);
-  const accommodationReady = guests >= 1 && draft.name.trim().length > 0 && beds >= 1 && !warning;
+  const warning = stayCapacityWarning(guests, draft.bedMix);
+  const accommodationReady = guests >= 1 && draft.name.trim().length > 0 && stayBedCount(draft.bedMix) >= 1 && !warning;
   const availabilityReady =
     draft.schedules.some(
       (row) => row.enabled && row.nightlyPrice && row.start && row.end && row.checkIn && row.checkOut
@@ -250,16 +265,20 @@ function OptionEditor({
               : null
         }
         continueLabel={scene === 2 ? 'Save option' : 'Continue'}
-        continueDisabled={(scene === 0 && !accommodationReady) || (scene === 2 && !cutoffReady)}
+        continueDisabled={false}
         navItems={nav}
         onSelectNavId={(id) => setScene(Number(id))}
         onBackToOptions={onClose}
         onPreviousScene={scene > 0 ? () => setScene((n) => n - 1) : null}
         onClose={onClose}
-        onSaveDraft={() => onCommit(draft)}
+        onSaveDraft={() => onCommit(alignScheduleOccupancy(draft))}
         onContinue={() => {
           if (scene === 0) {
-            if (!accommodationReady) return;
+            if (!accommodationReady) {
+              setShowAccommodationErrors(true);
+              document.getElementById('stay-option-sleeping')?.scrollIntoView({ block: 'center' });
+              return;
+            }
             setScene(1);
             return;
           }
@@ -267,16 +286,20 @@ function OptionEditor({
             setScene(2);
             return;
           }
-          if (!cutoffReady) return;
-          onCommit(draft);
+          if (!cutoffReady) {
+            setShowCutoffErrors(true);
+            document.getElementById('stay-option-cutoff')?.scrollIntoView({ block: 'center' });
+            return;
+          }
+          onCommit(alignScheduleOccupancy(draft));
           onClose();
         }}
         saveDraftDisabled={false}
       >
         {scene === 0 ? (
-          <AccommodationScene draft={draft} warning={warning} onChange={setDraft} />
+          <AccommodationScene draft={draft} warning={warning} showErrors={showAccommodationErrors} onChange={setDraft} />
         ) : scene === 2 ? (
-          <CutoffScene draft={draft} onChange={setDraft} />
+          <CutoffScene draft={draft} showError={showCutoffErrors} onChange={setDraft} />
         ) : (
           <div className="space-y-4">
             <div className="flex flex-wrap items-end justify-between gap-3 border-b border-black/[0.08] pb-3">
@@ -300,8 +323,8 @@ function OptionEditor({
                     nightlyPrice: draft.nightlyPrice,
                     minNights: draft.minNights,
                     maxNights: null,
-                    minGuests: 1,
-                    maxGuests: draft.maxGuests,
+                    minGuests: null,
+                    maxGuests: null,
                     checkIn: previous?.checkIn ?? '',
                     checkOut: previous?.checkOut ?? '',
                     cleaningFee: draft.cleaningFee,
@@ -344,8 +367,7 @@ function OptionEditor({
                       <span className="mt-0.5 block text-[12.5px] text-ink-muted">
                         {row.start && row.end ? `${row.start} – ${row.end}` : 'Dates not set'}
                         {row.nightlyPrice ? ` · ${formatMoney(row.nightlyPrice, currency)} / night` : ''}
-                        {row.minGuests || row.maxGuests ? ` · ${row.minGuests ?? 1}–${row.maxGuests ?? draft.maxGuests ?? '…'} guests` : ''}
-                        {row.minNights ? ` · min ${row.minNights} nights` : ''}
+                        {row.minNights ? ` · min ${row.minNights} night${row.minNights === 1 ? '' : 's'}` : ''}
                         {row.checkIn && row.checkOut ? ` · ${row.checkIn}–${row.checkOut}` : ''}
                         {row.enabled ? '' : ' · Inactive'}
                       </span>
@@ -413,21 +435,26 @@ function OptionEditor({
 function AccommodationScene({
   draft,
   warning,
+  showErrors,
   onChange,
 }: {
   draft: StayAccommodationOption;
   warning: string | null;
+  showErrors: boolean;
   onChange: (next: StayAccommodationOption) => void;
 }) {
   const rows = STAY_BED_KINDS.filter((bed) => (draft.bedMix[bed.id] ?? 0) > 0);
   const sleeps = rows.reduce((sum, bed) => sum + (draft.bedMix[bed.id] ?? 0) * bed.sleeps, 0);
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto max-w-[52rem] space-y-6">
+      <section className="space-y-4">
+        <h3 className="text-base font-semibold text-ink">Accommodation details</h3>
+        {showErrors && !draft.name.trim() ? <p className="text-[12.5px] font-medium text-red-700">Add a name guests will recognize.</p> : null}
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block text-sm font-semibold text-ink sm:col-span-2">
           Option name
-          <input className="tv-input mt-1 w-full font-normal" value={draft.name} maxLength={80} onChange={(e) => onChange({ ...draft, name: e.target.value.slice(0, 80) })} />
+          <input id="stay-option-name" className={`tv-input mt-1 w-full font-normal ${showErrors && !draft.name.trim() ? '!border-red-600' : ''}`} value={draft.name} maxLength={80} onChange={(e) => onChange({ ...draft, name: e.target.value.slice(0, 80) })} />
         </label>
         <label className="block text-sm font-semibold text-ink">
           Accommodation type
@@ -437,7 +464,7 @@ function AccommodationScene({
             ))}
           </select>
         </label>
-        <Num label="Maximum guests" value={draft.maxGuests} min={1} max={50} onChange={(maxGuests) => onChange({ ...draft, maxGuests })} />
+        <Num id="stay-option-guests" label="Maximum guests" value={draft.maxGuests} min={1} max={50} error={showErrors && (draft.maxGuests == null || draft.maxGuests < 1) ? 'Enter how many guests this accommodation can hold.' : null} onChange={(maxGuests) => onChange({ ...draft, maxGuests })} />
         <Num label="Bedrooms" value={draft.bedrooms} min={0} max={30} onChange={(bedrooms) => onChange({ ...draft, bedrooms })} />
         <Num label="Bathrooms" value={draft.bathrooms} min={0} max={20} step={0.5} onChange={(bathrooms) => onChange({ ...draft, bathrooms })} />
         <Num label="Identical physical units" value={draft.quantity} min={1} max={500} onChange={(quantity) => onChange({ ...draft, quantity: quantity ?? 1 })} />
@@ -446,6 +473,7 @@ function AccommodationScene({
           <textarea className="tv-input mt-1 w-full font-normal" rows={2} maxLength={240} value={draft.description} onChange={(e) => onChange({ ...draft, description: e.target.value.slice(0, 240) })} />
         </label>
       </div>
+      </section>
       <p className="text-[12.5px] text-ink-muted">
         {[draft.bedrooms != null ? `${draft.bedrooms} bedrooms` : null, sleeps > 0 ? `${rows.reduce((sum, bed) => sum + (draft.bedMix[bed.id] ?? 0), 0)} beds` : null, sleeps > 0 ? `Sleeps ${sleeps}` : null].filter(Boolean).join(' · ') || 'Add the beds guests can sleep in.'}
       </p>
@@ -478,15 +506,13 @@ function ScheduleEditor({
   const [draft, setDraft] = useState(schedule);
   const [step, setStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [attempted, setAttempted] = useState(false);
   const datesOk = /^\d{4}-\d{2}-\d{2}$/.test(draft.start) && /^\d{4}-\d{2}-\d{2}$/.test(draft.end) && draft.end >= draft.start;
   const price = draft.nightlyPrice && draft.nightlyPrice > 0 ? draft.nightlyPrice : null;
-  const guestsOk =
-    (draft.minGuests == null || draft.maxGuests == null || draft.minGuests <= draft.maxGuests) &&
-    (draft.maxGuests == null || maxGuests == null || draft.maxGuests <= maxGuests);
-  const nightsOk = draft.maxNights == null || draft.minNights == null || draft.maxNights >= draft.minNights;
+  const nightsOk = (draft.minNights ?? 0) >= 1 && (draft.maxNights == null || draft.maxNights >= (draft.minNights ?? 1));
   const timesOk = /^\d{2}:\d{2}$/.test(draft.checkIn ?? '') && /^\d{2}:\d{2}$/.test(draft.checkOut ?? '');
   const overlap = datesOk && draft.enabled !== false ? stayScheduleConflicts([...others, { ...draft, enabled: true }]) : [];
-  const ready = datesOk && price != null && guestsOk && nightsOk && timesOk && overlap.length === 0;
+  const ready = datesOk && price != null && nightsOk && timesOk && overlap.length === 0;
   const nights = Math.max(1, draft.minNights ?? baseMinNights);
   const example = ready
     ? quoteStayLodging({
@@ -502,15 +528,15 @@ function ScheduleEditor({
 
   function commit() {
     if (!ready || price == null) {
-      setError(overlap[0] ?? 'Add dates, a nightly price, guest limits, and check-in and check-out times.');
+      setError(overlap[0] ?? 'Add dates, a nightly price, night limits, and check-in and check-out times.');
       return false;
     }
-    onCommit({ ...draft, enabled: draft.enabled !== false, nightlyPrice: price });
+    onCommit({ ...draft, enabled: draft.enabled !== false, nightlyPrice: price, minGuests: null, maxGuests: null });
     return true;
   }
 
-  const detailsOk = guestsOk && nightsOk && timesOk;
-  const datesStepOk = datesOk && overlap.length === 0;
+  const detailsOk = timesOk;
+  const datesStepOk = datesOk && nightsOk && overlap.length === 0;
   const priceOk = price != null;
   const stepOk = [detailsOk, datesStepOk, priceOk, ready];
   const stepLabels = ['Schedule details', 'Availability', 'Pricing', 'Review'];
@@ -535,9 +561,14 @@ function ScheduleEditor({
       onBackToOptions={onClose}
       onPreviousScene={step > 0 ? () => setStep((n) => n - 1) : null}
       onClose={onClose}
-      onSaveDraft={() => onCommit({ ...draft, nightlyPrice: price })}
+      onSaveDraft={() => onCommit({ ...draft, nightlyPrice: price, minGuests: null, maxGuests: null })}
       onContinue={() => {
-        if (!stepOk[step]) return;
+        if (!stepOk[step]) {
+          setAttempted(true);
+          const target = step === 0 ? 'stay-schedule-check-in' : step === 1 ? 'stay-schedule-dates' : 'stay-schedule-price';
+          document.getElementById(target)?.scrollIntoView({ block: 'center' });
+          return;
+        }
         if (step < 3) {
           setStep((n) => n + 1);
           return;
@@ -547,52 +578,87 @@ function ScheduleEditor({
       saveDraftDisabled={false}
     >
       {step === 0 ? (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div id="stay-schedule-check-in" className="mx-auto grid max-w-3xl gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <h3 className="text-base font-semibold text-ink">Schedule details</h3>
+            <p className="mt-1 text-sm text-ink-muted">Name this period and set when guests arrive and leave. Guest capacity stays on the accommodation.</p>
+          </div>
           <label className="block text-sm font-semibold text-ink sm:col-span-2">
             Schedule name
             <input className="tv-input mt-1 w-full font-normal" value={draft.name} maxLength={80} placeholder="Winter, Christmas, Summer" onChange={(e) => setDraft({ ...draft, name: e.target.value.slice(0, 80) })} />
           </label>
-          <Num label="Minimum guests" value={draft.minGuests ?? 1} min={1} max={maxGuests ?? 50} onChange={(minGuests) => setDraft({ ...draft, minGuests })} />
-          <Num label="Maximum guests" value={draft.maxGuests ?? maxGuests} min={1} max={maxGuests ?? 50} onChange={(value) => setDraft({ ...draft, maxGuests: value != null && maxGuests != null ? Math.min(value, maxGuests) : value })} />
-          <Num label="Minimum nights" value={draft.minNights ?? baseMinNights} min={1} max={365} onChange={(minNights) => setDraft({ ...draft, minNights })} />
-          <Num label="Maximum nights" value={draft.maxNights ?? null} min={1} max={365} onChange={(maxNights) => setDraft({ ...draft, maxNights })} />
-          <Clock label="Check-in" value={draft.checkIn ?? ''} onChange={(checkIn) => setDraft({ ...draft, checkIn })} />
-          <Clock label="Check-out" value={draft.checkOut ?? ''} onChange={(checkOut) => setDraft({ ...draft, checkOut })} />
-          {!guestsOk || !nightsOk ? <p className="text-[12.5px] text-amber-950 sm:col-span-2">Guest and night limits must fit this accommodation.</p> : null}
+          <Clock id="stay-schedule-check-in-field" label="Check-in" value={draft.checkIn ?? ''} error={attempted && !/^\d{2}:\d{2}$/.test(draft.checkIn ?? '') ? 'Choose a check-in time.' : null} onChange={(checkIn) => setDraft({ ...draft, checkIn })} />
+          <Clock label="Check-out" value={draft.checkOut ?? ''} error={attempted && !/^\d{2}:\d{2}$/.test(draft.checkOut ?? '') ? 'Choose a check-out time.' : null} onChange={(checkOut) => setDraft({ ...draft, checkOut })} />
+          {maxGuests != null ? <p className="text-sm text-ink sm:col-span-2">This accommodation holds up to {maxGuests} guests.</p> : null}
         </div>
       ) : null}
       {step === 1 ? (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div id="stay-schedule-dates" className="mx-auto grid max-w-3xl gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <h3 className="text-base font-semibold text-ink">Availability period</h3>
+            {attempted && !datesOk ? <p className="mt-1 text-[12.5px] font-medium text-red-700">Choose the first and last occupied nights.</p> : null}
+            {overlap[0] ? <p className="mt-1 text-[12.5px] font-medium text-red-700">{overlap[0]}</p> : null}
+          </div>
           <TraverionSingleDateField id={`${draft.id}-start`} label="First occupied night" value={draft.start} minIso="" placeholder="Choose a date" onChange={(start) => setDraft({ ...draft, start })} />
           <TraverionSingleDateField id={`${draft.id}-end`} label="Last occupied night" value={draft.end} minIso="" placeholder="Choose a date" onChange={(end) => setDraft({ ...draft, end })} />
-          <p className="text-[12.5px] leading-relaxed text-ink-muted sm:col-span-2">The last night is occupied. The next morning is check-out and is not charged. Individual night blocks stay on the property calendar.</p>
-          {overlap[0] ? <p className="text-[12.5px] text-amber-950 sm:col-span-2">{overlap[0]}</p> : null}
+          <p className="text-sm leading-relaxed text-ink-muted sm:col-span-2">The last night is occupied. The next morning is check-out and is not charged.</p>
+          <div className="sm:col-span-2">
+            <h3 className="text-base font-semibold text-ink">Length of stay</h3>
+          </div>
+          <Num label="Minimum nights" value={draft.minNights ?? baseMinNights} min={1} max={365} error={attempted && (draft.minNights ?? 0) < 1 ? 'Minimum stay is at least 1 night.' : null} onChange={(minNights) => setDraft({ ...draft, minNights })} />
+          <Num label="Maximum nights" value={draft.maxNights ?? null} min={1} max={365} error={attempted && draft.maxNights != null && draft.minNights != null && draft.maxNights < draft.minNights ? 'Maximum nights cannot be below the minimum.' : null} onChange={(maxNights) => setDraft({ ...draft, maxNights })} />
+          <aside className="rounded-xl bg-[#F4F8FC] px-4 py-3 ring-1 ring-[#D5E2F2] sm:col-span-2">
+            <p className="text-sm font-semibold text-ink">{draft.start && draft.end ? `${draft.start} – ${draft.end}` : 'Dates not set'}</p>
+            <p className="mt-1 text-[12.5px] text-ink-muted">
+              {draft.minNights ?? baseMinNights} night minimum{draft.maxNights ? ` · ${draft.maxNights} night maximum` : ' · no extra maximum'}
+              {maxGuests != null ? ` · up to ${maxGuests} guests` : ''}
+            </p>
+          </aside>
         </div>
       ) : null}
       {step === 2 ? (
-        <div className="grid max-w-xl gap-4 sm:grid-cols-2">
-          <Num label={`Price per night · ${currency}`} value={draft.nightlyPrice} min={1} max={1000000} onChange={(nightlyPrice) => setDraft({ ...draft, nightlyPrice })} />
-          <Num label={`Cleaning fee · ${currency}`} value={draft.cleaningFee} min={0} max={1000000} onChange={(cleaningFee) => setDraft({ ...draft, cleaningFee })} />
-          <p className="text-[12.5px] leading-relaxed text-ink-muted sm:col-span-2">Cleaning is included in the stay total. Optional extras are not offered at checkout, so they are not added here.</p>
+        <div id="stay-schedule-price" className="mx-auto max-w-3xl space-y-4">
+          <h3 className="text-base font-semibold text-ink">Nightly rate</h3>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Num label={`Price per night · ${currency}`} value={draft.nightlyPrice} min={1} max={1000000} error={attempted && price == null ? 'Enter a nightly price.' : null} onChange={(nightlyPrice) => setDraft({ ...draft, nightlyPrice })} />
+            <Num label={`Cleaning fee · ${currency}`} value={draft.cleaningFee} min={0} max={1000000} onChange={(cleaningFee) => setDraft({ ...draft, cleaningFee })} />
+          </div>
+          <p className="text-sm leading-relaxed text-ink-muted">The cleaning fee is charged once per stay. It is not added again for each night.</p>
           {example && example.ok ? (
-            <p className="text-sm text-ink sm:col-span-2">
-              {nights} night{nights === 1 ? '' : 's'} × {formatMoney(price ?? 0, currency)} = {formatMoney(example.lodging, currency)}
-              {cleaning > 0 ? ` · Cleaning ${formatMoney(cleaning, currency)} · Total ${formatMoney(example.lodging + cleaning, currency)}` : ''}
-            </p>
+            <aside className="rounded-xl bg-[#F4F8FC] px-4 py-3 ring-1 ring-[#D5E2F2]">
+              <p className="text-sm font-semibold text-ink">Example guest total</p>
+              <p className="mt-1 text-sm text-ink">
+                {nights} night{nights === 1 ? '' : 's'} × {formatMoney(price ?? 0, currency)} = {formatMoney(example.lodging, currency)}
+              </p>
+              {cleaning > 0 ? <p className="text-sm text-ink">Cleaning fee {formatMoney(cleaning, currency)}</p> : null}
+              <p className="mt-1 text-sm font-semibold text-ink">Illustrative total {formatMoney(example.lodging + cleaning, currency)}</p>
+              <p className="mt-1 text-[12.5px] text-ink-muted">This example is not a confirmed quote.</p>
+            </aside>
           ) : null}
         </div>
       ) : null}
       {step === 3 ? (
-        <div className="max-w-xl space-y-4 text-sm text-ink">
-          <ReviewRow label="Schedule" text={draft.name.trim() || 'Untitled schedule'} onEdit={() => setStep(0)} />
-          <ReviewRow label="Guests" text={`${draft.minGuests ?? 1}–${draft.maxGuests ?? maxGuests ?? '…'}`} onEdit={() => setStep(0)} />
-          <ReviewRow label="Nights" text={`${draft.minNights ?? baseMinNights}${draft.maxNights ? `–${draft.maxNights}` : ''} · ${draft.checkIn || '—'} to ${draft.checkOut || '—'}`} onEdit={() => setStep(0)} />
-          <ReviewRow label="Dates" text={draft.start && draft.end ? `${draft.start} – ${draft.end}` : 'Not set'} onEdit={() => setStep(1)} />
-          <ReviewRow label="Price" text={price != null ? `${formatMoney(price, currency)} / night${cleaning > 0 ? ` · cleaning ${formatMoney(cleaning, currency)}` : ''}` : 'Not set'} onEdit={() => setStep(2)} />
+        <div className="mx-auto max-w-3xl space-y-5 text-sm text-ink">
+          <section>
+            <h3 className="text-base font-semibold text-ink">Schedule</h3>
+            <ReviewRow label="Name" text={draft.name.trim() || 'Untitled schedule'} onEdit={() => setStep(0)} />
+            <ReviewRow label="Arrival" text={`${draft.checkIn || 'Check-in not set'} · ${draft.checkOut || 'Check-out not set'}`} onEdit={() => setStep(0)} />
+          </section>
+          <section>
+            <h3 className="text-base font-semibold text-ink">Availability</h3>
+            <ReviewRow label="Dates" text={draft.start && draft.end ? `${draft.start} – ${draft.end}` : 'Not set'} onEdit={() => setStep(1)} />
+            <ReviewRow label="Nights" text={`${draft.minNights ?? baseMinNights} minimum${draft.maxNights ? ` · ${draft.maxNights} maximum` : ''}`} onEdit={() => setStep(1)} />
+            <ReviewRow label="Guests" text={maxGuests != null ? `Up to ${maxGuests}, from the accommodation` : 'Set on the accommodation'} onEdit={() => setStep(0)} />
+          </section>
+          <section>
+            <h3 className="text-base font-semibold text-ink">Pricing</h3>
+            <ReviewRow label="Nightly rate" text={price != null ? `${formatMoney(price, currency)} / night` : 'Not set'} onEdit={() => setStep(2)} />
+            <ReviewRow label="Cleaning fee" text={cleaning > 0 ? `${formatMoney(cleaning, currency)} once per stay` : 'None'} onEdit={() => setStep(2)} />
+          </section>
           {example && example.ok ? (
             <p className="text-[12.5px] text-ink-muted">Illustrative stay of {nights} night{nights === 1 ? '' : 's'}: {formatMoney(example.lodging + cleaning, currency)}. This is not a confirmed quote.</p>
           ) : null}
-          {error ? <p className="text-[12.5px] text-amber-950">{error}</p> : null}
+          {error ? <p className="text-[12.5px] font-medium text-red-700">{error}</p> : null}
         </div>
       ) : null}
     </TourOptionWorkspace>
@@ -620,7 +686,11 @@ function SleepingEditor({
   warning: string | null;
   onChange: (next: StayAccommodationOption) => void;
 }) {
-  const areas = draft.sleepingAreas.length > 0 ? draft.sleepingAreas : stayAreasFromMix(draft.bedMix);
+  const areas = draft.sleepingAreas.some((area) => area.beds.length > 0)
+    ? draft.sleepingAreas
+    : stayBedCount(draft.bedMix) > 0
+      ? [...stayAreasFromMix(draft.bedMix), ...draft.sleepingAreas]
+      : draft.sleepingAreas;
   const bedCount = areas.reduce((sum, area) => sum + area.beds.reduce((n, bed) => n + bed.count, 0), 0);
   const sleeps = areas.reduce(
     (sum, area) => sum + area.beds.reduce((n, bed) => n + bed.count * (STAY_BED_KINDS.find((kind) => kind.id === bed.kind)?.sleeps ?? 0), 0),
@@ -628,20 +698,14 @@ function SleepingEditor({
   );
 
   function commit(next: StaySleepingArea[]) {
-    const mix = stayMixFromAreas(next);
-    const count = stayBedCount(mix);
-    onChange({
-      ...draft,
-      sleepingAreas: next,
-      bedMix: count > 0 ? mix : {},
-      beds: count > 0 ? count : draft.beds,
-    });
+    onChange({ ...draft, ...applySleepingAreas(draft, next) });
   }
 
   return (
-    <div className="space-y-3 border-t border-black/[0.08] pt-4">
+    <div id="stay-option-sleeping" className="space-y-3 border-t border-black/[0.08] pt-4">
       <div>
-        <h3 className="text-sm font-semibold text-ink">Sleeping arrangements</h3>
+        <h3 className="text-base font-semibold text-ink">Sleeping arrangements</h3>
+        {warning ? <p className="mt-1 text-[12.5px] font-medium leading-relaxed text-red-700">{warning}</p> : null}
         <p className="mt-1 text-[12.5px] text-ink-muted">
           {bedCount > 0 ? `${areas.length} sleeping area${areas.length === 1 ? '' : 's'} · ${bedCount} beds · Sleeps ${sleeps}` : 'Add each place guests can sleep.'}
         </p>
@@ -698,16 +762,17 @@ function SleepingEditor({
       >
         Add sleeping area
       </button>
-      {warning ? <p className="text-[12.5px] leading-relaxed text-amber-950">{warning}</p> : null}
     </div>
   );
 }
 
 function CutoffScene({
   draft,
+  showError,
   onChange,
 }: {
   draft: StayAccommodationOption;
+  showError: boolean;
   onChange: (next: StayAccommodationOption) => void;
 }) {
   const split = splitCutoff(draft.cutoffMinutes);
@@ -732,10 +797,10 @@ function CutoffScene({
   const exampleClose = minutes == null ? null : shiftClock(checkIn, minutes);
 
   return (
-    <div className="max-w-xl space-y-4">
+    <div id="stay-option-cutoff" className="mx-auto max-w-xl space-y-4">
       <div>
-        <h3 className="text-sm font-semibold text-ink">Reservation cutoff</h3>
-        <p className="mt-1 text-[12.5px] leading-relaxed text-ink-muted">Choose how long before check-in guests must make their reservation.</p>
+        <h3 className="text-base font-semibold text-ink">Booking cutoff</h3>
+        <p className="mt-1 text-sm leading-relaxed text-ink-muted">Choose how close to check-in guests can make a reservation.</p>
       </div>
       <div className="grid gap-3 sm:grid-cols-[8rem_1fr]">
         <label className="block text-sm font-semibold text-ink">
@@ -752,12 +817,17 @@ function CutoffScene({
           </select>
         </label>
       </div>
-      {minutes === 0 ? <p className="text-sm text-ink">Guests can book until check-in.</p> : null}
+      {showError && minutes == null ? <p className="text-[12.5px] font-medium text-red-700">Choose a cutoff. Use 0 to allow booking until check-in.</p> : null}
+      {minutes === 0 ? (
+        <div className="rounded-xl bg-[#F4F8FC] px-4 py-3 ring-1 ring-[#D5E2F2]">
+          <p className="text-sm font-semibold text-ink">Guests can book until check-in.</p>
+        </div>
+      ) : null}
       {minutes != null && minutes > 0 ? (
-        <p className="text-sm text-ink">
-          Guests can book until {formatCutoff(minutes)} before check-in.
-          {exampleClose ? ` Example: for a ${checkIn} check-in, booking closes at ${exampleClose}.` : ''}
-        </p>
+        <div className="rounded-xl bg-[#F4F8FC] px-4 py-3 ring-1 ring-[#D5E2F2]">
+          <p className="text-sm font-semibold text-ink">Guests can book until {formatCutoff(minutes)} before check-in.</p>
+          {exampleClose ? <p className="mt-1 text-[12.5px] text-ink-muted">For a {checkIn} check-in, booking closes at {exampleClose}.</p> : null}
+        </div>
       ) : null}
     </div>
   );
@@ -796,41 +866,48 @@ const CLOCKS = Array.from({ length: 48 }, (_, index) => {
   return `${String(hour).padStart(2, '0')}:${minute}`;
 });
 
-function Clock({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+function Clock({ id, label, value, error, onChange }: { id?: string; label: string; value: string; error?: string | null; onChange: (value: string) => void }) {
   const options = value && !CLOCKS.includes(value) ? [value, ...CLOCKS] : CLOCKS;
   return (
     <label className="block text-sm font-semibold text-ink">
       {label}
-      <select className="tv-input mt-1 w-full font-normal" value={value} onChange={(e) => onChange(e.target.value)}>
+      <select id={id} aria-invalid={Boolean(error)} className={`tv-input mt-1 w-full font-normal ${error ? '!border-red-600' : ''}`} value={value} onChange={(e) => onChange(e.target.value)}>
         <option value="">Choose a time</option>
         {options.map((time) => (
           <option key={time} value={time}>{time}</option>
         ))}
       </select>
+      {error ? <span className="mt-1 block text-[12.5px] font-medium text-red-700">{error}</span> : null}
     </label>
   );
 }
 
 function Num({
+  id,
   label,
   value,
   min,
   max,
   step = 1,
+  error,
   onChange,
 }: {
+  id?: string;
   label: string;
   value: number | null;
   min: number;
   max: number;
   step?: number;
+  error?: string | null;
   onChange: (value: number | null) => void;
 }) {
   return (
     <label className="block text-sm font-semibold text-ink">
       {label}
       <input
-        className="tv-input mt-1 w-full font-normal"
+        id={id}
+        aria-invalid={Boolean(error)}
+        className={`tv-input mt-1 w-full font-normal ${error ? '!border-red-600' : ''}`}
         type="number"
         min={min}
         max={max}
@@ -846,6 +923,7 @@ function Num({
           onChange(Number.isFinite(n) ? n : null);
         }}
       />
+      {error ? <span className="mt-1 block text-[12.5px] font-medium text-red-700">{error}</span> : null}
     </label>
   );
 }

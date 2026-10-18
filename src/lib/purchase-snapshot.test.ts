@@ -397,6 +397,20 @@ describe('resolveOptionFieldsForSnapshot (checkout freeze helpers)', () => {
     expect(displayStayHouseRulesFromPurchase(snap)).toMatch(/No parties/);
   });
 
+  it('freezes structured stay house rules with the written instructions', () => {
+    const fields = resolveStayFieldsForSnapshot({
+      listingExtras: {
+        stay: {
+          houseRules: 'Leave shoes in the hall.',
+          restrictions: { pets: 'not_allowed', quietHours: { start: '22:00', end: '08:00' } },
+        },
+      },
+    });
+    expect(fields.houseRules).toMatch(/Quiet hours 22:00–08:00/);
+    expect(fields.houseRules).toMatch(/No pets/);
+    expect(fields.houseRules).toMatch(/Leave shoes/);
+  });
+
   it('freezes includes and excludes so listing edits cannot rewrite Trips', () => {
     const snap = buildPurchaseSnapshot({
       listingTitle: 'Aurora',

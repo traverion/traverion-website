@@ -15,6 +15,13 @@ describe('stay restrictions', () => {
       'No smoking',
       'Parties and events allowed',
     ]);
+    expect(
+      stayRestrictionLines({
+        quietHours: { start: '22:00', end: '08:00' },
+        children: 'welcome',
+      })
+    ).toEqual(['Quiet hours 22:00–08:00', 'Children and infants are welcome']);
+    expect(normalizeStayRestrictions({ quietHours: { start: '22:00', end: '22:00' } })).toBeUndefined();
     expect(stayRestrictionLines(undefined)).toEqual([]);
   });
 });

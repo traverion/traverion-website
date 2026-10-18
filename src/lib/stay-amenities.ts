@@ -35,13 +35,13 @@ export const STAY_AMENITY_PRESETS = [
 
 /** Same stored tokens, grouped so the creator is easier to scan. */
 export const STAY_AMENITY_GROUPS: { label: string; items: readonly (typeof STAY_AMENITY_PRESETS)[number][] }[] = [
-  { label: 'Essentials', items: ['Wifi', 'Heating', 'Air conditioning', 'Kitchen', 'Towels', 'Bed linen', 'Hot water'] },
-  { label: 'Comfort', items: ['TV', 'Washer', 'Dryer', 'Hair dryer', 'Workspace', 'Fireplace'] },
-  { label: 'Wellness', items: ['Sauna', 'Hot tub', 'Bathtub', 'Pool'] },
-  { label: 'Outdoor', items: ['Terrace', 'Balcony', 'Garden', 'Outdoor furniture', 'Barbecue'] },
-  { label: 'Parking and arrival', items: ['Free parking', 'Paid parking', 'EV charging', 'Self check-in'] },
-  { label: 'Family', items: ['Crib', 'High chair'] },
-  { label: 'Accessibility', items: ['Step-free entrance', 'Wheelchair-accessible bathroom', 'Elevator'] },
+  { label: 'Essentials', items: ['Wifi', 'Heating', 'Air conditioning', 'Towels', 'Bed linen', 'Hot water'] },
+  { label: 'Kitchen & dining', items: ['Kitchen'] },
+  { label: 'Bathroom', items: ['Hair dryer', 'Bathtub', 'Washer', 'Dryer'] },
+  { label: 'Outdoor & wellness', items: ['Sauna', 'Hot tub', 'Pool', 'Terrace', 'Balcony', 'Garden', 'Outdoor furniture', 'Barbecue'] },
+  { label: 'Entertainment', items: ['TV', 'Fireplace', 'Workspace'] },
+  { label: 'Family & accessibility', items: ['Crib', 'High chair', 'Step-free entrance', 'Wheelchair-accessible bathroom', 'Elevator'] },
+  { label: 'Parking & transport', items: ['Free parking', 'Paid parking', 'EV charging', 'Self check-in'] },
 ];
 
 const PRESET_BY_KEY = new Map(STAY_AMENITY_PRESETS.map((label) => [label.toLowerCase(), label]));
