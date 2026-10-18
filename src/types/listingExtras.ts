@@ -10,6 +10,7 @@ import {
   type ListingSlotOverride,
 } from '../lib/listing-slot-overrides';
 import { normalizeBookingCutoffHours } from '../lib/tour-departure-cutoff';
+import { normalizeStayUnits, type StayUnitDraft } from '../lib/stay-accommodation';
 
 /** Legacy preset values still parsed from stored `listing_extras` JSON. */
 export type CancellationPreset = 'free_24h' | 'free_48h' | 'free_7d' | 'non_refundable' | 'custom';
@@ -352,6 +353,10 @@ export type StayDetails = {
    * Does not replace city, country, place id, or coordinates.
    */
   locationDisplayName?: string;
+  /** single = one bookable accommodation. multi is a draft of room types and is not bookable yet. */
+  accommodationMode?: 'single' | 'multi';
+  /** Room or unit types. Ignored by checkout until multi-unit inventory exists. */
+  units?: StayUnitDraft[];
   /**
    * Exact arrival address for booked guests (street / building / entry notes).
    * Stored in listing_stay_private (owner/service only) — never in public listing_extras.
@@ -381,6 +386,10 @@ function normalizeStayDetails(raw: unknown): StayDetails | undefined {
   if (typeof o.locationDisplayName === 'string' && o.locationDisplayName.trim()) {
     out.locationDisplayName = o.locationDisplayName.trim().slice(0, 80);
   }
+  if (o.accommodationMode === 'multi') out.accommodationMode = 'multi';
+  else if (o.accommodationMode === 'single') out.accommodationMode = 'single';
+  const units = normalizeStayUnits(o.units);
+  if (units.length > 0) out.units = units;
   if (typeof o.checkInAddress === 'string' && o.checkInAddress.trim()) {
     out.checkInAddress = o.checkInAddress.trim().slice(0, 400);
   }

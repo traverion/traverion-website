@@ -231,6 +231,12 @@ describe('publishBlockerListingWizardStep', () => {
     expect(publishBlockerListingWizardStep('Set how many guests the property can host.', true)).toBe(2);
     expect(
       publishBlockerListingWizardStep(
+        'Several room types can be saved as a draft. Booking more than one accommodation is not available yet, so this property cannot be published.',
+        true
+      )
+    ).toBe(2);
+    expect(
+      publishBlockerListingWizardStep(
         'Add the check-in address guests need after they book (street / building / entry).',
         true
       )

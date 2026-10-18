@@ -913,6 +913,9 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
               <span>{[stay.city, stay.country].filter(Boolean).join(', ') || stay.destination}</span>
             </p>
           </div>
+          {s?.accommodationMode === 'multi' ? (
+            <p className="mb-3 text-sm text-ink-muted">Room types for this property are not open for booking yet.</p>
+          ) : null}
           <h1 className="font-display text-3xl sm:text-4xl lg:text-[2.75rem] text-ink tracking-tight mb-4 break-words [overflow-wrap:anywhere] leading-[1.15]">
             {stay.title}
           </h1>

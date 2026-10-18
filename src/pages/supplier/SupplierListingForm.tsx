@@ -222,6 +222,15 @@ import {
 import { DEFAULT_CURRENCY, formatMoney, normalizeCurrency } from '../../lib/money';
 import { formatStayAmenityLabel, STAY_AMENITY_GROUPS, STAY_AMENITY_PRESETS } from '../../lib/stay-amenities';
 import TraverionLocationSelector from '../../components/supplier/TraverionLocationSelector';
+import StayUnitsEditor from '../../components/supplier/listing-creation/StayUnitsEditor';
+import {
+  activeStayUnits,
+  normalizeStayUnits,
+  stayPropertyTypesForMode,
+  stayUnitsReady,
+  type StayAccommodationMode,
+  type StayUnitDraft,
+} from '../../lib/stay-accommodation';
 import { publicStayListingUrl, publicTourListingUrl } from '../../lib/publicSiteUrl';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import NoticeCallout from '../../components/NoticeCallout';
@@ -926,6 +935,8 @@ type ListingFormState = {
   venueSetting: VenueSetting;
   additionalLanguages: string[];
   inventoryFamily: 'tour' | 'stay';
+  stayAccommodationMode: StayAccommodationMode;
+  stayUnits: StayUnitDraft[];
   stayPropertyType: string;
   stayBedrooms: string;
   stayBeds: string;
@@ -1117,6 +1128,8 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
       ? {
           stay: {
             propertyType: form.stayPropertyType.trim() || undefined,
+            accommodationMode: form.stayAccommodationMode === 'multi' ? 'multi' : 'single',
+            units: form.stayUnits.length > 0 ? form.stayUnits : undefined,
             bedrooms: Number.isFinite(stayBedrooms) ? stayBedrooms : undefined,
             beds: Number.isFinite(stayBeds) ? stayBeds : undefined,
             bathrooms: Number.isFinite(stayBaths) ? stayBaths : undefined,
@@ -1272,6 +1285,7 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
   }
   if (idx === 2) {
     if (form.inventoryFamily === 'stay') {
+      if (form.stayAccommodationMode === 'multi') return stayUnitsReady(form.stayUnits);
       const maxG = Number.parseInt(form.stayMaxGuests, 10);
       return Number.isFinite(maxG) && maxG >= 1;
     }
@@ -1291,6 +1305,7 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
   }
   if (idx === 5) {
     if (form.inventoryFamily === 'stay') {
+      if (form.stayAccommodationMode === 'multi') return stayUnitsReady(form.stayUnits);
       const nightly = Number.parseFloat(form.stayNightly);
       return Number.isFinite(nightly) && nightly > 0;
     }
@@ -1365,6 +1380,8 @@ const emptyForm: ListingFormState = {
   venueSetting: 'unspecified',
   additionalLanguages: [] as string[],
   inventoryFamily: 'tour',
+  stayAccommodationMode: 'single',
+  stayUnits: [],
   stayPropertyType: 'Apartment',
   stayBedrooms: '',
   stayBeds: '',
@@ -1420,6 +1437,8 @@ function coerceListingFormState(raw: Partial<ListingFormState> | null | undefine
   merged.stayAddressStreet = typeof merged.stayAddressStreet === 'string' ? merged.stayAddressStreet : '';
   merged.stayAddressPostal = typeof merged.stayAddressPostal === 'string' ? merged.stayAddressPostal : '';
   merged.stayAddressNotes = typeof merged.stayAddressNotes === 'string' ? merged.stayAddressNotes : '';
+  merged.stayAccommodationMode = merged.stayAccommodationMode === 'multi' ? 'multi' : 'single';
+  merged.stayUnits = normalizeStayUnits(merged.stayUnits);
   if (
     !merged.stayAddressStreet.trim() &&
     !merged.stayAddressPostal.trim() &&
@@ -1479,6 +1498,8 @@ export default function SupplierListingForm({
   const [form, setForm] = useState<ListingFormState>(emptyForm);
   const [submitting, setSubmitting] = useState(false);
   const [publishBlockers, setPublishBlockers] = useState<string[] | null>(null);
+  const [stayAmenityQuery, setStayAmenityQuery] = useState('');
+  const [stayCustomAmenity, setStayCustomAmenity] = useState('');
   const isStayForm = form.inventoryFamily === 'stay' || createFamily === 'stay';
   const infoEnterFromOptionsBackRef = useRef(false);
   const infoPendingSceneRef = useRef<number | null>(null);
@@ -1662,10 +1683,11 @@ export default function SupplierListingForm({
   const steps = useMemo(() => {
     const stay = form.inventoryFamily === 'stay' || createFamily === 'stay';
     if (stay) {
+      const multi = form.stayAccommodationMode === 'multi';
       return [
         { id: 'the_experience' as StepId, label: 'Property' },
         { id: 'practical' as StepId, label: 'Location' },
-        { id: 'cost_options' as StepId, label: 'Space' },
+        { id: 'cost_options' as StepId, label: multi ? 'Rooms' : 'Space' },
         { id: 'stay_description' as StepId, label: 'Description' },
         { id: 'photos' as StepId, label: 'Photos' },
         { id: 'stay_price' as StepId, label: 'Pricing' },
@@ -1681,18 +1703,23 @@ export default function SupplierListingForm({
       { id: 'photos' as StepId, label: 'Photos' },
       { id: 'review' as StepId, label: 'Preview & Publish' },
     ];
-  }, [form.inventoryFamily, createFamily]);
+  }, [form.inventoryFamily, form.stayAccommodationMode, createFamily]);
 
   const stepGuidance = useMemo(() => {
     const stay = form.inventoryFamily === 'stay' || createFamily === 'stay';
     if (stay) {
+      const multi = form.stayAccommodationMode === 'multi';
       return [
-        'Choose the property type and a clear title guests will recognize.',
-        'Where the property is, and the address booked guests receive.',
-        'Who can stay, where they sleep, and what the place includes.',
+        'Choose one accommodation or several room types, then add a title guests will recognize.',
+        'Search for the property location. A display name is optional.',
+        multi
+          ? 'Add each bookable room or unit type. Shared property details stay on this listing.'
+          : 'Who can stay, where they sleep, and what the place includes.',
         'Help travelers understand what makes your property special.',
         'Add your strongest photo first — it becomes the cover in search.',
-        'Nightly rate for the whole place. Blocked nights are managed on Calendar after you publish.',
+        multi
+          ? 'Nightly prices are set on each room type. This property cannot be published until room booking is available.'
+          : 'Nightly rate for the whole place. Blocked nights are managed on Calendar after you publish.',
         'Arrival times, the cancellation terms guests actually get, and house rules.',
         'Check what’s ready, fix gaps, then save as draft or publish.',
       ] as const;
@@ -1706,7 +1733,7 @@ export default function SupplierListingForm({
       'Cover photo first, then supporting shots travelers swipe through.',
       'Review readiness, then save as draft or publish when Traverion verification allows.',
     ] as const;
-  }, [form.inventoryFamily, createFamily]);
+  }, [form.inventoryFamily, form.stayAccommodationMode, createFamily]);
 
   const reviewRows = useMemo(() => {
     const photoCount = orderedPhotoUrls(normalizePhotoSlots(form.photoSlots)).length;
@@ -1749,10 +1776,17 @@ export default function SupplierListingForm({
         },
         {
           step: 2,
-          label: 'Space',
-          summary: spaceSummary || 'Guest capacity not set',
+          label: form.stayAccommodationMode === 'multi' ? 'Rooms' : 'Space',
+          summary:
+            form.stayAccommodationMode === 'multi'
+              ? `${activeStayUnits(form.stayUnits).length} room type${activeStayUnits(form.stayUnits).length === 1 ? '' : 's'}`
+              : spaceSummary || 'Guest capacity not set',
           ready: isStepSatisfied(2, form),
-          missing: !isStepSatisfied(2, form) ? 'Set how many guests can stay.' : null,
+          missing: !isStepSatisfied(2, form)
+            ? form.stayAccommodationMode === 'multi'
+              ? 'Add a room type with a name, capacity, quantity, and nightly price.'
+              : 'Set how many guests can stay.'
+            : null,
         },
         {
           step: 3,
@@ -2081,6 +2115,8 @@ export default function SupplierListingForm({
           venueSetting: extras.venueSetting ?? 'unspecified',
           additionalLanguages: normalizeSpokenLanguageIds(extras.additionalLanguages),
           inventoryFamily: extras.inventoryFamily === 'stay' ? 'stay' : 'tour',
+          stayAccommodationMode: extras.stay?.accommodationMode === 'multi' ? 'multi' : 'single',
+          stayUnits: extras.stay?.units ?? [],
           stayPropertyType: extras.stay?.propertyType ?? 'Apartment',
           stayBedrooms: extras.stay?.bedrooms != null ? String(extras.stay.bedrooms) : '',
           stayBeds: extras.stay?.beds != null ? String(extras.stay.beds) : '',
@@ -3882,14 +3918,20 @@ export default function SupplierListingForm({
             </div>
             {stepIdx < steps.length - 1
               ? (() => {
-                  const hint = tourBasicsGuided
-                    ? tourBasicsContinueHint
-                    : specificTourContinueHint ??
-                      listingCreationContinueHint({
-                        stepIndex: stepIdx,
-                        isStay: isStayForm,
-                        canContinue: canContinueStep(),
-                      });
+                  const hint =
+                    form.inventoryFamily === 'stay' &&
+                    form.stayAccommodationMode === 'multi' &&
+                    !canContinueStep() &&
+                    (stepIdx === 2 || stepIdx === 5)
+                      ? 'Add a room type with a name, capacity, quantity, and nightly price.'
+                      : tourBasicsGuided
+                        ? tourBasicsContinueHint
+                        : specificTourContinueHint ??
+                          listingCreationContinueHint({
+                            stepIndex: stepIdx,
+                            isStay: isStayForm,
+                            canContinue: canContinueStep(),
+                          });
                   return hint ? (
                     <p
                       id="listing-creation-continue-hint"
@@ -3951,11 +3993,66 @@ export default function SupplierListingForm({
           ) : null}
           {stepIdx === 0 && isStayForm && (
             <div className="space-y-7">
+              <div>
+                <p className="mb-3 text-sm font-semibold text-ink">What type of accommodation are you listing?</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {(
+                    [
+                      {
+                        id: 'single' as const,
+                        title: 'One accommodation',
+                        body: 'Guests book one accommodation with its own availability and nightly price.',
+                      },
+                      {
+                        id: 'multi' as const,
+                        title: 'Multiple rooms or units',
+                        body: 'Create room or accommodation types with separate prices, capacity and availability.',
+                      },
+                    ] as const
+                  ).map((choice) => {
+                    const selected = form.stayAccommodationMode === choice.id;
+                    return (
+                      <button
+                        key={choice.id}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => {
+                          if (form.stayAccommodationMode === choice.id) return;
+                          if (
+                            choice.id === 'single' &&
+                            activeStayUnits(form.stayUnits).some((unit) => unit.name.trim())
+                          ) {
+                            const ok = window.confirm(
+                              'Switch to one accommodation? Room drafts stay saved. Guests would book this as a single property, and several room types cannot be published yet.'
+                            );
+                            if (!ok) return;
+                          }
+                          setForm((f) => ({ ...f, stayAccommodationMode: choice.id }));
+                        }}
+                        className={`lc-choice rounded-xl px-4 py-4 text-left ${
+                          selected ? 'lc-choice--selected' : ''
+                        }`}
+                      >
+                        <span className="block text-sm font-semibold text-[#111827]">{choice.title}</span>
+                        <span className="mt-1 block text-xs leading-relaxed text-ink-muted">{choice.body}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
                 <div id="supplier-listing-field-stay-type">
                   <label className="block text-sm font-semibold text-ink mb-1">Property type *</label>
-                  <p className="text-xs text-ink-muted mb-3">What travelers are booking — not a tour option.</p>
+                  <p className="text-xs text-ink-muted mb-3">
+                    {form.stayAccommodationMode === 'multi'
+                      ? 'The property guests arrive at. Each room type is added on Rooms.'
+                      : 'What travelers are booking — not a tour option.'}
+                  </p>
                   <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-                    {(['Apartment', 'House', 'Cabin', 'Room', 'Cottage', 'Other'] as const).map((type) => {
+                    {(() => {
+                      const types = stayPropertyTypesForMode(form.stayAccommodationMode);
+                      const current = form.stayPropertyType.trim();
+                      const shown = current && !types.includes(current) ? [current, ...types] : types;
+                      return shown.map((type) => {
                       const selected = (form.stayPropertyType || 'Apartment') === type;
                       return (
                         <button
@@ -3970,13 +4067,16 @@ export default function SupplierListingForm({
                           {type}
                         </button>
                       );
-                    })}
+                      });
+                    })()}
                   </div>
-                  <p className="mt-2 text-xs leading-relaxed text-ink-muted">
-                    {(form.stayPropertyType || 'Apartment') === 'Room'
-                      ? 'Guests book this room, not the whole property. On Space, use 0 bedrooms if it is a single room.'
-                      : 'Guests book the whole place. Bedrooms and beds are set separately on Space.'}
-                  </p>
+                  {form.stayAccommodationMode === 'single' ? (
+                    <p className="mt-2 text-xs leading-relaxed text-ink-muted">
+                      {(form.stayPropertyType || 'Apartment') === 'Room'
+                        ? 'Guests book this room, not the whole property. On Space, use 0 bedrooms if it is a single room.'
+                        : 'Guests book the whole place. Bedrooms and beds are set separately on Space.'}
+                    </p>
+                  ) : null}
                 </div>
               <div id="supplier-listing-field-title">
                 <label htmlFor="supplier-listing-title" className="block text-sm font-semibold text-ink mb-1">
@@ -4456,7 +4556,21 @@ export default function SupplierListingForm({
             </div>
           )}
 
-          {stepIdx === 2 && form.inventoryFamily === 'stay' && (
+          {stepIdx === 2 && form.inventoryFamily === 'stay' && form.stayAccommodationMode === 'multi' && (
+            <div className="space-y-8">
+              <StayUnitsEditor
+                units={form.stayUnits}
+                currency={listingCurrency}
+                onChange={(stayUnits) => setForm((f) => ({ ...f, stayUnits }))}
+              />
+              <p className="text-xs leading-relaxed text-ink-muted">
+                Shared house rules and arrival times stay on Policies. These room types are saved with the draft and
+                are not bookable yet.
+              </p>
+            </div>
+          )}
+
+          {stepIdx === 2 && form.inventoryFamily === 'stay' && form.stayAccommodationMode !== 'multi' && (
             <div className="space-y-8">
               <section className="space-y-4" aria-labelledby="stay-capacity-heading">
                 <div>
@@ -4530,12 +4644,23 @@ export default function SupplierListingForm({
                 <div>
                   <h4 id="stay-amenities-heading" className="text-sm font-semibold text-[#111827]">Amenities</h4>
                   <p className="mt-1 text-xs text-ink-muted">Guests see these on the stay page. Tick only what is actually there.</p>
+                  <input
+                    value={stayAmenityQuery}
+                    onChange={(e) => setStayAmenityQuery(e.target.value)}
+                    className="tv-input mt-3 w-full"
+                    placeholder="Search amenities"
+                    aria-label="Search amenities"
+                  />
                 </div>
-                {STAY_AMENITY_GROUPS.map((group) => (
+                {STAY_AMENITY_GROUPS.map((group) => {
+                  const query = stayAmenityQuery.trim().toLowerCase();
+                  const items = group.items.filter((label) => !query || label.toLowerCase().includes(query));
+                  if (items.length === 0) return null;
+                  return (
                   <div key={group.label}>
                     <p className="mb-2 text-[12px] font-semibold text-ink-muted">{group.label}</p>
                     <div className="flex flex-wrap gap-2">
-                      {group.items.map((label) => {
+                      {items.map((label) => {
                         const on = stayAmenityHas(form.stayAmenities, label);
                         return (
                           <button
@@ -4555,28 +4680,73 @@ export default function SupplierListingForm({
                       })}
                     </div>
                   </div>
-                ))}
-                <label className="block text-sm mt-1">
-                  Other (comma separated)
-                  <input
-                    value={stayAmenityTokens(form.stayAmenities)
-                      .filter((a) => !STAY_AMENITY_PRESETS.some((p) => p.toLowerCase() === a.toLowerCase()))
-                      .join(', ')}
-                    onChange={(e) => {
-                      const extras = stayAmenityTokens(e.target.value);
-                      const presets = stayAmenityTokens(form.stayAmenities).filter((a) =>
-                        STAY_AMENITY_PRESETS.some((p) => p.toLowerCase() === a.toLowerCase())
-                      );
-                      setForm((f) => ({ ...f, stayAmenities: [...presets, ...extras].join(', ') }));
-                    }}
-                    className="tv-input mt-1 w-full"
-                    placeholder="Sauna, river view"
-                  />
-                </label>
+                  );
+                })}
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold text-ink">Custom amenities</p>
+                  <div className="flex flex-wrap gap-2">
+                    {stayAmenityTokens(form.stayAmenities)
+                      .filter((item) => !STAY_AMENITY_PRESETS.some((preset) => preset.toLowerCase() === item.toLowerCase()))
+                      .map((item) => (
+                        <button
+                          key={item}
+                          type="button"
+                          className="lux-flat rounded-full bg-[#0B397E] px-3 py-1.5 text-sm text-white"
+                          onClick={() => setForm((f) => ({ ...f, stayAmenities: toggleStayAmenity(f.stayAmenities, item) }))}
+                        >
+                          {item} · remove
+                        </button>
+                      ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      value={stayCustomAmenity}
+                      onChange={(e) => setStayCustomAmenity(e.target.value.slice(0, 40))}
+                      onKeyDown={(e) => {
+                        if (e.key !== 'Enter') return;
+                        e.preventDefault();
+                        const next = stayCustomAmenity.trim();
+                        if (!next || stayAmenityHas(form.stayAmenities, next)) {
+                          setStayCustomAmenity('');
+                          return;
+                        }
+                        setForm((f) => ({
+                          ...f,
+                          stayAmenities: [...stayAmenityTokens(f.stayAmenities), next].join(', '),
+                        }));
+                        setStayCustomAmenity('');
+                      }}
+                      className="tv-input w-full"
+                      placeholder="Add one amenity, then press Enter"
+                      maxLength={40}
+                    />
+                  </div>
+                </div>
               </section>
             </div>
           )}
-          {stepIdx === 5 && form.inventoryFamily === 'stay' && (
+          {stepIdx === 5 && form.inventoryFamily === 'stay' && form.stayAccommodationMode === 'multi' && (
+            <div className="space-y-4">
+              <h4 className="text-sm font-semibold text-[#111827]">Prices live on each room type</h4>
+              <p className="text-sm leading-relaxed text-ink-muted">
+                Set the nightly price, quantity, and minimum stay on Rooms. A property with several room types cannot
+                be published until Traverion can reserve each type separately.
+              </p>
+              <ul className="space-y-2">
+                {activeStayUnits(form.stayUnits).map((unit) => (
+                  <li key={unit.id} className="flex justify-between gap-3 text-sm">
+                    <span className="font-semibold text-ink">{unit.name.trim() || 'Untitled room type'}</span>
+                    <span className="text-ink-muted">
+                      {unit.nightlyPriceUsd != null ? `${unit.nightlyPriceUsd} ${listingCurrency} / night` : 'Price not set'}
+                      {` · ${unit.quantity}`}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {stepIdx === 5 && form.inventoryFamily === 'stay' && form.stayAccommodationMode !== 'multi' && (
             <div id="supplier-listing-field-stay-price" className="space-y-8">
               <section className="space-y-4" aria-labelledby="stay-nightly-heading">
                 <div>

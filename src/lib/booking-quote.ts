@@ -658,6 +658,9 @@ export function quoteStayNights(input: {
   const today =
     input.todayIso ?? experienceTodayIsoForListing(extras.departureTimezone, input.nowMs ?? Date.now());
   const stay = extras.stay;
+  if (stay?.accommodationMode === 'multi') {
+    return { ok: false, code: 'inventory', error: 'This property is not available to book yet.' };
+  }
   const checkIn = (input.checkIn ?? '').trim();
   const checkOut = (input.checkOut ?? '').trim();
   const guests = Number(input.guests);

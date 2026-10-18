@@ -381,6 +381,25 @@ describe('quoteBooking', () => {
     expect(q.totalAmount).toBe(340);
   });
 
+  it('does not quote a multi-unit stay as one bookable property', () => {
+    const q = quoteStayNights({
+      tour: tour({
+        listingExtras: {
+          inventoryFamily: 'stay',
+          stay: { accommodationMode: 'multi', nightlyPriceUsd: 100, maxGuests: 4 },
+          bookingOptions: [],
+        },
+      }),
+      checkIn: '2026-09-10',
+      checkOut: '2026-09-12',
+      guests: 2,
+      todayIso: today,
+      nowMs: fixtureNowMs,
+    });
+    expect(q.ok).toBe(false);
+    if (!q.ok) expect(q.error).toMatch(/not available to book/i);
+  });
+
   it('Layer A/B: fails closed when stay exceeds STAY_MAX_OCCUPIED_NIGHTS (occupancy iteration cap)', () => {
     const checkIn = '2026-09-10';
     const checkOut = addCalendarDays(checkIn, 401);

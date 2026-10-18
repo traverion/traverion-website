@@ -295,6 +295,9 @@ function quoteStayListing(input: {
       ? (input.listing.listing_extras as { stay?: Record<string, unknown> })
       : null;
   const stay = extras?.stay ?? {};
+  if (stay.accommodationMode === 'multi') {
+    return { ok: false, error: 'This property is not available to book yet.' };
+  }
   if (!ISO_DATE.test(input.checkIn) || !ISO_DATE.test(input.checkOut)) {
     return { ok: false, error: 'Choose valid check-in and check-out dates.' };
   }

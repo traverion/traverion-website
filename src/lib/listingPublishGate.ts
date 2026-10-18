@@ -141,11 +141,16 @@ export function getListingPublishBlockers(
   const price = listing.price?.startingFrom;
   if (isStay) {
     const stay = listing.listingExtras?.stay;
+    if (stay?.accommodationMode === 'multi') {
+      out.push(
+        'Several room types can be saved as a draft. Booking more than one accommodation is not available yet, so this property cannot be published.'
+      );
+    }
     const nightly = stay?.nightlyPriceUsd ?? (typeof price === 'number' ? price : 0);
-    if (typeof nightly !== 'number' || nightly <= 0) {
+    if (stay?.accommodationMode !== 'multi' && (typeof nightly !== 'number' || nightly <= 0)) {
       out.push('Set a nightly price greater than zero.');
     }
-    if (typeof stay?.maxGuests !== 'number' || stay.maxGuests < 1) {
+    if (stay?.accommodationMode !== 'multi' && (typeof stay?.maxGuests !== 'number' || stay.maxGuests < 1)) {
       out.push('Set how many guests the property can host.');
     }
     const checkIn = (stay?.checkInTime ?? '').trim();
@@ -339,6 +344,7 @@ export function partnerListingCardPresentation(args: {
 export function publishBlockerListingWizardStep(blockerLine: string, isStay: boolean): number {
   const t = blockerLine.toLowerCase();
   if (isStay) {
+    if (/several room types|not available yet/.test(t)) return 2;
     if (/photo|image|gallery|cover|hero|placeholder/.test(t)) return 4;
     if (/nightly|check-in time|check-out time/.test(t)) return 3;
     if (/address|city|country|location|destination/.test(t)) return 1;

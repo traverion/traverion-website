@@ -85,6 +85,19 @@ describe('quoteListingBooking (authoritative Deno pricing -- direct execution)',
       }
     });
 
+    it('rejects a multi-unit stay so room types are not charged as one property', () => {
+      const res = quoteListingBooking({
+        listing: stayListing({}, { accommodationMode: 'multi' }),
+        discounts: [],
+        bookingDate: '2026-06-10',
+        guests: 2,
+        checkoutDate: '2026-06-12',
+        todayIso: TODAY,
+      });
+      expect(res.ok).toBe(false);
+      if (!res.ok) expect(res.error).toMatch(/not available to book/i);
+    });
+
     it('rejects checkout equal to checkin (zero nights) -- must not fall through to tour capacity math', () => {
       const res = quoteListingBooking({
         listing: stayListing(),
