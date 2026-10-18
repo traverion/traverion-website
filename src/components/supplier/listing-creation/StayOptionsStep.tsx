@@ -782,8 +782,12 @@ function shiftClock(hm: string, minutesBefore: number): string | null {
   if (!/^\d{2}:\d{2}$/.test(hm)) return null;
   const [h, m] = hm.split(':').map(Number);
   const total = h * 60 + m - minutesBefore;
+  const dayShift = Math.floor(total / (24 * 60));
   const dayMinutes = ((total % (24 * 60)) + 24 * 60) % (24 * 60);
-  return `${String(Math.floor(dayMinutes / 60)).padStart(2, '0')}:${String(dayMinutes % 60).padStart(2, '0')}`;
+  const clock = `${String(Math.floor(dayMinutes / 60)).padStart(2, '0')}:${String(dayMinutes % 60).padStart(2, '0')}`;
+  if (dayShift === 0) return clock;
+  if (dayShift === -1) return `${clock} on the day before check-in`;
+  return `${clock}, ${Math.abs(dayShift)} days before check-in`;
 }
 
 const CLOCKS = Array.from({ length: 48 }, (_, index) => {
