@@ -882,13 +882,18 @@ function ArrivalMethodStage({ values, onChange }: Props) {
 function ArrivalNotesStage({ values, onChange }: Props) {
   return (
     <div className="space-y-4">
-      <Field label="Public arrival note">
-        <textarea className="tv-input min-h-20 w-full" maxLength={160} value={values.stayArrivalNote} onChange={(e) => onChange({ stayArrivalNote: e.target.value.slice(0, 160) })} />
-      </Field>
-      <Field label="Private arrival address">
-        <textarea className="tv-input min-h-24 w-full" maxLength={400} value={values.stayCheckInAddress} onChange={(e) => onChange({ stayCheckInAddress: e.target.value.slice(0, 400) })} />
-      </Field>
-      <p className="text-xs text-ink-muted">Booked guests see the private address after payment. Do not put a door code in the public note.</p>
+      <div className="stay-panel space-y-2">
+        <Field label="Public arrival note">
+          <textarea className="tv-input min-h-20 w-full" maxLength={160} value={values.stayArrivalNote} onChange={(e) => onChange({ stayArrivalNote: e.target.value.slice(0, 160) })} />
+        </Field>
+        <StayHelp>Guests can read this before they book. Do not include a door code or the street address.</StayHelp>
+      </div>
+      <div className="stay-panel space-y-2">
+        <Field label="Private arrival address">
+          <textarea className="tv-input min-h-24 w-full" maxLength={400} value={values.stayCheckInAddress} onChange={(e) => onChange({ stayCheckInAddress: e.target.value.slice(0, 400) })} />
+        </Field>
+        <StayHelp>Booked guests see this after payment. Codes belong here, not in the public note.</StayHelp>
+      </div>
     </div>
   );
 }
@@ -941,8 +946,9 @@ function QuietHoursStage({ values, onChange }: Props) {
         <Field label="Until"><input className="tv-input w-full" type="time" value={values.stayQuietEnd} onChange={(e) => onChange({ stayQuietEnd: e.target.value })} /></Field>
       </div>
       {differs && mentioned ? (
-        <button type="button" className="rounded-xl bg-[#F4F8FC] px-3 py-3 text-left text-sm text-ink ring-1 ring-[#D5E2F2]" onClick={() => onChange({ stayQuietStart: mentioned.start, stayQuietEnd: mentioned.end })}>
-          Your written rules mention quiet hours from {mentioned.start} to {mentioned.end}. Use these times?
+        <button type="button" className="stay-panel w-full text-left" onClick={() => onChange({ stayQuietStart: mentioned.start, stayQuietEnd: mentioned.end })}>
+          <span className="block text-sm font-semibold text-ink">Use {mentioned.start}–{mentioned.end}</span>
+          <span className="stay-help mt-1 block">Your written rules mention these quiet hours. This fills the times above and leaves the written rules unchanged.</span>
         </button>
       ) : null}
       <Field label="Additional rules">
@@ -969,7 +975,7 @@ function SafetyStage({ values, onChange }: Props) {
           <textarea className="tv-input min-h-20 w-full" maxLength={160} value={values.staySafetyNote} onChange={(e) => onChange({ staySafetyNote: e.target.value.slice(0, 160) })} />
         </Field>
       )}
-      <p className="text-xs text-ink-muted">Cameras inside private guest spaces are not allowed. Guests see what you write here before they book.</p>
+      <StayHelp>Cameras inside private guest spaces are not allowed. Guests see this disclosure before they book. An empty note does not mean the property has no hazards.</StayHelp>
     </div>
   );
 }
@@ -977,7 +983,7 @@ function SafetyStage({ values, onChange }: Props) {
 function Choice({ label, value, options, onChange }: { label: string; value: string; options: string[][]; onChange: (value: string) => void }) {
   return (
     <fieldset>
-      <legend className="text-sm font-semibold text-ink">{label}</legend>
+      <legend className="stay-kicker">{label}</legend>
       <div className="mt-2 flex flex-wrap gap-2">
         {options.map(([id, text]) => (
           <button key={id || text} type="button" aria-pressed={value === id} className={`stay-choice lc-choice min-h-11 rounded-full px-3 text-sm font-semibold ${value === id ? 'lc-choice--selected text-[#073b83]' : ''}`} onClick={() => onChange(id)}>{text}</button>
