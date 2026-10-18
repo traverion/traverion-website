@@ -21,6 +21,7 @@ import { formatMoney, normalizeCurrency } from '../../../lib/money';
 import { fetchSupplierActiveCommercialTerms } from '../../../data/supabase-earnings';
 import { composeStayCheckInAddress, stayAddressKey, stayPinMatchesAddress } from '../../../lib/stay-address';
 import StayAddressSearch from './StayAddressSearch';
+import { StayChoice, StayField, StayHelp } from './StayCreatorUi';
 
 type PhotoSlot = string;
 type Values = {
@@ -154,21 +155,21 @@ export default function StayOnboardingFlow(props: Props) {
   }
 
   return (
-    <div className={`mx-auto w-full ${wide ? 'max-w-3xl' : 'max-w-xl'} ${props.direction === 'back' ? 'stay-stage-back' : 'stay-stage-forward'}`}>
+    <div className={`stay-creator mx-auto w-full ${wide ? 'max-w-3xl' : 'max-w-xl'} ${props.direction === 'back' ? 'stay-stage-back' : 'stay-stage-forward'}`}>
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-muted">
+          <p className="stay-kicker">
             {stage.group}
             {stage.part && !/of 1$/.test(stage.part) ? ` · ${stage.part}` : ''}
           </p>
-          <p className="mt-1 text-xs text-ink-muted">Step {props.stage + 1} of {STAY_ONBOARDING_SCREENS.length}</p>
+          <p className="stay-help mt-1">Step {props.stage + 1} of {STAY_ONBOARDING_SCREENS.length}</p>
         </div>
         {props.returnStage != null && props.stage !== props.returnStage ? (
           <button type="button" className="min-h-11 text-sm font-semibold text-finland" onClick={props.onReturn}>Back to preview</button>
         ) : null}
       </div>
-      <h3 className="mt-2 font-display text-2xl font-semibold tracking-tight text-ink sm:text-[1.75rem]">{stage.title}</h3>
-      <p className="mt-2 text-sm leading-relaxed text-ink-muted">{stage.body}</p>
+      <h3 className="stay-title font-display font-semibold">{stage.title}</h3>
+      <p className="stay-lede mt-2">{stage.body}</p>
       <div className="mt-6">
         {id === 'location' ? <LocationStage {...props} /> : null}
         {id === 'confirm' ? <ConfirmStage {...props} /> : null}
@@ -203,7 +204,7 @@ export default function StayOnboardingFlow(props: Props) {
         {id === 'publish' ? <PublishStage {...props} option={option} /> : null}
       </div>
       {props.attempted && props.blocker ? (
-        <p className="mt-4 text-sm font-medium text-red-700" role="alert">{props.blocker}</p>
+        <p className="stay-alert" role="alert">{props.blocker}</p>
       ) : null}
       <div className="mt-8 h-1 overflow-hidden rounded-full bg-[#E6EAF0]" role="progressbar" aria-valuemin={1} aria-valuemax={STAY_ONBOARDING_SCREENS.length} aria-valuenow={props.stage + 1}>
         <div className="h-full bg-[#0B397E] transition-[width] duration-200 motion-reduce:transition-none" style={{ width: `${((props.stage + 1) / STAY_ONBOARDING_SCREENS.length) * 100}%` }} />
@@ -213,12 +214,7 @@ export default function StayOnboardingFlow(props: Props) {
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block text-sm font-semibold text-ink">
-      {label}
-      <div className="mt-1 font-normal">{children}</div>
-    </label>
-  );
+  return <StayField label={label}>{children}</StayField>;
 }
 
 function LocationStage({ values, onChange, onConfirmLocation, selectedPlace, savedPlaceLabel, legacyPlaceHint, onSelectPlace, onClearPlace }: Props) {
@@ -468,9 +464,9 @@ function PropertyTypeStage({ values, option, writeOption }: Props & { option: St
         {types.map((type) => {
           const on = selected === type;
           return (
-            <button key={type} type="button" aria-pressed={on} className={`min-h-11 rounded-xl px-3 text-left text-sm font-semibold ${on ? 'bg-[#F4F8FC] text-[#0B397E] ring-2 ring-[#0B397E]' : 'ring-1 ring-[#E6EAF0]'}`} onClick={() => writeOption({ ...option, propertyType: type })}>
+            <StayChoice key={type} pressed={on} onClick={() => writeOption({ ...option, propertyType: type })}>
               {type === 'Room' ? 'Private room' : type}
-            </button>
+            </StayChoice>
           );
         })}
       </div>
@@ -516,9 +512,9 @@ function RoomsStage({ areas, onChange }: { areas: StaySleepingArea[]; onChange: 
                     {STAY_BED_KINDS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
                   </select>
                   <div className="flex items-center gap-1">
-                    <button type="button" className="min-h-11 min-w-11 rounded-lg ring-1 ring-[#E6EAF0]" aria-label="Fewer beds" onClick={() => onChange(areas.map((row) => row.id === area.id ? { ...row, beds: row.beds.map((item, i) => i === index ? { ...item, count: Math.max(1, item.count - 1) } : item) } : row))}>−</button>
+                    <button type="button" className="stay-step" aria-label="Fewer beds" disabled={bed.count <= 1} onClick={() => onChange(areas.map((row) => row.id === area.id ? { ...row, beds: row.beds.map((item, i) => i === index ? { ...item, count: Math.max(1, item.count - 1) } : item) } : row))}>−</button>
                     <span className="w-6 text-center text-sm tabular-nums">{bed.count}</span>
-                    <button type="button" className="min-h-11 min-w-11 rounded-lg ring-1 ring-[#E6EAF0]" aria-label="More beds" onClick={() => onChange(areas.map((row) => row.id === area.id ? { ...row, beds: row.beds.map((item, i) => i === index ? { ...item, count: Math.min(20, item.count + 1) } : item) } : row))}>+</button>
+                    <button type="button" className="stay-step" aria-label="More beds" disabled={bed.count >= 20} onClick={() => onChange(areas.map((row) => row.id === area.id ? { ...row, beds: row.beds.map((item, i) => i === index ? { ...item, count: Math.min(20, item.count + 1) } : item) } : row))}>+</button>
                   </div>
                   <button type="button" className="min-h-11 text-sm text-ink-muted" onClick={() => onChange(areas.map((row) => row.id === area.id ? { ...row, beds: row.beds.filter((_, i) => i !== index) } : row))}>Remove</button>
                 </div>
@@ -574,7 +570,7 @@ function HighlightsStage({ values, onChange }: Props) {
         {HIGHLIGHT_CHOICES.map((label) => {
           const on = chosen.some((line) => line.toLowerCase() === label.toLowerCase());
           return (
-            <button key={label} type="button" aria-pressed={on} className={`min-h-11 rounded-xl px-3 text-left text-sm font-semibold ${on ? 'bg-[#F4F8FC] text-[#0B397E] ring-2 ring-[#0B397E]' : 'ring-1 ring-[#E6EAF0]'}`} onClick={() => toggle(label)}>{label}</button>
+            <StayChoice key={label} pressed={on} onClick={() => toggle(label)}>{label}</StayChoice>
           );
         })}
       </div>
@@ -595,7 +591,7 @@ function HighlightsStage({ values, onChange }: Props) {
 
 function BookingMethodStage() {
   return (
-    <div className="rounded-xl bg-[#F4F8FC] p-4 ring-1 ring-[#D5E2F2]">
+    <div className="stay-panel">
       <p className="text-sm font-semibold text-ink">Instant booking</p>
       <p className="mt-1 text-sm leading-relaxed text-ink-muted">Guests can confirm an available stay immediately and complete payment securely at checkout.</p>
     </div>
@@ -662,11 +658,11 @@ function AvailabilityStage({ values, option, writeOption }: Props & { option: St
   const several = option.schedules.length > 1;
   return (
     <div className="space-y-4">
-      <button type="button" className={`min-h-11 w-full rounded-xl px-3 text-left text-sm font-semibold ${values.stayAvailabilityMode !== 'scheduled' ? 'bg-[#F4F8FC] text-[#0B397E] ring-2 ring-[#0B397E]' : 'ring-1 ring-[#E6EAF0]'}`} onClick={() => writeOption({ ...option, availabilityMode: 'open' })}>
+      <StayChoice pressed={values.stayAvailabilityMode !== 'scheduled'} onClick={() => writeOption({ ...option, availabilityMode: 'open' })} className="flex-col">
         Open ongoing
-        <span className="mt-1 block font-normal text-ink-muted">Guests can book future nights unless a saved schedule says otherwise.</span>
-      </button>
-      <button type="button" className={`min-h-11 w-full rounded-xl px-3 text-left text-sm font-semibold ${values.stayAvailabilityMode === 'scheduled' ? 'bg-[#F4F8FC] text-[#0B397E] ring-2 ring-[#0B397E]' : 'ring-1 ring-[#E6EAF0]'}`} onClick={() => {
+        <span className="stay-help mt-1 block font-normal">Guests can book future nights unless a saved schedule says otherwise.</span>
+      </StayChoice>
+      <StayChoice pressed={values.stayAvailabilityMode === 'scheduled'} className="flex-col" onClick={() => {
         if (several) return;
         const start = season?.start || today;
         const end = season?.end || today;
@@ -689,8 +685,8 @@ function AvailabilityStage({ values, option, writeOption }: Props & { option: St
         });
       }}>
         A first and last night
-        <span className="mt-1 block font-normal text-ink-muted">Nights outside this period cannot be booked.</span>
-      </button>
+        <span className="stay-help mt-1 block font-normal">Nights outside this period cannot be booked.</span>
+      </StayChoice>
       {several ? <p className="text-sm text-ink-muted">This stay already has more than one schedule. Those seasons stay as they are. Change them after publishing.</p> : null}
       {values.stayAvailabilityMode === 'scheduled' && !several ? (
         <div className="grid gap-3 sm:grid-cols-2">
@@ -698,19 +694,19 @@ function AvailabilityStage({ values, option, writeOption }: Props & { option: St
           <TraverionSingleDateField id="stay-open-end" label="Last occupied night" value={season?.end ?? ''} minIso={season?.start || today} onChange={(end) => season && writeOption({ ...option, schedules: [{ ...season, end }] })} />
         </div>
       ) : null}
-      <p className="text-sm text-ink-muted">To close one night, save this draft and use Availability. Closed nights are rejected at checkout. The departure morning is not charged.</p>
+      <StayHelp>To close one night, save this draft and use Availability. Closed nights are rejected at checkout. The departure morning is not charged.</StayHelp>
     </div>
   );
 }
 
 function Stepper({ label, value, min, max, onChange }: { label: string; value: number; min: number; max: number; onChange: (next: number) => void }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-xl px-3 py-2 ring-1 ring-[#E6EAF0]">
+    <div className="stay-panel flex items-center justify-between gap-3">
       <span className="text-sm font-semibold text-ink">{label}</span>
       <div className="flex items-center gap-2">
-        <button type="button" className="min-h-11 min-w-11 rounded-lg ring-1 ring-[#E6EAF0]" aria-label={`Decrease ${label}`} onClick={() => onChange(Math.max(min, value - 1))}>−</button>
+        <button type="button" className="stay-step" aria-label={`Decrease ${label}`} disabled={value <= min} onClick={() => onChange(Math.max(min, value - 1))}>−</button>
         <span className="w-8 text-center text-sm tabular-nums">{value}</span>
-        <button type="button" className="min-h-11 min-w-11 rounded-lg ring-1 ring-[#E6EAF0]" aria-label={`Increase ${label}`} onClick={() => onChange(Math.min(max, value + 1))}>+</button>
+        <button type="button" className="stay-step" aria-label={`Increase ${label}`} disabled={value >= max} onClick={() => onChange(Math.min(max, value + 1))}>+</button>
       </div>
     </div>
   );
@@ -838,9 +834,9 @@ function ArrivalMethodStage({ values, onChange }: Props) {
         {STAY_ARRIVAL_METHODS.map(([id, label]) => {
           const on = values.stayArrivalMethod === id;
           return (
-            <button key={id} type="button" aria-pressed={on} className={`min-h-11 rounded-xl px-3 text-left text-sm font-semibold ${on ? 'bg-[#F4F8FC] text-[#0B397E] ring-2 ring-[#0B397E]' : 'ring-1 ring-[#E6EAF0]'}`} onClick={() => onChange({ stayArrivalMethod: id })}>
+            <StayChoice key={id} pressed={on} onClick={() => onChange({ stayArrivalMethod: id })}>
               {label}
-            </button>
+            </StayChoice>
           );
         })}
       </div>
@@ -949,7 +945,7 @@ function Choice({ label, value, options, onChange }: { label: string; value: str
       <legend className="text-sm font-semibold text-ink">{label}</legend>
       <div className="mt-2 flex flex-wrap gap-2">
         {options.map(([id, text]) => (
-          <button key={id || text} type="button" aria-pressed={value === id} className={`min-h-11 rounded-full px-3 text-sm font-semibold ${value === id ? 'bg-[#F4F8FC] text-[#0B397E] ring-2 ring-[#0B397E]' : 'ring-1 ring-[#E6EAF0]'}`} onClick={() => onChange(id)}>{text}</button>
+          <button key={id || text} type="button" aria-pressed={value === id} className={`stay-choice lc-choice min-h-11 rounded-full px-3 text-sm font-semibold ${value === id ? 'lc-choice--selected text-[#073b83]' : ''}`} onClick={() => onChange(id)}>{text}</button>
         ))}
       </div>
     </fieldset>
@@ -983,7 +979,7 @@ function PreviewStage({ values, currency, onEditStage, option }: Props & { optio
     <div className="space-y-4">
       <div className="flex gap-2" role="group" aria-label="Preview size">
         {(['desktop', 'mobile'] as const).map((size) => (
-          <button key={size} type="button" aria-pressed={viewport === size} className={`min-h-11 rounded-full px-3 text-sm font-semibold capitalize ${viewport === size ? 'bg-[#F4F8FC] text-[#0B397E] ring-2 ring-[#0B397E]' : 'ring-1 ring-[#E6EAF0]'}`} onClick={() => setViewport(size)}>{size}</button>
+          <button key={size} type="button" aria-pressed={viewport === size} className={`stay-choice lc-choice min-h-11 rounded-full px-3 text-sm font-semibold capitalize ${viewport === size ? 'lc-choice--selected text-[#073b83]' : ''}`} onClick={() => setViewport(size)}>{size}</button>
         ))}
       </div>
       <article className={`space-y-4 ${viewport === 'mobile' ? 'mx-auto max-w-sm' : ''}`}>
