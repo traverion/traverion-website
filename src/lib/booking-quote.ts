@@ -22,6 +22,7 @@ import { localYmd } from './local-ymd';
 import { STAY_MAX_OCCUPIED_NIGHTS } from './stayOccupancy';
 import { quoteStayLodging } from './stay-season-quote';
 import { validateStayGuestParty, type StayGuestBreakdownRow, type StayGuestParty } from './stay-guest-party';
+import { priceStayAddOns, stayChargeLines, type StayExtraSelection, type StayPaidExtra, type StayPricedExtra } from './stay-price';
 import { confirmedDepartureKey, evaluateDepartureBookingWindow } from './last-minute-booking';
 import {
   normalizeBookingCutoffHours,
@@ -629,6 +630,12 @@ export type StayQuoteOk = {
   nightlyPrices?: number[];
   cleaningFee: number;
   totalAmount: number;
+  extraGuestFee: number;
+  extraGuestCount: number;
+  discount: number;
+  discountLabel: string | null;
+  extraLines: StayPricedExtra[];
+  offeredExtras: StayPaidExtra[];
   guests: number;
   /** Present when the traveler chose adults, children, and infants. */
   guestBreakdown?: StayGuestBreakdownRow[];
@@ -653,6 +660,7 @@ export function quoteStayNights(input: {
   checkOut: string;
   guests: number;
   party?: StayGuestParty | null;
+  selectedExtras?: StayExtraSelection[] | null;
   todayIso?: string;
   nowMs?: number;
 }): StayQuoteResult {
@@ -760,14 +768,34 @@ export function quoteStayNights(input: {
         : 0;
   const currency = normalizeCurrency(input.tour.price?.currency ?? DEFAULT_CURRENCY);
   const flat = lodging.nightlyPrices.every((price) => price === lodging.nightlyPrices[0]);
+  const addOns = priceStayAddOns({
+    lodging: lodging.lodging,
+    nights,
+    countedGuests: guests,
+    includedGuests: lodging.includedGuests,
+    extraGuestNightly: lodging.extraGuestNightly,
+    weeklyDiscountPercent: lodging.weeklyDiscountPercent,
+    monthlyDiscountPercent: lodging.monthlyDiscountPercent,
+    extras: lodging.extras,
+    selected: input.selectedExtras,
+  });
+  if (!addOns.ok) return { ok: false, code: 'price', error: addOns.error };
+  const extraSum = addOns.extraLines.reduce((sum, line) => sum + line.amount, 0);
+  const nightlyPrice = money(flat ? lodging.nightlyPrices[0] : nightly);
   return {
     ok: true,
     currency,
     nights,
-    nightlyPrice: money(flat ? lodging.nightlyPrices[0] : nightly),
+    nightlyPrice,
     nightlyPrices: lodging.nightlyPrices,
     cleaningFee: money(cleaning),
-    totalAmount: money(lodging.lodging + cleaning),
+    extraGuestFee: addOns.extraGuestFee,
+    extraGuestCount: addOns.extraGuestCount,
+    discount: addOns.discount,
+    discountLabel: addOns.discountLabel,
+    extraLines: addOns.extraLines,
+    offeredExtras: addOns.offeredExtras,
+    totalAmount: money(lodging.lodging + cleaning + addOns.extraGuestFee + extraSum - addOns.discount),
     guests,
     guestBreakdown,
     checkIn,
@@ -793,29 +821,15 @@ export function tourQuotePriceLines(quote: BookingQuoteOk): { label: string; amo
 }
 
 export function stayQuotePriceLines(quote: StayQuoteOk): { label: string; amount: number }[] {
-  const prices = quote.nightlyPrices ?? [];
-  const mixed = prices.length === quote.nights && prices.some((price) => price !== prices[0]);
-  const lines: { label: string; amount: number }[] = [];
-  if (mixed) {
-    let index = 0;
-    while (index < prices.length) {
-      const price = prices[index];
-      let count = 1;
-      while (index + count < prices.length && prices[index + count] === price) count += 1;
-      lines.push({
-        label: `${price} / night × ${count} night${count === 1 ? '' : 's'}`,
-        amount: Math.round(price * count * 100) / 100,
-      });
-      index += count;
-    }
-  } else {
-    lines.push({
-      label: `Nightly rate × ${quote.nights} night${quote.nights === 1 ? '' : 's'}`,
-      amount: quote.nightlyPrice * quote.nights,
-    });
-  }
-  if (quote.cleaningFee > 0) {
-    lines.push({ label: 'Cleaning', amount: quote.cleaningFee });
-  }
-  return lines;
+  return stayChargeLines({
+    nights: quote.nights,
+    nightlyPrice: quote.nightlyPrice,
+    nightlyPrices: quote.nightlyPrices,
+    cleaningFee: quote.cleaningFee,
+    extraGuestCount: quote.extraGuestCount,
+    extraGuestFee: quote.extraGuestFee,
+    discount: quote.discount,
+    discountLabel: quote.discountLabel,
+    extraLines: quote.extraLines,
+  });
 }

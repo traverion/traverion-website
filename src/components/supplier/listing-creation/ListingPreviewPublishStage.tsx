@@ -257,6 +257,7 @@ export function ListingPreviewPublishStage({
   whatToBring,
   additionalLanguages,
   stayFacts = null,
+  stayExample = null,
   reviewRows,
   truth,
   settingsHref,
@@ -290,6 +291,7 @@ export function ListingPreviewPublishStage({
     minNights: string;
     houseRules: string;
   } | null;
+  stayExample?: ReactNode;
   reviewRows: PreviewPublishReviewRow[];
   truth: PreviewPublishTruth;
   settingsHref: string;
@@ -542,6 +544,7 @@ export function ListingPreviewPublishStage({
                   </div>
                 ) : null}
               </dl>
+              {stayExample ? <div className="mt-4">{stayExample}</div> : null}
             </section>
           ) : null}
 

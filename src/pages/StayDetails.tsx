@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { ArrowLeft, MapPin, Heart, Star, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { getListingById, getListingByIdAsync } from '../data/listings';
 import { stayRestrictionLines } from '../lib/stay-restrictions';
-import { stayBedSummary } from '../lib/stay-beds';
+import { STAY_BED_KINDS, stayBedSummary } from '../lib/stay-beds';
 import { parseListingExtras, STAY_GUEST_CANCELLATION_POLICY } from '../types/listingExtras';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 import { listingIsFamily } from '../lib/inventory';
@@ -40,6 +40,7 @@ import PriceBreakdown, { PriceHero } from '../components/PriceBreakdown';
 import StayNightPicker from '../components/StayNightPicker';
 import StayGuestPartySelector from '../components/booking/StayGuestPartySelector';
 import { normalizeStayGuestPolicy, validateStayGuestParty, type StayGuestParty } from '../lib/stay-guest-party';
+import { stayExtraChargeLabel, type StayExtraSelection } from '../lib/stay-price';
 import { stayArrivalMethodLabel } from '../lib/stay-arrival';
 import { ListingReviewsModal } from '../components/ListingReviewsModal';
 import NoticeCallout from '../components/NoticeCallout';
@@ -111,6 +112,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
     children: 0,
     infants: 0,
   }));
+  const [selectedExtras, setSelectedExtras] = useState<StayExtraSelection[]>([]);
   const [paying, setPaying] = useState(false);
   const [checkoutConsentAccepted, setCheckoutConsentAccepted] = useState(false);
   const checkoutLockRef = useRef(false);
@@ -462,6 +464,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
         checkOut,
         guests: party.adults,
         party,
+        selectedExtras,
         todayIso: experienceTodayIso,
       })
     : null;
@@ -503,6 +506,11 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
     return urls;
   }, [hero, gallery]);
   const hasStayGallery = stayGalleryImages.length > 0;
+
+  useEffect(() => {
+    if (!stayQuote || stayQuote.ok || !stayQuote.error.includes('not offered') || selectedExtras.length === 0) return;
+    setSelectedExtras([]);
+  }, [stayQuote, selectedExtras.length]);
 
   useEffect(() => {
     if (maxGuests == null) return;
@@ -706,6 +714,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
       guests: stayQuote.guests,
       guestBreakdown: stayQuote.guestBreakdown,
       stayParty: party,
+      stayExtras: selectedExtras,
       customerName: name,
       customerPhone: guestPhone.trim() || undefined,
       currency: stayQuote.currency,
@@ -1055,6 +1064,42 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                 <p className="mt-3 text-sm text-ink-muted">Checking which nights are taken…</p>
               ) : null}
             </div>
+            {(() => {
+              const primary = (s?.options ?? []).find((option) => !option.archived);
+              const areas = (primary?.sleepingAreas ?? []).filter((area) => area.beds.length > 0);
+              if (areas.length === 0) return null;
+              return (
+                <div>
+                  <h2 className="font-display text-xl mb-2">Where you'll sleep</h2>
+                  <ul className="space-y-3">
+                    {areas.map((area) => {
+                      const photos = primary?.roomPhotos?.find((row) => row.areaId === area.id)?.urls ?? [];
+                      const beds = area.beds
+                        .map((bed) => {
+                          const label = STAY_BED_KINDS.find((kind) => kind.id === bed.kind)?.label ?? 'Bed';
+                          return `${bed.count} ${label.toLowerCase()}${bed.count === 1 ? '' : 's'}`;
+                        })
+                        .join(', ');
+                      return (
+                        <li key={area.id} className="rounded-xl p-3 ring-1 ring-black/[0.08]">
+                          <p className="font-medium text-ink">{area.name}</p>
+                          <p className="text-sm text-ink-muted">{beds}</p>
+                          {photos.length > 0 ? (
+                            <ul className="mt-2 flex gap-2 overflow-x-auto">
+                              {photos.map((url) => (
+                                <li key={url}>
+                                  <img src={url} alt="" className="h-24 w-32 rounded-lg object-cover" />
+                                </li>
+                              ))}
+                            </ul>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              );
+            })()}
             <div>
               <h2 className="font-display text-xl mb-2">Check-in & check-out</h2>
               <ul className="space-y-2 text-ink-muted">
@@ -1400,6 +1445,81 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                 <NoticeCallout title="Those nights are taken" tone="danger">
                   Another traveler already has this stay on those dates. Choose a different range.
                 </NoticeCallout>
+              </div>
+            ) : null}
+            {quoteOk && stayQuote?.ok && stayQuote.offeredExtras.length > 0 ? (
+              <div className="mt-4 space-y-2">
+                <p className="text-sm font-medium text-ink">Extras</p>
+                {stayQuote.offeredExtras.map((extra) => {
+                  const chosen = selectedExtras.find((row) => row.id === extra.id);
+                  const quantity = extra.mandatory ? Math.max(1, chosen?.quantity ?? 1) : chosen?.quantity ?? 0;
+                  return (
+                    <div key={extra.id} className="rounded-xl px-3 py-2 ring-1 ring-black/[0.08]">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-medium text-ink">{extra.name}</p>
+                          <p className="text-[12px] text-ink-muted">
+                            {stayExtraChargeLabel(extra.charge)}
+                            {extra.mandatory ? ' · Included in the total' : ''}
+                            {extra.description ? ` · ${extra.description}` : ''}
+                          </p>
+                        </div>
+                        {extra.mandatory ? (
+                          <span className="text-sm text-ink-muted">Required</span>
+                        ) : (
+                          <button
+                            type="button"
+                            className="min-h-11 text-sm font-semibold text-finland"
+                            aria-pressed={quantity > 0}
+                            onClick={() => {
+                              setSelectedExtras((current) =>
+                                quantity > 0 ? current.filter((row) => row.id !== extra.id) : [...current, { id: extra.id, quantity: 1 }]
+                              );
+                              setPayError(null);
+                            }}
+                          >
+                            {quantity > 0 ? 'Remove' : 'Add'}
+                          </button>
+                        )}
+                      </div>
+                      {extra.maxQuantity > 1 && (extra.mandatory || quantity > 0) ? (
+                        <div className="mt-2 flex items-center gap-2">
+                          <button
+                            type="button"
+                            className="h-11 w-11 rounded-full text-lg text-finland ring-1 ring-black/[0.08]"
+                            aria-label={`Fewer ${extra.name}`}
+                            onClick={() =>
+                              setSelectedExtras((current) =>
+                                current.map((row) =>
+                                  row.id === extra.id ? { ...row, quantity: Math.max(extra.mandatory ? 1 : 1, row.quantity - 1) } : row
+                                )
+                              )
+                            }
+                          >
+                            −
+                          </button>
+                          <span className="w-6 text-center text-sm tabular-nums">{quantity}</span>
+                          <button
+                            type="button"
+                            className="h-11 w-11 rounded-full text-lg text-finland ring-1 ring-black/[0.08]"
+                            aria-label={`More ${extra.name}`}
+                            onClick={() =>
+                              setSelectedExtras((current) => {
+                                const existing = current.find((row) => row.id === extra.id);
+                                if (!existing) return [...current, { id: extra.id, quantity: 1 }];
+                                return current.map((row) =>
+                                  row.id === extra.id ? { ...row, quantity: Math.min(extra.maxQuantity, row.quantity + 1) } : row
+                                );
+                              })
+                            }
+                          >
+                            +
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
               </div>
             ) : null}
             {quoteOk && stayQuote?.ok ? (

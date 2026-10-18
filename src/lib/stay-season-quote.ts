@@ -2,10 +2,51 @@
  * Stay night pricing. Missing seasons keep the legacy rule: every night uses the base rate.
  * When availabilityMode is "scheduled", a night outside every enabled season cannot be booked.
  * Overlapping seasons: the shortest window wins, then the later start date, then the id.
+ * Add-ons (extra guests, discounts, extras) come from the check-in night's season.
  * Keep supabase/functions/_shared/stay-season-quote.ts identical.
  */
 
 export type StayAvailabilityMode = 'open' | 'scheduled';
+
+export type StaySeasonExtra = {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  charge: 'per_stay' | 'per_night' | 'per_guest' | 'per_guest_night';
+  mandatory: boolean;
+  maxQuantity: number;
+};
+
+const EXTRA_CHARGES = new Set<StaySeasonExtra['charge']>(['per_stay', 'per_night', 'per_guest', 'per_guest_night']);
+
+function normalizeSeasonExtras(raw: unknown): StaySeasonExtra[] {
+  if (!Array.isArray(raw)) return [];
+  const out: StaySeasonExtra[] = [];
+  const seen = new Set<string>();
+  for (const row of raw) {
+    if (row == null || typeof row !== 'object' || Array.isArray(row)) continue;
+    const o = row as Record<string, unknown>;
+    const id = typeof o.id === 'string' ? o.id.trim().slice(0, 80) : '';
+    const name = typeof o.name === 'string' ? o.name.trim().slice(0, 80) : '';
+    const charge = typeof o.charge === 'string' && EXTRA_CHARGES.has(o.charge as StaySeasonExtra['charge']) ? (o.charge as StaySeasonExtra['charge']) : null;
+    const price = typeof o.price === 'number' && o.price > 0 ? Math.round(o.price * 100) / 100 : null;
+    if (!id || !name || !charge || price == null || price > 100000 || seen.has(id)) continue;
+    seen.add(id);
+    const maxQuantity = typeof o.maxQuantity === 'number' ? Math.floor(o.maxQuantity) : 1;
+    out.push({
+      id,
+      name,
+      description: typeof o.description === 'string' ? o.description.trim().slice(0, 160) : '',
+      price,
+      charge,
+      mandatory: o.mandatory === true,
+      maxQuantity: maxQuantity >= 1 && maxQuantity <= 20 ? maxQuantity : 1,
+    });
+    if (out.length >= 12) break;
+  }
+  return out;
+}
 
 export type StaySeasonWindow = {
   id: string;
@@ -23,6 +64,14 @@ export type StaySeasonWindow = {
   checkIn?: string;
   checkOut?: string;
   cleaningFee?: number | null;
+  /** Counted guests included in the nightly rate. Null means no extra-guest fee. */
+  includedGuests?: number | null;
+  extraGuestNightly?: number | null;
+  /** Percent off the nightly total for 7 nights or more. Not combined with the monthly discount. */
+  weeklyDiscountPercent?: number | null;
+  /** Percent off the nightly total for 28 nights or more. Replaces the weekly discount. */
+  monthlyDiscountPercent?: number | null;
+  extras?: StaySeasonExtra[];
 };
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -64,6 +113,13 @@ export function normalizeStaySeasons(raw: unknown): StaySeasonWindow[] {
     const clock = (value: unknown) => (typeof value === 'string' && /^\d{2}:\d{2}$/.test(value.trim()) ? value.trim() : '');
     const cleaning =
       typeof o.cleaningFee === 'number' && o.cleaningFee >= 0 ? Math.round(o.cleaningFee * 100) / 100 : null;
+    const percent = (value: unknown) =>
+      typeof value === 'number' && value >= 1 ? Math.min(90, Math.floor(value)) : null;
+    const extraNightly =
+      typeof o.extraGuestNightly === 'number' && o.extraGuestNightly > 0
+        ? Math.round(o.extraGuestNightly * 100) / 100
+        : null;
+    const extras = normalizeSeasonExtras(o.extras);
     out.push({
       id,
       name: typeof o.name === 'string' ? o.name.trim().slice(0, 80) : '',
@@ -78,6 +134,11 @@ export function normalizeStaySeasons(raw: unknown): StaySeasonWindow[] {
       checkIn: clock(o.checkIn),
       checkOut: clock(o.checkOut),
       cleaningFee: cleaning,
+      includedGuests: typeof o.includedGuests === 'number' && o.includedGuests >= 1 ? Math.min(50, Math.floor(o.includedGuests)) : null,
+      extraGuestNightly: extraNightly,
+      weeklyDiscountPercent: percent(o.weeklyDiscountPercent),
+      monthlyDiscountPercent: percent(o.monthlyDiscountPercent),
+      extras: extras.length > 0 ? extras : undefined,
     });
     if (out.length >= 24) break;
   }
@@ -114,6 +175,11 @@ export function quoteStayLodging(input: {
       maxGuests: number | null;
       cleaningFee: number | null;
       checkIn: string;
+      includedGuests: number | null;
+      extraGuestNightly: number | null;
+      weeklyDiscountPercent: number | null;
+      monthlyDiscountPercent: number | null;
+      extras: StaySeasonExtra[];
     }
   | { ok: false; error: string } {
   const seasons = input.seasons ?? [];
@@ -145,5 +211,10 @@ export function quoteStayLodging(input: {
     maxGuests: checkInSeason?.maxGuests && checkInSeason.maxGuests >= 1 ? checkInSeason.maxGuests : null,
     cleaningFee: typeof checkInSeason?.cleaningFee === 'number' ? checkInSeason.cleaningFee : null,
     checkIn: checkInSeason?.checkIn && /^\d{2}:\d{2}$/.test(checkInSeason.checkIn) ? checkInSeason.checkIn : '',
+    includedGuests: checkInSeason?.includedGuests ?? null,
+    extraGuestNightly: checkInSeason?.extraGuestNightly ?? null,
+    weeklyDiscountPercent: checkInSeason?.weeklyDiscountPercent ?? null,
+    monthlyDiscountPercent: checkInSeason?.monthlyDiscountPercent ?? null,
+    extras: checkInSeason?.extras ?? [],
   };
 }

@@ -39,6 +39,8 @@ export type StayAccommodationOption = {
   cutoffMinutes: number | null;
   /** Age bands for this accommodation. Missing values use adults 18+, children 2–17, infants under 2. */
   guestPolicy?: StayGuestPolicy;
+  /** Photos already uploaded, grouped by sleeping-area id. The same URL can stay in the main gallery. */
+  roomPhotos?: { areaId: string; urls: string[] }[];
   /** Used when no bed types are set, so an older "1 bed" listing is not wiped. */
   beds: number | null;
   quantity: number;
@@ -67,6 +69,26 @@ export type StayOptionLegacySource = {
 };
 
 const LEGACY_OPTION_ID = 'stay-primary';
+
+function normalizeStayRoomPhotos(raw: unknown): { areaId: string; urls: string[] }[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const out: { areaId: string; urls: string[] }[] = [];
+  for (const row of raw) {
+    if (row == null || typeof row !== 'object') continue;
+    const o = row as Record<string, unknown>;
+    const areaId = typeof o.areaId === 'string' ? o.areaId.trim().slice(0, 80) : '';
+    if (!areaId || !Array.isArray(o.urls)) continue;
+    const urls = o.urls
+      .filter((url): url is string => typeof url === 'string' && url.trim().startsWith('http'))
+      .map((url) => url.trim().slice(0, 500))
+      .filter((url, index, all) => all.indexOf(url) === index)
+      .slice(0, 8);
+    if (urls.length === 0) continue;
+    out.push({ areaId, urls });
+    if (out.length >= 20) break;
+  }
+  return out.length > 0 ? out : undefined;
+}
 
 function count(raw: unknown, min: number, max: number): number | null {
   if (typeof raw !== 'number' || !Number.isFinite(raw)) return null;
@@ -135,6 +157,7 @@ export function normalizeStayOption(raw: unknown): StayAccommodationOption | nul
         ? Math.min(56 * 24 * 60, Math.floor(o.cutoffMinutes))
         : null,
     guestPolicy: o.guestPolicy != null ? normalizeStayGuestPolicy(o.guestPolicy) : undefined,
+    roomPhotos: normalizeStayRoomPhotos(o.roomPhotos),
     beds: count(o.beds, 0, 50),
     quantity,
     nightlyPrice: money(o.nightlyPrice ?? o.nightlyPriceUsd, 1),

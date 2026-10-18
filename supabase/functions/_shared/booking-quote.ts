@@ -18,6 +18,7 @@ import {
 } from './tour-departure-cutoff.ts';
 import { normalizeStaySeasons, quoteStayLodging } from './stay-season-quote.ts';
 import { validateStayGuestParty, type StayGuestParty } from './stay-guest-party.ts';
+import { priceStayAddOns, stayChargeLines, type StayExtraSelection } from './stay-price.ts';
 
 /** Calendar “today” for quote past-date gates — listing departure TZ, not UTC. */
 function experienceTodayIsoForListing(departureTimezone: unknown, nowMs: number = Date.now()): string {
@@ -180,6 +181,7 @@ export type QuoteOk = {
   cleaningFee?: number;
   /** Stay quotes only. Sum of each occupied night before fees. */
   lodgingAmount?: number;
+  stayPriceLines?: { label: string; amount: number }[];
   /** Offer row that produced the customer price. Null when no offer applied. */
   appliedDiscountId?: string | null;
 };
@@ -296,6 +298,7 @@ function quoteStayListing(input: {
   checkOut: string;
   guests: number;
   party?: StayGuestParty | null;
+  selectedExtras?: StayExtraSelection[] | null;
   today: string;
   nowMs?: number;
   timeZone?: string;
@@ -384,18 +387,45 @@ function quoteStayListing(input: {
         : 0;
   const currency = (input.listing.price_currency ?? 'EUR').trim().toUpperCase() || 'EUR';
   const flat = lodging.nightlyPrices.every((price) => price === lodging.nightlyPrices[0]);
+  const addOns = priceStayAddOns({
+    lodging: lodging.lodging,
+    nights,
+    countedGuests: guests,
+    includedGuests: lodging.includedGuests,
+    extraGuestNightly: lodging.extraGuestNightly,
+    weeklyDiscountPercent: lodging.weeklyDiscountPercent,
+    monthlyDiscountPercent: lodging.monthlyDiscountPercent,
+    extras: lodging.extras,
+    selected: input.selectedExtras,
+  });
+  if (!addOns.ok) return { ok: false, error: addOns.error };
+  const extraSum = addOns.extraLines.reduce((sum, line) => sum + line.amount, 0);
+  const unitPrice = money(flat ? lodging.nightlyPrices[0] : nightly);
+  const cleaningFee = money(cleaning);
+  const stayPriceLines = stayChargeLines({
+    nights,
+    nightlyPrice: unitPrice,
+    nightlyPrices: lodging.nightlyPrices,
+    cleaningFee,
+    extraGuestCount: addOns.extraGuestCount,
+    extraGuestFee: addOns.extraGuestFee,
+    discount: addOns.discount,
+    discountLabel: addOns.discountLabel,
+    extraLines: addOns.extraLines,
+  });
   return {
     ok: true,
     currency,
-    unitPrice: money(flat ? lodging.nightlyPrices[0] : nightly),
-    totalAmount: money(lodging.lodging + cleaning),
-    cleaningFee: money(cleaning),
+    unitPrice,
+    totalAmount: money(lodging.lodging + cleaningFee + addOns.extraGuestFee + extraSum - addOns.discount),
+    cleaningFee,
     lodgingAmount: lodging.lodging,
     optionId: null,
     optionLabel: `${nights} night${nights === 1 ? '' : 's'}`,
     nights,
     guests,
     guestBreakdown,
+    stayPriceLines,
   };
 }
 
@@ -1046,6 +1076,7 @@ export function quoteListingBooking(input: {
   todayIso?: string;
   checkoutDate?: string | null;
   stayParty?: StayGuestParty | null;
+  stayExtras?: StayExtraSelection[] | null;
   participantMix?: Record<string, number> | null;
   startTime?: string | null;
   nowMs?: number;
@@ -1094,6 +1125,7 @@ export function quoteListingBooking(input: {
       checkOut: (input.checkoutDate ?? '').trim(),
       guests,
       party: input.stayParty,
+      selectedExtras: input.stayExtras,
       today,
       nowMs,
       timeZone: departureTimezone,

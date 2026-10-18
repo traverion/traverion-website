@@ -41,6 +41,11 @@ describe('quoteStayLodging', () => {
       maxGuests: null,
       cleaningFee: null,
       checkIn: '',
+      includedGuests: null,
+      extraGuestNightly: null,
+      weeklyDiscountPercent: null,
+      monthlyDiscountPercent: null,
+      extras: [],
     });
   });
 

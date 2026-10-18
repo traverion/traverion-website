@@ -266,6 +266,7 @@ export async function createBookingCheckoutSession(params: {
   startTime?: string;
   guestBreakdown?: { categoryId: string; label: string; kind: string; quantity: number; unitPrice: number }[];
   stayParty?: { adults: number; children: number; infants: number };
+  stayExtras?: { id: string; quantity: number }[];
   participantMix?: Record<string, number>;
   checkoutDate?: string;
   successPath?: string;
@@ -297,6 +298,7 @@ export async function createBookingCheckoutSession(params: {
       startTime: params.startTime,
       guestBreakdown: params.guestBreakdown,
       stayParty: params.stayParty,
+      stayExtras: params.stayExtras,
       participantMix: params.participantMix,
       checkoutDate: params.checkoutDate,
       successPath: params.successPath,

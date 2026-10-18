@@ -30,6 +30,13 @@ import {
 import type { ListingCreationNavItem } from '../../../lib/listing-creation-workspace';
 import { TraverionSingleDateField } from '../../calendar/TraverionSingleDateField';
 import { TourOptionWorkspace } from './TourOptionWorkspace';
+import {
+  STAY_EXTRA_PRESETS,
+  priceStayAddOns,
+  stayExtraChargeLabel,
+  type StayExtraCharge,
+  type StayPaidExtra,
+} from '../../../lib/stay-price';
 
 type Props = {
   title: string;
@@ -700,25 +707,17 @@ function ScheduleEditor({
         </div>
       ) : null}
       {step === 2 ? (
-        <div id="stay-schedule-price" className="mx-auto max-w-3xl space-y-4">
-          <h3 className="text-base font-semibold text-ink">Nightly rate</h3>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Num label={`Price per night · ${currency}`} value={draft.nightlyPrice} min={1} max={1000000} error={attempted && price == null ? 'Enter a nightly price.' : null} onChange={(nightlyPrice) => setDraft({ ...draft, nightlyPrice })} />
-            <Num label={`Cleaning fee · ${currency}`} value={draft.cleaningFee ?? null} min={0} max={1000000} onChange={(cleaningFee) => setDraft({ ...draft, cleaningFee })} />
-          </div>
-          <p className="text-sm leading-relaxed text-ink-muted">The cleaning fee is charged once per stay. It is not added again for each night.</p>
-          {example && example.ok ? (
-            <aside className="rounded-xl bg-[#F4F8FC] px-4 py-3 ring-1 ring-[#D5E2F2]">
-              <p className="text-sm font-semibold text-ink">Example guest total</p>
-              <p className="mt-1 text-sm text-ink">
-                {nights} night{nights === 1 ? '' : 's'} × {formatMoney(price ?? 0, currency)} = {formatMoney(example.lodging, currency)}
-              </p>
-              {cleaning > 0 ? <p className="text-sm text-ink">Cleaning fee {formatMoney(cleaning, currency)}</p> : null}
-              <p className="mt-1 text-sm font-semibold text-ink">Illustrative total {formatMoney(example.lodging + cleaning, currency)}</p>
-              <p className="mt-1 text-[12.5px] text-ink-muted">This example is not a confirmed quote.</p>
-            </aside>
-          ) : null}
-        </div>
+        <SchedulePriceStep
+          draft={draft}
+          currency={currency}
+          price={price}
+          cleaning={cleaning}
+          nights={nights}
+          maxGuests={maxGuests}
+          attempted={attempted}
+          exampleLodging={example && example.ok ? example.lodging : null}
+          onChange={setDraft}
+        />
       ) : null}
       {step === 3 ? (
         <div className="tv-step mx-auto max-w-3xl space-y-3 text-sm text-ink">
@@ -737,6 +736,32 @@ function ScheduleEditor({
             <h3 className="text-base font-semibold text-ink">Pricing</h3>
             <ReviewRow label="Nightly rate" text={price != null ? `${formatMoney(price, currency)} / night` : 'Not set'} onEdit={() => setStep(2)} />
             <ReviewRow label="Cleaning fee" text={cleaning > 0 ? `${formatMoney(cleaning, currency)} once per stay` : 'None'} onEdit={() => setStep(2)} />
+            <ReviewRow
+              label="Extra guests"
+              text={
+                draft.extraGuestNightly && draft.includedGuests
+                  ? `${formatMoney(draft.extraGuestNightly, currency)} / night after ${draft.includedGuests} guests`
+                  : 'None'
+              }
+              onEdit={() => setStep(2)}
+            />
+            <ReviewRow
+              label="Longer stays"
+              text={
+                [
+                  draft.weeklyDiscountPercent ? `${draft.weeklyDiscountPercent}% from 7 nights` : null,
+                  draft.monthlyDiscountPercent ? `${draft.monthlyDiscountPercent}% from 28 nights` : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ') || 'None'
+              }
+              onEdit={() => setStep(2)}
+            />
+            <ReviewRow
+              label="Extras"
+              text={(draft.extras ?? []).length > 0 ? `${draft.extras?.length} saved` : 'None'}
+              onEdit={() => setStep(2)}
+            />
           </section>
           {example && example.ok ? (
             <p className="text-[12.5px] text-ink-muted">Illustrative stay of {nights} night{nights === 1 ? '' : 's'}: {formatMoney(example.lodging + cleaning, currency)}. This is not a confirmed quote.</p>
@@ -745,6 +770,164 @@ function ScheduleEditor({
         </div>
       ) : null}
     </TourOptionWorkspace>
+  );
+}
+
+function SchedulePriceStep({
+  draft,
+  currency,
+  price,
+  cleaning,
+  nights,
+  maxGuests,
+  attempted,
+  exampleLodging,
+  onChange,
+}: {
+  draft: StaySeasonWindow;
+  currency: string;
+  price: number | null;
+  cleaning: number;
+  nights: number;
+  maxGuests: number | null;
+  attempted: boolean;
+  exampleLodging: number | null;
+  onChange: (next: StaySeasonWindow) => void;
+}) {
+  const [query, setQuery] = useState('');
+  const [customName, setCustomName] = useState('');
+  const extras = draft.extras ?? [];
+  const presets = STAY_EXTRA_PRESETS.filter((name) => name.toLowerCase().includes(query.trim().toLowerCase()));
+  const sampleGuests = maxGuests ?? draft.includedGuests ?? 1;
+  const sample =
+    exampleLodging != null
+      ? priceStayAddOns({
+          lodging: exampleLodging,
+          nights,
+          countedGuests: sampleGuests,
+          includedGuests: draft.includedGuests,
+          extraGuestNightly: draft.extraGuestNightly,
+          weeklyDiscountPercent: draft.weeklyDiscountPercent,
+          monthlyDiscountPercent: draft.monthlyDiscountPercent,
+          extras,
+          selected: [],
+        })
+      : null;
+
+  function addExtra(name: string) {
+    const trimmed = name.trim().slice(0, 80);
+    if (!trimmed || extras.length >= 12) return;
+    const created: StayPaidExtra = {
+      id: newScheduleId(),
+      name: trimmed,
+      description: '',
+      price: 1,
+      charge: 'per_stay',
+      mandatory: false,
+      maxQuantity: 1,
+    };
+    onChange({ ...draft, extras: [...extras, created] });
+    setQuery('');
+    setCustomName('');
+  }
+
+  function patchExtra(id: string, patch: Partial<StayPaidExtra>) {
+    onChange({ ...draft, extras: extras.map((extra) => (extra.id === id ? { ...extra, ...patch } : extra)) });
+  }
+
+  return (
+    <div id="stay-schedule-price" className="tv-step mx-auto max-w-3xl space-y-4">
+      <section className="rounded-xl bg-white p-4 ring-1 ring-[#E6EAF0]">
+        <h3 className="text-base font-semibold text-ink">Nightly rate</h3>
+        <div className="mt-3 grid gap-4 sm:grid-cols-2">
+          <Num label={`Price per night · ${currency}`} value={draft.nightlyPrice} min={1} max={1000000} error={attempted && price == null ? 'Enter a nightly price.' : null} onChange={(nightlyPrice) => onChange({ ...draft, nightlyPrice })} />
+          <Num label={`Cleaning fee · ${currency}`} value={draft.cleaningFee ?? null} min={0} max={1000000} onChange={(cleaningFee) => onChange({ ...draft, cleaningFee })} />
+        </div>
+        <p className="mt-2 text-sm leading-relaxed text-ink-muted">The cleaning fee is charged once per stay.</p>
+      </section>
+      <section className="rounded-xl bg-white p-4 ring-1 ring-[#E6EAF0]">
+        <h3 className="text-base font-semibold text-ink">Extra guests</h3>
+        <p className="mt-1 text-sm text-ink-muted">Optional. The nightly rate covers this many counted guests. Further counted guests pay the extra nightly amount. This cannot raise the maximum occupancy.</p>
+        <div className="mt-3 grid gap-4 sm:grid-cols-2">
+          <Num label="Guests included" value={draft.includedGuests ?? null} min={1} max={50} onChange={(includedGuests) => onChange({ ...draft, includedGuests })} />
+          <Num label={`Extra guest / night · ${currency}`} value={draft.extraGuestNightly ?? null} min={0} max={100000} onChange={(extraGuestNightly) => onChange({ ...draft, extraGuestNightly: extraGuestNightly && extraGuestNightly > 0 ? extraGuestNightly : null })} />
+        </div>
+      </section>
+      <section className="rounded-xl bg-white p-4 ring-1 ring-[#E6EAF0]">
+        <h3 className="text-base font-semibold text-ink">Longer stays</h3>
+        <p className="mt-1 text-sm text-ink-muted">Optional percent off the nightly total only. A stay of 28 nights or more uses the monthly discount instead of the weekly one. They do not combine.</p>
+        <div className="mt-3 grid gap-4 sm:grid-cols-2">
+          <Num label="Weekly discount %" value={draft.weeklyDiscountPercent ?? null} min={1} max={90} onChange={(weeklyDiscountPercent) => onChange({ ...draft, weeklyDiscountPercent })} />
+          <Num label="Monthly discount %" value={draft.monthlyDiscountPercent ?? null} min={1} max={90} onChange={(monthlyDiscountPercent) => onChange({ ...draft, monthlyDiscountPercent })} />
+        </div>
+      </section>
+      <section className="rounded-xl bg-white p-4 ring-1 ring-[#E6EAF0]">
+        <h3 className="text-base font-semibold text-ink">Optional extras</h3>
+        <p className="mt-1 text-sm text-ink-muted">Guests choose optional extras. Mandatory extras are included in the total and cannot be removed at checkout.</p>
+        <label className="mt-3 block text-sm font-semibold text-ink">
+          Add extra
+          <input className="tv-input mt-1 w-full font-normal" value={query} placeholder="Search parking, sauna, breakfast…" onChange={(e) => setQuery(e.target.value)} />
+        </label>
+        {query.trim() ? (
+          <ul className="mt-2 overflow-hidden rounded-xl ring-1 ring-[#E6EAF0]">
+            {presets.map((name) => (
+              <li key={name}>
+                <button type="button" className="flex min-h-11 w-full items-center px-3 text-left text-sm hover:bg-[#F7F8FA]" onClick={() => addExtra(name)}>
+                  {name}
+                </button>
+              </li>
+            ))}
+            <li className="flex gap-2 border-t border-[#E6EAF0] p-2">
+              <input className="tv-input min-w-0 flex-1 font-normal" value={customName} placeholder="Custom extra" maxLength={80} onChange={(e) => setCustomName(e.target.value)} />
+              <button type="button" className="tv-btn-secondary !min-h-11 !px-3 text-sm" onClick={() => addExtra(customName)}>Add</button>
+            </li>
+          </ul>
+        ) : null}
+        <ul className="mt-3 space-y-3">
+          {extras.map((extra) => (
+            <li key={extra.id} className="rounded-xl p-3 ring-1 ring-[#E6EAF0]">
+              <div className="flex items-start justify-between gap-2">
+                <input className="tv-input max-w-xs font-semibold" aria-label="Extra name" value={extra.name} maxLength={80} onChange={(e) => patchExtra(extra.id, { name: e.target.value.slice(0, 80) })} />
+                <button type="button" className="min-h-11 text-sm font-medium text-ink-muted" onClick={() => onChange({ ...draft, extras: extras.filter((row) => row.id !== extra.id) })}>Remove</button>
+              </div>
+              <input className="tv-input mt-2 w-full font-normal" aria-label="Extra description" placeholder="Optional description" value={extra.description} maxLength={160} onChange={(e) => patchExtra(extra.id, { description: e.target.value.slice(0, 160) })} />
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                <Num label={`Price · ${currency}`} value={extra.price} min={1} max={100000} onChange={(next) => patchExtra(extra.id, { price: next && next > 0 ? next : extra.price })} />
+                <label className="block text-sm font-semibold text-ink">
+                  Charge
+                  <select className="tv-input mt-1 w-full font-normal" value={extra.charge} onChange={(e) => patchExtra(extra.id, { charge: e.target.value as StayExtraCharge })}>
+                    {(['per_stay', 'per_night', 'per_guest', 'per_guest_night'] as const).map((charge) => (
+                      <option key={charge} value={charge}>{stayExtraChargeLabel(charge)}</option>
+                    ))}
+                  </select>
+                </label>
+                <Num label="Maximum quantity" value={extra.maxQuantity} min={1} max={20} onChange={(maxQuantity) => patchExtra(extra.id, { maxQuantity: maxQuantity ?? 1 })} />
+                <label className="mt-6 flex items-center gap-2 text-sm font-medium text-ink">
+                  <input type="checkbox" checked={extra.mandatory} onChange={(e) => patchExtra(extra.id, { mandatory: e.target.checked })} />
+                  Mandatory fee
+                </label>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+      {sample && sample.ok && exampleLodging != null ? (
+        <aside className="rounded-xl bg-[#F4F8FC] px-4 py-3 ring-1 ring-[#D5E2F2]">
+          <p className="text-sm font-semibold text-ink">Example for {nights} night{nights === 1 ? '' : 's'} and {sampleGuests} counted guest{sampleGuests === 1 ? '' : 's'}</p>
+          <p className="mt-1 text-sm text-ink">Nightly total {formatMoney(exampleLodging, currency)}</p>
+          {sample.extraGuestFee > 0 ? <p className="text-sm text-ink">Extra guests {formatMoney(sample.extraGuestFee, currency)}</p> : null}
+          {cleaning > 0 ? <p className="text-sm text-ink">Cleaning {formatMoney(cleaning, currency)}</p> : null}
+          {sample.extraLines.map((line) => (
+            <p key={line.id} className="text-sm text-ink">{line.mandatory ? 'Included' : 'Selected'} · {line.name} {formatMoney(line.amount, currency)}</p>
+          ))}
+          {sample.discount > 0 ? <p className="text-sm text-ink">{sample.discountLabel} −{formatMoney(sample.discount, currency)}</p> : null}
+          <p className="mt-1 text-sm font-semibold text-ink">
+            Illustrative total {formatMoney(exampleLodging + cleaning + sample.extraGuestFee + sample.extraLines.reduce((sum, line) => sum + line.amount, 0) - sample.discount, currency)}
+          </p>
+          <p className="mt-1 text-[12.5px] text-ink-muted">Optional extras are not included until a guest selects them. This is not a confirmed quote.</p>
+        </aside>
+      ) : null}
+    </div>
   );
 }
 

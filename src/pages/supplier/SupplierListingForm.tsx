@@ -241,6 +241,8 @@ import { normalizeStayGuestPolicy } from '../../lib/stay-guest-party';
 import { STAY_ARRIVAL_METHODS, stayArrivalMethodHint } from '../../lib/stay-arrival';
 import StayAmenityPicker from '../../components/supplier/listing-creation/StayAmenityPicker';
 import StayOptionsStep from '../../components/supplier/listing-creation/StayOptionsStep';
+import StayBedroomPhotos from '../../components/supplier/listing-creation/StayBedroomPhotos';
+import StayExampleQuote from '../../components/supplier/listing-creation/StayExampleQuote';
 import { publicStayListingUrl, publicTourListingUrl } from '../../lib/publicSiteUrl';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import NoticeCallout from '../../components/NoticeCallout';
@@ -1548,6 +1550,7 @@ export default function SupplierListingForm({
   const [stepIdx, setStepIdx] = useState(
     () => readWizardStepFromStorage(editingId, createFamily === 'stay') ?? 0
   );
+  const [stayPhotoStage, setStayPhotoStage] = useState<0 | 1>(0);
   const formRef = useRef(form);
   formRef.current = form;
   const stepIdxRef = useRef(stepIdx);
@@ -5081,13 +5084,35 @@ export default function SupplierListingForm({
             return (
                 <div id="supplier-listing-field-photos" className="space-y-2.5">
                 <div>
-                  <h3 className="font-sans text-2xl font-bold tracking-tight text-[#111827] sm:text-[1.75rem]">Photos</h3>
+                  {isStayForm ? (
+                    <div className="mb-3 flex items-center gap-2 text-sm">
+                      <button type="button" className={`min-h-11 rounded-full px-3 ${stayPhotoStage === 0 ? 'bg-[#F4F8FC] font-semibold text-[#0B397E] ring-1 ring-[#0B397E]' : 'text-ink-muted'}`} onClick={() => setStayPhotoStage(0)}>1 · Main photos</button>
+                      <span className="text-ink-muted" aria-hidden>→</span>
+                      <button type="button" className={`min-h-11 rounded-full px-3 ${stayPhotoStage === 1 ? 'bg-[#F4F8FC] font-semibold text-[#0B397E] ring-1 ring-[#0B397E]' : 'text-ink-muted'}`} onClick={() => setStayPhotoStage(1)}>2 · Bedroom photos</button>
+                    </div>
+                  ) : null}
+                  <h3 className="font-sans text-2xl font-bold tracking-tight text-[#111827] sm:text-[1.75rem]">{isStayForm && stayPhotoStage === 1 ? 'Bedroom photos' : 'Photos'}</h3>
                   <p className="mt-1 text-sm text-ink-muted">
                     {isStayForm
-                      ? 'Upload photos, then drag to organize the gallery. The first photo is the cover.'
+                      ? stayPhotoStage === 1
+                        ? 'Attach photos to the sleeping areas you already created. The same file is not uploaded twice.'
+                        : 'Upload photos, then drag to organize the gallery. The first photo is the cover.'
                       : 'First photo is the cover travelers see in search.'}
                   </p>
                 </div>
+                {isStayForm && stayPhotoStage === 1 ? (
+                  <div className="tv-step">
+                    <StayBedroomPhotos
+                      options={form.stayOptions}
+                      galleryUrls={orderedPhotoUrls(normalizePhotoSlots(form.photoSlots))}
+                      userId={user?.id}
+                      uploadsEnabled={isSupabaseConfigured() && !!user?.id}
+                      onChange={(stayOptions) => setForm((current) => ({ ...current, stayOptions }))}
+                    />
+                  </div>
+                ) : null}
+                {!(isStayForm && stayPhotoStage === 1) ? (
+                <div className="tv-step">
                 <ListingImageFields
                   photoSlots={form.photoSlots}
                   photoSlotLabels={form.photoSlotLabels}
@@ -5105,6 +5130,8 @@ export default function SupplierListingForm({
                   userId={user?.id}
                   uploadsEnabled={isSupabaseConfigured() && !!user?.id}
                 />
+                </div>
+                ) : null}
                 {!photosPublishReady && photoCount >= 1 ? (
                   <p className="text-[12.5px] text-amber-900">
                     {photoCount < LISTING_PHOTO_MIN
@@ -5241,6 +5268,20 @@ export default function SupplierListingForm({
                           .join('\n'),
                       }
                     : null
+                }
+                stayExample={
+                  isStayForm ? (
+                    <StayExampleQuote
+                      currency={listingCurrency}
+                      nightly={Number.parseFloat(form.stayNightly) || 0}
+                      cleaningFee={Number.parseFloat(form.stayCleaningFee) || 0}
+                      minNights={Number.parseInt(form.stayMinNights, 10) || 1}
+                      maxGuests={Number.parseInt(form.stayMaxGuests, 10) || null}
+                      guestPolicy={activeStayOptions(form.stayOptions)[0]?.guestPolicy}
+                      availabilityMode={form.stayAvailabilityMode}
+                      seasons={form.staySeasons}
+                    />
+                  ) : null
                 }
                 reviewRows={reviewRows}
                 truth={truth}
