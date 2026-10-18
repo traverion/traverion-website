@@ -242,7 +242,7 @@ export default function TraverionLocationSelector({
           disabled={!configured}
           placeholder={configured ? placeholder : 'Location search is unavailable'}
           autoComplete="off"
-          className="tv-input pl-9 pr-10"
+          className="tv-input tv-location-input"
           onChange={(e) => {
             resolveAbortRef.current?.abort();
             setResolving(false);

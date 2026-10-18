@@ -11,6 +11,7 @@ import {
 } from '../lib/listing-slot-overrides';
 import { normalizeBookingCutoffHours } from '../lib/tour-departure-cutoff';
 import { normalizeStayUnits, type StayUnitDraft } from '../lib/stay-accommodation';
+import { normalizeStayRestrictions, type StayRestrictions } from '../lib/stay-restrictions';
 
 /** Legacy preset values still parsed from stored `listing_extras` JSON. */
 export type CancellationPreset = 'free_24h' | 'free_48h' | 'free_7d' | 'non_refundable' | 'custom';
@@ -356,6 +357,8 @@ export type StayDetails = {
   checkInTime?: string;
   checkOutTime?: string;
   houseRules?: string;
+  /** Guest-visible property rules. Not used to reject a booking. */
+  restrictions?: StayRestrictions;
   /**
    * Optional guest-facing label (for example "Aurora Villa").
    * Does not replace city, country, place id, or coordinates.
@@ -386,11 +389,13 @@ function normalizeStayDetails(raw: unknown): StayDetails | undefined {
   if (typeof o.beds === 'number' && o.beds >= 0) out.beds = Math.floor(o.beds);
   if (typeof o.bathrooms === 'number' && o.bathrooms >= 0) out.bathrooms = Math.round(o.bathrooms * 2) / 2;
   if (Array.isArray(o.amenities)) {
-    out.amenities = o.amenities.map((x) => String(x ?? '').trim()).filter(Boolean).slice(0, 24);
+    out.amenities = o.amenities.map((x) => String(x ?? '').trim()).filter(Boolean).slice(0, 40);
   }
   if (typeof o.checkInTime === 'string' && o.checkInTime.trim()) out.checkInTime = o.checkInTime.trim().slice(0, 5);
   if (typeof o.checkOutTime === 'string' && o.checkOutTime.trim()) out.checkOutTime = o.checkOutTime.trim().slice(0, 5);
   if (typeof o.houseRules === 'string' && o.houseRules.trim()) out.houseRules = o.houseRules.trim().slice(0, 2000);
+  const restrictions = normalizeStayRestrictions(o.restrictions);
+  if (restrictions) out.restrictions = restrictions;
   if (typeof o.locationDisplayName === 'string' && o.locationDisplayName.trim()) {
     out.locationDisplayName = o.locationDisplayName.trim().slice(0, 80);
   }

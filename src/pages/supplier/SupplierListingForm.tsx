@@ -227,6 +227,7 @@ import {
   type StayAccommodationMode,
   type StayUnitDraft,
 } from '../../lib/stay-accommodation';
+import { normalizeStayRestrictions } from '../../lib/stay-restrictions';
 import { publicStayListingUrl, publicTourListingUrl } from '../../lib/publicSiteUrl';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import NoticeCallout from '../../components/NoticeCallout';
@@ -329,13 +330,13 @@ const MAX_WHAT_TO_BRING_LENGTH = 500;
 const MAX_REQUIREMENTS_LENGTH = 500;
 const MAX_ADDITIONAL_INFO_LENGTH = 800;
 
-/** Tour stays at 6. Stay is 8: Property → Location → Space → Description → Photos → Pricing → Policies → Preview. */
+/** Tour stays at 6. Stay is 8: Location → Property → Description → Amenities → Pricing → Photos → Policies → Preview. */
 function wizardStepCount(isStay: boolean): number {
   return isStay ? 8 : 6;
 }
 
-/** Old 6-step stay index → current 8-step index. Photos stayed at 4. */
-function migrateStayWizardStep(legacy: number): number {
+/** v5 six-step stay index → v6 eight-step index. */
+function migrateStayWizardV5ToV6(legacy: number): number {
   if (legacy <= 2) return legacy;
   if (legacy === 3) return 5;
   if (legacy === 4) return 4;
@@ -343,8 +344,14 @@ function migrateStayWizardStep(legacy: number): number {
   return 0;
 }
 
+/** v6 index → current. v6 was Property, Location, Space, Description, Photos, Pricing, Policies, Preview. */
+function migrateStayWizardV6ToV7(legacy: number): number {
+  const map = [1, 0, 4, 2, 5, 4, 6, 7];
+  return map[legacy] ?? 0;
+}
+
 function wizardStepStorageKey(editingId: string | null, isStay: boolean) {
-  const version = isStay ? 'v6' : 'v5';
+  const version = isStay ? 'v7' : 'v5';
   return `traverion-listing-wizard-step-${version}-${isStay ? 'stay' : 'tour'}-${editingId ?? 'create'}`;
 }
 
@@ -354,12 +361,18 @@ function readWizardStepFromStorage(editingId: string | null, isStay: boolean): n
     const max = wizardStepCount(isStay);
     const raw = sessionStorage.getItem(wizardStepStorageKey(editingId, isStay));
     if (!raw && isStay) {
-      const legacy = sessionStorage.getItem(
-        `traverion-listing-wizard-step-v5-stay-${editingId ?? 'create'}`
-      );
+      const id = editingId ?? 'create';
+      const v6 = sessionStorage.getItem(`traverion-listing-wizard-step-v6-stay-${id}`);
+      if (v6) {
+        const n = Number.parseInt(v6, 10);
+        if (Number.isNaN(n)) return null;
+        const mapped = migrateStayWizardV6ToV7(n);
+        return mapped >= 0 && mapped < max ? mapped : null;
+      }
+      const legacy = sessionStorage.getItem(`traverion-listing-wizard-step-v5-stay-${id}`);
       const n = Number.parseInt(legacy ?? '', 10);
       if (Number.isNaN(n)) return null;
-      const mapped = migrateStayWizardStep(n);
+      const mapped = migrateStayWizardV6ToV7(migrateStayWizardV5ToV6(n));
       return mapped >= 0 && mapped < max ? mapped : null;
     }
     if (!raw) return null;
@@ -944,6 +957,9 @@ type ListingFormState = {
   stayCheckOut: string;
   stayAmenities: string;
   stayHouseRules: string;
+  stayPets: '' | 'allowed' | 'not_allowed' | 'approval';
+  staySmoking: '' | 'allowed' | 'not_allowed';
+  stayParties: '' | 'allowed' | 'not_allowed';
   stayCheckInAddress: string;
   /** Guest-facing place label. Never written into the geographical destination. */
   stayLocationDisplayName: string;
@@ -1136,6 +1152,11 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
             checkInTime: form.stayCheckIn.trim() || undefined,
             checkOutTime: form.stayCheckOut.trim() || undefined,
             houseRules: form.stayHouseRules.trim() || undefined,
+            restrictions: normalizeStayRestrictions({
+              pets: form.stayPets,
+              smoking: form.staySmoking,
+              parties: form.stayParties,
+            }),
             locationDisplayName: form.stayLocationDisplayName.trim().slice(0, 80) || undefined,
             checkInAddress: form.stayCheckInAddress.trim() || undefined,
             nightlyPriceUsd: Number.isFinite(stayNightly) && stayNightly > 0 ? stayNightly : undefined,
@@ -1239,9 +1260,15 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
       form.experienceKind === 'transportation';
     if (isStay) {
       return (
-        isListingTitleLengthValid(form.title) &&
-        sub.length > 0 &&
-        sub.length <= MAX_SUBTITLE_LENGTH
+        verifiedDestination({
+          placeId: form.destinationPlaceId,
+          city: form.city,
+          country: form.country,
+          countryCode: form.destinationCountryCode,
+          lat: form.destinationLat,
+          lng: form.destinationLng,
+          formatted: form.destinationFormatted,
+        }) != null
       );
     }
     return (
@@ -1256,17 +1283,8 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
   }
   if (idx === 1) {
     if (isStay) {
-      return (
-        verifiedDestination({
-          placeId: form.destinationPlaceId,
-          city: form.city,
-          country: form.country,
-          countryCode: form.destinationCountryCode,
-          lat: form.destinationLat,
-          lng: form.destinationLng,
-          formatted: form.destinationFormatted,
-        }) != null
-      );
+      const sub = form.subtitle.trim();
+      return isListingTitleLengthValid(form.title) && sub.length > 0 && sub.length <= MAX_SUBTITLE_LENGTH;
     }
     const incLines = form.includes.map((s) => s.trim()).filter(Boolean);
     const excLines = form.excludes.map((s) => s.trim()).filter(Boolean);
@@ -1280,36 +1298,27 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
     );
   }
   if (idx === 2) {
-    if (form.inventoryFamily === 'stay') {
-      if (form.stayAccommodationMode === 'multi') return stayUnitsReady(form.stayUnits);
-      const maxG = Number.parseInt(form.stayMaxGuests, 10);
-      return Number.isFinite(maxG) && maxG >= 1;
-    }
+    if (form.inventoryFamily === 'stay') return isListingDescriptionLengthValid(form.description);
     // Information — optional for tours; never blocks Continue.
     return true;
   }
   if (idx === 3) {
-    if (form.inventoryFamily === 'stay') {
-      return isListingDescriptionLengthValid(form.description);
-    }
+    if (form.inventoryFamily === 'stay') return stayRulesChosen(form);
     const active = materializedBookingOptions(form.bookingOptions);
     const ready = readyBookingOptions(active, optionValidationMessages);
     return optionsWithFulfillment(ready).length >= 1;
   }
   if (idx === 4) {
+    if (form.inventoryFamily === 'stay') return stayPricingReady(form);
     return listingPhotosReadyToPublish(form);
   }
   if (idx === 5) {
-    if (form.inventoryFamily === 'stay') {
-      if (form.stayAccommodationMode === 'multi') return stayUnitsReady(form.stayUnits);
-      const nightly = Number.parseFloat(form.stayNightly);
-      return Number.isFinite(nightly) && nightly > 0;
-    }
+    if (form.inventoryFamily === 'stay') return listingPhotosReadyToPublish(form);
     // Preview & Publish is complete only after the listing is published — not merely ready.
     return form.status === 'published';
   }
   if (idx === 6 && form.inventoryFamily === 'stay') {
-    return /^\d{2}:\d{2}$/.test(form.stayCheckIn.trim()) && /^\d{2}:\d{2}$/.test(form.stayCheckOut.trim());
+    return form.stayCheckInAddress.trim().length > 0;
   }
   if (idx === 7 && form.inventoryFamily === 'stay') {
     return form.status === 'published';
@@ -1318,8 +1327,27 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
 }
 
 /** Soft gate so existing drafts can move past Photos with a single cover. New creation requires publish-ready photos. */
+function stayTimesChosen(form: ListingFormState): boolean {
+  return /^\d{2}:\d{2}$/.test(form.stayCheckIn.trim()) && /^\d{2}:\d{2}$/.test(form.stayCheckOut.trim());
+}
+
+function stayRulesChosen(form: ListingFormState): boolean {
+  const pets = form.stayPets === 'allowed' || form.stayPets === 'not_allowed' || form.stayPets === 'approval';
+  const smoking = form.staySmoking === 'allowed' || form.staySmoking === 'not_allowed';
+  const parties = form.stayParties === 'allowed' || form.stayParties === 'not_allowed';
+  return pets && smoking && parties;
+}
+
+function stayPricingReady(form: ListingFormState): boolean {
+  if (!stayTimesChosen(form)) return false;
+  if (form.stayAccommodationMode === 'multi') return stayUnitsReady(form.stayUnits);
+  const maxG = Number.parseInt(form.stayMaxGuests, 10);
+  const nightly = Number.parseFloat(form.stayNightly);
+  return Number.isFinite(maxG) && maxG >= 1 && Number.isFinite(nightly) && nightly > 0;
+}
+
 function canContinueListingStep(idx: number, form: ListingFormState, isNewCreation: boolean): boolean {
-  const photosIdx = 4;
+  const photosIdx = form.inventoryFamily === 'stay' ? 5 : 4;
   if (idx === photosIdx) {
     const photoCount = orderedPhotoUrls(normalizePhotoSlots(form.photoSlots)).length;
     return canContinueFromPhotos({
@@ -1389,6 +1417,9 @@ const emptyForm: ListingFormState = {
   stayCheckOut: '',
   stayAmenities: '',
   stayHouseRules: '',
+  stayPets: '',
+  staySmoking: '',
+  stayParties: '',
   stayCheckInAddress: '',
   stayLocationDisplayName: '',
   stayAddressStreet: '',
@@ -1434,6 +1465,12 @@ function coerceListingFormState(raw: Partial<ListingFormState> | null | undefine
   merged.stayAddressPostal = typeof merged.stayAddressPostal === 'string' ? merged.stayAddressPostal : '';
   merged.stayAddressNotes = typeof merged.stayAddressNotes === 'string' ? merged.stayAddressNotes : '';
   merged.stayAccommodationMode = merged.stayAccommodationMode === 'multi' ? 'multi' : 'single';
+  merged.stayPets =
+    merged.stayPets === 'allowed' || merged.stayPets === 'not_allowed' || merged.stayPets === 'approval'
+      ? merged.stayPets
+      : '';
+  merged.staySmoking = merged.staySmoking === 'allowed' || merged.staySmoking === 'not_allowed' ? merged.staySmoking : '';
+  merged.stayParties = merged.stayParties === 'allowed' || merged.stayParties === 'not_allowed' ? merged.stayParties : '';
   merged.stayUnits = normalizeStayUnits(merged.stayUnits);
   if (
     !merged.stayAddressStreet.trim() &&
@@ -1681,12 +1718,12 @@ export default function SupplierListingForm({
     if (stay) {
       const multi = form.stayAccommodationMode === 'multi';
       return [
-        { id: 'the_experience' as StepId, label: 'Property' },
         { id: 'practical' as StepId, label: 'Location' },
-        { id: 'cost_options' as StepId, label: multi ? 'Rooms' : 'Space' },
+        { id: 'the_experience' as StepId, label: 'Property' },
         { id: 'stay_description' as StepId, label: 'Description' },
+        { id: 'information' as StepId, label: 'Amenities' },
+        { id: 'stay_price' as StepId, label: multi ? 'Rooms & pricing' : 'Pricing' },
         { id: 'photos' as StepId, label: 'Photos' },
-        { id: 'stay_price' as StepId, label: 'Pricing' },
         { id: 'stay_policies' as StepId, label: 'Policies' },
         { id: 'review' as StepId, label: 'Preview' },
       ];
@@ -1706,17 +1743,15 @@ export default function SupplierListingForm({
     if (stay) {
       const multi = form.stayAccommodationMode === 'multi';
       return [
-        'Choose one accommodation or several room types, then add a title guests will recognize.',
         'Search for the property location. A display name is optional.',
-        multi
-          ? 'Add each bookable room or unit type. Shared property details stay on this listing.'
-          : 'Who can stay, where they sleep, and what the place includes.',
+        'Choose one accommodation or several room types, then add a title guests will recognize.',
         'Help travelers understand what makes your property special.',
-        'Add your strongest photo first — it becomes the cover in search.',
+        'Tick only facilities that are really there, then set pets, smoking, and parties.',
         multi
-          ? 'Nightly prices are set on each room type. This property cannot be published until room booking is available.'
-          : 'Nightly rate for the whole place. Blocked nights are managed on Calendar after you publish.',
-        'Arrival times, the cancellation terms guests actually get, and house rules.',
+          ? 'Each room type has its own capacity and price. This property cannot be published until each type can be reserved.'
+          : 'Capacity, sleeping arrangements, nightly price, and check-in times for the one bookable stay.',
+        'Add your strongest photo first — it becomes the cover in search.',
+        'Cancellation terms guests actually get, the private arrival address, and extra house rules.',
         'Check what’s ready, fix gaps, then save as draft or publish.',
       ] as const;
     }
@@ -1735,7 +1770,7 @@ export default function SupplierListingForm({
     const photoCount = orderedPhotoUrls(normalizePhotoSlots(form.photoSlots)).length;
     const coverUrl = orderedPhotoUrls(normalizePhotoSlots(form.photoSlots))[0] ?? '';
     const coverSelected = Boolean(coverUrl && !isPlaceholderListingImageUrl(coverUrl));
-    const photosStepIdx = 4;
+    const photosStepIdx = isStayForm ? 5 : 4;
     const photosMissing = !isStepSatisfied(photosStepIdx, form)
       ? photoCount < LISTING_PHOTO_MIN
         ? `Add at least ${LISTING_PHOTO_MIN} photos, with a real cover.`
@@ -1751,71 +1786,69 @@ export default function SupplierListingForm({
       ]
         .filter(Boolean)
         .join(' · ');
+      const rulesSummary = [form.stayPets, form.staySmoking, form.stayParties].filter(Boolean).length;
       return [
         {
           step: 0,
+          label: 'Location',
+          summary: reviewStayLocationSummary(form.city, form.country),
+          ready: isStepSatisfied(0, form),
+          missing: !isStepSatisfied(0, form) ? 'Choose a location from search.' : null,
+        },
+        {
+          step: 1,
           label: 'Property',
           summary: form.title.trim() || 'Untitled stay',
-          ready: isStepSatisfied(0, form),
-          missing: !isStepSatisfied(0, form)
+          ready: isStepSatisfied(1, form),
+          missing: !isStepSatisfied(1, form)
             ? !isListingTitleLengthValid(form.title)
               ? 'Add a title guests will recognize.'
               : 'Add a subtitle.'
             : null,
         },
         {
-          step: 1,
-          label: 'Location',
-          summary: reviewStayLocationSummary(form.city, form.country),
-          ready: isStepSatisfied(1, form),
-          missing: !isStepSatisfied(1, form) ? 'Choose a location from search.' : null,
-        },
-        {
           step: 2,
-          label: form.stayAccommodationMode === 'multi' ? 'Rooms' : 'Space',
-          summary:
-            form.stayAccommodationMode === 'multi'
-              ? `${activeStayUnits(form.stayUnits).length} room type${activeStayUnits(form.stayUnits).length === 1 ? '' : 's'}`
-              : spaceSummary || 'Guest capacity not set',
-          ready: isStepSatisfied(2, form),
-          missing: !isStepSatisfied(2, form)
-            ? form.stayAccommodationMode === 'multi'
-              ? 'Add a room type with a name, capacity, quantity, and nightly price.'
-              : 'Set how many guests can stay.'
-            : null,
-        },
-        {
-          step: 3,
           label: 'Description',
           summary: form.description.trim()
             ? `${form.description.trim().length} characters`
             : 'Description not written',
+          ready: isStepSatisfied(2, form),
+          missing: !isStepSatisfied(2, form) ? 'Describe the stay.' : null,
+        },
+        {
+          step: 3,
+          label: 'Amenities',
+          summary: rulesSummary === 3 ? 'Pets, smoking, and parties set' : 'Restrictions not set',
           ready: isStepSatisfied(3, form),
-          missing: !isStepSatisfied(3, form) ? 'Describe the stay.' : null,
+          missing: !isStepSatisfied(3, form) ? 'Choose pets, smoking, and parties.' : null,
         },
         {
           step: 4,
-          label: 'Photos',
-          summary: reviewPhotosSummary(photoCount, coverSelected && photoCount > 0),
+          label: form.stayAccommodationMode === 'multi' ? 'Rooms & pricing' : 'Pricing',
+          summary:
+            form.stayAccommodationMode === 'multi'
+              ? `${activeStayUnits(form.stayUnits).length} room type${activeStayUnits(form.stayUnits).length === 1 ? '' : 's'}`
+              : [spaceSummary, nightlyLabel].filter(Boolean).join(' · ') || 'Price not set',
           ready: isStepSatisfied(4, form),
-          missing: photosMissing,
+          missing: !isStepSatisfied(4, form)
+            ? form.stayAccommodationMode === 'multi'
+              ? 'Add a room type and set check-in and check-out times.'
+              : 'Set guests, a nightly rate, and check-in times.'
+            : null,
         },
         {
           step: 5,
-          label: 'Pricing',
-          summary: reviewStayPricingSummary(nightlyLabel, form.stayMaxGuests),
+          label: 'Photos',
+          summary: reviewPhotosSummary(photoCount, coverSelected && photoCount > 0),
           ready: isStepSatisfied(5, form),
-          missing: !isStepSatisfied(5, form) ? 'Set a nightly rate.' : null,
+          missing: photosMissing,
         },
         {
           step: 6,
           label: 'Policies',
-          summary:
-            form.stayCheckIn.trim() && form.stayCheckOut.trim()
-              ? `Check-in ${form.stayCheckIn} · Check-out ${form.stayCheckOut}`
-              : 'Arrival times not set',
+          summary: form.stayCheckInAddress.trim() ? 'Arrival address saved' : 'Arrival address missing',
           ready: isStepSatisfied(6, form),
-          missing: !isStepSatisfied(6, form) ? 'Set check-in and check-out times.' : null,
+          missing: !isStepSatisfied(6, form) ? 'Add the private arrival address.' : null,
         },
       ];
     }
@@ -1901,6 +1934,10 @@ export default function SupplierListingForm({
     return () => window.clearTimeout(t);
   }, [stepIdx, steps.length]);
 
+  useEffect(() => {
+    document.querySelector('.listing-creation-content')?.scrollTo({ top: 0 });
+  }, [stepIdx]);
+
   const setStepIdxPersisted = useCallback(
     (next: number | ((prev: number) => number)) => {
       const prev = stepIdxRef.current;
@@ -1981,20 +2018,20 @@ export default function SupplierListingForm({
 
   const focusToStep: Record<string, number> = useMemo(() => {
     const stay = form.inventoryFamily === 'stay';
-    const photos = 4;
-    const options = stay ? 2 : 3;
+    const photos = stay ? 5 : 4;
+    const options = stay ? 4 : 3;
     const information = 2;
     return {
       language: 0,
-      title: 0,
-      category: 0,
-      kind: 0,
-      subtitle: 0,
-      city: stay ? 1 : 0,
-      country: stay ? 1 : 0,
-      location: stay ? 1 : 0,
-      highlights: stay ? 3 : 1,
-      description: stay ? 3 : 1,
+      title: stay ? 1 : 0,
+      category: stay ? 1 : 0,
+      kind: stay ? 1 : 0,
+      subtitle: stay ? 1 : 0,
+      city: 0,
+      country: 0,
+      location: 0,
+      highlights: stay ? 2 : 1,
+      description: stay ? 2 : 1,
       includes: 1,
       excludes: 1,
       accessibility: information,
@@ -2009,7 +2046,7 @@ export default function SupplierListingForm({
       duration: options,
       schedule: options,
       start: options,
-      price: stay ? 5 : options,
+      price: options,
       group: options,
       tags: options,
       meeting: options,
@@ -2124,6 +2161,9 @@ export default function SupplierListingForm({
           stayCheckOut: stayFormCheckInOutFromExtras(extras.stay).stayCheckOut,
           stayAmenities: (extras.stay?.amenities ?? []).join(', '),
           stayHouseRules: extras.stay?.houseRules ?? '',
+          stayPets: extras.stay?.restrictions?.pets ?? '',
+          staySmoking: extras.stay?.restrictions?.smoking ?? '',
+          stayParties: extras.stay?.restrictions?.parties ?? '',
           stayCheckInAddress: extras.stay?.checkInAddress ?? '',
           stayLocationDisplayName: stayLocationDisplayNameFromListing(
             extras.stay?.locationDisplayName,
@@ -3557,6 +3597,7 @@ export default function SupplierListingForm({
   });
 
   const canContinueStep = () => canContinueListingStep(stepIdx, form, sessionOpenedAsCreateRef.current === true);
+  const photosStepOpen = isStayForm ? stepIdx === 5 : stepIdx === 4;
   const tourBasicsGuided = !isStayForm && stepIdx === 0;
   const tourInformationGuided = !isStayForm && stepIdx === 2;
   const canContinueBasicsScene = canAdvanceTourBasicsScene(basicsSceneIdx, form);
@@ -3911,7 +3952,7 @@ export default function SupplierListingForm({
                     form.inventoryFamily === 'stay' &&
                     form.stayAccommodationMode === 'multi' &&
                     !canContinueStep() &&
-                    (stepIdx === 2 || stepIdx === 5)
+                    stepIdx === 4
                       ? 'Add a room type with a name, capacity, quantity, and nightly price.'
                       : tourBasicsGuided
                         ? tourBasicsContinueHint
@@ -3943,7 +3984,7 @@ export default function SupplierListingForm({
                 : `motion-safe:animate-fade-in ${
                     stepIdx === steps.length - 1
                       ? 'max-w-[72rem]'
-                      : stepIdx === 4
+                      : photosStepOpen
                         ? 'max-w-5xl'
                         : isStayForm
                           ? 'mx-auto max-w-[52rem]'
@@ -3956,7 +3997,7 @@ export default function SupplierListingForm({
           {!(
             (stepIdx === 0 && !isStayForm) ||
             (stepIdx === 3 && !isStayForm) ||
-            stepIdx === 4 ||
+            photosStepOpen ||
             stepIdx === steps.length - 1
           ) ? (
             <header className="mb-6 sm:mb-7">
@@ -3967,9 +4008,9 @@ export default function SupplierListingForm({
                     : 'font-display text-[1.65rem] font-bold tracking-tight text-ink sm:text-[1.85rem]'
                 }
               >
-                {isStayForm && stepIdx === 3
+                {isStayForm && stepIdx === 2
                   ? 'Describe your stay'
-                  : isStayForm && stepIdx === 5
+                  : isStayForm && stepIdx === 4
                     ? 'Pricing & availability'
                     : steps[stepIdx].label}
               </h3>
@@ -3980,7 +4021,7 @@ export default function SupplierListingForm({
               ) : null}
             </header>
           ) : null}
-          {stepIdx === 0 && isStayForm && (
+          {stepIdx === 1 && isStayForm && (
             <div className="space-y-7">
               <div>
                 <p className="mb-3 text-sm font-semibold text-ink">What type of accommodation are you listing?</p>
@@ -4062,8 +4103,8 @@ export default function SupplierListingForm({
                   {form.stayAccommodationMode === 'single' ? (
                     <p className="mt-2 text-xs leading-relaxed text-ink-muted">
                       {(form.stayPropertyType || 'Apartment') === 'Room'
-                        ? 'Guests book this room, not the whole property. On Space, use 0 bedrooms if it is a single room.'
-                        : 'Guests book the whole place. Bedrooms and beds are set separately on Space.'}
+                        ? 'Guests book this room, not the whole property. Set bedrooms on Pricing.'
+                        : 'Guests book the whole place. Bedrooms and beds are set on Pricing.'}
                     </p>
                   ) : null}
                 </div>
@@ -4134,7 +4175,7 @@ export default function SupplierListingForm({
               </div>
             </div>
           )}
-          {stepIdx === 3 && isStayForm && (
+          {stepIdx === 2 && isStayForm && (
             <div className="space-y-8">
               <section className="space-y-3" aria-labelledby="stay-about-heading">
                 <h4 id="stay-about-heading" className="text-sm font-semibold text-[#111827]">
@@ -4454,7 +4495,7 @@ export default function SupplierListingForm({
             </div>
           )}
 
-          {stepIdx === 1 && form.inventoryFamily === 'stay' && (
+          {stepIdx === 0 && form.inventoryFamily === 'stay' && (
             <div className="mx-auto max-w-xl space-y-6">
               <TraverionLocationSelector
                 id="supplier-listing-stay-destination"
@@ -4541,7 +4582,7 @@ export default function SupplierListingForm({
             </div>
           )}
 
-          {stepIdx === 2 && form.inventoryFamily === 'stay' && form.stayAccommodationMode === 'multi' && (
+          {stepIdx === 4 && form.inventoryFamily === 'stay' && form.stayAccommodationMode === 'multi' && (
             <div className="space-y-8">
               <StayUnitsEditor
                 units={form.stayUnits}
@@ -4549,13 +4590,12 @@ export default function SupplierListingForm({
                 onChange={(stayUnits) => setForm((f) => ({ ...f, stayUnits }))}
               />
               <p className="text-xs leading-relaxed text-ink-muted">
-                Shared house rules and arrival times stay on Policies. These room types are saved with the draft and
-                are not bookable yet.
+                Check-in times are below. These room types are saved with the draft and are not bookable yet.
               </p>
             </div>
           )}
 
-          {stepIdx === 2 && form.inventoryFamily === 'stay' && form.stayAccommodationMode !== 'multi' && (
+          {stepIdx === 4 && form.inventoryFamily === 'stay' && form.stayAccommodationMode !== 'multi' && (
             <div className="space-y-8">
               <section className="space-y-4" aria-labelledby="stay-capacity-heading">
                 <div>
@@ -4637,7 +4677,11 @@ export default function SupplierListingForm({
                   onChange={(stayBathrooms) => setForm((f) => ({ ...f, stayBathrooms }))}
                 />
               </section>
-              <section id="supplier-listing-field-stay-amenities" className="space-y-4 border-t border-[#E6EAF0] pt-6" aria-labelledby="stay-amenities-heading">
+            </div>
+          )}
+          {stepIdx === 3 && form.inventoryFamily === 'stay' && (
+            <div className="space-y-8">
+              <section id="supplier-listing-field-stay-amenities" className="space-y-4" aria-labelledby="stay-amenities-heading">
                 <div>
                   <h4 id="stay-amenities-heading" className="text-sm font-semibold text-[#111827]">Amenities</h4>
                   <p className="mt-1 text-xs text-ink-muted">Guests see these on the stay page. Tick only what is actually there.</p>
@@ -4667,7 +4711,7 @@ export default function SupplierListingForm({
                             onClick={() => setForm((f) => ({ ...f, stayAmenities: toggleStayAmenity(f.stayAmenities, label) }))}
                             className={`lux-flat rounded-full px-3 py-1.5 text-sm transition-colors ${
                               on
-                                ? 'bg-[#0B397E] text-white'
+                                ? 'bg-white font-semibold text-[#0B397E] ring-2 ring-[#0B397E]'
                                 : 'text-ink-muted ring-1 ring-[#E6EAF0] hover:text-ink'
                             }`}
                           >
@@ -4688,7 +4732,7 @@ export default function SupplierListingForm({
                         <button
                           key={item}
                           type="button"
-                          className="lux-flat rounded-full bg-[#0B397E] px-3 py-1.5 text-sm text-white"
+                          className="lux-flat rounded-full bg-white px-3 py-1.5 text-sm font-semibold text-[#0B397E] ring-2 ring-[#0B397E]"
                           onClick={() => setForm((f) => ({ ...f, stayAmenities: toggleStayAmenity(f.stayAmenities, item) }))}
                         >
                           {item} · remove
@@ -4720,10 +4764,113 @@ export default function SupplierListingForm({
                   </div>
                 </div>
               </section>
+              <section className="space-y-4 border-t border-[#E6EAF0] pt-6" aria-labelledby="stay-rules-choice-heading">
+                <div>
+                  <h4 id="stay-rules-choice-heading" className="text-sm font-semibold text-[#111827]">
+                    Restrictions
+                  </h4>
+                  <p className="mt-1 text-xs leading-relaxed text-ink-muted">
+                    Guests see these before they book. They do not block a checkout by themselves.
+                  </p>
+                </div>
+                {(
+                  [
+                    {
+                      id: 'stay-pets',
+                      label: 'Pets',
+                      value: form.stayPets,
+                      options: [
+                        ['allowed', 'Allowed'],
+                        ['not_allowed', 'Not allowed'],
+                        ['approval', 'Ask first'],
+                      ] as const,
+                      apply: (stayPets: ListingFormState['stayPets']) => setForm((f) => ({ ...f, stayPets })),
+                    },
+                    {
+                      id: 'stay-smoking',
+                      label: 'Smoking',
+                      value: form.staySmoking,
+                      options: [
+                        ['allowed', 'Allowed'],
+                        ['not_allowed', 'Not allowed'],
+                      ] as const,
+                      apply: (staySmoking: ListingFormState['staySmoking']) => setForm((f) => ({ ...f, staySmoking })),
+                    },
+                    {
+                      id: 'stay-parties',
+                      label: 'Parties and events',
+                      value: form.stayParties,
+                      options: [
+                        ['allowed', 'Allowed'],
+                        ['not_allowed', 'Not allowed'],
+                      ] as const,
+                      apply: (stayParties: ListingFormState['stayParties']) => setForm((f) => ({ ...f, stayParties })),
+                    },
+                  ] as const
+                ).map((row) => (
+                  <fieldset key={row.id}>
+                    <legend className="mb-2 text-sm font-semibold text-ink">{row.label}</legend>
+                    <div className="flex flex-wrap gap-2">
+                      {row.options.map(([value, label]) => {
+                        const on = row.value === value;
+                        return (
+                          <button
+                            key={value}
+                            type="button"
+                            aria-pressed={on}
+                            onClick={() => row.apply(value as never)}
+                            className={`lux-flat rounded-full px-3 py-1.5 text-sm ${
+                              on
+                                ? 'bg-white font-semibold text-[#0B397E] ring-2 ring-[#0B397E]'
+                                : 'text-ink-muted ring-1 ring-[#E6EAF0] hover:text-ink'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
+                ))}
+              </section>
             </div>
           )}
-          {stepIdx === 5 && form.inventoryFamily === 'stay' && form.stayAccommodationMode === 'multi' && (
-            <div className="space-y-4">
+          {stepIdx === 4 && form.inventoryFamily === 'stay' && (
+            <section className="mt-8 space-y-4 border-t border-[#E6EAF0] pt-6" aria-labelledby="stay-arrival-heading">
+              <div>
+                <h4 id="stay-arrival-heading" className="text-sm font-semibold text-[#111827]">
+                  Check-in and check-out
+                </h4>
+                <p className="mt-1 text-xs leading-relaxed text-ink-muted">
+                  These times apply to the whole property. They are not the same as which nights are open.
+                </p>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block text-sm font-semibold text-ink">
+                  Check-in *
+                  <input
+                    type="time"
+                    value={form.stayCheckIn}
+                    onChange={(e) => setForm((f) => ({ ...f, stayCheckIn: e.target.value }))}
+                    className="tv-input mt-1 w-full"
+                    required
+                  />
+                </label>
+                <label className="block text-sm font-semibold text-ink">
+                  Check-out *
+                  <input
+                    type="time"
+                    value={form.stayCheckOut}
+                    onChange={(e) => setForm((f) => ({ ...f, stayCheckOut: e.target.value }))}
+                    className="tv-input mt-1 w-full"
+                    required
+                  />
+                </label>
+              </div>
+            </section>
+          )}
+          {stepIdx === 4 && form.inventoryFamily === 'stay' && form.stayAccommodationMode === 'multi' && (
+            <div className="mt-8 space-y-4">
               <h4 className="text-sm font-semibold text-[#111827]">Prices live on each room type</h4>
               <p className="text-sm leading-relaxed text-ink-muted">
                 Set the nightly price, quantity, and minimum stay on Rooms. A property with several room types cannot
@@ -4743,7 +4890,7 @@ export default function SupplierListingForm({
             </div>
           )}
 
-          {stepIdx === 5 && form.inventoryFamily === 'stay' && form.stayAccommodationMode !== 'multi' && (
+          {stepIdx === 4 && form.inventoryFamily === 'stay' && form.stayAccommodationMode !== 'multi' && (
             <div id="supplier-listing-field-stay-price" className="space-y-8">
               <section className="space-y-4" aria-labelledby="stay-nightly-heading">
                 <div>
@@ -4829,46 +4976,14 @@ export default function SupplierListingForm({
                   Availability
                 </h4>
                 <p className="max-w-xl text-xs leading-relaxed text-ink-muted">
-                  This price does not close dates. After you publish, block unavailable nights on Calendar.
+                  Nights stay open unless you block them. Saved drafts can be blocked on Calendar. Seasonal prices are not applied at checkout.
                 </p>
               </section>
             </div>
           )}
           {stepIdx === 6 && form.inventoryFamily === 'stay' && (
             <div className="space-y-8">
-              <section className="space-y-4" aria-labelledby="stay-arrival-heading">
-                <div>
-                  <h4 id="stay-arrival-heading" className="text-sm font-semibold text-[#111827]">
-                    Arrival and departure
-                  </h4>
-                  <p className="mt-1 text-xs leading-relaxed text-ink-muted">
-                    Guests need both times before the stay can be published.
-                  </p>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="block text-sm font-semibold text-ink">
-                    Check-in *
-                    <input
-                      type="time"
-                      value={form.stayCheckIn}
-                      onChange={(e) => setForm((f) => ({ ...f, stayCheckIn: e.target.value }))}
-                      className="tv-input mt-1 w-full"
-                      required
-                    />
-                  </label>
-                  <label className="block text-sm font-semibold text-ink">
-                    Check-out *
-                    <input
-                      type="time"
-                      value={form.stayCheckOut}
-                      onChange={(e) => setForm((f) => ({ ...f, stayCheckOut: e.target.value }))}
-                      className="tv-input mt-1 w-full"
-                      required
-                    />
-                  </label>
-                </div>
-              </section>
-              <section className="space-y-2 border-t border-[#E6EAF0] pt-6" aria-labelledby="stay-cancel-heading">
+              <section className="space-y-2" aria-labelledby="stay-cancel-heading">
                 <h4 id="stay-cancel-heading" className="text-sm font-semibold text-[#111827]">
                   Cancellation
                 </h4>
@@ -4921,7 +5036,7 @@ export default function SupplierListingForm({
                     value={form.stayHouseRules}
                     onChange={(e) => setForm((f) => ({ ...f, stayHouseRules: e.target.value }))}
                     className="tv-input mt-1 w-full min-h-[5rem] font-normal"
-                    placeholder="Quiet hours, smoking, pets…"
+                    placeholder="Quiet hours, visitors, or anything else guests should know"
                   />
                 </label>
               </section>
@@ -5097,7 +5212,7 @@ export default function SupplierListingForm({
             );
           })()}
 
-          {stepIdx === 4 && (() => {
+          {photosStepOpen && (() => {
             const photoCount = orderedPhotoUrls(normalizePhotoSlots(form.photoSlots)).length;
             const photosPublishReady = listingPhotosReadyToPublish(form);
             return (

@@ -5455,6 +5455,10 @@ details:not([open]) > :not(summary) {
   box-shadow: none;
   transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
+.tv-input.tv-location-input {
+  padding-left: 2.75rem;
+  padding-right: 2.75rem;
+}
 .tv-input:focus {
   outline: none;
   box-shadow: 0 0 0 2px rgba(0, 53, 128, 0.35);

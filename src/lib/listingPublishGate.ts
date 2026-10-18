@@ -344,12 +344,14 @@ export function partnerListingCardPresentation(args: {
 export function publishBlockerListingWizardStep(blockerLine: string, isStay: boolean): number {
   const t = blockerLine.toLowerCase();
   if (isStay) {
-    if (/several room types|not available yet/.test(t)) return 2;
-    if (/photo|image|gallery|cover|hero|placeholder/.test(t)) return 4;
-    if (/nightly|check-in time|check-out time/.test(t)) return 3;
-    if (/address|city|country|location|destination/.test(t)) return 1;
-    if (/guest|bedroom|bed|space|host/.test(t)) return 2;
-    return 0;
+    if (/several room types|not available yet/.test(t)) return 4;
+    if (/photo|image|gallery|cover|hero|placeholder/.test(t)) return 5;
+    if (/nightly|check-in time|check-out time/.test(t)) return 4;
+    if (/check-in address|arrival address|street/.test(t)) return 6;
+    if (/city|country|location|destination/.test(t)) return 0;
+    if (/guest|bedroom|bed|space|host/.test(t)) return 4;
+    if (/description|highlight/.test(t)) return 2;
+    return 1;
   }
   if (/photo|image|gallery|cover|hero|placeholder/.test(t)) return 4;
   if (

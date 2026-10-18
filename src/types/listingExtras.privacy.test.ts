@@ -14,6 +14,7 @@ describe('stay checkInAddress privacy (Phase 1081)', () => {
         propertyType: 'Cabin',
         checkInAddress: 'Kauppakatu 1, Rovaniemi',
         locationDisplayName: 'Aurora Villa',
+        restrictions: { pets: 'not_allowed', smoking: 'not_allowed', parties: 'not_allowed' },
         accommodationMode: 'multi',
         units: [{ id: 'room-1', name: 'Standard Room', maxGuests: 2, nightlyPriceUsd: 120, quantity: 10 }],
         nightlyPriceUsd: 120,
@@ -24,6 +25,7 @@ describe('stay checkInAddress privacy (Phase 1081)', () => {
     expect(stay.propertyType).toBe('Cabin');
     expect(stay.checkInAddress).toBeUndefined();
     expect(stay.locationDisplayName).toBe('Aurora Villa');
+    expect(stay.restrictions).toEqual({ pets: 'not_allowed', smoking: 'not_allowed', parties: 'not_allowed' });
     expect(stay.accommodationMode).toBe('multi');
     expect(Array.isArray(stay.units)).toBe(true);
     expect(stay.nightlyPriceUsd).toBe(120);

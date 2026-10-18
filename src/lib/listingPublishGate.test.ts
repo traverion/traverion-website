@@ -223,24 +223,24 @@ describe('partnerListingCardPresentation', () => {
 
 /** Layer B: stay wizard has Space + Price steps before Photos — blocker jumps must not use tour indices. */
 describe('publishBlockerListingWizardStep', () => {
-  it('maps stay photo and pricing blockers to Photos (4) and Price (3)', () => {
+  it('maps stay photo and pricing blockers to Photos (5) and Pricing (4)', () => {
     expect(
       publishBlockerListingWizardStep('Replace the placeholder hero image with a real photo of the property.', true)
-    ).toBe(4);
-    expect(publishBlockerListingWizardStep('Set a nightly price greater than zero.', true)).toBe(3);
-    expect(publishBlockerListingWizardStep('Set how many guests the property can host.', true)).toBe(2);
+    ).toBe(5);
+    expect(publishBlockerListingWizardStep('Set a nightly price greater than zero.', true)).toBe(4);
+    expect(publishBlockerListingWizardStep('Set how many guests the property can host.', true)).toBe(4);
     expect(
       publishBlockerListingWizardStep(
         'Several room types can be saved as a draft. Booking more than one accommodation is not available yet, so this property cannot be published.',
         true
       )
-    ).toBe(2);
+    ).toBe(4);
     expect(
       publishBlockerListingWizardStep(
         'Add the check-in address guests need after they book (street / building / entry).',
         true
       )
-    ).toBe(1);
+    ).toBe(6);
   });
 
   it('keeps tour blocker jumps on tour step indices', () => {

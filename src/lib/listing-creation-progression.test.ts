@@ -97,12 +97,13 @@ describe('missing-requirement copy', () => {
   });
 
   it('uses stay copy for stay steps', () => {
-    expect(listingCreationStepRequirement(0, true)).toContain('title and subtitle');
-    expect(listingCreationStepRequirement(1, true)).toContain('location from search');
-    expect(listingCreationStepRequirement(2, true)).toContain('guests');
-    expect(listingCreationStepRequirement(3, true)).toContain('description');
-    expect(listingCreationStepRequirement(5, true)).toContain('nightly rate');
-    expect(listingCreationStepRequirement(6, true)).toContain('check-out');
+    expect(listingCreationStepRequirement(0, true)).toContain('location from search');
+    expect(listingCreationStepRequirement(1, true)).toContain('title and subtitle');
+    expect(listingCreationStepRequirement(2, true)).toContain('description');
+    expect(listingCreationStepRequirement(3, true)).toContain('pets');
+    expect(listingCreationStepRequirement(4, true)).toContain('nightly rate');
+    expect(listingCreationStepRequirement(5, true)).toContain('photos');
+    expect(listingCreationStepRequirement(6, true)).toContain('arrival address');
   });
 });
 

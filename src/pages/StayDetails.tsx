@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, MapPin, Heart, Star, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { getListingById, getListingByIdAsync } from '../data/listings';
+import { stayRestrictionLines } from '../lib/stay-restrictions';
 import { parseListingExtras, STAY_GUEST_CANCELLATION_POLICY } from '../types/listingExtras';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 import { listingIsFamily } from '../lib/inventory';
@@ -1046,10 +1047,19 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                 })()}
               </ul>
             </div>
-            {s?.houseRules ? (
+            {stayRestrictionLines(s?.restrictions).length > 0 || s?.houseRules ? (
               <div>
                 <h2 className="font-display text-xl mb-2">House rules</h2>
-                <p className="text-ink-muted break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{s.houseRules}</p>
+                {stayRestrictionLines(s?.restrictions).length > 0 ? (
+                  <ul className="mb-3 list-disc space-y-1 pl-5 text-ink-muted">
+                    {stayRestrictionLines(s?.restrictions).map((line) => (
+                      <li key={line}>{line}</li>
+                    ))}
+                  </ul>
+                ) : null}
+                {s?.houseRules ? (
+                  <p className="text-ink-muted break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{s.houseRules}</p>
+                ) : null}
               </div>
             ) : null}
             <div>
