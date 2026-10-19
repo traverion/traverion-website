@@ -26,7 +26,7 @@ import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
 import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
 import { formatMoney, normalizeCurrency } from '../lib/money';
 import { recordTravelerInterest } from '../lib/traveler-interest';
-import { MarketplaceBrowseShell, MarketplaceFamilySwitch, MarketplaceSortSelect } from '../components/marketplace/MarketplaceBrowseShell';
+import { MarketplaceBrowseShell, MarketplaceSortSelect } from '../components/marketplace/MarketplaceBrowseShell';
 import {
   MarketplaceActiveChip,
   MarketplaceFilterChip,
@@ -48,7 +48,6 @@ import {
   collectStayAmenities,
   collectStayPropertyTypes,
   listingBrowseAmount,
-  marketplaceFamilySwitchPath,
   MARKETPLACE_BROWSE_GRID_CLASS,
   parseMarketplaceSort,
   parsePriceChipId,
@@ -779,23 +778,6 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
       <MarketplaceBrowseShell
         headingId="stays-heading"
         resultTitle={resultTitle}
-        familyNav={
-          <MarketplaceFamilySwitch
-            current="stays"
-            onTours={() => {
-              if (!onNavigate) return;
-              const next = marketplaceFamilySwitchPath('tours', {
-                q,
-                destination: selectedDestination !== 'all' ? selectedDestination : undefined,
-                date: checkIn,
-                guests,
-              });
-              window.history.pushState({}, '', next);
-              onNavigate('packages');
-            }}
-            onStays={() => undefined}
-          />
-        }
         search={
           <MarketplaceSearchPill
             family="stays"
@@ -809,7 +791,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
             trailing={
               <button
                 type="submit"
-                className="h-12 self-center px-6 rounded-full bg-finland text-white text-sm font-semibold hover:bg-finland-dark shadow-sm"
+                className="h-11 self-center px-5 rounded-full bg-finland text-white text-sm font-semibold hover:bg-finland-dark shadow-sm"
               >
                 Search
               </button>

@@ -1,6 +1,21 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, MapPin, Heart, Star, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import {
+  ArrowLeft,
+  MapPin,
+  Heart,
+  Star,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  Users,
+  BedDouble,
+  Bath,
+  Home,
+  Clock,
+  Shield,
+} from 'lucide-react';
+import { stayAmenityLucideIcon } from '../lib/stay-amenity-icons';
 import { getListingById, getListingByIdAsync } from '../data/listings';
 import { stayRestrictionLines } from '../lib/stay-restrictions';
 import { staySafetyConsiderationLines } from '../lib/stay-safety';
@@ -50,7 +65,6 @@ import { checkoutPayBlockedByConsent } from '../lib/checkout-consent';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { CHECKOUT_HOLD_MINUTES } from '../lib/booking-hold';
 import { STAY_REQUEST_APPROVAL_HOURS } from '../lib/stay-booking-method';
-import { formatOccupiedNightRanges, formatStayNightHuman, upcomingOccupiedNights } from '../lib/stay-calendar';
 import { stayAmenityDisplayList } from '../lib/stay-amenities';
 import { stayStickyBookCtaLabel } from '../lib/stay-sticky-cta';
 import { stayQuoteFailureFocusTarget } from '../lib/stay-quote-failure-focus';
@@ -129,7 +143,6 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
   const [blockedNights, setBlockedNights] = useState<string[]>([]);
   const [occupancyError, setOccupancyError] = useState<string | null>(null);
   /** True after a successful occupancy fetch for the current stay — empty nights ≠ “fully open” until then. */
-  const [occupancyLoaded, setOccupancyLoaded] = useState(false);
   /** Overlapping occupancy reloads (tab visibility, stay change) must not commit stale nights. */
   const occupancyReloadGenRef = useRef(0);
   const [savedToWishlist, setSavedToWishlist] = useState(false);
@@ -153,6 +166,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
   // Phase 1668: Tour-parity photo lightbox for stay galleries.
   const gallerySheetRef = useRef<HTMLDivElement>(null);
   const [galleryLightboxOpen, setGalleryLightboxOpen] = useState(false);
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
   const closeGalleryLightbox = useCallback(() => setGalleryLightboxOpen(false), []);
   useDialogFocus(galleryLightboxOpen, gallerySheetRef, closeGalleryLightbox);
@@ -165,7 +179,6 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
     setOccupiedRanges([]);
     setBlockedNights([]);
     setOccupancyError(null);
-    setOccupancyLoaded(false);
     void getListingByIdAsync(stayId)
       .then(async (row) => {
         if (cancelled) return;
@@ -409,7 +422,6 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
       setOccupiedRanges([]);
       setBlockedNights([]);
       setOccupancyError(null);
-      setOccupancyLoaded(false);
       return () => {};
     }
     const reloadGen = ++occupancyReloadGenRef.current;
@@ -427,7 +439,6 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
         if (cancelled || reloadGen !== occupancyReloadGenRef.current) return;
         setOccupiedRanges(ranges);
         setBlockedNights(nights);
-        setOccupancyLoaded(true);
       })
       .catch((e) => {
         if (cancelled || reloadGen !== occupancyReloadGenRef.current) return;
@@ -485,15 +496,6 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
   const occupiedNights = useMemo(
     () => [...new Set([...bookedNights, ...blockedNights])],
     [bookedNights, blockedNights]
-  );
-  // Phase 1512: Availability prose lists only nights still bookable against.
-  const upcomingBookedNights = useMemo(
-    () => upcomingOccupiedNights(bookedNights, experienceTodayIso),
-    [bookedNights, experienceTodayIso]
-  );
-  const upcomingBlockedNights = useMemo(
-    () => upcomingOccupiedNights(blockedNights, experienceTodayIso),
-    [blockedNights, experienceTodayIso]
   );
   const selectionOccupied =
     checkIn && checkOut
@@ -832,262 +834,249 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
           ) : null}
         </div>
 
-        <div className="mb-6 sm:mb-8">
-          {hasStayGallery ? (
-            <div className="grid grid-cols-1 gap-2 sm:gap-2.5 lg:grid-cols-4 lg:grid-rows-2 lg:h-[22rem]">
-              {hero ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedImage(0);
-                    setGalleryLightboxOpen(true);
-                  }}
-                  className="relative overflow-hidden rounded-2xl bg-ink/10 lg:col-span-2 lg:row-span-2 aspect-[4/3] lg:aspect-auto text-left"
-                  aria-label={`Photo 1 of ${stayGalleryImages.length}`}
+        <header className="mb-5 max-w-3xl lg:mb-6">
+          <p className="mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-muted">
+            {s?.propertyType?.trim() ? (
+              <span className="inline-flex items-center gap-1 font-semibold text-finland">
+                <Home className="h-3.5 w-3.5" aria-hidden strokeWidth={2} />
+                {s.propertyType.trim()}
+              </span>
+            ) : null}
+            {s?.propertyType?.trim() ? <span aria-hidden>·</span> : null}
+            <span className="inline-flex items-center gap-1">
+              <MapPin className="h-3.5 w-3.5 text-finland" aria-hidden strokeWidth={2} />
+              {s?.locationDisplayName?.trim()
+                ? s.locationDisplayName.trim()
+                : [stay.city, stay.country].filter(Boolean).join(', ') || stay.destination}
+            </span>
+          </p>
+          {s?.accommodationMode === 'multi' ? (
+            <p className="mb-2 text-sm text-ink-muted">Room types for this property are not open for booking yet.</p>
+          ) : null}
+          <h1 className="font-sans text-[1.65rem] font-bold tracking-tight text-ink sm:text-3xl lg:text-[2rem] break-words [overflow-wrap:anywhere] leading-[1.2]">
+            {stay.title}
+          </h1>
+          {stay.subtitle?.trim() ? (
+            <p className="mt-1.5 max-w-2xl text-sm leading-snug text-ink-muted line-clamp-2">
+              {stay.subtitle.trim()}
+            </p>
+          ) : null}
+          <ul className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-ink-muted">
+            {typeof s?.maxGuests === 'number' ? (
+              <li className="inline-flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5 opacity-70" aria-hidden strokeWidth={2} />
+                Up to {s.maxGuests} guests
+              </li>
+            ) : null}
+            {typeof s?.bedrooms === 'number' ? (
+              <li className="inline-flex items-center gap-1.5">
+                <BedDouble className="h-3.5 w-3.5 opacity-70" aria-hidden strokeWidth={2} />
+                {s.bedrooms === 1 ? '1 bedroom' : `${s.bedrooms} bedrooms`}
+              </li>
+            ) : null}
+            {stayBedSummary(s?.bedMix) || typeof s?.beds === 'number' ? (
+              <li className="inline-flex items-center gap-1.5">
+                <BedDouble className="h-3.5 w-3.5 opacity-70" aria-hidden strokeWidth={2} />
+                {stayBedSummary(s?.bedMix) ||
+                  (typeof s?.beds === 'number'
+                    ? s.beds === 1
+                      ? '1 bed'
+                      : `${s.beds} beds`
+                    : null)}
+              </li>
+            ) : null}
+            {typeof s?.bathrooms === 'number' ? (
+              <li className="inline-flex items-center gap-1.5">
+                <Bath className="h-3.5 w-3.5 opacity-70" aria-hidden strokeWidth={2} />
+                {s.bathrooms === 1 ? '1 bath' : `${s.bathrooms} baths`}
+              </li>
+            ) : null}
+          </ul>
+        </header>
+
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1.85fr)_minmax(17.5rem,22rem)] lg:gap-8 pb-24 lg:pb-0">
+          <div className="min-w-0 space-y-8 text-[15px] leading-relaxed text-ink">
+            <div>
+              {hasStayGallery ? (
+                <div
+                  className={`grid grid-cols-1 gap-2 ${
+                    stayGalleryImages.length > 1 ? 'lg:grid-cols-4 lg:grid-rows-2 lg:h-[22rem] lg:gap-2.5' : ''
+                  }`}
                 >
-                  <img
-                    src={hero}
-                    alt=""
-                    className="absolute inset-0 h-full w-full object-cover"
-                  />
-                </button>
-              ) : null}
-              {(hero ? gallery : gallery.slice(1)).slice(0, hero ? 4 : 5).map((url, i) => {
-                const src = listingHeroImageSrc(url) ?? url;
-                const index = stayGalleryImages.indexOf(src);
-                const photoIndex = index >= 0 ? index : i + (hero ? 1 : 0);
-                return (
-                  <button
-                    key={url}
-                    type="button"
-                    onClick={() => {
-                      setSelectedImage(photoIndex);
-                      setGalleryLightboxOpen(true);
-                    }}
-                    className="relative hidden overflow-hidden rounded-xl bg-ink/10 aspect-[4/3] lg:block text-left"
-                    aria-label={`Photo ${photoIndex + 1} of ${stayGalleryImages.length}`}
-                  >
-                    <img
-                      src={src}
-                      alt=""
-                      className="absolute inset-0 h-full w-full object-cover"
-                    />
-                  </button>
-                );
-              })}
-              {gallery.length > 0 ? (
-                <div className="flex gap-2 overflow-x-auto pb-1 lg:hidden -mx-1 px-1 snap-x snap-mandatory">
-                  {gallery.slice(0, 6).map((url, index) => {
+                  {hero ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedImage(0);
+                        setGalleryLightboxOpen(true);
+                      }}
+                      className={`relative overflow-hidden rounded-2xl bg-ink/10 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-finland ${
+                        stayGalleryImages.length > 1
+                          ? 'lg:col-span-2 lg:row-span-2 aspect-[4/3] lg:aspect-auto'
+                          : 'aspect-[16/10] max-h-[28rem]'
+                      }`}
+                      aria-label={`Open gallery, photo 1 of ${stayGalleryImages.length}`}
+                    >
+                      <img
+                        src={hero}
+                        alt=""
+                        decoding="async"
+                        fetchPriority="high"
+                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 motion-safe:hover:scale-[1.02]"
+                      />
+                    </button>
+                  ) : null}
+                  {(hero ? gallery : gallery.slice(1)).slice(0, hero ? 4 : 5).map((url, i) => {
                     const src = listingHeroImageSrc(url) ?? url;
-                    const photoIndex = stayGalleryImages.indexOf(src);
-                    const safeIndex = photoIndex >= 0 ? photoIndex : index + (hero ? 1 : 0);
+                    const index = stayGalleryImages.indexOf(src);
+                    const photoIndex = index >= 0 ? index : i + (hero ? 1 : 0);
+                    const isLastTile = i === 3 && stayGalleryImages.length > 5;
                     return (
                       <button
-                        key={`m-${url}`}
+                        key={url}
                         type="button"
                         onClick={() => {
-                          setSelectedImage(safeIndex);
+                          setSelectedImage(photoIndex);
                           setGalleryLightboxOpen(true);
                         }}
-                        className="relative w-[42%] shrink-0 snap-start overflow-hidden rounded-xl aspect-[4/3] text-left"
-                        aria-label={`Photo ${safeIndex + 1} of ${stayGalleryImages.length}`}
+                        className="relative hidden overflow-hidden rounded-2xl bg-ink/10 aspect-[4/3] lg:block text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-finland"
+                        aria-label={`Open gallery, photo ${photoIndex + 1} of ${stayGalleryImages.length}`}
                       >
                         <img
                           src={src}
                           alt=""
-                          className="h-full w-full object-cover"
+                          loading="lazy"
+                          decoding="async"
+                          className="absolute inset-0 h-full w-full object-cover"
                         />
+                        {isLastTile ? (
+                          <span className="absolute inset-0 flex items-center justify-center bg-ink/45 text-sm font-semibold text-white">
+                            +{stayGalleryImages.length - 5} more
+                          </span>
+                        ) : null}
                       </button>
                     );
                   })}
+                  {gallery.length > 0 ? (
+                    <div className="flex gap-2 overflow-x-auto pb-1 lg:hidden -mx-1 px-1 snap-x snap-mandatory">
+                      {gallery.slice(0, 6).map((url, index) => {
+                        const src = listingHeroImageSrc(url) ?? url;
+                        const photoIndex = stayGalleryImages.indexOf(src);
+                        const safeIndex = photoIndex >= 0 ? photoIndex : index + (hero ? 1 : 0);
+                        return (
+                          <button
+                            key={`m-${url}`}
+                            type="button"
+                            onClick={() => {
+                              setSelectedImage(safeIndex);
+                              setGalleryLightboxOpen(true);
+                            }}
+                            className="relative w-[42%] shrink-0 snap-start overflow-hidden rounded-2xl aspect-[4/3] text-left"
+                            aria-label={`Photo ${safeIndex + 1} of ${stayGalleryImages.length}`}
+                          >
+                            <img src={src} alt="" className="h-full w-full object-cover" />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="flex aspect-[21/9] items-center justify-center rounded-2xl bg-ink/[0.06] ring-1 ring-black/[0.04]">
+                  <p className="px-4 text-center text-sm text-ink-muted">No photos yet for this stay</p>
+                </div>
+              )}
+              {hasStayGallery ? (
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <p className="text-xs text-ink-muted tabular-nums">
+                    {stayGalleryImages.length} {stayGalleryImages.length === 1 ? 'photo' : 'photos'}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedImage(0);
+                      setGalleryLightboxOpen(true);
+                    }}
+                    className="tv-section-cta lux-flat text-xs"
+                  >
+                    View all photos
+                  </button>
                 </div>
               ) : null}
             </div>
-          ) : (
-            <div className="mb-3 flex h-56 w-full items-center justify-center rounded-3xl bg-ink/[0.06] ring-1 ring-black/[0.06]">
-              <p className="px-4 text-center text-sm text-ink-muted">No photos yet for this stay</p>
-            </div>
-          )}
-          {hasStayGallery ? (
-            <div className="mt-2 flex items-center justify-between gap-3">
-              <p className="text-xs text-ink-muted tabular-nums">
-                {stayGalleryImages.length} {stayGalleryImages.length === 1 ? 'photo' : 'photos'}
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedImage(0);
-                  setGalleryLightboxOpen(true);
-                }}
-                className="tv-section-cta lux-flat text-xs"
-              >
-                View all photos
-              </button>
-            </div>
-          ) : null}
-        </div>
 
-        <header className="mb-6 max-w-3xl">
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center rounded-md bg-finland/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-finland ring-1 ring-finland/15">
-              Stay
-            </span>
-            {s?.propertyType?.trim() ? (
-              <span className="inline-flex items-center rounded-md bg-paper-raised px-2 py-0.5 text-[11px] font-semibold text-ink-muted ring-1 ring-black/[0.06]">
-                {s.propertyType.trim()}
-              </span>
-            ) : null}
-            <p className="text-ink-muted flex items-center gap-2 text-sm m-0">
-              <MapPin className="w-4 h-4 text-finland" aria-hidden />
-              {s?.locationDisplayName?.trim() ? (
-                <span className="font-semibold text-ink">{s.locationDisplayName.trim()}</span>
-              ) : null}
-              {s?.locationDisplayName?.trim() ? <span aria-hidden>·</span> : null}
-              <span>{[stay.city, stay.country].filter(Boolean).join(', ') || stay.destination}</span>
-            </p>
-          </div>
-          {s?.accommodationMode === 'multi' ? (
-            <p className="mb-3 text-sm text-ink-muted">Room types for this property are not open for booking yet.</p>
-          ) : null}
-          <h1 className="font-display text-3xl sm:text-4xl lg:text-[2.75rem] text-ink tracking-tight mb-4 break-words [overflow-wrap:anywhere] leading-[1.15]">
-            {stay.title}
-          </h1>
-          {stay.subtitle?.trim() ? (
-            <p className="mb-4 max-w-2xl text-base leading-relaxed text-ink-muted">{stay.subtitle.trim()}</p>
-          ) : null}
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-lg border border-black/[0.08] bg-white px-4 py-4 sm:grid-cols-4 sm:px-5">
-            {typeof s?.maxGuests === 'number' ? (
-              <div className="min-w-0">
-                <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Guests</dt>
-                <dd className="mt-1 text-sm font-semibold text-ink">Up to {s.maxGuests}</dd>
-              </div>
-            ) : null}
-            {typeof s?.bedrooms === 'number' ? (
-              <div className="min-w-0">
-                <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Bedrooms</dt>
-                <dd className="mt-1 text-sm font-semibold text-ink">{s.bedrooms}</dd>
-              </div>
-            ) : null}
-            {typeof s?.beds === 'number' ? (
-              <div className="min-w-0">
-                <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Beds</dt>
-                <dd className="mt-1 text-sm font-semibold text-ink">{s.beds}</dd>
-              </div>
-            ) : null}
-            {typeof s?.bathrooms === 'number' ? (
-              <div className="min-w-0">
-                <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Baths</dt>
-                <dd className="mt-1 text-sm font-semibold text-ink">{s.bathrooms}</dd>
-              </div>
-            ) : null}
-          </dl>
-          {/* Phase 1557: dates + failed quote — do not invent catalog nightly in page hero (1546/1548). */}
-          {checkIn && checkOut && stayQuote && !stayQuote.ok ? (
-            <p className="mt-4 text-lg font-semibold text-ink">Price unavailable</p>
-          ) : quoteOk && stayQuote?.ok ? (
-            // Phase 1563: successful quote is the page hero total (panel 1562 / sticky 1546 parity).
-            <p className="mt-4 text-lg font-semibold tabular-nums text-ink">
-              {formatMoney(stayQuote.totalAmount, stayQuote.currency)}
-              <span className="ml-1 text-sm font-medium text-ink-muted">total</span>
-            </p>
-          ) : nightly > 0 ? (
-            <p className="mt-4 text-lg font-semibold tabular-nums text-ink">
-              {formatMoney(nightly, currency)}
-              <span className="ml-1 text-sm font-medium text-ink-muted">per night</span>
-            </p>
-          ) : null}
-        </header>
-
-        <div className="grid lg:grid-cols-[minmax(0,1fr)_22rem] gap-8 lg:gap-10 pb-24 lg:pb-0">
-          <div className="space-y-4 text-[15px] leading-relaxed text-ink">
             {stay.description ? (
-              <div className="tv-card p-4 sm:p-5">
-                <h2 className="font-display text-xl mb-2">The place</h2>
-                <p className="text-ink-muted break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
+              <section>
+                <h2 className="font-sans text-lg font-bold tracking-tight text-ink mb-2">About this place</h2>
+                <p
+                  className={`text-ink-muted break-words [overflow-wrap:anywhere] whitespace-pre-wrap ${
+                    descriptionExpanded ? '' : 'line-clamp-4'
+                  }`}
+                >
                   {stay.description}
                 </p>
-              </div>
+                {stay.description.length > 280 ? (
+                  <button
+                    type="button"
+                    className="mt-2 text-sm font-semibold text-finland hover:underline"
+                    onClick={() => setDescriptionExpanded((v) => !v)}
+                    aria-expanded={descriptionExpanded}
+                  >
+                    {descriptionExpanded ? 'Show less' : 'Read more'}
+                  </button>
+                ) : null}
+              </section>
             ) : null}
+
             {stay.highlights?.some((line) => line.trim()) ? (
-              <ul className="flex flex-wrap gap-2">
-                {stay.highlights.filter((line) => line.trim()).map((line) => (
-                  <li key={line} className="rounded-full bg-paper-raised px-3 py-1 text-sm text-ink ring-1 ring-black/[0.06]">{line}</li>
-                ))}
-              </ul>
-            ) : null}
-            <div className="tv-card p-4 sm:p-5">
-              <h2 className="font-display text-xl mb-2">About this place</h2>
-              <ul className="space-y-2 text-ink-muted">
-              {s?.propertyType ? <li>{s.propertyType}</li> : null}
-              {typeof s?.maxGuests === 'number' ? (
-                <li>Up to {s.maxGuests} guests</li>
-              ) : null}
-              {typeof s?.bedrooms === 'number' ? (
-                <li>{s.bedrooms === 1 ? '1 bedroom' : `${s.bedrooms} bedrooms`}</li>
-              ) : null}
-              {stayBedSummary(s?.bedMix) ? (
-                <li>{stayBedSummary(s?.bedMix)}</li>
-              ) : typeof s?.beds === 'number' ? (
-                <li>{s.beds === 1 ? '1 bed' : `${s.beds} beds`}</li>
-              ) : null}
-              {typeof s?.bathrooms === 'number' ? (
-                <li>{s.bathrooms === 1 ? '1 bath' : `${s.bathrooms} baths`}</li>
-              ) : null}
-              </ul>
-            </div>
-            {amenities.length > 0 ? (
-              <div className="rounded-2xl bg-finland/[0.06] p-5 sm:p-6 ring-1 ring-finland/15">
-                <h2 className="font-display text-xl mb-2">Amenities</h2>
-                <ul className="flex flex-wrap gap-2">
-                  {amenities.map((a) => (
-                    <li key={a} className="rounded-full bg-paper-raised px-3 py-1.5 text-sm text-ink ring-1 ring-black/[0.05] break-words [overflow-wrap:anywhere]">
-                      {a}
-                    </li>
-                  ))}
+              <section>
+                <h2 className="font-sans text-lg font-bold tracking-tight text-ink mb-3">Highlights</h2>
+                <ul className="grid gap-2 sm:grid-cols-2">
+                  {stay.highlights
+                    .filter((line) => line.trim())
+                    .map((line) => (
+                      <li
+                        key={line}
+                        className="rounded-xl px-3.5 py-2.5 text-sm font-medium text-ink ring-1 ring-black/[0.08]"
+                      >
+                        {line}
+                      </li>
+                    ))}
                 </ul>
-              </div>
+              </section>
             ) : null}
-            <div>
-              <h2 className="font-display text-xl mb-2">Availability</h2>
-              <p className="text-ink-muted leading-relaxed">
-                Minimum stay {minNights === 1 ? '1 night' : `${minNights} nights`}
-                {typeof s?.maxGuests === 'number' ? ` · up to ${s.maxGuests} guests` : ''}.
-                Checkout night is not occupied. If you pick nights that are already taken, booking is refused.
-              </p>
-              {upcomingBookedNights.length > 0 ? (
-                <p className="mt-3 text-sm text-ink">
-                  Booked: {formatOccupiedNightRanges(upcomingBookedNights.slice(0, 24))}
-                  {upcomingBookedNights.length > 24 ? '…' : ''}
-                </p>
-              ) : null}
-              {upcomingBlockedNights.length > 0 ? (
-                <p className={`text-sm text-ink ${upcomingBookedNights.length > 0 ? 'mt-1.5' : 'mt-3'}`}>
-                  Host blocked: {formatOccupiedNightRanges(upcomingBlockedNights.slice(0, 24))}
-                  {upcomingBlockedNights.length > 24 ? '…' : ''}
-                </p>
-              ) : null}
-              {occupancyLoaded && !occupancyError && upcomingBookedNights.length === 0 && upcomingBlockedNights.length === 0 ? (
-                <p className="mt-3 text-sm text-ink-muted">
-                  No nights are taken yet. Choose check-in and check-out on the booking panel.
-                </p>
-              ) : occupancyError && upcomingBookedNights.length === 0 && upcomingBlockedNights.length === 0 ? (
-                <p className="mt-3 text-sm text-ink-muted">
-                  We could not verify which nights are taken. Use Try again in the booking panel before you pay.
-                </p>
-              ) : !occupancyLoaded && !occupancyError && isSupabaseConfigured() ? (
-                <p className="mt-3 text-sm text-ink-muted">Checking which nights are taken…</p>
-              ) : null}
-            </div>
+
+            {amenities.length > 0 ? (
+              <section>
+                <h2 className="font-sans text-lg font-bold tracking-tight text-ink mb-3">Amenities</h2>
+                <ul className="grid grid-cols-1 gap-x-4 gap-y-2.5 sm:grid-cols-2">
+                  {amenities.map((a) => {
+                    const Icon = stayAmenityLucideIcon(a);
+                    return (
+                      <li key={a} className="flex items-center gap-2.5 text-sm text-ink break-words [overflow-wrap:anywhere]">
+                        {Icon ? (
+                          <Icon className="h-4 w-4 shrink-0 text-finland" aria-hidden strokeWidth={1.75} />
+                        ) : (
+                          <span className="h-4 w-4 shrink-0 rounded-full bg-finland/15" aria-hidden />
+                        )}
+                        <span>{a === 'Wifi' ? 'Wi-Fi' : a}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            ) : null}
             {(() => {
               const primary = (s?.options ?? []).find((option) => !option.archived);
               const areas = (primary?.sleepingAreas ?? []).filter((area) => area.beds.length > 0);
               if (areas.length === 0) return null;
               return (
-                <div>
-                  <h2 className="font-display text-xl mb-2">Where you'll sleep</h2>
-                  <ul className="space-y-3">
+                <section>
+                  <h2 className="font-sans text-lg font-bold tracking-tight text-ink mb-3">Where you&apos;ll sleep</h2>
+                  <ul className="grid gap-3 sm:grid-cols-2">
                     {areas.map((area) => {
                       const photos = primary?.roomPhotos?.find((row) => row.areaId === area.id)?.urls ?? [];
+                      const cover = photos[0] ?? null;
                       const beds = area.beds
                         .map((bed) => {
                           const label = STAY_BED_KINDS.find((kind) => kind.id === bed.kind)?.label ?? 'Bed';
@@ -1095,31 +1084,45 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                         })
                         .join(', ');
                       return (
-                        <li key={area.id} className="rounded-xl p-3 ring-1 ring-black/[0.08]">
-                          <p className="font-medium text-ink">{area.name}</p>
-                          <p className="text-sm text-ink-muted">{beds}</p>
-                          {photos.length > 0 ? (
-                            <ul className="mt-2 flex gap-2 overflow-x-auto">
-                              {photos.map((url) => (
-                                <li key={url}>
-                                  <img src={url} alt="" className="h-24 w-32 rounded-lg object-cover" />
-                                </li>
-                              ))}
-                            </ul>
-                          ) : null}
+                        <li
+                          key={area.id}
+                          className="flex gap-3 overflow-hidden rounded-xl ring-1 ring-black/[0.08]"
+                        >
+                          {cover ? (
+                            <img
+                              src={cover}
+                              alt=""
+                              className="h-[5.5rem] w-[5.5rem] shrink-0 object-cover"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="flex h-[5.5rem] w-[5.5rem] shrink-0 items-center justify-center bg-ink/[0.04]">
+                              <BedDouble className="h-5 w-5 text-ink-faint" aria-hidden />
+                            </div>
+                          )}
+                          <div className="min-w-0 py-2.5 pr-3">
+                            <p className="font-semibold text-ink text-sm leading-snug">{area.name}</p>
+                            <p className="mt-0.5 text-sm text-ink-muted leading-snug">{beds}</p>
+                          </div>
                         </li>
                       );
                     })}
                   </ul>
-                </div>
+                </section>
               );
             })()}
-            <div>
-              <h2 className="font-display text-xl mb-2">Check-in & check-out</h2>
-              <ul className="space-y-2 text-ink-muted">
+
+            <section className="border-t border-black/[0.08] pt-8">
+              <h2 className="font-sans text-lg font-bold tracking-tight text-ink mb-3 flex items-center gap-2">
+                <Clock className="h-4 w-4 text-finland" aria-hidden strokeWidth={2} />
+                Check-in &amp; check-out
+              </h2>
+              <ul className="space-y-2 text-sm text-ink-muted">
                 {s?.checkInTime ? <li>Check-in from {s.checkInTime}</li> : null}
                 {s?.checkOutTime ? <li>Check-out by {s.checkOutTime}</li> : null}
-                {stayArrivalMethodLabel(s?.arrivalMethod) ? <li>{stayArrivalMethodLabel(s?.arrivalMethod)}</li> : null}
+                {stayArrivalMethodLabel(s?.arrivalMethod) ? (
+                  <li>Arrival: {stayArrivalMethodLabel(s?.arrivalMethod)}</li>
+                ) : null}
                 {s?.arrivalNote ? <li>{s.arrivalNote}</li> : null}
                 {(() => {
                   // Phase 1587: only times / missing-time honesty here — Trips email note lives on booking panel (1585/1586).
@@ -1129,31 +1132,50 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                   });
                   return missing ? <li>{missing}</li> : null;
                 })()}
+                <li className="text-ink-faint">
+                  Access codes and the private arrival address are shared with confirmed guests after payment.
+                </li>
               </ul>
-            </div>
+            </section>
+
             {stayRestrictionLines(s?.restrictions).length > 0 || s?.houseRules ? (
-              <div>
-                <h2 className="font-display text-xl mb-2">House rules</h2>
+              <section className="border-t border-black/[0.08] pt-8">
+                <h2 className="font-sans text-lg font-bold tracking-tight text-ink mb-3">House rules</h2>
                 {stayRestrictionLines(s?.restrictions).length > 0 ? (
-                  <ul className="mb-3 list-disc space-y-1 pl-5 text-ink-muted">
+                  <ul className="mb-3 grid gap-2 sm:grid-cols-2">
                     {stayRestrictionLines(s?.restrictions).map((line) => (
-                      <li key={line}>{line}</li>
+                      <li
+                        key={line}
+                        className="rounded-lg px-3 py-2 text-sm text-ink-muted ring-1 ring-black/[0.06]"
+                      >
+                        {line}
+                      </li>
                     ))}
                   </ul>
                 ) : null}
                 {s?.houseRules ? (
-                  <p className="text-ink-muted break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{s.houseRules}</p>
+                  <p className="text-sm text-ink-muted break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
+                    {s.houseRules}
+                  </p>
                 ) : null}
-              </div>
+              </section>
             ) : null}
+
             {s?.exteriorCamera || (s?.safetyConsiderations?.length ?? 0) > 0 || s?.safetyNote ? (
-              <div>
-                <h2 className="font-display text-xl mb-2">Safety</h2>
-                <ul className="space-y-1 text-ink-muted">
+              <section className="border-t border-black/[0.08] pt-8">
+                <h2 className="font-sans text-lg font-bold tracking-tight text-ink mb-3 flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-finland" aria-hidden strokeWidth={2} />
+                  Safety
+                </h2>
+                <ul className="space-y-1.5 text-sm text-ink-muted">
                   {s.exteriorCamera ? (
                     <li>
                       Exterior security camera
-                      {s.cameraLocation ? `: ${s.cameraLocation}` : s.safetyNote && !s.cameraLocation ? `: ${s.safetyNote}` : ''}
+                      {s.cameraLocation
+                        ? `: ${s.cameraLocation}`
+                        : s.safetyNote && !s.cameraLocation
+                          ? `: ${s.safetyNote}`
+                          : ''}
                     </li>
                   ) : null}
                   {staySafetyConsiderationLines(s.safetyConsiderations).map((line) => (
@@ -1161,24 +1183,26 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                   ))}
                   {s.safetyNote && (!s.exteriorCamera || s.cameraLocation) ? <li>{s.safetyNote}</li> : null}
                 </ul>
-              </div>
-            ) : null}
-            <div>
-              <h2 className="font-display text-xl mb-2">Cancellation</h2>
-              <p className="text-ink-muted break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
-                {STAY_GUEST_CANCELLATION_POLICY}
-              </p>
-            </div>
-            {hostName ? (
-              <div>
-                <h2 className="font-display text-xl mb-2">Host</h2>
-                <p className="text-ink-muted">{hostName}</p>
-              </div>
+              </section>
             ) : null}
 
-            <div id="stay-reviews">
+            <section className="border-t border-black/[0.08] pt-8">
+              <h2 className="font-sans text-lg font-bold tracking-tight text-ink mb-2">Cancellation</h2>
+              <p className="text-sm text-ink-muted break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
+                {STAY_GUEST_CANCELLATION_POLICY}
+              </p>
+            </section>
+
+            {hostName ? (
+              <section className="border-t border-black/[0.08] pt-8">
+                <h2 className="font-sans text-lg font-bold tracking-tight text-ink mb-2">Host</h2>
+                <p className="text-sm text-ink-muted">{hostName}</p>
+              </section>
+            ) : null}
+
+            <div id="stay-reviews" className="border-t border-black/[0.08] pt-8">
               <div className="mb-2 flex flex-wrap items-end justify-between gap-3">
-                <h2 className="font-display text-xl">Reviews</h2>
+                <h2 className="font-sans text-lg font-bold tracking-tight text-ink">Reviews</h2>
                 {reviews.length > 0 ? (
                   <button
                     type="button"
@@ -1396,11 +1420,12 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
             </div>
           </div>
 
+          <div className="min-w-0">
           <aside
             id="stay-booking-panel"
             role="region"
             aria-labelledby="stay-booking-panel-title"
-            className="tv-booking-sticky lg:sticky lg:top-[calc(4.75rem+env(safe-area-inset-top,0px))] lg:self-start h-fit scroll-mt-28"
+            className="tv-booking-sticky tv-booking-sticky--fit lg:sticky lg:top-[calc(4.75rem+env(safe-area-inset-top,0px))] h-fit scroll-mt-28"
           >
             <p
               id="stay-booking-panel-title"
@@ -1441,11 +1466,6 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                 }}
               />
             </div>
-            <p className="mt-3 text-sm text-ink">
-              {checkIn ? formatStayNightHuman(checkIn) : 'Check-in'}
-              {' → '}
-              {checkOut ? formatStayNightHuman(checkOut) : 'Check-out'}
-            </p>
             <div className="mt-3">
               <StayGuestPartySelector
                 id="stay-guests"
@@ -1683,6 +1703,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
               {STAY_LISTING_CONFIRMATION_NOTE} Checkout uses {STRIPE_TEST_UNTIL_LIVE}.
             </p>
           </aside>
+          </div>
         </div>
       </div>
       {createPortal(

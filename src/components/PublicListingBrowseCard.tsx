@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { Heart } from 'lucide-react';
+import { Heart, MapPin, Users, BedDouble } from 'lucide-react';
 import { prefetchTourDetailsPage } from '../lib/routePrefetch';
 import type { TourPackage } from '../types/tour';
 import type { ListingDiscount } from '../data/supabase-discounts';
@@ -75,7 +75,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
   const extras = parseListingExtras(tour.listingExtras);
   const stay = isStay ? extras.stay : undefined;
   const stayNightly = stay?.nightlyPriceUsd && stay.nightlyPriceUsd > 0 ? stay.nightlyPriceUsd : fromAmount;
-  const unitLabel = isStay ? 'per night' : qualifier ? `per ${qualifier}` : 'per person';
+  const unitLabel = isStay ? 'night' : qualifier ? `per ${qualifier}` : 'per person';
   const locationLine =
     [tour.city, tour.country].filter(Boolean).join(', ') || tour.destination || 'Various locations';
   const bookingOpts = isStay ? [] : materializedBookingOptions(extras.bookingOptions);
@@ -91,13 +91,14 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
     tour.experienceStartStyle === 'fixed_meeting_place';
   const privateOnly =
     !isStay && bookingOpts.length > 0 && bookingOpts.every((o) => Boolean(o.isPrivate));
-  const stayBits = isStay
-    ? [
-        stay?.maxGuests ? `${stay.maxGuests} guest${stay.maxGuests === 1 ? '' : 's'}` : tour.groupSize || null,
-        typeof stay?.bedrooms === 'number' ? `${stay.bedrooms} bedroom${stay.bedrooms === 1 ? '' : 's'}` : null,
-        stay?.propertyType?.trim() || null,
-      ].filter(Boolean)
-    : [];
+  const propertyType = stay?.propertyType?.trim() || '';
+  const guestLabel = stay?.maxGuests
+    ? `${stay.maxGuests} guest${stay.maxGuests === 1 ? '' : 's'}`
+    : tour.groupSize || null;
+  const bedroomLabel =
+    typeof stay?.bedrooms === 'number'
+      ? `${stay.bedrooms} bedroom${stay.bedrooms === 1 ? '' : 's'}`
+      : null;
   const tourBits = isStay
     ? []
     : [
@@ -105,7 +106,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
         pickupIncluded ? 'Pickup included' : pickupOrMeet ? 'Pickup or meet' : meetingOnly ? 'Meeting point' : null,
         privateOnly ? 'Private' : null,
       ].filter(Boolean);
-  const metaLine = (isStay ? stayBits : tourBits).join(' · ');
+  const metaLine = tourBits.join(' · ');
   const extraTags =
     tour.tags?.filter((t) => t !== 'free-cancellation' && t !== 'bestseller') ?? [];
   const heroSrc = listingHeroImageSrc(tour.image);
@@ -157,7 +158,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
           }
         }}
         onPointerEnter={prefetchTourDetailsPage}
-        className="group lux-flat block w-full overflow-hidden rounded-lg bg-white text-left ring-1 ring-black/[0.08] transition-[box-shadow,ring-color] duration-200 hover:ring-finland/30 hover:shadow-[0_8px_24px_-18px_rgba(15,23,42,0.45)] focus:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
+        className="group lux-flat block w-full overflow-hidden rounded-xl bg-white text-left ring-1 ring-black/[0.08] transition-[box-shadow,ring-color] duration-200 hover:ring-finland/25 hover:shadow-[0_10px_28px_-18px_rgba(15,23,42,0.4)] focus:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
         style={{ animationDelay: `${Math.min(index * 35, 240)}ms` }}
         aria-label={`View ${tour.title}. ${priceAria}`}
       >
@@ -175,21 +176,22 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
               decoding="async"
               width={size === 'compact' ? 640 : 800}
               height={size === 'compact' ? 512 : 600}
-              className="h-full w-full object-cover transition-transform duration-500 ease-out motion-safe:group-hover:scale-[1.03]"
+              className="h-full w-full object-cover transition-transform duration-500 ease-out motion-safe:group-hover:scale-[1.04]"
             />
           ) : null}
           <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-1.5 pr-12">
-            <span className="rounded-md bg-white/95 px-2 py-0.5 text-[11px] font-semibold text-ink ring-1 ring-black/[0.04]">
-              {isStay ? 'Stay' : 'Tour'}
-            </span>
+            {!isStay ? (
+              <span className="rounded-md bg-white/95 px-2 py-0.5 text-[11px] font-semibold text-ink ring-1 ring-black/[0.04]">
+                Tour
+              </span>
+            ) : propertyType ? (
+              <span className="rounded-md bg-white/95 px-2 py-0.5 text-[11px] font-semibold text-ink ring-1 ring-black/[0.04]">
+                {propertyType}
+              </span>
+            ) : null}
             {listingShowsFreeCancellation(tour) ? (
               <span className="rounded-md bg-white/95 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 ring-1 ring-black/[0.04]">
                 Free cancellation
-              </span>
-            ) : null}
-            {isStay && stay?.propertyType?.trim() && !listingShowsFreeCancellation(tour) ? (
-              <span className="rounded-md bg-white/95 px-2 py-0.5 text-[11px] font-semibold text-ink ring-1 ring-black/[0.04]">
-                {stay.propertyType.trim()}
               </span>
             ) : null}
           </div>
@@ -202,10 +204,13 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
           ) : null}
         </div>
         <div className={size === 'compact' ? 'p-3' : 'px-3.5 py-3'}>
-          <p className="truncate text-[12px] sm:text-[13px] text-ink-muted">{locationLine}</p>
+          <p className="flex items-center gap-1 truncate text-[12px] text-ink-muted sm:text-[13px]">
+            <MapPin className="h-3 w-3 shrink-0 text-finland/80" aria-hidden strokeWidth={2} />
+            <span className="truncate">{locationLine}</span>
+          </p>
           <h3
             title={tour.title}
-            className={`mt-0.5 line-clamp-2 break-words font-sans font-bold leading-snug tracking-tight text-[#111827] [overflow-wrap:anywhere] ${
+            className={`mt-1 line-clamp-2 break-words font-sans font-bold leading-snug tracking-tight text-[#111827] [overflow-wrap:anywhere] ${
               size === 'compact' ? 'text-[15px] sm:text-[16px]' : 'text-[15px] sm:text-base'
             }`}
           >
@@ -214,7 +219,24 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
           <div className="mt-1.5">
             <ListingCardRating tour={tour} aggregate={reviewAggregate} compact />
           </div>
-          {metaLine ? <p className="mt-1 truncate text-[13px] text-ink-muted">{metaLine}</p> : null}
+          {isStay && (guestLabel || bedroomLabel) ? (
+            <p className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[12px] text-ink-muted sm:text-[13px]">
+              {guestLabel ? (
+                <span className="inline-flex items-center gap-1">
+                  <Users className="h-3 w-3 shrink-0 opacity-70" aria-hidden strokeWidth={2} />
+                  {guestLabel}
+                </span>
+              ) : null}
+              {bedroomLabel ? (
+                <span className="inline-flex items-center gap-1">
+                  <BedDouble className="h-3 w-3 shrink-0 opacity-70" aria-hidden strokeWidth={2} />
+                  {bedroomLabel}
+                </span>
+              ) : null}
+            </p>
+          ) : metaLine ? (
+            <p className="mt-1 truncate text-[13px] text-ink-muted">{metaLine}</p>
+          ) : null}
           {/* Phase 1803: price row — clearer From + amount hierarchy on browse cards. */}
           <p
             className={`mt-2.5 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 tabular-nums ${
@@ -233,7 +255,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
                   total · {stayStayTotal.nights} night{stayStayTotal.nights === 1 ? '' : 's'}
                 </span>
                 <span className="w-full text-xs font-medium text-ink-faint">
-                  {formatMoney(stayNightly, currency)} per night
+                  {formatMoney(stayNightly, currency)} / night
                 </span>
               </>
             ) : stayQuoteUnavailable ? (
@@ -251,7 +273,9 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
                 <span className={`font-bold tracking-tight ${hasDiscount && !isStay ? 'text-[#B42318]' : 'text-[#111827]'}`}>
                   {formatMoney(isStay ? stayNightly : fromAmount, currency)}
                 </span>
-                <span className="text-[13px] font-medium text-ink-muted">{unitLabel}</span>
+                <span className="text-[13px] font-medium text-ink-muted">
+                  {isStay ? `/ ${unitLabel}` : unitLabel}
+                </span>
                 {!isStay && summary ? (
                   <span className="w-full text-xs font-medium text-ink-muted">{summary}</span>
                 ) : null}
