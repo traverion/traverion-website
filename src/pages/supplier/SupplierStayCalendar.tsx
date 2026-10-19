@@ -39,6 +39,14 @@ import {
   type StayCalendarStatusFilter,
   type StayCalendarViewMode,
 } from '../../lib/stay-calendar-workspace';
+import {
+  applyStayDateTap,
+  formatStayRangeLabel,
+  planStayRangeActions,
+  stayDateRangeEdge,
+  stayDateRangeFromDrag,
+  type StayDateRange,
+} from '../../lib/stay-calendar-selection';
 import { openSupplierBooking, navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_CREATE_PATH } from '../../lib/partnerPortalPaths';
 import {
@@ -102,7 +110,7 @@ export default function SupplierStayCalendar() {
     toastTimerRef.current = window.setTimeout(() => {
       setToast(null);
       toastTimerRef.current = null;
-    }, 3500);
+    }, 3000);
   }, []);
 
   const [view, setView] = useState<StayCalendarViewMode>(() => {
@@ -134,7 +142,7 @@ export default function SupplierStayCalendar() {
     return { year: y, monthIndex0: m - 1 };
   });
   const [weekPropPage, setWeekPropPage] = useState(0);
-  const [rangeSelect, setRangeSelect] = useState<{ start: string; end: string } | null>(null);
+  const [rangeSelect, setRangeSelect] = useState<StayDateRange | null>(null);
 
   const loadGenRef = useRef(0);
   const userIdRef = useRef<string | null>(null);
@@ -444,43 +452,54 @@ export default function SupplierStayCalendar() {
         setListingId(id);
         syncUrl({ listing: id });
       }
-      setRangeSelect((prev) => {
-        if (!prev) return { start: iso, end: iso };
-        if (prev.start === iso && prev.end === iso) return null;
-        const start = iso < prev.start ? iso : prev.start;
-        const end = iso > prev.end ? iso : prev.end;
-        return { start, end };
-      });
+      setRangeSelect((prev) => applyStayDateTap(prev, iso));
     },
     [canEdit, listingId, openReservation, syncUrl]
   );
 
+  const onCommitRange = useCallback(
+    (id: string, range: StayDateRange) => {
+      if (!canEdit) return;
+      if (!listingId) {
+        setListingId(id);
+        syncUrl({ listing: id });
+      }
+      setRangeSelect(range);
+    },
+    [canEdit, listingId, syncUrl]
+  );
+
+  const rangePlan = useMemo(() => {
+    if (!rangeSelect || !listingId) return null;
+    return planStayRangeActions({
+      range: rangeSelect,
+      canBlock: (iso) => stayCalendarCanBlockNight({ bookings, listingId, iso }),
+      canUnblock: (iso) =>
+        stayCalendarCanUnblockNight({ bookings, caps, listingId, iso }),
+    });
+  }, [rangeSelect, listingId, bookings, caps]);
+
   const applyRangeBlock = useCallback(
     async (mode: 'block' | 'unblock') => {
-      if (!rangeSelect || !listingId) {
+      if (!rangeSelect || !listingId || !rangePlan) {
         showToast('Select a property, then choose nights.', 'warn');
         return;
       }
-      const dates = eachIsoInRange(rangeSelect.start, rangeSelect.end);
-      if (mode === 'block') await blockDates(listingId, dates);
-      else await unblockDates(listingId, dates);
+      if (mode === 'block') {
+        if (rangePlan.blockable.length === 0) {
+          showToast(rangePlan.note || 'No nights can be blocked.', 'warn');
+          return;
+        }
+        await blockDates(listingId, rangePlan.blockable);
+      } else {
+        if (rangePlan.unblockable.length === 0) {
+          showToast(rangePlan.note || 'No nights can be unblocked.', 'warn');
+          return;
+        }
+        await unblockDates(listingId, rangePlan.unblockable);
+      }
     },
-    [listingId, rangeSelect, blockDates, unblockDates, showToast]
-  );
-
-  const rangeCanBlock = Boolean(
-    listingId &&
-      rangeSelect &&
-      eachIsoInRange(rangeSelect.start, rangeSelect.end).some((iso) =>
-        stayCalendarCanBlockNight({ bookings, listingId, iso })
-      )
-  );
-  const rangeCanUnblock = Boolean(
-    listingId &&
-      rangeSelect &&
-      eachIsoInRange(rangeSelect.start, rangeSelect.end).some((iso) =>
-        stayCalendarCanUnblockNight({ bookings, caps, listingId, iso })
-      )
+    [listingId, rangeSelect, rangePlan, blockDates, unblockDates, showToast]
   );
 
   if (!isSupabase || !user) {
@@ -540,38 +559,41 @@ export default function SupplierStayCalendar() {
             </NoticeCallout>
           ) : null}
 
-          {canEdit && rangeSelect && listingId ? (
+          {canEdit && rangeSelect && listingId && rangePlan ? (
             <div className="tv-stay-cal-rangebar" role="region" aria-label="Selected nights">
               <p className="tv-stay-cal-rangebar__meta">
-                Selected{' '}
-                <strong>
-                  {rangeSelect.start}
-                  {rangeSelect.end !== rangeSelect.start ? ` → ${rangeSelect.end}` : ''}
-                </strong>
+                <strong>{formatStayRangeLabel(rangeSelect)}</strong>
+                {rangePlan.note ? (
+                  <span className="tv-stay-cal-rangebar__note">{rangePlan.note}</span>
+                ) : null}
               </p>
-              <button
-                type="button"
-                disabled={saving || !rangeCanBlock}
-                className="tv-btn-primary inline-flex h-8 items-center gap-1.5 !px-2.5 text-[12.5px] disabled:opacity-40"
-                onClick={() => void applyRangeBlock('block')}
-              >
-                <Layers className="h-3.5 w-3.5" aria-hidden />
-                {saving ? 'Saving…' : 'Block'}
-              </button>
-              <button
-                type="button"
-                disabled={saving || !rangeCanUnblock}
-                className="tv-btn-secondary inline-flex h-8 items-center gap-1.5 !px-2.5 text-[12.5px] disabled:opacity-40"
-                onClick={() => void applyRangeBlock('unblock')}
-              >
-                Unblock
-              </button>
+              {rangePlan.blockable.length > 0 ? (
+                <button
+                  type="button"
+                  disabled={saving}
+                  className="tv-btn-primary inline-flex h-8 items-center gap-1.5 !px-2.5 text-[12.5px] disabled:opacity-40"
+                  onClick={() => void applyRangeBlock('block')}
+                >
+                  <Layers className="h-3.5 w-3.5" aria-hidden />
+                  {saving ? 'Saving…' : 'Block dates'}
+                </button>
+              ) : null}
+              {rangePlan.unblockable.length > 0 ? (
+                <button
+                  type="button"
+                  disabled={saving}
+                  className="tv-btn-secondary inline-flex h-8 items-center gap-1.5 !px-2.5 text-[12.5px] disabled:opacity-40"
+                  onClick={() => void applyRangeBlock('unblock')}
+                >
+                  {saving ? 'Saving…' : 'Unblock dates'}
+                </button>
+              ) : null}
               <button
                 type="button"
                 className="tv-btn-ghost h-8 px-2 text-[12.5px]"
                 onClick={() => setRangeSelect(null)}
               >
-                Clear
+                Clear selection
               </button>
             </div>
           ) : null}
@@ -835,8 +857,10 @@ export default function SupplierStayCalendar() {
               bookings={bookings}
               caps={caps}
               rangeSelect={rangeSelect}
+              canEdit={canEdit}
               onRequireListing={() => showToast('Select a property for Month view.', 'warn')}
               onNightClick={onNightClick}
+              onCommitRange={onCommitRange}
               onPickListing={(id) => {
                 setListingId(id);
                 syncUrl({ listing: id });
@@ -862,10 +886,8 @@ function StayAgenda({
   if (groups.length === 0) {
     return (
       <div className="tv-avail-empty">
-        <p className="tv-avail-empty__title">No stay activity in this range</p>
-        <p className="tv-avail-empty__body">
-          Adjust dates, property, or status — or block nights from Week or Month view.
-        </p>
+        <p className="tv-avail-empty__title">No activity in this range</p>
+        <p className="tv-avail-empty__body">Try another date range, or block nights in Week or Month.</p>
       </div>
     );
   }
@@ -878,7 +900,14 @@ function StayAgenda({
             <span className="tv-avail-agenda__count">{g.rows.length}</span>
           </div>
           <ul className="tv-avail-agenda__list">
-            {g.rows.map((r) => (
+            {g.rows.map((r) => {
+              const guestLine =
+                r.kind === 'blocked'
+                  ? 'Blocked'
+                  : r.kind === 'check_in'
+                    ? `Check-in · ${r.guestName}`
+                    : `Check-out · ${r.guestName}`;
+              return (
               <li key={r.key} className="tv-avail-agenda__row">
                 <button
                   type="button"
@@ -896,14 +925,10 @@ function StayAgenda({
                     )}
                   </span>
                   <span className="tv-avail-agenda__names min-w-0">
-                    <span className="tv-avail-agenda__product">{r.listingTitle}</span>
+                    <span className="tv-avail-agenda__product">{guestLine}</span>
                     <span className="tv-avail-agenda__option">
-                      {r.kind === 'blocked'
-                        ? 'Blocked night'
-                        : r.kind === 'check_in'
-                          ? `Check-in · ${r.guestName}`
-                          : `Check-out · ${r.guestName}`}
-                      {r.guests > 0 ? ` · ${r.guests} guest${r.guests === 1 ? '' : 's'}` : ''}
+                      {r.listingTitle}
+                      {r.guests > 0 ? ` · ${r.guests}` : ''}
                       {r.timeLabel ? ` · ${r.timeLabel}` : ''}
                     </span>
                   </span>
@@ -921,7 +946,8 @@ function StayAgenda({
                   </span>
                 </button>
               </li>
-            ))}
+              );
+            })}
           </ul>
         </section>
       ))}
@@ -1007,15 +1033,14 @@ function StayWeek({
                           const occupying = stayCalendarOccupyingOnNight(bookings, listing.id, iso);
                           const cap = stayCalendarCapacityOnNight(caps, listing.id, iso);
                           const kind = stayCalendarNightKind({ occupying, capacity: cap });
-                          const selected =
-                            rangeSelect &&
-                            iso >= rangeSelect.start &&
-                            iso <= rangeSelect.end;
+                          const edge = stayDateRangeEdge(iso, rangeSelect);
                           return (
                             <button
                               key={iso}
                               type="button"
-                              className={`tv-stay-cal-week__cell ${kindClass(kind)}${selected ? ' is-selected' : ''}`}
+                              className={`tv-stay-cal-week__cell ${kindClass(kind)}${
+                                edge ? ` is-in-range is-range-${edge}` : ''
+                              }`}
                               onClick={() =>
                                 onNightClick(
                                   listing.id,
@@ -1094,7 +1119,9 @@ function StayMonth({
   bookings,
   caps,
   rangeSelect,
+  canEdit,
   onNightClick,
+  onCommitRange,
   onRequireListing,
   onPickListing,
 }: {
@@ -1104,18 +1131,72 @@ function StayMonth({
   listings: TourPackage[];
   bookings: BookingRow[];
   caps: StayCalendarCap[];
-  rangeSelect: { start: string; end: string } | null;
+  rangeSelect: StayDateRange | null;
+  canEdit: boolean;
   onNightClick: (listingId: string, iso: string, kind: StayCalendarNightKind, occupyingIds: string[]) => void;
+  onCommitRange: (listingId: string, range: StayDateRange) => void;
   onRequireListing: () => void;
   onPickListing: (id: string) => void;
 }) {
+  const dragAnchorRef = useRef<string | null>(null);
+  const dragMovedRef = useRef(false);
+  const previewRef = useRef<StayDateRange | null>(null);
+  const [preview, setPreview] = useState<StayDateRange | null>(null);
+  const activeRange = preview ?? rangeSelect;
+  const selecting = preview != null;
+
+  const setPreviewRange = useCallback((next: StayDateRange | null) => {
+    previewRef.current = next;
+    setPreview(next);
+  }, []);
+
+  const endDrag = useCallback(() => {
+    const anchor = dragAnchorRef.current;
+    if (!anchor || !listingId) {
+      dragAnchorRef.current = null;
+      dragMovedRef.current = false;
+      setPreviewRange(null);
+      return;
+    }
+    const current = previewRef.current ?? { start: anchor, end: anchor };
+    const moved = dragMovedRef.current;
+    dragAnchorRef.current = null;
+    dragMovedRef.current = false;
+    setPreviewRange(null);
+    if (moved && current.start !== current.end) {
+      onCommitRange(listingId, current);
+      return;
+    }
+    const iso = current.start;
+    const occupying = stayCalendarOccupyingOnNight(bookings, listingId, iso);
+    const cap = stayCalendarCapacityOnNight(caps, listingId, iso);
+    const kind = stayCalendarNightKind({ occupying, capacity: cap });
+    onNightClick(
+      listingId,
+      iso,
+      kind,
+      occupying.map((b) => b.id)
+    );
+  }, [bookings, caps, listingId, onCommitRange, onNightClick, setPreviewRange]);
+
+  useEffect(() => {
+    const onUp = () => {
+      if (!dragAnchorRef.current) return;
+      endDrag();
+    };
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    return () => {
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+  }, [endDrag]);
+
   if (!listingId) {
     return (
       <div className="tv-avail-empty">
         <p className="tv-avail-empty__title">Select a property</p>
-        <p className="tv-avail-empty__body mb-4">
-          Month view shows one Stay at a time so booked, pending and blocked nights stay clear.
-        </p>
+        <p className="tv-avail-empty__body mb-3">Month view shows one Stay at a time.</p>
         <ul className="mx-auto max-w-md space-y-1 text-left">
           {listings.slice(0, 12).map((l) => (
             <li key={l.id}>
@@ -1134,7 +1215,7 @@ function StayMonth({
   }
 
   return (
-    <div className="tv-cal-shell tv-stay-cal-month">
+    <div className={`tv-cal-shell tv-stay-cal-month${selecting ? ' is-selecting' : ''}`}>
       <div className="tv-cal-legend">
         <span className="tv-cal-legend__item">
           <i className="tv-stay-cal-swatch tv-stay-cal-kind--booked" aria-hidden /> Booked
@@ -1145,16 +1226,24 @@ function StayMonth({
         <span className="tv-cal-legend__item">
           <i className="tv-stay-cal-swatch tv-stay-cal-kind--blocked" aria-hidden /> Blocked
         </span>
-        <span className="tv-cal-legend__item">
-          <i className="tv-stay-cal-swatch tv-stay-cal-kind--available" aria-hidden /> Available
-        </span>
       </div>
       <div className="tv-cal-weekdays" aria-hidden>
         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
           <span key={d}>{d}</span>
         ))}
       </div>
-      <div className="tv-cal-grid">
+      <div
+        className="tv-cal-grid tv-stay-cal-month__grid"
+        onPointerMove={(e) => {
+          if (!dragAnchorRef.current) return;
+          const el = document.elementFromPoint(e.clientX, e.clientY);
+          const btn = el?.closest('[data-stay-night]') as HTMLElement | null;
+          const iso = btn?.dataset.stayNight;
+          if (!iso) return;
+          if (dragAnchorRef.current !== iso) dragMovedRef.current = true;
+          setPreviewRange(stayDateRangeFromDrag(dragAnchorRef.current, iso));
+        }}
+      >
         {cells.map((cell) => {
           if (!cell.inMonth) {
             return <div key={cell.iso} className="tv-cal-day tv-cal-day--out" />;
@@ -1162,17 +1251,46 @@ function StayMonth({
           const occupying = stayCalendarOccupyingOnNight(bookings, listingId, cell.iso);
           const cap = stayCalendarCapacityOnNight(caps, listingId, cell.iso);
           const kind = stayCalendarNightKind({ occupying, capacity: cap });
-          const selected =
-            rangeSelect && cell.iso >= rangeSelect.start && cell.iso <= rangeSelect.end;
+          const edge = stayDateRangeEdge(cell.iso, activeRange);
           const isToday = cell.iso === todayIso;
+          const occupied = kind === 'booked' || kind === 'pending';
+          const selectable = canEdit && !occupied;
+          const meta =
+            kind === 'available' ? null : stayCalendarNightKindLabel(kind);
           return (
             <button
               key={cell.iso}
               type="button"
+              data-stay-night={cell.iso}
+              aria-pressed={edge != null}
+              aria-label={`${cell.iso}${meta ? `, ${meta}` : ''}`}
               className={`tv-cal-day lux-flat ${kindClass(kind)}${isToday ? ' tv-cal-day--today' : ''}${
-                selected ? ' is-selected' : ''
+                edge ? ` is-in-range is-range-${edge}` : ''
               }`}
-              onClick={() => {
+              onPointerDown={(e) => {
+                if (!listingId) {
+                  onRequireListing();
+                  return;
+                }
+                if (occupied) {
+                  onNightClick(
+                    listingId,
+                    cell.iso,
+                    kind,
+                    occupying.map((b) => b.id)
+                  );
+                  return;
+                }
+                if (!selectable) return;
+                if (e.button !== 0) return;
+                e.preventDefault();
+                dragAnchorRef.current = cell.iso;
+                dragMovedRef.current = false;
+                setPreviewRange({ start: cell.iso, end: cell.iso });
+              }}
+              onKeyDown={(e) => {
+                if (e.key !== 'Enter' && e.key !== ' ') return;
+                e.preventDefault();
                 if (!listingId) {
                   onRequireListing();
                   return;
@@ -1186,7 +1304,7 @@ function StayMonth({
               }}
             >
               <span className="tv-cal-day__num">{Number(cell.iso.slice(8))}</span>
-              <span className="tv-cal-day__meta">{stayCalendarNightKindLabel(kind)}</span>
+              {meta ? <span className="tv-cal-day__meta">{meta}</span> : null}
             </button>
           );
         })}

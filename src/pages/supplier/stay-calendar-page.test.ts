@@ -32,8 +32,22 @@ describe('Stay Calendar page contracts', () => {
     const page = readFileSync(join(root, 'pages/supplier/SupplierStayCalendar.tsx'), 'utf8');
     expect(page).toContain('tv-stay-cal-toast');
     expect(page).toContain('tv-stay-cal-rangebar');
+    expect(page).toContain('formatStayRangeLabel');
+    expect(page).toContain('planStayRangeActions');
+    expect(page).toContain('applyStayDateTap');
+    expect(page).toContain('Block dates');
+    expect(page).toContain('Clear selection');
     expect(page).not.toContain('Calendar updated');
     expect(page).toContain('showToast');
+  });
+
+  it('rebuilds Month selection with continuous range and drag support', () => {
+    const page = readFileSync(join(root, 'pages/supplier/SupplierStayCalendar.tsx'), 'utf8');
+    expect(page).toContain('onCommitRange');
+    expect(page).toContain('stayDateRangeFromDrag');
+    expect(page).toContain('is-in-range');
+    expect(page).toContain('data-stay-night');
+    expect(page).not.toMatch(/tv-cal-day__meta">\{stayCalendarNightKindLabel\(kind\)\}/);
   });
 });
 
