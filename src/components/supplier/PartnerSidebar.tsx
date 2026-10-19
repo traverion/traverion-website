@@ -1,14 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ChevronDown, PanelLeftClose, PanelLeft, Plus } from 'lucide-react';
 import type {
   PartnerNavItem,
   PartnerNavSectionId,
+  PartnerSidebarChild,
   PartnerSidebarEntry,
   PartnerSidebarGroup,
 } from '../../lib/partnerNav';
 import {
+  isPartnerNavSoonItem,
   partnerSidebarDefaultChild,
   partnerSidebarGroupContaining,
+  readPartnerNavOpenGroups,
+  writePartnerNavOpenGroups,
 } from '../../lib/partnerNav';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
 
@@ -34,51 +38,120 @@ function NavButton({
   onClick,
   collapsed,
   nested,
+  disabled,
+  badge,
 }: {
-  item: PartnerNavItem;
+  item: Pick<PartnerNavItem, 'label' | 'icon'> & { id: string };
   active: boolean;
-  onClick: () => void;
+  onClick?: () => void;
   collapsed?: boolean;
   nested?: boolean;
+  disabled?: boolean;
+  badge?: string;
 }) {
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
       aria-current={active ? 'page' : undefined}
-      title={collapsed ? item.label : undefined}
-      className={`partner-nav-item lux-flat group relative flex w-full items-center gap-2 rounded-md text-left text-[13px] ${
-        collapsed ? 'justify-center px-2 py-[7px]' : nested ? 'pl-7 pr-2 py-[6px]' : 'px-2 py-[7px]'
+      aria-disabled={disabled || undefined}
+      title={collapsed ? item.label : disabled && badge ? `${item.label} · ${badge}` : undefined}
+      className={`partner-nav-item lux-flat group relative flex w-full items-center gap-2.5 rounded-lg text-left text-[13px] ${
+        collapsed
+          ? 'justify-center px-2 py-[7px]'
+          : nested
+            ? 'pl-8 pr-2.5 py-[6px]'
+            : 'px-2.5 py-[7px]'
       } ${
-        active
-          ? 'bg-white font-semibold text-slate-900 shadow-[0_0_0_1px_rgba(15,23,42,0.07)]'
-          : 'font-medium text-slate-600 hover:bg-slate-900/[0.05] hover:text-slate-900'
+        disabled
+          ? 'cursor-default font-medium text-slate-400'
+          : active
+            ? 'bg-finland/[0.08] font-semibold text-finland'
+            : 'font-medium text-slate-600 hover:bg-slate-900/[0.045] hover:text-slate-900'
       }`}
     >
-      {active && !collapsed ? (
+      {active && !collapsed && !disabled ? (
         <span
-          className="absolute left-0 top-1/2 h-3.5 w-[2.5px] -translate-y-1/2 rounded-full bg-finland"
+          className="absolute left-0 top-1/2 h-4 w-[2.5px] -translate-y-1/2 rounded-full bg-finland"
           aria-hidden
         />
       ) : null}
       <item.icon
         className={`partner-icon shrink-0 ${
-          active ? 'text-finland' : 'text-slate-400 group-hover:text-slate-600'
+          disabled
+            ? 'text-slate-300'
+            : active
+              ? 'text-finland'
+              : 'text-slate-400 group-hover:text-slate-600'
         }`}
-        strokeWidth={active ? 2.05 : 1.7}
+        strokeWidth={active && !disabled ? 2.1 : 1.7}
         aria-hidden
       />
       {collapsed ? (
         <span className="sr-only">{item.label}</span>
       ) : (
-        <span className="min-w-0 flex-1 truncate leading-snug tracking-tight">{item.label}</span>
+        <>
+          <span className="min-w-0 flex-1 truncate leading-snug tracking-tight">{item.label}</span>
+          {badge ? (
+            <span className="shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-500">
+              {badge}
+            </span>
+          ) : null}
+        </>
       )}
     </button>
   );
 }
 
+function GroupChildren({
+  group,
+  open,
+  activeSection,
+  onNavigate,
+}: {
+  group: PartnerSidebarGroup;
+  open: boolean;
+  activeSection: string;
+  onNavigate: (id: PartnerNavSectionId) => void;
+}) {
+  return (
+    <div
+      id={`partner-nav-group-${group.id}`}
+      role="group"
+      aria-labelledby={`partner-nav-group-btn-${group.id}`}
+      className={`partner-nav-group-panel ${open ? 'partner-nav-group-panel--open' : ''}`}
+      inert={!open ? true : undefined}
+    >
+      <div className="partner-nav-group-panel__inner">
+        <ul className="mb-1 mt-0.5 space-y-0.5 pb-1">
+          {group.children.map((child: PartnerSidebarChild) => {
+            if (isPartnerNavSoonItem(child)) {
+              return (
+                <li key={child.id}>
+                  <NavButton item={child} active={false} nested disabled badge="Soon" />
+                </li>
+              );
+            }
+            return (
+              <li key={child.id}>
+                <NavButton
+                  item={child}
+                  active={activeSection === child.id}
+                  nested
+                  onClick={() => onNavigate(child.id)}
+                />
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 /**
- * Desktop Partner sidebar — data-driven IA from partnerNav.
+ * Desktop Partner sidebar — premium grouped IA from partnerNav.
  */
 export default function PartnerSidebar({
   primary,
@@ -95,67 +168,80 @@ export default function PartnerSidebar({
   onToggleCollapsed,
 }: PartnerSidebarProps) {
   const containing = partnerSidebarGroupContaining(activeSection, primary);
-  const [openGroupId, setOpenGroupId] = useState<string | null>(containing?.id ?? null);
+  const [openGroupIds, setOpenGroupIds] = useState<string[]>(() => readPartnerNavOpenGroups(primary));
 
+  // Keep the active route's group expanded (without collapsing others the user opened).
   useEffect(() => {
-    setOpenGroupId(containing?.id ?? null);
+    if (!containing?.id) return;
+    setOpenGroupIds((prev) => {
+      if (prev.includes(containing.id)) return prev;
+      const next = [...prev, containing.id];
+      writePartnerNavOpenGroups(next);
+      return next;
+    });
   }, [containing?.id]);
 
-  const toggleGroup = (group: PartnerSidebarGroup) => {
-    const isOpen = openGroupId === group.id;
-    if (isOpen) {
-      setOpenGroupId(null);
-      return;
-    }
-    setOpenGroupId(group.id);
-    const childIds = group.children.map((c) => c.id);
-    if (!childIds.includes(activeSection as PartnerNavSectionId)) {
-      onNavigate(partnerSidebarDefaultChild(group));
-    }
-  };
+  const toggleGroup = useCallback(
+    (group: PartnerSidebarGroup) => {
+      setOpenGroupIds((prev) => {
+        const isOpen = prev.includes(group.id);
+        const next = isOpen ? prev.filter((id) => id !== group.id) : [...prev, group.id];
+        writePartnerNavOpenGroups(next);
+        return next;
+      });
+    },
+    []
+  );
 
   return (
     <aside
-      className={`partner-sidebar hidden md:flex shrink-0 flex-col border-r border-slate-200/80 ${
-        collapsed ? 'w-[60px]' : 'w-[220px]'
+      className={`partner-sidebar hidden md:flex shrink-0 flex-col border-r border-slate-200/70 ${
+        collapsed ? 'w-[64px]' : 'w-[232px]'
       }`}
       aria-label="Partner navigation"
     >
-      <div className={`shrink-0 ${collapsed ? 'px-2 py-3' : 'px-3 pt-3 pb-2.5'}`}>
+      <div className={`shrink-0 ${collapsed ? 'px-2 pt-3.5 pb-2' : 'px-3.5 pt-3.5 pb-3'}`}>
         <button
           type="button"
           onClick={onHome}
-          className={`partner-nav-item lux-flat flex min-w-0 items-center rounded-md ${
-            collapsed ? 'justify-center px-1 py-1' : 'gap-2.5 px-1 py-1 -mx-1'
+          className={`partner-nav-item lux-flat flex min-w-0 items-center rounded-lg ${
+            collapsed ? 'justify-center px-1 py-1.5' : 'gap-2.5 px-1.5 py-1.5 -mx-0.5'
           } hover:bg-slate-900/[0.04]`}
           aria-label="Partner home"
         >
           <img src={BRAND_LOGO_SRC} alt="" className="h-7 w-7 shrink-0 object-contain" />
           {!collapsed ? (
-            <span className="min-w-0">
-              <span className="block font-sans text-[11px] font-semibold tracking-[0.16em] text-slate-900">
+            <span className="min-w-0 text-left">
+              <span className="block font-sans text-[11px] font-bold tracking-[0.14em] text-slate-900">
                 TRAVERION
               </span>
               <span className="mt-0.5 block text-[11px] font-medium text-slate-500">Partner</span>
             </span>
           ) : null}
         </button>
-        {!collapsed && businessLabel ? (
-          <p className="mt-3 truncate text-[12px] font-medium leading-snug text-slate-500">{businessLabel}</p>
+        {!collapsed ? (
+          <div className="mt-3 min-w-0 px-1">
+            {businessLabel ? (
+              <p className="truncate text-[13px] font-semibold leading-snug tracking-tight text-slate-900">
+                {businessLabel}
+              </p>
+            ) : null}
+            <p className="mt-0.5 text-[11px] font-medium text-slate-400">Workspace</p>
+          </div>
         ) : null}
       </div>
 
-      <nav className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2 py-1">
+      <nav className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2.5 pb-2">
         {primary.map((entry) => {
           if (entry.kind === 'action') {
             if (!canCreate) return null;
             if (collapsed) {
               return (
-                <div key={entry.id} className="mb-3 flex justify-center pb-3 border-b border-slate-200/70">
+                <div key={entry.id} className="mb-3 flex justify-center border-b border-slate-100 pb-3">
                   <button
                     type="button"
                     onClick={onCreate}
-                    className="partner-nav-item partner-nav-cta lux-flat flex min-h-11 w-11 items-center justify-center rounded-md bg-finland text-white hover:bg-finland-dark"
+                    className="partner-nav-item partner-nav-cta lux-flat flex min-h-10 w-10 items-center justify-center rounded-lg bg-finland text-white hover:bg-finland-dark"
                     title={entry.label}
                     aria-label={entry.label}
                   >
@@ -165,11 +251,11 @@ export default function PartnerSidebar({
               );
             }
             return (
-              <div key={entry.id} className="mb-3 px-0.5 pb-3 border-b border-slate-200/70">
+              <div key={entry.id} className="mb-3 border-b border-slate-100 px-0.5 pb-3">
                 <button
                   type="button"
                   onClick={onCreate}
-                  className="partner-nav-item partner-nav-cta lux-flat flex w-full items-center justify-center gap-1.5 rounded-md bg-finland px-3 py-2.5 text-[13px] font-semibold text-white hover:bg-finland-dark"
+                  className="partner-nav-item partner-nav-cta lux-flat flex w-full items-center justify-center gap-1.5 rounded-lg bg-finland px-3 py-2.5 text-[13px] font-semibold text-white hover:bg-finland-dark"
                 >
                   <Plus className="h-3.5 w-3.5" strokeWidth={2.2} aria-hidden />
                   {entry.label}
@@ -178,9 +264,21 @@ export default function PartnerSidebar({
             );
           }
 
+          if (entry.kind === 'section') {
+            if (collapsed) return null;
+            return (
+              <p
+                key={entry.id}
+                className="partner-nav-section-label px-2.5 pb-1.5 pt-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400 first:pt-1"
+              >
+                {entry.label}
+              </p>
+            );
+          }
+
           if (entry.kind === 'item') {
             return (
-              <div key={entry.id} className="mb-2">
+              <div key={entry.id} className="mb-0.5">
                 <NavButton
                   item={entry}
                   active={activeSection === entry.id}
@@ -191,13 +289,15 @@ export default function PartnerSidebar({
             );
           }
 
-          const isOpen = collapsed ? false : openGroupId === entry.id;
-          const groupActive = entry.children.some((c) => c.id === activeSection);
+          const isOpen = collapsed ? false : openGroupIds.includes(entry.id);
+          const groupActive = entry.children.some(
+            (c) => !isPartnerNavSoonItem(c) && c.id === activeSection
+          );
           const collapsedTarget = partnerSidebarDefaultChild(entry);
 
           if (collapsed) {
             return (
-              <div key={entry.id} className="mb-2">
+              <div key={entry.id} className="mb-0.5">
                 <NavButton
                   item={{ id: collapsedTarget, label: entry.label, icon: entry.icon }}
                   active={groupActive}
@@ -209,51 +309,40 @@ export default function PartnerSidebar({
           }
 
           return (
-            <div key={entry.id} className="mb-2">
+            <div key={entry.id} className="mb-0.5 pt-2">
               <button
                 type="button"
                 onClick={() => toggleGroup(entry)}
                 aria-expanded={isOpen}
-                aria-controls={isOpen ? `partner-nav-group-${entry.id}` : undefined}
+                aria-controls={`partner-nav-group-${entry.id}`}
                 id={`partner-nav-group-btn-${entry.id}`}
-                className={`partner-nav-item lux-flat group flex w-full items-center gap-2.5 rounded-md px-2.5 py-[8px] text-left text-[13.5px] font-medium ${
+                className={`partner-nav-item lux-flat group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-[7px] text-left text-[13px] font-semibold ${
                   groupActive
                     ? 'text-slate-900 hover:bg-slate-900/[0.04]'
-                    : 'text-slate-600 hover:bg-slate-900/[0.055] hover:text-slate-900'
+                    : 'text-slate-700 hover:bg-slate-900/[0.045] hover:text-slate-900'
                 }`}
               >
                 <entry.icon
-                  className={`h-4 w-4 shrink-0 ${groupActive ? 'text-finland' : 'text-slate-400 group-hover:text-slate-600'}`}
-                  strokeWidth={groupActive ? 2.1 : 1.65}
+                  className={`partner-icon shrink-0 ${
+                    groupActive ? 'text-finland' : 'text-slate-400 group-hover:text-slate-600'
+                  }`}
+                  strokeWidth={groupActive ? 2.1 : 1.7}
                   aria-hidden
                 />
-                <span className="min-w-0 flex-1 truncate leading-snug">{entry.label}</span>
+                <span className="min-w-0 flex-1 truncate leading-snug tracking-tight">{entry.label}</span>
                 <ChevronDown
-                  className={`h-3.5 w-3.5 shrink-0 text-slate-300 transition-transform duration-150 ${
+                  className={`h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform duration-150 motion-reduce:transition-none ${
                     isOpen ? 'rotate-0' : '-rotate-90'
                   }`}
                   aria-hidden
                 />
               </button>
-              {isOpen ? (
-                <ul
-                  id={`partner-nav-group-${entry.id}`}
-                  role="group"
-                  aria-labelledby={`partner-nav-group-btn-${entry.id}`}
-                  className="mt-1 mb-1.5 space-y-1"
-                >
-                  {entry.children.map((child) => (
-                    <li key={child.id}>
-                      <NavButton
-                        item={child}
-                        active={activeSection === child.id}
-                        nested
-                        onClick={() => onNavigate(child.id)}
-                      />
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
+              <GroupChildren
+                group={entry}
+                open={isOpen}
+                activeSection={activeSection}
+                onNavigate={onNavigate}
+              />
             </div>
           );
         })}
@@ -263,7 +352,7 @@ export default function PartnerSidebar({
             <button
               type="button"
               onClick={onFinishSetup}
-              className={`partner-nav-item lux-flat w-full rounded-md border border-amber-200/80 bg-amber-50/80 text-[12.5px] font-semibold text-amber-950 hover:bg-amber-50 ${
+              className={`partner-nav-item lux-flat w-full rounded-lg border border-amber-200/80 bg-amber-50/80 text-[12.5px] font-semibold text-amber-950 hover:bg-amber-50 ${
                 collapsed ? 'px-2 py-2' : 'px-2.5 py-2 text-left'
               }`}
               title="Finish setup"
@@ -275,7 +364,7 @@ export default function PartnerSidebar({
         ) : null}
       </nav>
 
-      <div className="shrink-0 border-t border-slate-200/80 px-2 pt-2.5 pb-1.5 space-y-1">
+      <div className="shrink-0 border-t border-slate-100 px-2.5 pt-2.5 pb-1 space-y-0.5">
         {footer.map((item) => (
           <NavButton
             key={item.id}
@@ -288,11 +377,11 @@ export default function PartnerSidebar({
       </div>
 
       {onToggleCollapsed ? (
-        <div className="shrink-0 p-2 pt-1">
+        <div className="shrink-0 px-2.5 pb-2.5 pt-1">
           <button
             type="button"
             onClick={onToggleCollapsed}
-            className="partner-nav-item lux-flat flex w-full items-center justify-center gap-2 rounded-md px-2 py-2 text-[12.5px] font-medium text-slate-500 hover:bg-slate-900/[0.055] hover:text-slate-800"
+            className="partner-nav-item lux-flat flex w-full items-center justify-center gap-2 rounded-lg px-2 py-2 text-[12px] font-medium text-slate-500 hover:bg-slate-900/[0.045] hover:text-slate-800"
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {collapsed ? (

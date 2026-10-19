@@ -186,7 +186,8 @@ const PRIMARY_NAV: { id: SupplierSection; label: string; icon: typeof LayoutDash
   { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
   { id: 'bookings', label: 'Bookings', icon: Calendar },
   { id: 'listings', label: 'Listings', icon: MapPin },
-  { id: 'availability', label: 'Availability', icon: CalendarDays },
+  // Short label for the thumb bar; full name is “Departures & Availability” in the sidebar.
+  { id: 'availability', label: 'Departures', icon: CalendarDays },
 ];
 
 if (
@@ -325,7 +326,13 @@ export default function SupplierLayout() {
   const [onboardingHasPayout, setOnboardingHasPayout] = useState(false);
   const [onboardingHasCompany, setOnboardingHasCompany] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('traverion_partner_sidebar_collapsed_v1') === '1';
+    } catch {
+      return false;
+    }
+  });
   const [mobileAccountOpen, setMobileAccountOpen] = useState(false);
   const mobileAccountRef = useRef<HTMLDivElement>(null);
   const accountMenuRef = useRef<HTMLDivElement>(null);
@@ -1002,7 +1009,17 @@ export default function SupplierLayout() {
           showFinishSetup={!onboardingComplete}
           onFinishSetup={() => handleNavigate('onboarding')}
           collapsed={sidebarCollapsed}
-          onToggleCollapsed={() => setSidebarCollapsed((v) => !v)}
+          onToggleCollapsed={() =>
+            setSidebarCollapsed((v) => {
+              const next = !v;
+              try {
+                localStorage.setItem('traverion_partner_sidebar_collapsed_v1', next ? '1' : '0');
+              } catch {
+                /* ignore */
+              }
+              return next;
+            })
+          }
         />
 
         <div className="partner-main-pane" ref={mainPaneRef}>
@@ -1017,10 +1034,6 @@ export default function SupplierLayout() {
                 <img src={BRAND_LOGO_SRC} alt="" className="h-7 w-7 object-contain" />
                 <span className="font-sans text-[10px] font-semibold tracking-[0.18em] text-slate-800">TRAVERION</span>
               </button>
-              <div className="hidden md:flex min-w-0 items-baseline gap-2.5">
-                <p className="truncate text-[13.5px] font-semibold tracking-tight text-slate-900">{operatorDisplayName}</p>
-                <p className="shrink-0 text-[12px] font-medium text-slate-400">Partner workspace</p>
-              </div>
               <div className="relative ml-auto flex items-center gap-2">
                 <button
                   type="button"

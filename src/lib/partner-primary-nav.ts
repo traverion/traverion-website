@@ -11,7 +11,7 @@ export const PARTNER_PRIMARY_NAV_SECTION_IDS = [
  * Income lives here; Calendar does not (it is primary).
  */
 export const PARTNER_MORE_NAV_SECTION_IDS = [
-  'create',
+  'create', // More sheet primary CTA — not listed in PARTNER_MORE_GROUPS items
   'inbox',
   'reviews',
   'discounts',

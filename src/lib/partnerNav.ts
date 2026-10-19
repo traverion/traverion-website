@@ -1,11 +1,11 @@
 /**
  * Partner information architecture — single source for sidebar / More sheet labels.
  *
- * Listing type (tour / stay) is chosen at Create, not as the permanent sidebar axis.
- * Labels, order, and submenu children live here so they can change without hunting JSX.
- * Mobile bottom tabs stay in PARTNER_PRIMARY_NAV_SECTION_IDS.
+ * Hierarchy (Phase 1 premium sidebar):
+ *   Create · Overview · Tours & Activities · Stays · Business · Help/Settings
  *
- * Groups: daily operations (schedule/guests) sit above business configuration (money/growth/settings).
+ * Listing type (tour / stay) is chosen at Create. Mobile bottom tabs stay in
+ * PARTNER_PRIMARY_NAV_SECTION_IDS.
  */
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -23,7 +23,8 @@ import {
   Settings,
   Info,
   BedDouble,
-  Plus,
+  Compass,
+  Hotel,
 } from 'lucide-react';
 
 export type PartnerNavSectionId =
@@ -51,6 +52,20 @@ export type PartnerNavItem = {
   icon: LucideIcon;
 };
 
+/** Non-navigating placeholder — never use as a dead href. */
+export type PartnerNavSoonItem = {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  comingSoon: true;
+};
+
+export type PartnerSidebarChild = PartnerNavItem | PartnerNavSoonItem;
+
+export function isPartnerNavSoonItem(item: PartnerSidebarChild): item is PartnerNavSoonItem {
+  return 'comingSoon' in item && item.comingSoon === true;
+}
+
 export type PartnerNavGroup = {
   id: string;
   label: string;
@@ -71,7 +86,8 @@ export type PartnerSidebarGroup = {
   id: string;
   label: string;
   icon: LucideIcon;
-  children: PartnerNavItem[];
+  defaultOpen?: boolean;
+  children: PartnerSidebarChild[];
 };
 
 export type PartnerSidebarAction = {
@@ -80,7 +96,17 @@ export type PartnerSidebarAction = {
   label: string;
 };
 
-export type PartnerSidebarEntry = PartnerSidebarLeaf | PartnerSidebarGroup | PartnerSidebarAction;
+export type PartnerSidebarSection = {
+  kind: 'section';
+  id: string;
+  label: string;
+};
+
+export type PartnerSidebarEntry =
+  | PartnerSidebarLeaf
+  | PartnerSidebarGroup
+  | PartnerSidebarAction
+  | PartnerSidebarSection;
 
 export const PARTNER_NAV_HOME: PartnerNavItem = {
   id: 'dashboard',
@@ -90,46 +116,66 @@ export const PARTNER_NAV_HOME: PartnerNavItem = {
 
 export const PARTNER_NAV_CALENDAR: PartnerNavItem = {
   id: 'availability',
-  label: 'Availability',
+  label: 'Departures & Availability',
   icon: CalendarDays,
 };
 
-/** Tour-day ops nested under Bookings (Calendar is a primary leaf — not nested). */
+/** Tour ops under Tours & Activities. */
+export const PARTNER_NAV_TOURS_CHILDREN: PartnerSidebarChild[] = [
+  { id: 'bookings', label: 'Bookings', icon: Calendar },
+  PARTNER_NAV_CALENDAR,
+  { id: 'pickup', label: 'Pickups', icon: Car },
+];
+
+/** @deprecated Use PARTNER_NAV_TOURS_CHILDREN */
 export const PARTNER_NAV_BOOKINGS_CHILDREN: PartnerNavItem[] = [
   { id: 'bookings', label: 'Bookings', icon: Calendar },
   { id: 'pickup', label: 'Pickups', icon: Car },
 ];
 
 /**
- * Reservations is stay-night inventory. There is one real management surface
- * (the bookings page locked to stays) — not a second "reservation management" app.
+ * Stay ops under Stays. Stay Calendar is a non-navigating placeholder until built.
  */
+export const PARTNER_NAV_STAYS_CHILDREN: PartnerSidebarChild[] = [
+  { id: 'reservations', label: 'Reservations', icon: BedDouble },
+  { id: 'stay-calendar', label: 'Stay Calendar', icon: CalendarDays, comingSoon: true },
+];
+
+/** @deprecated Use PARTNER_NAV_STAYS_CHILDREN navigable items */
 export const PARTNER_NAV_RESERVATIONS_CHILDREN: PartnerNavItem[] = [
   { id: 'reservations', label: 'Reservations', icon: BedDouble },
 ];
 
 /**
- * Desktop sidebar — Create + daily ops, then guest/comms, then business, footer for account.
- * Calendar is a leaf (matches mobile primary) so operators do not hunt under Bookings.
+ * Desktop sidebar — Create, Overview, product ops groups, Business, footer for Help/Settings.
  */
 export const PARTNER_SIDEBAR_PRIMARY: PartnerSidebarEntry[] = [
   { kind: 'action', id: 'create', label: 'Create listing' },
+  { kind: 'section', id: 'overview', label: 'Overview' },
   { kind: 'item', id: 'dashboard', label: 'Home', icon: LayoutDashboard },
   { kind: 'item', id: 'listings', label: 'Listings', icon: MapPin },
+  { kind: 'item', id: 'inbox', label: 'Inbox', icon: MessageSquare },
   {
     kind: 'group',
-    id: 'bookings',
-    label: 'Bookings',
-    icon: Calendar,
-    children: PARTNER_NAV_BOOKINGS_CHILDREN,
+    id: 'tours',
+    label: 'Tours & Activities',
+    icon: Compass,
+    defaultOpen: true,
+    children: PARTNER_NAV_TOURS_CHILDREN,
   },
-  { kind: 'item', id: 'availability', label: 'Availability', icon: CalendarDays },
-  { kind: 'item', id: 'reservations', label: 'Reservations', icon: BedDouble },
-  { kind: 'item', id: 'inbox', label: 'Inbox', icon: MessageSquare },
+  {
+    kind: 'group',
+    id: 'stays',
+    label: 'Stays',
+    icon: Hotel,
+    defaultOpen: true,
+    children: PARTNER_NAV_STAYS_CHILDREN,
+  },
+  { kind: 'section', id: 'business', label: 'Business' },
+  { kind: 'item', id: 'earnings', label: 'Income & Payouts', icon: Wallet },
+  { kind: 'item', id: 'performance', label: 'Analytics', icon: TrendingUp },
   { kind: 'item', id: 'reviews', label: 'Reviews', icon: Star },
   { kind: 'item', id: 'discounts', label: 'Offers', icon: Percent },
-  { kind: 'item', id: 'earnings', label: 'Income', icon: Wallet },
-  { kind: 'item', id: 'performance', label: 'Analytics', icon: TrendingUp },
 ];
 
 export const PARTNER_SIDEBAR_FOOTER: PartnerNavItem[] = [
@@ -151,12 +197,12 @@ export const PARTNER_SECTION_TITLES: Record<PartnerNavSectionId, string> = {
   listings: 'Listings',
   bookings: 'Bookings',
   pickup: 'Pickups',
-  availability: 'Availability',
+  availability: 'Departures & Availability',
   reservations: 'Reservations',
   inbox: 'Inbox',
   reviews: 'Reviews',
   discounts: 'Offers',
-  earnings: 'Income',
+  earnings: 'Income & Payouts',
   performance: 'Analytics',
   help: 'Help',
   'business-profile': 'Settings',
@@ -174,37 +220,97 @@ export function partnerSidebarGroupContaining(
   entries: readonly PartnerSidebarEntry[] = PARTNER_SIDEBAR_PRIMARY
 ): PartnerSidebarGroup | null {
   for (const entry of entries) {
-    if (entry.kind === 'group' && entry.children.some((c) => c.id === sectionId)) return entry;
+    if (
+      entry.kind === 'group' &&
+      entry.children.some((c) => !isPartnerNavSoonItem(c) && c.id === sectionId)
+    ) {
+      return entry;
+    }
   }
   return null;
 }
 
 export function partnerSidebarDefaultChild(group: PartnerSidebarGroup): PartnerNavSectionId {
-  return group.children[0]!.id;
+  const first = group.children.find((c) => !isPartnerNavSoonItem(c));
+  return (first as PartnerNavItem | undefined)?.id ?? 'dashboard';
+}
+
+export function partnerSidebarNavigableIds(
+  entries: readonly PartnerSidebarEntry[] = PARTNER_SIDEBAR_PRIMARY
+): PartnerNavSectionId[] {
+  const ids: PartnerNavSectionId[] = [];
+  for (const entry of entries) {
+    if (entry.kind === 'item') ids.push(entry.id);
+    if (entry.kind === 'action') ids.push(entry.id);
+    if (entry.kind === 'group') {
+      for (const child of entry.children) {
+        if (!isPartnerNavSoonItem(child)) ids.push(child.id);
+      }
+    }
+  }
+  return ids;
+}
+
+/** localStorage key for expanded sidebar groups (comma-separated ids). */
+export const PARTNER_NAV_OPEN_GROUPS_KEY = 'traverion_partner_nav_groups_v1';
+
+export function readPartnerNavOpenGroups(
+  entries: readonly PartnerSidebarEntry[] = PARTNER_SIDEBAR_PRIMARY
+): string[] {
+  const known = new Set(
+    entries.filter((e): e is PartnerSidebarGroup => e.kind === 'group').map((e) => e.id)
+  );
+  try {
+    const raw = localStorage.getItem(PARTNER_NAV_OPEN_GROUPS_KEY);
+    if (raw != null) {
+      const parsed = raw
+        .split(',')
+        .map((s) => s.trim())
+        .filter((id) => known.has(id));
+      return parsed;
+    }
+  } catch {
+    /* private mode */
+  }
+  return entries
+    .filter((e): e is PartnerSidebarGroup => e.kind === 'group' && e.defaultOpen !== false)
+    .map((e) => e.id);
+}
+
+export function writePartnerNavOpenGroups(ids: readonly string[]): void {
+  try {
+    localStorage.setItem(PARTNER_NAV_OPEN_GROUPS_KEY, ids.join(','));
+  } catch {
+    /* ignore */
+  }
 }
 
 /**
- * Mobile More sheet — daily operate vs business vs account.
- * Omits bottom-primary destinations (Home, Bookings, Listings, Calendar) to avoid duplicates.
+ * Mobile More sheet — mirrors sidebar product groups without duplicating bottom tabs.
  */
 export const PARTNER_MORE_GROUPS: PartnerNavGroup[] = [
   {
     id: 'operate',
-    label: 'Operate',
-    items: [
-      { id: 'create', label: 'Create listing', icon: Plus },
-      { id: 'pickup', label: 'Pickups', icon: Car },
-      ...PARTNER_NAV_RESERVATIONS_CHILDREN,
-      { id: 'inbox', label: 'Inbox', icon: MessageSquare },
-    ],
+    label: 'Overview',
+    items: [{ id: 'inbox', label: 'Inbox', icon: MessageSquare }],
+  },
+  {
+    id: 'tours',
+    label: 'Tours & Activities',
+    items: [{ id: 'pickup', label: 'Pickups', icon: Car }],
+  },
+  {
+    id: 'stays',
+    label: 'Stays',
+    items: [...PARTNER_NAV_RESERVATIONS_CHILDREN],
   },
   {
     id: 'business',
     label: 'Business',
     items: [
-      { id: 'reviews', label: 'Reviews', icon: Star },
-      { id: 'earnings', label: 'Income', icon: Wallet },
+      { id: 'earnings', label: 'Income & Payouts', icon: Wallet },
       { id: 'performance', label: 'Analytics', icon: TrendingUp },
+      { id: 'reviews', label: 'Reviews', icon: Star },
       PARTNER_NAV_OFFERS,
     ],
   },
@@ -241,7 +347,7 @@ export const PARTNER_NAV_GROW: PartnerNavItem[] = [
 
 /** @deprecated */
 export const PARTNER_NAV_FINANCE: PartnerNavItem[] = [
-  { id: 'earnings', label: 'Income', icon: Wallet },
+  { id: 'earnings', label: 'Income & Payouts', icon: Wallet },
 ];
 
 /** @deprecated */

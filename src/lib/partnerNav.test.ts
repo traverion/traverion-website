@@ -1,51 +1,64 @@
 import { describe, expect, it } from 'vitest';
 import {
   PARTNER_NAV_HOME,
-  PARTNER_NAV_BOOKINGS_CHILDREN,
-  PARTNER_NAV_RESERVATIONS_CHILDREN,
+  PARTNER_NAV_TOURS_CHILDREN,
+  PARTNER_NAV_STAYS_CHILDREN,
   PARTNER_SIDEBAR_PRIMARY,
   PARTNER_SIDEBAR_FOOTER,
   PARTNER_MORE_GROUPS,
   PARTNER_NAV_OFFERS,
+  isPartnerNavSoonItem,
   partnerSectionTitle,
   partnerSidebarGroupContaining,
+  partnerSidebarNavigableIds,
 } from './partnerNav';
 import { PARTNER_PRIMARY_NAV_SECTION_IDS } from './partner-primary-nav';
 
 describe('partnerNav IA', () => {
-  it('pins Create first, then Home, before inventory and daily ops', () => {
+  it('pins Create first, then Overview leaves before product groups', () => {
     expect(PARTNER_NAV_HOME.id).toBe('dashboard');
     expect(PARTNER_NAV_HOME.label).toBe('Home');
     expect(PARTNER_SIDEBAR_PRIMARY.map((e) => e.id)).toEqual([
       'create',
+      'overview',
       'dashboard',
       'listings',
-      'bookings',
-      'availability',
-      'reservations',
       'inbox',
-      'reviews',
-      'discounts',
+      'tours',
+      'stays',
+      'business',
       'earnings',
       'performance',
+      'reviews',
+      'discounts',
     ]);
   });
 
-  it('keeps Bookings group for guest ops and Calendar as a primary leaf', () => {
-    expect(PARTNER_NAV_BOOKINGS_CHILDREN.map((i) => i.id)).toEqual(['bookings', 'pickup']);
-    expect(PARTNER_NAV_BOOKINGS_CHILDREN.map((i) => i.label)).toEqual(['Bookings', 'Pickups']);
-    const calendar = PARTNER_SIDEBAR_PRIMARY.find((e) => e.id === 'availability');
-    expect(calendar?.kind).toBe('item');
-    expect(calendar && 'label' in calendar ? calendar.label : null).toBe('Availability');
-    expect(partnerSidebarGroupContaining('availability')).toBeNull();
-    expect(partnerSidebarGroupContaining('pickup')?.id).toBe('bookings');
+  it('nests tour ops under Tours & Activities', () => {
+    expect(
+      PARTNER_NAV_TOURS_CHILDREN.filter((c) => !isPartnerNavSoonItem(c)).map((i) => i.id)
+    ).toEqual(['bookings', 'availability', 'pickup']);
+    expect(partnerSidebarGroupContaining('bookings')?.id).toBe('tours');
+    expect(partnerSidebarGroupContaining('availability')?.id).toBe('tours');
+    expect(partnerSidebarGroupContaining('pickup')?.id).toBe('tours');
+    expect(partnerSectionTitle('availability')).toBe('Departures & Availability');
   });
 
-  it('exposes a single real Reservations surface as a leaf, not a one-item accordion', () => {
-    expect(PARTNER_NAV_RESERVATIONS_CHILDREN.map((i) => i.id)).toEqual(['reservations']);
-    const entry = PARTNER_SIDEBAR_PRIMARY.find((e) => e.id === 'reservations');
-    expect(entry?.kind).toBe('item');
-    expect(partnerSidebarGroupContaining('reservations')).toBeNull();
+  it('nests Reservations under Stays and keeps Stay Calendar as a non-link placeholder', () => {
+    const stays = PARTNER_SIDEBAR_PRIMARY.find((e) => e.id === 'stays');
+    expect(stays?.kind).toBe('group');
+    expect(partnerSidebarGroupContaining('reservations')?.id).toBe('stays');
+    const soon = PARTNER_NAV_STAYS_CHILDREN.find(isPartnerNavSoonItem);
+    expect(soon?.label).toBe('Stay Calendar');
+    expect(soon?.comingSoon).toBe(true);
+    expect(partnerSidebarNavigableIds()).not.toContain('stay-calendar' as never);
+  });
+
+  it('does not duplicate Bookings and Reservations as top-level leaves', () => {
+    const leaves = PARTNER_SIDEBAR_PRIMARY.filter((e) => e.kind === 'item').map((e) => e.id);
+    expect(leaves).not.toContain('bookings');
+    expect(leaves).not.toContain('reservations');
+    expect(leaves).not.toContain('availability');
   });
 
   it('keeps Help and Settings in the footer, not mixed with ops', () => {
@@ -59,18 +72,18 @@ describe('partnerNav IA', () => {
     expect(moreIds).toContain('discounts');
     expect(moreIds).toContain('inbox');
     expect(moreIds).toContain('pickup');
+    expect(moreIds).toContain('reservations');
     expect(moreIds).toContain('help');
     expect(moreIds).toContain('account-settings');
     expect(moreIds).toContain('earnings');
-    // Bottom primary destinations stay off the More list to avoid dual paths.
     for (const id of PARTNER_PRIMARY_NAV_SECTION_IDS) {
       expect(moreIds).not.toContain(id);
     }
   });
 
   it('aligns section titles with nav labels for Calendar and Income', () => {
-    expect(partnerSectionTitle('availability')).toBe('Availability');
-    expect(partnerSectionTitle('earnings')).toBe('Income');
+    expect(partnerSectionTitle('availability')).toBe('Departures & Availability');
+    expect(partnerSectionTitle('earnings')).toBe('Income & Payouts');
     expect(partnerSectionTitle('pickup')).toBe('Pickups');
   });
 });

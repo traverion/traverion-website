@@ -1125,8 +1125,8 @@ export default function SupplierAvailability() {
     <div className={`${SUPPLIER_PAGE_CLASS} min-h-[70vh]`}>
       <header className="tv-avail-page-head">
         <div className="tv-avail-page-head__text">
-          <h1>Availability</h1>
-          <p>Manage departures, inventory and booking cutoffs</p>
+          <h1>Departures & Availability</h1>
+          <p>Manage tour departures, inventory and booking cutoffs</p>
         </div>
         {listings.length > 0 && listingId ? (
           <button

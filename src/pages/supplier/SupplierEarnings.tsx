@@ -666,7 +666,7 @@ export default function SupplierEarnings() {
     <div className={`${SUPPLIER_PAGE_CLASS} tv-income font-sans`}>
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="font-sans text-lg font-bold tracking-tight text-[#18181b]">Income</h1>
+          <h1 className="font-sans text-lg font-bold tracking-tight text-[#18181b]">Income & Payouts</h1>
           <p className="text-[12px] text-[#71717a]">{`Guest checkout uses ${STRIPE_TEST_UNTIL_LIVE}. Amounts on this page are not completed bank transfers.`}</p>
         </div>
         <button
