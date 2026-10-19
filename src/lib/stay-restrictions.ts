@@ -48,7 +48,7 @@ export function stayRestrictionLines(rules: StayRestrictions | null | undefined)
   if (rules.quietHours) lines.push(`Quiet hours ${rules.quietHours.start}–${rules.quietHours.end}`);
   if (rules.pets === 'allowed') lines.push('Pets allowed');
   if (rules.pets === 'not_allowed') lines.push('No pets');
-  if (rules.pets === 'approval') lines.push('Pets allowed with host approval');
+  if (rules.pets === 'approval') lines.push('Ask the host about pets');
   if (rules.smoking === 'allowed') lines.push('Smoking allowed');
   if (rules.smoking === 'not_allowed') lines.push('No smoking');
   if (rules.parties === 'allowed') lines.push('Parties and events allowed');

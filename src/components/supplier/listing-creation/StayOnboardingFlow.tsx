@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { STAY_ONBOARDING_SCREENS, clampStayIntroInput, quietHoursMentioned, stayScreenIndex, stayStageBlocker, type StayOnboardingCheck } from '../../../lib/stay-onboarding';
+import { STAY_SAFETY_CONSIDERATIONS, staySafetyConsiderationLines } from '../../../lib/stay-safety';
 import { clampListingDescriptionInput, clampListingTitleInput } from '../../../lib/listingQualityScore';
 import { stayAmenityDisplayList } from '../../../lib/stay-amenities';
 import { isStandardStayPropertyType, stayPropertyTypesForMode } from '../../../lib/stay-accommodation';
@@ -74,6 +75,8 @@ type Values = {
   stayQuietEnd: string;
   stayHouseRules: string;
   stayExteriorCamera: boolean;
+  stayCameraLocation: string;
+  staySafetyConsiderations: string[];
   staySafetyNote: string;
   stayBedrooms: string;
   stayBathrooms: string;
@@ -1077,10 +1080,15 @@ function GalleryStage(props: Props) {
 
 function CancellationStage() {
   return (
-    <section className="rounded-xl p-4 ring-1 ring-[#E6EAF0]">
-      <p className="text-sm font-semibold text-ink">Traverion standard</p>
-      <p className="mt-2 text-sm leading-relaxed text-ink">{STAY_GUEST_CANCELLATION_POLICY}</p>
-      <p className="mt-3 text-sm text-ink-muted">Full refund when cancelled at least 24 hours before check-in, on the terms of that booking.</p>
+    <section className="stay-panel space-y-3">
+      <div>
+        <p className="stay-kicker">Traverion standard</p>
+        <p className="mt-2 text-sm font-semibold leading-relaxed text-ink">Cancel free of charge until 24 hours before check-in</p>
+      </div>
+      <p className="text-sm leading-relaxed text-ink">{STAY_GUEST_CANCELLATION_POLICY}</p>
+      <p className="text-sm leading-relaxed text-ink-muted">
+        Guests see these terms before they pay. Each booking keeps the cancellation terms from that moment.
+      </p>
     </section>
   );
 }
@@ -1091,6 +1099,9 @@ function HouseRulesStage({ values, onChange }: Props) {
   return (
     <div className="space-y-4">
       <Choice label="Pets" value={values.stayPets} options={[['allowed', 'Allowed'], ['not_allowed', 'Not allowed'], ['approval', 'Ask first']]} onChange={(stayPets) => onChange({ stayPets })} />
+      {values.stayPets === 'approval' ? (
+        <StayHelp>Ask first tells guests to contact you. It does not open an approval workflow or grant permission by itself.</StayHelp>
+      ) : null}
       <Choice label="Smoking" value={values.staySmoking} options={[['not_allowed', 'Not allowed'], ['allowed', 'Allowed']]} onChange={(staySmoking) => onChange({ staySmoking })} />
       <Choice label="Parties" value={values.stayParties} options={[['not_allowed', 'Not allowed'], ['allowed', 'Allowed']]} onChange={(stayParties) => onChange({ stayParties })} />
       <Choice label="Children" value={values.stayChildren} options={[['', 'No extra rule'], ['welcome', 'Welcome'], ['not_suitable', 'Not suitable']]} onChange={(stayChildren) => onChange({ stayChildren })} />
@@ -1100,28 +1111,74 @@ function HouseRulesStage({ values, onChange }: Props) {
 }
 
 function QuietHoursStage({ values, onChange }: Props) {
+  const rulesRef = useRef<HTMLTextAreaElement>(null);
   const mentioned = quietHoursMentioned(values.stayHouseRules);
   const differs = mentioned && (values.stayQuietStart !== mentioned.start || values.stayQuietEnd !== mentioned.end);
+  const defaultQuiet = values.stayQuietStart !== '22:00' || values.stayQuietEnd !== '06:00';
+  useLayoutEffect(() => {
+    const field = rulesRef.current;
+    if (!field) return;
+    field.style.height = '7.5rem';
+    field.style.height = `${Math.max(120, field.scrollHeight)}px`;
+  }, [values.stayHouseRules]);
   return (
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Quiet hours from"><input className="tv-input w-full" type="time" value={values.stayQuietStart} onChange={(e) => onChange({ stayQuietStart: e.target.value })} /></Field>
         <Field label="Until"><input className="tv-input w-full" type="time" value={values.stayQuietEnd} onChange={(e) => onChange({ stayQuietEnd: e.target.value })} /></Field>
       </div>
+      <StayHelp>Quiet hours may cross midnight, for example 22:00 until 06:00.</StayHelp>
+      <div className="flex flex-wrap gap-2">
+        {defaultQuiet ? (
+          <button
+            type="button"
+            className="stay-quiet-suggest"
+            onClick={() => onChange({ stayQuietStart: '22:00', stayQuietEnd: '06:00' })}
+          >
+            Use 22:00–06:00
+          </button>
+        ) : null}
+        {differs && mentioned ? (
+          <button
+            type="button"
+            className="stay-quiet-suggest"
+            onClick={() => onChange({ stayQuietStart: mentioned.start, stayQuietEnd: mentioned.end })}
+          >
+            Use {mentioned.start}–{mentioned.end} from written rules
+          </button>
+        ) : null}
+      </div>
       {differs && mentioned ? (
-        <button type="button" className="stay-panel w-full text-left" onClick={() => onChange({ stayQuietStart: mentioned.start, stayQuietEnd: mentioned.end })}>
-          <span className="block text-sm font-semibold text-ink">Use {mentioned.start}–{mentioned.end}</span>
-          <span className="stay-help mt-1 block">Your written rules mention these quiet hours. This fills the times above and leaves the written rules unchanged.</span>
-        </button>
+        <StayHelp>This fills the times above and leaves your written rules unchanged.</StayHelp>
       ) : null}
       <Field label="Additional rules">
-        <textarea className="tv-input min-h-28 w-full" maxLength={2000} value={values.stayHouseRules} onChange={(e) => onChange({ stayHouseRules: e.target.value.slice(0, 2000) })} />
+        <textarea
+          ref={rulesRef}
+          className="tv-input stay-rules-input w-full resize-y"
+          maxLength={2000}
+          value={values.stayHouseRules}
+          aria-label="Additional house rules"
+          onChange={(e) => onChange({ stayHouseRules: e.target.value.slice(0, 2000) })}
+        />
       </Field>
     </div>
   );
 }
 
 function SafetyStage({ values, onChange }: Props) {
+  const notesRef = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const field = notesRef.current;
+    if (!field) return;
+    field.style.height = '6.5rem';
+    field.style.height = `${Math.max(104, field.scrollHeight)}px`;
+  }, [values.staySafetyNote]);
+  function toggleConsideration(id: string) {
+    const selected = new Set(values.staySafetyConsiderations);
+    if (selected.has(id)) selected.delete(id);
+    else selected.add(id);
+    onChange({ staySafetyConsiderations: STAY_SAFETY_CONSIDERATIONS.map((row) => row.id).filter((item) => selected.has(item)) });
+  }
   return (
     <div className="space-y-4">
       <label className="stay-panel flex min-h-11 items-center gap-2 text-sm font-semibold text-ink">
@@ -1130,15 +1187,48 @@ function SafetyStage({ values, onChange }: Props) {
         There is an exterior security camera
       </label>
       {values.stayExteriorCamera ? (
-        <Field label="Where is the camera?">
-          <input className="tv-input w-full" maxLength={160} value={values.staySafetyNote} onChange={(e) => onChange({ staySafetyNote: e.target.value.slice(0, 160) })} />
+        <Field label="Where is the camera located?">
+          <input
+            className="tv-input w-full"
+            maxLength={160}
+            value={values.stayCameraLocation}
+            placeholder="For example: Outside the main entrance, facing the driveway."
+            aria-label="Where is the camera located?"
+            onChange={(e) => onChange({ stayCameraLocation: e.target.value.slice(0, 160) })}
+          />
         </Field>
-      ) : (
-        <Field label="Other safety note, optional">
-          <textarea className="tv-input min-h-20 w-full" maxLength={160} value={values.staySafetyNote} onChange={(e) => onChange({ staySafetyNote: e.target.value.slice(0, 160) })} />
-        </Field>
-      )}
-      <StayHelp>Cameras inside private guest spaces are not allowed. Guests see this disclosure before they book. An empty note does not mean the property has no hazards.</StayHelp>
+      ) : null}
+      <div className="space-y-2">
+        <p className="text-sm font-semibold text-ink">Other safety information</p>
+        <StayHelp>Optional. Leaving these unselected does not certify that no hazards exist.</StayHelp>
+        <div className="flex flex-wrap gap-2">
+          {STAY_SAFETY_CONSIDERATIONS.map((row) => {
+            const on = values.staySafetyConsiderations.includes(row.id);
+            return (
+              <button
+                key={row.id}
+                type="button"
+                aria-pressed={on}
+                className={`stay-choice lc-choice min-h-11 rounded-full px-3 text-sm font-semibold ${on ? 'lc-choice--selected text-[#073b83]' : ''}`}
+                onClick={() => toggleConsideration(row.id)}
+              >
+                {row.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <Field label="Safety notes, optional">
+        <textarea
+          ref={notesRef}
+          className="tv-input stay-safety-input w-full resize-y"
+          maxLength={160}
+          value={values.staySafetyNote}
+          aria-label="Safety notes"
+          onChange={(e) => onChange({ staySafetyNote: e.target.value.slice(0, 160) })}
+        />
+      </Field>
+      <StayHelp>Cameras inside private guest spaces are not allowed. Guests see these disclosures before they book.</StayHelp>
     </div>
   );
 }
@@ -1268,9 +1358,17 @@ function PreviewStage({ values, currency, onEditStage, option }: Props & { optio
               <ul className="space-y-1 text-sm text-ink">{rules.map((rule) => <li key={rule}>{rule}</li>)}</ul>
             </PreviewSection>
           ) : null}
-          {values.stayExteriorCamera || values.staySafetyNote.trim() ? (
+          {values.stayExteriorCamera || values.staySafetyConsiderations.length > 0 || values.staySafetyNote.trim() ? (
             <PreviewSection title="Safety" onEdit={() => onEditStage(stayScreenIndex('safety'))}>
-              <p className="text-sm text-ink">{values.stayExteriorCamera ? `Exterior security camera${values.staySafetyNote.trim() ? `: ${values.staySafetyNote.trim()}` : ''}` : values.staySafetyNote.trim()}</p>
+              <ul className="space-y-1 text-sm text-ink">
+                {values.stayExteriorCamera ? (
+                  <li>Exterior security camera{values.stayCameraLocation.trim() ? `: ${values.stayCameraLocation.trim()}` : ''}</li>
+                ) : null}
+                {staySafetyConsiderationLines(values.staySafetyConsiderations).map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+                {values.staySafetyNote.trim() ? <li>{values.staySafetyNote.trim()}</li> : null}
+              </ul>
             </PreviewSection>
           ) : null}
         </div>
@@ -1335,6 +1433,7 @@ function PublishStage({ values, onEditStage, option, locationConfirmed, minTitle
     minDescription,
     minTitle,
     exteriorCamera: values.stayExteriorCamera,
+    cameraLocation: values.stayCameraLocation,
     safetyNote: values.staySafetyNote,
   };
   const groups: { title: string; rows: { id: string; label: string }[] }[] = [

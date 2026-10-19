@@ -5944,3 +5944,47 @@ details:not([open]) > :not(summary) {
   background: #fff;
   padding: 0.85rem;
 }
+
+.stay-creator .stay-room-photo-card {
+  padding: 0.7rem 0.75rem;
+}
+
+.stay-creator .stay-room-thumb {
+  background: #fff;
+}
+
+.listing-creation-workspace textarea.tv-input.stay-rules-input {
+  min-height: 7.5rem;
+  height: 7.5rem;
+  resize: vertical;
+  overflow-y: hidden;
+}
+
+.listing-creation-workspace textarea.tv-input.stay-safety-input {
+  min-height: 6.5rem;
+  height: 6.5rem;
+  resize: vertical;
+  overflow-y: hidden;
+}
+
+.stay-creator .stay-quiet-suggest {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  border: 1px solid var(--lc-line, #e5e7eb);
+  border-radius: 999px;
+  background: #fff;
+  padding: 0 0.95rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #073b83;
+}
+
+.stay-creator .stay-quiet-suggest:hover {
+  border-color: rgba(7, 59, 131, 0.4);
+}
+
+.stay-creator .stay-quiet-suggest:focus-visible {
+  outline: 2px solid #073b83;
+  outline-offset: 2px;
+}

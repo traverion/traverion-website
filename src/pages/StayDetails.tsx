@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { ArrowLeft, MapPin, Heart, Star, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { getListingById, getListingByIdAsync } from '../data/listings';
 import { stayRestrictionLines } from '../lib/stay-restrictions';
+import { staySafetyConsiderationLines } from '../lib/stay-safety';
 import { STAY_BED_KINDS, stayBedSummary } from '../lib/stay-beds';
 import { parseListingExtras, STAY_GUEST_CANCELLATION_POLICY } from '../types/listingExtras';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
@@ -1142,12 +1143,20 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                 ) : null}
               </div>
             ) : null}
-            {s?.exteriorCamera || s?.safetyNote ? (
+            {s?.exteriorCamera || (s?.safetyConsiderations?.length ?? 0) > 0 || s?.safetyNote ? (
               <div>
                 <h2 className="font-display text-xl mb-2">Safety</h2>
                 <ul className="space-y-1 text-ink-muted">
-                  {s.exteriorCamera ? <li>Exterior security camera{s.safetyNote ? `: ${s.safetyNote}` : ''}</li> : null}
-                  {!s.exteriorCamera && s.safetyNote ? <li>{s.safetyNote}</li> : null}
+                  {s.exteriorCamera ? (
+                    <li>
+                      Exterior security camera
+                      {s.cameraLocation ? `: ${s.cameraLocation}` : s.safetyNote && !s.cameraLocation ? `: ${s.safetyNote}` : ''}
+                    </li>
+                  ) : null}
+                  {staySafetyConsiderationLines(s.safetyConsiderations).map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                  {s.safetyNote && (!s.exteriorCamera || s.cameraLocation) ? <li>{s.safetyNote}</li> : null}
                 </ul>
               </div>
             ) : null}

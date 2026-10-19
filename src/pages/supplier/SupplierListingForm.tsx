@@ -234,6 +234,7 @@ import {
   type StayUnitDraft,
 } from '../../lib/stay-accommodation';
 import { normalizeStayRestrictions, stayRestrictionLines } from '../../lib/stay-restrictions';
+import { normalizeStaySafetyConsiderations } from '../../lib/stay-safety';
 import { normalizeStaySeasons, type StaySeasonWindow } from '../../lib/stay-season-quote';
 import { normalizeStayBedMix, staySleepCapacity, type StayBedMix } from '../../lib/stay-beds';
 import { normalizeStayGuestPolicy } from '../../lib/stay-guest-party';
@@ -913,6 +914,8 @@ type ListingFormState = {
   stayAmenities: string;
   stayHouseRules: string;
   stayExteriorCamera: boolean;
+  stayCameraLocation: string;
+  staySafetyConsiderations: string[];
   staySafetyNote: string;
   stayPets: '' | 'allowed' | 'not_allowed' | 'approval';
   staySmoking: '' | 'allowed' | 'not_allowed';
@@ -1126,6 +1129,11 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
             checkOutTime: form.stayCheckOut.trim() || undefined,
             houseRules: form.stayHouseRules.trim() || undefined,
             exteriorCamera: form.stayExteriorCamera ? true : undefined,
+            cameraLocation: form.stayExteriorCamera ? form.stayCameraLocation.trim() || undefined : undefined,
+            safetyConsiderations: (() => {
+              const rows = normalizeStaySafetyConsiderations(form.staySafetyConsiderations);
+              return rows.length > 0 ? rows : undefined;
+            })(),
             safetyNote: form.staySafetyNote.trim() || undefined,
             restrictions: normalizeStayRestrictions({
               pets: form.stayPets,
@@ -1426,6 +1434,8 @@ const emptyForm: ListingFormState = {
   stayAmenities: '',
   stayHouseRules: '',
   stayExteriorCamera: false,
+  stayCameraLocation: '',
+  staySafetyConsiderations: [],
   staySafetyNote: '',
   stayPets: '',
   staySmoking: '',
@@ -1502,6 +1512,10 @@ function coerceListingFormState(raw: Partial<ListingFormState> | null | undefine
   merged.stayChildren = merged.stayChildren === 'welcome' || merged.stayChildren === 'not_suitable' ? merged.stayChildren : '';
   merged.stayQuietStart = /^\d{2}:\d{2}$/.test(merged.stayQuietStart ?? '') ? merged.stayQuietStart : '';
   merged.stayQuietEnd = /^\d{2}:\d{2}$/.test(merged.stayQuietEnd ?? '') ? merged.stayQuietEnd : '';
+  merged.stayCameraLocation = typeof merged.stayCameraLocation === 'string' ? merged.stayCameraLocation.slice(0, 160) : '';
+  merged.staySafetyConsiderations = normalizeStaySafetyConsiderations(merged.staySafetyConsiderations);
+  merged.staySafetyNote = typeof merged.staySafetyNote === 'string' ? merged.staySafetyNote.slice(0, 160) : '';
+  merged.stayExteriorCamera = merged.stayExteriorCamera === true;
   merged.stayArrivalMethod = ['self', 'host', 'lockbox', 'smart_lock', 'reception', 'other'].includes(merged.stayArrivalMethod)
     ? merged.stayArrivalMethod
     : '';
@@ -2259,7 +2273,14 @@ export default function SupplierListingForm({
           stayAmenities: (extras.stay?.amenities ?? []).join(', '),
           stayHouseRules: extras.stay?.houseRules ?? '',
           stayExteriorCamera: extras.stay?.exteriorCamera === true,
-          staySafetyNote: extras.stay?.safetyNote ?? '',
+          stayCameraLocation:
+            extras.stay?.cameraLocation?.trim() ||
+            (extras.stay?.exteriorCamera === true && !extras.stay?.cameraLocation ? extras.stay?.safetyNote ?? '' : ''),
+          staySafetyConsiderations: extras.stay?.safetyConsiderations ?? [],
+          staySafetyNote:
+            extras.stay?.exteriorCamera === true && !extras.stay?.cameraLocation
+              ? ''
+              : extras.stay?.safetyNote ?? '',
           stayPets: extras.stay?.restrictions?.pets ?? '',
           staySmoking: extras.stay?.restrictions?.smoking ?? '',
           stayParties: extras.stay?.restrictions?.parties ?? '',
@@ -3837,6 +3858,7 @@ export default function SupplierListingForm({
         minDescription: MIN_LISTING_DESCRIPTION_LENGTH,
         minTitle: MIN_LISTING_TITLE_LENGTH,
         exteriorCamera: form.stayExteriorCamera,
+        cameraLocation: form.stayCameraLocation,
         safetyNote: form.staySafetyNote,
       })
     : null;

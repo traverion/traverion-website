@@ -122,6 +122,8 @@ export type StayOnboardingCheck = {
   minDescription: number;
   minTitle: number;
   exteriorCamera: boolean;
+  /** Required camera location when exteriorCamera is true. */
+  cameraLocation: string;
   safetyNote: string;
 };
 
@@ -182,7 +184,7 @@ export function stayStageBlocker(screenId: string, draft: StayOnboardingCheck): 
     case 'house-rules':
       return draft.rulesChosen ? null : 'Choose pets, smoking, and parties.';
     case 'safety':
-      if (draft.exteriorCamera && draft.safetyNote.trim().length < 8) return 'Say where the exterior camera is.';
+      if (draft.exteriorCamera && draft.cameraLocation.trim().length < 8) return 'Say where the exterior camera is.';
       return null;
     default:
       return null;

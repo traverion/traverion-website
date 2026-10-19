@@ -13,6 +13,10 @@ import { normalizeBookingCutoffHours } from '../lib/tour-departure-cutoff';
 import { normalizeStayUnits, type StayUnitDraft } from '../lib/stay-accommodation';
 import { normalizeStayRestrictions, type StayRestrictions } from '../lib/stay-restrictions';
 import {
+  normalizeStaySafetyConsiderations,
+  type StaySafetyConsiderationId,
+} from '../lib/stay-safety';
+import {
   normalizeStaySeasons,
   type StayAvailabilityMode,
   type StaySeasonWindow,
@@ -370,6 +374,10 @@ export type StayDetails = {
   houseRules?: string;
   /** Supplier-confirmed exterior camera. Unset is not a claim that none exist. */
   exteriorCamera?: boolean;
+  /** Required when exteriorCamera is true. Shown to guests before booking. */
+  cameraLocation?: string;
+  /** Optional selected safety considerations. Unselected options are not a claim that hazards are absent. */
+  safetyConsiderations?: StaySafetyConsiderationId[];
   /** Public safety note shown before booking. Not a door code. */
   safetyNote?: string;
   /** Guest-visible property rules. Not used to reject a booking. */
@@ -437,6 +445,11 @@ function normalizeStayDetails(raw: unknown): StayDetails | undefined {
   if (typeof o.checkOutTime === 'string' && o.checkOutTime.trim()) out.checkOutTime = o.checkOutTime.trim().slice(0, 5);
   if (typeof o.houseRules === 'string' && o.houseRules.trim()) out.houseRules = o.houseRules.trim().slice(0, 2000);
   if (o.exteriorCamera === true) out.exteriorCamera = true;
+  if (typeof o.cameraLocation === 'string' && o.cameraLocation.trim()) {
+    out.cameraLocation = o.cameraLocation.trim().slice(0, 160);
+  }
+  const safetyConsiderations = normalizeStaySafetyConsiderations(o.safetyConsiderations);
+  if (safetyConsiderations.length > 0) out.safetyConsiderations = safetyConsiderations;
   if (typeof o.safetyNote === 'string' && o.safetyNote.trim()) out.safetyNote = o.safetyNote.trim().slice(0, 160);
   const restrictions = normalizeStayRestrictions(o.restrictions);
   if (restrictions) out.restrictions = restrictions;

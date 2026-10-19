@@ -15,13 +15,17 @@ describe('stay restrictions', () => {
       'No smoking',
       'Parties and events allowed',
     ]);
+    expect(stayRestrictionLines({ pets: 'approval' })).toEqual(['Ask the host about pets']);
     expect(
       stayRestrictionLines({
-        quietHours: { start: '22:00', end: '08:00' },
+        quietHours: { start: '22:00', end: '06:00' },
         children: 'welcome',
       })
-    ).toEqual(['Quiet hours 22:00–08:00', 'Children and infants are welcome']);
+    ).toEqual(['Quiet hours 22:00–06:00', 'Children and infants are welcome']);
     expect(normalizeStayRestrictions({ quietHours: { start: '22:00', end: '22:00' } })).toBeUndefined();
+    expect(normalizeStayRestrictions({ quietHours: { start: '22:00', end: '06:00' } })).toEqual({
+      quietHours: { start: '22:00', end: '06:00' },
+    });
     expect(stayRestrictionLines(undefined)).toEqual([]);
   });
 });

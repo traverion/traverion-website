@@ -40,6 +40,7 @@ const ready: StayOnboardingCheck = {
   minDescription: 100,
   minTitle: 10,
   exteriorCamera: false,
+  cameraLocation: '',
   safetyNote: '',
 };
 
@@ -99,7 +100,14 @@ describe('stay onboarding screens', () => {
 
   it('requires a camera location only when an exterior camera is disclosed', () => {
     expect(stayStageBlocker('safety', ready)).toBeNull();
-    expect(stayStageBlocker('safety', { ...ready, exteriorCamera: true, safetyNote: 'Gate' })).toMatch(/exterior camera/);
+    expect(stayStageBlocker('safety', { ...ready, exteriorCamera: true, cameraLocation: 'Gate' })).toMatch(/exterior camera/);
+    expect(
+      stayStageBlocker('safety', {
+        ...ready,
+        exteriorCamera: true,
+        cameraLocation: 'Outside the main entrance',
+      })
+    ).toBeNull();
   });
 
   it('reads quiet hours from written rules without applying them', () => {
