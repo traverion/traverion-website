@@ -113,6 +113,18 @@ export function openSupplierCalendar(listingId?: string): void {
   navigateSupplierUrl(`${path}?${q.toString()}`);
 }
 
+/** Open Stay Calendar and optionally focus a property. */
+export function openSupplierStayCalendar(listingId?: string): void {
+  const path = `${PARTNER_APP_BASE}/stay-calendar`;
+  if (!listingId) {
+    navigateSupplierUrl(path);
+    return;
+  }
+  const q = new URLSearchParams();
+  q.set('listing', listingId);
+  navigateSupplierUrl(`${path}?${q.toString()}`);
+}
+
 /** Open Reviews with optional reply filter and highlighted review card. */
 export function openSupplierReviews(opts?: {
   reviewId?: string;

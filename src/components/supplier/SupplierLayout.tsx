@@ -98,6 +98,7 @@ const SupplierDashboard = lazy(() => import('../../pages/supplier/SupplierDashbo
 const SupplierListings = lazy(() => import('../../pages/supplier/SupplierListings'));
 const SupplierBookings = lazy(() => import('../../pages/supplier/SupplierBookings'));
 const SupplierAvailability = lazy(() => import('../../pages/supplier/SupplierAvailability'));
+const SupplierStayCalendar = lazy(() => import('../../pages/supplier/SupplierStayCalendar'));
 const SupplierEarnings = lazy(() => import('../../pages/supplier/SupplierEarnings'));
 const SupplierPerformance = lazy(() => import('../../pages/supplier/SupplierPerformance'));
 const SupplierInbox = lazy(() => import('../../pages/supplier/SupplierInbox'));
@@ -163,6 +164,7 @@ type SupplierSection =
   | 'availability'
   | 'bookings'
   | 'reservations'
+  | 'stay-calendar'
   | 'inbox'
   | 'earnings'
   | 'discounts'
@@ -208,6 +210,7 @@ const PATH_ALIASES: Record<string, SupplierSection> = {
   availability: 'availability',
   bookings: 'bookings',
   reservations: 'reservations',
+  'stay-calendar': 'stay-calendar',
   create: 'create',
   inbox: 'inbox',
   account: 'account-settings',
@@ -233,6 +236,7 @@ function pathForSection(s: SupplierSection): string {
   if (s === 'earnings') return `${PARTNER_APP_BASE}/money`;
   if (s === 'create') return PARTNER_CREATE_PATH;
   if (s === 'reservations') return PARTNER_RESERVATIONS_PATH;
+  if (s === 'stay-calendar') return `${PARTNER_APP_BASE}/stay-calendar`;
   if (s === 'help') return PARTNER_HELP_PATH;
   return `${PARTNER_APP_BASE}/${s}`;
 }
@@ -1223,6 +1227,7 @@ export default function SupplierLayout() {
                     {section === 'availability' && <SupplierAvailability />}
                     {section === 'bookings' && <SupplierBookings inventoryFamily="tour" />}
                     {section === 'reservations' && <SupplierBookings inventoryFamily="stay" />}
+                    {section === 'stay-calendar' && <SupplierStayCalendar />}
                     {section === 'inbox' && <SupplierInbox />}
                     {section === 'earnings' && <SupplierEarnings />}
                     {section === 'discounts' && <SupplierDiscountsOffers />}

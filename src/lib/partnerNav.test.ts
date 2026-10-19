@@ -44,14 +44,13 @@ describe('partnerNav IA', () => {
     expect(partnerSectionTitle('availability')).toBe('Departures & Availability');
   });
 
-  it('nests Reservations under Stays and keeps Stay Calendar as a non-link placeholder', () => {
-    const stays = PARTNER_SIDEBAR_PRIMARY.find((e) => e.id === 'stays');
-    expect(stays?.kind).toBe('group');
+  it('nests Reservations and Stay Calendar under Stays as live routes', () => {
+    expect(PARTNER_NAV_STAYS_CHILDREN.map((i) => i.id)).toEqual(['reservations', 'stay-calendar']);
+    expect(PARTNER_NAV_STAYS_CHILDREN.some(isPartnerNavSoonItem)).toBe(false);
     expect(partnerSidebarGroupContaining('reservations')?.id).toBe('stays');
-    const soon = PARTNER_NAV_STAYS_CHILDREN.find(isPartnerNavSoonItem);
-    expect(soon?.label).toBe('Stay Calendar');
-    expect(soon?.comingSoon).toBe(true);
-    expect(partnerSidebarNavigableIds()).not.toContain('stay-calendar' as never);
+    expect(partnerSidebarGroupContaining('stay-calendar')?.id).toBe('stays');
+    expect(partnerSidebarNavigableIds()).toContain('stay-calendar');
+    expect(partnerSectionTitle('stay-calendar')).toBe('Stay Calendar');
   });
 
   it('does not duplicate Bookings and Reservations as top-level leaves', () => {
@@ -59,6 +58,7 @@ describe('partnerNav IA', () => {
     expect(leaves).not.toContain('bookings');
     expect(leaves).not.toContain('reservations');
     expect(leaves).not.toContain('availability');
+    expect(leaves).not.toContain('stay-calendar');
   });
 
   it('keeps Help and Settings in the footer, not mixed with ops', () => {
@@ -73,6 +73,7 @@ describe('partnerNav IA', () => {
     expect(moreIds).toContain('inbox');
     expect(moreIds).toContain('pickup');
     expect(moreIds).toContain('reservations');
+    expect(moreIds).toContain('stay-calendar');
     expect(moreIds).toContain('help');
     expect(moreIds).toContain('account-settings');
     expect(moreIds).toContain('earnings');

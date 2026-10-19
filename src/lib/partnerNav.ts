@@ -33,6 +33,7 @@ export type PartnerNavSectionId =
   | 'availability'
   | 'bookings'
   | 'reservations'
+  | 'stay-calendar'
   | 'inbox'
   | 'listings'
   | 'pickup'
@@ -52,7 +53,7 @@ export type PartnerNavItem = {
   icon: LucideIcon;
 };
 
-/** Non-navigating placeholder — never use as a dead href. */
+/** @deprecated Prefer real PartnerNavItem — Stay Calendar is live. */
 export type PartnerNavSoonItem = {
   id: string;
   label: string;
@@ -133,12 +134,10 @@ export const PARTNER_NAV_BOOKINGS_CHILDREN: PartnerNavItem[] = [
   { id: 'pickup', label: 'Pickups', icon: Car },
 ];
 
-/**
- * Stay ops under Stays. Stay Calendar is a non-navigating placeholder until built.
- */
+/** Stay ops under Stays. */
 export const PARTNER_NAV_STAYS_CHILDREN: PartnerSidebarChild[] = [
   { id: 'reservations', label: 'Reservations', icon: BedDouble },
-  { id: 'stay-calendar', label: 'Stay Calendar', icon: CalendarDays, comingSoon: true },
+  { id: 'stay-calendar', label: 'Stay Calendar', icon: CalendarDays },
 ];
 
 /** @deprecated Use PARTNER_NAV_STAYS_CHILDREN navigable items */
@@ -199,6 +198,7 @@ export const PARTNER_SECTION_TITLES: Record<PartnerNavSectionId, string> = {
   pickup: 'Pickups',
   availability: 'Departures & Availability',
   reservations: 'Reservations',
+  'stay-calendar': 'Stay Calendar',
   inbox: 'Inbox',
   reviews: 'Reviews',
   discounts: 'Offers',
@@ -302,7 +302,10 @@ export const PARTNER_MORE_GROUPS: PartnerNavGroup[] = [
   {
     id: 'stays',
     label: 'Stays',
-    items: [...PARTNER_NAV_RESERVATIONS_CHILDREN],
+    items: [
+      ...PARTNER_NAV_RESERVATIONS_CHILDREN,
+      { id: 'stay-calendar', label: 'Stay Calendar', icon: CalendarDays },
+    ],
   },
   {
     id: 'business',

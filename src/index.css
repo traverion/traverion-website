@@ -6189,3 +6189,190 @@ details:not([open]) > :not(summary) {
   outline: 2px solid #073b83;
   outline-offset: 2px;
 }
+
+/* Partner Stay Calendar */
+.tv-stay-cal-thumb {
+  display: block;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 0.375rem;
+  background: #f1f5f9;
+}
+.tv-stay-cal-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.tv-stay-cal-thumb__fallback {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #e2e8f0, #f8fafc);
+}
+.tv-stay-cal-agenda__main {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+}
+.tv-stay-cal-kind--booked {
+  --stay-cal-tint: rgba(7, 59, 131, 0.12);
+  --stay-cal-ink: #073b83;
+}
+.tv-stay-cal-kind--pending {
+  --stay-cal-tint: rgba(180, 120, 20, 0.14);
+  --stay-cal-ink: #92400e;
+}
+.tv-stay-cal-kind--blocked {
+  --stay-cal-tint: rgba(15, 23, 42, 0.08);
+  --stay-cal-ink: #475569;
+}
+.tv-stay-cal-kind--available {
+  --stay-cal-tint: transparent;
+  --stay-cal-ink: #64748b;
+}
+.tv-avail-pill.tv-stay-cal-kind {
+  background: var(--stay-cal-tint);
+  color: var(--stay-cal-ink);
+}
+.tv-stay-cal-swatch {
+  display: inline-block;
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 999px;
+  background: var(--stay-cal-tint, #e2e8f0);
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.12);
+}
+.tv-stay-cal-week {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  background: #fff;
+  overflow: hidden;
+}
+.tv-stay-cal-week__scroll {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+.tv-stay-cal-week__table {
+  width: 100%;
+  min-width: 40rem;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.tv-stay-cal-week__prop-h,
+.tv-stay-cal-week__day-h {
+  padding: 0.5rem 0.4rem;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f8fafc;
+  text-align: center;
+  font-weight: 600;
+}
+.tv-stay-cal-week__prop-h {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  width: 9.5rem;
+  min-width: 9.5rem;
+  text-align: left;
+  padding-left: 0.75rem;
+}
+.tv-stay-cal-week__prop {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  width: 9.5rem;
+  min-width: 9.5rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #f1f5f9;
+  background: #fff;
+  vertical-align: middle;
+  font-weight: 600;
+}
+.tv-stay-cal-week__track {
+  padding: 0.35rem 0.25rem;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+.tv-stay-cal-week__track-inner {
+  position: relative;
+  min-height: 2.5rem;
+}
+.tv-stay-cal-week__grid,
+.tv-stay-cal-week__spans {
+  display: grid;
+  gap: 3px;
+  min-height: 2.5rem;
+}
+.tv-stay-cal-week__spans {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  align-items: center;
+  padding: 0.2rem 0;
+}
+.tv-stay-cal-week__cell {
+  min-height: 2.5rem;
+  border-radius: 0.375rem;
+  border: 1px solid transparent;
+  background: var(--stay-cal-tint, transparent);
+  transition: background-color 150ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 150ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.tv-stay-cal-week__cell:hover {
+  border-color: rgba(7, 59, 131, 0.25);
+}
+.tv-stay-cal-week__cell.is-selected,
+.tv-cal-day.is-selected {
+  box-shadow: inset 0 0 0 2px #073b83;
+}
+.tv-stay-cal-week__span {
+  pointer-events: auto;
+  margin: 0 2px;
+  min-height: 1.65rem;
+  padding: 0 0.4rem;
+  border-radius: 0.375rem;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  text-align: left;
+  overflow: hidden;
+  transition: filter 140ms ease;
+}
+.tv-stay-cal-week__span.is-booked {
+  background: #073b83;
+}
+.tv-stay-cal-week__span.is-pending {
+  background: #b45309;
+}
+.tv-stay-cal-week__span:hover {
+  filter: brightness(1.08);
+}
+.tv-stay-cal-month .tv-cal-day.tv-stay-cal-kind--booked {
+  background: rgba(7, 59, 131, 0.08);
+}
+.tv-stay-cal-month .tv-cal-day.tv-stay-cal-kind--pending {
+  background: rgba(180, 120, 20, 0.12);
+}
+.tv-stay-cal-month .tv-cal-day.tv-stay-cal-kind--blocked {
+  background: rgba(15, 23, 42, 0.06);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 3px,
+    rgba(15, 23, 42, 0.04) 3px,
+    rgba(15, 23, 42, 0.04) 6px
+  );
+}
+.tv-stay-cal-month .tv-cal-day__meta {
+  color: var(--stay-cal-ink, #64748b);
+  font-size: 10px;
+  font-weight: 600;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tv-stay-cal-week__cell,
+  .tv-stay-cal-week__span {
+    transition: none;
+  }
+}

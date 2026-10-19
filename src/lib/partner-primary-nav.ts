@@ -17,6 +17,7 @@ export const PARTNER_MORE_NAV_SECTION_IDS = [
   'discounts',
   'pickup',
   'reservations',
+  'stay-calendar',
   'earnings',
   'performance',
   'help',
