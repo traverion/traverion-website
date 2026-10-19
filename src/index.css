@@ -5529,9 +5529,10 @@ details:not([open]) > :not(summary) {
 .listing-creation-workspace textarea.tv-input.stay-description-input {
   min-height: 220px;
   height: 220px;
-  max-height: 450px;
+  max-height: 520px;
   resize: vertical;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 @media (min-width: 640px) {
   .listing-creation-workspace textarea.tv-input.stay-description-input {

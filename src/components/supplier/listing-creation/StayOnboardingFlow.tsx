@@ -3,6 +3,7 @@ import { STAY_ONBOARDING_SCREENS, clampStayIntroInput, quietHoursMentioned, stay
 import { STAY_SAFETY_CONSIDERATIONS, staySafetyConsiderationLines } from '../../../lib/stay-safety';
 import { clampListingDescriptionInput, clampListingTitleInput } from '../../../lib/listingQualityScore';
 import { stayAmenityDisplayList } from '../../../lib/stay-amenities';
+import { stayHighlightAmenityHints, staySelfCheckInConflict } from '../../../lib/stay-creator-consistency';
 import { isStandardStayPropertyType, stayPropertyTypesForMode } from '../../../lib/stay-accommodation';
 import { STAY_ARRIVAL_METHODS, stayArrivalMethodHint, stayArrivalMethodLabel } from '../../../lib/stay-arrival';
 import { STAY_BED_KINDS, stayBedCount, stayBedSummary, stayMixFromAreas, staySleepCapacity, type StayBedKind, type StaySleepingArea } from '../../../lib/stay-beds';
@@ -183,13 +184,8 @@ export default function StayOnboardingFlow(props: Props) {
         {id === 'property-type' ? <PropertyTypeStage {...props} option={option} writeOption={writeOption} /> : null}
         {id === 'property-name' ? <PropertyNameStage {...props} /> : null}
         {id === 'property-intro' ? <PropertyIntroStage {...props} /> : null}
-        {id === 'amenities' ? (
-          <StayAmenityPicker
-            selected={stayAmenityDisplayList(props.values.stayAmenities.split(',').map((item) => item.trim()))}
-            onChange={(next) => props.onChange({ stayAmenities: next.join(', ') })}
-          />
-        ) : null}
-        {id === 'rooms' ? <RoomsStage areas={areas} onChange={writeAreas} /> : null}
+        {id === 'amenities' ? <AmenitiesStage {...props} /> : null}
+        {id === 'rooms' ? <RoomsStage areas={areas} maxGuests={props.values.stayMaxGuests} onChange={writeAreas} /> : null}
         {id === 'description' ? <DescriptionStage {...props} /> : null}
         {id === 'highlights' ? <HighlightsStage {...props} /> : null}
         {id === 'booking-method' ? <BookingMethodStage /> : null}
@@ -560,12 +556,37 @@ function roomSleepLine(area: StaySleepingArea): string {
   return `${summary.charAt(0).toUpperCase()}${summary.slice(1)} · Sleeps up to ${sleeps}`;
 }
 
-function RoomsStage({ areas, onChange }: { areas: StaySleepingArea[]; onChange: (next: StaySleepingArea[]) => void }) {
+function AmenitiesStage({ values, onChange }: Props) {
+  const selected = stayAmenityDisplayList(values.stayAmenities.split(',').map((item) => item.trim()));
+  const conflict = staySelfCheckInConflict(selected, values.stayArrivalMethod);
+  return (
+    <div className="space-y-4">
+      <StayAmenityPicker selected={selected} onChange={(next) => onChange({ stayAmenities: next.join(', ') })} />
+      {conflict ? (
+        <p className="text-sm font-medium text-[#9a6700]" role="status">
+          {conflict}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function RoomsStage({
+  areas,
+  maxGuests,
+  onChange,
+}: {
+  areas: StaySleepingArea[];
+  maxGuests: string;
+  onChange: (next: StaySleepingArea[]) => void;
+}) {
+  const sleeps = staySleepCapacity(stayMixFromAreas(areas));
+  const guests = Number.parseInt(maxGuests, 10);
   function add(living: boolean) {
     onChange([...areas, { id: newStayOptionId(), name: living ? 'Living area' : `Bedroom ${areas.filter((area) => !/living/i.test(area.name)).length + 1}`, beds: [] }]);
   }
   function patch(areaId: string, next: StaySleepingArea) {
-    onChange(areas.map((row) => row.id === areaId ? next : row));
+    onChange(areas.map((row) => (row.id === areaId ? next : row)));
   }
   return (
     <div className="space-y-3">
@@ -580,26 +601,49 @@ function RoomsStage({ areas, onChange }: { areas: StaySleepingArea[]; onChange: 
             {area.beds.map((bed, index) => (
               <li key={`${area.id}-${index}`} className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-2">
                 <span className="stay-choice-icon">{stayBedIcon(bed.kind)}</span>
-                <select className="tv-input w-full" aria-label={`Bed type in ${area.name || 'room'}`} value={bed.kind} onChange={(e) => patch(area.id, { ...area, beds: area.beds.map((item, i) => i === index ? { ...item, kind: e.target.value as StayBedKind } : item) })}>
-                  {STAY_BED_KINDS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+                <select className="tv-input w-full" aria-label={`Bed type in ${area.name || 'room'}`} value={bed.kind} onChange={(e) => patch(area.id, { ...area, beds: area.beds.map((item, i) => (i === index ? { ...item, kind: e.target.value as StayBedKind } : item)) })}>
+                  {STAY_BED_KINDS.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.label}
+                    </option>
+                  ))}
                 </select>
                 <div className="flex items-center gap-1">
-                  <button type="button" className="stay-step" aria-label="Fewer beds" disabled={bed.count <= 1} onClick={() => patch(area.id, { ...area, beds: area.beds.map((item, i) => i === index ? { ...item, count: Math.max(1, item.count - 1) } : item) })}>−</button>
+                  <button type="button" className="stay-step" aria-label="Fewer beds" disabled={bed.count <= 1} onClick={() => patch(area.id, { ...area, beds: area.beds.map((item, i) => (i === index ? { ...item, count: Math.max(1, item.count - 1) } : item)) })}>
+                    −
+                  </button>
                   <span className="w-6 text-center text-sm tabular-nums">{bed.count}</span>
-                  <button type="button" className="stay-step" aria-label="More beds" disabled={bed.count >= 20} onClick={() => patch(area.id, { ...area, beds: area.beds.map((item, i) => i === index ? { ...item, count: Math.min(20, item.count + 1) } : item) })}>+</button>
+                  <button type="button" className="stay-step" aria-label="More beds" disabled={bed.count >= 20} onClick={() => patch(area.id, { ...area, beds: area.beds.map((item, i) => (i === index ? { ...item, count: Math.min(20, item.count + 1) } : item)) })}>
+                    +
+                  </button>
                 </div>
-                <button type="button" className="min-h-11 text-sm text-ink-muted" onClick={() => patch(area.id, { ...area, beds: area.beds.filter((_, i) => i !== index) })}>Remove</button>
+                <button type="button" className="min-h-11 text-sm text-ink-muted" onClick={() => patch(area.id, { ...area, beds: area.beds.filter((_, i) => i !== index) })}>
+                  Remove
+                </button>
               </li>
             ))}
           </ul>
-          <button type="button" className="min-h-11 text-sm font-semibold text-finland" onClick={() => patch(area.id, { ...area, beds: [...area.beds, { kind: 'double', count: 1 }] })}>Add a bed</button>
+          <button type="button" className="min-h-11 text-sm font-semibold text-finland" onClick={() => patch(area.id, { ...area, beds: [...area.beds, { kind: 'double', count: 1 }] })}>
+            Add a bed
+          </button>
         </section>
       ))}
       <div className="grid grid-cols-2 gap-2">
-        <button type="button" className="tv-btn-secondary !min-h-11" onClick={() => add(false)}>Add bedroom</button>
-        <button type="button" className="tv-btn-secondary !min-h-11" onClick={() => add(true)}>Add living area</button>
+        <button type="button" className="tv-btn-secondary !min-h-11" onClick={() => add(false)}>
+          Add bedroom
+        </button>
+        <button type="button" className="tv-btn-secondary !min-h-11" onClick={() => add(true)}>
+          Add living area
+        </button>
       </div>
-      <StayHelp>These beds sleep up to {staySleepCapacity(stayMixFromAreas(areas))} guests. Living areas are not counted as bedrooms.</StayHelp>
+      <StayHelp>
+        These beds sleep up to {sleeps} guests. Living areas are not counted as bedrooms.
+      </StayHelp>
+      {Number.isFinite(guests) && guests > 0 && sleeps >= 1 && guests > sleeps ? (
+        <p className="text-sm font-medium text-[#9a6700]" role="status">
+          Maximum guests is set to {guests}, but these beds sleep {sleeps}. Lower the guest limit or add beds before publishing.
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -613,8 +657,8 @@ function DescriptionStage({ values, onChange, minDescription, maxDescription }: 
     if (!field) return;
     const fit = () => {
       const min = window.matchMedia('(min-width: 640px)').matches ? 280 : 220;
-      const max = 450;
-      field.style.height = `${min}px`;
+      const max = 520;
+      field.style.height = 'auto';
       const needed = Math.max(min, field.scrollHeight);
       field.style.height = `${Math.min(needed, max)}px`;
       field.style.overflowY = needed > max ? 'auto' : 'hidden';
@@ -635,7 +679,10 @@ function DescriptionStage({ values, onChange, minDescription, maxDescription }: 
           onChange={(e) => onChange({ description: clampListingDescriptionInput(e.target.value, values.description) })}
         />
       </Field>
-      <p className={`text-xs ${short ? 'font-semibold text-[#9f1239]' : 'text-ink-muted'}`}>{length} / {maxDescription}. At least {minDescription} characters.</p>
+      <StayHelp>Scroll inside the field when the text grows past the visible area. At least {minDescription} characters, up to {maxDescription}.</StayHelp>
+      <p className={`text-xs ${short ? 'font-semibold text-[#9f1239]' : 'text-ink-muted'}`}>
+        {length} / {maxDescription}. At least {minDescription} characters.
+      </p>
     </div>
   );
 }
@@ -654,6 +701,8 @@ const HIGHLIGHT_CHOICES = [
 function HighlightsStage({ values, onChange }: Props) {
   const [draft, setDraft] = useState('');
   const chosen = values.highlights.map((line) => line.trim()).filter(Boolean);
+  const amenities = stayAmenityDisplayList(values.stayAmenities.split(',').map((item) => item.trim()));
+  const hints = stayHighlightAmenityHints(chosen, amenities);
   function toggle(label: string) {
     const has = chosen.some((line) => line.toLowerCase() === label.toLowerCase());
     const next = has ? chosen.filter((line) => line.toLowerCase() !== label.toLowerCase()) : [...chosen, label].slice(0, 8);
@@ -661,7 +710,10 @@ function HighlightsStage({ values, onChange }: Props) {
   }
   function addCustom() {
     const value = draft.trim().slice(0, 80);
-    if (!value || chosen.some((line) => line.toLowerCase() === value.toLowerCase()) || chosen.length >= 8) return;
+    if (!value || chosen.some((line) => line.toLowerCase() === value.toLowerCase()) || chosen.length >= 8) {
+      setDraft('');
+      return;
+    }
     onChange({ highlights: [...chosen, value] });
     setDraft('');
   }
@@ -674,7 +726,9 @@ function HighlightsStage({ values, onChange }: Props) {
           <ul className="mt-2 flex flex-wrap gap-2">
             {chosen.map((line) => (
               <li key={line}>
-                <button type="button" className="stay-choice lc-choice lc-choice--selected min-h-11 rounded-full px-3 text-sm font-semibold text-[#073b83]" onClick={() => toggle(line)}>{line}</button>
+                <button type="button" className="stay-choice lc-choice lc-choice--selected min-h-11 rounded-full px-3 text-sm font-semibold text-[#073b83]" onClick={() => toggle(line)}>
+                  {line}
+                </button>
               </li>
             ))}
           </ul>
@@ -686,31 +740,59 @@ function HighlightsStage({ values, onChange }: Props) {
         {HIGHLIGHT_CHOICES.map((label) => {
           const on = chosen.some((line) => line.toLowerCase() === label.toLowerCase());
           return (
-            <StayChoice key={label} pressed={on} icon={stayHighlightIcon(label) ?? undefined} onClick={() => toggle(label)}>{label}</StayChoice>
+            <StayChoice key={label} pressed={on} icon={stayHighlightIcon(label) ?? undefined} onClick={() => toggle(label)}>
+              {label}
+            </StayChoice>
           );
         })}
       </div>
       {custom.length > 0 ? <StayHelp>Your own lines are in Confirmed. Select one there to remove it.</StayHelp> : null}
       <Field label="Your own highlight">
         <div className="flex gap-2">
-          <input className="tv-input min-w-0 flex-1" maxLength={80} value={draft} placeholder="Only something this property has" onChange={(e) => setDraft(e.target.value.slice(0, 80))} onKeyDown={(e) => {
-            if (e.key !== 'Enter') return;
-            e.preventDefault();
-            addCustom();
-          }} />
-          <button type="button" className="tv-btn-secondary !min-h-11 shrink-0" onClick={addCustom} disabled={!draft.trim() || chosen.length >= 8}>Add</button>
+          <input
+            className="tv-input min-w-0 flex-1"
+            maxLength={80}
+            value={draft}
+            placeholder="Only something this property has"
+            aria-label="Custom highlight"
+            onChange={(e) => setDraft(e.target.value.slice(0, 80))}
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter') return;
+              e.preventDefault();
+              addCustom();
+            }}
+          />
+          <button type="button" className="tv-btn-secondary !min-h-11 shrink-0" onClick={addCustom} disabled={!draft.trim() || chosen.length >= 8}>
+            Add
+          </button>
         </div>
       </Field>
+      {hints.length > 0 ? (
+        <ul className="space-y-1" role="status">
+          {hints.map((hint) => (
+            <li key={hint} className="text-sm font-medium text-[#9a6700]">
+              {hint}
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   );
 }
 
 function BookingMethodStage() {
   return (
-    <div className="stay-panel">
-      <p className="text-sm font-semibold text-ink">Instant booking</p>
-      <p className="mt-1 text-sm leading-relaxed text-ink-muted">Guests can confirm an available stay immediately and complete payment securely at checkout.</p>
-    </div>
+    <section className="stay-panel space-y-2" aria-labelledby="stay-booking-method-title">
+      <p id="stay-booking-method-title" className="text-sm font-semibold text-ink">
+        Instant booking
+      </p>
+      <p className="text-sm leading-relaxed text-ink-muted">
+        Guests book available dates immediately and pay securely at checkout. This listing uses Instant booking only.
+      </p>
+      <p className="text-xs leading-relaxed text-ink-muted" role="note">
+        No other booking method is available for stays here.
+      </p>
+    </section>
   );
 }
 
@@ -1040,6 +1122,10 @@ function FeesStage({ values, currency, option, writeOption }: Props & { option: 
 }
 
 function ArrivalMethodStage({ values, onChange }: Props) {
+  const conflict = staySelfCheckInConflict(
+    values.stayAmenities.split(',').map((item) => item.trim()),
+    values.stayArrivalMethod
+  );
   return (
     <div className="space-y-4">
       <div className="grid gap-2 sm:grid-cols-2">
@@ -1053,6 +1139,11 @@ function ArrivalMethodStage({ values, onChange }: Props) {
         })}
       </div>
       {values.stayArrivalMethod ? <p className="text-sm text-ink-muted">{stayArrivalMethodHint(values.stayArrivalMethod)}</p> : null}
+      {conflict && values.stayArrivalMethod ? (
+        <p className="text-sm font-medium text-[#9a6700]" role="status">
+          {conflict}
+        </p>
+      ) : null}
     </div>
   );
 }
