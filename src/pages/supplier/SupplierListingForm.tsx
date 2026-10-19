@@ -1111,7 +1111,8 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
     ...(isStay
       ? {
           stay: {
-            propertyType: form.stayPropertyType.trim() || undefined,
+            propertyType:
+              (activeStayOptions(form.stayOptions)[0]?.propertyType || form.stayPropertyType).trim() || undefined,
             accommodationMode: form.stayAccommodationMode === 'multi' ? 'multi' : 'single',
             units: form.stayUnits.length > 0 ? form.stayUnits : undefined,
             options: form.stayOptions.length > 0 ? form.stayOptions : undefined,

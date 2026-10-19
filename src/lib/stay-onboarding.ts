@@ -6,11 +6,11 @@
 import { stayPropertyTypeBlocker } from './stay-accommodation';
 
 export const STAY_ONBOARDING_SCREENS = [
-  { id: 'location', group: 'Location', part: '1 of 2', title: 'Where is the property?', body: 'Search the street address. Guests see the city before they book.' },
-  { id: 'confirm', group: 'Location', part: '2 of 2', title: 'Confirm the location', body: 'The pin should sit on the property. Guests still see only the city before they book.' },
+  { id: 'location', group: 'Location', part: '1 of 2', title: 'Where is the property?', body: 'Choose the street address from the suggestions. Guests see the city before they book.' },
+  { id: 'confirm', group: 'Location', part: '2 of 2', title: 'Confirm the location', body: 'Place the pin on the property. Guests still see only the city before they book.' },
   { id: 'property-type', group: 'Property', part: '1 of 3', title: 'What kind of place is this?', body: 'One listing is one bookable place.' },
   { id: 'property-name', group: 'Property', part: '2 of 3', title: 'Name the accommodation', body: 'This is the title guests see in search.' },
-  { id: 'property-intro', group: 'Property', part: '3 of 3', title: 'Give your place a short introduction', body: 'Describe what makes your accommodation special in one or two sentences.' },
+  { id: 'property-intro', group: 'Property', part: '3 of 3', title: 'Give your place a short introduction', body: 'One or two sentences under the title. Guests see this before they book.' },
   { id: 'amenities', group: 'Amenities', part: '1 of 1', title: 'What can guests use?', body: 'Select only what is actually there.' },
   { id: 'rooms', group: 'Sleeping', part: '1 of 1', title: 'Where will guests sleep?', body: 'A bedroom count is not the same as how many people the beds sleep.' },
   { id: 'description', group: 'Description', part: '1 of 2', title: 'Describe the stay', body: 'Write what a guest should know. Do not claim anything the property does not have.' },

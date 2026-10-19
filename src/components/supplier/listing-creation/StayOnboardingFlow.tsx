@@ -140,6 +140,7 @@ export default function StayOnboardingFlow(props: Props) {
   const stage = STAY_ONBOARDING_SCREENS[props.stage] ?? STAY_ONBOARDING_SCREENS[0];
   const id = stage.id;
   const previewWide = id === 'preview' || id === 'publish';
+  const mapWide = id === 'confirm';
   const wide = id === 'photos' || id === 'room-photos' || previewWide;
   const option = primaryOption(props.values);
   const areas = areasOf(option);
@@ -161,7 +162,7 @@ export default function StayOnboardingFlow(props: Props) {
   }
 
   return (
-    <div className={`stay-creator mx-auto w-full ${previewWide ? 'max-w-[76rem]' : wide ? 'max-w-3xl' : 'max-w-xl'} ${props.direction === 'back' ? 'stay-stage-back' : 'stay-stage-forward'}`}>
+    <div className={`stay-creator mx-auto w-full ${previewWide ? 'max-w-[76rem]' : mapWide ? 'max-w-2xl' : wide ? 'max-w-3xl' : 'max-w-xl'} ${props.direction === 'back' ? 'stay-stage-back' : 'stay-stage-forward'}`}>
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="stay-kicker">
@@ -272,10 +273,10 @@ function LocationStage({ values, onChange, onConfirmLocation }: Props) {
           onConfirmLocation(false);
         }}
       />
-      <Field label="Apartment / Unit">
+      <Field label="Apartment / Unit (optional)">
         <input className="tv-input w-full" value={values.stayAddressUnit} maxLength={40} placeholder="D7 or 4B" aria-label="Apartment or unit" onChange={(e) => writeUnit(e.target.value.slice(0, 40))} />
       </Field>
-      <p className="stay-help">Select the full address from the suggestions. The street stays private. Guests see the city before they book.</p>
+      <StayHelp>Apartment or unit stays private with the street address.</StayHelp>
     </div>
   );
 }
@@ -323,16 +324,17 @@ function ConfirmStage({ values, locationConfirmed, onConfirmLocation, onChange }
         </p>
       ) : null}
       <StayPin
-        resetKey={values.stayPinPlaceId || (hasPin ? 'placed' : 'city')}
+        resetKey={`${values.stayPinPlaceId || values.stayPinAddressKey || 'none'}|${hasPin ? 'pin' : 'city'}`}
         centerLat={viewLat}
         centerLng={viewLng}
         markerLat={hasPin ? values.stayPinLat : null}
         markerLng={hasPin ? values.stayPinLng : null}
         onMove={placePin}
       />
-      <label className="flex min-h-11 items-center gap-2 text-sm font-semibold text-ink">
+      <label className="stay-panel flex min-h-12 cursor-pointer items-center gap-3 text-sm font-semibold text-ink">
         <input
           type="checkbox"
+          className="h-4 w-4 shrink-0"
           checked={locationConfirmed && pinReady}
           disabled={!pinReady}
           onChange={(e) => onConfirmLocation(e.target.checked)}
@@ -369,16 +371,21 @@ function StayPin({
     const view = viewRef.current;
     if (!key || view.centerLat == null || view.centerLng == null || !ref.current) return;
     let marker: { setMap: (map: null) => void; setPosition: (pos: object) => void; addListener: (name: string, fn: () => void) => void; getPosition: () => { lat: () => number; lng: () => number } | null } | null = null;
+    let map: { setZoom: (zoom: number) => void; panTo: (pos: object) => void; addListener: (name: string, fn: (event: { latLng?: { lat: () => number; lng: () => number } | null }) => void) => void } | null = null;
     let cancelled = false;
     const scriptId = 'traverion-stay-pin-map';
     const start = () => {
       const maps = window.google?.maps as {
-        Map: new (el: HTMLElement, opts: object) => { addListener: (name: string, fn: (event: { latLng?: { lat: () => number; lng: () => number } | null }) => void) => void };
+        Map: new (el: HTMLElement, opts: object) => {
+          setZoom: (zoom: number) => void;
+          panTo: (pos: object) => void;
+          addListener: (name: string, fn: (event: { latLng?: { lat: () => number; lng: () => number } | null }) => void) => void;
+        };
         Marker: new (opts: object) => { setMap: (next: null) => void; setPosition: (pos: object) => void; addListener: (name: string, fn: () => void) => void; getPosition: () => { lat: () => number; lng: () => number } | null };
       } | undefined;
       if (!maps || !ref.current || cancelled) return;
-      const zoom = view.markerLat != null ? 17 : 12;
-      const map = new maps.Map(ref.current, { center: { lat: view.centerLat, lng: view.centerLng }, zoom, disableDefaultUI: true, zoomControl: true, gestureHandling: 'greedy', clickableIcons: false });
+      const zoom = view.markerLat != null ? 17 : 13;
+      map = new maps.Map(ref.current, { center: { lat: view.centerLat, lng: view.centerLng }, zoom, disableDefaultUI: true, zoomControl: true, gestureHandling: 'greedy', clickableIcons: false });
       const report = () => {
         const pos = marker?.getPosition();
         if (pos) moveRef.current(pos.lat(), pos.lng());
@@ -390,10 +397,15 @@ function StayPin({
       map.addListener('click', (event) => {
         const pos = event.latLng;
         if (!pos) return;
+        const firstPin = !marker;
         if (!marker) {
           marker = new maps.Marker({ map, position: pos, draggable: true });
           marker.addListener('dragend', report);
         } else marker.setPosition(pos);
+        if (firstPin) {
+          map?.setZoom(17);
+          map?.panTo(pos);
+        }
         moveRef.current(pos.lat(), pos.lng());
       });
     };
@@ -416,11 +428,11 @@ function StayPin({
     };
   }, [resetKey]);
   if (centerLat == null || centerLng == null) {
-    return <p className="text-sm text-ink-muted">Search a street address, or choose the city, before placing the pin.</p>;
+    return <p className="text-sm text-ink-muted">Choose a street address before placing the pin.</p>;
   }
   return (
     <div>
-      <div ref={ref} className="h-80 w-full overflow-hidden rounded-xl ring-1 ring-[#E6EAF0]" />
+      <div ref={ref} className="h-[22rem] w-full overflow-hidden rounded-xl ring-1 ring-[#E6EAF0] sm:h-96" />
       {failed || !googleMapsBrowserKey() ? (
         <div className="mt-3 grid grid-cols-2 gap-2">
           <p className="col-span-2 text-sm text-ink-muted">The map could not load. Move the pin onto the property.</p>
@@ -440,7 +452,9 @@ function PropertyTypeStage({ values, option, writeOption }: Props & { option: St
   const types = stayPropertyTypesForMode('single');
   const stored = (option.propertyType || values.stayPropertyType).trim();
   const standard = isStandardStayPropertyType(stored);
+  const otherSelected = !standard && stored.length > 0;
   const custom = standard || stored === 'Other' ? '' : stored;
+  const customRef = useRef<HTMLInputElement>(null);
   return (
     <div className="space-y-4">
       {values.stayAccommodationMode === 'multi' ? (
@@ -450,7 +464,7 @@ function PropertyTypeStage({ values, option, writeOption }: Props & { option: St
       ) : null}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="group" aria-label="Property type">
         {types.map((type) => {
-          const on = type === 'Other' ? !standard && stored.length > 0 : stored === type;
+          const on = type === 'Other' ? otherSelected : stored === type;
           const label = type === 'Room' ? 'Private room' : type;
           return (
             <StayChoice
@@ -460,8 +474,12 @@ function PropertyTypeStage({ values, option, writeOption }: Props & { option: St
               className="stay-type-card min-h-[5.75rem] flex-col"
               onClick={() => {
                 if (type === 'Other') {
-                  if (!standard && stored) return;
+                  if (otherSelected) {
+                    customRef.current?.focus();
+                    return;
+                  }
                   writeOption({ ...option, propertyType: 'Other' });
+                  window.setTimeout(() => customRef.current?.focus(), 0);
                   return;
                 }
                 writeOption({ ...option, propertyType: type });
@@ -472,9 +490,10 @@ function PropertyTypeStage({ values, option, writeOption }: Props & { option: St
           );
         })}
       </div>
-      {!standard && stored ? (
+      {otherSelected ? (
         <Field label="Specify your property type">
           <input
+            ref={customRef}
             className="tv-input w-full"
             value={custom}
             maxLength={40}
@@ -522,10 +541,12 @@ function PropertyIntroStage({ values, onChange, maxSubtitle }: Props) {
           ref={fieldRef}
           className="tv-input stay-intro-input w-full resize-y py-2"
           value={values.subtitle}
+          maxLength={maxSubtitle}
           aria-label="Short introduction"
           onChange={(e) => onChange({ subtitle: clampStayIntroInput(e.target.value, values.subtitle, maxSubtitle) })}
         />
       </Field>
+      <StayHelp>This appears under the property name. Maximum {maxSubtitle} characters.</StayHelp>
       <p className="text-xs tabular-nums text-ink-muted">{values.subtitle.trim().length} / {maxSubtitle}</p>
     </div>
   );
