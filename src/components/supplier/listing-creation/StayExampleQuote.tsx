@@ -46,6 +46,7 @@ export default function StayExampleQuote({
           nights: nightCount,
           baseNightly: nightly,
           baseMinNights: minNights >= 1 ? minNights : 1,
+          baseCleaningFee: cleaningFee > 0 ? cleaningFee : null,
           availabilityMode,
           seasons,
         })

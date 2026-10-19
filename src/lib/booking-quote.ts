@@ -726,6 +726,7 @@ export function quoteStayNights(input: {
     nights,
     baseNightly: nightly,
     baseMinNights: stay?.minNights && stay.minNights >= 1 ? stay.minNights : 1,
+    baseCleaningFee: stay?.cleaningFeeUsd ?? null,
     availabilityMode: stay?.availabilityMode,
     seasons: stay?.seasons,
   });

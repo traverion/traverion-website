@@ -102,6 +102,7 @@ import {
   type ListingPhotoCropSettings,
 } from '../../lib/listingPhotoGrid';
 import { getListingPublishBlockers, publishBlockerListingWizardStep } from '../../lib/listingPublishGate';
+import { applyListingSaveStatus } from '../../lib/listing-form-save';
 import { stayFormCheckInOutFromExtras } from '../../lib/stay-form-check-times';
 import { resolveDepartureTimezone, TRAVERION_DEPARTURE_TIMEZONE } from '../../lib/tour-departure-cutoff';
 import {
@@ -453,6 +454,13 @@ function migrateListingEditorStorage(fromId: string | null, toId: string, isStay
     copy(infoSceneStorageKey(fromId), infoSceneStorageKey(toId));
     copy(infoFarthestStorageKey(fromId), infoFarthestStorageKey(toId));
     copy(listingDraftBackupKey(fromId), listingDraftBackupKey(toId));
+    if (isStay) {
+      const fromKey = fromId ?? 'create';
+      copy(`traverion-stay-onboarding-screen-v2-${fromKey}`, `traverion-stay-onboarding-screen-v2-${toId}`);
+      copy(`traverion-stay-onboarding-screen-v2-${fromKey}-pin`, `traverion-stay-onboarding-screen-v2-${toId}-pin`);
+      copy(`traverion-stay-onboarding-stage-v1-${fromKey}`, `traverion-stay-onboarding-stage-v1-${toId}`);
+      copy(`traverion-stay-onboarding-stage-v1-${fromKey}-pin`, `traverion-stay-onboarding-stage-v1-${toId}-pin`);
+    }
   } catch {
     // ignore quota / private mode
   }
@@ -2585,25 +2593,26 @@ export default function SupplierListingForm({
      * Never force `draft` onto a published listing (would unpublish on tab hide).
      */
     const persist = () => {
-      if (serializeListingFormState(form) === initialFormSnapshotRef.current) return;
-      writeListingDraftBackup(editingId, form);
+      const current = formRef.current;
+      if (serializeListingFormState(current) === initialFormSnapshotRef.current) return;
+      writeListingDraftBackup(editingId, current);
       if (!enableDraftOnClose) return;
-      if (form.status === 'published') {
-        const listing = buildListingFromForm({ ...form, status: 'published' }, editingId ?? undefined);
+      if (current.status === 'published') {
+        const listing = buildListingFromForm({ ...current, status: 'published' }, editingId ?? undefined);
         void Promise.resolve(onSave(listing)).then((result) => {
           if (!result.success) return;
-          initialFormSnapshotRef.current = serializeListingFormState(formRef.current);
+          initialFormSnapshotRef.current = serializeListingFormState({ ...current, status: 'published' });
           setLastSavedAt(Date.now());
         });
         return;
       }
       if (!onSaveDraft) return;
       const listing = normalizeListingForDraftSave(
-        buildListingFromForm({ ...form, status: 'draft' }, editingId ?? undefined)
+        buildListingFromForm({ ...current, status: 'draft' }, editingId ?? undefined)
       );
       void onSaveDraft(listing).then((ok) => {
         if (!ok) return;
-        initialFormSnapshotRef.current = serializeListingFormState(formRef.current);
+        initialFormSnapshotRef.current = serializeListingFormState({ ...current, status: 'draft' });
         setLastSavedAt(Date.now());
       });
     };
@@ -2787,7 +2796,10 @@ export default function SupplierListingForm({
 
       submitInFlightRef.current = true;
       try {
-        const listing = buildListingFromForm({ ...form, status: targetStatus }, editingId ?? undefined);
+        // Capture at click time so the payload matches what the supplier intended to save.
+        // After await, merge only status into the latest form so mid-save edits are kept.
+        const savedSnapshot = formRef.current;
+        const listing = buildListingFromForm({ ...savedSnapshot, status: targetStatus }, editingId ?? undefined);
         if (targetStatus === 'published') {
           if (!canPostNewListing) {
             const msg =
@@ -2835,12 +2847,10 @@ export default function SupplierListingForm({
             return false;
           }
           if (result.listingId && result.listingId !== editingId) {
-            migrateListingEditorStorage(editingId, result.listingId, form.inventoryFamily === 'stay');
+            migrateListingEditorStorage(editingId, result.listingId, savedSnapshot.inventoryFamily === 'stay');
           }
-          // Sync local status to what the server just accepted (publish must not leave UI as draft).
-          const synced: ListingFormState = { ...form, status: targetStatus };
-          setForm(synced);
-          initialFormSnapshotRef.current = serializeListingFormState(synced);
+          setForm((current) => applyListingSaveStatus(current, targetStatus));
+          initialFormSnapshotRef.current = serializeListingFormState({ ...savedSnapshot, status: targetStatus });
           setLastSavedAt(Date.now());
           setSaveFlash(targetStatus === 'published' ? 'published' : 'draft');
           if (opts?.closeOnSuccess) {
@@ -2856,7 +2866,6 @@ export default function SupplierListingForm({
       }
     },
     [
-      form,
       editingId,
       onSave,
       stepIdx,
@@ -3842,7 +3851,8 @@ export default function SupplierListingForm({
         maxTitle: MAX_LISTING_TITLE_LENGTH,
         subtitle: form.subtitle,
         maxSubtitle: MAX_SUBTITLE_LENGTH,
-        propertyType: form.stayPropertyType,
+        propertyType:
+          (activeStayOptions(form.stayOptions)[0]?.propertyType || form.stayPropertyType).trim() || form.stayPropertyType,
         areasWithBeds: (activeStayOptions(form.stayOptions)[0]?.sleepingAreas ?? []).filter((area) => area.beds.some((bed) => bed.count > 0)).length,
         maxGuests: Number.parseInt(form.stayMaxGuests, 10) || null,
         minNights: Number.parseInt(form.stayMinNights, 10) || null,

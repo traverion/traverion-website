@@ -77,6 +77,7 @@ export function stayScreenIndexFromStorage(storedId: string | null, legacyIndex:
 export function stayScreenIndexForPublishLine(line: string): number {
   const text = line.toLowerCase();
   if (/photo|image|gallery|cover|hero|placeholder/.test(text)) return stayScreenIndex('photos');
+  if (/exterior camera|camera location|safety/.test(text)) return stayScreenIndex('safety');
   if (/check-in address|arrival address|street/.test(text)) return stayScreenIndex('arrival-notes');
   if (/city|country|location|destination/.test(text)) return stayScreenIndex('location');
   if (/nightly|price/.test(text)) return stayScreenIndex('price');

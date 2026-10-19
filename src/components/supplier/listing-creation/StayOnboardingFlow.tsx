@@ -168,6 +168,8 @@ export default function StayOnboardingFlow(props: Props) {
     const sleeps = staySleepCapacity(bedMix);
     const maxGuests =
       option.maxGuests != null && sleeps >= 1 ? Math.min(option.maxGuests, sleeps) : option.maxGuests;
+    const areaIds = new Set(nextAreas.map((area) => area.id));
+    const roomPhotos = (option.roomPhotos ?? []).filter((row) => areaIds.has(row.areaId));
     writeOption({
       ...option,
       sleepingAreas: nextAreas,
@@ -175,6 +177,7 @@ export default function StayOnboardingFlow(props: Props) {
       beds: stayBedCount(bedMix),
       bedrooms,
       maxGuests: maxGuests ?? null,
+      roomPhotos: roomPhotos.length > 0 ? roomPhotos : undefined,
     });
   }
 
@@ -1147,6 +1150,34 @@ function exactMoney(amount: number, currency: string): string {
   }).format(amount);
 }
 
+function withPrimarySchedulePrice(
+  option: StayAccommodationOption,
+  values: Values,
+  patch: { nightlyPrice?: number | null; cleaningFee?: number | null }
+): StayAccommodationOption {
+  const nightlyPrice = patch.nightlyPrice !== undefined ? patch.nightlyPrice : option.nightlyPrice;
+  const cleaningFee = patch.cleaningFee !== undefined ? patch.cleaningFee : option.cleaningFee;
+  const primary = option.schedules[0];
+  const season = primary ?? {
+    id: newStayOptionId(),
+    name: 'Standard',
+    start: '2020-01-01',
+    end: '2099-12-31',
+    enabled: true,
+    nightlyPrice,
+    minNights: option.minNights,
+    checkIn: values.stayCheckIn,
+    checkOut: values.stayCheckOut,
+    cleaningFee,
+  };
+  return {
+    ...option,
+    nightlyPrice,
+    cleaningFee,
+    schedules: [{ ...season, nightlyPrice, cleaningFee }, ...option.schedules.slice(1)],
+  };
+}
+
 function PricingStage({ values, currency, option, writeOption, commissionBps }: Props & { option: StayAccommodationOption; writeOption: (next: StayAccommodationOption) => void; commissionBps: number | null }) {
   const nightly = Number.parseFloat(values.stayNightly);
   const priced = Number.isFinite(nightly) && nightly > 0;
@@ -1163,7 +1194,8 @@ function PricingStage({ values, currency, option, writeOption, commissionBps }: 
       <Field label={`Price per night · ${currency}`}>
         <input className="tv-input w-full text-2xl font-semibold" inputMode="decimal" value={values.stayNightly} onChange={(e) => {
           const next = Number(e.target.value);
-          writeOption({ ...option, nightlyPrice: Number.isFinite(next) && next > 0 ? Math.round(next * 100) / 100 : null });
+          const nightlyPrice = Number.isFinite(next) && next > 0 ? Math.round(next * 100) / 100 : null;
+          writeOption(withPrimarySchedulePrice(option, values, { nightlyPrice }));
         }} />
       </Field>
       {priced && split ? (
@@ -1215,7 +1247,8 @@ function FeesStage({ values, currency, option, writeOption }: Props & { option: 
       <Field label={`Cleaning fee · ${currency}, per stay`}>
         <input className="tv-input w-full" inputMode="decimal" value={values.stayCleaningFee} onChange={(e) => {
           const cleaning = Number(e.target.value);
-          writeOption({ ...option, cleaningFee: Number.isFinite(cleaning) && cleaning >= 0 ? Math.round(cleaning * 100) / 100 : null });
+          const cleaningFee = Number.isFinite(cleaning) && cleaning >= 0 ? Math.round(cleaning * 100) / 100 : null;
+          writeOption(withPrimarySchedulePrice(option, values, { cleaningFee }));
         }} />
       </Field>
       <StayHelp>Cleaning is mandatory when set. It is added once to the checkout total, not to the nightly rate. Leave it blank when there is no cleaning fee.</StayHelp>

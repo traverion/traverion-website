@@ -166,6 +166,8 @@ export function quoteStayLodging(input: {
   nights: number;
   baseNightly: number;
   baseMinNights: number;
+  /** Listing-level cleaning fee when the check-in season does not set one. */
+  baseCleaningFee?: number | null;
   availabilityMode?: StayAvailabilityMode | null;
   seasons?: readonly StaySeasonWindow[] | null;
 }):
@@ -205,6 +207,9 @@ export function quoteStayLodging(input: {
     checkInSeason?.minNights && checkInSeason.minNights >= 1 ? checkInSeason.minNights : 1
   );
   const lodging = Math.round(prices.reduce((sum, n) => sum + n, 0) * 100) / 100;
+  const seasonCleaning = typeof checkInSeason?.cleaningFee === 'number' ? checkInSeason.cleaningFee : null;
+  const baseCleaning =
+    typeof input.baseCleaningFee === 'number' && input.baseCleaningFee >= 0 ? input.baseCleaningFee : null;
   return {
     ok: true,
     lodging,
@@ -213,7 +218,7 @@ export function quoteStayLodging(input: {
     maxNights: checkInSeason?.maxNights && checkInSeason.maxNights >= 1 ? checkInSeason.maxNights : null,
     minGuests: checkInSeason?.minGuests && checkInSeason.minGuests >= 1 ? checkInSeason.minGuests : null,
     maxGuests: checkInSeason?.maxGuests && checkInSeason.maxGuests >= 1 ? checkInSeason.maxGuests : null,
-    cleaningFee: typeof checkInSeason?.cleaningFee === 'number' ? checkInSeason.cleaningFee : null,
+    cleaningFee: seasonCleaning ?? baseCleaning,
     checkIn: checkInSeason?.checkIn && /^\d{2}:\d{2}$/.test(checkInSeason.checkIn) ? checkInSeason.checkIn : '',
     includedGuests: checkInSeason?.includedGuests ?? null,
     extraGuestNightly: checkInSeason?.extraGuestNightly ?? null,

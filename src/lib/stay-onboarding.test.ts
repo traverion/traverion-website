@@ -75,6 +75,45 @@ describe('stay onboarding screens', () => {
     expect(stayStageForLegacyWizardStep(5)).toBe(stayScreenIndexFromStorage('photos', null));
   });
 
+  it('keeps contiguous step indices for preview edit return targets', () => {
+    const order = [
+      'location',
+      'confirm',
+      'property-type',
+      'property-name',
+      'property-intro',
+      'amenities',
+      'rooms',
+      'description',
+      'highlights',
+      'booking-method',
+      'booking-times',
+      'booking-cutoff',
+      'availability',
+      'guests',
+      'stay-length',
+      'price',
+      'fees',
+      'arrival-method',
+      'arrival-notes',
+      'photos',
+      'room-photos',
+      'cancellation',
+      'house-rules',
+      'quiet-hours',
+      'safety',
+      'preview',
+      'publish',
+    ] as const;
+    expect(order).toHaveLength(27);
+    order.forEach((id, index) => {
+      expect(STAY_ONBOARDING_SCREENS[index]?.id).toBe(id);
+      expect(stayScreenIndex(id)).toBe(index);
+    });
+    expect(stayScreenIndexFromStorage('unknown-screen', null)).toBe(0);
+    expect(stayScreenIndexForPublishLine('Need a cover photo')).toBe(stayScreenIndex('photos'));
+  });
+
   it('keeps a named property type and asks for a custom type when Other is empty', () => {
     expect(stayStageBlocker('property-type', ready)).toBeNull();
     expect(stayStageBlocker('property-type', { ...ready, propertyType: 'Villa' })).toBeNull();

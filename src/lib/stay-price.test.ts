@@ -112,6 +112,40 @@ describe('stay add-on pricing', () => {
     expect(month.discountLabel).not.toContain('Weekly');
   });
 
+  it('keeps one-night examples free of weekly/monthly discounts and scales cleaning once', () => {
+    const cases = [
+      { nights: 1, lodging: 88, expectDiscount: 0 },
+      { nights: 2, lodging: 176, expectDiscount: 0 },
+      { nights: 7, lodging: 616, expectDiscount: 61.6 },
+      { nights: 30, lodging: 2640, expectDiscount: 528 },
+    ] as const;
+    for (const row of cases) {
+      const priced = priceStayAddOns({
+        lodging: row.lodging,
+        nights: row.nights,
+        countedGuests: 2,
+        weeklyDiscountPercent: 10,
+        monthlyDiscountPercent: 20,
+        extras: [],
+        selected: [],
+      });
+      expect(priced.ok).toBe(true);
+      if (!priced.ok) return;
+      expect(priced.discount).toBe(row.expectDiscount);
+      const lines = stayChargeLines({
+        nights: row.nights,
+        nightlyPrice: 88,
+        cleaningFee: 40,
+        discount: priced.discount,
+        discountLabel: priced.discountLabel,
+        extraLines: [],
+      });
+      const cleaningLines = lines.filter((line) => /cleaning/i.test(line.label));
+      expect(cleaningLines).toHaveLength(1);
+      expect(cleaningLines[0]?.amount).toBe(40);
+    }
+  });
+
   it('keeps the quote total on the server-priced extra', () => {
     const quote = quoteStayNights({
       tour: {

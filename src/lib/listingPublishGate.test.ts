@@ -250,3 +250,46 @@ describe('publishBlockerListingWizardStep', () => {
     expect(publishBlockerListingWizardStep('Add where guests meet or are picked up for this option.', false)).toBe(3);
   });
 });
+
+describe('stay exterior camera publish gate', () => {
+  it('blocks publish when an exterior camera is on without a location', () => {
+    const stay = {
+      id: 's1',
+      title: 'Quiet riverside cabin stay',
+      subtitle: 'A calm cabin beside the river for slow mornings.',
+      description: 'x'.repeat(120),
+      city: 'Rovaniemi',
+      country: 'Finland',
+      image: 'https://cdn.example.com/hero.jpg',
+      price: { startingFrom: 88, currency: 'EUR' },
+      listingExtras: {
+        inventoryFamily: 'stay',
+        galleryImageUrls: ['a', 'b', 'c'],
+        stay: {
+          propertyType: 'Cabin',
+          nightlyPriceUsd: 88,
+          maxGuests: 4,
+          checkInTime: '16:00',
+          checkOutTime: '11:00',
+          checkInAddress: 'Koskikatu 12, 96200 Rovaniemi',
+          exteriorCamera: true,
+          cameraLocation: 'Gate',
+        },
+      },
+    } as TourPackage;
+    const blockers = getListingPublishBlockers(stay);
+    expect(blockers.some((b) => /exterior camera/i.test(b))).toBe(true);
+
+    const ready = {
+      ...stay,
+      listingExtras: {
+        ...stay.listingExtras,
+        stay: {
+          ...stay.listingExtras!.stay!,
+          cameraLocation: 'Outside the main entrance',
+        },
+      },
+    } as TourPackage;
+    expect(getListingPublishBlockers(ready).some((b) => /exterior camera/i.test(b))).toBe(false);
+  });
+});

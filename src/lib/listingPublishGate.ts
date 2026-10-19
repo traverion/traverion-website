@@ -164,6 +164,12 @@ export function getListingPublishBlockers(
     if (!(stay?.checkInAddress ?? '').trim()) {
       out.push('Add the check-in address guests need after they book (street / building / entry).');
     }
+    if (stay?.exteriorCamera === true) {
+      const cameraLocation = (stay.cameraLocation ?? '').trim();
+      if (cameraLocation.length < 8) {
+        out.push('Say where the exterior camera is so guests know what to expect before booking.');
+      }
+    }
   } else if (bookingOptions.length > 0) {
     for (let i = 0; i < bookingOptions.length; i++) {
       out.push(...optionPublishIssues(bookingOptions[i], i, bookingOptions.length > 1, today));

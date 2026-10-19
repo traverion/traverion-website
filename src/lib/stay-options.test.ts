@@ -99,4 +99,30 @@ describe('stay options', () => {
     expect(lines[0]).toContain('Christmas');
     expect(lines[0]).toContain('Deactivate one');
   });
+
+  it('keeps room photo URLs on the option without inventing a second gallery', () => {
+    const options = ensureStayOptions({
+      options: [
+        {
+          id: 'primary',
+          name: 'Cabin',
+          propertyType: 'Cabin',
+          maxGuests: 4,
+          beds: 2,
+          quantity: 1,
+          nightlyPrice: 120,
+          minNights: 1,
+          schedules: [],
+          roomPhotos: [
+            { areaId: 'room-a', urls: ['https://cdn.example/a.jpg', 'https://cdn.example/b.jpg'] },
+            { areaId: 'gone', urls: ['https://cdn.example/orphan.jpg'] },
+          ],
+        },
+      ],
+    });
+    expect(options[0]?.roomPhotos).toEqual([
+      { areaId: 'room-a', urls: ['https://cdn.example/a.jpg', 'https://cdn.example/b.jpg'] },
+      { areaId: 'gone', urls: ['https://cdn.example/orphan.jpg'] },
+    ]);
+  });
 });

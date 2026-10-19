@@ -123,6 +123,19 @@ describe('quoteStayLodging', () => {
     });
     expect(q).toMatchObject({ ok: true, minNights: 3, lodging: 578 });
   });
+
+  it('falls back to the listing cleaning fee when the season has none', () => {
+    const q = quoteStayLodging({
+      checkIn: '2026-06-10',
+      nights: 1,
+      baseNightly: 88,
+      baseMinNights: 1,
+      baseCleaningFee: 40,
+      availabilityMode: 'open',
+      seasons: [{ ...summer, nightlyPrice: 88, cleaningFee: null }],
+    });
+    expect(q).toMatchObject({ ok: true, lodging: 88, cleaningFee: 40 });
+  });
 });
 
 describe('stay season quote copies', () => {
