@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { STAY_ONBOARDING_SCREENS, clampStayIntroInput, quietHoursMentioned, stayScreenIndex, stayStageBlocker, type StayOnboardingCheck } from '../../../lib/stay-onboarding';
-import { clampListingTitleInput } from '../../../lib/listingQualityScore';
+import { clampListingDescriptionInput, clampListingTitleInput } from '../../../lib/listingQualityScore';
 import { stayAmenityDisplayList } from '../../../lib/stay-amenities';
 import { isStandardStayPropertyType, stayPropertyTypesForMode } from '../../../lib/stay-accommodation';
 import { STAY_ARRIVAL_METHODS, stayArrivalMethodHint, stayArrivalMethodLabel } from '../../../lib/stay-arrival';
@@ -503,12 +503,19 @@ function PropertyNameStage({ values, onChange, minTitle, maxTitle }: Props) {
 }
 
 function PropertyIntroStage({ values, onChange, maxSubtitle }: Props) {
+  const fieldRef = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const field = fieldRef.current;
+    if (!field) return;
+    field.style.height = '160px';
+    field.style.height = `${Math.max(160, field.scrollHeight)}px`;
+  }, [values.subtitle]);
   return (
     <div className="space-y-2">
       <Field label="Short introduction">
         <textarea
-          className="tv-input min-h-[5.5rem] w-full resize-y py-2"
-          rows={3}
+          ref={fieldRef}
+          className="tv-input stay-intro-input w-full resize-y py-2"
           value={values.subtitle}
           aria-label="Short introduction"
           onChange={(e) => onChange({ subtitle: clampStayIntroInput(e.target.value, values.subtitle, maxSubtitle) })}
@@ -572,12 +579,35 @@ function RoomsStage({ areas, onChange }: { areas: StaySleepingArea[]; onChange: 
 }
 
 function DescriptionStage({ values, onChange, minDescription, maxDescription }: Props) {
+  const fieldRef = useRef<HTMLTextAreaElement>(null);
   const length = values.description.trim().length;
   const short = length < minDescription;
+  useLayoutEffect(() => {
+    const field = fieldRef.current;
+    if (!field) return;
+    const fit = () => {
+      const min = window.matchMedia('(min-width: 640px)').matches ? 280 : 220;
+      const max = 450;
+      field.style.height = `${min}px`;
+      const needed = Math.max(min, field.scrollHeight);
+      field.style.height = `${Math.min(needed, max)}px`;
+      field.style.overflowY = needed > max ? 'auto' : 'hidden';
+    };
+    fit();
+    const media = window.matchMedia('(min-width: 640px)');
+    media.addEventListener('change', fit);
+    return () => media.removeEventListener('change', fit);
+  }, [values.description]);
   return (
     <div className="space-y-3">
       <Field label="Description">
-        <textarea className="tv-input min-h-48 w-full resize-y leading-relaxed" value={values.description} maxLength={maxDescription} onChange={(e) => onChange({ description: e.target.value.slice(0, maxDescription) })} />
+        <textarea
+          ref={fieldRef}
+          className="tv-input stay-description-input w-full resize-y leading-relaxed"
+          value={values.description}
+          aria-label="Description"
+          onChange={(e) => onChange({ description: clampListingDescriptionInput(e.target.value, values.description) })}
+        />
       </Field>
       <p className={`text-xs ${short ? 'font-semibold text-[#9f1239]' : 'text-ink-muted'}`}>{length} / {maxDescription}. At least {minDescription} characters.</p>
     </div>

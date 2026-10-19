@@ -5520,6 +5520,25 @@ details:not([open]) > :not(summary) {
   padding-left: 2.75rem;
   padding-right: 2.5rem;
 }
+.listing-creation-workspace textarea.tv-input.stay-intro-input {
+  min-height: 160px;
+  height: 160px;
+  resize: vertical;
+  overflow-y: hidden;
+}
+.listing-creation-workspace textarea.tv-input.stay-description-input {
+  min-height: 220px;
+  height: 220px;
+  max-height: 450px;
+  resize: vertical;
+  overflow-y: auto;
+}
+@media (min-width: 640px) {
+  .listing-creation-workspace textarea.tv-input.stay-description-input {
+    min-height: 280px;
+    height: 280px;
+  }
+}
 .tv-input.tv-location-input {
   padding-left: 2.75rem;
   padding-right: 2.75rem;
