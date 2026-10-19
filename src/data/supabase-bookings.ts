@@ -285,7 +285,14 @@ export async function createBookingCheckoutSession(params: {
   cancelPath?: string;
   /** Traveler checked checkout consent (required for new sessions). */
   checkoutConsentAccepted?: boolean;
-}): Promise<{ success: boolean; checkoutUrl?: string; bookingId?: string; error?: string }> {
+}): Promise<{
+  success: boolean;
+  checkoutUrl?: string;
+  bookingId?: string;
+  error?: string;
+  /** Edge stage timings (ms) — no PII. */
+  timings?: Record<string, number>;
+}> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
   if (!appStripeIsTestMode()) {
     return { success: false, error: stripeLivePublishableBlockedMessage() };
@@ -322,12 +329,23 @@ export async function createBookingCheckoutSession(params: {
   if (error) {
     return { success: false, error: await readEdgeFunctionErrorMessage(error, data) };
   }
-  const payload = data as { success?: unknown; checkoutUrl?: unknown; bookingId?: unknown; error?: unknown } | null;
+  const payload = data as {
+    success?: unknown;
+    checkoutUrl?: unknown;
+    bookingId?: unknown;
+    error?: unknown;
+    timings?: unknown;
+  } | null;
+  const timings =
+    payload?.timings && typeof payload.timings === 'object' && !Array.isArray(payload.timings)
+      ? (payload.timings as Record<string, number>)
+      : undefined;
   return {
     success: Boolean(payload?.success && payload?.checkoutUrl),
     checkoutUrl: typeof payload?.checkoutUrl === 'string' ? payload.checkoutUrl : undefined,
     bookingId: typeof payload?.bookingId === 'string' ? payload.bookingId : undefined,
     error: typeof payload?.error === 'string' ? payload.error : undefined,
+    timings,
   };
 }
 

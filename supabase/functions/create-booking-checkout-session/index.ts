@@ -46,6 +46,7 @@ import {
   pickupAreaFromOption,
   travelerPickupAllowed,
 } from '../_shared/pickup-area.ts';
+import { createCheckoutTiming } from '../_shared/checkout-initiation-timing.ts';
 
 type RequestBody = {
   bookingId?: string;
@@ -116,6 +117,7 @@ serve(async (req) => {
   if (req.method !== 'POST') return json({ success: false, error: 'Method not allowed' }, 405);
 
   try {
+    const timing = createCheckoutTiming();
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
     const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -140,9 +142,15 @@ serve(async (req) => {
     const authedClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data: authData, error: authError } = await authedClient.auth.getUser();
+    // Auth + body parse are independent after Authorization is present.
+    const [authResult, body] = await Promise.all([
+      authedClient.auth.getUser(),
+      req.json() as Promise<Partial<RequestBody>>,
+    ]);
+    timing.mark('authAndBodyMs');
+    const { data: authData, error: authError } = authResult;
     if (authError || !authData?.user) {
-      return json({ success: false, error: 'Unauthorized' }, 401);
+      return json({ success: false, error: 'Unauthorized', timings: timing.snapshot() }, 401);
     }
     const user = authData.user;
     const email = authUserVerifiedEmail(user);
@@ -151,12 +159,11 @@ serve(async (req) => {
         {
           success: false,
           error: 'Confirm your email before checkout. Check your inbox for a confirmation link.',
+          timings: timing.snapshot(),
         },
         403
       );
     }
-
-    const body = (await req.json()) as Partial<RequestBody>;
     const bookingId = String(body.bookingId ?? '').trim();
     const isResumeOnly = Boolean(bookingId) && !String(body.listingId ?? '').trim();
     if (!isResumeOnly && body.checkoutConsentAccepted !== true) {
@@ -368,20 +375,23 @@ serve(async (req) => {
       }
     }
     if (listingRow.title?.trim()) listingTitle = listingRow.title.trim();
-    await admin.rpc('expire_stale_checkout_holds', { p_listing_id: listingId });
+    timing.mark('listingLoadedMs');
 
     const discountSelect =
       'id, type, value, valid_from, valid_until, booking_option_id, book_from, book_until, activity_from, activity_until, paused, booking_limit, deleted_at';
-    let discountResult = await admin
-      .from('listing_discounts')
-      .select(discountSelect)
-      .eq('listing_id', listingId);
+    // Expire stale Instant Book rows + load discounts in parallel (independent).
+    const [, discountFirst] = await Promise.all([
+      admin.rpc('expire_stale_checkout_holds', { p_listing_id: listingId }),
+      admin.from('listing_discounts').select(discountSelect).eq('listing_id', listingId),
+    ]);
+    let discountResult = discountFirst;
     if (discountResult.error && /book_from|paused|deleted_at|booking_limit/i.test(discountResult.error.message)) {
       discountResult = await admin
         .from('listing_discounts')
         .select('type, value, valid_from, valid_until, booking_option_id')
         .eq('listing_id', listingId);
     }
+    timing.mark('expireAndDiscountsMs');
     const { data: discountRows, error: discountError } = discountResult;
     // Fail closed: never quote full price because discount rows failed to load (Phase 1088).
     if (discountError) {
@@ -632,13 +642,25 @@ serve(async (req) => {
     if (extrasFamily === 'stay' && checkoutDate) {
       // Phase 1540: include purchase_snapshot so snapshot-only competitors resolve 1524 ranges
       // (parity with tour occupancy select and SQL stay_booking_check_out).
-      const { data: existingStayBookings, error: stayBusyErr } = await admin
-        .from('bookings')
-        .select(
-          'id, booking_date, check_out, nights, special_requests, status, payment_status, hold_expires_at, created_at, purchase_snapshot'
-        )
-        .eq('listing_id', listingId)
-        .neq('status', 'cancelled');
+      // Occupancy bookings + operator-blocked nights are independent — fetch together.
+      const [stayBusyResult, blockedResult] = await Promise.all([
+        admin
+          .from('bookings')
+          .select(
+            'id, booking_date, check_out, nights, special_requests, status, payment_status, hold_expires_at, created_at, purchase_snapshot'
+          )
+          .eq('listing_id', listingId)
+          .neq('status', 'cancelled'),
+        admin
+          .from('listing_availability')
+          .select('available_date, capacity')
+          .eq('listing_id', listingId)
+          .gte('available_date', bookingDate)
+          .lt('available_date', checkoutDate),
+      ]);
+      timing.mark('stayOccupancyMs');
+      let stayBusyErr = stayBusyResult.error;
+      let existingStayBookings = stayBusyResult.data;
       const stayRows =
         stayBusyErr && /check_out|nights|purchase_snapshot/i.test(stayBusyErr.message)
           ? (
@@ -654,7 +676,7 @@ serve(async (req) => {
             ).data
           : existingStayBookings;
       if (stayBusyErr && !/check_out|nights|purchase_snapshot/i.test(stayBusyErr.message)) {
-        return json({ success: false, error: stayBusyErr.message }, 500);
+        return json({ success: false, error: stayBusyErr.message, timings: timing.snapshot() }, 500);
       }
       if (
         stayCheckoutNightsAlreadyBooked(
@@ -664,18 +686,13 @@ serve(async (req) => {
           targetBookingId
         )
       ) {
-        return json({ success: false, error: 'Those nights are already booked.' }, 409);
+        return json({ success: false, error: 'Those nights are already booked.', timings: timing.snapshot() }, 409);
       }
 
-      const { data: blockedRows } = await admin
-        .from('listing_availability')
-        .select('available_date, capacity')
-        .eq('listing_id', listingId)
-        .gte('available_date', bookingDate)
-        .lt('available_date', checkoutDate);
+      const blockedRows = blockedResult.data;
       for (const row of blockedRows ?? []) {
         if (stayNightIsOperatorBlocked(Number(row.capacity ?? 0))) {
-          return json({ success: false, error: 'Those nights are blocked.' }, 409);
+          return json({ success: false, error: 'Those nights are blocked.', timings: timing.snapshot() }, 409);
         }
       }
     } else {
@@ -965,6 +982,7 @@ serve(async (req) => {
       };
     }
 
+    timing.mark('preStripeMs');
     const stripe = new Stripe(stripeSecret);
     const appliedDiscountId = quote.appliedDiscountId ?? null;
     if (appliedDiscountId) {
@@ -1054,6 +1072,7 @@ serve(async (req) => {
         },
       },
     });
+      timing.mark('stripeCreateMs');
     } catch {
       if (appliedDiscountId) {
         await admin.from('bookings').update({ applied_discount_id: null }).eq('id', targetBookingId);
@@ -1168,6 +1187,16 @@ serve(async (req) => {
       }
     }
 
+    timing.mark('stripeSessionMs');
+    const timings = timing.snapshot();
+    console.info(
+      JSON.stringify({
+        source: 'create-booking-checkout-session',
+        event: 'checkout_initiation_timing',
+        timings,
+        stay: extrasFamily === 'stay',
+      })
+    );
     return json({
       success: true,
       bookingId: targetBookingId,
@@ -1175,6 +1204,7 @@ serve(async (req) => {
       checkoutUrl: session.url,
       quotedTotal: totalAmount,
       currency,
+      timings,
     });
   } catch (e) {
     return json({ success: false, error: e instanceof Error ? e.message : 'Unknown error' }, 500);

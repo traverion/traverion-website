@@ -68,6 +68,11 @@ import { stayAmenityDisplayList } from '../lib/stay-amenities';
 import { stayStickyBookCtaLabel } from '../lib/stay-sticky-cta';
 import { stayQuoteFailureFocusTarget } from '../lib/stay-quote-failure-focus';
 import { stayCheckoutLeadGuestNameReady } from '../lib/stay-checkout-guest';
+import {
+  createCheckoutTiming,
+  logCheckoutInitiationTiming,
+  mergeCheckoutTimings,
+} from '../lib/checkout-initiation-timing';
 import { travelerDisplayNameFromSources } from '../lib/traveler-display-name';
 import {
   STAY_LISTING_CONFIRMATION_NOTE,
@@ -633,6 +638,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
   };
 
   const startStayCheckout = async () => {
+    const timing = createCheckoutTiming();
     if (!stay || !stayQuote?.ok) {
       document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
@@ -651,25 +657,18 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
       });
       return;
     }
-    // Re-fetch inventory so a concurrent hold or fresh host block is visible before Stripe opens.
-    let freshRanges: { checkIn: string; checkOut: string }[];
-    let freshBlocked: string[];
-    try {
-      [freshRanges, freshBlocked] = await Promise.all([
-        fetchPublishedStayOccupiedRanges(stay.id),
-        fetchPublishedStayBlockedNights(stay.id, { fromDate: experienceTodayIso }),
-      ]);
-    } catch (e) {
-      setPayError(userFacingError(e, 'We could not re-check availability. Try again before paying.'));
+    if (occupancyError) {
+      setPayError('We could not verify availability. Try again before paying.');
       document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
     }
-    setOccupiedRanges(freshRanges);
-    setBlockedNights(freshBlocked);
-    setOccupancyError(null);
+    // Sync check against already-loaded calendar (server still asserts at claim/promote).
+    // Do not await a second occupancy round-trip — Instant Book pending does not hold nights.
     const stillTaken =
-      freshRanges.some((r) => stayDateRangesOverlap(stayQuote.checkIn, stayQuote.checkOut, r.checkIn, r.checkOut)) ||
-      nightsOccupiedByStay(stayQuote.checkIn, stayQuote.checkOut).some((n) => freshBlocked.includes(n));
+      occupiedRanges.some((r) =>
+        stayDateRangesOverlap(stayQuote.checkIn, stayQuote.checkOut, r.checkIn, r.checkOut)
+      ) ||
+      nightsOccupiedByStay(stayQuote.checkIn, stayQuote.checkOut).some((n) => blockedNights.includes(n));
     if (stillTaken) {
       setPayError('Those dates were just taken. Choose different dates to continue.');
       document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -701,31 +700,31 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
       });
       return;
     }
-    // Phase 1147: mirror checkout edge — don't open Stripe for own/team listings.
-    if (isSupabaseConfigured() && userRef.current?.id) {
-      try {
-        const selfBook = await viewerIsListingSupplierSide(userRef.current.id, stay.supplierId);
-        if (selfBook) {
-          setPayError(LISTING_SELF_BOOK_BLOCKED);
-          document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          return;
-        }
-      } catch {
-        setPayError(LISTING_SELF_BOOK_CHECK_FAILED);
-        document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        return;
-      }
+    // Phase 1147: use prefetched self-book state (edge still enforces). Avoid a second team query.
+    if (selfBookCheckFailed) {
+      setPayError(LISTING_SELF_BOOK_CHECK_FAILED);
+      document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    if (selfBookBlocked) {
+      setPayError(LISTING_SELF_BOOK_BLOCKED);
+      document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
     }
     if (checkoutLockRef.current || paying) return;
     checkoutLockRef.current = true;
     setPaying(true);
     setPayError(null);
     setCheckoutCancelledNote(null);
+    timing.mark('client_ready');
+    // Refresh occupancy in the background for the next attempt — do not block Stripe open.
+    reloadStayOccupancy();
     const cancelQs = new URLSearchParams({
       checkIn: stayQuote.checkIn,
       checkOut: stayQuote.checkOut,
       payment: 'cancelled',
     });
+    timing.mark('edge_invoke');
     void createBookingCheckoutSession({
       listingId: stay.id,
       listingTitle: stay.title,
@@ -744,6 +743,9 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
       cancelPath: `/stays/${encodeURIComponent(stay.id)}?${cancelQs.toString()}`,
     })
       .then((res) => {
+        timing.mark('edge_returned');
+        const merged = mergeCheckoutTimings(timing.snapshot(), res.timings);
+        logCheckoutInitiationTiming(merged, { ok: Boolean(res.success && res.checkoutUrl) });
         if (!res.success || !res.checkoutUrl) {
           setPayError(userFacingError(res.error, 'Checkout could not start. You were not charged.'));
           setPaying(false);
@@ -752,6 +754,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
         }
         // Keep paying=true through navigation; clear lock only if assign does not unload.
         try {
+          timing.mark('redirect');
           window.location.assign(res.checkoutUrl);
         } catch {
           setPayError('Could not open Stripe Checkout. Try again — you were not charged.');
@@ -760,6 +763,8 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
         }
       })
       .catch((err) => {
+        timing.mark('edge_error');
+        logCheckoutInitiationTiming(timing.snapshot(), { ok: false });
         setPayError(userFacingError(err, 'Checkout could not start. You were not charged.'));
         setPaying(false);
         checkoutLockRef.current = false;
