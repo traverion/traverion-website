@@ -78,11 +78,15 @@ export function stayScreenIndexForPublishLine(line: string): number {
   const text = line.toLowerCase();
   if (/photo|image|gallery|cover|hero|placeholder/.test(text)) return stayScreenIndex('photos');
   if (/exterior camera|camera location|safety/.test(text)) return stayScreenIndex('safety');
+  if (/pets|smoking|parties|house preferences/.test(text)) return stayScreenIndex('house-rules');
+  if (/how guests arrive|arrival method/.test(text)) return stayScreenIndex('arrival-method');
+  if (/door codes|public arrival note/.test(text)) return stayScreenIndex('arrival-notes');
   if (/check-in address|arrival address|street/.test(text)) return stayScreenIndex('arrival-notes');
   if (/city|country|location|destination/.test(text)) return stayScreenIndex('location');
   if (/nightly|price/.test(text)) return stayScreenIndex('price');
   if (/check-in time|check-out time/.test(text)) return stayScreenIndex('booking-times');
   if (/subtitle|introduction/.test(text)) return stayScreenIndex('property-intro');
+  if (/at least one bed|sleeping/.test(text)) return stayScreenIndex('rooms');
   if (/guest|bedroom|bed|sleep|host/.test(text)) return stayScreenIndex('guests');
   if (/description|highlight/.test(text)) return stayScreenIndex('description');
   return stayScreenIndex('property-name');
@@ -181,7 +185,9 @@ export function stayStageBlocker(screenId: string, draft: StayOnboardingCheck): 
     case 'arrival-notes':
       return draft.address.trim().length >= 8 ? null : 'Add the private arrival address booked guests receive after payment.';
     case 'photos':
-      return draft.photoCount >= 1 ? null : 'Add at least one photo. Publishing still requires a full gallery.';
+      if (draft.photoCount < 1) return 'Add at least one photo to continue.';
+      if (draft.photoCount < 4) return 'Add at least four photos before publishing. The first photo is the cover.';
+      return null;
     case 'house-rules':
       return draft.rulesChosen ? null : 'Choose pets, smoking, and parties.';
     case 'safety':

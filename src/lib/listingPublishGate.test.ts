@@ -252,44 +252,82 @@ describe('publishBlockerListingWizardStep', () => {
 });
 
 describe('stay exterior camera publish gate', () => {
-  it('blocks publish when an exterior camera is on without a location', () => {
-    const stay = {
-      id: 's1',
-      title: 'Quiet riverside cabin stay',
-      subtitle: 'A calm cabin beside the river for slow mornings.',
-      description: 'x'.repeat(120),
-      city: 'Rovaniemi',
-      country: 'Finland',
-      image: 'https://cdn.example.com/hero.jpg',
-      price: { startingFrom: 88, currency: 'EUR' },
-      listingExtras: {
-        inventoryFamily: 'stay',
-        galleryImageUrls: ['a', 'b', 'c'],
-        stay: {
-          propertyType: 'Cabin',
-          nightlyPriceUsd: 88,
-          maxGuests: 4,
-          checkInTime: '16:00',
-          checkOutTime: '11:00',
-          checkInAddress: 'Koskikatu 12, 96200 Rovaniemi',
-          exteriorCamera: true,
-          cameraLocation: 'Gate',
-        },
+  const baseStay = {
+    id: 's1',
+    title: 'Quiet riverside cabin stay',
+    subtitle: 'A calm cabin beside the river for slow mornings.',
+    description: 'x'.repeat(120),
+    city: 'Rovaniemi',
+    country: 'Finland',
+    image: 'https://cdn.example.com/hero.jpg',
+    price: { startingFrom: 88, currency: 'EUR' },
+    listingExtras: {
+      inventoryFamily: 'stay' as const,
+      galleryImageUrls: ['a', 'b', 'c'],
+      stay: {
+        propertyType: 'Cabin',
+        nightlyPriceUsd: 88,
+        maxGuests: 4,
+        beds: 2,
+        bedMix: { queen: 1 },
+        checkInTime: '16:00',
+        checkOutTime: '11:00',
+        checkInAddress: 'Koskikatu 12, 96200 Rovaniemi',
+        arrivalMethod: 'lockbox' as const,
+        restrictions: { pets: 'not_allowed' as const, smoking: 'not_allowed' as const, parties: 'not_allowed' as const },
+        exteriorCamera: true,
+        cameraLocation: 'Gate',
       },
-    } as TourPackage;
-    const blockers = getListingPublishBlockers(stay);
+    },
+  } as TourPackage;
+
+  it('blocks publish when an exterior camera is on without a location', () => {
+    const blockers = getListingPublishBlockers(baseStay);
     expect(blockers.some((b) => /exterior camera/i.test(b))).toBe(true);
 
     const ready = {
-      ...stay,
+      ...baseStay,
       listingExtras: {
-        ...stay.listingExtras,
+        ...baseStay.listingExtras,
         stay: {
-          ...stay.listingExtras!.stay!,
+          ...baseStay.listingExtras!.stay!,
           cameraLocation: 'Outside the main entrance',
         },
       },
     } as TourPackage;
     expect(getListingPublishBlockers(ready).some((b) => /exterior camera/i.test(b))).toBe(false);
+  });
+
+  it('blocks publish when house preferences or arrival method are missing', () => {
+    const missingRules = {
+      ...baseStay,
+      listingExtras: {
+        ...baseStay.listingExtras,
+        stay: {
+          ...baseStay.listingExtras!.stay!,
+          cameraLocation: 'Outside the main entrance',
+          restrictions: undefined,
+          arrivalMethod: undefined,
+        },
+      },
+    } as TourPackage;
+    const blockers = getListingPublishBlockers(missingRules);
+    expect(blockers.some((b) => /pets, smoking, and parties/i.test(b))).toBe(true);
+    expect(blockers.some((b) => /how guests arrive/i.test(b))).toBe(true);
+  });
+
+  it('blocks door codes in the public arrival note', () => {
+    const leak = {
+      ...baseStay,
+      listingExtras: {
+        ...baseStay.listingExtras,
+        stay: {
+          ...baseStay.listingExtras!.stay!,
+          cameraLocation: 'Outside the main entrance',
+          arrivalNote: 'Door code 4821 is on the lockbox',
+        },
+      },
+    } as TourPackage;
+    expect(getListingPublishBlockers(leak).some((b) => /door codes/i.test(b))).toBe(true);
   });
 });

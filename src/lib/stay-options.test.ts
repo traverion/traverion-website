@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ensureStayOptions,
   projectStayOptions,
+  pruneStayRoomPhotosForGallery,
   stayOptionConfigured,
   stayOptionsNeedSeparateInventory,
   stayScheduleConflicts,
@@ -124,5 +125,55 @@ describe('stay options', () => {
       { areaId: 'room-a', urls: ['https://cdn.example/a.jpg', 'https://cdn.example/b.jpg'] },
       { areaId: 'gone', urls: ['https://cdn.example/orphan.jpg'] },
     ]);
+  });
+
+  it('prunes room assignments when a gallery photo is removed', () => {
+    const options = ensureStayOptions({
+      options: [
+        {
+          id: 'primary',
+          name: 'Cabin',
+          propertyType: 'Cabin',
+          maxGuests: 4,
+          beds: 2,
+          quantity: 1,
+          nightlyPrice: 120,
+          minNights: 1,
+          schedules: [],
+          roomPhotos: [{ areaId: 'room-a', urls: ['https://cdn.example/keep.jpg', 'https://cdn.example/gone.jpg'] }],
+        },
+      ],
+    });
+    const next = pruneStayRoomPhotosForGallery(options, ['https://cdn.example/keep.jpg']);
+    expect(next[0]?.roomPhotos).toEqual([{ areaId: 'room-a', urls: ['https://cdn.example/keep.jpg'] }]);
+  });
+
+  it('prefers the edited option nightly over a lower leftover schedule price', () => {
+    const options = ensureStayOptions({
+      options: [
+        {
+          id: 'primary',
+          name: 'Cabin',
+          propertyType: 'Cabin',
+          maxGuests: 4,
+          beds: 2,
+          quantity: 1,
+          nightlyPrice: 200,
+          minNights: 1,
+          schedules: [
+            {
+              id: 's1',
+              name: 'Standard',
+              start: '2020-01-01',
+              end: '2099-12-31',
+              enabled: true,
+              nightlyPrice: 88,
+              minNights: 1,
+            },
+          ],
+        },
+      ],
+    });
+    expect(projectStayOptions(options, 'Cabin').stayNightly).toBe('200');
   });
 });

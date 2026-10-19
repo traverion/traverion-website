@@ -28,3 +28,19 @@ export function stayArrivalMethodHint(method: string | null | undefined): string
   }
   return '';
 }
+
+/**
+ * Public arrival notes must not carry door codes or off-platform booking asks.
+ * Private codes belong in the post-payment arrival address.
+ */
+export function stayPublicArrivalNoteBlocker(note: string | null | undefined): string | null {
+  const text = (note ?? '').trim();
+  if (!text) return null;
+  if (/\b(?:door|access|entry|lock(?:box)?|keypad|smart\s*lock)\s*codes?\b/i.test(text) && /\d{3,}/.test(text)) {
+    return 'Do not put door codes in the public arrival note. Use the private arrival address instead.';
+  }
+  if (/\b(?:pin|code)\s*[:=#]?\s*\d{3,}\b/i.test(text)) {
+    return 'Do not put entry codes in the public arrival note. Use the private arrival address instead.';
+  }
+  return null;
+}

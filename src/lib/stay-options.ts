@@ -318,12 +318,36 @@ export function stayScheduleConflicts(schedules: readonly StaySeasonWindow[]): s
 }
 
 export function stayStartingNightly(option: StayAccommodationOption): number | null {
-  const prices = [
-    option.nightlyPrice,
-    ...option.schedules.filter((schedule) => schedule.enabled && schedule.nightlyPrice && schedule.nightlyPrice > 0).map((schedule) => schedule.nightlyPrice),
-  ].filter((price): price is number => price != null && price > 0);
+  // Prefer the option base rate the supplier just edited so projection does not
+  // silently jump to a lower leftover schedule price.
+  if (option.nightlyPrice != null && option.nightlyPrice > 0) return option.nightlyPrice;
+  const prices = option.schedules
+    .filter((schedule) => schedule.enabled && schedule.nightlyPrice && schedule.nightlyPrice > 0)
+    .map((schedule) => schedule.nightlyPrice)
+    .filter((price): price is number => price != null && price > 0);
   if (prices.length === 0) return null;
   return Math.min(...prices);
+}
+
+/** Drop room assignments that no longer exist in the property gallery. */
+export function pruneStayRoomPhotosForGallery(
+  options: readonly StayAccommodationOption[],
+  galleryUrls: readonly string[]
+): StayAccommodationOption[] {
+  const keep = new Set(galleryUrls.filter((url) => typeof url === 'string' && url.startsWith('http')));
+  return options.map((option) => {
+    if (!option.roomPhotos?.length) return option;
+    const roomPhotos = option.roomPhotos
+      .map((row) => ({
+        areaId: row.areaId,
+        urls: row.urls.filter((url) => keep.has(url)),
+      }))
+      .filter((row) => row.urls.length > 0);
+    if (roomPhotos.length === (option.roomPhotos?.length ?? 0) && roomPhotos.every((row, i) => row.urls.length === (option.roomPhotos?.[i]?.urls.length ?? 0))) {
+      return option;
+    }
+    return { ...option, roomPhotos: roomPhotos.length > 0 ? roomPhotos : undefined };
+  });
 }
 
 export type StayOptionProjection = {

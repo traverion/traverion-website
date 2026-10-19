@@ -6,9 +6,9 @@ import { clampListingDescriptionInput, clampListingTitleInput } from '../../../l
 import { stayAmenityDisplayList } from '../../../lib/stay-amenities';
 import { stayHighlightAmenityHints, staySelfCheckInConflict, stayTurnoverAdvisory } from '../../../lib/stay-creator-consistency';
 import { isStandardStayPropertyType, stayPropertyTypesForMode } from '../../../lib/stay-accommodation';
-import { STAY_ARRIVAL_METHODS, stayArrivalMethodHint, stayArrivalMethodLabel } from '../../../lib/stay-arrival';
+import { STAY_ARRIVAL_METHODS, stayArrivalMethodHint, stayArrivalMethodLabel, stayPublicArrivalNoteBlocker } from '../../../lib/stay-arrival';
 import { STAY_BED_KINDS, stayBedCount, stayBedSummary, stayMixFromAreas, staySleepCapacity, type StayBedKind, type StaySleepingArea } from '../../../lib/stay-beds';
-import { activeStayOptions, emptyStayOption, newStayOptionId, type StayAccommodationOption } from '../../../lib/stay-options';
+import { activeStayOptions, emptyStayOption, newStayOptionId, pruneStayRoomPhotosForGallery, type StayAccommodationOption } from '../../../lib/stay-options';
 import { STAY_GUEST_CANCELLATION_POLICY } from '../../../types/listingExtras';
 import { googleMapsBrowserKey } from '../../../lib/places-client';
 import type { VerifiedDestination } from '../../../lib/destination-place';
@@ -1104,11 +1104,19 @@ function StayLengthStage({ values, option, writeOption }: Props & { option: Stay
         max={365}
         onChange={(nights) => {
           const season = option.schedules[0];
-          if (season?.maxNights != null && season.maxNights < nights) {
+          if (season) {
             writeOption({
               ...option,
               minNights: nights,
-              schedules: option.schedules.map((row, index) => (index === 0 ? { ...row, maxNights: nights } : row)),
+              schedules: option.schedules.map((row, index) =>
+                index === 0
+                  ? {
+                      ...row,
+                      minNights: nights,
+                      maxNights: row.maxNights != null && row.maxNights < nights ? nights : row.maxNights,
+                    }
+                  : row
+              ),
             });
             return;
           }
@@ -1325,6 +1333,7 @@ function ArrivalMethodStage({ values, onChange }: Props) {
 }
 
 function ArrivalNotesStage({ values, onChange }: Props) {
+  const noteLeak = stayPublicArrivalNoteBlocker(values.stayArrivalNote);
   const publicRef = useRef<HTMLTextAreaElement>(null);
   const privateRef = useRef<HTMLTextAreaElement>(null);
   useLayoutEffect(() => {
@@ -1340,7 +1349,13 @@ function ArrivalNotesStage({ values, onChange }: Props) {
         <Field label="Public arrival note">
           <textarea ref={publicRef} className="tv-input stay-note-input w-full resize-y" maxLength={160} value={values.stayArrivalNote} aria-label="Public arrival note" onChange={(e) => onChange({ stayArrivalNote: e.target.value.slice(0, 160) })} />
         </Field>
-        <StayHelp>Shown on the public listing before booking. Do not include a door code or the street address.</StayHelp>
+        {noteLeak ? (
+          <p className="text-sm font-medium text-red-700" role="alert">
+            {noteLeak}
+          </p>
+        ) : (
+          <StayHelp>Shown on the public listing before booking. Do not include a door code or the street address.</StayHelp>
+        )}
       </div>
       <div className="stay-panel space-y-2">
         <Field label="Private arrival address">
@@ -1364,14 +1379,22 @@ function GalleryStage(props: Props) {
         photoCropSettings={props.values.photoCropSettings}
         userId={props.userId}
         uploadsEnabled={props.uploadsEnabled}
-        onPhotosChange={({ slots, labels, originals, crops }) =>
-          props.onChange({ photoSlots: slots, photoSlotLabels: labels, photoOriginalUrls: originals, photoCropSettings: crops })
-        }
+        onPhotosChange={({ slots, labels, originals, crops }) => {
+          const galleryUrls = slots.filter((url) => url.startsWith('http'));
+          const stayOptions = pruneStayRoomPhotosForGallery(props.values.stayOptions, galleryUrls);
+          props.onChange({
+            photoSlots: slots,
+            photoSlotLabels: labels,
+            photoOriginalUrls: originals,
+            photoCropSettings: crops,
+            stayOptions,
+          });
+        }}
       />
       <StayHelp>
-        {count === 0
-          ? 'Add at least one photo to continue. Publishing still requires a full gallery, with the first photo as the cover.'
-          : `You have ${count} photo${count === 1 ? '' : 's'}. The first photo is the cover. Order, remove, or replace photos anytime; drafts keep them after refresh.`}
+        {count < 4
+          ? `Add at least four photos to publish (${count} so far). The first photo is the cover.`
+          : `You have ${count} photos. The first photo is the cover. Removing a gallery photo also clears it from room assignments.`}
       </StayHelp>
     </div>
   );

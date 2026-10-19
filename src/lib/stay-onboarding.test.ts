@@ -33,7 +33,7 @@ const ready: StayOnboardingCheck = {
   checkIn: '16:00',
   checkOut: '11:00',
   arrivalMethod: 'lockbox',
-  photoCount: 3,
+  photoCount: 4,
   address: 'Koskikatu 12, 96200 Rovaniemi',
   rulesChosen: true,
   descriptionLength: 120,
@@ -135,6 +135,8 @@ describe('stay onboarding screens', () => {
     expect(stayStageBlocker('confirm', { ...ready, pinReady: false })).toMatch(/Place the pin/);
     expect(stayStageBlocker('guests', { ...ready, maxGuests: 6, sleepCapacity: 4 })).toMatch(/sleep 4/);
     expect(stayStageBlocker('price', ready)).toBeNull();
+    expect(stayStageBlocker('photos', { ...ready, photoCount: 1 })).toMatch(/four photos/);
+    expect(stayStageBlocker('photos', ready)).toBeNull();
   });
 
   it('requires a camera location only when an exterior camera is disclosed', () => {

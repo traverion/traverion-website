@@ -27,6 +27,9 @@ import { optionScheduleManagementIssues } from './listing-schedule-wizard';
 import { accessibilityContradictionMessages } from './listing-information-catalogs';
 import { listingPublicTextHasOffPlatformIssues } from './listing-off-platform-text';
 import { validateBookingContactPhone } from './listing-booking-contact-phone';
+import { stayPublicArrivalNoteBlocker } from './stay-arrival';
+import { stayBedCount } from './stay-beds';
+import { activeStayOptions } from './stay-options';
 
 function optionPublishIssues(
   o: ListingBookingOption,
@@ -169,6 +172,34 @@ export function getListingPublishBlockers(
       if (cameraLocation.length < 8) {
         out.push('Say where the exterior camera is so guests know what to expect before booking.');
       }
+    }
+    if (stay?.accommodationMode !== 'multi' && !(stay?.arrivalMethod ?? '').trim()) {
+      out.push('Choose how guests arrive.');
+    }
+    if (stay?.accommodationMode !== 'multi') {
+      const primary = activeStayOptions(stay?.options ?? [])[0];
+      const beds =
+        (primary ? stayBedCount(primary.bedMix) : 0) ||
+        stayBedCount(stay?.bedMix) ||
+        (typeof stay?.beds === 'number' ? stay.beds : 0);
+      const areasWithBeds = (primary?.sleepingAreas ?? []).filter((area) => area.beds.some((bed) => bed.count > 0)).length;
+      if (beds < 1 && areasWithBeds < 1) {
+        out.push('Add at least one bed guests can sleep in.');
+      }
+    }
+    const rules = stay?.restrictions;
+    if (stay?.accommodationMode !== 'multi' && !(rules?.pets && rules?.smoking && rules?.parties)) {
+      out.push('Choose pets, smoking, and parties house preferences.');
+    }
+    const arrivalNote = (stay?.arrivalNote ?? '').trim();
+    if (arrivalNote) {
+      if (listingPublicTextHasOffPlatformIssues(arrivalNote)) {
+        out.push(
+          'The public arrival note cannot ask guests to book or pay outside Traverion (remove links, emails, or off-platform booking requests).'
+        );
+      }
+      const privateLeak = stayPublicArrivalNoteBlocker(arrivalNote);
+      if (privateLeak) out.push(privateLeak);
     }
   } else if (bookingOptions.length > 0) {
     for (let i = 0; i < bookingOptions.length; i++) {

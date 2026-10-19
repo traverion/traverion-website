@@ -2637,10 +2637,15 @@ export default function SupplierListingForm({
       const t = line.toLowerCase();
       const step = publishBlockerListingWizardStep(line, isStayForm);
       if (isStayForm) {
+        const next = stayScreenIndexForPublishLine(line);
         setStayStageDir('forward');
-        setStayStage(stayScreenIndexForPublishLine(line));
+        setStayStage(next);
         setStayStageAttempted(true);
         setPublishBlockers(null);
+        if (typeof window !== 'undefined') {
+          const key = `traverion-stay-onboarding-screen-v2-${editingId ?? 'create'}`;
+          sessionStorage.setItem(key, STAY_ONBOARDING_SCREENS[next]?.id ?? 'location');
+        }
         return;
       }
       setStepIdxPersisted(step);
@@ -2678,7 +2683,7 @@ export default function SupplierListingForm({
         }, 80);
       }
     },
-    [isStayForm, setStepIdxPersisted, setBasicsSceneIdxPersisted, setInfoSceneIdxPersisted]
+    [isStayForm, editingId, setStepIdxPersisted, setBasicsSceneIdxPersisted, setInfoSceneIdxPersisted]
   );
 
   const bookingContactPhoneError = useMemo(() => {
