@@ -2,7 +2,7 @@ import { normalizePaymentStatus, isRefundDueBooking } from './payment-states';
 import {
   bookingOccupiesInventory,
   CHECKOUT_HOLD_MINUTES,
-  partnerUnpaidCheckoutHoldsInventory,
+  unpaidCheckoutSessionIsLive,
 } from './booking-hold';
 import { checkoutPaymentStatusCanResume } from './checkout-resume';
 import { bookingIsStayNight } from './pickup-completeness';
@@ -135,7 +135,9 @@ export function partnerBookingIsUnpaidCheckout(b: {
   return normalizePaymentStatus(b.payment_status) === 'pending';
 }
 
-/** Unpaid checkout that still holds inventory (Dashboard attention / live holds). */
+/** Unpaid Instant Book checkout still within Stripe session window (partner Unpaid attention).
+ * Does not mean nights are reserved.
+ */
 export function partnerBookingIsActiveUnpaidCheckout(
   b: {
     status?: string | null;
@@ -145,7 +147,7 @@ export function partnerBookingIsActiveUnpaidCheckout(
   },
   nowMs: number = Date.now()
 ): boolean {
-  return partnerBookingIsUnpaidCheckout(b) && partnerUnpaidCheckoutHoldsInventory(b, nowMs);
+  return partnerBookingIsUnpaidCheckout(b) && unpaidCheckoutSessionIsLive(b, nowMs);
 }
 
 /** Partner live trips: paid, pending hold, cancelled, refunded — not abandoned Stripe checkouts.
@@ -202,8 +204,8 @@ export function travelerHoldExpiresAtMs(b: {
 }
 
 /**
- * Unpaid reservation that still holds inventory. Expired and failed checkouts
- * leave the cart; paying them again requires a new availability check.
+ * Unpaid Instant Book checkout still within the Stripe session window (resume in Cart).
+ * Does not mean nights are reserved — Instant Book pending never occupies inventory.
  */
 export function travelerActiveCartHold(
   b: {
@@ -216,7 +218,7 @@ export function travelerActiveCartHold(
 ): boolean {
   if (!travelerBookingNeedsPayNow(b)) return false;
   if (normalizePaymentStatus(b.payment_status) !== 'pending') return false;
-  return bookingOccupiesInventory(b, nowMs);
+  return unpaidCheckoutSessionIsLive(b, nowMs);
 }
 
 /** Traveler can resume Stripe for an unpaid hold (live pending or expired→failed). */

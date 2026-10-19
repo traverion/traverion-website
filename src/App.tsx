@@ -566,7 +566,7 @@ function App() {
       account: { title: 'My account', description: 'Your profile, trips, and saved tours and stays.' },
       wishlist: { title: 'Saved', description: 'Tours and stays you have saved.' },
       bookings: { title: 'Trips', description: 'View your confirmed tours and stays.' },
-      cart: { title: 'Cart', description: 'Unpaid reservations held for 60 minutes.' },
+      cart: { title: 'Cart', description: 'Open checkouts you can finish — nights are not reserved until payment succeeds.' },
       'booking-confirmed': {
         title: 'Booking confirmed',
         description: `Your tour or stay payment was successful. Checkout used ${STRIPE_TEST_UNTIL_LIVE}.`,

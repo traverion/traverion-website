@@ -12,15 +12,14 @@ describe('status language', () => {
     expect(cancellationRequestLabel('expired')).toBe('Review window passed');
   });
 
-  // Phase 1312: lifecycle chip must not say Payment pending after inventory hold ends.
-  it('labels expired unpaid holds as Hold expired when hold fields are provided', () => {
+  it('labels expired unpaid Instant Book sessions as Checkout expired', () => {
     const now = Date.now();
     expect(
       bookingLifecycleLabel('pending', 'pending', {
         created_at: new Date(now - 60 * 60 * 1000).toISOString(),
         hold_expires_at: new Date(now - 10 * 60 * 1000).toISOString(),
       })
-    ).toBe('Hold expired');
+    ).toBe('Checkout expired');
     expect(
       bookingLifecycleLabel('pending', 'pending', {
         created_at: new Date(now - 5 * 60 * 1000).toISOString(),

@@ -84,7 +84,7 @@ describe('checkout inventory concurrency semantics', () => {
     ).toBe(true);
   });
 
-  it('capacity 1: after A holds 1 seat, B cannot claim the same departure', () => {
+  it('capacity 1: Instant Book pending does not occupy — both may open checkout', () => {
     const rows = [
       {
         id: 'aaaa',
@@ -98,26 +98,20 @@ describe('checkout inventory concurrency semantics', () => {
       },
     ];
     const occupied = tourCheckoutOccupiedGuests(rows, '2026-10-01', null, now, '09:00');
-    expect(occupied).toBe(1);
-    const forB = lastSeatRemainingAfterHold({
-      capacity: 1,
-      occupiedGuests: occupied,
-      requestingGuests: 1,
-    });
-    expect(forB.remaining).toBe(0);
-    expect(forB.allowClaim).toBe(false);
+    expect(occupied).toBe(0);
+    expect(
+      lastSeatRemainingAfterHold({ capacity: 1, occupiedGuests: occupied, requestingGuests: 1 }).allowClaim
+    ).toBe(true);
   });
 
-  it('capacity 1: excluding A own hold still leaves B blocked when counting A', () => {
-    // B's checkout excludes only B's booking id — A's hold still occupies.
+  it('capacity 1: after A paid, B cannot claim the same departure', () => {
     const rows = [
       {
-        id: 'hold-a',
+        id: 'paid-a',
         booking_date: '2026-10-01',
         guests: 1,
-        status: 'pending',
-        payment_status: 'pending',
-        hold_expires_at: '2026-10-01T13:00:00.000Z',
+        status: 'confirmed',
+        payment_status: 'paid',
         start_time: '09:00:00',
         purchase_snapshot: { startTimeHm: '09:00' },
       },
@@ -133,11 +127,20 @@ describe('checkout inventory concurrency semantics', () => {
     ).toBe(false);
   });
 
-  it('capacity N: concurrent requests consuming final N seats — last one fails', () => {
+  it('capacity N: paid seats consume capacity; Instant Book pending does not', () => {
     const capacity = 3;
     const rows = [
       {
         id: 'a',
+        booking_date: '2026-10-01',
+        guests: 2,
+        status: 'confirmed',
+        payment_status: 'paid',
+        start_time: '10:00:00',
+        purchase_snapshot: { startTimeHm: '10:00' },
+      },
+      {
+        id: 'open-b',
         booking_date: '2026-10-01',
         guests: 2,
         status: 'pending',

@@ -38,7 +38,7 @@ describe('payment states', () => {
         created_at: new Date(now - 60 * 60 * 1000).toISOString(),
         hold_expires_at: new Date(now - 10 * 60 * 1000).toISOString(),
       })
-    ).toBe('Hold expired');
+    ).toBe('Checkout expired');
     expect(
       partnerPaymentLabel({
         status: 'pending',
@@ -47,7 +47,7 @@ describe('payment states', () => {
         created_at: new Date(now - 60 * 60 * 1000).toISOString(),
         hold_expires_at: new Date(now + 20 * 60 * 1000).toISOString(),
       })
-    ).toBe('Checkout hold');
+    ).toBe('Payment pending');
     expect(
       partnerPaymentLabel({
         status: 'pending',
@@ -55,7 +55,7 @@ describe('payment states', () => {
         created_at: new Date(now - 60 * 60 * 1000).toISOString(),
         hold_expires_at: new Date(now - 10 * 60 * 1000).toISOString(),
       })
-    ).toBe('Hold expired');
+    ).toBe('Checkout expired');
   });
 
   it('reconciles Booking #5 + #6 as 189 + 445 = 634', () => {

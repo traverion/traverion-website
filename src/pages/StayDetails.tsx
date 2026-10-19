@@ -63,7 +63,6 @@ import NoticeCallout from '../components/NoticeCallout';
 import CheckoutConsentCheckbox from '../components/booking/CheckoutConsentCheckbox';
 import { checkoutPayBlockedByConsent } from '../lib/checkout-consent';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
-import { CHECKOUT_HOLD_MINUTES } from '../lib/booking-hold';
 import { STAY_REQUEST_APPROVAL_HOURS } from '../lib/stay-booking-method';
 import { stayAmenityDisplayList } from '../lib/stay-amenities';
 import { stayStickyBookCtaLabel } from '../lib/stay-sticky-cta';
@@ -133,6 +132,13 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
   const [checkoutConsentAccepted, setCheckoutConsentAccepted] = useState(false);
   const checkoutLockRef = useRef(false);
   const [payError, setPayError] = useState<string | null>(null);
+  const [checkoutCancelledNote, setCheckoutCancelledNote] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const p = new URLSearchParams(window.location.search);
+    return p.get('payment') === 'cancelled'
+      ? 'Checkout was cancelled. Your dates are still selected — nights were not reserved. You can try again when ready.'
+      : null;
+  });
   const [selfBookBlocked, setSelfBookBlocked] = useState(false);
   const [selfBookCheckFailed, setSelfBookCheckFailed] = useState(false);
   const [guestName, setGuestName] = useState('');
@@ -714,6 +720,12 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
     checkoutLockRef.current = true;
     setPaying(true);
     setPayError(null);
+    setCheckoutCancelledNote(null);
+    const cancelQs = new URLSearchParams({
+      checkIn: stayQuote.checkIn,
+      checkOut: stayQuote.checkOut,
+      payment: 'cancelled',
+    });
     void createBookingCheckoutSession({
       listingId: stay.id,
       listingTitle: stay.title,
@@ -728,16 +740,30 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
       currency: stayQuote.currency,
       checkoutConsentAccepted: true,
       successPath: '/booking-confirmed',
-      cancelPath: '/cart?payment=cancelled',
-    }).then((res) => {
-      setPaying(false);
-      checkoutLockRef.current = false;
-      if (!res.success || !res.checkoutUrl) {
-        setPayError(userFacingError(res.error, 'Checkout could not start. You were not charged.'));
-        return;
-      }
-      window.location.assign(res.checkoutUrl);
-    });
+      // Return to this stay with dates intact — Instant Book does not reserve nights.
+      cancelPath: `/stays/${encodeURIComponent(stay.id)}?${cancelQs.toString()}`,
+    })
+      .then((res) => {
+        if (!res.success || !res.checkoutUrl) {
+          setPayError(userFacingError(res.error, 'Checkout could not start. You were not charged.'));
+          setPaying(false);
+          checkoutLockRef.current = false;
+          return;
+        }
+        // Keep paying=true through navigation; clear lock only if assign does not unload.
+        try {
+          window.location.assign(res.checkoutUrl);
+        } catch {
+          setPayError('Could not open Stripe Checkout. Try again — you were not charged.');
+          setPaying(false);
+          checkoutLockRef.current = false;
+        }
+      })
+      .catch((err) => {
+        setPayError(userFacingError(err, 'Checkout could not start. You were not charged.'));
+        setPaying(false);
+        checkoutLockRef.current = false;
+      });
   };
 
   if (error && !stay) {
@@ -1663,7 +1689,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                   holdNote={
                     requestToBook
                       ? `Authorized at checkout · host has ${STAY_REQUEST_APPROVAL_HOURS}h to accept before capture.`
-                      : `Dates held ${CHECKOUT_HOLD_MINUTES} min after you continue to checkout.`
+                      : 'Dates stay available until payment succeeds. If someone else books first, any charge is refunded automatically.'
                   }
                 />
               </div>
@@ -1711,6 +1737,9 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                       Try again
                     </button>
                   </p>
+                ) : null}
+                {checkoutCancelledNote && !payError ? (
+                  <p className="mt-3 text-sm text-ink-muted">{checkoutCancelledNote}</p>
                 ) : null}
                 {payError ? (
                   <p id="stay-pay-error" className="mt-3 text-sm text-red-700">

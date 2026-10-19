@@ -113,7 +113,7 @@ describe('booking inventory holds', () => {
     }
   });
 
-  it('releases pending holds after hold_expires_at', () => {
+  it('Instant Book pending never occupies inventory (paid promote claims nights)', () => {
     expect(
       bookingOccupiesInventory(
         {
@@ -123,7 +123,7 @@ describe('booking inventory holds', () => {
         },
         now
       )
-    ).toBe(true);
+    ).toBe(false);
     expect(
       bookingOccupiesInventory(
         {
@@ -134,10 +134,6 @@ describe('booking inventory holds', () => {
         now
       )
     ).toBe(false);
-  });
-
-  it('honors resumed checkout hold_expires_at even when created_at is old', () => {
-    // Resume refreshes Stripe expiry without rewriting created_at.
     expect(
       bookingOccupiesInventory(
         {
@@ -148,33 +144,33 @@ describe('booking inventory holds', () => {
         },
         now
       )
+    ).toBe(false);
+  });
+
+  it('Request-to-Book authorized still occupies while approval hold is live', () => {
+    expect(
+      bookingOccupiesInventory(
+        {
+          status: 'pending',
+          payment_status: 'authorized',
+          hold_expires_at: '2026-09-09T12:00:00.000Z',
+        },
+        now
+      )
     ).toBe(true);
     expect(
       bookingOccupiesInventory(
         {
           status: 'pending',
-          payment_status: 'pending',
-          created_at: '2026-09-08T09:00:00.000Z',
-          hold_expires_at: '2026-09-08T11:50:00.000Z',
-        },
-        now
-      )
-    ).toBe(false);
-    // Without hold_expires_at, created_at + 30m would wrongly release a live resume.
-    expect(
-      bookingOccupiesInventory(
-        {
-          status: 'pending',
-          payment_status: 'pending',
-          created_at: '2026-09-08T09:00:00.000Z',
-          hold_expires_at: null,
+          payment_status: 'authorized',
+          hold_expires_at: '2026-09-08T11:00:00.000Z',
         },
         now
       )
     ).toBe(false);
   });
 
-  it('formats partner checkout hold labels for live vs expired holds', () => {
+  it('formats partner labels for unpaid Instant Book (nights not held)', () => {
     expect(
       formatPartnerCheckoutHoldLabel(
         {
@@ -184,7 +180,7 @@ describe('booking inventory holds', () => {
         },
         now
       )
-    ).toMatch(/Checkout hold · until /);
+    ).toBe('Unpaid checkout · nights not held');
     expect(
       formatPartnerCheckoutHoldLabel(
         {
@@ -194,13 +190,13 @@ describe('booking inventory holds', () => {
         },
         now
       )
-    ).toBe('Hold expired · inventory released');
+    ).toBe('Checkout expired · nights were never held');
     expect(
       formatPartnerCheckoutHoldLabel({ status: 'confirmed', payment_status: 'paid' }, now)
     ).toBeNull();
   });
 
-  it('does not let failed or expired-legacy pending occupy inventory', () => {
+  it('does not let failed or Instant Book pending occupy inventory', () => {
     expect(
       bookingOccupiesInventory({ status: 'pending', payment_status: 'failed' }, now)
     ).toBe(false);
@@ -218,7 +214,7 @@ describe('booking inventory holds', () => {
     ).toBe(false);
   });
 
-  it('public stay calendar matches checkout occupancy (paid + live holds)', () => {
+  it('public stay calendar: paid + authorized only — Instant Book pending never crosses nights', () => {
     const now = Date.parse('2026-09-27T12:00:00.000Z');
     expect(
       bookingOccupiesPublicStayCalendar(
@@ -229,17 +225,17 @@ describe('booking inventory holds', () => {
         },
         now
       )
-    ).toBe(true);
+    ).toBe(false);
     expect(
       bookingOccupiesPublicStayCalendar(
         {
           status: 'pending',
-          payment_status: 'pending',
-          hold_expires_at: '2026-09-27T11:59:00.000Z',
+          payment_status: 'authorized',
+          hold_expires_at: '2026-09-28T12:00:00.000Z',
         },
         now
       )
-    ).toBe(false);
+    ).toBe(true);
     expect(
       bookingOccupiesPublicStayCalendar({ status: 'pending', payment_status: 'failed' }, now)
     ).toBe(false);

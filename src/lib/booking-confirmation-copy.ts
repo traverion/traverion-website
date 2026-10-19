@@ -4,7 +4,7 @@
  */
 
 import { bookingIsCancelledTrip, travelerBookingNeedsPayNow } from './trip-views';
-import { partnerUnpaidCheckoutHoldsInventory } from './booking-hold';
+import { unpaidCheckoutSessionIsLive } from './booking-hold';
 import {
   isPaidPaymentStatus,
   normalizePaymentStatus,
@@ -50,11 +50,15 @@ export function bookingConfirmationPhase(
     return 'received';
   }
 
-  // Phase 1335: expired pending holds are Pay now (Trips parity), not “still confirming”.
-  // Live unpaid holds stay confirming (Stripe success redirect; webhook may lag).
+  // Phase 1335: expired Stripe sessions are Pay now, not “still confirming”.
+  // Live unpaid Instant Book sessions stay confirming (success redirect; webhook may lag).
+  // Instant Book pending does not reserve inventory — unpaidCheckoutSessionIsLive is session TTL only.
   if (travelerBookingNeedsPayNow(b)) {
-    if ((pay === 'pending' || pay === '') && partnerUnpaidCheckoutHoldsInventory(b, nowMs)) {
-      return 'confirming';
+    if (pay === 'pending' || pay === '') {
+      const hasSessionMeta = Boolean(b.hold_expires_at || b.created_at);
+      if (!hasSessionMeta || unpaidCheckoutSessionIsLive(b, nowMs)) {
+        return 'confirming';
+      }
     }
     return 'needs_pay';
   }
@@ -239,7 +243,7 @@ export const TRAVELER_PAY_NOW_TEST_CTA = 'Pay now · test mode';
 
 /** Traveler Trips — Pay now after the inventory hold timed out. */
 export const TRAVELER_HOLD_EXPIRED_PAY_NOW_NOTE =
-  'Your checkout hold ended, so those spots may no longer be reserved. Pay now opens a new checkout if capacity is still available.';
+  'Your Stripe checkout session ended before payment. Instant Book nights were never reserved. Pay now opens a new checkout if the dates are still available.';
 
 /** Tour / stay sticky + booking card — continue into checkout (Stripe TEST disclosed beside CTA). */
 export const TRAVELER_CONTINUE_TEST_CTA = 'Continue to checkout';

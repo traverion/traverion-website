@@ -1,4 +1,4 @@
-/** Stripe Checkout allows 30 minutes to 24 hours. Inventory holds use one hour. */
+/** Stripe Checkout session expiry window (session TTL). Not an inventory hold for Instant Book. */
 export const CHECKOUT_HOLD_MINUTES = 60;
 
 export type InventoryHoldRow = {
@@ -8,7 +8,11 @@ export type InventoryHoldRow = {
   created_at?: string | null;
 };
 
-/** True when this row must block Tour spots or Stay nights at checkout. */
+/**
+ * True when this row must block Tour spots or Stay nights.
+ * Instant Book unpaid pending never occupies — nights are claimed only when payment
+ * promotes paid (first successful promote wins). Request-to-Book authorized still holds.
+ */
 export function bookingOccupiesInventory(row: InventoryHoldRow, nowMs: number = Date.now()): boolean {
   if ((row.status ?? '').trim().toLowerCase() === 'cancelled') return false;
   const pay = (row.payment_status ?? 'pending').trim().toLowerCase();
@@ -22,18 +26,12 @@ export function bookingOccupiesInventory(row: InventoryHoldRow, nowMs: number = 
     const created = row.created_at ? Date.parse(row.created_at) : nowMs;
     return Number.isFinite(created) && created > nowMs - 24 * 60 * 60 * 1000;
   }
-  if (pay !== 'pending') return false;
-  if (row.hold_expires_at) {
-    const exp = Date.parse(row.hold_expires_at);
-    return Number.isFinite(exp) && exp > nowMs;
-  }
-  const created = row.created_at ? Date.parse(row.created_at) : nowMs;
-  return Number.isFinite(created) && created > nowMs - CHECKOUT_HOLD_MINUTES * 60 * 1000;
+  return false;
 }
 
 /**
- * Public stay calendar occupancy — same rule as checkout and published_stay_occupied_ranges (079):
- * paid + live holds. Failed, expired, refunded, cancelled do not block nights.
+ * Public stay calendar occupancy — paid + authorized R2B only.
+ * Abandoned Instant Book checkouts never cross out nights.
  */
 export function bookingOccupiesPublicStayCalendar(row: InventoryHoldRow, nowMs: number = Date.now()): boolean {
   return bookingOccupiesInventory(row, nowMs);
@@ -76,8 +74,8 @@ export function inventoryStartTimeHmFromBooking(row: {
 }
 
 /**
- * Checkout tour occupancy: paid + live holds.
- * Refunded, cancelled, and failed bookings must not fill capacity.
+ * Checkout tour occupancy: paid + authorized R2B only.
+ * Instant Book unpaid pending does not fill capacity.
  * When startTime is set, only count bookings on that departure slot (multi-schedule same day).
  * Slot match uses purchased startTimeHm when present so ops edits cannot move sold seats.
  */
@@ -112,7 +110,29 @@ export function checkoutHoldExpiresAtUnix(fromMs: number = Date.now()): number {
   return Math.floor(fromMs / 1000) + CHECKOUT_HOLD_MINUTES * 60;
 }
 
-/** Pending unpaid checkout that still blocks tour spots / stay nights. */
+/**
+ * True when an unpaid Instant Book checkout still has a live Stripe session window.
+ * Does NOT mean inventory is reserved — use bookingOccupiesInventory for that.
+ */
+export function unpaidCheckoutSessionIsLive(
+  row: InventoryHoldRow,
+  nowMs: number = Date.now()
+): boolean {
+  if ((row.status ?? '').trim().toLowerCase() === 'cancelled') return false;
+  const pay = (row.payment_status ?? 'pending').trim().toLowerCase();
+  if (pay !== 'pending') return false;
+  if (row.hold_expires_at) {
+    const exp = Date.parse(row.hold_expires_at);
+    return Number.isFinite(exp) && exp > nowMs;
+  }
+  const created = row.created_at ? Date.parse(row.created_at) : NaN;
+  return Number.isFinite(created) && created > nowMs - CHECKOUT_HOLD_MINUTES * 60 * 1000;
+}
+
+/**
+ * @deprecated Instant Book pending no longer holds inventory. Always false for pending.
+ * Kept so partner call sites compile; prefer bookingOccupiesInventory for real holds.
+ */
 export function partnerUnpaidCheckoutHoldsInventory(
   row: InventoryHoldRow,
   nowMs: number = Date.now()
@@ -124,8 +144,8 @@ export function partnerUnpaidCheckoutHoldsInventory(
 }
 
 /**
- * Partner-facing hold line for Calendar day sheet / Bookings detail.
- * Null when the row is not an unpaid pending checkout.
+ * Partner-facing label for unpaid Instant Book checkout rows.
+ * Null when not an unpaid pending checkout.
  */
 export function formatPartnerCheckoutHoldLabel(
   row: InventoryHoldRow,
@@ -134,18 +154,8 @@ export function formatPartnerCheckoutHoldLabel(
   if ((row.status ?? '').trim().toLowerCase() === 'cancelled') return null;
   const pay = (row.payment_status ?? 'pending').trim().toLowerCase();
   if (pay !== 'pending') return null;
-  if (partnerUnpaidCheckoutHoldsInventory(row, nowMs)) {
-    if (row.hold_expires_at) {
-      const exp = Date.parse(row.hold_expires_at);
-      if (Number.isFinite(exp) && exp > nowMs) {
-        const until = new Date(exp).toLocaleTimeString(undefined, {
-          hour: '2-digit',
-          minute: '2-digit',
-        });
-        return `Checkout hold · until ${until}`;
-      }
-    }
-    return 'Checkout hold · still holding spots';
+  if (unpaidCheckoutSessionIsLive(row, nowMs)) {
+    return 'Unpaid checkout · nights not held';
   }
-  return 'Hold expired · inventory released';
+  return 'Checkout expired · nights were never held';
 }

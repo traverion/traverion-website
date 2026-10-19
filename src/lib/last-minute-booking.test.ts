@@ -147,9 +147,8 @@ describe('last-minute booking window', () => {
       expect(departureHasConfirmedPaidBooking([row], { date: DATE, startTimeHm: TIME, optionId: OPTION })).toBe(false);
     }
     const liveHold = cases[1];
-    expect(
-      tourCheckoutOccupiedGuests([liveHold], DATE, null, now, TIME)
-    ).toBe(2);
+    // Instant Book pending no longer occupies inventory.
+    expect(tourCheckoutOccupiedGuests([liveHold], DATE, null, now, TIME)).toBe(0);
     expect(tourCheckoutOccupiedGuests([paid()], DATE, null, now, TIME)).toBe(2);
   });
 

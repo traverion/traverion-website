@@ -3,7 +3,7 @@
  * Do not mix “Confirmed” with “Paid” unless both are true.
  */
 
-import { partnerUnpaidCheckoutHoldsInventory } from './booking-hold';
+import { unpaidCheckoutSessionIsLive } from './booking-hold';
 import { stayRequestLifecycleLabel, type StayRequestApprovalRow } from './stay-request-approval';
 
 export type BookingLifecycle = 'pending_payment' | 'confirmed' | 'cancelled' | 'completed';
@@ -35,19 +35,19 @@ export function bookingLifecycleLabel(
       hold_expires_at: hold?.hold_expires_at,
     });
   }
-  // Phase 1312: match travelerPaymentLabel — expired holds are not “Payment pending”.
+  // Match travelerPaymentLabel — expired Stripe sessions are not “Payment pending”.
   if (st === 'pending' || pay === 'pending') {
     if (
       pay === 'pending' &&
       hold &&
-      !partnerUnpaidCheckoutHoldsInventory({
+      !unpaidCheckoutSessionIsLive({
         status,
         payment_status: paymentStatus,
         hold_expires_at: hold.hold_expires_at,
         created_at: hold.created_at,
       })
     ) {
-      return 'Hold expired';
+      return 'Checkout expired';
     }
     return 'Payment pending';
   }

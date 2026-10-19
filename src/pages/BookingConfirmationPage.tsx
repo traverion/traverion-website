@@ -926,7 +926,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                 {cancelled
                   ? bookingConfirmationCancelledNextStep(booking)
                   : needsPay
-                    ? payLabel === 'Hold expired'
+                    ? payLabel === 'Checkout expired' || payLabel === 'Hold expired'
                       ? TRAVELER_HOLD_EXPIRED_PAY_NOW_NOTE
                       : 'Payment is still required. You can finish it from here or from Trips.'
                     : "Your booking details and any updates from your operator are available in Trips."}

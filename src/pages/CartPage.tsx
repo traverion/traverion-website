@@ -109,7 +109,7 @@ export default function CartPage({ onNavigate }: Props) {
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Your travel</p>
           <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Cart</h1>
           <p className="mt-2 max-w-xl text-sm text-ink-muted leading-relaxed">
-            Unpaid reservations stay here for 60 minutes. The time comes from the server and does not restart if you refresh.
+            Open Instant Book checkouts stay here while the Stripe session is live. Nights are not reserved until payment succeeds.
           </p>
         </header>
 

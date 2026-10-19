@@ -1515,7 +1515,26 @@ export async function promotePaidFromCheckoutSession(params: {
         });
       } catch (refundErr) {
         const msg = refundErr instanceof Error ? refundErr.message : String(refundErr);
-        if (!/already.?been.?refunded|charge_already_refunded/i.test(msg)) {
+        if (/already.?been.?refunded|charge_already_refunded/i.test(msg)) {
+          inventoryRefunded = true;
+        } else {
+          // Do not confirm the booking. Flag for retry/intervention; rethrow so webhook retries.
+          await admin.from('booking_payment_events').insert({
+            booking_id: bookingId,
+            event_id: event.id,
+            event_type: 'inventory_conflict_refund_failed',
+            payment_intent_id: paymentIntentId,
+            checkout_session_id: session.id,
+            amount: amountPaid,
+            currency,
+            payload: {
+              reason: 'inventory_conflict_refund_failed',
+              inventoryError: promoteOutcome.message,
+              refundError: msg,
+              stripeEventType: event.type,
+              needsIntervention: true,
+            },
+          });
           throw refundErr;
         }
       }

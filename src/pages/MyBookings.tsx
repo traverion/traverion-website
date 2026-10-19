@@ -1590,8 +1590,10 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         {isStay ? 'Browse current listing' : 'Browse current tour'}
                       </button>
                     )}
-                    {liveTrip && payLabel === 'Hold expired' && travelerBookingNeedsPayNow(b) ? (
-                      <NoticeCallout title="Hold expired" tone="warn">
+                    {liveTrip &&
+                    (payLabel === 'Checkout expired' || payLabel === 'Hold expired') &&
+                    travelerBookingNeedsPayNow(b) ? (
+                      <NoticeCallout title="Checkout expired" tone="warn">
                         {TRAVELER_HOLD_EXPIRED_PAY_NOW_NOTE}
                       </NoticeCallout>
                     ) : null}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bookingOccupiesInventory, CHECKOUT_HOLD_MINUTES } from './booking-hold';
+import { bookingOccupiesInventory, CHECKOUT_HOLD_MINUTES, unpaidCheckoutSessionIsLive } from './booking-hold';
 import { checkoutPaymentStatusCanResume, checkoutResumeLostRaceToPaid } from './checkout-resume';
 import { bookingConfirmationPhase } from './booking-confirmation-copy';
 import {
@@ -12,18 +12,15 @@ import { bookingPaymentWasCollected, isPaidPaymentStatus } from './payment-state
 describe('stay booking reliability invariants', () => {
   const now = Date.parse('2026-10-20T12:00:00.000Z');
 
-  it('instant-book pending holds occupy inventory for 60 minutes when hold_expires_at is set', () => {
+  it('Instant Book pending does not occupy inventory; session TTL is separate', () => {
     expect(CHECKOUT_HOLD_MINUTES).toBe(60);
-    expect(
-      bookingOccupiesInventory(
-        {
-          status: 'pending',
-          payment_status: 'pending',
-          hold_expires_at: '2026-10-20T12:45:00.000Z',
-        },
-        now
-      )
-    ).toBe(true);
+    const pendingLive = {
+      status: 'pending',
+      payment_status: 'pending',
+      hold_expires_at: '2026-10-20T12:45:00.000Z',
+    };
+    expect(bookingOccupiesInventory(pendingLive, now)).toBe(false);
+    expect(unpaidCheckoutSessionIsLive(pendingLive, now)).toBe(true);
     expect(
       bookingOccupiesInventory(
         {

@@ -204,7 +204,7 @@ export function adminBookingAmountCaption(booking: MoneyBookingRow): string {
   if (label === 'Refunded') return 'Refunded';
   if (label === 'No refund') return 'Collected · no refund';
   if (label === 'Payment failed') return 'Not collected';
-  if (label === 'Hold expired') return 'Hold expired';
+  if (label === 'Hold expired' || label === 'Checkout expired') return 'Checkout expired';
   if (label === 'Checkout hold' || label === 'Payment pending') return 'Not collected';
   return label;
 }
@@ -214,11 +214,11 @@ export function adminPaymentExplanation(booking: MoneyBookingRow): string {
   if (label === 'Payment failed') {
     return 'Checkout did not collect payment. This is not a confirmed booking and it is not supplier revenue.';
   }
-  if (label === 'Hold expired') {
-    return 'The checkout hold expired before payment. Inventory release follows the existing reservation rules.';
+  if (label === 'Hold expired' || label === 'Checkout expired') {
+    return 'The Stripe checkout session expired before payment. Instant Book nights were never reserved.';
   }
   if (label === 'Checkout hold' || label === 'Payment pending') {
-    return 'Payment is not collected. Inventory stays held only while this checkout hold is still active.';
+    return 'Payment is not collected. Instant Book nights are not reserved until payment succeeds.';
   }
   if (label === 'Refund due') {
     return 'Money was collected and a refund is still due. Traverion does not mark this refunded until Stripe records the refund.';

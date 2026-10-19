@@ -3,7 +3,7 @@
  * Checkout-created / pending is not paid. Do not treat a Stripe session id as collected money.
  */
 
-import { partnerUnpaidCheckoutHoldsInventory } from './booking-hold';
+import { unpaidCheckoutSessionIsLive } from './booking-hold';
 
 export const BOOKING_PAYMENT_STATES = [
   'pending',
@@ -84,9 +84,9 @@ export function travelerPaymentLabel(b: MoneyBookingRowWithDispute): string {
   if (pay === 'authorized') return 'Authorized · awaiting host';
   if (isPaidPaymentStatus(pay)) return 'Paid';
   if (pay === 'pending' || b.checkout_session_id) {
-    // Phase 1311: mirror partner hold truth — expired holds are not still “pending payment”.
-    if (pay === 'pending' && !partnerUnpaidCheckoutHoldsInventory(b)) {
-      return 'Hold expired';
+    // Stripe session window — Instant Book pending does not reserve inventory.
+    if (pay === 'pending' && !unpaidCheckoutSessionIsLive(b)) {
+      return 'Checkout expired';
     }
     return 'Payment pending';
   }
@@ -95,7 +95,7 @@ export function travelerPaymentLabel(b: MoneyBookingRowWithDispute): string {
 
 export function partnerPaymentLabel(b: MoneyBookingRow): string {
   const base = travelerPaymentLabel(b);
-  if (base === 'Payment pending' && partnerUnpaidCheckoutHoldsInventory(b)) return 'Checkout hold';
+  // Instant Book unpaid checkouts no longer hold inventory — never label as “Checkout hold”.
   return base;
 }
 
