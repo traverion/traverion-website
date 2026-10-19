@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { quoteStayLodging } from './stay-season-quote';
+import { normalizeStaySeasons, quoteStayLodging } from './stay-season-quote';
 
 const summer = {
   id: 'summer',
@@ -23,6 +23,33 @@ const winter = {
 };
 
 describe('quoteStayLodging', () => {
+  it('keeps a priced optional extra and drops an empty one', () => {
+    const seasons = normalizeStaySeasons([
+      {
+        id: 'open',
+        start: '2026-01-01',
+        end: '2026-12-31',
+        extras: [
+          { id: 'towels', name: 'Extra towels', price: 10, charge: 'per_stay', mandatory: false },
+          { id: 'blank', name: 'Additional cleaning', price: 0, charge: 'per_stay', mandatory: false },
+          { id: 'unnamed', name: '  ', price: 25, charge: 'per_stay', mandatory: false },
+        ],
+      },
+    ]);
+    expect(seasons[0]?.extras).toEqual([
+      {
+        id: 'towels',
+        name: 'Extra towels',
+        description: '',
+        price: 10,
+        charge: 'per_stay',
+        mandatory: false,
+        requestOnly: false,
+        maxQuantity: 1,
+      },
+    ]);
+  });
+
   it('keeps a flat base rate when no seasons are saved', () => {
     const q = quoteStayLodging({
       checkIn: '2026-06-10',

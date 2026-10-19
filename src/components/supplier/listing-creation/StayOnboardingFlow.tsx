@@ -20,6 +20,7 @@ import { formatBpsAsPercent, splitGrossByCommissionBps, toMinorUnits } from '../
 import { formatMoney, normalizeCurrency } from '../../../lib/money';
 import { fetchSupplierActiveCommercialTerms } from '../../../data/supabase-earnings';
 import { composeStayCheckInAddress, stayAddressKey, stayPinMatchesAddress } from '../../../lib/stay-address';
+import type { StaySeasonExtra } from '../../../lib/stay-season-quote';
 import StayAddressSearch from './StayAddressSearch';
 import { StayChoice, StayField, StayHelp } from './StayCreatorUi';
 import { stayArrivalIcon, stayBedIcon, stayHighlightIcon, stayPropertyIcon, staySafetyIcon } from './stay-creator-icons';
@@ -930,15 +931,35 @@ function PricingStage({ values, currency, option, writeOption, commissionBps }: 
   );
 }
 
-const EXTRA_CHARGE_LABEL: Record<string, string> = {
-  per_stay: 'per stay',
-  per_night: 'per night',
-  per_guest: 'per guest',
-  per_guest_night: 'per guest, per night',
-};
+function extraAmount(raw: string): number {
+  const cleaned = raw.replace(/-/g, '').replace(',', '.').trim();
+  if (!cleaned) return 0;
+  const amount = Number(cleaned);
+  if (!Number.isFinite(amount) || amount < 0) return 0;
+  return Math.min(100000, Math.round(amount * 100) / 100);
+}
+
+function blankExtra(): StaySeasonExtra {
+  return { id: newStayOptionId(), name: '', description: '', price: 0, charge: 'per_stay', mandatory: false, maxQuantity: 1 };
+}
 
 function FeesStage({ values, currency, option, writeOption }: Props & { option: StayAccommodationOption; writeOption: (next: StayAccommodationOption) => void }) {
   const extras = option.schedules[0]?.extras ?? [];
+  function writeExtras(next: StaySeasonExtra[]) {
+    const season = option.schedules[0] ?? {
+      id: newStayOptionId(),
+      name: 'Standard',
+      start: '2020-01-01',
+      end: '2099-12-31',
+      enabled: true,
+      nightlyPrice: option.nightlyPrice,
+      minNights: option.minNights,
+      checkIn: values.stayCheckIn,
+      checkOut: values.stayCheckOut,
+      cleaningFee: option.cleaningFee,
+    };
+    writeOption({ ...option, schedules: [{ ...season, extras: next.slice(0, 12) }, ...option.schedules.slice(1)] });
+  }
   return (
     <div className="space-y-4">
       <Field label={`Cleaning fee · ${currency}, per stay`}>
@@ -948,20 +969,46 @@ function FeesStage({ values, currency, option, writeOption }: Props & { option: 
         }} />
       </Field>
       <StayHelp>A cleaning amount is charged once per stay. It is not optional for the guest. Leave it blank when there is no cleaning fee.</StayHelp>
-      {extras.length > 0 ? (
-        <ul className="stay-panel space-y-2 text-sm text-ink">
-          {extras.map((extra) => (
-            <li key={extra.id} className="flex items-start justify-between gap-3">
-              <span>{extra.name}</span>
-              <span className="text-right text-ink-muted">
-                {extra.price} {currency}
-                {EXTRA_CHARGE_LABEL[extra.charge] ? ` · ${EXTRA_CHARGE_LABEL[extra.charge]}` : ''}
-                {extra.mandatory ? ' · mandatory' : extra.requestOnly ? ' · requested, not charged' : ' · optional'}
-              </span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-ink">Additional extras</p>
+          <button
+            type="button"
+            className="min-h-11 text-sm font-semibold text-finland disabled:opacity-40"
+            disabled={extras.length >= 12}
+            onClick={() => writeExtras([...extras, blankExtra()])}
+          >
+            + Add extra
+          </button>
+        </div>
+        <StayHelp>Guests pay for an extra only when they choose it. It is not added to the nightly price.</StayHelp>
+        {extras.map((extra, index) => (
+          <div key={extra.id} className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_11rem_auto] sm:items-center">
+            <input
+              className="tv-input w-full"
+              value={extra.name}
+              maxLength={80}
+              placeholder="Extra towels"
+              aria-label={`Extra ${index + 1} name`}
+              onChange={(event) => writeExtras(extras.map((row) => row.id === extra.id ? { ...row, name: event.target.value.slice(0, 80) } : row))}
+            />
+            <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2">
+              <span className="text-sm font-semibold text-ink-muted">{currency}</span>
+              <input
+                className="tv-input w-full"
+                inputMode="decimal"
+                value={extra.price > 0 ? String(extra.price) : ''}
+                placeholder="10"
+                aria-label={`Extra ${index + 1} amount`}
+                onChange={(event) => writeExtras(extras.map((row) => row.id === extra.id ? { ...row, price: extraAmount(event.target.value), mandatory: false, charge: 'per_stay' } : row))}
+              />
+            </div>
+            <button type="button" className="min-h-11 justify-self-start text-sm font-semibold text-ink-muted sm:justify-self-end" onClick={() => writeExtras(extras.filter((row) => row.id !== extra.id))}>
+              Remove
+            </button>
+          </div>
+        ))}
+      </div>
       <StayHelp>Weekly and monthly discounts and extra-guest fees already saved on a schedule apply to the lodging price at checkout.</StayHelp>
     </div>
   );
@@ -986,17 +1033,26 @@ function ArrivalMethodStage({ values, onChange }: Props) {
 }
 
 function ArrivalNotesStage({ values, onChange }: Props) {
+  const publicRef = useRef<HTMLTextAreaElement>(null);
+  const privateRef = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    for (const field of [publicRef.current, privateRef.current]) {
+      if (!field) continue;
+      field.style.height = '140px';
+      field.style.height = `${Math.max(140, field.scrollHeight)}px`;
+    }
+  }, [values.stayArrivalNote, values.stayCheckInAddress]);
   return (
     <div className="space-y-4">
       <div className="stay-panel space-y-2">
         <Field label="Public arrival note">
-          <textarea className="tv-input min-h-20 w-full" maxLength={160} value={values.stayArrivalNote} onChange={(e) => onChange({ stayArrivalNote: e.target.value.slice(0, 160) })} />
+          <textarea ref={publicRef} className="tv-input stay-note-input w-full resize-y" maxLength={160} value={values.stayArrivalNote} aria-label="Public arrival note" onChange={(e) => onChange({ stayArrivalNote: e.target.value.slice(0, 160) })} />
         </Field>
         <StayHelp>Guests can read this before they book. Do not include a door code or the street address.</StayHelp>
       </div>
       <div className="stay-panel space-y-2">
         <Field label="Private arrival address">
-          <textarea className="tv-input min-h-24 w-full" maxLength={400} value={values.stayCheckInAddress} onChange={(e) => onChange({ stayCheckInAddress: e.target.value.slice(0, 400) })} />
+          <textarea ref={privateRef} className="tv-input stay-note-input w-full resize-y" maxLength={400} value={values.stayCheckInAddress} aria-label="Private arrival address" onChange={(e) => onChange({ stayCheckInAddress: e.target.value.slice(0, 400) })} />
         </Field>
         <StayHelp>Booked guests see this after payment. Codes belong here, not in the public note.</StayHelp>
       </div>

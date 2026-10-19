@@ -558,7 +558,7 @@ export default function ListingImageFields({
           ) : null}
 
           <div
-            className={stayGallery ? 'grid grid-cols-2 gap-2 sm:grid-cols-3' : 'grid grid-cols-3 gap-1.5 sm:grid-cols-4 md:grid-cols-5'}
+            className={stayGallery ? 'grid grid-cols-2 items-start gap-2 sm:grid-cols-3' : 'grid grid-cols-3 gap-1.5 sm:grid-cols-4 md:grid-cols-5'}
             onDragOver={(e) => {
               if (!uploadsEnabled || busy || !e.dataTransfer.types.includes('Files')) return;
               e.preventDefault();
@@ -580,7 +580,7 @@ export default function ListingImageFields({
               return (
                 <div
                   key={`slot-${index}-${url.slice(-24)}`}
-                  className={`lc-tile group relative overflow-hidden ${stayGallery ? 'rounded-xl' : 'rounded-[var(--partner-radius-sm,0.375rem)]'} ${
+                  className={`lc-tile group relative overflow-hidden ${stayGallery ? 'stay-photo-tile rounded-xl' : 'rounded-[var(--partner-radius-sm,0.375rem)]'} ${
                     stayGallery && isCover ? 'col-span-2' : ''
                   } ${
                     isCover && dragOverCover ? 'lc-tile--drop' : ''
@@ -605,10 +605,10 @@ export default function ListingImageFields({
                     draggable={!busy}
                     onDragStart={(e) => onPhotoDragStart(e, index)}
                     aria-label={`${caption}. Photo ${index + 1} of ${filledCount}${isCover ? ', cover' : ''}.`}
-                    className="lux-flat block w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-finland/40"
+                    className={`lux-flat block w-full overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-finland/40 ${stayGallery && isCover ? 'aspect-[16/10]' : stayGallery ? 'aspect-[4/3]' : 'aspect-square'}`}
                   >
                     {preview ? (
-                      <img src={preview} alt="" className={`${stayGallery && isCover ? 'aspect-[16/10]' : stayGallery ? 'aspect-[4/3]' : 'aspect-square'} w-full object-cover`} />
+                      <img src={preview} alt="" className="block h-full w-full object-cover" />
                     ) : null}
                   </button>
                   {isCover ? (

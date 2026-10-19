@@ -5539,6 +5539,15 @@ details:not([open]) > :not(summary) {
     height: 280px;
   }
 }
+.listing-creation-workspace .lc-tile.stay-photo-tile {
+  padding: 0;
+}
+.listing-creation-workspace textarea.tv-input.stay-note-input {
+  min-height: 140px;
+  height: 140px;
+  resize: vertical;
+  overflow-y: hidden;
+}
 .tv-input.tv-location-input {
   padding-left: 2.75rem;
   padding-right: 2.75rem;
