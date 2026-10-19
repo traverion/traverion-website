@@ -214,8 +214,10 @@ export function applyPartnerBookingsDesk<T extends PartnerBookingsDeskRow>(
   const q = query.search.trim().toLowerCase();
   const filtered = rows.filter((b) => {
     const isStay = extras.isStay(b);
-    if (query.inventoryFamily === 'stay' && !isStay && b.id !== query.highlightBookingId) return false;
-    if (query.inventoryFamily === 'tour' && isStay && b.id !== query.highlightBookingId) return false;
+    // Strict separation: Bookings = tours/activities; Reservations = stays only.
+    // Wrong-desk deep links redirect in SupplierBookings (do not leak cross-family rows).
+    if (query.inventoryFamily === 'stay' && !isStay) return false;
+    if (query.inventoryFamily === 'tour' && isStay) return false;
     if (query.listingId && b.listing_id !== query.listingId) return false;
     if (query.status && (b.status ?? '').trim().toLowerCase() !== query.status) return false;
     if (!matchesPayment(b, query.payment)) return false;

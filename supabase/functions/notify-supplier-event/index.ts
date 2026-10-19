@@ -311,9 +311,11 @@ function eventBody(payload: Payload): string {
 function eventHtml(payload: Payload): string {
   const base = siteBase(payload);
   const portal = `${base}/partner`;
+  // Stays open Reservations; tours/activities open Bookings.
+  const deskPath = payload.listingKind === 'stay' ? '/partner/reservations' : '/partner/bookings';
   const bookingsUrl = payload.bookingId
-    ? `${base}/partner/bookings?booking=${encodeURIComponent(payload.bookingId)}`
-    : `${base}/partner/bookings`;
+    ? `${base}${deskPath}?booking=${encodeURIComponent(payload.bookingId)}`
+    : `${base}${deskPath}`;
 
   if (payload.eventType === 'supplier_welcome') {
     const bodyText = escapeHtml(eventBody(payload)).replace(/\n/g, '<br/>');

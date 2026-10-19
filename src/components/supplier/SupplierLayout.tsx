@@ -1208,7 +1208,7 @@ export default function SupplierLayout() {
                     {section === 'create' && <PartnerCreateListingPage />}
                     {section === 'listings' && <SupplierListings />}
                     {section === 'availability' && <SupplierAvailability />}
-                    {section === 'bookings' && <SupplierBookings />}
+                    {section === 'bookings' && <SupplierBookings inventoryFamily="tour" />}
                     {section === 'reservations' && <SupplierBookings inventoryFamily="stay" />}
                     {section === 'inbox' && <SupplierInbox />}
                     {section === 'earnings' && <SupplierEarnings />}

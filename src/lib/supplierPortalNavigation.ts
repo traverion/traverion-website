@@ -2,6 +2,7 @@
  * Partner portal URL helpers (pathname + query; layout uses pathname for section).
  */
 
+import { partnerBookingDeskPath } from './partner-booking-desk-path';
 import { PARTNER_APP_BASE } from './partnerPortalPaths';
 
 /** Map listing quality check id → SupplierListingForm section id (see supplier-listing-field-*). */
@@ -50,16 +51,17 @@ export function openSupplierListingEditor(
   navigateSupplierUrl(`${path}?${q.toString()}`);
 }
 
-/** Open supplier bookings and optionally focus a specific booking row. */
-export function openSupplierBooking(bookingId?: string): void {
-  const path = `${PARTNER_APP_BASE}/bookings`;
-  if (!bookingId) {
-    navigateSupplierUrl(path);
-    return;
-  }
-  const q = new URLSearchParams();
-  q.set('booking', bookingId);
-  navigateSupplierUrl(`${path}?${q.toString()}`);
+/** Open Bookings or Reservations and optionally focus a specific booking row. */
+export function openSupplierBooking(
+  bookingId?: string,
+  opts?: { isStay?: boolean }
+): void {
+  navigateSupplierUrl(
+    partnerBookingDeskPath({
+      bookingId,
+      isStay: opts?.isStay === true,
+    })
+  );
 }
 
 /** Open partner inbox and optionally expand a booking thread. */

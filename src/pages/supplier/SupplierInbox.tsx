@@ -634,8 +634,12 @@ export default function SupplierInbox() {
                   That booking link is missing from your paid Inbox list (wrong id, unpaid, or not yours). Open it from
                   Bookings if you still need the thread.
                 </p>
-                <button type="button" className="tv-btn-ghost mt-3 -ml-2" onClick={() => openSupplierBooking(openId)}>
-                  Open in Bookings
+                <button
+                  type="button"
+                  className="tv-btn-ghost mt-3 -ml-2"
+                  onClick={() => openSupplierBooking(openId)}
+                >
+                  Open booking desk
                 </button>
               </NoticeCallout>
             </div>
@@ -748,8 +752,18 @@ export default function SupplierInbox() {
                     </div>
                   </dl>
                   <div className="px-4 pb-4">
-                    <button type="button" className="tv-btn-secondary" onClick={() => openSupplierBooking(openBooking.id)}>
-                      Open in Bookings
+                    <button
+                      type="button"
+                      className="tv-btn-secondary"
+                      onClick={() =>
+                        openSupplierBooking(openBooking.id, {
+                          isStay: isStayRequestAwaitingHost(openBooking) || bookingIsStayNight(openBooking),
+                        })
+                      }
+                    >
+                      {isStayRequestAwaitingHost(openBooking) || bookingIsStayNight(openBooking)
+                        ? 'Open in Reservations'
+                        : 'Open in Bookings'}
                     </button>
                   </div>
                 </div>

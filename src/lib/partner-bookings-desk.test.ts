@@ -74,4 +74,37 @@ describe('partner bookings desk', () => {
     ];
     expect(comparePartnerBookingsDesk(same[0], same[1], 'travel_asc', () => '18:00')).toBeGreaterThan(0);
   });
+
+  it('separates Bookings (tour) from Reservations (stay) with no cross-family leak', () => {
+    const mixed = [
+      row({ id: 'tour-1', created_at: '2026-10-02T10:00:00.000Z', listing_id: 'tour-listing' }),
+      row({
+        id: 'stay-1',
+        created_at: '2026-10-03T10:00:00.000Z',
+        listing_id: 'stay-listing',
+        check_out: '2026-11-05',
+        nights: 3,
+      }),
+    ];
+    const stayIds = new Set(['stay-1']);
+    const stayExtras = {
+      ...extras,
+      isStay: (b: PartnerBookingsDeskRow) => stayIds.has(b.id),
+    };
+    const tourDesk = applyPartnerBookingsDesk(
+      mixed,
+      { ...baseQuery, inventoryFamily: 'tour', highlightBookingId: 'stay-1' },
+      stayExtras
+    );
+    const stayDesk = applyPartnerBookingsDesk(
+      mixed,
+      { ...baseQuery, inventoryFamily: 'stay', highlightBookingId: 'tour-1' },
+      stayExtras
+    );
+    expect(tourDesk.map((r) => r.id)).toEqual(['tour-1']);
+    expect(stayDesk.map((r) => r.id)).toEqual(['stay-1']);
+    // Neither desk duplicates the other family's confirmed row.
+    expect(tourDesk.some((r) => r.id === 'stay-1')).toBe(false);
+    expect(stayDesk.some((r) => r.id === 'tour-1')).toBe(false);
+  });
 });

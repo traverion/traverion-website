@@ -66,6 +66,7 @@ import { fetchMyListings, pgTimeToHm } from '../../data/supabase-listings';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings, canManageFinance } from '../../lib/supplierTeamRoles';
 import { navigateSupplierUrl, openSupplierInbox, openSupplierPickup } from '../../lib/supplierPortalNavigation';
+import { partnerBookingDeskPathPreservingSearch } from '../../lib/partner-booking-desk-path';
 import { PARTNER_APP_BASE, PARTNER_CREATE_PATH, PARTNER_RESERVATIONS_PATH } from '../../lib/partnerPortalPaths';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { nightsOccupiedByStay, stayRangeFromBooking } from '../../lib/stayOccupancy';
@@ -508,6 +509,34 @@ export default function SupplierBookings({
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Wrong-desk deep links (stay on Bookings / tour on Reservations) → correct section.
+  useEffect(() => {
+    if (!inventoryFamily || !highlightBookingId || loading) return;
+    const booking = bookings.find((b) => b.id === highlightBookingId);
+    if (!booking) return;
+    const isStay =
+      listingMeta[booking.listing_id]?.family === 'stay' || bookingIsStayNight(booking);
+    if (inventoryFamily === 'tour' && isStay) {
+      navigateSupplierUrl(
+        partnerBookingDeskPathPreservingSearch({
+          isStay: true,
+          bookingId: highlightBookingId,
+          currentSearch: window.location.search,
+        })
+      );
+      return;
+    }
+    if (inventoryFamily === 'stay' && !isStay) {
+      navigateSupplierUrl(
+        partnerBookingDeskPathPreservingSearch({
+          isStay: false,
+          bookingId: highlightBookingId,
+          currentSearch: window.location.search,
+        })
+      );
+    }
+  }, [inventoryFamily, highlightBookingId, bookings, listingMeta, loading]);
 
   useEffect(() => {
     const syncFromUrl = () => {

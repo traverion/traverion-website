@@ -27,6 +27,7 @@ import { navigateSupplierUrl, openSupplierBooking } from '../../lib/supplierPort
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { formatMoney, normalizeCurrency } from '../../lib/money';
 import { isCollectedBooking, isRefundDueBooking } from '../../lib/payment-states';
+import { bookingIsStayNight } from '../../lib/pickup-completeness';
 import {
   isCollectedEarningKind,
   isPlatformCommissionKind,
@@ -1009,7 +1010,20 @@ export default function SupplierEarnings() {
             <p className="text-[13px]">{earningStatusLabel(selectedEarning.status)}</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <button type="button" className="tv-btn-primary h-9 px-3 text-[13px]" disabled={selectedEarning.grossMinor == null} onClick={() => openEarningStatement(selectedEarning, false)}>View financial statement</button>
-              <button type="button" className="tv-btn-secondary h-9 px-3 text-[13px]" onClick={() => openSupplierBooking(selectedEarning.bookingId)}>Open booking</button>
+              <button
+                type="button"
+                className="tv-btn-secondary h-9 px-3 text-[13px]"
+                onClick={() => {
+                  const booking =
+                    paidBookings.find((b) => b.id === selectedEarning.bookingId) ??
+                    refundDueBookings.find((b) => b.id === selectedEarning.bookingId);
+                  openSupplierBooking(selectedEarning.bookingId, {
+                    isStay: booking ? bookingIsStayNight(booking) : false,
+                  });
+                }}
+              >
+                Open booking
+              </button>
             </div>
           </aside>
         </div>

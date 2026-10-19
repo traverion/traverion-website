@@ -33,6 +33,7 @@ import { bookingPaymentWasCollected, isCollectedBooking, isRefundDueBooking } fr
 import type { TourPackage } from '../../types/tour';
 import SupplierPortalNoticePanel from '../../components/supplier/SupplierPortalNoticePanel';
 import { navigateSupplierUrl, openSupplierCalendar, openSupplierInbox, openSupplierPickup, openSupplierReviews } from '../../lib/supplierPortalNavigation';
+import { partnerBookingDeskPath } from '../../lib/partner-booking-desk-path';
 import { PARTNER_APP_BASE, PARTNER_CREATE_PATH } from '../../lib/partnerPortalPaths';
 import { formatMoney, normalizeCurrency } from '../../lib/money';
 import {
@@ -785,7 +786,14 @@ export default function SupplierDashboard() {
                           : ''
                       }`
                 }
-                onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings?ops=cancel`)}
+                onClick={() =>
+                  navigateSupplierUrl(
+                    partnerBookingDeskPath({
+                      isStay: firstCancelBooking ? bookingIsStayNight(firstCancelBooking) : false,
+                      extraSearch: { ops: 'cancel' },
+                    })
+                  )
+                }
               />
             )}
             {refundDueCount > 0 && (
@@ -797,7 +805,14 @@ export default function SupplierDashboard() {
                     ? `${bookingLabel(firstRefund, listingTitlesById)} · Manual Stripe refund required`
                     : 'Manual Stripe refund required'
                 }
-                onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings?ops=refund_due`)}
+                onClick={() =>
+                  navigateSupplierUrl(
+                    partnerBookingDeskPath({
+                      isStay: firstRefund ? bookingIsStayNight(firstRefund) : false,
+                      extraSearch: { ops: 'refund_due' },
+                    })
+                  )
+                }
               />
             )}
             {pickupGaps.length > 0 && (
@@ -875,7 +890,14 @@ export default function SupplierDashboard() {
                     ? `${bookingLabel(firstPending, listingTitlesById)} · Holding inventory spots`
                     : 'Holding inventory spots'
                 }
-                onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings?ops=unpaid`)}
+                onClick={() =>
+                  navigateSupplierUrl(
+                    partnerBookingDeskPath({
+                      isStay: firstPending ? bookingIsStayNight(firstPending) : false,
+                      extraSearch: { ops: 'unpaid' },
+                    })
+                  )
+                }
               />
             )}
             {draftListingsCount != null && draftListingsCount > 0 && (
@@ -1025,7 +1047,11 @@ export default function SupplierDashboard() {
                 <li key={b.id} className="relative">
                   <button
                     type="button"
-                    onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings?booking=${b.id}`)}
+                    onClick={() =>
+                      navigateSupplierUrl(
+                        partnerBookingDeskPath({ bookingId: b.id, isStay })
+                      )
+                    }
                     className="partner-row-interact lux-flat group grid w-full grid-cols-[4.5rem_minmax(0,1fr)_auto] items-start gap-x-0 text-left sm:grid-cols-[5.25rem_minmax(0,1fr)_auto]"
                   >
                     <span className="relative flex justify-end pr-4 py-3.5 sm:pr-5">
@@ -1219,7 +1245,12 @@ export default function SupplierDashboard() {
                           <button
                             type="button"
                             onClick={() =>
-                              navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings?booking=${b.id}`)
+                              navigateSupplierUrl(
+                                partnerBookingDeskPath({
+                                  bookingId: b.id,
+                                  isStay: bookingIsStayNight(b),
+                                })
+                              )
                             }
                             className="partner-row-interact lux-flat group w-full rounded-md px-2.5 py-2 text-left"
                           >
@@ -1273,7 +1304,12 @@ export default function SupplierDashboard() {
                     <button
                       type="button"
                       onClick={() =>
-                        navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings?booking=${b.id}`)
+                        navigateSupplierUrl(
+                          partnerBookingDeskPath({
+                            bookingId: b.id,
+                            isStay: bookingIsStayNight(b),
+                          })
+                        )
                       }
                       className="partner-row-interact lux-flat grid w-full grid-cols-1 gap-0.5 py-3 text-left sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_auto_auto] sm:items-center sm:gap-4"
                     >

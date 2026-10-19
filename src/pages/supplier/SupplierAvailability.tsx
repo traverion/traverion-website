@@ -1997,7 +1997,16 @@ export default function SupplierAvailability() {
                                 <li key={b.id} className="border-b border-[#f2f4f7] last:border-0">
                                   <button
                                     type="button"
-                                    onClick={() => openSupplierBooking(b.id)}
+                                    onClick={() =>
+                                      openSupplierBooking(b.id, {
+                                        isStay:
+                                          stayCalendar ||
+                                          partnerAvailabilityTreatAsStay(
+                                            listings.find((l) => l.id === b.listing_id),
+                                            b
+                                          ),
+                                      })
+                                    }
                                     className="lux-flat w-full rounded-md px-0 py-2.5 text-left hover:bg-[#f8fafc]"
                                   >
                                     <p className="text-[13px] font-medium text-ink">
@@ -2028,7 +2037,16 @@ export default function SupplierAvailability() {
                               >
                                 <button
                                   type="button"
-                                  onClick={() => openSupplierBooking(b.id)}
+                                  onClick={() =>
+                                    openSupplierBooking(b.id, {
+                                      isStay:
+                                        stayCalendar ||
+                                        partnerAvailabilityTreatAsStay(
+                                          listings.find((l) => l.id === b.listing_id),
+                                          b
+                                        ),
+                                    })
+                                  }
                                   className="lux-flat w-full rounded-md px-0 py-2.5 text-left hover:bg-[#f8fafc]"
                                 >
                                   <p className="text-[13px] font-medium text-ink">
