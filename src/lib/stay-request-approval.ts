@@ -51,6 +51,72 @@ export function stayRequestCanWithdraw(row: StayRequestApprovalRow, nowMs: numbe
   return isStayRequestAwaitingHost(row, nowMs);
 }
 
+/** Host accepted; Stripe capture not yet verified as paid. */
+export function stayRequestIsCapturePending(row: StayRequestApprovalRow): boolean {
+  if ((row.status ?? '').trim().toLowerCase() === 'cancelled') return false;
+  if (normalizeStayApprovalStatus(row.approval_status) !== 'accepted') return false;
+  return (row.payment_status ?? '').trim().toLowerCase() === 'authorized';
+}
+
+export function stayRequestIsConfirmedPaid(row: StayRequestApprovalRow): boolean {
+  if (normalizeStayApprovalStatus(row.approval_status) !== 'accepted') return false;
+  const pay = (row.payment_status ?? '').trim().toLowerCase();
+  return pay === 'paid' || pay === 'complete' || pay === 'succeeded';
+}
+
+/**
+ * Pure Accept planner — paid/confirmed only after Stripe capture is verified.
+ * claim → capture → finalize. Never mark paid before capture succeeds.
+ */
+export type StayAcceptCapturePlan =
+  | { kind: 'reject'; reason: 'expired' | 'not_capturable' | 'wrong_state' }
+  | { kind: 'finalize_only' } // PI already succeeded; DB may still be authorized+accepted
+  | { kind: 'claim_then_capture_then_finalize' } // pending+authorized
+  | { kind: 'capture_then_finalize' }; // already claimed accepted+authorized
+
+export function planStayRequestAcceptCapture(params: {
+  paymentStatus?: string | null;
+  approvalStatus?: string | null;
+  status?: string | null;
+  piStatus?: string | null;
+  expired?: boolean;
+}): StayAcceptCapturePlan {
+  if ((params.status ?? '').trim().toLowerCase() === 'cancelled') {
+    return { kind: 'reject', reason: 'wrong_state' };
+  }
+  const pay = (params.paymentStatus ?? '').trim().toLowerCase();
+  const approval = normalizeStayApprovalStatus(params.approvalStatus);
+  const pi = (params.piStatus ?? '').trim().toLowerCase();
+
+  if (pay === 'paid' && approval === 'accepted') {
+    return { kind: 'finalize_only' };
+  }
+  if (params.expired && approval === 'pending') {
+    return { kind: 'reject', reason: 'expired' };
+  }
+  if (pi === 'succeeded') {
+    if (pay === 'authorized' && (approval === 'accepted' || approval === 'pending')) {
+      return { kind: 'finalize_only' };
+    }
+    if (pay === 'paid') return { kind: 'finalize_only' };
+  }
+  if (pi !== 'requires_capture' && pi !== 'succeeded') {
+    return { kind: 'reject', reason: 'not_capturable' };
+  }
+  if (pay === 'authorized' && approval === 'pending') {
+    return { kind: 'claim_then_capture_then_finalize' };
+  }
+  if (pay === 'authorized' && approval === 'accepted') {
+    return { kind: 'capture_then_finalize' };
+  }
+  return { kind: 'reject', reason: 'wrong_state' };
+}
+
+/** After a failed capture attempt, approval should return to pending for retry/expire. */
+export function stayRequestCaptureFailureApproval(): StayApprovalStatus {
+  return 'pending';
+}
+
 export function stayRequestIsExpired(row: StayRequestApprovalRow, nowMs: number = Date.now()): boolean {
   if (normalizeStayApprovalStatus(row.approval_status) === 'expired') return true;
   if (normalizeStayApprovalStatus(row.approval_status) !== 'pending') return false;
@@ -66,7 +132,8 @@ export type StayApprovalTransition =
   | 'decline'
   | 'expire'
   | 'withdraw'
-  | 'capture_failed';
+  | 'capture_failed'
+  | 'capture_verified';
 
 /** Pure transition table — server enforces the same rules. */
 export function nextStayApprovalStatus(
@@ -74,12 +141,15 @@ export function nextStayApprovalStatus(
   action: StayApprovalTransition
 ): StayApprovalStatus | null {
   if (action === 'authorize') return current == null || current === 'pending' ? 'pending' : null;
+  if (action === 'capture_verified') return current === 'accepted' ? 'accepted' : null;
+  if (action === 'capture_failed') {
+    return current === 'accepted' || current === 'pending' ? 'pending' : null;
+  }
   if (!current || current !== 'pending') return null;
   if (action === 'accept') return 'accepted';
   if (action === 'decline') return 'declined';
   if (action === 'expire') return 'expired';
   if (action === 'withdraw') return 'withdrawn';
-  if (action === 'capture_failed') return 'pending';
   return null;
 }
 

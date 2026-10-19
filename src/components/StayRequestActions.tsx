@@ -5,6 +5,7 @@ import {
   stayRequestCanAccept,
   stayRequestCanDecline,
   stayRequestCanWithdraw,
+  stayRequestIsCapturePending,
   stayRequestLifecycleLabel,
   type StayRequestApprovalRow,
 } from '../lib/stay-request-approval';
@@ -47,6 +48,7 @@ export default function StayRequestActions({
   }
 
   const awaiting = isStayRequestAwaitingHost(booking);
+  const capturing = stayRequestIsCapturePending(booking);
   const statusLabel = stayRequestLifecycleLabel(booking);
   const amount =
     typeof booking.total_amount === 'number'
@@ -109,6 +111,11 @@ export default function StayRequestActions({
       ) : null}
       {awaiting && deadlineLabel ? (
         <p className="mt-1 text-xs text-ink-muted">Respond by {deadlineLabel}</p>
+      ) : null}
+      {capturing ? (
+        <p className="mt-2 text-xs leading-relaxed text-ink-muted">
+          Payment capture is in progress. Confirmation appears only after Stripe verifies the capture.
+        </p>
       ) : null}
       {awaiting && role === 'supplier' && stayRequestCanAccept(booking) ? (
         <div className="mt-3 flex flex-wrap gap-2">

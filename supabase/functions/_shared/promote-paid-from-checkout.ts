@@ -493,12 +493,12 @@ export async function promotePaidFromCheckoutSession(params: {
   const withStay = await admin
     .from('bookings')
     .select(
-      'id, status, payment_status, currency, total_amount, checkout_session_id, payment_intent_id, listing_id, booking_date, guests, check_out, start_time, purchase_snapshot, booking_option_id, guest_user_id, guest_email, guest_name, booking_number'
+      'id, status, payment_status, approval_status, approval_decided_by, currency, total_amount, checkout_session_id, payment_intent_id, listing_id, booking_date, guests, check_out, start_time, purchase_snapshot, booking_option_id, guest_user_id, guest_email, guest_name, booking_number'
     )
     .eq('id', bookingId)
     .maybeSingle();
   let existingBooking = withStay.data as Record<string, unknown> | null;
-  if (withStay.error && /check_out|start_time|purchase_snapshot|booking_option_id|guest_user_id|guest_email|guest_name|booking_number/i.test(withStay.error.message)) {
+  if (withStay.error && /check_out|start_time|purchase_snapshot|booking_option_id|guest_user_id|guest_email|guest_name|booking_number|approval_/i.test(withStay.error.message)) {
     const fallback = await admin
       .from('bookings')
       .select(
@@ -511,7 +511,98 @@ export async function promotePaidFromCheckoutSession(params: {
     throw new Error(withStay.error.message);
   }
   const existingPay = String(existingBooking?.payment_status ?? '').toLowerCase();
+  const existingApproval = String(existingBooking?.approval_status ?? '').toLowerCase();
   if (existingPay === 'authorized') {
+    // Request-to-Book recovery: capture succeeded (PI.succeeded) but finalize crashed.
+    // Never treat authorize-only checkout.session.completed as paid.
+    let piStatus = '';
+    if (paymentIntentId) {
+      try {
+        const piProbe = await stripe.paymentIntents.retrieve(paymentIntentId);
+        piStatus = String(piProbe.status ?? '').toLowerCase();
+      } catch {
+        piStatus = '';
+      }
+    }
+    const piVerifiedSucceeded =
+      piStatus === 'succeeded' || event.type === 'payment_intent.succeeded';
+    if (piVerifiedSucceeded && existingApproval !== 'accepted') {
+      // Still awaiting host Accept claim — do not invent accept or mark paid.
+      await markProcessed('processed');
+      return json({
+        success: true,
+        duplicate: true,
+        alreadyAuthorized: true,
+        awaitingHostAccept: true,
+        eventId: event.id,
+        bookingId,
+      });
+    }
+    if (piVerifiedSucceeded && existingApproval === 'accepted') {
+      const amountFinalize =
+        amountPaid ??
+        (typeof existingBooking?.total_amount === 'number' ? Number(existingBooking.total_amount) : null);
+      const currencyFinalize = String(
+        existingBooking?.currency || session.currency || 'eur'
+      ).toUpperCase();
+      if (amountFinalize == null || !Number.isFinite(amountFinalize)) {
+        await markProcessed('failed', 'authorized finalize missing amount');
+        return json({ success: false, error: 'authorized finalize missing amount' }, 500);
+      }
+      const actorId =
+        typeof existingBooking?.approval_decided_by === 'string'
+          ? existingBooking.approval_decided_by
+          : null;
+      const { data: fin, error: finErr } = await admin.rpc('capture_stay_booking_request', {
+        p_booking_id: bookingId,
+        p_actor_id: actorId,
+        p_amount_paid: amountFinalize,
+        p_currency: currencyFinalize,
+        p_paid_at: new Date().toISOString(),
+      });
+      if (finErr || !(fin && typeof fin === 'object' && (fin as { ok?: boolean }).ok === true)) {
+        await markProcessed('failed', finErr?.message ?? 'authorized finalize failed');
+        return json(
+          {
+            success: false,
+            error: finErr?.message ?? String((fin as { reason?: string } | null)?.reason ?? 'finalize_failed'),
+          },
+          500
+        );
+      }
+      const { error: earnErr } = await admin.rpc('record_paid_booking_earnings', {
+        p_booking_id: bookingId,
+      });
+      if (earnErr) {
+        await markProcessed('failed', earnErr.message);
+        return json({ success: false, error: earnErr.message }, 500);
+      }
+      await admin.from('booking_payment_events').insert({
+        booking_id: bookingId,
+        event_id: event.id,
+        event_type: 'stay_request_captured_via_webhook',
+        payment_intent_id: paymentIntentId,
+        checkout_session_id: session.id,
+        amount: amountFinalize,
+        currency: currencyFinalize,
+        payload: { stripeEventType: event.type },
+      });
+      await notifyPaidBookingSideEffects({
+        admin,
+        supabaseUrl,
+        serviceRoleKey,
+        bookingId,
+        amountPaid: amountFinalize,
+        currency: currencyFinalize,
+      });
+      await markProcessed('processed');
+      return json({
+        success: true,
+        finalizedFromAuthorized: true,
+        eventId: event.id,
+        bookingId,
+      });
+    }
     await markProcessed('processed');
     return json({
       success: true,

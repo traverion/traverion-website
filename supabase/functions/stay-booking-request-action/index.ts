@@ -1,6 +1,6 @@
 /**
- * Stay Request-to-Book: accept (capture), decline, or guest withdraw.
- * Supplier/team editors may accept or decline. Guest may withdraw.
+ * Stay Request-to-Book: accept (claim → Stripe capture → finalize paid), decline, or withdraw.
+ * Paid/confirmed only after Stripe capture is verified. Webhook recovers capture-then-crash.
  */
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
@@ -9,6 +9,7 @@ import { isStripeTestSecretKey, stripeLiveSecretBlockedMessage } from '../_share
 import { authUserVerifiedEmail } from '../_shared/auth-verified-email.ts';
 import { travelerOwnsCheckoutBooking } from '../_shared/booking-traveler-ownership.ts';
 import { serviceRoleEdgeInvokeHeaders, notifyPaidBookingSideEffects } from '../_shared/promote-paid-from-checkout.ts';
+import { planStayRequestAcceptCapture } from '../_shared/stay-request-approval.ts';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -21,6 +22,44 @@ function json(body: unknown, status = 200): Response {
 }
 
 type Action = 'accept' | 'decline' | 'withdraw';
+
+async function finalizePaidAfterVerifiedCapture(params: {
+  admin: ReturnType<typeof createClient>;
+  supabaseUrl: string;
+  serviceRoleKey: string;
+  bookingId: string;
+  actorId: string | null;
+  amountPaid: number;
+  currency: string;
+}): Promise<{ ok: boolean; reason?: string }> {
+  const { admin, bookingId, actorId, amountPaid, currency, supabaseUrl, serviceRoleKey } = params;
+  const { data: fin, error: finErr } = await admin.rpc('capture_stay_booking_request', {
+    p_booking_id: bookingId,
+    p_actor_id: actorId,
+    p_amount_paid: amountPaid,
+    p_currency: currency,
+    p_paid_at: new Date().toISOString(),
+  });
+  if (finErr) return { ok: false, reason: finErr.message };
+  const finObj = fin as { ok?: boolean; reason?: string } | null;
+  if (!finObj?.ok) return { ok: false, reason: String(finObj?.reason ?? 'finalize_failed') };
+
+  // Earnings + paid emails only after verified paid row (idempotent on retry).
+  const { error: earnErr } = await admin.rpc('record_paid_booking_earnings', {
+    p_booking_id: bookingId,
+  });
+  if (earnErr) return { ok: false, reason: earnErr.message };
+
+  await notifyPaidBookingSideEffects({
+    admin,
+    supabaseUrl,
+    serviceRoleKey,
+    bookingId,
+    amountPaid,
+    currency,
+  });
+  return { ok: true, reason: finObj.reason };
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -74,7 +113,7 @@ serve(async (req) => {
     const { data: booking, error: bookingErr } = await admin
       .from('bookings')
       .select(
-        'id, status, payment_status, approval_status, approval_expires_at, hold_expires_at, payment_intent_id, total_amount, currency, listing_id, guest_user_id, guest_email, guest_name, booking_date, check_out, guests, booking_number'
+        'id, status, payment_status, approval_status, approval_expires_at, hold_expires_at, payment_intent_id, total_amount, currency, listing_id, guest_user_id, guest_email, guest_name, booking_date, check_out, guests, booking_number, approval_decided_by'
       )
       .eq('id', bookingId)
       .maybeSingle();
@@ -93,90 +132,134 @@ serve(async (req) => {
       const piId = String(booking.payment_intent_id ?? '').trim();
       if (!piId) return json({ success: false, error: 'Payment authorization missing' }, 409);
 
-      // Capture first only after DB claim would race — claim via RPC (assert + accept + paid).
-      // Stripe capture before DB: if DB fails we have money without booking — bad.
-      // DB accept before capture: if capture fails we have accepted without money — also bad.
-      // Order: verify PI requires_capture → RPC capture_stay (asserts + marks paid) → Stripe capture.
-      // If Stripe capture fails after DB paid: mark payment_status failed + notify (reconcile).
+      const expired =
+        booking.approval_expires_at != null &&
+        Number.isFinite(Date.parse(String(booking.approval_expires_at))) &&
+        Date.parse(String(booking.approval_expires_at)) <= Date.now();
 
       const pi = await stripe.paymentIntents.retrieve(piId);
-      if (String(pi.status).toLowerCase() === 'succeeded') {
-        // Already captured (idempotent retry) — ensure DB paid.
-        const { data: cap } = await admin.rpc('capture_stay_booking_request', {
+      const plan = planStayRequestAcceptCapture({
+        paymentStatus: booking.payment_status,
+        approvalStatus: booking.approval_status,
+        status: booking.status,
+        piStatus: pi.status,
+        expired,
+      });
+
+      if (plan.kind === 'reject') {
+        const status = plan.reason === 'expired' ? 409 : 409;
+        return json({ success: false, error: plan.reason, reason: plan.reason }, status);
+      }
+
+      // 1) Claim accept while still authorized (or skip if already claimed / paid).
+      if (plan.kind === 'claim_then_capture_then_finalize') {
+        const { data: claim, error: claimErr } = await admin.rpc('claim_stay_booking_request_accept', {
           p_booking_id: bookingId,
           p_actor_id: user.id,
-          p_amount_paid: amountPaid,
-          p_currency: currency,
-          p_paid_at: new Date().toISOString(),
         });
-        if (cap && typeof cap === 'object' && (cap as { ok?: boolean }).ok === true) {
-          await notifyPaidBookingSideEffects({
-            admin,
-            supabaseUrl,
-            serviceRoleKey,
-            bookingId,
-            amountPaid,
-            currency,
-          });
+        if (claimErr) return json({ success: false, error: claimErr.message }, 500);
+        const claimObj = claim as { ok?: boolean; reason?: string } | null;
+        if (!claimObj?.ok) {
+          const reason = String(claimObj?.reason ?? 'not_acceptable');
+          const status =
+            reason === 'forbidden' ? 403 : reason === 'expired' ? 409 : reason === 'not_found' ? 404 : 409;
+          return json({ success: false, error: reason, reason }, status);
         }
-        return json({ success: true, alreadyCaptured: true, bookingId });
+      } else if (
+        plan.kind === 'capture_then_finalize' ||
+        (plan.kind === 'finalize_only' &&
+          String(booking.payment_status).toLowerCase() === 'authorized' &&
+          String(booking.approval_status).toLowerCase() === 'pending')
+      ) {
+        // Race: PI already succeeded before claim — still claim if pending so finalize can run.
+        if (String(booking.approval_status).toLowerCase() === 'pending') {
+          const { data: claim, error: claimErr } = await admin.rpc('claim_stay_booking_request_accept', {
+            p_booking_id: bookingId,
+            p_actor_id: user.id,
+          });
+          if (claimErr) return json({ success: false, error: claimErr.message }, 500);
+          const claimObj = claim as { ok?: boolean; reason?: string } | null;
+          if (!claimObj?.ok && String(claimObj?.reason) !== 'already_claimed') {
+            const reason = String(claimObj?.reason ?? 'not_acceptable');
+            return json({ success: false, error: reason, reason }, 409);
+          }
+        }
       }
-      if (String(pi.status).toLowerCase() !== 'requires_capture') {
+
+      // 2) Capture only when PI still requires_capture (idempotent key).
+      if (String(pi.status).toLowerCase() === 'requires_capture') {
+        try {
+          await stripe.paymentIntents.capture(piId, undefined, {
+            idempotencyKey: `stay-request-capture:${bookingId}`,
+          });
+        } catch (capErr) {
+          const msg = capErr instanceof Error ? capErr.message : String(capErr);
+          // Re-check: concurrent capture may have succeeded.
+          const again = await stripe.paymentIntents.retrieve(piId);
+          if (String(again.status).toLowerCase() !== 'succeeded') {
+            await admin.rpc('revert_stay_booking_request_accept', { p_booking_id: bookingId });
+            await admin.from('booking_payment_events').insert({
+              booking_id: bookingId,
+              event_type: 'stay_request_capture_failed',
+              payment_intent_id: piId,
+              amount: amountPaid,
+              currency,
+              payload: { error: msg.slice(0, 400) },
+            });
+            return json({ success: false, error: 'Payment capture failed. Try again.' }, 502);
+          }
+        }
+      } else if (String(pi.status).toLowerCase() !== 'succeeded') {
+        await admin.rpc('revert_stay_booking_request_accept', { p_booking_id: bookingId });
         return json(
-          {
-            success: false,
-            error: `Authorization is not capturable (status: ${pi.status})`,
-          },
+          { success: false, error: `Authorization is not capturable (status: ${pi.status})` },
           409
         );
       }
 
-      const { data: claim, error: claimErr } = await admin.rpc('capture_stay_booking_request', {
-        p_booking_id: bookingId,
-        p_actor_id: user.id,
-        p_amount_paid: amountPaid,
-        p_currency: currency,
-        p_paid_at: new Date().toISOString(),
-      });
-      if (claimErr) return json({ success: false, error: claimErr.message }, 500);
-      const claimObj = claim as { ok?: boolean; reason?: string } | null;
-      if (!claimObj?.ok) {
-        const reason = String(claimObj?.reason ?? 'not_acceptable');
-        const status =
-          reason === 'forbidden' ? 403 : reason === 'expired' ? 409 : reason === 'not_found' ? 404 : 409;
-        return json({ success: false, error: reason, reason }, status);
-      }
-
-      try {
-        await stripe.paymentIntents.capture(piId, undefined, {
-          idempotencyKey: `stay-request-capture:${bookingId}`,
-        });
-      } catch (capErr) {
-        const msg = capErr instanceof Error ? capErr.message : String(capErr);
-        // Roll back paid → authorized pending so host can retry or expire can release.
-        await admin
-          .from('bookings')
-          .update({
-            status: 'pending',
-            payment_status: 'authorized',
-            approval_status: 'pending',
-            amount_paid: null,
-            paid_at: null,
-            approval_decided_at: null,
-            approval_decided_by: null,
-          })
-          .eq('id', bookingId)
-          .eq('payment_status', 'paid')
-          .eq('approval_status', 'accepted');
+      // 3) Verify capture before marking paid.
+      const verified = await stripe.paymentIntents.retrieve(piId);
+      if (String(verified.status).toLowerCase() !== 'succeeded') {
+        await admin.rpc('revert_stay_booking_request_accept', { p_booking_id: bookingId });
         await admin.from('booking_payment_events').insert({
           booking_id: bookingId,
-          event_type: 'stay_request_capture_failed',
+          event_type: 'stay_request_capture_unverified',
           payment_intent_id: piId,
           amount: amountPaid,
           currency,
-          payload: { error: msg.slice(0, 400) },
+          payload: { status: verified.status },
         });
-        return json({ success: false, error: 'Payment capture failed. Try again.' }, 502);
+        return json({ success: false, error: 'Payment capture could not be verified. Try again.' }, 502);
+      }
+
+      const fin = await finalizePaidAfterVerifiedCapture({
+        admin,
+        supabaseUrl,
+        serviceRoleKey,
+        bookingId,
+        actorId: user.id,
+        amountPaid,
+        currency,
+      });
+      if (!fin.ok) {
+        // Money captured but DB finalize failed — leave accepted+authorized for webhook/retry.
+        await admin.from('booking_payment_events').insert({
+          booking_id: bookingId,
+          event_type: 'stay_request_finalize_failed',
+          payment_intent_id: piId,
+          amount: amountPaid,
+          currency,
+          payload: { error: (fin.reason ?? '').slice(0, 400), pi_status: 'succeeded' },
+        });
+        return json(
+          {
+            success: false,
+            error: 'Payment was captured but confirmation is still processing. Refresh shortly.',
+            capturedPendingFinalize: true,
+            reason: fin.reason,
+          },
+          502
+        );
       }
 
       await admin.from('booking_payment_events').insert({
@@ -185,19 +268,15 @@ serve(async (req) => {
         payment_intent_id: piId,
         amount: amountPaid,
         currency,
-        payload: { actor_id: user.id },
+        payload: { actor_id: user.id, plan: plan.kind },
       });
 
-      await notifyPaidBookingSideEffects({
-        admin,
-        supabaseUrl,
-        serviceRoleKey,
+      return json({
+        success: true,
+        accepted: true,
+        alreadyCaptured: plan.kind === 'finalize_only',
         bookingId,
-        amountPaid,
-        currency,
       });
-
-      return json({ success: true, accepted: true, bookingId });
     }
 
     // decline | withdraw
@@ -247,7 +326,6 @@ serve(async (req) => {
       payload: { actor_id: user.id },
     });
 
-    // Notify customer (and supplier on withdraw).
     const headers = serviceRoleEdgeInvokeHeaders(serviceRoleKey);
     const { data: listing } = await admin
       .from('listings')
