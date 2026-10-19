@@ -38,11 +38,11 @@ export const TRAVERION_STANDARD_CANCELLATION_POLICY =
 
 /**
  * Guest-facing stay wording for the same 24-hour rule.
- * Stays are measured from the check-in date (midnight in the property timezone), not a tour start time.
+ * Refund eligibility uses check-in wall-clock time in the property timezone (not midnight).
  * Stored listings keep TRAVERION_STANDARD_CANCELLATION_POLICY so refund checks stay unchanged.
  */
 export const STAY_GUEST_CANCELLATION_POLICY =
-  'You may cancel free of charge up to 24 hours before the check-in date. After that, guest-initiated cancellations are not available. If the host cancels, that is handled from your booking details.';
+  'You may cancel free of charge up to 24 hours before check-in (property local time). After that, guest-initiated cancellations are not available. If the host cancels, that is handled from your booking details.';
 
 export type VenueSetting = 'unspecified' | 'indoor' | 'outdoor' | 'mixed';
 

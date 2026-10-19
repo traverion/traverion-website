@@ -204,7 +204,24 @@ export default function StayOnboardingFlow(props: Props) {
         {id === 'arrival-method' ? <ArrivalMethodStage {...props} /> : null}
         {id === 'arrival-notes' ? <ArrivalNotesStage {...props} /> : null}
         {id === 'photos' ? <GalleryStage {...props} /> : null}
-        {id === 'room-photos' ? <StayBedroomPhotos options={props.values.stayOptions} galleryUrls={props.values.photoSlots.filter((url) => url.startsWith('http'))} userId={props.userId} uploadsEnabled={props.uploadsEnabled} onChange={(stayOptions) => props.onChange({ stayOptions })} /> : null}
+        {id === 'room-photos' ? (
+          <StayBedroomPhotos
+            options={props.values.stayOptions}
+            galleryUrls={props.values.photoSlots.filter((url) => url.startsWith('http'))}
+            userId={props.userId}
+            uploadsEnabled={props.uploadsEnabled}
+            onChange={(stayOptions) => props.onChange({ stayOptions })}
+            onEditRooms={() => props.onEditStage(stayScreenIndex('rooms'))}
+            onGalleryUrl={(url) => {
+              if (props.values.photoSlots.includes(url)) return;
+              const next = [...props.values.photoSlots];
+              const empty = next.findIndex((slot) => !slot || !String(slot).startsWith('http'));
+              if (empty >= 0) next[empty] = url;
+              else next.push(url);
+              props.onChange({ photoSlots: next });
+            }}
+          />
+        ) : null}
         {id === 'cancellation' ? <CancellationStage /> : null}
         {id === 'house-rules' ? <HouseRulesStage {...props} /> : null}
         {id === 'quiet-hours' ? <QuietHoursStage {...props} /> : null}
@@ -1324,9 +1341,7 @@ function CancellationStage() {
         <p className="mt-2 text-sm font-semibold leading-relaxed text-ink">Cancel free of charge until 24 hours before check-in</p>
       </div>
       <p className="text-sm leading-relaxed text-ink">{STAY_GUEST_CANCELLATION_POLICY}</p>
-      <p className="text-sm leading-relaxed text-ink-muted">
-        Guests see these terms before they pay. Each booking keeps the cancellation terms from that moment.
-      </p>
+      <p className="text-sm leading-relaxed text-ink-muted">Each booking keeps these terms from the moment it is placed.</p>
     </section>
   );
 }
@@ -1352,7 +1367,7 @@ function QuietHoursStage({ values, onChange }: Props) {
   const rulesRef = useRef<HTMLTextAreaElement>(null);
   const mentioned = quietHoursMentioned(values.stayHouseRules);
   const differs = mentioned && (values.stayQuietStart !== mentioned.start || values.stayQuietEnd !== mentioned.end);
-  const defaultQuiet = values.stayQuietStart !== '22:00' || values.stayQuietEnd !== '06:00';
+  const presetActive = values.stayQuietStart === '22:00' && values.stayQuietEnd === '06:00';
   useLayoutEffect(() => {
     const field = rulesRef.current;
     if (!field) return;
@@ -1361,44 +1376,53 @@ function QuietHoursStage({ values, onChange }: Props) {
   }, [values.stayHouseRules]);
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Quiet hours from"><input className="tv-input w-full" type="time" value={values.stayQuietStart} onChange={(e) => onChange({ stayQuietStart: e.target.value })} /></Field>
-        <Field label="Until"><input className="tv-input w-full" type="time" value={values.stayQuietEnd} onChange={(e) => onChange({ stayQuietEnd: e.target.value })} /></Field>
-      </div>
-      <StayHelp>Quiet hours may cross midnight, for example 22:00 until 06:00.</StayHelp>
-      <div className="flex flex-wrap gap-2">
-        {defaultQuiet ? (
+      <div className="space-y-2">
+        <p className="text-sm font-semibold text-ink">Quiet hours</p>
+        <StayHelp>Structured times guests see as house rules. Ranges may cross midnight.</StayHelp>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="From">
+            <input className="tv-input w-full" type="time" value={values.stayQuietStart} aria-label="Quiet hours from" onChange={(e) => onChange({ stayQuietStart: e.target.value })} />
+          </Field>
+          <Field label="Until">
+            <input className="tv-input w-full" type="time" value={values.stayQuietEnd} aria-label="Quiet hours until" onChange={(e) => onChange({ stayQuietEnd: e.target.value })} />
+          </Field>
+        </div>
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            className="stay-quiet-suggest"
+            className={`stay-quiet-suggest ${presetActive ? 'ring-1 ring-[#073b83]/35' : ''}`}
+            aria-pressed={presetActive}
             onClick={() => onChange({ stayQuietStart: '22:00', stayQuietEnd: '06:00' })}
           >
-            Use 22:00–06:00
+            Set 22:00–06:00
           </button>
-        ) : null}
+          {differs && mentioned ? (
+            <button
+              type="button"
+              className="stay-quiet-suggest"
+              onClick={() => onChange({ stayQuietStart: mentioned.start, stayQuietEnd: mentioned.end })}
+            >
+              Use {mentioned.start}–{mentioned.end} from written rules
+            </button>
+          ) : null}
+        </div>
         {differs && mentioned ? (
-          <button
-            type="button"
-            className="stay-quiet-suggest"
-            onClick={() => onChange({ stayQuietStart: mentioned.start, stayQuietEnd: mentioned.end })}
-          >
-            Use {mentioned.start}–{mentioned.end} from written rules
-          </button>
+          <StayHelp>This fills the times above and leaves your written rules unchanged.</StayHelp>
         ) : null}
       </div>
-      {differs && mentioned ? (
-        <StayHelp>This fills the times above and leaves your written rules unchanged.</StayHelp>
-      ) : null}
-      <Field label="Additional rules">
-        <textarea
-          ref={rulesRef}
-          className="tv-input stay-rules-input w-full resize-y"
-          maxLength={2000}
-          value={values.stayHouseRules}
-          aria-label="Additional house rules"
-          onChange={(e) => onChange({ stayHouseRules: e.target.value.slice(0, 2000) })}
-        />
-      </Field>
+      <div className="space-y-2">
+        <Field label="Additional written rules">
+          <textarea
+            ref={rulesRef}
+            className="tv-input stay-rules-input w-full resize-y"
+            maxLength={2000}
+            value={values.stayHouseRules}
+            aria-label="Additional house rules"
+            onChange={(e) => onChange({ stayHouseRules: e.target.value.slice(0, 2000) })}
+          />
+        </Field>
+        <StayHelp>Optional free text. It is separate from the quiet-hours times above.</StayHelp>
+      </div>
     </div>
   );
 }
