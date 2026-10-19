@@ -30,6 +30,33 @@ describe('stay options', () => {
     expect(stayOptionConfigured(options[0]!)).toBe(true);
   });
 
+  it('keeps Villa on the option when an older listing field still says House', () => {
+    const options = ensureStayOptions({
+      title: 'Lakeside Villa',
+      propertyType: 'Villa',
+      maxGuests: 6,
+      beds: 3,
+      nightlyPrice: 240,
+      minNights: 2,
+      seasons: [],
+    });
+    expect(options[0]?.propertyType).toBe('Villa');
+    expect(projectStayOptions(options, 'House').stayPropertyType).toBe('Villa');
+  });
+
+  it('keeps a custom property type on the option', () => {
+    const options = ensureStayOptions({
+      title: 'Glass Igloo',
+      propertyType: 'Glass igloo',
+      maxGuests: 2,
+      beds: 1,
+      nightlyPrice: 320,
+      minNights: 1,
+      seasons: [],
+    });
+    expect(projectStayOptions(options, 'House').stayPropertyType).toBe('Glass igloo');
+  });
+
   it('does not publish several options through the single-stay price', () => {
     const options = ensureStayOptions({
       options: [

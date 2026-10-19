@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { STAY_ONBOARDING_SCREENS, quietHoursMentioned, stayScreenIndex, stayStageBlocker, type StayOnboardingCheck } from '../../../lib/stay-onboarding';
+import { STAY_ONBOARDING_SCREENS, clampStayIntroInput, quietHoursMentioned, stayScreenIndex, stayStageBlocker, type StayOnboardingCheck } from '../../../lib/stay-onboarding';
+import { clampListingTitleInput } from '../../../lib/listingQualityScore';
 import { stayAmenityDisplayList } from '../../../lib/stay-amenities';
-import { stayPropertyTypesForMode } from '../../../lib/stay-accommodation';
+import { isStandardStayPropertyType, stayPropertyTypesForMode } from '../../../lib/stay-accommodation';
 import { STAY_ARRIVAL_METHODS, stayArrivalMethodHint, stayArrivalMethodLabel } from '../../../lib/stay-arrival';
 import { STAY_BED_KINDS, stayBedCount, stayBedSummary, stayMixFromAreas, staySleepCapacity, type StayBedKind, type StaySleepingArea } from '../../../lib/stay-beds';
 import { activeStayOptions, emptyStayOption, newStayOptionId, type StayAccommodationOption } from '../../../lib/stay-options';
 import { STAY_GUEST_CANCELLATION_POLICY } from '../../../types/listingExtras';
 import { googleMapsBrowserKey } from '../../../lib/places-client';
 import type { VerifiedDestination } from '../../../lib/destination-place';
-import TraverionLocationSelector from '../TraverionLocationSelector';
 import StayAmenityPicker from './StayAmenityPicker';
 import StayBedroomPhotos from './StayBedroomPhotos';
 import StayExampleQuote from './StayExampleQuote';
@@ -176,6 +176,7 @@ export default function StayOnboardingFlow(props: Props) {
         {id === 'confirm' ? <ConfirmStage {...props} /> : null}
         {id === 'property-type' ? <PropertyTypeStage {...props} option={option} writeOption={writeOption} /> : null}
         {id === 'property-name' ? <PropertyNameStage {...props} /> : null}
+        {id === 'property-intro' ? <PropertyIntroStage {...props} /> : null}
         {id === 'amenities' ? (
           <StayAmenityPicker
             selected={stayAmenityDisplayList(props.values.stayAmenities.split(',').map((item) => item.trim()))}
@@ -207,9 +208,6 @@ export default function StayOnboardingFlow(props: Props) {
       {props.attempted && props.blocker ? (
         <p className="stay-alert" role="alert">{props.blocker}</p>
       ) : null}
-      <div className="mt-8 h-1 overflow-hidden rounded-full bg-[#E6EAF0]" role="progressbar" aria-valuemin={1} aria-valuemax={STAY_ONBOARDING_SCREENS.length} aria-valuenow={props.stage + 1}>
-        <div className="h-full bg-[#0B397E] transition-[width] duration-200 motion-reduce:transition-none" style={{ width: `${((props.stage + 1) / STAY_ONBOARDING_SCREENS.length) * 100}%` }} />
-      </div>
     </div>
   );
 }
@@ -218,28 +216,29 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   return <StayField label={label}>{children}</StayField>;
 }
 
-function LocationStage({ values, onChange, onConfirmLocation, selectedPlace, savedPlaceLabel, legacyPlaceHint, onSelectPlace, onClearPlace }: Props) {
-  function writeParts(next: { street?: string; unit?: string; postal?: string; city?: string; notes?: string }) {
-    const street = next.street ?? values.stayAddressStreet;
-    const unit = next.unit ?? values.stayAddressUnit;
-    const postal = next.postal ?? values.stayAddressPostal;
-    const city = next.city ?? values.city;
-    const notes = next.notes ?? values.stayAddressNotes;
+function selectedAddressLabel(values: Values): string {
+  return [values.stayAddressStreet, [values.stayAddressPostal, values.city].filter(Boolean).join(' '), values.country]
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(', ');
+}
+
+function LocationStage({ values, onChange, onConfirmLocation }: Props) {
+  function writeUnit(unit: string) {
+    const street = values.stayAddressStreet;
+    const postal = values.stayAddressPostal;
+    const city = values.city;
     onChange({
-      stayAddressStreet: street,
       stayAddressUnit: unit,
-      stayAddressPostal: postal,
-      stayAddressNotes: notes,
-      city,
-      stayCheckInAddress: composeStayCheckInAddress({ street, unit, postal, city, notes }),
+      stayCheckInAddress: composeStayCheckInAddress({ street, unit, postal, city, notes: values.stayAddressNotes }),
     });
-    onConfirmLocation(false);
   }
   return (
     <div className="space-y-4">
       <StayAddressSearch
         id="stay-onboarding-address"
-        bias={values.destinationLat != null && values.destinationLng != null ? { lat: values.destinationLat, lng: values.destinationLng } : null}
+        bias={values.stayPinLat != null && values.stayPinLng != null ? { lat: values.stayPinLat, lng: values.stayPinLng } : values.destinationLat != null && values.destinationLng != null ? { lat: values.destinationLat, lng: values.destinationLng } : null}
+        selectedLabel={selectedAddressLabel(values)}
         onUnresolved={() => onConfirmLocation(false)}
         onSelect={(address) => {
           const cityChanged = values.city.trim().toLowerCase() !== address.city.trim().toLowerCase() && Boolean(address.city.trim());
@@ -268,29 +267,10 @@ function LocationStage({ values, onChange, onConfirmLocation, selectedPlace, sav
           onConfirmLocation(false);
         }}
       />
-      <Field label="Street and building number">
-        <input className="tv-input w-full" value={values.stayAddressStreet} maxLength={160} onChange={(e) => writeParts({ street: e.target.value.slice(0, 160) })} />
+      <Field label="Apartment / Unit">
+        <input className="tv-input w-full" value={values.stayAddressUnit} maxLength={40} placeholder="D7 or 4B" aria-label="Apartment or unit" onChange={(e) => writeUnit(e.target.value.slice(0, 40))} />
       </Field>
-      <Field label="Apartment or unit, if any">
-        <input className="tv-input w-full" value={values.stayAddressUnit} maxLength={40} placeholder="For example 4B" onChange={(e) => writeParts({ unit: e.target.value.slice(0, 40) })} />
-      </Field>
-      <Field label="Postal code">
-        <input className="tv-input w-full" value={values.stayAddressPostal} maxLength={16} onChange={(e) => writeParts({ postal: e.target.value.slice(0, 16) })} />
-      </Field>
-      <TraverionLocationSelector
-        id="stay-onboarding-place"
-        label="City"
-        placeholder="Search a city or destination"
-        selected={selectedPlace}
-        savedLabel={savedPlaceLabel}
-        legacyHint={legacyPlaceHint}
-        onSelect={(place) => {
-          onSelectPlace(place);
-          onConfirmLocation(false);
-        }}
-        onClear={onClearPlace}
-      />
-      <p className="text-xs leading-relaxed text-ink-muted">The street address is saved for booked guests. The public listing shows the city.</p>
+      <p className="stay-help">Select the full address from the suggestions. The street stays private. Guests see the city before they book.</p>
     </div>
   );
 }
@@ -453,7 +433,9 @@ function StayPin({
 
 function PropertyTypeStage({ values, option, writeOption }: Props & { option: StayAccommodationOption; writeOption: (next: StayAccommodationOption) => void }) {
   const types = stayPropertyTypesForMode('single');
-  const selected = option.propertyType || values.stayPropertyType || 'Apartment';
+  const stored = (option.propertyType || values.stayPropertyType).trim();
+  const standard = isStandardStayPropertyType(stored);
+  const custom = standard || stored === 'Other' ? '' : stored;
   return (
     <div className="space-y-4">
       {values.stayAccommodationMode === 'multi' ? (
@@ -463,29 +445,76 @@ function PropertyTypeStage({ values, option, writeOption }: Props & { option: St
       ) : null}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="group" aria-label="Property type">
         {types.map((type) => {
-          const on = selected === type;
+          const on = type === 'Other' ? !standard && stored.length > 0 : stored === type;
           const label = type === 'Room' ? 'Private room' : type;
           return (
-            <StayChoice key={type} pressed={on} icon={stayPropertyIcon(type)} className="stay-type-card min-h-[5.75rem] flex-col" onClick={() => writeOption({ ...option, propertyType: type })}>
+            <StayChoice
+              key={type}
+              pressed={on}
+              icon={stayPropertyIcon(type)}
+              className="stay-type-card min-h-[5.75rem] flex-col"
+              onClick={() => {
+                if (type === 'Other') {
+                  if (!standard && stored) return;
+                  writeOption({ ...option, propertyType: 'Other' });
+                  return;
+                }
+                writeOption({ ...option, propertyType: type });
+              }}
+            >
               <span className="mt-2 block">{label}</span>
             </StayChoice>
           );
         })}
       </div>
+      {!standard && stored ? (
+        <Field label="Specify your property type">
+          <input
+            className="tv-input w-full"
+            value={custom}
+            maxLength={40}
+            placeholder="e.g. Glass igloo, treehouse, houseboat"
+            aria-label="Specify your property type"
+            onChange={(e) => {
+              const next = e.target.value.slice(0, 40);
+              writeOption({ ...option, propertyType: next.trim() ? next : 'Other' });
+            }}
+          />
+        </Field>
+      ) : null}
     </div>
   );
 }
 
-function PropertyNameStage({ values, onChange, minTitle, maxTitle, maxSubtitle }: Props) {
+function PropertyNameStage({ values, onChange, minTitle, maxTitle }: Props) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       <Field label="Accommodation name">
-        <input className="tv-input w-full" value={values.title} maxLength={maxTitle} onChange={(e) => onChange({ title: e.target.value.slice(0, maxTitle) })} />
+        <input
+          className="tv-input w-full"
+          value={values.title}
+          aria-label="Accommodation name"
+          onChange={(e) => onChange({ title: clampListingTitleInput(e.target.value, values.title) })}
+        />
       </Field>
-      <p className="text-xs text-ink-muted">{values.title.trim().length} / {maxTitle}. At least {minTitle} characters.</p>
+      <p className="text-xs tabular-nums text-ink-muted">{values.title.trim().length} / {maxTitle}. At least {minTitle} characters.</p>
+    </div>
+  );
+}
+
+function PropertyIntroStage({ values, onChange, maxSubtitle }: Props) {
+  return (
+    <div className="space-y-2">
       <Field label="Short introduction">
-        <input className="tv-input w-full" value={values.subtitle} maxLength={maxSubtitle} onChange={(e) => onChange({ subtitle: e.target.value.slice(0, maxSubtitle) })} />
+        <textarea
+          className="tv-input min-h-[5.5rem] w-full resize-y py-2"
+          rows={3}
+          value={values.subtitle}
+          aria-label="Short introduction"
+          onChange={(e) => onChange({ subtitle: clampStayIntroInput(e.target.value, values.subtitle, maxSubtitle) })}
+        />
       </Field>
+      <p className="text-xs tabular-nums text-ink-muted">{values.subtitle.trim().length} / {maxSubtitle}</p>
     </div>
   );
 }
@@ -1054,11 +1083,24 @@ function PreviewStage({ values, currency, onEditStage, option }: Props & { optio
         ) : null}
         <div className="space-y-4 p-4 sm:p-5">
           <header>
-            <p className="stay-kicker">{propertyType === 'Room' ? 'Private room' : propertyType}</p>
+            <div className="flex items-center justify-between gap-3">
+              <p className="stay-kicker">{propertyType === 'Room' ? 'Private room' : propertyType || 'Property type'}</p>
+              <PreviewEdit label="Edit type" onClick={() => onEditStage(stayScreenIndex('property-type'))} />
+            </div>
             <div className="mt-1 flex items-start justify-between gap-3">
               <h4 className="font-display text-2xl font-semibold tracking-tight text-ink">{values.title || 'Untitled stay'}</h4>
-              <PreviewEdit label="Edit" onClick={() => onEditStage(stayScreenIndex('property-name'))} />
+              <PreviewEdit label="Edit name" onClick={() => onEditStage(stayScreenIndex('property-name'))} />
             </div>
+            {values.subtitle.trim() ? (
+              <div className="mt-2 flex items-start justify-between gap-3">
+                <p className="text-sm leading-relaxed text-ink-muted">{values.subtitle.trim()}</p>
+                <PreviewEdit label="Edit introduction" onClick={() => onEditStage(stayScreenIndex('property-intro'))} />
+              </div>
+            ) : (
+              <div className="mt-2 flex justify-end">
+                <PreviewEdit label="Add introduction" onClick={() => onEditStage(stayScreenIndex('property-intro'))} />
+              </div>
+            )}
             <p className="text-sm text-ink-muted">{[values.city, values.country].filter(Boolean).join(', ') || 'Location not set'}</p>
             {Number.isFinite(nightly) && nightly > 0 ? <p className="mt-3 text-lg font-semibold tabular-nums text-ink">{formatMoney(nightly, currency)} <span className="text-sm font-medium text-ink-muted">per night</span></p> : null}
           </header>
@@ -1120,7 +1162,7 @@ function PreviewStage({ values, currency, onEditStage, option }: Props & { optio
   );
 }
 
-function PublishStage({ values, onEditStage, option, locationConfirmed, minTitle, minDescription, publishIssues = [] }: Props & { option: StayAccommodationOption }) {
+function PublishStage({ values, onEditStage, option, locationConfirmed, minTitle, maxTitle, maxSubtitle, minDescription, publishIssues = [] }: Props & { option: StayAccommodationOption }) {
   const cover = values.photoSlots.find((url) => url.startsWith('http'));
   const areasWithBeds = option.sleepingAreas.filter((area) => area.beds.some((bed) => bed.count > 0)).length;
   const check: StayOnboardingCheck = {
@@ -1140,6 +1182,9 @@ function PublishStage({ values, onEditStage, option, locationConfirmed, minTitle
       lng: values.stayPinLng,
     }),
     title: values.title,
+    maxTitle,
+    subtitle: values.subtitle,
+    maxSubtitle,
     propertyType: option.propertyType || values.stayPropertyType,
     areasWithBeds,
     maxGuests: Number.parseInt(values.stayMaxGuests, 10) || null,
@@ -1161,7 +1206,7 @@ function PublishStage({ values, onEditStage, option, locationConfirmed, minTitle
   };
   const groups: { title: string; rows: { id: string; label: string }[] }[] = [
     { title: 'Place', rows: [{ id: 'location', label: 'Location' }, { id: 'confirm', label: 'Map pin' }] },
-    { title: 'Property', rows: [{ id: 'property-name', label: 'Name' }, { id: 'description', label: 'Description' }, { id: 'rooms', label: 'Sleeping' }, { id: 'guests', label: 'Guests' }] },
+    { title: 'Property', rows: [{ id: 'property-type', label: 'Type' }, { id: 'property-name', label: 'Name' }, { id: 'property-intro', label: 'Introduction' }, { id: 'description', label: 'Description' }, { id: 'rooms', label: 'Sleeping' }, { id: 'guests', label: 'Guests' }] },
     { title: 'Stay', rows: [{ id: 'booking-times', label: 'Check-in times' }, { id: 'price', label: 'Nightly price' }, { id: 'photos', label: 'Photos' }, { id: 'arrival-notes', label: 'Arrival' }, { id: 'house-rules', label: 'House rules' }, { id: 'safety', label: 'Safety' }] },
   ];
   const issues = groups.flatMap((group) => group.rows.map((row) => ({ ...row, group: group.title, issue: stayStageBlocker(row.id, check) })));

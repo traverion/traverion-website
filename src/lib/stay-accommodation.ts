@@ -51,6 +51,20 @@ export function stayPropertyTypesForMode(mode: StayAccommodationMode): readonly 
   return STAY_SINGLE_PROPERTY_TYPES;
 }
 
+/** A listed type other than the custom “Other” choice. Custom text is stored as the type itself. */
+export function isStandardStayPropertyType(value: string): boolean {
+  const type = value.trim();
+  return type !== 'Other' && (STAY_SINGLE_PROPERTY_TYPES as readonly string[]).includes(type);
+}
+
+export function stayPropertyTypeBlocker(value: string): string | null {
+  const type = value.trim();
+  if (!type) return 'Choose a property type.';
+  if (isStandardStayPropertyType(type)) return null;
+  if (type.toLowerCase() === 'other' || type.length < 2) return 'Specify your property type.';
+  return null;
+}
+
 function optionalCount(raw: unknown, min: number, max: number, step?: number): number | null {
   if (typeof raw !== 'number' || !Number.isFinite(raw)) return null;
   const n = step === 0.5 ? Math.round(raw * 2) / 2 : Math.floor(raw);

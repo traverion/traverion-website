@@ -948,6 +948,9 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
           <h1 className="font-display text-3xl sm:text-4xl lg:text-[2.75rem] text-ink tracking-tight mb-4 break-words [overflow-wrap:anywhere] leading-[1.15]">
             {stay.title}
           </h1>
+          {stay.subtitle?.trim() ? (
+            <p className="mb-4 max-w-2xl text-base leading-relaxed text-ink-muted">{stay.subtitle.trim()}</p>
+          ) : null}
           <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-lg border border-black/[0.08] bg-white px-4 py-4 sm:grid-cols-4 sm:px-5">
             {typeof s?.maxGuests === 'number' ? (
               <div className="min-w-0">

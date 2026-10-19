@@ -1167,7 +1167,7 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
   return {
     id,
     title: form.title,
-    subtitle: form.subtitle.trim().slice(0, MAX_SUBTITLE_LENGTH) || undefined,
+    subtitle: form.subtitle.trim() || undefined,
     destination: resolvedDestination,
     duration: listingDurationForPersist({
       inventoryFamily: form.inventoryFamily,
@@ -3817,6 +3817,9 @@ export default function SupplierListingForm({
           lng: form.stayPinLng,
         }),
         title: form.title,
+        maxTitle: MAX_LISTING_TITLE_LENGTH,
+        subtitle: form.subtitle,
+        maxSubtitle: MAX_SUBTITLE_LENGTH,
         propertyType: form.stayPropertyType,
         areasWithBeds: (activeStayOptions(form.stayOptions)[0]?.sleepingAreas ?? []).filter((area) => area.beds.some((bed) => bed.count > 0)).length,
         maxGuests: Number.parseInt(form.stayMaxGuests, 10) || null,
@@ -4000,8 +4003,23 @@ export default function SupplierListingForm({
           }
           footer={
             <div className="listing-creation-footer-actions flex flex-col gap-2">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-              <div className="order-2 flex gap-2 sm:order-1 sm:contents">
+            {isStayForm ? (
+              <div
+                className="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-[#E6EAF0]"
+                role="progressbar"
+                aria-valuemin={1}
+                aria-valuemax={STAY_ONBOARDING_SCREENS.length}
+                aria-valuenow={stayStage + 1}
+                aria-label={`Step ${stayStage + 1} of ${STAY_ONBOARDING_SCREENS.length}`}
+              >
+                <div
+                  className="h-full bg-[#0B397E] transition-[width] duration-200 motion-reduce:transition-none"
+                  style={{ width: `${((stayStage + 1) / STAY_ONBOARDING_SCREENS.length) * 100}%` }}
+                />
+              </div>
+            ) : null}
+            <div className={isStayForm ? 'grid grid-cols-3 items-center gap-2' : 'flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3'}>
+              <div className={isStayForm ? 'contents' : 'order-2 flex gap-2 sm:order-1 sm:contents'}>
                 <button
                   type="button"
                   onClick={() => {
@@ -4033,7 +4051,7 @@ export default function SupplierListingForm({
                     draftCloseBusy ||
                     submitting
                   }
-                  className="touch-manipulation tv-btn-ghost !min-h-12 flex-1 sm:!min-h-11 sm:w-auto sm:flex-none disabled:opacity-50"
+                  className={isStayForm ? 'stay-nav-btn stay-nav-btn--start touch-manipulation tv-btn-ghost !min-h-11 disabled:opacity-50' : 'touch-manipulation tv-btn-ghost !min-h-12 flex-1 sm:!min-h-11 sm:w-auto sm:flex-none disabled:opacity-50'}
                 >
                   Back
                 </button>
@@ -4048,7 +4066,7 @@ export default function SupplierListingForm({
                       })
                     }
                     disabled={submitting || draftCloseBusy || shellExiting}
-                    className="touch-manipulation tv-btn-secondary !min-h-12 flex-1 sm:!min-h-11 sm:w-auto sm:flex-none disabled:opacity-50"
+                    className={isStayForm ? 'stay-nav-btn touch-manipulation tv-btn-secondary !min-h-11 disabled:opacity-50' : 'touch-manipulation tv-btn-secondary !min-h-12 flex-1 sm:!min-h-11 sm:w-auto sm:flex-none disabled:opacity-50'}
                   >
                     {submitting || shellExiting
                       ? 'Saving…'
@@ -4066,13 +4084,15 @@ export default function SupplierListingForm({
                       })
                     }
                     disabled={submitting || draftCloseBusy || shellExiting}
-                    className="touch-manipulation tv-btn-secondary !min-h-12 flex-1 sm:!min-h-11 sm:w-auto sm:flex-none disabled:opacity-50"
+                    className={isStayForm ? 'stay-nav-btn touch-manipulation tv-btn-secondary !min-h-11 disabled:opacity-50' : 'touch-manipulation tv-btn-secondary !min-h-12 flex-1 sm:!min-h-11 sm:w-auto sm:flex-none disabled:opacity-50'}
                   >
                     {submitting || shellExiting ? 'Saving…' : 'Save as draft'}
                   </button>
+                ) : isStayForm ? (
+                  <span aria-hidden className="block" />
                 ) : null}
               </div>
-              <div className="order-1 flex w-full min-w-0 sm:order-2 sm:w-auto">
+              <div className={isStayForm ? 'contents' : 'order-1 flex w-full min-w-0 sm:order-2 sm:w-auto'}>
                 {!onCreationLastStep ? (
                   <button
                     type="button"
@@ -4110,7 +4130,7 @@ export default function SupplierListingForm({
                       submitting ||
                       shellExiting
                     }
-                    className="touch-manipulation tv-btn-primary !min-h-12 w-full sm:!min-h-11 sm:w-auto disabled:opacity-50"
+                    className={isStayForm ? 'stay-nav-btn stay-nav-btn--end touch-manipulation tv-btn-primary !min-h-11 disabled:opacity-50' : 'touch-manipulation tv-btn-primary !min-h-12 w-full sm:!min-h-11 sm:w-auto disabled:opacity-50'}
                   >
                     Continue
                   </button>
@@ -4129,7 +4149,7 @@ export default function SupplierListingForm({
                         ? publishBlockersPreview[0]
                         : 'Save updates to your live listing'
                     }
-                    className="touch-manipulation tv-btn-primary !min-h-12 w-full sm:!min-h-11 sm:w-auto disabled:opacity-50"
+                    className={isStayForm ? 'stay-nav-btn stay-nav-btn--end touch-manipulation tv-btn-primary !min-h-11 disabled:opacity-50' : 'touch-manipulation tv-btn-primary !min-h-12 w-full sm:!min-h-11 sm:w-auto disabled:opacity-50'}
                   >
                     {submitting || shellExiting ? 'Saving…' : 'Save changes'}
                   </button>
@@ -4139,7 +4159,7 @@ export default function SupplierListingForm({
                     onClick={() => void runSubmit('published', { closeOnSuccess: true })}
                     disabled={submitting || draftCloseBusy || shellExiting || !lastStepSubmitArmed}
                     title={publishButtonTitle}
-                    className="touch-manipulation tv-btn-primary !min-h-12 w-full sm:!min-h-11 sm:w-auto disabled:opacity-50"
+                    className={isStayForm ? 'stay-nav-btn stay-nav-btn--end touch-manipulation tv-btn-primary !min-h-11 disabled:opacity-50' : 'touch-manipulation tv-btn-primary !min-h-12 w-full sm:!min-h-11 sm:w-auto disabled:opacity-50'}
                   >
                     {submitting || shellExiting ? 'Publishing…' : isStayForm ? 'Publish property' : 'Publish experience'}
                   </button>

@@ -18,6 +18,7 @@ export type SelectedStayAddress = {
 type Props = {
   id: string;
   bias: { lat: number; lng: number } | null;
+  selectedLabel: string;
   onSelect: (address: SelectedStayAddress) => void;
   onUnresolved: (message: string) => void;
 };
@@ -26,9 +27,9 @@ function isAbortError(err: unknown): boolean {
   return err instanceof DOMException && err.name === 'AbortError';
 }
 
-export default function StayAddressSearch({ id, bias, onSelect, onUnresolved }: Props) {
+export default function StayAddressSearch({ id, bias, selectedLabel, onSelect, onUnresolved }: Props) {
   const listId = useId();
-  const [draft, setDraft] = useState('');
+  const [draft, setDraft] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [resolving, setResolving] = useState(false);
@@ -69,7 +70,7 @@ export default function StayAddressSearch({ id, bias, onSelect, onUnresolved }: 
       setEmpty(false);
       return;
     }
-    const query = draft.trim();
+    const query = (draft ?? '').trim();
     if (query.length < 2) {
       setSuggestions([]);
       setLoading(false);
@@ -104,6 +105,8 @@ export default function StayAddressSearch({ id, bias, onSelect, onUnresolved }: 
     };
   }, [bias, configured, draft, open]);
 
+  const shown = draft ?? selectedLabel;
+
   async function choose(suggestion: PlaceSuggestion) {
     const seq = resolveSeq.current + 1;
     resolveSeq.current = seq;
@@ -113,7 +116,7 @@ export default function StayAddressSearch({ id, bias, onSelect, onUnresolved }: 
       const place = await resolveAddress(suggestion.placeId);
       if (resolveSeq.current !== seq) return;
       if (!place) {
-        const message = 'That address has no map location. Enter it below and place the pin yourself.';
+        const message = 'That address has no map location. Choose another suggestion.';
         setError(message);
         onUnresolved(message);
         return;
@@ -135,7 +138,7 @@ export default function StayAddressSearch({ id, bias, onSelect, onUnresolved }: 
         lat: place.lat,
         lng: place.lng,
       });
-      setDraft('');
+      setDraft(null);
       setOpen(false);
       setSuggestions([]);
       setEmpty(false);
@@ -158,7 +161,7 @@ export default function StayAddressSearch({ id, bias, onSelect, onUnresolved }: 
         className="z-[90] max-h-64 overflow-auto rounded-xl border border-[#E6EAF0] bg-white py-1 shadow-[0_8px_24px_rgba(15,23,42,0.08)]"
       >
         {empty ? (
-          <li className="px-3 py-2 text-sm text-ink-muted">No matching addresses. You can enter the street below.</li>
+          <li className="px-3 py-2 text-sm text-ink-muted">No matching addresses. Choose one from the suggestions.</li>
         ) : (
           suggestions.map((row, index) => (
             <li key={row.placeId} role="presentation">
@@ -185,11 +188,11 @@ export default function StayAddressSearch({ id, bias, onSelect, onUnresolved }: 
 
   return (
     <div ref={rootRef} className="relative">
-      <label htmlFor={id} className="mb-1 block text-sm font-semibold text-ink">
-        Street address
+      <label htmlFor={id} className="stay-field mb-1.5 block">
+        <span>Property address</span>
       </label>
       <div className="relative">
-        <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" aria-hidden />
+        <MapPin className="pointer-events-none absolute left-3 top-1/2 z-[1] h-4 w-4 -translate-y-1/2 text-ink-muted" aria-hidden />
         <input
           ref={inputRef}
           id={id}
@@ -199,11 +202,11 @@ export default function StayAddressSearch({ id, bias, onSelect, onUnresolved }: 
           aria-autocomplete="list"
           aria-busy={loading || resolving}
           aria-activedescendant={open && suggestions[activeIndex] ? `${listId}-opt-${activeIndex}` : undefined}
-          value={draft}
-          disabled={!configured}
+          value={shown}
+          disabled={!configured && !selectedLabel}
           placeholder={configured ? 'Siljotie 2, Rovaniemi' : 'Address search is unavailable'}
           autoComplete="off"
-          className="tv-input w-full pl-9"
+          className="tv-input stay-address-input w-full"
           onChange={(event) => {
             resolveSeq.current += 1;
             setResolving(false);
@@ -211,10 +214,14 @@ export default function StayAddressSearch({ id, bias, onSelect, onUnresolved }: 
             setOpen(true);
             setError(null);
           }}
-          onFocus={() => setOpen(true)}
+          onFocus={() => {
+            setDraft(selectedLabel);
+            setOpen(true);
+          }}
           onBlur={() => {
             window.setTimeout(() => {
               if (rootRef.current?.contains(document.activeElement)) return;
+              setDraft(null);
               setOpen(false);
             }, 120);
           }}
@@ -242,7 +249,7 @@ export default function StayAddressSearch({ id, bias, onSelect, onUnresolved }: 
         ) : null}
       </div>
       {!configured ? (
-        <p className="mt-1.5 text-xs text-ink-muted">Address search is unavailable. Enter the street, postal code, and city below, then place the pin yourself.</p>
+        <p className="mt-1.5 text-xs text-ink-muted">Address search is unavailable. A previously saved address can still be used.</p>
       ) : null}
       {error ? <p className="mt-1.5 text-xs text-red-700" role="alert">{error}</p> : null}
       {menu ? createPortal(menu, document.body) : null}

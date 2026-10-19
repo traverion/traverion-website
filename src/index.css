@@ -604,6 +604,29 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
   padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
 }
 
+.listing-creation-footer .stay-nav-btn {
+  width: max-content;
+  max-width: 100%;
+  white-space: nowrap;
+  justify-self: center;
+}
+
+.listing-creation-footer .stay-nav-btn--start {
+  justify-self: start;
+}
+
+.listing-creation-footer .stay-nav-btn--end {
+  justify-self: end;
+}
+
+@media (max-width: 639px) {
+  .listing-creation-footer .stay-nav-btn {
+    padding-left: 0.7rem;
+    padding-right: 0.7rem;
+    font-size: 0.8125rem;
+  }
+}
+
 /* Full-screen editor enter / exit — app-like slide home after Save draft */
 @keyframes listing-creation-shell-enter {
   from {
@@ -1385,6 +1408,11 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
 /*
  * Creation visual depth — white surfaces, cool borders, Traverion blue focus.
  */
+.listing-creation-workspace .stay-address-input {
+  padding-left: 2.75rem;
+  padding-right: 2.5rem;
+}
+
 .listing-creation-workspace .tv-input {
   border: 1px solid var(--lc-line);
   background: #ffffff;
@@ -5487,6 +5515,10 @@ details:not([open]) > :not(summary) {
   font-size: 1rem;
   box-shadow: none;
   transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.listing-creation-workspace .tv-input.stay-address-input {
+  padding-left: 2.75rem;
+  padding-right: 2.5rem;
 }
 .tv-input.tv-location-input {
   padding-left: 2.75rem;

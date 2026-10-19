@@ -263,7 +263,7 @@ export function tourPackageToRow(tour: Partial<TourPackage> & { title: string; d
     dropoff_location: tour.dropoffLocation?.trim() ? tour.dropoffLocation.trim() : null,
     experience_language: tour.experienceLanguage?.trim() ? tour.experienceLanguage.trim() : null,
     experience_kind: tour.experienceKind ?? null,
-    listing_subtitle: tour.subtitle?.trim() ? tour.subtitle.trim().slice(0, 300) : null,
+    listing_subtitle: tour.subtitle?.trim() || null,
     listing_extras: listingExtrasToDb(tour.listingExtras) ?? {},
   };
 }

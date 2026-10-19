@@ -3,11 +3,14 @@
  * Each screen writes listing fields checkout already reads.
  */
 
+import { stayPropertyTypeBlocker } from './stay-accommodation';
+
 export const STAY_ONBOARDING_SCREENS = [
   { id: 'location', group: 'Location', part: '1 of 2', title: 'Where is the property?', body: 'Search the street address. Guests see the city before they book.' },
   { id: 'confirm', group: 'Location', part: '2 of 2', title: 'Confirm the location', body: 'The pin should sit on the property. Guests still see only the city before they book.' },
-  { id: 'property-type', group: 'Property', part: '1 of 2', title: 'What kind of place is this?', body: 'One listing is one bookable place.' },
-  { id: 'property-name', group: 'Property', part: '2 of 2', title: 'Name the accommodation', body: 'This is the title guests see in search.' },
+  { id: 'property-type', group: 'Property', part: '1 of 3', title: 'What kind of place is this?', body: 'One listing is one bookable place.' },
+  { id: 'property-name', group: 'Property', part: '2 of 3', title: 'Name the accommodation', body: 'This is the title guests see in search.' },
+  { id: 'property-intro', group: 'Property', part: '3 of 3', title: 'Give your place a short introduction', body: 'Describe what makes your accommodation special in one or two sentences.' },
   { id: 'amenities', group: 'Amenities', part: '1 of 1', title: 'What can guests use?', body: 'Select only what is actually there.' },
   { id: 'rooms', group: 'Sleeping', part: '1 of 1', title: 'Where will guests sleep?', body: 'A bedroom count is not the same as how many people the beds sleep.' },
   { id: 'description', group: 'Description', part: '1 of 2', title: 'Describe the stay', body: 'Write what a guest should know. Do not claim anything the property does not have.' },
@@ -52,6 +55,13 @@ const V1_STAGE_IDS: StayOnboardingScreenId[] = [
   'preview',
 ];
 
+/** Keep a saved introduction readable when it is already over the limit. New text cannot grow past it. */
+export function clampStayIntroInput(next: string, previous: string, max: number): string {
+  if (next.length <= max) return next;
+  if (previous.length > max) return next.length < previous.length ? next : previous;
+  return next.slice(0, max);
+}
+
 export function stayScreenIndex(id: string): number {
   const index = STAY_ONBOARDING_SCREENS.findIndex((screen) => screen.id === id);
   return index >= 0 ? index : 0;
@@ -71,6 +81,7 @@ export function stayScreenIndexForPublishLine(line: string): number {
   if (/city|country|location|destination/.test(text)) return stayScreenIndex('location');
   if (/nightly|price/.test(text)) return stayScreenIndex('price');
   if (/check-in time|check-out time/.test(text)) return stayScreenIndex('booking-times');
+  if (/subtitle|introduction/.test(text)) return stayScreenIndex('property-intro');
   if (/guest|bedroom|bed|sleep|host/.test(text)) return stayScreenIndex('guests');
   if (/description|highlight/.test(text)) return stayScreenIndex('description');
   return stayScreenIndex('property-name');
@@ -91,6 +102,9 @@ export type StayOnboardingCheck = {
   locationConfirmed: boolean;
   pinReady: boolean;
   title: string;
+  maxTitle: number;
+  subtitle: string;
+  maxSubtitle: number;
   propertyType: string;
   areasWithBeds: number;
   maxGuests: number | null;
@@ -116,17 +130,27 @@ const CLOCK = /^\d{2}:\d{2}$/;
 export function stayStageBlocker(screenId: string, draft: StayOnboardingCheck): string | null {
   switch (screenId) {
     case 'location':
-      if (!draft.city.trim() || !draft.country.trim()) return 'Add the city and country.';
-      if (draft.street.trim().length < 3) return 'Add the street and building number.';
-      if (draft.postal.trim().length < 2) return 'Add the postal code.';
+      if (draft.street.trim().length < 3 || draft.postal.trim().length < 2 || !draft.city.trim() || !draft.country.trim()) {
+        return 'Select the property address from the suggestions.';
+      }
       return null;
     case 'confirm':
       if (!draft.pinReady) return 'Place the pin on the property.';
       return draft.locationConfirmed ? null : 'Confirm this is the correct location.';
     case 'property-type':
-      return draft.propertyType.trim() ? null : 'Choose a property type.';
-    case 'property-name':
-      return draft.title.trim().length < draft.minTitle ? `Use at least ${draft.minTitle} characters in the name.` : null;
+      return stayPropertyTypeBlocker(draft.propertyType);
+    case 'property-name': {
+      const title = draft.title.trim();
+      if (title.length < draft.minTitle) return `Use at least ${draft.minTitle} characters in the name.`;
+      if (title.length > draft.maxTitle) return `Shorten the name to ${draft.maxTitle} characters.`;
+      return null;
+    }
+    case 'property-intro': {
+      const intro = draft.subtitle.trim();
+      if (!intro) return 'Add a short introduction.';
+      if (intro.length > draft.maxSubtitle) return `Shorten the introduction to ${draft.maxSubtitle} characters.`;
+      return null;
+    }
     case 'rooms':
       return draft.areasWithBeds >= 1 ? null : 'Add at least one bed guests can sleep in.';
     case 'description':
