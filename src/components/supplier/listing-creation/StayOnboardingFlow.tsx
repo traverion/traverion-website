@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Pencil } from 'lucide-react';
 import { STAY_ONBOARDING_SCREENS, clampStayIntroInput, quietHoursMentioned, stayScreenIndex, stayStageBlocker, type StayOnboardingCheck } from '../../../lib/stay-onboarding';
 import { STAY_SAFETY_CONSIDERATIONS, staySafetyConsiderationLines } from '../../../lib/stay-safety';
 import { clampListingDescriptionInput, clampListingTitleInput } from '../../../lib/listingQualityScore';
@@ -109,6 +110,8 @@ type Props = {
   maxDescription: number;
   maxSubtitle: number;
   publishIssues?: string[];
+  /** True when editing a listing that is already live. */
+  listingPublished?: boolean;
 };
 
 function primaryOption(values: Values): StayAccommodationOption {
@@ -143,6 +146,14 @@ export default function StayOnboardingFlow(props: Props) {
   const previewWide = id === 'preview' || id === 'publish';
   const mapWide = id === 'confirm';
   const wide = id === 'photos' || id === 'room-photos' || previewWide;
+  const stageTitle =
+    id === 'publish' && props.listingPublished ? 'Review your listing' : stage.title;
+  const stageBody =
+    id === 'publish' && props.listingPublished
+      ? 'Your listing is live. Use Save changes below when you are done.'
+      : id === 'preview'
+        ? 'Check how the listing reads before guests book. Private arrival details stay off this preview.'
+        : stage.body;
   const option = primaryOption(props.values);
   const areas = areasOf(option);
 
@@ -181,8 +192,8 @@ export default function StayOnboardingFlow(props: Props) {
           <button type="button" className="min-h-11 text-sm font-semibold text-finland" onClick={props.onReturn}>Back to preview</button>
         ) : null}
       </div>
-      <h3 className="stay-title font-display font-semibold">{stage.title}</h3>
-      <p className="stay-lede mt-2">{stage.body}</p>
+      <h3 className="stay-title font-display font-semibold">{stageTitle}</h3>
+      <p className="stay-lede mt-2">{stageBody}</p>
       <div className="mt-6">
         {id === 'location' ? <LocationStage {...props} /> : null}
         {id === 'confirm' ? <ConfirmStage {...props} /> : null}
@@ -1508,10 +1519,16 @@ function Choice({ label, value, options, onChange }: { label: string; value: str
   );
 }
 
-function PreviewEdit({ onClick }: { onClick: () => void }) {
+function PreviewEdit({ onClick, label = 'Edit' }: { onClick: () => void; label?: string }) {
   return (
-    <button type="button" className="stay-preview-edit min-h-11 shrink-0 text-sm font-semibold text-finland" onClick={onClick}>
-      Edit
+    <button
+      type="button"
+      className="stay-preview-edit inline-flex min-h-9 shrink-0 items-center gap-1 rounded-md px-1.5 text-sm font-medium text-finland hover:bg-[#073b83]/06 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#073b83]"
+      aria-label={label}
+      onClick={onClick}
+    >
+      <Pencil className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+      <span>Edit</span>
     </button>
   );
 }
@@ -1519,9 +1536,9 @@ function PreviewEdit({ onClick }: { onClick: () => void }) {
 function PreviewSection({ title, onEdit, children }: { title: string; onEdit: () => void; children: React.ReactNode }) {
   return (
     <section className="stay-preview-section">
-      <div className="mb-2 flex items-baseline justify-between gap-3">
+      <div className="mb-2 flex items-center justify-between gap-3">
         <h5 className="font-display text-base font-semibold text-ink sm:text-lg">{title}</h5>
-        <PreviewEdit onClick={onEdit} />
+        <PreviewEdit onClick={onEdit} label={`Edit ${title}`} />
       </div>
       {children}
     </section>
@@ -1588,8 +1605,23 @@ function PreviewStage({ values, currency, onEditStage, option }: Props & { optio
   return (
     <div className="space-y-5">
       <article className="stay-preview-shell overflow-hidden rounded-2xl bg-white ring-1 ring-[#E6EAF0]">
-        <div className="grid gap-5 p-4 sm:p-5 lg:grid-cols-[minmax(0,28rem)_minmax(0,1fr)] lg:items-start">
+        <div className="grid gap-4 p-4 sm:gap-5 sm:p-5 lg:grid-cols-[minmax(0,28rem)_minmax(0,1fr)] lg:items-start">
           <div className="space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <h5 className="font-display text-base font-semibold text-ink">Photos</h5>
+              <div className="flex items-center gap-2">
+                {photos.length > 1 ? (
+                  <button
+                    type="button"
+                    className="min-h-9 text-sm font-medium text-finland"
+                    onClick={() => setGalleryOpen((open) => !open)}
+                  >
+                    {galleryOpen ? 'Hide photo list' : `View all ${photos.length} photos`}
+                  </button>
+                ) : null}
+                <PreviewEdit onClick={() => onEditStage(stayScreenIndex('photos'))} label="Edit photos" />
+              </div>
+            </div>
             <div className="stay-preview-gallery">
               <div className={`stay-preview-gallery-main ${sidePhotos.length > 0 ? '' : 'stay-preview-gallery-main--solo'}`}>
                 {cover ? (
@@ -1622,15 +1654,6 @@ function PreviewStage({ values, currency, onEditStage, option }: Props & { optio
                 </div>
               ) : null}
             </div>
-            {photos.length > 1 ? (
-              <button type="button" className="text-sm font-semibold text-finland" onClick={() => setGalleryOpen((open) => !open)}>
-                {galleryOpen ? 'Hide photo list' : `View all ${photos.length} photos`}
-              </button>
-            ) : (
-              <div className="flex justify-end">
-                <PreviewEdit onClick={() => onEditStage(stayScreenIndex('photos'))} />
-              </div>
-            )}
             {galleryOpen && photos.length > 1 ? (
               <ul className="grid grid-cols-4 gap-1.5 sm:grid-cols-6">
                 {photos.map((url, index) => (
@@ -1640,26 +1663,25 @@ function PreviewStage({ values, currency, onEditStage, option }: Props & { optio
                 ))}
               </ul>
             ) : null}
-            {photos.length > 1 ? (
-              <div className="flex justify-end">
-                <PreviewEdit onClick={() => onEditStage(stayScreenIndex('photos'))} />
-              </div>
-            ) : null}
           </div>
 
           <div className="min-w-0 space-y-3">
-            <div className="flex items-start justify-between gap-3">
-              <p className="stay-kicker">{typeLabel}</p>
-              <PreviewEdit onClick={() => onEditStage(stayScreenIndex('property-type'))} />
-            </div>
-            <div className="flex items-start justify-between gap-3">
-              <h4 className="font-display text-2xl font-semibold tracking-tight text-ink sm:text-[1.75rem]">{values.title || 'Untitled stay'}</h4>
-              <PreviewEdit onClick={() => onEditStage(stayScreenIndex('property-name'))} />
+            <div className="space-y-1">
+              <div className="flex items-center justify-between gap-3">
+                <p className="stay-kicker">{typeLabel}</p>
+                <PreviewEdit onClick={() => onEditStage(stayScreenIndex('property-type'))} label="Edit property type" />
+              </div>
+              <div className="flex items-start justify-between gap-3">
+                <h4 className="font-display text-2xl font-semibold tracking-tight text-ink sm:text-[1.75rem]">
+                  {values.title || 'Untitled stay'}
+                </h4>
+                <PreviewEdit onClick={() => onEditStage(stayScreenIndex('property-name'))} label="Edit property name" />
+              </div>
             </div>
             <p className="text-sm text-ink-muted">{[values.city, values.country].filter(Boolean).join(', ') || 'Location not set'}</p>
             {Number.isFinite(nightly) && nightly > 0 ? (
-              <p className="text-lg font-semibold tabular-nums text-ink">
-                {formatMoney(nightly, currency)} <span className="text-sm font-medium text-ink-muted">per night · one night</span>
+              <p className="text-base font-semibold tabular-nums text-ink sm:text-lg">
+                {formatMoney(nightly, currency)} <span className="text-sm font-medium text-ink-muted">/ night</span>
               </p>
             ) : null}
             <dl className="grid grid-cols-2 gap-2 border-t border-[#E6EAF0] pt-3 text-sm sm:grid-cols-4">
@@ -1680,13 +1702,16 @@ function PreviewStage({ values, currency, onEditStage, option }: Props & { optio
                 <dd className="mt-1 font-semibold text-ink">{sleeps > 0 ? sleeps : '—'}</dd>
               </div>
             </dl>
-            <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="mb-1 flex items-center justify-between gap-3">
+                <h5 className="text-sm font-semibold text-ink">Introduction</h5>
+                <PreviewEdit onClick={() => onEditStage(stayScreenIndex('property-intro'))} label="Edit introduction" />
+              </div>
               {values.subtitle.trim() ? (
                 <p className="text-sm leading-relaxed text-ink-muted">{values.subtitle.trim()}</p>
               ) : (
                 <p className="text-sm text-ink-muted">Add a short introduction.</p>
               )}
-              <PreviewEdit onClick={() => onEditStage(stayScreenIndex('property-intro'))} />
             </div>
           </div>
         </div>
@@ -1760,7 +1785,6 @@ function PreviewStage({ values, currency, onEditStage, option }: Props & { optio
           <PreviewSection title="Arrival" onEdit={() => onEditStage(stayScreenIndex('arrival-method'))}>
             <p className="text-sm text-ink">{stayArrivalMethodLabel(values.stayArrivalMethod) || 'Arrival method not set'}</p>
             {values.stayArrivalNote.trim() ? <p className="mt-1 text-sm text-ink-muted">{values.stayArrivalNote.trim()}</p> : null}
-            <p className="mt-2 text-xs text-ink-muted">Private check-in instructions stay off this preview.</p>
           </PreviewSection>
 
           {(ruleChips.length > 0 || values.stayHouseRules.trim()) ? (
@@ -1796,17 +1820,14 @@ function PreviewStage({ values, currency, onEditStage, option }: Props & { optio
                 Cleaning ·{' '}
                 {Number.isFinite(cleaning) && cleaning > 0 ? `${formatMoney(cleaning, currency)} per stay` : 'None'}
               </li>
-              {extras.length > 0 ? (
-                extras.map((extra) => (
-                  <li key={extra.id}>
-                    {extra.name.trim()} · {formatMoney(extra.price, currency)} optional
-                  </li>
-                ))
-              ) : (
-                <li className="text-ink-muted">No optional extras configured.</li>
-              )}
+              {extras.length > 0
+                ? extras.map((extra) => (
+                    <li key={extra.id}>
+                      {extra.name.trim()} · {formatMoney(extra.price, currency)} optional
+                    </li>
+                  ))
+                : null}
             </ul>
-            <p className="mt-2 text-xs text-ink-muted">Optional extras are charged only when a guest selects them.</p>
           </PreviewSection>
         </div>
       </article>
@@ -1824,9 +1845,6 @@ function PreviewStage({ values, currency, onEditStage, option }: Props & { optio
             availabilityMode={values.stayAvailabilityMode}
             seasons={option.schedules}
           />
-          <p className="mt-2 text-xs text-ink-muted">
-            The example uses the same pricing rules as checkout. It does not create a reservation. The street address stays private.
-          </p>
         </div>
       </details>
     </div>
@@ -1835,7 +1853,18 @@ function PreviewStage({ values, currency, onEditStage, option }: Props & { optio
 
 type PublishRow = { id: string; label: string; optional?: boolean };
 
-function PublishStage({ values, onEditStage, option, locationConfirmed, minTitle, maxTitle, maxSubtitle, minDescription, publishIssues = [] }: Props & { option: StayAccommodationOption }) {
+function PublishStage({
+  values,
+  onEditStage,
+  option,
+  locationConfirmed,
+  minTitle,
+  maxTitle,
+  maxSubtitle,
+  minDescription,
+  publishIssues = [],
+  listingPublished = false,
+}: Props & { option: StayAccommodationOption }) {
   const cover = values.photoSlots.find((url) => url.startsWith('http'));
   const areasWithBeds = option.sleepingAreas.filter((area) => area.beds.some((bed) => bed.count > 0)).length;
   const check: StayOnboardingCheck = {
@@ -1922,7 +1951,15 @@ function PublishStage({ values, onEditStage, option, locationConfirmed, minTitle
   const requiredOpen = groups
     .flatMap((group) => group.rows.filter((row) => !row.optional).map((row) => ({ ...row, issue: stayStageBlocker(row.id, check) })))
     .filter((row) => row.issue);
-  const ready = requiredOpen.length === 0 && publishIssues.length === 0;
+  const openCount = requiredOpen.length + publishIssues.length;
+  const ready = openCount === 0;
+  const statusLabel = listingPublished
+    ? ready
+      ? 'Live · ready to save'
+      : `${openCount} still need${openCount === 1 ? 's' : ''} attention`
+    : ready
+      ? 'Ready to publish'
+      : `${openCount} still need${openCount === 1 ? 's' : ''} attention`;
 
   return (
     <div className="space-y-4">
@@ -1935,9 +1972,7 @@ function PublishStage({ values, onEditStage, option, locationConfirmed, minTitle
         <div className="min-w-0 flex-1">
           <p className="truncate font-display text-lg font-semibold text-ink">{values.title || 'Untitled stay'}</p>
           <p className="text-sm text-ink-muted">{[values.city, values.country].filter(Boolean).join(', ') || 'Location not set'}</p>
-          <p className={`mt-1 text-sm font-semibold ${ready ? 'text-[#073b83]' : 'text-[#9f1239]'}`}>
-            {ready ? 'Ready to publish' : `${requiredOpen.length + publishIssues.length} still need attention`}
-          </p>
+          <p className={`mt-1 text-sm font-semibold ${ready ? 'text-[#073b83]' : 'text-[#9f1239]'}`}>{statusLabel}</p>
         </div>
       </div>
 
@@ -1948,32 +1983,44 @@ function PublishStage({ values, onEditStage, option, locationConfirmed, minTitle
             const status = issue ? 'Needs attention' : row.optional ? 'Optional' : 'Complete';
             return { ...row, issue, status };
           });
-          const attention = rows.filter((row) => row.issue).length;
+          const attentionRows = rows.filter((row) => row.issue);
+          const attention = attentionRows.length;
           const complete = attention === 0;
+          const ordered = complete ? rows : [...attentionRows, ...rows.filter((row) => !row.issue)];
           const body = (
             <ul className="overflow-hidden rounded-xl ring-1 ring-[#E6EAF0]">
-              {rows.map((row) => (
-                <li key={row.id} className="flex items-start justify-between gap-3 border-t border-[#E6EAF0] px-3 py-2.5 first:border-t-0">
+              {ordered.map((row) => (
+                <li
+                  key={row.id}
+                  className={`flex items-start justify-between gap-3 border-t border-[#E6EAF0] px-3 py-2.5 first:border-t-0 ${
+                    row.issue ? 'bg-[#FFF8F8]' : complete ? '' : 'opacity-80'
+                  }`}
+                >
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-ink">{row.label}</p>
+                    <p className={`text-sm font-semibold ${row.issue ? 'text-[#9f1239]' : 'text-ink'}`}>{row.label}</p>
                     <p className={`text-xs ${row.issue ? 'font-medium text-[#9f1239]' : 'text-ink-muted'}`}>
                       {row.issue ?? row.status}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    className="min-h-11 shrink-0 text-sm font-semibold text-finland"
-                    onClick={() => onEditStage(stayScreenIndex(row.id))}
-                  >
-                    Edit
-                  </button>
+                  {row.issue || complete ? (
+                    <button
+                      type="button"
+                      className={`inline-flex min-h-11 shrink-0 items-center gap-1 text-sm font-semibold ${
+                        row.issue ? 'text-[#9f1239]' : 'text-finland'
+                      }`}
+                      onClick={() => onEditStage(stayScreenIndex(row.id))}
+                    >
+                      <Pencil className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                      Edit
+                    </button>
+                  ) : null}
                 </li>
               ))}
             </ul>
           );
           if (complete) {
             return (
-              <details key={group.title} className="space-y-2">
+              <details key={group.title} className="stay-publish-group space-y-2">
                 <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-1 text-sm font-semibold text-ink">
                   <span>{group.title}</span>
                   <span className="text-xs font-semibold uppercase tracking-wide text-[#073b83]">Complete</span>
@@ -1983,15 +2030,15 @@ function PublishStage({ values, onEditStage, option, locationConfirmed, minTitle
             );
           }
           return (
-            <section key={group.title} className="space-y-2">
-              <div className="flex items-center justify-between gap-3 px-1">
-                <h4 className="text-sm font-semibold text-ink">{group.title}</h4>
+            <details key={group.title} open className="stay-publish-group stay-publish-group--attention space-y-2">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-1 text-sm font-semibold text-ink">
+                <span>{group.title}</span>
                 <span className="text-xs font-semibold uppercase tracking-wide text-[#9f1239]">
                   {attention} need{attention === 1 ? 's' : ''} attention
                 </span>
-              </div>
+              </summary>
               {body}
-            </section>
+            </details>
           );
         })}
       </div>
@@ -2004,9 +2051,13 @@ function PublishStage({ values, onEditStage, option, locationConfirmed, minTitle
         </ul>
       ) : null}
       <StayHelp>
-        {ready
-          ? 'Use Publish property below. Nothing is published until you do. A listing that is already live uses Save changes.'
-          : 'Finish the required items above before publishing. Guests still see only the city until a booking is paid.'}
+        {listingPublished
+          ? ready
+            ? 'Use Save changes below to update your live listing.'
+            : 'Finish the required items above, then save. Guests still see only the city until a booking is paid.'
+          : ready
+            ? 'Use Publish property below. Nothing goes live until you do.'
+            : 'Finish the required items above before publishing. Guests still see only the city until a booking is paid.'}
       </StayHelp>
     </div>
   );

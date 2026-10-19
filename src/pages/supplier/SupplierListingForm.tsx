@@ -4232,6 +4232,7 @@ export default function SupplierListingForm({
               userId={user?.id}
               uploadsEnabled={isSupabaseConfigured() && !!user?.id}
               publishIssues={publishBlockersPreview}
+              listingPublished={form.status === 'published'}
               locationConfirmed={stayLocationConfirmed}
               onConfirmLocation={(confirmed) => {
                 setStayLocationConfirmed(confirmed);
