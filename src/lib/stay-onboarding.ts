@@ -22,7 +22,7 @@ export const STAY_ONBOARDING_SCREENS = [
   { id: 'guests', group: 'Guests', part: '1 of 2', title: 'How many guests?', body: 'This cannot be higher than the beds you added.' },
   { id: 'stay-length', group: 'Guests', part: '2 of 2', title: 'How long can they stay?', body: 'Checkout uses the same minimum and maximum.' },
   { id: 'price', group: 'Pricing', part: '1 of 2', title: 'Set the nightly price', body: 'This is the price for the accommodation, not per person.' },
-  { id: 'fees', group: 'Pricing', part: '2 of 2', title: 'Cleaning and extras', body: 'Optional extras are charged only when a guest selects them. Mandatory fees are included.' },
+  { id: 'fees', group: 'Pricing', part: '2 of 2', title: 'Cleaning and extras', body: 'Cleaning is charged once per stay in the checkout total. Optional extras are charged only when a guest selects them.' },
   { id: 'arrival-method', group: 'Arrival', part: '1 of 2', title: 'How do guests get in?', body: 'Guests see the method. They do not see a door code here.' },
   { id: 'arrival-notes', group: 'Arrival', part: '2 of 2', title: 'What should guests know?', body: 'The public note can appear before booking. The street address is shared after payment.' },
   { id: 'photos', group: 'Photos', part: '1 of 2', title: 'Add photos', body: 'The first photo is the cover guests see in search.' },

@@ -1140,13 +1140,14 @@ function PricingStage({ values, currency, option, writeOption, commissionBps }: 
       </Field>
       {priced && split ? (
         <dl className="stay-panel space-y-2 text-sm text-ink">
+          <p className="stay-kicker">One night</p>
           <div className="flex justify-between gap-3"><dt>Guest pays</dt><dd className="tabular-nums">{exactMoney(nightly, currency)}</dd></div>
           <div className="flex justify-between gap-3"><dt>Traverion commission ({formatBpsAsPercent(split.commissionBps)})</dt><dd className="tabular-nums">{exactMoney(split.commissionMinor / 100, currency)}</dd></div>
           <div className="flex justify-between gap-3 border-t border-[#E6EAF0] pt-2 font-semibold"><dt>Supplier receives</dt><dd className="tabular-nums">{exactMoney(split.supplierMinor / 100, currency)}</dd></div>
-          <p className="stay-help">One night only. Cleaning and extras are charged separately.</p>
+          <p className="stay-help">Breakdown for one night using your active agreement. Cleaning and extras are charged separately at checkout.</p>
         </dl>
       ) : priced ? (
-        <StayHelp>Supplier earnings appear when your active agreement is available. This example is one night. Cleaning and extras are charged separately.</StayHelp>
+        <StayHelp>Supplier earnings appear when your active agreement is available. This example is one night only. Cleaning and extras are charged separately at checkout.</StayHelp>
       ) : null}
     </div>
   );
@@ -1189,7 +1190,7 @@ function FeesStage({ values, currency, option, writeOption }: Props & { option: 
           writeOption({ ...option, cleaningFee: Number.isFinite(cleaning) && cleaning >= 0 ? Math.round(cleaning * 100) / 100 : null });
         }} />
       </Field>
-      <StayHelp>A cleaning amount is charged once per stay. It is not optional for the guest. Leave it blank when there is no cleaning fee.</StayHelp>
+      <StayHelp>Cleaning is mandatory when set. It is added once to the checkout total, not to the nightly rate. Leave it blank when there is no cleaning fee.</StayHelp>
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm font-semibold text-ink">Additional extras</p>
@@ -1202,7 +1203,7 @@ function FeesStage({ values, currency, option, writeOption }: Props & { option: 
             + Add extra
           </button>
         </div>
-        <StayHelp>Guests pay for an extra only when they choose it. It is not added to the nightly price.</StayHelp>
+        <StayHelp>Optional extras appear at checkout and are charged only when the guest selects them. They are not folded into the nightly price.</StayHelp>
         {extras.map((extra, index) => (
           <div key={extra.id} className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_11rem_auto] sm:items-center">
             <input
@@ -1278,30 +1279,40 @@ function ArrivalNotesStage({ values, onChange }: Props) {
         <Field label="Public arrival note">
           <textarea ref={publicRef} className="tv-input stay-note-input w-full resize-y" maxLength={160} value={values.stayArrivalNote} aria-label="Public arrival note" onChange={(e) => onChange({ stayArrivalNote: e.target.value.slice(0, 160) })} />
         </Field>
-        <StayHelp>Guests can read this before they book. Do not include a door code or the street address.</StayHelp>
+        <StayHelp>Shown on the public listing before booking. Do not include a door code or the street address.</StayHelp>
       </div>
       <div className="stay-panel space-y-2">
         <Field label="Private arrival address">
           <textarea ref={privateRef} className="tv-input stay-note-input w-full resize-y" maxLength={400} value={values.stayCheckInAddress} aria-label="Private arrival address" onChange={(e) => onChange({ stayCheckInAddress: e.target.value.slice(0, 400) })} />
         </Field>
-        <StayHelp>Booked guests see this after payment. Codes belong here, not in the public note.</StayHelp>
+        <StayHelp>Only confirmed guests see this after payment. It is never shown on the public listing or before an authorized booking. Codes belong here.</StayHelp>
       </div>
     </div>
   );
 }
 
 function GalleryStage(props: Props) {
+  const count = props.values.photoSlots.filter((url) => url.startsWith('http')).length;
   return (
-    <ListingImageFields
-      presentation="stay"
-      photoSlots={props.values.photoSlots}
-      photoSlotLabels={props.values.photoSlotLabels}
-      photoOriginalUrls={props.values.photoOriginalUrls}
-      photoCropSettings={props.values.photoCropSettings}
-      userId={props.userId}
-      uploadsEnabled={props.uploadsEnabled}
-      onPhotosChange={({ slots, labels, originals, crops }) => props.onChange({ photoSlots: slots, photoSlotLabels: labels, photoOriginalUrls: originals, photoCropSettings: crops })}
-    />
+    <div className="space-y-3">
+      <ListingImageFields
+        presentation="stay"
+        photoSlots={props.values.photoSlots}
+        photoSlotLabels={props.values.photoSlotLabels}
+        photoOriginalUrls={props.values.photoOriginalUrls}
+        photoCropSettings={props.values.photoCropSettings}
+        userId={props.userId}
+        uploadsEnabled={props.uploadsEnabled}
+        onPhotosChange={({ slots, labels, originals, crops }) =>
+          props.onChange({ photoSlots: slots, photoSlotLabels: labels, photoOriginalUrls: originals, photoCropSettings: crops })
+        }
+      />
+      <StayHelp>
+        {count === 0
+          ? 'Add at least one photo to continue. Publishing still requires a full gallery, with the first photo as the cover.'
+          : `You have ${count} photo${count === 1 ? '' : 's'}. The first photo is the cover. Order, remove, or replace photos anytime; drafts keep them after refresh.`}
+      </StayHelp>
+    </div>
   );
 }
 
