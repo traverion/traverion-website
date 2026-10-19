@@ -15,7 +15,9 @@ describe('Phase 1726: traveler cancel follows server refund_choice', () => {
     expect(fn).toContain('rpcData');
     expect(fn).toContain('refund_choice');
     expect(fn).toContain('serverChoice');
-    expect(fn).toContain('return { success: true, refundChoice: serverChoice, unpaidCheckout }');
+    expect(fn).toContain(
+      'return { success: true, refundChoice: serverChoice, unpaidCheckout, notifyWarning }'
+    );
     expect(fn).toContain('TRAVELER_SELF_CANCEL_EMAIL_DIFF_FULL_REFUND');
     expect(fn).toContain('TRAVELER_SELF_CANCEL_EMAIL_DIFF_NO_REFUND');
     expect(fn).not.toMatch(

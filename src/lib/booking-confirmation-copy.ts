@@ -43,8 +43,12 @@ export function bookingConfirmationPhase(
   if (isPaidPaymentStatus(b.payment_status)) return 'confirmed';
 
   const pay = normalizePaymentStatus(b.payment_status);
-  // Request-to-Book: authorized is not a confirmed booking — show received/pending host.
-  if (pay === 'authorized') return 'received';
+  // Request-to-Book: authorized is not confirmed. Host accepted → capture still settling.
+  if (pay === 'authorized') {
+    const approval = String(b.approval_status ?? '').trim().toLowerCase();
+    if (approval === 'accepted') return 'confirming';
+    return 'received';
+  }
 
   // Phase 1335: expired pending holds are Pay now (Trips parity), not “still confirming”.
   // Live unpaid holds stay confirming (Stripe success redirect; webhook may lag).

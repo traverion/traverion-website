@@ -61,6 +61,11 @@ import {
   confirmationShouldReconcileCheckout,
   confirmationStillWaitingAfterReconcile,
 } from '../lib/checkout-confirmation-reconcile';
+import {
+  isStayRequestAwaitingHost,
+  stayRequestIsCapturePending,
+  stayRequestLifecycleLabel,
+} from '../lib/stay-request-approval';
 
 const SESSION_RETURN_KEY = 'traverion_checkout_return_session_id';
 
@@ -552,15 +557,14 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
     );
   }
 
-  const awaitingHost =
-    String(booking?.payment_status ?? '').toLowerCase() === 'authorized' ||
-    String(booking?.approval_status ?? '').toLowerCase() === 'pending';
+  const awaitingHost = booking ? isStayRequestAwaitingHost(booking) : false;
+  const capturePending = booking ? stayRequestIsCapturePending(booking) : false;
   const statusChipLabel = cancelled
     ? payLabel
     : paidActive
       ? 'Confirmed'
-      : awaitingHost
-        ? 'Pending host approval'
+      : awaitingHost || capturePending
+        ? stayRequestLifecycleLabel(booking!)
         : confirming
           ? reconciling
             ? 'Syncing payment'
@@ -572,7 +576,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
     ? toneForPaymentLabel(payLabel)
     : paidActive
       ? 'good'
-      : awaitingHost || confirming || needsPay
+      : awaitingHost || capturePending || confirming || needsPay
         ? 'warn'
         : 'neutral';
 
@@ -675,7 +679,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                   ? 'tv-confirm-hero--good'
                   : cancelled
                     ? 'tv-confirm-hero--bad'
-                    : needsPay || confirming
+                    : needsPay || confirming || awaitingHost || capturePending
                       ? 'tv-confirm-hero--warn'
                       : 'tv-confirm-hero--info'
               }`}
@@ -703,8 +707,8 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                       ? 'Booking cancelled'
                       : awaitingHost
                         ? 'Booking request sent'
-                        : confirming
-                          ? reconciling
+                        : capturePending || confirming
+                          ? reconciling || capturePending
                             ? 'Checking your payment'
                             : 'Confirming your payment'
                           : needsPay
@@ -716,13 +720,15 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                       ? bookingConfirmationCancelledBody(booking)
                       : awaitingHost
                         ? 'Your host has up to 24 hours to respond. Your payment method has been authorized, but payment has not yet been captured. The authorization may appear as a pending transaction on your bank statement.'
-                        : confirming
-                          ? stalledConfirming
-                            ? 'Payment is still settling. Open Trips in a moment if this does not update.'
-                            : 'This usually takes a few seconds. We will not mark the booking confirmed until payment is recorded.'
-                          : needsPay
-                            ? BOOKING_CONFIRMATION_NEEDS_PAY_BODY
-                            : 'We saved your booking. The status updates when payment is recorded.'}
+                        : capturePending
+                          ? 'The host accepted your request. We are confirming payment capture — this usually takes a few seconds.'
+                          : confirming
+                            ? stalledConfirming
+                              ? 'Payment is still settling. Open Trips in a moment if this does not update.'
+                              : 'This usually takes a few seconds. We will not mark the booking confirmed until payment is recorded.'
+                            : needsPay
+                              ? BOOKING_CONFIRMATION_NEEDS_PAY_BODY
+                              : 'We saved your booking. The status updates when payment is recorded.'}
                   </p>
                 </div>
               )}

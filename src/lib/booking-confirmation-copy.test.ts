@@ -626,6 +626,20 @@ describe('booking confirmation copy', () => {
       bookingConfirmationPhase({ status: 'pending', payment_status: 'failed' })
     ).toBe('needs_pay');
     expect(
+      bookingConfirmationPhase({
+        status: 'pending',
+        payment_status: 'authorized',
+        approval_status: 'pending',
+      })
+    ).toBe('received');
+    expect(
+      bookingConfirmationPhase({
+        status: 'pending',
+        payment_status: 'authorized',
+        approval_status: 'accepted',
+      })
+    ).toBe('confirming');
+    expect(
       bookingConfirmationPhase(
         {
           status: 'pending',

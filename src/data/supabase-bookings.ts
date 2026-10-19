@@ -1140,6 +1140,17 @@ export async function cancelBookingAsCustomer(
   if (closed !== 'none') {
     return { success: false, error: travelerSelfCancelError(closed) };
   }
+  // Authorized Request-to-Book: release Stripe PI via withdraw — never cancel_booking_as_traveler.
+  if (String(current.payment_status ?? '').trim().toLowerCase() === 'authorized') {
+    const withdrawn = await stayBookingRequestAction({ bookingId, action: 'withdraw' });
+    if (!withdrawn.success) {
+      return {
+        success: false,
+        error: withdrawn.error ?? 'Could not withdraw this stay request.',
+      };
+    }
+    return { success: true, refundChoice: 'no_refund', unpaidCheckout: true };
+  }
   const unpaidCheckout = travelerSelfCancelIsUnpaidCheckout(current);
   const effectiveChoice = unpaidCheckout ? 'no_refund' : refundChoice;
   const { data: rpcData, error: rpcError } = await supabase.rpc('cancel_booking_as_traveler', {

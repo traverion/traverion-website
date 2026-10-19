@@ -20,6 +20,7 @@ describe('checkout resume after hold expiry', () => {
     expect(checkoutPaymentStatusCanResume(null)).toBe(true);
     expect(checkoutPaymentStatusCanResume('paid')).toBe(false);
     expect(checkoutPaymentStatusCanResume('refunded')).toBe(false);
+    expect(checkoutPaymentStatusCanResume('authorized')).toBe(false);
   });
 
   it('webhook may promote the same statuses to paid', () => {
@@ -31,6 +32,7 @@ describe('checkout resume after hold expiry', () => {
   it('detects a Pay-now race lost to concurrent paid promotion', () => {
     expect(checkoutResumeLostRaceToPaid('paid')).toBe(true);
     expect(checkoutResumeLostRaceToPaid('refunded')).toBe(true);
+    expect(checkoutResumeLostRaceToPaid('authorized')).toBe(true);
     expect(checkoutResumeLostRaceToPaid('pending')).toBe(false);
     expect(checkoutResumeLostRaceToPaid('failed')).toBe(false);
   });
