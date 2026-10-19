@@ -1,7 +1,9 @@
 # Hourly: expire Stay Request-to-Book rows past the 24h approval window.
 # Edge: expire-stay-booking-requests (cancels Stripe authorizations + notifies).
 #
-# Auth: Bearer STAY_REQUEST_EXPIRE_SECRET or CRON_SECRET (same value as Edge secret).
+# Auth: Bearer secret matching Edge Function env.
+# Prefer STAY_REQUEST_EXPIRE_SECRET; otherwise reuse BOOKING_REMINDER_CRON_SECRET
+# (already configured for send-booking-reminders).
 
 name: Expire stay booking requests
 
@@ -27,12 +29,13 @@ jobs:
         env:
           STAY_REQUEST_EXPIRE_SECRET: ${{ secrets.STAY_REQUEST_EXPIRE_SECRET }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          BOOKING_REMINDER_CRON_SECRET: ${{ secrets.BOOKING_REMINDER_CRON_SECRET }}
           FUNCTION_URL: https://xcopqllkulxfkpunetbc.supabase.co/functions/v1/expire-stay-booking-requests
         run: |
           set -euo pipefail
-          SECRET="${STAY_REQUEST_EXPIRE_SECRET:-${CRON_SECRET:-}}"
+          SECRET="${STAY_REQUEST_EXPIRE_SECRET:-${CRON_SECRET:-${BOOKING_REMINDER_CRON_SECRET:-}}}"
           if [ -z "${SECRET}" ]; then
-            echo "::error::Set STAY_REQUEST_EXPIRE_SECRET or CRON_SECRET in GitHub Actions secrets."
+            echo "::error::Set STAY_REQUEST_EXPIRE_SECRET, CRON_SECRET, or BOOKING_REMINDER_CRON_SECRET in GitHub Actions secrets."
             exit 1
           fi
 

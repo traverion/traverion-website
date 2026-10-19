@@ -93,7 +93,7 @@ begin
       and (
         payment_status = 'paid'
         or (
-          payment_status = 'pending'
+          payment_status in ('pending', 'authorized')
           and hold_expires_at is not null
           and hold_expires_at > now()
         )

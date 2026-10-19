@@ -416,3 +416,70 @@ $$;
 
 REVOKE ALL ON FUNCTION public.expire_stay_booking_requests(integer) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.expire_stay_booking_requests(integer) TO service_role;
+
+-- Client JWT must not mutate Request-to-Book approval columns (service_role RPCs only).
+CREATE OR REPLACE FUNCTION public.bookings_protect_payment_fields()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_role text := coalesce(auth.role(), '');
+  v_paid boolean;
+  v_bypass_cancel_guard boolean;
+BEGIN
+  IF tg_op <> 'UPDATE' THEN
+    RETURN new;
+  END IF;
+  IF v_role IN ('service_role', '') THEN
+    RETURN new;
+  END IF;
+
+  new.payment_status := old.payment_status;
+  new.amount_paid := old.amount_paid;
+  new.checkout_session_id := old.checkout_session_id;
+  new.payment_intent_id := old.payment_intent_id;
+  new.paid_at := old.paid_at;
+  new.total_amount := old.total_amount;
+  new.currency := old.currency;
+  new.listing_id := old.listing_id;
+  new.guest_user_id := old.guest_user_id;
+  new.guest_email := old.guest_email;
+  new.guest_name := old.guest_name;
+  new.purchase_snapshot := old.purchase_snapshot;
+  new.guest_breakdown := old.guest_breakdown;
+  new.booking_number := old.booking_number;
+  new.public_reference := old.public_reference;
+  new.applied_discount_id := old.applied_discount_id;
+  new.approval_status := old.approval_status;
+  new.approval_expires_at := old.approval_expires_at;
+  new.approval_decided_at := old.approval_decided_at;
+  new.approval_decided_by := old.approval_decided_by;
+
+  new.booking_date := old.booking_date;
+  new.check_out := old.check_out;
+  new.nights := old.nights;
+  new.nightly_amount := old.nightly_amount;
+  new.cleaning_fee := old.cleaning_fee;
+  new.booking_option_id := old.booking_option_id;
+  new.guests := old.guests;
+  new.hold_expires_at := old.hold_expires_at;
+
+  v_paid := lower(trim(coalesce(old.payment_status, ''))) IN ('paid', 'authorized');
+
+  v_bypass_cancel_guard :=
+    coalesce(current_setting('app.bypass_booking_cancellation_guard', true), '') = 'true';
+  IF v_paid AND NOT v_bypass_cancel_guard
+    AND (
+      lower(trim(coalesce(old.status, ''))) = 'cancelled'
+      OR lower(trim(coalesce(new.status, ''))) = 'cancelled'
+    )
+  THEN
+    new.status := old.status;
+    new.cancelled_at := old.cancelled_at;
+    new.cancellation_reason := old.cancellation_reason;
+    new.refund_choice := old.refund_choice;
+  END IF;
+
+  RETURN new;
+END;
+$$;

@@ -33,7 +33,13 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY');
-    const cronSecret = (Deno.env.get('STAY_REQUEST_EXPIRE_SECRET') ?? Deno.env.get('CRON_SECRET') ?? '').trim();
+    // Prefer dedicated expire secret; fall back to existing reminder cron secret.
+    const cronSecret = (
+      Deno.env.get('STAY_REQUEST_EXPIRE_SECRET') ??
+      Deno.env.get('CRON_SECRET') ??
+      Deno.env.get('BOOKING_REMINDER_CRON_SECRET') ??
+      ''
+    ).trim();
 
     if (!supabaseUrl || !serviceRoleKey) {
       return json({ success: false, error: 'Supabase env missing' }, 500);
@@ -46,10 +52,11 @@ serve(async (req) => {
     // Allow service-role Bearer or shared cron secret.
     const authHeader = req.headers.get('Authorization') ?? '';
     const bearer = authHeader.replace(/^Bearer\s+/i, '').trim();
+    const headerCron = (req.headers.get('x-cron-secret') ?? '').trim();
     const okAuth =
       (bearer && bearer === serviceRoleKey) ||
       (cronSecret && bearer === cronSecret) ||
-      (cronSecret && req.headers.get('x-cron-secret') === cronSecret);
+      (cronSecret && headerCron === cronSecret);
     if (!okAuth) return json({ success: false, error: 'Unauthorized' }, 401);
 
     const admin = createClient(supabaseUrl, serviceRoleKey);
