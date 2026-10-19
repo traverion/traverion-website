@@ -5980,6 +5980,99 @@ details:not([open]) > :not(summary) {
   color: #073b83;
 }
 
+.stay-creator .stay-preview-section {
+  border-top: 1px solid #e6eaf0;
+  padding-top: 1rem;
+  padding-bottom: 0.35rem;
+}
+
+.stay-creator .stay-preview-body > .stay-preview-section:first-child,
+.stay-creator .stay-preview-body > .stay-preview-section:nth-child(2) {
+  border-top: 0;
+  padding-top: 0;
+}
+
+@media (max-width: 1023px) {
+  .stay-creator .stay-preview-body > .stay-preview-section:nth-child(2) {
+    border-top: 1px solid #e6eaf0;
+    padding-top: 1rem;
+  }
+}
+
+.stay-creator details > summary {
+  list-style: none;
+}
+
+.stay-creator details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.stay-creator .stay-preview-gallery {
+  display: grid;
+  gap: 0.4rem;
+  max-height: 20rem;
+}
+
+.stay-creator .stay-preview-gallery-main {
+  overflow: hidden;
+  border-radius: 0.75rem;
+  min-height: 11rem;
+  max-height: 18rem;
+  background: #f4f6f8;
+}
+
+.stay-creator .stay-preview-gallery-main--solo {
+  max-height: 17rem;
+}
+
+.stay-creator .stay-preview-gallery-main img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-height: 18rem;
+  object-fit: cover;
+}
+
+.stay-creator .stay-preview-gallery:has(.stay-preview-gallery-side) {
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.stay-creator .stay-preview-gallery-side {
+  display: grid;
+  gap: 0.4rem;
+  grid-auto-rows: 1fr;
+  min-height: 0;
+}
+
+.stay-creator .stay-preview-gallery-thumb {
+  min-height: 0;
+  height: 100%;
+  background: #f4f6f8;
+}
+
+.stay-creator .stay-preview-gallery-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-height: 5.75rem;
+  object-fit: cover;
+}
+
+@media (min-width: 1024px) {
+  .stay-creator .stay-preview-gallery {
+    max-height: 20rem;
+  }
+
+  .stay-creator .stay-preview-gallery-main {
+    min-height: 14rem;
+  }
+
+  .stay-creator .stay-preview-gallery-thumb img {
+    max-height: 6.25rem;
+  }
+}
+
 .stay-creator .stay-quiet-suggest:hover {
   border-color: rgba(7, 59, 131, 0.4);
 }
