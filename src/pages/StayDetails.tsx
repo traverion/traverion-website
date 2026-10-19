@@ -15,7 +15,7 @@ import {
   Clock,
   Shield,
 } from 'lucide-react';
-import { stayAmenityLucideIcon } from '../lib/stay-amenity-icons';
+import { stayAmenityLucideIcon, stayHighlightLucideIcon } from '../lib/stay-amenity-icons';
 import { getListingById, getListingByIdAsync } from '../data/listings';
 import { stayRestrictionLines } from '../lib/stay-restrictions';
 import { staySafetyConsiderationLines } from '../lib/stay-safety';
@@ -801,11 +801,11 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
   return (
     <div className="min-h-screen bg-paper tv-page pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-0">
       <div className="tv-shell px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        <div className="mb-5 flex items-center justify-between gap-3">
+        <div className="mb-4 flex items-center justify-between gap-3">
           <button
             type="button"
             onClick={onBack}
-            className="lux-flat inline-flex h-11 min-w-[2.75rem] items-center justify-center gap-2 rounded-full bg-paper-raised px-3.5 text-sm font-medium text-ink ring-1 ring-black/[0.06] hover:bg-black/[0.03]"
+            className="lux-flat inline-flex h-10 min-w-[2.5rem] items-center justify-center gap-1.5 rounded-full bg-white px-3 text-sm font-medium text-ink shadow-[var(--tv-shadow-rest)] transition-[box-shadow,background] duration-200 hover:shadow-[var(--tv-shadow-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland"
           >
             <ArrowLeft className="w-4 h-4" aria-hidden />
             {backLabel}
@@ -853,11 +853,11 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
           {s?.accommodationMode === 'multi' ? (
             <p className="mb-2 text-sm text-ink-muted">Room types for this property are not open for booking yet.</p>
           ) : null}
-          <h1 className="font-sans text-[1.65rem] font-bold tracking-tight text-ink sm:text-3xl lg:text-[2rem] break-words [overflow-wrap:anywhere] leading-[1.2]">
+          <h1 className="font-sans text-[1.75rem] font-bold tracking-tight text-ink sm:text-[1.85rem] lg:text-[2.05rem] break-words [overflow-wrap:anywhere] leading-[1.18]">
             {stay.title}
           </h1>
           {stay.subtitle?.trim() ? (
-            <p className="mt-1.5 max-w-2xl text-sm leading-snug text-ink-muted line-clamp-2">
+            <p className="mt-2 max-w-2xl text-[0.9375rem] leading-relaxed text-ink-muted line-clamp-2">
               {stay.subtitle.trim()}
             </p>
           ) : null}
@@ -922,7 +922,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                         alt=""
                         decoding="async"
                         fetchPriority="high"
-                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 motion-safe:hover:scale-[1.02]"
+                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-safe:hover:scale-[1.03]"
                       />
                     </button>
                   ) : null}
@@ -1008,17 +1008,19 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
             {stay.description ? (
               <section>
                 <h2 className="font-sans text-lg font-bold tracking-tight text-ink mb-2">About this place</h2>
-                <p
-                  className={`text-ink-muted break-words [overflow-wrap:anywhere] whitespace-pre-wrap ${
-                    descriptionExpanded ? '' : 'line-clamp-4'
+                <div
+                  className={`overflow-hidden transition-[max-height] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
+                    descriptionExpanded ? 'max-h-[80rem]' : 'max-h-[6.5rem]'
                   }`}
                 >
-                  {stay.description}
-                </p>
+                  <p className="max-w-prose text-ink-muted break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
+                    {stay.description}
+                  </p>
+                </div>
                 {stay.description.length > 280 ? (
                   <button
                     type="button"
-                    className="mt-2 text-sm font-semibold text-finland hover:underline"
+                    className="mt-2 text-sm font-semibold text-finland hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland rounded"
                     onClick={() => setDescriptionExpanded((v) => !v)}
                     aria-expanded={descriptionExpanded}
                   >
@@ -1031,17 +1033,23 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
             {stay.highlights?.some((line) => line.trim()) ? (
               <section>
                 <h2 className="font-sans text-lg font-bold tracking-tight text-ink mb-3">Highlights</h2>
-                <ul className="grid gap-2 sm:grid-cols-2">
+                <ul className="grid gap-2.5 sm:grid-cols-2">
                   {stay.highlights
                     .filter((line) => line.trim())
-                    .map((line) => (
-                      <li
-                        key={line}
-                        className="rounded-xl px-3.5 py-2.5 text-sm font-medium text-ink ring-1 ring-black/[0.08]"
-                      >
-                        {line}
-                      </li>
-                    ))}
+                    .map((line) => {
+                      const Icon = stayHighlightLucideIcon(line);
+                      return (
+                        <li
+                          key={line}
+                          className="flex items-start gap-2.5 rounded-xl bg-finland/[0.04] px-3.5 py-2.5 text-sm font-medium text-ink"
+                        >
+                          {Icon ? (
+                            <Icon className="mt-0.5 h-4 w-4 shrink-0 text-finland" aria-hidden strokeWidth={1.75} />
+                          ) : null}
+                          <span className="min-w-0 leading-snug">{line}</span>
+                        </li>
+                      );
+                    })}
                 </ul>
               </section>
             ) : null}
@@ -1431,17 +1439,24 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
               id="stay-booking-panel-title"
               className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland"
             >
-              {requestToBook ? 'Request this stay' : 'Book this stay'}
+              {requestToBook ? 'Request to book' : 'Reserve'}
             </p>
             {/* Phase 1548: dates selected + failed quote — do not invent catalog nightly (1546 sticky parity). */}
             {/* Phase 1606: Price unavailable (Tour 1604 parity) instead of an em dash. */}
             {checkIn && checkOut && stayQuote && !stayQuote.ok ? (
-              <p className="text-lg font-semibold tabular-nums text-ink">Price unavailable</p>
+              <p className="font-display text-2xl font-semibold tabular-nums tracking-tight text-ink">
+                Price unavailable
+              </p>
             ) : quoteOk && stayQuote?.ok ? (
               // Phase 1562: successful quote is the hero total (Tour 1561 / sticky 1546 parity — not catalog nightly).
-              <p className="text-lg font-semibold tabular-nums text-ink">
-                {formatMoney(stayQuote.totalAmount, stayQuote.currency)}
-              </p>
+              <div className="tv-quote-reveal">
+                <p className="font-display text-3xl font-semibold tabular-nums tracking-tight text-ink leading-none">
+                  {formatMoney(stayQuote.totalAmount, stayQuote.currency)}
+                </p>
+                <p className="mt-1.5 text-sm text-ink-muted">
+                  Total · {stayQuote.nights} night{stayQuote.nights === 1 ? '' : 's'}
+                </p>
+              </div>
             ) : nightly > 0 ? (
               <PriceHero
                 amount={nightly}
@@ -1449,9 +1464,9 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                 basis={minNights === 1 ? 'per night · 1 night minimum' : `per night · ${minNights} nights minimum`}
               />
             ) : (
-              <p className="text-lg font-semibold text-ink">—</p>
+              <p className="font-display text-2xl font-semibold text-ink">—</p>
             )}
-            <div className="mt-4">
+            <div className="mt-4 space-y-3">
               <StayNightPicker
                 id="stay-night-picker"
                 checkIn={checkIn}
@@ -1465,8 +1480,6 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                   setPayError(null);
                 }}
               />
-            </div>
-            <div className="mt-3">
               <StayGuestPartySelector
                 id="stay-guests"
                 party={party}
@@ -1478,7 +1491,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                 }}
               />
               {maxGuests == null ? (
-                <p id="stay-guest-capacity-unavailable" className="mt-2 text-sm text-red-700">
+                <p id="stay-guest-capacity-unavailable" className="text-sm text-red-700">
                   Guest capacity is unavailable for this stay.
                 </p>
               ) : null}
@@ -1576,7 +1589,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
               </div>
             ) : null}
             {quoteOk && stayQuote?.ok ? (
-              <div className="mt-4">
+              <div className="mt-4 tv-quote-reveal">
                 <PriceBreakdown
                   currency={stayQuote.currency}
                   lines={stayQuotePriceLines(stayQuote)}
@@ -1591,8 +1604,8 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                   // Phase 1657: release-on-expiry parity with tour checkout hold note.
                   holdNote={
                     requestToBook
-                      ? `Your card is authorized at checkout. The host has ${STAY_REQUEST_APPROVAL_HOURS} hours to accept. Payment is captured only after they accept. If they decline or the request expires, the authorization is released.`
-                      : `Nights are held for ${CHECKOUT_HOLD_MINUTES} minutes after you continue to Stripe. If checkout expires, the hold is released.`
+                      ? `Authorized at checkout · host has ${STAY_REQUEST_APPROVAL_HOURS}h to accept before capture.`
+                      : `Dates held ${CHECKOUT_HOLD_MINUTES} min after you continue to checkout.`
                   }
                 />
               </div>
@@ -1678,15 +1691,11 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                 >
                   {stickyStayCtaLabel}
                 </button>
-                <p className="mt-3 text-xs text-ink-muted leading-relaxed">
+                <p className="mt-3 text-xs leading-relaxed text-ink-muted">
                   {requestToBook
-                    ? 'Price is confirmed on the server. Your payment method is authorized only — funds are not captured until the host accepts. You will not see a confirmed booking before that.'
-                    : 'Price is confirmed on the server. If checkout cannot start, you will see an error — never a fake success.'}
-                  {!user
-                    ? requestToBook
-                      ? ' Sign in when prompted to send your request.'
-                      : ' Sign in when prompted — you are not charged until Stripe confirms payment.'
-                    : ''}
+                    ? 'Authorized only until the host accepts — not confirmed or charged yet.'
+                    : 'Totals are confirmed on the server before payment.'}
+                  {!user ? (requestToBook ? ' Sign in to send your request.' : ' Sign in when prompted.') : ''}
                 </p>
               </>
             ) : (
@@ -1698,9 +1707,9 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                 {stickyStayCtaLabel}
               </button>
             )}
-            <p className="mt-3 text-xs text-ink-muted leading-relaxed">
-              {/* Phase 1586/1594: STAY_LISTING includes Trips disclaimer; Stripe TEST as its own clause. */}
-              {STAY_LISTING_CONFIRMATION_NOTE} Checkout uses {STRIPE_TEST_UNTIL_LIVE}.
+            <p className="mt-2.5 text-[11px] leading-relaxed text-ink-faint" title={STAY_LISTING_CONFIRMATION_NOTE}>
+              {/* Phase 1586/1594: discreet TEST notice; full Trips copy in title for hover/screen readers. */}
+              Checkout uses {STRIPE_TEST_UNTIL_LIVE}. Confirmed stays appear in Trips.
             </p>
           </aside>
           </div>

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   countedStayGuests,
+  formatStayGuestPartySummary,
   normalizeStayGuestPolicy,
   stayGuestAgeCopy,
   validateStayGuestParty,
@@ -51,5 +52,13 @@ describe('stay guest party', () => {
       ['Child', 1, 0],
       ['Infant', 1, 0],
     ]);
+  });
+
+  it('formats a compact guests summary for the booking panel trigger', () => {
+    expect(formatStayGuestPartySummary({ adults: 0, children: 0, infants: 0 })).toBe('Add guests');
+    expect(formatStayGuestPartySummary({ adults: 2, children: 0, infants: 0 })).toBe('2 adults');
+    expect(formatStayGuestPartySummary({ adults: 1, children: 1, infants: 1 })).toBe(
+      '1 adult · 1 child · 1 infant'
+    );
   });
 });

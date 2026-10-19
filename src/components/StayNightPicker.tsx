@@ -117,7 +117,11 @@ export default function StayNightPicker({
 
   return (
     <div ref={rootRef} id={id} className="relative outline-none">
-      <div className="grid grid-cols-2 divide-x divide-black/[0.08] overflow-hidden rounded-xl ring-1 ring-black/[0.1]">
+      <div
+        className={`grid grid-cols-2 divide-x divide-black/[0.08] overflow-hidden rounded-xl ring-1 transition-[box-shadow,ring-color] duration-200 ${
+          open ? 'ring-finland/35 shadow-[var(--tv-focus-ring)]' : 'ring-black/[0.1]'
+        }`}
+      >
         <button
           type="button"
           className={fieldClass}
@@ -148,7 +152,7 @@ export default function StayNightPicker({
         <div
           role="dialog"
           aria-label="Select stay dates"
-          className="absolute left-0 right-0 z-40 mt-2 rounded-xl bg-white p-3 shadow-[0_16px_40px_-20px_rgba(15,23,42,0.45)] ring-1 ring-black/[0.1] sm:min-w-[19rem]"
+          className="tv-popover tv-popover-enter absolute left-0 right-0 z-40 mt-2 p-3 sm:min-w-[19rem]"
         >
           <div className="mb-2 flex items-center gap-1.5 text-xs text-ink-muted">
             <CalendarDays className="h-3.5 w-3.5 text-finland" aria-hidden />

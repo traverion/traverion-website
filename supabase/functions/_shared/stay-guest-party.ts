@@ -83,6 +83,22 @@ export function countedStayGuests(party: StayGuestParty, policyInput: unknown): 
   return party.adults + party.children + infants;
 }
 
+/** Compact label for the Guests trigger (adults · children · infants). */
+export function formatStayGuestPartySummary(party: StayGuestParty): string {
+  const parts: string[] = [];
+  if (party.adults > 0) {
+    parts.push(`${party.adults} ${party.adults === 1 ? 'adult' : 'adults'}`);
+  }
+  if (party.children > 0) {
+    parts.push(`${party.children} ${party.children === 1 ? 'child' : 'children'}`);
+  }
+  if (party.infants > 0) {
+    parts.push(`${party.infants} ${party.infants === 1 ? 'infant' : 'infants'}`);
+  }
+  if (parts.length === 0) return 'Add guests';
+  return parts.join(' · ');
+}
+
 export function readStayGuestParty(raw: unknown): StayGuestParty | null {
   if (raw == null || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const o = raw as Record<string, unknown>;

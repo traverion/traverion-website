@@ -1981,11 +1981,42 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
   }
 
   .tv-browse-card {
-    transition: transform 180ms ease, box-shadow 180ms ease;
+    transition: transform var(--tv-duration) var(--tv-ease), box-shadow var(--tv-duration) var(--tv-ease);
   }
 
   .tv-browse-card:hover {
-    transform: translateY(-2px);
+    transform: translateY(-3px);
+  }
+
+  .tv-browse-card .tv-browse-card__surface {
+    box-shadow: var(--tv-shadow-rest);
+    transition: box-shadow var(--tv-duration) var(--tv-ease), ring-color var(--tv-duration) var(--tv-ease);
+  }
+
+  .tv-browse-card:hover .tv-browse-card__surface {
+    box-shadow: var(--tv-shadow-hover);
+  }
+
+  .tv-browse-card .tv-browse-card__media img {
+    transition: transform 420ms var(--tv-ease);
+  }
+
+  .tv-browse-card:hover .tv-browse-card__media img {
+    transform: scale(1.045);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tv-browse-card,
+  .tv-browse-card .tv-browse-card__surface,
+  .tv-browse-card .tv-browse-card__media img {
+    transition: none;
+  }
+  .tv-browse-card:hover {
+    transform: none;
+  }
+  .tv-browse-card:hover .tv-browse-card__media img {
+    transform: none;
   }
 }
 
@@ -2658,6 +2689,15 @@ a:focus-visible,
   --tv-section-y: 2.5rem;
   --tv-section-y-lg: 3.5rem;
   --tv-discover-gap: 0.75rem;
+  /* Consumer motion & depth (Stay polish Phase 2) — reusable across traveler UI */
+  --tv-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --tv-duration: 200ms;
+  --tv-duration-fast: 150ms;
+  --tv-shadow-rest: 0 1px 2px rgba(15, 23, 42, 0.04), 0 0 0 1px rgba(28, 25, 23, 0.08);
+  --tv-shadow-hover: 0 12px 28px -16px rgba(15, 23, 42, 0.38), 0 0 0 1px rgba(0, 53, 128, 0.14);
+  --tv-shadow-panel: 0 8px 24px -14px rgba(15, 23, 42, 0.28), 0 0 0 1px rgba(28, 25, 23, 0.1);
+  --tv-shadow-popover: 0 16px 40px -18px rgba(15, 23, 42, 0.42), 0 0 0 1px rgba(28, 25, 23, 0.1);
+  --tv-focus-ring: 0 0 0 3px rgba(0, 53, 128, 0.22);
 }
 
 /* Shared consumer measure: header, catalogs, detail, account. */
@@ -2834,10 +2874,59 @@ a:focus-visible,
 
 /* Phase 1804: listing sticky booking panel — OTA purchase-ready chrome */
 .tv-booking-sticky {
-  border-radius: 0.75rem;
+  border-radius: 1rem;
   background: #ffffff;
-  padding: 1rem 1rem 1.1rem;
-  box-shadow: 0 0 0 1px rgba(28, 25, 23, 0.1);
+  padding: 1.1rem 1.1rem 1.2rem;
+  box-shadow: var(--tv-shadow-panel);
+}
+
+.tv-popover {
+  border-radius: 1rem;
+  background: #ffffff;
+  box-shadow: var(--tv-shadow-popover);
+  transform-origin: top center;
+}
+
+.tv-popover-enter {
+  animation: tv-popover-in var(--tv-duration) var(--tv-ease) both;
+}
+
+@keyframes tv-popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tv-popover-enter {
+    animation: none;
+  }
+}
+
+.tv-quote-reveal {
+  animation: tv-quote-in 220ms var(--tv-ease) both;
+}
+
+@keyframes tv-quote-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tv-quote-reveal {
+    animation: none;
+  }
 }
 @media (min-width: 1024px) {
   .tv-booking-sticky {

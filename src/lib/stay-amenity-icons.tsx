@@ -5,17 +5,22 @@
 import {
   Baby,
   Bath,
+  Bus,
   Car,
   Flame,
   Flower2,
   Heater,
+  Home,
   KeyRound,
+  MapPin,
+  Mountain,
   ParkingCircle,
   Shirt,
   Sofa,
   Sparkles,
   Trees,
   Tv,
+  Users,
   UtensilsCrossed,
   Waves,
   Wifi,
@@ -57,4 +62,19 @@ const AMENITY_ICONS: Record<string, LucideIcon> = {
 
 export function stayAmenityLucideIcon(label: string): LucideIcon | null {
   return AMENITY_ICONS[label] ?? null;
+}
+
+const HIGHLIGHT_ICONS: Record<string, LucideIcon> = {
+  'Peaceful surroundings': Trees,
+  'Private sauna': Flame,
+  'Central location': MapPin,
+  'Family-friendly': Users,
+  'Scenic views': Mountain,
+  'Spacious interiors': Home,
+  'Outdoor hot tub': Waves,
+  'Convenient transport': Bus,
+};
+
+export function stayHighlightLucideIcon(label: string): LucideIcon | null {
+  return HIGHLIGHT_ICONS[label] ?? Sparkles;
 }

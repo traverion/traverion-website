@@ -158,12 +158,12 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
           }
         }}
         onPointerEnter={prefetchTourDetailsPage}
-        className="group lux-flat block w-full overflow-hidden rounded-xl bg-white text-left ring-1 ring-black/[0.08] transition-[box-shadow,ring-color] duration-200 hover:ring-finland/25 hover:shadow-[0_10px_28px_-18px_rgba(15,23,42,0.4)] focus:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
+        className="tv-browse-card__surface group lux-flat block w-full overflow-hidden rounded-xl bg-white text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
         style={{ animationDelay: `${Math.min(index * 35, 240)}ms` }}
         aria-label={`View ${tour.title}. ${priceAria}`}
       >
         <div
-          className={`relative overflow-hidden bg-black/[0.04] ${
+          className={`tv-browse-card__media relative overflow-hidden bg-black/[0.04] ${
             size === 'compact' ? 'aspect-[5/4]' : 'aspect-[4/3]'
           }`}
         >
@@ -176,7 +176,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
               decoding="async"
               width={size === 'compact' ? 640 : 800}
               height={size === 'compact' ? 512 : 600}
-              className="h-full w-full object-cover transition-transform duration-500 ease-out motion-safe:group-hover:scale-[1.04]"
+              className="h-full w-full object-cover"
             />
           ) : null}
           <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-1.5 pr-12">
@@ -210,8 +210,8 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
           </p>
           <h3
             title={tour.title}
-            className={`mt-1 line-clamp-2 break-words font-sans font-bold leading-snug tracking-tight text-[#111827] [overflow-wrap:anywhere] ${
-              size === 'compact' ? 'text-[15px] sm:text-[16px]' : 'text-[15px] sm:text-base'
+            className={`mt-1 line-clamp-2 break-words font-sans font-bold leading-snug tracking-tight text-ink [overflow-wrap:anywhere] ${
+              size === 'compact' ? 'text-[15px] sm:text-[16px]' : 'text-base sm:text-[1.0625rem]'
             }`}
           >
             {tour.title}
@@ -270,7 +270,11 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
                     {formatMoney(originalPrice, currency)}
                   </span>
                 ) : null}
-                <span className={`font-bold tracking-tight ${hasDiscount && !isStay ? 'text-[#B42318]' : 'text-[#111827]'}`}>
+                <span
+                  className={`font-bold tracking-tight ${
+                    hasDiscount && !isStay ? 'text-[#B42318]' : isStay ? 'text-ink' : 'text-ink'
+                  }`}
+                >
                   {formatMoney(isStay ? stayNightly : fromAmount, currency)}
                 </span>
                 <span className="text-[13px] font-medium text-ink-muted">
