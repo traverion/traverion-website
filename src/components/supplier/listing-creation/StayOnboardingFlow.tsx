@@ -3,7 +3,7 @@ import { STAY_ONBOARDING_SCREENS, clampStayIntroInput, quietHoursMentioned, stay
 import { STAY_SAFETY_CONSIDERATIONS, staySafetyConsiderationLines } from '../../../lib/stay-safety';
 import { clampListingDescriptionInput, clampListingTitleInput } from '../../../lib/listingQualityScore';
 import { stayAmenityDisplayList } from '../../../lib/stay-amenities';
-import { stayHighlightAmenityHints, staySelfCheckInConflict } from '../../../lib/stay-creator-consistency';
+import { stayHighlightAmenityHints, staySelfCheckInConflict, stayTurnoverAdvisory } from '../../../lib/stay-creator-consistency';
 import { isStandardStayPropertyType, stayPropertyTypesForMode } from '../../../lib/stay-accommodation';
 import { STAY_ARRIVAL_METHODS, stayArrivalMethodHint, stayArrivalMethodLabel } from '../../../lib/stay-arrival';
 import { STAY_BED_KINDS, stayBedCount, stayBedSummary, stayMixFromAreas, staySleepCapacity, type StayBedKind, type StaySleepingArea } from '../../../lib/stay-beds';
@@ -153,12 +153,17 @@ export default function StayOnboardingFlow(props: Props) {
 
   function writeAreas(nextAreas: StaySleepingArea[]) {
     const bedrooms = nextAreas.filter((area) => !/living/i.test(area.name)).length;
+    const bedMix = stayMixFromAreas(nextAreas);
+    const sleeps = staySleepCapacity(bedMix);
+    const maxGuests =
+      option.maxGuests != null && sleeps >= 1 ? Math.min(option.maxGuests, sleeps) : option.maxGuests;
     writeOption({
       ...option,
       sleepingAreas: nextAreas,
-      bedMix: stayMixFromAreas(nextAreas),
-      beds: stayBedCount(stayMixFromAreas(nextAreas)),
+      bedMix,
+      beds: stayBedCount(bedMix),
       bedrooms,
+      maxGuests: maxGuests ?? null,
     });
   }
 
@@ -797,37 +802,61 @@ function BookingMethodStage() {
 }
 
 function BookingTimesStage({ values, onChange, option }: Props & { option: StayAccommodationOption }) {
+  const turnoverNote = stayTurnoverAdvisory(values.stayCheckIn, values.stayCheckOut);
   function setClock(key: 'stayCheckIn' | 'stayCheckOut', value: string) {
-    const schedules = option.schedules.map((schedule, index) => index === 0 ? { ...schedule, [key === 'stayCheckIn' ? 'checkIn' : 'checkOut']: value } : schedule);
+    const schedules = option.schedules.map((schedule, index) =>
+      index === 0 ? { ...schedule, [key === 'stayCheckIn' ? 'checkIn' : 'checkOut']: value } : schedule
+    );
     const rest = values.stayOptions.filter((row) => row.id !== option.id);
     onChange({ [key]: value, stayOptions: [{ ...option, schedules }, ...rest] });
   }
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      <div>
-        <Field label="Check-in from">
-          <input className="tv-input w-full" type="time" value={values.stayCheckIn} onChange={(e) => setClock('stayCheckIn', e.target.value)} />
-        </Field>
-        <p className="stay-help mt-1.5">Earliest arrival time.</p>
+    <div className="space-y-3">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <Field label="Check-in from">
+            <input
+              className="tv-input w-full"
+              type="time"
+              value={values.stayCheckIn}
+              aria-label="Check-in from"
+              onChange={(e) => setClock('stayCheckIn', e.target.value)}
+            />
+          </Field>
+          <p className="stay-help mt-1.5">Earliest arrival time on the property’s local clock.</p>
+        </div>
+        <div>
+          <Field label="Checkout by">
+            <input
+              className="tv-input w-full"
+              type="time"
+              value={values.stayCheckOut}
+              aria-label="Checkout by"
+              onChange={(e) => setClock('stayCheckOut', e.target.value)}
+            />
+          </Field>
+          <p className="stay-help mt-1.5">Latest departure time on the property’s local clock.</p>
+        </div>
       </div>
-      <div>
-        <Field label="Checkout by">
-          <input className="tv-input w-full" type="time" value={values.stayCheckOut} onChange={(e) => setClock('stayCheckOut', e.target.value)} />
-        </Field>
-        <p className="stay-help mt-1.5">Latest departure time.</p>
-      </div>
+      {turnoverNote ? (
+        <p className="text-sm font-medium text-[#9a6700]" role="status">
+          {turnoverNote}
+        </p>
+      ) : null}
     </div>
   );
 }
 
 function CutoffStage({ option, writeOption }: { option: StayAccommodationOption; writeOption: (next: StayAccommodationOption) => void }) {
   const saved = option.cutoffMinutes ?? 0;
+  const untilCheckIn = saved <= 0;
   const known = saved > 0 ? stayCutoffFromMinutes(saved) : null;
   const unit: StayCutoffUnit = known?.unit ?? 'hours';
   const presetAmounts = stayCutoffAmounts(unit);
-  const amounts = known && !presetAmounts.includes(known.amount)
-    ? [...presetAmounts, known.amount].sort((left, right) => left - right)
-    : presetAmounts;
+  const amounts =
+    known && !presetAmounts.includes(known.amount)
+      ? [...presetAmounts, known.amount].sort((left, right) => left - right)
+      : presetAmounts;
   function write(nextUnit: StayCutoffUnit, amount: number) {
     writeOption({ ...option, cutoffMinutes: stayCutoffToMinutes(nextUnit, amount) });
   }
@@ -835,21 +864,56 @@ function CutoffStage({ option, writeOption }: { option: StayAccommodationOption;
     <div className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Time unit">
-          <select className="tv-input w-full" value={unit} onChange={(event) => {
-            const nextUnit = event.target.value as StayCutoffUnit;
-            write(nextUnit, stayCutoffAmounts(nextUnit)[0]);
-          }}>
+          <select
+            className="tv-input w-full"
+            value={unit}
+            disabled={untilCheckIn}
+            onChange={(event) => {
+              const nextUnit = event.target.value as StayCutoffUnit;
+              write(nextUnit, stayCutoffAmounts(nextUnit)[0]);
+            }}
+          >
             <option value="minutes">Minutes</option>
             <option value="hours">Hours</option>
             <option value="days">Days</option>
           </select>
         </Field>
         <Field label="Amount">
-          <select className="tv-input w-full" value={known ? String(known.amount) : ''} onChange={(event) => write(unit, Number(event.target.value))}>
-            <option value="" disabled>Choose</option>
-            {amounts.map((amount) => <option key={amount} value={amount}>{amount}</option>)}
+          <select
+            className="tv-input w-full"
+            value={known ? String(known.amount) : ''}
+            disabled={untilCheckIn}
+            onChange={(event) => write(unit, Number(event.target.value))}
+          >
+            <option value="" disabled>
+              Choose
+            </option>
+            {amounts.map((amount) => (
+              <option key={amount} value={amount}>
+                {amount}
+              </option>
+            ))}
           </select>
         </Field>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          className={`stay-quiet-suggest ${untilCheckIn ? 'ring-1 ring-[#073b83]/35' : ''}`}
+          aria-pressed={untilCheckIn}
+          onClick={() => writeOption({ ...option, cutoffMinutes: 0 })}
+        >
+          Until check-in
+        </button>
+        {untilCheckIn ? (
+          <button
+            type="button"
+            className="stay-quiet-suggest"
+            onClick={() => write('hours', 5)}
+          >
+            Use 5 hours
+          </button>
+        ) : null}
       </div>
       <StayHelp>{stayCutoffSummary(saved)}</StayHelp>
     </div>
@@ -866,36 +930,60 @@ function AvailabilityStage({ values, option, writeOption }: Props & { option: St
         Open ongoing
         <span className="stay-help mt-1 block font-normal">Guests can book future nights unless a saved schedule says otherwise.</span>
       </StayChoice>
-      <StayChoice pressed={values.stayAvailabilityMode === 'scheduled'} className="flex-col" onClick={() => {
-        if (several) return;
-        const start = season?.start || today;
-        const end = season?.end || today;
-        writeOption({
-          ...option,
-          availabilityMode: 'scheduled',
-          schedules: [{
-            id: season?.id || newStayOptionId(),
-            name: season?.name || 'Open period',
-            start,
-            end,
-            enabled: true,
-            nightlyPrice: option.nightlyPrice,
-            minNights: option.minNights,
-            checkIn: values.stayCheckIn,
-            checkOut: values.stayCheckOut,
-            cleaningFee: option.cleaningFee,
-            extras: season?.extras,
-          }],
-        });
-      }}>
+      <StayChoice
+        pressed={values.stayAvailabilityMode === 'scheduled'}
+        className="flex-col"
+        onClick={() => {
+          if (several) return;
+          const start = season?.start || today;
+          const end = season?.end || today;
+          writeOption({
+            ...option,
+            availabilityMode: 'scheduled',
+            schedules: [
+              {
+                id: season?.id || newStayOptionId(),
+                name: season?.name || 'Open period',
+                start,
+                end,
+                enabled: true,
+                nightlyPrice: option.nightlyPrice,
+                minNights: option.minNights,
+                checkIn: values.stayCheckIn,
+                checkOut: values.stayCheckOut,
+                cleaningFee: option.cleaningFee,
+                extras: season?.extras,
+                maxNights: season?.maxNights ?? null,
+              },
+            ],
+          });
+        }}
+      >
         A first and last night
-        <span className="stay-help mt-1 block font-normal">Nights outside this period cannot be booked.</span>
+        <span className="stay-help mt-1 block font-normal">Only nights from the first through the last occupied night can be booked.</span>
       </StayChoice>
-      {several ? <p className="text-sm text-ink-muted">This stay already has more than one schedule. Those seasons stay as they are. Change them after publishing.</p> : null}
+      {several ? (
+        <p className="text-sm text-ink-muted">This stay already has more than one schedule. Those seasons stay as they are. Change them after publishing.</p>
+      ) : null}
       {values.stayAvailabilityMode === 'scheduled' && !several ? (
-        <div className="grid gap-3 sm:grid-cols-2">
-          <TraverionSingleDateField id="stay-open-start" label="First occupied night" value={season?.start ?? ''} minIso={today} onChange={(start) => season && writeOption({ ...option, schedules: [{ ...season, start }] })} />
-          <TraverionSingleDateField id="stay-open-end" label="Last occupied night" value={season?.end ?? ''} minIso={season?.start || today} onChange={(end) => season && writeOption({ ...option, schedules: [{ ...season, end }] })} />
+        <div className="space-y-2">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <TraverionSingleDateField
+              id="stay-open-start"
+              label="First occupied night"
+              value={season?.start ?? ''}
+              minIso={today}
+              onChange={(start) => season && writeOption({ ...option, schedules: [{ ...season, start }] })}
+            />
+            <TraverionSingleDateField
+              id="stay-open-end"
+              label="Last occupied night"
+              value={season?.end ?? ''}
+              minIso={season?.start || today}
+              onChange={(end) => season && writeOption({ ...option, schedules: [{ ...season, end }] })}
+            />
+          </div>
+          <StayHelp>The last occupied night is included. The checkout morning after that night is not charged.</StayHelp>
         </div>
       ) : null}
       <StayHelp>You can update your availability, block specific dates, and manage your calendar anytime after creating your listing.</StayHelp>
@@ -918,11 +1006,30 @@ function Stepper({ label, value, min, max, onChange, shown }: { label: string; v
 
 function GuestsStage({ values, option, writeOption }: Props & { option: StayAccommodationOption; writeOption: (next: StayAccommodationOption) => void }) {
   const sleeps = staySleepCapacity(option.bedMix);
-  const guests = Math.max(1, Number.parseInt(values.stayMaxGuests, 10) || option.maxGuests || 1);
+  const cap = sleeps >= 1 ? sleeps : 50;
+  const raw = Math.max(1, Number.parseInt(values.stayMaxGuests, 10) || option.maxGuests || 1);
+  const guests = Math.min(raw, cap);
+  useEffect(() => {
+    if (sleeps < 1) return;
+    if (option.maxGuests == null || option.maxGuests <= sleeps) return;
+    writeOption({ ...option, maxGuests: sleeps });
+    // Clamp only when sleep capacity drops below the saved guest limit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: beds/sleeps drive the correction
+  }, [sleeps, option.maxGuests]);
   return (
     <div className="space-y-4">
-      <Stepper label="Maximum guests" value={guests} min={1} max={50} onChange={(maxGuests) => writeOption({ ...option, maxGuests })} />
-      {sleeps >= 1 ? <StayHelp>The beds sleep up to {sleeps}. A higher guest limit cannot be published.</StayHelp> : null}
+      <Stepper
+        label="Maximum guests"
+        value={guests}
+        min={1}
+        max={cap}
+        onChange={(maxGuests) => writeOption({ ...option, maxGuests: Math.min(maxGuests, cap) })}
+      />
+      {sleeps >= 1 ? (
+        <StayHelp>The beds sleep up to {sleeps}. The guest limit cannot go above that.</StayHelp>
+      ) : (
+        <StayHelp>Add beds on the sleeping screen so the guest limit can match capacity.</StayHelp>
+      )}
     </div>
   );
 }
@@ -930,25 +1037,28 @@ function GuestsStage({ values, option, writeOption }: Props & { option: StayAcco
 function StayLengthStage({ values, option, writeOption }: Props & { option: StayAccommodationOption; writeOption: (next: StayAccommodationOption) => void }) {
   const minNights = Math.max(1, Number.parseInt(values.stayMinNights, 10) || option.minNights || 1);
   const maxNights = option.schedules[0]?.maxNights ?? null;
+  const unlimited = maxNights == null;
   function setMax(next: number | null) {
     const season = option.schedules[0];
     if (!season) {
       if (next == null) return;
       writeOption({
         ...option,
-        schedules: [{
-          id: newStayOptionId(),
-          name: 'Standard',
-          start: '2020-01-01',
-          end: '2099-12-31',
-          enabled: true,
-          nightlyPrice: option.nightlyPrice,
-          minNights: option.minNights,
-          checkIn: values.stayCheckIn,
-          checkOut: values.stayCheckOut,
-          cleaningFee: option.cleaningFee,
-          maxNights: next,
-        }],
+        schedules: [
+          {
+            id: newStayOptionId(),
+            name: 'Standard',
+            start: '2020-01-01',
+            end: '2099-12-31',
+            enabled: true,
+            nightlyPrice: option.nightlyPrice,
+            minNights: option.minNights,
+            checkIn: values.stayCheckIn,
+            checkOut: values.stayCheckOut,
+            cleaningFee: option.cleaningFee,
+            maxNights: next,
+          },
+        ],
       });
       return;
     }
@@ -967,7 +1077,7 @@ function StayLengthStage({ values, option, writeOption }: Props & { option: Stay
             writeOption({
               ...option,
               minNights: nights,
-              schedules: option.schedules.map((row, index) => index === 0 ? { ...row, maxNights: nights } : row),
+              schedules: option.schedules.map((row, index) => (index === 0 ? { ...row, maxNights: nights } : row)),
             });
             return;
           }
@@ -976,21 +1086,25 @@ function StayLengthStage({ values, option, writeOption }: Props & { option: Stay
       />
       <Stepper
         label="Maximum nights"
-        value={maxNights ?? Math.max(0, minNights - 1)}
+        value={maxNights ?? Math.max(minNights, 1)}
         min={minNights}
         max={365}
-        shown={maxNights == null ? '—' : undefined}
+        shown={unlimited ? 'No limit' : undefined}
         onChange={(nights) => setMax(nights)}
       />
       <button
         type="button"
-        className="min-h-11 text-sm font-semibold text-finland disabled:text-ink-muted"
-        aria-pressed={maxNights == null}
-        disabled={maxNights == null}
+        className={`min-h-11 text-sm font-semibold ${unlimited ? 'text-[#073b83]' : 'text-finland'}`}
+        aria-pressed={unlimited}
         onClick={() => setMax(null)}
       >
-        No maximum limit
+        {unlimited ? 'No maximum limit (selected)' : 'No maximum limit'}
       </button>
+      <StayHelp>
+        {unlimited
+          ? 'No maximum stay length. Guests can book as many nights as the calendar allows, subject to the minimum.'
+          : `Guests can book between ${minNights} and ${maxNights} night${maxNights === 1 ? '' : 's'}. Checkout uses the same limits.`}
+      </StayHelp>
     </div>
   );
 }

@@ -3,6 +3,41 @@ import { stayAmenityDisplayList } from './stay-amenities';
 /** Arrival methods that match a Self check-in amenity. */
 const SELF_ARRIVAL = new Set(['self', 'lockbox', 'smart_lock']);
 
+const CLOCK = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+function clockMinutes(value: string): number | null {
+  const match = CLOCK.exec(value.trim());
+  if (!match) return null;
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
+/**
+ * Same-day turnover between checkout and the next check-in.
+ * Null when either clock is missing. Soft advisory only.
+ */
+export function staySameDayTurnoverHours(checkIn: string, checkOut: string): number | null {
+  const arrive = clockMinutes(checkIn);
+  const leave = clockMinutes(checkOut);
+  if (arrive == null || leave == null) return null;
+  if (arrive > leave) return (arrive - leave) / 60;
+  return (arrive + 24 * 60 - leave) / 60;
+}
+
+/** Non-blocking note when same-day cleaning time looks unusually short. */
+export function stayTurnoverAdvisory(checkIn: string, checkOut: string): string | null {
+  const hours = staySameDayTurnoverHours(checkIn, checkOut);
+  if (hours == null) return null;
+  const arrive = clockMinutes(checkIn);
+  const leave = clockMinutes(checkOut);
+  if (arrive != null && leave != null && arrive <= leave) {
+    return 'Check-in is not after checkout on the same day. Guests arriving after a departure may have little or no turnover time.';
+  }
+  if (hours < 2) {
+    return `Same-day turnover is about ${hours === 1 ? '1 hour' : `${hours} hours`} between checkout and check-in. That can be tight for cleaning.`;
+  }
+  return null;
+}
+
 /**
  * Soft warning when Self check-in is listed but arrival does not match.
  * Does not change saved amenities or arrival method.
