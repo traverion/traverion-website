@@ -19,6 +19,8 @@ import {
   resumePendingBookingCheckout,
   type BookingRow,
 } from '../data/supabase-bookings';
+import StayRequestActions from '../components/StayRequestActions';
+import { isStayRequestAwaitingHost } from '../lib/stay-request-approval';
 import { fetchListingOpsByIds, pgTimeToHm, type ListingOpsMeta } from '../data/supabase-listings';
 import { stayRangeFromBooking, nightsOccupiedByStay } from '../lib/stayOccupancy';
 import {
@@ -898,10 +900,18 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           <div className="space-y-3">
             {visibleBookings.map((b) => {
               const open = openTripId === b.id;
-              const lifecycle = bookingLifecycleLabel(b.status, b.payment_status, {
-                hold_expires_at: b.hold_expires_at,
-                created_at: b.created_at,
-              });
+              const lifecycle = bookingLifecycleLabel(
+                b.status,
+                b.payment_status,
+                {
+                  hold_expires_at: b.hold_expires_at,
+                  created_at: b.created_at,
+                },
+                {
+                  approval_status: b.approval_status,
+                  approval_expires_at: b.approval_expires_at,
+                }
+              );
               const payLabel = travelerPaymentLabel(b);
               const guestNotes = guestFacingBookingNotes(b.special_requests);
               const openCancelRaw = cancelRequests[b.id];
@@ -1216,6 +1226,16 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       </button>
                     ))}
                   </div>
+                  {tripDetailTab === 'overview' && isStayRequestAwaitingHost(b) ? (
+                    <StayRequestActions
+                      role="traveler"
+                      booking={{
+                        ...b,
+                        listingTitle: tripTitle,
+                      }}
+                      onDone={() => void load()}
+                    />
+                  ) : null}
                   <dl className={`tv-trip-card__facts ${tripDetailTab === 'messages' ? 'hidden' : ''}`}>
                     {tripDetailTab === 'overview' ? (
                     <div>

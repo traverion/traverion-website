@@ -18,15 +18,17 @@ export function stayStickyBookCtaLabel(params: {
   selfBookCheckFailed?: boolean;
   /** Terms not accepted yet — keep CTA tappable (Phase 1353). */
   acceptTerms?: boolean;
+  /** Listing uses Request to Book (authorize now, host accepts within 24h). */
+  requestToBook?: boolean;
 }): string {
   if (params.selfBookCheckFailed) return 'Eligibility unavailable';
   if (params.selfBookBlocked) return 'Cannot book own listing';
   if (params.selectionOccupied) return 'Dates unavailable';
   if (params.occupancyUnavailable) return 'Availability unavailable';
-  if (params.paying) return TRAVELER_OPENING_CHECKOUT_CTA;
+  if (params.paying) return params.requestToBook ? 'Sending request…' : TRAVELER_OPENING_CHECKOUT_CTA;
   if (params.quoteOk && params.acceptTerms) return 'Accept terms';
   if (params.quoteOk && params.leadGuestReady === false) return 'Add guest name';
-  if (params.quoteOk) return TRAVELER_CONTINUE_TEST_CTA;
+  if (params.quoteOk) return params.requestToBook ? 'Request to book' : TRAVELER_CONTINUE_TEST_CTA;
   // Phase 1313: keep quote-error branch readable (was one-line jammed after Continue).
   // Phase 1520: do not call every quote failure “Fix dates” (Tour capacity parity).
   if (params.checkIn && params.checkOut && params.quoteError) {

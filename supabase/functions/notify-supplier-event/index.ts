@@ -69,8 +69,8 @@ type Payload = {
   messagePreview?: string;
   /** Human-readable summary of what changed (booking_detail_changed) */
   changeSummary?: string;
-  /** new_booking: whether traveler already paid online (Stripe). */
-  bookingPaymentStatus?: 'paid' | 'pending' | 'none';
+  /** new_booking: whether traveler already paid online (Stripe), or Request-to-Book authorized. */
+  bookingPaymentStatus?: 'paid' | 'pending' | 'none' | 'authorized';
   /** guest_message / booking_detail_changed: structured previous → new values. */
   fieldDiffs?: FieldDiff[];
   /** Global sequential order number; emails show as #N */
@@ -135,6 +135,9 @@ function eventSubject(payload: Payload): string {
   const ref = (payload.publicReference ?? '').trim();
   const dated = payload.bookingDate ? ` · ${payload.bookingDate}` : '';
   if (payload.eventType === 'new_booking') {
+    if (payload.bookingPaymentStatus === 'authorized') {
+      return `Booking request · ${listing}${dated}`;
+    }
     if (payload.bookingPaymentStatus === 'paid') return `New booking · ${listing}${dated}`;
     return `New booking · ${listing}${dated}`;
   }
@@ -269,6 +272,8 @@ function eventBody(payload: Payload): string {
   }
   if (payload.eventType === 'new_booking' && payload.bookingPaymentStatus === 'paid') {
     lines.push('Payment: paid online (Stripe)');
+  } else if (payload.eventType === 'new_booking' && payload.bookingPaymentStatus === 'authorized') {
+    lines.push('Payment: authorized · capture after you accept (24h)');
   } else if (payload.eventType === 'new_booking') {
     lines.push('Payment: pending / not via online checkout');
   }
@@ -343,6 +348,10 @@ function eventHtml(payload: Payload): string {
       // Keep in sync with SUPPLIER_NEW_BOOKING_PAID_NOTIFY_SUB
       sub =
         'Payment is confirmed. The booking details are below.';
+    } else if (payload.bookingPaymentStatus === 'authorized') {
+      headline = 'New booking request';
+      sub =
+        'A guest requested this stay. Payment is authorized. Accept within 24 hours to capture payment, or decline to release the hold.';
     } else {
       headline = 'New booking';
       // Keep in sync with SUPPLIER_NEW_BOOKING_PENDING_NOTIFY_SUB

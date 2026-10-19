@@ -25,6 +25,7 @@ import { normalizeStayBedMix, type StayBedMix } from '../lib/stay-beds';
 import { normalizeStayOptions, type StayAccommodationOption } from '../lib/stay-options';
 import { normalizeStayGuestPolicy, type StayGuestPolicy } from '../lib/stay-guest-party';
 import type { StayArrivalMethod } from '../lib/stay-arrival';
+import { normalizeStayBookingMethod, type StayBookingMethod } from '../lib/stay-booking-method';
 
 /** Legacy preset values still parsed from stored `listing_extras` JSON. */
 export type CancellationPreset = 'free_24h' | 'free_48h' | 'free_7d' | 'non_refundable' | 'custom';
@@ -413,6 +414,11 @@ export type StayDetails = {
   pinPlaceId?: string;
   /** How guests enter. Not an access code. */
   arrivalMethod?: StayArrivalMethod;
+  /**
+   * Instant booking (default) or Request to Book.
+   * Request authorizes payment first; host must accept within 24 hours before capture.
+   */
+  bookingMethod?: StayBookingMethod;
   /** Short public note. Access codes belong in the private arrival address. */
   arrivalNote?: string;
   /** Age bands and whether infants count toward maxGuests. */
@@ -480,6 +486,9 @@ function normalizeStayDetails(raw: unknown): StayDetails | undefined {
     o.arrivalMethod === 'other'
   ) {
     out.arrivalMethod = o.arrivalMethod;
+  }
+  if (o.bookingMethod === 'request' || o.bookingMethod === 'instant') {
+    out.bookingMethod = normalizeStayBookingMethod(o.bookingMethod);
   }
   if (typeof o.arrivalNote === 'string' && o.arrivalNote.trim()) out.arrivalNote = o.arrivalNote.trim().slice(0, 160);
   if (o.guestPolicy != null && typeof o.guestPolicy === 'object') out.guestPolicy = normalizeStayGuestPolicy(o.guestPolicy);

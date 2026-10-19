@@ -7,6 +7,7 @@ import { stayAmenityDisplayList } from '../../../lib/stay-amenities';
 import { stayHighlightAmenityHints, staySelfCheckInConflict, stayTurnoverAdvisory } from '../../../lib/stay-creator-consistency';
 import { isStandardStayPropertyType, stayPropertyTypesForMode } from '../../../lib/stay-accommodation';
 import { STAY_ARRIVAL_METHODS, stayArrivalMethodHint, stayArrivalMethodLabel, stayPublicArrivalNoteBlocker } from '../../../lib/stay-arrival';
+import { STAY_BOOKING_METHODS, type StayBookingMethod } from '../../../lib/stay-booking-method';
 import { STAY_BED_KINDS, stayBedCount, stayBedSummary, stayMixFromAreas, staySleepCapacity, type StayBedKind, type StaySleepingArea } from '../../../lib/stay-beds';
 import { activeStayOptions, emptyStayOption, newStayOptionId, pruneStayRoomPhotosForGallery, type StayAccommodationOption } from '../../../lib/stay-options';
 import { STAY_GUEST_CANCELLATION_POLICY } from '../../../types/listingExtras';
@@ -64,6 +65,7 @@ type Values = {
   stayNightly: string;
   stayCleaningFee: string;
   stayArrivalMethod: '' | 'self' | 'host' | 'lockbox' | 'smart_lock' | 'reception' | 'other';
+  stayBookingMethod: StayBookingMethod;
   stayArrivalNote: string;
   photoSlots: PhotoSlot[];
   photoSlotLabels: string[];
@@ -207,7 +209,7 @@ export default function StayOnboardingFlow(props: Props) {
         {id === 'rooms' ? <RoomsStage areas={areas} maxGuests={props.values.stayMaxGuests} onChange={writeAreas} /> : null}
         {id === 'description' ? <DescriptionStage {...props} /> : null}
         {id === 'highlights' ? <HighlightsStage {...props} /> : null}
-        {id === 'booking-method' ? <BookingMethodStage /> : null}
+        {id === 'booking-method' ? <BookingMethodStage values={values} onChange={onChange} /> : null}
         {id === 'booking-times' ? <BookingTimesStage {...props} option={option} /> : null}
         {id === 'booking-cutoff' ? <CutoffStage option={option} writeOption={writeOption} /> : null}
         {id === 'availability' ? <AvailabilityStage {...props} option={option} writeOption={writeOption} /> : null}
@@ -816,19 +818,35 @@ function HighlightsStage({ values, onChange }: Props) {
   );
 }
 
-function BookingMethodStage() {
+function BookingMethodStage({ values, onChange }: Props) {
   return (
-    <section className="stay-panel space-y-2" aria-labelledby="stay-booking-method-title">
-      <p id="stay-booking-method-title" className="text-sm font-semibold text-ink">
-        Instant booking
+    <div className="space-y-3" aria-labelledby="stay-booking-method-title">
+      <p id="stay-booking-method-title" className="sr-only">
+        How reservations work
       </p>
-      <p className="text-sm leading-relaxed text-ink-muted">
-        Guests book available dates immediately and pay securely at checkout. This listing uses Instant booking only.
-      </p>
-      <p className="text-xs leading-relaxed text-ink-muted" role="note">
-        No other booking method is available for stays here.
-      </p>
-    </section>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {STAY_BOOKING_METHODS.map((method) => {
+          const on = values.stayBookingMethod === method.id;
+          return (
+            <StayChoice
+              key={method.id}
+              pressed={on}
+              onClick={() => onChange({ stayBookingMethod: method.id })}
+            >
+              <span className="block text-sm font-semibold text-ink">{method.label}</span>
+              <span className="mt-1 block text-xs font-normal leading-relaxed text-ink-muted">{method.body}</span>
+            </StayChoice>
+          );
+        })}
+      </div>
+      {values.stayBookingMethod === 'request' ? (
+        <StayHelp>
+          Guests authorize payment when they request. Funds are captured only after you accept within 24 hours. Declined or expired requests release the authorization and dates.
+        </StayHelp>
+      ) : (
+        <StayHelp>Guests book available dates immediately and pay securely at checkout.</StayHelp>
+      )}
+    </div>
   );
 }
 

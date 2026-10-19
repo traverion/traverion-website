@@ -49,6 +49,7 @@ import CheckoutConsentCheckbox from '../components/booking/CheckoutConsentCheckb
 import { checkoutPayBlockedByConsent } from '../lib/checkout-consent';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { CHECKOUT_HOLD_MINUTES } from '../lib/booking-hold';
+import { STAY_REQUEST_APPROVAL_HOURS } from '../lib/stay-booking-method';
 import { formatOccupiedNightRanges, formatStayNightHuman, upcomingOccupiedNights } from '../lib/stay-calendar';
 import { stayAmenityDisplayList } from '../lib/stay-amenities';
 import { stayStickyBookCtaLabel } from '../lib/stay-sticky-cta';
@@ -592,6 +593,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
       .filter(Boolean)
       .join(' ') || undefined;
 
+  const requestToBook = extras.stay?.bookingMethod === 'request';
   const stickyStayCtaLabel = stayStickyBookCtaLabel({
     selectionOccupied,
     paying,
@@ -605,6 +607,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
     selfBookBlocked,
     selfBookCheckFailed,
     acceptTerms: quoteOk && checkoutPayBlockedByConsent(checkoutConsentAccepted),
+    requestToBook,
   });
 
   const focusStayQuoteFailure = () => {
@@ -1403,7 +1406,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
               id="stay-booking-panel-title"
               className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland"
             >
-              Book this stay
+              {requestToBook ? 'Request this stay' : 'Book this stay'}
             </p>
             {/* Phase 1548: dates selected + failed quote — do not invent catalog nightly (1546 sticky parity). */}
             {/* Phase 1606: Price unavailable (Tour 1604 parity) instead of an em dash. */}
@@ -1566,7 +1569,11 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                       : null
                   }
                   // Phase 1657: release-on-expiry parity with tour checkout hold note.
-                  holdNote={`Nights are held for ${CHECKOUT_HOLD_MINUTES} minutes after you continue to Stripe. If checkout expires, the hold is released.`}
+                  holdNote={
+                    requestToBook
+                      ? `Your card is authorized at checkout. The host has ${STAY_REQUEST_APPROVAL_HOURS} hours to accept. Payment is captured only after they accept. If they decline or the request expires, the authorization is released.`
+                      : `Nights are held for ${CHECKOUT_HOLD_MINUTES} minutes after you continue to Stripe. If checkout expires, the hold is released.`
+                  }
                 />
               </div>
             ) : null}
@@ -1652,8 +1659,14 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                   {stickyStayCtaLabel}
                 </button>
                 <p className="mt-3 text-xs text-ink-muted leading-relaxed">
-                  Price is confirmed on the server. If checkout cannot start, you will see an error — never a fake success.
-                  {!user ? ' Sign in when prompted — you are not charged until Stripe confirms payment.' : ''}
+                  {requestToBook
+                    ? 'Price is confirmed on the server. Your payment method is authorized only — funds are not captured until the host accepts. You will not see a confirmed booking before that.'
+                    : 'Price is confirmed on the server. If checkout cannot start, you will see an error — never a fake success.'}
+                  {!user
+                    ? requestToBook
+                      ? ' Sign in when prompted to send your request.'
+                      : ' Sign in when prompted — you are not charged until Stripe confirms payment.'
+                    : ''}
                 </p>
               </>
             ) : (

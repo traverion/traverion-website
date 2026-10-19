@@ -77,7 +77,7 @@ serve(async (req) => {
     }
 
     const pay = String(booking.payment_status ?? '').toLowerCase();
-    if (pay === 'paid' || pay === 'refunded') {
+    if (pay === 'paid' || pay === 'refunded' || pay === 'authorized') {
       return json({
         success: true,
         alreadySettled: true,
@@ -87,8 +87,17 @@ serve(async (req) => {
     }
 
     const stripe = new Stripe(stripeSecret);
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
-    if (session.payment_status !== 'paid') {
+    const session = await stripe.checkout.sessions.retrieve(sessionId, {
+      expand: ['payment_intent'],
+    });
+    const piExpanded = session.payment_intent;
+    const piObj =
+      piExpanded && typeof piExpanded === 'object' && 'status' in piExpanded
+        ? (piExpanded as { status?: string; capture_method?: string })
+        : null;
+    const piRequiresCapture = String(piObj?.status ?? '').toLowerCase() === 'requires_capture';
+    // Instant: session must be paid. Request-to-Book: allow unpaid session when PI is authorized.
+    if (session.payment_status !== 'paid' && !piRequiresCapture) {
       return json({
         success: true,
         promoted: false,

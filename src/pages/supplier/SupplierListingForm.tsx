@@ -933,6 +933,7 @@ type ListingFormState = {
   stayQuietEnd: string;
   stayCheckInAddress: string;
   stayArrivalMethod: '' | 'self' | 'host' | 'lockbox' | 'smart_lock' | 'reception' | 'other';
+  stayBookingMethod: 'instant' | 'request';
   stayArrivalNote: string;
   /** Guest-facing place label. Never written into the geographical destination. */
   stayLocationDisplayName: string;
@@ -1163,6 +1164,7 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
             pinLng: form.stayPinLng ?? undefined,
             pinPlaceId: form.stayPinPlaceId.trim() || undefined,
             arrivalMethod: form.stayArrivalMethod || undefined,
+            bookingMethod: form.stayBookingMethod === 'request' ? 'request' : 'instant',
             arrivalNote: form.stayArrivalNote.trim() || undefined,
             guestPolicy: activeStayOptions(form.stayOptions)[0]
               ? normalizeStayGuestPolicy(activeStayOptions(form.stayOptions)[0]?.guestPolicy)
@@ -1454,6 +1456,7 @@ const emptyForm: ListingFormState = {
   stayQuietEnd: '',
   stayCheckInAddress: '',
   stayArrivalMethod: '',
+  stayBookingMethod: 'instant',
   stayArrivalNote: '',
   stayLocationDisplayName: '',
   stayAddressStreet: '',
@@ -1528,6 +1531,7 @@ function coerceListingFormState(raw: Partial<ListingFormState> | null | undefine
   merged.stayArrivalMethod = ['self', 'host', 'lockbox', 'smart_lock', 'reception', 'other'].includes(merged.stayArrivalMethod)
     ? merged.stayArrivalMethod
     : '';
+  merged.stayBookingMethod = merged.stayBookingMethod === 'request' ? 'request' : 'instant';
   merged.stayArrivalNote = typeof merged.stayArrivalNote === 'string' ? merged.stayArrivalNote.slice(0, 160) : '';
   merged.stayAvailabilityMode = merged.stayAvailabilityMode === 'scheduled' ? 'scheduled' : 'open';
   merged.staySeasons = normalizeStaySeasons(merged.staySeasons);
@@ -2298,6 +2302,7 @@ export default function SupplierListingForm({
           stayQuietEnd: extras.stay?.restrictions?.quietHours?.end ?? '',
           stayCheckInAddress: extras.stay?.checkInAddress ?? '',
           stayArrivalMethod: extras.stay?.arrivalMethod ?? '',
+          stayBookingMethod: extras.stay?.bookingMethod === 'request' ? 'request' : 'instant',
           stayArrivalNote: extras.stay?.arrivalNote ?? '',
           stayLocationDisplayName: stayLocationDisplayNameFromListing(
             extras.stay?.locationDisplayName,

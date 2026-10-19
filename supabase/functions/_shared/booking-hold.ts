@@ -13,6 +13,15 @@ export function bookingOccupiesInventory(row: InventoryHoldRow, nowMs: number = 
   if ((row.status ?? '').trim().toLowerCase() === 'cancelled') return false;
   const pay = (row.payment_status ?? 'pending').trim().toLowerCase();
   if (pay === 'paid' || pay === 'complete' || pay === 'succeeded') return true;
+  // Authorized Request-to-Book holds inventory until host accepts, declines, or the window expires.
+  if (pay === 'authorized') {
+    if (row.hold_expires_at) {
+      const exp = Date.parse(row.hold_expires_at);
+      return Number.isFinite(exp) && exp > nowMs;
+    }
+    const created = row.created_at ? Date.parse(row.created_at) : nowMs;
+    return Number.isFinite(created) && created > nowMs - 24 * 60 * 60 * 1000;
+  }
   if (pay !== 'pending') return false;
   if (row.hold_expires_at) {
     const exp = Date.parse(row.hold_expires_at);

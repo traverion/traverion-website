@@ -107,6 +107,8 @@ export type BookingRow = {
   /** Present when selected with payment columns (supplier list, dashboard). */
   payment_status?: string;
   checkout_session_id?: string | null;
+  payment_intent_id?: string | null;
+  total_amount?: number | null;
   amount_paid?: number | null;
   currency?: string | null;
   /** Stay check-out (exclusive). Null for tours. */
@@ -119,6 +121,10 @@ export type BookingRow = {
   booking_option_id?: string | null;
   /** Pending checkout inventory hold expiry (Stripe session). */
   hold_expires_at?: string | null;
+  /** Stay Request-to-Book host decision (null for Instant). */
+  approval_status?: string | null;
+  approval_expires_at?: string | null;
+  approval_decided_at?: string | null;
   /** Checkout-time commercial display (title/option/meeting); prefer over live listing. */
   purchase_snapshot?: {
     listingTitle?: string;
@@ -134,9 +140,15 @@ export type BookingRow = {
 export type BookingWithPaymentRow = BookingRow;
 
 const BOOKING_LIST_COLUMNS =
+  'id, listing_id, guest_email, guest_name, guests, booking_date, check_out, nights, nightly_amount, cleaning_fee, status, special_requests, cancellation_reason, refund_choice, cancelled_at, acknowledged_at, created_at, start_time, pickup_time, booking_number, public_reference, guest_breakdown, booking_option_id, hold_expires_at, purchase_snapshot, approval_status, approval_expires_at, approval_decided_at';
+
+const BOOKING_PAYMENT_COLUMNS = `${BOOKING_LIST_COLUMNS}, payment_status, checkout_session_id, payment_intent_id, total_amount, amount_paid, currency`;
+
+/** Pre–approval columns (migration 252). */
+const BOOKING_LIST_COLUMNS_NO_APPROVAL =
   'id, listing_id, guest_email, guest_name, guests, booking_date, check_out, nights, nightly_amount, cleaning_fee, status, special_requests, cancellation_reason, refund_choice, cancelled_at, acknowledged_at, created_at, start_time, pickup_time, booking_number, public_reference, guest_breakdown, booking_option_id, hold_expires_at, purchase_snapshot';
 
-const BOOKING_PAYMENT_COLUMNS = `${BOOKING_LIST_COLUMNS}, payment_status, checkout_session_id, amount_paid, currency`;
+const BOOKING_PAYMENT_COLUMNS_NO_APPROVAL = `${BOOKING_LIST_COLUMNS_NO_APPROVAL}, payment_status, checkout_session_id, total_amount, amount_paid, currency`;
 
 /** Pre–purchase_snapshot (migration 077). */
 const BOOKING_LIST_COLUMNS_NO_SNAPSHOT =
@@ -535,6 +547,7 @@ export async function fetchBookingsForSupplier(supplierId: string): Promise<Book
 
   const columnTiers = [
     BOOKING_PAYMENT_COLUMNS,
+    BOOKING_PAYMENT_COLUMNS_NO_APPROVAL,
     BOOKING_PAYMENT_COLUMNS_NO_SNAPSHOT,
     BOOKING_PAYMENT_COLUMNS_NO_HOLD,
     BOOKING_PAYMENT_COLUMNS_NO_BREAKDOWN,
@@ -1252,12 +1265,14 @@ export async function fetchMyBookings(): Promise<BookingRow[]> {
   }
   const columnTiers = [
     BOOKING_PAYMENT_COLUMNS,
+    BOOKING_PAYMENT_COLUMNS_NO_APPROVAL,
     BOOKING_PAYMENT_COLUMNS_NO_SNAPSHOT,
     BOOKING_PAYMENT_COLUMNS_NO_HOLD,
     BOOKING_PAYMENT_COLUMNS_NO_BREAKDOWN,
     BOOKING_PAYMENT_COLUMNS_NO_HOLD_NO_BREAKDOWN,
     BOOKING_PAYMENT_COLUMNS_LEGACY,
     BOOKING_LIST_COLUMNS,
+    BOOKING_LIST_COLUMNS_NO_APPROVAL,
     BOOKING_LIST_COLUMNS_NO_SNAPSHOT,
     BOOKING_LIST_COLUMNS_NO_HOLD,
     BOOKING_LIST_COLUMNS_NO_BREAKDOWN,
@@ -1280,6 +1295,29 @@ export async function fetchMyBookings(): Promise<BookingRow[]> {
     if (!isLikelyMissingColumnError(error.message)) break;
   }
   throw new Error(lastError ?? 'Could not load bookings');
+}
+
+/** Accept, decline, or withdraw a Stay Request-to-Book (authorized payment). */
+export async function stayBookingRequestAction(params: {
+  bookingId: string;
+  action: 'accept' | 'decline' | 'withdraw';
+}): Promise<{ success: boolean; error?: string }> {
+  if (!supabase) return { success: false, error: 'Supabase not configured' };
+  if (!appStripeIsTestMode()) {
+    return { success: false, error: stripeLivePublishableBlockedMessage() };
+  }
+  const { data, error } = await supabase.functions.invoke('stay-booking-request-action', {
+    body: { bookingId: params.bookingId, action: params.action },
+  });
+  if (error) {
+    return { success: false, error: await readEdgeFunctionErrorMessage(error, data) };
+  }
+  const payload = data as { success?: unknown; error?: unknown } | null;
+  if (payload?.success) return { success: true };
+  return {
+    success: false,
+    error: typeof payload?.error === 'string' ? payload.error : 'Could not update this request',
+  };
 }
 
 /**

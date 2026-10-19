@@ -1,0 +1,59 @@
+# Hourly: expire Stay Request-to-Book rows past the 24h approval window.
+# Edge: expire-stay-booking-requests (cancels Stripe authorizations + notifies).
+#
+# Auth: Bearer STAY_REQUEST_EXPIRE_SECRET or CRON_SECRET (same value as Edge secret).
+
+name: Expire stay booking requests
+
+on:
+  schedule:
+    - cron: '12 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: expire-stay-booking-requests
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  expire:
+    name: Call expire-stay-booking-requests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: POST expire-stay-booking-requests
+        env:
+          STAY_REQUEST_EXPIRE_SECRET: ${{ secrets.STAY_REQUEST_EXPIRE_SECRET }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          FUNCTION_URL: https://xcopqllkulxfkpunetbc.supabase.co/functions/v1/expire-stay-booking-requests
+        run: |
+          set -euo pipefail
+          SECRET="${STAY_REQUEST_EXPIRE_SECRET:-${CRON_SECRET:-}}"
+          if [ -z "${SECRET}" ]; then
+            echo "::error::Set STAY_REQUEST_EXPIRE_SECRET or CRON_SECRET in GitHub Actions secrets."
+            exit 1
+          fi
+
+          HTTP_CODE="$(curl -sS -o /tmp/expire-stay-response.json -w '%{http_code}' \
+            --connect-timeout 15 \
+            --max-time 120 \
+            -X POST "${FUNCTION_URL}" \
+            -H "Authorization: Bearer ${SECRET}" \
+            -H "Content-Type: application/json" \
+            -d '{}')"
+
+          echo "HTTP status: ${HTTP_CODE}"
+          cat /tmp/expire-stay-response.json || true
+          echo
+
+          case "${HTTP_CODE}" in
+            2??)
+              echo "expire-stay-booking-requests succeeded."
+              ;;
+            *)
+              echo "::error::expire-stay-booking-requests failed with HTTP ${HTTP_CODE}"
+              exit 1
+              ;;
+          esac

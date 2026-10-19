@@ -22,7 +22,8 @@ export function checkoutResumeLostRaceToPaid(paymentStatus: string | null | unde
   const pay = String(paymentStatus ?? '')
     .trim()
     .toLowerCase();
-  return pay === 'paid' || pay === 'refunded';
+  // Authorized Request-to-Book must not open a second Checkout over the same hold.
+  return pay === 'paid' || pay === 'refunded' || pay === 'authorized';
 }
 
 /**

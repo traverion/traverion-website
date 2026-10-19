@@ -188,7 +188,9 @@ function matchesPayment(row: PartnerBookingsDeskRow, payment: PartnerBookingsPay
   const pay = (row.payment_status ?? '').trim().toLowerCase();
   if (payment === 'refund_due') return isRefundDueBooking(row);
   if (payment === 'refunded') return pay === 'refunded';
-  if (payment === 'unpaid') return partnerBookingIsUnpaidCheckout(row);
+  if (payment === 'unpaid') {
+    return partnerBookingIsUnpaidCheckout(row) || pay === 'authorized';
+  }
   if (payment === 'paid') return isPaidPaymentStatus(pay) && pay !== 'refunded' && !isRefundDueBooking(row);
   return true;
 }

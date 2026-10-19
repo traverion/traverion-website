@@ -36,23 +36,25 @@ export type BookingConfirmationPhase =
 
 /** Post-checkout screen phase — cancelled must never read as Booking confirmed. */
 export function bookingConfirmationPhase(
-  b: MoneyBookingRow,
+  b: MoneyBookingRow & { approval_status?: string | null },
   nowMs: number = Date.now()
 ): BookingConfirmationPhase {
   if (bookingIsCancelledTrip(b)) return 'cancelled';
   if (isPaidPaymentStatus(b.payment_status)) return 'confirmed';
 
+  const pay = normalizePaymentStatus(b.payment_status);
+  // Request-to-Book: authorized is not a confirmed booking — show received/pending host.
+  if (pay === 'authorized') return 'received';
+
   // Phase 1335: expired pending holds are Pay now (Trips parity), not “still confirming”.
   // Live unpaid holds stay confirming (Stripe success redirect; webhook may lag).
   if (travelerBookingNeedsPayNow(b)) {
-    const pay = normalizePaymentStatus(b.payment_status);
     if ((pay === 'pending' || pay === '') && partnerUnpaidCheckoutHoldsInventory(b, nowMs)) {
       return 'confirming';
     }
     return 'needs_pay';
   }
 
-  const pay = normalizePaymentStatus(b.payment_status);
   if (pay === 'pending' || pay === '') return 'confirming';
   return 'received';
 }

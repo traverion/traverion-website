@@ -943,14 +943,15 @@ serve(async (req) => {
       footerNote =
         'Open your booking if you want to confirm the status.';
     } else {
-      headline = 'We received your booking request';
-      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your request is recorded for <strong>${escapeHtml(title)}</strong>. Complete payment when prompted in the app, or wait for confirmation if no payment is required.</p>`;
+      headline = 'Booking request sent';
+      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your host has up to 24 hours to respond for <strong>${escapeHtml(title)}</strong>. Your payment method has been authorized, but payment has not yet been captured. The authorization may appear as a pending transaction on your bank statement.</p>`;
       if (typeof amount === 'number') {
-        extraHtml = `<p style="margin:0;font-size:14px;color:#374151;"><strong>Quoted total:</strong> ${escapeHtml(currency)} ${amount.toFixed(2)}</p>`;
+        extraHtml = `<p style="margin:0;font-size:14px;color:#374151;"><strong>Authorized total:</strong> ${escapeHtml(currency)} ${amount.toFixed(2)}</p>`;
       }
+      if (diffs.length) extraHtml += fieldDiffTableHtml(diffs);
       footerNote =
         // Keep in sync with BOOKING_REQUEST_EMAIL_FOLLOWUP_NOTE in booking-confirmation-copy.ts
-        'You will get another email when payment is confirmed.';
+        'You will get another email when the host accepts and payment is captured, or if the request is declined or expires.';
     }
 
     const bookingCta =

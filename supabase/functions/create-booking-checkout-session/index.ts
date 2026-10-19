@@ -15,6 +15,7 @@ import {
   inventoryStartTimeHmFromBooking,
   type TourCheckoutOccupancyRow,
 } from '../_shared/booking-hold.ts';
+import { stayBookingMethodFromListingExtras } from '../_shared/stay-booking-method.ts';
 import { checkoutPaymentStatusCanResume, resumeStayCheckoutDate, checkoutResumeLostRaceToPaid, resumeListingIdMismatch, resumeStoredOptionId, participantMixFromGuestBreakdown } from '../_shared/checkout-resume.ts';
 import { resumeStayLeadGuestName, stayCheckoutLeadGuestNameReady, stayBookingColumnsForCheckoutUpdate } from '../_shared/stay-checkout-guest.ts';
 import { readStayGuestParty } from '../_shared/stay-guest-party.ts';
@@ -413,7 +414,7 @@ serve(async (req) => {
       for (const row of redemptionLookup.data ?? []) {
         if (targetBookingId && row.id === targetBookingId) continue;
         if ((row.status ?? '') === 'cancelled') continue;
-        const paid = row.payment_status === 'paid';
+        const paid = row.payment_status === 'paid' || row.payment_status === 'authorized';
         const held =
           row.payment_status === 'pending' &&
           row.hold_expires_at != null &&
@@ -820,6 +821,8 @@ serve(async (req) => {
 
     const totalAmount = quote.totalAmount;
     const currency = quote.currency;
+    const isStayRequestToBook =
+      extrasFamily === 'stay' && stayBookingMethodFromListingExtras(listingRow.listing_extras) === 'request';
     const holdExpiresAtUnix = checkoutHoldExpiresAtUnix();
     const holdExpiresAtIso = new Date(holdExpiresAtUnix * 1000).toISOString();
     // Phase 1522: strip client-planted machine keys (check_out:, meeting_point:, …)
@@ -1007,14 +1010,16 @@ serve(async (req) => {
       locale: 'en',
       custom_text: {
         submit: {
-          message:
-            'Traverion uses Stripe to process this payment. Your booking is confirmed only after payment succeeds.',
+          message: isStayRequestToBook
+            ? 'Your card is authorized now. The host has 24 hours to accept. Payment is captured only after they accept.'
+            : 'Traverion uses Stripe to process this payment. Your booking is confirmed only after payment succeeds.',
         },
       },
       customer_email: email,
       expires_at: holdExpiresAtUnix,
       success_url: `${publicSiteUrl}${successPath}${successPath.includes('?') ? '&' : '?'}session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${publicSiteUrl}${appendBookingParam(cancelPath, targetBookingId)}`,
+      // Cards support manual capture for Request to Book. Other methods stay on Instant only.
       payment_method_types: ['card'],
       line_items: [
         {
@@ -1037,12 +1042,15 @@ serve(async (req) => {
         user_id: user.id,
         booking_option_id: quote.optionId ?? '',
         quoted_total: String(totalAmount),
+        stay_request_to_book: isStayRequestToBook ? '1' : '0',
       },
       payment_intent_data: {
+        ...(isStayRequestToBook ? { capture_method: 'manual' as const } : {}),
         metadata: {
           booking_id: targetBookingId,
           listing_id: listingId,
           user_id: user.id,
+          stay_request_to_book: isStayRequestToBook ? '1' : '0',
         },
       },
     });

@@ -4,13 +4,15 @@
  */
 
 import { partnerUnpaidCheckoutHoldsInventory } from './booking-hold';
+import { stayRequestLifecycleLabel, type StayRequestApprovalRow } from './stay-request-approval';
 
 export type BookingLifecycle = 'pending_payment' | 'confirmed' | 'cancelled' | 'completed';
 
 export function bookingLifecycleLabel(
   status: string | null | undefined,
   paymentStatus?: string | null,
-  hold?: { hold_expires_at?: string | null; created_at?: string | null } | null
+  hold?: { hold_expires_at?: string | null; created_at?: string | null } | null,
+  approval?: Pick<StayRequestApprovalRow, 'approval_status' | 'approval_expires_at'> | null
 ): string {
   const st = (status ?? '').trim().toLowerCase();
   const pay = (paymentStatus ?? '').trim().toLowerCase();
@@ -18,6 +20,21 @@ export function bookingLifecycleLabel(
   if (pay === 'refunded') return 'Cancelled';
   if (st === 'confirmed' && (pay === 'paid' || pay === 'complete' || pay === 'succeeded')) return 'Confirmed';
   if (pay === 'failed') return 'Payment failed';
+  if (
+    pay === 'authorized' ||
+    (approval?.approval_status &&
+      ['pending', 'accepted', 'declined', 'expired', 'withdrawn'].includes(
+        String(approval.approval_status).toLowerCase()
+      ))
+  ) {
+    return stayRequestLifecycleLabel({
+      status,
+      payment_status: paymentStatus,
+      approval_status: approval?.approval_status,
+      approval_expires_at: approval?.approval_expires_at,
+      hold_expires_at: hold?.hold_expires_at,
+    });
+  }
   // Phase 1312: match travelerPaymentLabel — expired holds are not “Payment pending”.
   if (st === 'pending' || pay === 'pending') {
     if (

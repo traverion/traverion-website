@@ -21,6 +21,7 @@ import {
   assertDepartureStillBookable,
   resolveDepartureTimezone,
 } from './tour-departure-cutoff.ts';
+import { stayRequestApprovalExpiresAtIso } from './stay-booking-method.ts';
 
 function listingKindFromExtras(extras: unknown): 'stay' | 'tour' {
   if (extras && typeof extras === 'object') {
@@ -227,6 +228,127 @@ export async function notifyPaidBookingSideEffects(params: {
   }
 }
 
+/** Request-to-Book: authorization succeeded — notify guest + host. Do not send confirmed-paid mail. */
+export async function notifyAuthorizedBookingSideEffects(params: {
+  admin: SupabaseClient;
+  supabaseUrl: string;
+  serviceRoleKey: string;
+  bookingId: string;
+  amountAuthorized: number | null;
+  currency: string;
+  approvalExpiresAt: string;
+}) {
+  const { admin, supabaseUrl, serviceRoleKey, bookingId, amountAuthorized, currency, approvalExpiresAt } =
+    params;
+  const portalBase = (Deno.env.get('PUBLIC_SITE_URL') ?? 'https://www.traverion.com').replace(/\/$/, '');
+  const headers = serviceRoleEdgeInvokeHeaders(serviceRoleKey);
+
+  const { data: booking } = await admin
+    .from('bookings')
+    .select(
+      'listing_id, booking_date, check_out, guests, guest_name, guest_email, guest_user_id, booking_number, total_amount'
+    )
+    .eq('id', bookingId)
+    .maybeSingle();
+  if (!booking?.listing_id) return;
+
+  const { data: listing } = await admin
+    .from('listings')
+    .select('supplier_id, title, listing_extras')
+    .eq('id', booking.listing_id)
+    .maybeSingle();
+
+  const listingKind = listingKindFromExtras(listing?.listing_extras);
+  const bn = booking.booking_number;
+  const orderNum = typeof bn === 'number' && Number.isFinite(bn) ? Math.floor(bn) : undefined;
+  const amount =
+    typeof amountAuthorized === 'number' && Number.isFinite(amountAuthorized)
+      ? amountAuthorized
+      : typeof booking.total_amount === 'number'
+        ? booking.total_amount
+        : undefined;
+
+  if (listing?.supplier_id) {
+    try {
+      await fetch(`${supabaseUrl}/functions/v1/notify-supplier-event`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          supplierId: listing.supplier_id,
+          eventType: 'new_booking',
+          listingId: booking.listing_id,
+          listingTitle: listing.title ?? undefined,
+          bookingId,
+          bookingDate: booking.booking_date ?? undefined,
+          checkOutDate: booking.check_out ?? undefined,
+          guests: Number(booking.guests ?? 0),
+          guestName: booking.guest_name ?? undefined,
+          portalBaseUrl: portalBase,
+          bookingPaymentStatus: 'authorized',
+          bookingNumber: orderNum,
+          listingKind,
+          idempotencyKey: `supplier:stay_request:${bookingId}`,
+          changeSummary: `Respond by ${approvalExpiresAt}. Payment is authorized; capture only after you accept.`,
+        }),
+      });
+    } catch (err) {
+      console.error(
+        JSON.stringify({
+          source: 'notifyAuthorizedBookingSideEffects',
+          channel: 'supplier',
+          bookingId,
+          error: err instanceof Error ? err.message : 'notify-supplier-event failed',
+        })
+      );
+    }
+  }
+
+  let guestEmail = String(booking.guest_email ?? '').trim().toLowerCase();
+  if (!guestEmail && booking.guest_user_id) {
+    try {
+      const { data: authUser } = await admin.auth.admin.getUserById(String(booking.guest_user_id));
+      guestEmail = (authUser?.user?.email ?? '').trim().toLowerCase();
+    } catch {
+      /* ignore */
+    }
+  }
+  if (!guestEmail) return;
+
+  try {
+    await fetch(`${supabaseUrl}/functions/v1/notify-customer-booking`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        emailKind: 'booking_request',
+        bookingId,
+        to: guestEmail,
+        listingTitle: listing?.title ?? undefined,
+        listingKind,
+        bookingDate: booking.booking_date ?? undefined,
+        checkOutDate: booking.check_out ?? undefined,
+        guests: Number(booking.guests ?? 0),
+        amount,
+        currency,
+        bookingNumber: orderNum,
+        idempotencyKey: `customer:booking_request:${bookingId}`,
+        fieldDiffs: [
+          { field: 'Host response', before: '—', after: `Within 24 hours (by ${approvalExpiresAt})` },
+          { field: 'Payment', before: '—', after: 'Authorized · not captured yet' },
+        ],
+      }),
+    });
+  } catch (err) {
+    console.error(
+      JSON.stringify({
+        source: 'notifyAuthorizedBookingSideEffects',
+        channel: 'customer',
+        bookingId,
+        error: err instanceof Error ? err.message : 'notify-customer-booking failed',
+      })
+    );
+  }
+}
+
 /**
  * Phase 1713/1714/1719/1720: after Stripe auto-refunds a capture that never became a paid booking,
  * email the traveler (refund_completed never runs — payment_status stays failed).
@@ -389,6 +511,16 @@ export async function promotePaidFromCheckoutSession(params: {
     throw new Error(withStay.error.message);
   }
   const existingPay = String(existingBooking?.payment_status ?? '').toLowerCase();
+  if (existingPay === 'authorized') {
+    await markProcessed('processed');
+    return json({
+      success: true,
+      duplicate: true,
+      alreadyAuthorized: true,
+      eventId: event.id,
+      bookingId,
+    });
+  }
   if (
     !staleCheckoutFailureShouldApply({
       eventCheckoutSessionId: session.id,
@@ -603,6 +735,94 @@ export async function promotePaidFromCheckoutSession(params: {
         reason: 'charge fully refunded before paid promotion',
         eventId: event.id,
         bookingId,
+      });
+    }
+
+    // Request-to-Book: manual capture authorization — do not mark paid or capture.
+    const piStatus = String(pi.status ?? '').toLowerCase();
+    const captureMethod = String(pi.capture_method ?? '').toLowerCase();
+    const metaRequest = String(session.metadata?.stay_request_to_book ?? pi.metadata?.stay_request_to_book ?? '') === '1';
+    const isAuthorizedHold =
+      piStatus === 'requires_capture' ||
+      (captureMethod === 'manual' && piStatus !== 'succeeded' && metaRequest);
+    if (isAuthorizedHold) {
+      const amountAuthorized =
+        amountToMajor(pi.amount_capturable ?? pi.amount ?? session.amount_total ?? null) ?? amountPaid;
+      const currencyAuth = String(
+        existingBooking?.currency || session.currency || pi.currency || 'eur'
+      ).toUpperCase();
+      const approvalExpiresAt = stayRequestApprovalExpiresAtIso();
+      const { data: authPromote, error: authErr } = await admin.rpc('promote_authorized_checkout_booking', {
+        p_booking_id: bookingId,
+        p_checkout_session_id: session.id,
+        p_payment_intent_id: paymentIntentId,
+        p_amount_authorized: amountAuthorized,
+        p_currency: currencyAuth,
+        p_approval_expires_at: approvalExpiresAt,
+        p_purchase_snapshot: existingBooking?.purchase_snapshot ?? null,
+        p_assert_start_time: null,
+        p_assert_booking_option_id:
+          typeof existingBooking?.booking_option_id === 'string'
+            ? existingBooking.booking_option_id
+            : null,
+      });
+      if (authErr && isMissingPostgresFunctionError(authErr.message)) {
+        throw new Error('Checkout authorize promotion guard unavailable');
+      }
+      const authOk =
+        authPromote &&
+        typeof authPromote === 'object' &&
+        (authPromote as { ok?: boolean }).ok === true;
+      if (!authOk) {
+        const reason = String((authPromote as { reason?: string } | null)?.reason ?? authErr?.message ?? 'authorize_failed');
+        // Inventory conflict on authorize: cancel the authorization (no capture occurred).
+        if (/inventory|occupied|capacity|already booked/i.test(reason) || authErr?.message) {
+          try {
+            await stripe.paymentIntents.cancel(paymentIntentId as string, undefined, {
+              idempotencyKey: `authorize-inventory-cancel:${session.id}`,
+            });
+          } catch {
+            /* best-effort */
+          }
+        }
+        await markProcessed('processed');
+        return json({
+          success: true,
+          ignored: true,
+          reason: `authorize promote failed: ${reason}`,
+          eventId: event.id,
+          bookingId,
+        });
+      }
+      await admin.from('booking_payment_events').insert({
+        booking_id: bookingId,
+        event_id: event.id,
+        event_type: 'stay_request_authorized',
+        payment_intent_id: paymentIntentId,
+        checkout_session_id: session.id,
+        amount: amountAuthorized,
+        currency: currencyAuth,
+        payload: {
+          approval_expires_at: approvalExpiresAt,
+          stripeEventType: event.type,
+        },
+      });
+      await notifyAuthorizedBookingSideEffects({
+        admin,
+        supabaseUrl,
+        serviceRoleKey,
+        bookingId,
+        amountAuthorized,
+        currency: currencyAuth,
+        approvalExpiresAt,
+      });
+      await markProcessed('processed');
+      return json({
+        success: true,
+        authorized: true,
+        eventId: event.id,
+        bookingId,
+        approvalExpiresAt,
       });
     }
   }

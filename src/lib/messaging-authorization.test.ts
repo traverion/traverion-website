@@ -105,6 +105,12 @@ describe('messaging authorization', () => {
     expect(
       partnerInboxListsBooking({ status: 'cancelled', payment_status: 'paid' }, true)
     ).toBe(true);
+    expect(
+      partnerInboxListsBooking(
+        { status: 'pending', payment_status: 'authorized', approval_status: 'pending' },
+        false
+      )
+    ).toBe(true);
   });
 
   it('matches the SQL closed-thread copy for refunded bookings', () => {

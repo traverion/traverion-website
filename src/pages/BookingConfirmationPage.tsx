@@ -552,26 +552,29 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
     );
   }
 
+  const awaitingHost =
+    String(booking?.payment_status ?? '').toLowerCase() === 'authorized' ||
+    String(booking?.approval_status ?? '').toLowerCase() === 'pending';
   const statusChipLabel = cancelled
     ? payLabel
     : paidActive
       ? 'Confirmed'
-      : confirming
-        ? reconciling
-          ? 'Syncing payment'
-          : 'Confirming'
-        : needsPay
-          ? 'Payment needed'
-          : 'Received';
+      : awaitingHost
+        ? 'Pending host approval'
+        : confirming
+          ? reconciling
+            ? 'Syncing payment'
+            : 'Confirming'
+          : needsPay
+            ? 'Payment needed'
+            : 'Received';
   const statusChipTone = cancelled
     ? toneForPaymentLabel(payLabel)
     : paidActive
       ? 'good'
-      : confirming
+      : awaitingHost || confirming || needsPay
         ? 'warn'
-        : needsPay
-          ? 'warn'
-          : 'neutral';
+        : 'neutral';
 
   const publicRef = travelerPublicBookingReference(booking?.public_reference);
   const arrival = booking
@@ -698,24 +701,28 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                   <h1 className="mt-2 font-sans text-2xl font-bold tracking-tight text-ink">
                     {cancelled
                       ? 'Booking cancelled'
-                      : confirming
-                        ? reconciling
-                          ? 'Checking your payment'
-                          : 'Confirming your payment'
-                        : needsPay
-                          ? BOOKING_CONFIRMATION_NEEDS_PAY_TITLE
-                          : 'Booking received'}
+                      : awaitingHost
+                        ? 'Booking request sent'
+                        : confirming
+                          ? reconciling
+                            ? 'Checking your payment'
+                            : 'Confirming your payment'
+                          : needsPay
+                            ? BOOKING_CONFIRMATION_NEEDS_PAY_TITLE
+                            : 'Booking received'}
                   </h1>
                   <p className="mt-1 max-w-xl text-sm leading-relaxed text-ink-muted">
                     {cancelled
                       ? bookingConfirmationCancelledBody(booking)
-                      : confirming
-                        ? stalledConfirming
-                          ? 'Payment is still settling. Open Trips in a moment if this does not update.'
-                          : 'This usually takes a few seconds. We will not mark the booking confirmed until payment is recorded.'
-                        : needsPay
-                          ? BOOKING_CONFIRMATION_NEEDS_PAY_BODY
-                          : 'We saved your booking. The status updates when payment is recorded.'}
+                      : awaitingHost
+                        ? 'Your host has up to 24 hours to respond. Your payment method has been authorized, but payment has not yet been captured. The authorization may appear as a pending transaction on your bank statement.'
+                        : confirming
+                          ? stalledConfirming
+                            ? 'Payment is still settling. Open Trips in a moment if this does not update.'
+                            : 'This usually takes a few seconds. We will not mark the booking confirmed until payment is recorded.'
+                          : needsPay
+                            ? BOOKING_CONFIRMATION_NEEDS_PAY_BODY
+                            : 'We saved your booking. The status updates when payment is recorded.'}
                   </p>
                 </div>
               )}

@@ -5,7 +5,14 @@
 
 import { partnerUnpaidCheckoutHoldsInventory } from './booking-hold';
 
-export const BOOKING_PAYMENT_STATES = ['pending', 'paid', 'failed', 'cancelled', 'refunded'] as const;
+export const BOOKING_PAYMENT_STATES = [
+  'pending',
+  'authorized',
+  'paid',
+  'failed',
+  'cancelled',
+  'refunded',
+] as const;
 export type BookingPaymentState = (typeof BOOKING_PAYMENT_STATES)[number];
 
 export type MoneyBookingRow = {
@@ -74,6 +81,7 @@ export function travelerPaymentLabel(b: MoneyBookingRowWithDispute): string {
   }
   if (cancelled) return 'Cancelled';
   if (pay === 'failed') return 'Payment failed';
+  if (pay === 'authorized') return 'Authorized · awaiting host';
   if (isPaidPaymentStatus(pay)) return 'Paid';
   if (pay === 'pending' || b.checkout_session_id) {
     // Phase 1311: mirror partner hold truth — expired holds are not still “pending payment”.

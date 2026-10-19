@@ -61,15 +61,22 @@ export function messagingComposeBlock(row: {
   return 'unpaid';
 }
 
-/** Inbox: live paid threads always; closed collected threads only if they already have messages. */
+/** Inbox: live paid threads always; closed collected threads only if they already have messages.
+ * Request-to-Book authorized holds appear so hosts can Accept / Decline. */
 export function partnerInboxListsBooking(
   row: {
     status?: string | null;
     payment_status?: string | null;
+    approval_status?: string | null;
     openCancellation?: boolean;
   },
   hasMessageHistory: boolean
 ): boolean {
+  const pay = (row.payment_status ?? '').trim().toLowerCase();
+  const approval = (row.approval_status ?? '').trim().toLowerCase();
+  if (pay === 'authorized' && (approval === 'pending' || approval === '' || !approval)) {
+    return true;
+  }
   if (!bookingPaymentWasCollected(row.payment_status)) return false;
   if (bookingAllowsMessaging(row)) return true;
   return hasMessageHistory;

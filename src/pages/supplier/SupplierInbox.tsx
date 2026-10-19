@@ -4,6 +4,8 @@ import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
+import StayRequestActions from '../../components/StayRequestActions';
+import { isStayRequestAwaitingHost } from '../../lib/stay-request-approval';
 import { fetchMyListings, pgTimeToHm } from '../../data/supabase-listings';
 import {
   fetchBookingMessages,
@@ -148,7 +150,13 @@ export default function SupplierInbox() {
       const deepLinkId = readBookingIdFromUrl();
       const [rows, listings] = await Promise.all([fetchBookingsForSupplier(uid), fetchMyListings(uid)]);
       if (gen !== loadGenRef.current) return;
-      const collected = rows.filter((b) => bookingPaymentWasCollected(b.payment_status));
+      const collected = rows.filter(
+        (b) =>
+          bookingPaymentWasCollected(b.payment_status) ||
+          (String(b.payment_status ?? '').toLowerCase() === 'authorized' &&
+            (String(b.approval_status ?? 'pending').toLowerCase() === 'pending' ||
+              !b.approval_status))
+      );
       setTitles(Object.fromEntries(listings.map((l) => [l.id, l.title])));
       setListingsById(Object.fromEntries(listings.map((l) => [l.id, l])));
       let openIds = new Set<string>();
@@ -601,7 +609,9 @@ export default function SupplierInbox() {
                             ) : null}
                           </div>
                           <p className={`mt-0.5 truncate pl-3.5 text-[13px] ${unread ? 'font-medium text-ink' : 'text-ink-muted'}`}>
-                            {last?.body ?? 'Start a conversation'}
+                            {isStayRequestAwaitingHost(b)
+                              ? 'Booking request · Accept or decline'
+                              : last?.body ?? 'Start a conversation'}
                           </p>
                           <p className="mt-0.5 truncate pl-3.5 text-[12px] text-ink-faint">
                             {displayListingTitleFromPurchase(b.purchase_snapshot, titles[b.listing_id], 'Listing')}
@@ -658,6 +668,23 @@ export default function SupplierInbox() {
                 </button>
               </header>
               <div className="tv-inbox-chat__body">
+                {isStayRequestAwaitingHost(openBooking) ? (
+                  <div className="border-b border-black/[0.06] px-3 py-2">
+                    <StayRequestActions
+                      compact
+                      role="supplier"
+                      booking={{
+                        ...openBooking,
+                        listingTitle: displayListingTitleFromPurchase(
+                          openBooking.purchase_snapshot,
+                          titles[openBooking.listing_id],
+                          'Stay'
+                        ),
+                      }}
+                      onDone={() => void load()}
+                    />
+                  </div>
+                ) : null}
                 {renderOpenThread(openBooking)}
               </div>
               {detailsOpen ? (

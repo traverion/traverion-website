@@ -58,6 +58,8 @@ import {
   type BookingRow,
   updateBookingStatus,
 } from '../../data/supabase-bookings';
+import StayRequestActions from '../../components/StayRequestActions';
+import { isStayRequestAwaitingHost } from '../../lib/stay-request-approval';
 import { insertSupplierExportRun } from '../../data/supabase-supplier-campaigns-exports';
 import { decrementAvailabilityBooked } from '../../data/supabase-availability';
 import { fetchMyListings, pgTimeToHm } from '../../data/supabase-listings';
@@ -2088,6 +2090,20 @@ export default function SupplierBookings({
                       </p>
                     )}
                     <DrawerFact label="Status">{partnerPaymentLabel(booking)}</DrawerFact>
+                    {isStayRequestAwaitingHost(booking) ? (
+                      <StayRequestActions
+                        role="supplier"
+                        booking={{
+                          ...booking,
+                          listingTitle: displayListingTitleFromPurchase(
+                            booking.purchase_snapshot,
+                            listingMeta[booking.listing_id]?.title,
+                            'Stay'
+                          ),
+                        }}
+                        onDone={() => void load()}
+                      />
+                    ) : null}
                     {isStay && readStayBookingPrice(booking.purchase_snapshot) ? (
                       <SavedStayPrice
                         snapshot={booking.purchase_snapshot}
@@ -2183,7 +2199,10 @@ export default function SupplierBookings({
                   </div>
                 </div>
                 <footer className="flex shrink-0 flex-wrap items-center gap-2 border-t border-black/[0.06] bg-white px-4 py-2.5 pb-[max(0.65rem,env(safe-area-inset-bottom))]">
-                  {canEditBookings && partnerBookingIsOperatingTrip(booking) && booking.status === 'pending' ? (
+                  {canEditBookings &&
+                  partnerBookingIsOperatingTrip(booking) &&
+                  booking.status === 'pending' &&
+                  String(booking.payment_status ?? '').toLowerCase() !== 'authorized' ? (
                     <button
                       type="button"
                       disabled={busy}
