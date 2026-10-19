@@ -696,12 +696,18 @@ function BookingTimesStage({ values, onChange, option }: Props & { option: StayA
   }
   return (
     <div className="grid gap-3 sm:grid-cols-2">
-      <Field label="Check-in from">
-        <input className="tv-input w-full" type="time" value={values.stayCheckIn} onChange={(e) => setClock('stayCheckIn', e.target.value)} />
-      </Field>
-      <Field label="Checkout by">
-        <input className="tv-input w-full" type="time" value={values.stayCheckOut} onChange={(e) => setClock('stayCheckOut', e.target.value)} />
-      </Field>
+      <div>
+        <Field label="Check-in from">
+          <input className="tv-input w-full" type="time" value={values.stayCheckIn} onChange={(e) => setClock('stayCheckIn', e.target.value)} />
+        </Field>
+        <p className="stay-help mt-1.5">Earliest arrival time.</p>
+      </div>
+      <div>
+        <Field label="Checkout by">
+          <input className="tv-input w-full" type="time" value={values.stayCheckOut} onChange={(e) => setClock('stayCheckOut', e.target.value)} />
+        </Field>
+        <p className="stay-help mt-1.5">Latest departure time.</p>
+      </div>
     </div>
   );
 }
@@ -784,18 +790,18 @@ function AvailabilityStage({ values, option, writeOption }: Props & { option: St
           <TraverionSingleDateField id="stay-open-end" label="Last occupied night" value={season?.end ?? ''} minIso={season?.start || today} onChange={(end) => season && writeOption({ ...option, schedules: [{ ...season, end }] })} />
         </div>
       ) : null}
-      <StayHelp>To close one night, save this draft and use Availability. Closed nights are rejected at checkout. The departure morning is not charged.</StayHelp>
+      <StayHelp>You can update your availability, block specific dates, and manage your calendar anytime after creating your listing.</StayHelp>
     </div>
   );
 }
 
-function Stepper({ label, value, min, max, onChange }: { label: string; value: number; min: number; max: number; onChange: (next: number) => void }) {
+function Stepper({ label, value, min, max, onChange, shown }: { label: string; value: number; min: number; max: number; onChange: (next: number) => void; shown?: string }) {
   return (
     <div className="stay-panel flex items-center justify-between gap-3">
       <span className="text-sm font-semibold text-ink">{label}</span>
       <div className="flex items-center gap-2">
         <button type="button" className="stay-step" aria-label={`Decrease ${label}`} disabled={value <= min} onClick={() => onChange(Math.max(min, value - 1))}>−</button>
-        <span className="w-8 text-center text-sm tabular-nums">{value}</span>
+        <span className="w-8 text-center text-sm tabular-nums">{shown ?? value}</span>
         <button type="button" className="stay-step" aria-label={`Increase ${label}`} disabled={value >= max} onClick={() => onChange(Math.min(max, value + 1))}>+</button>
       </div>
     </div>
@@ -817,25 +823,66 @@ function StayLengthStage({ values, option, writeOption }: Props & { option: Stay
   const minNights = Math.max(1, Number.parseInt(values.stayMinNights, 10) || option.minNights || 1);
   const maxNights = option.schedules[0]?.maxNights ?? null;
   function setMax(next: number | null) {
-    const season = option.schedules[0] ?? {
-      id: newStayOptionId(),
-      name: 'Standard',
-      start: '2020-01-01',
-      end: '2099-12-31',
-      enabled: true,
-      nightlyPrice: option.nightlyPrice,
-      minNights: option.minNights,
-      checkIn: values.stayCheckIn,
-      checkOut: values.stayCheckOut,
-      cleaningFee: option.cleaningFee,
-    };
+    const season = option.schedules[0];
+    if (!season) {
+      if (next == null) return;
+      writeOption({
+        ...option,
+        schedules: [{
+          id: newStayOptionId(),
+          name: 'Standard',
+          start: '2020-01-01',
+          end: '2099-12-31',
+          enabled: true,
+          nightlyPrice: option.nightlyPrice,
+          minNights: option.minNights,
+          checkIn: values.stayCheckIn,
+          checkOut: values.stayCheckOut,
+          cleaningFee: option.cleaningFee,
+          maxNights: next,
+        }],
+      });
+      return;
+    }
     writeOption({ ...option, schedules: [{ ...season, maxNights: next }] });
   }
   return (
     <div className="space-y-3">
-      <Stepper label="Minimum nights" value={minNights} min={1} max={365} onChange={(nights) => writeOption({ ...option, minNights: nights })} />
-      <Stepper label="Maximum nights" value={maxNights ?? minNights} min={minNights} max={365} onChange={(nights) => setMax(nights)} />
-      {maxNights != null ? <button type="button" className="min-h-11 text-sm font-semibold text-finland" onClick={() => setMax(null)}>No maximum</button> : null}
+      <Stepper
+        label="Minimum nights"
+        value={minNights}
+        min={1}
+        max={365}
+        onChange={(nights) => {
+          const season = option.schedules[0];
+          if (season?.maxNights != null && season.maxNights < nights) {
+            writeOption({
+              ...option,
+              minNights: nights,
+              schedules: option.schedules.map((row, index) => index === 0 ? { ...row, maxNights: nights } : row),
+            });
+            return;
+          }
+          writeOption({ ...option, minNights: nights });
+        }}
+      />
+      <Stepper
+        label="Maximum nights"
+        value={maxNights ?? Math.max(0, minNights - 1)}
+        min={minNights}
+        max={365}
+        shown={maxNights == null ? '—' : undefined}
+        onChange={(nights) => setMax(nights)}
+      />
+      <button
+        type="button"
+        className="min-h-11 text-sm font-semibold text-finland disabled:text-ink-muted"
+        aria-pressed={maxNights == null}
+        disabled={maxNights == null}
+        onClick={() => setMax(null)}
+      >
+        No maximum limit
+      </button>
     </div>
   );
 }

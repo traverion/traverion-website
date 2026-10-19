@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { stayCutoffFromMinutes, stayCutoffToMinutes } from './stay-cutoff';
+import { stayCutoffFromMinutes, stayCutoffSummary, stayCutoffToMinutes } from './stay-cutoff';
 
 describe('stay booking cutoff', () => {
   it('stores minutes, hours, and days in the checkout minute field', () => {
     expect(stayCutoffToMinutes('minutes', 5)).toBe(5);
     expect(stayCutoffToMinutes('hours', 5)).toBe(300);
+    expect(stayCutoffSummary(300)).toBe('Reservations close 5 hours before check-in.');
     expect(stayCutoffToMinutes('days', 2)).toBe(2880);
   });
 

@@ -460,6 +460,43 @@ describe('quoteBooking', () => {
     expect(priced.totalAmount).toBe(189 * 3 + 30);
   });
 
+  it('allows any available length when maximum nights is unset', () => {
+    const stay = {
+      nightlyPriceUsd: 100,
+      maxGuests: 4,
+      minNights: 2,
+      availabilityMode: 'open' as const,
+      seasons: [{ id: 'open', name: 'Open', start: '2026-01-01', end: '2026-12-31', enabled: true, maxNights: null }],
+    };
+    const longStay = quoteStayNights({
+      tour: tour({ listingExtras: { inventoryFamily: 'stay', stay, bookingOptions: [] } }),
+      checkIn: '2026-10-01',
+      checkOut: '2026-10-15',
+      guests: 2,
+      todayIso: today,
+      nowMs: fixtureNowMs,
+    });
+    expect(longStay.ok).toBe(true);
+    const tooShort = quoteStayNights({
+      tour: tour({ listingExtras: { inventoryFamily: 'stay', stay, bookingOptions: [] } }),
+      checkIn: '2026-10-01',
+      checkOut: '2026-10-02',
+      guests: 2,
+      todayIso: today,
+      nowMs: fixtureNowMs,
+    });
+    expect(tooShort.ok).toBe(false);
+    const closed = quoteStayNights({
+      tour: tour({ listingExtras: { inventoryFamily: 'stay', stay: { ...stay, availabilityMode: 'scheduled' }, bookingOptions: [] } }),
+      checkIn: '2027-01-02',
+      checkOut: '2027-01-05',
+      guests: 2,
+      todayIso: today,
+      nowMs: fixtureNowMs,
+    });
+    expect(closed.ok).toBe(false);
+  });
+
   it('closes a stay reservation before the schedule check-in', () => {
     const arrival = wallTimeInZoneToUtcMs('2026-12-01', '16:00', 'Europe/Helsinki');
     expect(arrival).not.toBeNull();
