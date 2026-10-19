@@ -27,4 +27,13 @@ describe('Stay Calendar page contracts', () => {
     expect(page).toContain('openSupplierBooking');
     expect(page).toContain('isStay: true');
   });
+
+  it('uses a non-layout toast for block feedback and a compact range toolbar', () => {
+    const page = readFileSync(join(root, 'pages/supplier/SupplierStayCalendar.tsx'), 'utf8');
+    expect(page).toContain('tv-stay-cal-toast');
+    expect(page).toContain('tv-stay-cal-rangebar');
+    expect(page).not.toContain('Calendar updated');
+    expect(page).toContain('showToast');
+  });
 });
+

@@ -40,7 +40,7 @@ import {
   type StayCalendarViewMode,
 } from '../../lib/stay-calendar-workspace';
 import { openSupplierBooking, navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
-import { PARTNER_CREATE_PATH, PARTNER_APP_BASE, PARTNER_RESERVATIONS_PATH } from '../../lib/partnerPortalPaths';
+import { PARTNER_CREATE_PATH } from '../../lib/partnerPortalPaths';
 import {
   SUPPLIER_PAGE_CLASS,
   SupplierEmptyState,
@@ -92,9 +92,18 @@ export default function SupplierStayCalendar() {
   const [caps, setCaps] = useState<StayCalendarCap[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [saveNote, setSaveNote] = useState<string | null>(null);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; tone: 'ok' | 'error' | 'warn' } | null>(null);
   const [saving, setSaving] = useState(false);
+  const toastTimerRef = useRef<number | null>(null);
+
+  const showToast = useCallback((message: string, tone: 'ok' | 'error' | 'warn' = 'ok') => {
+    if (toastTimerRef.current != null) window.clearTimeout(toastTimerRef.current);
+    setToast({ message, tone });
+    toastTimerRef.current = window.setTimeout(() => {
+      setToast(null);
+      toastTimerRef.current = null;
+    }, 3500);
+  }, []);
 
   const [view, setView] = useState<StayCalendarViewMode>(() => {
     if (typeof window === 'undefined') return 'agenda';
@@ -175,9 +184,9 @@ export default function SupplierStayCalendar() {
       return;
     }
     const gen = ++loadGenRef.current;
-    setLoading(true);
-    setError(null);
-    try {
+      setLoading(true);
+      setError(null);
+      try {
       const [mine, allBookings] = await Promise.all([
         fetchMyListings(uid),
         fetchBookingsForSupplier(uid),
@@ -216,6 +225,22 @@ export default function SupplierStayCalendar() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Auto-select the only Stay so Month view is immediately useful.
+  useEffect(() => {
+    if (listings.length !== 1 || listingId) return;
+    const id = listings[0]!.id;
+    setListingId(id);
+    const url = new URL(window.location.href);
+    url.searchParams.set('listing', id);
+    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+  }, [listings, listingId]);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current != null) window.clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   // Load availability caps for visible window / selected properties.
   useEffect(() => {
@@ -331,17 +356,16 @@ export default function SupplierStayCalendar() {
     async (id: string, dates: string[]) => {
       if (!canEdit || !id || dates.length === 0) return;
       setSaving(true);
-      setSaveError(null);
-      setSaveNote(null);
       const allowed = dates.filter((iso) =>
         stayCalendarCanBlockNight({ bookings, listingId: id, iso })
       );
       const skipped = dates.length - allowed.length;
       if (allowed.length === 0) {
-        setSaveError(
+        showToast(
           skipped
-            ? 'Those nights are occupied by a reservation and cannot be blocked.'
-            : 'Nothing to block.'
+            ? 'Those nights are occupied and cannot be blocked.'
+            : 'Nothing to block.',
+          'warn'
         );
         setSaving(false);
         return;
@@ -351,7 +375,7 @@ export default function SupplierStayCalendar() {
         allowed.map((available_date) => ({ available_date, capacity: 0 }))
       );
       if (!res.success) {
-        setSaveError(res.error || 'Could not block nights.');
+        showToast(res.error || 'Could not block nights.', 'error');
         setSaving(false);
         return;
       }
@@ -367,35 +391,33 @@ export default function SupplierStayCalendar() {
           })),
         ];
       });
-      setSaveNote(
+      showToast(
         skipped
-          ? `Blocked ${allowed.length} night(s). Skipped ${skipped} occupied night(s).`
-          : `Blocked ${allowed.length} night(s).`
+          ? `Blocked ${allowed.length} · skipped ${skipped} occupied`
+          : `Blocked ${allowed.length} night${allowed.length === 1 ? '' : 's'}`
       );
       setRangeSelect(null);
       setSaving(false);
     },
-    [bookings, canEdit]
+    [bookings, canEdit, showToast]
   );
 
   const unblockDates = useCallback(
     async (id: string, dates: string[]) => {
       if (!canEdit || !id || dates.length === 0) return;
       setSaving(true);
-      setSaveError(null);
-      setSaveNote(null);
       const allowed = dates.filter((iso) =>
         stayCalendarCanUnblockNight({ bookings, caps, listingId: id, iso })
       );
       if (allowed.length === 0) {
-        setSaveError('No removable blocks on those nights (occupied nights stay protected).');
+        showToast('No removable blocks on those nights.', 'warn');
         setSaving(false);
         return;
       }
       for (const iso of allowed) {
         const res = await deleteAvailability(id, iso);
         if (!res.success) {
-          setSaveError(res.error || 'Could not unblock night.');
+          showToast(res.error || 'Could not unblock night.', 'error');
           setSaving(false);
           await refreshCapsForListing(id, allowed[0]!, allowed[allowed.length - 1]!);
           return;
@@ -404,11 +426,11 @@ export default function SupplierStayCalendar() {
       setCaps((prev) =>
         prev.filter((c) => !(c.listing_id === id && allowed.includes(c.available_date)))
       );
-      setSaveNote(`Unblocked ${allowed.length} night(s).`);
+      showToast(`Unblocked ${allowed.length} night${allowed.length === 1 ? '' : 's'}`);
       setRangeSelect(null);
       setSaving(false);
     },
-    [bookings, caps, canEdit, refreshCapsForListing]
+    [bookings, caps, canEdit, refreshCapsForListing, showToast]
   );
 
   const onNightClick = useCallback(
@@ -436,14 +458,29 @@ export default function SupplierStayCalendar() {
   const applyRangeBlock = useCallback(
     async (mode: 'block' | 'unblock') => {
       if (!rangeSelect || !listingId) {
-        setSaveError('Select a property, then choose nights to block or unblock.');
+        showToast('Select a property, then choose nights.', 'warn');
         return;
       }
       const dates = eachIsoInRange(rangeSelect.start, rangeSelect.end);
       if (mode === 'block') await blockDates(listingId, dates);
       else await unblockDates(listingId, dates);
     },
-    [listingId, rangeSelect, blockDates, unblockDates]
+    [listingId, rangeSelect, blockDates, unblockDates, showToast]
+  );
+
+  const rangeCanBlock = Boolean(
+    listingId &&
+      rangeSelect &&
+      eachIsoInRange(rangeSelect.start, rangeSelect.end).some((iso) =>
+        stayCalendarCanBlockNight({ bookings, listingId, iso })
+      )
+  );
+  const rangeCanUnblock = Boolean(
+    listingId &&
+      rangeSelect &&
+      eachIsoInRange(rangeSelect.start, rangeSelect.end).some((iso) =>
+        stayCalendarCanUnblockNight({ bookings, caps, listingId, iso })
+      )
   );
 
   if (!isSupabase || !user) {
@@ -455,40 +492,21 @@ export default function SupplierStayCalendar() {
   }
 
   return (
-    <div className={`${SUPPLIER_PAGE_CLASS} min-h-[70vh]`}>
+    <div className={`${SUPPLIER_PAGE_CLASS} tv-stay-cal-page min-h-[70vh]`}>
+      {toast ? (
+        <div
+          className={`tv-stay-cal-toast${toast.tone === 'error' ? ' tv-stay-cal-toast--error' : toast.tone === 'warn' ? ' tv-stay-cal-toast--warn' : ''}`}
+          role="status"
+          aria-live="polite"
+        >
+          {toast.message}
+        </div>
+      ) : null}
       <header className="tv-avail-page-head">
         <div className="tv-avail-page-head__text">
           <h1>Stay Calendar</h1>
-          <p>Manage availability, reservations and blocked nights.</p>
+          <p>Availability, reservations and blocked nights.</p>
         </div>
-        {listings.length > 0 && listingId && canEdit && rangeSelect ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              disabled={saving}
-              className="tv-btn-primary inline-flex h-9 items-center gap-1.5 !px-3 text-[13px] disabled:opacity-40"
-              onClick={() => void applyRangeBlock('block')}
-            >
-              <Layers className="h-3.5 w-3.5" aria-hidden />
-              Block selected
-            </button>
-            <button
-              type="button"
-              disabled={saving}
-              className="tv-btn-secondary inline-flex h-9 items-center gap-1.5 !px-3 text-[13px] disabled:opacity-40"
-              onClick={() => void applyRangeBlock('unblock')}
-            >
-              Unblock selected
-            </button>
-            <button
-              type="button"
-              className="tv-btn-ghost h-9 text-[13px]"
-              onClick={() => setRangeSelect(null)}
-            >
-              Clear
-            </button>
-          </div>
-        ) : null}
       </header>
 
       {loading ? (
@@ -521,18 +539,40 @@ export default function SupplierStayCalendar() {
               Your role can view this calendar but cannot change blocks. Ask an owner, manager, or ops teammate.
             </NoticeCallout>
           ) : null}
-          {saveNote ? (
-            <div className="mb-3">
-              <NoticeCallout title="Calendar updated" tone="info">
-                {saveNote}
-              </NoticeCallout>
-            </div>
-          ) : null}
-          {saveError ? (
-            <div className="mb-3">
-              <NoticeCallout title="Could not update nights" tone="warn">
-                {saveError}
-              </NoticeCallout>
+
+          {canEdit && rangeSelect && listingId ? (
+            <div className="tv-stay-cal-rangebar" role="region" aria-label="Selected nights">
+              <p className="tv-stay-cal-rangebar__meta">
+                Selected{' '}
+                <strong>
+                  {rangeSelect.start}
+                  {rangeSelect.end !== rangeSelect.start ? ` → ${rangeSelect.end}` : ''}
+                </strong>
+              </p>
+              <button
+                type="button"
+                disabled={saving || !rangeCanBlock}
+                className="tv-btn-primary inline-flex h-8 items-center gap-1.5 !px-2.5 text-[12.5px] disabled:opacity-40"
+                onClick={() => void applyRangeBlock('block')}
+              >
+                <Layers className="h-3.5 w-3.5" aria-hidden />
+                {saving ? 'Saving…' : 'Block'}
+              </button>
+              <button
+                type="button"
+                disabled={saving || !rangeCanUnblock}
+                className="tv-btn-secondary inline-flex h-8 items-center gap-1.5 !px-2.5 text-[12.5px] disabled:opacity-40"
+                onClick={() => void applyRangeBlock('unblock')}
+              >
+                Unblock
+              </button>
+              <button
+                type="button"
+                className="tv-btn-ghost h-8 px-2 text-[12.5px]"
+                onClick={() => setRangeSelect(null)}
+              >
+                Clear
+              </button>
             </div>
           ) : null}
 
@@ -757,14 +797,6 @@ export default function SupplierStayCalendar() {
             ) : null}
           </div>
 
-          {rangeSelect && listingId ? (
-            <p className="mb-3 text-[12.5px] text-slate-500">
-              Selected {rangeSelect.start}
-              {rangeSelect.end !== rangeSelect.start ? ` → ${rangeSelect.end}` : ''} · Block or unblock above.
-              Occupied nights are never overwritten.
-            </p>
-          ) : null}
-
           {view === 'agenda' ? (
             <StayAgenda
               groups={agendaGroups}
@@ -803,9 +835,7 @@ export default function SupplierStayCalendar() {
               bookings={bookings}
               caps={caps}
               rangeSelect={rangeSelect}
-              onRequireListing={() =>
-                setSaveError('Select a property to manage nights in Month view.')
-              }
+              onRequireListing={() => showToast('Select a property for Month view.', 'warn')}
               onNightClick={onNightClick}
               onPickListing={(id) => {
                 setListingId(id);
@@ -814,25 +844,6 @@ export default function SupplierStayCalendar() {
             />
           ) : null}
 
-          <p className="mt-4 text-[12px] text-slate-400">
-            Reservations open in{' '}
-            <button
-              type="button"
-              className="font-medium text-finland hover:underline"
-              onClick={() => navigateSupplierUrl(PARTNER_RESERVATIONS_PATH)}
-            >
-              Reservations
-            </button>
-            . Tour departures stay under{' '}
-            <button
-              type="button"
-              className="font-medium text-finland hover:underline"
-              onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/availability`)}
-            >
-              Departures & Availability
-            </button>
-            .
-          </p>
         </>
       )}
     </div>

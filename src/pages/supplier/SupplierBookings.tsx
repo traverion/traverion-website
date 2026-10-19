@@ -273,7 +273,23 @@ function customerRequestNotes(raw: string | null | undefined): string {
     .trim();
 }
 
-function DrawerFact({ label, children }: { label: string; children: ReactNode }) {
+function DrawerFact({
+  label,
+  children,
+  compact,
+}: {
+  label: string;
+  children: ReactNode;
+  compact?: boolean;
+}) {
+  if (compact) {
+    return (
+      <div className="tv-stay-drawer__fact">
+        <dt>{label}</dt>
+        <dd>{children}</dd>
+      </div>
+    );
+  }
   return (
     <div className="grid grid-cols-[8.25rem_minmax(0,1fr)] items-baseline gap-x-2 text-[13px] leading-5">
       <dt className="text-ink-faint">{label}</dt>
@@ -282,7 +298,23 @@ function DrawerFact({ label, children }: { label: string; children: ReactNode })
   );
 }
 
-function DrawerSection({ title, children }: { title: string; children: ReactNode }) {
+function DrawerSection({
+  title,
+  children,
+  compact,
+}: {
+  title: string;
+  children: ReactNode;
+  compact?: boolean;
+}) {
+  if (compact) {
+    return (
+      <section className="tv-stay-drawer__section">
+        <h3 className="tv-stay-drawer__section-title">{title}</h3>
+        <div className="space-y-1">{children}</div>
+      </section>
+    );
+  }
   return (
     <section className="border-t border-black/[0.06] pt-3 first:border-t-0 first:pt-0">
       <h3 className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">{title}</h3>
@@ -944,14 +976,16 @@ export default function SupplierBookings({
     setFiltersSheetOpen(false);
   };
 
+  const isStayDesk = inventoryFamily === 'stay';
+
   return (
-    <div className={SUPPLIER_PAGE_CLASS}>
+    <div className={`${SUPPLIER_PAGE_CLASS}${isStayDesk ? ' partner-stay-ops' : ''}`}>
       <SupplierPageHero
-        badge="Operate"
-        title={inventoryFamily === 'stay' ? 'Reservations' : 'Bookings'}
+        badge={isStayDesk ? null : 'Operate'}
+        title={isStayDesk ? 'Reservations' : 'Bookings'}
         description={
-          inventoryFamily === 'stay'
-            ? 'Stay nights, guests, payment, and decisions.'
+          isStayDesk
+            ? 'Guests, nights, payment and decisions.'
             : 'Guests, products, dates, payment, and decisions.'
         }
         actions={
@@ -1047,15 +1081,19 @@ export default function SupplierBookings({
       </SupplierPageHero>
 
       {bookings.length > 0 && (
-      <div className="mb-4 space-y-3">
-        <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+      <div className={isStayDesk ? 'partner-stay-ops__toolbar' : 'mb-4 space-y-3'}>
+        <div className={`flex flex-col gap-2 lg:flex-row lg:items-center${isStayDesk ? '' : ''}`}>
           <label className="min-w-0 flex-1">
-            <span className="sr-only">Search bookings</span>
+            <span className="sr-only">{isStayDesk ? 'Search reservations' : 'Search bookings'}</span>
             <input
               type="search"
               value={searchDraft}
               onChange={(e) => setSearchDraft(e.target.value)}
-              placeholder="Search name, email or booking ID..."
+              placeholder={
+                isStayDesk
+                  ? 'Search guest, property or reference…'
+                  : 'Search name, email or booking ID...'
+              }
               className="tv-input w-full"
               aria-label="Search name, email or booking ID"
             />
@@ -1597,16 +1635,45 @@ export default function SupplierBookings({
                       <img
                         src={meta.imageUrl}
                         alt=""
-                        className="h-[3.25rem] w-[3.25rem] shrink-0 rounded-md object-cover ring-1 ring-black/[0.06]"
+                        className={`shrink-0 object-cover ring-1 ring-black/[0.06] ${
+                          isStayDesk
+                            ? 'tv-ops-booking-row__thumb'
+                            : 'h-[3.25rem] w-[3.25rem] rounded-md'
+                        }`}
                       />
                     ) : (
-                      <div className="h-[3.25rem] w-[3.25rem] shrink-0 rounded-md bg-finland/10 ring-1 ring-finland/15" aria-hidden />
+                      <div
+                        className={`shrink-0 bg-finland/10 ring-1 ring-finland/15 ${
+                          isStayDesk
+                            ? 'tv-ops-booking-row__thumb'
+                            : 'h-[3.25rem] w-[3.25rem] rounded-md'
+                        }`}
+                        aria-hidden
+                      />
                     )}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-2">
-                        <p className="line-clamp-2 min-w-0 flex-1 text-[14px] font-semibold leading-5 tracking-tight text-ink" title={listingTitle}>
-                          {listingTitle}
-                        </p>
+                        <div className="min-w-0 flex-1">
+                          <p
+                            className={`line-clamp-2 leading-5 tracking-tight ${
+                              isStayDesk
+                                ? 'tv-ops-booking-row__title'
+                                : 'text-[14px] font-semibold text-ink'
+                            }`}
+                            title={listingTitle}
+                          >
+                            {listingTitle}
+                          </p>
+                          {isStayDesk ? (
+                            <p className="tv-ops-booking-row__guest mt-0.5 truncate">
+                              {booking.guest_name?.trim() || 'Guest'}
+                            </p>
+                          ) : optionLabel ? (
+                            <p className="truncate text-[12.5px] leading-4 text-ink-muted" title={optionLabel}>
+                              {optionLabel}
+                            </p>
+                          ) : null}
+                        </div>
                         <span className="mt-0.5 inline-flex shrink-0 items-center gap-0.5">
                           <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-semibold ring-1 ${bookingStatusClass(booking.status, booking.payment_status)}`}>
                             {partnerBookingLifecycleLabel(booking.status)}
@@ -1614,11 +1681,6 @@ export default function SupplierBookings({
                           <ChevronRight className="h-4 w-4 text-ink-faint" aria-hidden />
                         </span>
                       </div>
-                      {optionLabel ? (
-                        <p className="truncate text-[12.5px] leading-4 text-ink-muted" title={optionLabel}>
-                          {optionLabel}
-                        </p>
-                      ) : null}
                       <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12px] leading-4 text-ink-muted">
                         <span className="inline-flex min-w-0 items-center gap-1">
                           <CalendarDays className="h-3.5 w-3.5 shrink-0 text-ink-faint" aria-hidden />
@@ -1636,7 +1698,7 @@ export default function SupplierBookings({
                       </div>
                       <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12px] leading-4 text-ink-muted">
                         <span className="font-mono text-[12px] font-semibold tracking-wide text-finland">{referenceLabel}</span>
-                        {purchaseDateLabel ? (
+                        {!isStayDesk && purchaseDateLabel ? (
                           <span className="whitespace-nowrap" title="Purchase date, when the booking was created">Purchased {purchaseDateLabel}</span>
                         ) : null}
                       </div>
@@ -1866,8 +1928,9 @@ export default function SupplierBookings({
             const commissionAdjusted =
               commercialSnapshot != null &&
               Number(commercialSnapshot.remaining_gross_minor) !== Number(commercialSnapshot.gross_minor);
+            const c = isStay;
             return (
-              <>
+              <div className={isStay ? 'tv-stay-drawer' : 'contents'}>
                 <SupplierModalHeader
                   title={booking.guest_name || 'Guest'}
                   badge={
@@ -1878,8 +1941,8 @@ export default function SupplierBookings({
                   subtitle={<span className="font-medium text-finland">{referenceLabel}</span>}
                   onClose={() => setSelectedBookingId(null)}
                 />
-                <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3 sm:px-5">
-                  <DrawerSection title="Experience">
+                <div className={isStay ? 'tv-stay-drawer__body' : 'min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3 sm:px-5'}>
+                  <DrawerSection title={isStay ? 'Stay overview' : 'Experience'} compact={c}>
                     <div className="flex gap-2.5">
                       {meta?.imageUrl ? (
                         <img
@@ -1891,28 +1954,31 @@ export default function SupplierBookings({
                         <div className="h-11 w-11 shrink-0 rounded-md bg-black/[0.04] ring-1 ring-black/[0.06]" aria-hidden />
                       )}
                       <div className="min-w-0 flex-1">
-                        <p className="line-clamp-2 text-sm font-semibold leading-5 text-ink" title={listingTitle}>
+                        <p className="line-clamp-2 text-sm font-bold leading-5 tracking-tight text-ink" title={listingTitle}>
                           {listingTitle}
                         </p>
-                        {optionLabel ? (
+                        {optionLabel && !isStay ? (
                           <p className="truncate text-[12px] text-ink-muted" title={optionLabel}>
                             {optionLabel}
                           </p>
                         ) : null}
-                        <div className="mt-1 grid grid-cols-1 gap-x-4 gap-y-0.5 sm:grid-cols-2">
-                          <p className="text-[13px] text-ink">{whenLabel}</p>
+                        <div className={`mt-1 grid grid-cols-1 gap-x-4 gap-y-0.5${isStay ? '' : ' sm:grid-cols-2'}`}>
+                          <p className="text-[13px] font-medium text-ink">{whenLabel}</p>
                           {!isStay && purchasedDuration ? (
                             <p className="inline-flex items-center gap-1 text-[13px] text-ink-muted">
                               <Clock className="h-3 w-3 shrink-0" aria-hidden />
                               {purchasedDuration}
                             </p>
                           ) : null}
-                          <p className="text-[13px] text-ink sm:col-span-2">
+                          <p className={`text-[13px] text-ink${isStay ? '' : ' sm:col-span-2'}`}>
                             {formatBookingParticipantsLabel(booking)}
                             {isStay && stayNightCount > 0
                               ? ` · ${stayNightCount} night${stayNightCount === 1 ? '' : 's'}`
                               : ''}
                           </p>
+                          {isStay && houseTimes ? (
+                            <p className="text-[12px] text-ink-muted">{houseTimes}</p>
+                          ) : null}
                         </div>
                         {dep.purchasedNote ? (
                           <p className="mt-0.5 text-[12px] text-ink-muted">{dep.purchasedNote}</p>
@@ -1922,10 +1988,10 @@ export default function SupplierBookings({
                   </DrawerSection>
 
                   {booking.guest_email || guestPhone || requestNotes ? (
-                  <DrawerSection title="Customer">
+                  <DrawerSection title={isStay ? 'Guest contact' : 'Customer'} compact={c}>
                     <dl className="space-y-1">
                       {booking.guest_email ? (
-                        <DrawerFact label="Email">
+                        <DrawerFact label="Email" compact={c}>
                           <a
                             href={`mailto:${booking.guest_email}`}
                             className="break-all text-finland hover:underline [overflow-wrap:anywhere]"
@@ -1935,7 +2001,7 @@ export default function SupplierBookings({
                         </DrawerFact>
                       ) : null}
                       {guestPhone ? (
-                        <DrawerFact label="Phone">
+                        <DrawerFact label="Phone" compact={c}>
                           <a href={phoneHref} className="text-finland hover:underline">
                             {guestPhone}
                           </a>
@@ -1946,11 +2012,11 @@ export default function SupplierBookings({
                       <div className="pt-1">
                         <p className="text-[12px] text-ink-faint">Notes</p>
                         <p className="whitespace-pre-wrap break-words text-[13px] leading-5 text-ink [overflow-wrap:anywhere]">
-                          {drawerExtra === 'notes' || requestNotes.length <= 160
+                          {drawerExtra === 'notes' || requestNotes.length <= (isStay ? 120 : 160)
                             ? requestNotes
-                            : `${requestNotes.slice(0, 160).trimEnd()}…`}
+                            : `${requestNotes.slice(0, isStay ? 120 : 160).trimEnd()}…`}
                         </p>
-                        {requestNotes.length > 160 ? (
+                        {requestNotes.length > (isStay ? 120 : 160) ? (
                           <button
                             type="button"
                             className="text-[13px] font-semibold text-finland"
@@ -1966,10 +2032,10 @@ export default function SupplierBookings({
                   ) : null}
 
                   {hasOperations ? (
-                  <DrawerSection title={isStay ? 'Check-in' : 'Operations'}>
+                  <DrawerSection title={isStay ? 'Arrival & property' : 'Operations'} compact={c}>
                     {!isStay && placeShown ? <DrawerFact label={placePrefix}>{placeShown}</DrawerFact> : null}
-                    {houseTimes ? <DrawerFact label="Times">{houseTimes}</DrawerFact> : null}
-                    {checkInAddress ? <DrawerFact label="Address">{checkInAddress}</DrawerFact> : null}
+                    {!isStay && houseTimes ? <DrawerFact label="Times">{houseTimes}</DrawerFact> : null}
+                    {checkInAddress ? <DrawerFact label="Address" compact={c}>{checkInAddress}</DrawerFact> : null}
                     {showPickup && pickupHm ? <DrawerFact label="Pickup time">{pickupHm}</DrawerFact> : null}
                     {pickupInstructions && (showPickup || showMeeting) ? (
                       <div>
@@ -1993,10 +2059,14 @@ export default function SupplierBookings({
                     ) : null}
                     {bookingLogistics ? <DrawerFact label="Transfer">{bookingLogistics}</DrawerFact> : null}
                     {needsAck ? (
-                      <p className="text-[13px] font-medium text-finland">This booking is waiting for acknowledgement.</p>
+                      <p className="text-[13px] font-medium text-finland">
+                        {isStay
+                          ? 'Acknowledge receipt — this does not confirm payment or accept a request.'
+                          : 'This booking is waiting for acknowledgement.'}
+                      </p>
                     ) : null}
                     {booking.acknowledged_at ? (
-                      <DrawerFact label="Acknowledged">
+                      <DrawerFact label="Acknowledged" compact={c}>
                         {new Date(booking.acknowledged_at).toLocaleString(undefined, {
                           dateStyle: 'medium',
                           timeStyle: 'short',
@@ -2018,17 +2088,17 @@ export default function SupplierBookings({
                       </p>
                     ) : null}
                     {houseRules ? (
-                      <div>
-                        <p className="text-[13px] text-ink-faint">House rules</p>
-                        <p className="whitespace-pre-wrap break-words text-[13px] text-ink">
-                          {drawerExtra === 'rules' || houseRules.length <= 140
+                      <div className={isStay ? 'mt-1' : undefined}>
+                        <p className="text-[12px] font-medium text-ink-faint">House rules</p>
+                        <p className="mt-0.5 whitespace-pre-wrap break-words text-[12.5px] leading-snug text-ink">
+                          {drawerExtra === 'rules' || houseRules.length <= (isStay ? 100 : 140)
                             ? houseRules
-                            : `${houseRules.slice(0, 140).trimEnd()}…`}
+                            : `${houseRules.slice(0, isStay ? 100 : 140).trimEnd()}…`}
                         </p>
-                        {houseRules.length > 140 ? (
+                        {houseRules.length > (isStay ? 100 : 140) ? (
                           <button
                             type="button"
-                            className="text-[13px] font-semibold text-finland"
+                            className="mt-0.5 text-[12.5px] font-semibold text-finland"
                             aria-expanded={drawerExtra === 'rules'}
                             onClick={() => setDrawerExtra(drawerExtra === 'rules' ? null : 'rules')}
                           >
@@ -2074,25 +2144,25 @@ export default function SupplierBookings({
                     {isStay ? (
                       <button
                         type="button"
-                        className="text-[13px] font-semibold text-finland hover:underline"
+                        className="mt-1 text-[12.5px] font-semibold text-finland hover:underline"
                         onClick={() =>
                           navigateSupplierUrl(
-                            `${PARTNER_APP_BASE}/calendar?listing=${encodeURIComponent(booking.listing_id)}`
+                            `${PARTNER_APP_BASE}/stay-calendar?listing=${encodeURIComponent(booking.listing_id)}`
                           )
                         }
                       >
-                        Open stay calendar
+                        Open Stay Calendar
                       </button>
                     ) : null}
                   </DrawerSection>
                   ) : null}
 
-                  <DrawerSection title="Payment">
+                  <DrawerSection title="Payment" compact={c}>
                     {commercialState === 'loading' ? (
                       <p className="text-[13px] text-ink-muted">Loading earnings…</p>
                     ) : commercialSnapshot && commercialState === 'ready' ? (
                       <>
-                        <DrawerFact label="Your earnings">
+                        <DrawerFact label="Your earnings" compact={c}>
                           <span className="tabular-nums">
                             {formatSnapshotMinor(
                               commercialSnapshot.remaining_supplier_minor,
@@ -2100,11 +2170,13 @@ export default function SupplierBookings({
                             )}
                           </span>
                         </DrawerFact>
-                        <p className="text-[12px] leading-4 text-ink-faint">
-                          {commissionAdjusted
-                            ? 'Earnings follow the refund recorded on this booking. This is not a payout.'
-                            : 'Your earnings are not a payout.'}
-                        </p>
+                        {!isStay ? (
+                          <p className="text-[12px] leading-4 text-ink-faint">
+                            {commissionAdjusted
+                              ? 'Earnings follow the refund recorded on this booking. This is not a payout.'
+                              : 'Your earnings are not a payout.'}
+                          </p>
+                        ) : null}
                         <button
                           type="button"
                           className="text-[13px] font-semibold text-finland"
@@ -2118,7 +2190,7 @@ export default function SupplierBookings({
                         Your earnings are not recorded for this booking.
                       </p>
                     )}
-                    <DrawerFact label="Status">{partnerPaymentLabel(booking)}</DrawerFact>
+                    <DrawerFact label="Status" compact={c}>{partnerPaymentLabel(booking)}</DrawerFact>
                     {isStayRequestAwaitingHost(booking) ? (
                       <StayRequestActions
                         role="supplier"
@@ -2142,7 +2214,7 @@ export default function SupplierBookings({
                       />
                     ) : null}
                     {collectedLabel && (collectedLabel !== bookingTotalLabel || collectedCaption !== 'Paid') ? (
-                      <DrawerFact label={collectedCaption}>{collectedLabel}</DrawerFact>
+                      <DrawerFact label={collectedCaption} compact={c}>{collectedLabel}</DrawerFact>
                     ) : null}
                     {partnerPaymentLabel(booking) === 'Refund due' ? (
                       <div className="rounded-md border border-black/[0.06] border-l-[3px] border-l-amber-500 bg-paper px-3 py-2">
@@ -2162,16 +2234,16 @@ export default function SupplierBookings({
                     ) : null}
                   </DrawerSection>
 
-                  <div className="border-t border-black/[0.06] pt-2">
+                  <div className={isStay ? 'tv-stay-drawer__section' : 'border-t border-black/[0.06] pt-2'}>
                     <button
                       type="button"
                       className="flex w-full items-center justify-between py-1 text-[13px] font-semibold text-ink"
                       aria-expanded={drawerExtra === 'activity'}
                       onClick={() => setDrawerExtra(drawerExtra === 'activity' ? null : 'activity')}
                     >
-                      Booking activity
+                      {isStay ? 'Activity' : 'Booking activity'}
                       <ChevronDown
-                        className={`h-4 w-4 text-ink-faint transition-transform ${drawerExtra === 'activity' ? 'rotate-180' : ''}`}
+                        className={`h-4 w-4 text-ink-faint transition-transform duration-150 motion-reduce:transition-none ${drawerExtra === 'activity' ? 'rotate-180' : ''}`}
                         aria-hidden
                       />
                     </button>
@@ -2227,7 +2299,13 @@ export default function SupplierBookings({
                     ) : null}
                   </div>
                 </div>
-                <footer className="flex shrink-0 flex-wrap items-center gap-2 border-t border-black/[0.06] bg-white px-4 py-2.5 pb-[max(0.65rem,env(safe-area-inset-bottom))]">
+                <footer
+                  className={
+                    isStay
+                      ? 'tv-stay-drawer__footer'
+                      : 'flex shrink-0 flex-wrap items-center gap-2 border-t border-black/[0.06] bg-white px-4 py-2.5 pb-[max(0.65rem,env(safe-area-inset-bottom))]'
+                  }
+                >
                   {canEditBookings &&
                   partnerBookingIsOperatingTrip(booking) &&
                   booking.status === 'pending' &&
@@ -2248,6 +2326,11 @@ export default function SupplierBookings({
                       disabled={busy}
                       onClick={() => void handleAcknowledge(booking)}
                       className="inline-flex h-9 items-center gap-1.5 rounded-full bg-finland px-3 text-[13px] font-semibold text-white hover:bg-finland-dark disabled:opacity-50"
+                      title={
+                        isStay
+                          ? 'Informational acknowledgement only — does not change payment or confirmation'
+                          : undefined
+                      }
                     >
                       {busy ? 'Saving…' : 'Acknowledge'}
                     </button>
@@ -2294,7 +2377,7 @@ export default function SupplierBookings({
                     </button>
                   ) : null}
                 </footer>
-              </>
+              </div>
             );
           })()}
         </SupplierDetailDrawer>

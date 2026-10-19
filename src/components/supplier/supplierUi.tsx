@@ -340,7 +340,7 @@ export function SupplierDetailDrawer({
         className={
           variant === 'sheet'
             ? 'absolute inset-0 flex w-full min-w-0 flex-col bg-white'
-            : 'absolute inset-y-0 right-0 flex w-full min-w-0 max-w-[42rem] flex-col bg-white shadow-xl ring-1 ring-black/10 sm:w-[min(45vw,42rem)]'
+            : 'absolute inset-y-0 right-0 flex w-full min-w-0 max-w-[42rem] flex-col bg-white shadow-[0_8px_40px_rgba(15,23,42,0.12)] ring-1 ring-black/10 motion-safe:animate-none sm:w-[min(45vw,42rem)]'
         }
       >
         <SupplierModalTitleIdContext.Provider value={titleId}>{children}</SupplierModalTitleIdContext.Provider>
