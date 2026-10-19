@@ -18,6 +18,7 @@ import {
   Shirt,
   Sofa,
   Sparkles,
+  Check,
   Trees,
   Tv,
   Users,
@@ -76,5 +77,5 @@ const HIGHLIGHT_ICONS: Record<string, LucideIcon> = {
 };
 
 export function stayHighlightLucideIcon(label: string): LucideIcon | null {
-  return HIGHLIGHT_ICONS[label] ?? Sparkles;
+  return HIGHLIGHT_ICONS[label] ?? Check;
 }

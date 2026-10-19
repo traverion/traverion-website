@@ -4,12 +4,12 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 /**
- * Layer A/B: StayNightPicker must not allow ranges beyond stayOccupancy night iteration cap.
+ * Layer A/B: stay date picks must not allow ranges beyond stayOccupancy night iteration cap.
  */
 describe('StayNightPicker max nights', () => {
   it('rejects check-out when occupied-night count exceeds STAY_MAX_OCCUPIED_NIGHTS', () => {
     const src = readFileSync(
-      join(dirname(fileURLToPath(import.meta.url)), 'StayNightPicker.tsx'),
+      join(dirname(fileURLToPath(import.meta.url)), '../lib/stay-night-pick.ts'),
       'utf8'
     );
     expect(src).toMatch(/STAY_MAX_OCCUPIED_NIGHTS/);

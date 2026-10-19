@@ -52,7 +52,7 @@ import ErrorState from '../components/ErrorState';
 import { Skeleton } from '../components/ui/Skeleton';
 import { setPageMetaWithOg, setStayJsonLd, clearStayJsonLd } from '../lib/seo';
 import { formatMoney, normalizeCurrency } from '../lib/money';
-import PriceBreakdown, { PriceHero } from '../components/PriceBreakdown';
+import PriceBreakdown from '../components/PriceBreakdown';
 import StayNightPicker from '../components/StayNightPicker';
 import StayGuestPartySelector from '../components/booking/StayGuestPartySelector';
 import { normalizeStayGuestPolicy, validateStayGuestParty, type StayGuestParty } from '../lib/stay-guest-party';
@@ -167,6 +167,8 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
   const gallerySheetRef = useRef<HTMLDivElement>(null);
   const [galleryLightboxOpen, setGalleryLightboxOpen] = useState(false);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
+  const [amenitiesExpanded, setAmenitiesExpanded] = useState(false);
+  const [cancellationExpanded, setCancellationExpanded] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
   const closeGalleryLightbox = useCallback(() => setGalleryLightboxOpen(false), []);
   useDialogFocus(galleryLightboxOpen, gallerySheetRef, closeGalleryLightbox);
@@ -834,64 +836,43 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
           ) : null}
         </div>
 
-        <header className="mb-5 max-w-3xl lg:mb-6">
-          <p className="mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-muted">
-            {s?.propertyType?.trim() ? (
-              <span className="inline-flex items-center gap-1 font-semibold text-finland">
-                <Home className="h-3.5 w-3.5" aria-hidden strokeWidth={2} />
-                {s.propertyType.trim()}
-              </span>
-            ) : null}
-            {s?.propertyType?.trim() ? <span aria-hidden>·</span> : null}
+        <header className="mb-4 max-w-3xl lg:mb-5">
+          {s?.accommodationMode === 'multi' ? (
+            <p className="mb-2 text-sm text-ink-muted">Room types for this property are not open for booking yet.</p>
+          ) : null}
+          <h1 className="font-sans text-[1.85rem] font-bold tracking-tight text-ink sm:text-[2rem] lg:text-[2.25rem] break-words [overflow-wrap:anywhere] leading-[1.15]">
+            {stay.title}
+          </h1>
+          <div className="mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm text-ink-muted">
+            {(() => {
+              const review = publicReviewLabel(reviewAggregate);
+              if (review.score) {
+                return (
+                  <span className="inline-flex items-center gap-1 font-semibold text-ink">
+                    <Star className="h-3.5 w-3.5 fill-finland text-finland" aria-hidden />
+                    <span className="tabular-nums">{review.score}</span>
+                    <span className="font-medium text-ink-muted">
+                      · {review.count} {review.count === 1 ? 'review' : 'reviews'}
+                    </span>
+                  </span>
+                );
+              }
+              return (
+                <span className="inline-flex items-center rounded-md bg-finland/[0.06] px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-finland">
+                  New property
+                </span>
+              );
+            })()}
+            <span aria-hidden className="text-ink-faint">
+              ·
+            </span>
             <span className="inline-flex items-center gap-1">
               <MapPin className="h-3.5 w-3.5 text-finland" aria-hidden strokeWidth={2} />
               {s?.locationDisplayName?.trim()
                 ? s.locationDisplayName.trim()
                 : [stay.city, stay.country].filter(Boolean).join(', ') || stay.destination}
             </span>
-          </p>
-          {s?.accommodationMode === 'multi' ? (
-            <p className="mb-2 text-sm text-ink-muted">Room types for this property are not open for booking yet.</p>
-          ) : null}
-          <h1 className="font-sans text-[1.75rem] font-bold tracking-tight text-ink sm:text-[1.85rem] lg:text-[2.05rem] break-words [overflow-wrap:anywhere] leading-[1.18]">
-            {stay.title}
-          </h1>
-          {stay.subtitle?.trim() ? (
-            <p className="mt-2 max-w-2xl text-[0.9375rem] leading-relaxed text-ink-muted line-clamp-2">
-              {stay.subtitle.trim()}
-            </p>
-          ) : null}
-          <ul className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-ink-muted">
-            {typeof s?.maxGuests === 'number' ? (
-              <li className="inline-flex items-center gap-1.5">
-                <Users className="h-3.5 w-3.5 opacity-70" aria-hidden strokeWidth={2} />
-                Up to {s.maxGuests} guests
-              </li>
-            ) : null}
-            {typeof s?.bedrooms === 'number' ? (
-              <li className="inline-flex items-center gap-1.5">
-                <BedDouble className="h-3.5 w-3.5 opacity-70" aria-hidden strokeWidth={2} />
-                {s.bedrooms === 1 ? '1 bedroom' : `${s.bedrooms} bedrooms`}
-              </li>
-            ) : null}
-            {stayBedSummary(s?.bedMix) || typeof s?.beds === 'number' ? (
-              <li className="inline-flex items-center gap-1.5">
-                <BedDouble className="h-3.5 w-3.5 opacity-70" aria-hidden strokeWidth={2} />
-                {stayBedSummary(s?.bedMix) ||
-                  (typeof s?.beds === 'number'
-                    ? s.beds === 1
-                      ? '1 bed'
-                      : `${s.beds} beds`
-                    : null)}
-              </li>
-            ) : null}
-            {typeof s?.bathrooms === 'number' ? (
-              <li className="inline-flex items-center gap-1.5">
-                <Bath className="h-3.5 w-3.5 opacity-70" aria-hidden strokeWidth={2} />
-                {s.bathrooms === 1 ? '1 bath' : `${s.bathrooms} baths`}
-              </li>
-            ) : null}
-          </ul>
+          </div>
         </header>
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1.85fr)_minmax(17.5rem,22rem)] lg:gap-8 pb-24 lg:pb-0">
@@ -1005,6 +986,50 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
               ) : null}
             </div>
 
+            <section className="border-b border-black/[0.08] pb-8">
+              <p className="text-base font-semibold tracking-tight text-ink">
+                {s?.propertyType?.trim()
+                  ? `Entire ${s.propertyType.trim()}${hostName ? ` hosted by ${hostName}` : ''}`
+                  : hostName
+                    ? `Entire stay hosted by ${hostName}`
+                    : 'Entire stay'}
+              </p>
+              {stay.subtitle?.trim() ? (
+                <p className="mt-1.5 max-w-prose text-sm leading-relaxed text-ink-muted">{stay.subtitle.trim()}</p>
+              ) : null}
+              <ul className="mt-3.5 flex flex-wrap items-center gap-x-3.5 gap-y-2 text-sm text-ink-muted">
+                {typeof s?.maxGuests === 'number' ? (
+                  <li className="inline-flex items-center gap-1.5">
+                    <Users className="h-3.5 w-3.5 text-finland" aria-hidden strokeWidth={2} />
+                    Up to {s.maxGuests} guests
+                  </li>
+                ) : null}
+                {typeof s?.bedrooms === 'number' ? (
+                  <li className="inline-flex items-center gap-1.5">
+                    <Home className="h-3.5 w-3.5 text-finland" aria-hidden strokeWidth={2} />
+                    {s.bedrooms === 1 ? '1 bedroom' : `${s.bedrooms} bedrooms`}
+                  </li>
+                ) : null}
+                {stayBedSummary(s?.bedMix) || typeof s?.beds === 'number' ? (
+                  <li className="inline-flex items-center gap-1.5">
+                    <BedDouble className="h-3.5 w-3.5 text-finland" aria-hidden strokeWidth={2} />
+                    {stayBedSummary(s?.bedMix) ||
+                      (typeof s?.beds === 'number'
+                        ? s.beds === 1
+                          ? '1 bed'
+                          : `${s.beds} beds`
+                        : null)}
+                  </li>
+                ) : null}
+                {typeof s?.bathrooms === 'number' ? (
+                  <li className="inline-flex items-center gap-1.5">
+                    <Bath className="h-3.5 w-3.5 text-finland" aria-hidden strokeWidth={2} />
+                    {s.bathrooms === 1 ? '1 bath' : `${s.bathrooms} baths`}
+                  </li>
+                ) : null}
+              </ul>
+            </section>
+
             {stay.description ? (
               <section>
                 <h2 className="font-sans text-lg font-bold tracking-tight text-ink mb-2">About this place</h2>
@@ -1032,7 +1057,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
 
             {stay.highlights?.some((line) => line.trim()) ? (
               <section>
-                <h2 className="font-sans text-lg font-bold tracking-tight text-ink mb-3">Highlights</h2>
+                <h2 className="font-sans text-lg font-bold tracking-tight text-ink mb-3">Property highlights</h2>
                 <ul className="grid gap-2.5 sm:grid-cols-2">
                   {stay.highlights
                     .filter((line) => line.trim())
@@ -1058,7 +1083,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
               <section>
                 <h2 className="font-sans text-lg font-bold tracking-tight text-ink mb-3">Amenities</h2>
                 <ul className="grid grid-cols-1 gap-x-4 gap-y-2.5 sm:grid-cols-2">
-                  {amenities.map((a) => {
+                  {(amenitiesExpanded ? amenities : amenities.slice(0, 8)).map((a) => {
                     const Icon = stayAmenityLucideIcon(a);
                     return (
                       <li key={a} className="flex items-center gap-2.5 text-sm text-ink break-words [overflow-wrap:anywhere]">
@@ -1072,6 +1097,16 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                     );
                   })}
                 </ul>
+                {amenities.length > 8 ? (
+                  <button
+                    type="button"
+                    className="mt-3 text-sm font-semibold text-finland hover:underline"
+                    onClick={() => setAmenitiesExpanded((v) => !v)}
+                    aria-expanded={amenitiesExpanded}
+                  >
+                    {amenitiesExpanded ? 'Show less' : `Show all ${amenities.length} amenities`}
+                  </button>
+                ) : null}
               </section>
             ) : null}
             {(() => {
@@ -1196,15 +1231,32 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
 
             <section className="border-t border-black/[0.08] pt-8">
               <h2 className="font-sans text-lg font-bold tracking-tight text-ink mb-2">Cancellation</h2>
-              <p className="text-sm text-ink-muted break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
+              <p
+                className={`text-sm text-ink-muted break-words [overflow-wrap:anywhere] whitespace-pre-wrap ${
+                  cancellationExpanded ? '' : 'line-clamp-3'
+                }`}
+              >
                 {STAY_GUEST_CANCELLATION_POLICY}
               </p>
+              {STAY_GUEST_CANCELLATION_POLICY.length > 160 ? (
+                <button
+                  type="button"
+                  className="mt-2 text-sm font-semibold text-finland hover:underline"
+                  onClick={() => setCancellationExpanded((v) => !v)}
+                  aria-expanded={cancellationExpanded}
+                >
+                  {cancellationExpanded ? 'Show less' : 'Read full policy'}
+                </button>
+              ) : null}
             </section>
 
             {hostName ? (
               <section className="border-t border-black/[0.08] pt-8">
                 <h2 className="font-sans text-lg font-bold tracking-tight text-ink mb-2">Host</h2>
-                <p className="text-sm text-ink-muted">{hostName}</p>
+                <p className="text-sm font-medium text-ink">{hostName}</p>
+                <p className="mt-1 text-sm text-ink-muted">
+                  Contact details and private arrival instructions are shared after booking confirmation.
+                </p>
               </section>
             ) : null}
 
@@ -1245,9 +1297,10 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                   </button>
                 </div>
               ) : reviews.length === 0 && !showReviewForm ? (
-                <p className="text-ink-muted mb-4 max-w-xl leading-relaxed">
-                  {LISTING_REVIEWS_EMPTY_COPY}
-                </p>
+                <div className="mb-4 max-w-xl rounded-xl bg-finland/[0.04] px-4 py-3.5">
+                  <p className="text-sm font-semibold text-ink">No guest reviews yet</p>
+                  <p className="mt-1 text-sm text-ink-muted leading-relaxed">{LISTING_REVIEWS_EMPTY_COPY}</p>
+                </div>
               ) : null}
               <div className="space-y-6 mb-6">
                 {reviews.slice(0, 3).map((r) => (
@@ -1455,14 +1508,19 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                 </p>
                 <p className="mt-1.5 text-sm text-ink-muted">
                   Total · {stayQuote.nights} night{stayQuote.nights === 1 ? '' : 's'}
+                  {nightly > 0 ? ` · ${formatMoney(nightly, currency)} / night` : ''}
                 </p>
               </div>
             ) : nightly > 0 ? (
-              <PriceHero
-                amount={nightly}
-                currency={currency}
-                basis={minNights === 1 ? 'per night · 1 night minimum' : `per night · ${minNights} nights minimum`}
-              />
+              <div>
+                <p className="font-display text-3xl font-semibold tabular-nums tracking-tight text-ink leading-none">
+                  {formatMoney(nightly, currency)}
+                </p>
+                <p className="mt-1.5 text-sm text-ink-muted">
+                  / night
+                  {minNights > 1 ? ` · ${minNights} nights minimum` : ''}
+                </p>
+              </div>
             ) : (
               <p className="font-display text-2xl font-semibold text-ink">—</p>
             )}
