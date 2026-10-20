@@ -54,6 +54,11 @@ export default function StayOpsReservationCard({
   copied,
 }: Props) {
   const stop = (e: MouseEvent) => e.stopPropagation();
+  const moneyLabel = model.earningsLabel
+    ? { label: 'You earn', value: model.earningsLabel }
+    : model.guestTotalLabel
+      ? { label: 'Guest total', value: model.guestTotalLabel }
+      : null;
 
   return (
     <article
@@ -105,6 +110,12 @@ export default function StayOpsReservationCard({
                   {model.nightLabel ? ` · ${model.nightLabel}` : ''}
                 </span>
               </span>
+              {moneyLabel && !expanded ? (
+                <span className="stay-ops-card__money stay-ops-card__money--inline">
+                  <span className="stay-ops-card__money-label">{moneyLabel.label}</span>
+                  <span className="stay-ops-card__money-value">{moneyLabel.value}</span>
+                </span>
+              ) : null}
             </div>
             <div className="stay-ops-card__footer-row">
               <button
@@ -118,40 +129,28 @@ export default function StayOpsReservationCard({
               >
                 {copied ? 'Copied' : model.referenceLabel}
               </button>
-              {model.earningsLabel ? (
-                <span className="stay-ops-card__money">
-                  <span className="stay-ops-card__money-label">You earn</span>
-                  <span className="stay-ops-card__money-value">{model.earningsLabel}</span>
-                </span>
-              ) : model.guestTotalLabel ? (
-                <span className="stay-ops-card__money">
-                  <span className="stay-ops-card__money-label">Guest total</span>
-                  <span className="stay-ops-card__money-value">{model.guestTotalLabel}</span>
-                </span>
-              ) : null}
             </div>
             {model.warning ? <p className="stay-ops-card__warn">{model.warning}</p> : null}
           </div>
         </button>
       </div>
 
-      <div
-        className="stay-ops-card__panel"
-        hidden={!expanded}
-        onClick={stop}
-      >
+      <div className="stay-ops-card__panel" hidden={!expanded} onClick={stop}>
         <div className="stay-ops-card__panel-grid">
-          <div className="stay-ops-card__inout">
-            <div>
-              <p className="stay-ops-card__label">Check-in</p>
-              <p className="stay-ops-card__value">{model.checkInTime || '—'}</p>
-            </div>
-            <div>
-              <p className="stay-ops-card__label">Check-out</p>
-              <p className="stay-ops-card__value">{model.checkOutTime || '—'}</p>
+          <div className="stay-ops-card__cell">
+            <p className="stay-ops-card__label">Times</p>
+            <div className="stay-ops-card__inout">
+              <div>
+                <p className="stay-ops-card__sublabel">Check-in</p>
+                <p className="stay-ops-card__value">{model.checkInTime || '—'}</p>
+              </div>
+              <div>
+                <p className="stay-ops-card__sublabel">Check-out</p>
+                <p className="stay-ops-card__value">{model.checkOutTime || '—'}</p>
+              </div>
             </div>
           </div>
-          <div>
+          <div className="stay-ops-card__cell">
             <p className="stay-ops-card__label">Guest contact</p>
             <p className="stay-ops-card__value">
               {model.guestEmail ? (
@@ -159,25 +158,28 @@ export default function StayOpsReservationCard({
                   {model.guestEmail}
                 </a>
               ) : (
-                'No email'
+                'No email on file'
               )}
             </p>
             {model.guestPhone ? (
               <p className="stay-ops-card__value mt-0.5">
-                <a href={`tel:${model.guestPhone.replace(/[^\d+]/g, '')}`} className="text-finland hover:underline">
+                <a
+                  href={`tel:${model.guestPhone.replace(/[^\d+]/g, '')}`}
+                  className="text-finland hover:underline"
+                >
                   {model.guestPhone}
                 </a>
               </p>
             ) : null}
           </div>
-          <div>
+          <div className="stay-ops-card__cell">
             <p className="stay-ops-card__label">Payment</p>
             <p className="stay-ops-card__value">{model.paymentLabel}</p>
-            {model.guestTotalLabel ? (
-              <p className="stay-ops-card__value mt-0.5 text-ink-muted">Guest {model.guestTotalLabel}</p>
-            ) : null}
-            {model.earningsLabel ? (
-              <p className="stay-ops-card__value mt-0.5 font-semibold">You earn {model.earningsLabel}</p>
+            {moneyLabel ? (
+              <p className="stay-ops-card__value mt-0.5">
+                <span className="text-ink-muted">{moneyLabel.label}</span>{' '}
+                <span className="font-semibold tabular-nums">{moneyLabel.value}</span>
+              </p>
             ) : null}
           </div>
         </div>

@@ -2000,8 +2000,488 @@ export default function SupplierBookings({
               commercialSnapshot != null &&
               Number(commercialSnapshot.remaining_gross_minor) !== Number(commercialSnapshot.gross_minor);
             const c = isStay;
+
+            if (isStay) {
+              const statusBadge = (
+                <span
+                  className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold ring-1 ${bookingStatusClass(booking.status, booking.payment_status)}`}
+                >
+                  {partnerBookingLifecycleLabel(booking.status)}
+                </span>
+              );
+              return (
+                <div className="stay-ops-detail-page">
+                  <header className="stay-ops-detail__hero">
+                    {meta?.imageUrl ? (
+                      <img src={meta.imageUrl} alt="" className="stay-ops-detail__thumb" />
+                    ) : (
+                      <div className="stay-ops-detail__thumb" aria-hidden />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h2 className="stay-ops-detail__title">{booking.guest_name || 'Guest'}</h2>
+                        {statusBadge}
+                      </div>
+                      <p className="stay-ops-detail__sub" title={listingTitle}>
+                        {listingTitle}
+                      </p>
+                      <p className="stay-ops-detail__ref">{referenceLabel}</p>
+                      <p className="mt-1 text-[13px] text-ink-muted">
+                        {formatBookingParticipantsLabel(booking)}
+                        {stayNightCount > 0
+                          ? ` · ${stayNightCount} night${stayNightCount === 1 ? '' : 's'}`
+                          : ''}
+                      </p>
+                    </div>
+                  </header>
+
+                  <div className="stay-ops-detail__grid">
+                    <section className="stay-ops-detail__panel">
+                      <h3 className="stay-ops-detail__panel-title">Guest & contact</h3>
+                      <dl className="stay-ops-detail__facts">
+                        {booking.guest_email ? (
+                          <div className="stay-ops-detail__fact">
+                            <dt>Email</dt>
+                            <dd>
+                              <a
+                                href={`mailto:${booking.guest_email}`}
+                                className="text-finland hover:underline [overflow-wrap:anywhere]"
+                              >
+                                {booking.guest_email}
+                              </a>
+                            </dd>
+                          </div>
+                        ) : null}
+                        {guestPhone ? (
+                          <div className="stay-ops-detail__fact">
+                            <dt>Phone</dt>
+                            <dd>
+                              <a href={phoneHref} className="text-finland hover:underline">
+                                {guestPhone}
+                              </a>
+                            </dd>
+                          </div>
+                        ) : null}
+                        {booking.acknowledged_at ? (
+                          <div className="stay-ops-detail__fact">
+                            <dt>Reviewed</dt>
+                            <dd>
+                              {new Date(booking.acknowledged_at).toLocaleString(undefined, {
+                                dateStyle: 'medium',
+                                timeStyle: 'short',
+                              })}
+                            </dd>
+                          </div>
+                        ) : null}
+                      </dl>
+                      {requestNotes ? (
+                        <div className="mt-2.5">
+                          <p className="stay-ops-detail__panel-title" style={{ marginBottom: '0.35rem' }}>
+                            Notes
+                          </p>
+                          <p className="whitespace-pre-wrap break-words text-[13px] leading-5 text-ink [overflow-wrap:anywhere]">
+                            {drawerExtra === 'notes' || requestNotes.length <= 160
+                              ? requestNotes
+                              : `${requestNotes.slice(0, 160).trimEnd()}…`}
+                          </p>
+                          {requestNotes.length > 160 ? (
+                            <button
+                              type="button"
+                              className="mt-1 text-[12.5px] font-semibold text-finland"
+                              aria-expanded={drawerExtra === 'notes'}
+                              onClick={() => setDrawerExtra(drawerExtra === 'notes' ? null : 'notes')}
+                            >
+                              {drawerExtra === 'notes' ? 'Show less' : 'Show full note'}
+                            </button>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </section>
+
+                    <section className="stay-ops-detail__panel">
+                      <h3 className="stay-ops-detail__panel-title">Stay dates</h3>
+                      {stayRange ? (
+                        <div className="stay-ops-detail__inout">
+                          <div className="stay-ops-detail__inout-block">
+                            <p className="stay-ops-detail__inout-label">Check-in</p>
+                            <p className="stay-ops-detail__inout-value">
+                              {formatStayNightHuman(stayRange.checkIn)}
+                            </p>
+                            {stayInTime ? (
+                              <p className="stay-ops-detail__inout-time">From {stayInTime}</p>
+                            ) : null}
+                          </div>
+                          <div className="stay-ops-detail__inout-block">
+                            <p className="stay-ops-detail__inout-label">Check-out</p>
+                            <p className="stay-ops-detail__inout-value">
+                              {formatStayNightHuman(stayRange.checkOut)}
+                            </p>
+                            {stayOutTime ? (
+                              <p className="stay-ops-detail__inout-time">By {stayOutTime}</p>
+                            ) : null}
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-[13px] text-ink">{whenLabel}</p>
+                      )}
+                      <button
+                        type="button"
+                        className="mt-3 text-[12.5px] font-semibold text-finland hover:underline"
+                        onClick={() =>
+                          navigateSupplierUrl(
+                            `${PARTNER_APP_BASE}/stay-calendar?listing=${encodeURIComponent(booking.listing_id)}`
+                          )
+                        }
+                      >
+                        Open Stay Calendar
+                      </button>
+                    </section>
+
+                    <section className="stay-ops-detail__panel">
+                      <h3 className="stay-ops-detail__panel-title">Payment & earnings</h3>
+                      <dl className="stay-ops-detail__facts">
+                        <div className="stay-ops-detail__fact">
+                          <dt>Status</dt>
+                          <dd>{partnerPaymentLabel(booking)}</dd>
+                        </div>
+                        {commercialState === 'loading' ? (
+                          <div className="stay-ops-detail__fact">
+                            <dt>Earnings</dt>
+                            <dd className="text-ink-muted">Loading…</dd>
+                          </div>
+                        ) : commercialSnapshot && commercialState === 'ready' ? (
+                          <div className="stay-ops-detail__fact">
+                            <dt>You earn</dt>
+                            <dd className="tabular-nums font-semibold">
+                              {formatSnapshotMinor(
+                                commercialSnapshot.remaining_supplier_minor,
+                                commercialSnapshot.currency
+                              )}
+                            </dd>
+                          </div>
+                        ) : (
+                          <div className="stay-ops-detail__fact">
+                            <dt>Earnings</dt>
+                            <dd className="text-ink-muted">Not recorded</dd>
+                          </div>
+                        )}
+                        {collectedLabel &&
+                        (collectedLabel !== bookingTotalLabel || collectedCaption !== 'Paid') ? (
+                          <div className="stay-ops-detail__fact">
+                            <dt>{collectedCaption}</dt>
+                            <dd className="tabular-nums">{collectedLabel}</dd>
+                          </div>
+                        ) : null}
+                      </dl>
+                      {isStayRequestAwaitingHost(booking) ? (
+                        <div className="mt-2">
+                          <StayRequestActions
+                            role="supplier"
+                            booking={{
+                              ...booking,
+                              listingTitle: displayListingTitleFromPurchase(
+                                booking.purchase_snapshot,
+                                listingMeta[booking.listing_id]?.title,
+                                'Stay'
+                              ),
+                            }}
+                            onDone={() => void load()}
+                          />
+                        </div>
+                      ) : null}
+                      {readStayBookingPrice(booking.purchase_snapshot) ? (
+                        <div className="mt-2">
+                          <SavedStayPrice
+                            snapshot={booking.purchase_snapshot}
+                            currency={booking.currency}
+                            amountPaid={
+                              bookingPaymentWasCollected(booking.payment_status)
+                                ? Number(booking.amount_paid)
+                                : null
+                            }
+                            totalLabel="Guest total"
+                          />
+                        </div>
+                      ) : null}
+                      {commercialSnapshot && commercialState === 'ready' ? (
+                        <button
+                          type="button"
+                          className="mt-2 text-[12.5px] font-semibold text-finland"
+                          onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/money?tab=documents`)}
+                        >
+                          View financial statement
+                        </button>
+                      ) : null}
+                      {partnerPaymentLabel(booking) === 'Refund due' ? (
+                        <div className="mt-2 rounded-md border border-black/[0.06] border-l-[3px] border-l-amber-500 bg-paper px-3 py-2">
+                          <p className="text-[13px] font-semibold text-ink">Refund due</p>
+                          <p className="mt-0.5 text-[12px] leading-snug text-ink-muted">
+                            {REFUND_DUE_MANUAL_COPY}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedBookingId(null);
+                              navigateSupplierUrl(`${PARTNER_APP_BASE}/money`);
+                            }}
+                            className="mt-1 text-[12px] font-semibold text-finland hover:underline"
+                          >
+                            Open Income
+                          </button>
+                        </div>
+                      ) : null}
+                      {partnerBookingIsUnpaidCheckout(booking) ? (
+                        <div className="mt-2">
+                          <NoticeCallout
+                            title={
+                              partnerUnpaidCheckoutHoldsInventory(booking)
+                                ? 'Checkout hold still open'
+                                : 'Hold expired'
+                            }
+                            tone={partnerUnpaidCheckoutHoldsInventory(booking) ? 'warn' : 'info'}
+                          >
+                            {partnerUnpaidCheckoutHoldsInventory(booking)
+                              ? `${formatPartnerCheckoutHoldLabel(booking)}. The traveler may still complete payment. Cancelling releases this hold.`
+                              : 'Inventory is already released. Clear this row if you no longer need it — this does not free additional spots.'}
+                          </NoticeCallout>
+                        </div>
+                      ) : null}
+                    </section>
+
+                    <section className="stay-ops-detail__panel">
+                      <h3 className="stay-ops-detail__panel-title">Property & arrival</h3>
+                      {checkInAddress ? (
+                        <div className="stay-ops-detail__fact mb-2">
+                          <dt className="sr-only">Address</dt>
+                          <p className="text-[12px] font-medium text-ink-faint">Address</p>
+                          <p className="mt-0.5 text-[13px] leading-5 text-ink [overflow-wrap:anywhere]">
+                            {checkInAddress}
+                          </p>
+                        </div>
+                      ) : null}
+                      {pickupInstructions ? (
+                        <div className="mb-2">
+                          <p className="text-[12px] font-medium text-ink-faint">Arrival instructions</p>
+                          <p className="mt-0.5 whitespace-pre-wrap break-words text-[13px] leading-5 text-ink">
+                            {drawerExtra === 'arrival' || pickupInstructions.length <= 180
+                              ? pickupInstructions
+                              : `${pickupInstructions.slice(0, 180).trimEnd()}…`}
+                          </p>
+                          {pickupInstructions.length > 180 ? (
+                            <button
+                              type="button"
+                              className="mt-1 text-[12.5px] font-semibold text-finland"
+                              aria-expanded={drawerExtra === 'arrival'}
+                              onClick={() =>
+                                setDrawerExtra(drawerExtra === 'arrival' ? null : 'arrival')
+                              }
+                            >
+                              {drawerExtra === 'arrival' ? 'Show less' : 'Show full instructions'}
+                            </button>
+                          ) : null}
+                        </div>
+                      ) : null}
+                      {houseRules ? (
+                        <div>
+                          <button
+                            type="button"
+                            className="text-[12.5px] font-semibold text-finland"
+                            aria-expanded={drawerExtra === 'rules'}
+                            onClick={() => setDrawerExtra(drawerExtra === 'rules' ? null : 'rules')}
+                          >
+                            {drawerExtra === 'rules' ? 'Hide house rules' : 'House rules'}
+                          </button>
+                          {drawerExtra === 'rules' ? (
+                            <p className="mt-1.5 whitespace-pre-wrap break-words text-[13px] leading-5 text-ink">
+                              {houseRules}
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : null}
+                      {!checkInAddress && !pickupInstructions && !houseRules ? (
+                        <p className="text-[13px] text-ink-muted">No arrival details on this booking.</p>
+                      ) : null}
+                      {openCancel ? (
+                        <div className="mt-2">
+                          <NoticeCallout
+                            title={
+                              openCancel.expires_at &&
+                              new Date(openCancel.expires_at).getTime() < Date.now()
+                                ? 'Review window passed — still waiting'
+                                : 'Waiting for the traveler'
+                            }
+                            tone="warn"
+                          >
+                            Requested{' '}
+                            {new Date(openCancel.created_at).toLocaleString(undefined, {
+                              dateStyle: 'medium',
+                              timeStyle: 'short',
+                            })}
+                            {openCancel.expires_at
+                              ? ` · noted until ${new Date(openCancel.expires_at).toLocaleString(
+                                  undefined,
+                                  { dateStyle: 'medium', timeStyle: 'short' }
+                                )}`
+                              : ''}
+                            . The booking stays active until the traveler accepts.{' '}
+                            {PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE}
+                          </NoticeCallout>
+                        </div>
+                      ) : null}
+                    </section>
+
+                    <section className="stay-ops-detail__panel stay-ops-detail__panel--span">
+                      <button
+                        type="button"
+                        className="flex w-full items-center justify-between text-left"
+                        aria-expanded={drawerExtra === 'activity'}
+                        onClick={() =>
+                          setDrawerExtra(drawerExtra === 'activity' ? null : 'activity')
+                        }
+                      >
+                        <h3 className="stay-ops-detail__panel-title !mb-0">Booking activity</h3>
+                        <ChevronDown
+                          className={`h-4 w-4 text-ink-faint transition-transform duration-150 motion-reduce:transition-none ${drawerExtra === 'activity' ? 'rotate-180' : ''}`}
+                          aria-hidden
+                        />
+                      </button>
+                      {drawerExtra === 'activity' ? (
+                        <ol className="mt-2 space-y-1 text-[13px] text-ink-muted">
+                          <li>
+                            Booked{' '}
+                            {booking.created_at
+                              ? new Date(booking.created_at).toLocaleString(undefined, {
+                                  dateStyle: 'medium',
+                                  timeStyle: 'short',
+                                })
+                              : ''}
+                          </li>
+                          {bookingPaymentWasCollected(booking.payment_status) ? (
+                            <li>{partnerCollectedAmountCaption(booking)}</li>
+                          ) : null}
+                          {booking.acknowledged_at ? (
+                            <li>
+                              Reviewed{' '}
+                              {new Date(booking.acknowledged_at).toLocaleString(undefined, {
+                                dateStyle: 'medium',
+                                timeStyle: 'short',
+                              })}
+                            </li>
+                          ) : null}
+                          {openCancel ? (
+                            <li>
+                              Cancellation requested{' '}
+                              {new Date(openCancel.created_at).toLocaleString(undefined, {
+                                dateStyle: 'medium',
+                                timeStyle: 'short',
+                              })}
+                            </li>
+                          ) : null}
+                          {booking.status === 'cancelled' ? <li>Cancelled</li> : null}
+                          {activityEvents.map((event) => (
+                            <li key={event.id}>
+                              {event.event_type.replace(/_/g, ' ')}
+                              {event.details ? ` · ${event.details}` : ''} ·{' '}
+                              {new Date(event.created_at).toLocaleString(undefined, {
+                                dateStyle: 'medium',
+                                timeStyle: 'short',
+                              })}
+                            </li>
+                          ))}
+                        </ol>
+                      ) : (
+                        <p className="mt-1.5 text-[12.5px] text-ink-faint">
+                          Expand to view booking history.
+                        </p>
+                      )}
+                    </section>
+                  </div>
+
+                  <div className="stay-ops-detail__actions">
+                    <button
+                      type="button"
+                      onClick={() => openSupplierInbox(booking.id)}
+                      className="tv-btn-primary inline-flex h-9 items-center gap-1.5 !px-3 text-[13px]"
+                    >
+                      <Mail className="h-3.5 w-3.5" aria-hidden />
+                      Message guest
+                    </button>
+                    {canEditBookings && needsAck ? (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void handleAcknowledge(booking)}
+                        className="tv-btn-secondary inline-flex h-9 items-center gap-1.5 !px-3 text-[13px] disabled:opacity-50"
+                        title="Informational only — does not change payment or confirmation"
+                      >
+                        {busy ? 'Saving…' : 'Mark as reviewed'}
+                      </button>
+                    ) : null}
+                    {canEditBookings &&
+                    (partnerBookingIsOperatingTrip(booking) ||
+                      partnerBookingIsUnpaidCheckout(booking)) ? (
+                      <div className="tv-stay-drawer__more ml-auto">
+                        <button
+                          type="button"
+                          className="tv-btn-ghost inline-flex h-9 w-9 items-center justify-center !px-0"
+                          aria-expanded={drawerMoreOpen}
+                          aria-haspopup="menu"
+                          aria-label="More actions"
+                          onClick={() => setDrawerMoreOpen((open) => !open)}
+                        >
+                          <MoreHorizontal className="h-4 w-4" aria-hidden />
+                        </button>
+                        {drawerMoreOpen ? (
+                          <div className="tv-stay-drawer__more-menu" role="menu">
+                            {partnerBookingIsOperatingTrip(booking) ? (
+                              <button
+                                type="button"
+                                role="menuitem"
+                                disabled={busy || Boolean(openCancel)}
+                                className="tv-stay-drawer__more-item"
+                                onClick={() => {
+                                  setDrawerMoreOpen(false);
+                                  setCancelError(null);
+                                  setCancelReasonText('');
+                                  setCancelEvidence('');
+                                  setCancelModal(booking);
+                                }}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                                {openCancel ? 'Awaiting traveler' : 'Request cancellation'}
+                              </button>
+                            ) : null}
+                            {partnerBookingIsUnpaidCheckout(booking) ? (
+                              <button
+                                type="button"
+                                role="menuitem"
+                                disabled={busy}
+                                className="tv-stay-drawer__more-item"
+                                onClick={() => {
+                                  setDrawerMoreOpen(false);
+                                  setCancelError(null);
+                                  setCancelReasonText('');
+                                  setCancelEvidence('');
+                                  setCancelModal(booking);
+                                }}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                                {partnerUnpaidCheckoutHoldsInventory(booking)
+                                  ? 'Cancel unpaid'
+                                  : 'Clear expired hold'}
+                              </button>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            }
+
             return (
-              <div className={isStay ? 'tv-stay-drawer' : 'contents'}>
+              <div className="contents">
                 <SupplierModalHeader
                   title={booking.guest_name || 'Guest'}
                   badge={
@@ -2012,8 +2492,8 @@ export default function SupplierBookings({
                   subtitle={<span className="font-medium text-finland">{referenceLabel}</span>}
                   onClose={() => setSelectedBookingId(null)}
                 />
-                <div className={isStay ? 'tv-stay-drawer__body' : 'min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3 sm:px-5'}>
-                  <DrawerSection title={isStay ? 'Stay' : 'Experience'} compact={c}>
+                <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3 sm:px-5">
+                  <DrawerSection title="Experience" compact={c}>
                     <div className="flex gap-2.5">
                       {meta?.imageUrl ? (
                         <img
