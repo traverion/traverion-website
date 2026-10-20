@@ -86,6 +86,30 @@ export function nextDaysRange(fromIso: string, days: number): { from: string; to
   return { from: fromIso, to: addCalendarDays(fromIso, n - 1) };
 }
 
+/** Shift a Monday–Sunday week window by ±7 days. */
+export function shiftWeekRange(fromIso: string, deltaWeeks: number): { from: string; to: string } {
+  const from = addCalendarDays(fromIso, Math.floor(deltaWeeks) * 7);
+  return { from, to: addCalendarDays(from, 6) };
+}
+
+/** Human label for a Mon–Sun ISO range (local noon parse, en-GB). */
+export function formatWeekRangeLabel(fromIso: string, toIso: string): string {
+  const a = new Date(`${fromIso}T12:00:00`);
+  const b = new Date(`${toIso}T12:00:00`);
+  const sameMonth = a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
+  if (sameMonth) {
+    return `${a.toLocaleDateString('en-GB', { day: 'numeric' })}–${b.toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    })}`;
+  }
+  return `${a.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} – ${b.toLocaleDateString(
+    'en-GB',
+    { day: 'numeric', month: 'short', year: 'numeric' }
+  )}`;
+}
+
 export function statusLabel(status: DepartureAvailStatus): string {
   switch (status) {
     case 'available':

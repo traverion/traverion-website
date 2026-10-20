@@ -49,6 +49,7 @@ import {
   SupplierEmptyState,
   SupplierModalHeader,
   SupplierModalShell,
+  SupplierPageHero,
 } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
 import NoticeCallout from '../../components/NoticeCallout';
@@ -78,10 +79,12 @@ import AvailabilityWeekView from './AvailabilityWeekView';
 import {
   buildWorkspaceDepartures,
   filterDeparturesByStatus,
+  formatWeekRangeLabel,
   nextDaysRange,
   optionChoicesForListings,
   parseAvailabilityView,
   parseStatusFilter,
+  shiftWeekRange,
   weekRangeContaining,
   type AvailabilityStatusFilter,
   type AvailabilityViewMode,
@@ -1121,42 +1124,70 @@ export default function SupplierAvailability() {
     }
   };
 
+  const activeFilterCount = [
+    listingId,
+    optionId,
+    statusFilter !== 'all' ? statusFilter : '',
+    view !== 'month' && filterFrom && filterTo ? 'range' : '',
+  ].filter(Boolean).length;
+
+  const resetWorkspaceFilters = () => {
+    setListingIdAndUrl('');
+    setOptionId('');
+    setStatusFilter('all');
+    if (view === 'week') {
+      const w = weekRangeContaining(localTodayIso);
+      setFilterFrom(w.from);
+      setFilterTo(w.to);
+      syncWorkspaceUrl({ listing: '', option: '', status: 'all', from: w.from, to: w.to });
+    } else if (view === 'agenda') {
+      const r = nextDaysRange(localTodayIso, 14);
+      setFilterFrom(r.from);
+      setFilterTo(r.to);
+      syncWorkspaceUrl({ listing: '', option: '', status: 'all', from: r.from, to: r.to });
+    } else {
+      syncWorkspaceUrl({ listing: '', option: '', status: 'all' });
+    }
+  };
+
   return (
-    <div className={`${SUPPLIER_PAGE_CLASS} min-h-[70vh]`}>
-      <header className="tv-avail-page-head">
-        <div className="tv-avail-page-head__text">
-          <h1>Departures & Availability</h1>
-          <p>Manage tour departures, inventory and booking cutoffs</p>
-        </div>
-        {listings.length > 0 && listingId ? (
-          <button
-            type="button"
-            disabled={!canEditCalendar}
-            onClick={() => {
-              if (!canEditCalendar) return;
-              setBulkError(null);
-              setBulkConfirm(false);
-              setBulkDiscardOpen(false);
-              setBulkDirty(false);
-              setSaveNote(null);
-              setBulkFrom(filterFrom || localTodayIso);
-              setBulkTo(filterTo || addCalendarDays(localTodayIso, 6));
-              setBulkCapacity('16');
-              setBulkCutoffHours('0');
-              setBulkAction('close');
-              setBulkTargetOptionId('');
-              setBulkCapacityMixed(false);
-              setBulkCutoffMixed(false);
-              setBulkWeekdays([...WEEKDAY_FILTER_DEFAULT]);
-              setBulkOpen(true);
-            }}
-            className="tv-btn-primary inline-flex h-10 shrink-0 items-center gap-1.5 !px-3 text-[13px] disabled:opacity-40"
-          >
-            <Layers className="h-3.5 w-3.5" aria-hidden />
-            Bulk edit
-          </button>
-        ) : null}
-      </header>
+    <div className={`${SUPPLIER_PAGE_CLASS} partner-avail-page min-h-[70vh]`}>
+      <SupplierPageHero
+        badge={null}
+        sansTitle
+        title="Departures & Availability"
+        description="Manage your departures, bookings, and available capacity."
+        actions={
+          listings.length > 0 && listingId ? (
+            <button
+              type="button"
+              disabled={!canEditCalendar}
+              onClick={() => {
+                if (!canEditCalendar) return;
+                setBulkError(null);
+                setBulkConfirm(false);
+                setBulkDiscardOpen(false);
+                setBulkDirty(false);
+                setSaveNote(null);
+                setBulkFrom(filterFrom || localTodayIso);
+                setBulkTo(filterTo || addCalendarDays(localTodayIso, 6));
+                setBulkCapacity('16');
+                setBulkCutoffHours('0');
+                setBulkAction('close');
+                setBulkTargetOptionId('');
+                setBulkCapacityMixed(false);
+                setBulkCutoffMixed(false);
+                setBulkWeekdays([...WEEKDAY_FILTER_DEFAULT]);
+                setBulkOpen(true);
+              }}
+              className="tv-btn-primary inline-flex h-10 shrink-0 items-center gap-1.5 !px-3 text-[13px] disabled:opacity-40"
+            >
+              <Layers className="h-3.5 w-3.5" aria-hidden />
+              Bulk edit
+            </button>
+          ) : undefined
+        }
+      />
 
       {!isSupabase || !user ? (
         <p className="text-sm text-ink-muted">Sign in to manage availability.</p>
@@ -1255,30 +1286,114 @@ export default function SupplierAvailability() {
             />
           ) : null}
 
-          <div className="tv-avail-switch" role="tablist" aria-label="Availability views">
-            {(
-              [
-                { id: 'agenda' as const, label: 'Agenda' },
-                { id: 'week' as const, label: 'Week' },
-                { id: 'month' as const, label: 'Month' },
-              ] as const
-            ).map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                aria-selected={view === tab.id}
-                className={`tv-avail-switch__btn ${view === tab.id ? 'is-active' : ''}`}
-                onClick={() => setViewAndRange(tab.id)}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          <div className="partner-avail-workspace">
+          <div className="partner-avail-workspace__toolbar">
+          <div className="partner-avail-workspace__toolbar-row">
+            <div className="tv-avail-switch" role="tablist" aria-label="Availability views">
+              {(
+                [
+                  { id: 'agenda' as const, label: 'Agenda' },
+                  { id: 'week' as const, label: 'Week' },
+                  { id: 'month' as const, label: 'Month' },
+                ] as const
+              ).map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={view === tab.id}
+                  className={`tv-avail-switch__btn ${view === tab.id ? 'is-active' : ''}`}
+                  onClick={() => setViewAndRange(tab.id)}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
 
-          <div className="tv-avail-filters">
-            {view !== 'month' ? (
-              <>
+            {view === 'week' ? (
+              <div className="partner-avail-nav" aria-label="Week navigation">
+                <button
+                  type="button"
+                  className="tv-btn-ghost h-9 !px-2"
+                  aria-label="Previous week"
+                  onClick={() => {
+                    const base = filterFrom || weekRangeContaining(localTodayIso).from;
+                    const w = shiftWeekRange(base, -1);
+                    setFilterFrom(w.from);
+                    setFilterTo(w.to);
+                    syncWorkspaceUrl({ from: w.from, to: w.to });
+                  }}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <p className="partner-avail-nav__label">
+                  {formatWeekRangeLabel(
+                    filterFrom || weekRangeContaining(localTodayIso).from,
+                    filterTo || weekRangeContaining(localTodayIso).to
+                  )}
+                </p>
+                <button
+                  type="button"
+                  className="tv-btn-ghost h-9 !px-2"
+                  aria-label="Next week"
+                  onClick={() => {
+                    const base = filterFrom || weekRangeContaining(localTodayIso).from;
+                    const w = shiftWeekRange(base, 1);
+                    setFilterFrom(w.from);
+                    setFilterTo(w.to);
+                    syncWorkspaceUrl({ from: w.from, to: w.to });
+                  }}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  className="tv-btn-ghost h-9 !px-2.5 text-[13px]"
+                  onClick={() => {
+                    const w = weekRangeContaining(localTodayIso);
+                    setFilterFrom(w.from);
+                    setFilterTo(w.to);
+                    syncWorkspaceUrl({ from: w.from, to: w.to });
+                  }}
+                >
+                  Today
+                </button>
+              </div>
+            ) : view === 'month' ? (
+              <div className="partner-avail-nav" aria-label="Month navigation">
+                <button
+                  type="button"
+                  onClick={() => shiftMonth(-1)}
+                  className="tv-btn-ghost h-9 !px-2"
+                  aria-label="Previous month"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <p className="partner-avail-nav__label">{monthLabel}</p>
+                <button
+                  type="button"
+                  onClick={() => shiftMonth(1)}
+                  className="tv-btn-ghost h-9 !px-2"
+                  aria-label="Next month"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const [y, m] = localTodayIso.split('-').map(Number);
+                    if (y && m) {
+                      setYear(y);
+                      setMonthIndex0(m - 1);
+                    }
+                  }}
+                  className="tv-btn-ghost h-9 !px-2.5 text-[13px]"
+                >
+                  Today
+                </button>
+              </div>
+            ) : (
+              <div className="partner-avail-nav partner-avail-nav--agenda" aria-label="Agenda date range">
                 <div className="tv-avail-filters__field">
                   <TraverionSingleDateField
                     id="avail-from"
@@ -1335,21 +1450,17 @@ export default function SupplierAvailability() {
                       const r = nextDaysRange(localTodayIso, 7);
                       setFilterFrom(r.from);
                       setFilterTo(r.to);
-                      if (view === 'week') {
-                        const w = weekRangeContaining(localTodayIso);
-                        setFilterFrom(w.from);
-                        setFilterTo(w.to);
-                        syncWorkspaceUrl({ from: w.from, to: w.to });
-                      } else {
-                        syncWorkspaceUrl({ from: r.from, to: r.to });
-                      }
+                      syncWorkspaceUrl({ from: r.from, to: r.to });
                     }}
                   >
                     Next 7 days
                   </button>
                 </div>
-              </>
-            ) : null}
+              </div>
+            )}
+          </div>
+
+          <div className="tv-avail-filters">
             <div className="tv-avail-filters__field tv-avail-filters__field--grow">
               <label htmlFor="availability-listing">Product</label>
               <PartnerSelect
@@ -1401,6 +1512,16 @@ export default function SupplierAvailability() {
                 </select>
               </div>
             ) : null}
+            {activeFilterCount > 0 ? (
+              <button
+                type="button"
+                className="tv-btn-ghost h-10 !px-3 text-[13px]"
+                onClick={resetWorkspaceFilters}
+              >
+                Reset filters
+              </button>
+            ) : null}
+          </div>
           </div>
 
           {view === 'agenda' && selectedKeys.size > 0 ? (
@@ -1429,6 +1550,7 @@ export default function SupplierAvailability() {
           ) : null}
 
           {view === 'agenda' && !stayCalendar ? (
+            <div className="partner-avail-workspace__body">
             <AvailabilityAgendaView
               rows={workspaceDepartures}
               selectedKeys={selectedKeys}
@@ -1453,9 +1575,11 @@ export default function SupplierAvailability() {
               }}
               onOpenDate={openManageDate}
             />
+            </div>
           ) : null}
 
           {view === 'week' && !stayCalendar ? (
+            <div className="partner-avail-workspace__body">
             <AvailabilityWeekView
               weekFromIso={filterFrom || weekRangeContaining(localTodayIso).from}
               todayIso={localTodayIso}
@@ -1465,7 +1589,16 @@ export default function SupplierAvailability() {
                 else if (lid) openManageDate(iso, lid);
                 else if (listings[0]) openManageDate(iso, listings[0].id);
               }}
+              onShowMoreDay={(iso) => {
+                if (listingId) openManageDate(iso, listingId);
+                else {
+                  const first = workspaceDepartures.find((r) => r.iso === iso);
+                  if (first) openManageDate(iso, first.listingId);
+                  else if (listings[0]) openManageDate(iso, listings[0].id);
+                }
+              }}
             />
+            </div>
           ) : null}
 
           {stayCalendar && view !== 'month' ? (
@@ -1475,42 +1608,7 @@ export default function SupplierAvailability() {
           ) : null}
 
           {view === 'month' || stayCalendar ? (
-          <div className="tv-cal-shell">
-          <div className="tv-cal-toolbar">
-            <div className="tv-cal-toolbar__nav">
-              <button
-                type="button"
-                onClick={() => shiftMonth(-1)}
-                className="lux-flat inline-flex h-8 w-8 items-center justify-center rounded-md text-ink hover:bg-[#f2f4f7]"
-                aria-label="Previous month"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <p className="tv-cal-toolbar__month">{monthLabel}</p>
-              <button
-                type="button"
-                onClick={() => shiftMonth(1)}
-                className="lux-flat inline-flex h-8 w-8 items-center justify-center rounded-md text-ink hover:bg-[#f2f4f7]"
-                aria-label="Next month"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const [y, m] = localTodayIso.split('-').map(Number);
-                  if (y && m) {
-                    setYear(y);
-                    setMonthIndex0(m - 1);
-                  }
-                }}
-                className="lux-flat ml-1 inline-flex h-8 items-center rounded-md px-2.5 text-[13px] font-medium text-finland hover:bg-[#f2f4f7]"
-              >
-                Today
-              </button>
-            </div>
-          </div>
-
+          <div className={`tv-cal-shell partner-avail-workspace__body${stayCalendar ? '' : ' partner-avail-month'}`}>
           {/* Phase 1627: calendar legend must be available to assistive tech (was aria-hidden). */}
           <div
             className="tv-cal-legend"
@@ -1716,6 +1814,13 @@ export default function SupplierAvailability() {
                         </span>
                       ) : monthCapacityLabel.timeHm ? (
                         <span className="tv-cal-day__meta">{monthCapacityLabel.timeHm}</span>
+                      ) : monthCapacityLabel.departuresCount === 1 ? (
+                        <span className="tv-cal-day__meta">1 departure</span>
+                      ) : null}
+                      {occupying && occupying.guests > 0 ? (
+                        <span className="tv-cal-day__meta tv-cal-day__meta--cap">
+                          {occupying.guests} guest{occupying.guests === 1 ? '' : 's'}
+                        </span>
                       ) : null}
                       {monthCapacityLabel.short === 'Sold out' ||
                       monthCapacityLabel.short === 'Closed' ||
@@ -1801,15 +1906,56 @@ export default function SupplierAvailability() {
                         </>
                       )}
                     </span>
-                  ) : cell.inMonth && open ? (
+                  ) : cell.inMonth && !stayCalendar && viewingAll ? (
+                    (() => {
+                      const tourListings = listings.filter(
+                        (l) => inventoryFamilyFromListing(l) !== 'stay'
+                      );
+                      let depCount = 0;
+                      for (const l of tourListings.slice(0, 48)) {
+                        const opts = materializedBookingOptions(l.listingExtras?.bookingOptions);
+                        depCount += tourSellingDeparturesOnDate(opts, cell.iso).length;
+                      }
+                      const guestCount = occupying?.guests ?? 0;
+                      if (depCount === 0 && guestCount === 0) {
+                        return (
+                          <span className="tv-cal-day__meta tv-cal-day__meta--muted">—</span>
+                        );
+                      }
+                      return (
+                        <>
+                          {depCount > 0 ? (
+                            <span className="tv-cal-day__meta">
+                              {depCount} departure{depCount === 1 ? '' : 's'}
+                            </span>
+                          ) : null}
+                          {guestCount > 0 ? (
+                            <span className="tv-cal-day__meta tv-cal-day__meta--cap">
+                              {guestCount} guest{guestCount === 1 ? '' : 's'}
+                            </span>
+                          ) : null}
+                        </>
+                      );
+                    })()
+                  ) : cell.inMonth && !stayCalendar && open && occupying?.guests ? (
+                    <span className="tv-cal-day__meta tv-cal-day__meta--cap">
+                      {occupying.guests} guest{occupying.guests === 1 ? '' : 's'}
+                    </span>
+                  ) : cell.inMonth && !stayCalendar ? (
+                    <span className="tv-cal-day__meta tv-cal-day__meta--muted">
+                      {cap && typeof cap.capacity === 'number' && cap.capacity < 1
+                        ? 'Closed'
+                        : open
+                          ? 'No schedule'
+                          : '—'}
+                    </span>
+                  ) : cell.inMonth && stayCalendar && open ? (
                     <span className="tv-cal-day__meta">
                       <span className="tv-cal-day__dot" aria-hidden />
                       Open
                     </span>
                   ) : cell.inMonth ? (
-                    <span className="tv-cal-day__meta">
-                      {cap && !stayCalendar ? 'Closed' : '—'}
-                    </span>
+                    <span className="tv-cal-day__meta">—</span>
                   ) : null}
                 </button>
               );
@@ -1908,6 +2054,7 @@ export default function SupplierAvailability() {
           ) : null}
           </div>
           ) : null}
+          </div>
 
           {editing
             ? createPortal(

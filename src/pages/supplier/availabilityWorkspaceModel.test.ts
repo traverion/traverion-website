@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   classifyDepartureStatus,
   filterDeparturesByStatus,
+  formatWeekRangeLabel,
   groupDeparturesByDate,
   nextDaysRange,
   parseAvailabilityView,
+  shiftWeekRange,
   weekRangeContaining,
 } from './availabilityWorkspaceModel';
 
@@ -24,6 +26,16 @@ describe('availabilityWorkspaceModel', () => {
       from: '2026-10-15',
       to: '2026-10-21',
     });
+    expect(shiftWeekRange('2026-10-12', 1)).toEqual({
+      from: '2026-10-19',
+      to: '2026-10-25',
+    });
+    expect(shiftWeekRange('2026-10-12', -1)).toEqual({
+      from: '2026-10-05',
+      to: '2026-10-11',
+    });
+    expect(formatWeekRangeLabel('2026-10-12', '2026-10-18')).toMatch(/12/);
+    expect(formatWeekRangeLabel('2026-10-12', '2026-10-18')).toMatch(/18/);
   });
 
   it('classifies departure statuses without conflating limited and sold out', () => {

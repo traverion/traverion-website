@@ -4458,7 +4458,75 @@ details:not([open]) > :not(summary) {
   }
 }
 
-/* Availability workspace 2.0 */
+/* Availability workspace 2.0 → Partner premium ops calendar */
+.partner-avail-page .supplier-page-hero {
+  margin-bottom: 0.85rem;
+}
+
+.partner-avail-workspace {
+  --pa-radius: 0.875rem;
+  --pa-border: rgba(15, 23, 42, 0.09);
+  --pa-shadow:
+    0 2px 6px rgba(15, 23, 42, 0.025),
+    0 10px 28px rgba(15, 23, 42, 0.035);
+  background: #ffffff;
+  border: 1px solid var(--pa-border);
+  border-radius: var(--pa-radius);
+  box-shadow: var(--pa-shadow);
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.partner-avail-workspace__toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.07);
+}
+
+.partner-avail-workspace__toolbar-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem 1rem;
+}
+
+.partner-avail-workspace__body {
+  padding: 0.75rem 0.85rem 1rem;
+}
+
+.partner-avail-workspace__body.partner-avail-month,
+.partner-avail-workspace__body.tv-cal-shell {
+  padding: 0.65rem 0.75rem 0.85rem;
+  border: 0;
+  box-shadow: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+.partner-avail-nav {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.partner-avail-nav__label {
+  margin: 0;
+  min-width: 9.5rem;
+  text-align: center;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #17191d;
+}
+
+.partner-avail-nav--agenda {
+  gap: 0.5rem 0.65rem;
+}
+
 .tv-avail-page-head {
   display: flex;
   flex-wrap: wrap;
@@ -4475,6 +4543,7 @@ details:not([open]) > :not(summary) {
   letter-spacing: -0.02em;
   color: #17191d;
   line-height: 1.2;
+  font-family: inherit;
 }
 
 .tv-avail-page-head__text p {
@@ -4486,10 +4555,10 @@ details:not([open]) > :not(summary) {
 .tv-avail-switch {
   display: inline-flex;
   padding: 3px;
-  margin-bottom: 12px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  background: #f8fafc;
+  margin-bottom: 0;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 0.5rem;
+  background: #f4f6f8;
   gap: 2px;
 }
 
@@ -4497,26 +4566,38 @@ details:not([open]) > :not(summary) {
   appearance: none;
   border: 0;
   background: transparent;
-  border-radius: 6px;
-  padding: 7px 14px;
+  border-radius: 0.375rem;
+  padding: 0.45rem 0.9rem;
+  min-height: 2.25rem;
   font-size: 0.8125rem;
-  font-weight: 550;
+  font-weight: 600;
   color: #667085;
   cursor: pointer;
+  transition: background 140ms ease, color 140ms ease, box-shadow 140ms ease;
+}
+
+.tv-avail-switch__btn:hover {
+  color: #17191d;
+  background: rgba(255, 255, 255, 0.65);
+}
+
+.tv-avail-switch__btn:focus-visible {
+  outline: 2px solid #003580;
+  outline-offset: 1px;
 }
 
 .tv-avail-switch__btn.is-active {
   background: #ffffff;
-  color: #17191d;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  color: #003580;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
 }
 
 .tv-avail-filters {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 10px 12px;
-  margin-bottom: 14px;
+  gap: 0.55rem 0.75rem;
+  margin-bottom: 0;
 }
 
 .tv-avail-filters__field {
@@ -4877,21 +4958,23 @@ details:not([open]) > :not(summary) {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 12px;
-  margin-bottom: 12px;
-  padding: 10px 12px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  background: #ffffff;
+  margin: 0;
+  padding: 0.6rem 1rem;
+  border: 0;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: 0;
+  background: rgba(0, 53, 128, 0.03);
   font-size: 0.8125rem;
+  font-weight: 550;
   color: #344054;
 }
 
 .tv-avail-empty {
-  padding: 40px 16px;
+  padding: 2.5rem 1rem;
   text-align: center;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  background: #ffffff;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .tv-avail-empty__title {
@@ -4907,35 +4990,133 @@ details:not([open]) > :not(summary) {
   color: #667085;
 }
 
+.tv-avail-meter {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 3.75rem;
+}
+
+.tv-avail-meter__nums {
+  font-size: 0.8125rem;
+  font-weight: 650;
+  line-height: 1.2;
+  color: #17191d;
+}
+
+.tv-avail-meter--sm .tv-avail-meter__nums {
+  font-size: 0.6875rem;
+}
+
+.tv-avail-meter__sep {
+  margin: 0 0.1rem;
+  font-weight: 500;
+  color: #98a2b3;
+}
+
+.tv-avail-meter__track {
+  display: block;
+  height: 3px;
+  width: 100%;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+}
+
+.tv-avail-meter__fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #003580;
+  transition: width 160ms ease;
+}
+
+.tv-avail-meter--warm .tv-avail-meter__fill {
+  background: #b54708;
+}
+
+.tv-avail-meter--full .tv-avail-meter__fill {
+  background: #b42318;
+}
+
+.tv-avail-meter--muted .tv-avail-meter__nums {
+  color: #98a2b3;
+}
+
+.tv-avail-meter--muted .tv-avail-meter__fill {
+  background: #98a2b3;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tv-avail-meter__fill,
+  .tv-avail-switch__btn {
+    transition: none;
+  }
+}
+
+.tv-avail-agenda {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
 .tv-avail-agenda__day {
-  margin-bottom: 20px;
+  margin-bottom: 0;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 0.65rem;
+  background: #fff;
+  overflow: hidden;
 }
 
 .tv-avail-agenda__day-head {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
+  gap: 0.55rem;
+  margin-bottom: 0;
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  background: #fafafb;
+}
+
+.tv-avail-agenda__day-titles {
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .tv-avail-agenda__day-head h3 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.55rem;
   margin: 0;
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: #17191d;
+  font-family: inherit;
+}
+
+.tv-avail-agenda__weekday {
+  color: #003580;
+}
+
+.tv-avail-agenda__date {
   font-weight: 600;
   color: #17191d;
 }
 
 .tv-avail-agenda__count {
+  margin: 0.1rem 0 0;
   font-size: 0.75rem;
-  color: #98a2b3;
+  color: #667085;
 }
 
 .tv-avail-agenda__list {
   list-style: none;
   margin: 0;
   padding: 0;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  border: 0;
+  border-radius: 0;
   background: #ffffff;
   overflow: hidden;
 }
@@ -4944,7 +5125,7 @@ details:not([open]) > :not(summary) {
   display: flex;
   align-items: stretch;
   gap: 0;
-  border-bottom: 1px solid #f2f4f7;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.05);
 }
 
 .tv-avail-agenda__row:last-child {
@@ -4954,29 +5135,42 @@ details:not([open]) > :not(summary) {
 .tv-avail-check {
   display: flex;
   align-items: center;
-  padding: 0 10px;
+  padding: 0 0.65rem 0 0.75rem;
+}
+
+.tv-avail-check input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #003580;
 }
 
 .tv-avail-agenda__main {
   flex: 1;
   display: grid;
-  grid-template-columns: 3.25rem minmax(0, 1.4fr) minmax(0, 1.2fr);
-  gap: 12px;
+  grid-template-columns: 3.5rem minmax(0, 1.45fr) minmax(0, 1.25fr);
+  gap: 0.65rem 0.85rem;
   align-items: center;
   width: 100%;
-  padding: 12px 14px 12px 4px;
+  padding: 0.65rem 0.85rem 0.65rem 0.2rem;
   text-align: left;
   cursor: pointer;
 }
 
 .tv-avail-agenda__main:hover {
-  background: #f8fafc;
+  background: rgba(15, 23, 42, 0.025);
+}
+
+.tv-avail-agenda__main:focus-visible {
+  outline: 2px solid #003580;
+  outline-offset: -2px;
+  background: rgba(0, 53, 128, 0.04);
 }
 
 .tv-avail-agenda__time {
-  font-size: 0.875rem;
-  font-weight: 600;
+  font-size: 0.9375rem;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
   color: #17191d;
 }
 
@@ -4984,16 +5178,17 @@ details:not([open]) > :not(summary) {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 0.1rem;
 }
 
 .tv-avail-agenda__product {
   font-size: 0.8125rem;
-  font-weight: 550;
+  font-weight: 600;
   color: #17191d;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .tv-avail-agenda__option {
@@ -5009,7 +5204,7 @@ details:not([open]) > :not(summary) {
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px 12px;
+  gap: 0.45rem 0.7rem;
   min-width: 0;
 }
 
@@ -5022,6 +5217,10 @@ details:not([open]) > :not(summary) {
 .tv-avail-agenda__cutoff {
   font-size: 0.75rem;
   color: #667085;
+}
+
+.tv-cal-day__meta--muted {
+  color: #98a2b3;
 }
 
 .tv-avail-pill {
@@ -5068,8 +5267,8 @@ details:not([open]) > :not(summary) {
 }
 
 .tv-avail-week {
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 0.65rem;
   background: #ffffff;
   overflow: hidden;
 }
@@ -5081,10 +5280,11 @@ details:not([open]) > :not(summary) {
 }
 
 .tv-avail-week__day-label {
-  padding: 10px 6px 8px;
+  padding: 0.55rem 0.35rem 0.5rem;
   text-align: center;
-  border-bottom: 1px solid #eef0f3;
-  border-right: 1px solid #eef0f3;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.07);
+  border-right: 1px solid rgba(15, 23, 42, 0.06);
+  background: #fafafb;
 }
 
 .tv-avail-week__day-label:last-child,
@@ -5092,63 +5292,125 @@ details:not([open]) > :not(summary) {
   border-right: 0;
 }
 
+.tv-avail-week__day-label.is-today {
+  background: rgba(0, 53, 128, 0.05);
+}
+
 .tv-avail-week__wd {
   display: block;
   font-size: 0.6875rem;
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: #98a2b3;
 }
 
 .tv-avail-week__num {
   display: block;
-  margin-top: 2px;
-  font-size: 0.875rem;
-  font-weight: 600;
+  margin-top: 0.1rem;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   color: #17191d;
 }
 
 .tv-avail-week__day-label.is-today .tv-avail-week__num {
-  color: #073b83;
+  color: #003580;
+}
+
+.tv-avail-week__summary {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.625rem;
+  font-weight: 550;
+  color: #667085;
+}
+
+.tv-avail-week__summary--empty {
+  color: #c0c5ce;
 }
 
 .tv-avail-week__col {
-  min-height: 12rem;
-  padding: 6px;
-  border-right: 1px solid #eef0f3;
+  min-height: 11rem;
+  padding: 0.4rem;
+  border-right: 1px solid rgba(15, 23, 42, 0.06);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0.3rem;
+  background: #fff;
+}
+
+.tv-avail-week__col.is-empty {
+  background: #fcfcfd;
 }
 
 .tv-avail-week__col.is-today {
-  background: #f8fafc;
+  background: rgba(0, 53, 128, 0.03);
 }
 
 .tv-avail-week__tile {
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  padding: 6px 7px;
-  border-radius: 6px;
-  border: 1px solid #eef0f3;
+  gap: 0.2rem;
+  padding: 0.4rem 0.45rem;
+  border-radius: 0.4rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
   background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
   text-align: left;
   cursor: pointer;
 }
 
 .tv-avail-week__tile:hover {
-  border-color: #d0d5dd;
+  border-color: rgba(0, 53, 128, 0.28);
+  background: #fafbfd;
+}
+
+.tv-avail-week__tile:focus-visible {
+  outline: 2px solid #003580;
+  outline-offset: 1px;
+}
+
+.tv-avail-week__tile-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem;
 }
 
 .tv-avail-week__tile-time {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
   color: #17191d;
+}
+
+.tv-avail-week__tile-dot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: #12b76a;
+  flex: 0 0 auto;
+}
+
+.tv-avail-week__tile-dot--limited {
+  background: #f79009;
+}
+
+.tv-avail-week__tile-dot--sold_out,
+.tv-avail-week__tile-dot--closed {
+  background: #f04438;
+}
+
+.tv-avail-week__tile-dot--cutoff,
+.tv-avail-week__tile-dot--no_schedule {
+  background: #98a2b3;
 }
 
 .tv-avail-week__tile-name {
   font-size: 0.6875rem;
+  font-weight: 550;
   color: #475467;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -5163,7 +5425,7 @@ details:not([open]) > :not(summary) {
 
 .tv-avail-week__tile--sold_out,
 .tv-avail-week__tile--closed {
-  background: #fff5f5;
+  background: #fff8f7;
 }
 
 .tv-avail-week__tile--limited {
@@ -5171,31 +5433,63 @@ details:not([open]) > :not(summary) {
 }
 
 .tv-avail-week__tile--cutoff {
-  opacity: 0.72;
+  opacity: 0.78;
 }
 
 .tv-avail-week__empty {
-  color: #d0d5dd;
-  font-size: 0.875rem;
-  padding: 8px;
+  color: #98a2b3;
+  font-size: 0.6875rem;
+  font-weight: 550;
+  padding: 0.75rem 0.35rem;
   text-align: center;
+  border-radius: 0.35rem;
+  border: 1px dashed rgba(15, 23, 42, 0.1);
+  background: transparent;
+}
+
+.tv-avail-week__empty:hover {
+  border-color: rgba(0, 53, 128, 0.25);
+  color: #003580;
 }
 
 .tv-avail-week__more {
-  margin: 2px 0 0;
+  margin: 0.1rem 0 0;
+  padding: 0.25rem;
   font-size: 0.6875rem;
-  color: #98a2b3;
+  font-weight: 600;
+  color: #003580;
+  text-align: center;
+  border-radius: 0.3rem;
+}
+
+.tv-avail-week__more:hover {
+  background: rgba(0, 53, 128, 0.06);
 }
 
 @media (max-width: 900px) {
   .tv-avail-week {
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .tv-avail-week__head,
   .tv-avail-week__grid {
-    min-width: 44rem;
+    min-width: 46rem;
   }
+}
+
+.partner-avail-workspace .tv-cal-shell {
+  border: 0;
+  box-shadow: none;
+}
+
+.partner-avail-month .tv-cal-day {
+  min-height: 5.5rem;
+}
+
+.partner-avail-month .tv-cal-day__num {
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 /* Phase 1811 / calendar reset — precision ops month grid */
