@@ -12,7 +12,8 @@ describe('Phase 1809: supplier home operational hierarchy', () => {
     expect(src).toContain('Upcoming schedule');
     expect(src).toContain('partner-home__ops-pill');
     expect(src).not.toContain('Business performance');
-    expect(src).not.toContain('New listing');
+    expect(src).toContain('New listing');
+    expect(src).toContain('PARTNER_CREATE_PATH');
     expect(src).not.toContain('font-display text-[1.125rem]');
     expect(src).not.toContain('Today at a glance');
   });

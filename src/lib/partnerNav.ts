@@ -149,7 +149,6 @@ export const PARTNER_NAV_RESERVATIONS_CHILDREN: PartnerNavItem[] = [
  * Desktop sidebar — Create, Overview, product ops groups, Business, footer for Help/Settings.
  */
 export const PARTNER_SIDEBAR_PRIMARY: PartnerSidebarEntry[] = [
-  { kind: 'action', id: 'create', label: 'Create listing' },
   { kind: 'section', id: 'overview', label: 'Overview' },
   { kind: 'item', id: 'dashboard', label: 'Home', icon: LayoutDashboard },
   { kind: 'item', id: 'listings', label: 'Listings', icon: MapPin },

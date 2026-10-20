@@ -15,11 +15,10 @@ import {
 import { PARTNER_PRIMARY_NAV_SECTION_IDS } from './partner-primary-nav';
 
 describe('partnerNav IA', () => {
-  it('pins Create first, then Overview leaves before product groups', () => {
+  it('starts with Overview leaves before product groups (Create lives on Listings/Home)', () => {
     expect(PARTNER_NAV_HOME.id).toBe('dashboard');
     expect(PARTNER_NAV_HOME.label).toBe('Home');
     expect(PARTNER_SIDEBAR_PRIMARY.map((e) => e.id)).toEqual([
-      'create',
       'overview',
       'dashboard',
       'listings',
@@ -32,6 +31,9 @@ describe('partnerNav IA', () => {
       'reviews',
       'discounts',
     ]);
+    expect(PARTNER_SIDEBAR_PRIMARY.some((e) => e.kind === 'action' && e.id === 'create')).toBe(
+      false
+    );
   });
 
   it('nests tour ops under Tours & Activities', () => {

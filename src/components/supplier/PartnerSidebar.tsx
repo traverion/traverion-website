@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ChevronDown, PanelLeftClose, PanelLeft, Plus } from 'lucide-react';
+import { ChevronDown, PanelLeftClose, PanelLeft } from 'lucide-react';
 import type {
   PartnerNavItem,
   PartnerNavSectionId,
@@ -63,12 +63,12 @@ function NavButton({
             ? `${item.label} · ${badge}`
             : item.label
       }
-      className={`partner-nav-item lux-flat group relative flex w-full items-center gap-2.5 rounded-lg text-left text-[13px] ${
+      className={`partner-nav-item lux-flat group relative flex w-full items-center gap-2 rounded-lg text-left text-[13px] ${
         collapsed
-          ? 'justify-center px-2 py-[7px]'
+          ? 'justify-center px-2 py-[6px]'
           : nested
-            ? 'pl-8 pr-2.5 py-[6px]'
-            : 'px-2.5 py-[7px]'
+            ? 'pl-7 pr-2 py-[5px]'
+            : 'px-2.5 py-[6px]'
       } ${
         disabled
           ? 'cursor-default font-medium text-slate-400'
@@ -168,13 +168,13 @@ export default function PartnerSidebar({
   businessLabel,
   onNavigate,
   onHome,
-  onCreate,
-  canCreate = true,
   showFinishSetup,
   onFinishSetup,
   collapsed,
   onToggleCollapsed,
 }: PartnerSidebarProps) {
+  // onCreate / canCreate remain on the props type for SupplierLayout compatibility;
+  // Create listing is offered from Listings and Home instead of the sidebar.
   const containing = partnerSidebarGroupContaining(activeSection, primary);
   const [openGroupIds, setOpenGroupIds] = useState<string[]>(() => readPartnerNavOpenGroups(primary));
 
@@ -208,68 +208,42 @@ export default function PartnerSidebar({
       }`}
       aria-label="Partner navigation"
     >
-      <div className={`shrink-0 ${collapsed ? 'px-2 pt-3.5 pb-2' : 'px-3.5 pt-3.5 pb-3'}`}>
+      <div className={`shrink-0 ${collapsed ? 'px-2 pt-2.5 pb-1.5' : 'px-3 pt-2.5 pb-2'}`}>
         <button
           type="button"
           onClick={onHome}
           className={`partner-nav-item lux-flat flex min-w-0 items-center rounded-lg ${
-            collapsed ? 'justify-center px-1 py-1.5' : 'gap-2.5 px-1.5 py-1.5 -mx-0.5'
+            collapsed ? 'justify-center px-1 py-1' : 'gap-2 px-1 py-1 -mx-0.5'
           } hover:bg-slate-900/[0.04]`}
           aria-label="Partner home"
         >
-          <img src={BRAND_LOGO_SRC} alt="" className="h-7 w-7 shrink-0 object-contain" />
+          <img src={BRAND_LOGO_SRC} alt="" className="h-6 w-6 shrink-0 object-contain" />
           {!collapsed ? (
             <span className="min-w-0 text-left">
-              <span className="block font-sans text-[11px] font-bold tracking-[0.14em] text-slate-900">
+              <span className="block font-sans text-[10.5px] font-bold tracking-[0.14em] text-slate-900">
                 TRAVERION
               </span>
-              <span className="mt-0.5 block text-[11px] font-medium text-slate-500">Partner</span>
+              <span className="mt-0.5 block text-[10.5px] font-medium text-slate-500">Partner</span>
             </span>
           ) : null}
         </button>
         {!collapsed ? (
-          <div className="mt-3 min-w-0 px-1">
+          <div className="mt-2 min-w-0 px-1">
             {businessLabel ? (
-              <p className="truncate text-[13px] font-semibold leading-snug tracking-tight text-slate-900">
+              <p className="truncate text-[12.5px] font-semibold leading-snug tracking-tight text-slate-900">
                 {businessLabel}
               </p>
             ) : null}
-            <p className="mt-0.5 text-[11px] font-medium text-slate-400">Workspace</p>
+            <p className="mt-0.5 text-[10.5px] font-medium text-slate-400">Workspace</p>
           </div>
         ) : null}
       </div>
 
-      <nav className="partner-sidebar__scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2.5 pb-2">
+      <nav className="partner-sidebar__scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2 pb-2">
         {primary.map((entry) => {
+          // Create listing lives on Listings / Home — keep action slots inert if present.
           if (entry.kind === 'action') {
-            if (!canCreate) return null;
-            if (collapsed) {
-              return (
-                <div key={entry.id} className="mb-3 flex justify-center border-b border-slate-100 pb-3">
-                  <button
-                    type="button"
-                    onClick={onCreate}
-                    className="partner-nav-item partner-nav-cta lux-flat flex min-h-10 w-10 items-center justify-center rounded-lg bg-finland text-white hover:bg-finland-dark"
-                    title={entry.label}
-                    aria-label={entry.label}
-                  >
-                    <Plus className="h-4 w-4" strokeWidth={2.2} aria-hidden />
-                  </button>
-                </div>
-              );
-            }
-            return (
-              <div key={entry.id} className="mb-3 border-b border-slate-100 px-0.5 pb-3">
-                <button
-                  type="button"
-                  onClick={onCreate}
-                  className="partner-nav-item partner-nav-cta lux-flat flex w-full items-center justify-center gap-1.5 rounded-lg bg-finland px-3 py-2.5 text-[13px] font-semibold text-white hover:bg-finland-dark"
-                >
-                  <Plus className="h-3.5 w-3.5" strokeWidth={2.2} aria-hidden />
-                  {entry.label}
-                </button>
-              </div>
-            );
+            return null;
           }
 
           if (entry.kind === 'section') {
@@ -277,7 +251,7 @@ export default function PartnerSidebar({
             return (
               <p
                 key={entry.id}
-                className="partner-nav-section-label px-2.5 pb-1.5 pt-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400 first:pt-1"
+                className="partner-nav-section-label px-2.5 pb-1 pt-2.5 text-[10px] font-semibold uppercase tracking-[0.11em] text-slate-400 first:pt-0.5"
               >
                 {entry.label}
               </p>
@@ -317,14 +291,14 @@ export default function PartnerSidebar({
           }
 
           return (
-            <div key={entry.id} className="mb-0.5 pt-2">
+            <div key={entry.id} className="mb-0.5 pt-1">
               <button
                 type="button"
                 onClick={() => toggleGroup(entry)}
                 aria-expanded={isOpen}
                 aria-controls={`partner-nav-group-${entry.id}`}
                 id={`partner-nav-group-btn-${entry.id}`}
-                className={`partner-nav-item lux-flat group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-[7px] text-left text-[13px] font-semibold ${
+                className={`partner-nav-item lux-flat group flex w-full items-center gap-2 rounded-lg px-2.5 py-[6px] text-left text-[13px] font-semibold ${
                   groupActive
                     ? 'text-slate-900 hover:bg-slate-900/[0.04]'
                     : 'text-slate-700 hover:bg-slate-900/[0.045] hover:text-slate-900'

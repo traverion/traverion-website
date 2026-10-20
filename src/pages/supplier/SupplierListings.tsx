@@ -1049,11 +1049,121 @@ export default function SupplierListings() {
     }
   };
 
+  const listingsToolbar =
+    listings.length > 0 && !showForm ? (
+      <div className="partner-listings-workspace__toolbar">
+        <div className="partner-listings-workspace__controls">
+          <label className="partner-listings-workspace__search">
+            <span className="sr-only">Search listings</span>
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint"
+              aria-hidden
+            />
+            <input
+              type="search"
+              value={listQuery}
+              onChange={(e) => setListQueryAndUrl(e.target.value)}
+              placeholder="Search title, destination, or reference"
+              className="tv-input w-full !min-h-10 pl-9 pr-9"
+              autoComplete="off"
+            />
+            {listQuery.trim() ? (
+              <button
+                type="button"
+                onClick={() => setListQueryAndUrl('')}
+                className="lux-flat absolute right-1.5 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-ink-muted hover:bg-black/[0.04] hover:text-ink"
+                aria-label="Clear search"
+              >
+                <X className="h-3.5 w-3.5" aria-hidden />
+              </button>
+            ) : null}
+          </label>
+          <div className="partner-listings-workspace__filters">
+            <PartnerSelect
+              id="listings-type"
+              aria-label="Product type"
+              value={typeFilter}
+              onChange={(v) => setTypeFilterAndUrl((v as PartnerListingsTypeFilter) || 'all')}
+              options={partnerListingsVisibleTypeFilters(typeCounts, typeFilter).map((id) => ({
+                value: id,
+                label:
+                  id === 'all'
+                    ? 'All types'
+                    : id === 'tour'
+                      ? 'Tours & activities'
+                      : id === 'ticket'
+                        ? 'Tickets'
+                        : id === 'transportation'
+                          ? 'Transportation'
+                          : 'Stays',
+              }))}
+            />
+            <PartnerSelect
+              id="listings-sort"
+              aria-label="Sort listings"
+              value={listSort}
+              onChange={(v) => setListSortAndUrl((v as PartnerListingsSort) || 'updated')}
+              options={[
+                { value: 'updated', label: 'Recently updated' },
+                { value: 'title', label: 'Title A–Z' },
+                { value: 'title_desc', label: 'Title Z–A' },
+                { value: 'created', label: 'Creation date' },
+                { value: 'price', label: 'Starting price' },
+                { value: 'status', label: 'Live first' },
+              ]}
+            />
+          </div>
+        </div>
+        <div className="partner-listings-workspace__tabs-row">
+          <div className="partner-listings-workspace__tabs" role="tablist" aria-label="Listing status">
+            {(
+              [
+                { id: 'all', label: 'All' },
+                { id: 'published', label: 'Live' },
+                { id: 'draft', label: 'Drafts' },
+                { id: 'tour', label: 'Tours' },
+                { id: 'stay', label: 'Stays' },
+              ] as const
+            )
+              .filter((tab) =>
+                partnerListingsVisibleWorkspaceFilters(workspaceCounts, workspaceFilter).includes(
+                  tab.id
+                )
+              )
+              .map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={workspaceFilter === tab.id}
+                  onClick={() => setWorkspaceFilterAndUrl(tab.id)}
+                  className="partner-listings-workspace__tab lux-flat"
+                >
+                  {tab.label}
+                  <span className="partner-listings-workspace__tab-count">
+                    {workspaceCounts[tab.id]}
+                  </span>
+                  {workspaceFilter === tab.id ? (
+                    <span className="partner-listings-workspace__tab-indicator" aria-hidden />
+                  ) : null}
+                </button>
+              ))}
+          </div>
+          <p className="partner-listings-workspace__count" aria-live="polite">
+            {filteredListings.length === listings.length
+              ? `${listings.length} listing${listings.length === 1 ? '' : 's'}`
+              : `${filteredListings.length} of ${listings.length}`}
+          </p>
+        </div>
+      </div>
+    ) : null;
+
   return (
-    <div className={SUPPLIER_PAGE_CLASS}>
+    <div className={`${SUPPLIER_PAGE_CLASS} partner-listings`}>
       <SupplierPageHero
         title="Listings"
-        description="Manage your tours, activities, tickets, and transportation products."
+        sansTitle
+        description="Manage your experiences, stays, and other listings."
         actions={
           <button
             type="button"
@@ -1073,129 +1183,6 @@ export default function SupplierListings() {
           </button>
         }
       />
-
-      {listings.length > 0 && !showForm ? (
-        <div className="partner-listings-toolbar space-y-2.5">
-          <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
-            <label className="relative block min-w-0 flex-1">
-              <span className="sr-only">Search listings</span>
-              <Search
-                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint"
-                aria-hidden
-              />
-              <input
-                type="search"
-                value={listQuery}
-                onChange={(e) => setListQueryAndUrl(e.target.value)}
-                placeholder="Search title, destination, or reference"
-                className="tv-input w-full !min-h-10 pl-9 pr-9"
-                autoComplete="off"
-              />
-              {listQuery.trim() ? (
-                <button
-                  type="button"
-                  onClick={() => setListQueryAndUrl('')}
-                  className="lux-flat absolute right-1.5 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-ink-muted hover:bg-black/[0.04] hover:text-ink"
-                  aria-label="Clear search"
-                >
-                  <X className="h-3.5 w-3.5" aria-hidden />
-                </button>
-              ) : null}
-            </label>
-            <div className="flex flex-wrap gap-2 lg:shrink-0">
-              <div className="min-w-[9.5rem] flex-1 sm:flex-none sm:w-44">
-                <PartnerSelect
-                  id="listings-type"
-                  aria-label="Product type"
-                  value={typeFilter}
-                  onChange={(v) => setTypeFilterAndUrl((v as PartnerListingsTypeFilter) || 'all')}
-                  options={partnerListingsVisibleTypeFilters(typeCounts, typeFilter).map((id) => ({
-                    value: id,
-                    label:
-                      id === 'all'
-                        ? 'All types'
-                        : id === 'tour'
-                          ? 'Tours & activities'
-                          : id === 'ticket'
-                            ? 'Tickets'
-                            : id === 'transportation'
-                              ? 'Transportation'
-                              : 'Stays',
-                  }))}
-                />
-              </div>
-              <div className="min-w-[9.5rem] flex-1 sm:flex-none sm:w-44">
-                <PartnerSelect
-                  id="listings-sort"
-                  aria-label="Sort listings"
-                  value={listSort}
-                  onChange={(v) => setListSortAndUrl((v as PartnerListingsSort) || 'updated')}
-                  options={[
-                    { value: 'updated', label: 'Recently updated' },
-                    { value: 'title', label: 'Title A–Z' },
-                    { value: 'title_desc', label: 'Title Z–A' },
-                    { value: 'created', label: 'Creation date' },
-                    { value: 'price', label: 'Starting price' },
-                    { value: 'status', label: 'Live first' },
-                  ]}
-                />
-              </div>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-2">
-            <div
-              className="flex flex-wrap gap-x-0.5 gap-y-1 border-b border-black/[0.07]"
-              role="tablist"
-              aria-label="Listing status"
-            >
-              {(
-                [
-                  { id: 'all', label: 'All' },
-                  { id: 'published', label: 'Live' },
-                  { id: 'draft', label: 'Drafts' },
-                  { id: 'tour', label: 'Tours' },
-                  { id: 'stay', label: 'Stays' },
-                ] as const
-              )
-                .filter((tab) =>
-                  partnerListingsVisibleWorkspaceFilters(workspaceCounts, workspaceFilter).includes(
-                    tab.id
-                  )
-                )
-                .map((tab) => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={workspaceFilter === tab.id}
-                    onClick={() => setWorkspaceFilterAndUrl(tab.id)}
-                    className={`lux-flat relative px-3 py-2 text-[13px] font-medium transition-colors ${
-                      workspaceFilter === tab.id
-                        ? 'text-finland'
-                        : 'text-ink-muted hover:text-ink'
-                    }`}
-                  >
-                    {tab.label}
-                    <span className="ml-1.5 text-[11px] font-semibold tabular-nums text-ink-faint">
-                      {workspaceCounts[tab.id]}
-                    </span>
-                    {workspaceFilter === tab.id ? (
-                      <span
-                        className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-finland"
-                        aria-hidden
-                      />
-                    ) : null}
-                  </button>
-                ))}
-            </div>
-            <p className="pb-2 text-[12px] tabular-nums text-ink-muted" aria-live="polite">
-              {filteredListings.length === listings.length
-                ? `${listings.length} listing${listings.length === 1 ? '' : 's'}`
-                : `${filteredListings.length} of ${listings.length}`}
-            </p>
-          </div>
-        </div>
-      ) : null}
 
       {roleReady && !canEditListings && (
         <div className="mb-4 rounded-lg border border-amber-200/80 border-l-[3px] border-l-amber-500 bg-amber-50/70 px-3.5 py-3 text-sm text-ink">
@@ -1332,7 +1319,7 @@ export default function SupplierListings() {
             className="tv-sheet-panel relative max-w-xl motion-safe:animate-slide-up sm:max-w-2xl"
           >
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">Create listing</p>
-            <h2 id="create-listing-title" className="mt-1.5 font-display text-xl sm:text-2xl text-ink tracking-tight">
+            <h2 id="create-listing-title" className="mt-1.5 text-xl sm:text-2xl font-bold text-ink tracking-tight">
               What do you want to sell?
             </h2>
             <p className="mt-1.5 text-xs text-ink-muted leading-snug">
@@ -1453,31 +1440,36 @@ export default function SupplierListings() {
             </button>
           }
         />
-      ) : listings.length > 0 && filteredListings.length === 0 && !showForm ? (
-        <SupplierEmptyState
-          icon={Map}
-          title={listQuery.trim() ? 'No matching listings' : 'Nothing in this view'}
-          body={
-            listQuery.trim()
-              ? 'No listings match this search and filters. Clear search or change filters.'
-              : 'You have listings, but none match these filters. Clear them to see everything.'
-          }
-          action={
-            <button
-              type="button"
-              onClick={() => {
-                setListQueryAndUrl('');
-                setWorkspaceFilterAndUrl('all');
-                setTypeFilterAndUrl('all');
-              }}
-              className="tv-btn-secondary"
-            >
-              Show all listings
-            </button>
-          }
-        />
-      ) : (
-        listings.length > 0 && (
+      ) : listings.length > 0 && !showForm ? (
+        <div className="partner-listings-workspace">
+          {listingsToolbar}
+          <div className="partner-listings-workspace__body">
+            {filteredListings.length === 0 ? (
+              <div className="partner-listings-workspace__empty">
+                <SupplierEmptyState
+                  icon={Map}
+                  title={listQuery.trim() ? 'No matching listings' : 'Nothing in this view'}
+                  body={
+                    listQuery.trim()
+                      ? 'No listings match this search and filters. Clear search or change filters.'
+                      : 'You have listings, but none match these filters. Clear them to see everything.'
+                  }
+                  action={
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setListQueryAndUrl('');
+                        setWorkspaceFilterAndUrl('all');
+                        setTypeFilterAndUrl('all');
+                      }}
+                      className="tv-btn-secondary"
+                    >
+                      Show all listings
+                    </button>
+                  }
+                />
+              </div>
+            ) : (
           <div className="tv-ops-listings-table" aria-busy={loading || undefined}>
             <div
               className="tv-ops-listings-head hidden px-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint lg:grid"
@@ -1667,7 +1659,7 @@ export default function SupplierListings() {
                           }
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="tv-btn-primary lux-flat inline-flex min-h-9 items-center justify-center px-3 text-xs"
+                          className="tv-btn-secondary lux-flat inline-flex min-h-9 items-center justify-center px-3 text-xs"
                         >
                           View
                         </a>
@@ -1676,7 +1668,7 @@ export default function SupplierListings() {
                         <button
                           type="button"
                           onClick={() => openSupplierListingEditor(listing.id)}
-                          className="tv-btn-ghost lux-flat inline-flex min-h-9 items-center justify-center gap-1 px-2.5 text-xs"
+                          className="tv-btn-secondary lux-flat inline-flex min-h-9 items-center justify-center gap-1 px-2.5 text-xs"
                         >
                           <Pencil className="h-3.5 w-3.5" aria-hidden />
                           Edit
@@ -1702,8 +1694,10 @@ export default function SupplierListings() {
               );
             })}
           </div>
-        )
-      )}
+            )}
+          </div>
+        </div>
+      ) : null}
 
       {listingActionsMenuId &&
         listingActionsMenuBox &&

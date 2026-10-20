@@ -31,7 +31,7 @@ import type { TourPackage } from '../../types/tour';
 import SupplierPortalNoticePanel from '../../components/supplier/SupplierPortalNoticePanel';
 import { navigateSupplierUrl, openSupplierCalendar, openSupplierInbox, openSupplierPickup, openSupplierReviews } from '../../lib/supplierPortalNavigation';
 import { partnerBookingDeskPath } from '../../lib/partner-booking-desk-path';
-import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
+import { PARTNER_APP_BASE, PARTNER_CREATE_PATH } from '../../lib/partnerPortalPaths';
 import { formatMoney, normalizeCurrency } from '../../lib/money';
 import {
   partnerBookingIsOperatingTrip,
@@ -624,6 +624,13 @@ export default function SupplierDashboard() {
             className="tv-btn-secondary lux-flat"
           >
             Calendar
+          </button>
+          <button
+            type="button"
+            onClick={() => navigateSupplierUrl(PARTNER_CREATE_PATH)}
+            className="tv-btn-primary lux-flat"
+          >
+            New listing
           </button>
         </div>
       </header>
