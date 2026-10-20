@@ -56,7 +56,13 @@ function NavButton({
       disabled={disabled}
       aria-current={active ? 'page' : undefined}
       aria-disabled={disabled || undefined}
-      title={collapsed ? item.label : disabled && badge ? `${item.label} · ${badge}` : undefined}
+      title={
+        collapsed
+          ? item.label
+          : disabled && badge
+            ? `${item.label} · ${badge}`
+            : item.label
+      }
       className={`partner-nav-item lux-flat group relative flex w-full items-center gap-2.5 rounded-lg text-left text-[13px] ${
         collapsed
           ? 'justify-center px-2 py-[7px]'
@@ -67,7 +73,7 @@ function NavButton({
         disabled
           ? 'cursor-default font-medium text-slate-400'
           : active
-            ? 'bg-finland/[0.08] font-semibold text-finland'
+            ? 'bg-finland/[0.09] font-semibold text-finland'
             : 'font-medium text-slate-600 hover:bg-slate-900/[0.045] hover:text-slate-900'
       }`}
     >
@@ -92,7 +98,9 @@ function NavButton({
         <span className="sr-only">{item.label}</span>
       ) : (
         <>
-          <span className="min-w-0 flex-1 truncate leading-snug tracking-tight">{item.label}</span>
+          <span className="min-w-0 flex-1 leading-snug tracking-tight [overflow-wrap:anywhere]">
+            {item.label}
+          </span>
           {badge ? (
             <span className="shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-500">
               {badge}
@@ -196,7 +204,7 @@ export default function PartnerSidebar({
   return (
     <aside
       className={`partner-sidebar hidden md:flex shrink-0 flex-col border-r border-slate-200/70 ${
-        collapsed ? 'w-[64px]' : 'w-[232px]'
+        collapsed ? 'w-[64px]' : 'w-[248px]'
       }`}
       aria-label="Partner navigation"
     >
@@ -231,7 +239,7 @@ export default function PartnerSidebar({
         ) : null}
       </div>
 
-      <nav className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2.5 pb-2">
+      <nav className="partner-sidebar__scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2.5 pb-2">
         {primary.map((entry) => {
           if (entry.kind === 'action') {
             if (!canCreate) return null;

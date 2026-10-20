@@ -117,7 +117,7 @@ export const PARTNER_NAV_HOME: PartnerNavItem = {
 
 export const PARTNER_NAV_CALENDAR: PartnerNavItem = {
   id: 'availability',
-  label: 'Departures & Availability',
+  label: 'Departures & availability',
   icon: CalendarDays,
 };
 

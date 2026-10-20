@@ -4,7 +4,7 @@ import ErrorState from '../../components/ErrorState';
 import NoticeCallout from '../../components/NoticeCallout';
 import StatusChip from '../../components/StatusChip';
 import { USER_ERROR } from '../../lib/userFacingError';
-import { ChevronRight, Star } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import {
   partnerAccountStatus,
   partnerBusinessReviewState,
@@ -24,17 +24,14 @@ import {
   fetchCancellationRequestsForBookings,
   fetchBookingMessages,
 } from '../../data/supabase-booking-ops';
-import {
-  countUnrepliedWrittenReviewsForSupplier,
-  getReviewAggregatesForListingIds,
-} from '../../data/supabase-reviews';
+import { countUnrepliedWrittenReviewsForSupplier } from '../../data/supabase-reviews';
 import { bookingNeedsPickupCopy, bookingIsStayNight, resolvePartnerPickupCopy } from '../../lib/pickup-completeness';
 import { bookingPaymentWasCollected, isCollectedBooking, isRefundDueBooking } from '../../lib/payment-states';
 import type { TourPackage } from '../../types/tour';
 import SupplierPortalNoticePanel from '../../components/supplier/SupplierPortalNoticePanel';
 import { navigateSupplierUrl, openSupplierCalendar, openSupplierInbox, openSupplierPickup, openSupplierReviews } from '../../lib/supplierPortalNavigation';
 import { partnerBookingDeskPath } from '../../lib/partner-booking-desk-path';
-import { PARTNER_APP_BASE, PARTNER_CREATE_PATH } from '../../lib/partnerPortalPaths';
+import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { formatMoney, normalizeCurrency } from '../../lib/money';
 import {
   partnerBookingIsOperatingTrip,
@@ -121,12 +118,14 @@ function SectionHead({
   action?: ReactNode;
 }) {
   return (
-    <div className="partner-home__section-head">
-      <div className="min-w-0 flex items-baseline gap-2 flex-wrap">
-        <h2 className="partner-home__section-title">{title}</h2>
-        {meta ? <span className="partner-home__section-meta">{meta}</span> : null}
+    <div className="partner-home-section__head">
+      <div className="partner-home__section-head">
+        <div className="min-w-0 flex items-baseline gap-2 flex-wrap">
+          <h2 className="partner-home__section-title">{title}</h2>
+          {meta ? <span className="partner-home__section-meta">{meta}</span> : null}
+        </div>
+        {action ? <div className="shrink-0">{action}</div> : null}
       </div>
-      {action ? <div className="shrink-0">{action}</div> : null}
     </div>
   );
 }
@@ -185,8 +184,6 @@ export default function SupplierDashboard() {
   const [unreadMessageCount, setUnreadMessageCount] = useState<number | null>(0);
   const [firstUnreadBookingId, setFirstUnreadBookingId] = useState<string | null>(null);
   const [unrepliedReviewCount, setUnrepliedReviewCount] = useState<number | null>(0);
-  const [ratingAvg, setRatingAvg] = useState<number | null>(null);
-  const [ratingCount, setRatingCount] = useState(0);
   const [dashboardLoading, setDashboardLoading] = useState(false);
   const [dashboardError, setDashboardError] = useState<string | null>(null);
   const [cancelRequestsError, setCancelRequestsError] = useState<string | null>(null);
@@ -211,8 +208,6 @@ export default function SupplierDashboard() {
       setUnreadMessageCount(0);
       setFirstUnreadBookingId(null);
       setUnrepliedReviewCount(0);
-      setRatingAvg(null);
-      setRatingCount(0);
       setDashboardError(null);
       setCancelRequestsError(null);
       setDashboardLoading(false);
@@ -234,18 +229,15 @@ export default function SupplierDashboard() {
     const noteFailure = (key: string) => {
       failures.push(key);
     };
-    let listingIds: string[] = [];
     if (settled[0].status === 'fulfilled') {
       const listings = settled[0].value;
       setPublishedListingsCount(listings.filter((t) => t.status === 'published').length);
       setDraftListingsCount(listings.filter((t) => t.status === 'draft').length);
       setListingTitlesById(Object.fromEntries(listings.map((t) => [t.id, t.title])));
       setListingsById(Object.fromEntries(listings.map((t) => [t.id, t])));
-      listingIds = listings.map((t) => t.id);
     } else {
       // Phase 1306: keep prior listing maps — failure ≠ zero live listings.
       noteFailure('listings');
-      listingIds = Object.keys(listingsByIdRef.current);
     }
     let bookingsForUnread: BookingRow[] = [];
     if (settled[1].status === 'fulfilled') {
@@ -284,32 +276,6 @@ export default function SupplierDashboard() {
     } else {
       noteFailure('review_replies');
       setUnrepliedReviewCount(null);
-    }
-
-    if (listingIds.length > 0) {
-      try {
-        const aggs = await getReviewAggregatesForListingIds(listingIds);
-        if (gen !== dashboardLoadGenRef.current) return;
-        let sum = 0;
-        let count = 0;
-        for (const v of aggs.values()) {
-          sum += v.rating * v.count;
-          count += v.count;
-        }
-        if (count > 0) {
-          setRatingAvg(Math.round((sum / count) * 10) / 10);
-          setRatingCount(count);
-        } else {
-          setRatingAvg(null);
-          setRatingCount(0);
-        }
-      } catch {
-        // Phase 1097: aggregate load failure ≠ invent a clean partner rating.
-        noteFailure('review_aggregates');
-      }
-    } else {
-      setRatingAvg(null);
-      setRatingCount(0);
     }
 
     // Unread traveler messages on paid bookings (same depth Inbox uses).
@@ -363,8 +329,6 @@ export default function SupplierDashboard() {
       setUnreadMessageCount(0);
       setFirstUnreadBookingId(null);
       setUnrepliedReviewCount(0);
-      setRatingAvg(null);
-      setRatingCount(0);
       setDashboardError(null);
       setCancelRequestsError(null);
     };
@@ -661,13 +625,6 @@ export default function SupplierDashboard() {
           >
             Calendar
           </button>
-          <button
-            type="button"
-            onClick={() => navigateSupplierUrl(PARTNER_CREATE_PATH)}
-            className="tv-btn-primary lux-flat"
-          >
-            New listing
-          </button>
         </div>
       </header>
 
@@ -796,8 +753,9 @@ export default function SupplierDashboard() {
       ) : null}
 
       {attentionCount > 0 && (
-        <section className="partner-home__section" id="partner-home-attention">
+        <section className="partner-home-section" id="partner-home-attention">
           <SectionHead title="Needs attention" meta={`${attentionCount}`} />
+          <div className="partner-home-section__body">
           <ul className="partner-home__panel divide-y divide-slate-100">
             {openCancelCount > 0 && (
               <AttentionItem
@@ -975,10 +933,11 @@ export default function SupplierDashboard() {
               />
             )}
           </ul>
+          </div>
         </section>
       )}
 
-      <section className="partner-home__section" aria-label="Upcoming schedule">
+      <section className="partner-home-section" aria-label="Upcoming schedule">
         <SectionHead
           title="Upcoming schedule"
           meta={
@@ -1012,8 +971,9 @@ export default function SupplierDashboard() {
             </div>
           }
         />
+        <div className="partner-home-section__body">
         {metricsLoading ? (
-          <div className="flex flex-col gap-2" aria-hidden>
+          <div className="flex flex-col gap-2 p-3" aria-hidden>
             <div className="partner-home__skeleton" style={{ minHeight: '3.25rem' }} />
             <div className="partner-home__skeleton" style={{ minHeight: '3.25rem' }} />
             <div className="partner-home__skeleton" style={{ minHeight: '3.25rem' }} />
@@ -1175,60 +1135,11 @@ export default function SupplierDashboard() {
             })}
           </ul>
         )}
-      </section>
-
-      <section className="partner-home__section">
-        <SectionHead
-          title="Business performance"
-          meta="Last 30 days"
-          action={
-            <TextLink onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/performance`)}>
-              Analytics →
-            </TextLink>
-          }
-        />
-        <div className="partner-home__panel">
-          <div className="partner-home__perf">
-            <div className="partner-home__perf-cell">
-              <p className="partner-home__perf-label">Collected bookings</p>
-              <p className="partner-home__perf-value">{performance30d.bookings}</p>
-              <p className="partner-home__perf-hint">Paid in the last 30 days</p>
-            </div>
-            <div className="partner-home__perf-cell">
-              <p className="partner-home__perf-label">Rating</p>
-              <p className="partner-home__perf-value" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                {ratingAvg != null && ratingCount > 0 ? (
-                  <>
-                    {ratingAvg.toFixed(2)}
-                    <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" aria-hidden />
-                  </>
-                ) : (
-                  '—'
-                )}
-              </p>
-              <p className="partner-home__perf-hint">
-                {ratingCount > 0
-                  ? `${ratingCount} review${ratingCount === 1 ? '' : 's'}`
-                  : 'No reviews yet'}
-              </p>
-            </div>
-            <div className="partner-home__perf-cell">
-              <p className="partner-home__perf-label">Currencies</p>
-              <p className="partner-home__perf-value">
-                {performance30d.currencies.length > 0 ? performance30d.currencies.length : '—'}
-              </p>
-              <p className="partner-home__perf-hint">
-                {performance30d.currencies.length > 1
-                  ? 'Multi-currency collected window'
-                  : 'Earnings shown in top metrics'}
-              </p>
-            </div>
-          </div>
         </div>
       </section>
 
       {recentBookings.length > 0 && (
-        <section className="partner-home__section">
+        <section className="partner-home-section" aria-label="Recent bookings">
           <SectionHead
             title="Recent bookings"
             action={
@@ -1237,15 +1148,29 @@ export default function SupplierDashboard() {
               </TextLink>
             }
           />
-          <div className="partner-home__panel">
-            <ul>
+          <div className="partner-home-section__body">
+            <div className="partner-home__recent-cols" aria-hidden>
+              <span>Guest</span>
+              <span>Experience / property</span>
+              <span>Date</span>
+              <span>Guests</span>
+              <span>Status</span>
+              <span>Your earnings</span>
+            </div>
+            <ul className="partner-home__panel">
               {recentBookings.map((b) => {
                 // Phase 1792: match Money Collected — not refunded / refund-due amounts.
+                // Prefer commercial snapshot supplier net; legacy amount_paid only when snapshot absent.
+                const hasSupplierNet = Object.prototype.hasOwnProperty.call(netByBookingId, b.id);
                 const legacyPaid =
                   b.amount_paid != null && Number.isFinite(Number(b.amount_paid))
                     ? Number(b.amount_paid)
                     : null;
-                const paid = isCollectedBooking(b) ? (netByBookingId[b.id] ?? legacyPaid) : null;
+                const paid = isCollectedBooking(b)
+                  ? hasSupplierNet
+                    ? netByBookingId[b.id]
+                    : legacyPaid
+                  : null;
                 const money = paid == null ? null : formatMoney(paid, b.currency);
                 const status = recentBookingStatus(b);
                 const statusClass =

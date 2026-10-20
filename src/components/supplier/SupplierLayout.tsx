@@ -188,7 +188,7 @@ const PRIMARY_NAV: { id: SupplierSection; label: string; icon: typeof LayoutDash
   { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
   { id: 'bookings', label: 'Bookings', icon: Calendar },
   { id: 'listings', label: 'Listings', icon: MapPin },
-  // Short label for the thumb bar; full name is “Departures & Availability” in the sidebar.
+  // Short label for the thumb bar; sidebar uses “Departures & availability”.
   { id: 'availability', label: 'Departures', icon: CalendarDays },
 ];
 
