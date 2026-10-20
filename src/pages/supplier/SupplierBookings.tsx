@@ -5,13 +5,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
-  Copy,
   Download,
   Mail,
   MoreHorizontal,
   RefreshCw,
   Trash2,
-  Users,
   CalendarDays,
 } from 'lucide-react';
 import type { TourPackage } from '../../types/tour';
@@ -61,6 +59,7 @@ import {
 } from '../../data/supabase-bookings';
 import StayRequestActions from '../../components/StayRequestActions';
 import StayOpsReservationCard from '../../components/supplier/StayOpsReservationCard';
+import TourOpsBookingCard from '../../components/supplier/TourOpsBookingCard';
 import {
   StayOpsFact,
   StayOpsInOut,
@@ -443,7 +442,11 @@ export default function SupplierBookings({
   const [drawerExtra, setDrawerExtra] = useState<null | 'notes' | 'activity' | 'rules' | 'instructions' | 'arrival'>(null);
   const [drawerMoreOpen, setDrawerMoreOpen] = useState(false);
   const [expandedStayId, setExpandedStayId] = useState<string | null>(null);
+  const [expandedTourId, setExpandedTourId] = useState<string | null>(null);
   const [expandedEarningsLabel, setExpandedEarningsLabel] = useState<string | null>(null);
+  const [expandedEarningsState, setExpandedEarningsState] = useState<'idle' | 'loading' | 'ready' | 'missing'>(
+    'idle'
+  );
   const [commercialSnapshot, setCommercialSnapshot] = useState<BookingCommercialSnapshotRow | null>(null);
   const [commercialState, setCommercialState] = useState<'loading' | 'ready' | 'missing' | 'error'>('missing');
   const [copiedBookingId, setCopiedBookingId] = useState<string | null>(null);
@@ -934,18 +937,27 @@ export default function SupplierBookings({
 
   useEffect(() => {
     setExpandedEarningsLabel(null);
-    if (!expandedStayId) return;
+    const expandId = expandedStayId || expandedTourId;
+    if (!expandId) {
+      setExpandedEarningsState('idle');
+      return;
+    }
     let cancelled = false;
-    void fetchBookingCommercialSnapshot(expandedStayId).then((snap) => {
-      if (cancelled || !snap) return;
-      setExpandedEarningsLabel(
-        formatSnapshotMinor(snap.remaining_supplier_minor, snap.currency)
-      );
+    setExpandedEarningsState('loading');
+    void fetchBookingCommercialSnapshot(expandId).then((snap) => {
+      if (cancelled) return;
+      if (!snap) {
+        setExpandedEarningsLabel(null);
+        setExpandedEarningsState('missing');
+        return;
+      }
+      setExpandedEarningsLabel(formatSnapshotMinor(snap.remaining_supplier_minor, snap.currency));
+      setExpandedEarningsState('ready');
     });
     return () => {
       cancelled = true;
     };
-  }, [expandedStayId]);
+  }, [expandedStayId, expandedTourId]);
 
   useEffect(() => {
     setDrawerExtra(null);
@@ -1013,13 +1025,13 @@ export default function SupplierBookings({
     <div className={`${SUPPLIER_PAGE_CLASS}${isStayDesk ? ' partner-stay-ops' : ''}`}>
       {!stayDetailMode ? (
       <SupplierPageHero
-        badge={isStayDesk ? null : 'Operate'}
-        sansTitle={isStayDesk}
+        badge={null}
+        sansTitle
         title={isStayDesk ? 'Reservations' : 'Bookings'}
         description={
           isStayDesk
             ? 'Guests, nights and property decisions.'
-            : 'Guests, products, dates, payment, and decisions.'
+            : 'Manage your reservations, guests, departures, and booking details.'
         }
         actions={
           bookings.length > 0 ? (
@@ -1113,184 +1125,6 @@ export default function SupplierBookings({
       >
       </SupplierPageHero>
       ) : null}
-
-      {!stayDetailMode && bookings.length > 0 && (
-      <div className={isStayDesk ? 'partner-stay-ops__toolbar' : 'mb-4 space-y-3'}>
-        <div className={`flex flex-col gap-2 lg:flex-row lg:items-center${isStayDesk ? '' : ''}`}>
-          <label className="min-w-0 flex-1">
-            <span className="sr-only">{isStayDesk ? 'Search reservations' : 'Search bookings'}</span>
-            <input
-              type="search"
-              value={searchDraft}
-              onChange={(e) => setSearchDraft(e.target.value)}
-              placeholder={
-                isStayDesk
-                  ? 'Search guest, property or reference…'
-                  : 'Search name, email or booking ID...'
-              }
-              className="tv-input w-full"
-              aria-label="Search name, email or booking ID"
-            />
-          </label>
-          <div className="flex items-center gap-2 lg:hidden">
-            <button
-              type="button"
-              className="tv-btn-ghost"
-              aria-expanded={filtersSheetOpen}
-              aria-controls="bookings-filter-sheet"
-              onClick={() => setFiltersSheetOpen(true)}
-            >
-              Filters{activeBookingFilterCount > 0 ? ` (${activeBookingFilterCount})` : ''}
-            </button>
-            <div className="min-w-0 flex-1">
-              <PartnerSelect
-                id="bookings-filter-sort-mobile"
-                aria-label="Sort bookings"
-                searchable={false}
-                value={sortBy}
-                onChange={(next) => writeBookingsSearchToUrl({ sort: next as PartnerBookingsSort })}
-                options={PARTNER_BOOKINGS_SORTS.map((item) => ({ value: item.value, label: item.label }))}
-              />
-            </div>
-          </div>
-          <div className="hidden flex-wrap items-center gap-2 lg:flex">
-            <PartnerSelect
-              id="bookings-filter-status"
-              aria-label="Booking status"
-              searchable={false}
-              value={statusFilter}
-              onChange={(status) => writeBookingsSearchToUrl({ status })}
-              options={[
-                { value: '', label: 'All statuses' },
-                { value: 'confirmed', label: 'Confirmed' },
-                { value: 'pending', label: 'Pending' },
-                { value: 'cancelled', label: 'Cancelled' },
-              ]}
-            />
-            <PartnerSelect
-              id="bookings-filter-listing"
-              aria-labelledby="bookings-filter-listing-label"
-              value={filterListingId}
-              onChange={(listingId) => writeBookingsSearchToUrl({ listingId })}
-              options={[
-                { value: '', label: isStayDesk ? 'All properties' : 'All experiences' },
-                ...listingOptions.map((option) => ({ value: option.id, label: option.title })),
-              ]}
-            />
-            <span id="bookings-filter-listing-label" className="sr-only">
-              {isStayDesk ? 'Property' : 'Experience'}
-            </span>
-            <PartnerSelect
-              id="bookings-filter-travel"
-              aria-label="Travel date"
-              searchable={false}
-              value={view}
-              onChange={(next) => writeBookingsSearchToUrl({ view: next as BookingView })}
-              options={PARTNER_BOOKINGS_TRAVEL.map((item) => ({ value: item.value, label: item.label }))}
-            />
-            <PartnerSelect
-              id="bookings-filter-sort"
-              aria-label="Sort bookings"
-              searchable={false}
-              value={sortBy}
-              onChange={(next) => writeBookingsSearchToUrl({ sort: next as PartnerBookingsSort })}
-              options={PARTNER_BOOKINGS_SORTS.map((item) => ({ value: item.value, label: item.label }))}
-            />
-            <button
-              type="button"
-              aria-expanded={moreFiltersOpen}
-              onClick={() => setMoreFiltersOpen((open) => !open)}
-              className="tv-btn-ghost"
-            >
-              More filters
-            </button>
-          </div>
-        </div>
-        {view === 'range' || filterDateFrom || filterDateTo ? (
-          <div className="hidden flex-wrap items-center gap-1.5 lg:flex">
-            <input
-              type="date"
-              value={filterDateFrom}
-              onChange={(e) => writeBookingsSearchToUrl({ view: 'range', from: e.target.value })}
-              className="tv-input w-[9.25rem]"
-              aria-label="Travel date from"
-            />
-            <span className="shrink-0 text-sm text-ink-faint">–</span>
-            <input
-              type="date"
-              value={filterDateTo}
-              onChange={(e) => writeBookingsSearchToUrl({ view: 'range', to: e.target.value })}
-              className="tv-input w-[9.25rem]"
-              aria-label="Travel date to"
-            />
-          </div>
-        ) : null}
-        {moreFiltersOpen ? (
-          <div className="hidden gap-3 rounded-lg border border-black/[0.08] bg-white p-3 lg:grid lg:grid-cols-4">
-            <PartnerSelect
-              id="bookings-filter-payment"
-              aria-label="Payment status"
-              searchable={false}
-              value={paymentFilter}
-              onChange={(pay) => writeBookingsSearchToUrl({ pay: pay as PartnerBookingsPaymentFilter })}
-              options={[
-                { value: '', label: 'Any payment' },
-                { value: 'paid', label: 'Paid' },
-                { value: 'unpaid', label: 'Unpaid' },
-                { value: 'refund_due', label: 'Refund due' },
-                { value: 'refunded', label: 'Refunded' },
-              ]}
-            />
-            <PartnerSelect
-              id="bookings-filter-ops"
-              aria-label="Operational attention"
-              searchable={false}
-              value={opsFilter}
-              onChange={(next) => setOpsFilterAndUrl(next as OpsFilter)}
-              options={[
-                { value: 'all', label: 'Any attention' },
-                { value: 'unpaid', label: 'Unpaid checkout' },
-                ...(inventoryFamily === 'stay' ? [] : [{ value: 'pickup', label: 'Pickup details' }]),
-                { value: 'cancel', label: 'Cancellation waiting' },
-                { value: 'refund_due', label: 'Refund due' },
-              ]}
-            />
-            <div className="flex flex-col gap-1">
-              <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Purchased from</label>
-              <input
-                type="date"
-                value={purchaseFrom}
-                onChange={(e) => writeBookingsSearchToUrl({ purchasedFrom: e.target.value })}
-                className="tv-input"
-                aria-label="Purchase date from"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Purchased to</label>
-              <input
-                type="date"
-                value={purchaseTo}
-                onChange={(e) => writeBookingsSearchToUrl({ purchasedTo: e.target.value })}
-                className="tv-input"
-                aria-label="Purchase date to"
-              />
-            </div>
-          </div>
-        ) : null}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Phase 1663: ops filters count as active filters. */}
-          {filterQuery || filterListingId || filterDateFrom || filterDateTo || opsFilter !== 'all' || statusFilter || paymentFilter || sortBy !== 'newest' || purchaseFrom || purchaseTo || view !== 'all' ? (
-            <button
-              type="button"
-              onClick={resetBookingFilters}
-              className="tv-btn-ghost hidden lg:inline-flex"
-            >
-              Reset filters
-            </button>
-          ) : null}
-        </div>
-      </div>
-      )}
 
       {filtersSheetOpen ? (
         <SupplierDetailDrawer variant="sheet" label="Filters" onClose={() => setFiltersSheetOpen(false)}>
@@ -1488,10 +1322,198 @@ export default function SupplierBookings({
           }
         />
       ) : (
+      <div className={isStayDesk ? 'contents' : 'partner-bookings-workspace'}>
+      <div className={isStayDesk ? 'partner-stay-ops__toolbar' : 'partner-bookings-workspace__toolbar'}>
+        <div className="partner-bookings-workspace__controls flex flex-col gap-2 lg:flex-row lg:items-center">
+          <label className={`min-w-0 flex-1${!isStayDesk ? ' partner-bookings-workspace__search' : ''}`}>
+            <span className="sr-only">{isStayDesk ? 'Search reservations' : 'Search bookings'}</span>
+            <input
+              type="search"
+              value={searchDraft}
+              onChange={(e) => setSearchDraft(e.target.value)}
+              placeholder={
+                isStayDesk
+                  ? 'Search guest, property or reference…'
+                  : 'Search by guest, email or booking reference…'
+              }
+              className="tv-input w-full"
+              aria-label="Search by guest, email or booking reference"
+            />
+          </label>
+          <div className="flex items-center gap-2 lg:hidden">
+            <button
+              type="button"
+              className="tv-btn-ghost"
+              aria-expanded={filtersSheetOpen}
+              aria-controls="bookings-filter-sheet"
+              onClick={() => setFiltersSheetOpen(true)}
+            >
+              Filters{activeBookingFilterCount > 0 ? ` (${activeBookingFilterCount})` : ''}
+            </button>
+            <div className="min-w-0 flex-1">
+              <PartnerSelect
+                id="bookings-filter-sort-mobile"
+                aria-label="Sort bookings"
+                searchable={false}
+                value={sortBy}
+                onChange={(next) => writeBookingsSearchToUrl({ sort: next as PartnerBookingsSort })}
+                options={PARTNER_BOOKINGS_SORTS.map((item) => ({ value: item.value, label: item.label }))}
+              />
+            </div>
+          </div>
+          <div className={`hidden flex-wrap items-center gap-2 lg:flex${!isStayDesk ? ' partner-bookings-workspace__filters' : ''}`}>
+            <PartnerSelect
+              id="bookings-filter-status"
+              aria-label="Booking status"
+              searchable={false}
+              value={statusFilter}
+              onChange={(status) => writeBookingsSearchToUrl({ status })}
+              options={[
+                { value: '', label: 'All statuses' },
+                { value: 'confirmed', label: 'Confirmed' },
+                { value: 'pending', label: 'Pending' },
+                { value: 'cancelled', label: 'Cancelled' },
+              ]}
+            />
+            <PartnerSelect
+              id="bookings-filter-listing"
+              aria-labelledby="bookings-filter-listing-label"
+              value={filterListingId}
+              onChange={(listingId) => writeBookingsSearchToUrl({ listingId })}
+              options={[
+                { value: '', label: isStayDesk ? 'All properties' : 'All experiences' },
+                ...listingOptions.map((option) => ({ value: option.id, label: option.title })),
+              ]}
+            />
+            <span id="bookings-filter-listing-label" className="sr-only">
+              {isStayDesk ? 'Property' : 'Experience'}
+            </span>
+            <PartnerSelect
+              id="bookings-filter-travel"
+              aria-label="Travel date"
+              searchable={false}
+              value={view}
+              onChange={(next) => writeBookingsSearchToUrl({ view: next as BookingView })}
+              options={PARTNER_BOOKINGS_TRAVEL.map((item) => ({ value: item.value, label: item.label }))}
+            />
+            <div className={!isStayDesk ? 'partner-bookings-workspace__secondary-filters' : undefined}>
+              <PartnerSelect
+                id="bookings-filter-sort"
+                aria-label="Sort bookings"
+                searchable={false}
+                value={sortBy}
+                onChange={(next) => writeBookingsSearchToUrl({ sort: next as PartnerBookingsSort })}
+                options={PARTNER_BOOKINGS_SORTS.map((item) => ({ value: item.value, label: item.label }))}
+              />
+              <button
+                type="button"
+                aria-expanded={moreFiltersOpen}
+                onClick={() => setMoreFiltersOpen((open) => !open)}
+                className="tv-btn-ghost"
+              >
+                More filters{activeBookingFilterCount > 3 ? ` (${activeBookingFilterCount})` : ''}
+              </button>
+            </div>
+          </div>
+        </div>
+        {view === 'range' || filterDateFrom || filterDateTo ? (
+          <div className="hidden flex-wrap items-center gap-1.5 lg:flex">
+            <input
+              type="date"
+              value={filterDateFrom}
+              onChange={(e) => writeBookingsSearchToUrl({ view: 'range', from: e.target.value })}
+              className="tv-input w-[9.25rem]"
+              aria-label="Travel date from"
+            />
+            <span className="shrink-0 text-sm text-ink-faint">–</span>
+            <input
+              type="date"
+              value={filterDateTo}
+              onChange={(e) => writeBookingsSearchToUrl({ view: 'range', to: e.target.value })}
+              className="tv-input w-[9.25rem]"
+              aria-label="Travel date to"
+            />
+          </div>
+        ) : null}
+        {moreFiltersOpen ? (
+          <div className="hidden gap-3 rounded-lg border border-black/[0.08] bg-white p-3 lg:grid lg:grid-cols-4">
+            <PartnerSelect
+              id="bookings-filter-payment"
+              aria-label="Payment status"
+              searchable={false}
+              value={paymentFilter}
+              onChange={(pay) => writeBookingsSearchToUrl({ pay: pay as PartnerBookingsPaymentFilter })}
+              options={[
+                { value: '', label: 'Any payment' },
+                { value: 'paid', label: 'Paid' },
+                { value: 'unpaid', label: 'Unpaid' },
+                { value: 'refund_due', label: 'Refund due' },
+                { value: 'refunded', label: 'Refunded' },
+              ]}
+            />
+            <PartnerSelect
+              id="bookings-filter-ops"
+              aria-label="Operational attention"
+              searchable={false}
+              value={opsFilter}
+              onChange={(next) => setOpsFilterAndUrl(next as OpsFilter)}
+              options={[
+                { value: 'all', label: 'Any attention' },
+                { value: 'unpaid', label: 'Unpaid checkout' },
+                ...(inventoryFamily === 'stay' ? [] : [{ value: 'pickup', label: 'Pickup details' }]),
+                { value: 'cancel', label: 'Cancellation waiting' },
+                { value: 'refund_due', label: 'Refund due' },
+              ]}
+            />
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Purchased from</label>
+              <input
+                type="date"
+                value={purchaseFrom}
+                onChange={(e) => writeBookingsSearchToUrl({ purchasedFrom: e.target.value })}
+                className="tv-input"
+                aria-label="Purchase date from"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Purchased to</label>
+              <input
+                type="date"
+                value={purchaseTo}
+                onChange={(e) => writeBookingsSearchToUrl({ purchasedTo: e.target.value })}
+                className="tv-input"
+                aria-label="Purchase date to"
+              />
+            </div>
+          </div>
+        ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Phase 1663: ops filters count as active filters. */}
+          {filterQuery || filterListingId || filterDateFrom || filterDateTo || opsFilter !== 'all' || statusFilter || paymentFilter || sortBy !== 'newest' || purchaseFrom || purchaseTo || view !== 'all' ? (
+            <button
+              type="button"
+              onClick={resetBookingFilters}
+              className="tv-btn-ghost hidden lg:inline-flex"
+            >
+              Reset filters
+            </button>
+          ) : null}
+          {!isStayDesk ? (
+            <p className="partner-bookings-workspace__count ml-auto hidden text-[12.5px] text-ink-muted lg:block" aria-live="polite">
+              <span className="font-semibold tabular-nums text-ink">{filteredBookings.length}</span>
+              {filteredBookings.length === 1 ? ' booking' : ' bookings'}
+              {selectedIds.size > 0 ? (
+                <span className="text-ink-muted"> · {selectedIds.size} selected</span>
+              ) : null}
+            </p>
+          ) : null}
+        </div>
+      </div>
         <div
           id={PARTNER_BOOKINGS_LIST_ID}
           role="region"
           aria-label="Bookings"
+          className={isStayDesk ? undefined : 'partner-bookings-workspace__body'}
         >
         {filteredBookings.length === 0 ? (
         <SupplierEmptyState
@@ -1530,8 +1552,11 @@ export default function SupplierBookings({
         />
       ) : (
         <div className="space-y-3" aria-busy={loading || undefined}>
-          {isStayDesk && selectedIds.size > 0 ? (
-            <div className="partner-stay-ops__bulk" role="status">
+          {selectedIds.size > 0 ? (
+            <div
+              className={isStayDesk ? 'partner-stay-ops__bulk' : 'partner-bookings-workspace__bulk'}
+              role="status"
+            >
               <span>
                 {selectedIds.size} selected
               </span>
@@ -1577,7 +1602,7 @@ export default function SupplierBookings({
               ) : null}
             </div>
           ) : null}
-          <div className={isStayDesk ? 'stay-ops-list' : 'space-y-2'}>
+          <div className={isStayDesk ? 'stay-ops-list' : 'partner-bookings-workspace__list'}>
             {paginatedBookings.map((booking) => {
               const opsStartHm = booking.start_time ? pgTimeToHm(booking.start_time) ?? null : null;
               const dep = partnerOpsDepartureDisplay(booking.purchase_snapshot, opsStartHm);
@@ -1661,7 +1686,6 @@ export default function SupplierBookings({
                 : pickupGap
                   ? 'Pickup details missing'
                   : paymentIssue;
-              const needsAttention = Boolean(cardWarning);
               const referenceLabel = bookingReferenceLabel(booking);
               const participantLabel = formatBookingParticipantsLabel(booking);
               const stayNightLabel =
@@ -1746,9 +1770,10 @@ export default function SupplierBookings({
                     busy={updatingId === booking.id}
                     checkbox={checkbox}
                     copied={copiedBookingId === booking.id}
-                    onToggleExpand={() =>
-                      setExpandedStayId((cur) => (cur === booking.id ? null : booking.id))
-                    }
+                    onToggleExpand={() => {
+                      setExpandedTourId(null);
+                      setExpandedStayId((cur) => (cur === booking.id ? null : booking.id));
+                    }}
                     onOpenDetails={() => {
                       setExpandedStayId(null);
                       setSelectedBookingId(booking.id);
@@ -1764,94 +1789,65 @@ export default function SupplierBookings({
                 );
               }
 
+              const durationLabel =
+                displayDurationFromPurchase(booking.purchase_snapshot, meta?.duration ?? null) || null;
+              const pickupKind: 'pickup' | 'meeting' | null = rowPickupInstructions
+                ? 'pickup'
+                : rowMeeting
+                  ? 'meeting'
+                  : null;
+              const pickupSummary = (rowPickupInstructions || rowMeeting || '').trim() || null;
+              const guestNotes = customerRequestNotes(booking.special_requests) || null;
+              const tourExpanded = expandedTourId === booking.id;
+
               return (
-                <article
+                <TourOpsBookingCard
                   key={booking.id}
-                  id={`supplier-booking-row-${booking.id}`}
-                  data-highlight={highlightBookingId === booking.id ? 'true' : 'false'}
-                  data-attention={needsAttention ? 'true' : 'false'}
-                  className="tv-ops-booking-row"
-                >
-                  <label className="flex shrink-0 items-center self-center pl-2.5" onClick={(event) => event.stopPropagation()}>
-                    {checkbox}
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedBookingId(booking.id)}
-                    className="lux-flat tv-ops-booking-row__btn"
-                    aria-label={`View details for ${listingTitle}`}
-                  >
-                    {meta?.imageUrl ? (
-                      <img
-                        src={meta.imageUrl}
-                        alt=""
-                        className="h-[3.25rem] w-[3.25rem] shrink-0 rounded-md object-cover ring-1 ring-black/[0.06]"
-                      />
-                    ) : (
-                      <div
-                        className="h-[3.25rem] w-[3.25rem] shrink-0 rounded-md bg-finland/10 ring-1 ring-finland/15"
-                        aria-hidden
-                      />
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <p
-                            className="line-clamp-2 text-[14px] font-semibold leading-5 tracking-tight text-ink"
-                            title={listingTitle}
-                          >
-                            {listingTitle}
-                          </p>
-                          {optionLabel ? (
-                            <p className="truncate text-[12.5px] leading-4 text-ink-muted" title={optionLabel}>
-                              {optionLabel}
-                            </p>
-                          ) : null}
-                        </div>
-                        <span className="mt-0.5 inline-flex shrink-0 items-center gap-0.5">
-                          <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-semibold ring-1 ${bookingStatusClass(booking.status, booking.payment_status)}`}>
-                            {partnerBookingLifecycleLabel(booking.status)}
-                          </span>
-                          <ChevronRight className="h-4 w-4 text-ink-faint" aria-hidden />
-                        </span>
-                      </div>
-                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12px] leading-4 text-ink-muted">
-                        <span className="inline-flex min-w-0 items-center gap-1">
-                          <CalendarDays className="h-3.5 w-3.5 shrink-0 text-ink-faint" aria-hidden />
-                          <span className="truncate" title={dep.purchasedNote ? `${dateLine}. ${dep.purchasedNote}` : dateLine}>
-                            {dateLine}
-                            {dep.purchasedNote ? ` · ${dep.purchasedNote}` : ''}
-                          </span>
-                        </span>
-                        <span className="inline-flex min-w-0 items-center gap-1" title={participantLabel}>
-                          <Users className="h-3.5 w-3.5 shrink-0 text-ink-faint" aria-hidden />
-                          <span className="truncate">{participantLabel}</span>
-                        </span>
-                      </div>
-                      <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12px] leading-4 text-ink-muted">
-                        <span className="font-mono text-[12px] font-semibold tracking-wide text-finland">{referenceLabel}</span>
-                        {purchaseDateLabel ? (
-                          <span className="whitespace-nowrap" title="Purchase date, when the booking was created">Purchased {purchaseDateLabel}</span>
-                        ) : null}
-                      </div>
-                      {cardWarning ? (
-                        <p className="mt-0.5 text-[12px] font-medium leading-4 text-amber-800">{cardWarning}</p>
-                      ) : null}
-                    </div>
-                  </button>
-                  <button
-                    type="button"
-                    className="tv-ops-booking-row__copy"
-                    aria-label={`Copy booking reference ${referenceLabel}`}
-                    onClick={copyReference}
-                  >
-                    {copiedBookingId === booking.id ? (
-                      <CheckCircle className="h-3.5 w-3.5 text-finland" aria-hidden />
-                    ) : (
-                      <Copy className="h-3.5 w-3.5" aria-hidden />
-                    )}
-                  </button>
-                </article>
+                  model={{
+                    id: booking.id,
+                    listingTitle,
+                    optionLabel,
+                    imageUrl: meta?.imageUrl ?? null,
+                    guestName: booking.guest_name?.trim() || 'Guest',
+                    guestEmail: booking.guest_email?.trim() || null,
+                    guestPhone: guestPhoneFromNotes(booking.special_requests),
+                    dateLine,
+                    departureNote: dep.purchasedNote || null,
+                    participantLabel,
+                    statusLabel: partnerBookingLifecycleLabel(booking.status),
+                    statusClass: bookingStatusClass(booking.status, booking.payment_status),
+                    referenceLabel,
+                    purchaseDateLabel,
+                    pickupKind,
+                    pickupSummary,
+                    durationLabel: durationLabel && durationLabel !== '—' ? durationLabel : null,
+                    guestNotes,
+                    warning: cardWarning,
+                    needsReview: partnerBookingNeedsLook(booking),
+                    guestTotalLabel: customerBookingTotal(booking),
+                    earningsLabel: tourExpanded ? expandedEarningsLabel : null,
+                    earningsLoading: tourExpanded && expandedEarningsState === 'loading',
+                    paymentLabel: partnerPaymentLabel(booking),
+                  }}
+                  expanded={tourExpanded}
+                  selected={highlightBookingId === booking.id}
+                  busy={updatingId === booking.id}
+                  checkbox={checkbox}
+                  copied={copiedBookingId === booking.id}
+                  onToggleExpand={() => {
+                    setExpandedStayId(null);
+                    setExpandedTourId((cur) => (cur === booking.id ? null : booking.id));
+                  }}
+                  onOpenDetails={() => {
+                    setExpandedTourId(null);
+                    setSelectedBookingId(booking.id);
+                  }}
+                  onMessageGuest={() => openSupplierInbox(booking.id)}
+                  onMarkReviewed={
+                    canEditBookings ? () => void handleAcknowledge(booking) : undefined
+                  }
+                  onCopyReference={copyReference}
+                />
               );
             })}
 
@@ -1915,6 +1911,7 @@ export default function SupplierBookings({
         </div>
       )}
         </div>
+      </div>
       )}
 
       {selectedBooking && (
