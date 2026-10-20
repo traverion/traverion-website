@@ -670,8 +670,12 @@ export default function SupplierInbox() {
                     </p>
                   ) : null}
                 </div>
-                <button type="button" className="tv-inbox-details-link tv-btn-ghost shrink-0" onClick={() => setDetailsOpen(true)}>
-                  Booking details
+                <button
+                  type="button"
+                  className="tv-inbox-details-link tv-btn-ghost h-8 shrink-0 !px-2.5 text-[12.5px]"
+                  onClick={() => setDetailsOpen(true)}
+                >
+                  Details
                 </button>
               </header>
               {bookingIsStayNight(openBooking) || isStayRequestAwaitingHost(openBooking) ? (
@@ -690,7 +694,7 @@ export default function SupplierInbox() {
                   actions={
                     <button
                       type="button"
-                      className="tv-btn-ghost h-7 !px-2 text-[12px]"
+                      className="tv-btn-secondary h-7 !px-2.5 text-[12px]"
                       onClick={() =>
                         openSupplierBooking(openBooking.id, {
                           isStay: true,

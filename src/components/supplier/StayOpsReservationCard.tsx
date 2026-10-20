@@ -108,18 +108,16 @@ export default function StayOpsReservationCard({
             </div>
             <div className="stay-ops-card__meta">
               <span className="stay-ops-card__meta-item">
-                <CalendarDays className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                <CalendarDays className="h-3 w-3 shrink-0" aria-hidden />
                 <span className="truncate">{model.dateLine}</span>
               </span>
               <span className="stay-ops-card__meta-item">
-                <Users className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                <Users className="h-3 w-3 shrink-0" aria-hidden />
                 <span className="truncate">
                   {model.participantLabel}
                   {model.nightLabel ? ` · ${model.nightLabel}` : ''}
                 </span>
               </span>
-            </div>
-            <div className="stay-ops-card__footer-row">
               <button
                 type="button"
                 className="stay-ops-card__ref lux-flat"

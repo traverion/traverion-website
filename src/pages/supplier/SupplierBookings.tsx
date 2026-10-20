@@ -62,6 +62,7 @@ import {
 import StayRequestActions from '../../components/StayRequestActions';
 import StayOpsReservationCard from '../../components/supplier/StayOpsReservationCard';
 import {
+  StayOpsFact,
   StayOpsInOut,
   StayOpsMoneyStack,
   StayOpsPanel,
@@ -2080,8 +2081,11 @@ export default function SupplierBookings({
                       <p className="stay-ops-detail__sub" title={listingTitle}>
                         {listingTitle}
                       </p>
-                      <p className="stay-ops-detail__ref">{referenceLabel}</p>
-                      <p className="mt-1 text-[13px] text-ink-muted">
+                      <p className="stay-ops-detail__meta-line">
+                        <span className="stay-ops-detail__ref" style={{ margin: 0 }}>
+                          {referenceLabel}
+                        </span>
+                        {' · '}
                         {formatBookingParticipantsLabel(booking)}
                         {stayNightCount > 0
                           ? ` · ${stayNightCount} night${stayNightCount === 1 ? '' : 's'}`
@@ -2091,42 +2095,34 @@ export default function SupplierBookings({
                   </header>
 
                   <div className="stay-ops-detail__grid">
-                    <section className="stay-ops-detail__panel">
-                      <h3 className="stay-ops-detail__panel-title">Guest & contact</h3>
+                    <StayOpsPanel title="Guest & contact">
                       <dl className="stay-ops-detail__facts">
                         {booking.guest_email ? (
-                          <div className="stay-ops-detail__fact">
-                            <dt>Email</dt>
-                            <dd>
-                              <a
-                                href={`mailto:${booking.guest_email}`}
-                                className="text-finland hover:underline [overflow-wrap:anywhere]"
-                              >
-                                {booking.guest_email}
-                              </a>
-                            </dd>
-                          </div>
-                        ) : null}
+                          <StayOpsFact label="Email">
+                            <a
+                              href={`mailto:${booking.guest_email}`}
+                              className="text-finland hover:underline [overflow-wrap:anywhere]"
+                            >
+                              {booking.guest_email}
+                            </a>
+                          </StayOpsFact>
+                        ) : (
+                          <StayOpsFact label="Email">No email on file</StayOpsFact>
+                        )}
                         {guestPhone ? (
-                          <div className="stay-ops-detail__fact">
-                            <dt>Phone</dt>
-                            <dd>
-                              <a href={phoneHref} className="text-finland hover:underline">
-                                {guestPhone}
-                              </a>
-                            </dd>
-                          </div>
+                          <StayOpsFact label="Phone">
+                            <a href={phoneHref} className="text-finland hover:underline">
+                              {guestPhone}
+                            </a>
+                          </StayOpsFact>
                         ) : null}
                         {booking.acknowledged_at ? (
-                          <div className="stay-ops-detail__fact">
-                            <dt>Reviewed</dt>
-                            <dd>
-                              {new Date(booking.acknowledged_at).toLocaleString(undefined, {
-                                dateStyle: 'medium',
-                                timeStyle: 'short',
-                              })}
-                            </dd>
-                          </div>
+                          <StayOpsFact label="Reviewed">
+                            {new Date(booking.acknowledged_at).toLocaleString(undefined, {
+                              dateStyle: 'medium',
+                              timeStyle: 'short',
+                            })}
+                          </StayOpsFact>
                         ) : null}
                       </dl>
                       {requestNotes ? (
@@ -2151,10 +2147,9 @@ export default function SupplierBookings({
                           ) : null}
                         </div>
                       ) : null}
-                    </section>
+                    </StayOpsPanel>
 
-                    <section className="stay-ops-detail__panel">
-                      <h3 className="stay-ops-detail__panel-title">Stay dates</h3>
+                    <StayOpsPanel title="Stay dates">
                       {stayRange ? (
                         <StayOpsInOut
                           checkInValue={formatStayNightHuman(stayRange.checkIn)}
@@ -2165,15 +2160,9 @@ export default function SupplierBookings({
                       ) : (
                         <p className="text-[13px] text-ink">{whenLabel}</p>
                       )}
-                      {stayNightCount > 0 ? (
-                        <p className="mt-2 text-[12.5px] text-ink-muted">
-                          {stayNightCount} night{stayNightCount === 1 ? '' : 's'} ·{' '}
-                          {formatBookingParticipantsLabel(booking)}
-                        </p>
-                      ) : null}
                       <button
                         type="button"
-                        className="mt-3 text-[12.5px] font-semibold text-finland hover:underline"
+                        className="mt-2.5 text-[12.5px] font-semibold text-finland hover:underline"
                         onClick={() =>
                           navigateSupplierUrl(
                             `${PARTNER_APP_BASE}/stay-calendar?listing=${encodeURIComponent(booking.listing_id)}`
@@ -2182,10 +2171,9 @@ export default function SupplierBookings({
                       >
                         Open Stay Calendar
                       </button>
-                    </section>
+                    </StayOpsPanel>
 
-                    <section className="stay-ops-detail__panel">
-                      <h3 className="stay-ops-detail__panel-title">Payment & earnings</h3>
+                    <StayOpsPanel title="Payment & earnings">
                       <p className="mb-2 text-[12.5px] font-semibold text-ink">
                         {partnerPaymentLabel(booking)}
                       </p>
@@ -2324,13 +2312,11 @@ export default function SupplierBookings({
                           </NoticeCallout>
                         </div>
                       ) : null}
-                    </section>
+                    </StayOpsPanel>
 
-                    <section className="stay-ops-detail__panel">
-                      <h3 className="stay-ops-detail__panel-title">Property & arrival</h3>
+                    <StayOpsPanel title="Property & arrival">
                       {checkInAddress ? (
-                        <div className="stay-ops-detail__fact mb-2">
-                          <dt className="sr-only">Address</dt>
+                        <div className="mb-2">
                           <p className="text-[12px] font-medium text-ink-faint">Address</p>
                           <p className="mt-0.5 text-[13px] leading-5 text-ink [overflow-wrap:anywhere]">
                             {checkInAddress}
@@ -2406,7 +2392,7 @@ export default function SupplierBookings({
                           </NoticeCallout>
                         </div>
                       ) : null}
-                    </section>
+                    </StayOpsPanel>
 
                     <StayOpsPanel title="Booking activity" span>
                       <StayOpsTimeline
