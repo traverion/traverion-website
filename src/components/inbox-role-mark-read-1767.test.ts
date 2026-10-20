@@ -6,8 +6,10 @@ describe('Phase 1767: finance role compose skips local Unread clear', () => {
   it('BookingMessageThread skips mark-read when composeBlock is role', () => {
     const src = readFileSync(resolve(__dirname, 'BookingMessageThread.tsx'), 'utf8');
     expect(src).toContain('Phase 1767');
-    expect(src).toContain("composeBlock === 'role'");
+    expect(src).toContain("composeBlockRef.current === 'role'");
     expect(src).toContain('do not clear Unread locally');
-    expect(src).toMatch(/composeBlock === 'role'[\s\S]*?return;[\s\S]*?markBookingMessagesRead/);
+    expect(src).toMatch(
+      /composeBlockRef\.current === 'role'[\s\S]*?return;[\s\S]*?markBookingMessagesRead/
+    );
   });
 });

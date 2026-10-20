@@ -32,7 +32,7 @@ describe('SupplierInbox mark-read truth (Phase 1500)', () => {
       'utf8'
     );
     expect(src).toMatch(/Phase 1500/);
-    expect(src).toMatch(/onMarkedRead\?\.\(\)/);
+    expect(src).toMatch(/onMarkedReadRef\.current\?\.\(\)/);
     expect(src).toMatch(/markReadError/);
   });
 });

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, MessageSquare } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Search } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
@@ -74,6 +74,13 @@ const PARTNER_INBOX_TABPANEL_ID = 'partner-inbox-tabpanel';
 
 function partnerInboxTabId(unreadOnly: boolean): string {
   return unreadOnly ? 'partner-inbox-tab-unread' : 'partner-inbox-tab-all';
+}
+
+function travelerInitials(name: string | null | undefined): string {
+  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return 'T';
+  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
+  return `${parts[0]![0] ?? ''}${parts[1]![0] ?? ''}`.toUpperCase();
 }
 
 export default function SupplierInbox() {
@@ -438,7 +445,7 @@ export default function SupplierInbox() {
   const showChat = !mobileSheet || Boolean(openId);
 
   return (
-    <div className={`${SUPPLIER_PAGE_CLASS} tv-inbox-workspace`}>
+    <div className={`${SUPPLIER_PAGE_CLASS} tv-inbox-workspace partner-inbox`}>
       {error ? (
         <ErrorState
           className="py-6"
@@ -464,28 +471,34 @@ export default function SupplierInbox() {
         <section className={`tv-inbox-list-pane min-h-0 flex-col ${showList ? 'flex' : 'hidden'}`} aria-label="Conversations">
           <header className="tv-inbox-list-pane__head">
             <div className="flex items-baseline justify-between gap-3">
-              <h1 className="font-sans text-xl font-bold tracking-tight text-ink">Inbox</h1>
+              <h1 className="tv-inbox-title">Inbox</h1>
               {unreadCount > 0 ? (
-                <p className="text-xs font-semibold text-finland">{unreadCount} unread</p>
-              ) : null}
+                <p className="text-xs font-semibold tabular-nums text-finland">{unreadCount} unread</p>
+              ) : (
+                <p className="text-xs font-medium tabular-nums text-ink-muted">
+                  {threads.length} thread{threads.length === 1 ? '' : 's'}
+                </p>
+              )}
             </div>
             {threads.length > 0 ? (
-              <div className="mt-3">
+              <div className="tv-inbox-search mt-2.5">
                 <label htmlFor="partner-inbox-search" className="sr-only">
-                  Search
+                  Search conversations
                 </label>
+                <Search className="tv-inbox-search__icon" aria-hidden />
                 <input
                   id="partner-inbox-search"
                   type="search"
                   value={filterQuery}
                   onChange={(e) => setFilterQuery(e.target.value)}
                   placeholder="Name, reference, or experience"
-                  className="tv-input h-10"
+                  className="tv-inbox-search__input"
+                  autoComplete="off"
                 />
               </div>
             ) : null}
             {threads.length > 0 ? (
-              <div className="mt-2 flex gap-1.5" role="tablist" aria-label="Inbox filter">
+              <div className="tv-inbox-tabs mt-2" role="tablist" aria-label="Inbox filter">
                 <button
                   type="button"
                   role="tab"
@@ -496,6 +509,7 @@ export default function SupplierInbox() {
                   className="tv-inbox-tab lux-flat"
                 >
                   All
+                  <span className="tv-inbox-tab__count">{threads.length}</span>
                 </button>
                 <button
                   type="button"
@@ -506,7 +520,8 @@ export default function SupplierInbox() {
                   onClick={() => setUnreadOnlyAndUrl(true)}
                   className="tv-inbox-tab lux-flat"
                 >
-                  Unread{unreadCount > 0 ? ` · ${unreadCount}` : ''}
+                  Unread
+                  <span className="tv-inbox-tab__count">{unreadCount}</span>
                 </button>
               </div>
             ) : null}
@@ -595,29 +610,39 @@ export default function SupplierInbox() {
                           aria-current={open ? 'true' : undefined}
                           onClick={() => setOpenBookingId(b.id)}
                         >
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="min-w-0 flex-1 truncate text-[0.95rem] font-bold tracking-tight text-ink">
-                              <span
-                                className={`mr-2 inline-block h-1.5 w-1.5 rounded-full align-middle ${unread ? 'bg-finland' : 'bg-transparent'}`}
-                                aria-hidden={!unread}
-                              />
-                              {b.guest_name?.trim() || 'Traveler'}
-                            </p>
-                            {last?.created_at ? (
-                              <time dateTime={last.created_at} className="shrink-0 text-[11px] tabular-nums text-ink-faint">
-                                {messageClock(last.created_at)}
-                              </time>
-                            ) : null}
-                          </div>
-                          <p className={`mt-0.5 truncate pl-3.5 text-[13px] ${unread ? 'font-medium text-ink' : 'text-ink-muted'}`}>
-                            {isStayRequestAwaitingHost(b)
-                              ? 'Booking request · Accept or decline'
-                              : last?.body ?? 'Start a conversation'}
-                          </p>
-                          <p className="mt-0.5 truncate pl-3.5 text-[12px] text-ink-faint">
-                            {displayListingTitleFromPurchase(b.purchase_snapshot, titles[b.listing_id], 'Listing')}
-                            {activityWhen(b) ? ` · ${activityWhen(b)}` : ''}
-                          </p>
+                          <span className="tv-inbox-thread__avatar" aria-hidden>
+                            {travelerInitials(b.guest_name)}
+                          </span>
+                          <span className="tv-inbox-thread__body">
+                            <span className="tv-inbox-thread__top">
+                              <span className="tv-inbox-thread__name">
+                                {unread ? (
+                                  <span className="tv-inbox-thread__unread-dot" aria-hidden />
+                                ) : null}
+                                {b.guest_name?.trim() || 'Traveler'}
+                              </span>
+                              {last?.created_at ? (
+                                <time dateTime={last.created_at} className="tv-inbox-thread__time">
+                                  {messageClock(last.created_at)}
+                                </time>
+                              ) : null}
+                            </span>
+                            <span
+                              className={`tv-inbox-thread__preview${unread ? ' tv-inbox-thread__preview--unread' : ''}`}
+                            >
+                              {isStayRequestAwaitingHost(b)
+                                ? 'Booking request · Accept or decline'
+                                : last?.body ?? 'Start a conversation'}
+                            </span>
+                            <span className="tv-inbox-thread__meta">
+                              {displayListingTitleFromPurchase(
+                                b.purchase_snapshot,
+                                titles[b.listing_id],
+                                'Listing'
+                              )}
+                              {activityWhen(b) ? ` · ${activityWhen(b)}` : ''}
+                            </span>
+                          </span>
                         </button>
                       </li>
                     );
@@ -649,30 +674,37 @@ export default function SupplierInbox() {
               <header className="tv-inbox-chat__head">
                 <button
                   type="button"
-                  className="lux-flat mr-1 inline-flex h-11 w-11 items-center justify-center rounded-full text-ink lg:hidden"
+                  className="lux-flat mr-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink lg:hidden"
                   aria-label="Back to inbox"
                   onClick={() => setOpenBookingId(null)}
                 >
                   <ArrowLeft className="h-4 w-4" aria-hidden />
                 </button>
                 <div className="min-w-0 flex-1">
-                  <h2 className="truncate text-[15px] font-bold tracking-tight text-ink">
+                  <h2 className="tv-inbox-chat__guest">
                     {openBooking.guest_name?.trim() || 'Traveler'}
                   </h2>
-                  {!(bookingIsStayNight(openBooking) || isStayRequestAwaitingHost(openBooking)) ? (
-                    <p className="truncate text-[12px] text-ink-muted">
-                      {displayListingTitleFromPurchase(
-                        openBooking.purchase_snapshot,
-                        titles[openBooking.listing_id],
-                        'Listing'
-                      )}
-                      {activityWhen(openBooking) ? ` · ${activityWhen(openBooking)}` : ''}
-                    </p>
-                  ) : null}
+                  <p
+                    className="tv-inbox-chat__context"
+                    title={inboxListingLine(
+                      openBooking,
+                      titles[openBooking.listing_id],
+                      listingsById[openBooking.listing_id]
+                    )}
+                  >
+                    {displayListingTitleFromPurchase(
+                      openBooking.purchase_snapshot,
+                      titles[openBooking.listing_id],
+                      bookingIsStayNight(openBooking) || isStayRequestAwaitingHost(openBooking)
+                        ? 'Stay'
+                        : 'Listing'
+                    )}
+                    {activityWhen(openBooking) ? ` · ${activityWhen(openBooking)}` : ''}
+                  </p>
                 </div>
                 <button
                   type="button"
-                  className="tv-inbox-details-link tv-btn-ghost h-8 shrink-0 !px-2.5 text-[12.5px]"
+                  className="tv-inbox-details-link tv-btn-secondary h-8 shrink-0 !px-2.5 text-[12.5px]"
                   onClick={() => setDetailsOpen(true)}
                 >
                   Details
@@ -805,11 +837,13 @@ export default function SupplierInbox() {
               ) : null}
             </>
           ) : (
-            <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
-              <MessageSquare className="h-6 w-6 text-finland" aria-hidden />
-              <h2 className="mt-3 text-base font-bold text-ink">Select a conversation</h2>
-              <p className="mt-1 max-w-xs text-sm text-ink-muted">
-                Choose a booking to view messages or contact your traveler.
+            <div className="tv-inbox-empty-pane">
+              <span className="tv-inbox-empty-pane__icon" aria-hidden>
+                <MessageSquare className="h-5 w-5" />
+              </span>
+              <h2 className="tv-inbox-empty-pane__title">Select a conversation</h2>
+              <p className="tv-inbox-empty-pane__body">
+                Choose a booking thread to read messages or reply to your traveler.
               </p>
             </div>
           )}

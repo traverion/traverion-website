@@ -124,6 +124,13 @@ export default function BookingMessageThread({
   const logRef = useRef<HTMLElement | null>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const stickToBottomRef = useRef(true);
+  /** Keep load() stable — parent often passes a new onMarkedRead each render. */
+  const onMarkedReadRef = useRef(onMarkedRead);
+  onMarkedReadRef.current = onMarkedRead;
+  const composeBlockRef = useRef(composeBlock);
+  composeBlockRef.current = composeBlock;
+  const viewerRoleRef = useRef(viewerRole);
+  viewerRoleRef.current = viewerRole;
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     const silent = opts?.silent === true;
@@ -133,8 +140,9 @@ export default function BookingMessageThread({
       setLoadError(null);
       setMarkReadError(null);
     }
+    let list: BookingMessageRow[] = [];
     try {
-      const list = await fetchBookingMessages(bookingId);
+      list = await fetchBookingMessages(bookingId);
       if (gen !== loadGenRef.current) return;
       setRows(list);
     } catch (e) {
@@ -146,19 +154,31 @@ export default function BookingMessageThread({
       if (!silent && gen === loadGenRef.current) setLoading(false);
     }
     // Phase 1767: finance/viewer composeBlock=role — RPC no-ops but returns ok; do not clear Unread locally.
-    if (composeBlock === 'role') {
+    if (composeBlockRef.current === 'role') {
+      return;
+    }
+    const hasUnreadInbound = list.some((m) =>
+      viewerRoleRef.current === 'supplier'
+        ? m.sender_role === 'traveler' && !m.read_by_supplier_at
+        : m.sender_role !== 'traveler' && m.sender_role !== 'system' && !m.read_by_traveler_at
+    );
+    if (!hasUnreadInbound && silent) {
       return;
     }
     const marked = await markBookingMessagesRead(bookingId);
     if (gen !== loadGenRef.current) return;
     if (!marked.ok) {
       // Phase 1500: load success ≠ read — do not clear Unread until RPC ok.
-      setMarkReadError(userFacingError(marked.error, 'We could not mark messages as read. Try again.'));
+      if (!silent) {
+        setMarkReadError(userFacingError(marked.error, 'We could not mark messages as read. Try again.'));
+      }
       return;
     }
-    onMarkedRead?.();
-    setRows((prev) => stampInboundMessagesRead(prev, viewerRole));
-  }, [bookingId, composeBlock, onMarkedRead, viewerRole]);
+    if (hasUnreadInbound) {
+      onMarkedReadRef.current?.();
+    }
+    setRows((prev) => stampInboundMessagesRead(prev, viewerRoleRef.current));
+  }, [bookingId]);
 
   useEffect(() => {
     stickToBottomRef.current = true;
@@ -166,6 +186,9 @@ export default function BookingMessageThread({
     setDraft(layout === 'panel' ? panelDrafts.get(bookingId) ?? '' : '');
     setError(null);
     setLoadError(null);
+    setMarkReadError(null);
+    setNotifyWarning(null);
+    setLoading(true);
     void load();
   }, [load, layout, bookingId]);
 
@@ -277,7 +300,9 @@ export default function BookingMessageThread({
           }}
         >
           {loading && rows.length === 0 ? (
-            <p className="text-sm text-ink-muted">Loading messages…</p>
+            <div className="tv-chat__empty" aria-busy="true" aria-live="polite">
+              <p className="text-sm font-medium text-ink-muted">Loading messages…</p>
+            </div>
           ) : rows.length === 0 && !loadError ? (
             <div className="tv-chat__empty">
               <MessageSquare className="h-5 w-5 text-finland" aria-hidden />
@@ -330,7 +355,7 @@ export default function BookingMessageThread({
           </div>
         ) : null}
         {notifyWarning ? <p className="tv-chat__note">{notifyWarning}</p> : null}
-        {canCompose && !loadError && !loading ? (
+        {canCompose && !loadError && !(loading && rows.length === 0) ? (
           <form
             className="tv-chat__composer"
             onSubmit={(e) => {
@@ -520,7 +545,7 @@ export default function BookingMessageThread({
           <p className="text-sm text-ink-muted">{notifyWarning}</p>
         </NoticeCallout>
       ) : null}
-      {canCompose && !loadError && !loading ? (
+      {canCompose && !loadError && !(loading && rows.length === 0) ? (
         <div className={`tv-msg-composer shrink-0 ${panel ? 'mt-2' : ''}`}>
           <label htmlFor={`msg-${bookingId}`} className="sr-only">
             Message about this booking
