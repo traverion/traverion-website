@@ -87,10 +87,12 @@ export default function StayOpsReservationCard({
           <div className="stay-ops-card__body">
             <div className="stay-ops-card__top">
               <div className="stay-ops-card__identity">
+                <p className="stay-ops-card__guest" title={model.guestName}>
+                  {model.guestName}
+                </p>
                 <p className="stay-ops-card__property" title={model.listingTitle}>
                   {model.listingTitle}
                 </p>
-                <p className="stay-ops-card__guest">{model.guestName}</p>
               </div>
               <div className="stay-ops-card__rail">
                 <span className={`stay-ops-card__status ${model.statusClass}`}>{model.statusLabel}</span>

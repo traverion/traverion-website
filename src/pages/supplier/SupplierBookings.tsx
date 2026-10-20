@@ -2255,7 +2255,8 @@ export default function SupplierBookings({
                           />
                         </div>
                       ) : null}
-                      {readStayBookingPrice(booking.purchase_snapshot) ? (
+                      {!(commercialSnapshot && commercialState === 'ready') &&
+                      readStayBookingPrice(booking.purchase_snapshot) ? (
                         <div className="mt-2">
                           <SavedStayPrice
                             snapshot={booking.purchase_snapshot}

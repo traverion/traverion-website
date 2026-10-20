@@ -6,6 +6,7 @@ import {
   stayCalendarCanUnblockNight,
   stayCalendarNightKind,
   stayCalendarOccupyingOnNight,
+  stayWeekSpanStyle,
   weekRangeContaining,
 } from './stay-calendar-workspace';
 
@@ -104,6 +105,51 @@ describe('stay calendar workspace', () => {
     expect(spans).toHaveLength(2);
     expect(spans.map((s) => s.lane).sort()).toEqual([0, 1]);
     expect(spans.every((s) => s.laneCount === 2)).toBe(true);
+  });
+
+  it('marks arrival and departure edges and maps bar geometry to the seven-day grid', () => {
+    const week = weekRangeContaining('2026-11-04');
+    const spans = buildStayCalendarWeekSpans({
+      weekFromIso: week.from,
+      listingId: 'stay-1',
+      bookings: [
+        booking({ id: 'edge', booking_date: '2026-11-02', check_out: '2026-11-04' }),
+        booking({
+          id: 'cross',
+          guest_name: 'Cara',
+          booking_date: '2026-10-30',
+          check_out: '2026-11-10',
+        }),
+      ],
+    });
+    const edge = spans.find((s) => s.bookingId === 'edge')!;
+    const cross = spans.find((s) => s.bookingId === 'cross')!;
+    expect(edge.startsAtCheckIn).toBe(true);
+    expect(edge.endsAtCheckout).toBe(true);
+    expect(edge.colSpan).toBe(2);
+    expect(cross.startsAtCheckIn).toBe(false);
+    expect(cross.endsAtCheckout).toBe(false);
+    expect(cross.colStart).toBe(0);
+    expect(cross.colSpan).toBe(7);
+    const geo = stayWeekSpanStyle(edge);
+    expect(geo.left).toBe('0%');
+    expect(geo.width).toBe(`${(2 / 7) * 100}%`);
+  });
+
+  it('keeps one-night stays as a single occupied night column', () => {
+    const week = weekRangeContaining('2026-11-04');
+    const oneNight = booking({ booking_date: '2026-11-03', check_out: '2026-11-04' });
+    const spans = buildStayCalendarWeekSpans({
+      weekFromIso: week.from,
+      listingId: 'stay-1',
+      bookings: [oneNight],
+    });
+    expect(spans).toHaveLength(1);
+    expect(spans[0].colSpan).toBe(1);
+    expect(spans[0].startsAtCheckIn).toBe(true);
+    expect(spans[0].endsAtCheckout).toBe(true);
+    expect(stayCalendarOccupyingOnNight([oneNight], 'stay-1', '2026-11-03')).toHaveLength(1);
+    expect(stayCalendarOccupyingOnNight([oneNight], 'stay-1', '2026-11-04')).toHaveLength(0);
   });
 
   it('only unblocks supplier capacity-0 nights that are not occupied', () => {

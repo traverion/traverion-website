@@ -40,8 +40,12 @@ describe('Stay Calendar page contracts', () => {
     expect(page).not.toContain('Calendar updated');
     expect(page).toContain('showToast');
     expect(page).toContain('StayOpsSegmentedControl');
-    expect(page).toContain('stay-ops-cal-toolbar');
+    expect(page).toContain('stay-ops-cal-chrome');
     expect(page).toContain('Calendar navigation');
+    expect(page).toContain('stay-ops-week');
+    expect(page).toContain('stay-ops-month');
+    expect(page).toContain('stay-ops-agenda');
+    expect(page).toContain('stayWeekSpanStyle');
   });
 
   it('rebuilds Month selection with continuous range and drag support', () => {
@@ -50,6 +54,7 @@ describe('Stay Calendar page contracts', () => {
     expect(page).toContain('stayDateRangeFromDrag');
     expect(page).toContain('is-in-range');
     expect(page).toContain('data-stay-night');
+    expect(page).toContain('stay-ops-month__guest');
     expect(page).not.toMatch(/tv-cal-day__meta">\{stayCalendarNightKindLabel\(kind\)\}/);
   });
 });

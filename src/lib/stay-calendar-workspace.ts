@@ -82,6 +82,10 @@ export type StayCalendarWeekSpan = {
   colStart: number;
   colSpan: number;
   pending: boolean;
+  /** True when the bar starts on the real check-in night (not clipped by week start). */
+  startsAtCheckIn: boolean;
+  /** True when the bar ends on the night before checkout (not clipped by week end). */
+  endsAtCheckout: boolean;
   /** Vertical lane when bookings overlap on the same property row. */
   lane: number;
   /** Total lanes used on this property in the visible week (for row height). */
@@ -108,6 +112,20 @@ export function assignStayWeekSpanLanes(
   }
   const laneCount = Math.max(1, laneEnds.length);
   return withLanes.map((s) => ({ ...s, laneCount }));
+}
+
+/** Percentage geometry for a week bar (7 equal day columns). */
+export function stayWeekSpanStyle(span: Pick<StayCalendarWeekSpan, 'colStart' | 'colSpan' | 'lane'>): {
+  left: string;
+  width: string;
+  top: string;
+} {
+  const laneH = 1.55;
+  return {
+    left: `${(span.colStart / 7) * 100}%`,
+    width: `${(span.colSpan / 7) * 100}%`,
+    top: `${0.28 + span.lane * laneH}rem`,
+  };
 }
 
 export function stayBookingIsPendingApproval(b: InventoryHoldRow, nowMs = Date.now()): boolean {
@@ -384,6 +402,8 @@ export function buildStayCalendarWeekSpans(params: {
       colStart,
       colSpan,
       pending: stayBookingIsPendingApproval(b, now),
+      startsAtCheckIn: start === range.checkIn,
+      endsAtCheckout: end === range.checkOut,
     });
   }
   return assignStayWeekSpanLanes(spans);

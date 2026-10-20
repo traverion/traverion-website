@@ -32,6 +32,7 @@ import {
   stayCalendarNightKind,
   stayCalendarNightKindLabel,
   stayCalendarOccupyingOnNight,
+  stayWeekSpanStyle,
   weekRangeContaining,
   type StayCalendarAgendaRow,
   type StayCalendarCap,
@@ -600,130 +601,136 @@ export default function SupplierStayCalendar() {
             </div>
           ) : null}
 
-          <StayOpsSegmentedControl
-            label="Stay Calendar views"
-            value={view}
-            options={[
-              { id: 'agenda', label: 'Agenda' },
-              { id: 'week', label: 'Week' },
-              { id: 'month', label: 'Month' },
-            ]}
-            onChange={(next) => {
-              const tab = next as StayCalendarViewMode;
-              setView(tab);
-              if (tab === 'week') {
-                const w = weekRangeContaining(todayIso);
-                setFilterFrom(w.from);
-                setFilterTo(w.to);
-                syncUrl({ view: tab, from: w.from, to: w.to });
-              } else {
-                syncUrl({ view: tab });
-              }
-            }}
-          />
-
-          <div className="stay-ops-cal-toolbar">
-            <div className="stay-ops-cal-toolbar__nav" role="group" aria-label="Calendar navigation">
-              <button
-                type="button"
-                className="stay-ops-cal-nav-btn lux-flat"
-                aria-label={
-                  view === 'month' ? 'Previous month' : view === 'week' ? 'Previous week' : 'Previous period'
-                }
-                onClick={() => {
-                  if (view === 'month') {
-                    setMonthCursor((c) => {
-                      const m = c.monthIndex0 - 1;
-                      return m < 0 ? { year: c.year - 1, monthIndex0: 11 } : { year: c.year, monthIndex0: m };
-                    });
-                    return;
-                  }
-                  if (view === 'week') {
-                    const from = addStayDays(weekFrom, -7);
-                    const to = addStayDays(from, 6);
-                    setFilterFrom(from);
-                    setFilterTo(to);
-                    syncUrl({ from, to });
-                    return;
-                  }
-                  const span = Math.max(1, eachIsoInRange(filterFrom, filterTo).length);
-                  const from = addStayDays(filterFrom, -span);
-                  const to = addStayDays(filterTo, -span);
-                  setFilterFrom(from);
-                  setFilterTo(to);
-                  syncUrl({ from, to });
-                }}
-              >
-                <ChevronLeft className="h-4 w-4" aria-hidden />
-              </button>
-              <button
-                type="button"
-                className="stay-ops-cal-nav-btn stay-ops-cal-nav-btn--today lux-flat"
-                onClick={() => {
-                  if (view === 'month') {
-                    const [y, m] = todayIso.split('-').map(Number);
-                    setMonthCursor({ year: y, monthIndex0: m - 1 });
-                    return;
-                  }
-                  if (view === 'week') {
-                    const w = weekRangeContaining(todayIso);
+          <div className="stay-ops-cal-chrome">
+            <div className="stay-ops-cal-chrome__primary">
+              <StayOpsSegmentedControl
+                label="Stay Calendar views"
+                value={view}
+                options={[
+                  { id: 'agenda', label: 'Agenda' },
+                  { id: 'week', label: 'Week' },
+                  { id: 'month', label: 'Month' },
+                ]}
+                onChange={(next) => {
+                  const tab = next as StayCalendarViewMode;
+                  setView(tab);
+                  if (tab === 'week') {
+                    const w = weekRangeContaining(filterFrom || todayIso);
                     setFilterFrom(w.from);
                     setFilterTo(w.to);
-                    syncUrl({ from: w.from, to: w.to });
-                    return;
+                    syncUrl({ view: tab, from: w.from, to: w.to });
+                  } else {
+                    syncUrl({ view: tab });
                   }
-                  const from = todayIso;
-                  const to = addStayDays(todayIso, 13);
-                  setFilterFrom(from);
-                  setFilterTo(to);
-                  syncUrl({ from, to });
                 }}
-              >
-                Today
-              </button>
-              <button
-                type="button"
-                className="stay-ops-cal-nav-btn lux-flat"
-                aria-label={view === 'month' ? 'Next month' : view === 'week' ? 'Next week' : 'Next period'}
-                onClick={() => {
-                  if (view === 'month') {
-                    setMonthCursor((c) => {
-                      const m = c.monthIndex0 + 1;
-                      return m > 11 ? { year: c.year + 1, monthIndex0: 0 } : { year: c.year, monthIndex0: m };
-                    });
-                    return;
+              />
+              <div className="stay-ops-cal-chrome__nav" role="group" aria-label="Calendar navigation">
+                <button
+                  type="button"
+                  className="stay-ops-cal-nav-btn lux-flat"
+                  aria-label={
+                    view === 'month' ? 'Previous month' : view === 'week' ? 'Previous week' : 'Previous period'
                   }
-                  if (view === 'week') {
-                    const from = addStayDays(weekFrom, 7);
-                    const to = addStayDays(from, 6);
+                  onClick={() => {
+                    if (view === 'month') {
+                      setMonthCursor((c) => {
+                        const m = c.monthIndex0 - 1;
+                        return m < 0
+                          ? { year: c.year - 1, monthIndex0: 11 }
+                          : { year: c.year, monthIndex0: m };
+                      });
+                      return;
+                    }
+                    if (view === 'week') {
+                      const from = addStayDays(weekFrom, -7);
+                      const to = addStayDays(from, 6);
+                      setFilterFrom(from);
+                      setFilterTo(to);
+                      syncUrl({ from, to });
+                      return;
+                    }
+                    const span = Math.max(1, eachIsoInRange(filterFrom, filterTo).length);
+                    const from = addStayDays(filterFrom, -span);
+                    const to = addStayDays(filterTo, -span);
                     setFilterFrom(from);
                     setFilterTo(to);
                     syncUrl({ from, to });
-                    return;
+                  }}
+                >
+                  <ChevronLeft className="h-4 w-4" aria-hidden />
+                </button>
+                <button
+                  type="button"
+                  className="stay-ops-cal-nav-btn stay-ops-cal-nav-btn--today lux-flat"
+                  onClick={() => {
+                    if (view === 'month') {
+                      const [y, m] = todayIso.split('-').map(Number);
+                      setMonthCursor({ year: y, monthIndex0: m - 1 });
+                      return;
+                    }
+                    if (view === 'week') {
+                      const w = weekRangeContaining(todayIso);
+                      setFilterFrom(w.from);
+                      setFilterTo(w.to);
+                      syncUrl({ from: w.from, to: w.to });
+                      return;
+                    }
+                    const from = todayIso;
+                    const to = addStayDays(todayIso, 13);
+                    setFilterFrom(from);
+                    setFilterTo(to);
+                    syncUrl({ from, to });
+                  }}
+                >
+                  Today
+                </button>
+                <button
+                  type="button"
+                  className="stay-ops-cal-nav-btn lux-flat"
+                  aria-label={
+                    view === 'month' ? 'Next month' : view === 'week' ? 'Next week' : 'Next period'
                   }
-                  const span = Math.max(1, eachIsoInRange(filterFrom, filterTo).length);
-                  const from = addStayDays(filterFrom, span);
-                  const to = addStayDays(filterTo, span);
-                  setFilterFrom(from);
-                  setFilterTo(to);
-                  syncUrl({ from, to });
-                }}
-              >
-                <ChevronRight className="h-4 w-4" aria-hidden />
-              </button>
-              <p className="stay-ops-cal-toolbar__range">
-                {view === 'month'
-                  ? formatMonthLabel(monthCursor.year, monthCursor.monthIndex0)
-                  : view === 'week'
-                    ? `${formatStayNightHuman(weekFrom)} – ${formatStayNightHuman(addStayDays(weekFrom, 6))}`
-                    : `${formatStayNightHuman(filterFrom)} – ${formatStayNightHuman(filterTo)}`}
-              </p>
+                  onClick={() => {
+                    if (view === 'month') {
+                      setMonthCursor((c) => {
+                        const m = c.monthIndex0 + 1;
+                        return m > 11
+                          ? { year: c.year + 1, monthIndex0: 0 }
+                          : { year: c.year, monthIndex0: m };
+                      });
+                      return;
+                    }
+                    if (view === 'week') {
+                      const from = addStayDays(weekFrom, 7);
+                      const to = addStayDays(from, 6);
+                      setFilterFrom(from);
+                      setFilterTo(to);
+                      syncUrl({ from, to });
+                      return;
+                    }
+                    const span = Math.max(1, eachIsoInRange(filterFrom, filterTo).length);
+                    const from = addStayDays(filterFrom, span);
+                    const to = addStayDays(filterTo, span);
+                    setFilterFrom(from);
+                    setFilterTo(to);
+                    syncUrl({ from, to });
+                  }}
+                >
+                  <ChevronRight className="h-4 w-4" aria-hidden />
+                </button>
+                <p className="stay-ops-cal-chrome__range">
+                  {view === 'month'
+                    ? formatMonthLabel(monthCursor.year, monthCursor.monthIndex0)
+                    : view === 'week'
+                      ? `${formatStayNightHuman(weekFrom)} – ${formatStayNightHuman(addStayDays(weekFrom, 6))}`
+                      : `${formatStayNightHuman(filterFrom)} – ${formatStayNightHuman(filterTo)}`}
+                </p>
+              </div>
             </div>
-
-            <div className="stay-ops-cal-toolbar__fields">
+            <div className="stay-ops-cal-chrome__filters">
               {view === 'agenda' ? (
                 <>
-                  <div className="tv-avail-filters__field">
+                  <div className="stay-ops-cal-field">
                     <TraverionSingleDateField
                       id="stay-cal-from"
                       label="From"
@@ -735,7 +742,7 @@ export default function SupplierStayCalendar() {
                       }}
                     />
                   </div>
-                  <div className="tv-avail-filters__field">
+                  <div className="stay-ops-cal-field">
                     <TraverionSingleDateField
                       id="stay-cal-to"
                       label="To"
@@ -747,7 +754,7 @@ export default function SupplierStayCalendar() {
                       }}
                     />
                   </div>
-                  <div className="tv-avail-filters__field">
+                  <div className="stay-ops-cal-field">
                     <label htmlFor="stay-cal-status">Status</label>
                     <PartnerSelect
                       id="stay-cal-status"
@@ -768,7 +775,7 @@ export default function SupplierStayCalendar() {
                   </div>
                 </>
               ) : null}
-              <div className="tv-avail-filters__field tv-avail-filters__field--grow">
+              <div className="stay-ops-cal-field stay-ops-cal-field--grow">
                 <label htmlFor="stay-cal-listing">Property</label>
                 <PartnerSelect
                   id="stay-cal-listing"
@@ -852,67 +859,65 @@ function StayAgenda({
 }) {
   if (groups.length === 0) {
     return (
-      <div className="tv-avail-empty stay-ops-cal-empty">
-        <p className="tv-avail-empty__title">No arrivals, departures or blocks</p>
-        <p className="tv-avail-empty__body">
+      <div className="stay-ops-cal-empty">
+        <p className="stay-ops-cal-empty__title">No arrivals, departures or blocks</p>
+        <p className="stay-ops-cal-empty__body">
           Adjust the date range, or open Week / Month to manage availability.
         </p>
       </div>
     );
   }
   return (
-    <div className="tv-avail-agenda tv-stay-cal-agenda">
+    <div className="stay-ops-agenda">
       {groups.map((g) => (
-        <section key={g.iso} className="tv-avail-agenda__day">
-          <div className="tv-avail-agenda__day-head">
-            <h2>{formatDayHeading(g.iso)}</h2>
-            <span className="tv-avail-agenda__count">{g.rows.length}</span>
-          </div>
-          <ul className="tv-avail-agenda__list">
+        <section key={g.iso} className="stay-ops-agenda__day">
+          <header className="stay-ops-agenda__day-head">
+            <h2 className="stay-ops-agenda__day-title">{formatDayHeading(g.iso)}</h2>
+            <span className="stay-ops-agenda__count">{g.rows.length}</span>
+          </header>
+          <ul className="stay-ops-agenda__list">
             {g.rows.map((r) => {
               const kindChip =
-                r.kind === 'blocked'
-                  ? 'Blocked'
-                  : r.kind === 'check_in'
-                    ? 'Arrival'
-                    : 'Departure';
-              const guestLine =
-                r.kind === 'blocked' ? 'Manual block' : r.guestName || 'Guest';
+                r.kind === 'blocked' ? 'Blocked' : r.kind === 'check_in' ? 'Arrival' : 'Departure';
+              const guestLine = r.kind === 'blocked' ? 'Manual block' : r.guestName || 'Guest';
               return (
-              <li key={r.key} className={`tv-avail-agenda__row stay-ops-agenda-row stay-ops-agenda-row--${r.kind}`}>
-                <button
-                  type="button"
-                  className="tv-avail-agenda__main lux-flat tv-stay-cal-agenda__main"
-                  onClick={() => {
-                    if (r.bookingId) onOpenReservation(r.bookingId);
-                    else onOpenBlocked(r.listingId, r.iso);
-                  }}
+                <li
+                  key={r.key}
+                  className={`stay-ops-agenda__row stay-ops-agenda__row--${r.kind}`}
                 >
-                  <span className={`stay-ops-agenda-chip stay-ops-agenda-chip--${r.kind}`} aria-hidden>
-                    {r.kind === 'check_in' ? 'In' : r.kind === 'check_out' ? 'Out' : 'Bl'}
-                  </span>
-                  <span className="tv-avail-agenda__names min-w-0">
-                    <span className="tv-avail-agenda__product">{guestLine}</span>
-                    <span className="tv-avail-agenda__option">
-                      {kindChip} · {r.listingTitle}
-                      {r.guests > 0 ? ` · ${r.guests} guests` : ''}
-                      {r.timeLabel ? ` · ${r.timeLabel}` : ''}
+                  <button
+                    type="button"
+                    className="stay-ops-agenda__hit lux-flat"
+                    onClick={() => {
+                      if (r.bookingId) onOpenReservation(r.bookingId);
+                      else onOpenBlocked(r.listingId, r.iso);
+                    }}
+                  >
+                    <span className={`stay-ops-agenda-chip stay-ops-agenda-chip--${r.kind}`} aria-hidden>
+                      {r.kind === 'check_in' ? 'In' : r.kind === 'check_out' ? 'Out' : 'Bl'}
                     </span>
-                  </span>
-                  <span className="tv-avail-agenda__meta">
-                    {r.reference ? (
-                      <span className="stay-ops-agenda-ref">
-                        {travelerPublicBookingReference(r.reference) ?? r.reference}
+                    <span className="stay-ops-agenda__main">
+                      <span className="stay-ops-agenda__guest">{guestLine}</span>
+                      <span className="stay-ops-agenda__sub">
+                        {kindChip} · {r.listingTitle}
+                        {r.guests > 0 ? ` · ${r.guests}` : ''}
                       </span>
-                    ) : null}
-                    {r.nightKind && r.kind !== 'blocked' ? (
-                      <span className={`tv-avail-pill ${kindClass(r.nightKind)}`}>
-                        {stayCalendarNightKindLabel(r.nightKind)}
-                      </span>
-                    ) : null}
-                  </span>
-                </button>
-              </li>
+                    </span>
+                    <span className="stay-ops-agenda__side">
+                      {r.timeLabel ? <span className="stay-ops-agenda__time">{r.timeLabel}</span> : null}
+                      {r.reference ? (
+                        <span className="stay-ops-agenda-ref">
+                          {travelerPublicBookingReference(r.reference) ?? r.reference}
+                        </span>
+                      ) : null}
+                      {r.nightKind && r.kind !== 'blocked' ? (
+                        <span className={`stay-ops-agenda__pill ${kindClass(r.nightKind)}`}>
+                          {stayCalendarNightKindLabel(r.nightKind)}
+                        </span>
+                      ) : null}
+                    </span>
+                  </button>
+                </li>
               );
             })}
           </ul>
@@ -952,118 +957,101 @@ function StayWeek({
   const pageCount = Math.max(1, Math.ceil(totalListings / pageSize));
   if (listings.length === 0) {
     return (
-      <div className="tv-avail-empty">
-        <p className="tv-avail-empty__title">No properties to show</p>
+      <div className="stay-ops-cal-empty">
+        <p className="stay-ops-cal-empty__title">No properties to show</p>
       </div>
     );
   }
   return (
-    <div className="tv-stay-cal-week">
-      <div className="tv-stay-cal-week__scroll">
-        <table className="tv-stay-cal-week__table">
-          <thead>
-            <tr>
-              <th className="tv-stay-cal-week__prop-h">Property</th>
+    <div className="stay-ops-week">
+      <div className="stay-ops-week__scroll">
+        <div className="stay-ops-week__board">
+          <div className="stay-ops-week__head" role="row">
+            <div className="stay-ops-week__prop-h">Property</div>
+            <div className="stay-ops-week__days-h">
               {weekDays.map((iso) => (
-                <th key={iso} className="tv-stay-cal-week__day-h">
-                  <span className="block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                <div key={iso} className="stay-ops-week__day-h">
+                  <span className="stay-ops-week__dow">
                     {new Date(`${iso}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'short' })}
                   </span>
-                  <span className="tabular-nums text-[13px] font-semibold text-slate-800">
-                    {iso.slice(8)}
-                  </span>
-                </th>
+                  <span className="stay-ops-week__dom">{iso.slice(8)}</span>
+                </div>
               ))}
-            </tr>
-          </thead>
-          <tbody>
-            {listings.map((listing) => {
-              const spans = buildStayCalendarWeekSpans({
-                weekFromIso: weekFrom,
-                listingId: listing.id,
-                bookings,
-              });
-              return (
-                <tr key={listing.id}>
-                  <th className="tv-stay-cal-week__prop">
-                    <span className="line-clamp-2 text-left text-[12.5px] font-semibold text-slate-800">
-                      {listing.title}
-                    </span>
-                  </th>
-                  <td className="tv-stay-cal-week__track" colSpan={7}>
-                    <div
-                      className="tv-stay-cal-week__track-inner"
-                      style={{
-                        minHeight: `${Math.max(2.35, 1.1 + spans[0]?.laneCount * 1.55)}rem`,
-                      }}
-                    >
-                      <div
-                        className="tv-stay-cal-week__grid"
-                        style={{ gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' }}
-                      >
-                        {weekDays.map((iso) => {
-                          const occupying = stayCalendarOccupyingOnNight(bookings, listing.id, iso);
-                          const cap = stayCalendarCapacityOnNight(caps, listing.id, iso);
-                          const kind = stayCalendarNightKind({ occupying, capacity: cap });
-                          const edge = stayDateRangeEdge(iso, rangeSelect);
-                          return (
-                            <button
-                              key={iso}
-                              type="button"
-                              className={`tv-stay-cal-week__cell ${kindClass(kind)}${
-                                edge ? ` is-in-range is-range-${edge}` : ''
-                              }`}
-                              onClick={() =>
-                                onNightClick(
-                                  listing.id,
-                                  iso,
-                                  kind,
-                                  occupying.map((b) => b.id)
-                                )
-                              }
-                              aria-label={`${listing.title} ${iso} ${stayCalendarNightKindLabel(kind)}`}
-                            />
-                          );
-                        })}
-                      </div>
-                      <div
-                        className="tv-stay-cal-week__spans"
-                        style={{ gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' }}
-                      >
-                        {spans.map((span) => (
-                          <button
-                            key={span.bookingId}
-                            type="button"
-                            className={`tv-stay-cal-week__span ${span.pending ? 'is-pending' : 'is-booked'}${
-                              span.laneCount > 1 ? ' is-stacked' : ''
-                            }`}
-                            style={{
-                              gridColumn: `${span.colStart + 1} / span ${span.colSpan}`,
-                              gridRow: span.lane + 1,
-                            }}
-                            onClick={() => onOpenReservation(span.bookingId)}
-                            title={`${span.guestName}${span.pending ? ' · Pending' : ''} · ${span.startIso} → ${span.endIso}`}
-                            aria-label={`${span.guestName}, ${span.colSpan} night${span.colSpan === 1 ? '' : 's'}${span.pending ? ', pending' : ''}`}
-                          >
-                            <span className="truncate">{span.guestName}</span>
-                            {span.colSpan > 1 ? (
-                              <span className="tv-stay-cal-week__span-nights" aria-hidden>
-                                {span.colSpan}n
-                              </span>
-                            ) : null}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+            </div>
+          </div>
+          {listings.map((listing) => {
+            const spans = buildStayCalendarWeekSpans({
+              weekFromIso: weekFrom,
+              listingId: listing.id,
+              bookings,
+            });
+            const laneCount = spans[0]?.laneCount ?? 1;
+            const rowH = Math.max(3.15, 1.35 + laneCount * 1.55);
+            return (
+              <div key={listing.id} className="stay-ops-week__row" role="row">
+                <div className="stay-ops-week__prop" title={listing.title}>
+                  {listing.title}
+                </div>
+                <div className="stay-ops-week__track" style={{ minHeight: `${rowH}rem` }}>
+                  <div className="stay-ops-week__cells">
+                    {weekDays.map((iso) => {
+                      const occupying = stayCalendarOccupyingOnNight(bookings, listing.id, iso);
+                      const cap = stayCalendarCapacityOnNight(caps, listing.id, iso);
+                      const kind = stayCalendarNightKind({ occupying, capacity: cap });
+                      const edge = stayDateRangeEdge(iso, rangeSelect);
+                      return (
+                        <button
+                          key={iso}
+                          type="button"
+                          className={`stay-ops-week__cell ${kindClass(kind)}${
+                            edge ? ` is-in-range is-range-${edge}` : ''
+                          }`}
+                          onClick={() =>
+                            onNightClick(
+                              listing.id,
+                              iso,
+                              kind,
+                              occupying.map((b) => b.id)
+                            )
+                          }
+                          aria-label={`${listing.title} ${iso} ${stayCalendarNightKindLabel(kind)}`}
+                        />
+                      );
+                    })}
+                  </div>
+                  <div className="stay-ops-week__spans" aria-hidden={spans.length === 0}>
+                    {spans.map((span) => {
+                      const geo = stayWeekSpanStyle(span);
+                      return (
+                        <button
+                          key={span.bookingId}
+                          type="button"
+                          className={`stay-ops-week__span${span.pending ? ' is-pending' : ' is-booked'}${
+                            span.startsAtCheckIn ? ' is-arrival' : ''
+                          }${span.endsAtCheckout ? ' is-departure' : ''}`}
+                          style={{ left: geo.left, width: geo.width, top: geo.top }}
+                          onClick={() => onOpenReservation(span.bookingId)}
+                          title={`${span.guestName}${span.pending ? ' · Pending' : ''} · ${span.startIso} → ${span.endIso}`}
+                          aria-label={`${span.guestName}, ${span.colSpan} night${span.colSpan === 1 ? '' : 's'}${span.pending ? ', pending' : ''}`}
+                        >
+                          <span className="stay-ops-week__span-label truncate">{span.guestName}</span>
+                          {span.colSpan > 1 ? (
+                            <span className="stay-ops-week__span-nights" aria-hidden>
+                              {span.colSpan}n
+                            </span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
       {pageCount > 1 ? (
-        <div className="mt-3 flex items-center justify-between text-[12.5px] text-slate-500">
+        <div className="stay-ops-week__pager">
           <span>
             Properties {page * pageSize + 1}–{Math.min(totalListings, (page + 1) * pageSize)} of{' '}
             {totalListings}
@@ -1175,15 +1163,15 @@ function StayMonth({
 
   if (!listingId) {
     return (
-      <div className="tv-avail-empty">
-        <p className="tv-avail-empty__title">Select a property</p>
-        <p className="tv-avail-empty__body mb-3">Month view shows one Stay at a time.</p>
-        <ul className="mx-auto max-w-md space-y-1 text-left">
+      <div className="stay-ops-cal-empty">
+        <p className="stay-ops-cal-empty__title">Select a property</p>
+        <p className="stay-ops-cal-empty__body">Month view shows one Stay at a time.</p>
+        <ul className="stay-ops-month__pick">
           {listings.slice(0, 12).map((l) => (
             <li key={l.id}>
               <button
                 type="button"
-                className="partner-nav-item lux-flat w-full rounded-lg px-3 py-2 text-left text-[13px] font-medium text-slate-700 hover:bg-slate-900/[0.04]"
+                className="stay-ops-month__pick-btn lux-flat"
                 onClick={() => onPickListing(l.id)}
               >
                 {l.title}
@@ -1196,25 +1184,25 @@ function StayMonth({
   }
 
   return (
-    <div className={`tv-cal-shell tv-stay-cal-month${selecting ? ' is-selecting' : ''}`}>
-      <div className="tv-cal-legend">
-        <span className="tv-cal-legend__item">
+    <div className={`stay-ops-month${selecting ? ' is-selecting' : ''}`}>
+      <div className="stay-ops-month__legend" aria-label="Legend">
+        <span>
           <i className="tv-stay-cal-swatch tv-stay-cal-kind--booked" aria-hidden /> Booked
         </span>
-        <span className="tv-cal-legend__item">
+        <span>
           <i className="tv-stay-cal-swatch tv-stay-cal-kind--pending" aria-hidden /> Pending
         </span>
-        <span className="tv-cal-legend__item">
+        <span>
           <i className="tv-stay-cal-swatch tv-stay-cal-kind--blocked" aria-hidden /> Blocked
         </span>
       </div>
-      <div className="tv-cal-weekdays" aria-hidden>
+      <div className="stay-ops-month__weekdays" aria-hidden>
         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
           <span key={d}>{d}</span>
         ))}
       </div>
       <div
-        className="tv-cal-grid tv-stay-cal-month__grid"
+        className="stay-ops-month__grid"
         onPointerMove={(e) => {
           if (!dragAnchorRef.current) return;
           const el = document.elementFromPoint(e.clientX, e.clientY);
@@ -1227,7 +1215,7 @@ function StayMonth({
       >
         {cells.map((cell) => {
           if (!cell.inMonth) {
-            return <div key={cell.iso} className="tv-cal-day tv-cal-day--out" />;
+            return <div key={cell.iso} className="stay-ops-month__cell stay-ops-month__cell--out" />;
           }
           const occupying = stayCalendarOccupyingOnNight(bookings, listingId, cell.iso);
           const cap = stayCalendarCapacityOnNight(caps, listingId, cell.iso);
@@ -1236,18 +1224,20 @@ function StayMonth({
           const isToday = cell.iso === todayIso;
           const occupied = kind === 'booked' || kind === 'pending';
           const selectable = canEdit && !occupied;
-          const meta =
-            kind === 'available' ? null : stayCalendarNightKindLabel(kind);
+          const guestHint =
+            occupying[0]?.guest_name?.trim()?.split(/\s+/)[0] ??
+            (kind === 'blocked' ? 'Block' : null);
+          const meta = kind === 'available' ? null : stayCalendarNightKindLabel(kind);
           return (
             <button
               key={cell.iso}
               type="button"
               data-stay-night={cell.iso}
               aria-pressed={edge != null}
-              aria-label={`${cell.iso}${meta ? `, ${meta}` : ''}`}
-              className={`tv-cal-day lux-flat ${kindClass(kind)}${isToday ? ' tv-cal-day--today' : ''}${
-                edge ? ` is-in-range is-range-${edge}` : ''
-              }`}
+              aria-label={`${cell.iso}${meta ? `, ${meta}` : ''}${guestHint ? `, ${guestHint}` : ''}`}
+              className={`stay-ops-month__cell lux-flat ${kindClass(kind)}${
+                isToday ? ' is-today' : ''
+              }${edge ? ` is-in-range is-range-${edge}` : ''}`}
               onPointerDown={(e) => {
                 if (!listingId) {
                   onRequireListing();
@@ -1284,15 +1274,13 @@ function StayMonth({
                 );
               }}
             >
-              <span className="tv-cal-day__num">{Number(cell.iso.slice(8))}</span>
-              {occupied ? (
-                <span className="tv-stay-cal-month__bar" aria-hidden>
-                  {occupying.length > 1 ? occupying.length : ''}
+              <span className="stay-ops-month__num">{Number(cell.iso.slice(8))}</span>
+              {guestHint ? (
+                <span className={`stay-ops-month__guest${kind === 'blocked' ? ' is-blocked' : ''}`}>
+                  {guestHint}
+                  {occupying.length > 1 ? ` +${occupying.length - 1}` : ''}
                 </span>
-              ) : kind === 'blocked' ? (
-                <span className="tv-stay-cal-month__bar tv-stay-cal-month__bar--blocked" aria-hidden />
               ) : null}
-              {meta ? <span className="tv-cal-day__meta">{meta}</span> : null}
             </button>
           );
         })}
