@@ -41,7 +41,7 @@ function stayVisual(
 
 /**
  * Compact check-in / check-out fields; calendar opens in a portaled overlay
- * so it is never clipped by the sticky booking card.
+ * anchored in viewport coordinates so sticky booking cards do not clip or drift it.
  */
 export default function StayNightPicker({
   checkIn,
@@ -56,9 +56,11 @@ export default function StayNightPicker({
   const start = checkIn && /^\d{4}-\d{2}-\d{2}$/.test(checkIn) ? checkIn : todayIso;
   const [open, setOpen] = useState(false);
   const [panelBox, setPanelBox] = useState<AnchoredPopoverBox | null>(null);
+  const [enterAnim, setEnterAnim] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const measuredHeightRef = useRef(380);
   const panelId = useId();
   const [cursor, setCursor] = useState(() => {
     const [y, m] = start.split('-').map(Number);
@@ -71,32 +73,95 @@ export default function StayNightPicker({
 
   const placePanel = useCallback(() => {
     const el = anchorRef.current;
-    if (!el) return;
-    setPanelBox(
-      computeAnchoredPopoverBox({
-        anchorRect: el.getBoundingClientRect(),
-        viewportWidth: window.innerWidth,
-        viewportHeight: window.innerHeight,
-        preferredWidth: 20.5 * 16,
-        estimatedHeight: 380,
-      })
-    );
+    if (!el || typeof window === 'undefined') return;
+    const panelEl = panelRef.current;
+    if (panelEl) {
+      const h = panelEl.getBoundingClientRect().height;
+      if (h > 0) measuredHeightRef.current = h;
+    }
+    const vv = window.visualViewport;
+    // Prefer visualViewport size when present (mobile browser chrome), but keep
+    // getBoundingClientRect coords as-is — they match position:fixed top/left.
+    const viewportWidth = vv?.width ?? window.innerWidth;
+    const viewportHeight = vv?.height ?? window.innerHeight;
+    const rect = el.getBoundingClientRect();
+    const next = computeAnchoredPopoverBox({
+      anchorRect: rect,
+      viewportWidth,
+      viewportHeight,
+      preferredWidth: 20.5 * 16,
+      estimatedHeight: measuredHeightRef.current,
+    });
+    setPanelBox((prev) => {
+      if (!prev) return next;
+      if (prev.mode === 'sheet' && next.mode === 'sheet') return prev;
+      if (prev.mode === 'popover' && next.mode === 'popover') {
+        if (
+          prev.top === next.top &&
+          prev.left === next.left &&
+          prev.width === next.width &&
+          prev.maxHeight === next.maxHeight &&
+          prev.placement === next.placement
+        ) {
+          return prev;
+        }
+      }
+      return next;
+    });
+  }, []);
+
+  const [panelEl, setPanelEl] = useState<HTMLDivElement | null>(null);
+  const panelCallbackRef = useCallback((node: HTMLDivElement | null) => {
+    panelRef.current = node;
+    setPanelEl(node);
   }, []);
 
   useLayoutEffect(() => {
     if (!open) {
       setPanelBox(null);
+      setEnterAnim(false);
       return;
     }
+    setEnterAnim(true);
     placePanel();
-    const onWin = () => placePanel();
-    window.addEventListener('resize', onWin);
-    window.addEventListener('scroll', onWin, true);
-    return () => {
-      window.removeEventListener('resize', onWin);
-      window.removeEventListener('scroll', onWin, true);
+
+    // Sticky ancestors can move the anchor without a reliable scroll target.
+    // While open, re-measure every frame; placePanel no-ops when geometry is unchanged.
+    let rafLoop = 0;
+    let scheduled = 0;
+    const schedule = () => {
+      if (scheduled) return;
+      scheduled = window.requestAnimationFrame(() => {
+        scheduled = 0;
+        placePanel();
+      });
     };
-  }, [open, placePanel]);
+    const loop = () => {
+      placePanel();
+      rafLoop = window.requestAnimationFrame(loop);
+    };
+    rafLoop = window.requestAnimationFrame(loop);
+
+    window.addEventListener('resize', schedule);
+    window.addEventListener('scroll', schedule, true);
+    const vv = window.visualViewport;
+    vv?.addEventListener('resize', schedule);
+    vv?.addEventListener('scroll', schedule);
+
+    const ro = new ResizeObserver(schedule);
+    if (anchorRef.current) ro.observe(anchorRef.current);
+    if (panelEl) ro.observe(panelEl);
+
+    return () => {
+      window.cancelAnimationFrame(rafLoop);
+      if (scheduled) window.cancelAnimationFrame(scheduled);
+      window.removeEventListener('resize', schedule);
+      window.removeEventListener('scroll', schedule, true);
+      vv?.removeEventListener('resize', schedule);
+      vv?.removeEventListener('scroll', schedule);
+      ro.disconnect();
+    };
+  }, [open, placePanel, cursor.y, cursor.m, panelEl]);
 
   useEffect(() => {
     if (!open) return;
@@ -213,7 +278,7 @@ export default function StayNightPicker({
                 onClick={close}
               />
               <div
-                ref={panelRef}
+                ref={panelCallbackRef}
                 id={panelId}
                 role="dialog"
                 aria-modal="true"
@@ -225,19 +290,23 @@ export default function StayNightPicker({
             </div>
           ) : (
             <div
-              ref={panelRef}
+              ref={panelCallbackRef}
               id={panelId}
               role="dialog"
               aria-modal="true"
               aria-label="Select stay dates"
-              className="tv-popover tv-popover-enter p-3"
+              className={`tv-popover p-3${enterAnim ? ' tv-popover-enter' : ''}`}
               style={{
                 position: 'fixed',
                 top: panelBox.top,
                 left: panelBox.left,
                 width: panelBox.width,
+                maxHeight: panelBox.maxHeight,
+                overflowY: 'auto',
+                overscrollBehavior: 'contain',
                 zIndex: 140,
               }}
+              onAnimationEnd={() => setEnterAnim(false)}
             >
               {calendar}
             </div>

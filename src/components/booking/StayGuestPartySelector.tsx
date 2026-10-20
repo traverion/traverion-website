@@ -37,18 +37,40 @@ export default function StayGuestPartySelector({ id, party, policy, maxGuests, o
   const close = useCallback(() => setOpen(false), []);
   useDialogFocus(open, panelRef, close);
 
+  const measuredHeightRef = useRef(320);
+
   const placePanel = useCallback(() => {
     const btn = buttonRef.current;
-    if (!btn) return;
-    setPanelBox(
-      computeAnchoredPopoverBox({
-        anchorRect: btn.getBoundingClientRect(),
-        viewportWidth: window.innerWidth,
-        viewportHeight: window.innerHeight,
-        preferredWidth: 18 * 16,
-        estimatedHeight: 320,
-      })
-    );
+    if (!btn || typeof window === 'undefined') return;
+    const panelEl = panelRef.current;
+    if (panelEl) {
+      const h = panelEl.getBoundingClientRect().height;
+      if (h > 0) measuredHeightRef.current = h;
+    }
+    const vv = window.visualViewport;
+    const next = computeAnchoredPopoverBox({
+      anchorRect: btn.getBoundingClientRect(),
+      viewportWidth: vv?.width ?? window.innerWidth,
+      viewportHeight: vv?.height ?? window.innerHeight,
+      preferredWidth: 18 * 16,
+      estimatedHeight: measuredHeightRef.current,
+    });
+    setPanelBox((prev) => {
+      if (!prev) return next;
+      if (prev.mode === 'sheet' && next.mode === 'sheet') return prev;
+      if (prev.mode === 'popover' && next.mode === 'popover') {
+        if (
+          prev.top === next.top &&
+          prev.left === next.left &&
+          prev.width === next.width &&
+          prev.maxHeight === next.maxHeight &&
+          prev.placement === next.placement
+        ) {
+          return prev;
+        }
+      }
+      return next;
+    });
   }, []);
 
   useLayoutEffect(() => {
@@ -57,12 +79,36 @@ export default function StayGuestPartySelector({ id, party, policy, maxGuests, o
       return;
     }
     placePanel();
-    const onWin = () => placePanel();
-    window.addEventListener('resize', onWin);
-    window.addEventListener('scroll', onWin, true);
+    let rafLoop = 0;
+    let scheduled = 0;
+    const schedule = () => {
+      if (scheduled) return;
+      scheduled = window.requestAnimationFrame(() => {
+        scheduled = 0;
+        placePanel();
+      });
+    };
+    const loop = () => {
+      placePanel();
+      rafLoop = window.requestAnimationFrame(loop);
+    };
+    rafLoop = window.requestAnimationFrame(loop);
+    window.addEventListener('resize', schedule);
+    window.addEventListener('scroll', schedule, true);
+    const vv = window.visualViewport;
+    vv?.addEventListener('resize', schedule);
+    vv?.addEventListener('scroll', schedule);
+    const ro = new ResizeObserver(schedule);
+    if (buttonRef.current) ro.observe(buttonRef.current);
+    if (panelRef.current) ro.observe(panelRef.current);
     return () => {
-      window.removeEventListener('resize', onWin);
-      window.removeEventListener('scroll', onWin, true);
+      window.cancelAnimationFrame(rafLoop);
+      if (scheduled) window.cancelAnimationFrame(scheduled);
+      window.removeEventListener('resize', schedule);
+      window.removeEventListener('scroll', schedule, true);
+      vv?.removeEventListener('resize', schedule);
+      vv?.removeEventListener('scroll', schedule);
+      ro.disconnect();
     };
   }, [open, placePanel]);
 
@@ -185,6 +231,9 @@ export default function StayGuestPartySelector({ id, party, policy, maxGuests, o
                 top: panelBox.top,
                 left: panelBox.left,
                 width: panelBox.width,
+                maxHeight: panelBox.maxHeight,
+                overflowY: 'auto',
+                overscrollBehavior: 'contain',
                 zIndex: 140,
               }}
             >

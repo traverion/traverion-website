@@ -2912,7 +2912,7 @@ a:focus-visible,
   border-radius: 1rem;
   background: #ffffff;
   box-shadow: var(--tv-shadow-popover);
-  transform-origin: top center;
+  /* Opacity-only enter — transform animations on position:fixed panels fight sticky re-anchoring. */
 }
 
 .tv-popover-enter {
@@ -2922,11 +2922,9 @@ a:focus-visible,
 @keyframes tv-popover-in {
   from {
     opacity: 0;
-    transform: translateY(-6px) scale(0.98);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
   }
 }
 

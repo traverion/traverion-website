@@ -12,4 +12,16 @@ describe('StayNightPicker portal wiring', () => {
     expect(src).not.toMatch(/onClick=\{\(\) => pick/);
     expect(src).toMatch(/STAY_MAX_OCCUPIED_NIGHTS|planStayNightPick/);
   });
+
+  it('re-anchors with scroll capture, visualViewport and measured height', () => {
+    const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'StayNightPicker.tsx'), 'utf8');
+    expect(src).toMatch(/computeAnchoredPopoverBox/);
+    expect(src).toMatch(/position:\s*['"]fixed['"]/);
+    expect(src).toMatch(/addEventListener\('scroll',\s*schedule,\s*true\)/);
+    expect(src).toMatch(/visualViewport/);
+    expect(src).toMatch(/ResizeObserver/);
+    expect(src).toMatch(/requestAnimationFrame/);
+    expect(src).toMatch(/maxHeight/);
+    expect(src).toMatch(/rafLoop/);
+  });
 });
