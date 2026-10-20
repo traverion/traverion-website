@@ -3,12 +3,14 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 describe('Phase 1809: supplier home operational hierarchy', () => {
-  it('uses display type for section heads and metric values', () => {
+  it('uses compact sans metric hierarchy and unified schedule chrome', () => {
     const src = readFileSync(resolve(__dirname, 'SupplierDashboard.tsx'), 'utf8');
-    expect(src).toContain('font-display text-[1.125rem]');
-    expect(src).toContain('font-display text-[1.5rem]');
-    expect(src).toContain('Today at a glance');
-    expect(src).toContain('min-h-11');
-    expect(src).not.toContain('text-[16px] font-semibold tracking-tight text-slate-900');
+    expect(src).toContain('partner-home__greeting');
+    expect(src).toContain('partner-home__metric-value');
+    expect(src).toContain('Business metrics');
+    expect(src).toContain('Upcoming schedule');
+    expect(src).toContain('partner-home__ops-pill');
+    expect(src).not.toContain('font-display text-[1.125rem]');
+    expect(src).not.toContain('Today at a glance');
   });
 });

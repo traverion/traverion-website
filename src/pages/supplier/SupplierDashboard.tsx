@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef, type ReactNode } from 'react';
-import { SUPPLIER_PAGE_CLASS, SupplierListSkeleton } from '../../components/supplier/supplierUi';
+import { SUPPLIER_PAGE_CLASS } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
 import NoticeCallout from '../../components/NoticeCallout';
 import StatusChip from '../../components/StatusChip';
@@ -59,11 +59,9 @@ import { parseListingExtras, materializedBookingOptions } from '../../types/list
 import {
   displayListingTitleFromPurchase,
   displayOptionLabelFromPurchase,
-  displayFulfillmentFromPurchase,
   partnerOpsDepartureDisplay,
   isPurchaseSnapshot,
 } from '../../lib/purchase-snapshot';
-import { optionLogisticsLines, readOptionLogistics } from '../../lib/option-logistics';
 
 type AttentionTone = 'danger' | 'warn' | 'info';
 
@@ -95,13 +93,13 @@ function AttentionItem({
       <button
         type="button"
         onClick={onClick}
-        className={`partner-row-interact lux-flat group flex w-full items-start gap-3 px-4 py-3 text-left ${ATTENTION_ROW[tone]}`}
+        className={`partner-row-interact lux-flat group flex w-full items-start gap-3 px-3.5 py-2.5 text-left ${ATTENTION_ROW[tone]}`}
       >
         <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${ATTENTION_DOT[tone]}`} aria-hidden />
         <span className="min-w-0 flex-1">
-          <span className="block text-[14px] font-semibold leading-snug text-slate-900">{title}</span>
+          <span className="block text-[13.5px] font-semibold leading-snug text-slate-900">{title}</span>
           {detail ? (
-            <span className="mt-0.5 block text-[13px] leading-snug text-slate-500">{detail}</span>
+            <span className="mt-0.5 block text-[12.5px] leading-snug text-slate-500">{detail}</span>
           ) : null}
         </span>
         <ChevronRight
@@ -123,10 +121,10 @@ function SectionHead({
   action?: ReactNode;
 }) {
   return (
-    <div className="partner-section__head partner-section__head--ruled mb-0">
+    <div className="partner-home__section-head">
       <div className="min-w-0 flex items-baseline gap-2 flex-wrap">
-        <h2 className="partner-section-title font-display">{title}</h2>
-        {meta ? <span className="partner-meta font-medium tabular-nums">{meta}</span> : null}
+        <h2 className="partner-home__section-title">{title}</h2>
+        {meta ? <span className="partner-home__section-meta">{meta}</span> : null}
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}
     </div>
@@ -138,11 +136,29 @@ function TextLink({ children, onClick }: { children: ReactNode; onClick: () => v
     <button
       type="button"
       onClick={onClick}
-      className="partner-nav-item lux-flat text-[13px] font-medium text-finland hover:text-finland-dark"
+      className="partner-nav-item lux-flat text-[12.5px] font-semibold text-finland hover:text-finland-dark"
     >
       {children}
     </button>
   );
+}
+
+function recentBookingStatus(b: BookingRow): { label: string; tone: 'ok' | 'warn' | 'bad' | 'neutral' } {
+  const st = (b.status ?? '').trim().toLowerCase();
+  if (st === 'cancelled') return { label: 'Cancelled', tone: 'bad' };
+  if (isRefundDueBooking(b)) return { label: 'Refund due', tone: 'bad' };
+  if (partnerBookingIsActiveUnpaidCheckout(b)) return { label: 'Pending payment', tone: 'warn' };
+  if (isCollectedBooking(b)) return { label: 'Confirmed', tone: 'ok' };
+  if (st) return { label: st.charAt(0).toUpperCase() + st.slice(1), tone: 'neutral' };
+  return { label: 'Booked', tone: 'neutral' };
+}
+
+function accountNavHref(profile: NonNullable<Awaited<ReturnType<typeof fetchSupplierProfile>>>, kind: string) {
+  const businessOk = (profile.verification_status || '').trim().toLowerCase() === 'verified';
+  const payoutOk = (profile.payout_verification_status || '').trim().toLowerCase() === 'verified';
+  if (kind === 'setup') return `${PARTNER_APP_BASE}/onboarding`;
+  if (businessOk && !payoutOk) return `${PARTNER_APP_BASE}/money?tab=settings#income-payout-account`;
+  return `${PARTNER_APP_BASE}/business-profile#company`;
 }
 
 function bookingLabel(b: BookingRow | undefined, titles: Record<string, string>): string {
@@ -174,6 +190,7 @@ export default function SupplierDashboard() {
   const [dashboardLoading, setDashboardLoading] = useState(false);
   const [dashboardError, setDashboardError] = useState<string | null>(null);
   const [cancelRequestsError, setCancelRequestsError] = useState<string | null>(null);
+  const [scheduleTab, setScheduleTab] = useState<'today' | 'week'>('today');
   const supplierBookingsRef = useRef(supplierBookings);
   supplierBookingsRef.current = supplierBookings;
   const listingsByIdRef = useRef(listingsById);
@@ -502,14 +519,12 @@ export default function SupplierDashboard() {
   // Phase 1314: date strip uses platform experience today (Helsinki default), not browser-local
   // calendar — aligns with default tour “Today” when partners travel across zones.
   const partnerOpsTodayIso = experienceTodayIsoForListing(undefined);
-  const dateLabel = new Date(`${partnerOpsTodayIso}T12:00:00Z`)
-    .toLocaleDateString('en-GB', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      timeZone: 'UTC',
-    })
-    .toUpperCase();
+  const dateLabel = new Date(`${partnerOpsTodayIso}T12:00:00Z`).toLocaleDateString('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'UTC',
+  });
 
   const weekAhead = useMemo(() => {
     const nowMs = Date.now();
@@ -529,18 +544,6 @@ export default function SupplierDashboard() {
   }, [supplierBookings]);
 
   const upcoming = weekAhead.slice(0, 6);
-
-  const upcomingByDate = useMemo(() => {
-    const map = new Map<string, BookingRow[]>();
-    for (const b of upcoming) {
-      const key = b.booking_date ?? '';
-      if (!key) continue;
-      const cur = map.get(key) ?? [];
-      cur.push(b);
-      map.set(key, cur);
-    }
-    return [...map.entries()];
-  }, [upcoming]);
 
   // Phase 1321/1322: greeting hour matches platform experience TZ (date strip parity).
   const hour = wallHourInTimeZone();
@@ -607,38 +610,56 @@ export default function SupplierDashboard() {
   const firstRefund = supplierBookings.find(isRefundDueBooking);
   const firstPending = pendingBookings[0];
 
+  const metricsLoading = dashboardLoading && publishedListingsCount === null;
+  const earningsLabel = performance30d.primary
+    ? formatMoney(performance30d.primary[1].revenue, performance30d.primary[0])
+    : '—';
   const greetingSub = bookingsLoadFailed
     ? 'Bookings could not load — retry when your connection is back.'
     : attentionCount > 0
-      ? `Here's what needs your attention today.`
+      ? `${attentionCount} item${attentionCount === 1 ? '' : 's'} need attention · ${dateLabel}`
       : todayDepartures.length > 0
-        ? `${todayDepartures.length} booking${todayDepartures.length === 1 ? '' : 's'} · ${todayGuestTotal} guest${todayGuestTotal === 1 ? '' : 's'} on the schedule.`
-        : 'Your operational starting point for today.';
+        ? `${todayDepartures.length} today · ${todayGuestTotal} guest${todayGuestTotal === 1 ? '' : 's'} · ${dateLabel}`
+        : dateLabel;
+
+  const openAccountStatus = () => {
+    if (!profile || !accountStatus) return;
+    navigateSupplierUrl(accountNavHref(profile, accountStatus.kind));
+  };
+
+  const scheduleBookings = scheduleTab === 'today' ? todayDepartures : upcoming;
+  const scheduleGuestTotal =
+    scheduleTab === 'today'
+      ? todayGuestTotal
+      : upcoming.reduce((s, b) => s + (b.guests ?? 0), 0);
 
   return (
     <div className={`${SUPPLIER_PAGE_CLASS} partner-home motion-safe:animate-fade-in`}>
-      <header className="partner-page-hero mb-0 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between border-b border-[color:var(--partner-border,rgba(15,23,42,0.08))]">
+      <header className="partner-home__header">
         <div className="min-w-0">
-          <p className="partner-label mb-1 text-slate-400">{dateLabel}</p>
-          <h1 className="partner-page-title font-display">
+          <h1 className="partner-home__greeting">
             {firstName ? `${hello}, ${firstName}` : hello}
           </h1>
-          <p className="partner-section-desc mt-1">{greetingSub}</p>
+          <p className="partner-home__sub">{greetingSub}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 self-start sm:self-end">
+        <div className="partner-home__header-actions">
+          {accountStatus?.kind === 'operational' && !dashboardLoading ? (
+            <button
+              type="button"
+              className="partner-home__ops-pill lux-flat"
+              onClick={openAccountStatus}
+              title={accountStatus.detail}
+            >
+              <span className="partner-home__ops-dot" aria-hidden />
+              Operational
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => openSupplierCalendar(calendarFocusListingId)}
             className="tv-btn-secondary lux-flat"
           >
             Calendar
-          </button>
-          <button
-            type="button"
-            onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings`)}
-            className="tv-btn-secondary lux-flat"
-          >
-            Bookings
           </button>
           <button
             type="button"
@@ -652,7 +673,7 @@ export default function SupplierDashboard() {
 
       {dashboardError && (
         <ErrorState
-          className="py-6"
+          className="py-4"
           title="Today unavailable"
           body={dashboardError}
           retry={{ onClick: () => void reloadDashboard() }}
@@ -664,7 +685,7 @@ export default function SupplierDashboard() {
         />
       )}
       {!dashboardError && cancelRequestsError ? (
-        <div className="mb-5 max-w-lg">
+        <div className="max-w-lg">
           <NoticeCallout title="Cancellation status unavailable" tone="warn">
             <p>{cancelRequestsError}</p>
             <button type="button" onClick={() => void reloadDashboard()} className="tv-btn-ghost mt-3 -ml-2">
@@ -674,93 +695,110 @@ export default function SupplierDashboard() {
         </div>
       ) : null}
 
-      <section className="partner-metric-grid" aria-label="Today at a glance">
-        <div className="partner-surface-panel partner-surface-panel--quiet px-3 py-2.5">
-          <p className="partner-label">Today’s bookings</p>
-          <p className="mt-1 font-display text-[1.25rem] font-semibold tabular-nums tracking-tight text-slate-900 leading-none">
-            {dashboardLoading && publishedListingsCount === null
-              ? '—'
-              : bookingsLoadFailed
-                ? '—'
-                : todayDepartures.length}
+      <section className="partner-home__metrics" aria-label="Business metrics">
+        <button
+          type="button"
+          className="partner-home__metric lux-flat"
+          onClick={() => openSupplierCalendar(calendarFocusListingId)}
+        >
+          <span className="partner-home__metric-label">Today’s bookings</span>
+          <p className="partner-home__metric-value">
+            {metricsLoading || bookingsLoadFailed ? '—' : todayDepartures.length}
           </p>
-        </div>
-        <div className="partner-surface-panel partner-surface-panel--quiet px-3 py-2.5">
-          <p className="partner-label">Live listings</p>
-          <p className="mt-1 font-display text-[1.25rem] font-semibold tabular-nums tracking-tight text-slate-900 leading-none">
-            {dashboardLoading && publishedListingsCount === null ? '—' : publishedListingsCount ?? 0}
+          <p className="partner-home__metric-hint">
+            {bookingsLoadFailed
+              ? 'Unavailable'
+              : todayGuestTotal > 0
+                ? `${todayGuestTotal} guest${todayGuestTotal === 1 ? '' : 's'} on schedule`
+                : 'Open calendar'}
           </p>
-        </div>
-        <div className="partner-surface-panel partner-surface-panel--quiet px-3 py-2.5">
-          <p className="partner-label">Unread</p>
+        </button>
+        <button
+          type="button"
+          className="partner-home__metric lux-flat"
+          onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/performance`)}
+        >
+          <span className="partner-home__metric-label">Your earnings</span>
+          <p className="partner-home__metric-value">{earningsLabel}</p>
+          <p className="partner-home__metric-hint">
+            {performance30d.bookings > 0
+              ? `Net · ${performance30d.bookings} collected · 30 days`
+              : 'Net supplier earnings · 30 days'}
+          </p>
+        </button>
+        <button
+          type="button"
+          className="partner-home__metric lux-flat"
+          onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings`)}
+        >
+          <span className="partner-home__metric-label">Live listings</span>
+          <p className="partner-home__metric-value">
+            {metricsLoading ? '—' : publishedListingsCount ?? 0}
+          </p>
+          <p className="partner-home__metric-hint">
+            {(draftListingsCount ?? 0) > 0
+              ? `${draftListingsCount} draft${draftListingsCount === 1 ? '' : 's'} in progress`
+              : 'Published on Traverion'}
+          </p>
+        </button>
+        <button
+          type="button"
+          className="partner-home__metric lux-flat"
+          onClick={() => {
+            if ((unreadMessageCount ?? 0) > 0 && attentionCount === (unreadMessageCount ?? 0)) {
+              openSupplierInbox(firstUnreadBookingId ?? undefined, { unreadOnly: true });
+              return;
+            }
+            const el = document.getElementById('partner-home-attention');
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            else if ((unreadMessageCount ?? 0) > 0) {
+              openSupplierInbox(firstUnreadBookingId ?? undefined, { unreadOnly: true });
+            } else {
+              navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings`);
+            }
+          }}
+        >
+          <span className="partner-home__metric-label">Needs attention</span>
           <p
-            className={`mt-1 font-display text-[1.25rem] font-semibold tabular-nums tracking-tight leading-none ${
-              (unreadMessageCount ?? 0) > 0 ? 'text-finland' : 'text-slate-900'
+            className={`partner-home__metric-value${
+              attentionCount > 0 ? ' partner-home__metric-value--warn' : ''
             }`}
           >
-            {dashboardLoading && publishedListingsCount === null
-              ? '—'
-              : unreadMessageCount === null
-                ? '—'
-                : unreadMessageCount}
+            {metricsLoading ? '—' : attentionCount}
           </p>
-        </div>
-        <div className="partner-surface-panel partner-surface-panel--quiet px-3 py-2.5">
-          <p className="partner-label">Needs attention</p>
-          <p
-            className={`mt-1 font-display text-[1.25rem] font-semibold tabular-nums tracking-tight leading-none ${
-              attentionCount > 0 ? 'text-amber-700' : 'text-slate-900'
-            }`}
-          >
-            {dashboardLoading && publishedListingsCount === null ? '—' : attentionCount}
+          <p className="partner-home__metric-hint">
+            {unreadMessageCount === null
+              ? 'Includes inbox when available'
+              : (unreadMessageCount ?? 0) > 0
+                ? `${unreadMessageCount} unread message${unreadMessageCount === 1 ? '' : 's'}`
+                : attentionCount > 0
+                  ? 'Action items below'
+                  : 'All clear'}
           </p>
-        </div>
+        </button>
       </section>
 
-      {accountStatus && !dashboardLoading && (
-        <section>
-          <button
-            type="button"
-            onClick={() => {
-              const businessOk = (profile?.verification_status || '').trim().toLowerCase() === 'verified';
-              const payoutOk = (profile?.payout_verification_status || '').trim().toLowerCase() === 'verified';
-              navigateSupplierUrl(
-                accountStatus.kind === 'setup'
-                  ? `${PARTNER_APP_BASE}/onboarding`
-                  : businessOk && !payoutOk
-                    ? `${PARTNER_APP_BASE}/money?tab=settings#income-payout-account`
-                    : `${PARTNER_APP_BASE}/business-profile#company`
-              );
-            }}
-            className={`partner-surface-panel partner-surface-panel--quiet lux-flat partner-row-interact flex w-full items-start gap-3 px-3.5 py-3 text-left ${
-              accountStatus.kind === 'operational'
-                ? 'border-emerald-200/80 bg-emerald-50/40'
-                : accountStatus.kind === 'rejected'
-                  ? 'border-red-200/80 bg-red-50/40'
-                  : accountStatus.kind === 'pending'
-                    ? 'border-amber-200/80 bg-amber-50/30'
-                    : ''
-            }`}
-          >
-            <span className="min-w-0 flex-1">
-              <span className="flex flex-wrap items-center gap-2">
-                <span className="text-[14px] font-semibold text-slate-900">{accountStatus.title}</span>
-                <StatusChip tone={accountStatus.tone}>{accountStatus.chipLabel}</StatusChip>
-              </span>
-              <span className="mt-1 block text-[13px] leading-snug text-slate-500">{accountStatus.detail}</span>
+      {accountStatus && accountStatus.kind !== 'operational' && !dashboardLoading && profile ? (
+        <button
+          type="button"
+          onClick={openAccountStatus}
+          className={`partner-home__account-alert lux-flat partner-row-interact partner-home__account-alert--${accountStatus.kind}`}
+        >
+          <span className="min-w-0 flex-1">
+            <span className="flex flex-wrap items-center gap-2">
+              <span className="text-[13.5px] font-semibold text-slate-900">{accountStatus.title}</span>
+              <StatusChip tone={accountStatus.tone}>{accountStatus.chipLabel}</StatusChip>
             </span>
-            <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-slate-300" aria-hidden />
-          </button>
-        </section>
-      )}
+            <span className="mt-1 block text-[12.5px] leading-snug text-slate-500">{accountStatus.detail}</span>
+          </span>
+          <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-slate-300" aria-hidden />
+        </button>
+      ) : null}
 
       {attentionCount > 0 && (
-        <section className="mb-6">
-          <SectionHead
-            title="Needs attention"
-            meta={`${attentionCount}`}
-          />
-          <ul className="partner-surface-panel overflow-hidden divide-y divide-slate-100">
+        <section className="partner-home__section" id="partner-home-attention">
+          <SectionHead title="Needs attention" meta={`${attentionCount}`} />
+          <ul className="partner-home__panel divide-y divide-slate-100">
             {openCancelCount > 0 && (
               <AttentionItem
                 tone="danger"
@@ -940,54 +978,98 @@ export default function SupplierDashboard() {
         </section>
       )}
 
-      <section className="mb-6">
+      <section className="partner-home__section" aria-label="Upcoming schedule">
         <SectionHead
-          title="Today’s schedule"
+          title="Upcoming schedule"
           meta={
-            todayDepartures.length > 0
-              ? `${todayDepartures.length} booking${todayDepartures.length === 1 ? '' : 's'} · ${todayGuestTotal} guest${todayGuestTotal === 1 ? '' : 's'}`
+            !metricsLoading && !bookingsLoadFailed && scheduleBookings.length > 0
+              ? `${scheduleBookings.length} · ${scheduleGuestTotal} guest${scheduleGuestTotal === 1 ? '' : 's'}`
               : undefined
           }
-          action={<TextLink onClick={() => openSupplierCalendar(calendarFocusListingId)}>Calendar →</TextLink>}
+          action={
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="partner-home__tabs" role="tablist" aria-label="Schedule range">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={scheduleTab === 'today'}
+                  className="partner-home__tab lux-flat"
+                  onClick={() => setScheduleTab('today')}
+                >
+                  Today
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={scheduleTab === 'week'}
+                  className="partner-home__tab lux-flat"
+                  onClick={() => setScheduleTab('week')}
+                >
+                  Next 7 days
+                </button>
+              </div>
+              <TextLink onClick={() => openSupplierCalendar(calendarFocusListingId)}>Calendar →</TextLink>
+            </div>
+          }
         />
-        {dashboardLoading && publishedListingsCount === null ? (
-          <SupplierListSkeleton rows={3} />
+        {metricsLoading ? (
+          <div className="flex flex-col gap-2" aria-hidden>
+            <div className="partner-home__skeleton" style={{ minHeight: '3.25rem' }} />
+            <div className="partner-home__skeleton" style={{ minHeight: '3.25rem' }} />
+            <div className="partner-home__skeleton" style={{ minHeight: '3.25rem' }} />
+          </div>
         ) : bookingsLoadFailed ? (
           // Phase 1617: do not look like an empty schedule when bookings failed to load.
-          <div className="partner-surface-panel flex flex-wrap items-center justify-between gap-3 px-5 py-4">
-            <div className="min-w-0">
-              <p className="text-[15px] font-semibold text-slate-800">Bookings couldn’t load</p>
-              <p className="text-[13px] text-slate-500 mt-0.5 leading-snug">
-                Today’s schedule is unavailable until bookings load again.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => void reloadDashboard()}
-              className="partner-btn-secondary lux-flat shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-[12px] font-semibold text-slate-700 hover:bg-slate-50"
-            >
-              Retry
-            </button>
-          </div>
-        ) : todayDepartures.length === 0 ? (
-          <div className="partner-surface-panel flex flex-wrap items-center justify-between gap-3 px-5 py-4">
-            <div className="min-w-0">
-              <p className="text-[15px] font-semibold text-slate-800">{todayEmptyCopy.title}</p>
-              <p className="text-[13px] text-slate-500 mt-0.5 leading-snug">{todayEmptyCopy.body}</p>
-            </div>
-            {attentionCount === 0 ? (
+          // Unified Upcoming schedule covers both Today and Next 7 days tabs.
+          <div className="partner-home__panel">
+            <div className="partner-home__panel-empty">
+              <div className="min-w-0">
+                <p className="partner-home__panel-empty-title">Bookings couldn’t load</p>
+                <p className="partner-home__panel-empty-body">
+                  Today’s schedule and the week-ahead view need bookings to load successfully.
+                </p>
+              </div>
               <button
                 type="button"
-                onClick={() => openSupplierCalendar(calendarFocusListingId)}
+                onClick={() => void reloadDashboard()}
                 className="partner-btn-secondary lux-flat shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-[12px] font-semibold text-slate-700 hover:bg-slate-50"
               >
-                Open calendar
+                Retry
               </button>
-            ) : null}
+            </div>
+          </div>
+        ) : scheduleBookings.length === 0 ? (
+          <div className="partner-home__panel">
+            <div className="partner-home__panel-empty">
+              <div className="min-w-0">
+                {scheduleTab === 'today' ? (
+                  <>
+                    <p className="partner-home__panel-empty-title">{todayEmptyCopy.title}</p>
+                    <p className="partner-home__panel-empty-body">{todayEmptyCopy.body}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="partner-home__panel-empty-title">Nothing in the next 7 days</p>
+                    <p className="partner-home__panel-empty-body">
+                      No confirmed departures or stays in the coming week.
+                    </p>
+                  </>
+                )}
+              </div>
+              {attentionCount === 0 ? (
+                <button
+                  type="button"
+                  onClick={() => openSupplierCalendar(calendarFocusListingId)}
+                  className="partner-btn-secondary lux-flat shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-[12px] font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Open calendar
+                </button>
+              ) : null}
+            </div>
           </div>
         ) : (
-          <ul className="partner-surface-panel overflow-hidden">
-            {todayDepartures.map((b, idx) => {
+          <ul className="partner-home__panel">
+            {scheduleBookings.map((b) => {
               const isStay = bookingIsStayNight(b);
               const stay = isStay ? stayRangeFromBooking(b) : null;
               const experienceToday = scheduleTodayIsoForBooking(b);
@@ -995,13 +1077,16 @@ export default function SupplierDashboard() {
               const dep = partnerOpsDepartureDisplay(b.purchase_snapshot, opsHm);
               const startHm = dep.displayHm || null;
               const pickupMissing = pickupGaps.some((g) => g.id === b.id);
-              const timeLabel = isStay
-                ? stay && stay.checkIn === experienceToday
-                  ? 'In'
-                  : stay && stay.checkOut === experienceToday
-                    ? 'Out'
-                    : 'Stay'
-                : (startHm ?? '—');
+              const timeLabel =
+                scheduleTab === 'week'
+                  ? formatBookingDateDisplay(b.booking_date ?? '')
+                  : isStay
+                    ? stay && stay.checkIn === experienceToday
+                      ? 'Arrival'
+                      : stay && stay.checkOut === experienceToday
+                        ? 'Departure'
+                        : 'Stay'
+                    : (startHm ?? '—');
               const fallbackTitle = isStay ? 'Stay' : 'Tour';
               const liveOpt = !isStay
                 ? (() => {
@@ -1036,85 +1121,54 @@ export default function SupplierDashboard() {
                       parseListingExtras(listing?.listingExtras as unknown).bookingOptions
                     ),
               }).meetingPoint;
-              const supplierLogistics = optionLogisticsLines({
-                ...readOptionLogistics(b.purchase_snapshot),
-                fulfillment: displayFulfillmentFromPurchase(b.purchase_snapshot),
-              }).join(' ');
-              const placePrefix =
-                displayFulfillmentFromPurchase(b.purchase_snapshot) === 'pickup' ? 'Pickup' : 'Meet';
-              const isLast = idx === todayDepartures.length - 1;
+              const guest = b.guest_name?.trim() || 'Guest';
+              const metaParts = [
+                guest,
+                formatBookingParticipantsLabel(b),
+                optionLabel || null,
+                scheduleTab === 'week' && startHm ? startHm : null,
+                isStay && stay
+                  ? `${formatStayNightHuman(stay.checkIn)} → ${formatStayNightHuman(stay.checkOut)}`
+                  : null,
+                scheduleTab === 'today' && meetingPoint && !isStay ? meetingPoint : null,
+                dep.purchasedNote || null,
+              ].filter(Boolean);
               return (
-                <li key={b.id} className="relative">
+                <li key={b.id}>
                   <button
                     type="button"
                     onClick={() =>
                       navigateSupplierUrl(
-                        partnerBookingDeskPath({ bookingId: b.id, isStay })
+                        partnerBookingDeskPath({
+                          bookingId: b.id,
+                          isStay,
+                        })
                       )
                     }
-                    className="partner-row-interact lux-flat group grid w-full grid-cols-[4.5rem_minmax(0,1fr)_auto] items-start gap-x-0 text-left sm:grid-cols-[5.25rem_minmax(0,1fr)_auto]"
+                    className="partner-home__sched-row lux-flat"
                   >
-                    <span className="relative flex justify-end pr-4 py-3.5 sm:pr-5">
-                      <span className="text-[15px] font-semibold tabular-nums tracking-tight text-finland">
-                        {timeLabel}
-                      </span>
-                      {/* timeline rail */}
-                      <span
-                        className={`absolute right-[7px] top-0 w-px bg-slate-200 ${idx === 0 ? 'top-5' : 'top-0'} ${
-                          isLast ? 'h-5' : 'bottom-0'
-                        }`}
-                        aria-hidden
-                      />
-                      <span
-                        className="absolute right-[4px] top-[1.4rem] h-2 w-2 rounded-full bg-finland ring-[3px] ring-white"
-                        aria-hidden
-                      />
+                    <span className="min-w-0">
+                      <span className="partner-home__sched-time">{timeLabel}</span>
+                      <span className="partner-home__sched-kind">{isStay ? 'Stay' : 'Tour'}</span>
                     </span>
-                    <span className="min-w-0 py-3.5 pl-3 pr-2">
-                      <span className="block break-words text-[15px] font-semibold text-slate-900 [overflow-wrap:anywhere] line-clamp-2">
+                    <span className="min-w-0">
+                      <span className="partner-home__sched-title" title={title}>
                         {title}
                       </span>
-                      <span className="mt-0.5 block text-[13px] text-slate-500">
-                        {b.guest_name?.trim() ? `${b.guest_name.trim()} · ` : ''}
-                        {formatBookingParticipantsLabel(b)}
-                        {optionLabel ? ` · ${optionLabel}` : ''}
-                      </span>
-                      {meetingPoint ? (
-                        <span className="mt-0.5 block text-[12px] text-slate-400 break-words [overflow-wrap:anywhere]">
-                          {placePrefix} · {meetingPoint}
-                        </span>
-                      ) : null}
-                      {supplierLogistics ? (
-                        <span className="mt-0.5 block text-[12px] text-slate-400 break-words [overflow-wrap:anywhere]">
-                          {supplierLogistics}
-                        </span>
-                      ) : null}
-                      {dep.purchasedNote ? (
-                        <span className="mt-0.5 block text-[12px] text-slate-400">{dep.purchasedNote}</span>
-                      ) : null}
-                      <span className="mt-0.5 block text-[12px] text-slate-400">
-                        {typeof b.booking_number === 'number' && b.booking_number > 0 ? (
-                          <span className="font-mono text-finland/80">Booking #{b.booking_number}</span>
-                        ) : (
-                          'Booking'
-                        )}
-                        {isStay && stay
-                          ? ` · ${formatStayNightHuman(stay.checkIn)} → ${formatStayNightHuman(stay.checkOut)}`
-                          : ''}
+                      <span className="partner-home__sched-meta" title={metaParts.join(' · ')}>
+                        {metaParts.join(' · ')}
                       </span>
                       {pickupMissing ? (
-                        <span className="mt-1.5 inline-flex items-center gap-1.5 text-[12px] font-medium text-amber-700">
+                        <span className="partner-home__sched-flag">
                           <span className="h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden />
                           Pickup details missing
                         </span>
                       ) : null}
                     </span>
-                    <span className="flex items-center self-center pr-3.5">
-                      <ChevronRight
-                        className="h-4 w-4 shrink-0 text-slate-300 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-finland"
-                        aria-hidden
-                      />
-                    </span>
+                    <ChevronRight
+                      className="mt-1 h-4 w-4 shrink-0 text-slate-300"
+                      aria-hidden
+                    />
                   </button>
                 </li>
               );
@@ -1123,166 +1177,58 @@ export default function SupplierDashboard() {
         )}
       </section>
 
-      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
-        <section>
-          <SectionHead
-            title="Business performance"
-            meta="Last 30 days"
-            action={
-              <TextLink onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/performance`)}>
-                View performance →
-              </TextLink>
-            }
-          />
-          <div className="partner-surface-panel overflow-hidden">
-            <div className="grid grid-cols-3 divide-x divide-slate-100">
-              <div className="px-4 py-4">
-                <p className="text-[12px] font-medium text-slate-500">Your earnings</p>
-                <p className="mt-1.5 text-[1.25rem] font-semibold tabular-nums tracking-tight text-slate-900 leading-none">
-                  {performance30d.primary
-                    ? formatMoney(performance30d.primary[1].revenue, performance30d.primary[0])
-                    : '—'}
-                </p>
-                {performance30d.currencies.length > 1 ? (
-                  <p className="mt-1.5 text-[11px] text-slate-400 leading-snug">
-                    +{performance30d.currencies.length - 1} more currency
-                    {performance30d.currencies.length - 1 === 1 ? '' : 'ies'}
-                  </p>
+      <section className="partner-home__section">
+        <SectionHead
+          title="Business performance"
+          meta="Last 30 days"
+          action={
+            <TextLink onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/performance`)}>
+              Analytics →
+            </TextLink>
+          }
+        />
+        <div className="partner-home__panel">
+          <div className="partner-home__perf">
+            <div className="partner-home__perf-cell">
+              <p className="partner-home__perf-label">Collected bookings</p>
+              <p className="partner-home__perf-value">{performance30d.bookings}</p>
+              <p className="partner-home__perf-hint">Paid in the last 30 days</p>
+            </div>
+            <div className="partner-home__perf-cell">
+              <p className="partner-home__perf-label">Rating</p>
+              <p className="partner-home__perf-value" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                {ratingAvg != null && ratingCount > 0 ? (
+                  <>
+                    {ratingAvg.toFixed(2)}
+                    <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" aria-hidden />
+                  </>
                 ) : (
-                  <p className="mt-1.5 text-[11px] text-slate-400">Net, last 30 days</p>
+                  '—'
                 )}
-              </div>
-              <div className="px-4 py-4">
-                <p className="text-[12px] font-medium text-slate-500">Bookings</p>
-                <p className="mt-1.5 text-[1.25rem] font-semibold tabular-nums tracking-tight text-slate-900 leading-none">
-                  {performance30d.bookings}
-                </p>
-                <p className="mt-1.5 text-[11px] text-slate-400">Collected in window</p>
-              </div>
-              <div className="px-4 py-4">
-                <p className="text-[12px] font-medium text-slate-500">Rating</p>
-                <p className="mt-1.5 flex items-center gap-1 text-[1.25rem] font-semibold tabular-nums tracking-tight text-slate-900 leading-none">
-                  {ratingAvg != null && ratingCount > 0 ? (
-                    <>
-                      {ratingAvg.toFixed(2)}
-                      <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" aria-hidden />
-                    </>
-                  ) : (
-                    '—'
-                  )}
-                </p>
-                <p className="mt-1.5 text-[11px] text-slate-400">
-                  {ratingCount > 0
-                    ? `${ratingCount} review${ratingCount === 1 ? '' : 's'}`
-                    : 'No reviews yet'}
-                </p>
-              </div>
+              </p>
+              <p className="partner-home__perf-hint">
+                {ratingCount > 0
+                  ? `${ratingCount} review${ratingCount === 1 ? '' : 's'}`
+                  : 'No reviews yet'}
+              </p>
+            </div>
+            <div className="partner-home__perf-cell">
+              <p className="partner-home__perf-label">Currencies</p>
+              <p className="partner-home__perf-value">
+                {performance30d.currencies.length > 0 ? performance30d.currencies.length : '—'}
+              </p>
+              <p className="partner-home__perf-hint">
+                {performance30d.currencies.length > 1
+                  ? 'Multi-currency collected window'
+                  : 'Earnings shown in top metrics'}
+              </p>
             </div>
           </div>
-        </section>
-
-        <section>
-          <SectionHead
-            title="Next 7 days"
-            action={
-              <TextLink onClick={() => openSupplierCalendar()}>Calendar →</TextLink>
-            }
-          />
-          {bookingsLoadFailed ? (
-            // Phase 1617: Next 7 days — same honest failure panel as Today’s schedule.
-            <div className="partner-surface-panel flex flex-wrap items-center justify-between gap-3 px-5 py-4">
-              <div className="min-w-0">
-                <p className="text-[15px] font-semibold text-slate-800">Bookings couldn’t load</p>
-                <p className="text-[13px] text-slate-500 mt-0.5 leading-snug">
-                  The week-ahead schedule needs bookings to load successfully.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => void reloadDashboard()}
-                className="partner-btn-secondary lux-flat shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-[12px] font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                Retry
-              </button>
-            </div>
-          ) : upcomingByDate.length === 0 ? (
-            <div className="rounded-md border border-dashed border-slate-200 bg-white/60 px-4 py-5">
-              <p className="text-[14px] text-slate-500">No confirmed departures in the next week.</p>
-            </div>
-          ) : (
-            <div className="partner-surface-panel space-y-1 px-3 py-2.5">
-              {upcomingByDate.map(([ymd, rows]) => {
-                const dayLabel = formatBookingDateDisplay(ymd);
-                return (
-                  <div key={ymd} className="flex gap-3 py-1">
-                    <div className="w-[7.5rem] shrink-0 pt-0.5 sm:w-36">
-                      <p className="text-[11px] font-semibold leading-snug tracking-[0.04em] text-finland">
-                        {dayLabel}
-                      </p>
-                    </div>
-                    <ul className="min-w-0 flex-1 space-y-1.5">
-                      {rows.map((b) => {
-                        const liveOption = b.booking_option_id
-                          ? materializedBookingOptions(
-                              parseListingExtras(listingsById[b.listing_id]?.listingExtras as unknown)
-                                .bookingOptions
-                            ).find((o) => o.id === b.booking_option_id)?.name?.trim() || ''
-                          : '';
-                        const title = displayListingTitleFromPurchase(
-                          b.purchase_snapshot,
-                          listingTitlesById[b.listing_id],
-                          'Tour'
-                        );
-                        const optionLabel = displayOptionLabelFromPurchase(
-                          b.purchase_snapshot,
-                          liveOption
-                        );
-                        const opsHm = pgTimeToHm(b.start_time) || pgTimeToHm(b.pickup_time) || null;
-                        const dep = partnerOpsDepartureDisplay(b.purchase_snapshot, opsHm);
-                        const startHm = dep.displayHm || null;
-                        return (
-                        <li key={b.id}>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              navigateSupplierUrl(
-                                partnerBookingDeskPath({
-                                  bookingId: b.id,
-                                  isStay: bookingIsStayNight(b),
-                                })
-                              )
-                            }
-                            className="partner-row-interact lux-flat group w-full rounded-md px-2.5 py-2 text-left"
-                          >
-                            <span className="block break-words text-[14px] font-semibold text-slate-900 [overflow-wrap:anywhere] line-clamp-2">
-                              {title}
-                            </span>
-                            <span className="mt-0.5 block break-words text-[12.5px] text-slate-500 [overflow-wrap:anywhere] line-clamp-2">
-                              {startHm ? `${startHm} · ` : ''}
-                              {b.guest_name?.trim() ? `${b.guest_name.trim()} · ` : ''}
-                              {formatBookingParticipantsLabel(b)}
-                              {optionLabel ? ` · ${optionLabel}` : ''}
-                              {dep.purchasedNote ? ` · ${dep.purchasedNote}` : ''}
-                            </span>
-                          </button>
-                        </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
-      </div>
-
-      {attentionCount === 0 && !dashboardLoading && (
-        <p className="mb-6 text-[14px] text-slate-500 leading-snug">Nothing needs your attention right now.</p>
-      )}
+        </div>
+      </section>
 
       {recentBookings.length > 0 && (
-        <section className="mb-6">
+        <section className="partner-home__section">
           <SectionHead
             title="Recent bookings"
             action={
@@ -1291,16 +1237,30 @@ export default function SupplierDashboard() {
               </TextLink>
             }
           />
-          <div className="partner-surface-panel overflow-hidden px-4">
+          <div className="partner-home__panel">
             <ul>
               {recentBookings.map((b) => {
                 // Phase 1792: match Money Collected — not refunded / refund-due amounts.
                 const legacyPaid =
-                  b.amount_paid != null && Number.isFinite(Number(b.amount_paid)) ? Number(b.amount_paid) : null;
+                  b.amount_paid != null && Number.isFinite(Number(b.amount_paid))
+                    ? Number(b.amount_paid)
+                    : null;
                 const paid = isCollectedBooking(b) ? (netByBookingId[b.id] ?? legacyPaid) : null;
                 const money = paid == null ? null : formatMoney(paid, b.currency);
+                const status = recentBookingStatus(b);
+                const statusClass =
+                  status.tone === 'ok'
+                    ? 'partner-home__status partner-home__status--ok'
+                    : status.tone === 'warn'
+                      ? 'partner-home__status partner-home__status--warn'
+                      : status.tone === 'bad'
+                        ? 'partner-home__status partner-home__status--bad'
+                        : 'partner-home__status';
+                const travelDate = b.booking_date
+                  ? formatBookingDateDisplay(b.booking_date)
+                  : '—';
                 return (
-                  <li key={b.id} className="border-b border-slate-100 last:border-b-0">
+                  <li key={b.id}>
                     <button
                       type="button"
                       onClick={() =>
@@ -1311,24 +1271,31 @@ export default function SupplierDashboard() {
                           })
                         )
                       }
-                      className="partner-row-interact lux-flat grid w-full grid-cols-1 gap-0.5 py-3 text-left sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_auto_auto] sm:items-center sm:gap-4"
+                      className="partner-home__recent-row lux-flat"
                     >
-                      <span className="break-words text-[14px] font-semibold text-slate-900 [overflow-wrap:anywhere] line-clamp-2">
+                      <span className="partner-home__recent-guest">
                         {b.guest_name?.trim() || 'Traveler'}
                       </span>
-                      <span className="break-words text-[13px] text-slate-500 [overflow-wrap:anywhere] line-clamp-2">
+                      <span
+                        className="partner-home__recent-product"
+                        title={displayListingTitleFromPurchase(
+                          b.purchase_snapshot,
+                          listingTitlesById[b.listing_id],
+                          'Listing'
+                        )}
+                      >
                         {displayListingTitleFromPurchase(
                           b.purchase_snapshot,
                           listingTitlesById[b.listing_id],
                           'Listing'
                         )}
                       </span>
-                      <span className="text-[13px] text-slate-500 tabular-nums">
+                      <span className="partner-home__recent-meta">{travelDate}</span>
+                      <span className="partner-home__recent-meta">
                         {formatBookingParticipantsLabel(b)}
                       </span>
-                      <span className="text-[13px] tabular-nums text-slate-700 sm:text-right">
-                        {money ?? '—'}
-                      </span>
+                      <span className={statusClass}>{status.label}</span>
+                      <span className="partner-home__recent-money">{money ?? '—'}</span>
                     </button>
                   </li>
                 );
