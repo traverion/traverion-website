@@ -1,5 +1,5 @@
 /**
- * Expandable Stay reservation card — list inspection without opening full details.
+ * Expandable Stay reservation card — compact list row with aligned money/status rail.
  */
 import { type MouseEvent, type ReactNode } from 'react';
 import { CalendarDays, ChevronDown, Mail, Users } from 'lucide-react';
@@ -86,13 +86,21 @@ export default function StayOpsReservationCard({
           )}
           <div className="stay-ops-card__body">
             <div className="stay-ops-card__top">
-              <div className="min-w-0 flex-1">
+              <div className="stay-ops-card__identity">
                 <p className="stay-ops-card__property" title={model.listingTitle}>
                   {model.listingTitle}
                 </p>
                 <p className="stay-ops-card__guest">{model.guestName}</p>
               </div>
-              <span className={`stay-ops-card__status ${model.statusClass}`}>{model.statusLabel}</span>
+              <div className="stay-ops-card__rail">
+                <span className={`stay-ops-card__status ${model.statusClass}`}>{model.statusLabel}</span>
+                {moneyLabel && !expanded ? (
+                  <span className="stay-ops-card__money">
+                    <span className="stay-ops-card__money-label">{moneyLabel.label}</span>
+                    <span className="stay-ops-card__money-value">{moneyLabel.value}</span>
+                  </span>
+                ) : null}
+              </div>
               <ChevronDown
                 className={`stay-ops-card__chevron${expanded ? ' is-open' : ''}`}
                 aria-hidden
@@ -110,12 +118,6 @@ export default function StayOpsReservationCard({
                   {model.nightLabel ? ` · ${model.nightLabel}` : ''}
                 </span>
               </span>
-              {moneyLabel && !expanded ? (
-                <span className="stay-ops-card__money stay-ops-card__money--inline">
-                  <span className="stay-ops-card__money-label">{moneyLabel.label}</span>
-                  <span className="stay-ops-card__money-value">{moneyLabel.value}</span>
-                </span>
-              ) : null}
             </div>
             <div className="stay-ops-card__footer-row">
               <button
@@ -138,7 +140,7 @@ export default function StayOpsReservationCard({
       <div className="stay-ops-card__panel" hidden={!expanded} onClick={stop}>
         <div className="stay-ops-card__panel-grid">
           <div className="stay-ops-card__cell">
-            <p className="stay-ops-card__label">Times</p>
+            <p className="stay-ops-card__label">Arrival & departure</p>
             <div className="stay-ops-card__inout">
               <div>
                 <p className="stay-ops-card__sublabel">Check-in</p>
@@ -173,12 +175,17 @@ export default function StayOpsReservationCard({
             ) : null}
           </div>
           <div className="stay-ops-card__cell">
-            <p className="stay-ops-card__label">Payment</p>
+            <p className="stay-ops-card__label">Payment & earnings</p>
             <p className="stay-ops-card__value">{model.paymentLabel}</p>
             {moneyLabel ? (
               <p className="stay-ops-card__value mt-0.5">
                 <span className="text-ink-muted">{moneyLabel.label}</span>{' '}
                 <span className="font-semibold tabular-nums">{moneyLabel.value}</span>
+              </p>
+            ) : null}
+            {model.guestTotalLabel && model.earningsLabel ? (
+              <p className="stay-ops-card__value mt-0.5 text-[12px] text-ink-muted">
+                Guest total <span className="tabular-nums text-ink">{model.guestTotalLabel}</span>
               </p>
             ) : null}
           </div>
@@ -189,7 +196,7 @@ export default function StayOpsReservationCard({
             Message guest
           </button>
           <button type="button" className="tv-btn-secondary h-8 !px-3 text-[12.5px]" onClick={onOpenDetails}>
-            Full details
+            View details
           </button>
           {model.needsReview && onMarkReviewed ? (
             <button

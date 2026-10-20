@@ -93,13 +93,21 @@ type SupplierPageHeroProps = {
   badge?: string | null;
 };
 
-export function SupplierPageHero({ title, description, actions, children, badge = null }: SupplierPageHeroProps) {
+export function SupplierPageHero({
+  title,
+  description,
+  actions,
+  children,
+  badge = null,
+  /** Stay Ops pages prefer sans titles for operational density. */
+  sansTitle = false,
+}: SupplierPageHeroProps & { sansTitle?: boolean }) {
   return (
     <header className="partner-page-hero border-b border-[color:var(--partner-border,rgba(15,23,42,0.08))]">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           {badge ? <p className="partner-label mb-1 text-finland">{badge}</p> : null}
-          <h1 className="partner-page-title font-display">{title}</h1>
+          <h1 className={`partner-page-title${sansTitle ? '' : ' font-display'}`}>{title}</h1>
           {description ? <p className="partner-section-desc mt-1">{description}</p> : null}
         </div>
         {actions ? (

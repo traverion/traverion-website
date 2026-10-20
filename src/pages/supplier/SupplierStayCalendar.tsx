@@ -53,6 +53,7 @@ import {
   SUPPLIER_PAGE_CLASS,
   SupplierEmptyState,
 } from '../../components/supplier/supplierUi';
+import { StayOpsSegmentedControl } from '../../components/supplier/StayOpsPrimitives';
 import PartnerSelect from '../../components/supplier/PartnerSelect';
 import ErrorState from '../../components/ErrorState';
 import NoticeCallout from '../../components/NoticeCallout';
@@ -521,10 +522,10 @@ export default function SupplierStayCalendar() {
           {toast.message}
         </div>
       ) : null}
-      <header className="tv-avail-page-head">
+      <header className="tv-avail-page-head stay-ops-cal-head">
         <div className="tv-avail-page-head__text">
           <h1>Stay Calendar</h1>
-          <p>Nights, reservations and blocks.</p>
+          <p>Occupancy, arrivals and availability across your properties.</p>
         </div>
       </header>
 
@@ -598,38 +599,27 @@ export default function SupplierStayCalendar() {
             </div>
           ) : null}
 
-          <div className="tv-avail-switch" role="tablist" aria-label="Stay Calendar views">
-            {(
-              [
-                { id: 'agenda' as const, label: 'Agenda' },
-                { id: 'week' as const, label: 'Week' },
-                { id: 'month' as const, label: 'Month' },
-              ] as const
-            ).map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                aria-selected={view === tab.id}
-                className={`tv-avail-switch__btn ${view === tab.id ? 'is-active' : ''}`}
-                onClick={() => {
-                  setView(tab.id);
-                  if (tab.id === 'week') {
-                    const w = weekRangeContaining(todayIso);
-                    setFilterFrom(w.from);
-                    setFilterTo(w.to);
-                    syncUrl({ view: tab.id, from: w.from, to: w.to });
-                  } else if (tab.id === 'agenda') {
-                    syncUrl({ view: tab.id });
-                  } else {
-                    syncUrl({ view: tab.id });
-                  }
-                }}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          <StayOpsSegmentedControl
+            label="Stay Calendar views"
+            value={view}
+            options={[
+              { id: 'agenda', label: 'Agenda' },
+              { id: 'week', label: 'Week' },
+              { id: 'month', label: 'Month' },
+            ]}
+            onChange={(next) => {
+              const tab = next as StayCalendarViewMode;
+              setView(tab);
+              if (tab === 'week') {
+                const w = weekRangeContaining(todayIso);
+                setFilterFrom(w.from);
+                setFilterTo(w.to);
+                syncUrl({ view: tab, from: w.from, to: w.to });
+              } else {
+                syncUrl({ view: tab });
+              }
+            }}
+          />
 
           <div className="tv-avail-filters">
             {view !== 'month' ? (
@@ -896,7 +886,7 @@ function StayAgenda({
       {groups.map((g) => (
         <section key={g.iso} className="tv-avail-agenda__day">
           <div className="tv-avail-agenda__day-head">
-            <h2 className="text-[13px] font-semibold text-slate-800">{formatDayHeading(g.iso)}</h2>
+            <h2>{formatDayHeading(g.iso)}</h2>
             <span className="tv-avail-agenda__count">{g.rows.length}</span>
           </div>
           <ul className="tv-avail-agenda__list">
@@ -1065,9 +1055,15 @@ function StayWeek({
                               gridColumn: `${span.colStart + 1} / span ${span.colSpan}`,
                             }}
                             onClick={() => onOpenReservation(span.bookingId)}
-                            title={span.guestName}
+                            title={`${span.guestName}${span.pending ? ' · Pending' : ''}`}
+                            aria-label={`${span.guestName}, ${span.colSpan} night${span.colSpan === 1 ? '' : 's'}${span.pending ? ', pending' : ''}`}
                           >
                             <span className="truncate">{span.guestName}</span>
+                            {span.colSpan > 1 ? (
+                              <span className="tv-stay-cal-week__span-nights" aria-hidden>
+                                {span.colSpan}n
+                              </span>
+                            ) : null}
                           </button>
                         ))}
                       </div>

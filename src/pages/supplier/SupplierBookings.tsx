@@ -61,6 +61,10 @@ import {
 } from '../../data/supabase-bookings';
 import StayRequestActions from '../../components/StayRequestActions';
 import StayOpsReservationCard from '../../components/supplier/StayOpsReservationCard';
+import {
+  StayOpsInOut,
+  StayOpsMoneyStack,
+} from '../../components/supplier/StayOpsPrimitives';
 import { isStayRequestAwaitingHost } from '../../lib/stay-request-approval';
 import { insertSupplierExportRun } from '../../data/supabase-supplier-campaigns-exports';
 import { decrementAvailabilityBooked } from '../../data/supabase-availability';
@@ -1006,10 +1010,11 @@ export default function SupplierBookings({
       {!stayDetailMode ? (
       <SupplierPageHero
         badge={isStayDesk ? null : 'Operate'}
+        sansTitle={isStayDesk}
         title={isStayDesk ? 'Reservations' : 'Bookings'}
         description={
           isStayDesk
-            ? 'Guests, nights and decisions.'
+            ? 'Guests, nights and property decisions.'
             : 'Guests, products, dates, payment, and decisions.'
         }
         actions={
@@ -1521,7 +1526,47 @@ export default function SupplierBookings({
         />
       ) : (
         <div className="space-y-3" aria-busy={loading || undefined}>
-          <div className="space-y-2">
+          {isStayDesk && selectedIds.size > 0 ? (
+            <div className="partner-stay-ops__bulk" role="status">
+              <span>
+                {selectedIds.size} selected
+              </span>
+              <button
+                type="button"
+                className="tv-btn-ghost h-7 !px-2 text-[12px]"
+                onClick={() => setSelectedIds(new Set())}
+              >
+                Clear
+              </button>
+              {canExportBookingsCsv ? (
+                <button
+                  type="button"
+                  className="tv-btn-secondary h-7 !px-2.5 text-[12px]"
+                  onClick={() => {
+                    if (!user?.id) return;
+                    const chosen = filteredBookings.filter((b) => selectedIds.has(b.id));
+                    if (chosen.length === 0) return;
+                    void downloadBookingsCsv(chosen, listingMeta, {
+                      supplierId: user.id,
+                      actorId: user.id,
+                      dateFrom: filterDateFrom || undefined,
+                      dateTo: filterDateTo || undefined,
+                      filtersSnapshot: {
+                        surface: 'bookings',
+                        scope: 'selected',
+                        view,
+                        opsFilter,
+                        rowCount: chosen.length,
+                      },
+                    });
+                  }}
+                >
+                  Export selected
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          <div className={isStayDesk ? 'stay-ops-list' : 'space-y-2'}>
             {paginatedBookings.map((booking) => {
               const opsStartHm = booking.start_time ? pgTimeToHm(booking.start_time) ?? null : null;
               const dep = partnerOpsDepartureDisplay(booking.purchase_snapshot, opsStartHm);
@@ -2101,29 +2146,21 @@ export default function SupplierBookings({
                     <section className="stay-ops-detail__panel">
                       <h3 className="stay-ops-detail__panel-title">Stay dates</h3>
                       {stayRange ? (
-                        <div className="stay-ops-detail__inout">
-                          <div className="stay-ops-detail__inout-block">
-                            <p className="stay-ops-detail__inout-label">Check-in</p>
-                            <p className="stay-ops-detail__inout-value">
-                              {formatStayNightHuman(stayRange.checkIn)}
-                            </p>
-                            {stayInTime ? (
-                              <p className="stay-ops-detail__inout-time">From {stayInTime}</p>
-                            ) : null}
-                          </div>
-                          <div className="stay-ops-detail__inout-block">
-                            <p className="stay-ops-detail__inout-label">Check-out</p>
-                            <p className="stay-ops-detail__inout-value">
-                              {formatStayNightHuman(stayRange.checkOut)}
-                            </p>
-                            {stayOutTime ? (
-                              <p className="stay-ops-detail__inout-time">By {stayOutTime}</p>
-                            ) : null}
-                          </div>
-                        </div>
+                        <StayOpsInOut
+                          checkInValue={formatStayNightHuman(stayRange.checkIn)}
+                          checkInMeta={stayInTime ? `From ${stayInTime}` : null}
+                          checkOutValue={formatStayNightHuman(stayRange.checkOut)}
+                          checkOutMeta={stayOutTime ? `By ${stayOutTime}` : null}
+                        />
                       ) : (
                         <p className="text-[13px] text-ink">{whenLabel}</p>
                       )}
+                      {stayNightCount > 0 ? (
+                        <p className="mt-2 text-[12.5px] text-ink-muted">
+                          {stayNightCount} night{stayNightCount === 1 ? '' : 's'} ·{' '}
+                          {formatBookingParticipantsLabel(booking)}
+                        </p>
+                      ) : null}
                       <button
                         type="button"
                         className="mt-3 text-[12.5px] font-semibold text-finland hover:underline"
@@ -2139,40 +2176,50 @@ export default function SupplierBookings({
 
                     <section className="stay-ops-detail__panel">
                       <h3 className="stay-ops-detail__panel-title">Payment & earnings</h3>
-                      <dl className="stay-ops-detail__facts">
-                        <div className="stay-ops-detail__fact">
-                          <dt>Status</dt>
-                          <dd>{partnerPaymentLabel(booking)}</dd>
-                        </div>
-                        {commercialState === 'loading' ? (
-                          <div className="stay-ops-detail__fact">
-                            <dt>Earnings</dt>
-                            <dd className="text-ink-muted">Loading…</dd>
-                          </div>
-                        ) : commercialSnapshot && commercialState === 'ready' ? (
-                          <div className="stay-ops-detail__fact">
-                            <dt>You earn</dt>
-                            <dd className="tabular-nums font-semibold">
-                              {formatSnapshotMinor(
-                                commercialSnapshot.remaining_supplier_minor,
-                                commercialSnapshot.currency
-                              )}
-                            </dd>
-                          </div>
-                        ) : (
-                          <div className="stay-ops-detail__fact">
-                            <dt>Earnings</dt>
-                            <dd className="text-ink-muted">Not recorded</dd>
-                          </div>
-                        )}
-                        {collectedLabel &&
-                        (collectedLabel !== bookingTotalLabel || collectedCaption !== 'Paid') ? (
-                          <div className="stay-ops-detail__fact">
-                            <dt>{collectedCaption}</dt>
-                            <dd className="tabular-nums">{collectedLabel}</dd>
-                          </div>
-                        ) : null}
-                      </dl>
+                      <p className="mb-2 text-[12.5px] font-semibold text-ink">
+                        {partnerPaymentLabel(booking)}
+                      </p>
+                      {commercialState === 'loading' ? (
+                        <p className="text-[13px] text-ink-muted">Loading earnings…</p>
+                      ) : (
+                        <StayOpsMoneyStack
+                          rows={[
+                            ...(bookingTotalLabel
+                              ? [{ label: 'Guest total', value: bookingTotalLabel }]
+                              : []),
+                            ...(commercialSnapshot && commercialState === 'ready'
+                              ? [
+                                  {
+                                    label: 'Platform commission',
+                                    value: formatSnapshotMinor(
+                                      commercialSnapshot.remaining_commission_minor,
+                                      commercialSnapshot.currency
+                                    ),
+                                    tone: 'muted' as const,
+                                  },
+                                  {
+                                    label: 'Your earnings',
+                                    value: formatSnapshotMinor(
+                                      commercialSnapshot.remaining_supplier_minor,
+                                      commercialSnapshot.currency
+                                    ),
+                                    tone: 'earn' as const,
+                                  },
+                                ]
+                              : [{ label: 'Your earnings', value: 'Not recorded', tone: 'muted' as const }]),
+                            ...(collectedLabel &&
+                            (collectedLabel !== bookingTotalLabel || collectedCaption !== 'Paid')
+                              ? [
+                                  {
+                                    label: collectedCaption,
+                                    value: collectedLabel,
+                                    tone: 'muted' as const,
+                                  },
+                                ]
+                              : []),
+                          ]}
+                        />
+                      )}
                       {isStayRequestAwaitingHost(booking) ? (
                         <div className="mt-2">
                           <StayRequestActions

@@ -19,6 +19,7 @@ import {
   SupplierEmptyState,
   SupplierListSkeleton,
 } from '../../components/supplier/supplierUi';
+import { StayOpsBookingSummary } from '../../components/supplier/StayOpsPrimitives';
 import NoticeCallout from '../../components/NoticeCallout';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
@@ -671,6 +672,34 @@ export default function SupplierInbox() {
                   Booking details
                 </button>
               </header>
+              {bookingIsStayNight(openBooking) || isStayRequestAwaitingHost(openBooking) ? (
+                <StayOpsBookingSummary
+                  guestName={openBooking.guest_name?.trim() || 'Traveler'}
+                  propertyTitle={displayListingTitleFromPurchase(
+                    openBooking.purchase_snapshot,
+                    titles[openBooking.listing_id],
+                    'Stay'
+                  )}
+                  whenLabel={activityWhen(openBooking)}
+                  referenceLabel={
+                    travelerPublicBookingReference(openBooking.public_reference) ?? undefined
+                  }
+                  statusLabel={partnerPaymentLabel(openBooking) || openBooking.status}
+                  actions={
+                    <button
+                      type="button"
+                      className="tv-btn-ghost h-7 !px-2 text-[12px]"
+                      onClick={() =>
+                        openSupplierBooking(openBooking.id, {
+                          isStay: true,
+                        })
+                      }
+                    >
+                      Open reservation
+                    </button>
+                  }
+                />
+              ) : null}
               <div className="tv-inbox-chat__body">
                 {isStayRequestAwaitingHost(openBooking) ? (
                   <div className="border-b border-black/[0.06] px-3 py-2">

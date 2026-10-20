@@ -39,6 +39,7 @@ describe('Stay Calendar page contracts', () => {
     expect(page).toContain('Clear selection');
     expect(page).not.toContain('Calendar updated');
     expect(page).toContain('showToast');
+    expect(page).toContain('StayOpsSegmentedControl');
   });
 
   it('rebuilds Month selection with continuous range and drag support', () => {
