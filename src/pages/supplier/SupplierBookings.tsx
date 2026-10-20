@@ -60,6 +60,7 @@ import {
   updateBookingStatus,
 } from '../../data/supabase-bookings';
 import StayRequestActions from '../../components/StayRequestActions';
+import StayOpsReservationCard from '../../components/supplier/StayOpsReservationCard';
 import { isStayRequestAwaitingHost } from '../../lib/stay-request-approval';
 import { insertSupplierExportRun } from '../../data/supabase-supplier-campaigns-exports';
 import { decrementAvailabilityBooked } from '../../data/supabase-availability';
@@ -433,6 +434,8 @@ export default function SupplierBookings({
   const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
   const [drawerExtra, setDrawerExtra] = useState<null | 'notes' | 'activity' | 'rules' | 'instructions' | 'arrival'>(null);
   const [drawerMoreOpen, setDrawerMoreOpen] = useState(false);
+  const [expandedStayId, setExpandedStayId] = useState<string | null>(null);
+  const [expandedEarningsLabel, setExpandedEarningsLabel] = useState<string | null>(null);
   const [commercialSnapshot, setCommercialSnapshot] = useState<BookingCommercialSnapshotRow | null>(null);
   const [commercialState, setCommercialState] = useState<'loading' | 'ready' | 'missing' | 'error'>('missing');
   const [copiedBookingId, setCopiedBookingId] = useState<string | null>(null);
@@ -922,6 +925,21 @@ export default function SupplierBookings({
   );
 
   useEffect(() => {
+    setExpandedEarningsLabel(null);
+    if (!expandedStayId) return;
+    let cancelled = false;
+    void fetchBookingCommercialSnapshot(expandedStayId).then((snap) => {
+      if (cancelled || !snap) return;
+      setExpandedEarningsLabel(
+        formatSnapshotMinor(snap.remaining_supplier_minor, snap.currency)
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [expandedStayId]);
+
+  useEffect(() => {
     setDrawerExtra(null);
     setDrawerMoreOpen(false);
     setCommercialSnapshot(null);
@@ -981,14 +999,17 @@ export default function SupplierBookings({
 
   const isStayDesk = inventoryFamily === 'stay';
 
+  const stayDetailMode = Boolean(isStayDesk && selectedBooking);
+
   return (
     <div className={`${SUPPLIER_PAGE_CLASS}${isStayDesk ? ' partner-stay-ops' : ''}`}>
+      {!stayDetailMode ? (
       <SupplierPageHero
         badge={isStayDesk ? null : 'Operate'}
         title={isStayDesk ? 'Reservations' : 'Bookings'}
         description={
           isStayDesk
-            ? 'Guests, nights, payment and decisions.'
+            ? 'Guests, nights and decisions.'
             : 'Guests, products, dates, payment, and decisions.'
         }
         actions={
@@ -1082,8 +1103,9 @@ export default function SupplierBookings({
         }
       >
       </SupplierPageHero>
+      ) : null}
 
-      {bookings.length > 0 && (
+      {!stayDetailMode && bookings.length > 0 && (
       <div className={isStayDesk ? 'partner-stay-ops__toolbar' : 'mb-4 space-y-3'}>
         <div className={`flex flex-col gap-2 lg:flex-row lg:items-center${isStayDesk ? '' : ''}`}>
           <label className="min-w-0 flex-1">
@@ -1142,11 +1164,13 @@ export default function SupplierBookings({
               value={filterListingId}
               onChange={(listingId) => writeBookingsSearchToUrl({ listingId })}
               options={[
-                { value: '', label: 'All experiences' },
+                { value: '', label: isStayDesk ? 'All properties' : 'All experiences' },
                 ...listingOptions.map((option) => ({ value: option.id, label: option.title })),
               ]}
             />
-            <span id="bookings-filter-listing-label" className="sr-only">Experience</span>
+            <span id="bookings-filter-listing-label" className="sr-only">
+              {isStayDesk ? 'Property' : 'Experience'}
+            </span>
             <PartnerSelect
               id="bookings-filter-travel"
               aria-label="Travel date"
@@ -1401,7 +1425,7 @@ export default function SupplierBookings({
         </div>
       ) : null}
 
-      {loading && bookings.length === 0 ? (
+      {stayDetailMode ? null : loading && bookings.length === 0 ? (
         <div className="space-y-3 animate-fade-in-up" aria-busy="true" aria-label="Loading bookings">
           <SkeletonListItem />
           <SkeletonListItem />
@@ -1603,6 +1627,87 @@ export default function SupplierBookings({
                       return n != null && n > 0 ? `${n} night${n === 1 ? '' : 's'}` : '';
                     })()
                   : '';
+              const checkbox = (
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(booking.id)}
+                  aria-label={`Select booking ${referenceLabel}`}
+                  onClick={(event) => event.stopPropagation()}
+                  onChange={() => {
+                    setSelectedIds((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(booking.id)) next.delete(booking.id);
+                      else next.add(booking.id);
+                      return next;
+                    });
+                  }}
+                  className="h-4 w-4 rounded border-black/30 text-finland focus:ring-finland"
+                />
+              );
+              const copyReference = () => {
+                void navigator.clipboard.writeText(referenceLabel).then(() => {
+                  setCopiedBookingId(booking.id);
+                  window.setTimeout(() => {
+                    setCopiedBookingId((current) => (current === booking.id ? null : current));
+                  }, 1500);
+                }).catch(() => {
+                  setCopiedBookingId(null);
+                });
+              };
+
+              if (isStayDesk) {
+                const stayInTime =
+                  displayStayCheckInTimeFromPurchase(booking.purchase_snapshot, meta?.stayCheckInTime) || '';
+                const stayOutTime =
+                  displayStayCheckOutTimeFromPurchase(booking.purchase_snapshot, meta?.stayCheckOutTime) || '';
+                return (
+                  <StayOpsReservationCard
+                    key={booking.id}
+                    model={{
+                      id: booking.id,
+                      listingTitle,
+                      imageUrl: meta?.imageUrl ?? null,
+                      guestName: booking.guest_name?.trim() || 'Guest',
+                      dateLine: stayDayChip ? `${stayDayChip} · ${dateLine}` : dateLine,
+                      participantLabel,
+                      nightLabel: stayNightLabel,
+                      statusLabel: partnerBookingLifecycleLabel(booking.status),
+                      statusClass: bookingStatusClass(booking.status, booking.payment_status),
+                      referenceLabel,
+                      guestTotalLabel: customerBookingTotal(booking),
+                      earningsLabel:
+                        expandedStayId === booking.id ? expandedEarningsLabel : null,
+                      paymentLabel: partnerPaymentLabel(booking),
+                      checkInTime: stayInTime,
+                      checkOutTime: stayOutTime,
+                      guestEmail: booking.guest_email?.trim() || null,
+                      guestPhone: guestPhoneFromNotes(booking.special_requests),
+                      warning: cardWarning,
+                      needsReview: partnerBookingNeedsLook(booking),
+                    }}
+                    expanded={expandedStayId === booking.id}
+                    selected={highlightBookingId === booking.id}
+                    busy={updatingId === booking.id}
+                    checkbox={checkbox}
+                    copied={copiedBookingId === booking.id}
+                    onToggleExpand={() =>
+                      setExpandedStayId((cur) => (cur === booking.id ? null : booking.id))
+                    }
+                    onOpenDetails={() => {
+                      setExpandedStayId(null);
+                      setSelectedBookingId(booking.id);
+                    }}
+                    onMessageGuest={() => openSupplierInbox(booking.id)}
+                    onMarkReviewed={
+                      canEditBookings
+                        ? () => void handleAcknowledge(booking)
+                        : undefined
+                    }
+                    onCopyReference={copyReference}
+                  />
+                );
+              }
+
               return (
                 <article
                   key={booking.id}
@@ -1612,21 +1717,7 @@ export default function SupplierBookings({
                   className="tv-ops-booking-row"
                 >
                   <label className="flex shrink-0 items-center self-center pl-2.5" onClick={(event) => event.stopPropagation()}>
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(booking.id)}
-                      aria-label={`Select booking ${referenceLabel}`}
-                      onClick={(event) => event.stopPropagation()}
-                      onChange={() => {
-                        setSelectedIds((prev) => {
-                          const next = new Set(prev);
-                          if (next.has(booking.id)) next.delete(booking.id);
-                          else next.add(booking.id);
-                          return next;
-                        });
-                      }}
-                      className="h-4 w-4 rounded border-black/30 text-finland focus:ring-finland"
-                    />
+                    {checkbox}
                   </label>
                   <button
                     type="button"
@@ -1638,19 +1729,11 @@ export default function SupplierBookings({
                       <img
                         src={meta.imageUrl}
                         alt=""
-                        className={`shrink-0 object-cover ring-1 ring-black/[0.06] ${
-                          isStayDesk
-                            ? 'tv-ops-booking-row__thumb'
-                            : 'h-[3.25rem] w-[3.25rem] rounded-md'
-                        }`}
+                        className="h-[3.25rem] w-[3.25rem] shrink-0 rounded-md object-cover ring-1 ring-black/[0.06]"
                       />
                     ) : (
                       <div
-                        className={`shrink-0 bg-finland/10 ring-1 ring-finland/15 ${
-                          isStayDesk
-                            ? 'tv-ops-booking-row__thumb'
-                            : 'h-[3.25rem] w-[3.25rem] rounded-md'
-                        }`}
+                        className="h-[3.25rem] w-[3.25rem] shrink-0 rounded-md bg-finland/10 ring-1 ring-finland/15"
                         aria-hidden
                       />
                     )}
@@ -1658,20 +1741,12 @@ export default function SupplierBookings({
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
                           <p
-                            className={`line-clamp-2 leading-5 tracking-tight ${
-                              isStayDesk
-                                ? 'tv-ops-booking-row__title'
-                                : 'text-[14px] font-semibold text-ink'
-                            }`}
+                            className="line-clamp-2 text-[14px] font-semibold leading-5 tracking-tight text-ink"
                             title={listingTitle}
                           >
                             {listingTitle}
                           </p>
-                          {isStayDesk ? (
-                            <p className="tv-ops-booking-row__guest mt-0.5 truncate">
-                              {booking.guest_name?.trim() || 'Guest'}
-                            </p>
-                          ) : optionLabel ? (
+                          {optionLabel ? (
                             <p className="truncate text-[12.5px] leading-4 text-ink-muted" title={optionLabel}>
                               {optionLabel}
                             </p>
@@ -1687,7 +1762,6 @@ export default function SupplierBookings({
                       <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12px] leading-4 text-ink-muted">
                         <span className="inline-flex min-w-0 items-center gap-1">
                           <CalendarDays className="h-3.5 w-3.5 shrink-0 text-ink-faint" aria-hidden />
-                          {stayDayChip ? <span className="font-semibold text-finland">{stayDayChip}</span> : null}
                           <span className="truncate" title={dep.purchasedNote ? `${dateLine}. ${dep.purchasedNote}` : dateLine}>
                             {dateLine}
                             {dep.purchasedNote ? ` · ${dep.purchasedNote}` : ''}
@@ -1696,12 +1770,11 @@ export default function SupplierBookings({
                         <span className="inline-flex min-w-0 items-center gap-1" title={participantLabel}>
                           <Users className="h-3.5 w-3.5 shrink-0 text-ink-faint" aria-hidden />
                           <span className="truncate">{participantLabel}</span>
-                          {stayNightLabel ? <span className="shrink-0 text-ink-faint">· {stayNightLabel}</span> : null}
                         </span>
                       </div>
                       <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12px] leading-4 text-ink-muted">
                         <span className="font-mono text-[12px] font-semibold tracking-wide text-finland">{referenceLabel}</span>
-                        {!isStayDesk && purchaseDateLabel ? (
+                        {purchaseDateLabel ? (
                           <span className="whitespace-nowrap" title="Purchase date, when the booking was created">Purchased {purchaseDateLabel}</span>
                         ) : null}
                       </div>
@@ -1714,16 +1787,7 @@ export default function SupplierBookings({
                     type="button"
                     className="tv-ops-booking-row__copy"
                     aria-label={`Copy booking reference ${referenceLabel}`}
-                    onClick={() => {
-                      void navigator.clipboard.writeText(referenceLabel).then(() => {
-                        setCopiedBookingId(booking.id);
-                        window.setTimeout(() => {
-                          setCopiedBookingId((current) => (current === booking.id ? null : current));
-                        }, 1500);
-                      }).catch(() => {
-                        setCopiedBookingId(null);
-                      });
-                    }}
+                    onClick={copyReference}
                   >
                     {copiedBookingId === booking.id ? (
                       <CheckCircle className="h-3.5 w-3.5 text-finland" aria-hidden />
@@ -1798,7 +1862,11 @@ export default function SupplierBookings({
       )}
 
       {selectedBooking && (
-        <SupplierDetailDrawer onClose={() => setSelectedBookingId(null)} label={selectedBooking.guest_name || 'Booking'}>
+        <SupplierDetailDrawer
+          onClose={() => setSelectedBookingId(null)}
+          label={selectedBooking.guest_name || 'Booking'}
+          variant={isStayDesk ? 'page' : 'drawer'}
+        >
           {(() => {
             const booking = selectedBooking;
             const opsStartHm = booking.start_time ? pgTimeToHm(booking.start_time) ?? null : null;

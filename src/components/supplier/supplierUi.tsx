@@ -8,7 +8,7 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import type { LucideIcon } from 'lucide-react';
-import { X } from 'lucide-react';
+import { ChevronLeft, X } from 'lucide-react';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 
 /** Full-width supplier portal pages — fills the main column on desktop, fluid on mobile. */
@@ -313,20 +313,42 @@ export function SupplierDetailDrawer({
   onClose: () => void;
   children: ReactNode;
   label: string;
-  /** `sheet` covers the viewport. Used for the mobile filters panel. */
-  variant?: 'drawer' | 'sheet';
+  /**
+   * `drawer` — right overlay. `sheet` — full viewport overlay.
+   * `page` — inline focused view (Stay reservation details); preserves Escape/back via onClose.
+   */
+  variant?: 'drawer' | 'sheet' | 'page';
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   useDialogFocus(true, panelRef, onClose);
 
   useEffect(() => {
+    if (variant === 'page') return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = prev;
     };
-  }, []);
+  }, [variant]);
+
+  if (variant === 'page') {
+    return (
+      <div
+        ref={panelRef}
+        className="stay-ops-detail"
+        role="region"
+        aria-label={label}
+        aria-labelledby={titleId}
+      >
+        <button type="button" className="stay-ops-detail__back lux-flat" onClick={onClose}>
+          <ChevronLeft className="h-4 w-4" aria-hidden />
+          Back to reservations
+        </button>
+        <SupplierModalTitleIdContext.Provider value={titleId}>{children}</SupplierModalTitleIdContext.Provider>
+      </div>
+    );
+  }
 
   const layer = (
     <div className="tv-sheet-overlay tv-sheet-overlay--portal">

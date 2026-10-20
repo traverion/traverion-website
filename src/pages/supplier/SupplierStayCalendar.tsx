@@ -524,7 +524,7 @@ export default function SupplierStayCalendar() {
       <header className="tv-avail-page-head">
         <div className="tv-avail-page-head__text">
           <h1>Stay Calendar</h1>
-          <p>Availability, reservations and blocked nights.</p>
+          <p>Nights, reservations and blocks.</p>
         </div>
       </header>
 
@@ -901,14 +901,16 @@ function StayAgenda({
           </div>
           <ul className="tv-avail-agenda__list">
             {g.rows.map((r) => {
-              const guestLine =
+              const kindChip =
                 r.kind === 'blocked'
                   ? 'Blocked'
                   : r.kind === 'check_in'
-                    ? `Check-in · ${r.guestName}`
-                    : `Check-out · ${r.guestName}`;
+                    ? 'Arrival'
+                    : 'Departure';
+              const guestLine =
+                r.kind === 'blocked' ? 'Manual block' : r.guestName || 'Guest';
               return (
-              <li key={r.key} className="tv-avail-agenda__row">
+              <li key={r.key} className={`tv-avail-agenda__row stay-ops-agenda-row stay-ops-agenda-row--${r.kind}`}>
                 <button
                   type="button"
                   className="tv-avail-agenda__main lux-flat tv-stay-cal-agenda__main"
@@ -917,17 +919,13 @@ function StayAgenda({
                     else onOpenBlocked(r.listingId, r.iso);
                   }}
                 >
-                  <span className="tv-stay-cal-thumb" aria-hidden>
-                    {r.thumbUrl ? (
-                      <img src={r.thumbUrl} alt="" />
-                    ) : (
-                      <span className="tv-stay-cal-thumb__fallback" />
-                    )}
+                  <span className={`stay-ops-agenda-chip stay-ops-agenda-chip--${r.kind}`} aria-hidden>
+                    {r.kind === 'check_in' ? 'In' : r.kind === 'check_out' ? 'Out' : 'Bl'}
                   </span>
                   <span className="tv-avail-agenda__names min-w-0">
                     <span className="tv-avail-agenda__product">{guestLine}</span>
                     <span className="tv-avail-agenda__option">
-                      {r.listingTitle}
+                      {kindChip} · {r.listingTitle}
                       {r.guests > 0 ? ` · ${r.guests}` : ''}
                       {r.timeLabel ? ` · ${r.timeLabel}` : ''}
                     </span>
@@ -938,9 +936,9 @@ function StayAgenda({
                         {travelerPublicBookingReference(r.reference) ?? r.reference}
                       </span>
                     ) : null}
-                    {r.nightKind ? (
+                    {r.nightKind && r.kind !== 'blocked' ? (
                       <span className={`tv-avail-pill ${kindClass(r.nightKind)}`}>
-                        {r.kind === 'check_out' ? 'Check-out' : stayCalendarNightKindLabel(r.nightKind)}
+                        {stayCalendarNightKindLabel(r.nightKind)}
                       </span>
                     ) : null}
                   </span>
