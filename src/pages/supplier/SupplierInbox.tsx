@@ -659,14 +659,16 @@ export default function SupplierInbox() {
                   <h2 className="truncate text-[15px] font-bold tracking-tight text-ink">
                     {openBooking.guest_name?.trim() || 'Traveler'}
                   </h2>
-                  <p className="truncate text-[12px] text-ink-muted">
-                    {displayListingTitleFromPurchase(
-                      openBooking.purchase_snapshot,
-                      titles[openBooking.listing_id],
-                      'Listing'
-                    )}
-                    {activityWhen(openBooking) ? ` · ${activityWhen(openBooking)}` : ''}
-                  </p>
+                  {!(bookingIsStayNight(openBooking) || isStayRequestAwaitingHost(openBooking)) ? (
+                    <p className="truncate text-[12px] text-ink-muted">
+                      {displayListingTitleFromPurchase(
+                        openBooking.purchase_snapshot,
+                        titles[openBooking.listing_id],
+                        'Listing'
+                      )}
+                      {activityWhen(openBooking) ? ` · ${activityWhen(openBooking)}` : ''}
+                    </p>
+                  ) : null}
                 </div>
                 <button type="button" className="tv-inbox-details-link tv-btn-ghost shrink-0" onClick={() => setDetailsOpen(true)}>
                   Booking details
@@ -674,7 +676,7 @@ export default function SupplierInbox() {
               </header>
               {bookingIsStayNight(openBooking) || isStayRequestAwaitingHost(openBooking) ? (
                 <StayOpsBookingSummary
-                  guestName={openBooking.guest_name?.trim() || 'Traveler'}
+                  compact
                   propertyTitle={displayListingTitleFromPurchase(
                     openBooking.purchase_snapshot,
                     titles[openBooking.listing_id],

@@ -59,6 +59,7 @@ import ErrorState from '../../components/ErrorState';
 import NoticeCallout from '../../components/NoticeCallout';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { travelerPublicBookingReference } from '../../lib/public-booking-reference';
+import { formatStayNightHuman } from '../../lib/stay-calendar';
 import { TraverionSingleDateField } from '../../components/calendar/TraverionSingleDateField';
 
 const WEEK_PROP_PAGE = 24;
@@ -621,29 +622,119 @@ export default function SupplierStayCalendar() {
             }}
           />
 
-          <div className="tv-avail-filters">
-            {view !== 'month' ? (
-              <>
-                <div className="tv-avail-filters__field">
-                  <TraverionSingleDateField
-                    id="stay-cal-from"
-                    label="From"
-                    value={filterFrom}
-                    minIso=""
-                    onChange={(iso) => {
-                      setFilterFrom(iso);
-                      if (view === 'week') {
-                        const w = weekRangeContaining(iso);
-                        setFilterFrom(w.from);
-                        setFilterTo(w.to);
-                        syncUrl({ from: w.from, to: w.to });
-                      } else {
+          <div className="stay-ops-cal-toolbar">
+            <div className="stay-ops-cal-toolbar__nav" role="group" aria-label="Calendar navigation">
+              <button
+                type="button"
+                className="stay-ops-cal-nav-btn lux-flat"
+                aria-label={
+                  view === 'month' ? 'Previous month' : view === 'week' ? 'Previous week' : 'Previous period'
+                }
+                onClick={() => {
+                  if (view === 'month') {
+                    setMonthCursor((c) => {
+                      const m = c.monthIndex0 - 1;
+                      return m < 0 ? { year: c.year - 1, monthIndex0: 11 } : { year: c.year, monthIndex0: m };
+                    });
+                    return;
+                  }
+                  if (view === 'week') {
+                    const from = addStayDays(weekFrom, -7);
+                    const to = addStayDays(from, 6);
+                    setFilterFrom(from);
+                    setFilterTo(to);
+                    syncUrl({ from, to });
+                    return;
+                  }
+                  const span = Math.max(1, eachIsoInRange(filterFrom, filterTo).length);
+                  const from = addStayDays(filterFrom, -span);
+                  const to = addStayDays(filterTo, -span);
+                  setFilterFrom(from);
+                  setFilterTo(to);
+                  syncUrl({ from, to });
+                }}
+              >
+                <ChevronLeft className="h-4 w-4" aria-hidden />
+              </button>
+              <button
+                type="button"
+                className="stay-ops-cal-nav-btn stay-ops-cal-nav-btn--today lux-flat"
+                onClick={() => {
+                  if (view === 'month') {
+                    const [y, m] = todayIso.split('-').map(Number);
+                    setMonthCursor({ year: y, monthIndex0: m - 1 });
+                    return;
+                  }
+                  if (view === 'week') {
+                    const w = weekRangeContaining(todayIso);
+                    setFilterFrom(w.from);
+                    setFilterTo(w.to);
+                    syncUrl({ from: w.from, to: w.to });
+                    return;
+                  }
+                  const from = todayIso;
+                  const to = addStayDays(todayIso, 13);
+                  setFilterFrom(from);
+                  setFilterTo(to);
+                  syncUrl({ from, to });
+                }}
+              >
+                Today
+              </button>
+              <button
+                type="button"
+                className="stay-ops-cal-nav-btn lux-flat"
+                aria-label={view === 'month' ? 'Next month' : view === 'week' ? 'Next week' : 'Next period'}
+                onClick={() => {
+                  if (view === 'month') {
+                    setMonthCursor((c) => {
+                      const m = c.monthIndex0 + 1;
+                      return m > 11 ? { year: c.year + 1, monthIndex0: 0 } : { year: c.year, monthIndex0: m };
+                    });
+                    return;
+                  }
+                  if (view === 'week') {
+                    const from = addStayDays(weekFrom, 7);
+                    const to = addStayDays(from, 6);
+                    setFilterFrom(from);
+                    setFilterTo(to);
+                    syncUrl({ from, to });
+                    return;
+                  }
+                  const span = Math.max(1, eachIsoInRange(filterFrom, filterTo).length);
+                  const from = addStayDays(filterFrom, span);
+                  const to = addStayDays(filterTo, span);
+                  setFilterFrom(from);
+                  setFilterTo(to);
+                  syncUrl({ from, to });
+                }}
+              >
+                <ChevronRight className="h-4 w-4" aria-hidden />
+              </button>
+              <p className="stay-ops-cal-toolbar__range">
+                {view === 'month'
+                  ? formatMonthLabel(monthCursor.year, monthCursor.monthIndex0)
+                  : view === 'week'
+                    ? `${formatStayNightHuman(weekFrom)} – ${formatStayNightHuman(addStayDays(weekFrom, 6))}`
+                    : `${formatStayNightHuman(filterFrom)} – ${formatStayNightHuman(filterTo)}`}
+              </p>
+            </div>
+
+            <div className="stay-ops-cal-toolbar__fields">
+              {view === 'agenda' ? (
+                <>
+                  <div className="tv-avail-filters__field">
+                    <TraverionSingleDateField
+                      id="stay-cal-from"
+                      label="From"
+                      value={filterFrom}
+                      minIso=""
+                      onChange={(iso) => {
+                        setFilterFrom(iso);
                         syncUrl({ from: iso });
-                      }
-                    }}
-                  />
-                </div>
-                {view === 'agenda' ? (
+                      }}
+                    />
+                  </div>
                   <div className="tv-avail-filters__field">
                     <TraverionSingleDateField
                       id="stay-cal-to"
@@ -656,157 +747,43 @@ export default function SupplierStayCalendar() {
                       }}
                     />
                   </div>
-                ) : (
-                  <div className="tv-avail-filters__shortcuts">
-                    <button
-                      type="button"
-                      className="lux-flat"
-                      aria-label="Previous week"
-                      onClick={() => {
-                        const from = addStayDays(weekFrom, -7);
-                        setFilterFrom(from);
-                        setFilterTo(addStayDays(from, 6));
-                        syncUrl({ from, to: addStayDays(from, 6) });
+                  <div className="tv-avail-filters__field">
+                    <label htmlFor="stay-cal-status">Status</label>
+                    <PartnerSelect
+                      id="stay-cal-status"
+                      aria-label="Status"
+                      value={statusFilter}
+                      onChange={(v) => {
+                        const next = parseStayCalendarStatusFilter(v);
+                        setStatusFilter(next);
+                        syncUrl({ status: next });
                       }}
-                    >
-                      <ChevronLeft className="h-4 w-4" aria-hidden />
-                    </button>
-                    <button
-                      type="button"
-                      className="lux-flat"
-                      onClick={() => {
-                        const w = weekRangeContaining(todayIso);
-                        setFilterFrom(w.from);
-                        setFilterTo(w.to);
-                        syncUrl({ from: w.from, to: w.to });
-                      }}
-                    >
-                      Today
-                    </button>
-                    <button
-                      type="button"
-                      className="lux-flat"
-                      aria-label="Next week"
-                      onClick={() => {
-                        const from = addStayDays(weekFrom, 7);
-                        setFilterFrom(from);
-                        setFilterTo(addStayDays(from, 6));
-                        syncUrl({ from, to: addStayDays(from, 6) });
-                      }}
-                    >
-                      <ChevronRight className="h-4 w-4" aria-hidden />
-                    </button>
+                      options={[
+                        { value: 'all', label: 'All' },
+                        { value: 'booked', label: 'Booked' },
+                        { value: 'pending', label: 'Pending approval' },
+                        { value: 'blocked', label: 'Blocked' },
+                      ]}
+                    />
                   </div>
-                )}
-                {view === 'agenda' ? (
-                  <div className="tv-avail-filters__shortcuts">
-                    <button
-                      type="button"
-                      className="lux-flat"
-                      onClick={() => {
-                        setFilterFrom(todayIso);
-                        setFilterTo(todayIso);
-                        syncUrl({ from: todayIso, to: todayIso });
-                      }}
-                    >
-                      Today
-                    </button>
-                    <button
-                      type="button"
-                      className="lux-flat"
-                      onClick={() => {
-                        const from = todayIso;
-                        const to = addStayDays(todayIso, 13);
-                        setFilterFrom(from);
-                        setFilterTo(to);
-                        syncUrl({ from, to });
-                      }}
-                    >
-                      Next 14 days
-                    </button>
-                  </div>
-                ) : null}
-              </>
-            ) : (
-              <div className="tv-avail-filters__shortcuts">
-                <button
-                  type="button"
-                  className="lux-flat"
-                  aria-label="Previous month"
-                  onClick={() =>
-                    setMonthCursor((c) => {
-                      const m = c.monthIndex0 - 1;
-                      return m < 0 ? { year: c.year - 1, monthIndex0: 11 } : { year: c.year, monthIndex0: m };
-                    })
-                  }
-                >
-                  <ChevronLeft className="h-4 w-4" aria-hidden />
-                </button>
-                <span className="px-2 text-[13px] font-semibold text-slate-800">
-                  {formatMonthLabel(monthCursor.year, monthCursor.monthIndex0)}
-                </span>
-                <button
-                  type="button"
-                  className="lux-flat"
-                  aria-label="Next month"
-                  onClick={() =>
-                    setMonthCursor((c) => {
-                      const m = c.monthIndex0 + 1;
-                      return m > 11 ? { year: c.year + 1, monthIndex0: 0 } : { year: c.year, monthIndex0: m };
-                    })
-                  }
-                >
-                  <ChevronRight className="h-4 w-4" aria-hidden />
-                </button>
-                <button
-                  type="button"
-                  className="lux-flat"
-                  onClick={() => {
-                    const [y, m] = todayIso.split('-').map(Number);
-                    setMonthCursor({ year: y, monthIndex0: m - 1 });
-                  }}
-                >
-                  Today
-                </button>
-              </div>
-            )}
-
-            <div className="tv-avail-filters__field tv-avail-filters__field--grow">
-              <label htmlFor="stay-cal-listing">Property</label>
-              <PartnerSelect
-                id="stay-cal-listing"
-                aria-label="Property"
-                value={listingId}
-                onChange={(id) => {
-                  setListingId(id);
-                  setWeekPropPage(0);
-                  setRangeSelect(null);
-                  syncUrl({ listing: id });
-                }}
-                options={listingOptions}
-              />
-            </div>
-            {view === 'agenda' ? (
-              <div className="tv-avail-filters__field">
-                <label htmlFor="stay-cal-status">Status</label>
+                </>
+              ) : null}
+              <div className="tv-avail-filters__field tv-avail-filters__field--grow">
+                <label htmlFor="stay-cal-listing">Property</label>
                 <PartnerSelect
-                  id="stay-cal-status"
-                  aria-label="Status"
-                  value={statusFilter}
-                  onChange={(v) => {
-                    const next = parseStayCalendarStatusFilter(v);
-                    setStatusFilter(next);
-                    syncUrl({ status: next });
+                  id="stay-cal-listing"
+                  aria-label="Property"
+                  value={listingId}
+                  onChange={(id) => {
+                    setListingId(id);
+                    setWeekPropPage(0);
+                    setRangeSelect(null);
+                    syncUrl({ listing: id });
                   }}
-                  options={[
-                    { value: 'all', label: 'All' },
-                    { value: 'booked', label: 'Booked' },
-                    { value: 'pending', label: 'Pending approval' },
-                    { value: 'blocked', label: 'Blocked' },
-                  ]}
+                  options={listingOptions}
                 />
               </div>
-            ) : null}
+            </div>
           </div>
 
           {view === 'agenda' ? (
@@ -875,9 +852,11 @@ function StayAgenda({
 }) {
   if (groups.length === 0) {
     return (
-      <div className="tv-avail-empty">
-        <p className="tv-avail-empty__title">No activity in this range</p>
-        <p className="tv-avail-empty__body">Try another date range, or block nights in Week or Month.</p>
+      <div className="tv-avail-empty stay-ops-cal-empty">
+        <p className="tv-avail-empty__title">No arrivals, departures or blocks</p>
+        <p className="tv-avail-empty__body">
+          Adjust the date range, or open Week / Month to manage availability.
+        </p>
       </div>
     );
   }
@@ -916,13 +895,13 @@ function StayAgenda({
                     <span className="tv-avail-agenda__product">{guestLine}</span>
                     <span className="tv-avail-agenda__option">
                       {kindChip} · {r.listingTitle}
-                      {r.guests > 0 ? ` · ${r.guests}` : ''}
+                      {r.guests > 0 ? ` · ${r.guests} guests` : ''}
                       {r.timeLabel ? ` · ${r.timeLabel}` : ''}
                     </span>
                   </span>
                   <span className="tv-avail-agenda__meta">
                     {r.reference ? (
-                      <span className="tabular-nums text-[12px] text-slate-500">
+                      <span className="stay-ops-agenda-ref">
                         {travelerPublicBookingReference(r.reference) ?? r.reference}
                       </span>
                     ) : null}
@@ -1012,7 +991,12 @@ function StayWeek({
                     </span>
                   </th>
                   <td className="tv-stay-cal-week__track" colSpan={7}>
-                    <div className="tv-stay-cal-week__track-inner">
+                    <div
+                      className="tv-stay-cal-week__track-inner"
+                      style={{
+                        minHeight: `${Math.max(2.35, 1.1 + spans[0]?.laneCount * 1.55)}rem`,
+                      }}
+                    >
                       <div
                         className="tv-stay-cal-week__grid"
                         style={{ gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' }}
@@ -1050,12 +1034,15 @@ function StayWeek({
                           <button
                             key={span.bookingId}
                             type="button"
-                            className={`tv-stay-cal-week__span ${span.pending ? 'is-pending' : 'is-booked'}`}
+                            className={`tv-stay-cal-week__span ${span.pending ? 'is-pending' : 'is-booked'}${
+                              span.laneCount > 1 ? ' is-stacked' : ''
+                            }`}
                             style={{
                               gridColumn: `${span.colStart + 1} / span ${span.colSpan}`,
+                              gridRow: span.lane + 1,
                             }}
                             onClick={() => onOpenReservation(span.bookingId)}
-                            title={`${span.guestName}${span.pending ? ' · Pending' : ''}`}
+                            title={`${span.guestName}${span.pending ? ' · Pending' : ''} · ${span.startIso} → ${span.endIso}`}
                             aria-label={`${span.guestName}, ${span.colSpan} night${span.colSpan === 1 ? '' : 's'}${span.pending ? ', pending' : ''}`}
                           >
                             <span className="truncate">{span.guestName}</span>
@@ -1298,6 +1285,13 @@ function StayMonth({
               }}
             >
               <span className="tv-cal-day__num">{Number(cell.iso.slice(8))}</span>
+              {occupied ? (
+                <span className="tv-stay-cal-month__bar" aria-hidden>
+                  {occupying.length > 1 ? occupying.length : ''}
+                </span>
+              ) : kind === 'blocked' ? (
+                <span className="tv-stay-cal-month__bar tv-stay-cal-month__bar--blocked" aria-hidden />
+              ) : null}
               {meta ? <span className="tv-cal-day__meta">{meta}</span> : null}
             </button>
           );

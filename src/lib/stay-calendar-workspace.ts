@@ -82,7 +82,33 @@ export type StayCalendarWeekSpan = {
   colStart: number;
   colSpan: number;
   pending: boolean;
+  /** Vertical lane when bookings overlap on the same property row. */
+  lane: number;
+  /** Total lanes used on this property in the visible week (for row height). */
+  laneCount: number;
 };
+
+/** Assign non-overlapping lanes to week spans (greedy by start). */
+export function assignStayWeekSpanLanes(
+  spans: Array<Omit<StayCalendarWeekSpan, 'lane' | 'laneCount'>>
+): StayCalendarWeekSpan[] {
+  const sorted = [...spans].sort((a, b) => a.colStart - b.colStart || b.colSpan - a.colSpan);
+  const laneEnds: number[] = [];
+  const withLanes: Array<Omit<StayCalendarWeekSpan, 'laneCount'> & { lane: number }> = [];
+  for (const span of sorted) {
+    const spanEnd = span.colStart + span.colSpan;
+    let lane = laneEnds.findIndex((end) => end <= span.colStart);
+    if (lane < 0) {
+      lane = laneEnds.length;
+      laneEnds.push(spanEnd);
+    } else {
+      laneEnds[lane] = spanEnd;
+    }
+    withLanes.push({ ...span, lane });
+  }
+  const laneCount = Math.max(1, laneEnds.length);
+  return withLanes.map((s) => ({ ...s, laneCount }));
+}
 
 export function stayBookingIsPendingApproval(b: InventoryHoldRow, nowMs = Date.now()): boolean {
   if (!bookingOccupiesInventory(b, nowMs)) return false;
@@ -335,7 +361,7 @@ export function buildStayCalendarWeekSpans(params: {
 }): StayCalendarWeekSpan[] {
   const now = params.nowMs ?? Date.now();
   const weekToExclusive = addCalendarDays(params.weekFromIso, 7);
-  const spans: StayCalendarWeekSpan[] = [];
+  const spans: Array<Omit<StayCalendarWeekSpan, 'lane' | 'laneCount'>> = [];
 
   for (const b of params.bookings) {
     if (b.listing_id !== params.listingId) continue;
@@ -360,8 +386,7 @@ export function buildStayCalendarWeekSpans(params: {
       pending: stayBookingIsPendingApproval(b, now),
     });
   }
-  spans.sort((a, b) => a.colStart - b.colStart || b.colSpan - a.colSpan);
-  return spans;
+  return assignStayWeekSpanLanes(spans);
 }
 
 export function eachIsoInRange(fromIso: string, toIsoInclusive: string): string[] {

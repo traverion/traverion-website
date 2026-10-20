@@ -6311,7 +6311,10 @@ details:not([open]) > :not(summary) {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  align-items: center;
+  align-content: start;
+  align-items: stretch;
+  grid-auto-rows: 1.45rem;
+  row-gap: 0.15rem;
   padding: 0.2rem 0;
 }
 .tv-stay-cal-week__cell {
@@ -6459,7 +6462,7 @@ details:not([open]) > :not(summary) {
   display: flex;
   align-items: center;
   align-self: center;
-  padding: 0 0 0 0.75rem;
+  padding: 0 0 0 0.55rem;
 }
 
 .stay-ops-card__hit {
@@ -7051,6 +7054,86 @@ details:not([open]) > :not(summary) {
   align-items: center;
 }
 
+.stay-ops-booking-summary--compact {
+  margin-top: 0;
+  align-items: center;
+}
+
+.stay-ops-booking-summary__property-inline {
+  font-weight: 650;
+  color: #334155;
+  max-width: 14rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Activity timeline */
+.stay-ops-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.stay-ops-timeline__item {
+  display: grid;
+  grid-template-columns: 0.75rem minmax(0, 1fr);
+  gap: 0.55rem;
+  padding: 0.35rem 0;
+  position: relative;
+}
+
+.stay-ops-timeline__item:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 0.28rem;
+  top: 1.05rem;
+  bottom: -0.05rem;
+  width: 1px;
+  background: var(--stay-ops-border);
+}
+
+.stay-ops-timeline__dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  margin-top: 0.28rem;
+  border-radius: 999px;
+  background: var(--stay-ops-blue);
+  box-shadow: 0 0 0 2px #fff;
+}
+
+.stay-ops-timeline__label {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--stay-ops-ink);
+  line-height: 1.3;
+  text-transform: capitalize;
+}
+
+.stay-ops-timeline__detail {
+  font-weight: 500;
+  color: var(--stay-ops-muted);
+  text-transform: none;
+}
+
+.stay-ops-timeline__time {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.6875rem;
+  color: var(--stay-ops-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.stay-ops-timeline__empty {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--stay-ops-muted);
+}
+
 .partner-stay-ops__toolbar {
   gap: 0.45rem;
 }
@@ -7082,7 +7165,18 @@ details:not([open]) > :not(summary) {
 .partner-stay-ops .stay-ops-list {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.35rem;
+  max-width: 52rem;
+}
+
+@media (min-width: 1100px) {
+  .partner-stay-ops .stay-ops-list {
+    max-width: 58rem;
+  }
+}
+
+.partner-stay-ops .partner-stay-ops__toolbar {
+  max-width: 58rem;
 }
 
 .partner-stay-ops .partner-stay-ops__bulk {
@@ -7270,7 +7364,119 @@ details:not([open]) > :not(summary) {
 }
 
 .tv-stay-cal-page .stay-ops-segment {
-  margin-bottom: 0.625rem;
+  margin-bottom: 0.55rem;
+}
+
+.stay-ops-cal-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin-bottom: 0.65rem;
+}
+
+@media (min-width: 900px) {
+  .stay-ops-cal-toolbar {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+}
+
+.stay-ops-cal-toolbar__nav {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.stay-ops-cal-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2rem;
+  min-width: 2rem;
+  padding: 0 0.45rem;
+  border-radius: var(--stay-ops-radius-sm);
+  border: 1px solid var(--stay-ops-border);
+  background: #fff;
+  color: var(--stay-ops-ink);
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+
+.stay-ops-cal-nav-btn:hover {
+  background: var(--stay-ops-surface);
+}
+
+.stay-ops-cal-nav-btn--today {
+  min-width: auto;
+  padding: 0 0.65rem;
+}
+
+.stay-ops-cal-toolbar__range {
+  margin: 0 0 0 0.35rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--stay-ops-ink);
+  white-space: nowrap;
+}
+
+.stay-ops-cal-toolbar__fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.45rem 0.55rem;
+  min-width: 0;
+  flex: 1 1 auto;
+  justify-content: flex-end;
+}
+
+.stay-ops-cal-empty {
+  padding: 1.5rem 1rem;
+  border: 1px dashed var(--stay-ops-border);
+  border-radius: var(--stay-ops-radius);
+  background: #fff;
+}
+
+.stay-ops-agenda-ref {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.6875rem;
+  font-weight: 650;
+  color: var(--stay-ops-blue);
+}
+
+.tv-stay-cal-month__bar {
+  display: block;
+  width: 100%;
+  height: 0.28rem;
+  margin-top: auto;
+  border-radius: 999px;
+  background: var(--stay-ops-blue);
+  color: #fff;
+  font-size: 0.5rem;
+  font-weight: 700;
+  line-height: 0.28rem;
+  text-align: center;
+}
+
+.tv-stay-cal-month__bar--blocked {
+  background: repeating-linear-gradient(
+    -45deg,
+    #94a3b8,
+    #94a3b8 2px,
+    #cbd5e1 2px,
+    #cbd5e1 4px
+  );
+}
+
+.tv-stay-cal-page .tv-stay-cal-month .tv-cal-day {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  min-height: 3.35rem;
+  padding: 0.28rem 0.3rem 0.35rem;
 }
 
 .tv-stay-cal-page .tv-avail-switch {
@@ -7479,9 +7685,16 @@ details:not([open]) > :not(summary) {
   align-items: center;
   justify-content: space-between;
   gap: 0.25rem;
-  min-height: 1.8rem;
+  min-height: 1.35rem;
+  height: 1.35rem;
   cursor: pointer;
   box-shadow: 0 1px 0 rgba(15, 23, 42, 0.08);
+}
+
+.tv-stay-cal-page .tv-stay-cal-week__span.is-stacked {
+  min-height: 1.25rem;
+  height: 1.25rem;
+  font-size: 10px;
 }
 
 .tv-stay-cal-week__span-nights {

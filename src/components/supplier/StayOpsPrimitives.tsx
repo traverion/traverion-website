@@ -129,22 +129,28 @@ export function StayOpsBookingSummary({
   referenceLabel,
   statusLabel,
   actions,
+  /** When true, omit guest/property (already shown in the conversation header). */
+  compact = false,
 }: {
-  guestName: string;
-  propertyTitle: string;
+  guestName?: string | null;
+  propertyTitle?: string | null;
   whenLabel?: string | null;
   referenceLabel?: string | null;
   statusLabel?: string | null;
   actions?: ReactNode;
+  compact?: boolean;
 }) {
   return (
-    <aside className="stay-ops-booking-summary" aria-label="Booking summary">
+    <aside className={`stay-ops-booking-summary${compact ? ' stay-ops-booking-summary--compact' : ''}`} aria-label="Booking summary">
       <div className="stay-ops-booking-summary__main">
-        <p className="stay-ops-booking-summary__guest">{guestName}</p>
-        <p className="stay-ops-booking-summary__property" title={propertyTitle}>
-          {propertyTitle}
-        </p>
+        {!compact && guestName ? <p className="stay-ops-booking-summary__guest">{guestName}</p> : null}
+        {!compact && propertyTitle ? (
+          <p className="stay-ops-booking-summary__property" title={propertyTitle}>
+            {propertyTitle}
+          </p>
+        ) : null}
         <div className="stay-ops-booking-summary__meta">
+          {compact && propertyTitle ? <span className="stay-ops-booking-summary__property-inline">{propertyTitle}</span> : null}
           {whenLabel ? <span>{whenLabel}</span> : null}
           {referenceLabel ? <span className="stay-ops-booking-summary__ref">{referenceLabel}</span> : null}
           {statusLabel ? <span>{statusLabel}</span> : null}
@@ -152,5 +158,42 @@ export function StayOpsBookingSummary({
       </div>
       {actions ? <div className="stay-ops-booking-summary__actions">{actions}</div> : null}
     </aside>
+  );
+}
+
+export type StayOpsTimelineItem = {
+  id: string;
+  label: string;
+  detail?: string | null;
+  at: string | null;
+};
+
+/** Compact chronological booking activity strip. */
+export function StayOpsTimeline({ items }: { items: StayOpsTimelineItem[] }) {
+  if (items.length === 0) {
+    return <p className="stay-ops-timeline__empty">No activity recorded yet.</p>;
+  }
+  return (
+    <ol className="stay-ops-timeline">
+      {items.map((item) => (
+        <li key={item.id} className="stay-ops-timeline__item">
+          <span className="stay-ops-timeline__dot" aria-hidden />
+          <div className="stay-ops-timeline__body">
+            <p className="stay-ops-timeline__label">
+              {item.label}
+              {item.detail ? <span className="stay-ops-timeline__detail"> · {item.detail}</span> : null}
+            </p>
+            {item.at ? (
+              <time className="stay-ops-timeline__time" dateTime={item.at}>
+                {new Date(item.at).toLocaleString(undefined, {
+                  dateStyle: 'medium',
+                  timeStyle: 'short',
+                })}
+              </time>
+            ) : null}
+          </div>
+        </li>
+      ))}
+    </ol>
   );
 }

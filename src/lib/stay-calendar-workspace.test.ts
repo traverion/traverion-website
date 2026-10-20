@@ -87,6 +87,23 @@ describe('stay calendar workspace', () => {
     expect(spans).toHaveLength(1);
     expect(spans[0].colStart).toBe(0);
     expect(spans[0].colSpan).toBe(3); // Mon–Wed nights
+    expect(spans[0].lane).toBe(0);
+    expect(spans[0].laneCount).toBe(1);
+  });
+
+  it('stacks overlapping week spans onto separate lanes', () => {
+    const week = weekRangeContaining('2026-11-04');
+    const spans = buildStayCalendarWeekSpans({
+      weekFromIso: week.from,
+      listingId: 'stay-1',
+      bookings: [
+        booking({ id: 'a', booking_date: '2026-11-02', check_out: '2026-11-05' }),
+        booking({ id: 'b', guest_name: 'Bea', booking_date: '2026-11-03', check_out: '2026-11-06' }),
+      ],
+    });
+    expect(spans).toHaveLength(2);
+    expect(spans.map((s) => s.lane).sort()).toEqual([0, 1]);
+    expect(spans.every((s) => s.laneCount === 2)).toBe(true);
   });
 
   it('only unblocks supplier capacity-0 nights that are not occupied', () => {

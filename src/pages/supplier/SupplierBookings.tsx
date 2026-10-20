@@ -64,6 +64,9 @@ import StayOpsReservationCard from '../../components/supplier/StayOpsReservation
 import {
   StayOpsInOut,
   StayOpsMoneyStack,
+  StayOpsPanel,
+  StayOpsTimeline,
+  type StayOpsTimelineItem,
 } from '../../components/supplier/StayOpsPrimitives';
 import { isStayRequestAwaitingHost } from '../../lib/stay-request-approval';
 import { insertSupplierExportRun } from '../../data/supabase-supplier-campaigns-exports';
@@ -1546,19 +1549,26 @@ export default function SupplierBookings({
                     if (!user?.id) return;
                     const chosen = filteredBookings.filter((b) => selectedIds.has(b.id));
                     if (chosen.length === 0) return;
-                    void downloadBookingsCsv(chosen, listingMeta, {
-                      supplierId: user.id,
-                      actorId: user.id,
-                      dateFrom: filterDateFrom || undefined,
-                      dateTo: filterDateTo || undefined,
-                      filtersSnapshot: {
-                        surface: 'bookings',
-                        scope: 'selected',
-                        view,
-                        opsFilter,
-                        rowCount: chosen.length,
-                      },
-                    });
+                    void (async () => {
+                      const audited = await downloadBookingsCsv(chosen, listingMeta, {
+                        supplierId: user.id,
+                        actorId: user.id,
+                        dateFrom: filterDateFrom || undefined,
+                        dateTo: filterDateTo || undefined,
+                        filtersSnapshot: {
+                          surface: 'bookings',
+                          scope: 'selected',
+                          view,
+                          opsFilter,
+                          rowCount: chosen.length,
+                        },
+                      });
+                      if (!audited) {
+                        setError(
+                          'Export downloaded, but the audit log failed. Try again or contact support.'
+                        );
+                      }
+                    })();
                   }}
                 >
                   Export selected
@@ -2184,11 +2194,15 @@ export default function SupplierBookings({
                       ) : (
                         <StayOpsMoneyStack
                           rows={[
-                            ...(bookingTotalLabel
-                              ? [{ label: 'Guest total', value: bookingTotalLabel }]
-                              : []),
                             ...(commercialSnapshot && commercialState === 'ready'
                               ? [
+                                  {
+                                    label: 'Guest total',
+                                    value: formatSnapshotMinor(
+                                      commercialSnapshot.remaining_gross_minor,
+                                      commercialSnapshot.currency
+                                    ),
+                                  },
                                   {
                                     label: 'Platform commission',
                                     value: formatSnapshotMinor(
@@ -2206,7 +2220,24 @@ export default function SupplierBookings({
                                     tone: 'earn' as const,
                                   },
                                 ]
-                              : [{ label: 'Your earnings', value: 'Not recorded', tone: 'muted' as const }]),
+                              : bookingTotalLabel
+                                ? [
+                                    { label: 'Guest total', value: bookingTotalLabel },
+                                    {
+                                      label: 'Your earnings',
+                                      value:
+                                        commercialState === 'loading' ? 'Loading…' : 'Not recorded',
+                                      tone: 'muted' as const,
+                                    },
+                                  ]
+                                : [
+                                    {
+                                      label: 'Your earnings',
+                                      value:
+                                        commercialState === 'loading' ? 'Loading…' : 'Not recorded',
+                                      tone: 'muted' as const,
+                                    },
+                                  ]),
                             ...(collectedLabel &&
                             (collectedLabel !== bookingTotalLabel || collectedCaption !== 'Paid')
                               ? [
@@ -2377,71 +2408,57 @@ export default function SupplierBookings({
                       ) : null}
                     </section>
 
-                    <section className="stay-ops-detail__panel stay-ops-detail__panel--span">
-                      <button
-                        type="button"
-                        className="flex w-full items-center justify-between text-left"
-                        aria-expanded={drawerExtra === 'activity'}
-                        onClick={() =>
-                          setDrawerExtra(drawerExtra === 'activity' ? null : 'activity')
-                        }
-                      >
-                        <h3 className="stay-ops-detail__panel-title !mb-0">Booking activity</h3>
-                        <ChevronDown
-                          className={`h-4 w-4 text-ink-faint transition-transform duration-150 motion-reduce:transition-none ${drawerExtra === 'activity' ? 'rotate-180' : ''}`}
-                          aria-hidden
-                        />
-                      </button>
-                      {drawerExtra === 'activity' ? (
-                        <ol className="mt-2 space-y-1 text-[13px] text-ink-muted">
-                          <li>
-                            Booked{' '}
-                            {booking.created_at
-                              ? new Date(booking.created_at).toLocaleString(undefined, {
-                                  dateStyle: 'medium',
-                                  timeStyle: 'short',
-                                })
-                              : ''}
-                          </li>
-                          {bookingPaymentWasCollected(booking.payment_status) ? (
-                            <li>{partnerCollectedAmountCaption(booking)}</li>
-                          ) : null}
-                          {booking.acknowledged_at ? (
-                            <li>
-                              Reviewed{' '}
-                              {new Date(booking.acknowledged_at).toLocaleString(undefined, {
-                                dateStyle: 'medium',
-                                timeStyle: 'short',
-                              })}
-                            </li>
-                          ) : null}
-                          {openCancel ? (
-                            <li>
-                              Cancellation requested{' '}
-                              {new Date(openCancel.created_at).toLocaleString(undefined, {
-                                dateStyle: 'medium',
-                                timeStyle: 'short',
-                              })}
-                            </li>
-                          ) : null}
-                          {booking.status === 'cancelled' ? <li>Cancelled</li> : null}
-                          {activityEvents.map((event) => (
-                            <li key={event.id}>
-                              {event.event_type.replace(/_/g, ' ')}
-                              {event.details ? ` · ${event.details}` : ''} ·{' '}
-                              {new Date(event.created_at).toLocaleString(undefined, {
-                                dateStyle: 'medium',
-                                timeStyle: 'short',
-                              })}
-                            </li>
-                          ))}
-                        </ol>
-                      ) : (
-                        <p className="mt-1.5 text-[12.5px] text-ink-faint">
-                          Expand to view booking history.
-                        </p>
-                      )}
-                    </section>
+                    <StayOpsPanel title="Booking activity" span>
+                      <StayOpsTimeline
+                        items={(() => {
+                          const items: StayOpsTimelineItem[] = [];
+                          if (booking.created_at) {
+                            items.push({ id: 'booked', label: 'Booked', at: booking.created_at });
+                          }
+                          if (bookingPaymentWasCollected(booking.payment_status)) {
+                            items.push({
+                              id: 'paid',
+                              label: partnerCollectedAmountCaption(booking),
+                              at: null,
+                            });
+                          }
+                          if (booking.acknowledged_at) {
+                            items.push({
+                              id: 'reviewed',
+                              label: 'Reviewed',
+                              at: booking.acknowledged_at,
+                            });
+                          }
+                          if (openCancel) {
+                            items.push({
+                              id: `cancel-${openCancel.id}`,
+                              label: 'Cancellation requested',
+                              at: openCancel.created_at,
+                            });
+                          }
+                          if (booking.status === 'cancelled') {
+                            items.push({
+                              id: 'cancelled',
+                              label: 'Cancelled',
+                              at: booking.updated_at ?? null,
+                            });
+                          }
+                          for (const event of activityEvents) {
+                            items.push({
+                              id: event.id,
+                              label: event.event_type.replace(/_/g, ' '),
+                              detail: event.details,
+                              at: event.created_at,
+                            });
+                          }
+                          return items.sort((a, b) => {
+                            const ta = a.at ? new Date(a.at).getTime() : 0;
+                            const tb = b.at ? new Date(b.at).getTime() : 0;
+                            return ta - tb;
+                          });
+                        })()}
+                      />
+                    </StayOpsPanel>
                   </div>
 
                   <div className="stay-ops-detail__actions">

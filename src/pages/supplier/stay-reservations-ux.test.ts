@@ -29,6 +29,11 @@ describe('Stay Reservations premium UX contracts', () => {
     expect(ui).toContain('Back to reservations');
     expect(bookings).toContain('StayOpsMoneyStack');
     expect(bookings).toContain('StayOpsInOut');
+    expect(bookings).toContain('StayOpsTimeline');
+    expect(bookings).toContain('StayOpsPanel');
+    expect(bookings).toMatch(/audit log failed/);
+    expect(bookings).toContain('remaining_gross_minor');
+    expect(bookings).toContain('remaining_commission_minor');
   });
 
   it('ships stay-ops visual tokens for cards, detail panels and month selection', () => {
