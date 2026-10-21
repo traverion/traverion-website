@@ -8208,16 +8208,38 @@ details:not([open]) > :not(summary) {
   }
 }
 
+/* Income & Payouts — shared foundation (navy / white / minimal) */
+.tv-income {
+  --tv-income-ink: #18181b;
+  --tv-income-muted: #71717a;
+  --tv-income-border: #e5e7eb;
+  --tv-income-navy: #073b83;
+  --tv-income-surface: #f8fafc;
+  gap: 1rem;
+}
+
 .tv-income .tv-money-row {
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-  padding: 8px 12px;
+  padding: 10px 14px;
+  transition: background-color 160ms ease;
+}
+
+.tv-income .tv-money-row:hover,
+.tv-income .tv-money-row:focus-visible {
+  background: var(--tv-income-surface);
 }
 
 .tv-income .tv-money-row__amount {
   font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   font-size: 13px;
+  font-weight: 700;
+  color: var(--tv-income-ink);
+}
+
+.tv-income .tv-pickup-toolbar {
+  align-items: end;
 }
 
 .tv-income .tv-pickup-toolbar .tv-input {
@@ -8225,11 +8247,194 @@ details:not([open]) > :not(summary) {
   height: 40px;
   min-height: 40px;
   box-shadow: none;
+  border-radius: 8px;
+}
+
+.tv-income-metric {
+  border-radius: 10px;
+  border: 1px solid var(--tv-income-border);
+  background: #fff;
+  padding: 12px 14px;
+}
+
+.tv-income-metric__label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--tv-income-muted);
+}
+
+.tv-income-metric__value {
+  margin-top: 6px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--tv-income-ink);
+}
+
+.tv-income-status {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  background: #f4f4f5;
+  color: #3f3f46;
+}
+
+.tv-income-status--available {
+  background: #eef4ff;
+  color: var(--tv-income-navy);
+}
+
+.tv-income-status--paid {
+  background: #ecfdf5;
+  color: #065f46;
+}
+
+.tv-income-status--processing {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.tv-income-status--failed,
+.tv-income-status--reversed {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.tv-income-drawer {
+  animation: tv-income-drawer-in 180ms ease;
+}
+
+.tv-income-drawer__panel {
+  animation: tv-income-drawer-panel 200ms ease;
+}
+
+@keyframes tv-income-drawer-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes tv-income-drawer-panel {
+  from { transform: translateX(12px); opacity: 0.96; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.tv-income-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 3rem 1.25rem;
+  border: 1px solid var(--tv-income-border);
+  border-radius: 12px;
+  background: #fff;
+  animation: tv-income-empty-in 200ms ease;
+}
+
+@keyframes tv-income-empty-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.tv-income-empty__icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: #f0f4fa;
+  color: var(--tv-income-navy);
+  margin-bottom: 1rem;
+}
+
+.tv-income-pref-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border: 1px solid var(--tv-income-border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.tv-income-pref-card[data-selected='true'] {
+  border-color: var(--tv-income-navy);
+  background: rgba(7, 59, 131, 0.04);
+}
+
+.tv-income-pref-card:focus-within {
+  outline: 2px solid rgba(7, 59, 131, 0.28);
+  outline-offset: 2px;
+}
+
+.tv-income-export {
+  position: relative;
+}
+
+.tv-income-export__menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 30;
+  min-width: 11rem;
+  border: 1px solid var(--tv-income-border);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 12px 28px -18px rgba(15, 23, 42, 0.35);
+  padding: 4px;
+}
+
+.tv-income-export__menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tv-income-ink);
+}
+
+.tv-income-export__menu button:hover,
+.tv-income-export__menu button:focus-visible {
+  background: var(--tv-income-surface);
+}
+
+.tv-income table tbody tr {
+  transition: background-color 140ms ease;
+}
+
+.tv-income table tbody tr:hover,
+.tv-income table tbody tr:focus-visible {
+  background: var(--tv-income-surface);
+  outline: none;
 }
 
 @media (max-width: 720px) {
   .tv-income .tv-pickup-toolbar .tv-input {
     width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tv-income .tv-money-row,
+  .tv-income-pref-card,
+  .tv-income-drawer,
+  .tv-income-drawer__panel,
+  .tv-income-empty,
+  .tv-income table tbody tr {
+    animation: none !important;
+    transition: none !important;
   }
 }
 

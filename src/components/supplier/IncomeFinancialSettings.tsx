@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
+import { Info } from 'lucide-react';
 import { fetchSupplierProfile, updateSupplierPayout, type SupplierProfileRow } from '../../data/supabase-supplier-profile';
 import type { SupplierCommercialTermsRow } from '../../data/supabase-earnings';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
@@ -48,6 +49,41 @@ function cadenceLabel(cadence: string | null | undefined): string {
   return 'Not set';
 }
 
+function preferenceLabel(cycle: string | null | undefined): string {
+  if (cycle === 'biweekly') return 'Twice monthly';
+  if (cycle === 'monthly') return 'Monthly';
+  return 'Not saved';
+}
+
+function InfoTip({ label, children }: { label: string; children: string }) {
+  const tipId = useId();
+  const [open, setOpen] = useState(false);
+  return (
+    <span className="relative inline-flex">
+      <button
+        type="button"
+        className="inline-flex h-7 w-7 items-center justify-center rounded-full text-[#073b83] hover:bg-[#f0f4fa] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#073b83]"
+        aria-label={label}
+        aria-expanded={open}
+        aria-controls={tipId}
+        onClick={() => setOpen((v) => !v)}
+        onBlur={() => setOpen(false)}
+      >
+        <Info className="h-4 w-4" aria-hidden />
+      </button>
+      {open ? (
+        <span
+          id={tipId}
+          role="tooltip"
+          className="absolute left-0 top-[calc(100%+6px)] z-20 w-[min(18rem,calc(100vw-2rem))] rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-left text-[12px] leading-snug text-[#3f3f46] shadow-sm"
+        >
+          {children}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
 export default function IncomeFinancialSettings({
   userId,
   profile,
@@ -61,6 +97,7 @@ export default function IncomeFinancialSettings({
     profile?.payout_verification_submitted_at
   );
   const rates = catalogPayoutRates();
+  const currency = (payoutCurrency || 'EUR').toUpperCase();
   const [cycle, setCycle] = useState<PayoutCyclePreference | ''>(profile?.payment_cycle ?? '');
   const [threshold, setThreshold] = useState(
     profile?.payout_threshold_min != null ? String(profile.payout_threshold_min) : ''
@@ -91,6 +128,8 @@ export default function IncomeFinancialSettings({
     cycle === 'monthly' || cycle === 'biweekly' ? formatBpsAsPercent(catalogRateForPreference(cycle)) : null;
   const agreementRate = commercialTerms ? formatBpsAsPercent(commercialTerms.commission_bps) : null;
   const extraPoints = rates.extraBps / 100;
+  const savedPreference = preferenceLabel(profile?.payment_cycle);
+  const activeCadence = cadenceLabel(commercialTerms?.payout_cadence);
 
   const savePreferences = async () => {
     setPreferenceError(null);
@@ -159,33 +198,48 @@ export default function IncomeFinancialSettings({
 
   const changeMailto = `mailto:${SUPPLIER_SENSITIVE_CHANGES_SUPPORT_EMAIL}?subject=Supplier%20payout%20change%20request`;
 
+  const preferenceOptions = [
+    {
+      value: 'monthly' as const,
+      label: PARTNER_PAYOUT_FREQUENCY_MONTHLY_LABEL,
+      rate: rates.standardLabel,
+      tip: PARTNER_PAYOUT_FREQUENCY_MONTHLY_DETAIL,
+    },
+    {
+      value: 'biweekly' as const,
+      label: PARTNER_PAYOUT_FREQUENCY_TWICE_MONTHLY_LABEL,
+      rate: rates.twiceMonthlyLabel,
+      tip: PARTNER_PAYOUT_FREQUENCY_TWICE_MONTHLY_DETAIL,
+    },
+  ] as const;
+
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-4">
-      <section id="income-payout-account" className="rounded-lg border border-[#e5e7eb] bg-white px-4 py-3">
+    <div className="mx-auto w-full max-w-[1180px] space-y-4">
+      <section id="income-payout-account" className="rounded-[10px] border border-[#e5e7eb] bg-white px-4 py-4 sm:px-5">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="font-sans text-sm font-bold text-[#18181b]">Payout account</h2>
+          <h2 className="font-sans text-sm font-bold text-[#18181b]">Bank account</h2>
           <span className="text-[12px] font-semibold text-[#52525b]">{verificationLabel(profile?.payout_verification_status)}</span>
         </div>
-        <dl className="mt-3 grid gap-2 text-[13px] sm:grid-cols-2">
+        <dl className="mt-3 grid gap-3 text-[13px] sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <dt className="text-[11px] text-[#71717a]">Account holder</dt>
-            <dd>{profile?.company_legal_name || profile?.display_name || 'Not on file'}</dd>
+            <dt className="text-[11px] font-semibold text-[#71717a]">Account holder</dt>
+            <dd className="mt-0.5 text-[#18181b]">{profile?.company_legal_name || profile?.display_name || 'Not on file'}</dd>
           </div>
           <div>
-            <dt className="text-[11px] text-[#71717a]">IBAN</dt>
-            <dd className="tabular-nums">{maskIban(profile?.payout_iban) || 'Not on file'}</dd>
+            <dt className="text-[11px] font-semibold text-[#71717a]">IBAN</dt>
+            <dd className="mt-0.5 tabular-nums text-[#18181b]">{maskIban(profile?.payout_iban) || 'Not on file'}</dd>
           </div>
           <div>
-            <dt className="text-[11px] text-[#71717a]">BIC / SWIFT</dt>
-            <dd className="tabular-nums">{profile?.payout_bic?.trim() || 'Not on file'}</dd>
+            <dt className="text-[11px] font-semibold text-[#71717a]">BIC / SWIFT</dt>
+            <dd className="mt-0.5 tabular-nums text-[#18181b]">{profile?.payout_bic?.trim() || 'Not on file'}</dd>
           </div>
           <div>
-            <dt className="text-[11px] text-[#71717a]">Payout currency</dt>
-            <dd>{payoutCurrency || 'Per booking'}</dd>
+            <dt className="text-[11px] font-semibold text-[#71717a]">Payout currency</dt>
+            <dd className="mt-0.5 text-[#18181b]">{payoutCurrency || 'Per booking'}</dd>
           </div>
         </dl>
         {locked ? (
-          <div className="mt-3 space-y-2">
+          <div className="mt-4 space-y-2">
             <p className="text-[12px] leading-relaxed text-[#52525b]">
               {(profile?.payout_verification_status ?? '').trim().toLowerCase() === 'verified'
                 ? 'This bank account is verified and locked. Requesting a change does not replace it.'
@@ -194,21 +248,17 @@ export default function IncomeFinancialSettings({
             <a href={changeMailto} className="inline-flex text-[13px] font-semibold text-[#073b83]">
               Request bank account change
             </a>
-            <p className="text-[12px] text-[#71717a]">Opens an email to {SUPPLIER_SENSITIVE_CHANGES_SUPPORT_EMAIL}. Traverion reviews the request.</p>
           </div>
         ) : (
-          <div className="mt-3 space-y-3">
-            <p className="text-[12px] leading-relaxed text-[#52525b]">
-              Enter the account that should receive payouts. Submitting sends IBAN and BIC for review. It does not verify the account immediately.
-            </p>
+          <div className="mt-4 space-y-3">
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block text-[13px]">
                 <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.12em] text-[#71717a]">IBAN</span>
-                <input value={iban} disabled={!canEdit || bankSaving} onChange={(e) => setIban(e.target.value)} className="tv-input" autoComplete="off" />
+                <input value={iban} disabled={!canEdit || bankSaving} onChange={(e) => setIban(e.target.value)} className="tv-input h-10" autoComplete="off" />
               </label>
               <label className="block text-[13px]">
                 <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.12em] text-[#71717a]">BIC / SWIFT</span>
-                <input value={bic} disabled={!canEdit || bankSaving} onChange={(e) => setBic(e.target.value)} className="tv-input" autoComplete="off" />
+                <input value={bic} disabled={!canEdit || bankSaving} onChange={(e) => setBic(e.target.value)} className="tv-input h-10" autoComplete="off" />
               </label>
             </div>
             {(profile?.payout_verification_status ?? '').trim().toLowerCase() === 'rejected' && profile?.payout_verification_feedback ? (
@@ -223,19 +273,21 @@ export default function IncomeFinancialSettings({
         )}
       </section>
 
-      <section className="rounded-lg border border-[#e5e7eb] bg-white px-4 py-3">
-        <h2 className="font-sans text-sm font-bold text-[#18181b]">Payout preferences</h2>
-        <p className="mt-1 text-[12px] leading-relaxed text-[#52525b]">{PARTNER_PAYOUT_FREQUENCY_HINT}</p>
+      <section className="rounded-[10px] border border-[#e5e7eb] bg-white px-4 py-4 sm:px-5">
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="font-sans text-sm font-bold text-[#18181b]">Payout preferences</h2>
+          <InfoTip label="About payout preferences">{PARTNER_PAYOUT_FREQUENCY_HINT}</InfoTip>
+        </div>
+
         <fieldset className="mt-3" disabled={!canEdit || preferenceSaving}>
           <legend className="sr-only">Payout frequency</legend>
-          <div className="space-y-2" role="radiogroup" aria-label="Payout frequency">
-            {(
-              [
-                { value: 'monthly' as const, label: PARTNER_PAYOUT_FREQUENCY_MONTHLY_LABEL, detail: PARTNER_PAYOUT_FREQUENCY_MONTHLY_DETAIL },
-                { value: 'biweekly' as const, label: PARTNER_PAYOUT_FREQUENCY_TWICE_MONTHLY_LABEL, detail: PARTNER_PAYOUT_FREQUENCY_TWICE_MONTHLY_DETAIL },
-              ] as const
-            ).map((option) => (
-              <label key={option.value} className={`flex items-start gap-3 rounded-lg border px-3 py-2.5 ${cycle === option.value ? 'border-[#073b83] bg-[#073b83]/[0.04]' : 'border-[#e5e7eb]'}`}>
+          <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Payout frequency">
+            {preferenceOptions.map((option) => (
+              <label
+                key={option.value}
+                className="tv-income-pref-card"
+                data-selected={cycle === option.value ? 'true' : 'false'}
+              >
                 <input
                   type="radio"
                   name="income-payout-frequency"
@@ -244,45 +296,62 @@ export default function IncomeFinancialSettings({
                   onChange={() => setCycle(option.value)}
                   className="mt-1"
                 />
-                <span>
-                  <span className="block text-[13px] font-semibold text-[#18181b]">{option.label}</span>
-                  <span className="mt-0.5 block text-[12px] leading-snug text-[#52525b]">{option.detail}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-1.5">
+                    <span className="text-[13px] font-semibold text-[#18181b]">{option.label}</span>
+                    <InfoTip label={`${option.label} details`}>{option.tip}</InfoTip>
+                  </span>
+                  <span className="mt-1 block text-[12px] text-[#52525b]">
+                    Catalog commission <strong className="font-semibold text-[#18181b]">{option.rate}</strong>
+                  </span>
                 </span>
               </label>
             ))}
           </div>
         </fieldset>
-        <div className="mt-3 rounded-lg bg-[#fafafa] px-3 py-2.5 text-[12px] leading-relaxed text-[#3f3f46]">
+
+        <div className="mt-3 grid gap-2 rounded-lg border border-[#e5e7eb] bg-[#fafafa] px-3 py-2.5 text-[12px] text-[#3f3f46] sm:grid-cols-2">
           <p>
-            Catalog commission for the selected preference:{' '}
-            <strong className="font-semibold text-[#18181b]">{selectedCatalog ?? 'Choose a frequency'}</strong>.
-            Monthly uses the standard catalog rate of {rates.standardLabel}. Twice monthly uses {rates.twiceMonthlyLabel}, which is {extraPoints} percentage points more than standard.
+            <span className="block text-[11px] font-semibold text-[#71717a]">Saved preference</span>
+            {savedPreference}
+            {selectedCatalog ? ` · catalog ${selectedCatalog}` : ''}
           </p>
-          <p className="mt-1">
-            {agreementRate
-              ? `Your current agreement remains ${agreementRate} on a ${cadenceLabel(commercialTerms?.payout_cadence).toLowerCase()} cadence.`
-              : 'No commercial agreement is on file.'}{' '}
-            Saving a preference does not change that agreement and does not enable automatic payouts.
-          </p>
-          <p className="mt-1">
-            Saved preference: {profile?.payment_cycle === 'biweekly' ? 'Twice monthly' : profile?.payment_cycle === 'monthly' ? 'Monthly' : 'Not saved'}.
-            Active agreement cadence: {cadenceLabel(commercialTerms?.payout_cadence)}.
+          <p>
+            <span className="block text-[11px] font-semibold text-[#71717a]">Active agreement</span>
+            {agreementRate ? `${agreementRate} · ${activeCadence}` : 'No commercial agreement on file'}
           </p>
         </div>
-        <label className="mt-3 block max-w-xs text-[13px]">
-          <span className="mb-1 block font-semibold text-[#18181b]">Minimum payout threshold</span>
-          <span className="mb-2 block text-[12px] leading-snug text-[#52525b]">{PARTNER_PAYOUT_THRESHOLD_HINT}</span>
-          <input
-            type="text"
-            inputMode="decimal"
-            value={threshold}
-            disabled={!canEdit || preferenceSaving}
-            onChange={(e) => setThreshold(e.target.value)}
-            className="tv-input"
-            aria-label="Minimum payout threshold"
-          />
+        <p className="mt-2 text-[12px] text-[#71717a]">
+          Saving a preference does not change your contractual commission or enable automatic payouts.
+          {cycle === 'biweekly' ? ` Twice monthly uses a catalog rate ${extraPoints} points above the ${rates.standardLabel} standard.` : null}
+        </p>
+
+        <label className="mt-4 block max-w-sm text-[13px]">
+          <span className="mb-1 flex items-center gap-1.5 font-semibold text-[#18181b]">
+            Minimum payout threshold
+            <InfoTip label="About minimum payout threshold">{PARTNER_PAYOUT_THRESHOLD_HINT}</InfoTip>
+          </span>
+          <span className="relative mt-1 block">
+            <input
+              type="text"
+              inputMode="decimal"
+              value={threshold}
+              disabled={!canEdit || preferenceSaving}
+              onChange={(e) => setThreshold(e.target.value)}
+              className="tv-input h-10 pr-14"
+              aria-label={`Minimum payout threshold in ${currency}`}
+              placeholder="0.00"
+            />
+            <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[12px] font-semibold text-[#71717a]">
+              {currency}
+            </span>
+          </span>
+          <span className="mt-1.5 block text-[12px] text-[#71717a]">
+            Saved preference only — not an active payout rule until Traverion enables payouts.
+          </span>
         </label>
-        <div className="mt-3 flex flex-wrap items-center gap-3">
+
+        <div className="mt-4 flex flex-wrap items-center gap-3">
           <button type="button" className="tv-btn-primary h-10 px-3 text-[13px]" disabled={!canEdit || preferenceSaving} onClick={() => void savePreferences()}>
             {preferenceSaving ? 'Saving…' : 'Save changes'}
           </button>
@@ -292,53 +361,53 @@ export default function IncomeFinancialSettings({
         {!canEdit ? <p className="mt-2 text-[12px] text-[#71717a]">Your role can view these settings but cannot change them.</p> : null}
       </section>
 
-      <section className="rounded-lg border border-[#e5e7eb] bg-white px-4 py-3">
+      <section className="rounded-[10px] border border-[#e5e7eb] bg-white px-4 py-4 sm:px-5">
         <h2 className="font-sans text-sm font-bold text-[#18181b]">Commercial agreement</h2>
-        <dl className="mt-3 grid gap-2 text-[13px] sm:grid-cols-2">
+        <dl className="mt-3 grid gap-3 text-[13px] sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <dt className="text-[11px] text-[#71717a]">Current commission</dt>
-            <dd>{agreementRate ?? 'Not set'}</dd>
+            <dt className="text-[11px] font-semibold text-[#71717a]">Current commission</dt>
+            <dd className="mt-0.5">{agreementRate ?? 'Not set'}</dd>
           </div>
           <div>
-            <dt className="text-[11px] text-[#71717a]">Extra commission for the selected preference</dt>
-            <dd>
+            <dt className="text-[11px] font-semibold text-[#71717a]">Agreement cadence</dt>
+            <dd className="mt-0.5">{activeCadence}</dd>
+          </div>
+          <div>
+            <dt className="text-[11px] font-semibold text-[#71717a]">Payout currency</dt>
+            <dd className="mt-0.5">{payoutCurrency || 'Per booking'}</dd>
+          </div>
+          <div>
+            <dt className="text-[11px] font-semibold text-[#71717a]">Catalog vs preference</dt>
+            <dd className="mt-0.5">
               {cycle === 'biweekly'
-                ? `${extraPoints} percentage points above the ${rates.standardLabel} standard catalog rate`
+                ? `${rates.twiceMonthlyLabel} catalog for twice monthly`
                 : cycle === 'monthly'
-                  ? `None. Monthly uses the ${rates.standardLabel} standard catalog rate.`
-                  : 'Choose a frequency to see the catalog impact.'}
+                  ? `${rates.standardLabel} catalog for monthly`
+                  : 'Choose a frequency'}
             </dd>
           </div>
-          <div>
-            <dt className="text-[11px] text-[#71717a]">Payout currency</dt>
-            <dd>{payoutCurrency || 'Per booking'}</dd>
-          </div>
-          <div>
-            <dt className="text-[11px] text-[#71717a]">Agreement cadence</dt>
-            <dd>{cadenceLabel(commercialTerms?.payout_cadence)}</dd>
-          </div>
         </dl>
-        <p className="mt-2 text-[12px] text-[#71717a]">Contact Traverion to change payout plan.</p>
+        <p className="mt-3 text-[12px] text-[#71717a]">Contact Traverion to change your contractual payout plan.</p>
       </section>
 
-      <section className="rounded-lg border border-[#e5e7eb] bg-white px-4 py-3">
+      <section className="rounded-[10px] border border-[#e5e7eb] bg-white px-4 py-4 sm:px-5">
         <h2 className="font-sans text-sm font-bold text-[#18181b]">Business & tax</h2>
-        <dl className="mt-3 grid gap-2 text-[13px] sm:grid-cols-2">
+        <dl className="mt-3 grid gap-3 text-[13px] sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <dt className="text-[11px] text-[#71717a]">Registered business name</dt>
-            <dd>{profile?.company_legal_name || 'Not on file'}</dd>
+            <dt className="text-[11px] font-semibold text-[#71717a]">Registered business name</dt>
+            <dd className="mt-0.5">{profile?.company_legal_name || 'Not on file'}</dd>
           </div>
           <div>
-            <dt className="text-[11px] text-[#71717a]">Registration number</dt>
-            <dd>{profile?.company_registration_number || 'Not on file'}</dd>
+            <dt className="text-[11px] font-semibold text-[#71717a]">Registration number</dt>
+            <dd className="mt-0.5">{profile?.company_registration_number || 'Not on file'}</dd>
           </div>
           <div>
-            <dt className="text-[11px] text-[#71717a]">VAT number</dt>
-            <dd>{profile?.vat_id || 'Not on file'}</dd>
+            <dt className="text-[11px] font-semibold text-[#71717a]">VAT number</dt>
+            <dd className="mt-0.5">{profile?.vat_id || 'Not on file'}</dd>
           </div>
           <div>
-            <dt className="text-[11px] text-[#71717a]">Country</dt>
-            <dd>{profile?.address_country || 'Not on file'}</dd>
+            <dt className="text-[11px] font-semibold text-[#71717a]">Country</dt>
+            <dd className="mt-0.5">{profile?.address_country || 'Not on file'}</dd>
           </div>
         </dl>
         <button

@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
-import { Wallet } from 'lucide-react';
+import { ChevronDown, FileText, Wallet } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings, canManageFinance } from '../../lib/supplierTeamRoles';
@@ -20,7 +20,7 @@ import {
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
 import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 import { insertSupplierExportRun } from '../../data/supabase-supplier-campaigns-exports';
-import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierListSkeleton } from '../../components/supplier/supplierUi';
+import { SUPPLIER_PAGE_CLASS, SupplierListSkeleton } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { navigateSupplierUrl, openSupplierBooking } from '../../lib/supplierPortalNavigation';
@@ -49,12 +49,14 @@ import { displayListingTitleFromPurchase } from '../../lib/purchase-snapshot';
 import { travelerPublicBookingReference } from '../../lib/public-booking-reference';
 import {
   buildIncomeEarningRows,
+  commissionPercentLabel,
   earningStatusLabel,
   maskIban,
   payoutMaySayPaid,
   payoutPresentationStatus,
   sumNetMinor,
   type IncomeEarningRow,
+  type IncomeEarningStatus,
 } from '../../lib/supplier-income';
 import {
   downloadPdf,
@@ -84,6 +86,23 @@ function ledgerKindLabel(kind: string): string {
   if (k === 'adjustment') return 'Adjustment';
   if (k === 'supplier_recovery') return 'Recovery (post-payout refund)';
   return kind.replace(/_/g, ' ');
+}
+
+function earningStatusClass(status: IncomeEarningStatus): string {
+  if (status === 'eligible') return 'tv-income-status tv-income-status--available';
+  if (status === 'paid') return 'tv-income-status tv-income-status--paid';
+  if (status === 'included') return 'tv-income-status tv-income-status--processing';
+  if (status === 'reversed') return 'tv-income-status tv-income-status--reversed';
+  return 'tv-income-status';
+}
+
+function payoutStatusClass(status: string, paidAt: string | null | undefined): string {
+  const label = payoutPresentationStatus(status, paidAt);
+  if (label === 'Paid') return 'tv-income-status tv-income-status--paid';
+  if (label === 'Processing') return 'tv-income-status tv-income-status--processing';
+  if (label === 'Failed') return 'tv-income-status tv-income-status--failed';
+  if (label === 'Scheduled') return 'tv-income-status tv-income-status--available';
+  return 'tv-income-status';
 }
 
 export default function SupplierEarnings() {
@@ -116,6 +135,10 @@ export default function SupplierEarnings() {
   const [selectedPayoutId, setSelectedPayoutId] = useState<string | null>(null);
   const [docKind, setDocKind] = useState<'all' | 'statements' | 'payouts' | 'confirmations'>('all');
   const [docYear, setDocYear] = useState('all');
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [selectedPayoutItems, setSelectedPayoutItems] = useState<
+    Awaited<ReturnType<typeof fetchSupplierPayoutPeriodItems>>
+  >([]);
   const [tab, setTab] = useState<'overview' | 'earnings' | 'payouts' | 'documents' | 'settings'>(() => {
     if (typeof window === 'undefined') return 'overview';
     const value = new URLSearchParams(window.location.search).get('tab');
@@ -495,12 +518,31 @@ export default function SupplierEarnings() {
 
   const nextPayoutLabel = PARTNER_MONEY_PAYOUT_STATUS_NOTE;
 
-  const exportCsv = async () => {
+  const rowsInExportWindow = <T extends { created_at?: string | null }>(
+    rows: T[],
+    window: '30d' | '90d' | 'all'
+  ): T[] => {
+    const days = window === '30d' ? 30 : window === '90d' ? 90 : null;
+    if (days == null) return rows;
+    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+    return rows.filter((row) => {
+      const t = row.created_at ? new Date(row.created_at).getTime() : NaN;
+      return Number.isFinite(t) && t >= cutoff;
+    });
+  };
+
+  const exportCsv = async (windowOverride?: '30d' | '90d' | 'all') => {
     // Phase 1760: role gate before download + export_runs insert.
     if (!canExportFinance || !user?.id) return;
+    const exportWindow = windowOverride ?? listWindow;
+    if (windowOverride && windowOverride !== listWindow) setListWindowAndUrl(windowOverride);
+    const payouts = rowsInExportWindow(filteredEarnings, exportWindow);
+    const refundDue = rowsInExportWindow(refundDueBookings, exportWindow);
+    const collectedBookings = rowsInExportWindow(paidBookings, exportWindow);
+    const ledgerRows = rowsInExportWindow(ledger, exportWindow);
     const collectedForExport =
-      filteredEarningsInWindow.length === 0
-        ? paidBookingsInWindow.map((b) => ({
+      payouts.length === 0
+        ? collectedBookings.map((b) => ({
             ...b,
             listing_title:
               displayListingTitleFromPurchase(
@@ -512,17 +554,17 @@ export default function SupplierEarnings() {
         : [];
     if (
       !partnerMoneyCsvHasExportableRows({
-        payouts: filteredEarningsInWindow,
-        refundDue: refundDueBookingsInWindow,
+        payouts,
+        refundDue,
         collected: collectedForExport,
-        ledger: ledgerInWindow,
+        ledger: ledgerRows,
       })
     ) {
       return;
     }
     const body = buildPartnerMoneyCsvRows({
-      payouts: filteredEarningsInWindow,
-      refundDue: refundDueBookingsInWindow.map((b) => ({
+      payouts,
+      refundDue: refundDue.map((b) => ({
         ...b,
         listing_title:
           displayListingTitleFromPurchase(
@@ -532,7 +574,7 @@ export default function SupplierEarnings() {
           ) || null,
       })),
       collected: collectedForExport,
-      ledger: ledgerInWindow,
+      ledger: ledgerRows,
       ledgerKindLabel,
     });
     const csv = [PARTNER_MONEY_CSV_HEADER.join(','), ...body.map((cols) => cols.map(csvSafeCell).join(','))].join(
@@ -556,7 +598,7 @@ export default function SupplierEarnings() {
       filtersSnapshot: {
         surface: 'money',
         statusFilter,
-        listWindow,
+        listWindow: exportWindow,
       },
     });
     if (!audited) {
@@ -653,33 +695,58 @@ export default function SupplierEarnings() {
     else openPdf(bytes);
   };
 
-  const metric = (label: string, minor: number) => (
-    <div className="rounded-lg border border-[#e5e7eb] bg-white px-3 py-2.5">
-      <p className="text-[11px] font-semibold text-[#71717a]">{label}</p>
-      <p className="mt-1 font-sans text-xl font-bold tabular-nums tracking-tight text-[#18181b]">
-        {formatMoney(minor / 100, summaryCurrency)}
-      </p>
-    </div>
-  );
+  useEffect(() => {
+    if (!selectedPayoutId) {
+      setSelectedPayoutItems([]);
+      return;
+    }
+    let cancelled = false;
+    void fetchSupplierPayoutPeriodItems(selectedPayoutId).then((items) => {
+      if (!cancelled) setSelectedPayoutItems(items);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedPayoutId]);
+
+  const bookingAdjustmentsFor = (bookingId: string) =>
+    adjustmentRows.filter((row) => row.booking_id === bookingId);
+
+  const runExportForWindow = async (window: '30d' | '90d' | 'all') => {
+    setExportMenuOpen(false);
+    await exportCsv(window);
+  };
 
   return (
     <div className={`${SUPPLIER_PAGE_CLASS} tv-income font-sans`}>
-      <div className="flex items-center justify-between gap-3">
-        <div>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="font-sans text-lg font-bold tracking-tight text-[#18181b]">Income & Payouts</h1>
-          <p className="text-[12px] text-[#71717a]">{`Guest checkout uses ${STRIPE_TEST_UNTIL_LIVE}. Amounts on this page are not completed bank transfers.`}</p>
+          <p className="mt-0.5 text-[12px] text-[#71717a]">{`Guest checkout uses ${STRIPE_TEST_UNTIL_LIVE}. Amounts here are not bank transfers.`}</p>
         </div>
-        <button
-          type="button"
-          onClick={exportCsv}
-          disabled={!canExportFinance || !canExportMoney}
-          className="tv-btn-secondary h-9 shrink-0 px-2.5 text-[13px] disabled:opacity-40"
-          title={!canExportFinance ? 'Your role can view Income but cannot export CSV' : undefined}
-        >
-          Export
-        </button>
+        <div className="tv-income-export">
+          <button
+            type="button"
+            onClick={() => setExportMenuOpen((open) => !open)}
+            disabled={!canExportFinance || !canExportMoney}
+            className="tv-btn-secondary inline-flex h-9 shrink-0 items-center gap-1.5 px-2.5 text-[13px] disabled:opacity-40"
+            title={!canExportFinance ? 'Your role can view Income but cannot export CSV' : undefined}
+            aria-expanded={exportMenuOpen}
+            aria-haspopup="menu"
+          >
+            Export
+            <ChevronDown className="h-3.5 w-3.5" aria-hidden />
+          </button>
+          {exportMenuOpen ? (
+            <div className="tv-income-export__menu" role="menu">
+              <button type="button" role="menuitem" onClick={() => void runExportForWindow('30d')}>Last 30 days</button>
+              <button type="button" role="menuitem" onClick={() => void runExportForWindow('90d')}>Last 90 days</button>
+              <button type="button" role="menuitem" onClick={() => void runExportForWindow('all')}>All time</button>
+            </div>
+          ) : null}
+        </div>
       </div>
-      <div className="flex gap-1 overflow-x-auto" role="tablist" aria-label="Income">
+      <div className="flex gap-1 overflow-x-auto border-b border-[#e5e7eb] pb-px" role="tablist" aria-label="Income">
         {([
           ['overview', 'Overview'],
           ['earnings', 'Earnings'],
@@ -692,7 +759,7 @@ export default function SupplierEarnings() {
             type="button"
             role="tab"
             aria-selected={tab === id}
-            className={`h-9 shrink-0 rounded-md px-3 text-[13px] font-semibold ${tab === id ? 'bg-[#f0f4fa] text-[#073b83]' : 'text-[#52525b]'}`}
+            className={`h-9 shrink-0 rounded-md px-3 text-[13px] font-semibold transition-colors duration-150 ${tab === id ? 'bg-[#f0f4fa] text-[#073b83]' : 'text-[#52525b] hover:text-[#18181b]'}`}
             onClick={() => setTabAndUrl(id)}
           >
             {label}
@@ -718,40 +785,49 @@ export default function SupplierEarnings() {
       {loading && !hasMoney ? <SupplierListSkeleton rows={3} /> : null}
 
       {!loading && !hasMoney && !error ? (
-        <SupplierEmptyState
-          icon={Wallet}
-          title={PARTNER_MONEY_EMPTY_TITLE}
-          body={PARTNER_MONEY_EMPTY_BODY}
-          action={
-            <div className="flex flex-wrap gap-2">
-              {/* Phase 1647 */}
-              <button type="button" className="tv-btn-primary" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings`)}>
-                Open bookings
-              </button>
-              <button type="button" className="tv-btn-ghost" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings`)}>
-                Your listings
-              </button>
-            </div>
-          }
-        />
+        <div className="tv-income-empty">
+          <div className="tv-income-empty__icon"><Wallet className="h-6 w-6" aria-hidden /></div>
+          <h3 className="font-sans text-sm font-bold text-[#18181b]">{PARTNER_MONEY_EMPTY_TITLE}</h3>
+          <p className="mt-1 max-w-md text-[13px] leading-relaxed text-[#71717a]">{PARTNER_MONEY_EMPTY_BODY}</p>
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            <button type="button" className="tv-btn-primary h-9 px-3 text-[13px]" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings`)}>
+              Open bookings
+            </button>
+            <button type="button" className="tv-btn-secondary h-9 px-3 text-[13px]" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings`)}>
+              Your listings
+            </button>
+          </div>
+        </div>
       ) : null}
 
       {hasMoney && tab === 'overview' ? (
-        <div className="space-y-4">
+        <div className="mx-auto w-full max-w-[1180px] space-y-4">
           <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-            {metric('Total earnings', totalNet)}
-            {metric('Pending', pendingNet)}
-            {metric('Available for payout', availableNet)}
-            {metric('Paid out', paidNet)}
+            {(
+              [
+                ['Total earnings', totalNet],
+                ['Pending', pendingNet],
+                ['Available', availableNet],
+                ['Paid out', paidNet],
+              ] as const
+            ).map(([label, minor]) => (
+              <div key={label} className="tv-income-metric">
+                <p className="tv-income-metric__label">{label}</p>
+                <p className="tv-income-metric__value">{formatMoney(minor / 100, summaryCurrency)}</p>
+              </div>
+            ))}
           </div>
-          <p className="text-[12px] text-[#71717a]">Eligible for next payout is the available amount. A customer payment is not a payout.</p>
-          <div className="grid gap-2 rounded-lg border border-[#e5e7eb] bg-white px-3 py-2.5 text-[13px] sm:grid-cols-4">
-            <p><span className="block text-[11px] text-[#71717a]">Payout frequency</span>{planSummary ?? 'Not set'}</p>
-            <p><span className="block text-[11px] text-[#71717a]">Next payout</span>{nextPeriod ? formatMoney(Number(nextPeriod.amount_minor) / 100, nextPeriod.currency) : 'Not scheduled'}</p>
-            <p><span className="block text-[11px] text-[#71717a]">Next date</span>{nextPeriod ? incomeDate(nextPeriod.scheduled_for) : 'Not scheduled'}</p>
-            <p><span className="block text-[11px] text-[#71717a]">Payout account</span>{profile?.payout_verification_status === 'verified' ? 'Verified' : profile?.payout_iban ? 'Saved, not verified' : 'Missing'}</p>
+          <div className="grid gap-3 rounded-[10px] border border-[#e5e7eb] bg-white px-4 py-3 text-[13px] sm:grid-cols-2 lg:grid-cols-4">
+            <p><span className="mb-0.5 block text-[11px] font-semibold text-[#71717a]">Payout frequency</span>{planSummary ?? 'Not set'}</p>
+            <p><span className="mb-0.5 block text-[11px] font-semibold text-[#71717a]">Next payout</span>{nextPeriod ? formatMoney(Number(nextPeriod.amount_minor) / 100, nextPeriod.currency) : 'Not scheduled'}</p>
+            <p><span className="mb-0.5 block text-[11px] font-semibold text-[#71717a]">Next date</span>{nextPeriod ? incomeDate(nextPeriod.scheduled_for) : 'Not scheduled'}</p>
+            <p><span className="mb-0.5 block text-[11px] font-semibold text-[#71717a]">Payout account</span>{profile?.payout_verification_status === 'verified' ? 'Verified' : profile?.payout_iban ? 'Saved, not verified' : 'Missing'}</p>
           </div>
-          {processingNet > 0 ? <p className="text-[13px] text-[#52525b]">Processing: {formatMoney(processingNet / 100, summaryCurrency)}</p> : null}
+          {processingNet > 0 ? (
+            <p className="text-[13px] text-[#52525b]">
+              Processing: {formatMoney(processingNet / 100, summaryCurrency)}
+            </p>
+          ) : null}
           {!nextPeriod ? <p className="text-[12px] text-[#71717a]">{nextPayoutLabel}</p> : null}
           {recoveryBalance < 0 ? (
             <NoticeCallout title="Balance adjustment after payout" tone="warn">
@@ -759,36 +835,61 @@ export default function SupplierEarnings() {
             </NoticeCallout>
           ) : null}
           <section>
-            <h2 className="font-sans text-sm font-bold text-[#18181b]">Recent earnings</h2>
-            <ul className="mt-2 divide-y divide-[#e5e7eb] overflow-hidden rounded-lg border border-[#e5e7eb] bg-white">
+            <div className="flex items-baseline justify-between gap-2">
+              <h2 className="font-sans text-sm font-bold text-[#18181b]">Recent earnings</h2>
+              <button type="button" className="text-[12px] font-semibold text-[#073b83]" onClick={() => setTabAndUrl('earnings')}>
+                View all
+              </button>
+            </div>
+            <ul className="mt-2 divide-y divide-[#e5e7eb] overflow-hidden rounded-[10px] border border-[#e5e7eb] bg-white">
               {incomeRows.slice(0, 5).map((row) => (
                 <li key={row.bookingId}>
-                  <button type="button" className="tv-money-row w-full border-0 bg-transparent px-3 py-2 text-left shadow-none" onClick={() => setSelectedEarningId(row.bookingId)}>
+                  <button
+                    type="button"
+                    className="tv-money-row w-full border-0 bg-transparent text-left shadow-none"
+                    onClick={() => setSelectedEarningId(row.bookingId)}
+                  >
                     <span className="min-w-0">
                       <span className="block truncate text-[13px] font-semibold text-[#18181b]">{row.reference} · {row.experience}</span>
-                      <span className="text-[12px] text-[#71717a]">{incomeDate(row.activityDate)} · {earningStatusLabel(row.status)}</span>
+                      <span className="mt-0.5 flex flex-wrap items-center gap-2 text-[12px] text-[#71717a]">
+                        <span>{incomeDate(row.activityDate)}</span>
+                        <span className={earningStatusClass(row.status)}>{earningStatusLabel(row.status)}</span>
+                      </span>
                     </span>
-                    <span className="tv-money-row__amount text-[#18181b]">{formatMoney(row.netMinor / 100, row.currency)}</span>
+                    <span className="tv-money-row__amount">{formatMoney(row.netMinor / 100, row.currency)}</span>
                   </button>
                 </li>
               ))}
             </ul>
           </section>
           <section>
-            <h2 className="font-sans text-sm font-bold text-[#18181b]">Recent payouts</h2>
+            <div className="flex items-baseline justify-between gap-2">
+              <h2 className="font-sans text-sm font-bold text-[#18181b]">Recent payouts</h2>
+              <button type="button" className="text-[12px] font-semibold text-[#073b83]" onClick={() => setTabAndUrl('payouts')}>
+                View all
+              </button>
+            </div>
             {payoutPeriods.length === 0 && filteredEarningsInWindow.length === 0 ? (
-              <p className="mt-1 text-[13px] text-[#71717a]">No payout records yet.</p>
+              <p className="mt-2 text-[13px] text-[#71717a]">No payout records yet.</p>
             ) : (
-              <ul className="mt-2 divide-y divide-[#e5e7eb] overflow-hidden rounded-lg border border-[#e5e7eb] bg-white">
+              <ul className="mt-2 divide-y divide-[#e5e7eb] overflow-hidden rounded-[10px] border border-[#e5e7eb] bg-white">
                 {payoutPeriods.slice(0, 4).map((period) => (
-                  <li key={period.id} className="tv-money-row px-3 py-2">
-                    <span className="text-[13px] text-[#18181b]">{period.period_key} · {payoutPresentationStatus(period.status, period.paid_at)}</span>
-                    <span className="tv-money-row__amount">{formatMoney(Number(period.amount_minor) / 100, period.currency)}</span>
+                  <li key={period.id}>
+                    <button type="button" className="tv-money-row w-full text-left" onClick={() => setSelectedPayoutId(period.id)}>
+                      <span className="min-w-0">
+                        <span className="block text-[13px] font-semibold text-[#18181b]">{period.period_key}</span>
+                        <span className="mt-0.5 flex flex-wrap items-center gap-2 text-[12px] text-[#71717a]">
+                          <span>{incomeDate(period.scheduled_for || period.period_end)}</span>
+                          <span className={payoutStatusClass(period.status, period.paid_at)}>{payoutPresentationStatus(period.status, period.paid_at)}</span>
+                        </span>
+                      </span>
+                      <span className="tv-money-row__amount">{formatMoney(Number(period.amount_minor) / 100, period.currency)}</span>
+                    </button>
                   </li>
                 ))}
                 {payoutPeriods.length === 0
                   ? filteredEarningsInWindow.slice(0, 4).map((period) => (
-                      <li key={period.id} className="tv-money-row px-3 py-2">
+                      <li key={period.id} className="tv-money-row">
                         <span className="text-[13px] text-[#18181b]">
                           {period.period_start} – {period.period_end} · {period.status === 'paid' && period.payment_reference ? 'Paid' : PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL}
                         </span>
@@ -802,9 +903,9 @@ export default function SupplierEarnings() {
           {adjustmentRows.length > 0 ? (
             <section>
               <h2 className="font-sans text-sm font-bold text-[#18181b]">Adjustments</h2>
-              <ul className="mt-2">
+              <ul className="mt-2 divide-y divide-[#e5e7eb] overflow-hidden rounded-[10px] border border-[#e5e7eb] bg-white">
                 {adjustmentRows.slice(0, 4).map((row) => (
-                  <li key={row.id} className="tv-money-row px-0 py-2">
+                  <li key={row.id} className="tv-money-row">
                     <span className="text-[13px]">{ledgerKindLabel(row.kind)}</span>
                     <span className={`tv-money-row__amount ${Number(row.amount) < 0 ? 'text-red-800' : ''}`}>{formatMoney(Number(row.amount), row.currency)}</span>
                   </li>
@@ -816,74 +917,101 @@ export default function SupplierEarnings() {
       ) : null}
 
       {hasMoney && tab === 'earnings' ? (
-        <div className="space-y-3">
+        <div className="mx-auto w-full max-w-[1180px] space-y-3">
           <div className="tv-pickup-toolbar">
-            <input className="tv-input" type="search" aria-label="Search earnings" placeholder="Reference or experience" value={earningQuery} onChange={(event) => { setEarningQuery(event.target.value); setEarningPage(0); }} />
-            <input className="tv-input" type="date" aria-label="Activity from" value={earningFrom} onChange={(event) => { setEarningFrom(event.target.value); setEarningPage(0); }} />
-            <input className="tv-input" type="date" aria-label="Activity to" value={earningTo} onChange={(event) => { setEarningTo(event.target.value); setEarningPage(0); }} />
-            <select className="tv-input" aria-label="Experience" value={earningListing} onChange={(event) => { setEarningListing(event.target.value); setEarningPage(0); }}>
-              <option value="">All experiences</option>
-              {Object.entries(listingTitles).map(([id, title]) => <option key={id} value={id}>{title}</option>)}
-            </select>
-            <select className="tv-input" aria-label="Payout status" value={earningStatus} onChange={(event) => { setEarningStatus(event.target.value); setEarningPage(0); }}>
-              <option value="all">All statuses</option>
-              <option value="pending">Pending</option>
-              <option value="eligible">Available</option>
-              <option value="included">Processing</option>
-              <option value="paid">Paid out</option>
-              <option value="reversed">Reversed</option>
-              <option value="recorded">Recorded</option>
-            </select>
-            <select className="tv-input" aria-label="Sort earnings" value={earningSort} onChange={(event) => setEarningSort(event.target.value as 'activity' | 'purchase' | 'earnings')}>
-              <option value="activity">Activity date</option>
-              <option value="purchase">Purchase date</option>
-              <option value="earnings">Your earnings</option>
-            </select>
-          </div>
-          <div className="flex flex-wrap items-center gap-1.5">
-            {(['30d', '90d', 'all'] as const).map((w) => (
-              <button key={w} type="button" className={`h-8 rounded-md px-2 text-[12px] font-semibold ${listWindow === w ? 'bg-[#f0f4fa] text-[#073b83]' : 'text-[#52525b]'}`} onClick={() => setListWindowAndUrl(w)}>
-                {w === 'all' ? 'Export: all time' : `Export: ${w}`}
-              </button>
-            ))}
+            <label className="block min-w-[10rem] flex-1 text-[11px] font-semibold text-[#71717a]">
+              Search
+              <input className="tv-input mt-1 w-full" type="search" aria-label="Search earnings" placeholder="Reference or experience" value={earningQuery} onChange={(event) => { setEarningQuery(event.target.value); setEarningPage(0); }} />
+            </label>
+            <label className="block text-[11px] font-semibold text-[#71717a]">
+              From
+              <input className="tv-input mt-1" type="date" aria-label="Activity from" value={earningFrom} onChange={(event) => { setEarningFrom(event.target.value); setEarningPage(0); }} />
+            </label>
+            <label className="block text-[11px] font-semibold text-[#71717a]">
+              To
+              <input className="tv-input mt-1" type="date" aria-label="Activity to" value={earningTo} onChange={(event) => { setEarningTo(event.target.value); setEarningPage(0); }} />
+            </label>
+            <label className="block text-[11px] font-semibold text-[#71717a]">
+              Experience
+              <select className="tv-input mt-1" aria-label="Experience" value={earningListing} onChange={(event) => { setEarningListing(event.target.value); setEarningPage(0); }}>
+                <option value="">All experiences</option>
+                {Object.entries(listingTitles).map(([id, title]) => <option key={id} value={id}>{title}</option>)}
+              </select>
+            </label>
+            <label className="block text-[11px] font-semibold text-[#71717a]">
+              Status
+              <select className="tv-input mt-1" aria-label="Payout status" value={earningStatus} onChange={(event) => { setEarningStatus(event.target.value); setEarningPage(0); }}>
+                <option value="all">All statuses</option>
+                <option value="pending">Pending</option>
+                <option value="eligible">Available</option>
+                <option value="included">Processing</option>
+                <option value="paid">Paid out</option>
+                <option value="reversed">Reversed</option>
+                <option value="recorded">Recorded</option>
+              </select>
+            </label>
+            <label className="block text-[11px] font-semibold text-[#71717a]">
+              Sort by
+              <select className="tv-input mt-1" aria-label="Sort earnings" value={earningSort} onChange={(event) => setEarningSort(event.target.value as 'activity' | 'purchase' | 'earnings')}>
+                <option value="activity">Activity date</option>
+                <option value="purchase">Purchase date</option>
+                <option value="earnings">Your earnings</option>
+              </select>
+            </label>
           </div>
           {pageRows.length === 0 ? (
-            <SupplierEmptyState icon={Wallet} className="py-6" title="No rows for this filter" body={PARTNER_MONEY_FILTER_EMPTY_BODY} />
+            <div className="tv-income-empty">
+              <div className="tv-income-empty__icon"><Wallet className="h-6 w-6" aria-hidden /></div>
+              <h3 className="font-sans text-sm font-bold text-[#18181b]">No rows for this filter</h3>
+              <p className="mt-1 max-w-sm text-[13px] text-[#71717a]">{PARTNER_MONEY_FILTER_EMPTY_BODY}</p>
+            </div>
           ) : (
             <>
-              <div className="hidden overflow-hidden rounded-lg border border-[#e5e7eb] bg-white md:block">
-                <table className="w-full text-left text-[13px]">
-                  <thead className="border-b border-[#e5e7eb] text-[11px] uppercase tracking-wide text-[#71717a]">
+              <div className="hidden overflow-x-auto rounded-[10px] border border-[#e5e7eb] bg-white md:block">
+                <table className="w-full min-w-[40rem] text-left text-[13px]">
+                  <thead className="border-b border-[#e5e7eb] text-[11px] font-semibold uppercase tracking-wide text-[#71717a]">
                     <tr>
-                      <th className="px-3 py-2 font-semibold">Booking</th>
-                      <th className="px-3 py-2 font-semibold">Experience</th>
-                      <th className="px-3 py-2 font-semibold">Activity date</th>
-                      <th className="px-3 py-2 font-semibold">Purchase date</th>
-                      <th className="px-3 py-2 font-semibold">Your earnings</th>
-                      <th className="px-3 py-2 font-semibold">Status</th>
+                      <th className="px-3 py-2.5">Booking</th>
+                      <th className="px-3 py-2.5">Experience</th>
+                      <th className="px-3 py-2.5">Activity</th>
+                      <th className="px-3 py-2.5">Purchase</th>
+                      <th className="px-3 py-2.5 text-right">Your earnings</th>
+                      <th className="px-3 py-2.5">Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {pageRows.map((row) => (
-                      <tr key={row.bookingId} className="cursor-pointer border-t border-[#e5e7eb]" onClick={() => setSelectedEarningId(row.bookingId)}>
-                        <td className="px-3 py-2 font-semibold">{row.reference}</td>
-                        <td className="max-w-[16rem] truncate px-3 py-2">{row.experience}</td>
-                        <td className="px-3 py-2">{incomeDate(row.activityDate)}</td>
-                        <td className="px-3 py-2">{incomeDate(row.purchaseDate)}</td>
-                        <td className="px-3 py-2 font-bold tabular-nums">{formatMoney(row.netMinor / 100, row.currency)}</td>
-                        <td className="px-3 py-2">{earningStatusLabel(row.status)}</td>
+                      <tr
+                        key={row.bookingId}
+                        className="cursor-pointer border-t border-[#e5e7eb]"
+                        tabIndex={0}
+                        onClick={() => setSelectedEarningId(row.bookingId)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            setSelectedEarningId(row.bookingId);
+                          }
+                        }}
+                      >
+                        <td className="px-3 py-2.5 font-semibold text-[#18181b]">{row.reference}</td>
+                        <td className="max-w-[16rem] truncate px-3 py-2.5 text-[#3f3f46]">{row.experience}</td>
+                        <td className="px-3 py-2.5 text-[#52525b]">{incomeDate(row.activityDate)}</td>
+                        <td className="px-3 py-2.5 text-[#52525b]">{incomeDate(row.purchaseDate)}</td>
+                        <td className="px-3 py-2.5 text-right font-bold tabular-nums text-[#18181b]">{formatMoney(row.netMinor / 100, row.currency)}</td>
+                        <td className="px-3 py-2.5"><span className={earningStatusClass(row.status)}>{earningStatusLabel(row.status)}</span></td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              <ul className="divide-y divide-[#e5e7eb] overflow-hidden rounded-lg border border-[#e5e7eb] bg-white md:hidden">
+              <ul className="divide-y divide-[#e5e7eb] overflow-hidden rounded-[10px] border border-[#e5e7eb] bg-white md:hidden">
                 {pageRows.map((row) => (
                   <li key={row.bookingId}>
-                    <button type="button" className="tv-money-row w-full px-3 py-2 text-left" onClick={() => setSelectedEarningId(row.bookingId)}>
-                      <span>
-                        <span className="block font-semibold">{row.reference}</span>
-                        <span className="block truncate text-[12px] text-[#71717a]">{row.experience} · {incomeDate(row.activityDate)} · {earningStatusLabel(row.status)}</span>
+                    <button type="button" className="tv-money-row w-full text-left" onClick={() => setSelectedEarningId(row.bookingId)}>
+                      <span className="min-w-0">
+                        <span className="block font-semibold text-[#18181b]">{row.reference}</span>
+                        <span className="mt-0.5 block truncate text-[12px] text-[#71717a]">{row.experience} · {incomeDate(row.activityDate)}</span>
+                        <span className={`mt-1 ${earningStatusClass(row.status)}`}>{earningStatusLabel(row.status)}</span>
                       </span>
                       <span className="tv-money-row__amount">{formatMoney(row.netMinor / 100, row.currency)}</span>
                     </button>
@@ -901,83 +1029,144 @@ export default function SupplierEarnings() {
       ) : null}
 
       {hasMoney && tab === 'payouts' ? (
-        <div className="space-y-3">
-          <p className="text-[12px] text-[#71717a]">{nextPayoutLabel}</p>
+        <div className="mx-auto w-full max-w-[1180px] space-y-3">
           {payoutPeriods.length === 0 && filteredEarningsInWindow.length === 0 ? (
-            <p className="text-[13px] text-[#52525b]">No payout has been scheduled or recorded.</p>
+            <div className="tv-income-empty">
+              <div className="tv-income-empty__icon"><Wallet className="h-6 w-6" aria-hidden /></div>
+              <h3 className="font-sans text-sm font-bold text-[#18181b]">No payouts yet</h3>
+              <p className="mt-1 max-w-sm text-[13px] leading-relaxed text-[#71717a]">
+                {nextPayoutLabel} Eligible earnings appear here once Traverion schedules a payout period.
+              </p>
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                <button type="button" className="tv-btn-primary h-9 px-3 text-[13px]" onClick={() => setTabAndUrl('earnings')}>
+                  View earnings
+                </button>
+                <button type="button" className="tv-btn-secondary h-9 px-3 text-[13px]" onClick={() => setTabAndUrl('settings')}>
+                  Payout settings
+                </button>
+              </div>
+            </div>
           ) : (
-            <ul className="divide-y divide-[#e5e7eb] overflow-hidden rounded-lg border border-[#e5e7eb] bg-white">
-              {payoutPeriods.map((period) => (
-                <li key={period.id}>
-                  <button type="button" className="tv-money-row w-full px-3 py-2 text-left" onClick={() => setSelectedPayoutId(period.id)}>
-                    <span>
-                      <span className="block text-[13px] font-semibold">{period.period_key}</span>
-                      <span className="text-[12px] text-[#71717a]">{incomeDate(period.period_start)} – {incomeDate(period.period_end)} · {payoutPresentationStatus(period.status, period.paid_at)}</span>
+            <>
+              <p className="text-[12px] text-[#71717a]">{nextPayoutLabel}</p>
+              <ul className="divide-y divide-[#e5e7eb] overflow-hidden rounded-[10px] border border-[#e5e7eb] bg-white">
+                {payoutPeriods.map((period) => (
+                  <li key={period.id}>
+                    <button type="button" className="tv-money-row w-full text-left" onClick={() => setSelectedPayoutId(period.id)}>
+                      <span className="min-w-0">
+                        <span className="block text-[13px] font-semibold text-[#18181b]">{period.period_key}</span>
+                        <span className="mt-0.5 flex flex-wrap items-center gap-2 text-[12px] text-[#71717a]">
+                          <span>{incomeDate(period.period_start)} – {incomeDate(period.period_end)}</span>
+                          <span className={payoutStatusClass(period.status, period.paid_at)}>{payoutPresentationStatus(period.status, period.paid_at)}</span>
+                        </span>
+                      </span>
+                      <span className="tv-money-row__amount">{formatMoney(Number(period.amount_minor) / 100, period.currency)}</span>
+                    </button>
+                  </li>
+                ))}
+                {filteredEarningsInWindow.map((period) => (
+                  <li key={period.id} className="tv-money-row">
+                    <span className="min-w-0">
+                      <span className="block text-[13px] font-semibold text-[#18181b]">{period.invoice_number || 'Payout record'}</span>
+                      <span className="text-[12px] text-[#71717a]">
+                        {period.period_start} – {period.period_end} · {period.status === 'paid' && period.payment_reference ? `Paid · ${period.payment_reference}` : PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL}
+                      </span>
                     </span>
-                    <span className="tv-money-row__amount">{formatMoney(Number(period.amount_minor) / 100, period.currency)}</span>
-                  </button>
-                </li>
-              ))}
-              {filteredEarningsInWindow.map((period) => (
-                <li key={period.id} className="tv-money-row px-3 py-2">
-                  <span>
-                    <span className="block text-[13px] font-semibold">{period.invoice_number || 'Payout record'}</span>
-                    <span className="text-[12px] text-[#71717a]">
-                      {period.period_start} – {period.period_end} · {period.status === 'paid' && period.payment_reference ? `Paid · ${period.payment_reference}` : PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL}
-                    </span>
-                  </span>
-                  <span className="tv-money-row__amount">{formatMoney(Number(period.amount), period.currency)}</span>
-                </li>
-              ))}
-            </ul>
+                    <span className="tv-money-row__amount">{formatMoney(Number(period.amount), period.currency)}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
         </div>
       ) : null}
 
       {hasMoney && tab === 'documents' ? (
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="mx-auto w-full max-w-[1180px] space-y-3">
+          <div className="flex flex-wrap items-end gap-2">
             {(['all', 'statements', 'payouts', 'confirmations'] as const).map((kind) => (
-              <button key={kind} type="button" className={`h-8 rounded-md px-2.5 text-[12px] font-semibold ${docKind === kind ? 'bg-[#f0f4fa] text-[#073b83]' : 'text-[#52525b]'}`} onClick={() => setDocKind(kind)}>
+              <button
+                key={kind}
+                type="button"
+                className={`h-9 rounded-md px-2.5 text-[12px] font-semibold transition-colors duration-150 ${docKind === kind ? 'bg-[#f0f4fa] text-[#073b83]' : 'text-[#52525b] hover:text-[#18181b]'}`}
+                onClick={() => setDocKind(kind)}
+              >
                 {kind === 'all' ? 'All' : kind === 'statements' ? 'Earnings statements' : kind === 'payouts' ? 'Payout statements' : 'Payment confirmations'}
               </button>
             ))}
-            <select className="tv-input h-8 w-auto" aria-label="Year" value={docYear} onChange={(event) => setDocYear(event.target.value)}>
-              <option value="all">All years</option>
-              {docYears.map((year) => <option key={year} value={year}>{year}</option>)}
-            </select>
+            <label className="ml-auto block text-[11px] font-semibold text-[#71717a]">
+              Year
+              <select className="tv-input mt-1 h-9 w-auto min-w-[7rem]" aria-label="Year" value={docYear} onChange={(event) => setDocYear(event.target.value)}>
+                <option value="all">All years</option>
+                {docYears.map((year) => <option key={year} value={year}>{year}</option>)}
+              </select>
+            </label>
           </div>
-          <ul className="divide-y divide-[#e5e7eb] overflow-hidden rounded-lg border border-[#e5e7eb] bg-white">
-            {incomeRows
-              .filter((row) => row.grossMinor != null && (docKind === 'all' || docKind === 'statements') && (docYear === 'all' || (row.activityDate ?? '').startsWith(docYear)))
-              .map((row) => (
-                <li key={row.bookingId} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
-                  <span className="min-w-0">
-                    <span className="block text-[13px] font-semibold">Earnings statement · {row.reference}</span>
-                    <span className="text-[12px] text-[#71717a]">{incomeDate(row.activityDate)} · Net {formatMoney(row.netMinor / 100, row.currency)}</span>
-                  </span>
-                  <span className="flex gap-2">
-                    <button type="button" className="text-[13px] font-semibold text-[#073b83]" onClick={() => openEarningStatement(row, false)}>View PDF</button>
-                    <button type="button" className="text-[13px] font-semibold text-[#073b83]" onClick={() => openEarningStatement(row, true)}>Download PDF</button>
-                  </span>
-                </li>
-              ))}
-            {payoutPeriods
-              .filter((period) => (docKind === 'all' || docKind === 'payouts' || (docKind === 'confirmations' && payoutMaySayPaid(period.status, period.paid_at))) && (docYear === 'all' || period.period_end.startsWith(docYear)))
-              .map((period) => (
-                <li key={period.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
-                  <span>
-                    <span className="block text-[13px] font-semibold">{payoutMaySayPaid(period.status, period.paid_at) ? 'Payment confirmation' : 'Payout statement'} · {period.period_key}</span>
-                    <span className="text-[12px] text-[#71717a]">{payoutPresentationStatus(period.status, period.paid_at)} · {formatMoney(Number(period.amount_minor) / 100, period.currency)}</span>
-                  </span>
-                  <span className="flex gap-2">
-                    <button type="button" className="text-[13px] font-semibold text-[#073b83]" onClick={() => void openPayoutStatement(period, false)}>View PDF</button>
-                    <button type="button" className="text-[13px] font-semibold text-[#073b83]" onClick={() => void openPayoutStatement(period, true)}>Download PDF</button>
-                  </span>
-                </li>
-              ))}
-          </ul>
-          <p className="text-[12px] text-[#71717a]">Statements are generated from the frozen booking split. A payout statement is not a transfer receipt unless a completion time is recorded.</p>
+          {(() => {
+            const statementDocs = incomeRows.filter(
+              (row) =>
+                row.grossMinor != null &&
+                (docKind === 'all' || docKind === 'statements') &&
+                (docYear === 'all' || (row.activityDate ?? '').startsWith(docYear))
+            );
+            const payoutDocs = payoutPeriods.filter(
+              (period) =>
+                (docKind === 'all' ||
+                  docKind === 'payouts' ||
+                  (docKind === 'confirmations' && payoutMaySayPaid(period.status, period.paid_at))) &&
+                (docYear === 'all' || period.period_end.startsWith(docYear))
+            );
+            if (statementDocs.length === 0 && payoutDocs.length === 0) {
+              return (
+                <div className="tv-income-empty">
+                  <div className="tv-income-empty__icon"><FileText className="h-6 w-6" aria-hidden /></div>
+                  <h3 className="font-sans text-sm font-bold text-[#18181b]">No documents yet</h3>
+                  <p className="mt-1 max-w-sm text-[13px] text-[#71717a]">
+                    Earnings statements appear when a booking has a frozen commercial split. Payout statements appear after a period is recorded.
+                  </p>
+                </div>
+              );
+            }
+            return (
+              <ul className="divide-y divide-[#e5e7eb] overflow-hidden rounded-[10px] border border-[#e5e7eb] bg-white">
+                {statementDocs.map((row) => (
+                  <li key={row.bookingId} className="flex flex-wrap items-center gap-3 px-3 py-2.5 sm:flex-nowrap">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#f0f4fa] text-[#073b83]">
+                      <FileText className="h-4 w-4" aria-hidden />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[13px] font-semibold text-[#18181b]">Earnings statement · {row.reference}</span>
+                      <span className="text-[12px] text-[#71717a]">{incomeDate(row.activityDate)} · {formatMoney(row.netMinor / 100, row.currency)}</span>
+                    </span>
+                    <span className="flex shrink-0 gap-3">
+                      <button type="button" className="text-[13px] font-semibold text-[#073b83]" onClick={() => openEarningStatement(row, false)}>View</button>
+                      <button type="button" className="text-[13px] font-semibold text-[#073b83]" onClick={() => openEarningStatement(row, true)}>Download</button>
+                    </span>
+                  </li>
+                ))}
+                {payoutDocs.map((period) => (
+                  <li key={period.id} className="flex flex-wrap items-center gap-3 px-3 py-2.5 sm:flex-nowrap">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#f0f4fa] text-[#073b83]">
+                      <FileText className="h-4 w-4" aria-hidden />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[13px] font-semibold text-[#18181b]">
+                        {payoutMaySayPaid(period.status, period.paid_at) ? 'Payment confirmation' : 'Payout statement'} · {period.period_key}
+                      </span>
+                      <span className="text-[12px] text-[#71717a]">
+                        {payoutPresentationStatus(period.status, period.paid_at)} · {formatMoney(Number(period.amount_minor) / 100, period.currency)}
+                      </span>
+                    </span>
+                    <span className="flex shrink-0 gap-3">
+                      <button type="button" className="text-[13px] font-semibold text-[#073b83]" onClick={() => void openPayoutStatement(period, false)}>View</button>
+                      <button type="button" className="text-[13px] font-semibold text-[#073b83]" onClick={() => void openPayoutStatement(period, true)}>Download</button>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            );
+          })()}
+          <p className="text-[12px] text-[#71717a]">Statements use the frozen booking split. A payout statement is not a transfer receipt unless a completion time is recorded.</p>
         </div>
       ) : null}
 
@@ -997,19 +1186,73 @@ export default function SupplierEarnings() {
       ) : null}
 
       {selectedEarning ? (
-        <div className="fixed inset-0 z-[80] flex justify-end bg-black/30" role="presentation" onMouseDown={() => setSelectedEarningId(null)}>
-          <aside className="h-full w-full max-w-md overflow-y-auto bg-white p-4" role="dialog" aria-modal="true" aria-label="Earning details" onMouseDown={(event) => event.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h2 className="font-sans text-base font-bold">{selectedEarning.reference}</h2>
+        <div
+          className="tv-income-drawer fixed inset-0 z-[80] flex justify-end bg-black/30"
+          role="presentation"
+          onMouseDown={() => setSelectedEarningId(null)}
+        >
+          <aside
+            className="tv-income-drawer__panel h-full w-full max-w-md overflow-y-auto bg-white p-5 shadow-xl"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Earning details"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="font-sans text-base font-bold text-[#18181b]">{selectedEarning.reference}</h2>
               <button type="button" className="tv-btn-ghost h-9" onClick={() => setSelectedEarningId(null)}>Close</button>
             </div>
-            <p className="mt-2 text-[13px]">{selectedEarning.experience}</p>
-            <p className="text-[12px] text-[#71717a]">Activity {incomeDate(selectedEarning.activityDate)} · Purchased {incomeDate(selectedEarning.purchaseDate)}</p>
-            <p className="mt-3 text-[12px] text-[#71717a]">Your earnings</p>
-            <p className="font-sans text-2xl font-bold tabular-nums">{formatMoney(selectedEarning.netMinor / 100, selectedEarning.currency)}</p>
-            <p className="text-[13px]">{earningStatusLabel(selectedEarning.status)}</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button type="button" className="tv-btn-primary h-9 px-3 text-[13px]" disabled={selectedEarning.grossMinor == null} onClick={() => openEarningStatement(selectedEarning, false)}>View financial statement</button>
+            <p className="mt-2 text-[13px] text-[#3f3f46]">{selectedEarning.experience}</p>
+            <p className="mt-1 text-[12px] text-[#71717a]">
+              Activity {incomeDate(selectedEarning.activityDate)} · Purchased {incomeDate(selectedEarning.purchaseDate)}
+            </p>
+            <p className="mt-3">
+              <span className={earningStatusClass(selectedEarning.status)}>{earningStatusLabel(selectedEarning.status)}</span>
+            </p>
+
+            <dl className="mt-4 space-y-2.5 rounded-[10px] border border-[#e5e7eb] px-3 py-3 text-[13px]">
+              {selectedEarning.grossMinor != null ? (
+                <div className="flex items-baseline justify-between gap-3">
+                  <dt className="text-[#71717a]">Gross booking</dt>
+                  <dd className="font-semibold tabular-nums text-[#18181b]">{formatMoney(selectedEarning.grossMinor / 100, selectedEarning.currency)}</dd>
+                </div>
+              ) : null}
+              {selectedEarning.commissionMinor != null ? (
+                <div className="flex items-baseline justify-between gap-3">
+                  <dt className="text-[#71717a]">
+                    Commission{commissionPercentLabel(selectedEarning.commissionBps) ? ` (${commissionPercentLabel(selectedEarning.commissionBps)})` : ''}
+                  </dt>
+                  <dd className="font-semibold tabular-nums text-[#18181b]">{formatMoney(selectedEarning.commissionMinor / 100, selectedEarning.currency)}</dd>
+                </div>
+              ) : null}
+              <div className="flex items-baseline justify-between gap-3 border-t border-[#e5e7eb] pt-2.5">
+                <dt className="font-semibold text-[#18181b]">Your earnings</dt>
+                <dd className="font-sans text-xl font-bold tabular-nums text-[#18181b]">
+                  {formatMoney(selectedEarning.netMinor / 100, selectedEarning.currency)}
+                </dd>
+              </div>
+              {bookingAdjustmentsFor(selectedEarning.bookingId).map((row) => (
+                <div key={row.id} className="flex items-baseline justify-between gap-3">
+                  <dt className="text-[#71717a]">{ledgerKindLabel(row.kind)}</dt>
+                  <dd className={`font-semibold tabular-nums ${Number(row.amount) < 0 ? 'text-red-800' : 'text-[#18181b]'}`}>
+                    {formatMoney(Number(row.amount), row.currency)}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            {selectedEarning.grossMinor == null ? (
+              <p className="mt-2 text-[12px] text-[#71717a]">Gross and commission are shown only when a frozen commercial split exists for this booking.</p>
+            ) : null}
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="tv-btn-primary h-9 px-3 text-[13px]"
+                disabled={selectedEarning.grossMinor == null}
+                onClick={() => openEarningStatement(selectedEarning, false)}
+              >
+                View statement
+              </button>
               <button
                 type="button"
                 className="tv-btn-secondary h-9 px-3 text-[13px]"
@@ -1030,18 +1273,77 @@ export default function SupplierEarnings() {
       ) : null}
 
       {selectedPayout ? (
-        <div className="fixed inset-0 z-[80] flex justify-end bg-black/30" role="presentation" onMouseDown={() => setSelectedPayoutId(null)}>
-          <aside className="h-full w-full max-w-md overflow-y-auto bg-white p-4" role="dialog" aria-modal="true" aria-label="Payout details" onMouseDown={(event) => event.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h2 className="font-sans text-base font-bold">{selectedPayout.period_key}</h2>
+        <div
+          className="tv-income-drawer fixed inset-0 z-[80] flex justify-end bg-black/30"
+          role="presentation"
+          onMouseDown={() => setSelectedPayoutId(null)}
+        >
+          <aside
+            className="tv-income-drawer__panel h-full w-full max-w-md overflow-y-auto bg-white p-5 shadow-xl"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Payout details"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="font-sans text-base font-bold text-[#18181b]">{selectedPayout.period_key}</h2>
               <button type="button" className="tv-btn-ghost h-9" onClick={() => setSelectedPayoutId(null)}>Close</button>
             </div>
-            <p className="mt-3 font-sans text-2xl font-bold tabular-nums">{formatMoney(Number(selectedPayout.amount_minor) / 100, selectedPayout.currency)}</p>
-            <p className="text-[13px]">{payoutPresentationStatus(selectedPayout.status, selectedPayout.paid_at)}</p>
-            <p className="text-[12px] text-[#71717a]">{incomeDate(selectedPayout.period_start)} – {incomeDate(selectedPayout.period_end)}</p>
-            <p className="text-[12px] text-[#71717a]">Account {maskIban(profile?.payout_iban) || 'not on file'}</p>
-            {selectedPayout.paid_at ? <p className="text-[12px] text-[#71717a]">Completed {new Date(selectedPayout.paid_at).toLocaleString()}</p> : <p className="text-[12px] text-[#71717a]">No completion time is recorded.</p>}
-            <button type="button" className="tv-btn-primary mt-3 h-9 px-3 text-[13px]" onClick={() => void openPayoutStatement(selectedPayout, true)}>Download payout statement</button>
+            <p className="mt-3 font-sans text-2xl font-bold tabular-nums text-[#18181b]">
+              {formatMoney(Number(selectedPayout.amount_minor) / 100, selectedPayout.currency)}
+            </p>
+            <p className="mt-2">
+              <span className={payoutStatusClass(selectedPayout.status, selectedPayout.paid_at)}>
+                {payoutPresentationStatus(selectedPayout.status, selectedPayout.paid_at)}
+              </span>
+            </p>
+            <dl className="mt-4 space-y-2 text-[13px]">
+              <div>
+                <dt className="text-[11px] font-semibold text-[#71717a]">Period</dt>
+                <dd>{incomeDate(selectedPayout.period_start)} – {incomeDate(selectedPayout.period_end)}</dd>
+              </div>
+              <div>
+                <dt className="text-[11px] font-semibold text-[#71717a]">Account</dt>
+                <dd className="tabular-nums">{maskIban(profile?.payout_iban) || 'Not on file'}</dd>
+              </div>
+              <div>
+                <dt className="text-[11px] font-semibold text-[#71717a]">Completion</dt>
+                <dd>
+                  {selectedPayout.paid_at
+                    ? new Date(selectedPayout.paid_at).toLocaleString()
+                    : 'No completion time recorded'}
+                </dd>
+              </div>
+            </dl>
+            {selectedPayoutItems.length > 0 ? (
+              <section className="mt-4">
+                <h3 className="text-[11px] font-semibold uppercase tracking-wide text-[#71717a]">Covered transactions</h3>
+                <ul className="mt-2 divide-y divide-[#e5e7eb] rounded-[10px] border border-[#e5e7eb]">
+                  {selectedPayoutItems.map((item) => {
+                    const row = incomeRows.find((earning) => earning.bookingId === item.booking_id);
+                    return (
+                      <li key={item.id} className="flex items-baseline justify-between gap-3 px-3 py-2 text-[13px]">
+                        <span className="min-w-0 truncate">
+                          <span className="font-semibold text-[#18181b]">{row?.reference ?? item.booking_id.slice(0, 8)}</span>
+                          <span className="mt-0.5 block truncate text-[12px] text-[#71717a]">{row?.experience ?? 'Booking'}</span>
+                        </span>
+                        <span className="shrink-0 font-semibold tabular-nums">
+                          {formatMoney((Number(item.amount_minor) || 0) / 100, selectedPayout.currency)}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            ) : null}
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button type="button" className="tv-btn-primary h-9 px-3 text-[13px]" onClick={() => void openPayoutStatement(selectedPayout, false)}>
+                View statement
+              </button>
+              <button type="button" className="tv-btn-secondary h-9 px-3 text-[13px]" onClick={() => void openPayoutStatement(selectedPayout, true)}>
+                Download
+              </button>
+            </div>
           </aside>
         </div>
       ) : null}
