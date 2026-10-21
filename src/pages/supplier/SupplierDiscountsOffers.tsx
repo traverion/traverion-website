@@ -329,11 +329,12 @@ export default function SupplierDiscountsOffers() {
     };
   }, [rows]);
 
-  const offerableListings = useMemo(
-    () => listings.filter((l) => l.status !== 'draft' && !listingIsFamily(l, 'stay')),
-    [listings]
+  const publishedListings = useMemo(() => listings.filter((l) => l.status !== 'draft'), [listings]);
+  const offerableTourListings = useMemo(
+    () => publishedListings.filter((l) => !listingIsFamily(l, 'stay')),
+    [publishedListings]
   );
-  const publishedCount = offerableListings.length;
+  const publishedCount = offerableTourListings.length;
   const groups = useMemo(() => groupOffers(rows), [rows]);
   const confirmedFor = useCallback(
     (group: OfferGroup) => group.discounts.reduce((sum, row) => sum + (stats.get(row.id)?.bookings ?? 0), 0),
@@ -697,7 +698,7 @@ export default function SupplierDiscountsOffers() {
                             </dd>
                           </div>
                           <div>
-                            <dt>Booking period</dt>
+                            <dt>Discount period</dt>
                             <dd>
                               {formatDate(bookFrom)} – {formatDate(bookUntil)}
                             </dd>
@@ -841,11 +842,26 @@ export default function SupplierDiscountsOffers() {
           setEditingGroup([]);
           setDraftGroup(null);
         }}
-        listings={offerableListings}
+        listings={publishedListings}
         editingGroup={editingGroup}
         draft={draftGroup}
         existingOffers={rows.map((row) => row.discount)}
         onSaved={() => void loadAll()}
+        onOpenConflictOffer={(offerIds) => {
+          const hit = rows.find((row) => offerIds.includes(row.discount.id));
+          if (!hit) return;
+          const groupKey = hit.discount.offer_group_id || hit.discount.id;
+          const group = rows
+            .filter((row) => {
+              const key = row.discount.offer_group_id || row.discount.id;
+              return row.listing.id === hit.listing.id && key === groupKey;
+            })
+            .map((row) => row.discount);
+          if (group.length === 0) return;
+          setDraftGroup(null);
+          setEditingGroup(group);
+          setWizardOpen(true);
+        }}
       />
     </div>
   );

@@ -119,19 +119,85 @@ describe('offer eligibility', () => {
     expect(discountRowApplies(denoRow, 'opt-1', '2026-03-09', '2026-03-05')).toBe(false);
   });
 
-  it('warns when booking windows and options overlap', () => {
+  it('detects overlapping discount windows on the same option', () => {
     expect(
       supplierOffersOverlap(
         { type: 'percent', value: 15, book_from: '2026-03-01', book_until: '2026-03-20', optionIds: ['opt-1'] },
-        { type: 'percent', value: 10, book_from: '2026-03-10', book_until: '2026-03-30', booking_option_id: 'opt-1' }
+        { type: 'percent', value: 10, book_from: '2026-03-10', book_until: '2026-03-30', booking_option_id: 'opt-1' },
+        '2026-03-01'
       )
     ).toBe(true);
     expect(
       supplierOffersOverlap(
         { type: 'percent', value: 15, book_from: '2026-04-01', book_until: '2026-04-10', optionIds: ['opt-1'] },
-        { type: 'percent', value: 10, book_from: '2026-03-01', book_until: '2026-03-20', booking_option_id: 'opt-1' }
+        { type: 'percent', value: 10, book_from: '2026-03-01', book_until: '2026-03-20', booking_option_id: 'opt-1' },
+        '2026-03-01'
       )
     ).toBe(false);
+  });
+
+  it('allows a second option on the same listing when windows overlap', () => {
+    expect(
+      supplierOffersOverlap(
+        { type: 'percent', value: 15, book_from: '2026-03-01', book_until: '2026-03-20', optionIds: ['opt-2'] },
+        { type: 'percent', value: 10, book_from: '2026-03-01', book_until: '2026-03-20', booking_option_id: 'opt-1' },
+        '2026-03-01'
+      )
+    ).toBe(false);
+  });
+
+  it('keeps paused offers in conflict, but ignores ended offers', () => {
+    expect(
+      supplierOffersOverlap(
+        { type: 'percent', value: 15, book_from: '2026-03-01', book_until: '2026-03-20', optionIds: ['opt-1'] },
+        {
+          type: 'percent',
+          value: 10,
+          book_from: '2026-03-01',
+          book_until: '2026-03-20',
+          booking_option_id: 'opt-1',
+          paused: true,
+        },
+        '2026-03-05'
+      )
+    ).toBe(true);
+    expect(
+      supplierOffersOverlap(
+        { type: 'percent', value: 15, book_from: '2026-03-01', book_until: '2026-03-20', optionIds: ['opt-1'] },
+        {
+          type: 'percent',
+          value: 10,
+          book_from: '2026-01-01',
+          book_until: '2026-01-31',
+          booking_option_id: 'opt-1',
+        },
+        '2026-03-05'
+      )
+    ).toBe(false);
+  });
+
+  it('treats unrestricted service dates as overlapping any restricted range', () => {
+    expect(
+      supplierOffersOverlap(
+        {
+          type: 'percent',
+          value: 15,
+          book_from: '2026-03-01',
+          book_until: '2026-03-20',
+          optionIds: ['opt-1'],
+        },
+        {
+          type: 'percent',
+          value: 10,
+          book_from: '2026-03-01',
+          book_until: '2026-03-20',
+          booking_option_id: 'opt-1',
+          activity_from: '2026-03-10',
+          activity_until: '2026-03-15',
+        },
+        '2026-03-01'
+      )
+    ).toBe(true);
   });
 
   it('orders lifecycle from the booking window and confirmed count', () => {

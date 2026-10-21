@@ -4365,10 +4365,11 @@ details:not([open]) > :not(summary) {
 
 /* Offer wizard modal */
 .tv-offer-wizard {
-  width: min(760px, calc(100vw - 1.5rem));
-  max-height: min(92dvh, 44rem);
+  width: min(960px, calc(100vw - 2rem));
+  max-height: min(90dvh, 52rem);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -4396,22 +4397,34 @@ details:not([open]) > :not(summary) {
 
 .tv-offer-wizard__body {
   min-height: 0;
-  flex: 1;
+  flex: 1 1 auto;
+  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 0.85rem 1.1rem 1rem;
+  padding: 1.15rem 1.35rem 1.35rem;
+}
+
+.tv-offer-wizard__section {
+  padding: 0.15rem 0 1.15rem;
+  border-bottom: 1px solid #f4f4f5;
+}
+
+.tv-offer-wizard__section:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
 }
 
 .tv-offer-wizard__section-title {
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 700;
   color: #18181b;
 }
 
 .tv-offer-wizard__hint {
-  margin-top: 0.2rem;
-  font-size: 12px;
-  line-height: 1.4;
+  margin-top: 0.25rem;
+  margin-bottom: 0.85rem;
+  font-size: 12.5px;
+  line-height: 1.45;
   color: #71717a;
 }
 
@@ -4469,16 +4482,17 @@ details:not([open]) > :not(summary) {
 }
 
 .tv-offer-multiselect__menu {
-  position: absolute;
-  z-index: 30;
-  top: calc(100% + 6px);
-  left: 0;
-  right: 0;
   overflow: hidden;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   background: #fff;
   box-shadow: 0 8px 24px rgba(23, 25, 29, 0.1);
+}
+
+.tv-offer-wizard .partner-select,
+.tv-offer-wizard .tv-offer-multiselect,
+.tv-offer-wizard .tv-offers-date-shell {
+  width: 100%;
 }
 
 .tv-offer-multiselect__list {

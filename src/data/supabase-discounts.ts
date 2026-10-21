@@ -3,7 +3,11 @@ import { localYmd } from '../lib/local-ymd';
 import { formatMoney } from '../lib/money';
 import { partnerOfferMayBePersistedForListing } from '../lib/partner-offers-honesty';
 import { queryRowsOrThrow } from '../lib/query-rows-or-throw';
-import { offerApplies, validateOfferDateWindow } from '../lib/offer-eligibility';
+import {
+  findSupplierOfferConflicts,
+  offerApplies,
+  validateOfferDateWindow,
+} from '../lib/offer-eligibility';
 
 export type ListingDiscount = {
   id: string;
@@ -249,7 +253,7 @@ export async function saveSupplierOffer(
   if (!(await listingAllowsPartnerOffer(input.listingId))) {
     return { ok: false, error: 'Offers can only be saved on a tour listing.' };
   }
-  const bookErr = validateOfferDateWindow(input.bookFrom, input.bookUntil, 'booking period');
+  const bookErr = validateOfferDateWindow(input.bookFrom, input.bookUntil, 'discount period');
   if (bookErr) return { ok: false, error: bookErr };
   if (input.activityFrom || input.activityUntil) {
     const actErr = validateOfferDateWindow(input.activityFrom ?? '', input.activityUntil ?? '', 'activity period');
@@ -270,6 +274,38 @@ export async function saveSupplierOffer(
   const optionIds = input.listingWide ? [] : input.optionIds.map((id) => id.trim()).filter(Boolean);
   if (!input.listingWide && optionIds.length === 0) {
     return { ok: false, error: 'Choose at least one booking option.' };
+  }
+
+  // Server-side overlap guard (paused rows reserve ranges; ended/deleted do not).
+  const liveOnListing = await fetchDiscountsByListingId(input.listingId);
+  const ignoreIds = input.existing.map((row) => row.id).filter(Boolean);
+  const today = localYmd();
+  const conflicts = findSupplierOfferConflicts(
+    {
+      type: input.type,
+      value: input.value,
+      book_from: input.bookFrom,
+      book_until: input.bookUntil,
+      activity_from: input.activityFrom,
+      activity_until: input.activityUntil,
+      optionIds,
+    },
+    liveOnListing,
+    today,
+    ignoreIds
+  );
+  if (conflicts.length > 0) {
+    const optionHint = conflicts
+      .flatMap((c) => c.conflictingOptionIds)
+      .filter(Boolean)
+      .slice(0, 3)
+      .join(', ');
+    return {
+      ok: false,
+      error: optionHint
+        ? `An offer already exists for this booking option during the selected dates (${optionHint}). Adjust the dates or edit the existing offer.`
+        : 'An offer already exists for this listing during the selected dates. Adjust the dates or edit the existing offer.',
+    };
   }
 
   const groupId = input.existing.find((row) => row.offer_group_id)?.offer_group_id ?? newOfferGroupId();

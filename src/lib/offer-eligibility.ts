@@ -173,12 +173,29 @@ export function windowsOverlap(
   return as <= be && bs <= ae;
 }
 
+/** True when an offer's discount purchase window has ended (civil today after until). */
+export function offerPurchaseWindowEnded(row: OfferPriceRow, todayIso: string): boolean {
+  if (!ISO.test(todayIso)) return false;
+  const until = civilDay(row.book_until) ?? civilDay(row.valid_until);
+  return Boolean(until && todayIso > until);
+}
+
+/**
+ * Two offers conflict when they target the same bookable inventory and both their
+ * discount purchase windows and eligible service-date windows overlap.
+ * Unrestricted service dates overlap any restricted range for the same inventory.
+ * Paused offers still reserve their ranges. Deleted and ended offers do not.
+ */
 export function supplierOffersOverlap(
   candidate: OfferPriceRow & { optionIds: string[] },
-  other: OfferPriceRow
+  other: OfferPriceRow,
+  todayIso?: string,
+  ignoreIds?: readonly string[]
 ): boolean {
   if (other.deleted_at) return false;
+  if (todayIso && offerPurchaseWindowEnded(other, todayIso)) return false;
   if (candidate.id && other.id === candidate.id) return false;
+  if (ignoreIds?.length && other.id && ignoreIds.includes(other.id)) return false;
   const booking = windowsOverlap(
     candidate.book_from ?? candidate.valid_from,
     candidate.book_until ?? candidate.valid_until,
@@ -188,6 +205,7 @@ export function supplierOffersOverlap(
   if (!booking) return false;
   const candidateActivity = civilDay(candidate.activity_from);
   const otherActivity = civilDay(other.activity_from);
+  // Both restricted → must overlap. One or both unrestricted → treat as overlapping.
   if (candidateActivity && otherActivity) {
     if (
       !windowsOverlap(
@@ -201,8 +219,38 @@ export function supplierOffersOverlap(
     }
   }
   const otherScope = (other.booking_option_id ?? '').trim();
+  // Listing-wide other (or listing-wide candidate) conflicts with any selected option.
   if (!otherScope || candidate.optionIds.length === 0) return true;
   return candidate.optionIds.includes(otherScope);
+}
+
+export type OfferConflictHit = {
+  other: OfferPriceRow;
+  conflictingOptionIds: string[];
+};
+
+/** Conflicts for a candidate offer against existing rows (paused included; ended/deleted excluded). */
+export function findSupplierOfferConflicts(
+  candidate: OfferPriceRow & { optionIds: string[] },
+  others: OfferPriceRow[],
+  todayIso: string,
+  ignoreIds: readonly string[] = []
+): OfferConflictHit[] {
+  const hits: OfferConflictHit[] = [];
+  for (const other of others) {
+    if (!supplierOffersOverlap(candidate, other, todayIso, ignoreIds)) continue;
+    const otherScope = (other.booking_option_id ?? '').trim();
+    const conflictingOptionIds =
+      candidate.optionIds.length === 0
+        ? otherScope
+          ? [otherScope]
+          : []
+        : otherScope
+          ? candidate.optionIds.filter((id) => id === otherScope)
+          : [...candidate.optionIds];
+    hits.push({ other, conflictingOptionIds });
+  }
+  return hits;
 }
 
 export function offerLifecycle(

@@ -76,10 +76,8 @@ export default function PartnerSelect({
     const gap = 6;
     const edge = 8;
     const isNarrow = window.matchMedia('(max-width: 639px)').matches;
-    const width = Math.min(
-      Math.max(rect.width, isNarrow ? rect.width : 12 * 16),
-      window.innerWidth - edge * 2
-    );
+    // Match the trigger width so menus align with their fields (Offers / Analytics).
+    const width = Math.min(Math.max(rect.width, isNarrow ? rect.width : rect.width), window.innerWidth - edge * 2);
     let left = rect.left;
     if (left + width > window.innerWidth - edge) {
       left = Math.max(edge, window.innerWidth - width - edge);
