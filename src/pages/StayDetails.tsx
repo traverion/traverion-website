@@ -153,6 +153,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
   const [profileDisplayName, setProfileDisplayName] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
   const [hostName, setHostName] = useState<string | null>(null);
+  const [hostDescription, setHostDescription] = useState<string | null>(null);
   const [occupiedRanges, setOccupiedRanges] = useState<{ checkIn: string; checkOut: string }[]>([]);
   const [blockedNights, setBlockedNights] = useState<string[]>([]);
   const [occupancyError, setOccupancyError] = useState<string | null>(null);
@@ -440,11 +441,13 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
   useEffect(() => {
     if (!stay?.supplierId) {
       setHostName(null);
+      setHostDescription(null);
       return;
     }
     void fetchSupplierPublicLegal(stay.supplierId).then((row) => {
       const name = row?.display_name?.trim() || row?.company_legal_name?.trim() || null;
       setHostName(name);
+      setHostDescription(row?.public_description?.trim() || null);
     });
   }, [stay?.supplierId]);
 
@@ -1309,6 +1312,9 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
               <section className="border-t border-black/[0.08] pt-8">
                 <h2 className="font-sans text-lg font-bold tracking-tight text-ink mb-2">Host</h2>
                 <p className="text-sm font-medium text-ink">{hostName}</p>
+                {hostDescription ? (
+                  <p className="mt-2 text-sm text-ink-muted leading-relaxed whitespace-pre-wrap">{hostDescription}</p>
+                ) : null}
                 <p className="mt-1 text-sm text-ink-muted">
                   Contact details and private arrival instructions are shared after booking confirmation.
                 </p>

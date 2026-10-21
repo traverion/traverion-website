@@ -48,6 +48,8 @@ export type SupplierProfileRow = {
   business_rejected_email_sent_at?: string | null;
   /** Public Storage URL; shown on tour page and supplier dashboard */
   business_logo_url: string | null;
+  /** Optional traveler-facing business description (editable when legal identity is locked). */
+  public_description: string | null;
   /** Private bucket path for ID proof */
   identity_document_path: string | null;
   /** Private bucket path for company registration extract (company suppliers) */
@@ -501,6 +503,7 @@ export async function fetchSupplierPublicLegal(
   business_logo_url: string | null;
   privacy_policy_text: string | null;
   terms_conditions_text: string | null;
+  public_description: string | null;
 } | null> {
   if (!supabase) return null;
   const { data, error } = await supabase.rpc('supplier_public_legal', { p_id: supplierId });
@@ -513,5 +516,6 @@ export async function fetchSupplierPublicLegal(
     business_logo_url: string | null;
     privacy_policy_text: string | null;
     terms_conditions_text: string | null;
+    public_description: string | null;
   };
 }

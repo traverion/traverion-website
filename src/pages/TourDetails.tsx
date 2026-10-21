@@ -199,6 +199,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
   const [supplierLegal, setSupplierLegal] = useState<{
     operatorName: string;
     business_logo_url: string | null;
+    public_description: string | null;
     privacy_policy_text: string | null;
     terms_conditions_text: string | null;
   } | null>(null);
@@ -931,6 +932,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
       setSupplierLegal({
         operatorName,
         business_logo_url: row.business_logo_url?.trim() || null,
+        public_description: row.public_description?.trim() || null,
         privacy_policy_text: row.privacy_policy_text,
         terms_conditions_text: row.terms_conditions_text,
       });

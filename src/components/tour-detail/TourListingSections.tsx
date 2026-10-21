@@ -23,6 +23,7 @@ type Legal = {
   business_logo_url: string | null;
   privacy_policy_text: string | null;
   terms_conditions_text: string | null;
+  public_description?: string | null;
 };
 
 type Props = {
@@ -81,6 +82,11 @@ export function TourOperatorBlock({
           <p className="text-sm text-ink-muted">Runs this experience on Traverion</p>
         </div>
       </div>
+      {supplierLegal.public_description?.trim() ? (
+        <p className="mt-3 text-sm leading-relaxed text-ink-muted whitespace-pre-wrap">
+          {supplierLegal.public_description.trim()}
+        </p>
+      ) : null}
       {supplierLegal.privacy_policy_text?.trim() || supplierLegal.terms_conditions_text?.trim() ? (
         <div className="mt-3 flex flex-wrap gap-2">
           {supplierLegal.privacy_policy_text?.trim() ? (
