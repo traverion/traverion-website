@@ -1,5 +1,23 @@
 /** Partner Support Center — request classification (client + mirrored in edge). */
 
+export {
+  COMM_MAX_ATTACHMENTS as PARTNER_SUPPORT_MAX_ATTACHMENTS,
+  COMM_MAX_VIDEO_BYTES as PARTNER_SUPPORT_MAX_FILE_BYTES,
+  COMM_MIME_RULES,
+} from './communication-attachments';
+
+export const PARTNER_SUPPORT_ALLOWED_MIME = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/heic',
+  'image/heif',
+  'application/pdf',
+  'video/mp4',
+  'video/quicktime',
+  'video/webm',
+] as const;
+
 export const PARTNER_SUPPORT_REQUEST_TYPES = [
   { value: 'problem', label: 'Report a problem or error' },
   { value: 'help', label: 'Request help' },
@@ -27,10 +45,6 @@ export const PARTNER_SUPPORT_RELATED_AREAS = [
 ] as const;
 
 export type PartnerSupportRelatedArea = (typeof PARTNER_SUPPORT_RELATED_AREAS)[number]['value'];
-
-export const PARTNER_SUPPORT_MAX_ATTACHMENTS = 3;
-export const PARTNER_SUPPORT_MAX_FILE_BYTES = 2 * 1024 * 1024; // 2 MB each
-export const PARTNER_SUPPORT_ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp'] as const;
 
 export function partnerSupportTypeLabel(value: string): string {
   return PARTNER_SUPPORT_REQUEST_TYPES.find((t) => t.value === value)?.label ?? value;

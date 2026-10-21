@@ -34,14 +34,17 @@ describe('Partner Support Center', () => {
     const src = readFileSync(resolve(__dirname, 'PartnerSupportPage.tsx'), 'utf8');
     expect(src).toContain('Send request');
     expect(src).toContain('submitPartnerSupportRequest');
+    expect(src).toContain('CommunicationAttachmentsField');
     expect(src).toContain('Your request has been sent.');
     expect(src).not.toContain('Finish setup');
     expect(src).not.toContain('mailto:');
+    expect(src).not.toContain('2 MB');
   });
 
-  it('invokes the authenticated submit-partner-support edge function', () => {
+  it('invokes the authenticated submit-partner-support edge function with storage uploads', () => {
     const client = readFileSync(resolve(__dirname, '../../data/supabase-partner-support.ts'), 'utf8');
     expect(client).toContain('submit-partner-support');
+    expect(client).toContain('uploadSession');
     const edge = readFileSync(
       resolve(__dirname, '../../../supabase/functions/submit-partner-support/index.ts'),
       'utf8'
@@ -50,5 +53,8 @@ describe('Partner Support Center', () => {
     expect(edge).toContain('replyTo');
     expect(edge).toContain('partner_support_requests');
     expect(edge).toContain('claimTransactionalSend');
+    expect(edge).toContain('communication-attachments');
+    expect(edge).toContain('uploadSessionId');
+    expect(edge).toContain('createSignedUrl');
   });
 });

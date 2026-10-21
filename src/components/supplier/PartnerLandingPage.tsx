@@ -10,6 +10,7 @@ import { PARTNER_LOGIN_PATH, PARTNER_SIGNUP_PATH } from '../../lib/partnerPortal
 import { supplierPortalLandingHref } from '../../lib/partnerHost';
 import { PARTNER_LANDING_LIST_NOTE, PARTNER_LANDING_GET_PAID_NOTE, PARTNER_LANDING_HOW_PUBLISH_NOTE } from '../../lib/booking-confirmation-copy';
 import PartnerPortalFooter from './PartnerPortalFooter';
+import SupplierInterestForm from './SupplierInterestForm';
 import SkipLink from '../SkipLink';
 import { setPageMetaWithOg } from '../../lib/seo';
 
@@ -186,6 +187,16 @@ export default function PartnerLandingPage() {
           <a href={PARTNER_SIGNUP_PATH} className="tv-btn-primary mt-10 inline-flex">
             Get started
           </a>
+        </section>
+
+        <section className="border-t border-black/[0.06] bg-paper-raised/60">
+          <div className="max-w-5xl mx-auto px-5 sm:px-8 py-16 sm:py-20">
+            <h2 className="font-display text-3xl sm:text-4xl tracking-tight mb-3">Supplier application</h2>
+            <p className="text-ink-muted max-w-xl mb-8 leading-relaxed">
+              Optional inquiry for operators who want Traverion to review fit before or alongside account signup.
+            </p>
+            <SupplierInterestForm />
+          </div>
         </section>
       </main>
 

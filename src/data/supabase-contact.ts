@@ -1,12 +1,10 @@
 /**
- * Contact / Support / affiliate / creator inquiry submission.
- *
- * Phase 1701: persist via submit_contact_inquiry RPC (returns id despite
- * INSERT-only RLS), then require notify-contact-inquiry success before the UI
- * may show "Message received".
+ * Contact / affiliate / creator / supplier inquiry submission.
+ * Persist via submit_contact_inquiry RPC, then notify-contact-inquiry (ops + confirm).
  */
 import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import type { CommUploadSession } from './supabase-communication-uploads';
 
 export type ContactInquiry = {
   id?: string;
@@ -19,6 +17,8 @@ export type ContactInquiry = {
   message: string;
   inquiry_type?: string;
   status?: string;
+  booking_reference?: string;
+  structured_data?: Record<string, unknown>;
 };
 
 export type ContactNotifyResult = {
@@ -26,13 +26,19 @@ export type ContactNotifyResult = {
   skipped?: boolean;
   error?: string;
   providerMessageId?: string | null;
+  reference?: string;
+  confirmSent?: boolean;
 };
+
+export type SubmitContactResult =
+  | { success: true; id: string; reference: string; confirmSent?: boolean }
+  | { success: false; error: string; id?: string; reference?: string };
 
 /** Pure: decide whether the edge notify response counts as a completed ops alert. */
 export function contactInquiryNotifySucceeded(
   data: ContactNotifyResult | null | undefined,
   invokeError: unknown
-): { ok: boolean; error?: string } {
+): { ok: boolean; error?: string; reference?: string; confirmSent?: boolean } {
   if (invokeError) {
     const msg =
       invokeError instanceof Error && invokeError.message.trim()
@@ -43,7 +49,13 @@ export function contactInquiryNotifySucceeded(
   if (!data || typeof data !== 'object') {
     return { ok: false, error: 'Could not notify Support.' };
   }
-  if (data.success === true) return { ok: true };
+  if (data.success === true) {
+    return {
+      ok: true,
+      reference: typeof data.reference === 'string' ? data.reference : undefined,
+      confirmSent: data.confirmSent === true || data.skipped === true,
+    };
+  }
   const err =
     typeof data.error === 'string' && data.error.trim()
       ? data.error.trim()
@@ -78,31 +90,45 @@ async function parseFunctionsHttpError(error: unknown): Promise<string | null> {
 }
 
 /**
- * Insert contact_inquiries (RPC) then notify ops from the row id only (Phase 1051/1701).
- * Edge re-derives content from DB — body fields are not trusted for email.
- * Success requires both persist and notify (or idempotent skip).
+ * Insert contact_inquiries (RPC) then notify ops + confirmation from the row id.
  */
 export async function submitContactInquiry(
-  data: Omit<ContactInquiry, 'id' | 'created_at' | 'updated_at'>
-): Promise<{ success: boolean; error?: string; id?: string }> {
+  data: Omit<ContactInquiry, 'id' | 'created_at' | 'updated_at'>,
+  options?: { uploadSession?: CommUploadSession | null }
+): Promise<SubmitContactResult> {
   if (!supabase) {
     return { success: false, error: 'Supabase not configured' };
   }
 
   const inquiryType = data.inquiry_type ?? 'general';
-  const { data: rpcId, error: rpcError } = await supabase.rpc('submit_contact_inquiry', {
+  const { data: rpcData, error: rpcError } = await supabase.rpc('submit_contact_inquiry', {
     p_name: data.name,
     p_email: data.email,
     p_phone: data.phone ?? null,
     p_subject: data.subject,
     p_message: data.message,
     p_inquiry_type: inquiryType,
+    p_booking_reference: data.booking_reference ?? null,
+    p_structured_data: data.structured_data ?? {},
+    p_upload_session_id: options?.uploadSession?.sessionId ?? null,
+    p_client_request_id: null,
   });
 
   if (rpcError) {
     return { success: false, error: rpcError.message };
   }
-  const inquiryId = typeof rpcId === 'string' ? rpcId : undefined;
+
+  // New RPC returns jsonb { id, reference }; old overload returns uuid string.
+  let inquiryId: string | undefined;
+  let reference = '';
+  if (typeof rpcData === 'string') {
+    inquiryId = rpcData;
+  } else if (rpcData && typeof rpcData === 'object') {
+    const obj = rpcData as { id?: string; reference?: string };
+    inquiryId = typeof obj.id === 'string' ? obj.id : undefined;
+    reference = typeof obj.reference === 'string' ? obj.reference : '';
+  }
+
   if (!inquiryId) {
     return { success: false, error: 'Inquiry insert returned no id' };
   }
@@ -110,7 +136,12 @@ export async function submitContactInquiry(
   try {
     const { data: fnData, error: fnError } = await supabase.functions.invoke<ContactNotifyResult>(
       'notify-contact-inquiry',
-      { body: { inquiryId } }
+      {
+        body: {
+          inquiryId,
+          uploadClientToken: options?.uploadSession?.clientToken,
+        },
+      }
     );
 
     let invokeError: unknown = fnError ?? null;
@@ -129,16 +160,22 @@ export async function submitContactInquiry(
       return {
         success: false,
         id: inquiryId,
+        reference: notify.reference || reference,
         error: notify.error ?? 'Could not notify Support.',
       };
     }
+    return {
+      success: true,
+      id: inquiryId,
+      reference: notify.reference || reference || '—',
+      confirmSent: notify.confirmSent,
+    };
   } catch (e) {
     return {
       success: false,
       id: inquiryId,
+      reference,
       error: e instanceof Error ? e.message : 'Could not notify Support.',
     };
   }
-
-  return { success: true, id: inquiryId };
 }

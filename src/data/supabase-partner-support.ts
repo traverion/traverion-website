@@ -1,12 +1,7 @@
 import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import type { PartnerSupportRelatedArea, PartnerSupportRequestType } from '../lib/partner-support';
-
-export type PartnerSupportAttachmentPayload = {
-  filename: string;
-  contentBase64: string;
-  mimeType: string;
-};
+import type { CommUploadSession } from './supabase-communication-uploads';
 
 export type SubmitPartnerSupportInput = {
   clientRequestId: string;
@@ -15,7 +10,7 @@ export type SubmitPartnerSupportInput = {
   subject: string;
   message: string;
   pageUrl?: string;
-  attachments?: PartnerSupportAttachmentPayload[];
+  uploadSession?: CommUploadSession | null;
 };
 
 export type SubmitPartnerSupportResult =
@@ -67,7 +62,8 @@ export async function submitPartnerSupportRequest(
       subject: input.subject,
       message: input.message,
       pageUrl: input.pageUrl ?? undefined,
-      attachments: input.attachments ?? [],
+      uploadSessionId: input.uploadSession?.sessionId,
+      uploadClientToken: input.uploadSession?.clientToken,
     },
   });
 
@@ -96,30 +92,5 @@ export async function submitPartnerSupportRequest(
       typeof data?.error === 'string' && data.error.trim()
         ? data.error.trim()
         : 'Could not send your request. Try again.',
-  };
-}
-
-export async function fileToSupportAttachment(
-  file: File
-): Promise<PartnerSupportAttachmentPayload | { error: string }> {
-  const mime = file.type.trim().toLowerCase();
-  if (mime !== 'image/jpeg' && mime !== 'image/png' && mime !== 'image/webp') {
-    return { error: 'Use JPG, PNG, or WebP images only.' };
-  }
-  if (file.size > 2 * 1024 * 1024) {
-    return { error: 'Each image must be 2 MB or smaller.' };
-  }
-  const buffer = await file.arrayBuffer();
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  }
-  const contentBase64 = btoa(binary);
-  return {
-    filename: file.name.slice(0, 80) || 'attachment',
-    contentBase64,
-    mimeType: mime,
   };
 }
