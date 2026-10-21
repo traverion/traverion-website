@@ -17,6 +17,10 @@ export default defineConfig({
         manualChunks(id) {
           if (id.includes('node_modules/@supabase')) return 'supabase';
           if (id.includes('node_modules/lucide-react')) return 'lucide';
+          // Keep React runtime cacheable and out of route page chunks.
+          if (id.includes('node_modules/react-dom') || id.includes('node_modules/react/')) {
+            return 'react-vendor';
+          }
         },
       },
     },

@@ -15,6 +15,7 @@ import {
   writePartnerNavOpenGroups,
 } from '../../lib/partnerNav';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
+import { prefetchPartnerSection } from '../../lib/partner-section-prefetch';
 
 type PartnerSidebarProps = {
   primary: PartnerSidebarEntry[];
@@ -53,6 +54,12 @@ function NavButton({
     <button
       type="button"
       onClick={disabled ? undefined : onClick}
+      onPointerEnter={() => {
+        if (!disabled) prefetchPartnerSection(item.id);
+      }}
+      onFocus={() => {
+        if (!disabled) prefetchPartnerSection(item.id);
+      }}
       disabled={disabled}
       aria-current={active ? 'page' : undefined}
       aria-disabled={disabled || undefined}

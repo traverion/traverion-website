@@ -8,6 +8,7 @@ import { notifySupplierEvent } from './supabase-supplier-messaging';
 import { postBookingMessage } from './supabase-booking-ops';
 import { resolveSupplierId } from './supabase-supplier-team';
 import { hmToPgTime, pgTimeToHm, fetchListingSupplierMetaForParty } from './supabase-listings';
+import { createInflightCache } from '../lib/inflight-dedupe';
 import {
   upsertBookingPickupNoteOverrides,
   parseBookingMeetingPointOverride,
@@ -550,42 +551,51 @@ export async function updateGuestBookingSpecialRequests(
   return notifyWarning ? { success: true, error: notifyWarning } : { success: true };
 }
 
+/** Short TTL + coalescing for Partner desk hops (Dashboard → Bookings → Inbox). */
+const supplierBookingsCache = createInflightCache<BookingRow[]>({ ttlMs: 8_000 });
+
+export function invalidateSupplierBookingsCache(ownerSupplierId?: string): void {
+  supplierBookingsCache.invalidate(ownerSupplierId);
+}
+
 /** Fetch all bookings for a supplier's listings (RLS allows select for own listings). Throws on Supabase error.
  * Phase 1140: resolve team JWT → owner supplier_id before listing filter. */
 export async function fetchBookingsForSupplier(supplierId: string): Promise<BookingRow[]> {
   if (!supabase) return [];
   const ownerSupplierId = await resolveSupplierId(supplierId);
-  const { data: listingIds, error: listErr } = await supabase
-    .from('listings')
-    .select('id')
-    .eq('supplier_id', ownerSupplierId);
-  if (listErr) throw new Error(listErr.message);
-  const ids = (listingIds ?? []).map((r: { id: string }) => r.id);
-  if (ids.length === 0) return [];
+  return supplierBookingsCache.get(ownerSupplierId, async () => {
+    const { data: listingIds, error: listErr } = await supabase
+      .from('listings')
+      .select('id')
+      .eq('supplier_id', ownerSupplierId);
+    if (listErr) throw new Error(listErr.message);
+    const ids = (listingIds ?? []).map((r: { id: string }) => r.id);
+    if (ids.length === 0) return [];
 
-  const columnTiers = [
-    BOOKING_PAYMENT_COLUMNS,
-    BOOKING_PAYMENT_COLUMNS_NO_APPROVAL,
-    BOOKING_PAYMENT_COLUMNS_NO_SNAPSHOT,
-    BOOKING_PAYMENT_COLUMNS_NO_HOLD,
-    BOOKING_PAYMENT_COLUMNS_NO_BREAKDOWN,
-    BOOKING_PAYMENT_COLUMNS_NO_HOLD_NO_BREAKDOWN,
-    BOOKING_PAYMENT_COLUMNS_LEGACY,
-    BOOKING_LIST_COLUMNS_LEGACY,
-    BOOKING_CORE_COLUMNS,
-  ];
-  let lastError: string | null = null;
-  for (const columns of columnTiers) {
-    const { data, error } = await supabase
-      .from('bookings')
-      .select(columns)
-      .in('listing_id', ids)
-      .order('created_at', { ascending: false });
-    if (!error) return (data ?? []) as unknown as BookingRow[];
-    lastError = error.message;
-    if (!isLikelyMissingColumnError(error.message)) break;
-  }
-  throw new Error(lastError ?? 'Could not load bookings');
+    const columnTiers = [
+      BOOKING_PAYMENT_COLUMNS,
+      BOOKING_PAYMENT_COLUMNS_NO_APPROVAL,
+      BOOKING_PAYMENT_COLUMNS_NO_SNAPSHOT,
+      BOOKING_PAYMENT_COLUMNS_NO_HOLD,
+      BOOKING_PAYMENT_COLUMNS_NO_BREAKDOWN,
+      BOOKING_PAYMENT_COLUMNS_NO_HOLD_NO_BREAKDOWN,
+      BOOKING_PAYMENT_COLUMNS_LEGACY,
+      BOOKING_LIST_COLUMNS_LEGACY,
+      BOOKING_CORE_COLUMNS,
+    ];
+    let lastError: string | null = null;
+    for (const columns of columnTiers) {
+      const { data, error } = await supabase
+        .from('bookings')
+        .select(columns)
+        .in('listing_id', ids)
+        .order('created_at', { ascending: false });
+      if (!error) return (data ?? []) as unknown as BookingRow[];
+      lastError = error.message;
+      if (!isLikelyMissingColumnError(error.message)) break;
+    }
+    throw new Error(lastError ?? 'Could not load bookings');
+  });
 }
 
 /** Update booking status (supplier; RLS must allow update for own listing's bookings). */
@@ -677,6 +687,7 @@ export async function updateBookingStatus(
       });
     }
   }
+  invalidateSupplierBookingsCache();
   return { ok: true };
 }
 

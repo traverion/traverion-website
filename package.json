@@ -25,11 +25,7 @@
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-easy-crop": "^5.5.7",
-    "workbox-precaching": "^7.3.0",
-    "workbox-routing": "^7.3.0",
-    "workbox-strategies": "^7.3.0",
-    "workbox-webpack-plugin": "^7.3.0"
+    "react-easy-crop": "^5.5.7"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",

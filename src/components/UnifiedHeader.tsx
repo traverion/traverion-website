@@ -1,7 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import { Menu, X, User, LogOut, LayoutDashboard, Calendar, Heart, LifeBuoy, ExternalLink, Search, ShoppingBag } from 'lucide-react';
-import { prefetchAuthPage, prefetchMyBookingsPage, prefetchPackagesPage } from '../lib/routePrefetch';
+import {
+  prefetchAuthPage,
+  prefetchMyBookingsPage,
+  prefetchPackagesPage,
+  prefetchStaysPage,
+} from '../lib/routePrefetch';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
@@ -160,6 +165,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
             <button
               type="button"
               onClick={() => onNavigate('stays')}
+              onPointerEnter={prefetchStaysPage}
               aria-current={currentPage === 'stays' || currentPage === 'stay-details' ? 'page' : undefined}
               className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${
                 currentPage === 'stays' || currentPage === 'stay-details'

@@ -16,6 +16,7 @@ import {
   persistableProgressiveSlots,
 } from '../lib/listing-creation-lines';
 import { resolveSupplierId } from './supabase-supplier-team';
+import { createInflightCache } from '../lib/inflight-dedupe';
 
 export type ListingRow = {
   id: string;
@@ -468,19 +469,28 @@ export async function fetchAllListings(): Promise<TourPackage[]> {
   return (data as ListingRow[]).map(rowToTourPackage);
 }
 
+/** Short TTL + coalescing so Partner section hops do not re-hit listings N times. */
+const myListingsCache = createInflightCache<TourPackage[]>({ ttlMs: 12_000 });
+
+export function invalidateMyListingsCache(ownerSupplierId?: string): void {
+  myListingsCache.invalidate(ownerSupplierId);
+}
+
 /** Fetch listings for the current supplier (requires auth). Throws on Supabase error.
  * Phase 1140: resolve team JWT → owner supplier_id. */
 export async function fetchMyListings(supplierId: string): Promise<TourPackage[]> {
   if (!supabase) return [];
   const ownerSupplierId = await resolveSupplierId(supplierId);
-  const { data, error } = await supabase
-    .from('listings')
-    .select('*')
-    .eq('supplier_id', ownerSupplierId)
-    .order('created_at', { ascending: false });
-  if (error) throw new Error(error.message);
-  const tours = (data as ListingRow[]).map(rowToTourPackage);
-  return mergeOwnedPrivateListingFields(tours);
+  return myListingsCache.get(ownerSupplierId, async () => {
+    const { data, error } = await supabase
+      .from('listings')
+      .select('*')
+      .eq('supplier_id', ownerSupplierId)
+      .order('created_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    const tours = (data as ListingRow[]).map(rowToTourPackage);
+    return mergeOwnedPrivateListingFields(tours);
+  });
 }
 
 export type ListingSaveResult =
@@ -535,6 +545,7 @@ export async function insertListing(tour: TourPackage, supplierId: string): Prom
     saved = { ...saved, status: 'published' };
   }
   const [merged] = await mergeOwnedPrivateListingFields([saved]);
+  invalidateMyListingsCache(ownerSupplierId);
   return { ok: true, tour: merged ?? saved };
 }
 
@@ -568,6 +579,7 @@ export async function updateListing(id: string, tour: Partial<TourPackage>): Pro
   }
   const saved = rowToTourPackage(data as ListingRow);
   const [merged] = await mergeOwnedPrivateListingFields([saved]);
+  invalidateMyListingsCache();
   return { ok: true, tour: merged ?? saved };
 }
 
@@ -605,6 +617,7 @@ export async function deleteListing(
     const { removeOwnedListingImagesAfterDelete } = await import('./supabase-listing-images');
     await removeOwnedListingImagesAfterDelete(opts.ownerUserId, opts.imageUrls);
   }
+  invalidateMyListingsCache();
   return { ok: true };
 }
 
@@ -619,6 +632,7 @@ export async function updateListingStatus(id: string, status: 'draft' | 'publish
   if (!data) {
     return { ok: false, error: 'Listing not found or you do not have permission to change it.' };
   }
+  invalidateMyListingsCache();
   return { ok: true };
 }
 
