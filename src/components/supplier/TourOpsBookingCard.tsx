@@ -117,7 +117,10 @@ export default function TourOpsBookingCard({
                   {model.departureNote ? ` · ${model.departureNote}` : ''}
                 </span>
               </span>
-              <span className="tour-ops-card__meta-item" title={model.participantLabel}>
+              <span
+                className="tour-ops-card__meta-item tour-ops-card__meta-item--strong"
+                title={model.participantLabel}
+              >
                 <Users className="h-3.5 w-3.5 shrink-0" aria-hidden />
                 <span className="truncate">{model.participantLabel}</span>
               </span>
@@ -125,7 +128,10 @@ export default function TourOpsBookingCard({
                 {model.guestName}
               </span>
               {model.pickupKind ? (
-                <span className="tour-ops-card__meta-item" title={model.pickupSummary ?? undefined}>
+                <span
+                  className="tour-ops-card__meta-item tour-ops-card__meta-item--muted"
+                  title={model.pickupSummary ?? undefined}
+                >
                   <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
                   <span className="truncate">
                     {model.pickupKind === 'pickup' ? 'Pickup' : 'Meeting point'}

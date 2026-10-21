@@ -39,6 +39,8 @@ describe('Bookings luxury redesign V2 — tour ops card', () => {
     const src = readFileSync(resolve(__dirname, 'SupplierBookings.tsx'), 'utf8');
     expect(src).toContain("from '../../components/supplier/TourOpsBookingCard'");
     expect(src).toContain('partner-bookings-workspace');
+    expect(src).toContain('partner-bookings-workspace__controls');
+    expect(src).toContain('partner-bookings-workspace__filters');
     expect(src).toContain('expandedTourId');
     expect(src).toContain('Manage your reservations, guests, departures, and booking details.');
     expect(src).not.toContain("badge={isStayDesk ? null : 'Operate'}");
@@ -52,13 +54,18 @@ describe('Bookings luxury redesign V2 — tour ops card', () => {
     expect(card).toContain('Supplier earnings');
     expect(card).toContain('Booking total');
     expect(card).toContain('Message guest');
+    expect(card).toContain('tour-ops-card__meta-item--strong');
   });
 
-  it('defines tour-ops and bookings workspace styles', () => {
+  it('defines tour-ops and single-row desktop toolbar styles', () => {
     const css = readFileSync(resolve(__dirname, '../../index.css'), 'utf8');
     expect(css).toContain('.partner-bookings-workspace');
     expect(css).toContain('.tour-ops-card');
     expect(css).toContain('prefers-reduced-motion');
+    expect(css).toContain('One horizontal desktop row');
+    expect(css).toContain('flex-wrap: nowrap');
+    expect(css).toContain('.tour-ops-card__meta-item--strong');
+    expect(css).toMatch(/\.tour-ops-card__meta[\s\S]*color: #17191d/);
   });
 
   it('keeps stay desk on StayOpsReservationCard', () => {

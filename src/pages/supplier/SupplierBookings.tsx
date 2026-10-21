@@ -1324,8 +1324,20 @@ export default function SupplierBookings({
       ) : (
       <div className={isStayDesk ? 'contents' : 'partner-bookings-workspace'}>
       <div className={isStayDesk ? 'partner-stay-ops__toolbar' : 'partner-bookings-workspace__toolbar'}>
-        <div className="partner-bookings-workspace__controls flex flex-col gap-2 lg:flex-row lg:items-center">
-          <label className={`min-w-0 flex-1${!isStayDesk ? ' partner-bookings-workspace__search' : ''}`}>
+        <div
+          className={
+            isStayDesk
+              ? 'flex flex-col gap-2 lg:flex-row lg:items-center'
+              : 'partner-bookings-workspace__controls'
+          }
+        >
+          <label
+            className={
+              isStayDesk
+                ? 'min-w-0 flex-1'
+                : 'partner-bookings-workspace__search'
+            }
+          >
             <span className="sr-only">{isStayDesk ? 'Search reservations' : 'Search bookings'}</span>
             <input
               type="search"
@@ -1334,7 +1346,7 @@ export default function SupplierBookings({
               placeholder={
                 isStayDesk
                   ? 'Search guest, property or reference…'
-                  : 'Search by guest, email or booking reference…'
+                  : 'Search guest / booking reference…'
               }
               className="tv-input w-full"
               aria-label="Search by guest, email or booking reference"
@@ -1343,7 +1355,7 @@ export default function SupplierBookings({
           <div className="flex items-center gap-2 lg:hidden">
             <button
               type="button"
-              className="tv-btn-ghost"
+              className="tv-btn-ghost h-10 shrink-0"
               aria-expanded={filtersSheetOpen}
               aria-controls="bookings-filter-sheet"
               onClick={() => setFiltersSheetOpen(true)}
@@ -1361,7 +1373,13 @@ export default function SupplierBookings({
               />
             </div>
           </div>
-          <div className={`hidden flex-wrap items-center gap-2 lg:flex${!isStayDesk ? ' partner-bookings-workspace__filters' : ''}`}>
+          <div
+            className={
+              isStayDesk
+                ? 'hidden flex-wrap items-center gap-2 lg:flex'
+                : 'partner-bookings-workspace__filters'
+            }
+          >
             <PartnerSelect
               id="bookings-filter-status"
               aria-label="Booking status"
@@ -1396,28 +1414,26 @@ export default function SupplierBookings({
               onChange={(next) => writeBookingsSearchToUrl({ view: next as BookingView })}
               options={PARTNER_BOOKINGS_TRAVEL.map((item) => ({ value: item.value, label: item.label }))}
             />
-            <div className={!isStayDesk ? 'partner-bookings-workspace__secondary-filters' : undefined}>
-              <PartnerSelect
-                id="bookings-filter-sort"
-                aria-label="Sort bookings"
-                searchable={false}
-                value={sortBy}
-                onChange={(next) => writeBookingsSearchToUrl({ sort: next as PartnerBookingsSort })}
-                options={PARTNER_BOOKINGS_SORTS.map((item) => ({ value: item.value, label: item.label }))}
-              />
-              <button
-                type="button"
-                aria-expanded={moreFiltersOpen}
-                onClick={() => setMoreFiltersOpen((open) => !open)}
-                className="tv-btn-ghost"
-              >
-                More filters{activeBookingFilterCount > 3 ? ` (${activeBookingFilterCount})` : ''}
-              </button>
-            </div>
+            <PartnerSelect
+              id="bookings-filter-sort"
+              aria-label="Sort bookings"
+              searchable={false}
+              value={sortBy}
+              onChange={(next) => writeBookingsSearchToUrl({ sort: next as PartnerBookingsSort })}
+              options={PARTNER_BOOKINGS_SORTS.map((item) => ({ value: item.value, label: item.label }))}
+            />
+            <button
+              type="button"
+              aria-expanded={moreFiltersOpen}
+              onClick={() => setMoreFiltersOpen((open) => !open)}
+              className="tv-btn-ghost partner-bookings-workspace__more h-10 shrink-0 !px-2.5 text-[13px]"
+            >
+              More{activeBookingFilterCount > 0 ? ` (${activeBookingFilterCount})` : ''}
+            </button>
           </div>
         </div>
         {view === 'range' || filterDateFrom || filterDateTo ? (
-          <div className="hidden flex-wrap items-center gap-1.5 lg:flex">
+          <div className="partner-bookings-workspace__range hidden items-center gap-1.5 lg:flex">
             <input
               type="date"
               value={filterDateFrom}
@@ -1436,7 +1452,13 @@ export default function SupplierBookings({
           </div>
         ) : null}
         {moreFiltersOpen ? (
-          <div className="hidden gap-3 rounded-lg border border-black/[0.08] bg-white p-3 lg:grid lg:grid-cols-4">
+          <div
+            className={
+              isStayDesk
+                ? 'hidden gap-3 rounded-lg border border-black/[0.08] bg-white p-3 lg:grid lg:grid-cols-4'
+                : 'partner-bookings-workspace__more-panel'
+            }
+          >
             <PartnerSelect
               id="bookings-filter-payment"
               aria-label="Payment status"
@@ -1487,27 +1509,50 @@ export default function SupplierBookings({
             </div>
           </div>
         ) : null}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Phase 1663: ops filters count as active filters. */}
-          {filterQuery || filterListingId || filterDateFrom || filterDateTo || opsFilter !== 'all' || statusFilter || paymentFilter || sortBy !== 'newest' || purchaseFrom || purchaseTo || view !== 'all' ? (
-            <button
-              type="button"
-              onClick={resetBookingFilters}
-              className="tv-btn-ghost hidden lg:inline-flex"
-            >
-              Reset filters
-            </button>
-          ) : null}
-          {!isStayDesk ? (
-            <p className="partner-bookings-workspace__count ml-auto hidden text-[12.5px] text-ink-muted lg:block" aria-live="polite">
-              <span className="font-semibold tabular-nums text-ink">{filteredBookings.length}</span>
-              {filteredBookings.length === 1 ? ' booking' : ' bookings'}
-              {selectedIds.size > 0 ? (
-                <span className="text-ink-muted"> · {selectedIds.size} selected</span>
-              ) : null}
-            </p>
-          ) : null}
-        </div>
+        {!isStayDesk ||
+        filterQuery ||
+        filterListingId ||
+        filterDateFrom ||
+        filterDateTo ||
+        opsFilter !== 'all' ||
+        statusFilter ||
+        paymentFilter ||
+        sortBy !== 'newest' ||
+        purchaseFrom ||
+        purchaseTo ||
+        view !== 'all' ? (
+          <div className={isStayDesk ? 'flex flex-wrap items-center gap-2' : 'partner-bookings-workspace__meta'}>
+            {/* Phase 1663: ops filters count as active filters. */}
+            {filterQuery ||
+            filterListingId ||
+            filterDateFrom ||
+            filterDateTo ||
+            opsFilter !== 'all' ||
+            statusFilter ||
+            paymentFilter ||
+            sortBy !== 'newest' ||
+            purchaseFrom ||
+            purchaseTo ||
+            view !== 'all' ? (
+              <button
+                type="button"
+                onClick={resetBookingFilters}
+                className="tv-btn-ghost hidden h-8 !px-2.5 text-[12.5px] lg:inline-flex"
+              >
+                Reset filters
+              </button>
+            ) : null}
+            {!isStayDesk ? (
+              <p className="partner-bookings-workspace__count" aria-live="polite">
+                <span className="font-semibold tabular-nums text-ink">{filteredBookings.length}</span>
+                {filteredBookings.length === 1 ? ' booking' : ' bookings'}
+                {selectedIds.size > 0 ? (
+                  <span className="text-ink-muted"> · {selectedIds.size} selected</span>
+                ) : null}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
       </div>
         <div
           id={PARTNER_BOOKINGS_LIST_ID}
