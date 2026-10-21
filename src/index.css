@@ -3773,6 +3773,277 @@ details:not([open]) > :not(summary) {
   padding: 0.75rem 0.85rem;
 }
 
+/* Partner Reviews — Analytics / Income parity */
+.tv-reviews {
+  --tv-reviews-ink: #18181b;
+  --tv-reviews-muted: #71717a;
+  --tv-reviews-border: #e5e7eb;
+  --tv-reviews-navy: #073b83;
+  --tv-reviews-surface: #f8fafc;
+  gap: 0.75rem;
+  padding-bottom: 6.5rem;
+  font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+}
+
+@media (max-width: 720px) {
+  .tv-reviews {
+    padding-bottom: 5rem;
+  }
+}
+
+.tv-reviews-title {
+  font-size: 1.375rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  color: var(--tv-reviews-ink);
+}
+
+.tv-reviews-subtitle {
+  margin-top: 0.2rem;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--tv-reviews-muted);
+}
+
+.tv-reviews-metric {
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(28, 25, 23, 0.06);
+  padding: 0.75rem 0.9rem;
+}
+
+.tv-reviews-metric__label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tv-reviews-muted);
+}
+
+.tv-reviews-metric__value {
+  margin-top: 0.35rem;
+  font-family: inherit;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--tv-reviews-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.tv-reviews-metric__suffix {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--tv-reviews-muted);
+}
+
+.tv-reviews-panel {
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(28, 25, 23, 0.06);
+  padding: 0.85rem 1rem;
+}
+
+.tv-reviews-panel__title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--tv-reviews-ink);
+}
+
+.tv-reviews-dist {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tv-reviews-dist li {
+  display: grid;
+  grid-template-columns: 2rem 1fr 1.75rem;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tv-reviews-dist__label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tv-reviews-muted);
+}
+
+.tv-reviews-dist__track {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #f1f5f9;
+}
+
+.tv-reviews-dist__fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--tv-reviews-navy);
+  min-width: 0;
+}
+
+.tv-reviews-dist__count {
+  font-size: 11px;
+  font-weight: 600;
+  text-align: right;
+  color: var(--tv-reviews-ink);
+}
+
+.tv-reviews-filters {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1.6fr) repeat(4, minmax(8.5rem, 1fr));
+  gap: 10px 12px;
+  align-items: end;
+}
+
+@media (max-width: 1100px) {
+  .tv-reviews-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .tv-reviews-filters {
+    grid-template-columns: 1fr;
+  }
+}
+
+.tv-reviews-field {
+  display: block;
+  min-width: 0;
+}
+
+.tv-reviews-field > span {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tv-reviews-muted);
+}
+
+.tv-reviews-field--search {
+  min-width: 12rem;
+}
+
+.tv-reviews .partner-select__trigger {
+  height: 40px;
+  min-height: 40px;
+  border-radius: 8px;
+  box-shadow: none;
+  padding-right: 0.7rem;
+}
+
+.tv-reviews .partner-select__trigger .lucide-chevron-down {
+  margin-left: 0.15rem;
+}
+
+.tv-reviews-search {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 40px;
+  border: 1px solid var(--tv-reviews-border);
+  border-radius: 8px;
+  background: #fff;
+  padding: 0 0.7rem;
+}
+
+.tv-reviews-search:focus-within {
+  border-color: var(--tv-reviews-navy);
+  box-shadow: 0 0 0 3px rgba(7, 59, 131, 0.18);
+}
+
+.tv-reviews-search__input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  font-size: 13.5px;
+  color: var(--tv-reviews-ink);
+  outline: none;
+}
+
+.tv-reviews-card {
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(28, 25, 23, 0.06);
+  padding: 0.85rem 1rem;
+}
+
+.tv-reviews-card--highlight {
+  box-shadow:
+    0 0 0 1px rgba(7, 59, 131, 0.28),
+    0 0 0 3px rgba(7, 59, 131, 0.12);
+}
+
+.tv-reviews-card--needs-reply {
+  box-shadow:
+    0 0 0 1px rgba(245, 158, 11, 0.35),
+    0 0 0 1px rgba(28, 25, 23, 0.04);
+}
+
+.tv-reviews-card__meta {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tv-reviews-muted);
+}
+
+.tv-reviews-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 6px;
+  background: #f4f4f5;
+  padding: 0.15rem 0.45rem;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #52525b;
+}
+
+.tv-reviews-chip--warn {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.tv-reviews-chip--ok {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.tv-reviews-reply {
+  margin-top: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid rgba(7, 59, 131, 0.12);
+  border-left: 3px solid var(--tv-reviews-navy);
+  background: rgba(7, 59, 131, 0.04);
+  padding: 0.7rem 0.8rem;
+}
+
+.tv-reviews-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(28, 25, 23, 0.06);
+  padding: 1.25rem 1.15rem;
+}
+
+.tv-reviews-empty__icon {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin-bottom: 0.65rem;
+  border-radius: 8px;
+  background: #f0f4fa;
+  color: var(--tv-reviews-navy);
+}
+
 /* Phase 1810: partner Inbox — messaging product density */
 .partner-inbox,
 .partner-inbox .font-display,

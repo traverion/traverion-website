@@ -2,42 +2,37 @@
  * Supplier: view all reviews for my listings and reply.
  */
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
-import { Star, MessageSquare, Check } from 'lucide-react';
+import { Star, MessageSquare, Check, Search } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
-import {
-  SUPPLIER_PAGE_CLASS,
-  SupplierEmptyState,
-  SupplierListSkeleton,
-  SupplierPageHero,
-} from '../../components/supplier/supplierUi';
+import { SUPPLIER_PAGE_CLASS, SupplierListSkeleton } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
-import StatusChip from '../../components/StatusChip';
 import NoticeCallout from '../../components/NoticeCallout';
 import PartnerSelect from '../../components/supplier/PartnerSelect';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import {
+  aggregateReviewRatings,
   fetchReviewsForSupplierListings,
   getReviewRepliesByReviewIds,
   submitReviewReply,
   type ReviewDisplay,
   type ReviewReplyRow,
 } from '../../data/supabase-reviews';
+import { fetchMyListings } from '../../data/supabase-listings';
 import type { InventoryFamily } from '../../lib/inventory';
-import { openSupplierListingEditor, navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
-import { PARTNER_APP_BASE, PARTNER_CREATE_PATH } from '../../lib/partnerPortalPaths';
+import { inventoryFamilyFromListing } from '../../lib/inventory';
+import { openSupplierListingEditor } from '../../lib/supplierPortalNavigation';
 import { reviewHasWrittenFeedback, reviewNeedsSupplierReply } from '../../lib/review-feedback';
 
 function familyLabel(family: InventoryFamily | undefined): 'Stay' | 'Tour' {
   return family === 'stay' ? 'Stay' : 'Tour';
 }
 
-/** Same locale shape as admin booking created_at chips. */
 function formatCreatedAtDisplay(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 type SupplierReviewRow = ReviewDisplay & {
@@ -45,26 +40,53 @@ type SupplierReviewRow = ReviewDisplay & {
   listing_family?: InventoryFamily;
 };
 
+type SortKey = 'newest' | 'oldest' | 'highest' | 'lowest';
+
+const PAGE_SIZE = 20;
+const COMMENT_PREVIEW = 280;
+
+function StarRow({ rating, size = 14 }: { rating: number; size?: number }) {
+  return (
+    <span className="inline-flex items-center gap-0.5" aria-label={`${rating} out of 5 stars`}>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <Star
+          key={i}
+          size={size}
+          className={i <= rating ? 'fill-amber-500 text-amber-500' : 'text-[#d4d4d8]'}
+          aria-hidden
+        />
+      ))}
+    </span>
+  );
+}
+
 export default function SupplierReviews() {
   const { user, isSupabase } = useSupplierAuth();
   const { role } = useSupplierRole();
   // Phase 1749: finance/viewer read reviews; public replies need editor roles (RLS 1748).
   const canReply = canManageBookings(role);
   const [reviews, setReviews] = useState<SupplierReviewRow[]>([]);
+  const [listings, setListings] = useState<{ id: string; title: string; family: InventoryFamily }[]>([]);
   const [replies, setReplies] = useState<Record<string, ReviewReplyRow>>({});
   const [loading, setLoading] = useState(true);
   const [replyingId, setReplyingId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState<Record<string, string>>({});
+  const [replySuccessId, setReplySuccessId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [replyError, setReplyError] = useState<string | null>(null);
   const [highlightReviewId, setHighlightReviewId] = useState<string | null>(null);
   const [filterListingId, setFilterListingId] = useState('');
-  const [filterFamily, setFilterFamily] = useState<'all' | 'tour' | 'stay'>('all');
   const [filterRating, setFilterRating] = useState<number | ''>('');
   const [filterReply, setFilterReply] = useState<'all' | 'unreplied' | 'replied'>('all');
+  const [sortKey, setSortKey] = useState<SortKey>('newest');
+  const [searchInput, setSearchInput] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(0);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [editingReplyIds, setEditingReplyIds] = useState<Set<string>>(new Set());
   const loadGenRef = useRef(0);
   const reviewsHubUserIdRef = useRef<string | null>(null);
+  const submitLockRef = useRef<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     const uid = user?.id;
@@ -76,13 +98,23 @@ export default function SupplierReviews() {
     setLoading(true);
     setError(null);
     try {
-      const list = await fetchReviewsForSupplierListings(uid);
+      const [list, myListings] = await Promise.all([
+        fetchReviewsForSupplierListings(uid),
+        fetchMyListings(uid).catch(() => [] as Awaited<ReturnType<typeof fetchMyListings>>),
+      ]);
       if (gen !== loadGenRef.current) return;
       try {
         const replyMap = await getReviewRepliesByReviewIds(list.map((r) => r.id));
         if (gen !== loadGenRef.current) return;
         // Phase 1475: commit reviews + replies together — reply failure must not refresh reviews with a stale reply map.
         setReviews(list);
+        setListings(
+          myListings.map((l) => ({
+            id: l.id,
+            title: (l.title ?? '').trim() || 'Untitled listing',
+            family: inventoryFamilyFromListing(l) === 'stay' ? 'stay' : 'tour',
+          }))
+        );
         setReplies(replyMap);
         setReplyText(
           list.reduce<Record<string, string>>((acc, r) => {
@@ -108,12 +140,14 @@ export default function SupplierReviews() {
   useLayoutEffect(() => {
     const clearReviewsPartnerWorkspace = () => {
       setReviews([]);
+      setListings([]);
       setReplies({});
       setReplyText({});
       setReplyingId(null);
       setEditingReplyIds(new Set());
       setError(null);
       setReplyError(null);
+      setReplySuccessId(null);
     };
     if (!user?.id) {
       reviewsHubUserIdRef.current = null;
@@ -130,8 +164,13 @@ export default function SupplierReviews() {
   }, [user?.id]);
 
   useEffect(() => {
-    load();
+    void load();
   }, [load]);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setSearchQuery(searchInput.trim().toLowerCase()), 220);
+    return () => window.clearTimeout(t);
+  }, [searchInput]);
 
   const readFiltersFromUrl = useCallback(() => {
     const params = new URLSearchParams(window.location.search);
@@ -145,13 +184,20 @@ export default function SupplierReviews() {
     }
     const listing = (params.get('listing') ?? '').trim();
     setFilterListingId(listing);
-    const family = params.get('family');
-    setFilterFamily(family === 'tour' || family === 'stay' ? family : 'all');
     const ratingRaw = params.get('rating');
     const ratingNum = ratingRaw ? Number(ratingRaw) : NaN;
     setFilterRating(
       ratingNum === 1 || ratingNum === 2 || ratingNum === 3 || ratingNum === 4 || ratingNum === 5 ? ratingNum : ''
     );
+    const sort = params.get('sort');
+    if (sort === 'oldest' || sort === 'highest' || sort === 'lowest' || sort === 'newest') {
+      setSortKey(sort);
+    }
+    const q = (params.get('q') ?? '').trim();
+    setSearchInput(q);
+    setSearchQuery(q.toLowerCase());
+    const pageRaw = Number(params.get('page') ?? '1');
+    setPage(Number.isFinite(pageRaw) && pageRaw > 0 ? Math.floor(pageRaw) - 1 : 0);
   }, []);
 
   useEffect(() => {
@@ -164,98 +210,136 @@ export default function SupplierReviews() {
   const writeFiltersToUrl = useCallback(
     (next: {
       listingId?: string;
-      family?: 'all' | 'tour' | 'stay';
       rating?: number | '';
       reply?: 'all' | 'unreplied' | 'replied';
+      sort?: SortKey;
+      q?: string;
+      pageIndex?: number;
     }) => {
       const listingId = next.listingId !== undefined ? next.listingId : filterListingId;
-      const family = next.family !== undefined ? next.family : filterFamily;
       const rating = next.rating !== undefined ? next.rating : filterRating;
       const reply = next.reply !== undefined ? next.reply : filterReply;
+      const sort = next.sort !== undefined ? next.sort : sortKey;
+      const q = next.q !== undefined ? next.q : searchInput;
+      const pageIndex = next.pageIndex !== undefined ? next.pageIndex : page;
       if (next.listingId !== undefined) setFilterListingId(next.listingId);
-      if (next.family !== undefined) setFilterFamily(next.family);
       if (next.rating !== undefined) setFilterRating(next.rating);
       if (next.reply !== undefined) setFilterReply(next.reply);
+      if (next.sort !== undefined) setSortKey(next.sort);
+      if (next.q !== undefined) setSearchInput(next.q);
+      if (next.pageIndex !== undefined) setPage(next.pageIndex);
       const url = new URL(window.location.href);
       if (!listingId) url.searchParams.delete('listing');
       else url.searchParams.set('listing', listingId);
-      if (family === 'all') url.searchParams.delete('family');
-      else url.searchParams.set('family', family);
+      url.searchParams.delete('family');
       if (rating === '') url.searchParams.delete('rating');
       else url.searchParams.set('rating', String(rating));
       if (reply === 'all') url.searchParams.delete('reply');
       else url.searchParams.set('reply', reply);
+      if (sort === 'newest') url.searchParams.delete('sort');
+      else url.searchParams.set('sort', sort);
+      const trimmedQ = q.trim();
+      if (!trimmedQ) url.searchParams.delete('q');
+      else url.searchParams.set('q', trimmedQ);
+      if (pageIndex <= 0) url.searchParams.delete('page');
+      else url.searchParams.set('page', String(pageIndex + 1));
       window.history.replaceState({}, '', `${url.pathname}${url.search}`);
     },
-    [filterListingId, filterFamily, filterRating, filterReply]
-  );
-
-  const syncReplyFilterToUrl = useCallback(
-    (next: 'all' | 'unreplied' | 'replied') => {
-      writeFiltersToUrl({ reply: next });
-    },
-    [writeFiltersToUrl]
+    [filterListingId, filterRating, filterReply, sortKey, searchInput, page]
   );
 
   const listingOptions = useMemo(() => {
     const m = new Map<string, string>();
+    for (const l of listings) m.set(l.id, l.title);
     for (const r of reviews) {
-      if (r.listing_id) m.set(r.listing_id, (r.listing_title ?? 'Listing').trim() || 'Listing');
+      if (r.listing_id && !m.has(r.listing_id)) {
+        m.set(r.listing_id, (r.listing_title ?? 'Listing').trim() || 'Listing');
+      }
     }
     return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1]));
-  }, [reviews]);
+  }, [listings, reviews]);
 
-  const unrepliedWrittenCount = useMemo(
-    () => reviews.filter((r) => reviewNeedsSupplierReply(r, replies)).length,
-    [reviews, replies]
-  );
+  const summary = useMemo(() => {
+    const { avg, count } = aggregateReviewRatings(reviews.map((r) => r.rating));
+    const written = reviews.filter(reviewHasWrittenFeedback);
+    const awaiting = written.filter((r) => reviewNeedsSupplierReply(r, replies)).length;
+    const replied = written.filter((r) => Boolean(replies[r.id])).length;
+    const responseRate = written.length > 0 ? Math.round((replied / written.length) * 100) : null;
+    const dist = [0, 0, 0, 0, 0];
+    for (const r of reviews) {
+      const star = Math.min(5, Math.max(1, Math.round(Number(r.rating) || 0)));
+      dist[star - 1] += 1;
+    }
+    return { avg, count, awaiting, responseRate, dist, writtenCount: written.length };
+  }, [reviews, replies]);
 
   const filteredReviews = useMemo(() => {
-    return reviews.filter((r) => {
+    const list = reviews.filter((r) => {
       if (filterListingId && r.listing_id !== filterListingId) return false;
-      if (filterFamily === 'stay' && r.listing_family !== 'stay') return false;
-      if (filterFamily === 'tour' && r.listing_family === 'stay') return false;
       if (filterRating !== '' && Number(r.rating) !== filterRating) return false;
-      if (filterReply === 'unreplied') {
-        if (!reviewNeedsSupplierReply(r, replies)) return false;
-      }
-      if (filterReply === 'replied') {
-        if (!replies[r.id]) return false;
+      if (filterReply === 'unreplied' && !reviewNeedsSupplierReply(r, replies)) return false;
+      if (filterReply === 'replied' && !replies[r.id]) return false;
+      if (searchQuery) {
+        const hay = `${r.guest_name} ${r.listing_title ?? ''} ${r.title ?? ''} ${r.comment ?? ''}`.toLowerCase();
+        if (!hay.includes(searchQuery)) return false;
       }
       return true;
     });
-  }, [reviews, filterListingId, filterFamily, filterRating, filterReply, replies]);
+    list.sort((a, b) => {
+      if (sortKey === 'oldest') return a.created_at.localeCompare(b.created_at);
+      if (sortKey === 'highest') return Number(b.rating) - Number(a.rating) || b.created_at.localeCompare(a.created_at);
+      if (sortKey === 'lowest') return Number(a.rating) - Number(b.rating) || b.created_at.localeCompare(a.created_at);
+      return b.created_at.localeCompare(a.created_at);
+    });
+    return list;
+  }, [reviews, filterListingId, filterRating, filterReply, replies, searchQuery, sortKey]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredReviews.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const pageRows = filteredReviews.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+
+  useEffect(() => {
+    if (page !== safePage) {
+      setPage(safePage);
+      writeFiltersToUrl({ pageIndex: safePage });
+    }
+  }, [page, safePage, writeFiltersToUrl]);
 
   const hasActiveFilters =
-    Boolean(filterListingId) || filterFamily !== 'all' || filterRating !== '' || filterReply !== 'all';
+    Boolean(filterListingId) ||
+    filterRating !== '' ||
+    filterReply !== 'all' ||
+    Boolean(searchQuery) ||
+    sortKey !== 'newest';
 
   useEffect(() => {
     if (!highlightReviewId || loading) return;
     const inFiltered = filteredReviews.some((r) => r.id === highlightReviewId);
     const inAll = reviews.some((r) => r.id === highlightReviewId);
     if (!inFiltered && inAll) {
-      writeFiltersToUrl({ listingId: '', family: 'all', rating: '', reply: 'all' });
+      writeFiltersToUrl({ listingId: '', rating: '', reply: 'all', q: '', pageIndex: 0 });
       return;
     }
     const el = document.getElementById(`supplier-review-card-${highlightReviewId}`);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, [highlightReviewId, loading, filteredReviews, reviews, writeFiltersToUrl]);
 
   const handleSubmitReply = async (reviewId: string) => {
     if (!user) return;
-    // Phase 1749: role gate before RLS.
     if (!canReply) {
       setReplyError('Your role can view reviews but cannot publish replies.');
       return;
     }
     const text = (replyText[reviewId] ?? '').trim();
     if (!text) return;
+    if (submitLockRef.current.has(reviewId) || replyingId === reviewId) return;
+    submitLockRef.current.add(reviewId);
     setReplyingId(reviewId);
     setReplyError(null);
+    setReplySuccessId(null);
     const res = await submitReviewReply(reviewId, user.id, text);
     setReplyingId(null);
+    submitLockRef.current.delete(reviewId);
     if (res.success) {
       setEditingReplyIds((prev) => {
         if (!prev.has(reviewId)) return prev;
@@ -263,7 +347,8 @@ export default function SupplierReviews() {
         next.delete(reviewId);
         return next;
       });
-      load();
+      setReplySuccessId(reviewId);
+      await load();
     } else {
       setReplyError(userFacingError(res.error, 'Could not save that reply. Try again.'));
     }
@@ -271,6 +356,7 @@ export default function SupplierReviews() {
 
   const startEditingReply = (reviewId: string) => {
     setEditingReplyIds((prev) => new Set(prev).add(reviewId));
+    setReplySuccessId(null);
   };
 
   const cancelEditingReply = (reviewId: string) => {
@@ -284,351 +370,423 @@ export default function SupplierReviews() {
   };
 
   const clearFilters = () => {
-    writeFiltersToUrl({ listingId: '', family: 'all', rating: '', reply: 'all' });
+    setSearchInput('');
+    setSearchQuery('');
+    writeFiltersToUrl({ listingId: '', rating: '', reply: 'all', sort: 'newest', q: '', pageIndex: 0 });
+  };
+
+  const toggleExpanded = (id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
   if (!user) return null;
 
   return (
-    <div className={SUPPLIER_PAGE_CLASS}>
-      <SupplierPageHero
-        badge="Operations"
-        title="Reviews"
-        description={
-          unrepliedWrittenCount > 0
-            ? `${unrepliedWrittenCount} written review${unrepliedWrittenCount === 1 ? '' : 's'} need a reply.`
-            : 'What guests said about your tours and stays. Reply to written reviews.'
-        }
-        actions={
-          unrepliedWrittenCount > 0 ? (
-            <button
-              type="button"
-              onClick={() => writeFiltersToUrl({ reply: 'unreplied' })}
-              className="tv-btn-secondary text-sm"
-            >
-              Needs reply · {unrepliedWrittenCount}
-            </button>
-          ) : undefined
-        }
-      />
+    <div className={`${SUPPLIER_PAGE_CLASS} tv-reviews font-sans`}>
+      <div className="min-w-0">
+        <h1 className="tv-reviews-title">Reviews</h1>
+        <p className="tv-reviews-subtitle">See what your guests are saying and manage your responses.</p>
+      </div>
 
       {!canReply ? (
-        <NoticeCallout tone="info" className="mb-4">
+        <NoticeCallout tone="info">
           Your role can view reviews but cannot publish replies. Ask an owner, manager, or ops teammate.
         </NoticeCallout>
       ) : null}
 
-      {error && (
+      {error ? (
         <ErrorState
           className="py-6"
           title="Reviews unavailable"
           body={userFacingError(error, USER_ERROR.reviews)}
           retry={{ onClick: () => void load() }}
         />
-      )}
+      ) : null}
 
-      {replyError && (
+      {replyError ? (
         <ErrorState
           className="py-4"
           title="Reply not saved"
           body={userFacingError(replyError, 'Could not save that reply. Try again.')}
           back={{ onClick: () => setReplyError(null), label: 'Dismiss' }}
         />
-      )}
+      ) : null}
 
       {loading ? (
         <SupplierListSkeleton rows={3} />
       ) : error ? null : reviews.length === 0 ? (
-        <SupplierEmptyState
-          icon={Star}
-          title="No reviews yet"
-          body="Guests have not rated a tour or stay yet. That is normal for new products. Feedback appears here after a trip."
-          action={
-            <div className="flex flex-wrap gap-2">
-              {/* Phase 1684: Calendar/Offers dual-CTA parity when reviews are empty. */}
-              <button
-                type="button"
-                className="tv-btn-primary"
-                onClick={() => navigateSupplierUrl(PARTNER_CREATE_PATH)}
-              >
-                New listing
-              </button>
-              <button
-                type="button"
-                className="tv-btn-ghost"
-                onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings`)}
-              >
-                Your listings
-              </button>
-            </div>
-          }
-        />
+        <div className="tv-reviews-empty">
+          <div className="tv-reviews-empty__icon">
+            <Star className="h-5 w-5" aria-hidden />
+          </div>
+          <h2 className="text-sm font-bold text-[#18181b]">No reviews yet</h2>
+          <p className="mt-1 max-w-md text-[13px] leading-relaxed text-[#71717a]">
+            Your guest reviews will appear here once customers start sharing their experiences.
+          </p>
+        </div>
       ) : (
-        <div className="space-y-4 sm:space-y-5">
-          <div className="flex flex-wrap items-end gap-x-4 gap-y-3 mb-6">
-            <div className="flex flex-col gap-1 min-w-[min(100%,12rem)] flex-1 sm:flex-none sm:min-w-[11rem]">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-ink-faint" id="reviews-filter-listing-label">
-                Listing
+        <div className="mx-auto w-full max-w-[1180px] space-y-3">
+          <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+            <div className="tv-reviews-metric">
+              <p className="tv-reviews-metric__label">Average rating</p>
+              <p className="tv-reviews-metric__value">
+                {summary.count > 0 ? `${summary.avg.toFixed(1)}` : '—'}
+                <span className="tv-reviews-metric__suffix"> / 5</span>
+              </p>
+            </div>
+            <div className="tv-reviews-metric">
+              <p className="tv-reviews-metric__label">Total reviews</p>
+              <p className="tv-reviews-metric__value">{summary.count}</p>
+            </div>
+            <div className="tv-reviews-metric">
+              <p className="tv-reviews-metric__label">Awaiting reply</p>
+              <p className="tv-reviews-metric__value">{summary.awaiting}</p>
+            </div>
+            <div className="tv-reviews-metric">
+              <p className="tv-reviews-metric__label">Response rate</p>
+              <p className="tv-reviews-metric__value">
+                {summary.responseRate == null ? '—' : `${summary.responseRate}%`}
+              </p>
+            </div>
+          </div>
+
+          {summary.count >= 3 ? (
+            <div className="tv-reviews-panel">
+              <h2 className="tv-reviews-panel__title">Rating distribution</h2>
+              <ul className="tv-reviews-dist mt-2">
+                {[5, 4, 3, 2, 1].map((star) => {
+                  const count = summary.dist[star - 1];
+                  const width = summary.count > 0 ? (count / summary.count) * 100 : 0;
+                  return (
+                    <li key={star}>
+                      <span className="tv-reviews-dist__label">{star}★</span>
+                      <div className="tv-reviews-dist__track" aria-hidden>
+                        <div className="tv-reviews-dist__fill" style={{ width: `${width}%` }} />
+                      </div>
+                      <span className="tv-reviews-dist__count tabular-nums">{count}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ) : null}
+
+          <div className="tv-reviews-filters">
+            <label className="tv-reviews-field tv-reviews-field--search">
+              <span>Search</span>
+              <span className="tv-reviews-search">
+                <Search className="h-4 w-4 shrink-0 text-[#a1a1aa]" aria-hidden />
+                <input
+                  type="search"
+                  className="tv-reviews-search__input"
+                  placeholder="Review text, listing, or guest"
+                  value={searchInput}
+                  aria-label="Search reviews"
+                  onChange={(e) => {
+                    setSearchInput(e.target.value);
+                    writeFiltersToUrl({ q: e.target.value, pageIndex: 0 });
+                  }}
+                />
+                {searchInput ? (
+                  <button
+                    type="button"
+                    className="text-[12px] font-semibold text-[#073b83]"
+                    onClick={() => {
+                      setSearchInput('');
+                      setSearchQuery('');
+                      writeFiltersToUrl({ q: '', pageIndex: 0 });
+                    }}
+                  >
+                    Clear
+                  </button>
+                ) : null}
               </span>
+            </label>
+            <label className="tv-reviews-field">
+              <span>Listing</span>
               <PartnerSelect
-                aria-labelledby="reviews-filter-listing-label"
+                aria-label="Listing filter"
                 value={filterListingId}
-                onChange={(listingId) => writeFiltersToUrl({ listingId })}
+                searchable="auto"
                 options={[
                   { value: '', label: 'All listings' },
                   ...listingOptions.map(([id, title]) => ({ value: id, label: title })),
                 ]}
+                onChange={(listingId) => writeFiltersToUrl({ listingId, pageIndex: 0 })}
               />
-            </div>
-            <div className="flex flex-col gap-1 min-w-[8.5rem]">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-ink-faint" id="reviews-filter-type-label">
-                Type
-              </span>
+            </label>
+            <label className="tv-reviews-field">
+              <span>Rating</span>
               <PartnerSelect
-                aria-labelledby="reviews-filter-type-label"
-                value={filterFamily}
-                onChange={(family) => writeFiltersToUrl({ family: family as typeof filterFamily })}
-                options={[
-                  { value: 'all', label: 'Tour and stay' },
-                  { value: 'tour', label: 'Tours only' },
-                  { value: 'stay', label: 'Stays only' },
-                ]}
-              />
-            </div>
-            <div className="flex flex-col gap-1 min-w-[8.5rem]">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-ink-faint" id="reviews-filter-rating-label">
-                Star rating
-              </span>
-              <PartnerSelect
-                aria-labelledby="reviews-filter-rating-label"
+                aria-label="Rating filter"
                 value={filterRating === '' ? '' : String(filterRating)}
-                onChange={(v) => writeFiltersToUrl({ rating: v === '' ? '' : Number(v) })}
                 options={[
                   { value: '', label: 'All ratings' },
                   ...[5, 4, 3, 2, 1].map((n) => ({
                     value: String(n),
-                    label: `${n} star${n === 1 ? '' : 's'} only`,
+                    label: `${n} star${n === 1 ? '' : 's'}`,
                   })),
                 ]}
+                onChange={(v) => writeFiltersToUrl({ rating: v === '' ? '' : Number(v), pageIndex: 0 })}
               />
-            </div>
-            <div className="flex flex-col gap-1 min-w-[10rem]">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-ink-faint" id="reviews-filter-reply-label">
-                Reply status
-              </span>
+            </label>
+            <label className="tv-reviews-field">
+              <span>Reply status</span>
               <PartnerSelect
-                aria-labelledby="reviews-filter-reply-label"
+                aria-label="Reply status"
                 value={filterReply}
-                onChange={(v) => syncReplyFilterToUrl(v as typeof filterReply)}
                 options={[
                   { value: 'all', label: 'All reviews' },
-                  { value: 'unreplied', label: 'Needs reply' },
+                  { value: 'unreplied', label: 'Awaiting reply' },
                   { value: 'replied', label: 'Replied' },
                 ]}
+                onChange={(v) => writeFiltersToUrl({ reply: v as typeof filterReply, pageIndex: 0 })}
               />
-            </div>
+            </label>
+            <label className="tv-reviews-field">
+              <span>Sort</span>
+              <PartnerSelect
+                aria-label="Sort reviews"
+                value={sortKey}
+                options={[
+                  { value: 'newest', label: 'Newest first' },
+                  { value: 'oldest', label: 'Oldest first' },
+                  { value: 'highest', label: 'Highest rated' },
+                  { value: 'lowest', label: 'Lowest rated' },
+                ]}
+                onChange={(v) => writeFiltersToUrl({ sort: v as SortKey, pageIndex: 0 })}
+              />
+            </label>
           </div>
-          <div className="flex flex-wrap items-center gap-2 mb-4">
+
+          <div className="flex flex-wrap items-center gap-2 text-[12px] text-[#71717a]">
+            <span>
+              Showing {pageRows.length === 0 ? 0 : safePage * PAGE_SIZE + 1}–
+              {Math.min((safePage + 1) * PAGE_SIZE, filteredReviews.length)} of {filteredReviews.length}
+            </span>
             {hasActiveFilters ? (
-              <>
-                <button type="button" onClick={clearFilters} className="tv-btn-ghost">
-                  Clear filters
-                </button>
-                <span className="text-sm text-ink-muted">
-                  Showing {filteredReviews.length} of {reviews.length}
-                </span>
-              </>
-            ) : (
-              <span className="text-sm text-ink-muted">Filter by product, type, stars, or reply status.</span>
-            )}
+              <button type="button" className="font-semibold text-[#073b83]" onClick={clearFilters}>
+                Clear filters
+              </button>
+            ) : null}
+            {summary.awaiting > 0 && filterReply !== 'unreplied' ? (
+              <button
+                type="button"
+                className="font-semibold text-[#073b83]"
+                onClick={() => writeFiltersToUrl({ reply: 'unreplied', pageIndex: 0 })}
+              >
+                Awaiting reply · {summary.awaiting}
+              </button>
+            ) : null}
           </div>
 
           {filteredReviews.length === 0 ? (
-            <SupplierEmptyState
-              icon={Star}
-              className="py-8"
-              title="No reviews match"
-              body={
-                filterFamily === 'stay'
-                  ? 'No stay reviews match these filters. Clear filters or switch to Tours.'
-                  : filterFamily === 'tour'
-                    ? 'No tour reviews match these filters. Clear filters or switch to Stays.'
-                    : 'You have reviews, but none match this listing, type, rating, or reply filter. Clear filters to see all of them.'
-              }
-              action={
-                <button type="button" onClick={clearFilters} className="tv-btn-primary">
-                  Clear filters
-                </button>
-              }
-            />
+            <div className="tv-reviews-empty">
+              <div className="tv-reviews-empty__icon">
+                <Star className="h-5 w-5" aria-hidden />
+              </div>
+              <h2 className="text-sm font-bold text-[#18181b]">No matching reviews</h2>
+              <p className="mt-1 max-w-sm text-[13px] text-[#71717a]">Try adjusting your search or filters.</p>
+              <button type="button" className="tv-btn-secondary mt-3 h-9 px-3 text-[13px]" onClick={clearFilters}>
+                Clear filters
+              </button>
+            </div>
           ) : (
-            <div className="space-y-2.5 sm:space-y-3">
-              {filteredReviews.map((r) => {
-                const needsReply = reviewNeedsSupplierReply(r, replies);
-                const isHighlighted = highlightReviewId === r.id;
-                const kind = familyLabel(r.listing_family);
-                return (
-                  <article
-                    key={r.id}
-                    id={`supplier-review-card-${r.id}`}
-                    className={`tv-review-card p-3.5 sm:p-4 ${
-                      needsReply
-                        ? 'border-l-[3px] border-l-amber-500'
-                        : replies[r.id]
-                          ? 'border-l-[3px] border-l-emerald-500'
-                          : r.verified
-                            ? 'border-l-[3px] border-l-finland'
-                            : 'border-l-[3px] border-l-black/10'
-                    } ${isHighlighted ? 'ring-2 ring-finland/25 shadow-soft-lg' : ''} ${
-                      needsReply ? 'ring-1 ring-amber-200/80' : ''
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0 flex-1">
-                        <p className="tv-review-card__meta mb-1.5">
-                          {kind}
-                          {' · '}
-                          {formatCreatedAtDisplay(r.created_at)}
-                        </p>
-                        <h3 className="font-display text-[1.05rem] font-semibold tracking-tight text-ink leading-snug break-words [overflow-wrap:anywhere]">
-                          {r.listing_title ?? 'Listing'}
-                        </h3>
-                        <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                          <span className="text-sm font-medium text-ink">{r.guest_name}</span>
-                          {r.verified ? <StatusChip tone="good">Verified</StatusChip> : null}
-                          {needsReply ? <StatusChip tone="warn">Needs reply</StatusChip> : null}
-                          {replies[r.id] ? <StatusChip tone="neutral">Replied</StatusChip> : null}
-                        </div>
-                        <div className="mt-2.5 flex items-center gap-1" aria-label={`${r.rating} out of 5 stars`}>
-                          {[1, 2, 3, 4, 5].map((i) => (
-                            <Star
-                              key={i}
-                              size={18}
-                              className={i <= r.rating ? 'text-amber-500 fill-amber-500' : 'text-ink-faint'}
-                            />
-                          ))}
-                          <span className="ml-1.5 text-sm font-semibold tabular-nums text-ink">{r.rating}/5</span>
-                        </div>
-                        {(r.title || reviewHasWrittenFeedback(r)) && (
-                          <div className="mt-3 rounded-lg bg-black/[0.025] px-3 py-2.5 ring-1 ring-black/[0.04]">
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint mb-1.5">
-                              Guest review
+            <>
+              <ul className="space-y-2.5">
+                {pageRows.map((r) => {
+                  const needsReply = reviewNeedsSupplierReply(r, replies);
+                  const isHighlighted = highlightReviewId === r.id;
+                  const kind = familyLabel(r.listing_family);
+                  const comment = (r.comment ?? '').trim();
+                  const expanded = expandedIds.has(r.id);
+                  const long = comment.length > COMMENT_PREVIEW;
+                  const shownComment =
+                    !long || expanded ? comment : `${comment.slice(0, COMMENT_PREVIEW).trimEnd()}…`;
+                  return (
+                    <li key={r.id}>
+                      <article
+                        id={`supplier-review-card-${r.id}`}
+                        className={`tv-reviews-card ${isHighlighted ? 'tv-reviews-card--highlight' : ''} ${
+                          needsReply ? 'tv-reviews-card--needs-reply' : ''
+                        }`}
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="tv-reviews-card__meta">
+                              {r.guest_name || 'Guest'}
+                              {' · '}
+                              {formatCreatedAtDisplay(r.created_at)}
+                              {' · '}
+                              {kind}
                             </p>
-                            {r.title ? (
-                              <p className="font-semibold text-ink mb-1 break-words [overflow-wrap:anywhere]">
-                                {r.title}
-                              </p>
-                            ) : null}
-                            {reviewHasWrittenFeedback(r) ? (
-                              (r.comment ?? '').trim() ? (
-                                <p className="text-sm text-ink-muted leading-relaxed break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
-                                  {r.comment}
-                                </p>
-                              ) : null
-                            ) : (
-                              <p className="text-sm text-ink-muted italic">No written review — rating only.</p>
-                            )}
+                            <p className="mt-0.5 text-[13px] font-semibold text-[#18181b]" title={r.listing_title}>
+                              {r.listing_title ?? 'Listing'}
+                            </p>
                           </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <StarRow rating={Number(r.rating) || 0} />
+                            <span className="text-[12px] font-semibold tabular-nums text-[#18181b]">
+                              {r.rating}/5
+                            </span>
+                            {needsReply ? <span className="tv-reviews-chip tv-reviews-chip--warn">Awaiting reply</span> : null}
+                            {replies[r.id] ? <span className="tv-reviews-chip tv-reviews-chip--ok">Replied</span> : null}
+                            {r.verified ? <span className="tv-reviews-chip">Verified</span> : null}
+                          </div>
+                        </div>
+
+                        {r.title || reviewHasWrittenFeedback(r) ? (
+                          <div className="mt-2.5">
+                            {r.title ? (
+                              <p className="text-[13px] font-semibold text-[#18181b] break-words">{r.title}</p>
+                            ) : null}
+                            {comment ? (
+                              <>
+                                <p className="mt-1 text-[13px] leading-relaxed text-[#3f3f46] whitespace-pre-wrap break-words">
+                                  {shownComment}
+                                </p>
+                                {long ? (
+                                  <button
+                                    type="button"
+                                    className="mt-1 text-[12px] font-semibold text-[#073b83]"
+                                    onClick={() => toggleExpanded(r.id)}
+                                  >
+                                    {expanded ? 'Show less' : 'Read more'}
+                                  </button>
+                                ) : null}
+                              </>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <p className="mt-2 text-[12px] italic text-[#71717a]">Rating only — no written feedback.</p>
                         )}
-                        {!r.title && !reviewHasWrittenFeedback(r) ? (
-                          <p className="mt-2.5 text-sm text-ink-muted italic">No written review — rating only.</p>
-                        ) : null}
+
                         {r.listing_id ? (
                           <button
                             type="button"
-                            className="mt-2.5 text-xs font-semibold text-finland hover:underline"
+                            className="mt-2 text-[12px] font-semibold text-[#073b83]"
                             onClick={() => openSupplierListingEditor(r.listing_id)}
                           >
                             Open listing
                           </button>
                         ) : null}
-                      </div>
-                    </div>
 
-                    {replies[r.id] && !editingReplyIds.has(r.id) ? (
-                      <div className="tv-review-card__reply">
-                        <div className="flex items-start justify-between gap-3">
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-finland">
-                            Your response
+                        {replies[r.id] && !editingReplyIds.has(r.id) ? (
+                          <div className="tv-reviews-reply">
+                            <div className="flex items-start justify-between gap-3">
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#073b83]">
+                                Your response
+                              </p>
+                              {canReply ? (
+                                <button
+                                  type="button"
+                                  onClick={() => startEditingReply(r.id)}
+                                  className="text-[12px] font-semibold text-[#073b83]"
+                                >
+                                  Edit reply
+                                </button>
+                              ) : null}
+                            </div>
+                            <p className="mt-1.5 text-[13px] leading-snug text-[#18181b] whitespace-pre-wrap break-words">
+                              {replies[r.id].reply_text}
+                            </p>
+                            <p className="mt-1 text-[11px] text-[#a1a1aa]">
+                              {formatCreatedAtDisplay(replies[r.id].created_at)}
+                            </p>
+                            {replySuccessId === r.id ? (
+                              <p className="mt-1 text-[12px] font-semibold text-[#047857]" role="status">
+                                Reply saved.
+                              </p>
+                            ) : null}
+                          </div>
+                        ) : !reviewHasWrittenFeedback(r) ? (
+                          <p className="mt-2.5 text-[12px] text-[#71717a]">
+                            Replies are available when the guest leaves a title or written comment.
                           </p>
-                          {canReply ? (
-                            <button
-                              type="button"
-                              onClick={() => startEditingReply(r.id)}
-                              className="text-xs font-semibold text-finland hover:underline shrink-0"
-                            >
-                              Edit reply
-                            </button>
-                          ) : null}
-                        </div>
-                        <p className="mt-1.5 text-sm text-ink leading-snug break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
-                          {replies[r.id].reply_text}
-                        </p>
-                        <p className="text-[11px] text-ink-faint mt-1.5">
-                          {formatCreatedAtDisplay(replies[r.id].created_at)}
-                        </p>
-                      </div>
-                    ) : !reviewHasWrittenFeedback(r) ? (
-                      <p className="mt-3 text-xs text-ink-muted">
-                        Replies are available when the guest leaves a title or written comment with their rating.
-                      </p>
-                    ) : (
-                      <div className="mt-3">
-                        <label htmlFor={`review-reply-${r.id}`} className="block text-xs font-medium text-ink mb-1">
-                          <MessageSquare className="w-3.5 h-3.5 inline mr-1" aria-hidden />
-                          Reply
-                        </label>
-                        <textarea
-                          id={`review-reply-${r.id}`}
-                          value={replyText[r.id] ?? ''}
-                          onChange={(e) =>
-                            setReplyText((prev) => ({
-                              ...prev,
-                              [r.id]: e.target.value.slice(0, 2000),
-                            }))
-                          }
-                          placeholder="Thank the customer or answer a question…"
-                          rows={2}
-                          maxLength={2000}
-                          disabled={!canReply}
-                          className="tv-input text-sm disabled:opacity-50"
-                          aria-describedby={`review-reply-hint-${r.id}`}
-                        />
-                        {/* Phase 1697: live length honesty on supplier review replies. */}
-                        <p id={`review-reply-hint-${r.id}`} className="mt-1.5 text-xs text-ink-faint">
-                          Up to 2000 characters
-                          {(replyText[r.id] ?? '').length > 0
-                            ? ` · ${(replyText[r.id] ?? '').length} used`
-                            : ''}
-                          .
-                        </p>
-                        <div className="mt-2 flex items-center gap-2">
-                          <button
-                            type="button"
-                            disabled={!canReply || replyingId === r.id || !(replyText[r.id] ?? '').trim()}
-                            onClick={() => handleSubmitReply(r.id)}
-                            className="tv-btn-primary inline-flex items-center gap-1.5 disabled:opacity-50"
-                          >
-                            <Check className="w-3.5 h-3.5" />
-                            {replyingId === r.id ? 'Saving…' : replies[r.id] ? 'Save changes' : 'Save reply'}
-                          </button>
-                          {replies[r.id] && editingReplyIds.has(r.id) ? (
-                            <button
-                              type="button"
-                              disabled={replyingId === r.id}
-                              onClick={() => cancelEditingReply(r.id)}
-                              className="tv-btn-ghost disabled:opacity-50"
-                            >
-                              Cancel
-                            </button>
-                          ) : null}
-                        </div>
-                      </div>
-                    )}
-                  </article>
-                );
-              })}
-            </div>
+                        ) : (
+                          <div className="mt-3">
+                            <label htmlFor={`review-reply-${r.id}`} className="mb-1 block text-[12px] font-semibold text-[#18181b]">
+                              <MessageSquare className="mr-1 inline h-3.5 w-3.5" aria-hidden />
+                              {replies[r.id] ? 'Edit reply' : 'Reply'}
+                            </label>
+                            <textarea
+                              id={`review-reply-${r.id}`}
+                              value={replyText[r.id] ?? ''}
+                              onChange={(e) =>
+                                setReplyText((prev) => ({
+                                  ...prev,
+                                  [r.id]: e.target.value.slice(0, 2000),
+                                }))
+                              }
+                              placeholder="Thank the customer or answer a question…"
+                              rows={3}
+                              maxLength={2000}
+                              disabled={!canReply || replyingId === r.id}
+                              className="tv-input text-[13px] disabled:opacity-50"
+                              aria-describedby={`review-reply-hint-${r.id}`}
+                            />
+                            <p id={`review-reply-hint-${r.id}`} className="mt-1 text-[11px] text-[#a1a1aa]">
+                              Up to 2000 characters
+                              {(replyText[r.id] ?? '').length > 0 ? ` · ${(replyText[r.id] ?? '').length} used` : ''}.
+                            </p>
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                              <button
+                                type="button"
+                                disabled={!canReply || replyingId === r.id || !(replyText[r.id] ?? '').trim()}
+                                onClick={() => void handleSubmitReply(r.id)}
+                                className="tv-btn-primary inline-flex h-9 items-center gap-1.5 px-3 text-[13px] disabled:opacity-50"
+                              >
+                                <Check className="h-3.5 w-3.5" aria-hidden />
+                                {replyingId === r.id ? 'Saving…' : replies[r.id] ? 'Save changes' : 'Save reply'}
+                              </button>
+                              {replies[r.id] && editingReplyIds.has(r.id) ? (
+                                <button
+                                  type="button"
+                                  disabled={replyingId === r.id}
+                                  onClick={() => cancelEditingReply(r.id)}
+                                  className="tv-btn-ghost h-9 px-3 text-[13px] disabled:opacity-50"
+                                >
+                                  Cancel
+                                </button>
+                              ) : null}
+                            </div>
+                          </div>
+                        )}
+                      </article>
+                    </li>
+                  );
+                })}
+              </ul>
+
+              {pageCount > 1 ? (
+                <div className="flex items-center justify-between text-[13px]">
+                  <button
+                    type="button"
+                    className="tv-btn-secondary h-9 px-3"
+                    disabled={safePage === 0}
+                    onClick={() => writeFiltersToUrl({ pageIndex: Math.max(0, safePage - 1) })}
+                  >
+                    Previous
+                  </button>
+                  <span className="text-[#71717a]">
+                    {safePage + 1} / {pageCount}
+                  </span>
+                  <button
+                    type="button"
+                    className="tv-btn-secondary h-9 px-3"
+                    disabled={safePage + 1 >= pageCount}
+                    onClick={() => writeFiltersToUrl({ pageIndex: safePage + 1 })}
+                  >
+                    Next
+                  </button>
+                </div>
+              ) : null}
+            </>
           )}
         </div>
       )}
