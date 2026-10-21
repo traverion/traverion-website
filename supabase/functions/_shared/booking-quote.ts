@@ -948,29 +948,35 @@ function civilDayInRange(day: string, from: string | null, until: string | null)
 }
 
 /**
- * Mirror of src/lib/offer-eligibility.ts offerApplies.
- * Legacy rows (no book_from) constrain the departure. New rows constrain the booking day
- * and, when set, the activity day. Paused, deleted, and limit-reached rows do not apply.
+ * Mirror of src/lib/offer-eligibility.ts offerApplies / offerDiscountPeriod.
+ * Single Discount period: which departure / stay night / rental day is discounted.
+ * Booking day is ignored. Prefer activity_* when present (older dual-window rows),
+ * else valid_*, else book_*.
  */
+function discountPeriod(d: DiscountRow): { from: string | null; until: string | null } {
+  const activityFrom = civilDay(d.activity_from);
+  if (activityFrom) {
+    return { from: activityFrom, until: civilDay(d.activity_until) };
+  }
+  return {
+    from: civilDay(d.valid_from) ?? civilDay(d.book_from),
+    until: civilDay(d.valid_until) ?? civilDay(d.book_until),
+  };
+}
+
 export function discountRowApplies(
   d: DiscountRow,
   optionId: string | null,
   activityDay: string,
-  bookingDay: string,
+  _bookingDay?: string,
 ): boolean {
   if (d.paused) return false;
   if (d.deleted_at) return false;
   const scope = (d.booking_option_id ?? '').trim();
   if (scope && scope !== (optionId ?? '')) return false;
   if (d.booking_limit != null && d.booking_limit > 0 && (d.redeemed_count ?? 0) >= d.booking_limit) return false;
-  const bookFrom = civilDay(d.book_from);
-  if (bookFrom) {
-    if (!civilDayInRange(bookingDay, bookFrom, civilDay(d.book_until))) return false;
-    const activityFrom = civilDay(d.activity_from);
-    if (activityFrom && !civilDayInRange(activityDay, activityFrom, civilDay(d.activity_until))) return false;
-    return true;
-  }
-  return civilDayInRange(activityDay, civilDay(d.valid_from), civilDay(d.valid_until));
+  const period = discountPeriod(d);
+  return civilDayInRange(activityDay, period.from, period.until);
 }
 
 function applyDiscount(price: number, d: DiscountRow): number {

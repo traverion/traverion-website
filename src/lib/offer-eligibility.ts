@@ -2,16 +2,17 @@ import { splitGrossByCommissionBps } from './commercial-money';
 import { formatMoney } from './money';
 
 /**
- * Supplier offers.
+ * Supplier offers — single Discount period.
  *
- * Legacy rows (no book_from) keep the original rule: valid_from/valid_until
- * constrain the departure date. New rows store a booking window in
- * book_from/book_until and an optional activity window. Checkout and catalog
- * display both use this function. Date checks are civil YYYY-MM-DD string
- * compares so a listing timezone's calendar day is not shifted through UTC.
+ * `valid_from` / `valid_until` define which tour departures, stay nights, or
+ * rental days receive the discount. Booking day does not matter. Older rows
+ * that still carry `activity_*` (former service restriction) or only
+ * `book_*` (former purchase window) are read via {@link offerDiscountPeriod}.
+ * New saves write only `valid_*` and clear the legacy columns.
  *
- * Booking windows may run up to {@link OFFER_BOOKING_WINDOW_MAX_DAYS} inclusive
- * days. That cap is an application sanity bound, validated before insert.
+ * Date checks are civil YYYY-MM-DD compares so a listing timezone's calendar
+ * day is not shifted through UTC. Windows may run up to
+ * {@link OFFER_BOOKING_WINDOW_MAX_DAYS} inclusive days.
  *
  * When several offers match, the lowest customer price wins. Equal prices
  * break toward the lexicographically smaller offer id. Offers never stack.
@@ -25,9 +26,13 @@ export type OfferPriceRow = {
   valid_from?: string | null;
   valid_until?: string | null;
   booking_option_id?: string | null;
+  /** @deprecated Cleared on new saves; read only via {@link offerDiscountPeriod}. */
   book_from?: string | null;
+  /** @deprecated Cleared on new saves; read only via {@link offerDiscountPeriod}. */
   book_until?: string | null;
+  /** @deprecated Cleared on new saves; prefer valid_* when present. */
   activity_from?: string | null;
+  /** @deprecated Cleared on new saves; prefer valid_* when present. */
   activity_until?: string | null;
   paused?: boolean | null;
   deleted_at?: string | null;
@@ -76,9 +81,25 @@ export function validateOfferDateWindow(from: string, until: string, label: stri
   return null;
 }
 
+/**
+ * Resolved Discount period for a row.
+ * Prefer former activity window when present (that was the service-date range),
+ * else valid_*, else book_* for transitional rows.
+ */
+export function offerDiscountPeriod(row: OfferPriceRow): { from: string | null; until: string | null } {
+  const activityFrom = civilDay(row.activity_from);
+  if (activityFrom) {
+    return { from: activityFrom, until: civilDay(row.activity_until) };
+  }
+  return {
+    from: civilDay(row.valid_from) ?? civilDay(row.book_from),
+    until: civilDay(row.valid_until) ?? civilDay(row.book_until),
+  };
+}
+
 export function offerApplies(
   row: OfferPriceRow,
-  ctx: { optionId: string | null; activityDay: string; bookingDay: string }
+  ctx: { optionId: string | null; activityDay: string; bookingDay?: string }
 ): boolean {
   if (row.paused) return false;
   if (row.deleted_at) return false;
@@ -87,16 +108,8 @@ export function offerApplies(
   const limit = row.booking_limit;
   if (limit != null && limit > 0 && (row.redeemed_count ?? 0) >= limit) return false;
 
-  const bookFrom = civilDay(row.book_from);
-  if (bookFrom) {
-    if (!civilDayInRange(ctx.bookingDay, bookFrom, civilDay(row.book_until))) return false;
-    const activityFrom = civilDay(row.activity_from);
-    if (activityFrom && !civilDayInRange(ctx.activityDay, activityFrom, civilDay(row.activity_until))) {
-      return false;
-    }
-    return true;
-  }
-  return civilDayInRange(ctx.activityDay, civilDay(row.valid_from), civilDay(row.valid_until));
+  const period = offerDiscountPeriod(row);
+  return civilDayInRange(ctx.activityDay, period.from, period.until);
 }
 
 function discountedUnit(base: number, row: OfferPriceRow): number {
@@ -173,18 +186,20 @@ export function windowsOverlap(
   return as <= be && bs <= ae;
 }
 
-/** True when an offer's discount purchase window has ended (civil today after until). */
-export function offerPurchaseWindowEnded(row: OfferPriceRow, todayIso: string): boolean {
+/** True when an offer's Discount period has ended (civil today after until). */
+export function offerDiscountPeriodEnded(row: OfferPriceRow, todayIso: string): boolean {
   if (!ISO.test(todayIso)) return false;
-  const until = civilDay(row.book_until) ?? civilDay(row.valid_until);
+  const { until } = offerDiscountPeriod(row);
   return Boolean(until && todayIso > until);
 }
 
+/** @deprecated Use {@link offerDiscountPeriodEnded}. */
+export const offerPurchaseWindowEnded = offerDiscountPeriodEnded;
+
 /**
- * Two offers conflict when they target the same bookable inventory and both their
- * discount purchase windows and eligible service-date windows overlap.
- * Unrestricted service dates overlap any restricted range for the same inventory.
- * Paused offers still reserve their ranges. Deleted and ended offers do not.
+ * Two offers conflict when they target the same bookable inventory and their
+ * Discount periods overlap. Paused offers still reserve ranges. Deleted and
+ * ended offers do not.
  */
 export function supplierOffersOverlap(
   candidate: OfferPriceRow & { optionIds: string[] },
@@ -193,31 +208,12 @@ export function supplierOffersOverlap(
   ignoreIds?: readonly string[]
 ): boolean {
   if (other.deleted_at) return false;
-  if (todayIso && offerPurchaseWindowEnded(other, todayIso)) return false;
+  if (todayIso && offerDiscountPeriodEnded(other, todayIso)) return false;
   if (candidate.id && other.id === candidate.id) return false;
   if (ignoreIds?.length && other.id && ignoreIds.includes(other.id)) return false;
-  const booking = windowsOverlap(
-    candidate.book_from ?? candidate.valid_from,
-    candidate.book_until ?? candidate.valid_until,
-    other.book_from ?? other.valid_from,
-    other.book_until ?? other.valid_until
-  );
-  if (!booking) return false;
-  const candidateActivity = civilDay(candidate.activity_from);
-  const otherActivity = civilDay(other.activity_from);
-  // Both restricted → must overlap. One or both unrestricted → treat as overlapping.
-  if (candidateActivity && otherActivity) {
-    if (
-      !windowsOverlap(
-        candidate.activity_from,
-        candidate.activity_until,
-        other.activity_from,
-        other.activity_until
-      )
-    ) {
-      return false;
-    }
-  }
+  const a = offerDiscountPeriod(candidate);
+  const b = offerDiscountPeriod(other);
+  if (!windowsOverlap(a.from, a.until, b.from, b.until)) return false;
   const otherScope = (other.booking_option_id ?? '').trim();
   // Listing-wide other (or listing-wide candidate) conflicts with any selected option.
   if (!otherScope || candidate.optionIds.length === 0) return true;
@@ -259,8 +255,7 @@ export function offerLifecycle(
   confirmedCount = 0
 ): OfferLifecycle {
   if (row.paused) return 'paused';
-  const from = civilDay(row.book_from) ?? civilDay(row.valid_from);
-  const until = civilDay(row.book_until) ?? civilDay(row.valid_until);
+  const { from, until } = offerDiscountPeriod(row);
   if (until && todayIso > until) return 'ended';
   const limit = row.booking_limit;
   if (limit != null && limit > 0 && confirmedCount >= limit) return 'limit_reached';

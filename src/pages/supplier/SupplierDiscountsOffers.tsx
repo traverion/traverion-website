@@ -24,7 +24,7 @@ import { SUPPLIER_PAGE_CLASS, SupplierListSkeleton } from '../../components/supp
 import { formatMoney, normalizeCurrency } from '../../lib/money';
 import { fromMinorUnits } from '../../lib/commercial-money';
 import { catalogOfferTodayIso } from '../../lib/discount-display';
-import { offerLifecycle, type OfferLifecycle } from '../../lib/offer-eligibility';
+import { offerDiscountPeriod, offerLifecycle, type OfferLifecycle } from '../../lib/offer-eligibility';
 import { optionHeadlineUnitPrice } from '../../lib/price-categories';
 import { listingOptionHasSchedules, listingOptionReadySchedules } from '../../lib/listing-option-schedules';
 import type { ListingBookingOption } from '../../types/listingExtras';
@@ -397,8 +397,8 @@ export default function SupplierDiscountsOffers() {
       const as = offerStatus(a.discounts[0], a.listing, confirmedFor(a));
       const bs = offerStatus(b.discounts[0], b.listing, confirmedFor(b));
       if (rank[as] !== rank[bs]) return rank[as] - rank[bs];
-      const af = a.discounts[0].book_from ?? a.discounts[0].valid_from ?? '';
-      const bf = b.discounts[0].book_from ?? b.discounts[0].valid_from ?? '';
+      const af = offerDiscountPeriod(a.discounts[0]).from ?? '';
+      const bf = offerDiscountPeriod(b.discounts[0]).from ?? '';
       return bf.localeCompare(af);
     });
   }, [groups, statusFilter, search, productFilter, confirmedFor]);
@@ -662,8 +662,7 @@ export default function SupplierDiscountsOffers() {
                   },
                   { bookings: 0, guests: 0, net: null as number | null }
                 );
-                const bookFrom = head.book_from ?? head.valid_from;
-                const bookUntil = head.book_until ?? head.valid_until;
+                const period = offerDiscountPeriod(head);
                 const menuOpen = menuKey === `${listing.id}:${group.key}`;
                 const typeLabel = productTypeLabel(listing);
                 return (
@@ -700,15 +699,7 @@ export default function SupplierDiscountsOffers() {
                           <div>
                             <dt>Discount period</dt>
                             <dd>
-                              {formatDate(bookFrom)} – {formatDate(bookUntil)}
-                            </dd>
-                          </div>
-                          <div>
-                            <dt>{typeLabel === 'Stay' ? 'Stay dates' : 'Activity dates'}</dt>
-                            <dd>
-                              {head.activity_from && head.activity_until
-                                ? `${formatDate(head.activity_from)} – ${formatDate(head.activity_until)}`
-                                : 'Any available'}
+                              {formatDate(period.from)} – {formatDate(period.until)}
                             </dd>
                           </div>
                           <div>

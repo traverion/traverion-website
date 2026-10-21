@@ -6,6 +6,7 @@ import {
   discountedCustomerMinor,
   estimatedSupplierEarningsMinor,
   offerApplies,
+  offerDiscountPeriod,
   offerLifecycle,
   supplierOffersOverlap,
   validateOfferDateWindow,
@@ -43,8 +44,8 @@ describe('offer pricing', () => {
 
   it('rejects a zero base and an inverted date window', () => {
     expect(bestCustomerDiscount(0, [percent(15)]).price).toBe(0);
-    expect(validateOfferDateWindow('2026-06-10', '2026-06-01', 'booking period')).toMatch(/on or after/i);
-    expect(validateOfferDateWindow('2026-01-01', '2028-12-31', 'booking period')).toMatch(/730/);
+    expect(validateOfferDateWindow('2026-06-10', '2026-06-01', 'discount period')).toMatch(/on or after/i);
+    expect(validateOfferDateWindow('2026-01-01', '2028-12-31', 'discount period')).toMatch(/730/);
   });
 });
 
@@ -53,41 +54,52 @@ describe('offer eligibility', () => {
     id: 'offer-1',
     type: 'percent',
     value: 15,
-    book_from: '2026-03-01',
-    book_until: '2026-03-14',
     valid_from: '2026-03-01',
     valid_until: '2026-03-14',
     booking_option_id: 'opt-1',
   };
 
-  it('accepts an inclusive booking day and a later departure when activity dates are off', () => {
-    expect(offerApplies(row, { optionId: 'opt-1', bookingDay: '2026-03-01', activityDay: '2026-03-20' })).toBe(true);
-    expect(offerApplies(row, { optionId: 'opt-1', bookingDay: '2026-03-14', activityDay: '2026-04-02' })).toBe(true);
-    expect(offerApplies(row, { optionId: 'opt-1', bookingDay: '2026-02-28', activityDay: '2026-03-20' })).toBe(false);
-    expect(offerApplies(row, { optionId: 'opt-1', bookingDay: '2026-03-15', activityDay: '2026-03-20' })).toBe(false);
+  it('applies when the departure falls in the Discount period, regardless of booking day', () => {
+    expect(offerApplies(row, { optionId: 'opt-1', bookingDay: '2026-01-01', activityDay: '2026-03-01' })).toBe(true);
+    expect(offerApplies(row, { optionId: 'opt-1', bookingDay: '2026-12-31', activityDay: '2026-03-14' })).toBe(true);
+    expect(offerApplies(row, { optionId: 'opt-1', bookingDay: '2026-03-05', activityDay: '2026-02-28' })).toBe(false);
+    expect(offerApplies(row, { optionId: 'opt-1', bookingDay: '2026-03-05', activityDay: '2026-03-15' })).toBe(false);
   });
 
-  it('requires the departure inside the activity window when that limit is on', () => {
-    const limited = { ...row, activity_from: '2026-03-10', activity_until: '2026-03-31' };
-    expect(offerApplies(limited, { optionId: 'opt-1', bookingDay: '2026-03-05', activityDay: '2026-03-10' })).toBe(true);
-    expect(offerApplies(limited, { optionId: 'opt-1', bookingDay: '2026-03-05', activityDay: '2026-03-09' })).toBe(false);
-    expect(offerApplies(limited, { optionId: 'other', bookingDay: '2026-03-05', activityDay: '2026-03-20' })).toBe(false);
+  it('prefers activity_* as the Discount period for older dual-window rows', () => {
+    const legacyDual = {
+      ...row,
+      book_from: '2026-02-01',
+      book_until: '2026-02-28',
+      activity_from: '2026-03-10',
+      activity_until: '2026-03-31',
+    };
+    expect(offerDiscountPeriod(legacyDual)).toEqual({ from: '2026-03-10', until: '2026-03-31' });
+    expect(offerApplies(legacyDual, { optionId: 'opt-1', bookingDay: '2026-02-05', activityDay: '2026-03-10' })).toBe(
+      true
+    );
+    expect(offerApplies(legacyDual, { optionId: 'opt-1', bookingDay: '2026-02-05', activityDay: '2026-03-09' })).toBe(
+      false
+    );
+    expect(offerApplies(legacyDual, { optionId: 'other', bookingDay: '2026-02-05', activityDay: '2026-03-20' })).toBe(
+      false
+    );
   });
 
-  it('keeps legacy rows on the departure window', () => {
-    const legacy: OfferPriceRow = {
+  it('keeps simple valid_* rows on the departure window', () => {
+    const simple: OfferPriceRow = {
       type: 'percent',
       value: 15,
       valid_from: '2026-06-01',
       valid_until: '2026-06-30',
       booking_option_id: null,
     };
-    expect(offerApplies(legacy, { optionId: 'opt-1', bookingDay: '2026-05-01', activityDay: '2026-06-10' })).toBe(true);
-    expect(offerApplies(legacy, { optionId: 'opt-1', bookingDay: '2026-06-10', activityDay: '2026-07-01' })).toBe(false);
+    expect(offerApplies(simple, { optionId: 'opt-1', bookingDay: '2026-05-01', activityDay: '2026-06-10' })).toBe(true);
+    expect(offerApplies(simple, { optionId: 'opt-1', bookingDay: '2026-06-10', activityDay: '2026-07-01' })).toBe(false);
   });
 
   it('skips paused, deleted, and limit-reached offers', () => {
-    const ctx = { optionId: 'opt-1', bookingDay: '2026-03-05', activityDay: '2026-03-20' };
+    const ctx = { optionId: 'opt-1', bookingDay: '2026-03-05', activityDay: '2026-03-10' };
     expect(offerApplies({ ...row, paused: true }, ctx)).toBe(false);
     expect(offerApplies({ ...row, deleted_at: '2026-03-02T00:00:00Z' }, ctx)).toBe(false);
     expect(offerApplies({ ...row, booking_limit: 2, redeemed_count: 2 }, ctx)).toBe(false);
@@ -107,40 +119,72 @@ describe('offer eligibility', () => {
       valid_from: '2026-03-01',
       valid_until: '2026-03-14',
       booking_option_id: 'opt-1',
-      book_from: '2026-03-01',
-      book_until: '2026-03-14',
-      activity_from: '2026-03-10',
-      activity_until: '2026-03-31',
     };
-    const ctx = { optionId: 'opt-1', bookingDay: '2026-03-05', activityDay: '2026-03-20' };
+    const ctx = { optionId: 'opt-1', bookingDay: '2026-01-01', activityDay: '2026-03-10' };
     expect(discountRowApplies(denoRow, ctx.optionId, ctx.activityDay, ctx.bookingDay)).toBe(
       offerApplies(denoRow, ctx)
     );
-    expect(discountRowApplies(denoRow, 'opt-1', '2026-03-09', '2026-03-05')).toBe(false);
+    expect(discountRowApplies(denoRow, 'opt-1', '2026-02-28', '2026-03-05')).toBe(false);
   });
 
-  it('detects overlapping discount windows on the same option', () => {
+  it('detects overlapping Discount periods on the same option', () => {
     expect(
       supplierOffersOverlap(
-        { type: 'percent', value: 15, book_from: '2026-03-01', book_until: '2026-03-20', optionIds: ['opt-1'] },
-        { type: 'percent', value: 10, book_from: '2026-03-10', book_until: '2026-03-30', booking_option_id: 'opt-1' },
+        {
+          type: 'percent',
+          value: 15,
+          valid_from: '2026-03-01',
+          valid_until: '2026-03-20',
+          optionIds: ['opt-1'],
+        },
+        {
+          type: 'percent',
+          value: 10,
+          valid_from: '2026-03-10',
+          valid_until: '2026-03-30',
+          booking_option_id: 'opt-1',
+        },
         '2026-03-01'
       )
     ).toBe(true);
     expect(
       supplierOffersOverlap(
-        { type: 'percent', value: 15, book_from: '2026-04-01', book_until: '2026-04-10', optionIds: ['opt-1'] },
-        { type: 'percent', value: 10, book_from: '2026-03-01', book_until: '2026-03-20', booking_option_id: 'opt-1' },
+        {
+          type: 'percent',
+          value: 15,
+          valid_from: '2026-04-01',
+          valid_until: '2026-04-10',
+          optionIds: ['opt-1'],
+        },
+        {
+          type: 'percent',
+          value: 10,
+          valid_from: '2026-03-01',
+          valid_until: '2026-03-20',
+          booking_option_id: 'opt-1',
+        },
         '2026-03-01'
       )
     ).toBe(false);
   });
 
-  it('allows a second option on the same listing when windows overlap', () => {
+  it('allows a second option on the same listing when periods overlap', () => {
     expect(
       supplierOffersOverlap(
-        { type: 'percent', value: 15, book_from: '2026-03-01', book_until: '2026-03-20', optionIds: ['opt-2'] },
-        { type: 'percent', value: 10, book_from: '2026-03-01', book_until: '2026-03-20', booking_option_id: 'opt-1' },
+        {
+          type: 'percent',
+          value: 15,
+          valid_from: '2026-03-01',
+          valid_until: '2026-03-20',
+          optionIds: ['opt-2'],
+        },
+        {
+          type: 'percent',
+          value: 10,
+          valid_from: '2026-03-01',
+          valid_until: '2026-03-20',
+          booking_option_id: 'opt-1',
+        },
         '2026-03-01'
       )
     ).toBe(false);
@@ -149,12 +193,18 @@ describe('offer eligibility', () => {
   it('keeps paused offers in conflict, but ignores ended offers', () => {
     expect(
       supplierOffersOverlap(
-        { type: 'percent', value: 15, book_from: '2026-03-01', book_until: '2026-03-20', optionIds: ['opt-1'] },
+        {
+          type: 'percent',
+          value: 15,
+          valid_from: '2026-03-01',
+          valid_until: '2026-03-20',
+          optionIds: ['opt-1'],
+        },
         {
           type: 'percent',
           value: 10,
-          book_from: '2026-03-01',
-          book_until: '2026-03-20',
+          valid_from: '2026-03-01',
+          valid_until: '2026-03-20',
           booking_option_id: 'opt-1',
           paused: true,
         },
@@ -163,12 +213,18 @@ describe('offer eligibility', () => {
     ).toBe(true);
     expect(
       supplierOffersOverlap(
-        { type: 'percent', value: 15, book_from: '2026-03-01', book_until: '2026-03-20', optionIds: ['opt-1'] },
+        {
+          type: 'percent',
+          value: 15,
+          valid_from: '2026-03-01',
+          valid_until: '2026-03-20',
+          optionIds: ['opt-1'],
+        },
         {
           type: 'percent',
           value: 10,
-          book_from: '2026-01-01',
-          book_until: '2026-01-31',
+          valid_from: '2026-01-01',
+          valid_until: '2026-01-31',
           booking_option_id: 'opt-1',
         },
         '2026-03-05'
@@ -176,31 +232,7 @@ describe('offer eligibility', () => {
     ).toBe(false);
   });
 
-  it('treats unrestricted service dates as overlapping any restricted range', () => {
-    expect(
-      supplierOffersOverlap(
-        {
-          type: 'percent',
-          value: 15,
-          book_from: '2026-03-01',
-          book_until: '2026-03-20',
-          optionIds: ['opt-1'],
-        },
-        {
-          type: 'percent',
-          value: 10,
-          book_from: '2026-03-01',
-          book_until: '2026-03-20',
-          booking_option_id: 'opt-1',
-          activity_from: '2026-03-10',
-          activity_until: '2026-03-15',
-        },
-        '2026-03-01'
-      )
-    ).toBe(true);
-  });
-
-  it('orders lifecycle from the booking window and confirmed count', () => {
+  it('orders lifecycle from the Discount period and confirmed count', () => {
     expect(offerLifecycle(row, '2026-03-05', 0)).toBe('active');
     expect(offerLifecycle(row, '2026-02-01', 0)).toBe('upcoming');
     expect(offerLifecycle(row, '2026-04-01', 0)).toBe('ended');
@@ -222,7 +254,14 @@ describe('checkout quote uses the offer', () => {
     const res = quoteListingBooking({
       listing,
       discounts: [
-        { id: 'offer-119', type: 'percent', value: 15, valid_from: '2026-06-01', valid_until: '2026-06-30', booking_option_id: null },
+        {
+          id: 'offer-119',
+          type: 'percent',
+          value: 15,
+          valid_from: '2026-06-01',
+          valid_until: '2026-06-30',
+          booking_option_id: null,
+        },
       ],
       bookingDate: '2026-06-10',
       guests: 1,
@@ -235,27 +274,46 @@ describe('checkout quote uses the offer', () => {
     }
   });
 
-  it('keeps a later departure discounted when only the booking window is limited', () => {
+  it('applies the Discount period to the departure even when booked outside that range', () => {
     const res = quoteListingBooking({
       listing,
       discounts: [
         {
-          id: 'book-window',
+          id: 'period-only',
           type: 'percent',
           value: 15,
-          valid_from: '2026-06-01',
-          valid_until: '2026-06-07',
-          book_from: '2026-06-01',
-          book_until: '2026-06-07',
+          valid_from: '2026-07-01',
+          valid_until: '2026-07-31',
           booking_option_id: null,
         },
       ],
-      bookingDate: '2026-07-01',
+      bookingDate: '2026-07-15',
       guests: 1,
-      todayIso: '2026-06-05',
+      todayIso: '2026-01-05',
     });
     expect(res.ok).toBe(true);
     if (res.ok) expect(res.totalAmount).toBe(101.15);
+  });
+
+  it('does not discount a departure outside the Discount period', () => {
+    const res = quoteListingBooking({
+      listing,
+      discounts: [
+        {
+          id: 'period-only',
+          type: 'percent',
+          value: 15,
+          valid_from: '2026-07-01',
+          valid_until: '2026-07-31',
+          booking_option_id: null,
+        },
+      ],
+      bookingDate: '2026-08-01',
+      guests: 1,
+      todayIso: '2026-01-05',
+    });
+    expect(res.ok).toBe(true);
+    if (res.ok) expect(res.totalAmount).toBe(119);
   });
 
   it('does not apply a paused offer or a limit that is already full', () => {
@@ -321,8 +379,24 @@ describe('checkout quote uses the offer', () => {
               availabilityDateTo: '',
               pricingMode: 'age_dependent',
               priceCategories: [
-                { id: 'adult', label: 'Adult', kind: 'adult', priceUsd: 119, notPermitted: false, requiresAdult: false, countsTowardCapacity: true },
-                { id: 'child', label: 'Child', kind: 'child', priceUsd: 60, notPermitted: false, requiresAdult: true, countsTowardCapacity: true },
+                {
+                  id: 'adult',
+                  label: 'Adult',
+                  kind: 'adult',
+                  priceUsd: 119,
+                  notPermitted: false,
+                  requiresAdult: false,
+                  countsTowardCapacity: true,
+                },
+                {
+                  id: 'child',
+                  label: 'Child',
+                  kind: 'child',
+                  priceUsd: 60,
+                  notPermitted: false,
+                  requiresAdult: true,
+                  countsTowardCapacity: true,
+                },
               ],
             },
           ],

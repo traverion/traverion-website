@@ -39,7 +39,7 @@ export type ListingDiscountInsert = Omit<ListingDiscount, 'id' | 'created_at'>;
 export const SUPPLIER_DISCOUNT_PERCENT_MIN = 5;
 export const SUPPLIER_DISCOUNT_PERCENT_MAX = 50;
 /**
- * Inclusive calendar-day cap for a booking or activity window.
+ * Inclusive calendar-day cap for the Discount period.
  * Raised from the old 30-day product cap. Enforced before insert; see offer-eligibility.ts.
  */
 export const SUPPLIER_DISCOUNT_MAX_RANGE_DAYS = 730;
@@ -197,9 +197,9 @@ export function discountsApplicableToOption(
   return discounts.filter((d) => offerApplies(d, { optionId, activityDay, bookingDay }));
 }
 
-/** Validate a booking or activity window (YYYY-MM-DD). Returns an error message or null. */
+/** Validate the Discount period (YYYY-MM-DD). Returns an error message or null. */
 export function validateSupplierDiscountDateRange(validFrom: string, validUntil: string): string | null {
-  return validateOfferDateWindow(validFrom, validUntil, 'booking period');
+  return validateOfferDateWindow(validFrom, validUntil, 'discount period');
 }
 
 /** Fetch discounts for multiple listings in one call (for cards/detail). */
@@ -233,10 +233,10 @@ export type SaveSupplierOfferInput = {
   listingWide: boolean;
   type: 'percent' | 'fixed';
   value: number;
-  bookFrom: string;
-  bookUntil: string;
-  activityFrom: string | null;
-  activityUntil: string | null;
+  /** Discount period start (service dates that receive the discount). */
+  discountFrom: string;
+  /** Discount period end (inclusive). */
+  discountUntil: string;
   bookingLimit: number | null;
 };
 
@@ -253,12 +253,8 @@ export async function saveSupplierOffer(
   if (!(await listingAllowsPartnerOffer(input.listingId))) {
     return { ok: false, error: 'Offers can only be saved on a tour listing.' };
   }
-  const bookErr = validateOfferDateWindow(input.bookFrom, input.bookUntil, 'discount period');
-  if (bookErr) return { ok: false, error: bookErr };
-  if (input.activityFrom || input.activityUntil) {
-    const actErr = validateOfferDateWindow(input.activityFrom ?? '', input.activityUntil ?? '', 'activity period');
-    if (actErr) return { ok: false, error: actErr };
-  }
+  const periodErr = validateOfferDateWindow(input.discountFrom, input.discountUntil, 'discount period');
+  if (periodErr) return { ok: false, error: periodErr };
   if (input.type === 'percent') {
     const p = Math.round(input.value);
     if (p < SUPPLIER_DISCOUNT_PERCENT_MIN || p > SUPPLIER_DISCOUNT_PERCENT_MAX) {
@@ -284,10 +280,8 @@ export async function saveSupplierOffer(
     {
       type: input.type,
       value: input.value,
-      book_from: input.bookFrom,
-      book_until: input.bookUntil,
-      activity_from: input.activityFrom,
-      activity_until: input.activityUntil,
+      valid_from: input.discountFrom,
+      valid_until: input.discountUntil,
       optionIds,
     },
     liveOnListing,
@@ -316,12 +310,13 @@ export async function saveSupplierOffer(
     type: input.type,
     value: input.type === 'percent' ? Math.round(input.value) : input.value,
     code: null,
-    valid_from: input.bookFrom,
-    valid_until: input.bookUntil,
-    book_from: input.bookFrom,
-    book_until: input.bookUntil,
-    activity_from: input.activityFrom,
-    activity_until: input.activityUntil,
+    valid_from: input.discountFrom,
+    valid_until: input.discountUntil,
+    // Clear legacy dual-window columns so checkout uses the single Discount period.
+    book_from: null,
+    book_until: null,
+    activity_from: null,
+    activity_until: null,
     paused: keepPaused,
     booking_limit: input.bookingLimit,
     deleted_at: null,

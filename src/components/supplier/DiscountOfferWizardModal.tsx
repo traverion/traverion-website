@@ -17,7 +17,7 @@ import {
   bestCustomerDiscount,
   estimatedSupplierEarningsMinor,
   findSupplierOfferConflicts,
-  validateOfferDateWindow,
+  offerDiscountPeriod,
 } from '../../lib/offer-eligibility';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { SUPPLIER_MODAL_OVERLAY_CLASS, SUPPLIER_MODAL_PANEL_CLASS } from './supplierUi';
@@ -99,11 +99,8 @@ export default function DiscountOfferWizardModal({
     width: number;
     maxHeight: number;
   } | null>(null);
-  const [bookFrom, setBookFrom] = useState('');
-  const [bookUntil, setBookUntil] = useState('');
-  const [limitActivity, setLimitActivity] = useState(false);
-  const [activityFrom, setActivityFrom] = useState('');
-  const [activityUntil, setActivityUntil] = useState('');
+  const [discountFrom, setDiscountFrom] = useState('');
+  const [discountUntil, setDiscountUntil] = useState('');
   const [percent, setPercent] = useState(15);
   const [limitBookings, setLimitBookings] = useState(false);
   const [bookingLimit, setBookingLimit] = useState('20');
@@ -172,12 +169,9 @@ export default function DiscountOfferWizardModal({
       setListingWide(wide);
       setLegacyWide(Boolean(editingGroup.length > 0 && wide));
       setOptionIds(wide ? [] : source.map((row) => row.booking_option_id?.trim() || '').filter(Boolean));
-      setBookFrom(head.book_from ?? head.valid_from ?? '');
-      setBookUntil(head.book_until ?? head.valid_until ?? '');
-      const hasActivity = Boolean(head.activity_from && head.activity_until);
-      setLimitActivity(hasActivity);
-      setActivityFrom(head.activity_from ?? '');
-      setActivityUntil(head.activity_until ?? '');
+      const period = offerDiscountPeriod(head);
+      setDiscountFrom(period.from ?? '');
+      setDiscountUntil(period.until ?? '');
       setLimitBookings(head.booking_limit != null && head.booking_limit > 0);
       setBookingLimit(head.booking_limit != null && head.booking_limit > 0 ? String(head.booking_limit) : '20');
       if (head.type === 'percent') {
@@ -194,11 +188,8 @@ export default function DiscountOfferWizardModal({
       setOptionIds([]);
       setListingWide(false);
       setLegacyWide(false);
-      setBookFrom('');
-      setBookUntil('');
-      setLimitActivity(false);
-      setActivityFrom('');
-      setActivityUntil('');
+      setDiscountFrom('');
+      setDiscountUntil('');
       setLimitBookings(false);
       setBookingLimit('20');
       setPercent(15);
@@ -248,20 +239,9 @@ export default function DiscountOfferWizardModal({
     };
   }, [optionsOpen]);
 
-  const bookingWindowError = bookFrom && bookUntil ? validateSupplierDiscountDateRange(bookFrom, bookUntil) : null;
-  const activityWindowError =
-    limitActivity && (activityFrom || activityUntil)
-      ? validateOfferDateWindow(
-          activityFrom,
-          activityUntil,
-          productType === 'stay' ? 'stay dates' : 'activity period'
-        )
-      : null;
-  const dateRangeValid =
-    Boolean(bookFrom && bookUntil) &&
-    !bookingWindowError &&
-    (!limitActivity || !activityWindowError) &&
-    (!limitActivity || Boolean(activityFrom && activityUntil));
+  const periodError =
+    discountFrom && discountUntil ? validateSupplierDiscountDateRange(discountFrom, discountUntil) : null;
+  const dateRangeValid = Boolean(discountFrom && discountUntil) && !periodError;
 
   /** Tours are fully supported. Stays/Rentals are selectable but not creatable until checkout applies them. */
   const canPersistProduct = productType === 'tour';
@@ -276,17 +256,15 @@ export default function DiscountOfferWizardModal({
   const selectedOptions = bookingOptions.filter((option) => optionIds.includes(option.id));
   const ignoreConflictIds = useMemo(() => editingGroup.map((row) => row.id), [editingGroup]);
   const conflicts = useMemo(() => {
-    if (!listingId || !bookFrom || !bookUntil) return [];
+    if (!listingId || !discountFrom || !discountUntil) return [];
     if (productType === 'tour' && !listingWide && optionIds.length === 0) return [];
     const onListing = existingOffers.filter((row) => row.listing_id === listingId && !row.deleted_at);
     return findSupplierOfferConflicts(
       {
         type: 'percent',
         value: percent,
-        book_from: bookFrom,
-        book_until: bookUntil,
-        activity_from: limitActivity ? activityFrom : null,
-        activity_until: limitActivity ? activityUntil : null,
+        valid_from: discountFrom,
+        valid_until: discountUntil,
         optionIds: productType === 'tour' ? (listingWide ? [] : optionIds) : [],
       },
       onListing,
@@ -297,11 +275,8 @@ export default function DiscountOfferWizardModal({
     listingId,
     listingWide,
     optionIds,
-    bookFrom,
-    bookUntil,
-    limitActivity,
-    activityFrom,
-    activityUntil,
+    discountFrom,
+    discountUntil,
     existingOffers,
     ignoreConflictIds,
     percent,
@@ -328,17 +303,10 @@ export default function DiscountOfferWizardModal({
       );
       return;
     }
-    const bookErr = validateSupplierDiscountDateRange(bookFrom, bookUntil);
-    if (bookErr) {
-      setError(bookErr);
+    const periodErr = validateSupplierDiscountDateRange(discountFrom, discountUntil);
+    if (periodErr) {
+      setError(periodErr);
       return;
-    }
-    if (limitActivity) {
-      const actErr = validateOfferDateWindow(activityFrom, activityUntil, 'activity period');
-      if (actErr) {
-        setError(actErr);
-        return;
-      }
     }
     if (!listingWide && optionIds.length === 0) {
       setError('Choose at least one booking option.');
@@ -376,10 +344,8 @@ export default function DiscountOfferWizardModal({
         listingWide,
         type: fixedEdit ? 'fixed' : 'percent',
         value: fixedEdit ? Number(editing?.value) : p,
-        bookFrom,
-        bookUntil,
-        activityFrom: limitActivity ? activityFrom : null,
-        activityUntil: limitActivity ? activityUntil : null,
+        discountFrom,
+        discountUntil,
         bookingLimit: limit,
       });
       if (!saved.ok) {
@@ -403,11 +369,6 @@ export default function DiscountOfferWizardModal({
       : optionIds.length === 1
         ? '1 option selected'
         : `${optionIds.length} options selected`;
-
-  const serviceDateLabel =
-    productType === 'stay' ? 'Limit to specific stay dates' : 'Limit to specific activity dates';
-  const serviceFromLabel = productType === 'stay' ? 'Stay starts' : 'Activity starts';
-  const serviceUntilLabel = productType === 'stay' ? 'Stay ends' : 'Activity ends';
 
   const shell = (
     <div ref={panelRef} className={`${SUPPLIER_MODAL_OVERLAY_CLASS} z-[90]`}>
@@ -690,108 +651,65 @@ export default function DiscountOfferWizardModal({
           )}
 
           {step === 1 && (
-            <div className="space-y-1">
-              <div className="tv-offer-wizard__section">
-                <p className="tv-offer-wizard__section-title">Discount period</p>
-                <p className="tv-offer-wizard__hint">
-                  Choose when customers can book at the discounted price. Inclusive in the experience timezone (max{' '}
-                  {SUPPLIER_DISCOUNT_MAX_RANGE_DAYS} days).
-                </p>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div>
-                    <span className="mb-1 block text-[11px] font-semibold text-[#71717a]">Discount starts</span>
-                    <div className="tv-offers-date-shell">
-                      <TraverionSingleDateField
-                        id="offer-book-from"
-                        label=""
-                        value={bookFrom}
-                        minIso=""
-                        placeholder="Start date"
-                        onChange={setBookFrom}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <span className="mb-1 block text-[11px] font-semibold text-[#71717a]">Discount ends</span>
-                    <div className="tv-offers-date-shell">
-                      <TraverionSingleDateField
-                        id="offer-book-until"
-                        label=""
-                        value={bookUntil}
-                        minIso={bookFrom || ''}
-                        placeholder="End date"
-                        onChange={setBookUntil}
-                      />
-                    </div>
+            <div className="tv-offer-wizard__section">
+              <p className="tv-offer-wizard__section-title">Discount period</p>
+              <p className="tv-offer-wizard__hint">
+                {productType === 'stay'
+                  ? 'Nights in this range receive the discount, regardless of when the guest books.'
+                  : productType === 'rental'
+                    ? 'Rental days in this range receive the discount, regardless of when the customer books.'
+                    : 'Tour departures in this range receive the discount, regardless of when the customer books.'}{' '}
+                Inclusive calendar days (max {SUPPLIER_DISCOUNT_MAX_RANGE_DAYS}).
+              </p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <span className="mb-1 block text-[11px] font-semibold text-[#71717a]">Start date</span>
+                  <div className="tv-offers-date-shell">
+                    <TraverionSingleDateField
+                      id="offer-discount-from"
+                      label=""
+                      value={discountFrom}
+                      minIso=""
+                      placeholder="Start date"
+                      onChange={setDiscountFrom}
+                    />
                   </div>
                 </div>
-                {bookingWindowError ? <p className="mt-2 text-[13px] text-red-800">{bookingWindowError}</p> : null}
-              </div>
-
-              <div className="tv-offer-wizard__section">
-                <label className="flex items-start gap-3 rounded-lg bg-white px-3 py-2.5 ring-1 ring-[#e5e7eb]">
-                  <input
-                    type="checkbox"
-                    className="mt-0.5 h-4 w-4 accent-[#073b83]"
-                    checked={limitActivity}
-                    onChange={(e) => setLimitActivity(e.target.checked)}
-                  />
-                  <span>
-                    <span className="block text-[13px] font-semibold text-[#18181b]">{serviceDateLabel}</span>
-                    <span className="mt-0.5 block text-[12px] text-[#71717a]">
-                      Separate from the discount purchase period. Restricts which service dates qualify.
-                    </span>
-                  </span>
-                </label>
-                {limitActivity ? (
-                  <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div>
-                      <span className="mb-1 block text-[11px] font-semibold text-[#71717a]">{serviceFromLabel}</span>
-                      <div className="tv-offers-date-shell">
-                        <TraverionSingleDateField
-                          id="offer-activity-from"
-                          label=""
-                          value={activityFrom}
-                          minIso=""
-                          placeholder="Start date"
-                          onChange={setActivityFrom}
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <span className="mb-1 block text-[11px] font-semibold text-[#71717a]">{serviceUntilLabel}</span>
-                      <div className="tv-offers-date-shell">
-                        <TraverionSingleDateField
-                          id="offer-activity-until"
-                          label=""
-                          value={activityUntil}
-                          minIso={activityFrom || ''}
-                          placeholder="End date"
-                          onChange={setActivityUntil}
-                        />
-                      </div>
-                    </div>
+                <div>
+                  <span className="mb-1 block text-[11px] font-semibold text-[#71717a]">End date</span>
+                  <div className="tv-offers-date-shell">
+                    <TraverionSingleDateField
+                      id="offer-discount-until"
+                      label=""
+                      value={discountUntil}
+                      minIso={discountFrom || ''}
+                      placeholder="End date"
+                      onChange={setDiscountUntil}
+                    />
                   </div>
-                ) : null}
-                {activityWindowError ? <p className="mt-2 text-[13px] text-red-800">{activityWindowError}</p> : null}
-                {conflicts.length > 0 ? (
-                  <div className="mt-3 rounded-lg bg-red-50 px-3 py-2.5 text-[13px] text-red-900 ring-1 ring-red-200/80" role="alert">
-                    <p>
-                      An offer already exists for this booking option during the selected dates. Adjust the dates or
-                      edit the existing offer.
-                    </p>
-                    {conflictOfferIds.length > 0 && onOpenConflictOffer ? (
-                      <button
-                        type="button"
-                        className="mt-2 text-[12px] font-semibold text-[#073b83]"
-                        onClick={() => onOpenConflictOffer(conflictOfferIds)}
-                      >
-                        Open conflicting offer
-                      </button>
-                    ) : null}
-                  </div>
-                ) : null}
+                </div>
               </div>
+              {periodError ? <p className="mt-2 text-[13px] text-red-800">{periodError}</p> : null}
+              {conflicts.length > 0 ? (
+                <div
+                  className="mt-3 rounded-lg bg-red-50 px-3 py-2.5 text-[13px] text-red-900 ring-1 ring-red-200/80"
+                  role="alert"
+                >
+                  <p>
+                    An offer already exists for this booking option during the selected dates. Adjust the dates or edit
+                    the existing offer.
+                  </p>
+                  {conflictOfferIds.length > 0 && onOpenConflictOffer ? (
+                    <button
+                      type="button"
+                      className="mt-2 text-[12px] font-semibold text-[#073b83]"
+                      onClick={() => onOpenConflictOffer(conflictOfferIds)}
+                    >
+                      Open conflicting offer
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           )}
 
@@ -993,21 +911,10 @@ export default function DiscountOfferWizardModal({
                   return;
                 }
                 if (step === 1) {
-                  const err = validateSupplierDiscountDateRange(bookFrom, bookUntil);
+                  const err = validateSupplierDiscountDateRange(discountFrom, discountUntil);
                   if (err) {
                     setError(err);
                     return;
-                  }
-                  if (limitActivity) {
-                    const actErr = validateOfferDateWindow(
-                      activityFrom,
-                      activityUntil,
-                      productType === 'stay' ? 'stay dates' : 'activity period'
-                    );
-                    if (actErr) {
-                      setError(actErr);
-                      return;
-                    }
                   }
                   if (conflicts.length > 0) {
                     setError(
