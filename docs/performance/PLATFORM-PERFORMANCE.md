@@ -129,7 +129,8 @@ SPA without shared query layer → repeated PostgREST calls; eager static import
 | `01bd0094` | Fetch coalescing, react-vendor chunk, partner/section prefetch, drop workbox |
 | `75220a07` | Inbox/Dashboard latest-message-only prefetch |
 | `c24e31c6` | Admin panel lazy-split, destination LCP priority, web-vitals-lite, crop modal split |
-| _(follow-up)_ | StayOnboardingFlow lazy-split, non-blocking fonts |
+| `21333b55` | StayOnboardingFlow lazy-split, non-blocking fonts |
+| _(this pass)_ | Tour occupancy RPC coalescing; Inbox soft-refresh + desk prefetch; latest-message TTL |
 
 ### Before / after (measured build artifacts)
 
@@ -141,7 +142,20 @@ SPA without shared query layer → repeated PostgREST calls; eager static import
 | `SupplierListingForm` raw | 441–451 KB | 359 KB | **−20%+** |
 | Inbox preview rows/booking | full thread | 1 | payload ≪ |
 
-Field LCP/INP/CLS: **not claimed** — enable `?perf=1` on production to collect.
+### Browser measurements (local `vite preview`, 2026-10-21)
+
+| Journey | Measured | Notes |
+| --- | --- | --- |
+| Home cold (`/?perf=1`) | TTFB 23ms, FCP 488ms, LCP 556ms, CLS 0.01 | Good vitals on localhost; not a field RUM substitute |
+| Home → Tours (warm) | Catalog **not** re-fetched; 2 APIs (discounts + reviews) | Published catalog TTL working |
+| Tour PDP **before** occupancy cache | `paid_guests` / `by_slot` / `confirmed_departures` / `listing_availability` **×3 each** | Dep-churn remounts on `TourDetails` |
+| Tour PDP **after** 5s occupancy coalesce | Same RPCs **×1 each** | Measured on rebuild preview |
+| Partner `/login` (prod) | Auth form renders; shell intact | No partner session in this pass |
+| Admin `/login` (prod) | Staff sign-in form; 5 JS assets | Panels not loaded until after auth |
+
+**Inbox latest-message batch RPC:** Not implemented. N×`limit 1` remains; Dashboard↔Inbox now share an 8s latest-row TTL. A `DISTINCT ON` / `latest_booking_messages(uuid[])` RPC still needs staging EXPLAIN + migration approval — skipped without measured DB plan.
+
+**Staging DB EXPLAIN:** No staging SQL access in this pass — deferred.
 
 ### Consumer
 
@@ -155,7 +169,8 @@ Field LCP/INP/CLS: **not claimed** — enable `?perf=1` on production to collect
 
 - Stable `SupplierLayout` shell + section Suspense fallbacks.
 - Desk fetch TTL + inflight + section chunk prefetch on sidebar hover.
-- Inbox/Dashboard: latest message only for list/unread.
+- Inbox/Dashboard: latest message only for list/unread; latest-row TTL shared across desks.
+- Inbox soft-refresh (no skeleton flash when threads already painted) + desk prefetch reuse.
 - Listing form: crop + stay onboarding deferred; tour editors skip stay chunk.
 
 ### Admin
@@ -166,8 +181,9 @@ Field LCP/INP/CLS: **not claimed** — enable `?perf=1` on production to collect
 ### Database / API
 
 - Reused existing `booking_messages_booking_created_idx` for `order desc limit 1`.
+- Public tour occupancy RPCs: 5s inflight/TTL coalesce (fixes measured 3× PDP duplicates).
 - No destructive migrations.
-- Optional future: RPC to batch latest messages (1 round-trip vs N).
+- Optional future: RPC to batch latest messages (1 round-trip vs N) — needs approval.
 
 ### Auth / reliability
 
@@ -175,16 +191,16 @@ Field LCP/INP/CLS: **not claimed** — enable `?perf=1` on production to collect
 - Checkout keeps `submitting` / `payInFlightRef` anti double-pay.
 - No optimistic payment/booking success.
 
-### Remaining bottlenecks / recommendations
+### Remaining bottlenecks / recommendations (impact order)
 
-1. Collect production Web Vitals with `?perf=1` after deploy; wire to analytics if desired.
-2. DB EXPLAIN on staging for `fetchBookingsForSupplier` / availability RPCs.
-3. Optional `latest_booking_messages(uuid[])` RPC to collapse Inbox N requests.
-4. Further trim `SupplierListingForm` legacy stay step branches (dead when onboarding path active).
-5. Consider SSR/edge for consumer LCP if SEO/first-paint becomes a product priority (architecture change — needs approval).
+1. **High** — Deduplicate TourDetails listing/reviews double-fetch (still ×2 on cold PDP).
+2. **High** — Staging EXPLAIN + optional `latest_booking_messages(uuid[])` for Inbox at scale (>40 threads).
+3. **Med** — Field Web Vitals on production with `?perf=1` / wire to analytics.
+4. **Med** — Trim dead legacy stay wizard branches inside `SupplierListingForm`.
+5. **Low** — SSR/edge for consumer LCP (architecture change — needs approval).
 
 ### Verification
 
-- Vitest: inbox latest-message, admin lazy panels, crop lazy, stay onboarding lazy, web-vitals-lite, inflight-dedupe.
-- `npm run build` succeeds; chunk sizes recorded above.
-- No payment/booking semantic changes.
+- Vitest: inbox latest-message, latest-message cache, availability coalescing, admin/crop/stay lazy, web-vitals-lite, inflight-dedupe.
+- `npm run build` succeeds; browser preview measured Home / Tours / Tour PDP / Partner login / Admin login.
+- No payment/booking semantic changes; no schema migrations.

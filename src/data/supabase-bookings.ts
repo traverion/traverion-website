@@ -561,10 +561,11 @@ export function invalidateSupplierBookingsCache(ownerSupplierId?: string): void 
 /** Fetch all bookings for a supplier's listings (RLS allows select for own listings). Throws on Supabase error.
  * Phase 1140: resolve team JWT → owner supplier_id before listing filter. */
 export async function fetchBookingsForSupplier(supplierId: string): Promise<BookingRow[]> {
-  if (!supabase) return [];
+  const client = supabase;
+  if (!client) return [];
   const ownerSupplierId = await resolveSupplierId(supplierId);
   return supplierBookingsCache.get(ownerSupplierId, async () => {
-    const { data: listingIds, error: listErr } = await supabase
+    const { data: listingIds, error: listErr } = await client
       .from('listings')
       .select('id')
       .eq('supplier_id', ownerSupplierId);
@@ -585,7 +586,7 @@ export async function fetchBookingsForSupplier(supplierId: string): Promise<Book
     ];
     let lastError: string | null = null;
     for (const columns of columnTiers) {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('bookings')
         .select(columns)
         .in('listing_id', ids)

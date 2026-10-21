@@ -56,6 +56,7 @@ import {
 import {
   prefetchPartnerBookingCommercial,
   prefetchPartnerBookingsDesk,
+  takePartnerBookingsDeskPrefetch,
 } from '../../lib/partner-bookings-desk-prefetch';
 
 /** Thread-list line: listing + option so same-guest bookings stay distinguishable. */
@@ -104,6 +105,8 @@ export default function SupplierInbox() {
   const { role } = useSupplierRole();
   const canEditBookings = canManageBookings(role);
   const [bookings, setBookings] = useState<BookingRow[]>([]);
+  const bookingsLenRef = useRef(0);
+  bookingsLenRef.current = bookings.length;
   const [titles, setTitles] = useState<Record<string, string>>({});
   const [listingsById, setListingsById] = useState<Record<string, TourPackage>>({});
   const [lastByBooking, setLastByBooking] = useState<Record<string, BookingMessageRow>>({});
@@ -172,12 +175,20 @@ export default function SupplierInbox() {
       return;
     }
     const gen = ++loadGenRef.current;
-    setLoading(true);
+    // Soft refresh when threads are already on screen — avoids skeleton flash on warm hops.
+    const softRefresh = bookingsLenRef.current > 0;
+    if (!softRefresh) setLoading(true);
     setError(null);
     setCancelRequestsError(null);
     try {
       const deepLinkId = readBookingIdFromUrl();
-      const [rows, listings] = await Promise.all([fetchBookingsForSupplier(uid), fetchMyListings(uid)]);
+      const desk =
+        takePartnerBookingsDeskPrefetch(uid) ??
+        Promise.all([fetchBookingsForSupplier(uid), fetchMyListings(uid)]).then(([bookings, listings]) => ({
+          bookings,
+          listings,
+        }));
+      const { bookings: rows, listings } = await desk;
       if (gen !== loadGenRef.current) return;
       const collected = rows.filter(
         (b) =>

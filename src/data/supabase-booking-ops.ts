@@ -11,6 +11,7 @@ import {
   PARTNER_CANCEL_REQUEST_SUBMIT_ERROR,
 } from '../lib/booking-confirmation-copy';
 import { queryRowsOrThrow } from '../lib/query-rows-or-throw';
+import { createInflightCache } from '../lib/inflight-dedupe';
 import {
   softNotifyFromEdgePayload,
   softNotifyFromSupplierInvoke,
@@ -83,22 +84,34 @@ export async function fetchBookingMessages(bookingId: string): Promise<BookingMe
   return (data ?? []) as BookingMessageRow[];
 }
 
+/** Short TTL so Dashboard unread + Inbox list share one latest-row fetch per booking. */
+const latestMessageCache = createInflightCache<BookingMessageRow | null>({ ttlMs: 8_000 });
+
+export function invalidateLatestBookingMessageCache(bookingId?: string): void {
+  latestMessageCache.invalidate(bookingId);
+}
+
 /** Inbox list preview — one row per booking instead of the full thread history. */
 export async function fetchLatestBookingMessage(
   bookingId: string
 ): Promise<BookingMessageRow | null> {
-  if (!supabase) return null;
-  const { data, error } = await supabase
-    .from('booking_messages')
-    .select(
-      'id, booking_id, sender_role, sender_user_id, body, created_at, read_by_traveler_at, read_by_supplier_at'
-    )
-    .eq('booking_id', bookingId)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  return (data as BookingMessageRow | null) ?? null;
+  const client = supabase;
+  if (!client) return null;
+  const id = bookingId.trim();
+  if (!id) return null;
+  return latestMessageCache.get(id, async () => {
+    const { data, error } = await client
+      .from('booking_messages')
+      .select(
+        'id, booking_id, sender_role, sender_user_id, body, created_at, read_by_traveler_at, read_by_supplier_at'
+      )
+      .eq('booking_id', id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return (data as BookingMessageRow | null) ?? null;
+  });
 }
 
 export async function fetchCancellationRequestsForBookings(
@@ -142,7 +155,9 @@ export async function postBookingMessage(bookingId: string, body: string): Promi
     p_booking_id: bookingId,
     p_body: body,
   });
-  return parseRpc(data, error?.message, BOOKING_MESSAGE_SUBMIT_ERROR);
+  const result = parseRpc(data, error?.message, BOOKING_MESSAGE_SUBMIT_ERROR);
+  if (result.ok) invalidateLatestBookingMessageCache(bookingId);
+  return result;
 }
 
 export async function markBookingMessagesRead(
@@ -154,7 +169,9 @@ export async function markBookingMessagesRead(
   const { data, error } = await supabase.rpc('mark_booking_messages_read', {
     p_booking_id: bookingId,
   });
-  return parseRpc(data, error?.message, 'Could not mark messages as read.');
+  const result = parseRpc(data, error?.message, 'Could not mark messages as read.');
+  if (result.ok) invalidateLatestBookingMessageCache(bookingId);
+  return result;
 }
 
 export async function requestSupplierCancellation(params: {

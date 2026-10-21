@@ -2,6 +2,7 @@ import { listingTourCapacityFromOptions, capacitySpotsFromBookingOptions } from 
 import { confirmedDepartureKey } from '../lib/last-minute-booking';
 import { localYmd } from '../lib/local-ymd';
 import { supabase } from '../lib/supabase';
+import { createInflightCache } from '../lib/inflight-dedupe';
 import { tourAvailabilityCheckMessages, tourPublicAvailabilityRemaining } from '../lib/tour-check-availability';
 
 export type AvailabilityRow = {
@@ -12,6 +13,29 @@ export type AvailabilityRow = {
 };
 
 /**
+ * Short TTL coalesces TourDetails remount/dep churn (measured 3× duplicate RPCs on PDP open)
+ * without long-lived stale inventory. Checkout still validates server-side.
+ */
+const listingAvailabilityCache = createInflightCache<AvailabilityRow[]>({ ttlMs: 5_000 });
+const paidGuestsByDayCache = createInflightCache<Record<string, number>>({ ttlMs: 5_000 });
+const paidGuestsBySlotCache = createInflightCache<Record<string, number>>({ ttlMs: 5_000 });
+const confirmedDeparturesCache = createInflightCache<Set<string>>({ ttlMs: 5_000 });
+
+export function invalidatePublishedTourOccupancyCache(listingId?: string): void {
+  if (!listingId) {
+    listingAvailabilityCache.invalidate();
+    paidGuestsByDayCache.invalidate();
+    paidGuestsBySlotCache.invalidate();
+    confirmedDeparturesCache.invalidate();
+    return;
+  }
+  paidGuestsByDayCache.invalidate(listingId);
+  paidGuestsBySlotCache.invalidate(listingId);
+  confirmedDeparturesCache.invalidate(listingId);
+  listingAvailabilityCache.invalidate();
+}
+
+/**
  * Fetch availability rows for a listing.
  * Default window is today onward (traveler calendars). Pass fromDate/toDate for partner month grids.
  */
@@ -19,39 +43,47 @@ export async function fetchAvailabilityByListingId(
   listingId: string,
   opts?: { fromDate?: string; toDate?: string }
 ): Promise<AvailabilityRow[]> {
-  if (!supabase) return [];
+  const client = supabase;
+  if (!client) return [];
   const from = opts?.fromDate ?? localYmd();
-  let query = supabase
-    .from('listing_availability')
-    .select('*')
-    .eq('listing_id', listingId)
-    .gte('available_date', from);
-  if (opts?.toDate) query = query.lte('available_date', opts.toDate);
-  const { data, error } = await query.order('available_date', { ascending: true });
-  if (error) throw new Error(error.message);
-  return (data ?? []) as AvailabilityRow[];
+  const to = opts?.toDate ?? '';
+  const cacheKey = `${listingId}|${from}|${to}`;
+  return listingAvailabilityCache.get(cacheKey, async () => {
+    let query = client
+      .from('listing_availability')
+      .select('*')
+      .eq('listing_id', listingId)
+      .gte('available_date', from);
+    if (opts?.toDate) query = query.lte('available_date', opts.toDate);
+    const { data, error } = await query.order('available_date', { ascending: true });
+    if (error) throw new Error(error.message);
+    return (data ?? []) as AvailabilityRow[];
+  });
 }
 
 /** Inventory-occupying guest counts per departure date (paid + live holds). Failed, expired, and refunded are omitted. */
 export async function fetchPublishedTourPaidGuests(
   listingId: string
 ): Promise<Record<string, number>> {
-  if (!supabase) return {};
-  const { data, error } = await supabase.rpc('published_tour_paid_guests', {
-    p_listing_id: listingId,
+  const client = supabase;
+  if (!client) return {};
+  return paidGuestsByDayCache.get(listingId, async () => {
+    const { data, error } = await client.rpc('published_tour_paid_guests', {
+      p_listing_id: listingId,
+    });
+    if (error) throw new Error(error.message);
+    // Phase 1105: non-array payload ≠ empty occupancy (would invent open seats).
+    if (!Array.isArray(data)) {
+      throw new Error('Unexpected occupancy response from published_tour_paid_guests');
+    }
+    const out: Record<string, number> = {};
+    for (const row of data as { departure?: unknown; paid_guests?: unknown }[]) {
+      const day = String(row.departure ?? '').slice(0, 10);
+      const n = Number(row.paid_guests ?? 0);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(day) && Number.isFinite(n)) out[day] = n;
+    }
+    return out;
   });
-  if (error) throw new Error(error.message);
-  // Phase 1105: non-array payload ≠ empty occupancy (would invent open seats).
-  if (!Array.isArray(data)) {
-    throw new Error('Unexpected occupancy response from published_tour_paid_guests');
-  }
-  const out: Record<string, number> = {};
-  for (const row of data as { departure?: unknown; paid_guests?: unknown }[]) {
-    const day = String(row.departure ?? '').slice(0, 10);
-    const n = Number(row.paid_guests ?? 0);
-    if (/^\d{4}-\d{2}-\d{2}$/.test(day) && Number.isFinite(n)) out[day] = n;
-  }
-  return out;
 }
 
 /** Slot key: `YYYY-MM-DD|HH:MM` (or `YYYY-MM-DD|` when start_time is null). */
@@ -66,46 +98,52 @@ export function tourPaidSlotKey(dayIso: string, startTimeHm?: string | null): st
 
 /** Confirmed paid departures. Holds and unpaid checkout are not included. Missing RPC fails closed. */
 export async function fetchPublishedTourConfirmedDepartureKeys(listingId: string): Promise<Set<string>> {
-  if (!supabase) return new Set();
-  const { data, error } = await supabase.rpc('published_tour_confirmed_departures', {
-    p_listing_id: listingId,
+  const client = supabase;
+  if (!client) return new Set();
+  return confirmedDeparturesCache.get(listingId, async () => {
+    const { data, error } = await client.rpc('published_tour_confirmed_departures', {
+      p_listing_id: listingId,
+    });
+    if (error || !Array.isArray(data)) return new Set();
+    const out = new Set<string>();
+    for (const row of data as { departure?: unknown; start_time_hm?: unknown; booking_option_id?: unknown }[]) {
+      const day = String(row.departure ?? '').slice(0, 10);
+      const optionId = String(row.booking_option_id ?? '').trim();
+      const hm = String(row.start_time_hm ?? '').trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !optionId || !hm) continue;
+      out.add(confirmedDepartureKey(day, hm, optionId));
+    }
+    return out;
   });
-  if (error || !Array.isArray(data)) return new Set();
-  const out = new Set<string>();
-  for (const row of data as { departure?: unknown; start_time_hm?: unknown; booking_option_id?: unknown }[]) {
-    const day = String(row.departure ?? '').slice(0, 10);
-    const optionId = String(row.booking_option_id ?? '').trim();
-    const hm = String(row.start_time_hm ?? '').trim();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !optionId || !hm) continue;
-    out.add(confirmedDepartureKey(day, hm, optionId));
-  }
-  return out;
 }
 
 /** Occupying guests per date+startTime (paid + live holds). */
 export async function fetchPublishedTourPaidGuestsBySlot(
   listingId: string
 ): Promise<Record<string, number>> {
-  if (!supabase) return {};
-  const { data, error } = await supabase.rpc('published_tour_paid_guests_by_slot', {
-    p_listing_id: listingId,
+  const client = supabase;
+  if (!client) return {};
+  return paidGuestsBySlotCache.get(listingId, async () => {
+    const { data, error } = await client.rpc('published_tour_paid_guests_by_slot', {
+      p_listing_id: listingId,
+    });
+    // Phase 1101: missing/failed slot RPC ≠ empty occupancy (every departure looked open).
+    if (error) throw new Error(error.message);
+    // Phase 1105: non-array payload ≠ empty occupancy.
+    if (!Array.isArray(data)) {
+      throw new Error('Unexpected occupancy response from published_tour_paid_guests_by_slot');
+    }
+    const out: Record<string, number> = {};
+    for (const row of data as { departure?: unknown; start_time_hm?: unknown; paid_guests?: unknown }[]) {
+      const day = String(row.departure ?? '').slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
+      const n = Number(row.paid_guests ?? 0);
+      if (!Number.isFinite(n)) continue;
+      const key = tourPaidSlotKey(day, row.start_time_hm == null ? null : String(row.start_time_hm));
+      out[key] = n;
+    }
+    return out;
   });
-  // Phase 1101: missing/failed slot RPC ≠ empty occupancy (every departure looked open).
-  if (error) throw new Error(error.message);
-  // Phase 1105: non-array payload ≠ empty occupancy.
-  if (!Array.isArray(data)) {
-    throw new Error('Unexpected occupancy response from published_tour_paid_guests_by_slot');
-  }
-  const out: Record<string, number> = {};
-  for (const row of data as { departure?: unknown; start_time_hm?: unknown; paid_guests?: unknown }[]) {
-    const day = String(row.departure ?? '').slice(0, 10);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
-    const n = Number(row.paid_guests ?? 0);
-    if (!Number.isFinite(n)) continue;
-    const key = tourPaidSlotKey(day, row.start_time_hm == null ? null : String(row.start_time_hm));
-    out[key] = n;
-  }
-  return out;
 }
 
 async function fetchTourOptionCapacity(listingId: string): Promise<number | null> {

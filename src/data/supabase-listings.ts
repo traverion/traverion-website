@@ -479,10 +479,11 @@ export function invalidateMyListingsCache(ownerSupplierId?: string): void {
 /** Fetch listings for the current supplier (requires auth). Throws on Supabase error.
  * Phase 1140: resolve team JWT → owner supplier_id. */
 export async function fetchMyListings(supplierId: string): Promise<TourPackage[]> {
-  if (!supabase) return [];
+  const client = supabase;
+  if (!client) return [];
   const ownerSupplierId = await resolveSupplierId(supplierId);
   return myListingsCache.get(ownerSupplierId, async () => {
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('listings')
       .select('*')
       .eq('supplier_id', ownerSupplierId)
