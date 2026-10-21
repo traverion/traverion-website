@@ -3785,14 +3785,18 @@ details:not([open]) > :not(summary) {
   font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
 }
 
-/* Override global Fraunces h1–h6 so Reviews matches Analytics / Income. */
+/* Override global Fraunces so Reviews matches Analytics / Income. */
+.partner-app-shell .tv-reviews,
+.partner-app-shell .tv-reviews .font-display,
+.partner-app-shell .tv-reviews :is(h1, h2, h3, h4, p, span, button, label, input, textarea),
 .tv-reviews,
 .tv-reviews .font-display,
-.tv-reviews h1,
-.tv-reviews h2,
-.tv-reviews h3,
 .tv-reviews-title,
-.tv-reviews-empty__title {
+.tv-reviews-subtitle,
+.tv-reviews-empty__title,
+.tv-reviews-panel__title,
+.tv-reviews-metric__label,
+.tv-reviews-metric__value {
   font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif !important;
 }
 

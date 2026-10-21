@@ -387,7 +387,7 @@ export default function SupplierReviews() {
   if (!user) return null;
 
   const filtersToolbar = (
-    <div className="tv-reviews-filters">
+    <div className="tv-reviews-filters" data-testid="reviews-filters-toolbar">
       <div className="tv-reviews-field tv-reviews-field--search">
         <span id="reviews-filter-search-label">Search</span>
         <span className="tv-reviews-search">
@@ -479,7 +479,10 @@ export default function SupplierReviews() {
   return (
     <div className={`${SUPPLIER_PAGE_CLASS} tv-reviews`}>
       <div className="min-w-0">
-        <h1 className="tv-reviews-title">Reviews</h1>
+        {/* Use non-h1 so global Fraunces heading rules cannot win. */}
+        <p className="tv-reviews-title" role="heading" aria-level={1}>
+          Reviews
+        </p>
         <p className="tv-reviews-subtitle">See what your guests are saying and manage your responses.</p>
       </div>
 
@@ -507,11 +510,26 @@ export default function SupplierReviews() {
         />
       ) : null}
 
-      {loading ? (
-        <SupplierListSkeleton rows={3} />
-      ) : error ? null : (
-        <div className="mx-auto w-full max-w-[1180px] space-y-3">
-          {reviews.length > 0 ? (
+      {/* Toolbar is outside loading / empty conditionals so it always renders. */}
+      <div className="mx-auto w-full max-w-[1180px] space-y-3">
+        {filtersToolbar}
+
+        {loading ? (
+          <SupplierListSkeleton rows={3} />
+        ) : error ? null : reviews.length === 0 ? (
+          <div className="tv-reviews-empty" data-testid="reviews-empty-zero">
+            <div className="tv-reviews-empty__icon">
+              <Star className="h-5 w-5" aria-hidden />
+            </div>
+            <p className="tv-reviews-empty__title" role="heading" aria-level={2}>
+              No reviews yet
+            </p>
+            <p className="mt-1 max-w-md text-[13px] leading-relaxed text-[#71717a]">
+              Your guest reviews will appear here once customers start sharing their experiences.
+            </p>
+          </div>
+        ) : (
+          <>
             <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
               <div className="tv-reviews-metric">
                 <p className="tv-reviews-metric__label">Average rating</p>
@@ -535,32 +553,30 @@ export default function SupplierReviews() {
                 </p>
               </div>
             </div>
-          ) : null}
 
-          {summary.count >= 3 ? (
-            <div className="tv-reviews-panel">
-              <h2 className="tv-reviews-panel__title">Rating distribution</h2>
-              <ul className="tv-reviews-dist mt-2">
-                {[5, 4, 3, 2, 1].map((star) => {
-                  const count = summary.dist[star - 1];
-                  const width = summary.count > 0 ? (count / summary.count) * 100 : 0;
-                  return (
-                    <li key={star}>
-                      <span className="tv-reviews-dist__label">{star}★</span>
-                      <div className="tv-reviews-dist__track" aria-hidden>
-                        <div className="tv-reviews-dist__fill" style={{ width: `${width}%` }} />
-                      </div>
-                      <span className="tv-reviews-dist__count tabular-nums">{count}</span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ) : null}
+            {summary.count >= 3 ? (
+              <div className="tv-reviews-panel">
+                <p className="tv-reviews-panel__title" role="heading" aria-level={2}>
+                  Rating distribution
+                </p>
+                <ul className="tv-reviews-dist mt-2">
+                  {[5, 4, 3, 2, 1].map((star) => {
+                    const count = summary.dist[star - 1];
+                    const width = summary.count > 0 ? (count / summary.count) * 100 : 0;
+                    return (
+                      <li key={star}>
+                        <span className="tv-reviews-dist__label">{star}★</span>
+                        <div className="tv-reviews-dist__track" aria-hidden>
+                          <div className="tv-reviews-dist__fill" style={{ width: `${width}%` }} />
+                        </div>
+                        <span className="tv-reviews-dist__count tabular-nums">{count}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ) : null}
 
-          {filtersToolbar}
-
-          {reviews.length > 0 ? (
             <div className="flex flex-wrap items-center gap-2 text-[12px] text-[#71717a]">
               <span>
                 Showing {pageRows.length === 0 ? 0 : safePage * PAGE_SIZE + 1}–
@@ -581,31 +597,22 @@ export default function SupplierReviews() {
                 </button>
               ) : null}
             </div>
-          ) : null}
 
-          {reviews.length === 0 ? (
-            <div className="tv-reviews-empty">
-              <div className="tv-reviews-empty__icon">
-                <Star className="h-5 w-5" aria-hidden />
+            {filteredReviews.length === 0 ? (
+              <div className="tv-reviews-empty">
+                <div className="tv-reviews-empty__icon">
+                  <Star className="h-5 w-5" aria-hidden />
+                </div>
+                <p className="tv-reviews-empty__title" role="heading" aria-level={2}>
+                  No matching reviews
+                </p>
+                <p className="mt-1 max-w-sm text-[13px] text-[#71717a]">Try adjusting your search or filters.</p>
+                <button type="button" className="tv-btn-secondary mt-3 h-9 px-3 text-[13px]" onClick={clearFilters}>
+                  Clear filters
+                </button>
               </div>
-              <h2 className="tv-reviews-empty__title">No reviews yet</h2>
-              <p className="mt-1 max-w-md text-[13px] leading-relaxed text-[#71717a]">
-                Your guest reviews will appear here once customers start sharing their experiences.
-              </p>
-            </div>
-          ) : filteredReviews.length === 0 ? (
-            <div className="tv-reviews-empty">
-              <div className="tv-reviews-empty__icon">
-                <Star className="h-5 w-5" aria-hidden />
-              </div>
-              <h2 className="tv-reviews-empty__title">No matching reviews</h2>
-              <p className="mt-1 max-w-sm text-[13px] text-[#71717a]">Try adjusting your search or filters.</p>
-              <button type="button" className="tv-btn-secondary mt-3 h-9 px-3 text-[13px]" onClick={clearFilters}>
-                Clear filters
-              </button>
-            </div>
-          ) : (
-            <>
+            ) : (
+              <>
               <ul className="space-y-2.5">
                 {pageRows.map((r) => {
                   const needsReply = reviewNeedsSupplierReply(r, replies);
@@ -738,6 +745,7 @@ export default function SupplierReviews() {
                               className="tv-input text-[13px] disabled:opacity-50"
                               aria-describedby={`review-reply-hint-${r.id}`}
                             />
+                            {/* Phase 1697: live length honesty on supplier review replies. */}
                             <p id={`review-reply-hint-${r.id}`} className="mt-1 text-[11px] text-[#a1a1aa]">
                               Up to 2000 characters
                               {(replyText[r.id] ?? '').length > 0 ? ` · ${(replyText[r.id] ?? '').length} used` : ''}.
@@ -794,10 +802,11 @@ export default function SupplierReviews() {
                   </button>
                 </div>
               ) : null}
-            </>
-          )}
-        </div>
-      )}
+              </>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
