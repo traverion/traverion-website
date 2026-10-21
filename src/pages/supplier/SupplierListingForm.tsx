@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
+import { lazy, Suspense, useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, Minus, Plus } from 'lucide-react';
 import { TourPackage } from '../../types/tour';
@@ -242,7 +242,6 @@ import { normalizeStayGuestPolicy } from '../../lib/stay-guest-party';
 import { STAY_ARRIVAL_METHODS, stayArrivalMethodHint } from '../../lib/stay-arrival';
 import { STAY_ONBOARDING_SCREENS, stayScreenIndexForPublishLine, stayScreenIndexFromStorage, stayStageBlocker } from '../../lib/stay-onboarding';
 import { parseLegacyStayAddress, stayAddressKey, stayPinMatchesAddress } from '../../lib/stay-address';
-import StayOnboardingFlow from '../../components/supplier/listing-creation/StayOnboardingFlow';
 import StayAmenityPicker from '../../components/supplier/listing-creation/StayAmenityPicker';
 import StayOptionsStep from '../../components/supplier/listing-creation/StayOptionsStep';
 import StayBedroomPhotos from '../../components/supplier/listing-creation/StayBedroomPhotos';
@@ -250,6 +249,8 @@ import StayExampleQuote from '../../components/supplier/listing-creation/StayExa
 import { publicStayListingUrl, publicTourListingUrl } from '../../lib/publicSiteUrl';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import NoticeCallout from '../../components/NoticeCallout';
+
+const StayOnboardingFlow = lazy(() => import('../../components/supplier/listing-creation/StayOnboardingFlow'));
 
 function stayAmenityTokens(raw: string): string[] {
   return raw
@@ -4243,6 +4244,15 @@ export default function SupplierListingForm({
           }
         >
           {isStayForm ? (
+            <Suspense
+              fallback={
+                <div
+                  className="min-h-[16rem] rounded-xl bg-black/[0.03] animate-pulse motion-reduce:animate-none"
+                  aria-busy="true"
+                  aria-label="Loading stay editor"
+                />
+              }
+            >
             <StayOnboardingFlow
               stage={stayStage}
               direction={stayStageDir}
@@ -4331,6 +4341,7 @@ export default function SupplierListingForm({
               maxDescription={MAX_LISTING_DESCRIPTION_LENGTH}
               maxSubtitle={MAX_SUBTITLE_LENGTH}
             />
+            </Suspense>
           ) : (
           <div
             key={stepIdx}

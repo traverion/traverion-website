@@ -55,16 +55,19 @@ Partner sections remount page modules on navigation but keep sidebar/top chrome 
 
 **Dev vs prod:** Vite dev HMR is not representative; use `vite preview` / Vercel for timing.
 
-## Caching policy (Phase 13 draft)
+## Caching policy (Phase 13)
 
 | Data | Strategy |
 | --- | --- |
-| Public published catalog | Existing 45s module cache + invalidate event |
+| Public published catalog | 45s module cache + inflight coalesce + invalidate event; `peekPublishedListingsCache` for instant hydrate |
 | Partner `fetchMyListings` | Short TTL (~12s) + in-flight dedupe by owner supplier id |
 | Partner `fetchBookingsForSupplier` | Short TTL (~8s) + in-flight dedupe; invalidate on status writes |
+| Partner desk prefetch | `partner-bookings-desk-prefetch` ~20s for Bookings↔Inbox hops |
 | Booking / payment mutations | No optimistic success; authoritative server |
-| Inbox threads | Per-booking fetch; drafts in memory map |
-| Admin tables | No cross-user cache |
+| Inbox list preview | Latest message only (`limit 1`); full thread on open |
+| Availability / checkout | Freshness-sensitive; no stale finalize |
+| Admin tables | No cross-user cache; bookings server-paginated |
+| Financial / refunds | Auth-scoped; no client optimistic success |
 
 ## After first optimization pass (same machine, `npm run build`)
 
@@ -73,38 +76,115 @@ Partner sections remount page modules on navigation but keep sidebar/top chrome 
 | `index-*.js` | 553 KB | 422 KB | React extracted to `react-vendor` |
 | `react-vendor-*.js` | — | 139 KB (~45 KB gzip) | Cacheable across routes |
 | `index` gzip | ~160 KB | ~118 KB | Measured via `gzip -c` |
-| `SupplierListingForm` | 441 KB | 441 KB | Later: crop modal split → 423 KB |
 
-**Partner data:** `fetchMyListings` / `fetchBookingsForSupplier` now coalesce in-flight requests and reuse results for ~8–12s (invalidated on listing/booking writes). Navigating Dashboard → Bookings → Inbox within the TTL should not re-download the full desk payloads.
+**Partner data:** `fetchMyListings` / `fetchBookingsForSupplier` coalesce in-flight requests and reuse results for ~8–12s (invalidated on listing/booking writes).
 
 **Navigation:** Partner sidebar `pointerenter`/`focus` warms section chunks; consumer header warms Stays (Tours already prefetched).
 
-**Deps:** Removed unused `workbox-*` packages (no service worker registration in this Vite app).
+**Deps:** Removed unused `workbox-*` packages.
 
-**Inbox / Dashboard unread (Phase 04):** List preview and dashboard unread flags use `fetchLatestBookingMessage` (1 row) instead of `fetchBookingMessages` (full thread). Open-thread UI still loads the full history via `BookingMessageThread`. Payload reduction is proportional to thread length (often 10–100× fewer rows per booking when threads are long). Request count remains capped at `PARTNER_INBOX_MESSAGE_FETCH_CAP` (80).
+**Inbox / Dashboard unread (Phase 04):** `fetchLatestBookingMessage` (1 row) instead of full thread. Payload reduction scales with thread length. Cap remains `PARTNER_INBOX_MESSAGE_FETCH_CAP` (80).
 
-## After admin panel split + vitals (measured `npm run build`)
+## After admin / editor / vitals pass (measured `npm run build`)
 
 | Asset | Before | After | Notes |
 | --- | ---: | ---: | --- |
 | `AdminGate-*.js` | 115 KB | **25.6 KB** (~7.3 KB gzip) | Panels lazy-loaded per tab |
 | `AdminBookingsPanel-*.js` | (in gate) | 29.5 KB | Loaded only on Bookings tab |
-| `index-*.js` | 422 KB | 433 KB | +opt-in web-vitals-lite (~tiny) |
-| Destination hero | — | `fetchPriority="high"` | LCP candidate on destination routes |
-| `SupplierListingForm-*.js` | 451 KB | **423 KB** (~115 KB gzip) | `ListingPhotoCropModal` + `react-easy-crop` deferred |
-| `ListingPhotoCropModal-*.js` | — | 29 KB (~9 KB gzip) | Loaded only when cropping |
+| `index-*.js` | 422 KB | 433 KB | +opt-in web-vitals-lite |
+| Destination hero | — | `fetchPriority="high"` | LCP candidate |
+| `SupplierListingForm-*.js` | 451 KB | **359 KB** (~98 KB gzip) | Crop + StayOnboardingFlow deferred |
+| `ListingPhotoCropModal-*.js` | — | 29 KB (~9 KB gzip) | Crop only |
+| `StayOnboardingFlow-*.js` | — | 66 KB (~19 KB gzip) | Stay editor only |
 
-**Observability:** `installWebVitalsLite()` — enable with `?perf=1` or `localStorage.traverion_perf=1`; samples via `window.__traverionPerf()`. Path-only; no PII.
+**Fonts:** Google Fonts stylesheet loads non-blocking (`media="print" onload`).
 
-**Admin bookings:** Already server-paginated (`page` / `pageSize` via edge function) — no full-table client load for the bookings queue.
+**Observability:** `?perf=1` or `localStorage.traverion_perf=1` → `window.__traverionPerf()`. Path-only; no PII.
 
-## Remaining (not yet measured / not yet changed)
+**Admin bookings:** Already server-paginated via edge function.
 
-- Field Web Vitals (LCP/INP/CLS) on production hosts with `?perf=1`
-- DB EXPLAIN for booking list / availability (needs staging access)
-- Further splitting `SupplierListingForm` (crop / maps / stay onboarding)
-- Optional RPC batching latest messages for Inbox (N×limit-1 → 1 round-trip)
+**Assets CDN:** `vercel.json` already sets `Cache-Control: public, max-age=31536000, immutable` on `/assets/*`.
 
-## Changes in this performance track
+## Final verification summary (Phases 01–20)
 
-See git history for commits implementing partner fetch coalescing, section chunk prefetch, inbox latest-message, admin code-split, and bundle cleanup.
+### Problems discovered
+
+1. Partner desk duplicated listings/bookings fetches on every section mount.
+2. Inbox/Dashboard pulled full message histories for list previews / unread counts.
+3. AdminGate eagerly bundled every ops panel (~115 KB).
+4. Listing editor shipped crop library + stay onboarding on every open (~451 KB).
+5. Main bundle mixed React into the app chunk (~553 KB).
+6. Unused workbox packages.
+7. Destination heroes lacked `fetchPriority="high"`.
+8. No lightweight field Web Vitals hook.
+
+### Root causes
+
+SPA without shared query layer → repeated PostgREST calls; eager static imports; over-fetch for previews; no opt-in RUM.
+
+### Changes implemented (commits on `main`)
+
+| Commit | Focus |
+| --- | --- |
+| `01bd0094` | Fetch coalescing, react-vendor chunk, partner/section prefetch, drop workbox |
+| `75220a07` | Inbox/Dashboard latest-message-only prefetch |
+| `c24e31c6` | Admin panel lazy-split, destination LCP priority, web-vitals-lite, crop modal split |
+| _(follow-up)_ | StayOnboardingFlow lazy-split, non-blocking fonts |
+
+### Before / after (measured build artifacts)
+
+| Metric | Baseline | Latest | Delta |
+| --- | ---: | ---: | --- |
+| `index` raw | 553 KB | 433 KB | **−22%** |
+| `index` gzip | ~160 KB | ~121 KB | **−24%** |
+| `AdminGate` raw | 115 KB | 26 KB | **−78%** |
+| `SupplierListingForm` raw | 441–451 KB | 359 KB | **−20%+** |
+| Inbox preview rows/booking | full thread | 1 | payload ≪ |
+
+Field LCP/INP/CLS: **not claimed** — enable `?perf=1` on production to collect.
+
+### Consumer
+
+- Catalog peek + 45s cache already in `usePublishedSupplierListings`.
+- Browse cards: eager first tiles, lazy rest, aspect ratios reserved.
+- Destination + Home heroes: high fetch priority.
+- Route chunk prefetch for Tours/Stays.
+- Non-blocking fonts.
+
+### Partner
+
+- Stable `SupplierLayout` shell + section Suspense fallbacks.
+- Desk fetch TTL + inflight + section chunk prefetch on sidebar hover.
+- Inbox/Dashboard: latest message only for list/unread.
+- Listing form: crop + stay onboarding deferred; tour editors skip stay chunk.
+
+### Admin
+
+- Shell stays; panels load per tab with skeleton fallback.
+- Bookings queue already paginated server-side.
+
+### Database / API
+
+- Reused existing `booking_messages_booking_created_idx` for `order desc limit 1`.
+- No destructive migrations.
+- Optional future: RPC to batch latest messages (1 round-trip vs N).
+
+### Auth / reliability
+
+- Session still server-authoritative (`getSession` + `onAuthStateChange`); traveler/partner gates unchanged.
+- Checkout keeps `submitting` / `payInFlightRef` anti double-pay.
+- No optimistic payment/booking success.
+
+### Remaining bottlenecks / recommendations
+
+1. Collect production Web Vitals with `?perf=1` after deploy; wire to analytics if desired.
+2. DB EXPLAIN on staging for `fetchBookingsForSupplier` / availability RPCs.
+3. Optional `latest_booking_messages(uuid[])` RPC to collapse Inbox N requests.
+4. Further trim `SupplierListingForm` legacy stay step branches (dead when onboarding path active).
+5. Consider SSR/edge for consumer LCP if SEO/first-paint becomes a product priority (architecture change — needs approval).
+
+### Verification
+
+- Vitest: inbox latest-message, admin lazy panels, crop lazy, stay onboarding lazy, web-vitals-lite, inflight-dedupe.
+- `npm run build` succeeds; chunk sizes recorded above.
+- No payment/booking semantic changes.
