@@ -1,4 +1,4 @@
-import { ArrowRight, CalendarCheck, Compass, MapPin, Search, ShieldCheck, X } from 'lucide-react';
+import { ArrowRight, CalendarCheck, Compass, MapPin, Search, ShieldCheck } from 'lucide-react';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { getAllListings } from '../data/listings';
 import { filterCatalogByFamily, listingIsFamily } from '../lib/inventory';
@@ -13,6 +13,7 @@ import { formatMoney, normalizeCurrency } from '../lib/money';
 import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
 import {
   MarketplaceSearchFields,
+  MarketplaceSearchStack,
 } from '../components/marketplace/MarketplaceSearchBar';
 import {
   failCloseOrphanStayCheckout,
@@ -30,7 +31,6 @@ import { HERO_IMG } from '../lib/heroImages';
 import { prefetchPackagesPage, prefetchStaysPage } from '../lib/routePrefetch';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 import { addCalendarDays } from '../lib/stayOccupancy';
-import { useDialogFocus } from '../hooks/useDialogFocus';
 import {
   recordTravelerInterest,
   readTravelerInterestSignals,
@@ -93,10 +93,6 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
   const stayListings = useMemo(() => filterCatalogByFamily(catalogBase, 'stay'), [catalogBase]);
   const [searchFamily, setSearchFamily] = useState<'tours' | 'stays'>('tours');
   const wishlist = useTravelerWishlist();
-  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
-  const mobileSearchSheetRef = useRef<HTMLDivElement>(null);
-  const closeMobileSearch = useCallback(() => setMobileSearchOpen(false), []);
-  useDialogFocus(mobileSearchOpen, mobileSearchSheetRef, closeMobileSearch);
 
   const placeChips = useMemo(() => {
     return getDestinationsFromListings([...allListings, ...stayListings])
@@ -255,7 +251,6 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
 
   const submitSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    setMobileSearchOpen(false);
     const q = searchTerm.trim();
     if (q) {
       recordTravelerInterest({
@@ -269,31 +264,9 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
     else goToPackages();
   };
 
-  const mobileSearchSummary = useMemo(() => {
-    const where = searchTerm.trim() || 'Anywhere';
-    let whenLabel = 'Any date';
-    if (searchFamily === 'stays') {
-      if (when && checkout) whenLabel = `${when} → ${checkout}`;
-      // Phase 1650: check-in alone needs an explicit checkout nudge (guests parity).
-      else if (when) whenLabel = `${when} · Add checkout`;
-    } else if (when) {
-      whenLabel = when;
-    }
-    const whoLabel = who.trim()
-      ? `${who} ${searchFamily === 'stays' ? (Number(who) === 1 ? 'guest' : 'guests') : Number(who) === 1 ? 'traveler' : 'travelers'}`
-      : searchFamily === 'stays'
-        ? 'Add guests'
-        : 'Add travelers';
-    return { where, whenLabel, whoLabel };
-  }, [searchTerm, when, checkout, who, searchFamily]);
-
-  const familyTabs = (variant: 'hero' | 'sheet') => (
+  const familyTabs = (
     <div
-      className={
-        variant === 'hero'
-          ? 'flex gap-1 rounded-full bg-white/15 p-1 w-fit ring-1 ring-white/20 backdrop-blur-sm'
-          : 'flex gap-1 rounded-full bg-black/[0.04] p-1 w-full ring-1 ring-black/[0.06]'
-      }
+      className="flex w-fit gap-1 rounded-full bg-white/15 p-1 ring-1 ring-white/20 backdrop-blur-sm"
       role="tablist"
       aria-label="What to search"
     >
@@ -302,14 +275,10 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         role="tab"
         aria-selected={searchFamily === 'tours'}
         onClick={() => setSearchFamily('tours')}
-        className={`lux-flat rounded-full px-4 min-h-11 py-2 text-sm font-medium transition-colors flex-1 sm:flex-none ${
+        className={`lux-flat min-h-10 flex-1 rounded-full px-4 py-2 text-sm font-medium transition-colors sm:flex-none ${
           searchFamily === 'tours'
-            ? variant === 'hero'
-              ? 'bg-white text-ink shadow-sm ring-2 ring-white'
-              : 'bg-paper-raised text-ink shadow-sm ring-2 ring-finland/30'
-            : variant === 'hero'
-              ? 'text-white/80 hover:bg-white/10 hover:text-white'
-              : 'text-ink-muted hover:bg-black/[0.04] hover:text-ink'
+            ? 'bg-white text-ink shadow-sm ring-2 ring-white'
+            : 'text-white/80 hover:bg-white/10 hover:text-white'
         }`}
       >
         Tours
@@ -319,14 +288,10 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         role="tab"
         aria-selected={searchFamily === 'stays'}
         onClick={() => setSearchFamily('stays')}
-        className={`lux-flat rounded-full px-4 min-h-11 py-2 text-sm font-medium transition-colors flex-1 sm:flex-none ${
+        className={`lux-flat min-h-10 flex-1 rounded-full px-4 py-2 text-sm font-medium transition-colors sm:flex-none ${
           searchFamily === 'stays'
-            ? variant === 'hero'
-              ? 'bg-white text-ink shadow-sm ring-2 ring-white'
-              : 'bg-paper-raised text-ink shadow-sm ring-2 ring-finland/30'
-            : variant === 'hero'
-              ? 'text-white/80 hover:bg-white/10 hover:text-white'
-              : 'text-ink-muted hover:bg-black/[0.04] hover:text-ink'
+            ? 'bg-white text-ink shadow-sm ring-2 ring-white'
+            : 'text-white/80 hover:bg-white/10 hover:text-white'
         }`}
       >
         Stays
@@ -356,124 +321,75 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
 
   return (
     <div className="min-h-screen bg-paper">
-      <section className="relative text-white min-h-[min(56dvh,30rem)] flex flex-col justify-end overflow-hidden tv-page bg-ink">
+      <section className="relative flex min-h-[min(68dvh,38rem)] flex-col justify-end overflow-hidden bg-ink text-white tv-page sm:min-h-[min(62dvh,36rem)]">
         <div className="page-hero-media" aria-hidden>
           <img src={HERO_IMG.vacation} alt="" fetchPriority="high" decoding="async" width={1600} height={1067} />
         </div>
-        <div className="absolute inset-0 bg-gradient-to-t from-black/92 via-black/58 to-black/40" aria-hidden />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/92 via-black/55 to-black/35" aria-hidden />
         {/* Phase 1801: left vignette keeps brand/headline legible on bright coastal heroes. */}
         <div
           className="absolute inset-0 bg-gradient-to-r from-black/45 via-black/15 to-transparent"
           aria-hidden
         />
-        <div className="tv-rise relative z-10 w-full tv-shell px-4 sm:px-6 lg:px-8 pb-10 sm:pb-14 page-hero-content">
+        <div className="tv-rise relative z-10 w-full tv-shell px-4 pb-6 page-hero-content sm:px-6 sm:pb-12 lg:px-8 lg:pb-14">
           {/* Phase 1801: brand dominates first viewport — headline must not overpower TRAVERION. */}
-          <p className="mb-2 text-xs font-semibold tracking-[0.18em] text-white/80">TRAVERION</p>
-          <h1 className="page-hero-title mb-3 max-w-2xl font-sans text-3xl font-bold leading-[1.08] tracking-tight sm:text-4xl lg:text-[2.65rem]">
+          <p className="mb-2 text-xs font-semibold tracking-[0.18em] text-white/80 sm:mb-3">TRAVERION</p>
+          <h1 className="page-hero-title mb-2 max-w-2xl font-sans text-3xl font-bold leading-[1.08] tracking-tight sm:mb-3 sm:text-4xl lg:text-[2.65rem]">
             Discover remarkable experiences and stays.
           </h1>
-          <p className="page-hero-subtitle mb-6 max-w-md text-sm font-normal leading-relaxed text-white/90 sm:text-base">
+          <p className="page-hero-subtitle mb-5 max-w-md text-sm font-normal leading-relaxed text-white/90 sm:mb-7 sm:text-base">
             Book tours and nights directly with the people who run them.
           </p>
 
-          {/* Mobile: compact trigger → dedicated search sheet */}
-          <div className="sm:hidden space-y-3 max-w-3xl">
-            {familyTabs('hero')}
-            <button
-              type="button"
-              onClick={() => setMobileSearchOpen(true)}
-              // Phase 1654: prefetch the catalog family that is selected.
-              onPointerEnter={() => (searchFamily === 'stays' ? prefetchStaysPage() : prefetchPackagesPage())}
-              className="w-full flex items-center gap-3 rounded-2xl bg-paper-raised text-ink px-4 py-3.5 shadow-soft-xl ring-1 ring-black/[0.06] text-left active:scale-[0.99] transition-transform"
-              aria-label={`Search, ${mobileSearchSummary.where}, ${mobileSearchSummary.whenLabel}, ${mobileSearchSummary.whoLabel}`}
-              aria-haspopup="dialog"
-              aria-expanded={mobileSearchOpen}
-              aria-controls="home-mobile-search-dialog"
-            >
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-finland text-white" aria-hidden>
-                <Search className="w-4 h-4" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-[15px] font-semibold text-ink truncate">{mobileSearchSummary.where}</span>
-                <span className="mt-0.5 block text-sm text-ink-muted truncate">
-                  {mobileSearchSummary.whenLabel}
-                  <span className="mx-1.5 text-ink-faint" aria-hidden>
-                    ·
-                  </span>
-                  {mobileSearchSummary.whoLabel}
-                </span>
-              </span>
-            </button>
+          {/* Mobile: vertical floating search card on the hero */}
+          <div className="mx-auto w-full max-w-lg sm:hidden">
+            <div className="mb-3 flex justify-center">{familyTabs}</div>
+            <div id="home-mobile-search-dialog">
+              <MarketplaceSearchStack
+                family={searchFamily}
+                values={searchValues}
+                onChange={(patch) => {
+                  if (patch.where !== undefined) setSearchTerm(patch.where);
+                  if (patch.date !== undefined) setWhen(patch.date);
+                  if (patch.checkout !== undefined) setCheckout(patch.checkout);
+                  if (patch.guests !== undefined) setWho(patch.guests);
+                }}
+                idPrefix="home-mobile"
+                onSubmit={submitSearch}
+                submitLabel="Search"
+                ariaLabel={searchFamily === 'stays' ? 'Search stays' : 'Search tours'}
+                className="text-ink"
+              />
+            </div>
           </div>
 
-          {/* Desktop: integrated search bar */}
-          <div className="hidden sm:block space-y-3">
-            {familyTabs('hero')}
+          {/* Desktop: floating pill across the lower hero */}
+          <div
+            className="mx-auto hidden w-full max-w-5xl space-y-3 sm:block"
+            onPointerEnter={() => (searchFamily === 'stays' ? prefetchStaysPage() : prefetchPackagesPage())}
+          >
+            {familyTabs}
             <form
               onSubmit={submitSearch}
-              // Phase 1654: prefetch Stays when the stays family is selected.
-              onPointerEnter={() => (searchFamily === 'stays' ? prefetchStaysPage() : prefetchPackagesPage())}
-              className={`bg-paper-raised text-ink rounded-full p-1.5 grid gap-1 max-w-3xl shadow-soft-xl ring-1 ring-black/[0.06] ${
+              className={`grid items-center gap-0 overflow-visible rounded-full bg-white p-1.5 text-ink shadow-[0_16px_48px_-14px_rgba(7,26,58,0.35),0_6px_18px_-8px_rgba(0,0,0,0.12)] ring-1 ring-black/[0.04] ${
                 searchFamily === 'stays'
-                  ? 'grid-cols-[1.2fr_0.9fr_0.9fr_0.75fr_auto]'
-                  : 'grid-cols-[1.4fr_1fr_0.85fr_auto]'
+                  ? 'grid-cols-[minmax(0,1.2fr)_auto_minmax(0,0.95fr)_auto_minmax(0,0.95fr)_auto_minmax(0,0.85fr)_auto]'
+                  : 'grid-cols-[minmax(0,1.4fr)_auto_minmax(0,1.05fr)_auto_minmax(0,0.95fr)_auto]'
               }`}
               aria-label={searchFamily === 'stays' ? 'Search stays' : 'Search tours'}
             >
               {searchFields('home')}
               <button
                 type="submit"
-                className="h-14 self-center px-7 rounded-full bg-finland text-white font-semibold hover:bg-finland-dark shadow-sm"
+                className="mx-1 flex h-14 items-center justify-center gap-2 self-center rounded-full bg-finland px-7 text-[15px] font-semibold text-white shadow-sm hover:bg-finland-dark"
               >
+                <Search className="h-4 w-4" aria-hidden />
                 Search
               </button>
             </form>
           </div>
         </div>
       </section>
-
-      {mobileSearchOpen ? (
-        <div ref={mobileSearchSheetRef} className="tv-sheet-overlay z-[80] sm:hidden">
-          <button type="button" tabIndex={-1} className="absolute inset-0" aria-label="Close search" onClick={closeMobileSearch} />
-          <aside
-            role="dialog"
-            aria-modal="true"
-            id="home-mobile-search-dialog"
-            aria-labelledby="home-mobile-search-title"
-            className="tv-sheet-panel relative flex max-h-[min(92dvh,40rem)] flex-col overflow-hidden motion-safe:animate-slide-up"
-          >
-            <div className="mb-5 flex items-start justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">Search</p>
-                <h2 id="home-mobile-search-title" className="font-display text-2xl text-ink tracking-tight mt-1">
-                  {searchFamily === 'stays' ? 'Find a stay' : 'Find a tour'}
-                </h2>
-              </div>
-              <button
-                type="button"
-                onClick={closeMobileSearch}
-                className="lux-tap-target inline-flex min-h-11 min-w-11 items-center justify-center p-2 -mr-1"
-                aria-label="Close"
-              >
-                <X className="w-5 h-5" aria-hidden />
-              </button>
-            </div>
-            <div className="mb-4">{familyTabs('sheet')}</div>
-            <form onSubmit={submitSearch} className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
-              <div className="space-y-1 rounded-2xl bg-black/[0.02] p-1 ring-1 ring-black/[0.04]">{searchFields('home-sheet', true)}</div>
-              <div className="mt-auto pt-5 space-y-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-                {/* Phase 1653: safe-area padding for home mobile search actions. */}
-                <button type="submit" className="tv-btn-primary w-full h-12">
-                  Search {searchFamily === 'stays' ? 'stays' : 'tours'}
-                </button>
-                <button type="button" onClick={closeMobileSearch} className="tv-btn-ghost w-full h-11 text-ink-muted">
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </aside>
-        </div>
-      ) : null}
 
       <section className="py-4 bg-paper">
         <div className="tv-shell px-4 sm:px-6 lg:px-8">

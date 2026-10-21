@@ -3,10 +3,19 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 describe('Phase 1650: Home stays search Add checkout chip', () => {
-  it('nudges Add checkout when check-in is set without checkout', () => {
-    const src = readFileSync(resolve(__dirname, 'Home.tsx'), 'utf8');
-    expect(src).toContain('Phase 1650');
-    expect(src).toContain('Add checkout');
-    expect(src).toMatch(/else if \(when\) whenLabel = `\$\{when\} · Add checkout`/);
+  it('exposes check-out when searching stays from Home', () => {
+    const home = readFileSync(resolve(__dirname, 'Home.tsx'), 'utf8');
+    // Phase 1650: stay search must collect checkout (not check-in alone).
+    expect(home).toContain("searchFamily === 'stays'");
+    expect(home).toContain('failCloseOrphanStayCheckout');
+    expect(home).toContain("params.set('checkout'");
+    // Phase 1650: stay search must collect checkout (not check-in alone).
+    expect(home).toContain('goToStays');
+    const bar = readFileSync(
+      resolve(__dirname, '../components/marketplace/MarketplaceSearchBar.tsx'),
+      'utf8'
+    );
+    expect(bar).toContain('label="Check-out"');
+    expect(bar).toContain('placeholder="Add date"');
   });
 });

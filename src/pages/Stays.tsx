@@ -791,8 +791,9 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
             trailing={
               <button
                 type="submit"
-                className="h-11 self-center px-5 rounded-full bg-finland text-white text-sm font-semibold hover:bg-finland-dark shadow-sm"
+                className="mx-1 flex h-11 items-center justify-center gap-2 self-center rounded-full bg-finland px-5 text-sm font-semibold text-white shadow-sm hover:bg-finland-dark"
               >
+                <Search className="h-4 w-4" aria-hidden />
                 Search
               </button>
             }

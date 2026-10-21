@@ -23,6 +23,10 @@ type Props = {
   minIso?: string;
   placeholder?: string;
   className?: string;
+  /** marketplace — tiny uppercase label; premium — semibold sentence-case label. */
+  tone?: 'marketplace' | 'premium';
+  /** When the parent field shell already shows a calendar icon. */
+  hideIcon?: boolean;
 };
 
 type PanelBox =
@@ -41,6 +45,8 @@ export function TraverionSingleDateField({
   minIso,
   placeholder = 'Any date',
   className = '',
+  tone = 'marketplace',
+  hideIcon = false,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [panelBox, setPanelBox] = useState<PanelBox | null>(null);
@@ -238,10 +244,15 @@ export function TraverionSingleDateField({
         )
       : null;
 
+  const labelClass =
+    tone === 'premium'
+      ? 'block text-[13px] font-semibold tracking-tight text-ink'
+      : 'block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted';
+
   return (
     <div className={`relative ${className}`} ref={rootRef}>
       {showLabel ? (
-        <span id={labelId} className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
+        <span id={labelId} className={labelClass}>
           {label}
         </span>
       ) : null}
@@ -255,9 +266,11 @@ export function TraverionSingleDateField({
         aria-controls={panelId}
         aria-haspopup="dialog"
         onClick={() => setOpen((v) => !v)}
-        className="flex h-9 w-full min-w-0 items-center gap-2 border-0 bg-transparent pr-1 text-left text-[15px] text-ink focus:outline-none focus-visible:ring-0"
+        className={`flex w-full min-w-0 items-center gap-2 border-0 bg-transparent pr-1 text-left text-ink focus:outline-none focus-visible:ring-0 ${
+          tone === 'premium' ? 'mt-0.5 h-6 text-[13px]' : 'h-9 text-[15px]'
+        }`}
       >
-        <Calendar className="h-4 w-4 shrink-0 text-ink-faint" aria-hidden />
+        {!hideIcon ? <Calendar className="h-4 w-4 shrink-0 text-ink-faint" aria-hidden /> : null}
         <span id={valueId} className={`min-w-0 truncate ${value.trim() ? 'text-ink' : 'text-ink-muted'}`}>
           {display}
         </span>

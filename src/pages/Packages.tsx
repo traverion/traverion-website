@@ -994,8 +994,9 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
             trailing={
               <button
                 type="submit"
-                className="h-12 self-center px-6 rounded-full bg-finland text-white text-sm font-semibold hover:bg-finland-dark shadow-sm"
+                className="mx-1 flex h-12 items-center justify-center gap-2 self-center rounded-full bg-finland px-6 text-sm font-semibold text-white shadow-sm hover:bg-finland-dark"
               >
+                <Search className="h-4 w-4" aria-hidden />
                 Search
               </button>
             }

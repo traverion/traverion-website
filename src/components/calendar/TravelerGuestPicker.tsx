@@ -42,6 +42,10 @@ type Props = {
   onChange: (total: string) => void;
   maxTotal?: number;
   className?: string;
+  /** marketplace — tiny uppercase label; premium — semibold sentence-case label. */
+  tone?: 'marketplace' | 'premium';
+  /** When the parent field shell already shows a people icon. */
+  hideIcon?: boolean;
 };
 
 /**
@@ -56,6 +60,8 @@ export function TravelerGuestPicker({
   onChange,
   maxTotal = 16,
   className = '',
+  tone = 'marketplace',
+  hideIcon = false,
 }: Props) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -101,9 +107,14 @@ export function TravelerGuestPicker({
 
   const summary = formatGuestSummary(counts, mode);
 
+  const labelClass =
+    tone === 'premium'
+      ? 'block text-[13px] font-semibold tracking-tight text-ink'
+      : 'block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted';
+
   return (
     <div className={`relative ${className}`} ref={rootRef}>
-      <span id={labelId} className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
+      <span id={labelId} className={labelClass}>
         {label}
       </span>
       <button
@@ -114,9 +125,11 @@ export function TravelerGuestPicker({
         aria-controls={panelId}
         aria-haspopup="dialog"
         onClick={() => setOpen((v) => !v)}
-        className="flex h-9 w-full items-center gap-2 border-0 bg-transparent pr-1 text-left text-[15px] text-ink focus:outline-none"
+        className={`flex w-full items-center gap-2 border-0 bg-transparent pr-1 text-left text-ink focus:outline-none ${
+          tone === 'premium' ? 'mt-0.5 h-6 text-[13px]' : 'h-9 text-[15px]'
+        }`}
       >
-        <Users className="h-4 w-4 shrink-0 text-ink-faint" aria-hidden />
+        {!hideIcon ? <Users className="h-4 w-4 shrink-0 text-ink-faint" aria-hidden /> : null}
         <span
           id={summaryId}
           className={counts.adults + counts.children > 0 ? 'text-ink' : 'text-ink-muted'}

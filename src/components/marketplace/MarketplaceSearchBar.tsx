@@ -1,6 +1,6 @@
 import type { FormEvent, ReactNode } from 'react';
 import { useId } from 'react';
-import { Search } from 'lucide-react';
+import { Calendar, MapPin, Search, Users } from 'lucide-react';
 import { addCalendarDays } from '../../lib/stayOccupancy';
 import {
   nextStayDatePatch,
@@ -16,7 +16,7 @@ type Props = {
   values: MarketplaceSearchValues;
   onChange: (patch: Partial<MarketplaceSearchValues>) => void;
   idPrefix: string;
-  /** Stacked fields for mobile sheets. */
+  /** Stacked fields for mobile sheets / hero cards. */
   stacked?: boolean;
   onSubmit?: (e: FormEvent) => void;
   /** Search button or live result count. */
@@ -25,16 +25,42 @@ type Props = {
   className?: string;
 };
 
-function FieldShell({ stacked, children }: { stacked?: boolean; children: ReactNode }) {
+function FieldShell({
+  stacked,
+  icon,
+  children,
+  className = '',
+}: {
+  stacked?: boolean;
+  icon?: ReactNode;
+  children: ReactNode;
+  className?: string;
+}) {
   return (
     <div
-      className={`relative min-w-0 px-3.5 py-2 hover:bg-black/[0.03] focus-within:bg-black/[0.03] focus-within:ring-2 focus-within:ring-finland/25 transition-colors ${
-        stacked ? 'rounded-xl' : 'rounded-full'
-      }`}
+      className={`relative min-w-0 transition-colors ${
+        stacked
+          ? 'rounded-none px-4 py-3.5'
+          : 'rounded-full px-4 py-2.5 hover:bg-black/[0.03] focus-within:bg-black/[0.03]'
+      } ${className}`}
     >
-      {children}
+      <div className={`flex min-w-0 items-start gap-3 ${stacked ? '' : ''}`}>
+        {icon ? (
+          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-finland/[0.08] text-finland" aria-hidden>
+            {icon}
+          </span>
+        ) : null}
+        <div className="min-w-0 flex-1">{children}</div>
+      </div>
     </div>
   );
+}
+
+function FieldDivider({ stacked }: { stacked?: boolean }) {
+  if (stacked) {
+    return <div className="mx-4 border-t border-black/[0.06]" aria-hidden />;
+  }
+  return <div className="my-2.5 w-px shrink-0 self-stretch bg-black/[0.08]" aria-hidden />;
 }
 
 /** Layer C: Where field accessible name includes label + current text (date/guest picker parity). */
@@ -54,28 +80,25 @@ export function MarketplaceDestinationField({
   const isStay = family === 'stays';
   const labelId = useId();
   const valueId = useId();
-  const placeholder = isStay ? 'City or stay' : 'City or tour';
+  const placeholder = isStay ? 'City, region or stay' : 'City, region or tour';
   const spokenValue = value.trim() || placeholder;
   return (
-    <FieldShell stacked={stacked}>
-      <span id={labelId} className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
-        Where
+    <FieldShell stacked={stacked} icon={<MapPin className="h-4 w-4" strokeWidth={2} />}>
+      <span id={labelId} className="block text-[13px] font-semibold tracking-tight text-ink">
+        Where to?
       </span>
       <span id={valueId} className="sr-only">
         {spokenValue}
       </span>
-      <div className="relative">
-        <Search className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint pointer-events-none" aria-hidden />
-        <input
-          id={id}
-          type="search"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          aria-labelledby={`${labelId} ${valueId}`}
-          className="w-full h-9 pl-6 pr-2 border-0 text-ink placeholder:text-ink-muted focus:ring-0 text-[15px] bg-transparent"
-        />
-      </div>
+      <input
+        id={id}
+        type="search"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        aria-labelledby={`${labelId} ${valueId}`}
+        className="mt-0.5 h-6 w-full border-0 bg-transparent p-0 text-[13px] text-ink placeholder:text-ink-muted focus:outline-none focus:ring-0"
+      />
     </FieldShell>
   );
 }
@@ -98,43 +121,54 @@ export function MarketplaceSearchFields({
         onChange={(next) => onChange({ where: next })}
         stacked={stacked}
       />
-      <FieldShell stacked={stacked}>
+      <FieldDivider stacked={stacked} />
+      <FieldShell stacked={stacked} icon={<Calendar className="h-4 w-4" strokeWidth={2} />}>
         <TraverionSingleDateField
           id={`${idPrefix}-date`}
-          label={isStay ? 'Check-in' : 'Date'}
+          label={isStay ? 'Check-in' : 'Dates'}
           value={values.date}
-          placeholder={isStay ? 'Add date' : 'Any date'}
+          placeholder={isStay ? 'Add date' : 'Any dates'}
           minIso={searchMinIso}
+          tone="premium"
+          hideIcon
           onChange={(next) => {
             onChange(isStay ? nextStayDatePatch(values, next) : { date: next });
           }}
         />
       </FieldShell>
       {isStay ? (
-        <FieldShell stacked={stacked}>
-          <TraverionSingleDateField
-            id={`${idPrefix}-checkout`}
-            label="Check-out"
-            value={values.checkout}
-            placeholder="Add date"
-            minIso={values.date ? addCalendarDays(values.date, 1) : searchMinIso}
-            onChange={(next) => {
-              // Layer B: orphan check-out without check-in confuses stay browse + URL state (1435 parity).
-              if (!values.date.trim()) {
-                if (!next.trim()) onChange({ checkout: next });
-                return;
-              }
-              onChange({ checkout: next });
-            }}
-          />
-        </FieldShell>
+        <>
+          <FieldDivider stacked={stacked} />
+          <FieldShell stacked={stacked} icon={<Calendar className="h-4 w-4" strokeWidth={2} />}>
+            <TraverionSingleDateField
+              id={`${idPrefix}-checkout`}
+              label="Check-out"
+              value={values.checkout}
+              placeholder="Add date"
+              minIso={values.date ? addCalendarDays(values.date, 1) : searchMinIso}
+              tone="premium"
+              hideIcon
+              onChange={(next) => {
+                // Layer B: orphan check-out without check-in confuses stay browse + URL state (1435 parity).
+                if (!values.date.trim()) {
+                  if (!next.trim()) onChange({ checkout: next });
+                  return;
+                }
+                onChange({ checkout: next });
+              }}
+            />
+          </FieldShell>
+        </>
       ) : null}
-      <FieldShell stacked={stacked}>
+      <FieldDivider stacked={stacked} />
+      <FieldShell stacked={stacked} icon={<Users className="h-4 w-4" strokeWidth={2} />}>
         <TravelerGuestPicker
           id={`${idPrefix}-guests`}
           label={isStay ? 'Guests' : 'Travelers'}
           mode={isStay ? 'guests' : 'travelers'}
           value={values.guests}
+          tone="premium"
+          hideIcon
           onChange={(next) => onChange({ guests: next })}
         />
       </FieldShell>
@@ -155,19 +189,60 @@ export function MarketplaceSearchPill({
   const isStay = family === 'stays';
   const grid = isStay
     ? trailing
-      ? 'grid-cols-[1.15fr_0.9fr_0.9fr_0.75fr_auto]'
-      : 'grid-cols-[1.3fr_1fr_1fr_0.85fr]'
+      ? 'grid-cols-[minmax(0,1.2fr)_auto_minmax(0,0.95fr)_auto_minmax(0,0.95fr)_auto_minmax(0,0.85fr)_auto]'
+      : 'grid-cols-[minmax(0,1.25fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,0.9fr)]'
     : trailing
-      ? 'grid-cols-[1.35fr_1fr_0.85fr_auto]'
-      : 'grid-cols-[1.4fr_1fr_0.85fr]';
+      ? 'grid-cols-[minmax(0,1.35fr)_auto_minmax(0,1fr)_auto_minmax(0,0.9fr)_auto]'
+      : 'grid-cols-[minmax(0,1.4fr)_auto_minmax(0,1fr)_auto_minmax(0,0.9fr)]';
   return (
     <form
       onSubmit={onSubmit ?? ((e) => e.preventDefault())}
-      className={`hidden sm:grid gap-1 bg-paper-raised rounded-full p-1.5 shadow-soft-lg ring-1 ring-black/[0.06] overflow-visible ${grid} ${className}`}
+      className={`hidden items-center gap-0 overflow-visible rounded-full bg-white p-1.5 shadow-[0_12px_40px_-12px_rgba(7,26,58,0.28),0_4px_14px_-6px_rgba(0,0,0,0.1)] ring-1 ring-black/[0.04] sm:grid ${grid} ${className}`}
       aria-label={ariaLabel ?? (isStay ? 'Search stays' : 'Search tours')}
     >
       <MarketplaceSearchFields family={family} values={values} onChange={onChange} idPrefix={idPrefix} />
       {trailing}
+    </form>
+  );
+}
+
+/** Full-width stacked search card (home mobile / compact surfaces). */
+export function MarketplaceSearchStack({
+  family,
+  values,
+  onChange,
+  idPrefix,
+  onSubmit,
+  submitLabel = 'Search',
+  ariaLabel,
+  className = '',
+  header,
+}: Props & { submitLabel?: string; header?: ReactNode }) {
+  const isStay = family === 'stays';
+  return (
+    <form
+      onSubmit={onSubmit ?? ((e) => e.preventDefault())}
+      className={`overflow-hidden rounded-[1.25rem] bg-white shadow-[0_16px_40px_-16px_rgba(7,26,58,0.35),0_6px_16px_-8px_rgba(0,0,0,0.12)] ring-1 ring-black/[0.05] ${className}`}
+      aria-label={ariaLabel ?? (isStay ? 'Search stays' : 'Search tours')}
+    >
+      {header}
+      <MarketplaceSearchFields
+        family={family}
+        values={values}
+        onChange={onChange}
+        idPrefix={idPrefix}
+        stacked
+      />
+      <div className="p-3 pt-1 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        {/* Phase 1653: safe-area padding for home mobile search actions. */}
+        <button
+          type="submit"
+          className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-finland text-[15px] font-semibold text-white shadow-sm hover:bg-finland-dark"
+        >
+          <Search className="h-4 w-4" aria-hidden />
+          {submitLabel}
+        </button>
+      </div>
     </form>
   );
 }
@@ -193,18 +268,18 @@ export function MarketplaceMobileSearchTrigger({
     <button
       type="button"
       onClick={onClick}
-      className="sm:hidden w-full flex items-center gap-3 rounded-2xl bg-paper-raised text-ink px-4 py-3.5 shadow-soft-lg ring-1 ring-black/[0.06] text-left active:scale-[0.99] transition-transform"
+      className="flex w-full items-center gap-3 rounded-[1.25rem] bg-white px-4 py-3.5 text-left text-ink shadow-[0_12px_32px_-12px_rgba(7,26,58,0.28)] ring-1 ring-black/[0.05] transition-transform active:scale-[0.99] sm:hidden"
       aria-label={ariaLabel}
       aria-haspopup="dialog"
       aria-expanded={expanded}
       aria-controls={controlsId}
     >
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-finland text-white" aria-hidden>
-        <Search className="w-4 h-4" />
+        <Search className="h-4 w-4" />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[15px] font-semibold text-ink truncate">{where}</span>
-        <span className="mt-0.5 block text-sm text-ink-muted truncate">
+        <span className="block truncate text-[15px] font-semibold text-ink">{where}</span>
+        <span className="mt-0.5 block truncate text-sm text-ink-muted">
           {whenLabel}
           <span className="mx-1.5 text-ink-faint" aria-hidden>
             ·
