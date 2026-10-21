@@ -8,7 +8,7 @@ import StayRequestActions from '../../components/StayRequestActions';
 import { isStayRequestAwaitingHost } from '../../lib/stay-request-approval';
 import { fetchMyListings, pgTimeToHm } from '../../data/supabase-listings';
 import {
-  fetchBookingMessages,
+  fetchLatestBookingMessage,
   fetchCancellationRequestsForBookings,
   bookingAllowsMessaging,
   messagingComposeBlock,
@@ -213,8 +213,8 @@ export default function SupplierInbox() {
       await Promise.all(
         withMessagesFetched.map(async (b) => {
           try {
-            const msgs = await fetchBookingMessages(b.id);
-            if (msgs.length) lasts[b.id] = msgs[msgs.length - 1]!;
+            const last = await fetchLatestBookingMessage(b.id);
+            if (last) lasts[b.id] = last;
           } catch {
             // Phase 1355: keep prior last-message so closed threads do not vanish on blips.
             failedMessagePrefetch.add(b.id);

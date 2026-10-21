@@ -22,7 +22,7 @@ import { fromMinorUnits } from '../../lib/commercial-money';
 import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 import {
   fetchCancellationRequestsForBookings,
-  fetchBookingMessages,
+  fetchLatestBookingMessage,
 } from '../../data/supabase-booking-ops';
 import { countUnrepliedWrittenReviewsForSupplier } from '../../data/supabase-reviews';
 import { bookingNeedsPickupCopy, bookingIsStayNight, resolvePartnerPickupCopy } from '../../lib/pickup-completeness';
@@ -286,8 +286,7 @@ export default function SupplierDashboard() {
     const unreadFlags = await Promise.all(
       paidForMsgs.map(async (b) => {
         try {
-          const msgs = await fetchBookingMessages(b.id);
-          const last = msgs[msgs.length - 1];
+          const last = await fetchLatestBookingMessage(b.id);
           return Boolean(last && last.sender_role === 'traveler' && !last.read_by_supplier_at);
         } catch {
           // Phase 1099: message load failure ≠ “no unread”.

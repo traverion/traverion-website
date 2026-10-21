@@ -35,7 +35,7 @@ Partner sections remount page modules on navigation but keep sidebar/top chrome 
 2. **Large chunks** — main `index` ~553 KB raw / ~160 KB gzip; `SupplierListingForm` ~441 KB raw / ~123 KB gzip; `TourDetails` ~140 KB raw.
 3. **Dead dependency** — `workbox-webpack-plugin` in `package.json` is unused (Vite app; no SW registration).
 4. **CSR-only consumer** — SEO via client `setPageMetaWithOg`; first paint waits on JS (acceptable for SPA, but LCP depends on hero image priority — Home already uses `fetchPriority="high"`).
-5. **Inbox message prefetch** — up to 80 paid bookings message last-rows (capped; intentional).
+5. **Inbox message prefetch** — up to 80 paid bookings (capped). Previously loaded full thread history per booking just for the last row; now `fetchLatestBookingMessage` (`order desc limit 1`). Index `booking_messages_booking_created_idx` already covers this path.
 
 ## Phase 02 — Baseline (production build)
 
@@ -80,6 +80,8 @@ Partner sections remount page modules on navigation but keep sidebar/top chrome 
 **Navigation:** Partner sidebar `pointerenter`/`focus` warms section chunks; consumer header warms Stays (Tours already prefetched).
 
 **Deps:** Removed unused `workbox-*` packages (no service worker registration in this Vite app).
+
+**Inbox / Dashboard unread (Phase 04):** List preview and dashboard unread flags use `fetchLatestBookingMessage` (1 row) instead of `fetchBookingMessages` (full thread). Open-thread UI still loads the full history via `BookingMessageThread`. Payload reduction is proportional to thread length (often 10–100× fewer rows per booking when threads are long). Request count remains capped at `PARTNER_INBOX_MESSAGE_FETCH_CAP` (80).
 
 ## Remaining (not yet measured / not yet changed)
 

@@ -83,6 +83,24 @@ export async function fetchBookingMessages(bookingId: string): Promise<BookingMe
   return (data ?? []) as BookingMessageRow[];
 }
 
+/** Inbox list preview — one row per booking instead of the full thread history. */
+export async function fetchLatestBookingMessage(
+  bookingId: string
+): Promise<BookingMessageRow | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from('booking_messages')
+    .select(
+      'id, booking_id, sender_role, sender_user_id, body, created_at, read_by_traveler_at, read_by_supplier_at'
+    )
+    .eq('booking_id', bookingId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data as BookingMessageRow | null) ?? null;
+}
+
 export async function fetchCancellationRequestsForBookings(
   bookingIds: string[]
 ): Promise<CancellationRequestRow[]> {
