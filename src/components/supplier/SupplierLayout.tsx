@@ -59,6 +59,7 @@ import {
   PARTNER_CREATE_PATH,
   PARTNER_EMAIL_VERIFIED_PATH,
   PARTNER_HELP_PATH,
+  PARTNER_SUPPORT_PATH,
   PARTNER_LANDING_DEV_PATH,
   PARTNER_LOGIN_PATH,
   PARTNER_RESET_PASSWORD_PATH,
@@ -108,7 +109,7 @@ const SupplierDiscountsOffers = lazy(() => import('../../pages/supplier/Supplier
 const SupplierChangePassword = lazy(() => import('../../pages/supplier/SupplierChangePassword'));
 const PartnerOnboarding = lazy(() => import('../../pages/supplier/PartnerOnboarding'));
 const PartnerCreateListingPage = lazy(() => import('../../pages/supplier/PartnerCreateListingPage'));
-const PartnerHelpPage = lazy(() => import('../../pages/supplier/PartnerHelpPage'));
+const PartnerSupportPage = lazy(() => import('../../pages/supplier/PartnerSupportPage'));
 const SupplierSettingsPages = lazy(() => import('./SupplierSettingsPages'));
 
 function PartnerSectionFallback() {
@@ -171,6 +172,7 @@ type SupplierSection =
   | 'reviews'
   | 'pickup'
   | 'performance'
+  | 'support'
   | 'help'
   | 'business-profile'
   | 'account-settings'
@@ -226,7 +228,8 @@ const PATH_ALIASES: Record<string, SupplierSection> = {
   'change-password': 'change-password',
   onboarding: 'onboarding',
   dashboard: 'dashboard',
-  help: 'help',
+  support: 'support',
+  help: 'support',
 };
 
 function pathForSection(s: SupplierSection): string {
@@ -237,7 +240,7 @@ function pathForSection(s: SupplierSection): string {
   if (s === 'create') return PARTNER_CREATE_PATH;
   if (s === 'reservations') return PARTNER_RESERVATIONS_PATH;
   if (s === 'stay-calendar') return `${PARTNER_APP_BASE}/stay-calendar`;
-  if (s === 'help') return PARTNER_HELP_PATH;
+  if (s === 'support' || s === 'help') return PARTNER_SUPPORT_PATH;
   return `${PARTNER_APP_BASE}/${s}`;
 }
 
@@ -729,8 +732,12 @@ export default function SupplierLayout() {
 
   useEffect(() => {
     const syncFromPath = (fromPop: boolean) => {
-      const pathname = window.location.pathname;
-      const s = getSectionFromPath(pathname);
+      const pathname = window.location.pathname.replace(/\/$/, '') || '/';
+      // Legacy /partner/help → canonical /partner/support
+      if (pathname === PARTNER_HELP_PATH || pathname.endsWith('/partner/help')) {
+        replacePathIfChanged(PARTNER_SUPPORT_PATH);
+      }
+      const s = getSectionFromPath(window.location.pathname);
       if (s) {
         setSection(s);
         setUnknownPartnerPath(false);
@@ -1250,7 +1257,7 @@ export default function SupplierLayout() {
                     {section === 'reviews' && <SupplierReviews />}
                     {section === 'pickup' && <SupplierPickupPlanner />}
                     {section === 'performance' && <SupplierPerformance />}
-                    {section === 'help' && <PartnerHelpPage />}
+                    {(section === 'support' || section === 'help') && <PartnerSupportPage />}
                     {section === 'change-password' && (
                       <SupplierChangePassword
                         onBack={() => handleNavigate('account-settings')}

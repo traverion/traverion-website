@@ -56,8 +56,9 @@ export function prefetchPartnerSection(section: string): void {
     case 'create':
       warm(id, () => import('../pages/supplier/PartnerCreateListingPage'));
       break;
+    case 'support':
     case 'help':
-      warm(id, () => import('../pages/supplier/PartnerHelpPage'));
+      warm('support', () => import('../pages/supplier/PartnerSupportPage'));
       break;
     case 'business-profile':
     case 'account-settings':

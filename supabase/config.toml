@@ -11,6 +11,10 @@ verify_jwt = false
 [functions.notify-contact-inquiry]
 verify_jwt = false
 
+[functions.submit-partner-support]
+# Validate JWT inside the function (same pattern as checkout / contact notify).
+verify_jwt = false
+
 [functions.create-booking-checkout-session]
 # Validate JWT inside the function (avoids gateway "Invalid JWT" edge cases with some clients).
 verify_jwt = false

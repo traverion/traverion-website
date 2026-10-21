@@ -63,8 +63,8 @@ describe('partnerNav IA', () => {
     expect(leaves).not.toContain('stay-calendar');
   });
 
-  it('keeps Help and Settings in the footer, not mixed with ops', () => {
-    expect(PARTNER_SIDEBAR_FOOTER.map((i) => i.id)).toEqual(['help', 'business-profile']);
+  it('keeps Support and Settings in the footer, not mixed with ops', () => {
+    expect(PARTNER_SIDEBAR_FOOTER.map((i) => i.id)).toEqual(['support', 'business-profile']);
   });
 
   it('keeps Offers discoverable and omits bottom-primary duplicates from More', () => {
@@ -76,7 +76,7 @@ describe('partnerNav IA', () => {
     expect(moreIds).toContain('pickup');
     expect(moreIds).toContain('reservations');
     expect(moreIds).toContain('stay-calendar');
-    expect(moreIds).toContain('help');
+    expect(moreIds).toContain('support');
     expect(moreIds).toContain('account-settings');
     expect(moreIds).toContain('earnings');
     for (const id of PARTNER_PRIMARY_NAV_SECTION_IDS) {

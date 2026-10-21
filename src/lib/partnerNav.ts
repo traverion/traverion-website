@@ -45,6 +45,7 @@ export type PartnerNavSectionId =
   | 'account-settings'
   | 'onboarding'
   | 'change-password'
+  | 'support'
   | 'help';
 
 export type PartnerNavItem = {
@@ -177,7 +178,7 @@ export const PARTNER_SIDEBAR_PRIMARY: PartnerSidebarEntry[] = [
 ];
 
 export const PARTNER_SIDEBAR_FOOTER: PartnerNavItem[] = [
-  { id: 'help', label: 'Help', icon: Info },
+  { id: 'support', label: 'Support', icon: Info },
   { id: 'business-profile', label: 'Settings', icon: Settings },
 ];
 
@@ -203,7 +204,8 @@ export const PARTNER_SECTION_TITLES: Record<PartnerNavSectionId, string> = {
   discounts: 'Offers',
   earnings: 'Income & Payouts',
   performance: 'Analytics',
-  help: 'Help',
+  support: 'Support',
+  help: 'Support',
   'business-profile': 'Settings',
   'account-settings': 'Account',
   onboarding: 'Get ready',
@@ -320,7 +322,7 @@ export const PARTNER_MORE_GROUPS: PartnerNavGroup[] = [
     id: 'account',
     label: 'Account',
     items: [
-      { id: 'help', label: 'Help', icon: Info },
+      { id: 'support', label: 'Support', icon: Info },
       { id: 'business-profile', label: 'Settings', icon: Settings },
       { id: 'account-settings', label: 'Account settings', icon: Settings },
       { id: 'onboarding', label: 'Get ready', icon: Building2 },

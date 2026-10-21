@@ -20,7 +20,7 @@ export const PARTNER_MORE_NAV_SECTION_IDS = [
   'stay-calendar',
   'earnings',
   'performance',
-  'help',
+  'support',
   'business-profile',
   'account-settings',
   'onboarding',
