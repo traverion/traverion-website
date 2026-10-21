@@ -23,7 +23,6 @@ import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { SUPPLIER_PAGE_CLASS, SupplierListSkeleton } from '../../components/supplier/supplierUi';
 import { formatMoney, normalizeCurrency } from '../../lib/money';
-import { fromMinorUnits } from '../../lib/commercial-money';
 import { catalogOfferTodayIso } from '../../lib/discount-display';
 import {
   findSupplierOfferConflicts,
