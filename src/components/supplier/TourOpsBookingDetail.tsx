@@ -34,6 +34,7 @@ export type TourOpsDetailModel = {
   arrivalInstructions: string | null;
   pickupTimeHm: string | null;
   transferLine: string | null;
+  pickupGapMessage?: string | null;
   unpaidHoldMessage: string | null;
   cancelWaitingMessage: string | null;
   finance: TourOpsDetailFinance;

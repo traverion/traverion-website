@@ -7589,6 +7589,47 @@ details:not([open]) > :not(summary) {
   word-break: break-word;
 }
 
+.tour-ops-detail__activity {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.tour-ops-detail__activity-item {
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.tour-ops-detail__activity-item:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.tour-ops-detail__activity-label {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #17191d;
+  text-transform: capitalize;
+}
+
+.tour-ops-detail__activity-detail {
+  margin: 0.15rem 0 0;
+  font-size: 12.5px;
+  color: #667085;
+  line-height: 1.4;
+}
+
+.tour-ops-detail__activity-at {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 11.5px;
+  color: #98a2b3;
+}
+
 .tour-ops-detail__notes {
   margin-top: 0.75rem;
 }

@@ -3,8 +3,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
-  Mail,
-  MoreHorizontal,
   RefreshCw,
   Trash2,
   CalendarDays,
@@ -55,16 +53,9 @@ import {
 } from '../../data/supabase-bookings';
 import StayRequestActions from '../../components/StayRequestActions';
 import StayOpsReservationCard from '../../components/supplier/StayOpsReservationCard';
+import StayOpsBookingDetail from '../../components/supplier/StayOpsBookingDetail';
 import TourOpsBookingCard from '../../components/supplier/TourOpsBookingCard';
 import TourOpsBookingDetail from '../../components/supplier/TourOpsBookingDetail';
-import {
-  StayOpsFact,
-  StayOpsInOut,
-  StayOpsMoneyStack,
-  StayOpsPanel,
-  StayOpsTimeline,
-  type StayOpsTimelineItem,
-} from '../../components/supplier/StayOpsPrimitives';
 import { isStayRequestAwaitingHost } from '../../lib/stay-request-approval';
 import { insertSupplierExportRun } from '../../data/supabase-supplier-campaigns-exports';
 import { decrementAvailabilityBooked } from '../../data/supabase-availability';
@@ -113,8 +104,6 @@ import { travelerPublicBookingReference } from '../../lib/public-booking-referen
 import { fetchSupplierBookingEvents, type SupplierBookingEventRow } from '../../data/supabase-booking-events';
 import { displayListingTitleFromPurchase, displayOptionLabelFromPurchase, displayDurationFromPurchase, displayStayCheckInTimeFromPurchase, displayStayCheckOutTimeFromPurchase, displayCheckInAddressFromPurchase, displayStayHouseRulesFromPurchase, partnerOpsDepartureDisplay, isPurchaseSnapshot, partnerListingFilterLabelFromBookings, type PurchaseSnapshot } from '../../lib/purchase-snapshot';
 import { optionLogisticsLines, readOptionLogistics } from '../../lib/option-logistics';
-import SavedStayPrice from '../../components/booking/SavedStayPrice';
-import { readStayBookingPrice } from '../../lib/stay-price';
 
 const BOOKINGS_PAGE_SIZE = 20;
 
@@ -398,8 +387,6 @@ export default function SupplierBookings({
   });
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
   const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
-  const [drawerExtra, setDrawerExtra] = useState<null | 'notes' | 'activity' | 'rules' | 'instructions' | 'arrival'>(null);
-  const [drawerMoreOpen, setDrawerMoreOpen] = useState(false);
   const [expandedStayId, setExpandedStayId] = useState<string | null>(null);
   const [expandedTourId, setExpandedTourId] = useState<string | null>(null);
   const [expandedEarningsLabel, setExpandedEarningsLabel] = useState<string | null>(null);
@@ -957,8 +944,6 @@ export default function SupplierBookings({
   }, [expandedStayId, expandedTourId]);
 
   useEffect(() => {
-    setDrawerExtra(null);
-    setDrawerMoreOpen(false);
     setCommercialSnapshot(null);
     if (!user?.id || !highlightBookingId) {
       setActivityEvents([]);
@@ -1019,12 +1004,12 @@ export default function SupplierBookings({
 
   const isStayDesk = inventoryFamily === 'stay';
 
-  const stayDetailMode = Boolean(isStayDesk && selectedBooking);
+  const stayDetailMode = Boolean(isStayDesk && highlightBookingId);
   const tourDetailMode = Boolean(!isStayDesk && highlightBookingId);
   const listHidden = stayDetailMode || tourDetailMode;
 
   return (
-    <div className={`${SUPPLIER_PAGE_CLASS}${isStayDesk ? ' partner-stay-ops' : ''}`}>
+    <div className={SUPPLIER_PAGE_CLASS}>
       {!listHidden ? (
       <SupplierPageHero
         badge={null}
@@ -1324,22 +1309,10 @@ export default function SupplierBookings({
           }
         />
       ) : (
-      <div className={isStayDesk ? 'contents' : 'partner-bookings-workspace'}>
-      <div className={isStayDesk ? 'partner-stay-ops__toolbar' : 'partner-bookings-workspace__toolbar'}>
-        <div
-          className={
-            isStayDesk
-              ? 'flex flex-col gap-2 lg:flex-row lg:items-center'
-              : 'partner-bookings-workspace__controls'
-          }
-        >
-          <label
-            className={
-              isStayDesk
-                ? 'min-w-0 flex-1'
-                : 'partner-bookings-workspace__search'
-            }
-          >
+      <div className="partner-bookings-workspace">
+      <div className="partner-bookings-workspace__toolbar">
+        <div className="partner-bookings-workspace__controls">
+          <label className="partner-bookings-workspace__search">
             <span className="sr-only">{isStayDesk ? 'Search reservations' : 'Search bookings'}</span>
             <input
               type="search"
@@ -1375,13 +1348,7 @@ export default function SupplierBookings({
               />
             </div>
           </div>
-          <div
-            className={
-              isStayDesk
-                ? 'hidden flex-wrap items-center gap-2 lg:flex'
-                : 'partner-bookings-workspace__filters'
-            }
-          >
+          <div className="partner-bookings-workspace__filters">
             <PartnerSelect
               id="bookings-filter-status"
               aria-label="Booking status"
@@ -1454,13 +1421,7 @@ export default function SupplierBookings({
           </div>
         ) : null}
         {moreFiltersOpen ? (
-          <div
-            className={
-              isStayDesk
-                ? 'hidden gap-3 rounded-lg border border-black/[0.08] bg-white p-3 lg:grid lg:grid-cols-4'
-                : 'partner-bookings-workspace__more-panel'
-            }
-          >
+          <div className="partner-bookings-workspace__more-panel">
             <PartnerSelect
               id="bookings-filter-payment"
               aria-label="Payment status"
@@ -1523,7 +1484,7 @@ export default function SupplierBookings({
         purchaseFrom ||
         purchaseTo ||
         view !== 'all' ? (
-          <div className={isStayDesk ? 'flex flex-wrap items-center gap-2' : 'partner-bookings-workspace__meta'}>
+          <div className="partner-bookings-workspace__meta">
             {/* Phase 1663: ops filters count as active filters. */}
             {filterQuery ||
             filterListingId ||
@@ -1544,23 +1505,27 @@ export default function SupplierBookings({
                 Reset filters
               </button>
             ) : null}
-            {!isStayDesk ? (
-              <p className="partner-bookings-workspace__count" aria-live="polite">
-                <span className="font-semibold tabular-nums text-ink">{filteredBookings.length}</span>
-                {filteredBookings.length === 1 ? ' booking' : ' bookings'}
-                {selectedIds.size > 0 ? (
-                  <span className="text-ink-muted"> · {selectedIds.size} selected</span>
-                ) : null}
-              </p>
-            ) : null}
+            <p className="partner-bookings-workspace__count" aria-live="polite">
+              <span className="font-semibold tabular-nums text-ink">{filteredBookings.length}</span>
+              {filteredBookings.length === 1
+                ? isStayDesk
+                  ? ' reservation'
+                  : ' booking'
+                : isStayDesk
+                  ? ' reservations'
+                  : ' bookings'}
+              {selectedIds.size > 0 ? (
+                <span className="text-ink-muted"> · {selectedIds.size} selected</span>
+              ) : null}
+            </p>
           </div>
         ) : null}
       </div>
         <div
           id={PARTNER_BOOKINGS_LIST_ID}
           role="region"
-          aria-label="Bookings"
-          className={isStayDesk ? undefined : 'partner-bookings-workspace__body'}
+          aria-label={isStayDesk ? 'Reservations' : 'Bookings'}
+          className="partner-bookings-workspace__body"
         >
         {filteredBookings.length === 0 ? (
         <SupplierEmptyState
@@ -1601,7 +1566,7 @@ export default function SupplierBookings({
         <div className="space-y-3" aria-busy={loading || undefined}>
           {selectedIds.size > 0 ? (
             <div
-              className={isStayDesk ? 'partner-stay-ops__bulk' : 'partner-bookings-workspace__bulk'}
+              className="partner-bookings-workspace__bulk"
               role="status"
             >
               <span>
@@ -1649,7 +1614,7 @@ export default function SupplierBookings({
               ) : null}
             </div>
           ) : null}
-          <div className={isStayDesk ? 'stay-ops-list' : 'partner-bookings-workspace__list'}>
+          <div className="partner-bookings-workspace__list">
             {paginatedBookings.map((booking) => {
               const opsStartHm = booking.start_time ? pgTimeToHm(booking.start_time) ?? null : null;
               const dep = partnerOpsDepartureDisplay(booking.purchase_snapshot, opsStartHm);
@@ -1787,6 +1752,31 @@ export default function SupplierBookings({
                   displayStayCheckInTimeFromPurchase(booking.purchase_snapshot, meta?.stayCheckInTime) || '';
                 const stayOutTime =
                   displayStayCheckOutTimeFromPurchase(booking.purchase_snapshot, meta?.stayCheckOutTime) || '';
+                const stayRange = stayRangeFromBooking(booking);
+                const checkInLabel = stayRange
+                  ? `${formatStayNightHuman(stayRange.checkIn)}${stayInTime ? ` · ${stayInTime}` : ''}`
+                  : stayInTime || '—';
+                const checkOutLabel = stayRange
+                  ? `${formatStayNightHuman(stayRange.checkOut)}${stayOutTime ? ` · ${stayOutTime}` : ''}`
+                  : stayOutTime || '—';
+                const accessRaw =
+                  resolvePartnerPickupCopy({
+                    purchaseSnapshot: booking.purchase_snapshot,
+                    bookingOptionId: booking.booking_option_id,
+                    specialRequests: booking.special_requests,
+                    listingMeetingPoint: meta?.meetingPoint,
+                    listingPickupInstructions: meta?.pickupInstructions,
+                    bookingOptions: isPurchaseSnapshot(booking.purchase_snapshot)
+                      ? null
+                      : meta?.bookingOptions,
+                  }).pickupInstructions ||
+                  displayCheckInAddressFromPurchase(booking.purchase_snapshot, booking.payment_status) ||
+                  '';
+                const accessSummary =
+                  accessRaw.length > 140 ? `${accessRaw.slice(0, 140).trimEnd()}…` : accessRaw || null;
+                const guestNotes = customerRequestNotes(booking.special_requests) || null;
+                const stayExpanded = expandedStayId === booking.id;
+                const financeReady = stayExpanded && expandedEarningsState === 'ready';
                 return (
                   <StayOpsReservationCard
                     key={booking.id}
@@ -1801,17 +1791,26 @@ export default function SupplierBookings({
                       statusLabel: partnerBookingLifecycleLabel(booking.status),
                       statusClass: bookingStatusClass(booking.status, booking.payment_status),
                       referenceLabel,
-                      guestTotalLabel: customerBookingTotal(booking),
-                      earningsLabel:
-                        expandedStayId === booking.id ? expandedEarningsLabel : null,
-                      paymentLabel: partnerPaymentLabel(booking),
-                      checkInTime: stayInTime,
-                      checkOutTime: stayOutTime,
+                      purchaseDateLabel,
                       guestEmail: booking.guest_email?.trim() || null,
                       guestPhone: guestPhoneFromNotes(booking.special_requests),
+                      guestNotes,
                       warning: cardWarning,
+                      checkInLabel,
+                      checkOutLabel,
+                      accessSummary,
+                      guestPaidLabel: financeReady
+                        ? expandedGuestPaidLabel
+                        : stayExpanded
+                          ? null
+                          : customerBookingTotal(booking),
+                      commissionLabel: financeReady ? expandedCommissionLabel : null,
+                      commissionRateLabel: financeReady ? expandedCommissionRateLabel : null,
+                      earningsLabel: financeReady ? expandedEarningsLabel : null,
+                      financeLoading: stayExpanded && expandedEarningsState === 'loading',
+                      paymentLabel: partnerPaymentLabel(booking),
                     }}
-                    expanded={expandedStayId === booking.id}
+                    expanded={stayExpanded}
                     selected={highlightBookingId === booking.id}
                     busy={updatingId === booking.id}
                     checkbox={checkbox}
@@ -2169,28 +2168,49 @@ export default function SupplierBookings({
           })()
         : null}
 
-      {selectedBooking && isStayDesk ? (
-        <SupplierDetailDrawer
-          onClose={() => leaveBookingDetail(selectedBooking.id)}
-          label={selectedBooking.guest_name || 'Booking'}
-          variant="page"
-          backLabel={
-            partnerInboxReturnMatches(selectedBooking.id) ? 'Back to Inbox' : 'Back to reservations'
-          }
-        >
-          {(() => {
+      {stayDetailMode && loading && !selectedBooking ? (
+        <div className="tour-ops-detail tour-ops-detail--skeleton" aria-busy="true" aria-label="Loading reservation">
+          <div className="h-4 w-36 rounded bg-black/[0.06] animate-pulse" />
+          <div className="mt-5 h-7 w-48 rounded bg-black/[0.07] animate-pulse" />
+          <div className="mt-3 h-4 w-24 rounded bg-black/[0.05] animate-pulse" />
+          <div className="tour-ops-detail__grid mt-8">
+            <div className="space-y-3">
+              <div className="h-28 rounded-xl bg-black/[0.04] animate-pulse" />
+              <div className="h-40 rounded-xl bg-black/[0.04] animate-pulse" />
+            </div>
+            <div className="space-y-3">
+              <div className="h-36 rounded-xl bg-black/[0.04] animate-pulse" />
+              <div className="h-24 rounded-xl bg-black/[0.04] animate-pulse" />
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {stayDetailMode && !selectedBooking && !loading ? (
+        <div className="tour-ops-detail">
+          <button
+            type="button"
+            className="tour-ops-detail__back lux-flat"
+            onClick={() => leaveBookingDetail(highlightBookingId)}
+          >
+            ← {partnerInboxReturnMatches(highlightBookingId) ? 'Back to Inbox' : 'Back to reservations'}
+          </button>
+          <h1 className="tour-ops-detail__ref">Reservation unavailable</h1>
+          <p className="tour-ops-detail__muted mt-2">
+            This reservation was not found, or you do not have access to it.
+          </p>
+        </div>
+      ) : null}
+
+      {stayDetailMode && selectedBooking
+        ? (() => {
             const booking = selectedBooking;
-            const opsStartHm = booking.start_time ? pgTimeToHm(booking.start_time) ?? null : null;
-            const dep = partnerOpsDepartureDisplay(booking.purchase_snapshot, opsStartHm);
-            const startHm = dep.displayHm || null;
             const meta = listingMeta[booking.listing_id];
-            const isStay = meta?.family === 'stay' || bookingIsStayNight(booking);
             const listingTitle = displayListingTitleFromPurchase(
               booking.purchase_snapshot,
               meta?.title,
-              isStay ? 'Stay' : 'Tour'
+              'Stay'
             );
-            // Phase 1742: stay detail uses same pickup/arrival override precedence as Trips.
             const partnerPickup = resolvePartnerPickupCopy({
               purchaseSnapshot: booking.purchase_snapshot,
               bookingOptionId: booking.booking_option_id,
@@ -2201,10 +2221,7 @@ export default function SupplierBookings({
                 ? null
                 : meta?.bookingOptions,
             });
-            const pickupInstructions = partnerPickup.pickupInstructions;
-            const stayRange = isStay ? stayRangeFromBooking(booking) : null;
-            const stayOut = stayRange?.checkOut ?? null;
-            // Phase 1590: detail Nights field matches list meta 1584/1588 when paid+nightly (date range keeps occupancy).
+            const stayRange = stayRangeFromBooking(booking);
             const stayOccupancyNights = stayRange
               ? nightsOccupiedByStay(stayRange.checkIn, stayRange.checkOut).length
               : 0;
@@ -2219,13 +2236,11 @@ export default function SupplierBookings({
                   occupancyNights: stayOccupancyNights,
                 }) ?? 0
               : 0;
-            const whenLabel = stayOut
-              ? `${formatStayNightHuman(booking.booking_date ?? '')} → ${formatStayNightHuman(stayOut)}`
-              : formatActivityDateLong(booking.booking_date, startHm);
-            const bookingTotalLabel = customerBookingTotal(booking);
-            const collectedLabel = formatBookingMoney(booking.amount_paid, booking.currency);
-            const collectedCaption = partnerCollectedAmountCaption(booking);
-            // Phase 1582: detail panel must resolve openCancel (list row already did — missing here broke tsc/cancel UI).
+            const nightLabel =
+              stayNightCount > 0 ? `${stayNightCount} night${stayNightCount === 1 ? '' : 's'}` : null;
+            const whenLabel = stayRange
+              ? `${formatStayNightHuman(stayRange.checkIn)} → ${formatStayNightHuman(stayRange.checkOut)}`
+              : formatActivityDateLong(booking.booking_date, null);
             const openCancelRaw = openCancels[booking.id];
             const openCancel =
               openCancelRaw &&
@@ -2239,470 +2254,189 @@ export default function SupplierBookings({
             const referenceLabel = bookingReferenceLabel(booking);
             const guestPhone = guestPhoneFromNotes(booking.special_requests);
             const requestNotes = customerRequestNotes(booking.special_requests);
-            const checkInAddress = isStay
-              ? displayCheckInAddressFromPurchase(booking.purchase_snapshot, booking.payment_status) || ''
-              : '';
-            const houseRules = isStay ? displayStayHouseRulesFromPurchase(booking.purchase_snapshot) || '' : '';
-            const stayInTime = isStay
-              ? displayStayCheckInTimeFromPurchase(booking.purchase_snapshot, meta?.stayCheckInTime)
-              : '';
-            const stayOutTime = isStay
-              ? displayStayCheckOutTimeFromPurchase(booking.purchase_snapshot, meta?.stayCheckOutTime)
-              : '';
-            const phoneHref = guestPhone ? `tel:${guestPhone.replace(/[^\d+]/g, '')}` : '';
+            const checkInAddress =
+              displayCheckInAddressFromPurchase(booking.purchase_snapshot, booking.payment_status) || '';
+            const houseRules = displayStayHouseRulesFromPurchase(booking.purchase_snapshot) || '';
+            const stayInTime =
+              displayStayCheckInTimeFromPurchase(booking.purchase_snapshot, meta?.stayCheckInTime) || '';
+            const stayOutTime =
+              displayStayCheckOutTimeFromPurchase(booking.purchase_snapshot, meta?.stayCheckOutTime) || '';
+            const commissionAdjusted =
+              commercialSnapshot != null &&
+              Number(commercialSnapshot.remaining_gross_minor) !== Number(commercialSnapshot.gross_minor);
+            const financeReady = commercialSnapshot && commercialState === 'ready';
+            const activity = (() => {
+              const items: Array<{ id: string; label: string; detail?: string | null; at: string | null }> = [];
+              if (booking.created_at) {
+                items.push({ id: 'booked', label: 'Booked', at: booking.created_at });
+              }
+              if (bookingPaymentWasCollected(booking.payment_status)) {
+                items.push({
+                  id: 'paid',
+                  label: partnerCollectedAmountCaption(booking),
+                  at: null,
+                });
+              }
+              if (openCancel) {
+                items.push({
+                  id: `cancel-${openCancel.id}`,
+                  label: 'Cancellation requested',
+                  at: openCancel.created_at,
+                });
+              }
+              if (booking.status === 'cancelled') {
+                items.push({
+                  id: 'cancelled',
+                  label: 'Cancelled',
+                  at: null,
+                });
+              }
+              for (const event of activityEvents) {
+                items.push({
+                  id: event.id,
+                  label: event.event_type.replace(/_/g, ' '),
+                  detail: event.details,
+                  at: event.created_at,
+                });
+              }
+              return items.sort((a, b) => {
+                const ta = a.at ? new Date(a.at).getTime() : 0;
+                const tb = b.at ? new Date(b.at).getTime() : 0;
+                return ta - tb;
+              });
+            })();
 
-            if (isStay) {
-              const statusBadge = (
-                <span
-                  className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold ring-1 ${bookingStatusClass(booking.status, booking.payment_status)}`}
-                >
-                  {partnerBookingLifecycleLabel(booking.status)}
-                </span>
-              );
-              return (
-                <div className="stay-ops-detail-page">
-                  <header className="stay-ops-detail__hero">
-                    {meta?.imageUrl ? (
-                      <img src={meta.imageUrl} alt="" className="stay-ops-detail__thumb" />
-                    ) : (
-                      <div className="stay-ops-detail__thumb" aria-hidden />
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h2 className="stay-ops-detail__title">{booking.guest_name || 'Guest'}</h2>
-                        {statusBadge}
-                      </div>
-                      <p className="stay-ops-detail__sub" title={listingTitle}>
-                        {listingTitle}
-                      </p>
-                      <p className="stay-ops-detail__meta-line">
-                        <span className="stay-ops-detail__ref" style={{ margin: 0 }}>
-                          {referenceLabel}
-                        </span>
-                        {' · '}
-                        {formatBookingParticipantsLabel(booking)}
-                        {stayNightCount > 0
-                          ? ` · ${stayNightCount} night${stayNightCount === 1 ? '' : 's'}`
-                          : ''}
-                      </p>
+            return (
+              <StayOpsBookingDetail
+                model={{
+                  referenceLabel,
+                  statusLabel: partnerBookingLifecycleLabel(booking.status),
+                  statusClass: bookingStatusClass(booking.status, booking.payment_status),
+                  listingTitle,
+                  imageUrl: meta?.imageUrl ?? null,
+                  whenLabel,
+                  nightLabel,
+                  participantLabel: formatBookingParticipantsLabel(booking),
+                  guestName: booking.guest_name?.trim() || 'Guest',
+                  guestEmail: booking.guest_email?.trim() || null,
+                  guestPhone,
+                  requestNotes: requestNotes || null,
+                  checkInDateLabel: stayRange
+                    ? formatStayNightHuman(stayRange.checkIn)
+                    : formatBookingDateDisplay(booking.booking_date ?? '') || '—',
+                  checkInTimeLabel: stayInTime || null,
+                  checkOutDateLabel: stayRange
+                    ? formatStayNightHuman(stayRange.checkOut)
+                    : '—',
+                  checkOutTimeLabel: stayOutTime || null,
+                  propertyAddress: checkInAddress || null,
+                  accessInstructions: partnerPickup.pickupInstructions || null,
+                  houseRules: houseRules || null,
+                  unpaidHoldMessage: partnerBookingIsUnpaidCheckout(booking)
+                    ? partnerUnpaidCheckoutHoldsInventory(booking)
+                      ? `${formatPartnerCheckoutHoldLabel(booking)}. The traveler may still complete payment.`
+                      : 'Hold expired. Inventory is already released.'
+                    : null,
+                  cancelWaitingMessage: openCancel
+                    ? `Cancellation requested ${new Date(openCancel.created_at).toLocaleString(undefined, {
+                        dateStyle: 'medium',
+                        timeStyle: 'short',
+                      })}. Waiting for the traveler.`
+                    : null,
+                  finance: {
+                    state: commercialState,
+                    customerPaid: financeReady
+                      ? formatSnapshotMinor(
+                          commercialSnapshot.remaining_gross_minor,
+                          commercialSnapshot.currency
+                        )
+                      : customerBookingTotal(booking),
+                    commission: financeReady
+                      ? formatSnapshotMinor(
+                          commercialSnapshot.remaining_commission_minor,
+                          commercialSnapshot.currency
+                        )
+                      : null,
+                    commissionRate: financeReady
+                      ? formatCommissionPercentLabel(commercialSnapshot.commission_bps) || null
+                      : null,
+                    supplierEarnings: financeReady
+                      ? formatSnapshotMinor(
+                          commercialSnapshot.remaining_supplier_minor,
+                          commercialSnapshot.currency
+                        )
+                      : null,
+                    paymentStatus: partnerPaymentLabel(booking),
+                    commissionAdjusted,
+                  },
+                }}
+                activity={activity}
+                busy={busy}
+                canEdit={canEditBookings}
+                copied={copiedBookingId === booking.id}
+                showConfirm={
+                  partnerBookingIsOperatingTrip(booking) &&
+                  booking.status === 'pending' &&
+                  String(booking.payment_status ?? '').toLowerCase() !== 'authorized' &&
+                  !isStayRequestAwaitingHost(booking)
+                }
+                showCancelRequest={
+                  partnerBookingIsOperatingTrip(booking) || partnerBookingIsUnpaidCheckout(booking)
+                }
+                cancelBlocked={Boolean(openCancel)}
+                showRequestActions={isStayRequestAwaitingHost(booking)}
+                requestActionsSlot={
+                  isStayRequestAwaitingHost(booking) ? (
+                    <StayRequestActions
+                      role="supplier"
+                      booking={{
+                        ...booking,
+                        listingTitle,
+                      }}
+                      onDone={() => void load()}
+                    />
+                  ) : null
+                }
+                backLabel={
+                  partnerInboxReturnMatches(booking.id) ? 'Back to Inbox' : 'Back to reservations'
+                }
+                onBack={() => leaveBookingDetail(booking.id)}
+                onCopyReference={() => {
+                  void navigator.clipboard.writeText(referenceLabel).then(() => {
+                    setCopiedBookingId(booking.id);
+                    window.setTimeout(() => {
+                      setCopiedBookingId((current) => (current === booking.id ? null : current));
+                    }, 1500);
+                  });
+                }}
+                onMessageGuest={() => openBookingInbox(booking.id)}
+                onConfirm={() => void handleStatusChange(booking, 'confirmed')}
+                onRequestCancel={() => {
+                  setCancelError(null);
+                  setCancelReasonText('');
+                  setCancelEvidence('');
+                  setCancelModal(booking);
+                }}
+                onOpenFinancialStatement={() =>
+                  navigateSupplierUrl(`${PARTNER_APP_BASE}/money?tab=documents`)
+                }
+                onOpenStayCalendar={() =>
+                  navigateSupplierUrl(
+                    `${PARTNER_APP_BASE}/stay-calendar?listing=${encodeURIComponent(booking.listing_id)}`
+                  )
+                }
+                extraNotices={
+                  partnerPaymentLabel(booking) === 'Refund due' ? (
+                    <div className="mt-2 rounded-md border border-black/[0.06] border-l-[3px] border-l-amber-500 bg-paper px-3 py-2">
+                      <p className="text-[13px] font-semibold text-ink">Refund due</p>
+                      <p className="mt-0.5 text-[12px] leading-snug text-ink-muted">{REFUND_DUE_MANUAL_COPY}</p>
                     </div>
-                  </header>
-
-                  <div className="stay-ops-detail__grid">
-                    <StayOpsPanel title="Guest & contact">
-                      <dl className="stay-ops-detail__facts">
-                        {booking.guest_email ? (
-                          <StayOpsFact label="Email">
-                            <a
-                              href={`mailto:${booking.guest_email}`}
-                              className="text-finland hover:underline [overflow-wrap:anywhere]"
-                            >
-                              {booking.guest_email}
-                            </a>
-                          </StayOpsFact>
-                        ) : (
-                          <StayOpsFact label="Email">No email on file</StayOpsFact>
-                        )}
-                        {guestPhone ? (
-                          <StayOpsFact label="Phone">
-                            <a href={phoneHref} className="text-finland hover:underline">
-                              {guestPhone}
-                            </a>
-                          </StayOpsFact>
-                        ) : null}
-                      </dl>
-                      {requestNotes ? (
-                        <div className="mt-2.5">
-                          <p className="stay-ops-detail__panel-title" style={{ marginBottom: '0.35rem' }}>
-                            Notes
-                          </p>
-                          <p className="whitespace-pre-wrap break-words text-[13px] leading-5 text-ink [overflow-wrap:anywhere]">
-                            {drawerExtra === 'notes' || requestNotes.length <= 160
-                              ? requestNotes
-                              : `${requestNotes.slice(0, 160).trimEnd()}…`}
-                          </p>
-                          {requestNotes.length > 160 ? (
-                            <button
-                              type="button"
-                              className="mt-1 text-[12.5px] font-semibold text-finland"
-                              aria-expanded={drawerExtra === 'notes'}
-                              onClick={() => setDrawerExtra(drawerExtra === 'notes' ? null : 'notes')}
-                            >
-                              {drawerExtra === 'notes' ? 'Show less' : 'Show full note'}
-                            </button>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </StayOpsPanel>
-
-                    <StayOpsPanel title="Stay dates">
-                      {stayRange ? (
-                        <StayOpsInOut
-                          checkInValue={formatStayNightHuman(stayRange.checkIn)}
-                          checkInMeta={stayInTime ? `From ${stayInTime}` : null}
-                          checkOutValue={formatStayNightHuman(stayRange.checkOut)}
-                          checkOutMeta={stayOutTime ? `By ${stayOutTime}` : null}
-                        />
-                      ) : (
-                        <p className="text-[13px] text-ink">{whenLabel}</p>
-                      )}
-                      <button
-                        type="button"
-                        className="mt-2.5 text-[12.5px] font-semibold text-finland hover:underline"
-                        onClick={() =>
-                          navigateSupplierUrl(
-                            `${PARTNER_APP_BASE}/stay-calendar?listing=${encodeURIComponent(booking.listing_id)}`
-                          )
-                        }
-                      >
-                        Open Stay Calendar
-                      </button>
-                    </StayOpsPanel>
-
-                    <StayOpsPanel title="Payment & earnings">
-                      <p className="mb-2 text-[12.5px] font-semibold text-ink">
-                        {partnerPaymentLabel(booking)}
-                      </p>
-                      {commercialState === 'loading' ? (
-                        <p className="text-[13px] text-ink-muted">Loading earnings…</p>
-                      ) : (
-                        <StayOpsMoneyStack
-                          rows={[
-                            ...(commercialSnapshot && commercialState === 'ready'
-                              ? [
-                                  {
-                                    label: 'Guest total',
-                                    value: formatSnapshotMinor(
-                                      commercialSnapshot.remaining_gross_minor,
-                                      commercialSnapshot.currency
-                                    ),
-                                  },
-                                  {
-                                    label: 'Platform commission',
-                                    value: formatSnapshotMinor(
-                                      commercialSnapshot.remaining_commission_minor,
-                                      commercialSnapshot.currency
-                                    ),
-                                    tone: 'muted' as const,
-                                  },
-                                  {
-                                    label: 'Your earnings',
-                                    value: formatSnapshotMinor(
-                                      commercialSnapshot.remaining_supplier_minor,
-                                      commercialSnapshot.currency
-                                    ),
-                                    tone: 'earn' as const,
-                                  },
-                                ]
-                              : bookingTotalLabel
-                                ? [
-                                    { label: 'Guest total', value: bookingTotalLabel },
-                                    {
-                                      label: 'Your earnings',
-                                      value:
-                                        commercialState === 'loading' ? 'Loading…' : 'Not recorded',
-                                      tone: 'muted' as const,
-                                    },
-                                  ]
-                                : [
-                                    {
-                                      label: 'Your earnings',
-                                      value:
-                                        commercialState === 'loading' ? 'Loading…' : 'Not recorded',
-                                      tone: 'muted' as const,
-                                    },
-                                  ]),
-                            ...(collectedLabel &&
-                            (collectedLabel !== bookingTotalLabel || collectedCaption !== 'Paid')
-                              ? [
-                                  {
-                                    label: collectedCaption,
-                                    value: collectedLabel,
-                                    tone: 'muted' as const,
-                                  },
-                                ]
-                              : []),
-                          ]}
-                        />
-                      )}
-                      {isStayRequestAwaitingHost(booking) ? (
-                        <div className="mt-2">
-                          <StayRequestActions
-                            role="supplier"
-                            booking={{
-                              ...booking,
-                              listingTitle: displayListingTitleFromPurchase(
-                                booking.purchase_snapshot,
-                                listingMeta[booking.listing_id]?.title,
-                                'Stay'
-                              ),
-                            }}
-                            onDone={() => void load()}
-                          />
-                        </div>
-                      ) : null}
-                      {!(commercialSnapshot && commercialState === 'ready') &&
-                      readStayBookingPrice(booking.purchase_snapshot) ? (
-                        <div className="mt-2">
-                          <SavedStayPrice
-                            snapshot={booking.purchase_snapshot}
-                            currency={booking.currency}
-                            amountPaid={
-                              bookingPaymentWasCollected(booking.payment_status)
-                                ? Number(booking.amount_paid)
-                                : null
-                            }
-                            totalLabel="Guest total"
-                          />
-                        </div>
-                      ) : null}
-                      {commercialSnapshot && commercialState === 'ready' ? (
-                        <button
-                          type="button"
-                          className="mt-2 text-[12.5px] font-semibold text-finland"
-                          onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/money?tab=documents`)}
-                        >
-                          View financial statement
-                        </button>
-                      ) : null}
-                      {partnerPaymentLabel(booking) === 'Refund due' ? (
-                        <div className="mt-2 rounded-md border border-black/[0.06] border-l-[3px] border-l-amber-500 bg-paper px-3 py-2">
-                          <p className="text-[13px] font-semibold text-ink">Refund due</p>
-                          <p className="mt-0.5 text-[12px] leading-snug text-ink-muted">
-                            {REFUND_DUE_MANUAL_COPY}
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedBookingId(null);
-                              navigateSupplierUrl(`${PARTNER_APP_BASE}/money`);
-                            }}
-                            className="mt-1 text-[12px] font-semibold text-finland hover:underline"
-                          >
-                            Open Income
-                          </button>
-                        </div>
-                      ) : null}
-                      {partnerBookingIsUnpaidCheckout(booking) ? (
-                        <div className="mt-2">
-                          <NoticeCallout
-                            title={
-                              partnerUnpaidCheckoutHoldsInventory(booking)
-                                ? 'Checkout hold still open'
-                                : 'Hold expired'
-                            }
-                            tone={partnerUnpaidCheckoutHoldsInventory(booking) ? 'warn' : 'info'}
-                          >
-                            {partnerUnpaidCheckoutHoldsInventory(booking)
-                              ? `${formatPartnerCheckoutHoldLabel(booking)}. The traveler may still complete payment. Cancelling releases this hold.`
-                              : 'Inventory is already released. Clear this row if you no longer need it — this does not free additional spots.'}
-                          </NoticeCallout>
-                        </div>
-                      ) : null}
-                    </StayOpsPanel>
-
-                    <StayOpsPanel title="Property & arrival">
-                      {checkInAddress ? (
-                        <div className="mb-2">
-                          <p className="text-[12px] font-medium text-ink-faint">Address</p>
-                          <p className="mt-0.5 text-[13px] leading-5 text-ink [overflow-wrap:anywhere]">
-                            {checkInAddress}
-                          </p>
-                        </div>
-                      ) : null}
-                      {pickupInstructions ? (
-                        <div className="mb-2">
-                          <p className="text-[12px] font-medium text-ink-faint">Arrival instructions</p>
-                          <p className="mt-0.5 whitespace-pre-wrap break-words text-[13px] leading-5 text-ink">
-                            {drawerExtra === 'arrival' || pickupInstructions.length <= 180
-                              ? pickupInstructions
-                              : `${pickupInstructions.slice(0, 180).trimEnd()}…`}
-                          </p>
-                          {pickupInstructions.length > 180 ? (
-                            <button
-                              type="button"
-                              className="mt-1 text-[12.5px] font-semibold text-finland"
-                              aria-expanded={drawerExtra === 'arrival'}
-                              onClick={() =>
-                                setDrawerExtra(drawerExtra === 'arrival' ? null : 'arrival')
-                              }
-                            >
-                              {drawerExtra === 'arrival' ? 'Show less' : 'Show full instructions'}
-                            </button>
-                          ) : null}
-                        </div>
-                      ) : null}
-                      {houseRules ? (
-                        <div>
-                          <button
-                            type="button"
-                            className="text-[12.5px] font-semibold text-finland"
-                            aria-expanded={drawerExtra === 'rules'}
-                            onClick={() => setDrawerExtra(drawerExtra === 'rules' ? null : 'rules')}
-                          >
-                            {drawerExtra === 'rules' ? 'Hide house rules' : 'House rules'}
-                          </button>
-                          {drawerExtra === 'rules' ? (
-                            <p className="mt-1.5 whitespace-pre-wrap break-words text-[13px] leading-5 text-ink">
-                              {houseRules}
-                            </p>
-                          ) : null}
-                        </div>
-                      ) : null}
-                      {!checkInAddress && !pickupInstructions && !houseRules ? (
-                        <p className="text-[13px] text-ink-muted">No arrival details on this booking.</p>
-                      ) : null}
-                      {openCancel ? (
-                        <div className="mt-2">
-                          <NoticeCallout
-                            title={
-                              openCancel.expires_at &&
-                              new Date(openCancel.expires_at).getTime() < Date.now()
-                                ? 'Review window passed — still waiting'
-                                : 'Waiting for the traveler'
-                            }
-                            tone="warn"
-                          >
-                            Requested{' '}
-                            {new Date(openCancel.created_at).toLocaleString(undefined, {
-                              dateStyle: 'medium',
-                              timeStyle: 'short',
-                            })}
-                            {openCancel.expires_at
-                              ? ` · noted until ${new Date(openCancel.expires_at).toLocaleString(
-                                  undefined,
-                                  { dateStyle: 'medium', timeStyle: 'short' }
-                                )}`
-                              : ''}
-                            . The booking stays active until the traveler accepts.{' '}
-                            {PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE}
-                          </NoticeCallout>
-                        </div>
-                      ) : null}
-                    </StayOpsPanel>
-
-                    <StayOpsPanel title="Booking activity" span>
-                      <StayOpsTimeline
-                        items={(() => {
-                          const items: StayOpsTimelineItem[] = [];
-                          if (booking.created_at) {
-                            items.push({ id: 'booked', label: 'Booked', at: booking.created_at });
-                          }
-                          if (bookingPaymentWasCollected(booking.payment_status)) {
-                            items.push({
-                              id: 'paid',
-                              label: partnerCollectedAmountCaption(booking),
-                              at: null,
-                            });
-                          }
-                          if (openCancel) {
-                            items.push({
-                              id: `cancel-${openCancel.id}`,
-                              label: 'Cancellation requested',
-                              at: openCancel.created_at,
-                            });
-                          }
-                          if (booking.status === 'cancelled') {
-                            items.push({
-                              id: 'cancelled',
-                              label: 'Cancelled',
-                              at: booking.updated_at ?? null,
-                            });
-                          }
-                          for (const event of activityEvents) {
-                            items.push({
-                              id: event.id,
-                              label: event.event_type.replace(/_/g, ' '),
-                              detail: event.details,
-                              at: event.created_at,
-                            });
-                          }
-                          return items.sort((a, b) => {
-                            const ta = a.at ? new Date(a.at).getTime() : 0;
-                            const tb = b.at ? new Date(b.at).getTime() : 0;
-                            return ta - tb;
-                          });
-                        })()}
-                      />
-                    </StayOpsPanel>
-                  </div>
-
-                  <div className="stay-ops-detail__actions">
-                    <button
-                      type="button"
-                      onClick={() => openBookingInbox(booking.id)}
-                      className="tv-btn-primary inline-flex h-9 items-center gap-1.5 !px-3 text-[13px]"
-                    >
-                      <Mail className="h-3.5 w-3.5" aria-hidden />
-                      Message guest
-                    </button>
-                    {canEditBookings &&
-                    (partnerBookingIsOperatingTrip(booking) ||
-                      partnerBookingIsUnpaidCheckout(booking)) ? (
-                      <div className="tv-stay-drawer__more ml-auto">
-                        <button
-                          type="button"
-                          className="tv-btn-ghost inline-flex h-9 w-9 items-center justify-center !px-0"
-                          aria-expanded={drawerMoreOpen}
-                          aria-haspopup="menu"
-                          aria-label="More actions"
-                          onClick={() => setDrawerMoreOpen((open) => !open)}
-                        >
-                          <MoreHorizontal className="h-4 w-4" aria-hidden />
-                        </button>
-                        {drawerMoreOpen ? (
-                          <div className="tv-stay-drawer__more-menu" role="menu">
-                            {partnerBookingIsOperatingTrip(booking) ? (
-                              <button
-                                type="button"
-                                role="menuitem"
-                                disabled={busy || Boolean(openCancel)}
-                                className="tv-stay-drawer__more-item"
-                                onClick={() => {
-                                  setDrawerMoreOpen(false);
-                                  setCancelError(null);
-                                  setCancelReasonText('');
-                                  setCancelEvidence('');
-                                  setCancelModal(booking);
-                                }}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                                {openCancel ? 'Awaiting traveler' : 'Request cancellation'}
-                              </button>
-                            ) : null}
-                            {partnerBookingIsUnpaidCheckout(booking) ? (
-                              <button
-                                type="button"
-                                role="menuitem"
-                                disabled={busy}
-                                className="tv-stay-drawer__more-item"
-                                onClick={() => {
-                                  setDrawerMoreOpen(false);
-                                  setCancelError(null);
-                                  setCancelReasonText('');
-                                  setCancelEvidence('');
-                                  setCancelModal(booking);
-                                }}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                                {partnerUnpaidCheckoutHoldsInventory(booking)
-                                  ? 'Cancel unpaid'
-                                  : 'Clear expired hold'}
-                              </button>
-                            ) : null}
-                          </div>
-                        ) : null}
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-              );
-            }
-
-            return null;
-          })()}
-        </SupplierDetailDrawer>
-      ) : null}
+                  ) : null
+                }
+              />
+            );
+          })()
+        : null}
 
       {cancelModal && partnerBookingShowsCancelAction(cancelModal) && (
         <SupplierModalShell onClose={() => setCancelModal(null)} maxWidth="md">
