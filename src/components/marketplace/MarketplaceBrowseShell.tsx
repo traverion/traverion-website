@@ -99,7 +99,7 @@ export function MarketplaceBrowseShell({
             <div className="mb-5 flex items-start justify-between gap-3 shrink-0">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">Browse</p>
-                <h2 id={`${headingId}-filters-title`} className="font-display text-xl text-ink tracking-tight mt-1">
+                <h2 id={`${headingId}-filters-title`} className="mt-1 text-xl font-semibold tracking-tight text-ink">
                   Filters
                   {filterCount > 0 ? (
                     <span className="ml-2 align-middle text-base font-sans font-semibold text-finland tabular-nums">

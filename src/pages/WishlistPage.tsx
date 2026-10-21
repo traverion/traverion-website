@@ -200,7 +200,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
         <div className="tv-shell px-4 sm:px-6 lg:px-8 py-8">
           <header className="mb-6 border-b border-black/[0.06] pb-5">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Your travel</p>
-            <h1 id={WISHLIST_HEADING_ID} className="font-display text-3xl sm:text-4xl text-ink tracking-tight">
+            <h1 id={WISHLIST_HEADING_ID} className="text-[1.75rem] font-semibold tracking-tight text-ink sm:text-[2rem]">
               Saved
             </h1>
           </header>
@@ -236,7 +236,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
         <div className="tv-shell px-4 sm:px-6 lg:px-8 py-8">
           <header className="mb-6 border-b border-black/[0.06] pb-5">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Your travel</p>
-            <h1 id={WISHLIST_HEADING_ID} className="font-display text-3xl sm:text-4xl text-ink tracking-tight">
+            <h1 id={WISHLIST_HEADING_ID} className="text-[1.75rem] font-semibold tracking-tight text-ink sm:text-[2rem]">
               Saved
             </h1>
             {/* Phase 1637: logged-out Saved header subtitle (Trips / logged-in Saved parity). */}

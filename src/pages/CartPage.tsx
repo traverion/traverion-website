@@ -106,22 +106,22 @@ export default function CartPage({ onNavigate }: Props) {
     <div className="min-h-screen bg-paper tv-page">
       <div className="tv-shell px-4 sm:px-6 lg:px-8 py-8 pb-16">
         <header className="mb-6 border-b border-black/[0.06] pb-5">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Your travel</p>
-          <h1 className="font-display text-3xl sm:text-4xl text-ink tracking-tight">Cart</h1>
-          <p className="mt-2 max-w-xl text-sm text-ink-muted leading-relaxed">
+          <p className="mb-1.5 text-[12px] font-semibold tracking-wide text-finland">Your travel</p>
+          <h1 className="text-[1.75rem] font-semibold tracking-tight text-ink sm:text-[2rem]">Cart</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-muted">
             Open Instant Book checkouts stay here while the Stripe session is live. Nights are not reserved until payment succeeds.
           </p>
         </header>
 
         {paymentCancelled ? (
-          <div className="mb-5 max-w-lg">
-            <h2 className="font-display text-2xl text-ink">Payment not completed</h2>
+          <div className="mb-5 max-w-2xl">
+            <h2 className="text-xl font-semibold text-ink">Payment not completed</h2>
             <p className="mt-2 text-sm text-ink-muted">{STRIPE_CHECKOUT_CANCELLED_TOUR_COPY}</p>
           </div>
         ) : null}
 
         {actionError ? (
-          <p className="mb-4 max-w-lg text-sm text-ink" role="alert">
+          <p className="mb-4 max-w-2xl text-sm text-ink" role="alert">
             {actionError}
           </p>
         ) : null}
@@ -160,7 +160,7 @@ export default function CartPage({ onNavigate }: Props) {
             }
           />
         ) : (
-          <ul className="max-w-lg space-y-3">
+          <ul className="mx-auto max-w-3xl space-y-3">
             {holds.map((row) => {
               const expiresAt = travelerHoldExpiresAtMs(row);
               const remaining = expiresAt == null ? null : formatHoldCountdown(expiresAt, nowMs);

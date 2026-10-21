@@ -17,6 +17,7 @@ export default function Privacy({ onNavigate }: PrivacyProps) {
 
   return (
     <LegalPageShell
+      layout="legal"
       eyebrow="Legal"
       title="Privacy Policy"
       subtitle="How we collect, use, and protect personal data when you use Traverion — including bookings, accounts, and marketing preferences."

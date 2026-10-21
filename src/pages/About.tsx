@@ -63,13 +63,14 @@ export default function About({ onNavigate }: AboutProps) {
 
   return (
     <LegalPageShell
+      layout="marketing"
       eyebrow="Company"
       title="About Traverion"
       subtitle="A Finland-rooted marketplace for tours and stays — built for travelers who want clarity, and operators who need real tools."
       onNavigate={onNavigate}
     >
-      <div className="mb-5 rounded-xl bg-finland/8 px-3.5 py-2.5 ring-1 ring-finland/15">
-        <p className="text-sm text-ink leading-relaxed m-0">
+      <div className="not-prose mb-6 rounded-2xl border border-black/[0.06] bg-white px-5 py-5 sm:px-6 sm:py-6">
+        <p className="m-0 text-[15px] leading-relaxed text-ink">
           Traverion connects travelers with independent operators. Tours and stays are separate products with their own
           calendars, options, and rules — so a departure never pretends to be a night, and a stay never inherits tour
           fields.
@@ -82,15 +83,15 @@ export default function About({ onNavigate }: AboutProps) {
         family-run tour company and clear enough for someone booking on a phone in another country.
       </p>
 
-      <section className="!mt-8">
-        <h2 className="!mb-3">Who Traverion is for</h2>
-        <div className="grid gap-2 sm:grid-cols-2 not-prose">
-          <div className="tv-card p-3.5 sm:p-4">
-            <div className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-finland/10 text-finland">
+      <section className="!mt-10">
+        <h2 className="!mb-4">Who Traverion is for</h2>
+        <div className="not-prose grid gap-3 sm:grid-cols-2">
+          <div className="rounded-xl border border-black/[0.06] bg-white p-5">
+            <div className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-finland/10 text-finland">
               <Compass className="h-4 w-4" aria-hidden />
             </div>
-            <h3 className="font-sans text-sm font-semibold text-ink mb-1">Travelers</h3>
-            <p className="text-sm text-ink-muted leading-relaxed m-0 mb-3">
+            <h3 className="mb-1.5 font-sans text-[15px] font-semibold text-ink">Travelers</h3>
+            <p className="m-0 mb-4 text-[14px] leading-relaxed text-ink-muted">
               Find a destination, understand the experience, choose an option and participants, pay to confirm, and
               manage everything in Trips.
             </p>
@@ -111,32 +112,32 @@ export default function About({ onNavigate }: AboutProps) {
               </a>
             </div>
           </div>
-          <div className="tv-card p-3.5 sm:p-4">
-            <div className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-finland/10 text-finland">
+          <div className="rounded-xl border border-black/[0.06] bg-white p-5">
+            <div className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-finland/10 text-finland">
               <Building2 className="h-4 w-4" aria-hidden />
             </div>
-            <h3 className="font-sans text-sm font-semibold text-ink mb-1">Operators</h3>
-            <p className="text-sm text-ink-muted leading-relaxed m-0 mb-3">
+            <h3 className="mb-1.5 font-sans text-[15px] font-semibold text-ink">Operators</h3>
+            <p className="m-0 mb-4 text-[14px] leading-relaxed text-ink-muted">
               Create tours and stays, set options and age pricing, publish availability, and run today’s departures from
               one partner portal.
             </p>
-            <a href={supplierPortalLandingHref()} className="tv-btn-secondary text-sm inline-flex">
+            <a href={supplierPortalLandingHref()} className="tv-btn-secondary inline-flex text-sm">
               Partner portal
             </a>
           </div>
         </div>
       </section>
 
-      <section className="!mt-8">
-        <h2 className="!mb-3">How we work</h2>
-        <div className="grid gap-2 sm:grid-cols-3 not-prose">
+      <section className="!mt-10">
+        <h2 className="!mb-4">How we work</h2>
+        <div className="not-prose grid gap-3 sm:grid-cols-3">
           {VALUES.map(({ icon: Icon, title, body }) => (
-            <div key={title} className="tv-card p-3.5 sm:p-4">
-              <div className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-finland/10 text-finland">
+            <div key={title} className="rounded-xl border border-black/[0.06] bg-white p-5">
+              <div className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-finland/10 text-finland">
                 <Icon className="h-4 w-4" aria-hidden />
               </div>
-              <h3 className="font-sans text-sm font-semibold text-ink mb-1">{title}</h3>
-              <p className="text-sm text-ink-muted leading-relaxed m-0">{body}</p>
+              <h3 className="mb-1.5 font-sans text-[15px] font-semibold text-ink">{title}</h3>
+              <p className="m-0 text-[14px] leading-relaxed text-ink-muted">{body}</p>
             </div>
           ))}
         </div>

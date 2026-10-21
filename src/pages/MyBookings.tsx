@@ -639,7 +639,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   return (
     <div className="min-h-screen bg-paper tv-page">
       <div className="tv-shell px-4 sm:px-6 lg:px-8 py-8 pb-12">
-        <header className="mx-auto mb-6 max-w-3xl border-b border-black/[0.06] pb-5">
+        <header className="mx-auto mb-6 max-w-[1000px] border-b border-black/[0.06] pb-5">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <h1 id={TRIPS_HEADING_ID} className="font-sans text-2xl font-bold tracking-tight text-ink sm:text-[1.65rem]">
@@ -671,7 +671,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           </div>
         </header>
 
-        <section className="mx-auto max-w-3xl" aria-labelledby={TRIPS_HEADING_ID}>
+        <section className="mx-auto max-w-[1000px]" aria-labelledby={TRIPS_HEADING_ID}>
         {loadError && (
           <ErrorState
             className="py-6"

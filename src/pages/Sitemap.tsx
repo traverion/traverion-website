@@ -17,6 +17,7 @@ const SECTIONS: SitemapSection[] = [
       { label: 'Stays', page: 'stays' },
       // Phase 1642: label matches behavior — destination cards live on Home.
       { label: 'Destination guides', page: 'home' },
+      { label: 'Cart', page: 'cart' },
       { label: 'Trips', page: 'bookings' },
       { label: 'Saved', page: 'wishlist' },
       { label: 'Contact', page: 'contact' },
@@ -28,6 +29,7 @@ const SECTIONS: SitemapSection[] = [
     items: [
       { label: 'Sign in / Sign up', href: travelerLoginHref('account') },
       { label: 'My account', page: 'account' },
+      { label: 'Cart', page: 'cart' },
       { label: 'Saved', page: 'wishlist' },
       { label: 'Trips', page: 'bookings' },
     ],
@@ -39,6 +41,8 @@ const SECTIONS: SitemapSection[] = [
       { label: 'Privacy Policy', page: 'privacy' },
       { label: 'Cookies and marketing preferences', page: 'cookies' },
       { label: 'General Terms and Conditions', page: 'terms' },
+      { label: 'Contact', page: 'contact' },
+      { label: 'Sitemap', page: 'sitemap' },
     ],
   },
   {
@@ -48,6 +52,7 @@ const SECTIONS: SitemapSection[] = [
       { label: 'About Us', page: 'about' },
       { label: 'Tours', page: 'packages' },
       { label: 'Stays', page: 'stays' },
+      { label: 'Cart', page: 'cart' },
       { label: 'Trips', page: 'bookings' },
       { label: 'Saved', page: 'wishlist' },
     ],
@@ -74,25 +79,26 @@ export default function Sitemap({ onNavigate }: SitemapProps) {
 
   return (
     <LegalPageShell
+      layout="directory"
       eyebrow="Explore"
       title="Sitemap"
       subtitle="Every main page on Traverion — support, legal, company, and partner programs — in one place."
       onNavigate={onNavigate}
     >
-      <div className="not-prose mb-5 rounded-xl bg-finland/8 px-3.5 py-2.5 ring-1 ring-finland/15">
-        <p className="text-sm text-ink leading-relaxed m-0">
-          Jump to any section below. Destinations open Home, where live places from operators are listed. Partner
-          portal opens the supplier marketing site on partner.traverion.com — not a traveler account page.
+      <div className="not-prose mb-6 rounded-xl border border-black/[0.06] bg-white px-4 py-3.5">
+        <p className="m-0 text-sm leading-relaxed text-ink-muted">
+          Jump to any section below. Destination guides open Home, where live places from operators are listed. Partner
+          portal opens the supplier marketing site — not a traveler account page.
         </p>
       </div>
 
-      <div className="not-prose grid gap-2 sm:grid-cols-2">
+      <div className="not-prose grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {SECTIONS.map(({ title, items }) => (
           <section
             key={title}
-            className="tv-card p-3.5 sm:p-4"
+            className="rounded-xl border border-black/[0.06] bg-white p-4 sm:p-5"
           >
-            <h2 className="font-display text-lg text-ink tracking-tight mb-2 mt-0">{title}</h2>
+            <h2 className="mb-3 mt-0 text-[15px] font-semibold tracking-tight text-ink">{title}</h2>
             <ul className="space-y-1.5 m-0 p-0 list-none">
               {items.map((item) => (
                 <li key={item.label}>

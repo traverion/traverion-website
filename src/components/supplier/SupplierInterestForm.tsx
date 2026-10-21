@@ -110,19 +110,19 @@ export default function SupplierInterestForm() {
   }
 
   return (
-    <form noValidate onSubmit={(e) => void onSubmit(e)} className="space-y-3 max-w-xl">
+    <form noValidate onSubmit={(e) => void onSubmit(e)} className="mx-auto w-full max-w-3xl space-y-4">
       {error ? (
         <NoticeCallout title="Could not submit" tone="danger">
           {error}
         </NoticeCallout>
       ) : null}
-      <p className="text-sm text-ink-muted leading-relaxed m-0">
+      <p className="m-0 text-sm leading-relaxed text-ink-muted">
         Prefer to introduce your business first? Send an application below. Creating a partner account
         (Get started) remains the path to list products — this form does not create an account.
       </p>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1">
+          <label className="mb-1.5 block text-[13px] font-medium text-ink">
             Contact person
           </label>
           <input
@@ -133,7 +133,7 @@ export default function SupplierInterestForm() {
           />
         </div>
         <div>
-          <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1">
+          <label className="mb-1.5 block text-[13px] font-medium text-ink">
             Business name
           </label>
           <input
@@ -144,7 +144,7 @@ export default function SupplierInterestForm() {
           />
         </div>
         <div>
-          <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1">
+          <label className="mb-1.5 block text-[13px] font-medium text-ink">
             Email
           </label>
           <input
@@ -156,7 +156,7 @@ export default function SupplierInterestForm() {
           />
         </div>
         <div>
-          <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1">
+          <label className="mb-1.5 block text-[13px] font-medium text-ink">
             Country
           </label>
           <input
@@ -167,8 +167,8 @@ export default function SupplierInterestForm() {
           />
         </div>
         <div>
-          <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1">
-            City / destination <span className="normal-case">(optional)</span>
+          <label className="mb-1.5 block text-[13px] font-medium text-ink">
+            City / destination <span className="font-normal text-ink-faint">(optional)</span>
           </label>
           <input
             className="tv-input"
@@ -177,8 +177,8 @@ export default function SupplierInterestForm() {
           />
         </div>
         <div>
-          <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1">
-            Website <span className="normal-case">(optional)</span>
+          <label className="mb-1.5 block text-[13px] font-medium text-ink">
+            Website <span className="font-normal text-ink-faint">(optional)</span>
           </label>
           <input
             type="url"
@@ -188,41 +188,40 @@ export default function SupplierInterestForm() {
           />
         </div>
       </div>
-      <div>
-        <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1">
-          Business type
-        </label>
-        <input
-          className="tv-input"
-          value={form.businessType}
-          onChange={(e) => setForm((p) => ({ ...p, businessType: e.target.value }))}
-          placeholder="Tour operator, stay host, rental…"
-        />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label className="mb-1.5 block text-[13px] font-medium text-ink">Business type</label>
+          <input
+            className="tv-input"
+            value={form.businessType}
+            onChange={(e) => setForm((p) => ({ ...p, businessType: e.target.value }))}
+            placeholder="Tour operator, stay host, rental…"
+          />
+        </div>
+        <div>
+          <label className="mb-1.5 block text-[13px] font-medium text-ink">
+            Categories <span className="font-normal text-ink-faint">(optional)</span>
+          </label>
+          <input
+            className="tv-input"
+            value={form.categories}
+            onChange={(e) => setForm((p) => ({ ...p, categories: e.target.value }))}
+            placeholder="Tours, stays, rentals…"
+          />
+        </div>
       </div>
       <div>
-        <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1">
-          Categories <span className="normal-case">(tours, stays, rentals — optional)</span>
-        </label>
-        <input
-          className="tv-input"
-          value={form.categories}
-          onChange={(e) => setForm((p) => ({ ...p, categories: e.target.value }))}
-        />
-      </div>
-      <div>
-        <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1">
-          Brief description of services
-        </label>
+        <label className="mb-1.5 block text-[13px] font-medium text-ink">Brief description of services</label>
         <textarea
-          className="tv-input resize-y min-h-[5rem]"
+          className="tv-input min-h-[6rem] resize-y"
           rows={4}
           value={form.description}
           onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
         />
       </div>
       <div>
-        <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1">
-          Additional message <span className="normal-case">(optional)</span>
+        <label className="mb-1.5 block text-[13px] font-medium text-ink">
+          Additional message <span className="font-normal text-ink-faint">(optional)</span>
         </label>
         <textarea
           className="tv-input resize-y"
@@ -231,7 +230,7 @@ export default function SupplierInterestForm() {
           onChange={(e) => setForm((p) => ({ ...p, message: e.target.value }))}
         />
       </div>
-      <button type="submit" disabled={submitting} className="tv-btn-secondary h-11 px-5 disabled:opacity-50">
+      <button type="submit" disabled={submitting} className="tv-btn-primary h-11 px-5 disabled:opacity-50">
         {submitting ? 'Sending…' : 'Send supplier application'}
       </button>
     </form>

@@ -3,7 +3,7 @@ import CommunicationAttachmentsField, {
   commAttachmentsBlocking,
   type CommAttachmentItem,
 } from '../components/CommunicationAttachmentsField';
-import LegalPageShell from '../components/LegalPageShell';
+import LegalPageShell, { ConsumerAsideCard } from '../components/LegalPageShell';
 import NoticeCallout from '../components/NoticeCallout';
 import type { CommUploadSession } from '../data/supabase-communication-uploads';
 import { submitContactInquiry } from '../data/supabase-contact';
@@ -147,13 +147,28 @@ export default function AffiliatePage({ onNavigate }: AffiliatePageProps) {
 
   return (
     <LegalPageShell
+      layout="form"
       eyebrow="Work with us"
       title="Become an affiliate"
       subtitle="Apply to promote Traverion tours and stays. Approval and tracking links come after review — not automatic payouts."
       onNavigate={onNavigate}
+      aside={
+        <>
+          <ConsumerAsideCard title="How it works">
+            <p>1. Submit this application with your channel details.</p>
+            <p>2. We review fit and reach — response by email.</p>
+            <p>3. If approved, we share how to promote Traverion listings.</p>
+          </ConsumerAsideCard>
+          <ConsumerAsideCard title="What to expect">
+            <p>This is an application only — there is no affiliate dashboard or self-serve tracking yet.</p>
+            <p>Individuals are welcome; business registration is not required.</p>
+            <p>We do not promise commission rates or guaranteed earnings here.</p>
+          </ConsumerAsideCard>
+        </>
+      }
     >
       {successRef ? (
-        <div className="space-y-4 max-w-lg">
+        <div className="space-y-4">
           <NoticeCallout title={PARTNERSHIP_FORM_SUCCESS_HEADING} tone="success">
             Thank you for your interest in Traverion. Your application has been submitted successfully
             (reference <strong className="tabular-nums">{successRef}</strong>). We&apos;ve sent a
@@ -170,54 +185,71 @@ export default function AffiliatePage({ onNavigate }: AffiliatePageProps) {
         </div>
       ) : (
         <>
-          <div className="max-w-lg mb-5 rounded-2xl bg-finland/8 px-3.5 py-2.5 ring-1 ring-finland/15">
-            <p className="text-sm text-ink leading-relaxed">
-              This is an application form only — there is no affiliate dashboard or self-serve tracking yet.
-              Individuals are welcome to apply; business registration is not required.
-            </p>
-          </div>
-          <form noValidate onSubmit={(e) => void handleSubmit(e)} className="space-y-4 max-w-lg">
+          <form noValidate onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
             {fieldErrors.form ? (
               <NoticeCallout title="Could not submit application" tone="danger">
                 {fieldErrors.form}
               </NoticeCallout>
             ) : null}
 
-            {(
-              [
-                ['name', 'Full name', 'name', 'aff-name'],
-                ['email', 'Email', 'email', 'aff-email'],
-                ['country', 'Country', 'country-name', 'aff-country'],
-                ['website', 'Website or social profile', 'url', 'aff-website'],
-                ['channel', 'Primary promotional channel', undefined, 'aff-channel'],
-              ] as const
-            ).map(([key, label, autoComplete, id]) => (
-              <div key={key}>
-                <label htmlFor={id} className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
-                  {label}
-                </label>
-                <input
-                  id={id}
-                  type={key === 'email' ? 'email' : key === 'website' ? 'url' : 'text'}
-                  value={formData[key]}
-                  onChange={(e) => {
-                    setFormData((p) => ({ ...p, [key]: e.target.value }));
-                    clearField(key);
-                  }}
-                  className="tv-input"
-                  autoComplete={autoComplete}
-                  aria-invalid={fieldErrors[key] ? true : undefined}
-                />
-                {fieldErrors[key] ? (
-                  <p className="mt-1.5 text-sm text-red-800" role="alert">
-                    {fieldErrors[key]}
-                  </p>
-                ) : null}
-              </div>
-            ))}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {(
+                [
+                  ['name', 'Full name', 'name', 'aff-name'],
+                  ['email', 'Email', 'email', 'aff-email'],
+                  ['country', 'Country', 'country-name', 'aff-country'],
+                  ['website', 'Website or social profile', 'url', 'aff-website'],
+                ] as const
+              ).map(([key, label, autoComplete, id]) => (
+                <div key={key}>
+                  <label htmlFor={id} className="mb-1.5 block text-[13px] font-medium text-ink">
+                    {label}
+                  </label>
+                  <input
+                    id={id}
+                    type={key === 'email' ? 'email' : key === 'website' ? 'url' : 'text'}
+                    value={formData[key]}
+                    onChange={(e) => {
+                      setFormData((p) => ({ ...p, [key]: e.target.value }));
+                      clearField(key);
+                    }}
+                    className="tv-input"
+                    autoComplete={autoComplete}
+                    aria-invalid={fieldErrors[key] ? true : undefined}
+                  />
+                  {fieldErrors[key] ? (
+                    <p className="mt-1.5 text-sm text-red-800" role="alert">
+                      {fieldErrors[key]}
+                    </p>
+                  ) : null}
+                </div>
+              ))}
+            </div>
 
             <div>
-              <label htmlFor="aff-audience" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
+              <label htmlFor="aff-channel" className="mb-1.5 block text-[13px] font-medium text-ink">
+                Primary promotional channel
+              </label>
+              <input
+                id="aff-channel"
+                type="text"
+                value={formData.channel}
+                onChange={(e) => {
+                  setFormData((p) => ({ ...p, channel: e.target.value }));
+                  clearField('channel');
+                }}
+                className="tv-input"
+                aria-invalid={fieldErrors.channel ? true : undefined}
+              />
+              {fieldErrors.channel ? (
+                <p className="mt-1.5 text-sm text-red-800" role="alert">
+                  {fieldErrors.channel}
+                </p>
+              ) : null}
+            </div>
+
+            <div>
+              <label htmlFor="aff-audience" className="mb-1.5 block text-[13px] font-medium text-ink">
                 Audience or website description
               </label>
               <textarea
@@ -238,9 +270,9 @@ export default function AffiliatePage({ onNavigate }: AffiliatePageProps) {
             </div>
 
             <div>
-              <label htmlFor="aff-size" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
+              <label htmlFor="aff-size" className="mb-1.5 block text-[13px] font-medium text-ink">
                 Estimated audience size / monthly traffic{' '}
-                <span className="normal-case tracking-normal">(optional)</span>
+                <span className="font-normal text-ink-faint">(optional)</span>
               </label>
               <input
                 id="aff-size"
@@ -252,7 +284,7 @@ export default function AffiliatePage({ onNavigate }: AffiliatePageProps) {
             </div>
 
             <div>
-              <label htmlFor="aff-promote" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
+              <label htmlFor="aff-promote" className="mb-1.5 block text-[13px] font-medium text-ink">
                 How you plan to promote Traverion
               </label>
               <textarea
@@ -263,7 +295,7 @@ export default function AffiliatePage({ onNavigate }: AffiliatePageProps) {
                   setFormData((p) => ({ ...p, promote: e.target.value }));
                   clearField('promote');
                 }}
-                className="tv-input resize-y"
+                className="tv-input min-h-[8rem] resize-y"
               />
               {fieldErrors.promote ? (
                 <p className="mt-1.5 text-sm text-red-800" role="alert">
@@ -273,8 +305,8 @@ export default function AffiliatePage({ onNavigate }: AffiliatePageProps) {
             </div>
 
             <div>
-              <label htmlFor="aff-message" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
-                Additional message <span className="normal-case tracking-normal">(optional)</span>
+              <label htmlFor="aff-message" className="mb-1.5 block text-[13px] font-medium text-ink">
+                Additional message <span className="font-normal text-ink-faint">(optional)</span>
               </label>
               <textarea
                 id="aff-message"
@@ -286,8 +318,8 @@ export default function AffiliatePage({ onNavigate }: AffiliatePageProps) {
             </div>
 
             <div>
-              <span className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
-                Attachments <span className="normal-case tracking-normal">(optional)</span>
+              <span className="mb-1.5 block text-[13px] font-medium text-ink">
+                Attachments <span className="font-normal text-ink-faint">(optional)</span>
               </span>
               <CommunicationAttachmentsField
                 category="affiliate"

@@ -3,7 +3,7 @@ import CommunicationAttachmentsField, {
   commAttachmentsBlocking,
   type CommAttachmentItem,
 } from '../components/CommunicationAttachmentsField';
-import LegalPageShell from '../components/LegalPageShell';
+import LegalPageShell, { ConsumerAsideCard } from '../components/LegalPageShell';
 import NoticeCallout from '../components/NoticeCallout';
 import type { CommUploadSession } from '../data/supabase-communication-uploads';
 import { submitContactInquiry } from '../data/supabase-contact';
@@ -173,13 +173,41 @@ export default function Contact({ onNavigate }: ContactProps) {
 
   return (
     <LegalPageShell
+      layout="form"
       eyebrow="Support"
       title="Contact us"
       subtitle="Bookings, trips, payments, and partner questions. Affiliate and creator applications each have their own page in the footer."
       onNavigate={onNavigate}
+      aside={
+        <>
+          <ConsumerAsideCard title="Before you write">
+            <p>Include a booking reference when you have one — it helps us find your trip faster.</p>
+            <p>Never send passwords or full card numbers here.</p>
+          </ConsumerAsideCard>
+          <ConsumerAsideCard title="Other channels">
+            <p>
+              Email{' '}
+              <a href="mailto:info@traverion.com" className="font-medium text-finland no-underline hover:underline">
+                info@traverion.com
+              </a>
+            </p>
+            <p>
+              Browse{' '}
+              <button type="button" className="font-medium text-finland hover:underline" onClick={() => onNavigate?.('packages')}>
+                tours
+              </button>{' '}
+              or{' '}
+              <button type="button" className="font-medium text-finland hover:underline" onClick={() => onNavigate?.('stays')}>
+                stays
+              </button>
+              .
+            </p>
+          </ConsumerAsideCard>
+        </>
+      }
     >
       {successRef ? (
-        <div className="space-y-4 max-w-lg">
+        <div className="space-y-4">
           <div tabIndex={-1} ref={successHeadingRef} className="outline-none">
             <NoticeCallout title={CONTACT_FORM_SUCCESS_HEADING} tone="success">
               Thank you for contacting Traverion. Your reference number is{' '}
@@ -201,36 +229,7 @@ export default function Contact({ onNavigate }: ContactProps) {
         </div>
       ) : (
         <>
-          <p>
-            Browse{' '}
-            <a
-              href="/packages"
-              onClick={(e) => {
-                if (onNavigate) {
-                  e.preventDefault();
-                  onNavigate('packages');
-                }
-              }}
-            >
-              tours &amp; activities
-            </a>{' '}
-            or{' '}
-            <a
-              href="/stays"
-              onClick={(e) => {
-                if (onNavigate) {
-                  e.preventDefault();
-                  onNavigate('stays');
-                }
-              }}
-            >
-              stays
-            </a>{' '}
-            anytime. Email <a href="mailto:info@traverion.com">info@traverion.com</a>. Never send
-            passwords or full card numbers here.
-          </p>
-
-          <form noValidate onSubmit={(e) => void handleSubmit(e)} className="space-y-5 max-w-lg">
+          <form noValidate onSubmit={(e) => void handleSubmit(e)} className="space-y-5">
             {fieldErrors.form ? (
               <NoticeCallout title="Could not send message" tone="danger">
                 {fieldErrors.form}
@@ -238,14 +237,11 @@ export default function Contact({ onNavigate }: ContactProps) {
             ) : null}
 
             <fieldset>
-              <legend
-                id="contact-topic-legend"
-                className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-2"
-              >
+              <legend id="contact-topic-legend" className="mb-2 block text-[13px] font-medium text-ink">
                 What do you need help with?
               </legend>
               <div
-                className="grid grid-cols-1 sm:grid-cols-2 gap-1.5"
+                className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 lg:grid-cols-3"
                 role="radiogroup"
                 aria-labelledby="contact-topic-legend"
               >
@@ -276,91 +272,90 @@ export default function Contact({ onNavigate }: ContactProps) {
               </div>
             </fieldset>
 
-            <div>
-              <label htmlFor="contact-name" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
-                Full name
-              </label>
-              <input
-                id="contact-name"
-                type="text"
-                value={formData.name}
-                onChange={(e) => {
-                  setFormData((p) => ({ ...p, name: e.target.value }));
-                  clearField('name');
-                }}
-                className="tv-input"
-                autoComplete="name"
-                required
-                aria-invalid={fieldErrors.name ? true : undefined}
-              />
-              {fieldErrors.name ? (
-                <p className="mt-1.5 text-sm text-red-800" role="alert">
-                  {fieldErrors.name}
-                </p>
-              ) : null}
-            </div>
-
-            <div>
-              <label htmlFor="contact-email" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
-                Email
-              </label>
-              <input
-                id="contact-email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => {
-                  setFormData((p) => ({ ...p, email: e.target.value }));
-                  clearField('email');
-                }}
-                className="tv-input"
-                autoComplete="email"
-                required
-                aria-invalid={fieldErrors.email ? true : undefined}
-              />
-              {fieldErrors.email ? (
-                <p className="mt-1.5 text-sm text-red-800" role="alert">
-                  {fieldErrors.email}
-                </p>
-              ) : null}
-            </div>
-
-            <div>
-              <label htmlFor="contact-phone" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
-                Phone <span className="normal-case tracking-normal">(optional)</span>
-              </label>
-              <input
-                id="contact-phone"
-                type="tel"
-                inputMode="tel"
-                value={formData.phone}
-                onChange={(e) => setFormData((p) => ({ ...p, phone: e.target.value }))}
-                className="tv-input"
-                autoComplete="tel"
-              />
-            </div>
-
-            {showBookingRef ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label
-                  htmlFor="contact-booking-ref"
-                  className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5"
-                >
-                  Booking reference <span className="normal-case tracking-normal">(optional)</span>
+                <label htmlFor="contact-name" className="mb-1.5 block text-[13px] font-medium text-ink">
+                  Full name
                 </label>
                 <input
-                  id="contact-booking-ref"
+                  id="contact-name"
                   type="text"
-                  value={formData.bookingReference}
-                  onChange={(e) => setFormData((p) => ({ ...p, bookingReference: e.target.value }))}
+                  value={formData.name}
+                  onChange={(e) => {
+                    setFormData((p) => ({ ...p, name: e.target.value }));
+                    clearField('name');
+                  }}
                   className="tv-input"
-                  placeholder="e.g. from your confirmation email"
-                  maxLength={80}
+                  autoComplete="name"
+                  required
+                  aria-invalid={fieldErrors.name ? true : undefined}
+                />
+                {fieldErrors.name ? (
+                  <p className="mt-1.5 text-sm text-red-800" role="alert">
+                    {fieldErrors.name}
+                  </p>
+                ) : null}
+              </div>
+
+              <div>
+                <label htmlFor="contact-email" className="mb-1.5 block text-[13px] font-medium text-ink">
+                  Email
+                </label>
+                <input
+                  id="contact-email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => {
+                    setFormData((p) => ({ ...p, email: e.target.value }));
+                    clearField('email');
+                  }}
+                  className="tv-input"
+                  autoComplete="email"
+                  required
+                  aria-invalid={fieldErrors.email ? true : undefined}
+                />
+                {fieldErrors.email ? (
+                  <p className="mt-1.5 text-sm text-red-800" role="alert">
+                    {fieldErrors.email}
+                  </p>
+                ) : null}
+              </div>
+
+              <div>
+                <label htmlFor="contact-phone" className="mb-1.5 block text-[13px] font-medium text-ink">
+                  Phone <span className="font-normal text-ink-faint">(optional)</span>
+                </label>
+                <input
+                  id="contact-phone"
+                  type="tel"
+                  inputMode="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData((p) => ({ ...p, phone: e.target.value }))}
+                  className="tv-input"
+                  autoComplete="tel"
                 />
               </div>
-            ) : null}
+
+              {showBookingRef ? (
+                <div>
+                  <label htmlFor="contact-booking-ref" className="mb-1.5 block text-[13px] font-medium text-ink">
+                    Booking reference <span className="font-normal text-ink-faint">(optional)</span>
+                  </label>
+                  <input
+                    id="contact-booking-ref"
+                    type="text"
+                    value={formData.bookingReference}
+                    onChange={(e) => setFormData((p) => ({ ...p, bookingReference: e.target.value }))}
+                    className="tv-input"
+                    placeholder="e.g. from your confirmation email"
+                    maxLength={80}
+                  />
+                </div>
+              ) : null}
+            </div>
 
             <div>
-              <label htmlFor="contact-subject" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
+              <label htmlFor="contact-subject" className="mb-1.5 block text-[13px] font-medium text-ink">
                 Subject
               </label>
               <input
@@ -384,7 +379,7 @@ export default function Contact({ onNavigate }: ContactProps) {
             </div>
 
             <div>
-              <label htmlFor="contact-message" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
+              <label htmlFor="contact-message" className="mb-1.5 block text-[13px] font-medium text-ink">
                 Message
               </label>
               <textarea
@@ -396,7 +391,7 @@ export default function Contact({ onNavigate }: ContactProps) {
                   clearField('message');
                 }}
                 rows={8}
-                className="tv-input min-h-[10rem] resize-y py-3"
+                className="tv-input min-h-[12rem] resize-y py-3"
                 required
                 aria-invalid={fieldErrors.message ? true : undefined}
                 placeholder={
@@ -423,8 +418,8 @@ export default function Contact({ onNavigate }: ContactProps) {
             </div>
 
             <div>
-              <span className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
-                Attachments <span className="normal-case tracking-normal">(optional)</span>
+              <span className="mb-1.5 block text-[13px] font-medium text-ink">
+                Attachments <span className="font-normal text-ink-faint">(optional)</span>
               </span>
               <CommunicationAttachmentsField
                 category="contact"

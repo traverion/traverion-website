@@ -3,7 +3,7 @@ import CommunicationAttachmentsField, {
   commAttachmentsBlocking,
   type CommAttachmentItem,
 } from '../components/CommunicationAttachmentsField';
-import LegalPageShell from '../components/LegalPageShell';
+import LegalPageShell, { ConsumerAsideCard } from '../components/LegalPageShell';
 import NoticeCallout from '../components/NoticeCallout';
 import type { CommUploadSession } from '../data/supabase-communication-uploads';
 import { submitContactInquiry } from '../data/supabase-contact';
@@ -150,13 +150,27 @@ export default function ContentCreatorPage({ onNavigate }: ContentCreatorPagePro
 
   return (
     <LegalPageShell
+      layout="form"
       eyebrow="Work with us"
       title="Become a content creator"
       subtitle="Pitch a collaboration — press trips, sponsored content, or co-created guides — separate from customer support."
       onNavigate={onNavigate}
+      aside={
+        <>
+          <ConsumerAsideCard title="Collaboration ideas">
+            <p>Destination features, operator stories, stay guides, or short-form travel content.</p>
+            <p>We review pitches individually — campaigns are not guaranteed.</p>
+          </ConsumerAsideCard>
+          <ConsumerAsideCard title="What to expect">
+            <p>This is a pitch form only — there is no creator portal yet.</p>
+            <p>Business registration is not required.</p>
+            <p>You will receive a confirmation email with your CR reference.</p>
+          </ConsumerAsideCard>
+        </>
+      }
     >
       {successRef ? (
-        <div className="space-y-4 max-w-lg">
+        <div className="space-y-4">
           <NoticeCallout title={PARTNERSHIP_FORM_SUCCESS_HEADING} tone="success">
             Thank you for your interest in Traverion. Your application has been submitted successfully
             (reference <strong className="tabular-nums">{successRef}</strong>). We&apos;ve sent a
@@ -173,109 +187,105 @@ export default function ContentCreatorPage({ onNavigate }: ContentCreatorPagePro
         </div>
       ) : (
         <>
-          <div className="max-w-lg mb-5 rounded-2xl bg-finland/8 px-3.5 py-2.5 ring-1 ring-finland/15">
-            <p className="text-sm text-ink leading-relaxed">
-              This is a pitch form only — there is no creator portal or guaranteed campaign yet. Business
-              registration is not required.
-            </p>
-          </div>
-          <form noValidate onSubmit={(e) => void handleSubmit(e)} className="space-y-4 max-w-lg">
+          <form noValidate onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
             {fieldErrors.form ? (
               <NoticeCallout title="Could not submit application" tone="danger">
                 {fieldErrors.form}
               </NoticeCallout>
             ) : null}
 
-            <div>
-              <label htmlFor="cc-name" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
-                Full name or creator name
-              </label>
-              <input
-                id="cc-name"
-                type="text"
-                value={formData.name}
-                onChange={(e) => {
-                  setFormData((p) => ({ ...p, name: e.target.value }));
-                  clearField('name');
-                }}
-                className="tv-input"
-                autoComplete="name"
-              />
-              {fieldErrors.name ? (
-                <p className="mt-1.5 text-sm text-red-800" role="alert">
-                  {fieldErrors.name}
-                </p>
-              ) : null}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="cc-name" className="mb-1.5 block text-[13px] font-medium text-ink">
+                  Full name or creator name
+                </label>
+                <input
+                  id="cc-name"
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => {
+                    setFormData((p) => ({ ...p, name: e.target.value }));
+                    clearField('name');
+                  }}
+                  className="tv-input"
+                  autoComplete="name"
+                />
+                {fieldErrors.name ? (
+                  <p className="mt-1.5 text-sm text-red-800" role="alert">
+                    {fieldErrors.name}
+                  </p>
+                ) : null}
+              </div>
+
+              <div>
+                <label htmlFor="cc-email" className="mb-1.5 block text-[13px] font-medium text-ink">
+                  Email
+                </label>
+                <input
+                  id="cc-email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => {
+                    setFormData((p) => ({ ...p, email: e.target.value }));
+                    clearField('email');
+                  }}
+                  className="tv-input"
+                  autoComplete="email"
+                />
+                {fieldErrors.email ? (
+                  <p className="mt-1.5 text-sm text-red-800" role="alert">
+                    {fieldErrors.email}
+                  </p>
+                ) : null}
+              </div>
+
+              <div>
+                <label htmlFor="cc-country" className="mb-1.5 block text-[13px] font-medium text-ink">
+                  Country
+                </label>
+                <input
+                  id="cc-country"
+                  type="text"
+                  value={formData.country}
+                  onChange={(e) => {
+                    setFormData((p) => ({ ...p, country: e.target.value }));
+                    clearField('country');
+                  }}
+                  className="tv-input"
+                  autoComplete="country-name"
+                />
+                {fieldErrors.country ? (
+                  <p className="mt-1.5 text-sm text-red-800" role="alert">
+                    {fieldErrors.country}
+                  </p>
+                ) : null}
+              </div>
+
+              <div>
+                <label htmlFor="cc-platform" className="mb-1.5 block text-[13px] font-medium text-ink">
+                  Primary social media platform
+                </label>
+                <input
+                  id="cc-platform"
+                  type="text"
+                  value={formData.platform}
+                  onChange={(e) => {
+                    setFormData((p) => ({ ...p, platform: e.target.value }));
+                    clearField('platform');
+                  }}
+                  className="tv-input"
+                  placeholder="Instagram, YouTube, TikTok, blog…"
+                />
+                {fieldErrors.platform ? (
+                  <p className="mt-1.5 text-sm text-red-800" role="alert">
+                    {fieldErrors.platform}
+                  </p>
+                ) : null}
+              </div>
             </div>
 
             <div>
-              <label htmlFor="cc-email" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
-                Email
-              </label>
-              <input
-                id="cc-email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => {
-                  setFormData((p) => ({ ...p, email: e.target.value }));
-                  clearField('email');
-                }}
-                className="tv-input"
-                autoComplete="email"
-              />
-              {fieldErrors.email ? (
-                <p className="mt-1.5 text-sm text-red-800" role="alert">
-                  {fieldErrors.email}
-                </p>
-              ) : null}
-            </div>
-
-            <div>
-              <label htmlFor="cc-country" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
-                Country
-              </label>
-              <input
-                id="cc-country"
-                type="text"
-                value={formData.country}
-                onChange={(e) => {
-                  setFormData((p) => ({ ...p, country: e.target.value }));
-                  clearField('country');
-                }}
-                className="tv-input"
-                autoComplete="country-name"
-              />
-              {fieldErrors.country ? (
-                <p className="mt-1.5 text-sm text-red-800" role="alert">
-                  {fieldErrors.country}
-                </p>
-              ) : null}
-            </div>
-
-            <div>
-              <label htmlFor="cc-platform" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
-                Primary social media platform
-              </label>
-              <input
-                id="cc-platform"
-                type="text"
-                value={formData.platform}
-                onChange={(e) => {
-                  setFormData((p) => ({ ...p, platform: e.target.value }));
-                  clearField('platform');
-                }}
-                className="tv-input"
-                placeholder="Instagram, YouTube, TikTok, blog…"
-              />
-              {fieldErrors.platform ? (
-                <p className="mt-1.5 text-sm text-red-800" role="alert">
-                  {fieldErrors.platform}
-                </p>
-              ) : null}
-            </div>
-
-            <div>
-              <label htmlFor="cc-profiles" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
+              <label htmlFor="cc-profiles" className="mb-1.5 block text-[13px] font-medium text-ink">
                 Social media profile links
               </label>
               <textarea
@@ -297,8 +307,8 @@ export default function ContentCreatorPage({ onNavigate }: ContentCreatorPagePro
             </div>
 
             <div>
-              <label htmlFor="cc-followers" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
-                Approximate follower count <span className="normal-case tracking-normal">(optional)</span>
+              <label htmlFor="cc-followers" className="mb-1.5 block text-[13px] font-medium text-ink">
+                Approximate follower count <span className="font-normal text-ink-faint">(optional)</span>
               </label>
               <input
                 id="cc-followers"
@@ -310,7 +320,7 @@ export default function ContentCreatorPage({ onNavigate }: ContentCreatorPagePro
             </div>
 
             <div>
-              <label htmlFor="cc-niche" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
+              <label htmlFor="cc-niche" className="mb-1.5 block text-[13px] font-medium text-ink">
                 Content niche or category
               </label>
               <input
@@ -331,7 +341,7 @@ export default function ContentCreatorPage({ onNavigate }: ContentCreatorPagePro
             </div>
 
             <div>
-              <label htmlFor="cc-style" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
+              <label htmlFor="cc-style" className="mb-1.5 block text-[13px] font-medium text-ink">
                 Typical content style
               </label>
               <textarea
@@ -352,7 +362,7 @@ export default function ContentCreatorPage({ onNavigate }: ContentCreatorPagePro
             </div>
 
             <div>
-              <label htmlFor="cc-collab" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
+              <label htmlFor="cc-collab" className="mb-1.5 block text-[13px] font-medium text-ink">
                 Collaboration interests
               </label>
               <textarea
@@ -363,7 +373,7 @@ export default function ContentCreatorPage({ onNavigate }: ContentCreatorPagePro
                   setFormData((p) => ({ ...p, collab: e.target.value }));
                   clearField('collab');
                 }}
-                className="tv-input resize-y"
+                className="tv-input min-h-[8rem] resize-y"
               />
               {fieldErrors.collab ? (
                 <p className="mt-1.5 text-sm text-red-800" role="alert">
@@ -373,8 +383,8 @@ export default function ContentCreatorPage({ onNavigate }: ContentCreatorPagePro
             </div>
 
             <div>
-              <label htmlFor="cc-portfolio" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
-                Portfolio or media kit <span className="normal-case tracking-normal">(optional)</span>
+              <label htmlFor="cc-portfolio" className="mb-1.5 block text-[13px] font-medium text-ink">
+                Portfolio or media kit <span className="font-normal text-ink-faint">(optional)</span>
               </label>
               <input
                 id="cc-portfolio"
@@ -386,8 +396,8 @@ export default function ContentCreatorPage({ onNavigate }: ContentCreatorPagePro
             </div>
 
             <div>
-              <label htmlFor="cc-message" className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
-                Additional message <span className="normal-case tracking-normal">(optional)</span>
+              <label htmlFor="cc-message" className="mb-1.5 block text-[13px] font-medium text-ink">
+                Additional message <span className="font-normal text-ink-faint">(optional)</span>
               </label>
               <textarea
                 id="cc-message"
@@ -399,8 +409,8 @@ export default function ContentCreatorPage({ onNavigate }: ContentCreatorPagePro
             </div>
 
             <div>
-              <span className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5">
-                Attachments <span className="normal-case tracking-normal">(optional)</span>
+              <span className="mb-1.5 block text-[13px] font-medium text-ink">
+                Attachments <span className="font-normal text-ink-faint">(optional)</span>
               </span>
               <CommunicationAttachmentsField
                 category="content_creator"
