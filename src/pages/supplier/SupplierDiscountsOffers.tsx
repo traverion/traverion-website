@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
-import { Tag, MapPin, MoreHorizontal } from 'lucide-react';
+import { MapPin, MoreHorizontal, Search } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { TourPackage } from '../../types/tour';
@@ -20,12 +20,7 @@ import { parseListingExtras, materializedBookingOptions } from '../../types/list
 import DiscountOfferWizardModal from '../../components/supplier/DiscountOfferWizardModal';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
-import {
-  SUPPLIER_PAGE_CLASS,
-  SupplierListSkeleton,
-  SupplierPageHero,
-  SupplierEmptyState,
-} from '../../components/supplier/supplierUi';
+import { SUPPLIER_PAGE_CLASS, SupplierListSkeleton } from '../../components/supplier/supplierUi';
 import { formatMoney, normalizeCurrency } from '../../lib/money';
 import { fromMinorUnits } from '../../lib/commercial-money';
 import { catalogOfferTodayIso } from '../../lib/discount-display';
@@ -34,6 +29,7 @@ import { optionHeadlineUnitPrice } from '../../lib/price-categories';
 import { listingOptionHasSchedules, listingOptionReadySchedules } from '../../lib/listing-option-schedules';
 import type { ListingBookingOption } from '../../types/listingExtras';
 import NoticeCallout from '../../components/NoticeCallout';
+import PartnerSelect from '../../components/supplier/PartnerSelect';
 import { listingIsFamily } from '../../lib/inventory';
 import {
   partnerOfferCountsAsActiveNow,
@@ -51,7 +47,7 @@ function formatDate(iso: string | null): string {
   if (!iso) return '—';
   const [y, m, day] = iso.split('-').map(Number);
   if (!y || !m || !day) return iso;
-  return new Date(y, m - 1, day).toLocaleDateString(undefined, {
+  return new Date(y, m - 1, day).toLocaleDateString('en-GB', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -77,10 +73,15 @@ function optionPriceSpan(option: ListingBookingOption): { low: number; high: num
   return { low: Math.min(...prices), high: Math.max(...prices) };
 }
 
+function productTypeLabel(listing: TourPackage): 'Tour' | 'Stay' | 'Rental' {
+  if (listingIsFamily(listing, 'stay')) return 'Stay';
+  return 'Tour';
+}
+
 type OfferRow = { discount: ListingDiscount; listing: TourPackage };
 type OfferGroup = { key: string; discounts: ListingDiscount[]; listing: TourPackage };
-
 type OfferStatusFilter = 'all' | 'active' | 'upcoming' | 'paused' | 'ended' | 'unsupported';
+type ProductFilter = 'all' | 'tour' | 'stay';
 
 const OFFER_PAGE_SIZE = 20;
 
@@ -106,6 +107,14 @@ function groupOffers(rows: OfferRow[]): OfferGroup[] {
   return groups;
 }
 
+function statusChipClass(label: string): string {
+  if (label === 'Active') return 'tv-offers-chip tv-offers-chip--ok';
+  if (label === 'Paused' || label === 'Not on checkout' || label === 'Limit reached') {
+    return 'tv-offers-chip tv-offers-chip--warn';
+  }
+  return 'tv-offers-chip tv-offers-chip--muted';
+}
+
 export default function SupplierDiscountsOffers() {
   const { user, isSupabase } = useSupplierAuth();
   const { role } = useSupplierRole();
@@ -119,6 +128,8 @@ export default function SupplierDiscountsOffers() {
   const [draftGroup, setDraftGroup] = useState<ListingDiscount[] | null>(null);
   const [stats, setStats] = useState<Map<string, OfferRedemptionStats>>(new Map());
   const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [productFilter, setProductFilter] = useState<ProductFilter>('all');
   const [page, setPage] = useState(0);
   const [menuKey, setMenuKey] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -140,12 +151,26 @@ export default function SupplierDiscountsOffers() {
   }, []);
 
   useEffect(() => {
+    const t = window.setTimeout(() => setSearch(searchInput.trim()), 200);
+    return () => window.clearTimeout(t);
+  }, [searchInput]);
+
+  useEffect(() => {
     if (!menuKey) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setMenuKey(null);
     };
+    const onPointer = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('[data-offer-menu]')) return;
+      setMenuKey(null);
+    };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('mousedown', onPointer);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('mousedown', onPointer);
+    };
   }, [menuKey]);
 
   useEffect(() => {
@@ -192,7 +217,6 @@ export default function SupplierDiscountsOffers() {
         setError(null);
       } catch (offerErr) {
         if (gen !== loadGenRef.current) return;
-        // Keep prior listings/offer rows — partial reload must not mix new listings with stale discounts.
         setError(userFacingError(offerErr, USER_ERROR.offers));
       }
     } catch (e) {
@@ -259,7 +283,10 @@ export default function SupplierDiscountsOffers() {
     if (!canEdit) return;
     setMenuKey(null);
     setActionError(null);
-    const ok = await setOfferPaused(group.map((row) => row.id), paused);
+    const ok = await setOfferPaused(
+      group.map((row) => row.id),
+      paused
+    );
     if (!ok) {
       setActionError('Could not update this offer. Refresh and try again.');
       return;
@@ -267,21 +294,21 @@ export default function SupplierDiscountsOffers() {
     void loadAll();
   };
 
-  const handleDelete = async (group: ListingDiscount[], stayUnsupported: boolean) => {
+  const handleEndOrRemove = async (group: ListingDiscount[], stayUnsupported: boolean) => {
     if (!canEdit) return;
     setMenuKey(null);
     if (
       !window.confirm(
         stayUnsupported
           ? 'Remove this stay discount? It never appeared on traveler stay checkout.'
-          : 'Delete this offer? It will stop applying to new bookings. Bookings already confirmed keep their price.'
+          : 'End this offer? It will stop applying to new bookings. Confirmed bookings keep their price.'
       )
     )
       return;
     setActionError(null);
     const ok = await softDeleteOffers(group.map((row) => row.id));
     if (!ok) {
-      setActionError('Could not delete this offer. Refresh and try again.');
+      setActionError('Could not update this offer. Refresh and try again.');
       return;
     }
     void loadAll();
@@ -312,6 +339,25 @@ export default function SupplierDiscountsOffers() {
     (group: OfferGroup) => group.discounts.reduce((sum, row) => sum + (stats.get(row.id)?.bookings ?? 0), 0),
     [stats]
   );
+
+  const statusCounts = useMemo(() => {
+    const counts = { all: 0, active: 0, upcoming: 0, paused: 0, ended: 0, unsupported: 0 };
+    for (const group of groups) {
+      const stayUnsupported = partnerOfferListingIsStayUnsupported(group.listing);
+      counts.all += 1;
+      if (stayUnsupported) {
+        counts.unsupported += 1;
+        continue;
+      }
+      const st = offerStatus(group.discounts[0], group.listing, confirmedFor(group));
+      if (st === 'active') counts.active += 1;
+      else if (st === 'upcoming') counts.upcoming += 1;
+      else if (st === 'paused') counts.paused += 1;
+      else counts.ended += 1;
+    }
+    return counts;
+  }, [groups, confirmedFor]);
+
   const activeTourOffers = useMemo(
     () =>
       groups.filter((group) => {
@@ -323,15 +369,14 @@ export default function SupplierDiscountsOffers() {
       }).length,
     [groups, confirmedFor]
   );
-  const unsupportedStayOffers = useMemo(
-    () => rows.filter((r) => partnerOfferListingIsStayUnsupported(r.listing)).length,
-    [rows]
-  );
 
   const filteredGroups = useMemo(() => {
     const q = search.trim().toLowerCase();
     const ranked = groups.filter((group) => {
       const stayUnsupported = partnerOfferListingIsStayUnsupported(group.listing);
+      const type = productTypeLabel(group.listing);
+      if (productFilter === 'tour' && type !== 'Tour') return false;
+      if (productFilter === 'stay' && type !== 'Stay') return false;
       if (statusFilter === 'unsupported') return stayUnsupported;
       if (stayUnsupported) return statusFilter === 'all';
       const st = offerStatus(group.discounts[0], group.listing, confirmedFor(group));
@@ -355,47 +400,58 @@ export default function SupplierDiscountsOffers() {
       const bf = b.discounts[0].book_from ?? b.discounts[0].valid_from ?? '';
       return bf.localeCompare(af);
     });
-  }, [groups, statusFilter, search, confirmedFor]);
+  }, [groups, statusFilter, search, productFilter, confirmedFor]);
 
   const pageCount = Math.max(1, Math.ceil(filteredGroups.length / OFFER_PAGE_SIZE));
   const safePage = Math.min(page, pageCount - 1);
   const visibleGroups = filteredGroups.slice(safePage * OFFER_PAGE_SIZE, safePage * OFFER_PAGE_SIZE + OFFER_PAGE_SIZE);
 
+  const tabs = (
+    [
+      { id: 'all' as const, label: 'All', count: statusCounts.all },
+      { id: 'active' as const, label: 'Active', count: statusCounts.active },
+      { id: 'upcoming' as const, label: 'Upcoming', count: statusCounts.upcoming },
+      { id: 'paused' as const, label: 'Paused', count: statusCounts.paused },
+      { id: 'ended' as const, label: 'Ended', count: statusCounts.ended },
+      ...(statusCounts.unsupported > 0
+        ? [{ id: 'unsupported' as const, label: 'Not on checkout', count: statusCounts.unsupported }]
+        : []),
+    ] as const
+  );
+
   return (
-    <div className={SUPPLIER_PAGE_CLASS}>
-      <SupplierPageHero
-        badge="Operations"
-        icon={Tag}
-        title="Offers"
-        description="Limited-time percentage discounts on a tour booking option. Travelers see the lower price on Traverion tour checkout. Stay (accommodation) discounts are not supported yet."
-        actions={
-          canEdit ? (
-            listings.length === 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {/* Phase 1682: Calendar dual-CTA parity — create vs open listings. */}
-                <button
-                  type="button"
-                  onClick={() => navigateSupplierUrl(PARTNER_CREATE_PATH)}
-                  className="tv-btn-primary"
-                >
-                  New listing
-                </button>
-                <button type="button" onClick={goToListings} className="tv-btn-ghost">
-                  Your listings
-                </button>
-              </div>
-            ) : publishedCount === 0 ? (
-              <button type="button" onClick={goToListings} className="tv-btn-primary">
-                Publish a tour
+    <div className={`${SUPPLIER_PAGE_CLASS} tv-offers`}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="tv-offers-title" role="heading" aria-level={1}>
+            Offers
+          </p>
+          <p className="tv-offers-subtitle">
+            Create timed percentage discounts for tours. Travelers see the lower price on Traverion checkout.
+          </p>
+        </div>
+        {canEdit ? (
+          listings.length === 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {/* Phase 1682: Calendar dual-CTA parity — create vs open listings. */}
+              <button type="button" onClick={() => navigateSupplierUrl(PARTNER_CREATE_PATH)} className="tv-btn-primary h-10 px-3 text-[13px]">
+                New listing
               </button>
-            ) : (
-              <button type="button" onClick={openNew} className="tv-btn-primary">
-                New offer
+              <button type="button" onClick={goToListings} className="tv-btn-ghost h-10 px-3 text-[13px]">
+                Your listings
               </button>
-            )
-          ) : undefined
-        }
-      />
+            </div>
+          ) : publishedCount === 0 ? (
+            <button type="button" onClick={goToListings} className="tv-btn-primary h-10 px-3 text-[13px]">
+              Publish a tour
+            </button>
+          ) : (
+            <button type="button" onClick={openNew} className="tv-btn-primary h-10 px-3 text-[13px]">
+              New offer
+            </button>
+          )
+        ) : null}
+      </div>
 
       {!canEdit ? (
         <NoticeCallout title="View only" tone="warn">
@@ -403,247 +459,281 @@ export default function SupplierDiscountsOffers() {
         </NoticeCallout>
       ) : null}
 
-      {error && (
+      {error ? (
         <ErrorState
           className="py-6"
           title="Offers unavailable"
           body={userFacingError(error, USER_ERROR.offers)}
           retry={{ onClick: () => void loadAll() }}
         />
-      )}
+      ) : null}
 
       {loading ? (
         <SupplierListSkeleton rows={3} />
       ) : listings.length > 0 || rows.length > 0 ? (
-        <>
+        <div className="mx-auto w-full max-w-[1180px] space-y-3">
           {publishedCount === 0 && canEdit ? (
             <NoticeCallout title="Publish a tour first" tone="warn">
-              Offers apply to tour booking options on the public site. Stays do not support percentage discounts yet —
-              publish at least one tour with options to create an offer.
+              Offers apply to tour booking options. Stay percentage discounts are not supported on traveler checkout yet.
             </NoticeCallout>
           ) : null}
 
-          <div>
-            <div className="mb-4 flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1">
-              <h2 className="text-lg font-semibold tracking-tight text-ink">Your offers</h2>
-              <p className="text-sm text-ink-muted">
-                {rows.length} total · {activeTourOffers} active on tours
-                {unsupportedStayOffers > 0
-                  ? ` · ${unsupportedStayOffers} stay (not on checkout)`
-                  : ''}
-              </p>
-            </div>
+          <p className="text-[12px] text-[#71717a]">
+            {rows.length} total · {activeTourOffers} active on tours
+            {statusCounts.unsupported > 0 ? ` · ${statusCounts.unsupported} stay (not on checkout)` : ''}
+          </p>
 
-            {rows.length > 0 ? (
-              <div className="mb-5 flex flex-wrap gap-1.5" role="tablist" aria-label="Offer status">
-                {(
-                  [
-                    { id: 'all', label: 'All' },
-                    { id: 'active', label: 'Active' },
-                    { id: 'upcoming', label: 'Upcoming' },
-                    { id: 'paused', label: 'Paused' },
-                    { id: 'ended', label: 'Ended' },
-                    ...(unsupportedStayOffers > 0
-                      ? ([{ id: 'unsupported', label: 'Not on checkout' }] as const)
-                      : []),
-                  ] as const
-                ).map((tab) => (
+          {rows.length > 0 ? (
+            <>
+              <div className="tv-offers-tabs" role="tablist" aria-label="Offer status">
+                {tabs.map((tab) => (
                   <button
                     key={tab.id}
                     type="button"
                     role="tab"
                     aria-selected={statusFilter === tab.id}
                     onClick={() => setStatusFilterAndUrl(tab.id)}
-                    className={`lux-flat rounded-md px-3 py-1.5 text-xs font-semibold ring-1 transition-colors ${
-                      statusFilter === tab.id
-                        ? 'bg-finland text-white ring-finland'
-                        : 'bg-transparent text-ink-muted ring-black/[0.08] hover:text-ink hover:ring-black/[0.14]'
-                    }`}
                   >
                     {tab.label}
+                    <span className="tv-offers-tabs__count">{tab.count}</span>
                   </button>
                 ))}
               </div>
-            ) : null}
 
-            {rows.length > 0 ? (
-              <label className="mb-4 block">
-                <span className="sr-only">Search offers</span>
-                <input
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value);
-                    setPage(0);
-                  }}
-                  placeholder="Search product or booking option"
-                  className="tv-input w-full max-w-sm"
-                />
-              </label>
-            ) : null}
-
-            {actionError ? (
-              <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-900 ring-1 ring-red-200/80" role="alert">
-                {actionError}
-              </p>
-            ) : null}
-
-            {rows.length === 0 ? (
-              <SupplierEmptyState
-                icon={Tag}
-                title="No offers yet"
-                body={
-                  publishedCount === 0
-                    ? 'Offers only apply to published tours with booking options. Publish a tour first — stay listings cannot use percentage discounts yet.'
-                    : 'You have listings, but no timed discounts. That is normal. Create one on a published tour and it will show on the public product page.'
-                }
-                action={
-                  canEdit ? (
-                    publishedCount === 0 ? (
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => navigateSupplierUrl(PARTNER_CREATE_PATH)}
-                          className="tv-btn-primary"
-                        >
-                          New listing
-                        </button>
-                        <button type="button" onClick={goToListings} className="tv-btn-ghost">
-                          Your listings
-                        </button>
-                      </div>
-                    ) : (
-                      <button type="button" onClick={openNew} className="tv-btn-primary">
-                        New offer
-                      </button>
-                    )
-                  ) : undefined
-                }
-              />
-            ) : filteredGroups.length === 0 ? (
-              <SupplierEmptyState
-                icon={Tag}
-                title="Nothing in this view"
-                body={search.trim() ? 'No offers match this search.' : 'No offers match this status filter.'}
-                action={
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearch('');
-                      setStatusFilterAndUrl('all');
+              <div className="tv-offers-filters">
+                <div className="tv-offers-field">
+                  <span id="offers-search-label">Search</span>
+                  <span className="tv-offers-search">
+                    <Search className="h-4 w-4 shrink-0 text-[#a1a1aa]" aria-hidden />
+                    <input
+                      className="tv-offers-search__input"
+                      value={searchInput}
+                      aria-labelledby="offers-search-label"
+                      placeholder="Listing or booking option"
+                      onChange={(e) => {
+                        setSearchInput(e.target.value);
+                        setPage(0);
+                      }}
+                    />
+                  </span>
+                </div>
+                <div className="tv-offers-field">
+                  <span id="offers-product-label">Product type</span>
+                  <PartnerSelect
+                    aria-labelledby="offers-product-label"
+                    value={productFilter}
+                    options={[
+                      { value: 'all', label: 'All products' },
+                      { value: 'tour', label: 'Tours' },
+                      { value: 'stay', label: 'Stays' },
+                    ]}
+                    onChange={(v) => {
+                      setProductFilter(v as ProductFilter);
+                      setPage(0);
                     }}
-                    className="tv-btn-secondary"
-                  >
-                    Show all offers
-                  </button>
-                }
-              />
-            ) : (
-              <div className="space-y-2">
-                {visibleGroups.map((group) => {
-                  const listing = group.listing;
-                  const head = group.discounts[0];
-                  const stayUnsupported = partnerOfferListingIsStayUnsupported(listing);
-                  const confirmed = confirmedFor(group);
-                  const st = offerStatus(head, listing, confirmed);
-                  const statusLabel = stayUnsupported
-                    ? 'Not on checkout'
-                    : st === 'active'
-                      ? 'Active'
-                      : st === 'upcoming'
-                        ? 'Upcoming'
-                        : st === 'paused'
-                          ? 'Paused'
-                          : st === 'limit_reached'
-                            ? 'Limit reached'
-                            : 'Ended';
-                  const currency = normalizeCurrency(listing.price?.currency);
-                  const pct =
-                    head.type === 'percent'
-                      ? `${Math.round(Number(head.value))}%`
-                      : formatMoney(Number(head.value), currency);
-                  const optionNames = group.discounts.map((row) => optionLabelForDiscount(listing, row));
-                  const optionLine =
-                    optionNames.length > 1 ? `${optionNames.length} booking options` : optionNames[0];
-                  const opts = materializedBookingOptions(parseListingExtras(listing.listingExtras as unknown).bookingOptions);
-                  let low = Infinity;
-                  let high = 0;
-                  for (const row of group.discounts) {
-                    const matched = row.booking_option_id ? opts.filter((option) => option.id === row.booking_option_id) : opts;
-                    for (const option of matched.length ? matched : []) {
-                      const span = optionPriceSpan(option);
-                      if (!(span.low > 0)) continue;
-                      low = Math.min(low, applyDiscount(span.low, row, currency).price);
-                      high = Math.max(high, applyDiscount(span.high, row, currency).price);
-                    }
+                  />
+                </div>
+              </div>
+            </>
+          ) : null}
+
+          {actionError ? (
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-900 ring-1 ring-red-200/80" role="alert">
+              {actionError}
+            </p>
+          ) : null}
+
+          {rows.length === 0 ? (
+            <div className="tv-offers-empty">
+              <p className="tv-offers-empty__title" role="heading" aria-level={2}>
+                No offers yet
+              </p>
+              <p className="mt-1 max-w-md text-[13px] leading-relaxed text-[#71717a]">
+                {publishedCount === 0
+                  ? 'Publish a tour with booking options first. Stay listings cannot use percentage discounts yet.'
+                  : 'Create a timed discount on a published tour. It will appear on the public product page and checkout.'}
+              </p>
+              {canEdit ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {publishedCount === 0 ? (
+                    <>
+                      <button type="button" onClick={() => navigateSupplierUrl(PARTNER_CREATE_PATH)} className="tv-btn-primary h-9 px-3 text-[13px]">
+                        New listing
+                      </button>
+                      <button type="button" onClick={goToListings} className="tv-btn-ghost h-9 px-3 text-[13px]">
+                        Your listings
+                      </button>
+                    </>
+                  ) : (
+                    <button type="button" onClick={openNew} className="tv-btn-primary h-9 px-3 text-[13px]">
+                      New offer
+                    </button>
+                  )}
+                </div>
+              ) : null}
+            </div>
+          ) : filteredGroups.length === 0 ? (
+            <div className="tv-offers-empty">
+              <p className="tv-offers-empty__title" role="heading" aria-level={2}>
+                No matching offers
+              </p>
+              <p className="mt-1 text-[13px] text-[#71717a]">Try adjusting your search or filters.</p>
+              <button
+                type="button"
+                className="tv-btn-secondary mt-3 h-9 px-3 text-[13px]"
+                onClick={() => {
+                  setSearchInput('');
+                  setSearch('');
+                  setProductFilter('all');
+                  setStatusFilterAndUrl('all');
+                }}
+              >
+                Clear filters
+              </button>
+            </div>
+          ) : (
+            <ul className="space-y-2.5">
+              {visibleGroups.map((group) => {
+                const listing = group.listing;
+                const head = group.discounts[0];
+                const stayUnsupported = partnerOfferListingIsStayUnsupported(listing);
+                const confirmed = confirmedFor(group);
+                const st = offerStatus(head, listing, confirmed);
+                const statusLabel = stayUnsupported
+                  ? 'Not on checkout'
+                  : st === 'active'
+                    ? 'Active'
+                    : st === 'upcoming'
+                      ? 'Upcoming'
+                      : st === 'paused'
+                        ? 'Paused'
+                        : st === 'limit_reached'
+                          ? 'Limit reached'
+                          : 'Ended';
+                const currency = normalizeCurrency(listing.price?.currency);
+                const pct =
+                  head.type === 'percent'
+                    ? `${Math.round(Number(head.value))}%`
+                    : formatMoney(Number(head.value), currency);
+                const optionNames = group.discounts.map((row) => optionLabelForDiscount(listing, row));
+                const optionLine =
+                  optionNames.length > 2
+                    ? `${optionNames.slice(0, 2).join(', ')} +${optionNames.length - 2}`
+                    : optionNames.join(', ');
+                const opts = materializedBookingOptions(
+                  parseListingExtras(listing.listingExtras as unknown).bookingOptions
+                );
+                let origLow = Infinity;
+                let origHigh = 0;
+                let discLow = Infinity;
+                let discHigh = 0;
+                for (const row of group.discounts) {
+                  const matched = row.booking_option_id
+                    ? opts.filter((option) => option.id === row.booking_option_id)
+                    : opts;
+                  for (const option of matched.length ? matched : []) {
+                    const span = optionPriceSpan(option);
+                    if (!(span.low > 0)) continue;
+                    origLow = Math.min(origLow, span.low);
+                    origHigh = Math.max(origHigh, span.high);
+                    discLow = Math.min(discLow, applyDiscount(span.low, row, currency).price);
+                    discHigh = Math.max(discHigh, applyDiscount(span.high, row, currency).price);
                   }
-                  const customerPrice = Number.isFinite(low)
-                    ? high - low > 0.009
-                      ? `${formatMoney(low, currency)}–${formatMoney(high, currency)}`
-                      : formatMoney(low, currency)
-                    : '—';
-                  const redemption = group.discounts.reduce(
-                    (sum, row) => {
-                      const stat = stats.get(row.id);
-                      return {
-                        bookings: sum.bookings + (stat?.bookings ?? 0),
-                        guests: sum.guests + (stat?.guests ?? 0),
-                        net: stat?.supplierNetMinor == null ? sum.net : (sum.net ?? 0) + stat.supplierNetMinor,
-                      };
-                    },
-                    { bookings: 0, guests: 0, net: null as number | null }
-                  );
-                  const bookFrom = head.book_from ?? head.valid_from;
-                  const bookUntil = head.book_until ?? head.valid_until;
-                  const menuOpen = menuKey === `${listing.id}:${group.key}`;
-                  return (
-                    <article
-                      key={`${listing.id}:${group.key}`}
-                      className="w-full min-w-0 max-w-full rounded-lg border border-black/[0.06] bg-white px-3 py-2.5"
-                    >
-                      <div className="flex items-start gap-2.5">
-                        {listing.image?.trim() ? (
-                          <img src={listing.image} alt="" className="h-10 w-10 shrink-0 rounded-md object-cover ring-1 ring-black/[0.06]" />
-                        ) : (
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-black/[0.03] text-ink-muted" aria-hidden>
-                            <MapPin className="h-4 w-4" />
-                          </div>
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="truncate text-sm font-semibold text-ink">{listing.title}</p>
-                            <span className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold text-ink ring-1 ring-black/[0.08]">
-                              {statusLabel}
-                            </span>
-                          </div>
-                          <p className="mt-0.5 truncate text-xs text-ink-muted">
-                            {stayUnsupported ? 'Stay · not applied on traveler checkout' : optionLine}
-                          </p>
-                          <div className="mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-ink-muted">
-                            <span className="font-semibold tabular-nums text-finland">{pct}{head.type === 'percent' ? ' off' : ''}</span>
-                            <span className="tabular-nums text-ink">{customerPrice}</span>
-                            <span className="tabular-nums">Book {formatDate(bookFrom)} – {formatDate(bookUntil)}</span>
-                            {head.activity_from && head.activity_until ? (
-                              <span className="tabular-nums">Activity {formatDate(head.activity_from)} – {formatDate(head.activity_until)}</span>
-                            ) : null}
-                            {head.booking_limit ? (
-                              <span className="tabular-nums">{confirmed} / {head.booking_limit} bookings</span>
-                            ) : (
-                              <span className="tabular-nums">{confirmed} confirmed</span>
-                            )}
-                            {redemption.guests > 0 ? <span className="tabular-nums">{redemption.guests} participants</span> : null}
-                            {redemption.net != null ? (
-                              <span className="tabular-nums text-ink">
-                                Earnings {formatMoney(fromMinorUnits(redemption.net), currency)}
-                              </span>
-                            ) : null}
-                          </div>
-                          {stayUnsupported ? (
-                            <p className="mt-1 text-xs text-amber-900">
-                              Traverion does not lower stay nightly prices with this offer.
-                            </p>
-                          ) : null}
+                }
+                const originalPrice = Number.isFinite(origLow)
+                  ? origHigh - origLow > 0.009
+                    ? `${formatMoney(origLow, currency)}–${formatMoney(origHigh, currency)}`
+                    : formatMoney(origLow, currency)
+                  : '—';
+                const customerPrice = Number.isFinite(discLow)
+                  ? discHigh - discLow > 0.009
+                    ? `${formatMoney(discLow, currency)}–${formatMoney(discHigh, currency)}`
+                    : formatMoney(discLow, currency)
+                  : '—';
+                const redemption = group.discounts.reduce(
+                  (sum, row) => {
+                    const stat = stats.get(row.id);
+                    return {
+                      bookings: sum.bookings + (stat?.bookings ?? 0),
+                      guests: sum.guests + (stat?.guests ?? 0),
+                      net: stat?.supplierNetMinor == null ? sum.net : (sum.net ?? 0) + stat.supplierNetMinor,
+                    };
+                  },
+                  { bookings: 0, guests: 0, net: null as number | null }
+                );
+                const bookFrom = head.book_from ?? head.valid_from;
+                const bookUntil = head.book_until ?? head.valid_until;
+                const menuOpen = menuKey === `${listing.id}:${group.key}`;
+                const typeLabel = productTypeLabel(listing);
+                return (
+                  <li key={`${listing.id}:${group.key}`}>
+                    <article className="tv-offers-card">
+                      {listing.image?.trim() ? (
+                        <img src={listing.image} alt="" className="tv-offers-card__thumb" />
+                      ) : (
+                        <div className="tv-offers-card__thumb tv-offers-card__thumb--empty" aria-hidden>
+                          <MapPin className="h-4 w-4" />
                         </div>
-                        <div className="relative shrink-0">
+                      )}
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="tv-offers-card__title" title={listing.title}>
+                            {listing.title}
+                          </p>
+                          <span className="tv-offers-chip">{typeLabel}</span>
+                          <span className={statusChipClass(statusLabel)}>{statusLabel}</span>
+                        </div>
+                        <p className="tv-offers-card__meta truncate" title={optionLine}>
+                          {stayUnsupported ? 'Stay · not applied on traveler checkout' : optionLine}
+                        </p>
+                        <dl className="tv-offers-card__grid">
+                          <div>
+                            <dt>Customer price</dt>
+                            <dd>
+                              {customerPrice}
+                              {originalPrice !== '—' && customerPrice !== originalPrice ? (
+                                <span className="ml-1 font-medium text-[#a1a1aa] line-through">{originalPrice}</span>
+                              ) : null}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>Booking period</dt>
+                            <dd>
+                              {formatDate(bookFrom)} – {formatDate(bookUntil)}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>{typeLabel === 'Stay' ? 'Stay dates' : 'Activity dates'}</dt>
+                            <dd>
+                              {head.activity_from && head.activity_until
+                                ? `${formatDate(head.activity_from)} – ${formatDate(head.activity_until)}`
+                                : 'Any available'}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>Usage</dt>
+                            <dd>
+                              {head.booking_limit
+                                ? `${confirmed} / ${head.booking_limit} bookings`
+                                : `${confirmed} confirmed`}
+                              {redemption.net != null
+                                ? ` · ${formatMoney(fromMinorUnits(redemption.net), currency)} earned`
+                                : ''}
+                            </dd>
+                          </div>
+                        </dl>
+                        {stayUnsupported ? (
+                          <p className="mt-2 text-[12px] text-amber-900">
+                            Traverion does not lower stay nightly prices with this offer.
+                          </p>
+                        ) : null}
+                      </div>
+                      <div className="tv-offers-card__aside flex flex-col items-end gap-2">
+                        <p className="tv-offers-card__pct">
+                          {pct}
+                          {head.type === 'percent' ? <span className="text-[11px] font-semibold text-[#71717a]"> off</span> : null}
+                        </p>
+                        <div className="relative" data-offer-menu>
                           <button
                             type="button"
                             disabled={!canEdit}
@@ -651,71 +741,97 @@ export default function SupplierDiscountsOffers() {
                             aria-expanded={menuOpen}
                             aria-label="Offer actions"
                             onClick={() => setMenuKey(menuOpen ? null : `${listing.id}:${group.key}`)}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-ink-muted ring-1 ring-black/[0.08] hover:text-ink disabled:opacity-40"
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-[#71717a] ring-1 ring-[#e5e7eb] hover:text-[#18181b] disabled:opacity-40"
                           >
                             <MoreHorizontal className="h-4 w-4" aria-hidden />
                           </button>
                           {menuOpen ? (
-                            <div role="menu" className="absolute right-0 z-20 mt-1 w-36 rounded-lg border border-black/[0.08] bg-white py-1 shadow-sm">
+                            <div
+                              role="menu"
+                              className="absolute right-0 z-20 mt-1 w-40 rounded-lg border border-[#e5e7eb] bg-white py-1 shadow-sm"
+                            >
                               {!stayUnsupported ? (
-                                <button type="button" role="menuitem" className="block w-full px-3 py-2 text-left text-sm text-ink hover:bg-black/[0.03]" onClick={() => openEdit(group.discounts)}>
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  className="block w-full px-3 py-2 text-left text-[13px] text-[#18181b] hover:bg-black/[0.03]"
+                                  onClick={() => openEdit(group.discounts)}
+                                >
                                   Edit
                                 </button>
                               ) : null}
                               <button
                                 type="button"
                                 role="menuitem"
-                                className="block w-full px-3 py-2 text-left text-sm text-ink hover:bg-black/[0.03]"
+                                className="block w-full px-3 py-2 text-left text-[13px] text-[#18181b] hover:bg-black/[0.03]"
                                 onClick={() => void handlePause(group.discounts, !head.paused)}
                               >
                                 {head.paused ? 'Resume' : 'Pause'}
                               </button>
                               {!stayUnsupported ? (
-                                <button type="button" role="menuitem" className="block w-full px-3 py-2 text-left text-sm text-ink hover:bg-black/[0.03]" onClick={() => openDuplicate(group.discounts)}>
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  className="block w-full px-3 py-2 text-left text-[13px] text-[#18181b] hover:bg-black/[0.03]"
+                                  onClick={() => openDuplicate(group.discounts)}
+                                >
                                   Duplicate
                                 </button>
                               ) : null}
                               <button
                                 type="button"
                                 role="menuitem"
-                                className="block w-full px-3 py-2 text-left text-sm text-red-800 hover:bg-black/[0.03]"
-                                onClick={() => void handleDelete(group.discounts, stayUnsupported)}
+                                className="block w-full px-3 py-2 text-left text-[13px] text-red-800 hover:bg-black/[0.03]"
+                                onClick={() => void handleEndOrRemove(group.discounts, stayUnsupported)}
                               >
-                                Delete
+                                {stayUnsupported ? 'Remove' : 'End offer'}
                               </button>
                             </div>
                           ) : null}
                         </div>
                       </div>
                     </article>
-                  );
-                })}
-                {pageCount > 1 ? (
-                  <div className="flex items-center justify-between pt-2 text-sm">
-                    <button type="button" className="tv-btn-ghost" disabled={safePage === 0} onClick={() => setPage(safePage - 1)}>
-                      Previous
-                    </button>
-                    <span className="tabular-nums text-ink-muted">{safePage + 1} / {pageCount}</span>
-                    <button type="button" className="tv-btn-ghost" disabled={safePage >= pageCount - 1} onClick={() => setPage(safePage + 1)}>
-                      Next
-                    </button>
-                  </div>
-                ) : null}
-              </div>
-            )}
-          </div>
-        </>
+                  </li>
+                );
+              })}
+              {pageCount > 1 ? (
+                <li className="flex items-center justify-between pt-1 text-[13px]">
+                  <button
+                    type="button"
+                    className="tv-btn-secondary h-9 px-3"
+                    disabled={safePage === 0}
+                    onClick={() => setPage(safePage - 1)}
+                  >
+                    Previous
+                  </button>
+                  <span className="tabular-nums text-[#71717a]">
+                    {safePage + 1} / {pageCount}
+                  </span>
+                  <button
+                    type="button"
+                    className="tv-btn-secondary h-9 px-3"
+                    disabled={safePage >= pageCount - 1}
+                    onClick={() => setPage(safePage + 1)}
+                  >
+                    Next
+                  </button>
+                </li>
+              ) : null}
+            </ul>
+          )}
+        </div>
       ) : error ? null : (
-        <SupplierEmptyState
-          icon={MapPin}
-          title="No listings yet"
-          body="Offers attach to a published tour with booking options. You have no listings yet, so this page is empty. That is expected until you create one."
-          action={
-            <button type="button" onClick={goToListings} className="tv-btn-primary">
-              Open listings
-            </button>
-          }
-        />
+        <div className="tv-offers-empty">
+          <p className="tv-offers-empty__title" role="heading" aria-level={2}>
+            No listings yet
+          </p>
+          <p className="mt-1 max-w-md text-[13px] text-[#71717a]">
+            Offers attach to a published tour with booking options. Create a listing first.
+          </p>
+          <button type="button" onClick={goToListings} className="tv-btn-primary mt-3 h-9 px-3 text-[13px]">
+            Open listings
+          </button>
+        </div>
       )}
 
       <DiscountOfferWizardModal
