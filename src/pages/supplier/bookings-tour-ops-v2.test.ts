@@ -51,7 +51,7 @@ describe('Bookings V4 — tour ops card & detail page', () => {
     expect(src).toContain('partnerBookingDeskPath');
     expect(src).not.toContain('Mark as reviewed');
     expect(src).not.toContain('Acknowledge');
-    expect(src).toContain('openSupplierInbox(booking.id)');
+    expect(src).toContain('openBookingInbox(booking.id)');
     expect(src).toContain('TourOpsBookingDetail');
     const card = readFileSync(
       resolve(__dirname, '../../components/supplier/TourOpsBookingCard.tsx'),

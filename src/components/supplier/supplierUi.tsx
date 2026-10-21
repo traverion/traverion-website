@@ -317,6 +317,7 @@ export function SupplierDetailDrawer({
   children,
   label,
   variant = 'drawer',
+  backLabel = 'Back to reservations',
 }: {
   onClose: () => void;
   children: ReactNode;
@@ -326,6 +327,7 @@ export function SupplierDetailDrawer({
    * `page` — inline focused view (Stay reservation details); preserves Escape/back via onClose.
    */
   variant?: 'drawer' | 'sheet' | 'page';
+  backLabel?: string;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
@@ -351,7 +353,7 @@ export function SupplierDetailDrawer({
       >
         <button type="button" className="stay-ops-detail__back lux-flat" onClick={onClose}>
           <ChevronLeft className="h-4 w-4" aria-hidden />
-          Back to reservations
+          {backLabel}
         </button>
         <SupplierModalTitleIdContext.Provider value={titleId}>{children}</SupplierModalTitleIdContext.Provider>
       </div>

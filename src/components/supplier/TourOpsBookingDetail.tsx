@@ -48,6 +48,8 @@ type Props = {
   showCancelRequest?: boolean;
   cancelBlocked?: boolean;
   onBack: () => void;
+  /** Defaults to “Back to bookings”. Use “Back to Inbox” when returning from Message Guest. */
+  backLabel?: string;
   onCopyReference: () => void;
   onMessageGuest: () => void;
   onConfirm?: () => void;
@@ -75,6 +77,7 @@ export default function TourOpsBookingDetail({
   showCancelRequest,
   cancelBlocked,
   onBack,
+  backLabel = 'Back to bookings',
   onCopyReference,
   onMessageGuest,
   onConfirm,
@@ -92,7 +95,7 @@ export default function TourOpsBookingDetail({
     <div className="tour-ops-detail">
       <button type="button" className="tour-ops-detail__back lux-flat" onClick={onBack}>
         <ArrowLeft className="h-4 w-4" aria-hidden />
-        Back to bookings
+        {backLabel}
       </button>
 
       <header className="tour-ops-detail__top">

@@ -77,6 +77,11 @@ import {
   partnerBookingDeskPathPreservingSearch,
   readPartnerBookingIdFromLocation,
 } from '../../lib/partner-booking-desk-path';
+import { partnerInboxReturnMatches } from '../../lib/partner-page-transition';
+import {
+  takePartnerBookingsDeskPrefetch,
+  takePrefetchedPartnerBookingCommercial,
+} from '../../lib/partner-bookings-desk-prefetch';
 import {
   formatCommissionPercentLabel,
   resolvePartnerArrivalDisplay,
@@ -456,10 +461,13 @@ export default function SupplierBookings({
     setError(null);
     setCancelRequestsError(null);
     try {
-      const [bookingsList, myListings] = await Promise.all([
-        fetchBookingsForSupplier(uid),
-        fetchMyListings(uid),
-      ]);
+      const pref = takePartnerBookingsDeskPrefetch(uid);
+      const { bookings: bookingsList, listings: myListings } = pref
+        ? await pref
+        : {
+            bookings: await fetchBookingsForSupplier(uid),
+            listings: await fetchMyListings(uid),
+          };
       if (gen !== loadGenRef.current) return;
       const meta: Record<string, ListingBookingMeta> = {};
       myListings.forEach((listing) => {
@@ -685,6 +693,21 @@ export default function SupplierBookings({
     },
     [inventoryFamily]
   );
+
+  const leaveBookingDetail = useCallback(
+    (bookingId: string | null) => {
+      if (bookingId && partnerInboxReturnMatches(bookingId)) {
+        openSupplierInbox(bookingId, { fromBookingDetail: true });
+        return;
+      }
+      setSelectedBookingId(null);
+    },
+    [setSelectedBookingId]
+  );
+
+  const openBookingInbox = useCallback((bookingId: string) => {
+    openSupplierInbox(bookingId, { fromBookingDetail: true });
+  }, []);
 
   const setOpsFilterAndUrl = useCallback((next: OpsFilter) => {
     setOpsFilter(next);
@@ -947,7 +970,10 @@ export default function SupplierBookings({
     void fetchSupplierBookingEvents(user.id, [highlightBookingId]).then((rows) => {
       if (!cancelled) setActivityEvents(rows);
     });
-    void fetchBookingCommercialSnapshot(highlightBookingId)
+    const commercialPromise =
+      takePrefetchedPartnerBookingCommercial(highlightBookingId) ??
+      fetchBookingCommercialSnapshot(highlightBookingId);
+    void commercialPromise
       .then((row) => {
         if (cancelled) return;
         setCommercialSnapshot(row);
@@ -1798,7 +1824,7 @@ export default function SupplierBookings({
                       setExpandedStayId(null);
                       setSelectedBookingId(booking.id);
                     }}
-                    onMessageGuest={() => openSupplierInbox(booking.id)}
+                    onMessageGuest={() => openBookingInbox(booking.id)}
                     onCopyReference={copyReference}
                   />
                 );
@@ -1869,7 +1895,7 @@ export default function SupplierBookings({
                     setExpandedTourId(null);
                     setSelectedBookingId(booking.id);
                   }}
-                  onMessageGuest={() => openSupplierInbox(booking.id)}
+                  onMessageGuest={() => openBookingInbox(booking.id)}
                   onCopyReference={copyReference}
                 />
               );
@@ -1938,10 +1964,32 @@ export default function SupplierBookings({
       </div>
       )}
 
+      {tourDetailMode && loading && !selectedBooking ? (
+        <div className="tour-ops-detail tour-ops-detail--skeleton" aria-busy="true" aria-label="Loading booking">
+          <div className="h-4 w-36 rounded bg-black/[0.06] animate-pulse" />
+          <div className="mt-5 h-7 w-48 rounded bg-black/[0.07] animate-pulse" />
+          <div className="mt-3 h-4 w-24 rounded bg-black/[0.05] animate-pulse" />
+          <div className="tour-ops-detail__grid mt-8">
+            <div className="space-y-3">
+              <div className="h-28 rounded-xl bg-black/[0.04] animate-pulse" />
+              <div className="h-40 rounded-xl bg-black/[0.04] animate-pulse" />
+            </div>
+            <div className="space-y-3">
+              <div className="h-36 rounded-xl bg-black/[0.04] animate-pulse" />
+              <div className="h-24 rounded-xl bg-black/[0.04] animate-pulse" />
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {tourDetailMode && !selectedBooking && !loading ? (
         <div className="tour-ops-detail">
-          <button type="button" className="tour-ops-detail__back lux-flat" onClick={() => setSelectedBookingId(null)}>
-            ← Back to bookings
+          <button
+            type="button"
+            className="tour-ops-detail__back lux-flat"
+            onClick={() => leaveBookingDetail(highlightBookingId)}
+          >
+            ← {partnerInboxReturnMatches(highlightBookingId) ? 'Back to Inbox' : 'Back to bookings'}
           </button>
           <h1 className="tour-ops-detail__ref">Booking unavailable</h1>
           <p className="tour-ops-detail__muted mt-2">
@@ -1990,12 +2038,6 @@ export default function SupplierBookings({
             const requestNotes = customerRequestNotes(booking.special_requests);
             const busy = updatingId === booking.id;
             const fulfillment = arrival.fulfillment;
-            const pickupGap = partnerBookingHasPickupAttention(
-              booking,
-              arrival.place,
-              arrival.instructions,
-              isPurchaseSnapshot(booking.purchase_snapshot) ? null : meta?.bookingOptions
-            );
             const openCancelRaw = openCancels[booking.id];
             const openCancel =
               openCancelRaw &&
@@ -2040,11 +2082,6 @@ export default function SupplierBookings({
                   arrivalInstructions: arrival.instructions,
                   pickupTimeHm: fulfillment === 'pickup' ? pickupHm : null,
                   transferLine: bookingLogistics || null,
-                  pickupGapMessage: pickupGap
-                    ? fulfillment === 'pickup'
-                      ? 'Pickup address or time is missing, so the guest does not know where to be collected.'
-                      : 'Meeting details are missing, so the guest does not know where to meet.'
-                    : null,
                   unpaidHoldMessage: partnerBookingIsUnpaidCheckout(booking)
                     ? partnerUnpaidCheckoutHoldsInventory(booking)
                       ? `${formatPartnerCheckoutHoldLabel(booking)}. The traveler may still complete payment.`
@@ -2095,7 +2132,10 @@ export default function SupplierBookings({
                   partnerBookingIsOperatingTrip(booking) || partnerBookingIsUnpaidCheckout(booking)
                 }
                 cancelBlocked={Boolean(openCancel)}
-                onBack={() => setSelectedBookingId(null)}
+                backLabel={
+                  partnerInboxReturnMatches(booking.id) ? 'Back to Inbox' : 'Back to bookings'
+                }
+                onBack={() => leaveBookingDetail(booking.id)}
                 onCopyReference={() => {
                   void navigator.clipboard.writeText(referenceLabel).then(() => {
                     setCopiedBookingId(booking.id);
@@ -2104,7 +2144,7 @@ export default function SupplierBookings({
                     }, 1500);
                   });
                 }}
-                onMessageGuest={() => openSupplierInbox(booking.id)}
+                onMessageGuest={() => openBookingInbox(booking.id)}
                 onConfirm={() => void handleStatusChange(booking, 'confirmed')}
                 onRequestCancel={() => {
                   setCancelError(null);
@@ -2131,9 +2171,12 @@ export default function SupplierBookings({
 
       {selectedBooking && isStayDesk ? (
         <SupplierDetailDrawer
-          onClose={() => setSelectedBookingId(null)}
+          onClose={() => leaveBookingDetail(selectedBooking.id)}
           label={selectedBooking.guest_name || 'Booking'}
           variant="page"
+          backLabel={
+            partnerInboxReturnMatches(selectedBooking.id) ? 'Back to Inbox' : 'Back to reservations'
+          }
         >
           {(() => {
             const booking = selectedBooking;
@@ -2587,7 +2630,7 @@ export default function SupplierBookings({
                   <div className="stay-ops-detail__actions">
                     <button
                       type="button"
-                      onClick={() => openSupplierInbox(booking.id)}
+                      onClick={() => openBookingInbox(booking.id)}
                       className="tv-btn-primary inline-flex h-9 items-center gap-1.5 !px-3 text-[13px]"
                     >
                       <Mail className="h-3.5 w-3.5" aria-hidden />

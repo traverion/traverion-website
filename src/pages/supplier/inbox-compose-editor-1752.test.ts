@@ -25,7 +25,7 @@ describe('Phase 1752: host booking chat requires editor roles', () => {
       resolve(__dirname, '../../components/supplier/TourOpsBookingDetail.tsx'),
       'utf8'
     );
-    expect(bookings).toContain('openSupplierInbox(booking.id)');
+    expect(bookings).toContain('openBookingInbox(booking.id)');
     expect(bookings).not.toContain('BookingMessageThread');
     expect(bookings).not.toContain('Open in Inbox');
     expect(detail).toContain('Message customer');

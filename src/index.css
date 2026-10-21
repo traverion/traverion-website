@@ -2820,6 +2820,37 @@ html {
   animation: lux-page-enter-slide 0.28s var(--lux-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
+/* Inbox ↔ Booking Details: main content only (sidebar/top nav stay put). */
+@keyframes lux-page-enter-forward {
+  from {
+    opacity: 0.88;
+    transform: translate3d(1.15rem, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes lux-page-enter-back {
+  from {
+    opacity: 0.88;
+    transform: translate3d(-1.15rem, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.lux-page-enter--forward {
+  animation: lux-page-enter-forward 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.lux-page-enter--back {
+  animation: lux-page-enter-back 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 /* Auth login ↔ signup / forgot-password panel slides */
 @keyframes tv-auth-slide-forward {
   from {
@@ -2853,8 +2884,17 @@ html {
 
 @media (prefers-reduced-motion: reduce) {
   .lux-page-enter--slide,
+  .lux-page-enter--forward,
+  .lux-page-enter--back,
   .tv-auth-slide--forward,
   .tv-auth-slide--back {
+    animation: lux-page-enter-subtle 0.2s ease-out both;
+  }
+}
+
+@media (max-width: 1023px) {
+  .lux-page-enter--forward,
+  .lux-page-enter--back {
     animation: lux-page-enter-subtle 0.2s ease-out both;
   }
 }
@@ -3921,13 +3961,12 @@ details:not([open]) > :not(summary) {
 
 .tv-inbox-chat__guest {
   margin: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
   font-size: 0.9375rem;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: #18181b;
+  line-height: 1.25;
 }
 
 .tv-inbox-chat__context {
@@ -3938,6 +3977,54 @@ details:not([open]) > :not(summary) {
   font-size: 0.75rem;
   font-weight: 500;
   color: #667085;
+}
+
+.tv-inbox-chat__secondary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 0.35rem;
+  margin: 0.2rem 0 0;
+  font-size: 0.75rem;
+  font-weight: 550;
+  line-height: 1.35;
+  color: #475467;
+}
+
+.tv-inbox-chat__sep {
+  color: #98a2b3;
+}
+
+.tv-inbox-chat__experience {
+  margin: 0.15rem 0 0;
+  max-width: 36rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: #667085;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.tv-inbox-chat-skeleton {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.tv-inbox-chat-skeleton__body {
+  gap: 0.65rem;
+  padding: 1rem;
+}
+
+.tv-chat__empty--skeleton {
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0.55rem;
+  padding-top: 0.35rem;
 }
 
 .tv-inbox-empty-pane {
@@ -7280,6 +7367,10 @@ details:not([open]) > :not(summary) {
   max-width: min(72rem, 100%);
   margin: 0 auto;
   padding: 0.15rem 0 2.25rem;
+}
+
+.tour-ops-detail--skeleton {
+  min-height: 18rem;
 }
 
 .tour-ops-detail__back {

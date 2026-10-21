@@ -53,6 +53,8 @@ function stampInboundMessagesRead(
 }
 
 const panelDrafts = new Map<string, string>();
+/** Preserve message-log scroll across Inbox ↔ Booking Details remounts. */
+const panelScrollByBooking = new Map<string, number>();
 
 const LINK_RE = /https?:\/\/[^\s<>"']+/g;
 
@@ -181,7 +183,8 @@ export default function BookingMessageThread({
   }, [bookingId]);
 
   useEffect(() => {
-    stickToBottomRef.current = true;
+    const savedScroll = layout === 'panel' ? panelScrollByBooking.get(bookingId) : undefined;
+    stickToBottomRef.current = savedScroll == null;
     setRows([]);
     setDraft(layout === 'panel' ? panelDrafts.get(bookingId) ?? '' : '');
     setError(null);
@@ -202,9 +205,16 @@ export default function BookingMessageThread({
 
   useEffect(() => {
     const el = logRef.current;
-    if (!el || !stickToBottomRef.current) return;
-    el.scrollTop = el.scrollHeight;
-  }, [rows]);
+    if (!el || loading) return;
+    if (stickToBottomRef.current) {
+      el.scrollTop = el.scrollHeight;
+      return;
+    }
+    if (layout === 'panel') {
+      const saved = panelScrollByBooking.get(bookingId);
+      if (typeof saved === 'number') el.scrollTop = saved;
+    }
+  }, [rows, loading, layout, bookingId]);
 
   useEffect(() => {
     if (!autoFocus || loading || !canCompose) return;
@@ -296,12 +306,17 @@ export default function BookingMessageThread({
           onScroll={() => {
             const el = logRef.current;
             if (!el) return;
-            stickToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+            const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+            stickToBottomRef.current = nearBottom;
+            if (nearBottom) panelScrollByBooking.delete(bookingId);
+            else panelScrollByBooking.set(bookingId, el.scrollTop);
           }}
         >
           {loading && rows.length === 0 ? (
-            <div className="tv-chat__empty" aria-busy="true" aria-live="polite">
-              <p className="text-sm font-medium text-ink-muted">Loading messages…</p>
+            <div className="tv-chat__empty tv-chat__empty--skeleton" aria-busy="true" aria-live="polite">
+              <div className="ml-auto h-11 w-[52%] rounded-2xl bg-black/[0.06] animate-pulse" />
+              <div className="h-11 w-[58%] rounded-2xl bg-black/[0.04] animate-pulse" />
+              <div className="ml-auto h-9 w-[38%] rounded-2xl bg-black/[0.05] animate-pulse" />
             </div>
           ) : rows.length === 0 && !loadError ? (
             <div className="tv-chat__empty">

@@ -92,6 +92,7 @@ import {
   rememberPartnerReturnPath,
 } from '../../lib/partnerReturnPath';
 import { navigateSupplierUrl, openSupplierCalendar } from '../../lib/supplierPortalNavigation';
+import { consumePartnerPageTransition } from '../../lib/partner-page-transition';
 
 const SupplierDashboard = lazy(() => import('../../pages/supplier/SupplierDashboard'));
 const SupplierListings = lazy(() => import('../../pages/supplier/SupplierListings'));
@@ -354,9 +355,12 @@ export default function SupplierLayout() {
   const [businessLogoUrl, setBusinessLogoUrl] = useState<string>('');
   const [companyRegistrationPath, setCompanyRegistrationPath] = useState('');
   const [pathEpoch, setPathEpoch] = useState(0);
+  const [pageEnterKey, setPageEnterKey] = useState(0);
+  const [pageEnterClass, setPageEnterClass] = useState('lux-page-enter w-full min-w-0');
   const [unknownPartnerPath, setUnknownPartnerPath] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const mainPaneRef = useRef<HTMLDivElement>(null);
+  const prevSectionRef = useRef<SupplierSection | null>(null);
   const partnerHubUserIdRef = useRef<string | null>(null);
   const partnerProfileGenRef = useRef(0);
 
@@ -742,6 +746,30 @@ export default function SupplierLayout() {
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
+
+  // Directional main-pane enter for Inbox ↔ Booking Details (sidebar stays put).
+  useLayoutEffect(() => {
+    const prev = prevSectionRef.current;
+    prevSectionRef.current = section;
+    if (prev == null || prev === section) return;
+    const marked = consumePartnerPageTransition();
+    let dir = marked;
+    if (!dir && typeof window !== 'undefined') {
+      const desk = section === 'bookings' || section === 'reservations';
+      const wasDesk = prev === 'bookings' || prev === 'reservations';
+      if (prev === 'inbox' && desk) dir = 'forward';
+      else if (wasDesk && section === 'inbox') dir = 'back';
+    }
+    const base = 'lux-page-enter w-full min-w-0';
+    setPageEnterClass(
+      dir === 'forward'
+        ? `${base} lux-page-enter--forward`
+        : dir === 'back'
+          ? `${base} lux-page-enter--back`
+          : base
+    );
+    setPageEnterKey((k) => k + 1);
+  }, [section]);
 
   useEffect(() => {
     if (!settingsFocus) return;
@@ -1165,7 +1193,7 @@ export default function SupplierLayout() {
               section === 'availability' ? 'ops' : section === 'dashboard' ? 'home' : 'default'
             )}
           >
-            <div className="lux-page-enter w-full min-w-0">
+            <div key={pageEnterKey} className={pageEnterClass}>
               <ChunkLoadErrorBoundary resetKey={section}>
               <Suspense fallback={<PartnerSectionFallback />}>
                 {unknownPartnerPath ? (

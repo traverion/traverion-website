@@ -25,7 +25,7 @@ import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { navigateSupplierUrl, openSupplierBooking } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import BookingMessageThread from '../../components/BookingMessageThread';
-import { bookingPaymentWasCollected, partnerPaymentLabel } from '../../lib/payment-states';
+import { bookingPaymentWasCollected } from '../../lib/payment-states';
 import { partnerInboxListsBooking } from '../../lib/messaging-authorization';
 import { travelerPublicBookingReference } from '../../lib/public-booking-reference';
 import {
@@ -42,7 +42,6 @@ import {
 import { partnerBookingNumberMatchesFilterQuery } from '../../lib/partner-bookings-search';
 import { partnerBookingLifecycleLabel } from '../../lib/partner-bookings-desk';
 import { bookingIsStayNight } from '../../lib/pickup-completeness';
-import { resolvePartnerArrivalDisplay } from '../../lib/partner-booking-logistics';
 import { stayRangeFromBooking } from '../../lib/stayOccupancy';
 import { materializedBookingOptions, parseListingExtras } from '../../types/listingExtras';
 import type { TourPackage } from '../../types/tour';
@@ -50,7 +49,16 @@ import {
   readPartnerInboxUiState,
   writePartnerInboxUiState,
 } from '../../lib/partner-inbox-ui-state';
+import {
+  markPartnerPageTransition,
+  rememberPartnerInboxReturn,
+} from '../../lib/partner-page-transition';
+import {
+  prefetchPartnerBookingCommercial,
+  prefetchPartnerBookingsDesk,
+} from '../../lib/partner-bookings-desk-prefetch';
 
+/** Thread-list line: listing + option so same-guest bookings stay distinguishable. */
 function inboxListingLine(
   b: BookingRow,
   liveTitle: string | undefined,
@@ -65,6 +73,11 @@ function inboxListingLine(
       : '';
   const option = displayOptionLabelFromPurchase(b.purchase_snapshot, liveOption);
   return option ? `${title} · ${option}` : title;
+}
+
+/** Compact header title — listing/Stay name only (no option names). */
+function inboxHeaderExperienceTitle(b: BookingRow, liveTitle: string | undefined): string {
+  return displayListingTitleFromPurchase(b.purchase_snapshot, liveTitle, 'Listing');
 }
 
 function readBookingIdFromUrl(): string | null {
@@ -251,13 +264,15 @@ export default function SupplierInbox() {
 
   // Phase 1387 + layout: clear prior partner inbox before paint on account switch (useEffect ran one frame too late).
   useLayoutEffect(() => {
-    const clearInboxPartnerWorkspace = () => {
+    const clearInboxPartnerWorkspace = (preserveUrlBooking: boolean) => {
       setBookings([]);
       setTitles({});
       setListingsById({});
       setLastByBooking({});
       setOpenCancelIds(new Set());
-      setOpenId(null);
+      // Keep ?booking= selected across first paint / account switch so Message Guest
+      // never flashes the empty "Select a conversation" pane.
+      setOpenId(preserveUrlBooking ? readBookingIdFromUrl() : null);
       setDeepLinkMissing(false);
       setOlderConversationsHidden(false);
       setMessageFetchCap(PARTNER_INBOX_MESSAGE_FETCH_CAP);
@@ -268,14 +283,14 @@ export default function SupplierInbox() {
     if (!user?.id) {
       inboxHubUserIdRef.current = null;
       loadGenRef.current += 1;
-      clearInboxPartnerWorkspace();
+      clearInboxPartnerWorkspace(false);
       setLoading(false);
       return;
     }
     if (inboxHubUserIdRef.current !== user.id) {
       inboxHubUserIdRef.current = user.id;
       loadGenRef.current += 1;
-      clearInboxPartnerWorkspace();
+      clearInboxPartnerWorkspace(true);
     }
   }, [user?.id]);
 
@@ -289,10 +304,11 @@ export default function SupplierInbox() {
       setOpenId(id);
       if (!id) setDeepLinkMissing(false);
       const params = new URLSearchParams(window.location.search);
-      // Only apply unread from the URL when the param is present so session-restored
-      // filters survive Booking Details → Inbox without wiping All/Unread.
       if (params.has('unread')) {
         setUnreadOnly(params.get('unread') === '1');
+      } else if (id) {
+        // Message Guest / booking deep-links must open that thread in All, not hide it behind Unread.
+        setUnreadOnly(false);
       }
     };
     syncFromUrl();
@@ -420,14 +436,25 @@ export default function SupplierInbox() {
     });
   }, [filterQuery, unreadOnly]);
 
+  const warmBookingDetails = useCallback(
+    (booking: BookingRow) => {
+      if (user?.id) void prefetchPartnerBookingsDesk(user.id);
+      prefetchPartnerBookingCommercial(booking.id);
+    },
+    [user?.id]
+  );
+
   const openCanonicalBooking = useCallback(
     (booking: BookingRow) => {
       persistInboxUi();
+      rememberPartnerInboxReturn(booking.id);
+      markPartnerPageTransition('forward');
+      warmBookingDetails(booking);
       openSupplierBooking(booking.id, {
         isStay: bookingIsStayNight(booking) || isStayRequestAwaitingHost(booking),
       });
     },
-    [persistInboxUi]
+    [persistInboxUi, warmBookingDetails]
   );
 
   const activityWhen = (b: BookingRow) => {
@@ -727,32 +754,12 @@ export default function SupplierInbox() {
           ) : openBooking ? (
             <>
               {(() => {
-                const isStay =
-                  bookingIsStayNight(openBooking) || isStayRequestAwaitingHost(openBooking);
                 const reference =
                   travelerPublicBookingReference(openBooking.public_reference) ?? null;
-                const listing = listingsById[openBooking.listing_id];
-                const arrival = !isStay
-                  ? resolvePartnerArrivalDisplay({
-                      purchaseSnapshot: openBooking.purchase_snapshot,
-                      bookingOptionId: openBooking.booking_option_id,
-                      specialRequests: openBooking.special_requests,
-                      listingMeetingPoint: listing?.meetingPoint ?? null,
-                      listingPickupInstructions: listing?.pickupInstructions ?? null,
-                      bookingOptions: listing
-                        ? materializedBookingOptions(
-                            parseListingExtras(listing.listingExtras).bookingOptions
-                          )
-                        : null,
-                    })
-                  : null;
-                const pickupChip =
-                  arrival &&
-                  (arrival.rail === 'pickup' ||
-                    arrival.rail === 'fixed_pickup' ||
-                    arrival.rail === 'location_needed')
-                    ? arrival.railLabel
-                    : null;
+                const experienceTitle = inboxHeaderExperienceTitle(
+                  openBooking,
+                  titles[openBooking.listing_id]
+                );
                 return (
                   <header className="tv-inbox-chat__head">
                     <button
@@ -772,48 +779,27 @@ export default function SupplierInbox() {
                           {partnerBookingLifecycleLabel(openBooking.status)}
                         </span>
                       </div>
-                      <p
-                        className="tv-inbox-chat__context"
-                        title={inboxListingLine(
-                          openBooking,
-                          titles[openBooking.listing_id],
-                          listingsById[openBooking.listing_id]
-                        )}
-                      >
+                      <p className="tv-inbox-chat__secondary">
+                        <span>{activityWhen(openBooking)}</span>
                         {reference ? (
-                          <span className="tv-inbox-chat__ref">{reference}</span>
-                        ) : null}
-                        {reference ? ' · ' : ''}
-                        {inboxListingLine(
-                          openBooking,
-                          titles[openBooking.listing_id],
-                          listingsById[openBooking.listing_id]
-                        )}
-                        {activityWhen(openBooking) ? ` · ${activityWhen(openBooking)}` : ''}
-                      </p>
-                      {pickupChip || partnerPaymentLabel(openBooking) ? (
-                        <p className="tv-inbox-chat__chips">
-                          {pickupChip ? (
-                            <span
-                              className={
-                                arrival?.needsLocation
-                                  ? 'tv-inbox-chat__chip tv-inbox-chat__chip--warn'
-                                  : 'tv-inbox-chat__chip'
-                              }
-                            >
-                              {pickupChip}
+                          <>
+                            <span className="tv-inbox-chat__sep" aria-hidden>
+                              ·
                             </span>
-                          ) : null}
-                          {partnerPaymentLabel(openBooking) ? (
-                            <span className="tv-inbox-chat__chip">{partnerPaymentLabel(openBooking)}</span>
-                          ) : null}
-                        </p>
-                      ) : null}
+                            <span className="tv-inbox-chat__ref">{reference}</span>
+                          </>
+                        ) : null}
+                      </p>
+                      <p className="tv-inbox-chat__experience" title={experienceTitle}>
+                        {experienceTitle}
+                      </p>
                     </div>
                     <button
                       type="button"
                       className="tv-inbox-view-booking tv-btn-secondary h-8 shrink-0 !px-2.5 text-[12.5px]"
                       onClick={() => openCanonicalBooking(openBooking)}
+                      onPointerEnter={() => warmBookingDetails(openBooking)}
+                      onFocus={() => warmBookingDetails(openBooking)}
                     >
                       View booking
                     </button>
@@ -841,6 +827,25 @@ export default function SupplierInbox() {
                 {renderOpenThread(openBooking)}
               </div>
             </>
+          ) : openId ? (
+            <div className="tv-inbox-chat-skeleton" aria-busy="true" aria-label="Loading conversation">
+              <div className="tv-inbox-chat__head">
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-28 rounded bg-black/[0.07] animate-pulse" />
+                    <div className="h-4 w-14 rounded bg-black/[0.05] animate-pulse" />
+                  </div>
+                  <div className="h-3 w-44 max-w-full rounded bg-black/[0.05] animate-pulse" />
+                  <div className="h-3 w-36 max-w-full rounded bg-black/[0.04] animate-pulse" />
+                </div>
+                <div className="h-8 w-24 shrink-0 rounded bg-black/[0.05] animate-pulse" />
+              </div>
+              <div className="tv-inbox-chat__body tv-inbox-chat-skeleton__body">
+                <div className="ml-auto h-12 w-[55%] rounded-2xl bg-black/[0.05] animate-pulse" />
+                <div className="h-12 w-[60%] rounded-2xl bg-black/[0.04] animate-pulse" />
+                <div className="ml-auto h-10 w-[40%] rounded-2xl bg-black/[0.05] animate-pulse" />
+              </div>
+            </div>
           ) : (
             <div className="tv-inbox-empty-pane">
               <span className="tv-inbox-empty-pane__icon" aria-hidden>

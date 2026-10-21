@@ -10,8 +10,9 @@ describe('Partner Message guest entry points', () => {
 
     expect(nav).toContain('export function openSupplierInbox');
     expect(nav).toContain("q.set('booking', bookingId)");
-    expect(bookings).toContain('openSupplierInbox(booking.id)');
-    expect(bookings.match(/openSupplierInbox\(booking\.id\)/g)?.length).toBeGreaterThanOrEqual(3);
+    expect(bookings).toContain('openBookingInbox');
+    expect(bookings).toContain('openSupplierInbox(bookingId, { fromBookingDetail: true })');
+    expect(bookings.match(/openBookingInbox\(booking\.id\)/g)?.length).toBeGreaterThanOrEqual(3);
 
     // Deep-linked booking stays visible even without prior messages.
     expect(inbox).toContain('deepLinkId');

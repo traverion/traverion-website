@@ -4,6 +4,10 @@
 
 import { partnerBookingDeskPath } from './partner-booking-desk-path';
 import { PARTNER_APP_BASE } from './partnerPortalPaths';
+import {
+  clearPartnerInboxReturn,
+  markPartnerPageTransition,
+} from './partner-page-transition';
 
 /** Map listing quality check id → SupplierListingForm section id (see supplier-listing-field-*). */
 export function qualityCheckIdToFormFocus(checkId: string): string {
@@ -65,7 +69,14 @@ export function openSupplierBooking(
 }
 
 /** Open partner inbox and optionally expand a booking thread. */
-export function openSupplierInbox(bookingId?: string, opts?: { unreadOnly?: boolean }): void {
+export function openSupplierInbox(
+  bookingId?: string,
+  opts?: { unreadOnly?: boolean; fromBookingDetail?: boolean }
+): void {
+  if (opts?.fromBookingDetail) {
+    markPartnerPageTransition('back');
+    clearPartnerInboxReturn();
+  }
   const path = `${PARTNER_APP_BASE}/inbox`;
   const q = new URLSearchParams();
   if (bookingId) q.set('booking', bookingId);
