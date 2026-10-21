@@ -6,6 +6,7 @@ import { createElement } from 'react';
 import TourOpsBookingCard, {
   type TourOpsCardModel,
 } from '../../components/supplier/TourOpsBookingCard';
+import { PARTNER_BOOKINGS_SORTS, PARTNER_BOOKINGS_TRAVEL } from '../../lib/partner-bookings-desk';
 
 const baseModel: TourOpsCardModel = {
   id: 'b1',
@@ -14,7 +15,7 @@ const baseModel: TourOpsCardModel = {
   imageUrl: null,
   guestName: 'Ada Lovelace',
   guestEmail: 'ada@example.com',
-  guestPhone: null,
+  guestPhone: '+358 40 123 4567',
   dateLine: '12 Jun · 09:00',
   departureNote: null,
   participantLabel: '2 adults',
@@ -22,8 +23,8 @@ const baseModel: TourOpsCardModel = {
   statusClass: 'text-finland ring-finland/20 bg-finland/5',
   referenceLabel: 'TV-ABCDEF',
   purchaseDateLabel: '1 Jun 2026',
-  pickupKind: 'meeting',
-  pickupSummary: 'Market Square fountain',
+  pickupKind: 'pickup',
+  pickupSummary: 'Hotel lobby, 08:30',
   durationLabel: '2 hours',
   guestNotes: null,
   warning: null,
@@ -52,9 +53,11 @@ describe('Bookings luxury redesign V2 — tour ops card', () => {
       'utf8'
     );
     expect(card).toContain('Supplier earnings');
-    expect(card).toContain('Booking total');
+    expect(card).toContain('Lead guest');
     expect(card).toContain('Message guest');
-    expect(card).toContain('tour-ops-card__meta-item--strong');
+    expect(card).not.toContain('Booking total');
+    expect(card).toContain('tour-ops-card__pickup');
+    expect(card).toContain('tour-ops-card__rail-stack');
   });
 
   it('defines tour-ops and single-row desktop toolbar styles', () => {
@@ -64,8 +67,13 @@ describe('Bookings luxury redesign V2 — tour ops card', () => {
     expect(css).toContain('prefers-reduced-motion');
     expect(css).toContain('One horizontal desktop row');
     expect(css).toContain('flex-wrap: nowrap');
-    expect(css).toContain('.tour-ops-card__meta-item--strong');
-    expect(css).toMatch(/\.tour-ops-card__meta[\s\S]*color: #17191d/);
+    expect(css).toContain('.tour-ops-card__summary');
+    expect(css).toContain('.tour-ops-card__pickup');
+  });
+
+  it('uses short readable travel and sort filter labels', () => {
+    expect(PARTNER_BOOKINGS_TRAVEL.find((t) => t.value === 'all')?.label).toBe('Travel date');
+    expect(PARTNER_BOOKINGS_SORTS.find((s) => s.value === 'newest')?.label).toBe('Newest');
   });
 
   it('keeps stay desk on StayOpsReservationCard', () => {
@@ -75,7 +83,7 @@ describe('Bookings luxury redesign V2 — tour ops card', () => {
     expect(src).toContain('expandedStayId');
   });
 
-  it('renders compact row with experience-first hierarchy and expandable panel', () => {
+  it('keeps guest name out of the collapsed scan row and puts Pickup under status', () => {
     const html = renderToStaticMarkup(
       createElement(TourOpsBookingCard, {
         model: baseModel,
@@ -88,15 +96,22 @@ describe('Bookings luxury redesign V2 — tour ops card', () => {
         onCopyReference: () => undefined,
       })
     );
-    expect(html).toContain('Helsinki Harbour Walk');
-    expect(html).toContain('Morning departure');
-    expect(html).toContain('Ada Lovelace');
-    expect(html).toContain('TV-ABCDEF');
+    const panelAt = html.indexOf('tour-ops-card__panel');
+    expect(panelAt).toBeGreaterThan(0);
+    const collapsed = html.slice(0, panelAt);
+    expect(collapsed).toContain('Helsinki Harbour Walk');
+    expect(collapsed).toContain('Morning departure');
+    expect(collapsed).toContain('TV-ABCDEF');
+    expect(collapsed).toContain('12 Jun · 09:00');
+    expect(collapsed).toContain('2 adults');
+    expect(collapsed).not.toContain('Ada Lovelace');
+    expect(collapsed).toContain('tour-ops-card__pickup');
+    expect(collapsed).toContain('Pickup');
+    expect(collapsed).not.toContain('Meeting point');
     expect(html).toContain('aria-expanded="false"');
-    expect(html).toContain('hidden');
   });
 
-  it('shows payment labels distinctly when expanded', () => {
+  it('shows a minimal expanded summary with earnings and guest contact', () => {
     const html = renderToStaticMarkup(
       createElement(TourOpsBookingCard, {
         model: baseModel,
@@ -109,12 +124,17 @@ describe('Bookings luxury redesign V2 — tour ops card', () => {
         onCopyReference: () => undefined,
       })
     );
-    expect(html).toContain('Booking total');
+    expect(html).toContain('Lead guest');
+    expect(html).toContain('Ada Lovelace');
+    expect(html).toContain('+358 40 123 4567');
+    expect(html).toContain('Participants');
     expect(html).toContain('Supplier earnings');
-    expect(html).toContain('€120.00');
     expect(html).toContain('€102.00');
+    expect(html).not.toContain('Booking total');
+    expect(html).not.toContain('Guest &amp; reservation');
+    expect(html).toContain('View details');
+    expect(html).toContain('Message guest');
     expect(html).toContain('aria-expanded="true"');
-    expect(html).not.toMatch(/hidden[^>]*tour-ops-card__panel/);
   });
 
   it('isolates checkbox and copy clicks from row expand via stopPropagation', () => {

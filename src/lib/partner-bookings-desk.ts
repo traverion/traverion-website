@@ -60,16 +60,16 @@ export type PartnerBookingsDeskRow = {
 };
 
 export const PARTNER_BOOKINGS_SORTS: Array<{ value: PartnerBookingsSort; label: string }> = [
-  { value: 'newest', label: 'Newest booking' },
-  { value: 'oldest', label: 'Oldest booking' },
-  { value: 'travel_asc', label: 'Travel date, earliest' },
-  { value: 'travel_desc', label: 'Travel date, latest' },
-  { value: 'value_asc', label: 'Value, low to high' },
-  { value: 'value_desc', label: 'Value, high to low' },
+  { value: 'newest', label: 'Newest' },
+  { value: 'oldest', label: 'Oldest' },
+  { value: 'travel_asc', label: 'Travel · earliest' },
+  { value: 'travel_desc', label: 'Travel · latest' },
+  { value: 'value_asc', label: 'Value · low–high' },
+  { value: 'value_desc', label: 'Value · high–low' },
 ];
 
 export const PARTNER_BOOKINGS_TRAVEL: Array<{ value: PartnerBookingsTravelWindow; label: string }> = [
-  { value: 'all', label: 'All travel dates' },
+  { value: 'all', label: 'Travel date' },
   { value: 'today', label: 'Today' },
   { value: 'tomorrow', label: 'Tomorrow' },
   { value: 'upcoming', label: 'Upcoming' },
