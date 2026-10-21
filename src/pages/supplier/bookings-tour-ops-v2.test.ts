@@ -23,39 +23,45 @@ const baseModel: TourOpsCardModel = {
   statusClass: 'text-finland ring-finland/20 bg-finland/5',
   referenceLabel: 'TV-ABCDEF',
   purchaseDateLabel: '1 Jun 2026',
-  pickupKind: 'pickup',
+  arrivalRailLabel: 'Pickup',
+  arrivalRailWarn: false,
   pickupSummary: 'Hotel lobby, 08:30',
+  arrivalSectionLabel: 'Accommodation pickup',
   durationLabel: '2 hours',
   guestNotes: null,
   warning: null,
-  needsReview: false,
-  guestTotalLabel: '€120.00',
-  earningsLabel: '€102.00',
-  earningsLoading: false,
+  needsAcknowledge: false,
+  guestPaidLabel: '€119.00',
+  commissionLabel: '€17.85',
+  commissionRateLabel: '15%',
+  earningsLabel: '€101.15',
+  financeLoading: false,
   paymentLabel: 'Paid',
 };
 
-describe('Bookings luxury redesign V2 — tour ops card', () => {
-  it('wires TourOpsBookingCard and partner-bookings-workspace into SupplierBookings', () => {
+describe('Bookings V4 — tour ops card & detail page', () => {
+  it('wires TourOpsBookingCard, detail page, and partner-bookings-workspace', () => {
     const src = readFileSync(resolve(__dirname, 'SupplierBookings.tsx'), 'utf8');
     expect(src).toContain("from '../../components/supplier/TourOpsBookingCard'");
+    expect(src).toContain("from '../../components/supplier/TourOpsBookingDetail'");
     expect(src).toContain('partner-bookings-workspace');
     expect(src).toContain('partner-bookings-workspace__controls');
-    expect(src).toContain('partner-bookings-workspace__filters');
     expect(src).toContain('expandedTourId');
-    expect(src).toContain('Manage your reservations, guests, departures, and booking details.');
-    expect(src).not.toContain("badge={isStayDesk ? null : 'Operate'}");
-    expect(src).toContain('badge={null}');
+    expect(src).toContain('tourDetailMode');
+    expect(src).toContain('resolvePartnerArrivalDisplay');
+    expect(src).toContain('partnerBookingDeskPath');
+    expect(src).not.toContain('Mark as reviewed');
+    expect(src).toContain('Acknowledge');
     expect(src).toContain('openSupplierInbox(booking.id)');
-    expect(src).toContain('earningsLabel: tourExpanded ? expandedEarningsLabel : null');
     const card = readFileSync(
       resolve(__dirname, '../../components/supplier/TourOpsBookingCard.tsx'),
       'utf8'
     );
     expect(card).toContain('Supplier earnings');
-    expect(card).toContain('Lead guest');
+    expect(card).toContain('Customer paid');
+    expect(card).toContain('Traverion commission');
     expect(card).toContain('Message guest');
-    expect(card).not.toContain('Booking total');
+    expect(card).not.toContain('Mark as reviewed');
     expect(card).toContain('tour-ops-card__pickup');
     expect(card).toContain('tour-ops-card__rail-stack');
   });
@@ -64,10 +70,11 @@ describe('Bookings luxury redesign V2 — tour ops card', () => {
     const css = readFileSync(resolve(__dirname, '../../index.css'), 'utf8');
     expect(css).toContain('.partner-bookings-workspace');
     expect(css).toContain('.tour-ops-card');
+    expect(css).toContain('.tour-ops-detail');
     expect(css).toContain('prefers-reduced-motion');
     expect(css).toContain('One horizontal desktop row');
     expect(css).toContain('flex-wrap: nowrap');
-    expect(css).toContain('.tour-ops-card__summary');
+    expect(css).toContain('.tour-ops-card__summary-grid');
     expect(css).toContain('.tour-ops-card__pickup');
   });
 
@@ -83,7 +90,7 @@ describe('Bookings luxury redesign V2 — tour ops card', () => {
     expect(src).toContain('expandedStayId');
   });
 
-  it('keeps guest name out of the collapsed scan row and puts Pickup under status', () => {
+  it('keeps guest name out of the collapsed scan row and puts arrival under status', () => {
     const html = renderToStaticMarkup(
       createElement(TourOpsBookingCard, {
         model: baseModel,
@@ -107,11 +114,10 @@ describe('Bookings luxury redesign V2 — tour ops card', () => {
     expect(collapsed).not.toContain('Ada Lovelace');
     expect(collapsed).toContain('tour-ops-card__pickup');
     expect(collapsed).toContain('Pickup');
-    expect(collapsed).not.toContain('Meeting point');
     expect(html).toContain('aria-expanded="false"');
   });
 
-  it('shows a minimal expanded summary with earnings and guest contact', () => {
+  it('shows minimal expanded summary with financial breakdown', () => {
     const html = renderToStaticMarkup(
       createElement(TourOpsBookingCard, {
         model: baseModel,
@@ -124,14 +130,16 @@ describe('Bookings luxury redesign V2 — tour ops card', () => {
         onCopyReference: () => undefined,
       })
     );
-    expect(html).toContain('Lead guest');
     expect(html).toContain('Ada Lovelace');
     expect(html).toContain('+358 40 123 4567');
-    expect(html).toContain('Participants');
+    expect(html).toContain('Customer paid');
+    expect(html).toContain('€119.00');
+    expect(html).toContain('Traverion commission');
+    expect(html).toContain('15%');
+    expect(html).toContain('−€17.85');
     expect(html).toContain('Supplier earnings');
-    expect(html).toContain('€102.00');
-    expect(html).not.toContain('Booking total');
-    expect(html).not.toContain('Guest &amp; reservation');
+    expect(html).toContain('€101.15');
+    expect(html).not.toContain('Mark as reviewed');
     expect(html).toContain('View details');
     expect(html).toContain('Message guest');
     expect(html).toContain('aria-expanded="true"');

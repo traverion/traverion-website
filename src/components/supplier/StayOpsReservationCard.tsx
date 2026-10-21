@@ -206,7 +206,7 @@ export default function StayOpsReservationCard({
               title="Informational only — does not change payment or confirmation"
               onClick={onMarkReviewed}
             >
-              {busy ? 'Saving…' : 'Mark as reviewed'}
+              {busy ? 'Saving…' : 'Acknowledge'}
             </button>
           ) : null}
         </div>

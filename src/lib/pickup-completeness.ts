@@ -80,8 +80,8 @@ export function resolveBookingPickupCopy(params: {
   const opts = params.bookingOptions ?? [];
   const opt = oid ? opts.find((o) => o.id === oid) : null;
   const optionMeeting = (opt?.pickupPlace ?? '').trim();
-  const optionInstructions =
-    (opt?.travelerStartInstructions ?? '').trim() || (opt?.optionInfo ?? '').trim();
+  // Never fall back to optionInfo — that field is marketing/inclusions, not arrival copy.
+  const optionInstructions = (opt?.travelerStartInstructions ?? '').trim();
   const listingMeeting = (params.listingMeetingPoint ?? '').trim();
   const listingInstructions = (params.listingPickupInstructions ?? '').trim();
   return {

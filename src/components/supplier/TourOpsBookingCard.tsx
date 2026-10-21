@@ -1,5 +1,5 @@
 /**
- * Expandable tour booking row — spacious scan row with minimal inline details.
+ * Expandable tour booking row — scan row + minimal inline ops details.
  */
 import { type MouseEvent, type ReactNode } from 'react';
 import { CalendarDays, ChevronDown, Copy, Mail, MapPin, Users } from 'lucide-react';
@@ -19,15 +19,20 @@ export type TourOpsCardModel = {
   statusClass: string;
   referenceLabel: string;
   purchaseDateLabel: string | null;
-  pickupKind: 'pickup' | 'meeting' | null;
+  /** Right-rail arrival indicator */
+  arrivalRailLabel: string | null;
+  arrivalRailWarn?: boolean;
   pickupSummary: string | null;
+  arrivalSectionLabel: string;
   durationLabel: string | null;
   guestNotes: string | null;
   warning: string | null;
-  needsReview: boolean;
-  guestTotalLabel: string | null;
+  needsAcknowledge: boolean;
+  guestPaidLabel: string | null;
+  commissionLabel: string | null;
+  commissionRateLabel: string | null;
   earningsLabel: string | null;
-  earningsLoading: boolean;
+  financeLoading: boolean;
   paymentLabel: string;
 };
 
@@ -40,7 +45,7 @@ type Props = {
   onToggleExpand: () => void;
   onOpenDetails: () => void;
   onMessageGuest: () => void;
-  onMarkReviewed?: () => void;
+  onAcknowledge?: () => void;
   onCopyReference: () => void;
   copied?: boolean;
 };
@@ -54,25 +59,14 @@ export default function TourOpsBookingCard({
   onToggleExpand,
   onOpenDetails,
   onMessageGuest,
-  onMarkReviewed,
+  onAcknowledge,
   onCopyReference,
   copied,
 }: Props) {
   const stop = (e: MouseEvent) => e.stopPropagation();
-  const showPickupRail = model.pickupKind === 'pickup';
-  const pickupNeedsAttention = model.warning === 'Pickup details missing';
-  const pickupRailLabel = pickupNeedsAttention ? 'Pickup missing' : 'Pickup';
-  const pickupDetailLabel =
-    model.pickupKind === 'pickup'
-      ? 'Pickup'
-      : model.pickupKind === 'meeting'
-        ? 'Meeting point'
-        : 'Pickup / Meeting';
   const actionableNote =
     model.warning && model.warning !== 'Pickup details missing' ? model.warning : null;
-  const showGuestNotes =
-    Boolean(model.guestNotes) &&
-    (model.pickupKind === 'pickup' || Boolean(actionableNote));
+  const showGuestNotes = Boolean(model.guestNotes) && (model.arrivalRailWarn || Boolean(actionableNote));
 
   return (
     <article
@@ -113,15 +107,15 @@ export default function TourOpsBookingCard({
               <div className="tour-ops-card__rail">
                 <div className="tour-ops-card__rail-stack">
                   <span className={`tour-ops-card__status ${model.statusClass}`}>{model.statusLabel}</span>
-                  {showPickupRail ? (
+                  {model.arrivalRailLabel ? (
                     <span
                       className={`tour-ops-card__pickup${
-                        pickupNeedsAttention ? ' tour-ops-card__pickup--warn' : ''
+                        model.arrivalRailWarn ? ' tour-ops-card__pickup--warn' : ''
                       }`}
-                      title={model.pickupSummary || pickupRailLabel}
+                      title={model.pickupSummary || model.arrivalRailLabel}
                     >
                       <MapPin className="h-3 w-3 shrink-0" aria-hidden />
-                      {pickupRailLabel}
+                      {model.arrivalRailLabel}
                     </span>
                   ) : null}
                 </div>
@@ -182,54 +176,65 @@ export default function TourOpsBookingCard({
       </div>
 
       <div className="tour-ops-card__panel" hidden={!expanded} onClick={stop}>
-        <dl className="tour-ops-card__summary">
-          <div>
-            <dt>Lead guest</dt>
-            <dd>
-              <span className="tour-ops-card__summary-name">{model.guestName}</span>
-              {model.guestPhone ? (
-                <a
-                  href={`tel:${model.guestPhone.replace(/[^\d+]/g, '')}`}
-                  className="tour-ops-card__summary-phone"
-                >
-                  {model.guestPhone}
-                </a>
-              ) : null}
-            </dd>
-          </div>
-          <div>
-            <dt>Participants</dt>
-            <dd>{model.participantLabel}</dd>
-          </div>
-          {model.pickupSummary || model.pickupKind ? (
-            <div>
-              <dt>{pickupDetailLabel}</dt>
-              <dd>
-                {model.pickupSummary ||
-                  (pickupNeedsAttention ? 'Pickup details missing' : '—')}
-                {showGuestNotes && model.guestNotes ? (
-                  <span className="tour-ops-card__summary-note">{model.guestNotes}</span>
-                ) : null}
-              </dd>
-            </div>
-          ) : null}
-          <div>
-            <dt>Supplier earnings</dt>
-            <dd className="tabular-nums">
-              {model.earningsLoading
-                ? 'Loading…'
-                : model.earningsLabel
-                  ? model.earningsLabel
-                  : 'Unavailable'}
-            </dd>
-          </div>
-          {actionableNote ? (
-            <div>
-              <dt>Attention</dt>
-              <dd className="tour-ops-card__summary-attention">{actionableNote}</dd>
-            </div>
-          ) : null}
-        </dl>
+        <div className="tour-ops-card__summary-grid">
+          <section className="tour-ops-card__summary-block">
+            <h3 className="tour-ops-card__summary-heading">Guest</h3>
+            <p className="tour-ops-card__summary-name">{model.guestName}</p>
+            {model.guestPhone ? (
+              <a
+                href={`tel:${model.guestPhone.replace(/[^\d+]/g, '')}`}
+                className="tour-ops-card__summary-phone"
+              >
+                {model.guestPhone}
+              </a>
+            ) : null}
+            <p className="tour-ops-card__summary-meta">{model.participantLabel}</p>
+          </section>
+
+          <section className="tour-ops-card__summary-block">
+            <h3 className="tour-ops-card__summary-heading">{model.arrivalSectionLabel}</h3>
+            <p className="tour-ops-card__summary-value">
+              {model.pickupSummary ||
+                (model.arrivalRailWarn ? 'Pickup location needed' : '—')}
+            </p>
+            {showGuestNotes && model.guestNotes ? (
+              <p className="tour-ops-card__summary-note">{model.guestNotes}</p>
+            ) : null}
+          </section>
+
+          <section className="tour-ops-card__summary-block tour-ops-card__summary-block--finance">
+            <h3 className="tour-ops-card__summary-heading">Payment</h3>
+            {model.financeLoading ? (
+              <p className="tour-ops-card__summary-meta">Loading…</p>
+            ) : (
+              <dl className="tour-ops-card__finance">
+                <div>
+                  <dt>Customer paid</dt>
+                  <dd className="tabular-nums">{model.guestPaidLabel || 'Unavailable'}</dd>
+                </div>
+                <div>
+                  <dt>
+                    Traverion commission
+                    {model.commissionRateLabel ? ` (${model.commissionRateLabel})` : ''}
+                  </dt>
+                  <dd className="tabular-nums">
+                    {model.commissionLabel ? `−${model.commissionLabel}` : 'Unavailable'}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Supplier earnings</dt>
+                  <dd className="tabular-nums tour-ops-card__finance-earn">
+                    {model.earningsLabel || 'Unavailable'}
+                  </dd>
+                </div>
+              </dl>
+            )}
+          </section>
+        </div>
+
+        {actionableNote ? (
+          <p className="tour-ops-card__summary-attention">{actionableNote}</p>
+        ) : null}
 
         <div className="tour-ops-card__actions">
           <button type="button" className="tv-btn-primary h-8 !px-3 text-[12.5px]" onClick={onMessageGuest}>
@@ -239,15 +244,14 @@ export default function TourOpsBookingCard({
           <button type="button" className="tv-btn-secondary h-8 !px-3 text-[12.5px]" onClick={onOpenDetails}>
             View details
           </button>
-          {model.needsReview && onMarkReviewed ? (
+          {model.needsAcknowledge && onAcknowledge ? (
             <button
               type="button"
               disabled={busy}
               className="tv-btn-ghost h-8 !px-2.5 text-[12.5px] disabled:opacity-50"
-              title="Informational only — does not change payment or confirmation"
-              onClick={onMarkReviewed}
+              onClick={onAcknowledge}
             >
-              {busy ? 'Saving…' : 'Mark as reviewed'}
+              {busy ? 'Saving…' : 'Acknowledge'}
             </button>
           ) : null}
         </div>

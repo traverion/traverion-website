@@ -282,8 +282,8 @@ export function resolveMeetingPointForSnapshot(input: {
 }
 
 /**
- * Prefer option traveler start instructions, then legacy optionInfo,
- * then listing pickup_instructions denormalization.
+ * Prefer option traveler start instructions, then listing pickup_instructions.
+ * Never use optionInfo — that field is marketing/inclusions, not arrival copy.
  */
 export function resolvePickupInstructionsForSnapshot(input: {
   travelerStartInstructions?: string | null;
@@ -292,8 +292,6 @@ export function resolvePickupInstructionsForSnapshot(input: {
 }): string | null {
   const dedicated = (input.travelerStartInstructions ?? '').trim();
   if (dedicated) return dedicated;
-  const fromOption = (input.optionInfo ?? '').trim();
-  if (fromOption) return fromOption;
   const fromListing = (input.listingPickupInstructions ?? '').trim();
   return fromListing || null;
 }

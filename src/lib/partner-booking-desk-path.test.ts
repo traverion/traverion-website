@@ -2,15 +2,15 @@ import { describe, expect, it } from 'vitest';
 import {
   partnerBookingDeskPath,
   partnerBookingDeskPathPreservingSearch,
+  parsePartnerBookingIdFromPath,
+  readPartnerBookingIdFromLocation,
 } from './partner-booking-desk-path';
 
 describe('partnerBookingDeskPath', () => {
-  it('routes tours to Bookings and stays to Reservations', () => {
-    expect(partnerBookingDeskPath({ isStay: false, bookingId: 'b1' })).toBe(
-      '/partner/bookings?booking=b1'
-    );
+  it('routes tours to Bookings and stays to Reservations with path ids', () => {
+    expect(partnerBookingDeskPath({ isStay: false, bookingId: 'b1' })).toBe('/partner/bookings/b1');
     expect(partnerBookingDeskPath({ isStay: true, bookingId: 'b2' })).toBe(
-      '/partner/reservations?booking=b2'
+      '/partner/reservations/b2'
     );
   });
 
@@ -21,6 +21,17 @@ describe('partnerBookingDeskPath', () => {
         bookingId: 'stay-1',
         currentSearch: '?ops=cancel&view=all',
       })
-    ).toBe('/partner/reservations?ops=cancel&view=all&booking=stay-1');
+    ).toBe('/partner/reservations/stay-1?ops=cancel&view=all');
+  });
+
+  it('reads booking ids from path and legacy query', () => {
+    expect(parsePartnerBookingIdFromPath('/partner/bookings/abc-123')).toBe('abc-123');
+    expect(parsePartnerBookingIdFromPath('/partner/reservations/stay-9')).toBe('stay-9');
+    expect(readPartnerBookingIdFromLocation('/partner/bookings', '?booking=legacy-1')).toBe(
+      'legacy-1'
+    );
+    expect(readPartnerBookingIdFromLocation('/partner/bookings/path-1', '?booking=legacy-1')).toBe(
+      'path-1'
+    );
   });
 });

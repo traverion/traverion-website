@@ -14,8 +14,8 @@ describe('Stay Reservations premium UX contracts', () => {
     expect(bookings).toContain('StayOpsReservationCard');
     expect(bookings).toContain('stay-ops-detail-page');
     expect(bookings).toContain('stay-ops-detail__grid');
-    expect(bookings).toContain("variant={isStayDesk ? 'page' : 'drawer'}");
-    expect(bookings).toContain('Mark as reviewed');
+    expect(bookings).toContain('variant="page"');
+    expect(bookings).toContain('Acknowledge');
     expect(bookings).toContain('Message guest');
     expect(bookings).toContain('does not change payment or confirmation');
     expect(bookings).toContain('stay-calendar?listing=');

@@ -272,13 +272,19 @@ describe('resolveOptionFieldsForSnapshot (checkout freeze helpers)', () => {
     ).toBe('Wait outside the lobby 10 minutes early. Look for Van B.');
   });
 
-  it('falls back to legacy optionInfo when travelerStartInstructions is absent', () => {
+  it('does not freeze marketing optionInfo as pickup instructions', () => {
     expect(
       resolvePickupInstructionsForSnapshot({
-        optionInfo: 'Van B — look for Traverion',
+        optionInfo: 'Juice and cookies',
         listingPickupInstructions: 'Listing-level note',
       })
-    ).toBe('Van B — look for Traverion');
+    ).toBe('Listing-level note');
+    expect(
+      resolvePickupInstructionsForSnapshot({
+        optionInfo: 'Juice and cookies',
+        listingPickupInstructions: null,
+      })
+    ).toBeNull();
   });
 
   it('freezes STANDARD cancellation when listing column is blank', () => {
