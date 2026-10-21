@@ -29,6 +29,7 @@ import { fetchListingOpsByIds } from '../data/supabase-listings';
 import { useAuth } from '../contexts/AuthContext';
 import { LISTING_SELF_BOOK_BLOCKED, LISTING_SELF_BOOK_CHECK_FAILED, viewerIsListingSupplierSide } from '../lib/listing-self-book';
 import { failCloseOrphanStayCheckout } from '../lib/marketplaceBrowse';
+import { trackListingTraffic } from '../lib/listing-traffic';
 import { quoteStayNights, stayQuotePriceLines, experienceTodayIsoForListing } from '../lib/booking-quote';
 import { stayDateRangesOverlap, occupiedNightsFromStayRanges, nightsOccupiedByStay } from '../lib/stayOccupancy';
 import {
@@ -637,12 +638,17 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
     });
   };
 
+  useEffect(() => {
+    if (stay?.id && !reviewOnlyAccess) trackListingTraffic(stay.id, 'view');
+  }, [stay?.id, reviewOnlyAccess]);
+
   const startStayCheckout = async () => {
     const timing = createCheckoutTiming();
     if (!stay || !stayQuote?.ok) {
       document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
     }
+    trackListingTraffic(stay.id, 'book_start');
     // Phase 1731: review-only draft hydrate must not open Stripe.
     if (reviewOnlyAccess) {
       setPayError('This stay is no longer bookable. You can still leave a review below.');

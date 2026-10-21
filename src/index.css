@@ -6531,6 +6531,240 @@ details:not([open]) > :not(summary) {
   color: #1c1917;
 }
 
+/* Partner Analytics workspace */
+.tv-analytics {
+  --tv-analytics-navy: #073b83;
+  --tv-analytics-ink: #18181b;
+  --tv-analytics-muted: #71717a;
+  --tv-analytics-border: #e5e7eb;
+  gap: 1rem;
+}
+
+.tv-analytics-tabs {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--tv-analytics-border);
+  padding-bottom: 1px;
+  scrollbar-width: thin;
+}
+
+.tv-analytics-tabs button {
+  height: 36px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 8px 8px 0 0;
+  background: transparent;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #52525b;
+  transition: color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+}
+
+.tv-analytics-tabs button[aria-selected='true'] {
+  color: var(--tv-analytics-navy);
+  background: #f0f4fa;
+  box-shadow: inset 0 -2px 0 var(--tv-analytics-navy);
+}
+
+.tv-analytics-tabs button:hover {
+  color: var(--tv-analytics-ink);
+}
+
+.tv-analytics-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px 12px;
+}
+
+.tv-analytics-filters label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tv-analytics-muted);
+}
+
+.tv-analytics-filters .tv-input {
+  margin-top: 4px;
+  height: 40px;
+  min-height: 40px;
+  box-shadow: none;
+  border-radius: 8px;
+}
+
+.tv-analytics-delta {
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.tv-analytics-delta--up {
+  color: #047857;
+}
+
+.tv-analytics-delta--down {
+  color: #b91c1c;
+}
+
+.tv-analytics-delta--flat {
+  color: var(--tv-analytics-muted);
+}
+
+.tv-analytics-panel {
+  border: 1px solid var(--tv-analytics-border);
+  border-radius: 10px;
+  background: #fff;
+  padding: 14px 16px;
+}
+
+.tv-analytics-panel__title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--tv-analytics-ink);
+}
+
+.tv-analytics-chart {
+  position: relative;
+  min-height: 180px;
+}
+
+.tv-analytics-chart--empty {
+  display: grid;
+  place-items: center;
+  color: var(--tv-analytics-muted);
+  font-size: 13px;
+  border: 1px dashed var(--tv-analytics-border);
+  border-radius: 10px;
+}
+
+.tv-analytics-chart__axis {
+  font-size: 10px;
+  fill: #71717a;
+}
+
+.tv-analytics-chart__tip {
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--tv-analytics-ink);
+}
+
+.tv-analytics-bars ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.tv-analytics-bars__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.tv-analytics-bars__label {
+  font-weight: 600;
+  color: var(--tv-analytics-ink);
+}
+
+.tv-analytics-bars__value {
+  font-variant-numeric: tabular-nums;
+  color: #3f3f46;
+}
+
+.tv-analytics-bars__secondary {
+  color: var(--tv-analytics-muted);
+  font-weight: 500;
+}
+
+.tv-analytics-bars__track {
+  height: 8px;
+  border-radius: 999px;
+  background: #f4f4f5;
+  overflow: hidden;
+}
+
+.tv-analytics-bars__fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--tv-analytics-navy);
+}
+
+.tv-analytics-empty {
+  border: 1px solid var(--tv-analytics-border);
+  border-radius: 10px;
+  background: #fff;
+  padding: 1.5rem 1.25rem;
+  text-align: center;
+}
+
+.tv-analytics-sort {
+  border: 0;
+  background: transparent;
+  padding: 10px 12px;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  cursor: pointer;
+}
+
+.tv-analytics-funnel {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.tv-analytics-funnel__step {
+  border: 1px solid var(--tv-analytics-border);
+  border-radius: 10px;
+  padding: 12px;
+  background: #fff;
+}
+
+.tv-analytics-funnel__step strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.tv-analytics-funnel__rate {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--tv-analytics-muted);
+}
+
+.tv-analytics-highlights {
+  display: grid;
+  gap: 8px;
+}
+
+.tv-analytics-highlights li {
+  border: 1px solid var(--tv-analytics-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: #3f3f46;
+  background: #fff;
+}
+
+@media (max-width: 720px) {
+  .tv-analytics-funnel {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tv-analytics-tabs button {
+    transition: none;
+  }
+}
+
 /* Phase 1819: booking message bubbles + composer */
 .tv-msg-bubble {
   border-radius: 0.85rem;

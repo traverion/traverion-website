@@ -116,6 +116,9 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
       if (tour.city) {
         recordTravelerInterest({ kind: 'destination_view', key: tour.city, family: 'destination' });
       }
+      void import('../lib/listing-traffic').then(({ trackListingTraffic }) => {
+        trackListingTraffic(tour.id, 'impression');
+      });
       setInterestSignals(readTravelerInterestSignals());
       onTourSelect(tour);
     },

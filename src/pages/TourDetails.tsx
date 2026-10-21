@@ -19,6 +19,7 @@ import { getListingById, getListingByIdAsync } from '../data/listings';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { analytics } from '../lib/analytics';
+import { trackListingTraffic } from '../lib/listing-traffic';
 import { TourPackage } from '../types/tour';
 import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
 import { getDisplayPriceForTour, isSupabaseListingId } from '../lib/discount-display';
@@ -1381,8 +1382,13 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
     }
   };
 
+  useEffect(() => {
+    if (tour?.id && !reviewOnlyAccess) trackListingTraffic(tour.id, 'view');
+  }, [tour?.id, reviewOnlyAccess]);
+
   const handleContinueToCheckout = async () => {
     if (!tour || !selectedBookingVariant) return;
+    trackListingTraffic(tour.id, 'book_start');
     if (selfBookBlocked) {
       setBookingCardError(LISTING_SELF_BOOK_BLOCKED);
       return;

@@ -10,11 +10,12 @@ describe('Phase 1817: Analytics metric hierarchy', () => {
     expect(css).toContain('.tv-metric-tile__value');
   });
 
-  it('SupplierPerformance uses metric tiles and display listing revenue', () => {
+  it('SupplierPerformance uses metric tiles and Analytics sections', () => {
     const src = readFileSync(resolve(__dirname, 'SupplierPerformance.tsx'), 'utf8');
     expect(src).toContain('tv-metric-tile');
     expect(src).toContain('tv-metric-tile__value');
-    expect(src).toContain('font-display text-[1.125rem]');
-    expect(src).not.toContain('rounded-lg border border-black/[0.06] bg-paper px-3 py-2.5');
+    expect(src).toContain('ANALYTICS_SECTIONS');
+    expect(src).toContain("section === 'summary'");
+    expect(src).toContain("section === 'score'");
   });
 });
