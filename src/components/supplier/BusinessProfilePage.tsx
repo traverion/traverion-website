@@ -31,6 +31,7 @@ import {
 } from '../../lib/supplierLegalTemplates';
 import { SUPPLIER_PAGE_CLASS, SupplierPageHero } from './supplierUi';
 import PartnerSelect from './PartnerSelect';
+import PartnerConfirmModal from './PartnerConfirmModal';
 import SupplierTeamPanel from './SupplierTeamPanel';
 import NoticeCallout from '../NoticeCallout';
 import StatusChip from '../StatusChip';
@@ -44,7 +45,16 @@ import {
   partnerPayoutReviewState,
   partnerPayoutStatusChip,
 } from '../../lib/partnerVerificationStatus';
-import { InfoRow, ProfileCard, SaveBar, profileInputClass } from './businessProfileUi';
+import {
+  BUSINESS_SETTINGS_CONTENT_CLASS,
+  InfoGrid,
+  InfoRow,
+  PolicyDocRow,
+  ProfileCard,
+  SaveBar,
+  Subsection,
+  profileInputClass,
+} from './businessProfileUi';
 
 export type BusinessProfileTab = 'company' | 'legal' | 'team';
 
@@ -149,9 +159,12 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
   const [insuranceLocalError, setInsuranceLocalError] = useState<string | null>(null);
   const [policyDraft, setPolicyDraft] = useState('');
   const [policyDirty, setPolicyDirty] = useState(false);
+  const policyDirtyRef = useRef(false);
   const [policyConfirmTemplate, setPolicyConfirmTemplate] = useState(false);
   const [policySaving, setPolicySaving] = useState(false);
   const [policySaveError, setPolicySaveError] = useState<string | null>(null);
+  const [policyDiscardOpen, setPolicyDiscardOpen] = useState(false);
+  const [policySaveOk, setPolicySaveOk] = useState(false);
 
   const { role } = useSupplierRole();
   const canEditProfile = canManageBookings(role);
@@ -212,15 +225,24 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
   }, [p.companyRegistrationPath]);
 
   useEffect(() => {
+    policyDirtyRef.current = policyDirty;
+  }, [policyDirty]);
+
+  useEffect(() => {
     if (!p.legalDocModal) {
       setPolicyDirty(false);
+      policyDirtyRef.current = false;
       setPolicyConfirmTemplate(false);
       setPolicySaveError(null);
+      setPolicySaveOk(false);
+      setPolicyDiscardOpen(false);
       return;
     }
     const initial = p.legalDocModal === 'privacy' ? p.privacyPolicyText : p.termsConditionsText;
     setPolicyDraft(initial);
     setPolicyDirty(false);
+    policyDirtyRef.current = false;
+    setPolicySaveOk(false);
     const html = document.documentElement;
     const body = document.body;
     const prevHtmlOverflow = html.style.overflow;
@@ -231,8 +253,9 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
     const scrollY = window.scrollY;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
-      if (policyDirty) {
-        if (!window.confirm('Discard unsaved changes?')) return;
+      if (policyDirtyRef.current) {
+        setPolicyDiscardOpen(true);
+        return;
       }
       p.setLegalDocModal(null);
     };
@@ -272,15 +295,55 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
       active ? 'text-finland' : 'text-ink-muted hover:text-ink'
     }`;
 
-  const closePolicyEditor = () => {
-    if (policyDirty && !window.confirm('Discard unsaved changes?')) return;
+  const requestClosePolicyEditor = () => {
+    if (policyDirty) {
+      setPolicyDiscardOpen(true);
+      return;
+    }
     p.setLegalDocModal(null);
   };
 
+  const discardPolicyEditor = () => {
+    setPolicyDiscardOpen(false);
+    setPolicyDirty(false);
+    policyDirtyRef.current = false;
+    p.setLegalDocModal(null);
+  };
+
+  const insertPolicyTemplate = () => {
+    if (policyDraft.trim()) {
+      setPolicyConfirmTemplate(true);
+      return;
+    }
+    applyPolicyTemplate();
+  };
+
+  const applyPolicyTemplate = () => {
+    const address = formatSupplierBusinessAddressFromParts({
+      address_street: p.addressStreet,
+      address_postal_code: p.addressPostalCode,
+      address_city: p.addressCity,
+      address_country: p.addressCountry,
+    });
+    const raw = applyLegalDate(
+      p.legalDocModal === 'privacy' ? defaultPrivacyPolicyTemplate() : defaultTermsConditionsTemplate()
+    );
+    const next = applyLegalPlaceholders(raw, {
+      operatorName: p.operatorDisplayName,
+      businessAddress: address,
+    });
+    setPolicyDraft(next);
+    setPolicyDirty(true);
+    policyDirtyRef.current = true;
+    setPolicyConfirmTemplate(false);
+    setPolicySaveOk(false);
+  };
+
   const savePolicyFromEditor = async () => {
-    if (!p.user?.id || !p.legalDocModal || !canEditProfile) return;
+    if (!p.user?.id || !p.legalDocModal || !canEditProfile || policySaving) return;
     setPolicySaving(true);
     setPolicySaveError(null);
+    setPolicySaveOk(false);
     const key = p.legalDocModal === 'privacy' ? 'privacy_policy_text' : 'terms_conditions_text';
     const value = policyDraft.trim() || null;
     const res = await patchSupplierProfile(p.user.id, { [key]: value });
@@ -292,7 +355,8 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
     if (p.legalDocModal === 'privacy') p.setPrivacyPolicyText(policyDraft);
     else p.setTermsConditionsText(policyDraft);
     setPolicyDirty(false);
-    p.setLegalDocModal(null);
+    policyDirtyRef.current = false;
+    setPolicySaveOk(true);
   };
 
   const insuranceHasData = Boolean(
@@ -356,12 +420,13 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
       <SupplierPageHero
+        sansTitle
         title="Business settings"
         description="Manage your business identity, legal information, and account access."
       >
         <div className="mt-3 flex flex-wrap items-center gap-2" aria-label="Verification status">
           <StatusChip tone={busChip.tone}>{busChip.label}</StatusChip>
-          {payChip.label ? <StatusChip tone={payChip.tone}>{payChip.label}</StatusChip> : null}
+          <StatusChip tone={payChip.tone}>{payChip.label}</StatusChip>
         </div>
         {!canEditProfile ? (
           <NoticeCallout tone="info" className="mt-4">
@@ -395,32 +460,46 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
       </SupplierPageHero>
 
       {p.businessProfileTab === 'company' && (
-        <div className="mx-auto w-full max-w-3xl space-y-5">
+        <div className={`${BUSINESS_SETTINGS_CONTENT_CLASS} space-y-4`}>
           <ProfileCard id="supplier-business-company" title="Brand identity">
-            <div className="rounded-xl bg-paper-raised/80 ring-1 ring-black/[0.05] px-3.5 py-3">
-              <div className="flex items-start gap-2">
-                {brandLocked ? <Lock className="h-4 w-4 text-ink-faint mt-0.5 shrink-0" aria-hidden /> : null}
-                <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Brand name</p>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-black/[0.04] ring-1 ring-black/[0.06]">
+                {p.businessLogoUrl ? (
+                  <img src={p.businessLogoUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <Building2 className="h-7 w-7 text-ink-faint" aria-hidden />
+                )}
+              </div>
+              <div className="min-w-0 flex-1 space-y-3">
+                <div>
                   {brandLocked ? (
                     <>
-                      <p className="mt-1 text-[17px] font-semibold tracking-tight text-ink">
-                        {p.profileDisplayName.trim() || '—'}
-                      </p>
-                      <p className="mt-1.5 text-[13px] text-ink-muted leading-snug">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-[17px] font-semibold tracking-tight text-ink">
+                          {p.profileDisplayName.trim() || '—'}
+                        </p>
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-ink-muted">
+                          <Lock className="h-3 w-3" aria-hidden />
+                          Verified
+                        </span>
+                      </div>
+                      <p className="mt-1 text-[13px] leading-snug text-ink-muted">
                         Your verified business name.{' '}
                         <button
                           type="button"
                           className="font-medium text-finland hover:underline"
                           onClick={() => p.handleNavigate('support')}
                         >
-                          Contact Traverion Support
+                          Contact Support
                         </button>{' '}
                         to request a change.
                       </p>
                     </>
                   ) : (
                     <>
+                      <label htmlFor="supplier-brand-display-name" className="mb-1 block text-[13px] font-medium text-ink">
+                        Brand name
+                      </label>
                       <input
                         id="supplier-brand-display-name"
                         type="text"
@@ -432,7 +511,7 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
                           setBrandSaveOk(false);
                         }}
                         placeholder="e.g. Royal Nordic"
-                        className={`${profileInputClass(!canEditProfile)} mt-1.5`}
+                        className={profileInputClass(!canEditProfile)}
                         autoComplete="organization"
                       />
                       <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -441,7 +520,7 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
                           disabled={!canEditProfile || brandSaving}
                           className="tv-btn-secondary h-9 px-3 text-[13px] disabled:opacity-50"
                           onClick={async () => {
-                            if (!p.user?.id) return;
+                            if (!p.user?.id || brandSaving) return;
                             const next = p.profileDisplayName.trim();
                             if (!next) {
                               setBrandSaveError('Enter your brand name.');
@@ -474,90 +553,76 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
                     </>
                   )}
                 </div>
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-              <div className="w-20 h-20 rounded-xl bg-black/[0.04] overflow-hidden flex items-center justify-center flex-shrink-0 ring-1 ring-black/[0.06]">
-                {p.businessLogoUrl ? (
-                  <img src={p.businessLogoUrl} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <Building2 className="w-8 h-8 text-ink-faint" aria-hidden />
-                )}
-              </div>
-              <div className="min-w-0 flex-1 space-y-2">
-                <p className="text-[13px] text-ink-muted">Business logo shown next to your brand on listings.</p>
-                <input
-                  ref={logoInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  className="hidden"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    e.target.value = '';
-                    if (!file || !p.user?.id || !p.isSupabase) return;
-                    setLogoError(null);
-                    setLogoUploading(true);
-                    const { publicUrl, error: upErr } = await uploadSupplierBusinessLogo(p.user.id, file);
-                    if (upErr || !publicUrl) {
+                <div>
+                  <input
+                    ref={logoInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = '';
+                      if (!file || !p.user?.id || !p.isSupabase || logoUploading) return;
+                      setLogoError(null);
+                      setLogoUploading(true);
+                      const { publicUrl, error: upErr } = await uploadSupplierBusinessLogo(p.user.id, file);
+                      if (upErr || !publicUrl) {
+                        setLogoUploading(false);
+                        setLogoError(userFacingError(upErr ?? 'Upload failed.', USER_ERROR.upload));
+                        return;
+                      }
+                      const res = await patchSupplierProfile(p.user.id, { business_logo_url: publicUrl });
                       setLogoUploading(false);
-                      setLogoError(userFacingError(upErr ?? 'Upload failed.', USER_ERROR.upload));
-                      return;
-                    }
-                    const res = await patchSupplierProfile(p.user.id, { business_logo_url: publicUrl });
-                    setLogoUploading(false);
-                    if (res.success) p.setBusinessLogoUrl(publicUrl);
-                    else setLogoError(userFacingError(res.error ?? 'Could not save logo.', USER_ERROR.upload));
-                  }}
-                />
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    disabled={logoUploading || !canEditProfile}
-                    onClick={() => logoInputRef.current?.click()}
-                    className="tv-btn-secondary h-9 px-3 text-[13px] disabled:opacity-50 inline-flex items-center gap-1.5"
-                  >
-                    <ImagePlus className="w-4 h-4" aria-hidden />
-                    {logoUploading ? 'Uploading…' : p.businessLogoUrl ? 'Replace logo' : 'Upload logo'}
-                  </button>
-                  {p.businessLogoUrl ? (
+                      if (res.success) p.setBusinessLogoUrl(publicUrl);
+                      else setLogoError(userFacingError(res.error ?? 'Could not save logo.', USER_ERROR.upload));
+                    }}
+                  />
+                  <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
                       disabled={logoUploading || !canEditProfile}
-                      onClick={async () => {
-                        if (!p.user?.id) return;
-                        setLogoError(null);
-                        setLogoUploading(true);
-                        await removeSupplierBusinessLogoFiles(p.user.id);
-                        const res = await patchSupplierProfile(p.user.id, { business_logo_url: null });
-                        setLogoUploading(false);
-                        if (res.success) p.setBusinessLogoUrl('');
-                        else setLogoError(res.error ?? 'Could not remove logo.');
-                      }}
-                      className="h-9 px-3 rounded-lg text-[13px] font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                      onClick={() => logoInputRef.current?.click()}
+                      className="tv-btn-secondary inline-flex h-9 items-center gap-1.5 px-3 text-[13px] disabled:opacity-50"
                     >
-                      Remove logo
+                      <ImagePlus className="h-4 w-4" aria-hidden />
+                      {logoUploading ? 'Uploading…' : p.businessLogoUrl ? 'Replace logo' : 'Upload logo'}
                     </button>
+                    {p.businessLogoUrl ? (
+                      <button
+                        type="button"
+                        disabled={logoUploading || !canEditProfile}
+                        onClick={async () => {
+                          if (!p.user?.id || logoUploading) return;
+                          setLogoError(null);
+                          setLogoUploading(true);
+                          await removeSupplierBusinessLogoFiles(p.user.id);
+                          const res = await patchSupplierProfile(p.user.id, { business_logo_url: null });
+                          setLogoUploading(false);
+                          if (res.success) p.setBusinessLogoUrl('');
+                          else setLogoError(res.error ?? 'Could not remove logo.');
+                        }}
+                        className="h-9 rounded-lg px-3 text-[13px] font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                      >
+                        Remove logo
+                      </button>
+                    ) : null}
+                  </div>
+                  {logoError ? (
+                    <p className="mt-1.5 text-[12px] text-red-700" role="alert">
+                      {logoError}
+                    </p>
                   ) : null}
                 </div>
-                {logoError ? (
-                  <p className="text-[12px] text-red-700" role="alert">
-                    {logoError}
-                  </p>
-                ) : null}
               </div>
             </div>
 
-            <div>
-              <label htmlFor="supplier-public-description" className="block text-[13px] font-medium text-ink mb-1">
+            <div className="border-t border-black/[0.05] pt-3">
+              <label htmlFor="supplier-public-description" className="mb-1 block text-[13px] font-medium text-ink">
                 Public business description
               </label>
-              <p className="text-[12px] text-ink-muted mb-2">
-                Short introduction for travelers. Shown on your listing pages when provided.
-              </p>
               <textarea
                 id="supplier-public-description"
-                rows={4}
+                rows={3}
                 maxLength={PUBLIC_DESCRIPTION_MAX}
                 value={publicDescription}
                 disabled={!canEditProfile}
@@ -567,245 +632,251 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
                   setDescSaveError(null);
                 }}
                 className={`${profileInputClass(!canEditProfile)} resize-y`}
-                placeholder="Tell travelers what makes your business distinctive…"
+                placeholder="Short introduction for travelers on your listing pages…"
               />
               <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-[11px] text-ink-faint tabular-nums">
+                <p className="tabular-nums text-[12px] text-ink-faint">
                   {publicDescription.length}/{PUBLIC_DESCRIPTION_MAX}
                 </p>
-                <button
-                  type="button"
-                  disabled={!canEditProfile || descSaving}
-                  className="tv-btn-secondary h-9 px-3 text-[13px] disabled:opacity-50"
-                  onClick={async () => {
-                    if (!p.user?.id) return;
-                    setDescSaving(true);
-                    setDescSaveError(null);
-                    setDescSaveOk(false);
-                    const res = await patchSupplierProfile(p.user.id, {
-                      public_description: publicDescription.trim() || null,
-                    });
-                    setDescSaving(false);
-                    if (res.success) setDescSaveOk(true);
-                    else setDescSaveError(userFacingError(res.error ?? 'Could not save.', USER_ERROR.generic));
-                  }}
-                >
-                  {descSaving ? 'Saving…' : 'Save description'}
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  {descSaveOk ? <p className="text-[12px] font-medium text-emerald-800">Saved.</p> : null}
+                  {descSaveError ? (
+                    <p className="text-[12px] text-red-700" role="alert">
+                      {descSaveError}
+                    </p>
+                  ) : null}
+                  <button
+                    type="button"
+                    disabled={!canEditProfile || descSaving}
+                    className="tv-btn-secondary h-9 px-3 text-[13px] disabled:opacity-50"
+                    onClick={async () => {
+                      if (!p.user?.id || descSaving) return;
+                      setDescSaving(true);
+                      setDescSaveError(null);
+                      setDescSaveOk(false);
+                      const res = await patchSupplierProfile(p.user.id, {
+                        public_description: publicDescription.trim() || null,
+                      });
+                      setDescSaving(false);
+                      if (res.success) setDescSaveOk(true);
+                      else setDescSaveError(userFacingError(res.error ?? 'Could not save.', USER_ERROR.generic));
+                    }}
+                  >
+                    {descSaving ? 'Saving…' : 'Save description'}
+                  </button>
+                </div>
               </div>
-              {descSaveOk ? <p className="mt-1 text-[12px] font-medium text-emerald-800">Description saved.</p> : null}
-              {descSaveError ? (
-                <p className="mt-1 text-[12px] text-red-700" role="alert">
-                  {descSaveError}
-                </p>
-              ) : null}
             </div>
           </ProfileCard>
 
           <ProfileCard
-            title="Legal business identity"
+            title="Registered business"
             description={
               businessLocked
                 ? 'Verified details are locked. Contact Support to request changes.'
                 : 'Must match your official registration documents.'
             }
           >
-            {businessLocked ? (
-              <dl>
-                <InfoRow
-                  label="Business type"
-                  value={
-                    p.businessType === 'company'
-                      ? 'Registered company'
-                      : p.businessType === 'individual'
-                        ? 'Individual trader'
-                        : null
-                  }
-                />
-                <InfoRow label="Registered business" value={p.companyLegalName} />
-                {p.businessType === 'company' ? (
-                  <>
-                    <InfoRow label="Registration number" value={p.companyRegistrationNumber} />
-                    <InfoRow label="Managing director" value={p.managingDirectors} />
-                  </>
-                ) : null}
-              </dl>
-            ) : (
-              <div className="space-y-3">
-                <div>
-                  <span id="settings-business-type-label" className="block text-[13px] font-medium text-ink mb-1.5">
-                    Business type
-                  </span>
-                  <PartnerSelect
-                    aria-labelledby="settings-business-type-label"
-                    value={p.businessType}
-                    disabled={identityFieldsDisabled}
-                    onChange={(v) => p.setBusinessType(v as 'company' | 'individual' | '')}
-                    placeholder="Not set"
-                    options={[
-                      { value: '', label: 'Not set' },
-                      { value: 'company', label: 'Registered company' },
-                      { value: 'individual', label: 'Individual trader' },
-                    ]}
+            <Subsection title="Legal identity">
+              {businessLocked ? (
+                <InfoGrid>
+                  <InfoRow
+                    label="Business type"
+                    value={
+                      p.businessType === 'company'
+                        ? 'Registered company'
+                        : p.businessType === 'individual'
+                          ? 'Individual trader'
+                          : null
+                    }
                   />
-                </div>
-                <div>
-                  <label className="block text-[13px] font-medium text-ink mb-1">Registered business name</label>
-                  <input
-                    type="text"
-                    value={p.companyLegalName}
-                    disabled={identityFieldsDisabled}
-                    onChange={(e) => p.setCompanyLegalName(e.target.value)}
-                    className={profileInputClass(identityFieldsDisabled)}
-                  />
-                </div>
-                {p.businessType === 'company' ? (
-                  <>
-                    <div>
-                      <label className="block text-[13px] font-medium text-ink mb-1">Registration number</label>
-                      <input
-                        type="text"
-                        value={p.companyRegistrationNumber}
-                        disabled={identityFieldsDisabled}
-                        onChange={(e) => p.setCompanyRegistrationNumber(e.target.value)}
-                        className={profileInputClass(identityFieldsDisabled)}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[13px] font-medium text-ink mb-1">Managing director</label>
-                      <input
-                        type="text"
-                        value={p.managingDirectors}
-                        disabled={identityFieldsDisabled}
-                        onChange={(e) => p.setManagingDirectors(e.target.value)}
-                        className={profileInputClass(identityFieldsDisabled)}
-                      />
-                    </div>
-                  </>
-                ) : null}
-              </div>
-            )}
-          </ProfileCard>
-
-          <ProfileCard title="Registered address">
-            {businessLocked ? (
-              <dl>
-                <InfoRow label="Street" value={p.addressStreet} />
-                <InfoRow label="City" value={p.addressCity} />
-                <InfoRow label="Postal code" value={p.addressPostalCode} />
-                <InfoRow label="Country" value={p.addressCountry} />
-              </dl>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="sm:col-span-2">
-                  <label className="block text-[13px] font-medium text-ink mb-1">Street address</label>
-                  <input
-                    type="text"
-                    value={p.addressStreet}
-                    disabled={identityFieldsDisabled}
-                    onChange={(e) => p.setAddressStreet(e.target.value)}
-                    className={profileInputClass(identityFieldsDisabled)}
-                  />
-                </div>
-                <div>
-                  <label className="block text-[13px] font-medium text-ink mb-1">City</label>
-                  <input
-                    type="text"
-                    value={p.addressCity}
-                    disabled={identityFieldsDisabled}
-                    onChange={(e) => p.setAddressCity(e.target.value)}
-                    className={profileInputClass(identityFieldsDisabled)}
-                  />
-                </div>
-                <div>
-                  <label className="block text-[13px] font-medium text-ink mb-1">Postal code</label>
-                  <input
-                    type="text"
-                    value={p.addressPostalCode}
-                    disabled={identityFieldsDisabled}
-                    onChange={(e) => p.setAddressPostalCode(e.target.value)}
-                    className={profileInputClass(identityFieldsDisabled)}
-                  />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className="block text-[13px] font-medium text-ink mb-1">Country</label>
-                  <input
-                    type="text"
-                    value={p.addressCountry}
-                    disabled={identityFieldsDisabled}
-                    onChange={(e) => p.setAddressCountry(e.target.value)}
-                    className={profileInputClass(identityFieldsDisabled)}
-                  />
-                </div>
-              </div>
-            )}
-          </ProfileCard>
-
-          <ProfileCard title="Tax information">
-            {businessLocked ? (
-              <dl>
-                {p.businessType === 'individual' ? <InfoRow label="Tax / registration number" value={p.taxId} /> : null}
-                <InfoRow label="VAT ID" value={p.vatId} />
-                {p.businessType === 'company' ? <InfoRow label="Other tax ID" value={p.taxId} /> : null}
-              </dl>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {p.businessType === 'individual' ? (
+                  <InfoRow label="Registered business" value={p.companyLegalName} />
+                  {p.businessType === 'company' ? (
+                    <>
+                      <InfoRow label="Registration number" value={p.companyRegistrationNumber} />
+                      <InfoRow label="Managing director" value={p.managingDirectors} />
+                    </>
+                  ) : null}
+                </InfoGrid>
+              ) : (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="sm:col-span-2">
-                    <label className="block text-[13px] font-medium text-ink mb-1">Tax or registration number</label>
+                    <span id="settings-business-type-label" className="mb-1 block text-[13px] font-medium text-ink">
+                      Business type
+                    </span>
+                    <PartnerSelect
+                      aria-labelledby="settings-business-type-label"
+                      value={p.businessType}
+                      disabled={identityFieldsDisabled}
+                      onChange={(v) => p.setBusinessType(v as 'company' | 'individual' | '')}
+                      placeholder="Not set"
+                      options={[
+                        { value: '', label: 'Not set' },
+                        { value: 'company', label: 'Registered company' },
+                        { value: 'individual', label: 'Individual trader' },
+                      ]}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="mb-1 block text-[13px] font-medium text-ink">Registered business name</label>
                     <input
                       type="text"
-                      value={p.taxId}
+                      value={p.companyLegalName}
                       disabled={identityFieldsDisabled}
-                      onChange={(e) => p.setTaxId(e.target.value)}
+                      onChange={(e) => p.setCompanyLegalName(e.target.value)}
                       className={profileInputClass(identityFieldsDisabled)}
                     />
                   </div>
-                ) : null}
-                <div>
-                  <label className="block text-[13px] font-medium text-ink mb-1">
-                    VAT ID <span className="font-normal text-ink-faint">(optional)</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={p.vatId}
-                    disabled={identityFieldsDisabled}
-                    onChange={(e) => p.setVatId(e.target.value)}
-                    className={profileInputClass(identityFieldsDisabled)}
-                  />
+                  {p.businessType === 'company' ? (
+                    <>
+                      <div>
+                        <label className="mb-1 block text-[13px] font-medium text-ink">Registration number</label>
+                        <input
+                          type="text"
+                          value={p.companyRegistrationNumber}
+                          disabled={identityFieldsDisabled}
+                          onChange={(e) => p.setCompanyRegistrationNumber(e.target.value)}
+                          className={profileInputClass(identityFieldsDisabled)}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[13px] font-medium text-ink">Managing director</label>
+                        <input
+                          type="text"
+                          value={p.managingDirectors}
+                          disabled={identityFieldsDisabled}
+                          onChange={(e) => p.setManagingDirectors(e.target.value)}
+                          className={profileInputClass(identityFieldsDisabled)}
+                        />
+                      </div>
+                    </>
+                  ) : null}
                 </div>
-                {p.businessType === 'company' ? (
+              )}
+            </Subsection>
+
+            <Subsection title="Registered address">
+              {businessLocked ? (
+                <InfoGrid>
+                  <InfoRow label="Street" value={p.addressStreet} />
+                  <InfoRow label="City" value={p.addressCity} />
+                  <InfoRow label="Postal code" value={p.addressPostalCode} />
+                  <InfoRow label="Country" value={p.addressCountry} />
+                </InfoGrid>
+              ) : (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <label className="mb-1 block text-[13px] font-medium text-ink">Street address</label>
+                    <input
+                      type="text"
+                      value={p.addressStreet}
+                      disabled={identityFieldsDisabled}
+                      onChange={(e) => p.setAddressStreet(e.target.value)}
+                      className={profileInputClass(identityFieldsDisabled)}
+                    />
+                  </div>
                   <div>
-                    <label className="block text-[13px] font-medium text-ink mb-1">
-                      Other tax ID <span className="font-normal text-ink-faint">(optional)</span>
+                    <label className="mb-1 block text-[13px] font-medium text-ink">City</label>
+                    <input
+                      type="text"
+                      value={p.addressCity}
+                      disabled={identityFieldsDisabled}
+                      onChange={(e) => p.setAddressCity(e.target.value)}
+                      className={profileInputClass(identityFieldsDisabled)}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[13px] font-medium text-ink">Postal code</label>
+                    <input
+                      type="text"
+                      value={p.addressPostalCode}
+                      disabled={identityFieldsDisabled}
+                      onChange={(e) => p.setAddressPostalCode(e.target.value)}
+                      className={profileInputClass(identityFieldsDisabled)}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="mb-1 block text-[13px] font-medium text-ink">Country</label>
+                    <input
+                      type="text"
+                      value={p.addressCountry}
+                      disabled={identityFieldsDisabled}
+                      onChange={(e) => p.setAddressCountry(e.target.value)}
+                      className={profileInputClass(identityFieldsDisabled)}
+                    />
+                  </div>
+                </div>
+              )}
+            </Subsection>
+
+            <Subsection title="Tax information">
+              {businessLocked ? (
+                <InfoGrid>
+                  {p.businessType === 'individual' ? (
+                    <InfoRow label="Tax / registration number" value={p.taxId} />
+                  ) : null}
+                  <InfoRow label="VAT ID" value={p.vatId} />
+                  {p.businessType === 'company' ? <InfoRow label="Other tax ID" value={p.taxId} /> : null}
+                </InfoGrid>
+              ) : (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {p.businessType === 'individual' ? (
+                    <div className="sm:col-span-2">
+                      <label className="mb-1 block text-[13px] font-medium text-ink">Tax or registration number</label>
+                      <input
+                        type="text"
+                        value={p.taxId}
+                        disabled={identityFieldsDisabled}
+                        onChange={(e) => p.setTaxId(e.target.value)}
+                        className={profileInputClass(identityFieldsDisabled)}
+                      />
+                    </div>
+                  ) : null}
+                  <div>
+                    <label className="mb-1 block text-[13px] font-medium text-ink">
+                      VAT ID <span className="font-normal text-ink-faint">(optional)</span>
                     </label>
                     <input
                       type="text"
-                      value={p.taxId}
+                      value={p.vatId}
                       disabled={identityFieldsDisabled}
-                      onChange={(e) => p.setTaxId(e.target.value)}
+                      onChange={(e) => p.setVatId(e.target.value)}
                       className={profileInputClass(identityFieldsDisabled)}
                     />
                   </div>
-                ) : null}
-              </div>
-            )}
+                  {p.businessType === 'company' ? (
+                    <div>
+                      <label className="mb-1 block text-[13px] font-medium text-ink">
+                        Other tax ID <span className="font-normal text-ink-faint">(optional)</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={p.taxId}
+                        disabled={identityFieldsDisabled}
+                        onChange={(e) => p.setTaxId(e.target.value)}
+                        className={profileInputClass(identityFieldsDisabled)}
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </Subsection>
           </ProfileCard>
 
           <ProfileCard title="Verification documents">
-            <div className="rounded-xl ring-1 ring-black/[0.06] bg-paper-raised/50 px-3.5 py-3 space-y-2">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="text-[14px] font-medium text-ink">Business registration proof</p>
-                  <p className="mt-0.5 text-[12px] text-ink-muted break-all">
-                    {p.companyRegistrationPath
-                      ? companyRegDisplayName || 'Document on file'
-                      : 'No document uploaded'}
-                  </p>
-                </div>
-                <StatusChip tone={busChip.tone}>{busChip.label}</StatusChip>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-[14px] font-medium text-ink">Business registration proof</p>
+                <p className="mt-0.5 break-all text-[12px] text-ink-muted">
+                  {p.companyRegistrationPath
+                    ? companyRegDisplayName || 'Document on file'
+                    : 'No document uploaded'}
+                </p>
               </div>
-              <div className="flex flex-wrap gap-2 pt-1">
+              <div className="flex flex-wrap items-center gap-2">
+                {vBus === 'rejected' || (!businessLocked && vBus !== 'verified') ? (
+                  <StatusChip tone={busChip.tone}>{busChip.label}</StatusChip>
+                ) : null}
                 {p.companyRegistrationPath ? (
                   <button
                     type="button"
@@ -829,7 +900,7 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
                       onChange={async (e) => {
                         const file = e.target.files?.[0];
                         e.target.value = '';
-                        if (!file || !p.user?.id || !p.isSupabase) return;
+                        if (!file || !p.user?.id || !p.isSupabase || companyRegUploading) return;
                         setDocError(null);
                         setCompanyRegUploading(true);
                         const previousPath = p.companyRegistrationPath?.trim() ?? '';
@@ -880,51 +951,45 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
                   </button>
                 ) : null}
               </div>
-              {docError ? (
-                <p className="text-[12px] text-red-700" role="alert">
-                  {docError}
-                </p>
-              ) : null}
             </div>
+            {docError ? (
+              <p className="text-[12px] text-red-700" role="alert">
+                {docError}
+              </p>
+            ) : null}
           </ProfileCard>
 
-          <ProfileCard title="Verification status">
-            {vBus === 'verified' ? (
-              <NoticeCallout title="Approved" tone="success">
-                Your business details are approved.
-                {p.payoutVerificationStatus.trim().toLowerCase() !== 'verified'
-                  ? ' Complete payout verification in Income settings before publishing listings.'
-                  : null}
-              </NoticeCallout>
-            ) : null}
-            {vBus === 'rejected' ? (
-              <NoticeCallout title="Action required" tone="danger">
-                <p>Update your details and documents, then save again.</p>
-                {p.businessVerificationFeedback.trim() ? (
-                  <p className="mt-2 whitespace-pre-wrap">{p.businessVerificationFeedback.trim()}</p>
-                ) : null}
-              </NoticeCallout>
-            ) : null}
-            {vBus !== 'verified' && vBus !== 'rejected' && businessInReviewQueue ? (
-              <NoticeCallout title="Under review" tone="info">
-                {PARTNER_BUSINESS_REVIEW_STATUS_NOTE}
-              </NoticeCallout>
-            ) : null}
-            {vBus !== 'verified' && vBus !== 'rejected' && !businessInReviewQueue && !draftBusinessComplete ? (
-              <NoticeCallout title="Action required" tone="warn">
-                <ul className="list-disc list-inside space-y-1">
-                  {businessProfileMissingReasons.map((line) => (
-                    <li key={line}>{line}</li>
-                  ))}
-                </ul>
-              </NoticeCallout>
-            ) : null}
-            {vBus !== 'verified' && vBus !== 'rejected' && !businessInReviewQueue && draftBusinessComplete ? (
-              <NoticeCallout title="Ready to submit" tone="info">
-                {PARTNER_BUSINESS_READY_TO_SUBMIT_NOTE}
-              </NoticeCallout>
-            ) : null}
-          </ProfileCard>
+          {vBus !== 'verified' ? (
+            <ProfileCard title="Verification">
+              {vBus === 'rejected' ? (
+                <NoticeCallout title="Action required" tone="danger">
+                  <p>Update your details and documents, then save again.</p>
+                  {p.businessVerificationFeedback.trim() ? (
+                    <p className="mt-2 whitespace-pre-wrap">{p.businessVerificationFeedback.trim()}</p>
+                  ) : null}
+                </NoticeCallout>
+              ) : null}
+              {vBus !== 'rejected' && businessInReviewQueue ? (
+                <NoticeCallout title="Under review" tone="info">
+                  {PARTNER_BUSINESS_REVIEW_STATUS_NOTE}
+                </NoticeCallout>
+              ) : null}
+              {vBus !== 'rejected' && !businessInReviewQueue && !draftBusinessComplete ? (
+                <NoticeCallout title="Action required" tone="warn">
+                  <ul className="list-inside list-disc space-y-1">
+                    {businessProfileMissingReasons.map((line) => (
+                      <li key={line}>{line}</li>
+                    ))}
+                  </ul>
+                </NoticeCallout>
+              ) : null}
+              {vBus !== 'rejected' && !businessInReviewQueue && draftBusinessComplete ? (
+                <NoticeCallout title="Ready to submit" tone="info">
+                  {PARTNER_BUSINESS_READY_TO_SUBMIT_NOTE}
+                </NoticeCallout>
+              ) : null}
+            </ProfileCard>
+          ) : null}
 
           <ProfileCard
             title="Payout settings"
@@ -932,7 +997,7 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
             actions={
               <button
                 type="button"
-                className="tv-btn-secondary h-9 px-3 text-[13px] inline-flex items-center gap-1.5"
+                className="tv-btn-secondary inline-flex h-9 items-center gap-1.5 px-3 text-[13px]"
                 onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/money?tab=settings`)}
               >
                 <Wallet className="h-4 w-4" aria-hidden />
@@ -1046,21 +1111,21 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
       )}
 
       {p.businessProfileTab === 'legal' && (
-        <div id="supplier-business-legal" className="mx-auto w-full max-w-3xl space-y-5">
+        <div id="supplier-business-legal" className={`${BUSINESS_SETTINGS_CONTENT_CLASS} space-y-4`}>
           <ProfileCard
             title="Insurance"
-            description="Optional. Saved for your records and verification."
+            description="Optional. Saved for your records."
             actions={
               canEditProfile && !insuranceEditing ? (
                 <button type="button" className="tv-btn-secondary h-9 px-3 text-[13px]" onClick={startInsuranceEdit}>
-                  {insuranceHasData ? 'Edit insurance' : 'Add insurance'}
+                  {insuranceHasData ? 'Edit' : 'Add insurance'}
                 </button>
               ) : null
             }
           >
             {!insuranceEditing ? (
               insuranceHasData ? (
-                <dl>
+                <InfoGrid>
                   <InfoRow label="Provider" value={p.insuranceProvider} />
                   <InfoRow label="Policy number" value={p.insurancePolicyNumber} />
                   <InfoRow label="Coverage" value={p.insuranceCoverage} />
@@ -1072,42 +1137,42 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
                         : null
                     }
                   />
-                </dl>
+                </InfoGrid>
               ) : (
                 <p className="text-[13px] text-ink-muted">No insurance details saved.</p>
               )
             ) : (
               <div className="space-y-3">
-                <div>
-                  <label className="block text-[13px] font-medium text-ink mb-1">Provider</label>
-                  <input
-                    type="text"
-                    value={insuranceDraft.provider}
-                    onChange={(e) => setInsuranceDraft((d) => ({ ...d, provider: e.target.value }))}
-                    className={profileInputClass()}
-                  />
-                </div>
-                <div>
-                  <label className="block text-[13px] font-medium text-ink mb-1">Policy number</label>
-                  <input
-                    type="text"
-                    value={insuranceDraft.policy}
-                    onChange={(e) => setInsuranceDraft((d) => ({ ...d, policy: e.target.value }))}
-                    className={profileInputClass()}
-                  />
-                </div>
-                <div>
-                  <label className="block text-[13px] font-medium text-ink mb-1">Coverage summary</label>
-                  <input
-                    type="text"
-                    value={insuranceDraft.coverage}
-                    onChange={(e) => setInsuranceDraft((d) => ({ ...d, coverage: e.target.value }))}
-                    className={profileInputClass()}
-                  />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
-                    <label className="block text-[13px] font-medium text-ink mb-1">Start date</label>
+                    <label className="mb-1 block text-[13px] font-medium text-ink">Provider</label>
+                    <input
+                      type="text"
+                      value={insuranceDraft.provider}
+                      onChange={(e) => setInsuranceDraft((d) => ({ ...d, provider: e.target.value }))}
+                      className={profileInputClass()}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[13px] font-medium text-ink">Policy number</label>
+                    <input
+                      type="text"
+                      value={insuranceDraft.policy}
+                      onChange={(e) => setInsuranceDraft((d) => ({ ...d, policy: e.target.value }))}
+                      className={profileInputClass()}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="mb-1 block text-[13px] font-medium text-ink">Coverage summary</label>
+                    <input
+                      type="text"
+                      value={insuranceDraft.coverage}
+                      onChange={(e) => setInsuranceDraft((d) => ({ ...d, coverage: e.target.value }))}
+                      className={profileInputClass()}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[13px] font-medium text-ink">Start date</label>
                     <input
                       type="date"
                       value={insuranceDraft.start}
@@ -1116,7 +1181,7 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
                     />
                   </div>
                   <div>
-                    <label className="block text-[13px] font-medium text-ink mb-1">End date</label>
+                    <label className="mb-1 block text-[13px] font-medium text-ink">End date</label>
                     <input
                       type="date"
                       value={insuranceDraft.end}
@@ -1129,6 +1194,9 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
                   <p className="text-[12px] text-red-700" role="alert">
                     {insuranceLocalError}
                   </p>
+                ) : null}
+                {p.legalMessage === 'success' ? (
+                  <p className="text-[12px] font-medium text-emerald-800">Insurance saved.</p>
                 ) : null}
                 <div className="flex flex-wrap gap-2 pt-1">
                   <button
@@ -1154,71 +1222,46 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
             )}
           </ProfileCard>
 
-          <ProfileCard title="Privacy Policy" description="Shown on your listing pages for travelers.">
-            <p className="text-[13px] text-ink-muted">
-              Status:{' '}
-              <span className="font-medium text-ink">
-                {p.privacyPolicyText.trim() ? 'Saved' : 'Not saved yet'}
-              </span>
-              {p.privacyPolicyText.trim()
-                ? ` · ${p.privacyPolicyText.trim().length.toLocaleString()} characters`
-                : null}
-            </p>
-            {p.privacyPolicyText.trim() ? (
-              <p className="text-[13px] text-ink-muted line-clamp-3 whitespace-pre-wrap">
-                {p.privacyPolicyText.trim()}
-              </p>
-            ) : null}
-            <button
-              type="button"
-              disabled={!canEditProfile}
-              className="tv-btn-secondary h-9 px-3 text-[13px] disabled:opacity-50"
-              onClick={() => p.setLegalDocModal('privacy')}
-            >
-              Edit Privacy Policy
-            </button>
+          <ProfileCard title="Policies for travelers" description="Shown on listings and at booking. Edits do not change terms already agreed on confirmed bookings.">
+            <PolicyDocRow
+              title="Privacy Policy"
+              description="How you handle traveler data."
+              statusLabel={
+                p.privacyPolicyText.trim()
+                  ? `Saved · ${p.privacyPolicyText.trim().length.toLocaleString()} characters`
+                  : 'Not saved'
+              }
+              preview={p.privacyPolicyText.trim() || null}
+              editDisabled={!canEditProfile}
+              editLabel="Edit"
+              onEdit={() => p.setLegalDocModal('privacy')}
+            />
+            <PolicyDocRow
+              title="Terms & Conditions"
+              description="Booking contract terms guests agree to."
+              statusLabel={
+                p.termsConditionsText.trim()
+                  ? `Saved · ${p.termsConditionsText.trim().length.toLocaleString()} characters`
+                  : 'Not saved'
+              }
+              preview={p.termsConditionsText.trim() || null}
+              editDisabled={!canEditProfile}
+              editLabel="Edit"
+              onEdit={() => p.setLegalDocModal('terms')}
+            />
           </ProfileCard>
 
-          <ProfileCard
-            title="Terms & Conditions"
-            description="Booking contract terms guests see when they book. New edits do not change terms already agreed on confirmed bookings."
-          >
-            <p className="text-[13px] text-ink-muted">
-              Status:{' '}
-              <span className="font-medium text-ink">
-                {p.termsConditionsText.trim() ? 'Saved' : 'Not saved yet'}
-              </span>
-              {p.termsConditionsText.trim()
-                ? ` · ${p.termsConditionsText.trim().length.toLocaleString()} characters`
-                : null}
-            </p>
-            {p.termsConditionsText.trim() ? (
-              <p className="text-[13px] text-ink-muted line-clamp-3 whitespace-pre-wrap">
-                {p.termsConditionsText.trim()}
-              </p>
-            ) : null}
-            <button
-              type="button"
-              disabled={!canEditProfile}
-              className="tv-btn-secondary h-9 px-3 text-[13px] disabled:opacity-50"
-              onClick={() => p.setLegalDocModal('terms')}
-            >
-              Edit Terms & Conditions
-            </button>
-          </ProfileCard>
-
-          <p className="text-[12px] text-ink-faint leading-snug">
-            Policy text is not legal advice. Have counsel review before relying on it. Questions?{' '}
-            <a href={PARTNER_SUPPORT_PATH} className="text-finland font-medium hover:underline">
+          <p className="text-[12px] leading-snug text-ink-faint">
+            Policy text is not legal advice. Have counsel review before relying on it.{' '}
+            <a href={PARTNER_SUPPORT_PATH} className="font-medium text-finland hover:underline">
               Support
             </a>
-            .
           </p>
         </div>
       )}
 
       {p.businessProfileTab === 'team' && (
-        <div id="supplier-business-team" className="mx-auto w-full max-w-3xl pt-1">
+        <div id="supplier-business-team" className={BUSINESS_SETTINGS_CONTENT_CLASS}>
           <SupplierTeamPanel
             brandName={p.profileDisplayName.trim() || p.companyLegalName.trim() || p.operatorDisplayName}
             accountEmail={p.user?.email ?? null}
@@ -1227,61 +1270,64 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
       )}
 
       {p.legalDocModal ? (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-2 sm:p-4 overflow-hidden">
+        <div className="fixed inset-0 z-[70] flex items-stretch justify-center overflow-hidden sm:items-center sm:p-3">
           <button
             type="button"
             className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
             aria-label="Close editor"
-            onClick={closePolicyEditor}
+            onClick={requestClosePolicyEditor}
           />
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="policy-editor-title"
-            className="relative z-[71] flex w-[min(94vw,1100px)] h-[min(92dvh,900px)] max-h-[92dvh] flex-col rounded-2xl bg-white shadow-xl ring-1 ring-black/[0.08] overflow-hidden"
+            className="relative z-[71] flex h-dvh w-full max-h-dvh flex-col overflow-hidden bg-white shadow-xl ring-1 ring-black/[0.08] sm:h-[min(90dvh,880px)] sm:w-[min(94vw,1040px)] sm:max-h-[90dvh] sm:rounded-2xl"
           >
-            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-black/[0.06] px-4 sm:px-5 py-3.5">
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-black/[0.06] px-4 py-3 sm:px-5 sm:py-3.5">
               <div className="min-w-0">
-                <h3 id="policy-editor-title" className="text-[16px] font-semibold tracking-tight text-ink truncate">
+                <h3 id="policy-editor-title" className="truncate text-[16px] font-semibold tracking-tight text-ink">
                   {p.legalDocModal === 'privacy' ? 'Privacy Policy' : 'Terms & Conditions'}
                 </h3>
-                <p className="text-[12px] text-ink-muted mt-0.5">
-                  {policyDirty ? 'Unsaved changes' : 'Saved draft in editor'}
+                <p className="mt-0.5 text-[12px] text-ink-muted">
+                  {policyDirty ? 'Unsaved changes' : policySaveOk ? 'Saved' : 'Editing'}
                   {' · '}
                   {policyDraft.length.toLocaleString()} characters
                 </p>
               </div>
               <button
                 type="button"
-                onClick={closePolicyEditor}
-                className="lux-flat inline-flex h-10 w-10 items-center justify-center rounded-full text-ink-muted hover:text-ink hover:bg-black/[0.04]"
+                onClick={requestClosePolicyEditor}
+                className="lux-flat inline-flex h-10 w-10 items-center justify-center rounded-full text-ink-muted hover:bg-black/[0.04] hover:text-ink"
                 aria-label="Close"
               >
-                <X className="w-5 h-5" aria-hidden />
+                <X className="h-5 w-5" aria-hidden />
               </button>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 sm:px-5 py-4">
+            <div className="flex min-h-0 flex-1 flex-col px-4 pt-3 sm:px-5">
               <textarea
-                className="w-full h-full min-h-[min(60dvh,520px)] resize-none rounded-xl border border-black/[0.08] bg-paper-raised/40 px-4 py-3 text-[15px] leading-relaxed text-ink focus:outline-none focus:ring-2 focus:ring-finland/30"
+                className="min-h-0 w-full flex-1 resize-none rounded-xl border border-black/[0.08] bg-[#fafbfc] px-4 py-3 text-[15px] leading-relaxed text-ink focus:outline-none focus:ring-2 focus:ring-finland/30"
                 value={policyDraft}
                 onChange={(e) => {
                   setPolicyDraft(e.target.value);
                   setPolicyDirty(true);
+                  policyDirtyRef.current = true;
                   setPolicyConfirmTemplate(false);
+                  setPolicySaveOk(false);
                 }}
                 spellCheck
+                autoFocus
               />
-              <p className="mt-3 text-[12px] text-ink-faint">
-                Not legal advice. Have counsel review before relying on this text.
+              <p className="mt-2 shrink-0 text-[12px] text-ink-faint">
+                Not legal advice. Templates do not constitute published policy until you save.
               </p>
             </div>
-            <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-black/[0.06] px-4 sm:px-5 py-3 bg-white">
-              <div className="flex flex-wrap gap-2">
+            <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-black/[0.06] bg-white px-4 py-3 sm:px-5">
+              <div className="flex flex-wrap items-center gap-2">
                 {!policyConfirmTemplate ? (
                   <button
                     type="button"
                     className="tv-btn-ghost h-10 px-3 text-[13px]"
-                    onClick={() => setPolicyConfirmTemplate(true)}
+                    onClick={insertPolicyTemplate}
                   >
                     Insert template
                   </button>
@@ -1291,26 +1337,7 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
                     <button
                       type="button"
                       className="tv-btn-secondary h-9 px-3 text-[12px]"
-                      onClick={() => {
-                        const address = formatSupplierBusinessAddressFromParts({
-                          address_street: p.addressStreet,
-                          address_postal_code: p.addressPostalCode,
-                          address_city: p.addressCity,
-                          address_country: p.addressCountry,
-                        });
-                        const raw = applyLegalDate(
-                          p.legalDocModal === 'privacy'
-                            ? defaultPrivacyPolicyTemplate()
-                            : defaultTermsConditionsTemplate()
-                        );
-                        const next = applyLegalPlaceholders(raw, {
-                          operatorName: p.operatorDisplayName,
-                          businessAddress: address,
-                        });
-                        setPolicyDraft(next);
-                        setPolicyDirty(true);
-                        setPolicyConfirmTemplate(false);
-                      }}
+                      onClick={applyPolicyTemplate}
                     >
                       Replace
                     </button>
@@ -1323,14 +1350,26 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
                     </button>
                   </div>
                 )}
+                {policySaveError ? (
+                  <p className="text-[12px] text-red-700" role="alert">
+                    {policySaveError}
+                  </p>
+                ) : null}
+                {policySaveOk && !policyDirty ? (
+                  <p className="text-[12px] font-medium text-emerald-800">Saved.</p>
+                ) : null}
               </div>
               <div className="flex flex-wrap gap-2">
-                <button type="button" className="tv-btn-ghost h-10 px-4 text-[13px]" onClick={closePolicyEditor}>
+                <button
+                  type="button"
+                  className="tv-btn-ghost h-10 px-4 text-[13px]"
+                  onClick={requestClosePolicyEditor}
+                >
                   Cancel
                 </button>
                 <button
                   type="button"
-                  disabled={policySaving || !canEditProfile}
+                  disabled={policySaving || !canEditProfile || (!policyDirty && !policySaveError)}
                   className="tv-btn-primary h-10 px-4 text-[13px] disabled:opacity-50"
                   onClick={() => void savePolicyFromEditor()}
                 >
@@ -1338,14 +1377,20 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
                 </button>
               </div>
             </div>
-            {policySaveError ? (
-              <p className="px-5 pb-3 text-[12px] text-red-700" role="alert">
-                {policySaveError}
-              </p>
-            ) : null}
           </div>
         </div>
       ) : null}
+
+      <PartnerConfirmModal
+        open={policyDiscardOpen}
+        title="Discard unsaved changes?"
+        description="Your edits will be lost if you close without saving."
+        confirmLabel="Discard"
+        cancelLabel="Keep editing"
+        destructive
+        onConfirm={discardPolicyEditor}
+        onCancel={() => setPolicyDiscardOpen(false)}
+      />
     </div>
   );
 }

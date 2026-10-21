@@ -10,9 +10,15 @@ describe('Business settings redesign', () => {
     expect(src).toContain('Your verified business name');
     expect(src).toContain("handleNavigate('support')");
     expect(src).toContain('Manage payouts');
-    expect(src).toContain('w-[min(94vw,1100px)]');
+    expect(src).toContain('BUSINESS_SETTINGS_CONTENT_CLASS');
+    expect(src).toContain('sansTitle');
+    expect(src).toContain('Registered business');
     expect(src).toContain('Save changes');
+    expect(src).toContain('PartnerConfirmModal');
+    expect(src).not.toContain('window.confirm');
     expect(src).not.toContain('Done');
+    const ui = readFileSync(resolve(__dirname, 'businessProfileUi.tsx'), 'utf8');
+    expect(ui).toContain('max-w-[1000px]');
   });
 
   it('Team tab uses Coming Soon without UUID invite form', () => {

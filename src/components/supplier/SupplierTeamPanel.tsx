@@ -25,7 +25,7 @@ type Props = {
 
 /**
  * Team tab: show primary account identity and existing members.
- * Invitation / UUID add-teammate UI is intentionally Coming Soon (backend memberships preserved).
+ * Invitation UI is intentionally Coming Soon (backend memberships preserved).
  */
 export default function SupplierTeamPanel({ brandName, accountEmail }: Props) {
   const { user } = useSupplierAuth();
@@ -61,17 +61,17 @@ export default function SupplierTeamPanel({ brandName, accountEmail }: Props) {
   const teammates = members.filter((m) => m.role !== 'owner' && m.id !== user?.id);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <ProfileCard title="Primary account">
         <div className="flex items-start gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-finland/10 text-finland shrink-0">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-finland/10 text-finland">
             <Users className="h-5 w-5" aria-hidden />
           </span>
           <div className="min-w-0">
             <p className="text-[16px] font-semibold tracking-tight text-ink">{displayName}</p>
             <p className="mt-0.5 text-[13px] text-ink-muted">Primary account · Owner</p>
             {accountEmail ? (
-              <p className="mt-1 text-[13px] text-ink-faint break-all">{accountEmail}</p>
+              <p className="mt-1 break-all text-[13px] text-ink-faint">{accountEmail}</p>
             ) : null}
           </div>
         </div>
@@ -97,7 +97,7 @@ export default function SupplierTeamPanel({ brandName, accountEmail }: Props) {
             {teammates.map((m) => (
               <li key={m.id} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
                 <div className="min-w-0">
-                  <p className="text-[14px] font-medium text-ink truncate">{m.label?.trim() || 'Teammate'}</p>
+                  <p className="truncate text-[14px] font-medium text-ink">{m.label?.trim() || 'Teammate'}</p>
                   <p className="text-[12px] text-ink-muted">{roleLabel(m.role)}</p>
                 </div>
               </li>
@@ -107,14 +107,19 @@ export default function SupplierTeamPanel({ brandName, accountEmail }: Props) {
       ) : null}
 
       <ProfileCard title="Team management">
-        <div className="rounded-xl bg-finland/[0.04] ring-1 ring-finland/10 px-4 py-5 text-center">
-          <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-white text-finland ring-1 ring-finland/15">
-            <Users className="h-5 w-5" aria-hidden />
+        <div className="flex items-start gap-3 rounded-lg bg-finland/[0.03] px-3.5 py-3 ring-1 ring-finland/10">
+          <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-finland ring-1 ring-finland/15">
+            <Users className="h-4 w-4" aria-hidden />
           </span>
-          <p className="mt-3 text-[14px] font-medium text-ink">Invite teammates and manage access to your business from one place.</p>
-          <p className="mt-2 inline-flex items-center rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-finland ring-1 ring-finland/20">
-            Coming soon
-          </p>
+          <div className="min-w-0">
+            <p className="text-[13px] leading-snug text-ink">
+              Invite teammates and manage access from one place.
+            </p>
+            <p className="mt-1.5 text-[12px] font-semibold text-finland">Coming soon</p>
+            <p className="mt-0.5 text-[12px] leading-snug text-ink-muted">
+              Invitations and permission controls will be available here later.
+            </p>
+          </div>
         </div>
       </ProfileCard>
     </div>
