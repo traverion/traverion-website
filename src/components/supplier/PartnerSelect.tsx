@@ -90,8 +90,9 @@ export default function PartnerSelect({
     const spaceBelow = Math.max(0, window.innerHeight - rect.bottom - gap - edge);
     const spaceAbove = Math.max(0, rect.top - gap - edge);
     const needed = listCap + searchHeight;
-    const openUp = spaceBelow < needed && spaceAbove >= spaceBelow;
-    const room = openUp ? spaceAbove : spaceBelow;
+    // Prefer opening downward; flip up only when below space is genuinely insufficient.
+    const openUp = spaceBelow < Math.min(needed, 120) && spaceAbove > spaceBelow + 48;
+    const room = openUp ? spaceAbove : Math.max(spaceBelow, 96);
     const maxHeight = Math.max(72, Math.min(listCap, room - searchHeight));
     const top = openUp
       ? Math.max(edge, rect.top - gap - maxHeight - searchHeight)

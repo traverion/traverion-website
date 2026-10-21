@@ -404,6 +404,73 @@ export function aggregateListingRows(input: {
     .sort((a, b) => b.net - a.net);
 }
 
+export type ChartGrain = 'day' | 'week' | 'month' | 'year';
+
+function daysBetweenInclusive(from: string, to: string): number {
+  const a = new Date(`${from}T12:00:00`).getTime();
+  const b = new Date(`${to}T12:00:00`).getTime();
+  if (!Number.isFinite(a) || !Number.isFinite(b) || b < a) return 1;
+  return Math.round((b - a) / 86_400_000) + 1;
+}
+
+function ymdLocal(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/**
+ * Choose chart grain from the selected period and/or actual span.
+ * All-time must adapt to real data span — never assume 365 days (that forced
+ * monthly buckets and collapsed same-month history into one "Oct 26" = Oct 2026 label).
+ */
+export function chooseChartGrain(spanDays: number, rangeKey?: AnalyticsRangeKey | null): ChartGrain {
+  if (rangeKey === '7d' || rangeKey === '30d' || rangeKey === 'this_month' || rangeKey === 'last_month') {
+    return 'day';
+  }
+  if (rangeKey === '90d') return 'week';
+  if (rangeKey === 'this_year') return 'month';
+  if (spanDays <= 45) return 'day';
+  if (spanDays <= 180) return 'week';
+  if (spanDays <= 800) return 'month';
+  return 'year';
+}
+
+export function chartBucketForDay(day: string, grain: ChartGrain): { key: string; label: string } {
+  const d = new Date(`${day}T12:00:00`);
+  if (grain === 'day') {
+    return {
+      key: day,
+      label: d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+    };
+  }
+  if (grain === 'week') {
+    const weekStart = new Date(d);
+    weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
+    return {
+      key: ymdLocal(weekStart),
+      label: `Week of ${weekStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`,
+    };
+  }
+  if (grain === 'month') {
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    return {
+      key,
+      label: d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }),
+    };
+  }
+  const key = String(d.getFullYear());
+  return { key, label: key };
+}
+
+function advanceBucketCursor(cursor: Date, grain: ChartGrain): void {
+  if (grain === 'day') cursor.setDate(cursor.getDate() + 1);
+  else if (grain === 'week') cursor.setDate(cursor.getDate() + 7);
+  else if (grain === 'month') cursor.setMonth(cursor.getMonth() + 1);
+  else cursor.setFullYear(cursor.getFullYear() + 1);
+}
+
 export function buildEarningsSeries(input: {
   bookings: AnalyticsBookingInput[];
   snapshotsByBookingId: Record<string, AnalyticsSnapshotInput>;
@@ -411,48 +478,41 @@ export function buildEarningsSeries(input: {
   from: string | null;
   to: string | null;
   currency: string;
+  rangeKey?: AnalyticsRangeKey | null;
+  /** Fill zero-value buckets across the continuous range when bounds are known. */
+  fillZeros?: boolean;
 }): AnalyticsSeriesPoint[] {
   const currency = normalizeCurrency(input.currency);
   const buckets = new Map<string, AnalyticsSeriesPoint>();
-  const spanDays =
-    input.from && input.to
-      ? Math.round(
-          (new Date(`${input.to}T12:00:00`).getTime() - new Date(`${input.from}T12:00:00`).getTime()) /
-            86_400_000
-        ) + 1
-      : 365;
-  const grain: 'day' | 'week' | 'month' = spanDays <= 45 ? 'day' : spanDays <= 180 ? 'week' : 'month';
 
-  const bucketKey = (day: string): { key: string; label: string } => {
-    const d = new Date(`${day}T12:00:00`);
-    if (grain === 'day') {
-      return {
-        key: day,
-        label: d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
-      };
-    }
-    if (grain === 'week') {
-      const weekStart = new Date(d);
-      weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
-      const key = weekStart.toISOString().slice(0, 10);
-      return {
-        key,
-        label: weekStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
-      };
-    }
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    return {
-      key,
-      label: d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' }),
-    };
-  };
+  const attributedDays: string[] = [];
+  for (const booking of input.bookings) {
+    const money = moneyForBooking(booking, input.snapshotsByBookingId[booking.id]);
+    if (money.currency !== currency) continue;
+    const day = bookingAttributionDate(booking, input.basis);
+    if (!day) continue;
+    attributedDays.push(day);
+  }
+
+  attributedDays.sort();
+  const dataFrom = attributedDays[0] ?? input.from;
+  const dataTo = attributedDays[attributedDays.length - 1] ?? input.to;
+  const boundFrom = input.from ?? dataFrom;
+  const boundTo = input.to ?? dataTo;
+  const spanDays =
+    boundFrom && boundTo
+      ? daysBetweenInclusive(boundFrom, boundTo)
+      : attributedDays.length > 1
+        ? daysBetweenInclusive(attributedDays[0], attributedDays[attributedDays.length - 1])
+        : 1;
+  const grain = chooseChartGrain(spanDays, input.rangeKey);
 
   for (const booking of input.bookings) {
     const money = moneyForBooking(booking, input.snapshotsByBookingId[booking.id]);
     if (money.currency !== currency) continue;
     const day = bookingAttributionDate(booking, input.basis);
     if (!day) continue;
-    const { key, label } = bucketKey(day);
+    const { key, label } = chartBucketForDay(day, grain);
     const cur = buckets.get(key) ?? { key, label, gross: 0, commission: 0, net: 0, bookings: 0 };
     cur.gross += money.gross;
     cur.commission += money.commission;
@@ -460,6 +520,33 @@ export function buildEarningsSeries(input: {
     cur.bookings += 1;
     buckets.set(key, cur);
   }
+
+  if (buckets.size === 0) return [];
+
+  const shouldFill =
+    input.fillZeros !== false &&
+    boundFrom &&
+    boundTo &&
+    /^\d{4}-\d{2}-\d{2}$/.test(boundFrom) &&
+    /^\d{4}-\d{2}-\d{2}$/.test(boundTo);
+
+  if (shouldFill) {
+    const startMeta = chartBucketForDay(boundFrom, grain);
+    const endMeta = chartBucketForDay(boundTo, grain);
+    const cursor = new Date(`${startMeta.key.length === 4 ? `${startMeta.key}-01-01` : startMeta.key.length === 7 ? `${startMeta.key}-01` : startMeta.key}T12:00:00`);
+    const end = new Date(`${endMeta.key.length === 4 ? `${endMeta.key}-01-01` : endMeta.key.length === 7 ? `${endMeta.key}-01` : endMeta.key}T12:00:00`);
+    let guard = 0;
+    while (cursor.getTime() <= end.getTime() && guard < 800) {
+      const day = ymdLocal(cursor);
+      const { key, label } = chartBucketForDay(day, grain);
+      if (!buckets.has(key)) {
+        buckets.set(key, { key, label, gross: 0, commission: 0, net: 0, bookings: 0 });
+      }
+      advanceBucketCursor(cursor, grain);
+      guard += 1;
+    }
+  }
+
   return [...buckets.values()].sort((a, b) => a.key.localeCompare(b.key));
 }
 

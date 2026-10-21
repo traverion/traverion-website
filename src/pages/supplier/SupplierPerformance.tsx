@@ -17,6 +17,8 @@ import {
   SupplierListSkeleton,
 } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
+import PartnerSelect from '../../components/supplier/PartnerSelect';
+import { TraverionSingleDateField } from '../../components/calendar/TraverionSingleDateField';
 import { formatMoney } from '../../lib/money';
 import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE, PARTNER_CREATE_PATH } from '../../lib/partnerPortalPaths';
@@ -54,9 +56,18 @@ import { isCollectedBooking, isPaidPaymentStatus } from '../../lib/payment-state
 const PERFORMANCE_LOAD_ERROR =
   'We could not load analytics. Check your connection and try again.';
 
-function Delta({ current, previous }: { current: number; previous: number }) {
+function Delta({
+  current,
+  previous,
+  enabled,
+}: {
+  current: number;
+  previous: number;
+  enabled: boolean;
+}) {
+  if (!enabled) return null;
   const pct = percentChange(current, previous);
-  if (pct == null) return <p className="tv-analytics-delta tv-analytics-delta--flat">No prior baseline</p>;
+  if (pct == null) return null;
   const up = pct > 0.05;
   const down = pct < -0.05;
   return (
@@ -257,14 +268,23 @@ export default function SupplierPerformance() {
     return () => window.removeEventListener('popstate', onPop);
   }, []);
 
+  const customRangeReady =
+    rangeKey !== 'custom' ||
+    (Boolean(customFrom) &&
+      Boolean(customTo) &&
+      /^\d{4}-\d{2}-\d{2}$/.test(customFrom) &&
+      /^\d{4}-\d{2}-\d{2}$/.test(customTo) &&
+      customFrom <= customTo);
+
   const dateRange = useMemo(
     () => resolveAnalyticsDateRange(rangeKey, customFrom || null, customTo || null),
     [rangeKey, customFrom, customTo]
   );
   const priorRange = useMemo(
-    () => previousAnalyticsRange(dateRange.from, dateRange.to),
-    [dateRange.from, dateRange.to]
+    () => (rangeKey === 'all' ? { from: null, to: null } : previousAnalyticsRange(dateRange.from, dateRange.to)),
+    [rangeKey, dateRange.from, dateRange.to]
   );
+  const showPeriodDelta = rangeKey !== 'all' && Boolean(dateRange.from && dateRange.to);
 
   const listingsById = useMemo(() => {
     const map: Record<string, AnalyticsListingMeta> = {};
@@ -280,50 +300,47 @@ export default function SupplierPerformance() {
     return map;
   }, [snapshots]);
 
-  const filteredPaid = useMemo(
-    () =>
-      filterAnalyticsBookings({
-        bookings,
-        listingsById,
-        from: dateRange.from,
-        to: dateRange.to,
-        basis,
-        productType,
-        listingId: listingId || null,
-        collectedOnly: true,
-      }),
-    [bookings, listingsById, dateRange, basis, productType, listingId]
-  );
+  const filteredPaid = useMemo(() => {
+    if (!customRangeReady) return [];
+    return filterAnalyticsBookings({
+      bookings,
+      listingsById,
+      from: dateRange.from,
+      to: dateRange.to,
+      basis,
+      productType,
+      listingId: listingId || null,
+      collectedOnly: true,
+    });
+  }, [bookings, listingsById, dateRange, basis, productType, listingId, customRangeReady]);
 
-  const priorPaid = useMemo(
-    () =>
-      filterAnalyticsBookings({
-        bookings,
-        listingsById,
-        from: priorRange.from,
-        to: priorRange.to,
-        basis,
-        productType,
-        listingId: listingId || null,
-        collectedOnly: true,
-      }),
-    [bookings, listingsById, priorRange, basis, productType, listingId]
-  );
+  const priorPaid = useMemo(() => {
+    if (!showPeriodDelta || !priorRange.from || !priorRange.to) return [];
+    return filterAnalyticsBookings({
+      bookings,
+      listingsById,
+      from: priorRange.from,
+      to: priorRange.to,
+      basis,
+      productType,
+      listingId: listingId || null,
+      collectedOnly: true,
+    });
+  }, [bookings, listingsById, priorRange, basis, productType, listingId, showPeriodDelta]);
 
-  const windowAllBookings = useMemo(
-    () =>
-      filterAnalyticsBookings({
-        bookings,
-        listingsById,
-        from: dateRange.from,
-        to: dateRange.to,
-        basis,
-        productType,
-        listingId: listingId || null,
-        collectedOnly: false,
-      }),
-    [bookings, listingsById, dateRange, basis, productType, listingId]
-  );
+  const windowAllBookings = useMemo(() => {
+    if (!customRangeReady) return [];
+    return filterAnalyticsBookings({
+      bookings,
+      listingsById,
+      from: dateRange.from,
+      to: dateRange.to,
+      basis,
+      productType,
+      listingId: listingId || null,
+      collectedOnly: false,
+    });
+  }, [bookings, listingsById, dateRange, basis, productType, listingId, customRangeReady]);
 
   useEffect(() => {
     const ids = listings.map((l) => l.id);
@@ -383,8 +400,10 @@ export default function SupplierPerformance() {
       from: dateRange.from,
       to: dateRange.to,
       currency: primary.currency,
+      rangeKey,
+      fillZeros: rangeKey !== 'all',
     });
-  }, [filteredPaid, snapshotsByBookingId, basis, dateRange, primary]);
+  }, [filteredPaid, snapshotsByBookingId, basis, dateRange, primary, rangeKey]);
 
   const cancelStats = useMemo(
     () => cancellationStats({ paidBookings: filteredPaid, allBookingsInWindow: windowAllBookings }),
@@ -485,8 +504,10 @@ export default function SupplierPerformance() {
       from: dateRange.from,
       to: dateRange.to,
       currency,
+      rangeKey,
+      fillZeros: rangeKey !== 'all',
     });
-  }, [detailPaid, snapshotsByBookingId, basis, dateRange, detailRows, primary, detailListingId]);
+  }, [detailPaid, snapshotsByBookingId, basis, dateRange, detailRows, primary, detailListingId, rangeKey]);
 
   const openListingDetail = (id: string) => {
     setDetailListingId(id);
@@ -504,55 +525,60 @@ export default function SupplierPerformance() {
     <div className={`${SUPPLIER_PAGE_CLASS} tv-analytics font-sans`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="font-sans text-lg font-bold tracking-tight text-[#18181b]">Analytics</h1>
-          <p className="mt-0.5 text-[12px] text-[#71717a]">Understand your performance and grow your business.</p>
+          <h1 className="tv-analytics-title">Analytics</h1>
+          <p className="tv-analytics-subtitle">Understand your performance and grow your business.</p>
         </div>
         <div className="flex flex-wrap items-end gap-2">
-          <label className="text-[11px] font-semibold text-[#71717a]">
-            Date range
-            <select
-              className="tv-input mt-1 h-10 w-auto min-w-[10rem]"
+          <label className="tv-analytics-field">
+            <span>Date range</span>
+            <PartnerSelect
+              className="mt-1 min-w-[11rem]"
               value={rangeKey}
-              onChange={(e) => {
-                const next = parseAnalyticsRange(e.target.value);
-                setRangeKey(next);
-                pushUrl({ range: next });
-              }}
               aria-label="Date range"
-            >
-              {ANALYTICS_RANGE_OPTIONS.map((opt) => (
-                <option key={opt.id} value={opt.id}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+              options={ANALYTICS_RANGE_OPTIONS.map((opt) => ({ value: opt.id, label: opt.label }))}
+              onChange={(next) => {
+                const parsed = parseAnalyticsRange(next);
+                setRangeKey(parsed);
+                pushUrl({ range: parsed });
+              }}
+            />
           </label>
           {rangeKey === 'custom' ? (
             <>
-              <label className="text-[11px] font-semibold text-[#71717a]">
-                From
-                <input
-                  type="date"
-                  className="tv-input mt-1 h-10"
-                  value={customFrom}
-                  onChange={(e) => {
-                    setCustomFrom(e.target.value);
-                    pushUrl({ customFrom: e.target.value, range: 'custom' });
-                  }}
-                />
-              </label>
-              <label className="text-[11px] font-semibold text-[#71717a]">
-                To
-                <input
-                  type="date"
-                  className="tv-input mt-1 h-10"
-                  value={customTo}
-                  onChange={(e) => {
-                    setCustomTo(e.target.value);
-                    pushUrl({ customTo: e.target.value, range: 'custom' });
-                  }}
-                />
-              </label>
+              <div className="tv-analytics-field min-w-[10.5rem]">
+                <span>From</span>
+                <div className="tv-analytics-date-shell">
+                  <TraverionSingleDateField
+                    id="analytics-custom-from"
+                    label=""
+                    value={customFrom}
+                    minIso=""
+                    placeholder="Start date"
+                    onChange={(iso) => {
+                      setCustomFrom(iso);
+                      const nextTo = customTo && iso > customTo ? iso : customTo;
+                      if (nextTo !== customTo) setCustomTo(nextTo);
+                      pushUrl({ customFrom: iso, range: 'custom', customTo: nextTo });
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="tv-analytics-field min-w-[10.5rem]">
+                <span>To</span>
+                <div className="tv-analytics-date-shell">
+                  <TraverionSingleDateField
+                    id="analytics-custom-to"
+                    label=""
+                    value={customTo}
+                    minIso={customFrom || ''}
+                    placeholder="End date"
+                    onChange={(iso) => {
+                      setCustomTo(iso);
+                      pushUrl({ customTo: iso, range: 'custom' });
+                    }}
+                  />
+                </div>
+              </div>
             </>
           ) : null}
         </div>
@@ -576,61 +602,68 @@ export default function SupplierPerformance() {
       </div>
 
       <div className="tv-analytics-filters">
-        <label>
-          Listing
-          <select
-            className="tv-input"
+        <label className="tv-analytics-field tv-analytics-field--listing">
+          <span>Listing</span>
+          <PartnerSelect
+            className="mt-1"
             value={listingId}
-            onChange={(e) => {
-              setListingId(e.target.value);
-              pushUrl({ listingId: e.target.value });
-            }}
             aria-label="Listing filter"
-          >
-            <option value="">All listings</option>
-            {listings.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.title}
-              </option>
-            ))}
-          </select>
+            searchable="auto"
+            options={[
+              { value: '', label: 'All listings' },
+              ...listings.map((l) => ({ value: l.id, label: l.title })),
+            ]}
+            onChange={(next) => {
+              setListingId(next);
+              pushUrl({ listingId: next });
+            }}
+          />
         </label>
-        <label>
-          Product type
-          <select
-            className="tv-input"
+        <label className="tv-analytics-field">
+          <span>Product type</span>
+          <PartnerSelect
+            className="mt-1 min-w-[10rem]"
             value={productType}
-            onChange={(e) => {
-              const next = parseAnalyticsProductType(e.target.value);
-              setProductType(next);
-              pushUrl({ productType: next });
-            }}
             aria-label="Product type"
-          >
-            <option value="all">All</option>
-            <option value="tour">Tours & Activities</option>
-            <option value="stay">Stays</option>
-          </select>
-        </label>
-        <label>
-          Date basis <InfoTip text="Booking date uses checkout time. Service date uses departure for tours and check-in for stays. Multi-night stays are attributed to check-in, not prorated by night." />
-          <select
-            className="tv-input"
-            value={basis}
-            onChange={(e) => {
-              const next = parseAnalyticsBasis(e.target.value);
-              setBasis(next);
-              pushUrl({ basis: next });
+            options={[
+              { value: 'all', label: 'All' },
+              { value: 'tour', label: 'Tours & Activities' },
+              { value: 'stay', label: 'Stays' },
+            ]}
+            onChange={(next) => {
+              const parsed = parseAnalyticsProductType(next);
+              setProductType(parsed);
+              pushUrl({ productType: parsed });
             }}
-            aria-label="Date basis"
-          >
-            <option value="booking">Booking date</option>
-            <option value="service">Experience / stay date</option>
-          </select>
+          />
         </label>
-        <p className="self-end pb-2 text-[12px] text-[#71717a]">
+        <label className="tv-analytics-field">
+          <span className="inline-flex items-center gap-1">
+            Date basis
+            <InfoTip text="Booking date uses checkout time. Service date uses departure for tours and check-in for stays. Multi-night stays are attributed to check-in, not prorated by night." />
+          </span>
+          <PartnerSelect
+            className="mt-1 min-w-[11rem]"
+            value={basis}
+            aria-label="Date basis"
+            options={[
+              { value: 'booking', label: 'Booking date' },
+              { value: 'service', label: 'Experience / stay date' },
+            ]}
+            onChange={(next) => {
+              const parsed = parseAnalyticsBasis(next);
+              setBasis(parsed);
+              pushUrl({ basis: parsed });
+            }}
+          />
+        </label>
+        <p className="tv-analytics-range-note">
           {dateRange.label}
-          {dateRange.from && dateRange.to ? ` · ${dateRange.from} → ${dateRange.to}` : ''}
+          {rangeKey === 'custom' && !customRangeReady
+            ? ' · Select start and end dates'
+            : dateRange.from && dateRange.to
+              ? ` · ${dateRange.from} → ${dateRange.to}`
+              : ''}
           {refreshing ? ' · Updating…' : ''}
         </p>
       </div>
@@ -768,17 +801,23 @@ export default function SupplierPerformance() {
                 <div className="tv-metric-tile">
                   <p className="tv-metric-tile__label">Net earnings</p>
                   <p className="tv-metric-tile__value">{formatMoney(primary.net, primary.currency)}</p>
-                  {primaryPrior ? <Delta current={primary.net} previous={primaryPrior.net} /> : null}
+                  {primaryPrior ? (
+                    <Delta current={primary.net} previous={primaryPrior.net} enabled={showPeriodDelta} />
+                  ) : null}
                 </div>
                 <div className="tv-metric-tile">
                   <p className="tv-metric-tile__label">Paid bookings</p>
                   <p className="tv-metric-tile__value">{primary.bookings}</p>
-                  {primaryPrior ? <Delta current={primary.bookings} previous={primaryPrior.bookings} /> : null}
+                  {primaryPrior ? (
+                    <Delta current={primary.bookings} previous={primaryPrior.bookings} enabled={showPeriodDelta} />
+                  ) : null}
                 </div>
                 <div className="tv-metric-tile">
                   <p className="tv-metric-tile__label">Guests</p>
                   <p className="tv-metric-tile__value">{primary.guests}</p>
-                  {primaryPrior ? <Delta current={primary.guests} previous={primaryPrior.guests} /> : null}
+                  {primaryPrior ? (
+                    <Delta current={primary.guests} previous={primaryPrior.guests} enabled={showPeriodDelta} />
+                  ) : null}
                 </div>
                 <div className="tv-metric-tile">
                   <p className="tv-metric-tile__label">
@@ -972,7 +1011,7 @@ export default function SupplierPerformance() {
                 <div className="mt-3">
                   <AnalyticsLineChart
                     points={series.map((p) => ({ key: p.key, label: p.label, value: p.bookings }))}
-                    currency={primary?.currency ?? 'EUR'}
+                    valueKind="count"
                     ariaLabel="Booking volume over time"
                     emptyLabel="No bookings in this range"
                   />
