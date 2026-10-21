@@ -1,5 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
 import { ChevronDown, FileText, Wallet } from 'lucide-react';
+import PartnerSelect from '../../components/supplier/PartnerSelect';
+import { TraverionSingleDateField } from '../../components/calendar/TraverionSingleDateField';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings, canManageFinance } from '../../lib/supplierTeamRoles';
@@ -717,25 +719,43 @@ export default function SupplierEarnings() {
     await exportCsv(window);
   };
 
+  useEffect(() => {
+    if (!exportMenuOpen) return;
+    const onPointer = (event: MouseEvent) => {
+      const target = event.target as Node;
+      const root = document.querySelector('.tv-income-export');
+      if (root && !root.contains(target)) setExportMenuOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setExportMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [exportMenuOpen]);
+
   return (
     <div className={`${SUPPLIER_PAGE_CLASS} tv-income font-sans`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="font-sans text-lg font-bold tracking-tight text-[#18181b]">Income & Payouts</h1>
-          <p className="mt-0.5 text-[12px] text-[#71717a]">{`Guest checkout uses ${STRIPE_TEST_UNTIL_LIVE}. Amounts here are not bank transfers.`}</p>
+          <h1 className="tv-income-title">Income & Payouts</h1>
+          <p className="tv-income-subtitle">{`Guest checkout uses ${STRIPE_TEST_UNTIL_LIVE}. Amounts here are not bank transfers.`}</p>
         </div>
         <div className="tv-income-export">
           <button
             type="button"
             onClick={() => setExportMenuOpen((open) => !open)}
             disabled={!canExportFinance || !canExportMoney}
-            className="tv-btn-secondary inline-flex h-9 shrink-0 items-center gap-1.5 px-2.5 text-[13px] disabled:opacity-40"
-            title={!canExportFinance ? 'Your role can view Income but cannot export CSV' : undefined}
+            className="tv-btn-secondary inline-flex h-10 shrink-0 items-center gap-1.5 px-3 text-[13px] disabled:opacity-40"
+            title={!canExportFinance ? 'Your role can view Income but cannot export CSV' : 'Export CSV for a date window (all earnings in that window, not only the current Earnings table filters)'}
             aria-expanded={exportMenuOpen}
             aria-haspopup="menu"
           >
-            Export
-            <ChevronDown className="h-3.5 w-3.5" aria-hidden />
+            Export CSV
+            <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
           </button>
           {exportMenuOpen ? (
             <div className="tv-income-export__menu" role="menu">
@@ -744,9 +764,10 @@ export default function SupplierEarnings() {
               <button type="button" role="menuitem" onClick={() => void runExportForWindow('all')}>All time</button>
             </div>
           ) : null}
+          <p className="tv-income-export__hint">Exports the selected window — not Earnings table filters.</p>
         </div>
       </div>
-      <div className="flex gap-1 overflow-x-auto border-b border-[#e5e7eb] pb-px" role="tablist" aria-label="Income">
+      <div className="tv-income-tabs" role="tablist" aria-label="Income">
         {([
           ['overview', 'Overview'],
           ['earnings', 'Earnings'],
@@ -759,7 +780,6 @@ export default function SupplierEarnings() {
             type="button"
             role="tab"
             aria-selected={tab === id}
-            className={`h-9 shrink-0 rounded-md px-3 text-[13px] font-semibold transition-colors duration-150 ${tab === id ? 'bg-[#f0f4fa] text-[#073b83]' : 'text-[#52525b] hover:text-[#18181b]'}`}
             onClick={() => setTabAndUrl(id)}
           >
             {label}
@@ -785,9 +805,9 @@ export default function SupplierEarnings() {
       {loading && !hasMoney ? <SupplierListSkeleton rows={3} /> : null}
 
       {!loading && !hasMoney && !error ? (
-        <div className="tv-income-empty">
-          <div className="tv-income-empty__icon"><Wallet className="h-6 w-6" aria-hidden /></div>
-          <h3 className="font-sans text-sm font-bold text-[#18181b]">{PARTNER_MONEY_EMPTY_TITLE}</h3>
+        <div className="tv-income-empty tv-income-empty--compact">
+          <div className="tv-income-empty__icon"><Wallet className="h-5 w-5" aria-hidden /></div>
+          <h3 className="text-sm font-bold text-[#18181b]">{PARTNER_MONEY_EMPTY_TITLE}</h3>
           <p className="mt-1 max-w-md text-[13px] leading-relaxed text-[#71717a]">{PARTNER_MONEY_EMPTY_BODY}</p>
           <div className="mt-4 flex flex-wrap justify-center gap-2">
             <button type="button" className="tv-btn-primary h-9 px-3 text-[13px]" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings`)}>
@@ -817,11 +837,37 @@ export default function SupplierEarnings() {
               </div>
             ))}
           </div>
-          <div className="grid gap-3 rounded-[10px] border border-[#e5e7eb] bg-white px-4 py-3 text-[13px] sm:grid-cols-2 lg:grid-cols-4">
-            <p><span className="mb-0.5 block text-[11px] font-semibold text-[#71717a]">Payout frequency</span>{planSummary ?? 'Not set'}</p>
-            <p><span className="mb-0.5 block text-[11px] font-semibold text-[#71717a]">Next payout</span>{nextPeriod ? formatMoney(Number(nextPeriod.amount_minor) / 100, nextPeriod.currency) : 'Not scheduled'}</p>
-            <p><span className="mb-0.5 block text-[11px] font-semibold text-[#71717a]">Next date</span>{nextPeriod ? incomeDate(nextPeriod.scheduled_for) : 'Not scheduled'}</p>
-            <p><span className="mb-0.5 block text-[11px] font-semibold text-[#71717a]">Payout account</span>{profile?.payout_verification_status === 'verified' ? 'Verified' : profile?.payout_iban ? 'Saved, not verified' : 'Missing'}</p>
+          <div className="tv-income-info-strip">
+            <div>
+              <span className="tv-income-info-strip__label">Payout preference</span>
+              <p className="tv-income-info-strip__value">{planSummary ?? 'Not set'}</p>
+              <p className="tv-income-info-strip__hint">Configured preference — not an automatic transfer</p>
+            </div>
+            <div>
+              <span className="tv-income-info-strip__label">Next payout</span>
+              <p className="tv-income-info-strip__value">
+                {nextPeriod ? formatMoney(Number(nextPeriod.amount_minor) / 100, nextPeriod.currency) : 'Not scheduled'}
+              </p>
+              <p className="tv-income-info-strip__hint">
+                {nextPeriod ? 'From a recorded payout period' : 'No payout period on file'}
+              </p>
+            </div>
+            <div>
+              <span className="tv-income-info-strip__label">Next date</span>
+              <p className="tv-income-info-strip__value">
+                {nextPeriod ? incomeDate(nextPeriod.scheduled_for) : 'Not scheduled'}
+              </p>
+            </div>
+            <div>
+              <span className="tv-income-info-strip__label">Payout account</span>
+              <p className="tv-income-info-strip__value">
+                {profile?.payout_verification_status === 'verified'
+                  ? 'Verified'
+                  : profile?.payout_iban
+                    ? 'Saved, not verified'
+                    : 'Missing'}
+              </p>
+            </div>
           </div>
           {processingNet > 0 ? (
             <p className="text-[13px] text-[#52525b]">
@@ -836,7 +882,7 @@ export default function SupplierEarnings() {
           ) : null}
           <section>
             <div className="flex items-baseline justify-between gap-2">
-              <h2 className="font-sans text-sm font-bold text-[#18181b]">Recent earnings</h2>
+              <h2 className="text-sm font-bold text-[#18181b]">Recent earnings</h2>
               <button type="button" className="text-[12px] font-semibold text-[#073b83]" onClick={() => setTabAndUrl('earnings')}>
                 View all
               </button>
@@ -864,7 +910,7 @@ export default function SupplierEarnings() {
           </section>
           <section>
             <div className="flex items-baseline justify-between gap-2">
-              <h2 className="font-sans text-sm font-bold text-[#18181b]">Recent payouts</h2>
+              <h2 className="text-sm font-bold text-[#18181b]">Recent payouts</h2>
               <button type="button" className="text-[12px] font-semibold text-[#073b83]" onClick={() => setTabAndUrl('payouts')}>
                 View all
               </button>
@@ -918,51 +964,108 @@ export default function SupplierEarnings() {
 
       {hasMoney && tab === 'earnings' ? (
         <div className="mx-auto w-full max-w-[1180px] space-y-3">
-          <div className="tv-pickup-toolbar">
-            <label className="block min-w-[10rem] flex-1 text-[11px] font-semibold text-[#71717a]">
-              Search
-              <input className="tv-input mt-1 w-full" type="search" aria-label="Search earnings" placeholder="Reference or experience" value={earningQuery} onChange={(event) => { setEarningQuery(event.target.value); setEarningPage(0); }} />
+          <div className="tv-income-filters">
+            <label className="tv-income-field">
+              <span>Search</span>
+              <input
+                className="tv-input w-full"
+                type="search"
+                aria-label="Search earnings"
+                placeholder="Reference or experience"
+                value={earningQuery}
+                onChange={(event) => {
+                  setEarningQuery(event.target.value);
+                  setEarningPage(0);
+                }}
+              />
             </label>
-            <label className="block text-[11px] font-semibold text-[#71717a]">
-              From
-              <input className="tv-input mt-1" type="date" aria-label="Activity from" value={earningFrom} onChange={(event) => { setEarningFrom(event.target.value); setEarningPage(0); }} />
+            <div className="tv-income-field">
+              <span>From</span>
+              <div className="tv-income-date-shell">
+                <TraverionSingleDateField
+                  id="income-earning-from"
+                  label=""
+                  value={earningFrom}
+                  minIso=""
+                  placeholder="Activity from"
+                  onChange={(iso) => {
+                    setEarningFrom(iso);
+                    if (earningTo && iso > earningTo) setEarningTo(iso);
+                    setEarningPage(0);
+                  }}
+                />
+              </div>
+            </div>
+            <div className="tv-income-field">
+              <span>To</span>
+              <div className="tv-income-date-shell">
+                <TraverionSingleDateField
+                  id="income-earning-to"
+                  label=""
+                  value={earningTo}
+                  minIso={earningFrom || ''}
+                  placeholder="Activity to"
+                  onChange={(iso) => {
+                    setEarningTo(iso);
+                    setEarningPage(0);
+                  }}
+                />
+              </div>
+            </div>
+            <label className="tv-income-field">
+              <span>Experience</span>
+              <PartnerSelect
+                aria-label="Experience"
+                value={earningListing}
+                searchable="auto"
+                options={[
+                  { value: '', label: 'All experiences' },
+                  ...Object.entries(listingTitles).map(([id, title]) => ({ value: id, label: title })),
+                ]}
+                onChange={(next) => {
+                  setEarningListing(next);
+                  setEarningPage(0);
+                }}
+              />
             </label>
-            <label className="block text-[11px] font-semibold text-[#71717a]">
-              To
-              <input className="tv-input mt-1" type="date" aria-label="Activity to" value={earningTo} onChange={(event) => { setEarningTo(event.target.value); setEarningPage(0); }} />
+            <label className="tv-income-field">
+              <span>Status</span>
+              <PartnerSelect
+                aria-label="Payout status"
+                value={earningStatus}
+                options={[
+                  { value: 'all', label: 'All statuses' },
+                  { value: 'pending', label: 'Pending' },
+                  { value: 'eligible', label: 'Available' },
+                  { value: 'included', label: 'Processing' },
+                  { value: 'paid', label: 'Paid out' },
+                  { value: 'reversed', label: 'Reversed' },
+                  { value: 'recorded', label: 'Recorded' },
+                ]}
+                onChange={(next) => {
+                  setEarningStatus(next);
+                  setEarningPage(0);
+                }}
+              />
             </label>
-            <label className="block text-[11px] font-semibold text-[#71717a]">
-              Experience
-              <select className="tv-input mt-1" aria-label="Experience" value={earningListing} onChange={(event) => { setEarningListing(event.target.value); setEarningPage(0); }}>
-                <option value="">All experiences</option>
-                {Object.entries(listingTitles).map(([id, title]) => <option key={id} value={id}>{title}</option>)}
-              </select>
-            </label>
-            <label className="block text-[11px] font-semibold text-[#71717a]">
-              Status
-              <select className="tv-input mt-1" aria-label="Payout status" value={earningStatus} onChange={(event) => { setEarningStatus(event.target.value); setEarningPage(0); }}>
-                <option value="all">All statuses</option>
-                <option value="pending">Pending</option>
-                <option value="eligible">Available</option>
-                <option value="included">Processing</option>
-                <option value="paid">Paid out</option>
-                <option value="reversed">Reversed</option>
-                <option value="recorded">Recorded</option>
-              </select>
-            </label>
-            <label className="block text-[11px] font-semibold text-[#71717a]">
-              Sort by
-              <select className="tv-input mt-1" aria-label="Sort earnings" value={earningSort} onChange={(event) => setEarningSort(event.target.value as 'activity' | 'purchase' | 'earnings')}>
-                <option value="activity">Activity date</option>
-                <option value="purchase">Purchase date</option>
-                <option value="earnings">Your earnings</option>
-              </select>
+            <label className="tv-income-field">
+              <span>Sort by</span>
+              <PartnerSelect
+                aria-label="Sort earnings"
+                value={earningSort}
+                options={[
+                  { value: 'activity', label: 'Activity date' },
+                  { value: 'purchase', label: 'Purchase date' },
+                  { value: 'earnings', label: 'Your earnings' },
+                ]}
+                onChange={(next) => setEarningSort(next as 'activity' | 'purchase' | 'earnings')}
+              />
             </label>
           </div>
           {pageRows.length === 0 ? (
-            <div className="tv-income-empty">
-              <div className="tv-income-empty__icon"><Wallet className="h-6 w-6" aria-hidden /></div>
-              <h3 className="font-sans text-sm font-bold text-[#18181b]">No rows for this filter</h3>
+            <div className="tv-income-empty tv-income-empty--compact">
+              <div className="tv-income-empty__icon"><Wallet className="h-5 w-5" aria-hidden /></div>
+              <h3 className="text-sm font-bold text-[#18181b]">No rows for this filter</h3>
               <p className="mt-1 max-w-sm text-[13px] text-[#71717a]">{PARTNER_MONEY_FILTER_EMPTY_BODY}</p>
             </div>
           ) : (
@@ -993,10 +1096,10 @@ export default function SupplierEarnings() {
                           }
                         }}
                       >
-                        <td className="px-3 py-2.5 font-semibold text-[#18181b]">{row.reference}</td>
-                        <td className="max-w-[16rem] truncate px-3 py-2.5 text-[#3f3f46]">{row.experience}</td>
-                        <td className="px-3 py-2.5 text-[#52525b]">{incomeDate(row.activityDate)}</td>
-                        <td className="px-3 py-2.5 text-[#52525b]">{incomeDate(row.purchaseDate)}</td>
+                        <td className="whitespace-nowrap px-3 py-2.5 font-semibold text-[#18181b]">{row.reference}</td>
+                        <td className="max-w-[18rem] truncate px-3 py-2.5 text-[#3f3f46]" title={row.experience}>{row.experience}</td>
+                        <td className="whitespace-nowrap px-3 py-2.5 text-[#52525b]">{incomeDate(row.activityDate)}</td>
+                        <td className="whitespace-nowrap px-3 py-2.5 text-[#52525b]">{incomeDate(row.purchaseDate)}</td>
                         <td className="px-3 py-2.5 text-right font-bold tabular-nums text-[#18181b]">{formatMoney(row.netMinor / 100, row.currency)}</td>
                         <td className="px-3 py-2.5"><span className={earningStatusClass(row.status)}>{earningStatusLabel(row.status)}</span></td>
                       </tr>
@@ -1031,13 +1134,13 @@ export default function SupplierEarnings() {
       {hasMoney && tab === 'payouts' ? (
         <div className="mx-auto w-full max-w-[1180px] space-y-3">
           {payoutPeriods.length === 0 && filteredEarningsInWindow.length === 0 ? (
-            <div className="tv-income-empty">
-              <div className="tv-income-empty__icon"><Wallet className="h-6 w-6" aria-hidden /></div>
-              <h3 className="font-sans text-sm font-bold text-[#18181b]">No payouts yet</h3>
+            <div className="tv-income-empty tv-income-empty--compact">
+              <div className="tv-income-empty__icon"><Wallet className="h-5 w-5" aria-hidden /></div>
+              <h3 className="text-sm font-bold text-[#18181b]">No payouts yet</h3>
               <p className="mt-1 max-w-sm text-[13px] leading-relaxed text-[#71717a]">
-                {nextPayoutLabel} Eligible earnings appear here once Traverion schedules a payout period.
+                Eligible earnings appear here once Traverion schedules a payout period. Available balance is not a bank transfer.
               </p>
-              <div className="mt-4 flex flex-wrap justify-center gap-2">
+              <div className="mt-3 flex flex-wrap justify-center gap-2">
                 <button type="button" className="tv-btn-primary h-9 px-3 text-[13px]" onClick={() => setTabAndUrl('earnings')}>
                   View earnings
                 </button>
@@ -1094,12 +1197,17 @@ export default function SupplierEarnings() {
                 {kind === 'all' ? 'All' : kind === 'statements' ? 'Earnings statements' : kind === 'payouts' ? 'Payout statements' : 'Payment confirmations'}
               </button>
             ))}
-            <label className="ml-auto block text-[11px] font-semibold text-[#71717a]">
-              Year
-              <select className="tv-input mt-1 h-9 w-auto min-w-[7rem]" aria-label="Year" value={docYear} onChange={(event) => setDocYear(event.target.value)}>
-                <option value="all">All years</option>
-                {docYears.map((year) => <option key={year} value={year}>{year}</option>)}
-              </select>
+            <label className="tv-income-field ml-auto min-w-[8rem]">
+              <span>Year</span>
+              <PartnerSelect
+                aria-label="Year"
+                value={docYear}
+                options={[
+                  { value: 'all', label: 'All years' },
+                  ...docYears.map((year) => ({ value: year, label: year })),
+                ]}
+                onChange={setDocYear}
+              />
             </label>
           </div>
           {(() => {
@@ -1118,9 +1226,9 @@ export default function SupplierEarnings() {
             );
             if (statementDocs.length === 0 && payoutDocs.length === 0) {
               return (
-                <div className="tv-income-empty">
-                  <div className="tv-income-empty__icon"><FileText className="h-6 w-6" aria-hidden /></div>
-                  <h3 className="font-sans text-sm font-bold text-[#18181b]">No documents yet</h3>
+                <div className="tv-income-empty tv-income-empty--compact">
+                  <div className="tv-income-empty__icon"><FileText className="h-5 w-5" aria-hidden /></div>
+                  <h3 className="text-sm font-bold text-[#18181b]">No documents yet</h3>
                   <p className="mt-1 max-w-sm text-[13px] text-[#71717a]">
                     Earnings statements appear when a booking has a frozen commercial split. Payout statements appear after a period is recorded.
                   </p>

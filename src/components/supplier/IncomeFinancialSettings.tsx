@@ -214,10 +214,10 @@ export default function IncomeFinancialSettings({
   ] as const;
 
   return (
-    <div className="mx-auto w-full max-w-[1180px] space-y-4">
-      <section id="income-payout-account" className="rounded-[10px] border border-[#e5e7eb] bg-white px-4 py-4 sm:px-5">
+    <div className="mx-auto w-full max-w-[1180px] space-y-3">
+      <section id="income-payout-account" className="rounded-[10px] border border-[#e5e7eb] bg-white px-4 py-3.5 sm:px-5">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="font-sans text-sm font-bold text-[#18181b]">Bank account</h2>
+          <h2 className="text-sm font-bold text-[#18181b]">Bank account</h2>
           <span className="text-[12px] font-semibold text-[#52525b]">{verificationLabel(profile?.payout_verification_status)}</span>
         </div>
         <dl className="mt-3 grid gap-3 text-[13px] sm:grid-cols-2 lg:grid-cols-4">
@@ -273,9 +273,9 @@ export default function IncomeFinancialSettings({
         )}
       </section>
 
-      <section className="rounded-[10px] border border-[#e5e7eb] bg-white px-4 py-4 sm:px-5">
+      <section className="rounded-[10px] border border-[#e5e7eb] bg-white px-4 py-3.5 sm:px-5">
         <div className="flex flex-wrap items-center gap-2">
-          <h2 className="font-sans text-sm font-bold text-[#18181b]">Payout preferences</h2>
+          <h2 className="text-sm font-bold text-[#18181b]">Payout preferences</h2>
           <InfoTip label="About payout preferences">{PARTNER_PAYOUT_FREQUENCY_HINT}</InfoTip>
         </div>
 
@@ -361,8 +361,8 @@ export default function IncomeFinancialSettings({
         {!canEdit ? <p className="mt-2 text-[12px] text-[#71717a]">Your role can view these settings but cannot change them.</p> : null}
       </section>
 
-      <section className="rounded-[10px] border border-[#e5e7eb] bg-white px-4 py-4 sm:px-5">
-        <h2 className="font-sans text-sm font-bold text-[#18181b]">Commercial agreement</h2>
+      <section className="rounded-[10px] border border-[#e5e7eb] bg-white px-4 py-3.5 sm:px-5">
+        <h2 className="text-sm font-bold text-[#18181b]">Commercial agreement</h2>
         <dl className="mt-3 grid gap-3 text-[13px] sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <dt className="text-[11px] font-semibold text-[#71717a]">Current commission</dt>
@@ -390,8 +390,8 @@ export default function IncomeFinancialSettings({
         <p className="mt-3 text-[12px] text-[#71717a]">Contact Traverion to change your contractual payout plan.</p>
       </section>
 
-      <section className="rounded-[10px] border border-[#e5e7eb] bg-white px-4 py-4 sm:px-5">
-        <h2 className="font-sans text-sm font-bold text-[#18181b]">Business & tax</h2>
+      <section className="rounded-[10px] border border-[#e5e7eb] bg-white px-4 py-3.5 sm:px-5">
+        <h2 className="text-sm font-bold text-[#18181b]">Business & tax</h2>
         <dl className="mt-3 grid gap-3 text-[13px] sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <dt className="text-[11px] font-semibold text-[#71717a]">Registered business name</dt>
