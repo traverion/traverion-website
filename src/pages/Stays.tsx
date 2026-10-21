@@ -53,6 +53,7 @@ import {
   parsePriceChipId,
   parseRatingFilterId,
   marketplaceWhereDisplay,
+  parseCalendarDateParam,
   RATING_FILTER_CHIPS,
   stayMatchesCatalogFilters,
   staysBrowseFilteredEmptyBody,
@@ -78,8 +79,8 @@ const STAY_SORT_OPTIONS = [
 function parseStaysSearch(search: string) {
   const p = new URLSearchParams(search);
   const amenities = (p.get('amenities') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
-  const checkIn = p.get('date') ?? '';
-  const checkOutRaw = p.get('checkout') ?? '';
+  const checkIn = parseCalendarDateParam(p.get('date'));
+  const checkOutRaw = parseCalendarDateParam(p.get('checkout'));
   const checkOut = checkIn && checkOutRaw ? checkOutRaw : '';
   return {
     q: p.get('q') ?? '',
@@ -121,7 +122,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
   const [checkIn, setCheckIn] = useState(initial.checkIn);
   const [checkOut, setCheckOut] = useState(initial.checkOut);
   const [guests, setGuests] = useState(initial.guests);
-  /** Draft primary search — applied only on Search submit. */
+  /** Draft Where debounced into q; dates/guests apply when the selection is valid. */
   const [draftWhere, setDraftWhere] = useState(initial.q);
   const [draftCheckIn, setDraftCheckIn] = useState(initial.checkIn);
   const [draftCheckOut, setDraftCheckOut] = useState(initial.checkOut);
@@ -224,6 +225,21 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
     }
   }, [checkIn, checkOut]);
 
+  const applyStayDateRange = useCallback((nextIn: string, nextOut: string) => {
+    let out = nextOut;
+    if (nextIn && out && out <= nextIn) {
+      out = addCalendarDays(nextIn, 1);
+    } else if (nextIn && !out) {
+      out = addCalendarDays(nextIn, 1);
+    } else if (!nextIn && out) {
+      out = '';
+    }
+    setDraftCheckIn(nextIn);
+    setDraftCheckOut(out);
+    setCheckIn(nextIn);
+    setCheckOut(out);
+  }, []);
+
   const patchDraftSearch = useCallback(
     (patch: Partial<MarketplaceSearchValues>) => {
       if (patch.where !== undefined) {
@@ -231,34 +247,55 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
         setDraftWhere(patch.where);
         if (!patch.where.trim() || destOnly) setSelectedDestination('all');
       }
-      if (patch.date !== undefined) setDraftCheckIn(patch.date);
-      if (patch.checkout !== undefined) setDraftCheckOut(patch.checkout);
-      if (patch.guests !== undefined) setDraftGuests(patch.guests);
+      if (patch.date !== undefined || patch.checkout !== undefined) {
+        let nextIn = draftCheckIn;
+        let nextOutRaw = draftCheckOut;
+        if (patch.date !== undefined) {
+          if (patch.date.trim() === '') nextIn = '';
+          else {
+            const parsedIn = parseCalendarDateParam(patch.date);
+            if (parsedIn) nextIn = parsedIn;
+          }
+        }
+        if (patch.checkout !== undefined) {
+          if (patch.checkout.trim() === '') nextOutRaw = '';
+          else {
+            const parsedOut = parseCalendarDateParam(patch.checkout);
+            if (parsedOut) nextOutRaw = parsedOut;
+          }
+        }
+        // Apply when check-in is set (auto +1 night) or both cleared.
+        applyStayDateRange(nextIn, nextOutRaw);
+      }
+      if (patch.guests !== undefined) {
+        setDraftGuests(patch.guests);
+        setGuests(patch.guests);
+      }
     },
-    [draftWhere, selectedDestination]
+    [draftWhere, draftCheckIn, draftCheckOut, selectedDestination, applyStayDateRange]
   );
 
   const applyPrimarySearch = useCallback(() => {
-    let nextIn = draftCheckIn;
-    let nextOut = draftCheckOut;
-    if (nextIn && nextOut && nextOut <= nextIn) {
-      nextOut = addCalendarDays(nextIn, 1);
-    } else if (nextIn && !nextOut) {
-      nextOut = addCalendarDays(nextIn, 1);
-    } else if (!nextIn && nextOut) {
-      nextOut = '';
-    }
+    applyStayDateRange(draftCheckIn, draftCheckOut);
     setQ(draftWhere);
-    setCheckIn(nextIn);
-    setCheckOut(nextOut);
-    setDraftCheckOut(nextOut);
     setGuests(draftGuests);
     setMobileSearchOpen(false);
     const query = draftWhere.trim();
     if (query) {
       recordTravelerInterest({ kind: 'search', key: query, family: 'stay' });
     }
-  }, [draftWhere, draftCheckIn, draftCheckOut, draftGuests]);
+  }, [draftWhere, draftCheckIn, draftCheckOut, draftGuests, applyStayDateRange]);
+
+  /** Debounce free-text Where so stay results update without Search. */
+  useEffect(() => {
+    if (draftWhere === q) return;
+    const t = window.setTimeout(() => {
+      setQ(draftWhere);
+      const query = draftWhere.trim();
+      if (query) recordTravelerInterest({ kind: 'search', key: query, family: 'stay' });
+    }, 280);
+    return () => window.clearTimeout(t);
+  }, [draftWhere, q]);
 
   const stayIdsKey = useMemo(() => stays.map((s) => s.id).filter(isSupabaseListingId).join(','), [stays]);
   const discountsForDisplayedCatalog =

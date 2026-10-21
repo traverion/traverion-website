@@ -27,6 +27,8 @@ type Props = {
   tone?: 'marketplace' | 'premium';
   /** When the parent field shell already shows a calendar icon. */
   hideIcon?: boolean;
+  /** Civil YYYY-MM-DD for the “today” ring; defaults to browser-local calendar day. */
+  todayIso?: string;
 };
 
 type PanelBox =
@@ -47,6 +49,7 @@ export function TraverionSingleDateField({
   className = '',
   tone = 'marketplace',
   hideIcon = false,
+  todayIso: todayIsoProp,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [panelBox, setPanelBox] = useState<PanelBox | null>(null);
@@ -56,7 +59,7 @@ export function TraverionSingleDateField({
   const panelId = useId();
   const labelId = useId();
   const valueId = useId();
-  const todayIso = localYmd();
+  const todayIso = todayIsoProp && /^\d{4}-\d{2}-\d{2}$/.test(todayIsoProp) ? todayIsoProp : localYmd();
   const min = minIso === undefined ? todayIso : minIso;
   const hasMin = /^\d{4}-\d{2}-\d{2}$/.test(min);
 

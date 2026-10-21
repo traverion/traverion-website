@@ -14,8 +14,11 @@ import {
   toursBrowseFilteredEmptyBody,
   staysBrowseFilteredEmptyBody,
   marketplaceFamilySwitchPath,
+  marketplaceBrowseTodayIso,
   marketplaceSearchMinSelectableIso,
   marketplaceWhereDisplay,
+  listingBrowseAmountForFilters,
+  parseCalendarDateParam,
   parseMarketplaceSort,
   parsePriceChipId,
   stayHasAmenity,
@@ -24,7 +27,7 @@ import {
   tourMatchesCatalogFilters,
 } from './marketplaceBrowse';
 import type { TourPackage } from '../types/tour';
-import { ymdInTimeZone, addCalendarDaysYmd } from './booking-lifecycle-calendar';
+import { ymdInTimeZone } from './booking-lifecycle-calendar';
 
 function baseTour(overrides: Partial<TourPackage> = {}): TourPackage {
   return {
@@ -406,12 +409,122 @@ describe('marketplace browse filters', () => {
     expect(marketplaceWhereDisplay('', 'unknown-slug', opts)).toBe('unknown-slug');
   });
 
-  it('browse date floor is UTC-yesterday, not browser-local today (Phase 1095)', () => {
-    // 2026-09-15 22:30 UTC → UTC today Sep 15 → floor Sep 14
-    const now = Date.UTC(2026, 8, 15, 22, 30, 0);
-    const utcToday = ymdInTimeZone(now, 'UTC');
-    expect(utcToday).toBe('2026-09-15');
-    expect(marketplaceSearchMinSelectableIso(now)).toBe(addCalendarDaysYmd('2026-09-15', -1));
-    expect(marketplaceSearchMinSelectableIso(now)).toBe('2026-09-14');
+  it('browse date floor is Europe/Helsinki civil today, not UTC (Finland morning)', () => {
+    // 22 Oct 2026 01:52 EEST = 21 Oct 2026 22:52 UTC — Helsinki day must stay 22 Oct.
+    const now = Date.UTC(2026, 9, 21, 22, 52, 0);
+    expect(ymdInTimeZone(now, 'UTC')).toBe('2026-10-21');
+    expect(ymdInTimeZone(now, 'Europe/Helsinki')).toBe('2026-10-22');
+    expect(marketplaceSearchMinSelectableIso(now)).toBe('2026-10-22');
+  });
+
+  it('browse date floor stays Helsinki after EU DST ends (25 Oct 2026)', () => {
+    // 26 Oct 2026 00:30 EET = 25 Oct 2026 22:30 UTC
+    const now = Date.UTC(2026, 9, 25, 22, 30, 0);
+    expect(ymdInTimeZone(now, 'Europe/Helsinki')).toBe('2026-10-26');
+    expect(marketplaceSearchMinSelectableIso(now)).toBe('2026-10-26');
+  });
+
+  it('parseCalendarDateParam keeps only YYYY-MM-DD', () => {
+    expect(parseCalendarDateParam('2026-10-30')).toBe('2026-10-30');
+    expect(parseCalendarDateParam('2026-10-30T00:00:00.000Z')).toBe('');
+    expect(parseCalendarDateParam('not-a-date')).toBe('');
+    expect(parseCalendarDateParam(null)).toBe('');
+  });
+
+  it('marketplaceBrowseTodayIso matches Helsinki civil day at Finland 01:52', () => {
+    const now = Date.UTC(2026, 9, 21, 22, 52, 0);
+    expect(marketplaceBrowseTodayIso(now)).toBe('2026-10-22');
+  });
+
+  it('option-aware price does not mix cheap option with another option’s date', () => {
+    // Fri 2026-10-30 — bus (Mon–Thu €79) vs private (daily €349).
+    const tour = baseTour({
+      price: {
+        startingFrom: 79,
+        currency: 'EUR',
+        perPerson: true,
+        twinOccupancy: false,
+        customQuote: false,
+        singleSupplement: 0,
+        validity: '',
+      },
+      listingExtras: {
+        departureTimezone: 'Europe/Helsinki',
+        bookingCutoffHoursBeforeStart: 0,
+        bookingOptions: [
+          {
+            id: 'bus',
+            name: 'Bus tour',
+            priceUsd: 79,
+            startTime: '10:00',
+            duration: '3 hours',
+            pickupPlace: 'Station',
+            minPersons: 1,
+            maxPersons: 40,
+            maxSpotsPerSlot: 40,
+            optionInfo: 'Shared bus',
+            weekdays: [true, true, true, true, false, false, false],
+            availabilityDateFrom: '2020-01-01',
+            availabilityDateTo: '',
+          },
+          {
+            id: 'private',
+            name: 'Private tour',
+            priceUsd: 349,
+            startTime: '10:00',
+            duration: '3 hours',
+            pickupPlace: 'Hotel',
+            minPersons: 1,
+            maxPersons: 6,
+            maxSpotsPerSlot: 6,
+            optionInfo: 'Private',
+            isPrivate: true,
+            weekdays: [true, true, true, true, true, true, true],
+            availabilityDateFrom: '2020-01-01',
+            availabilityDateTo: '',
+          },
+        ],
+      },
+    });
+
+    expect(listingBrowseAmountForFilters(tour, {})).toBe(79);
+    expect(listingBrowseAmountForFilters(tour, { date: '2026-10-30' })).toBe(349);
+    expect(
+      tourMatchesCatalogFilters(tour, {
+        q: '',
+        destinationId: 'all',
+        destinationOptions: [],
+        tags: [],
+        price: 'under100',
+        date: '2026-10-30',
+        guests: '',
+        privateOnly: false,
+        rating: 'all',
+        duration: 'all',
+        language: 'all',
+        ratingScore: null,
+        partyMax: 8,
+        runsOnDate: true,
+      })
+    ).toBe(false);
+    expect(
+      tourMatchesCatalogFilters(tour, {
+        q: '',
+        destinationId: 'all',
+        destinationOptions: [],
+        tags: [],
+        price: 'under100',
+        date: '',
+        guests: '',
+        privateOnly: false,
+        rating: 'all',
+        duration: 'all',
+        language: 'all',
+        ratingScore: null,
+        partyMax: 8,
+        runsOnDate: true,
+      })
+    ).toBe(true);
   });
 });
+

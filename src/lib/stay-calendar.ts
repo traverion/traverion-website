@@ -4,10 +4,12 @@ const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
 export function formatStayNightHuman(iso: string): string {
   if (!ISO.test(iso)) return iso;
-  return new Date(`${iso}T12:00:00`).toLocaleDateString(undefined, {
+  // UTC noon keeps the civil day stable across browser timezones.
+  return new Date(`${iso}T12:00:00Z`).toLocaleDateString(undefined, {
     weekday: 'short',
     day: 'numeric',
     month: 'short',
+    timeZone: 'UTC',
   });
 }
 

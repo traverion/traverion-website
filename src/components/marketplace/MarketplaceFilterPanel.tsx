@@ -34,7 +34,7 @@ export function MarketplaceFilterChip({
       type="button"
       aria-pressed={pressed}
       onClick={onClick}
-      className={`tv-chip min-h-9 px-3 py-1.5 text-[13px] transition-colors duration-150 ${
+      className={`tv-chip min-h-10 px-3.5 py-1.5 text-[13px] transition-colors duration-150 ${
         pressed
           ? 'bg-finland text-white shadow-sm ring-2 ring-finland/40'
           : 'bg-paper text-ink ring-1 ring-black/[0.06] hover:bg-finland/10 hover:text-finland'
@@ -60,7 +60,7 @@ export function MarketplaceActiveChip({
     <button
       type="button"
       onClick={onRemove}
-      className="lux-flat inline-flex items-center gap-1.5 rounded-full bg-finland/10 px-3 py-1.5 text-xs font-semibold text-finland ring-1 ring-finland/20"
+      className="lux-flat inline-flex min-h-9 items-center gap-1.5 rounded-full bg-finland/10 px-3 py-1.5 text-xs font-semibold text-finland ring-1 ring-finland/20"
     >
       {label}
       <span aria-hidden className="text-finland/70">

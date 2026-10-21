@@ -8,28 +8,61 @@ import { listingIsFamily } from './inventory';
 import { listingTourMatchesBrowseTag } from './listingTruth';
 import { formatStayAmenityLabel, stayAmenityDisplayList } from './stay-amenities';
 import { addCalendarDays } from './stayOccupancy';
-import { addCalendarDaysYmd, ymdInTimeZone } from './booking-lifecycle-calendar';
-import { materializedBookingOptions, parseListingExtras } from '../types/listingExtras';
+import { ymdInTimeZone } from './booking-lifecycle-calendar';
+import {
+  normalizeBookingCutoffHours,
+  TRAVERION_DEPARTURE_TIMEZONE,
+} from './tour-departure-cutoff';
+import { tourBookableSellingDeparturesOnDate } from './booking-quote';
+import {
+  listingOptionHasSchedules,
+  resolveScheduleForDate,
+  tourSellingDeparturesOnDate,
+} from './listing-option-schedules';
+import { optionHeadlineUnitPrice } from './price-categories';
+import {
+  materializedBookingOptions,
+  parseListingExtras,
+  type ListingBookingOption,
+} from '../types/listingExtras';
 import type { TourPackage } from '../types/tour';
 
+const CALENDAR_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
 /**
- * Destination-unaware browse date floor (Phase 1095).
- * Do not use browser-local “today”: a traveler west of UTC would block an
- * experience-local today that is still bookable in Rovaniemi, and a traveler
- * east of UTC would advertise a day that has already ended in destination TZ.
- * Floor at UTC yesterday so any listing still on its local “today” remains selectable;
- * PDP/Pay continue to enforce experienceTodayIsoForListing.
+ * Platform browse calendar zone when no listing destination is selected yet.
+ * Traverion is Finland-rooted; listing PDPs still enforce each experience’s own IANA zone.
  */
-export function marketplaceSearchMinSelectableIso(nowMs: number = Date.now()): string {
+export const MARKETPLACE_BROWSE_TIMEZONE = TRAVERION_DEPARTURE_TIMEZONE;
+
+/** Keep only stable YYYY-MM-DD calendar dates from URL / form input. */
+export function parseCalendarDateParam(raw: string | null | undefined): string {
+  const s = (raw ?? '').trim();
+  return CALENDAR_DATE_RE.test(s) ? s : '';
+}
+
+/**
+ * Civil “today” for marketplace browse controls (search min + calendar highlight).
+ * Uses Europe/Helsinki — not UTC and not the browser’s local zone — so a Finnish
+ * morning (e.g. 22 Oct 01:52 EEST while UTC is still 21 Oct) does not shift the
+ * selectable calendar day or disagree with URL/chips that store YYYY-MM-DD.
+ * PDP/Pay continue to enforce experienceTodayIsoForListing per listing TZ.
+ */
+export function marketplaceBrowseTodayIso(nowMs: number = Date.now()): string {
+  const helsinki = ymdInTimeZone(nowMs, MARKETPLACE_BROWSE_TIMEZONE);
+  if (helsinki) return helsinki;
   const utcToday = ymdInTimeZone(nowMs, 'UTC');
-  if (!utcToday) {
-    const d = new Date(nowMs);
-    const y = d.getUTCFullYear();
-    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(d.getUTCDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
-  }
-  return addCalendarDaysYmd(utcToday, -1) ?? utcToday;
+  if (utcToday) return utcToday;
+  const d = new Date(nowMs);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** Destination-unaware browse date floor = platform browse today (civil). */
+export function marketplaceSearchMinSelectableIso(nowMs: number = Date.now()): string {
+  return marketplaceBrowseTodayIso(nowMs);
 }
 
 export type MarketplaceSearchFamily = 'tours' | 'stays';
@@ -221,6 +254,67 @@ export function listingBrowseAmount(tour: TourPackage): number {
   return listingIsFamily(tour, 'stay') ? stayNightlyAmount(tour) : catalogHeadlineAmount(tour);
 }
 
+function optionUnitPriceForBrowseDate(option: ListingBookingOption, dateIso: string): number {
+  if (dateIso && listingOptionHasSchedules(option)) {
+    const resolved = resolveScheduleForDate(option, dateIso);
+    if (resolved) {
+      const scheduled = optionHeadlineUnitPrice(resolved);
+      if (scheduled > 0) return scheduled;
+    }
+  }
+  return optionHeadlineUnitPrice(option);
+}
+
+/**
+ * Headline used for price chips when option-level constraints apply.
+ * Price must come from an option that also satisfies date (bookable that day)
+ * and private-only — never mix a cheap option’s price with another option’s availability.
+ */
+export function listingBrowseAmountForFilters(
+  tour: TourPackage,
+  input: { date?: string; privateOnly?: boolean; nowMs?: number } = {}
+): number {
+  if (listingIsFamily(tour, 'stay')) return stayNightlyAmount(tour);
+
+  const extras = parseListingExtras(tour.listingExtras);
+  const opts = materializedBookingOptions(extras.bookingOptions);
+  if (opts.length === 0) return catalogHeadlineAmount(tour);
+
+  const date = (input.date ?? '').trim();
+  const dateOk = CALENDAR_DATE_RE.test(date);
+  const cutoff = normalizeBookingCutoffHours(extras.bookingCutoffHoursBeforeStart);
+
+  const qualifying = opts.filter((o) => {
+    if (input.privateOnly && !o.isPrivate) return false;
+    if (!dateOk) return true;
+    const selling = tourSellingDeparturesOnDate([o], date);
+    // Empty = this option does not operate that civil day (do not fall through on cutoff).
+    if (selling.length === 0) return false;
+    const withTimes = selling.filter((d) => d.startTime.trim());
+    if (withTimes.length === 0) {
+      // Weekday/window open but no concrete start times — same as listingHasBookableDepartureOnDate.
+      return cutoff <= 0;
+    }
+    return (
+      tourBookableSellingDeparturesOnDate([o], date, {
+        cutoffHoursBeforeStart: cutoff,
+        timeZone: extras.departureTimezone,
+        nowMs: input.nowMs,
+        slotOverrides: extras.slotOverrides,
+      }).length > 0
+    );
+  });
+
+  if (qualifying.length === 0) return Number.POSITIVE_INFINITY;
+
+  let min = Number.POSITIVE_INFINITY;
+  for (const o of qualifying) {
+    const p = optionUnitPriceForBrowseDate(o, dateOk ? date : '');
+    if (p > 0 && p < min) min = p;
+  }
+  return Number.isFinite(min) ? min : catalogHeadlineAmount(tour);
+}
+
 export function collectStayPropertyTypes(listings: TourPackage[]): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
@@ -308,17 +402,17 @@ export function failCloseOrphanStayCheckout(
 /** Layer B: chip/URL filters without `q` must not claim an empty text search failed. */
 export function toursBrowseFilteredEmptyBody(hasTextSearch: boolean): string {
   if (hasTextSearch) {
-    return 'Nothing fits this search. Try another place, date, or clear filters to see live tours again.';
+    return 'No tours match this search. Change the place or date, or clear filters.';
   }
-  return 'Nothing matches these filters. Try another place, date, or clear filters to see live tours again.';
+  return 'No tours match these filters. Try another place or date, or clear filters.';
 }
 
 /** Phase 1667: stays browse empty body — distinguish text search vs chips/dates only. */
 export function staysBrowseFilteredEmptyBody(hasTextSearch: boolean): string {
   if (hasTextSearch) {
-    return 'Nothing fits this search. Try another place, dates, or guest count — or clear filters to see live stays again.';
+    return 'No stays match this search. Change place, dates, or guests — or clear filters.';
   }
-  return 'Try another place, dates, or guest count — or clear filters to see live stays again.';
+  return 'No stays match these filters. Try other dates or clear filters.';
 }
 
 export function catalogSharedCurrency(listings: TourPackage[], normalizeCurrency: (raw?: string) => string): string | null {
@@ -357,7 +451,14 @@ export function tourMatchesCatalogFilters(tour: TourPackage, input: TourCatalogF
   const matchesTag =
     input.tags.length === 0 ||
     input.tags.every((tagId) => listingTourMatchesBrowseTag(tour, tagId));
-  const matchesPrice = matchesPriceChip(listingBrowseAmount(tour), input.price);
+  // Option-aware: price chip must match an option that also satisfies date + private.
+  const matchesPrice = matchesPriceChip(
+    listingBrowseAmountForFilters(tour, {
+      date: input.date,
+      privateOnly: input.privateOnly,
+    }),
+    input.price
+  );
   const matchesDate = !input.date || input.runsOnDate;
   const guestCount = Number.parseInt(input.guests, 10);
   const matchesGuests =

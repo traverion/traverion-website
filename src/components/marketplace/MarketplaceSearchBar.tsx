@@ -4,6 +4,7 @@ import { Calendar, MapPin, Search, Users } from 'lucide-react';
 import { addCalendarDays } from '../../lib/stayOccupancy';
 import {
   nextStayDatePatch,
+  marketplaceBrowseTodayIso,
   marketplaceSearchMinSelectableIso,
   type MarketplaceSearchFamily,
   type MarketplaceSearchValues,
@@ -112,6 +113,7 @@ export function MarketplaceSearchFields({
 }: Pick<Props, 'family' | 'values' | 'onChange' | 'idPrefix' | 'stacked'>) {
   const isStay = family === 'stays';
   const searchMinIso = marketplaceSearchMinSelectableIso();
+  const browseTodayIso = marketplaceBrowseTodayIso();
   return (
     <>
       <MarketplaceDestinationField
@@ -129,6 +131,7 @@ export function MarketplaceSearchFields({
           value={values.date}
           placeholder={isStay ? 'Add date' : 'Any dates'}
           minIso={searchMinIso}
+          todayIso={browseTodayIso}
           tone="premium"
           hideIcon
           onChange={(next) => {
@@ -146,6 +149,7 @@ export function MarketplaceSearchFields({
               value={values.checkout}
               placeholder="Add date"
               minIso={values.date ? addCalendarDays(values.date, 1) : searchMinIso}
+              todayIso={browseTodayIso}
               tone="premium"
               hideIcon
               onChange={(next) => {

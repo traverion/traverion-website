@@ -236,13 +236,16 @@ export function getTourBookingVariants(tour: TourPackage): TourBookingVariant[] 
 
 export function formatBookingDateDisplay(isoDate: string): string {
   if (!isoDate?.trim()) return '';
-  const d = new Date(`${isoDate.trim()}T12:00:00`);
+  // UTC noon keeps the civil YYYY-MM-DD stable in every browser timezone
+  // (local midnight + toLocaleDateString can shift the displayed day).
+  const d = new Date(`${isoDate.trim()}T12:00:00Z`);
   if (Number.isNaN(d.getTime())) return isoDate.trim();
   return d.toLocaleDateString(undefined, {
     weekday: 'short',
     year: 'numeric',
     month: 'short',
     day: 'numeric',
+    timeZone: 'UTC',
   });
 }
 

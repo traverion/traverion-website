@@ -54,6 +54,7 @@ import {
   MARKETPLACE_BROWSE_GRID_CLASS,
   marketplaceFamilySwitchPath,
   marketplaceWhereDisplay,
+  parseCalendarDateParam,
   parseDurationFilterId,
   parseMarketplaceSort,
   parsePriceChipId,
@@ -109,7 +110,7 @@ function parsePackagesSearchParams(search: string): {
     tags: tagsParam ? tagsParam.split(',').filter(Boolean) : [],
     sort: parseMarketplaceSort(params.get('sort')),
     price: parsePriceChipId(params.get('price')),
-    date: params.get('date') ?? '',
+    date: parseCalendarDateParam(params.get('date')),
     guests: params.get('guests') ?? '',
     privateOnly: params.get('private') === '1',
     rating: parseRatingFilterId(params.get('rating')),
@@ -158,7 +159,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
   const [priceRange, setPriceRange] = useState(initialFilters.price);
   const [filterDate, setFilterDate] = useState(initialFilters.date);
   const [filterGuests, setFilterGuests] = useState(initialFilters.guests);
-  /** Draft primary search — applied only on Search (does not refilter while typing). */
+  /** Draft Where — debounced into searchTerm. Date/guests apply immediately (no Search click). */
   const [draftWhere, setDraftWhere] = useState(initialFilters.searchTerm);
   const [draftDate, setDraftDate] = useState(initialFilters.date);
   const [draftGuests, setDraftGuests] = useState(initialFilters.guests);
@@ -665,6 +666,17 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     }
   }, [draftWhere, draftDate, draftGuests]);
 
+  /** Debounce free-text Where so results update without Search; date/guests apply instantly. */
+  useEffect(() => {
+    if (draftWhere === searchTerm) return;
+    const t = window.setTimeout(() => {
+      setSearchTerm(draftWhere);
+      const q = draftWhere.trim();
+      if (q) recordTravelerInterest({ kind: 'search', key: q, family: 'tour' });
+    }, 280);
+    return () => window.clearTimeout(t);
+  }, [draftWhere, searchTerm]);
+
   const patchDraftSearch = useCallback(
     (patch: Partial<{ where: string; date: string; guests: string }>) => {
       if (patch.where !== undefined) {
@@ -672,8 +684,17 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
         setDraftWhere(patch.where);
         if (!patch.where.trim() || destOnly) setSelectedDestination('all');
       }
-      if (patch.date !== undefined) setDraftDate(patch.date);
-      if (patch.guests !== undefined) setDraftGuests(patch.guests);
+      if (patch.date !== undefined) {
+        // Picker emits YYYY-MM-DD or ''; apply immediately so URL/chips/results stay in sync.
+        const dateNext = patch.date.trim() === '' ? '' : parseCalendarDateParam(patch.date);
+        if (patch.date.trim() !== '' && !dateNext) return;
+        setDraftDate(dateNext);
+        setFilterDate(dateNext);
+      }
+      if (patch.guests !== undefined) {
+        setDraftGuests(patch.guests);
+        setFilterGuests(patch.guests);
+      }
     },
     [draftWhere, selectedDestination]
   );
