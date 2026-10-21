@@ -31,6 +31,7 @@ import { LISTING_SELF_BOOK_BLOCKED, LISTING_SELF_BOOK_CHECK_FAILED, viewerIsList
 import { failCloseOrphanStayCheckout } from '../lib/marketplaceBrowse';
 import { trackListingTraffic } from '../lib/listing-traffic';
 import { quoteStayNights, stayQuotePriceLines, experienceTodayIsoForListing } from '../lib/booking-quote';
+import { fetchDiscountsByListingIds, type ListingDiscount } from '../data/supabase-discounts';
 import { stayDateRangesOverlap, occupiedNightsFromStayRanges, nightsOccupiedByStay } from '../lib/stayOccupancy';
 import {
   createBookingCheckoutSession,
@@ -123,6 +124,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
     userRef.current = user;
   }, [user]);
   const [stay, setStay] = useState<TourPackage | null>(null);
+  const [stayDiscounts, setStayDiscounts] = useState<ListingDiscount[]>([]);
   const [error, setError] = useState<string | null>(null);
   /** Phase 1731: review-only PDP when draft stay is hidden from traveler SELECT. */
   const [reviewOnlyAccess, setReviewOnlyAccess] = useState(false);
@@ -189,6 +191,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
     let cancelled = false;
     setError(null);
     setStay(null);
+    setStayDiscounts([]);
     setReviewOnlyAccess(false);
     setOccupiedRanges([]);
     setBlockedNights([]);
@@ -245,6 +248,20 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
       cancelled = true;
     };
   }, [stayId, user?.id, user?.email]);
+
+  useEffect(() => {
+    if (!stay?.id) {
+      setStayDiscounts([]);
+      return;
+    }
+    let cancelled = false;
+    void fetchDiscountsByListingIds([stay.id]).then((map) => {
+      if (!cancelled) setStayDiscounts(map.get(stay.id) ?? []);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [stay?.id]);
 
   useEffect(() => {
     setShowReviewForm(false);
@@ -492,6 +509,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
         guests: party.adults,
         party,
         selectedExtras,
+        discounts: stayDiscounts,
         todayIso: experienceTodayIso,
       })
     : null;

@@ -16,7 +16,8 @@ import {
   TRAVERION_DEPARTURE_TIMEZONE,
   wallTimeInZoneToUtcMs,
 } from './tour-departure-cutoff.ts';
-import { normalizeStaySeasons, quoteStayLodging } from './stay-season-quote.ts';
+import { normalizeStaySeasons, quoteStayLodging, stayNightDates } from './stay-season-quote.ts';
+import { resolveStayLodgingWithOffers } from './stay-offer-pricing.ts';
 import { validateStayGuestParty, type StayGuestParty } from './stay-guest-party.ts';
 import { priceStayAddOns, stayChargeLines, type StayExtraSelection } from './stay-price.ts';
 
@@ -301,6 +302,7 @@ function quoteStayListing(input: {
   guests: number;
   party?: StayGuestParty | null;
   selectedExtras?: StayExtraSelection[] | null;
+  discounts?: DiscountRow[];
   today: string;
   nowMs?: number;
   timeZone?: string;
@@ -388,7 +390,6 @@ function quoteStayListing(input: {
         ? stay.cleaningFeeUsd
         : 0;
   const currency = (input.listing.price_currency ?? 'EUR').trim().toUpperCase() || 'EUR';
-  const flat = lodging.nightlyPrices.every((price) => price === lodging.nightlyPrices[0]);
   const addOns = priceStayAddOns({
     lodging: lodging.lodging,
     nights,
@@ -401,27 +402,36 @@ function quoteStayListing(input: {
     selected: input.selectedExtras,
   });
   if (!addOns.ok) return { ok: false, error: addOns.error };
+  const resolved = resolveStayLodgingWithOffers({
+    nightDates: stayNightDates(input.checkIn, nights),
+    baseNightlyPrices: lodging.nightlyPrices,
+    lengthOfStayDiscount: addOns.discount,
+    lengthOfStayLabel: addOns.discountLabel,
+    discounts: input.discounts ?? [],
+  });
+  const flat = resolved.nightlyPrices.every((price) => price === resolved.nightlyPrices[0]);
   const extraSum = addOns.extraLines.reduce((sum, line) => sum + line.amount, 0);
-  const unitPrice = money(flat ? lodging.nightlyPrices[0] : nightly);
+  const unitPrice = money(flat ? resolved.nightlyPrices[0] : nightly);
   const cleaningFee = money(cleaning);
   const stayPriceLines = stayChargeLines({
     nights,
     nightlyPrice: unitPrice,
-    nightlyPrices: lodging.nightlyPrices,
+    nightlyPrices: resolved.nightlyPrices,
     cleaningFee,
     extraGuestCount: addOns.extraGuestCount,
     extraGuestFee: addOns.extraGuestFee,
-    discount: addOns.discount,
-    discountLabel: addOns.discountLabel,
+    discount: resolved.discount,
+    discountLabel: resolved.discountLabel,
     extraLines: addOns.extraLines,
   });
+  // lodging is pre-discount; discount line is subtracted (weekly/monthly or timed Offer — never both).
   return {
     ok: true,
     currency,
     unitPrice,
-    totalAmount: money(lodging.lodging + cleaningFee + addOns.extraGuestFee + extraSum - addOns.discount),
+    totalAmount: money(resolved.lodging + cleaningFee + addOns.extraGuestFee + extraSum - resolved.discount),
     cleaningFee,
-    lodgingAmount: lodging.lodging,
+    lodgingAmount: resolved.lodging,
     optionId: null,
     optionLabel: `${nights} night${nights === 1 ? '' : 's'}`,
     nights,
@@ -429,6 +439,7 @@ function quoteStayListing(input: {
     guestBreakdown,
     stayPriceLines,
     stayRequests: addOns.requests.map((row) => ({ id: row.id, name: row.name, quantity: row.quantity })),
+    appliedDiscountId: resolved.appliedDiscountId,
   };
 }
 
@@ -1135,6 +1146,7 @@ export function quoteListingBooking(input: {
       guests,
       party: input.stayParty,
       selectedExtras: input.stayExtras,
+      discounts: input.discounts,
       today,
       nowMs,
       timeZone: departureTimezone,

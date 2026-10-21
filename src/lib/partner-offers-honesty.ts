@@ -1,24 +1,31 @@
-import { listingIsFamily } from './inventory';
+import { inventoryFamilyFromListing, listingIsFamily } from './inventory';
 
-/** Stay discounts are stored historically but never applied on traveler stay checkout. */
-export function partnerOfferListingIsStayUnsupported(listing: {
+/**
+ * @deprecated Stay Offers now apply on traveler checkout. Always false.
+ * Kept so older call sites compile until they drop the helper.
+ */
+export function partnerOfferListingIsStayUnsupported(_listing: {
   listingExtras?: unknown;
 }): boolean {
-  return listingIsFamily(listing, 'stay');
+  return false;
 }
 
-/** New or updated offer rows may only attach to a tour. Stays have no traveler discount quote. */
+/** Tours and stays may persist Offers. Experience/package (and future rentals) cannot. */
 export function partnerOfferMayBePersistedForListing(listing: {
   listingExtras?: unknown;
+  isHolidayPackage?: boolean;
 }): boolean {
-  return !partnerOfferListingIsStayUnsupported(listing);
+  const family = inventoryFamilyFromListing(listing);
+  return family === 'tour' || family === 'stay';
 }
 
-/** “Active now” for Partners: live date window on a tour only — never stay-linked rows. */
+/** “Active now” for Partners: live Discount period on a tour or stay. */
 export function partnerOfferCountsAsActiveNow(params: {
   listing: { listingExtras?: unknown };
   status: 'upcoming' | 'active' | 'ended';
 }): boolean {
-  if (partnerOfferListingIsStayUnsupported(params.listing)) return false;
+  if (listingIsFamily(params.listing, 'experience') || listingIsFamily(params.listing, 'package')) {
+    return false;
+  }
   return params.status === 'active';
 }

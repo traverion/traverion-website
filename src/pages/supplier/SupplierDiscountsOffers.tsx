@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
-import { MapPin, MoreHorizontal, Search } from 'lucide-react';
+import { ChevronDown, MapPin, MoreHorizontal, Search } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { TourPackage } from '../../types/tour';
@@ -18,23 +18,27 @@ import {
 } from '../../data/supabase-discounts';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 import DiscountOfferWizardModal from '../../components/supplier/DiscountOfferWizardModal';
+import PartnerConfirmModal from '../../components/supplier/PartnerConfirmModal';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { SUPPLIER_PAGE_CLASS, SupplierListSkeleton } from '../../components/supplier/supplierUi';
 import { formatMoney, normalizeCurrency } from '../../lib/money';
 import { fromMinorUnits } from '../../lib/commercial-money';
 import { catalogOfferTodayIso } from '../../lib/discount-display';
-import { offerDiscountPeriod, offerLifecycle, type OfferLifecycle } from '../../lib/offer-eligibility';
+import {
+  findSupplierOfferConflicts,
+  offerDiscountPeriod,
+  offerLifecycle,
+  type OfferLifecycle,
+} from '../../lib/offer-eligibility';
+import { localYmd } from '../../lib/local-ymd';
 import { optionHeadlineUnitPrice } from '../../lib/price-categories';
 import { listingOptionHasSchedules, listingOptionReadySchedules } from '../../lib/listing-option-schedules';
 import type { ListingBookingOption } from '../../types/listingExtras';
 import NoticeCallout from '../../components/NoticeCallout';
 import PartnerSelect from '../../components/supplier/PartnerSelect';
 import { listingIsFamily } from '../../lib/inventory';
-import {
-  partnerOfferCountsAsActiveNow,
-  partnerOfferListingIsStayUnsupported,
-} from '../../lib/partner-offers-honesty';
+import { partnerOfferCountsAsActiveNow } from '../../lib/partner-offers-honesty';
 
 function optionLabelForDiscount(tour: TourPackage, d: ListingDiscount): string {
   if (!d.booking_option_id?.trim()) return 'All options';
@@ -80,14 +84,22 @@ function productTypeLabel(listing: TourPackage): 'Tour' | 'Stay' | 'Rental' {
 
 type OfferRow = { discount: ListingDiscount; listing: TourPackage };
 type OfferGroup = { key: string; discounts: ListingDiscount[]; listing: TourPackage };
-type OfferStatusFilter = 'all' | 'active' | 'upcoming' | 'paused' | 'ended' | 'unsupported';
+type OfferStatusFilter = 'all' | 'active' | 'upcoming' | 'paused' | 'ended';
 type ProductFilter = 'all' | 'tour' | 'stay';
 
 const OFFER_PAGE_SIZE = 20;
 
 function parseOfferStatusFilter(raw: string | null | undefined): OfferStatusFilter {
-  if (raw === 'active' || raw === 'upcoming' || raw === 'paused' || raw === 'ended' || raw === 'unsupported') return raw;
+  if (raw === 'active' || raw === 'upcoming' || raw === 'paused' || raw === 'ended') return raw;
   return 'all';
+}
+
+function statusLabelFor(st: OfferLifecycle): string {
+  if (st === 'active') return 'Active';
+  if (st === 'upcoming') return 'Upcoming';
+  if (st === 'paused') return 'Paused';
+  if (st === 'limit_reached') return 'Limit reached';
+  return 'Ended';
 }
 
 function groupOffers(rows: OfferRow[]): OfferGroup[] {
@@ -133,6 +145,10 @@ export default function SupplierDiscountsOffers() {
   const [page, setPage] = useState(0);
   const [menuKey, setMenuKey] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [confirmEnd, setConfirmEnd] = useState<ListingDiscount[] | null>(null);
+  const [confirmBusy, setConfirmBusy] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [expandedOptionsKey, setExpandedOptionsKey] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<OfferStatusFilter>(() => {
     if (typeof window === 'undefined') return 'all';
     return parseOfferStatusFilter(new URLSearchParams(window.location.search).get('status'));
@@ -283,6 +299,37 @@ export default function SupplierDiscountsOffers() {
     if (!canEdit) return;
     setMenuKey(null);
     setActionError(null);
+    if (!paused) {
+      // Resuming: reject if another live offer already covers the same scope + dates.
+      const head = group[0];
+      if (head) {
+        const others = rows
+          .filter((row) => row.listing.id === head.listing_id && !row.deleted_at)
+          .map((row) => row.discount);
+        const ignore = group.map((row) => row.id);
+        const optionIds = group
+          .map((row) => row.booking_option_id?.trim() || '')
+          .filter(Boolean);
+        const conflicts = findSupplierOfferConflicts(
+          {
+            type: head.type,
+            value: Number(head.value),
+            valid_from: offerDiscountPeriod(head).from,
+            valid_until: offerDiscountPeriod(head).until,
+            optionIds,
+          },
+          others.filter((row) => !row.paused),
+          localYmd(),
+          ignore
+        );
+        if (conflicts.length > 0) {
+          setActionError(
+            'Cannot resume — another offer already covers these dates. Edit the dates or end the conflicting offer first.'
+          );
+          return;
+        }
+      }
+    }
     const ok = await setOfferPaused(
       group.map((row) => row.id),
       paused
@@ -294,23 +341,24 @@ export default function SupplierDiscountsOffers() {
     void loadAll();
   };
 
-  const handleEndOrRemove = async (group: ListingDiscount[], stayUnsupported: boolean) => {
+  const handleEndOrRemove = (group: ListingDiscount[]) => {
     if (!canEdit) return;
     setMenuKey(null);
-    if (
-      !window.confirm(
-        stayUnsupported
-          ? 'Remove this stay discount? It never appeared on traveler stay checkout.'
-          : 'End this offer? It will stop applying to new bookings. Confirmed bookings keep their price.'
-      )
-    )
-      return;
-    setActionError(null);
-    const ok = await softDeleteOffers(group.map((row) => row.id));
+    setConfirmError(null);
+    setConfirmEnd(group);
+  };
+
+  const confirmEndOffer = async () => {
+    if (!confirmEnd || confirmEnd.length === 0) return;
+    setConfirmBusy(true);
+    setConfirmError(null);
+    const ok = await softDeleteOffers(confirmEnd.map((row) => row.id));
+    setConfirmBusy(false);
     if (!ok) {
-      setActionError('Could not update this offer. Refresh and try again.');
+      setConfirmError('Could not update this offer. Refresh and try again.');
       return;
     }
+    setConfirmEnd(null);
     void loadAll();
   };
 
@@ -330,11 +378,7 @@ export default function SupplierDiscountsOffers() {
   }, [rows]);
 
   const publishedListings = useMemo(() => listings.filter((l) => l.status !== 'draft'), [listings]);
-  const offerableTourListings = useMemo(
-    () => publishedListings.filter((l) => !listingIsFamily(l, 'stay')),
-    [publishedListings]
-  );
-  const publishedCount = offerableTourListings.length;
+  const publishedCount = publishedListings.length;
   const groups = useMemo(() => groupOffers(rows), [rows]);
   const confirmedFor = useCallback(
     (group: OfferGroup) => group.discounts.reduce((sum, row) => sum + (stats.get(row.id)?.bookings ?? 0), 0),
@@ -342,24 +386,19 @@ export default function SupplierDiscountsOffers() {
   );
 
   const statusCounts = useMemo(() => {
-    const counts = { all: 0, active: 0, upcoming: 0, paused: 0, ended: 0, unsupported: 0 };
+    const counts = { all: 0, active: 0, upcoming: 0, paused: 0, ended: 0 };
     for (const group of groups) {
-      const stayUnsupported = partnerOfferListingIsStayUnsupported(group.listing);
       counts.all += 1;
-      if (stayUnsupported) {
-        counts.unsupported += 1;
-        continue;
-      }
       const st = offerStatus(group.discounts[0], group.listing, confirmedFor(group));
       if (st === 'active') counts.active += 1;
       else if (st === 'upcoming') counts.upcoming += 1;
       else if (st === 'paused') counts.paused += 1;
-      else counts.ended += 1;
+      else counts.ended += 1; // ended + limit_reached
     }
     return counts;
   }, [groups, confirmedFor]);
 
-  const activeTourOffers = useMemo(
+  const activeOffers = useMemo(
     () =>
       groups.filter((group) => {
         const status = offerStatus(group.discounts[0], group.listing, confirmedFor(group));
@@ -374,14 +413,15 @@ export default function SupplierDiscountsOffers() {
   const filteredGroups = useMemo(() => {
     const q = search.trim().toLowerCase();
     const ranked = groups.filter((group) => {
-      const stayUnsupported = partnerOfferListingIsStayUnsupported(group.listing);
       const type = productTypeLabel(group.listing);
       if (productFilter === 'tour' && type !== 'Tour') return false;
       if (productFilter === 'stay' && type !== 'Stay') return false;
-      if (statusFilter === 'unsupported') return stayUnsupported;
-      if (stayUnsupported) return statusFilter === 'all';
       const st = offerStatus(group.discounts[0], group.listing, confirmedFor(group));
-      if (statusFilter !== 'all' && st !== statusFilter) return false;
+      if (statusFilter === 'ended') {
+        if (st !== 'ended' && st !== 'limit_reached') return false;
+      } else if (statusFilter !== 'all' && st !== statusFilter) {
+        return false;
+      }
       if (!q) return true;
       const optionText = group.discounts.map((row) => optionLabelForDiscount(group.listing, row)).join(' ');
       return `${group.listing.title} ${optionText}`.toLowerCase().includes(q);
@@ -414,9 +454,6 @@ export default function SupplierDiscountsOffers() {
       { id: 'upcoming' as const, label: 'Upcoming', count: statusCounts.upcoming },
       { id: 'paused' as const, label: 'Paused', count: statusCounts.paused },
       { id: 'ended' as const, label: 'Ended', count: statusCounts.ended },
-      ...(statusCounts.unsupported > 0
-        ? [{ id: 'unsupported' as const, label: 'Not on checkout', count: statusCounts.unsupported }]
-        : []),
     ] as const
   );
 
@@ -428,7 +465,7 @@ export default function SupplierDiscountsOffers() {
             Offers
           </p>
           <p className="tv-offers-subtitle">
-            Create timed percentage discounts for tours. Travelers see the lower price on Traverion checkout.
+            Timed percentage discounts for tours and stays. Travelers see the lower price on checkout.
           </p>
         </div>
         {canEdit ? (
@@ -444,7 +481,7 @@ export default function SupplierDiscountsOffers() {
             </div>
           ) : publishedCount === 0 ? (
             <button type="button" onClick={goToListings} className="tv-btn-primary h-10 px-3 text-[13px]">
-              Publish a tour
+              Publish a listing
             </button>
           ) : (
             <button type="button" onClick={openNew} className="tv-btn-primary h-10 px-3 text-[13px]">
@@ -474,14 +511,13 @@ export default function SupplierDiscountsOffers() {
       ) : listings.length > 0 || rows.length > 0 ? (
         <div className="mx-auto w-full max-w-[1180px] space-y-3">
           {publishedCount === 0 && canEdit ? (
-            <NoticeCallout title="Publish a tour first" tone="warn">
-              Offers apply to tour booking options. Stay percentage discounts are not supported on traveler checkout yet.
+            <NoticeCallout title="Publish a listing first" tone="warn">
+              Offers apply to published tours and stays. Publish a listing, then create an offer.
             </NoticeCallout>
           ) : null}
 
           <p className="text-[12px] text-[#71717a]">
-            {rows.length} total · {activeTourOffers} active on tours
-            {statusCounts.unsupported > 0 ? ` · ${statusCounts.unsupported} stay (not on checkout)` : ''}
+            {statusCounts.all} total · {activeOffers} active
           </p>
 
           {rows.length > 0 ? (
@@ -597,76 +633,64 @@ export default function SupplierDiscountsOffers() {
               {visibleGroups.map((group) => {
                 const listing = group.listing;
                 const head = group.discounts[0];
-                const stayUnsupported = partnerOfferListingIsStayUnsupported(listing);
                 const confirmed = confirmedFor(group);
                 const st = offerStatus(head, listing, confirmed);
-                const statusLabel = stayUnsupported
-                  ? 'Not on checkout'
-                  : st === 'active'
-                    ? 'Active'
-                    : st === 'upcoming'
-                      ? 'Upcoming'
-                      : st === 'paused'
-                        ? 'Paused'
-                        : st === 'limit_reached'
-                          ? 'Limit reached'
-                          : 'Ended';
+                const statusLabel = statusLabelFor(st);
                 const currency = normalizeCurrency(listing.price?.currency);
                 const pct =
                   head.type === 'percent'
                     ? `${Math.round(Number(head.value))}%`
                     : formatMoney(Number(head.value), currency);
-                const optionNames = group.discounts.map((row) => optionLabelForDiscount(listing, row));
-                const optionLine =
-                  optionNames.length > 2
-                    ? `${optionNames.slice(0, 2).join(', ')} +${optionNames.length - 2}`
-                    : optionNames.join(', ');
+                const isStay = listingIsFamily(listing, 'stay');
                 const opts = materializedBookingOptions(
                   parseListingExtras(listing.listingExtras as unknown).bookingOptions
                 );
-                let origLow = Infinity;
-                let origHigh = 0;
-                let discLow = Infinity;
-                let discHigh = 0;
-                for (const row of group.discounts) {
+                const optionRows = group.discounts.map((row) => {
+                  const label = optionLabelForDiscount(listing, row);
                   const matched = row.booking_option_id
-                    ? opts.filter((option) => option.id === row.booking_option_id)
-                    : opts;
-                  for (const option of matched.length ? matched : []) {
-                    const span = optionPriceSpan(option);
-                    if (!(span.low > 0)) continue;
-                    origLow = Math.min(origLow, span.low);
-                    origHigh = Math.max(origHigh, span.high);
-                    discLow = Math.min(discLow, applyDiscount(span.low, row, currency).price);
-                    discHigh = Math.max(discHigh, applyDiscount(span.high, row, currency).price);
+                    ? opts.find((option) => option.id === row.booking_option_id)
+                    : null;
+                  const span = matched ? optionPriceSpan(matched) : { low: 0, high: 0 };
+                  const discounted =
+                    span.low > 0 ? applyDiscount(span.low, row, currency).price : null;
+                  return { id: row.id, label, original: span.low, discounted };
+                });
+                let origLow = Infinity;
+                let discLow = Infinity;
+                for (const row of optionRows) {
+                  if (row.original > 0) {
+                    origLow = Math.min(origLow, row.original);
+                    if (row.discounted != null) discLow = Math.min(discLow, row.discounted);
                   }
                 }
-                const originalPrice = Number.isFinite(origLow)
-                  ? origHigh - origLow > 0.009
-                    ? `${formatMoney(origLow, currency)}–${formatMoney(origHigh, currency)}`
-                    : formatMoney(origLow, currency)
-                  : '—';
-                const customerPrice = Number.isFinite(discLow)
-                  ? discHigh - discLow > 0.009
-                    ? `${formatMoney(discLow, currency)}–${formatMoney(discHigh, currency)}`
-                    : formatMoney(discLow, currency)
-                  : '—';
-                const redemption = group.discounts.reduce(
-                  (sum, row) => {
-                    const stat = stats.get(row.id);
-                    return {
-                      bookings: sum.bookings + (stat?.bookings ?? 0),
-                      guests: sum.guests + (stat?.guests ?? 0),
-                      net: stat?.supplierNetMinor == null ? sum.net : (sum.net ?? 0) + stat.supplierNetMinor,
-                    };
-                  },
-                  { bookings: 0, guests: 0, net: null as number | null }
-                );
+                const stayNightly =
+                  parseListingExtras(listing.listingExtras as unknown).stay?.nightlyPriceUsd ??
+                  listing.price?.startingFrom ??
+                  0;
+                const stayDisc =
+                  isStay && stayNightly > 0 ? applyDiscount(stayNightly, head, currency).price : null;
+                const customerPrice = isStay
+                  ? stayDisc != null
+                    ? formatMoney(stayDisc, currency)
+                    : '—'
+                  : Number.isFinite(discLow)
+                    ? formatMoney(discLow, currency)
+                    : '—';
+                const originalPrice = isStay
+                  ? stayNightly > 0
+                    ? formatMoney(stayNightly, currency)
+                    : '—'
+                  : Number.isFinite(origLow)
+                    ? formatMoney(origLow, currency)
+                    : '—';
                 const period = offerDiscountPeriod(head);
-                const menuOpen = menuKey === `${listing.id}:${group.key}`;
+                const cardKey = `${listing.id}:${group.key}`;
+                const menuOpen = menuKey === cardKey;
+                const optionsExpanded = expandedOptionsKey === cardKey;
                 const typeLabel = productTypeLabel(listing);
+                const optionCount = isStay ? 0 : optionRows.length;
                 return (
-                  <li key={`${listing.id}:${group.key}`}>
+                  <li key={cardKey}>
                     <article className="tv-offers-card">
                       {listing.image?.trim() ? (
                         <img src={listing.image} alt="" className="tv-offers-card__thumb" />
@@ -683,12 +707,15 @@ export default function SupplierDiscountsOffers() {
                           <span className="tv-offers-chip">{typeLabel}</span>
                           <span className={statusChipClass(statusLabel)}>{statusLabel}</span>
                         </div>
-                        <p className="tv-offers-card__meta truncate" title={optionLine}>
-                          {stayUnsupported ? 'Stay · not applied on traveler checkout' : optionLine}
-                        </p>
                         <dl className="tv-offers-card__grid">
                           <div>
-                            <dt>Customer price</dt>
+                            <dt>Discount period</dt>
+                            <dd>
+                              {formatDate(period.from)} – {formatDate(period.until)}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>{isStay ? 'Nightly from' : 'From'}</dt>
                             <dd>
                               {customerPrice}
                               {originalPrice !== '—' && customerPrice !== originalPrice ? (
@@ -697,33 +724,58 @@ export default function SupplierDiscountsOffers() {
                             </dd>
                           </div>
                           <div>
-                            <dt>Discount period</dt>
-                            <dd>
-                              {formatDate(period.from)} – {formatDate(period.until)}
-                            </dd>
-                          </div>
-                          <div>
                             <dt>Usage</dt>
                             <dd>
                               {head.booking_limit
-                                ? `${confirmed} / ${head.booking_limit} bookings`
-                                : `${confirmed} confirmed`}
-                              {redemption.net != null
-                                ? ` · ${formatMoney(fromMinorUnits(redemption.net), currency)} earned`
-                                : ''}
+                                ? `${confirmed} / ${head.booking_limit}`
+                                : `${confirmed} used`}
                             </dd>
                           </div>
                         </dl>
-                        {stayUnsupported ? (
-                          <p className="mt-2 text-[12px] text-amber-900">
-                            Traverion does not lower stay nightly prices with this offer.
-                          </p>
+                        {!isStay && optionCount > 0 ? (
+                          <div className="mt-2">
+                            <button
+                              type="button"
+                              className="inline-flex items-center gap-1 text-[12px] font-semibold text-[#073b83]"
+                              aria-expanded={optionsExpanded}
+                              onClick={() =>
+                                setExpandedOptionsKey(optionsExpanded ? null : cardKey)
+                              }
+                            >
+                              {optionCount === 1 ? '1 booking option' : `${optionCount} booking options`}
+                              <ChevronDown
+                                className={`h-3.5 w-3.5 transition-transform ${optionsExpanded ? 'rotate-180' : ''}`}
+                              />
+                            </button>
+                            {optionsExpanded ? (
+                              <ul className="mt-1.5 space-y-1 rounded-lg bg-[#f8f9fb] px-2.5 py-2 ring-1 ring-[#e5e7eb]">
+                                {optionRows.map((row) => (
+                                  <li
+                                    key={row.id}
+                                    className="flex items-baseline justify-between gap-3 text-[12px] text-[#3f3f46]"
+                                  >
+                                    <span className="min-w-0 truncate font-medium text-[#18181b]">{row.label}</span>
+                                    <span className="shrink-0 tabular-nums">
+                                      {row.discounted != null ? formatMoney(row.discounted, currency) : '—'}
+                                      {row.original > 0 && row.discounted != null && row.discounted < row.original - 0.004 ? (
+                                        <span className="ml-1 text-[#a1a1aa] line-through">
+                                          {formatMoney(row.original, currency)}
+                                        </span>
+                                      ) : null}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : null}
+                          </div>
                         ) : null}
                       </div>
                       <div className="tv-offers-card__aside flex flex-col items-end gap-2">
                         <p className="tv-offers-card__pct">
                           {pct}
-                          {head.type === 'percent' ? <span className="text-[11px] font-semibold text-[#71717a]"> off</span> : null}
+                          {head.type === 'percent' ? (
+                            <span className="text-[11px] font-semibold text-[#71717a]"> off</span>
+                          ) : null}
                         </p>
                         <div className="relative" data-offer-menu>
                           <button
@@ -732,7 +784,7 @@ export default function SupplierDiscountsOffers() {
                             aria-haspopup="menu"
                             aria-expanded={menuOpen}
                             aria-label="Offer actions"
-                            onClick={() => setMenuKey(menuOpen ? null : `${listing.id}:${group.key}`)}
+                            onClick={() => setMenuKey(menuOpen ? null : cardKey)}
                             className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-[#71717a] ring-1 ring-[#e5e7eb] hover:text-[#18181b] disabled:opacity-40"
                           >
                             <MoreHorizontal className="h-4 w-4" aria-hidden />
@@ -742,16 +794,14 @@ export default function SupplierDiscountsOffers() {
                               role="menu"
                               className="absolute right-0 z-20 mt-1 w-40 rounded-lg border border-[#e5e7eb] bg-white py-1 shadow-sm"
                             >
-                              {!stayUnsupported ? (
-                                <button
-                                  type="button"
-                                  role="menuitem"
-                                  className="block w-full px-3 py-2 text-left text-[13px] text-[#18181b] hover:bg-black/[0.03]"
-                                  onClick={() => openEdit(group.discounts)}
-                                >
-                                  Edit
-                                </button>
-                              ) : null}
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className="block w-full px-3 py-2 text-left text-[13px] text-[#18181b] hover:bg-black/[0.03]"
+                                onClick={() => openEdit(group.discounts)}
+                              >
+                                Edit
+                              </button>
                               <button
                                 type="button"
                                 role="menuitem"
@@ -760,23 +810,21 @@ export default function SupplierDiscountsOffers() {
                               >
                                 {head.paused ? 'Resume' : 'Pause'}
                               </button>
-                              {!stayUnsupported ? (
-                                <button
-                                  type="button"
-                                  role="menuitem"
-                                  className="block w-full px-3 py-2 text-left text-[13px] text-[#18181b] hover:bg-black/[0.03]"
-                                  onClick={() => openDuplicate(group.discounts)}
-                                >
-                                  Duplicate
-                                </button>
-                              ) : null}
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className="block w-full px-3 py-2 text-left text-[13px] text-[#18181b] hover:bg-black/[0.03]"
+                                onClick={() => openDuplicate(group.discounts)}
+                              >
+                                Duplicate
+                              </button>
                               <button
                                 type="button"
                                 role="menuitem"
                                 className="block w-full px-3 py-2 text-left text-[13px] text-red-800 hover:bg-black/[0.03]"
-                                onClick={() => void handleEndOrRemove(group.discounts, stayUnsupported)}
+                                onClick={() => handleEndOrRemove(group.discounts)}
                               >
-                                {stayUnsupported ? 'Remove' : 'End offer'}
+                                End offer
                               </button>
                             </div>
                           ) : null}
@@ -818,7 +866,7 @@ export default function SupplierDiscountsOffers() {
             No listings yet
           </p>
           <p className="mt-1 max-w-md text-[13px] text-[#71717a]">
-            Offers attach to a published tour with booking options. Create a listing first.
+            Offers attach to published tours and stays. Create a listing first.
           </p>
           <button type="button" onClick={goToListings} className="tv-btn-primary mt-3 h-9 px-3 text-[13px]">
             Open listings
@@ -853,6 +901,22 @@ export default function SupplierDiscountsOffers() {
           setEditingGroup(group);
           setWizardOpen(true);
         }}
+      />
+
+      <PartnerConfirmModal
+        open={confirmEnd != null}
+        title="End this offer?"
+        description="It will stop applying to new bookings. Confirmed bookings keep their agreed price."
+        confirmLabel="End offer"
+        destructive
+        busy={confirmBusy}
+        error={confirmError}
+        onCancel={() => {
+          if (confirmBusy) return;
+          setConfirmEnd(null);
+          setConfirmError(null);
+        }}
+        onConfirm={() => void confirmEndOffer()}
       />
     </div>
   );

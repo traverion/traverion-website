@@ -129,9 +129,16 @@ export function getDisplayPriceForTour(
       extras.stay?.nightlyPriceUsd && extras.stay.nightlyPriceUsd > 0
         ? extras.stay.nightlyPriceUsd
         : tour.price?.startingFrom ?? 0;
+    const discounts = discountsByListing.get(tour.id) ?? [];
+    const offerDayIso = catalogOfferTodayIso(tour, at.getTime());
+    const applicable = listingWideActiveDiscounts(discounts, offerDayIso).filter(
+      (d) => !d.paused && !d.deleted_at
+    );
+    const { price, label } = bestDiscountedPrice(nightly, applicable, normalizeCurrency(tour.price?.currency));
     return {
-      price: nightly,
+      price,
       originalPrice: nightly,
+      label,
       qualifier: null,
       summary: null,
     };

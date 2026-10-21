@@ -81,7 +81,7 @@ describe('catalog headline vs stored startingFrom', () => {
 });
 
 describe('stay money truth vs leftover listing discounts', () => {
-  it('does not advertise a stay discount that checkout would not charge', () => {
+  it('advertises a stay listing Offer when checkout would charge it', () => {
     const stay = tour({
       listingExtras: {
         inventoryFamily: 'stay',
@@ -117,9 +117,9 @@ describe('stay money truth vs leftover listing discounts', () => {
       ],
     ]);
     const shown = getDisplayPriceForTour(stay, discounts);
-    expect(shown.price).toBe(200);
+    expect(shown.price).toBe(100);
     expect(shown.originalPrice).toBe(200);
-    expect(shown.label).toBeUndefined();
+    expect(shown.label).toMatch(/50%/);
   });
 });
 

@@ -20,7 +20,8 @@ import { DEFAULT_CURRENCY, normalizeCurrency } from './money';
 import { ymdInTimeZone } from './booking-lifecycle-calendar';
 import { localYmd } from './local-ymd';
 import { STAY_MAX_OCCUPIED_NIGHTS } from './stayOccupancy';
-import { quoteStayLodging } from './stay-season-quote';
+import { quoteStayLodging, stayNightDates } from './stay-season-quote';
+import { resolveStayLodgingWithOffers } from './stay-offer-pricing';
 import { validateStayGuestParty, type StayGuestBreakdownRow, type StayGuestParty } from './stay-guest-party';
 import { priceStayAddOns, stayChargeLines, type StayExtraSelection, type StayPaidExtra, type StayPricedExtra } from './stay-price';
 import { confirmedDepartureKey, evaluateDepartureBookingWindow } from './last-minute-booking';
@@ -634,6 +635,8 @@ export type StayQuoteOk = {
   extraGuestCount: number;
   discount: number;
   discountLabel: string | null;
+  /** Offer row that produced a timed stay discount. Null when weekly/monthly or none applied. */
+  appliedDiscountId?: string | null;
   extraLines: StayPricedExtra[];
   requests: StayPricedExtra[];
   offeredExtras: StayPaidExtra[];
@@ -662,6 +665,8 @@ export function quoteStayNights(input: {
   guests: number;
   party?: StayGuestParty | null;
   selectedExtras?: StayExtraSelection[] | null;
+  /** Timed listing Offers — applied to eligible nights; never stacked with weekly/monthly. */
+  discounts?: ListingDiscount[];
   todayIso?: string;
   nowMs?: number;
 }): StayQuoteResult {
@@ -769,7 +774,6 @@ export function quoteStayNights(input: {
         ? stay.cleaningFeeUsd
         : 0;
   const currency = normalizeCurrency(input.tour.price?.currency ?? DEFAULT_CURRENCY);
-  const flat = lodging.nightlyPrices.every((price) => price === lodging.nightlyPrices[0]);
   const addOns = priceStayAddOns({
     lodging: lodging.lodging,
     nights,
@@ -782,23 +786,32 @@ export function quoteStayNights(input: {
     selected: input.selectedExtras,
   });
   if (!addOns.ok) return { ok: false, code: 'price', error: addOns.error };
+  const resolved = resolveStayLodgingWithOffers({
+    nightDates: stayNightDates(checkIn, nights),
+    baseNightlyPrices: lodging.nightlyPrices,
+    lengthOfStayDiscount: addOns.discount,
+    lengthOfStayLabel: addOns.discountLabel,
+    discounts: input.discounts ?? [],
+  });
+  const flat = resolved.nightlyPrices.every((price) => price === resolved.nightlyPrices[0]);
   const extraSum = addOns.extraLines.reduce((sum, line) => sum + line.amount, 0);
-  const nightlyPrice = money(flat ? lodging.nightlyPrices[0] : nightly);
+  const nightlyPrice = money(flat ? resolved.nightlyPrices[0] : nightly);
   return {
     ok: true,
     currency,
     nights,
     nightlyPrice,
-    nightlyPrices: lodging.nightlyPrices,
+    nightlyPrices: resolved.nightlyPrices,
     cleaningFee: money(cleaning),
     extraGuestFee: addOns.extraGuestFee,
     extraGuestCount: addOns.extraGuestCount,
-    discount: addOns.discount,
-    discountLabel: addOns.discountLabel,
+    discount: resolved.discount,
+    discountLabel: resolved.discountLabel,
+    appliedDiscountId: resolved.appliedDiscountId,
     extraLines: addOns.extraLines,
     requests: addOns.requests,
     offeredExtras: addOns.offeredExtras,
-    totalAmount: money(lodging.lodging + cleaning + addOns.extraGuestFee + extraSum - addOns.discount),
+    totalAmount: money(resolved.lodging + cleaning + addOns.extraGuestFee + extraSum - resolved.discount),
     guests,
     guestBreakdown,
     checkIn,

@@ -85,7 +85,8 @@ export default function PartnerSelect({
     if (left < edge) left = edge;
     const searchHeight = showSearch ? 44 : 0;
     const listCap = isNarrow ? Math.min(280, window.innerHeight * 0.45) : 240;
-    const spaceBelow = Math.max(0, window.innerHeight - rect.bottom - gap - edge);
+    const footerReserve = 64;
+    const spaceBelow = Math.max(0, window.innerHeight - rect.bottom - gap - edge - footerReserve);
     const spaceAbove = Math.max(0, rect.top - gap - edge);
     const needed = listCap + searchHeight;
     // Prefer opening downward; flip up only when below space is genuinely insufficient.

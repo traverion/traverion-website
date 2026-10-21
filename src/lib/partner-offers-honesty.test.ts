@@ -6,12 +6,12 @@ import {
 } from './partner-offers-honesty';
 
 describe('partner offers honesty', () => {
-  it('treats stay listings as unsupported for traveler checkout', () => {
+  it('allows stay Offers on traveler checkout (legacy unsupported helper is always false)', () => {
     expect(
       partnerOfferListingIsStayUnsupported({
         listingExtras: { inventoryFamily: 'stay' },
       })
-    ).toBe(true);
+    ).toBe(false);
     expect(
       partnerOfferListingIsStayUnsupported({
         listingExtras: { inventoryFamily: 'tour' },
@@ -19,62 +19,31 @@ describe('partner offers honesty', () => {
     ).toBe(false);
   });
 
-  it('refuses to persist a new stay discount because checkout would not apply it', () => {
+  it('persists Offers on tours and stays, not unfinished families', () => {
     expect(
       partnerOfferMayBePersistedForListing({
         listingExtras: { inventoryFamily: 'stay' },
       })
-    ).toBe(false);
+    ).toBe(true);
     expect(
       partnerOfferMayBePersistedForListing({
         listingExtras: { inventoryFamily: 'tour' },
       })
     ).toBe(true);
+    expect(
+      partnerOfferMayBePersistedForListing({
+        listingExtras: { inventoryFamily: 'experience' },
+      })
+    ).toBe(false);
   });
 
-  it('excludes stay-linked discounts from active-now count', () => {
+  it('counts active Offers for tours and stays', () => {
     expect(
       partnerOfferCountsAsActiveNow({
         listing: { listingExtras: { inventoryFamily: 'stay' } },
         status: 'active',
       })
-    ).toBe(false);
-    expect(
-      partnerOfferCountsAsActiveNow({
-        listing: { listingExtras: { inventoryFamily: 'tour' } },
-        status: 'active',
-      })
     ).toBe(true);
-    expect(
-      partnerOfferCountsAsActiveNow({
-        listing: { listingExtras: { inventoryFamily: 'tour' } },
-        status: 'ended',
-      })
-    ).toBe(false);
-  });
-});
-
-describe('partner offers honesty', () => {
-  it('treats stay listings as unsupported for traveler checkout', () => {
-    expect(
-      partnerOfferListingIsStayUnsupported({
-        listingExtras: { inventoryFamily: 'stay' },
-      })
-    ).toBe(true);
-    expect(
-      partnerOfferListingIsStayUnsupported({
-        listingExtras: { inventoryFamily: 'tour' },
-      })
-    ).toBe(false);
-  });
-
-  it('excludes stay-linked discounts from active-now count', () => {
-    expect(
-      partnerOfferCountsAsActiveNow({
-        listing: { listingExtras: { inventoryFamily: 'stay' } },
-        status: 'active',
-      })
-    ).toBe(false);
     expect(
       partnerOfferCountsAsActiveNow({
         listing: { listingExtras: { inventoryFamily: 'tour' } },

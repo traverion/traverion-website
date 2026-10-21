@@ -251,7 +251,7 @@ export async function saveSupplierOffer(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!supabase) return { ok: false, error: 'Could not save this offer. Try again.' };
   if (!(await listingAllowsPartnerOffer(input.listingId))) {
-    return { ok: false, error: 'Offers can only be saved on a tour listing.' };
+    return { ok: false, error: 'Offers can only be saved on a tour or stay listing.' };
   }
   const periodErr = validateOfferDateWindow(input.discountFrom, input.discountUntil, 'discount period');
   if (periodErr) return { ok: false, error: periodErr };
@@ -267,6 +267,7 @@ export async function saveSupplierOffer(
   if (input.bookingLimit != null && (!Number.isInteger(input.bookingLimit) || input.bookingLimit < 1)) {
     return { ok: false, error: 'Booking limit must be a positive whole number.' };
   }
+  // Stays are listing-scoped (no tour booking options). Tours require options unless listing-wide.
   const optionIds = input.listingWide ? [] : input.optionIds.map((id) => id.trim()).filter(Boolean);
   if (!input.listingWide && optionIds.length === 0) {
     return { ok: false, error: 'Choose at least one booking option.' };

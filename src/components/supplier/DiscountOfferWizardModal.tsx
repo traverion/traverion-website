@@ -21,8 +21,8 @@ import {
 } from '../../lib/offer-eligibility';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { SUPPLIER_MODAL_OVERLAY_CLASS, SUPPLIER_MODAL_PANEL_CLASS } from './supplierUi';
-import { partnerOfferListingIsStayUnsupported } from '../../lib/partner-offers-honesty';
 import PartnerSelect from './PartnerSelect';
+import PartnerConfirmModal from './PartnerConfirmModal';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchSupplierActiveCommercialTerms } from '../../data/supabase-earnings';
 import { optionHeadlineUnitPrice } from '../../lib/price-categories';
@@ -112,9 +112,23 @@ export default function DiscountOfferWizardModal({
   const optionsRef = useRef<HTMLDivElement>(null);
   const optionsTriggerRef = useRef<HTMLButtonElement>(null);
   const optionsMenuRef = useRef<HTMLDivElement>(null);
+  const [discardOpen, setDiscardOpen] = useState(false);
+  const dirty = Boolean(
+    listingId ||
+      optionIds.length > 0 ||
+      discountFrom ||
+      discountUntil ||
+      (percent !== 15 && !editing) ||
+      limitBookings
+  );
   const closeSafe = useCallback(() => {
-    if (!submitting) onClose();
-  }, [onClose, submitting]);
+    if (submitting) return;
+    if (dirty && !editing) {
+      setDiscardOpen(true);
+      return;
+    }
+    onClose();
+  }, [onClose, submitting, dirty, editing]);
   useDialogFocus(open, panelRef, closeSafe);
 
   const publishedListings = useMemo(
@@ -122,7 +136,7 @@ export default function DiscountOfferWizardModal({
     [listings]
   );
   const tourListings = useMemo(
-    () => publishedListings.filter((l) => !partnerOfferListingIsStayUnsupported(l)),
+    () => publishedListings.filter((l) => !listingIsFamily(l, 'stay')),
     [publishedListings]
   );
   const stayListings = useMemo(
@@ -163,7 +177,7 @@ export default function DiscountOfferWizardModal({
     const head = source[0];
     if (head) {
       const host = listings.find((l) => l.id === head.listing_id);
-      setProductType(host && partnerOfferListingIsStayUnsupported(host) ? 'stay' : 'tour');
+      setProductType(host && listingIsFamily(host, 'stay') ? 'stay' : 'tour');
       setListingId(head.listing_id);
       const wide = source.length === 1 && !head.booking_option_id?.trim();
       setListingWide(wide);
@@ -217,10 +231,20 @@ export default function DiscountOfferWizardModal({
       const rect = btn.getBoundingClientRect();
       const gap = 6;
       const edge = 8;
+      const footerReserve = 72;
       const width = Math.min(rect.width, window.innerWidth - edge * 2);
-      const spaceBelow = Math.max(0, window.innerHeight - rect.bottom - gap - edge);
-      const maxHeight = Math.max(120, Math.min(240, spaceBelow));
-      setOptionsMenuBox({ top: rect.bottom + gap, left: rect.left, width, maxHeight });
+      const spaceBelow = Math.max(0, window.innerHeight - rect.bottom - gap - edge - footerReserve);
+      const spaceAbove = Math.max(0, rect.top - gap - edge);
+      const listCap = 240;
+      const openUp = spaceBelow < Math.min(listCap, 140) && spaceAbove > spaceBelow + 40;
+      const room = openUp ? spaceAbove : Math.max(spaceBelow, 96);
+      const maxHeight = Math.max(120, Math.min(listCap, room));
+      const top = openUp ? Math.max(edge, rect.top - gap - maxHeight) : rect.bottom + gap;
+      let left = rect.left;
+      if (left + width > window.innerWidth - edge) {
+        left = Math.max(edge, window.innerWidth - width - edge);
+      }
+      setOptionsMenuBox({ top, left, width, maxHeight });
     };
     place();
     const onWin = () => place();
@@ -231,11 +255,16 @@ export default function DiscountOfferWizardModal({
       if (optionsRef.current?.contains(t) || optionsMenuRef.current?.contains(t)) return;
       setOptionsOpen(false);
     };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOptionsOpen(false);
+    };
     document.addEventListener('mousedown', onPointer);
+    document.addEventListener('keydown', onKey);
     return () => {
       window.removeEventListener('resize', onWin);
       window.removeEventListener('scroll', onWin, true);
       document.removeEventListener('mousedown', onPointer);
+      document.removeEventListener('keydown', onKey);
     };
   }, [optionsOpen]);
 
@@ -243,9 +272,8 @@ export default function DiscountOfferWizardModal({
     discountFrom && discountUntil ? validateSupplierDiscountDateRange(discountFrom, discountUntil) : null;
   const dateRangeValid = Boolean(discountFrom && discountUntil) && !periodError;
 
-  /** Tours are fully supported. Stays/Rentals are selectable but not creatable until checkout applies them. */
-  const canPersistProduct = productType === 'tour';
-  // Stay: allow advancing through the form for clarity; Create remains blocked.
+  /** Tours and stays persist. Rentals are not a live booking family yet. */
+  const canPersistProduct = productType === 'tour' || productType === 'stay';
   const step0CanAdvance =
     productType === 'tour'
       ? Boolean(listingId) && bookingOptions.length > 0 && (listingWide || optionIds.length > 0)
@@ -257,6 +285,7 @@ export default function DiscountOfferWizardModal({
   const ignoreConflictIds = useMemo(() => editingGroup.map((row) => row.id), [editingGroup]);
   const conflicts = useMemo(() => {
     if (!listingId || !discountFrom || !discountUntil) return [];
+    if (productType === 'rental') return [];
     if (productType === 'tour' && !listingWide && optionIds.length === 0) return [];
     const onListing = existingOffers.filter((row) => row.listing_id === listingId && !row.deleted_at);
     return findSupplierOfferConflicts(
@@ -265,7 +294,7 @@ export default function DiscountOfferWizardModal({
         value: percent,
         valid_from: discountFrom,
         valid_until: discountUntil,
-        optionIds: productType === 'tour' ? (listingWide ? [] : optionIds) : [],
+        optionIds: productType === 'stay' ? [] : listingWide ? [] : optionIds,
       },
       onListing,
       localYmd(),
@@ -290,16 +319,14 @@ export default function DiscountOfferWizardModal({
   const handleSubmit = async () => {
     setError(null);
     if (!canPersistProduct) {
-      setError(
-        productType === 'stay'
-          ? 'Timed Offers cannot be saved for stays yet — stay checkout does not apply listing_discounts. Use weekly/monthly stay discounts in the listing editor.'
-          : 'Rental Offers are not available yet — there is no rental booking engine.'
-      );
+      setError('Rental Offers are not available yet — there is no rental booking engine.');
       return;
     }
     if (conflicts.length > 0) {
       setError(
-        'An offer already exists for this booking option during the selected dates. Adjust the dates or edit the existing offer.'
+        productType === 'stay'
+          ? 'An offer already exists for this stay during the selected dates. Adjust the dates or edit the existing offer.'
+          : 'An offer already exists for this booking option during the selected dates. Adjust the dates or edit the existing offer.'
       );
       return;
     }
@@ -308,16 +335,13 @@ export default function DiscountOfferWizardModal({
       setError(periodErr);
       return;
     }
-    if (!listingWide && optionIds.length === 0) {
+    const stayListingWide = productType === 'stay';
+    if (!stayListingWide && !listingWide && optionIds.length === 0) {
       setError('Choose at least one booking option.');
       return;
     }
     if (!listingId) {
       setError('Choose a listing.');
-      return;
-    }
-    if (selectedTour && partnerOfferListingIsStayUnsupported(selectedTour)) {
-      setError('Stay listings cannot use percentage discounts. Offers only change the price on tour checkout.');
       return;
     }
     const p = Math.round(percent);
@@ -340,8 +364,8 @@ export default function DiscountOfferWizardModal({
       const saved = await saveSupplierOffer({
         listingId,
         existing: editingGroup,
-        optionIds,
-        listingWide,
+        optionIds: stayListingWide ? [] : optionIds,
+        listingWide: stayListingWide ? true : listingWide,
         type: fixedEdit ? 'fixed' : 'percent',
         value: fixedEdit ? Number(editing?.value) : p,
         discountFrom,
@@ -485,9 +509,9 @@ export default function DiscountOfferWizardModal({
                     </p>
                   ) : null}
                   {productType === 'stay' && listingId ? (
-                    <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-[13px] text-amber-950 ring-1 ring-amber-200/80">
-                      Timed Offers for stays are not applied at traveler checkout yet. Weekly/monthly stay discounts
-                      remain in the listing editor. You can review the form, but Create offer is disabled.
+                    <p className="mt-2 text-[12px] text-[#71717a]">
+                      Applies to nights inside the Discount period. Weekly/monthly length discounts stay in the listing
+                      editor — travelers get the better of the two, never both.
                     </p>
                   ) : null}
                 </div>
@@ -949,5 +973,21 @@ export default function DiscountOfferWizardModal({
     </div>
   );
 
-  return createPortal(shell, document.body);
+  return (
+    <>
+      {createPortal(shell, document.body)}
+      <PartnerConfirmModal
+        open={discardOpen}
+        title="Discard this offer?"
+        description="Your unsaved changes will be lost."
+        confirmLabel="Discard"
+        destructive
+        onCancel={() => setDiscardOpen(false)}
+        onConfirm={() => {
+          setDiscardOpen(false);
+          onClose();
+        }}
+      />
+    </>
+  );
 }
