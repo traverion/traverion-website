@@ -386,8 +386,98 @@ export default function SupplierReviews() {
 
   if (!user) return null;
 
+  const filtersToolbar = (
+    <div className="tv-reviews-filters">
+      <div className="tv-reviews-field tv-reviews-field--search">
+        <span id="reviews-filter-search-label">Search</span>
+        <span className="tv-reviews-search">
+          <Search className="h-4 w-4 shrink-0 text-[#a1a1aa]" aria-hidden />
+          <input
+            type="search"
+            className="tv-reviews-search__input"
+            placeholder="Review text, listing, or guest"
+            value={searchInput}
+            aria-labelledby="reviews-filter-search-label"
+            onChange={(e) => {
+              setSearchInput(e.target.value);
+              writeFiltersToUrl({ q: e.target.value, pageIndex: 0 });
+            }}
+          />
+          {searchInput ? (
+            <button
+              type="button"
+              className="text-[12px] font-semibold text-[#073b83]"
+              onClick={() => {
+                setSearchInput('');
+                setSearchQuery('');
+                writeFiltersToUrl({ q: '', pageIndex: 0 });
+              }}
+            >
+              Clear
+            </button>
+          ) : null}
+        </span>
+      </div>
+      <div className="tv-reviews-field">
+        <span id="reviews-filter-listing-label">Listing</span>
+        <PartnerSelect
+          aria-labelledby="reviews-filter-listing-label"
+          value={filterListingId}
+          searchable="auto"
+          options={[
+            { value: '', label: 'All listings' },
+            ...listingOptions.map(([id, title]) => ({ value: id, label: title })),
+          ]}
+          onChange={(listingId) => writeFiltersToUrl({ listingId, pageIndex: 0 })}
+        />
+      </div>
+      <div className="tv-reviews-field">
+        <span id="reviews-filter-rating-label">Rating</span>
+        <PartnerSelect
+          aria-labelledby="reviews-filter-rating-label"
+          value={filterRating === '' ? '' : String(filterRating)}
+          options={[
+            { value: '', label: 'All ratings' },
+            ...[5, 4, 3, 2, 1].map((n) => ({
+              value: String(n),
+              label: `${n} star${n === 1 ? '' : 's'}`,
+            })),
+          ]}
+          onChange={(v) => writeFiltersToUrl({ rating: v === '' ? '' : Number(v), pageIndex: 0 })}
+        />
+      </div>
+      <div className="tv-reviews-field">
+        <span id="reviews-filter-reply-label">Reply status</span>
+        <PartnerSelect
+          aria-labelledby="reviews-filter-reply-label"
+          value={filterReply}
+          options={[
+            { value: 'all', label: 'All reviews' },
+            { value: 'unreplied', label: 'Awaiting reply' },
+            { value: 'replied', label: 'Replied' },
+          ]}
+          onChange={(v) => writeFiltersToUrl({ reply: v as typeof filterReply, pageIndex: 0 })}
+        />
+      </div>
+      <div className="tv-reviews-field">
+        <span id="reviews-filter-sort-label">Sort</span>
+        <PartnerSelect
+          aria-labelledby="reviews-filter-sort-label"
+          value={sortKey}
+          options={[
+            { value: 'newest', label: 'Newest first' },
+            { value: 'oldest', label: 'Oldest first' },
+            { value: 'highest', label: 'Highest rated' },
+            { value: 'lowest', label: 'Lowest rated' },
+          ]}
+          onChange={(v) => writeFiltersToUrl({ sort: v as SortKey, pageIndex: 0 })}
+        />
+      </div>
+    </div>
+  );
+
   return (
-    <div className={`${SUPPLIER_PAGE_CLASS} tv-reviews font-sans`}>
+    <div className={`${SUPPLIER_PAGE_CLASS} tv-reviews`}>
       <div className="min-w-0">
         <h1 className="tv-reviews-title">Reviews</h1>
         <p className="tv-reviews-subtitle">See what your guests are saying and manage your responses.</p>
@@ -419,41 +509,33 @@ export default function SupplierReviews() {
 
       {loading ? (
         <SupplierListSkeleton rows={3} />
-      ) : error ? null : reviews.length === 0 ? (
-        <div className="tv-reviews-empty">
-          <div className="tv-reviews-empty__icon">
-            <Star className="h-5 w-5" aria-hidden />
-          </div>
-          <h2 className="text-sm font-bold text-[#18181b]">No reviews yet</h2>
-          <p className="mt-1 max-w-md text-[13px] leading-relaxed text-[#71717a]">
-            Your guest reviews will appear here once customers start sharing their experiences.
-          </p>
-        </div>
-      ) : (
+      ) : error ? null : (
         <div className="mx-auto w-full max-w-[1180px] space-y-3">
-          <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-            <div className="tv-reviews-metric">
-              <p className="tv-reviews-metric__label">Average rating</p>
-              <p className="tv-reviews-metric__value">
-                {summary.count > 0 ? `${summary.avg.toFixed(1)}` : '—'}
-                <span className="tv-reviews-metric__suffix"> / 5</span>
-              </p>
+          {reviews.length > 0 ? (
+            <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+              <div className="tv-reviews-metric">
+                <p className="tv-reviews-metric__label">Average rating</p>
+                <p className="tv-reviews-metric__value">
+                  {summary.count > 0 ? `${summary.avg.toFixed(1)}` : '—'}
+                  <span className="tv-reviews-metric__suffix"> / 5</span>
+                </p>
+              </div>
+              <div className="tv-reviews-metric">
+                <p className="tv-reviews-metric__label">Total reviews</p>
+                <p className="tv-reviews-metric__value">{summary.count}</p>
+              </div>
+              <div className="tv-reviews-metric">
+                <p className="tv-reviews-metric__label">Awaiting reply</p>
+                <p className="tv-reviews-metric__value">{summary.awaiting}</p>
+              </div>
+              <div className="tv-reviews-metric">
+                <p className="tv-reviews-metric__label">Response rate</p>
+                <p className="tv-reviews-metric__value">
+                  {summary.responseRate == null ? '—' : `${summary.responseRate}%`}
+                </p>
+              </div>
             </div>
-            <div className="tv-reviews-metric">
-              <p className="tv-reviews-metric__label">Total reviews</p>
-              <p className="tv-reviews-metric__value">{summary.count}</p>
-            </div>
-            <div className="tv-reviews-metric">
-              <p className="tv-reviews-metric__label">Awaiting reply</p>
-              <p className="tv-reviews-metric__value">{summary.awaiting}</p>
-            </div>
-            <div className="tv-reviews-metric">
-              <p className="tv-reviews-metric__label">Response rate</p>
-              <p className="tv-reviews-metric__value">
-                {summary.responseRate == null ? '—' : `${summary.responseRate}%`}
-              </p>
-            </div>
-          </div>
+          ) : null}
 
           {summary.count >= 3 ? (
             <div className="tv-reviews-panel">
@@ -476,121 +558,47 @@ export default function SupplierReviews() {
             </div>
           ) : null}
 
-          <div className="tv-reviews-filters">
-            <label className="tv-reviews-field tv-reviews-field--search">
-              <span>Search</span>
-              <span className="tv-reviews-search">
-                <Search className="h-4 w-4 shrink-0 text-[#a1a1aa]" aria-hidden />
-                <input
-                  type="search"
-                  className="tv-reviews-search__input"
-                  placeholder="Review text, listing, or guest"
-                  value={searchInput}
-                  aria-label="Search reviews"
-                  onChange={(e) => {
-                    setSearchInput(e.target.value);
-                    writeFiltersToUrl({ q: e.target.value, pageIndex: 0 });
-                  }}
-                />
-                {searchInput ? (
-                  <button
-                    type="button"
-                    className="text-[12px] font-semibold text-[#073b83]"
-                    onClick={() => {
-                      setSearchInput('');
-                      setSearchQuery('');
-                      writeFiltersToUrl({ q: '', pageIndex: 0 });
-                    }}
-                  >
-                    Clear
-                  </button>
-                ) : null}
+          {filtersToolbar}
+
+          {reviews.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-2 text-[12px] text-[#71717a]">
+              <span>
+                Showing {pageRows.length === 0 ? 0 : safePage * PAGE_SIZE + 1}–
+                {Math.min((safePage + 1) * PAGE_SIZE, filteredReviews.length)} of {filteredReviews.length}
               </span>
-            </label>
-            <label className="tv-reviews-field">
-              <span>Listing</span>
-              <PartnerSelect
-                aria-label="Listing filter"
-                value={filterListingId}
-                searchable="auto"
-                options={[
-                  { value: '', label: 'All listings' },
-                  ...listingOptions.map(([id, title]) => ({ value: id, label: title })),
-                ]}
-                onChange={(listingId) => writeFiltersToUrl({ listingId, pageIndex: 0 })}
-              />
-            </label>
-            <label className="tv-reviews-field">
-              <span>Rating</span>
-              <PartnerSelect
-                aria-label="Rating filter"
-                value={filterRating === '' ? '' : String(filterRating)}
-                options={[
-                  { value: '', label: 'All ratings' },
-                  ...[5, 4, 3, 2, 1].map((n) => ({
-                    value: String(n),
-                    label: `${n} star${n === 1 ? '' : 's'}`,
-                  })),
-                ]}
-                onChange={(v) => writeFiltersToUrl({ rating: v === '' ? '' : Number(v), pageIndex: 0 })}
-              />
-            </label>
-            <label className="tv-reviews-field">
-              <span>Reply status</span>
-              <PartnerSelect
-                aria-label="Reply status"
-                value={filterReply}
-                options={[
-                  { value: 'all', label: 'All reviews' },
-                  { value: 'unreplied', label: 'Awaiting reply' },
-                  { value: 'replied', label: 'Replied' },
-                ]}
-                onChange={(v) => writeFiltersToUrl({ reply: v as typeof filterReply, pageIndex: 0 })}
-              />
-            </label>
-            <label className="tv-reviews-field">
-              <span>Sort</span>
-              <PartnerSelect
-                aria-label="Sort reviews"
-                value={sortKey}
-                options={[
-                  { value: 'newest', label: 'Newest first' },
-                  { value: 'oldest', label: 'Oldest first' },
-                  { value: 'highest', label: 'Highest rated' },
-                  { value: 'lowest', label: 'Lowest rated' },
-                ]}
-                onChange={(v) => writeFiltersToUrl({ sort: v as SortKey, pageIndex: 0 })}
-              />
-            </label>
-          </div>
+              {hasActiveFilters ? (
+                <button type="button" className="font-semibold text-[#073b83]" onClick={clearFilters}>
+                  Clear filters
+                </button>
+              ) : null}
+              {summary.awaiting > 0 && filterReply !== 'unreplied' ? (
+                <button
+                  type="button"
+                  className="font-semibold text-[#073b83]"
+                  onClick={() => writeFiltersToUrl({ reply: 'unreplied', pageIndex: 0 })}
+                >
+                  Awaiting reply · {summary.awaiting}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
 
-          <div className="flex flex-wrap items-center gap-2 text-[12px] text-[#71717a]">
-            <span>
-              Showing {pageRows.length === 0 ? 0 : safePage * PAGE_SIZE + 1}–
-              {Math.min((safePage + 1) * PAGE_SIZE, filteredReviews.length)} of {filteredReviews.length}
-            </span>
-            {hasActiveFilters ? (
-              <button type="button" className="font-semibold text-[#073b83]" onClick={clearFilters}>
-                Clear filters
-              </button>
-            ) : null}
-            {summary.awaiting > 0 && filterReply !== 'unreplied' ? (
-              <button
-                type="button"
-                className="font-semibold text-[#073b83]"
-                onClick={() => writeFiltersToUrl({ reply: 'unreplied', pageIndex: 0 })}
-              >
-                Awaiting reply · {summary.awaiting}
-              </button>
-            ) : null}
-          </div>
-
-          {filteredReviews.length === 0 ? (
+          {reviews.length === 0 ? (
             <div className="tv-reviews-empty">
               <div className="tv-reviews-empty__icon">
                 <Star className="h-5 w-5" aria-hidden />
               </div>
-              <h2 className="text-sm font-bold text-[#18181b]">No matching reviews</h2>
+              <h2 className="tv-reviews-empty__title">No reviews yet</h2>
+              <p className="mt-1 max-w-md text-[13px] leading-relaxed text-[#71717a]">
+                Your guest reviews will appear here once customers start sharing their experiences.
+              </p>
+            </div>
+          ) : filteredReviews.length === 0 ? (
+            <div className="tv-reviews-empty">
+              <div className="tv-reviews-empty__icon">
+                <Star className="h-5 w-5" aria-hidden />
+              </div>
+              <h2 className="tv-reviews-empty__title">No matching reviews</h2>
               <p className="mt-1 max-w-sm text-[13px] text-[#71717a]">Try adjusting your search or filters.</p>
               <button type="button" className="tv-btn-secondary mt-3 h-9 px-3 text-[13px]" onClick={clearFilters}>
                 Clear filters

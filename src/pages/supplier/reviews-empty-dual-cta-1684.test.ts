@@ -13,4 +13,15 @@ describe('Reviews empty state stays on Reviews', () => {
     expect(src).not.toContain('Your listings');
     expect(src).not.toContain('PARTNER_CREATE_PATH');
   });
+
+  it('keeps search and filter controls visible with zero reviews', () => {
+    const src = readFileSync(resolve(__dirname, 'SupplierReviews.tsx'), 'utf8');
+    expect(src).toContain('filtersToolbar');
+    expect(src).toContain('{filtersToolbar}');
+    expect(src).toContain('reviews-filter-search-label');
+    expect(src).toContain('reviews-filter-listing-label');
+    expect(src).toContain('reviews-filter-rating-label');
+    expect(src).toContain('reviews-filter-reply-label');
+    expect(src).toContain('reviews-filter-sort-label');
+  });
 });
