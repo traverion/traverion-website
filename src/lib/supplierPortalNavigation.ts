@@ -101,28 +101,32 @@ export function openSupplierPickup(
   navigateSupplierUrl(qs ? `${path}?${qs}` : path);
 }
 
-/** Open Availability workspace and optionally focus a listing for edit. */
-export function openSupplierCalendar(listingId?: string): void {
-  const path = `${PARTNER_APP_BASE}/availability`;
-  if (!listingId) {
-    navigateSupplierUrl(path);
-    return;
-  }
+/** Open Tours & Activities → Departures & Availability (optionally focus a tour listing). */
+export function openSupplierCalendar(
+  listingId?: string,
+  opts?: { from?: string; to?: string; view?: string }
+): void {
   const q = new URLSearchParams();
-  q.set('listing', listingId);
-  navigateSupplierUrl(`${path}?${q.toString()}`);
+  if (listingId) q.set('listing', listingId);
+  if (opts?.from && /^\d{4}-\d{2}-\d{2}$/.test(opts.from)) q.set('from', opts.from);
+  if (opts?.to && /^\d{4}-\d{2}-\d{2}$/.test(opts.to)) q.set('to', opts.to);
+  if (opts?.view && opts.view !== 'agenda') q.set('view', opts.view);
+  const qs = q.toString();
+  navigateSupplierUrl(qs ? `${PARTNER_APP_BASE}/availability?${qs}` : `${PARTNER_APP_BASE}/availability`);
 }
 
-/** Open Stay Calendar and optionally focus a property. */
-export function openSupplierStayCalendar(listingId?: string): void {
-  const path = `${PARTNER_APP_BASE}/stay-calendar`;
-  if (!listingId) {
-    navigateSupplierUrl(path);
-    return;
-  }
+/** Open Stays → Stay Calendar (optionally focus a property and date range). */
+export function openSupplierStayCalendar(
+  listingId?: string,
+  opts?: { from?: string; to?: string; view?: string }
+): void {
   const q = new URLSearchParams();
-  q.set('listing', listingId);
-  navigateSupplierUrl(`${path}?${q.toString()}`);
+  if (listingId) q.set('listing', listingId);
+  if (opts?.from && /^\d{4}-\d{2}-\d{2}$/.test(opts.from)) q.set('from', opts.from);
+  if (opts?.to && /^\d{4}-\d{2}-\d{2}$/.test(opts.to)) q.set('to', opts.to);
+  if (opts?.view && opts.view !== 'agenda') q.set('view', opts.view);
+  const qs = q.toString();
+  navigateSupplierUrl(qs ? `${PARTNER_APP_BASE}/stay-calendar?${qs}` : `${PARTNER_APP_BASE}/stay-calendar`);
 }
 
 /** Open Reviews with optional reply filter and highlighted review card. */

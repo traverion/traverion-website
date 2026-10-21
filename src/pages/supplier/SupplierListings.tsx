@@ -48,7 +48,12 @@ import {
   newListingCreationId,
   runCanonicalListingPersist,
 } from '../../lib/listing-creation-persist';
-import { navigateSupplierUrl, openSupplierListingEditor, openSupplierCalendar } from '../../lib/supplierPortalNavigation';
+import {
+  navigateSupplierUrl,
+  openSupplierListingEditor,
+  openSupplierCalendar,
+  openSupplierStayCalendar,
+} from '../../lib/supplierPortalNavigation';
 import {
   isSupplierBusinessProfileCompleteForPublish,
   isSupplierPayoutConfigured,
@@ -1570,7 +1575,11 @@ export default function SupplierListings() {
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              openSupplierCalendar(listing.id);
+                              if (inventoryFamilyFromListing(listing) === 'stay') {
+                                openSupplierStayCalendar(listing.id);
+                              } else {
+                                openSupplierCalendar(listing.id);
+                              }
                             }}
                             className="mt-1 text-[11px] font-semibold text-finland hover:underline"
                           >
@@ -1758,7 +1767,11 @@ export default function SupplierListings() {
                   className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-ink hover:bg-paper"
                   onClick={() => {
                     closeListingActionsMenu();
-                    openSupplierCalendar(menuListing.id);
+                    if (inventoryFamilyFromListing(menuListing) === 'stay') {
+                      openSupplierStayCalendar(menuListing.id);
+                    } else {
+                      openSupplierCalendar(menuListing.id);
+                    }
                   }}
                 >
                   <CalendarDays className="h-4 w-4 shrink-0" aria-hidden />

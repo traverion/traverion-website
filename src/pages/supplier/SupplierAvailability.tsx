@@ -42,8 +42,12 @@ import {
 import { tourSellingDeparturesOnDate } from '../../lib/listing-option-schedules';
 import { formatPartnerCheckoutHoldLabel, tourCheckoutOccupiedGuests, normalizeTourStartTimeHm } from '../../lib/booking-hold';
 import { experienceTodayIsoForListing } from '../../lib/booking-quote';
-import { navigateSupplierUrl, openSupplierBooking } from '../../lib/supplierPortalNavigation';
+import { navigateSupplierUrl, openSupplierBooking, openSupplierStayCalendar } from '../../lib/supplierPortalNavigation';
 import { PARTNER_CREATE_PATH, PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
+import {
+  filterTourAvailabilityListings,
+  listingIsStayForCalendarDesk,
+} from '../../lib/partner-calendar-desk-path';
 import {
   SUPPLIER_PAGE_CLASS,
   SupplierEmptyState,
@@ -217,7 +221,9 @@ export default function SupplierAvailability() {
 
   const listing = listings.find((l) => l.id === listingId) ?? null;
   const viewingAll = listingId === '';
-  const stayCalendar = Boolean(listing && inventoryFamilyFromListing(listing) === 'stay');
+  /** Stay inventory never renders on this page — deep links redirect to Stay Calendar. */
+  const stayCalendar = false;
+  const selectedListingIsStay = Boolean(listing && listingIsStayForCalendarDesk(listing));
   const cells = useMemo(() => buildMonthCells(year, monthIndex0), [year, monthIndex0]);
   const rowByDate = useMemo(() => new Map(rows.map((r) => [r.available_date, r])), [rows]);
   const guestsByDate = useMemo(() => {
@@ -317,16 +323,22 @@ export default function SupplierAvailability() {
       const mine = await fetchMyListings(uid);
       if (gen !== loadGenRef.current) return;
       setListings(mine);
+      const tours = filterTourAvailabilityListings(mine);
       setListingId((prev) => {
-        if (prev && mine.some((l) => l.id === prev)) return prev;
+        // Keep a Stay id briefly so the redirect effect can send it to Stay Calendar.
+        if (prev && mine.some((l) => l.id === prev && listingIsStayForCalendarDesk(l))) return prev;
+        if (prev && tours.some((l) => l.id === prev)) return prev;
         const fromUrl = (new URLSearchParams(window.location.search).get('listing') ?? '').trim();
-        if (fromUrl && mine.some((l) => l.id === fromUrl)) return fromUrl;
-        if (mine.length === 1) return mine[0]!.id;
+        if (fromUrl && mine.some((l) => l.id === fromUrl && listingIsStayForCalendarDesk(l))) {
+          return fromUrl;
+        }
+        if (fromUrl && tours.some((l) => l.id === fromUrl)) return fromUrl;
+        if (tours.length === 1) return tours[0]!.id;
         return '';
       });
-      // Keep URL honest when we auto-focus the only listing.
-      if (typeof window !== 'undefined' && mine.length === 1) {
-        const only = mine[0]!.id;
+      // Auto-focus only when there is a single tour/activity product (never a Stay).
+      if (typeof window !== 'undefined' && tours.length === 1) {
+        const only = tours[0]!.id;
         const url = new URL(window.location.href);
         if (url.searchParams.get('listing') !== only) {
           url.searchParams.set('listing', only);
@@ -430,12 +442,37 @@ export default function SupplierAvailability() {
     return () => window.removeEventListener('popstate', syncFromUrl);
   }, []);
 
+  const tourListings = useMemo(
+    () => filterTourAvailabilityListings(listings),
+    [listings]
+  );
+
+  // Stay listing deep-links belong on Stay Calendar — never render stay month UI here.
+  useEffect(() => {
+    if (!listings.length || !listingId) return;
+    const hit = listings.find((l) => l.id === listingId);
+    if (!hit || !listingIsStayForCalendarDesk(hit)) return;
+    openSupplierStayCalendar(listingId, {
+      from: filterFrom || undefined,
+      to: filterTo || undefined,
+    });
+  }, [listings, listingId, filterFrom, filterTo]);
+
   useEffect(() => {
     if (!listings.length) return;
-    if (listingId && !listings.some((l) => l.id === listingId)) {
+    if (!listingId) return;
+    const hit = listings.find((l) => l.id === listingId);
+    // Unknown / not owned → clear (no cross-supplier exposure).
+    if (!hit) {
+      setListingIdAndUrl('');
+      return;
+    }
+    // Owned Stay → redirect effect handles navigation; do not clear mid-redirect.
+    if (listingIsStayForCalendarDesk(hit)) return;
+    if (!tourListings.some((l) => l.id === listingId)) {
       setListingIdAndUrl('');
     }
-  }, [listings, listingId, setListingIdAndUrl]);
+  }, [listings, tourListings, listingId, setListingIdAndUrl]);
 
   useEffect(() => {
     if (prevListingIdForCapsRef.current !== listingId) {
@@ -849,20 +886,18 @@ export default function SupplierAvailability() {
   const listingSelectOptions = useMemo(
     () => [
       { value: '', label: 'All products' },
-      ...listings.map((l) => ({
+      ...tourListings.map((l) => ({
         value: l.id,
         label: `${l.title}${l.status === 'draft' ? ' (draft)' : ''}`,
         hint:
-          inventoryFamilyFromListing(l) === 'stay'
-            ? 'Stay'
-            : l.experienceKind === 'ticket'
-              ? 'Ticket'
-              : l.experienceKind === 'transportation'
-                ? 'Transport'
-                : 'Tour',
+          l.experienceKind === 'ticket'
+            ? 'Ticket'
+            : l.experienceKind === 'transportation'
+              ? 'Transport'
+              : 'Tour',
       })),
     ],
-    [listings]
+    [tourListings]
   );
 
   // Seed agenda/week date window once we know experience-local today.
@@ -1206,11 +1241,19 @@ export default function SupplierAvailability() {
           body={userFacingError(error, USER_ERROR.calendar)}
           retry={{ onClick: () => void loadListings() }}
         />
-      ) : listings.length === 0 ? (
+      ) : selectedListingIsStay ? (
+        <div className="tv-cal-shell py-10 text-center" aria-busy="true" aria-label="Opening Stay Calendar">
+          <p className="text-sm text-ink-muted">Opening Stay Calendar…</p>
+        </div>
+      ) : tourListings.length === 0 ? (
         <SupplierEmptyState
           icon={CalendarDays}
-          title="Create a listing first"
-          body="Availability shows departures and nights after you have a tour or stay. You have none yet — that is the first step."
+          title={listings.length > 0 ? 'No tour products yet' : 'Create a listing first'}
+          body={
+            listings.length > 0
+              ? 'Departures & Availability is for tours and activities. Your Stay properties are managed in Stay Calendar.'
+              : 'Availability shows departures after you have a tour or activity listing. You have none yet — that is the first step.'
+          }
           action={
             <div className="flex flex-wrap gap-2">
               <button
@@ -1228,6 +1271,15 @@ export default function SupplierAvailability() {
               >
                 Your listings
               </button>
+              {listings.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => openSupplierStayCalendar()}
+                  className="tv-btn-ghost"
+                >
+                  Stay Calendar
+                </button>
+              ) : null}
             </div>
           }
         />
