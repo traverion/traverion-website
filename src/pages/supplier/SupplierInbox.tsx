@@ -19,7 +19,6 @@ import {
   SupplierEmptyState,
   SupplierListSkeleton,
 } from '../../components/supplier/supplierUi';
-import { StayOpsBookingSummary } from '../../components/supplier/StayOpsPrimitives';
 import NoticeCallout from '../../components/NoticeCallout';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
@@ -29,7 +28,6 @@ import BookingMessageThread from '../../components/BookingMessageThread';
 import { bookingPaymentWasCollected, partnerPaymentLabel } from '../../lib/payment-states';
 import { partnerInboxListsBooking } from '../../lib/messaging-authorization';
 import { travelerPublicBookingReference } from '../../lib/public-booking-reference';
-import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
 import {
   PARTNER_INBOX_MESSAGE_FETCH_CAP,
   partnerInboxNextFetchCap,
@@ -38,16 +36,20 @@ import { formatStayNightHuman } from '../../lib/stay-calendar';
 import { formatBookingDateDisplay } from '../../lib/booking-flow';
 import {
   displayListingTitleFromPurchase,
-  displayMeetingPointFromPurchase,
   displayOptionLabelFromPurchase,
-  displayPickupInstructionsFromPurchase,
   partnerOpsDepartureDisplay,
 } from '../../lib/purchase-snapshot';
 import { partnerBookingNumberMatchesFilterQuery } from '../../lib/partner-bookings-search';
+import { partnerBookingLifecycleLabel } from '../../lib/partner-bookings-desk';
 import { bookingIsStayNight } from '../../lib/pickup-completeness';
+import { resolvePartnerArrivalDisplay } from '../../lib/partner-booking-logistics';
 import { stayRangeFromBooking } from '../../lib/stayOccupancy';
 import { materializedBookingOptions, parseListingExtras } from '../../types/listingExtras';
 import type { TourPackage } from '../../types/tour';
+import {
+  readPartnerInboxUiState,
+  writePartnerInboxUiState,
+} from '../../lib/partner-inbox-ui-state';
 
 function inboxListingLine(
   b: BookingRow,
@@ -110,13 +112,19 @@ export default function SupplierInbox() {
   const [deepLinkMissing, setDeepLinkMissing] = useState(false);
   const [unreadOnly, setUnreadOnly] = useState(() => {
     if (typeof window === 'undefined') return false;
-    return new URLSearchParams(window.location.search).get('unread') === '1';
+    const fromUrl = new URLSearchParams(window.location.search).get('unread') === '1';
+    if (fromUrl) return true;
+    return Boolean(readPartnerInboxUiState()?.unread);
   });
-  const [filterQuery, setFilterQuery] = useState('');
+  const [filterQuery, setFilterQuery] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return (readPartnerInboxUiState()?.q ?? '').toString();
+  });
   const [mobileSheet, setMobileSheet] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 1023px)').matches : false
   );
-  const [detailsOpen, setDetailsOpen] = useState(false);
+  const listScrollRef = useRef<HTMLDivElement | null>(null);
+  const restoredListScrollRef = useRef(false);
 
   useEffect(() => {
     const vv = window.visualViewport;
@@ -280,12 +288,25 @@ export default function SupplierInbox() {
       const id = readBookingIdFromUrl();
       setOpenId(id);
       if (!id) setDeepLinkMissing(false);
-      setUnreadOnly(new URLSearchParams(window.location.search).get('unread') === '1');
+      const params = new URLSearchParams(window.location.search);
+      // Only apply unread from the URL when the param is present so session-restored
+      // filters survive Booking Details → Inbox without wiping All/Unread.
+      if (params.has('unread')) {
+        setUnreadOnly(params.get('unread') === '1');
+      }
     };
     syncFromUrl();
     window.addEventListener('popstate', syncFromUrl);
     return () => window.removeEventListener('popstate', syncFromUrl);
   }, []);
+
+  useEffect(() => {
+    writePartnerInboxUiState({
+      q: filterQuery,
+      unread: unreadOnly,
+      listScroll: listScrollRef.current?.scrollTop ?? readPartnerInboxUiState()?.listScroll ?? 0,
+    });
+  }, [filterQuery, unreadOnly]);
 
   const setUnreadOnlyAndUrl = useCallback((next: boolean) => {
     setUnreadOnly(next);
@@ -377,14 +398,37 @@ export default function SupplierInbox() {
   );
 
   useEffect(() => {
-    setDetailsOpen(false);
-  }, [openId]);
-
-  useEffect(() => {
     if (!openId || loading) return;
     const el = document.getElementById(`supplier-inbox-row-${openId}`);
     el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [openId, loading, threads]);
+
+  useLayoutEffect(() => {
+    if (restoredListScrollRef.current || loading) return;
+    const saved = readPartnerInboxUiState()?.listScroll;
+    if (typeof saved === 'number' && listScrollRef.current) {
+      listScrollRef.current.scrollTop = saved;
+      restoredListScrollRef.current = true;
+    }
+  }, [loading, visibleThreads.length]);
+
+  const persistInboxUi = useCallback(() => {
+    writePartnerInboxUiState({
+      q: filterQuery,
+      unread: unreadOnly,
+      listScroll: listScrollRef.current?.scrollTop ?? 0,
+    });
+  }, [filterQuery, unreadOnly]);
+
+  const openCanonicalBooking = useCallback(
+    (booking: BookingRow) => {
+      persistInboxUi();
+      openSupplierBooking(booking.id, {
+        isStay: bookingIsStayNight(booking) || isStayRequestAwaitingHost(booking),
+      });
+    },
+    [persistInboxUi]
+  );
 
   const activityWhen = (b: BookingRow) => {
     if (bookingIsStayNight(b)) {
@@ -561,10 +605,18 @@ export default function SupplierInbox() {
             )
           ) : (
             <div
+              ref={listScrollRef}
               id={PARTNER_INBOX_TABPANEL_ID}
               role="tabpanel"
               aria-labelledby={partnerInboxTabId(unreadOnly)}
               className="min-h-0 flex-1 overflow-y-auto"
+              onScroll={() => {
+                writePartnerInboxUiState({
+                  q: filterQuery,
+                  unread: unreadOnly,
+                  listScroll: listScrollRef.current?.scrollTop ?? 0,
+                });
+              }}
             >
               {visibleThreads.length === 0 ? (
                 filterQuery.trim() ? (
@@ -635,11 +687,7 @@ export default function SupplierInbox() {
                                 : last?.body ?? 'Start a conversation'}
                             </span>
                             <span className="tv-inbox-thread__meta">
-                              {displayListingTitleFromPurchase(
-                                b.purchase_snapshot,
-                                titles[b.listing_id],
-                                'Listing'
-                              )}
+                              {inboxListingLine(b, titles[b.listing_id], listingsById[b.listing_id])}
                               {activityWhen(b) ? ` · ${activityWhen(b)}` : ''}
                             </span>
                           </span>
@@ -663,7 +711,14 @@ export default function SupplierInbox() {
                 <button
                   type="button"
                   className="tv-btn-ghost mt-3 -ml-2"
-                  onClick={() => openSupplierBooking(openId)}
+                  onClick={() => {
+                    const row = bookings.find((b) => b.id === openId);
+                    openSupplierBooking(openId, {
+                      isStay: row
+                        ? bookingIsStayNight(row) || isStayRequestAwaitingHost(row)
+                        : false,
+                    });
+                  }}
                 >
                   Open booking desk
                 </button>
@@ -671,73 +726,100 @@ export default function SupplierInbox() {
             </div>
           ) : openBooking ? (
             <>
-              <header className="tv-inbox-chat__head">
-                <button
-                  type="button"
-                  className="lux-flat mr-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink lg:hidden"
-                  aria-label="Back to inbox"
-                  onClick={() => setOpenBookingId(null)}
-                >
-                  <ArrowLeft className="h-4 w-4" aria-hidden />
-                </button>
-                <div className="min-w-0 flex-1">
-                  <h2 className="tv-inbox-chat__guest">
-                    {openBooking.guest_name?.trim() || 'Traveler'}
-                  </h2>
-                  <p
-                    className="tv-inbox-chat__context"
-                    title={inboxListingLine(
-                      openBooking,
-                      titles[openBooking.listing_id],
-                      listingsById[openBooking.listing_id]
-                    )}
-                  >
-                    {displayListingTitleFromPurchase(
-                      openBooking.purchase_snapshot,
-                      titles[openBooking.listing_id],
-                      bookingIsStayNight(openBooking) || isStayRequestAwaitingHost(openBooking)
-                        ? 'Stay'
-                        : 'Listing'
-                    )}
-                    {activityWhen(openBooking) ? ` · ${activityWhen(openBooking)}` : ''}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  className="tv-inbox-details-link tv-btn-secondary h-8 shrink-0 !px-2.5 text-[12.5px]"
-                  onClick={() => setDetailsOpen(true)}
-                >
-                  Details
-                </button>
-              </header>
-              {bookingIsStayNight(openBooking) || isStayRequestAwaitingHost(openBooking) ? (
-                <StayOpsBookingSummary
-                  compact
-                  propertyTitle={displayListingTitleFromPurchase(
-                    openBooking.purchase_snapshot,
-                    titles[openBooking.listing_id],
-                    'Stay'
-                  )}
-                  whenLabel={activityWhen(openBooking)}
-                  referenceLabel={
-                    travelerPublicBookingReference(openBooking.public_reference) ?? undefined
-                  }
-                  statusLabel={partnerPaymentLabel(openBooking) || openBooking.status}
-                  actions={
+              {(() => {
+                const isStay =
+                  bookingIsStayNight(openBooking) || isStayRequestAwaitingHost(openBooking);
+                const reference =
+                  travelerPublicBookingReference(openBooking.public_reference) ?? null;
+                const listing = listingsById[openBooking.listing_id];
+                const arrival = !isStay
+                  ? resolvePartnerArrivalDisplay({
+                      purchaseSnapshot: openBooking.purchase_snapshot,
+                      bookingOptionId: openBooking.booking_option_id,
+                      specialRequests: openBooking.special_requests,
+                      listingMeetingPoint: listing?.meetingPoint ?? null,
+                      listingPickupInstructions: listing?.pickupInstructions ?? null,
+                      bookingOptions: listing
+                        ? materializedBookingOptions(
+                            parseListingExtras(listing.listingExtras).bookingOptions
+                          )
+                        : null,
+                    })
+                  : null;
+                const pickupChip =
+                  arrival &&
+                  (arrival.rail === 'pickup' ||
+                    arrival.rail === 'fixed_pickup' ||
+                    arrival.rail === 'location_needed')
+                    ? arrival.railLabel
+                    : null;
+                return (
+                  <header className="tv-inbox-chat__head">
                     <button
                       type="button"
-                      className="tv-btn-secondary h-7 !px-2.5 text-[12px]"
-                      onClick={() =>
-                        openSupplierBooking(openBooking.id, {
-                          isStay: true,
-                        })
-                      }
+                      className="lux-flat mr-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink lg:hidden"
+                      aria-label="Back to inbox"
+                      onClick={() => setOpenBookingId(null)}
                     >
-                      Open reservation
+                      <ArrowLeft className="h-4 w-4" aria-hidden />
                     </button>
-                  }
-                />
-              ) : null}
+                    <div className="min-w-0 flex-1">
+                      <div className="tv-inbox-chat__title-row">
+                        <h2 className="tv-inbox-chat__guest">
+                          {openBooking.guest_name?.trim() || 'Traveler'}
+                        </h2>
+                        <span className="tv-inbox-chat__status">
+                          {partnerBookingLifecycleLabel(openBooking.status)}
+                        </span>
+                      </div>
+                      <p
+                        className="tv-inbox-chat__context"
+                        title={inboxListingLine(
+                          openBooking,
+                          titles[openBooking.listing_id],
+                          listingsById[openBooking.listing_id]
+                        )}
+                      >
+                        {reference ? (
+                          <span className="tv-inbox-chat__ref">{reference}</span>
+                        ) : null}
+                        {reference ? ' · ' : ''}
+                        {inboxListingLine(
+                          openBooking,
+                          titles[openBooking.listing_id],
+                          listingsById[openBooking.listing_id]
+                        )}
+                        {activityWhen(openBooking) ? ` · ${activityWhen(openBooking)}` : ''}
+                      </p>
+                      {pickupChip || partnerPaymentLabel(openBooking) ? (
+                        <p className="tv-inbox-chat__chips">
+                          {pickupChip ? (
+                            <span
+                              className={
+                                arrival?.needsLocation
+                                  ? 'tv-inbox-chat__chip tv-inbox-chat__chip--warn'
+                                  : 'tv-inbox-chat__chip'
+                              }
+                            >
+                              {pickupChip}
+                            </span>
+                          ) : null}
+                          {partnerPaymentLabel(openBooking) ? (
+                            <span className="tv-inbox-chat__chip">{partnerPaymentLabel(openBooking)}</span>
+                          ) : null}
+                        </p>
+                      ) : null}
+                    </div>
+                    <button
+                      type="button"
+                      className="tv-inbox-view-booking tv-btn-secondary h-8 shrink-0 !px-2.5 text-[12.5px]"
+                      onClick={() => openCanonicalBooking(openBooking)}
+                    >
+                      View booking
+                    </button>
+                  </header>
+                );
+              })()}
               <div className="tv-inbox-chat__body">
                 {isStayRequestAwaitingHost(openBooking) ? (
                   <div className="border-b border-black/[0.06] px-3 py-2">
@@ -758,83 +840,6 @@ export default function SupplierInbox() {
                 ) : null}
                 {renderOpenThread(openBooking)}
               </div>
-              {detailsOpen ? (
-                <div className="tv-inbox-details" role="dialog" aria-label="Booking details">
-                  <div className="flex items-center justify-between gap-2 border-b border-black/[0.06] px-4 py-3">
-                    <h3 className="text-sm font-bold text-ink">Booking details</h3>
-                    <button type="button" className="tv-btn-ghost" onClick={() => setDetailsOpen(false)}>
-                      Close
-                    </button>
-                  </div>
-                  <dl className="space-y-3 px-4 py-4 text-sm">
-                    <div>
-                      <dt className="text-xs text-ink-faint">Reference</dt>
-                      <dd className="font-semibold text-ink">
-                        {travelerPublicBookingReference(openBooking.public_reference) ?? 'Reference pending'}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs text-ink-faint">Experience</dt>
-                      <dd className="break-words text-ink [overflow-wrap:anywhere]">
-                        {inboxListingLine(openBooking, titles[openBooking.listing_id], listingsById[openBooking.listing_id])}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs text-ink-faint">When</dt>
-                      <dd className="text-ink">{activityWhen(openBooking)}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs text-ink-faint">Participants</dt>
-                      <dd className="text-ink">{formatBookingParticipantsLabel(openBooking)}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs text-ink-faint">Traveler</dt>
-                      <dd className="break-words text-ink [overflow-wrap:anywhere]">
-                        {openBooking.guest_name?.trim() || 'Traveler'}
-                        {openBooking.guest_email ? ` · ${openBooking.guest_email}` : ''}
-                      </dd>
-                    </div>
-                    {displayMeetingPointFromPurchase(openBooking.purchase_snapshot, '') ? (
-                      <div>
-                        <dt className="text-xs text-ink-faint">Meeting point</dt>
-                        <dd className="break-words text-ink [overflow-wrap:anywhere]">
-                          {displayMeetingPointFromPurchase(openBooking.purchase_snapshot, '')}
-                        </dd>
-                      </div>
-                    ) : null}
-                    {displayPickupInstructionsFromPurchase(openBooking.purchase_snapshot, '') ? (
-                      <div>
-                        <dt className="text-xs text-ink-faint">Pickup</dt>
-                        <dd className="break-words text-ink [overflow-wrap:anywhere]">
-                          {displayPickupInstructionsFromPurchase(openBooking.purchase_snapshot, '')}
-                        </dd>
-                      </div>
-                    ) : null}
-                    <div>
-                      <dt className="text-xs text-ink-faint">Status</dt>
-                      <dd className="text-ink">
-                        {openBooking.status}
-                        {partnerPaymentLabel(openBooking) ? ` · ${partnerPaymentLabel(openBooking)}` : ''}
-                      </dd>
-                    </div>
-                  </dl>
-                  <div className="px-4 pb-4">
-                    <button
-                      type="button"
-                      className="tv-btn-secondary"
-                      onClick={() =>
-                        openSupplierBooking(openBooking.id, {
-                          isStay: isStayRequestAwaitingHost(openBooking) || bookingIsStayNight(openBooking),
-                        })
-                      }
-                    >
-                      {isStayRequestAwaitingHost(openBooking) || bookingIsStayNight(openBooking)
-                        ? 'Open in Reservations'
-                        : 'Open in Bookings'}
-                    </button>
-                  </div>
-                </div>
-              ) : null}
             </>
           ) : (
             <div className="tv-inbox-empty-pane">

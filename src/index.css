@@ -4068,8 +4068,9 @@ details:not([open]) > :not(summary) {
 
 @media (min-width: 1024px) {
   .tv-inbox-list-pane {
-    width: min(22.5rem, 38%);
-    max-width: 24rem;
+    width: 21.5rem;
+    min-width: 20rem;
+    max-width: 22.5rem;
     flex: none;
   }
 }
@@ -4090,11 +4091,62 @@ details:not([open]) > :not(summary) {
   min-height: 3.35rem;
   height: auto;
   flex: none;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.55rem 0.85rem;
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 0.65rem 0.9rem;
   border-bottom: 1px solid rgba(15, 23, 42, 0.07);
   background: #fff;
+}
+
+.tv-inbox-chat__title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.55rem;
+  min-width: 0;
+}
+
+.tv-inbox-chat__status {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 0.35rem;
+  padding: 0.12rem 0.4rem;
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  color: #003580;
+  background: rgba(0, 53, 128, 0.06);
+  box-shadow: 0 0 0 1px rgba(0, 53, 128, 0.14);
+}
+
+.tv-inbox-chat__ref {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: #17191d;
+}
+
+.tv-inbox-chat__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0.35rem 0 0;
+}
+
+.tv-inbox-chat__chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.12rem 0.45rem;
+  font-size: 11px;
+  font-weight: 550;
+  color: #475467;
+  background: #f4f5f7;
+}
+
+.tv-inbox-chat__chip--warn {
+  color: #b45309;
+  background: #fff7ed;
 }
 
 .tv-inbox-chat__body {
@@ -4191,23 +4243,24 @@ details:not([open]) > :not(summary) {
   display: flex;
   flex: none;
   align-items: flex-end;
-  gap: 0.45rem;
-  border-top: 1px solid var(--stay-ops-border, #e5e7eb);
+  gap: 0.5rem;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
   background: #fff;
-  padding: 0.6rem 0.75rem max(0.65rem, env(safe-area-inset-bottom));
+  padding: 0.7rem 0.85rem max(0.7rem, env(safe-area-inset-bottom));
 }
 
 .tv-chat__input {
   max-height: 8rem;
-  min-height: 2.5rem;
+  min-height: 2.55rem;
   flex: 1;
   resize: none;
   overflow: hidden;
-  border: 1px solid transparent;
-  border-radius: 1.15rem;
-  background: #f4f4f5;
-  padding: 0.6rem 0.85rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 1rem;
+  background: #f7f8fa;
+  padding: 0.55rem 0.85rem;
   font: inherit;
+  font-size: 0.875rem;
   line-height: 1.4;
   color: #18181b;
   scrollbar-width: thin;
@@ -4236,8 +4289,10 @@ details:not([open]) > :not(summary) {
 }
 
 .tv-chat__input:focus-visible {
-  outline: 2px solid #18181b;
-  outline-offset: 2px;
+  outline: 2px solid #003580;
+  outline-offset: 1px;
+  border-color: rgba(0, 53, 128, 0.28);
+  background: #fff;
 }
 
 .tv-chat__send {
@@ -4293,20 +4348,6 @@ details:not([open]) > :not(summary) {
   color: #073b83;
 }
 
-.tv-inbox-details {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 2;
-  display: flex;
-  width: min(22rem, 100%);
-  flex-direction: column;
-  background: #fff;
-  border-left: 1px solid #e5e7eb;
-  box-shadow: none;
-}
-
 .tv-inbox-workspace .tv-inbox-list {
   border-radius: 0;
   background: transparent;
@@ -4339,7 +4380,7 @@ details:not([open]) > :not(summary) {
 }
 
 .tv-inbox-workspace .tv-inbox-thread__btn:focus-visible,
-.tv-inbox-details-link:focus-visible {
+.tv-inbox-view-booking:focus-visible {
   outline: 2px solid #073b83;
   outline-offset: 2px;
 }
@@ -4398,13 +4439,13 @@ details:not([open]) > :not(summary) {
   outline-offset: 2px;
 }
 
-.tv-inbox-details-link {
+.tv-inbox-view-booking {
   color: #073b83;
   font-weight: 600;
   border-radius: 0.4rem;
 }
 
-.tv-inbox-details-link:hover {
+.tv-inbox-view-booking:hover {
   background: rgba(7, 59, 131, 0.08);
 }
 
@@ -4432,12 +4473,6 @@ details:not([open]) > :not(summary) {
   .partner-app-shell:has(.tv-inbox-workspace) .partner-page-frame {
     padding-bottom: 0.75rem;
   }
-
-  .tv-inbox-list-pane {
-    width: min(22.5rem, 36%);
-    flex: none;
-    border-right: 1px solid #e5e7eb;
-  }
 }
 
 @keyframes tv-chat-pulse {
@@ -4447,10 +4482,6 @@ details:not([open]) > :not(summary) {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tv-inbox-details {
-    box-shadow: none;
-  }
-
   .tv-inbox-workspace .tv-inbox-thread,
   .tv-chat__send-dot {
     transition: none;
