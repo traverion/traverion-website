@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   AlertTriangle,
   BarChart3,
@@ -19,21 +19,32 @@ import {
   Users,
   Wallet,
 } from 'lucide-react';
-import AdminSupplierVerificationPanel from './AdminSupplierVerificationPanel';
-import AdminPastVerificationsPanel from './AdminPastVerificationsPanel';
-import AdminSupplierPortalMessagesPanel from './AdminSupplierPortalMessagesPanel';
-import AdminBookingsPanel from './AdminBookingsPanel';
-import AdminFinancePanel from './AdminFinancePanel';
-import AdminCommercialPanel from './AdminCommercialPanel';
-import AdminInquiriesPanel from './AdminInquiriesPanel';
-import AdminListingsModerationPanel from './AdminListingsModerationPanel';
-import AdminContentReportsPanel from './AdminContentReportsPanel';
 import NoticeCallout from '../NoticeCallout';
 import { useAuth } from '../../contexts/AuthContext';
 import { invokeAdminEdgeFunction, type AdminStatsPayload } from '../../lib/adminEdgeFunction';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import { publicMarketingSiteUrl } from '../../lib/adminHost';
 import { appStripeIsTestMode } from '../../lib/money';
+
+const AdminSupplierVerificationPanel = lazy(() => import('./AdminSupplierVerificationPanel'));
+const AdminPastVerificationsPanel = lazy(() => import('./AdminPastVerificationsPanel'));
+const AdminSupplierPortalMessagesPanel = lazy(() => import('./AdminSupplierPortalMessagesPanel'));
+const AdminBookingsPanel = lazy(() => import('./AdminBookingsPanel'));
+const AdminFinancePanel = lazy(() => import('./AdminFinancePanel'));
+const AdminCommercialPanel = lazy(() => import('./AdminCommercialPanel'));
+const AdminInquiriesPanel = lazy(() => import('./AdminInquiriesPanel'));
+const AdminListingsModerationPanel = lazy(() => import('./AdminListingsModerationPanel'));
+const AdminContentReportsPanel = lazy(() => import('./AdminContentReportsPanel'));
+
+function AdminPanelFallback() {
+  return (
+    <div
+      className="min-h-[12rem] rounded-xl bg-black/[0.03] animate-pulse motion-reduce:animate-none"
+      aria-busy="true"
+      aria-label="Loading panel"
+    />
+  );
+}
 
 export type AdminTab =
   | 'overview'
@@ -784,56 +795,58 @@ export default function AdminShell() {
       </aside>
 
       <main className="flex-1 min-w-0 px-4 sm:px-6 lg:px-8 py-5 lg:py-7" key={activeTab}>
-        {activeTab === 'overview' && <LiveOverview onJump={setTab} />}
-        {activeTab === 'bookings' && (
-          <PanelFrame title="Bookings" subtitle="Every reservation — refunds, disputes, investigation.">
-            <AdminBookingsPanel />
-          </PanelFrame>
-        )}
-        {activeTab === 'finance' && (
-          <PanelFrame title="Finance" subtitle="Platform totals and manual payout recording.">
-            <AdminFinancePanel />
-          </PanelFrame>
-        )}
-        {activeTab === 'commercial' && (
-          <PanelFrame title="Commercial & payouts" subtitle="Commission terms, periods, holds, refund instructions.">
-            <AdminCommercialPanel />
-          </PanelFrame>
-        )}
-        {activeTab === 'users' && <UsersPanel />}
-        {activeTab === 'suppliers_dir' && <SuppliersDirectoryPanel />}
-        {activeTab === 'customers' && <CustomersDirectoryPanel />}
-        {activeTab === 'suppliers' && (
-          <PanelFrame title="Verification queue" subtitle="Approve or reject business and payout submissions.">
-            <AdminSupplierVerificationPanel />
-          </PanelFrame>
-        )}
-        {activeTab === 'past_verifications' && (
-          <PanelFrame title="Past reviews" subtitle="Historical verification decisions.">
-            <AdminPastVerificationsPanel />
-          </PanelFrame>
-        )}
-        {activeTab === 'listings' && (
-          <PanelFrame title="Listings" subtitle="Moderate tours and stays — force unpublish when needed.">
-            <AdminListingsModerationPanel />
-          </PanelFrame>
-        )}
-        {activeTab === 'inquiries' && (
-          <PanelFrame title="Inquiries" subtitle="Contact form inbox.">
-            <AdminInquiriesPanel />
-          </PanelFrame>
-        )}
-        {activeTab === 'reports' && (
-          <PanelFrame title="Content reports" subtitle="Review reports and hide abusive reviews.">
-            <AdminContentReportsPanel />
-          </PanelFrame>
-        )}
-        {activeTab === 'portal_messages' && (
-          <PanelFrame title="Portal messages" subtitle="Broadcast notices into the partner app.">
-            <AdminSupplierPortalMessagesPanel />
-          </PanelFrame>
-        )}
-        {activeTab === 'system' && <SystemResetPanel />}
+        <Suspense fallback={<AdminPanelFallback />}>
+          {activeTab === 'overview' && <LiveOverview onJump={setTab} />}
+          {activeTab === 'bookings' && (
+            <PanelFrame title="Bookings" subtitle="Every reservation — refunds, disputes, investigation.">
+              <AdminBookingsPanel />
+            </PanelFrame>
+          )}
+          {activeTab === 'finance' && (
+            <PanelFrame title="Finance" subtitle="Platform totals and manual payout recording.">
+              <AdminFinancePanel />
+            </PanelFrame>
+          )}
+          {activeTab === 'commercial' && (
+            <PanelFrame title="Commercial & payouts" subtitle="Commission terms, periods, holds, refund instructions.">
+              <AdminCommercialPanel />
+            </PanelFrame>
+          )}
+          {activeTab === 'users' && <UsersPanel />}
+          {activeTab === 'suppliers_dir' && <SuppliersDirectoryPanel />}
+          {activeTab === 'customers' && <CustomersDirectoryPanel />}
+          {activeTab === 'suppliers' && (
+            <PanelFrame title="Verification queue" subtitle="Approve or reject business and payout submissions.">
+              <AdminSupplierVerificationPanel />
+            </PanelFrame>
+          )}
+          {activeTab === 'past_verifications' && (
+            <PanelFrame title="Past reviews" subtitle="Historical verification decisions.">
+              <AdminPastVerificationsPanel />
+            </PanelFrame>
+          )}
+          {activeTab === 'listings' && (
+            <PanelFrame title="Listings" subtitle="Moderate tours and stays — force unpublish when needed.">
+              <AdminListingsModerationPanel />
+            </PanelFrame>
+          )}
+          {activeTab === 'inquiries' && (
+            <PanelFrame title="Inquiries" subtitle="Contact form inbox.">
+              <AdminInquiriesPanel />
+            </PanelFrame>
+          )}
+          {activeTab === 'reports' && (
+            <PanelFrame title="Content reports" subtitle="Review reports and hide abusive reviews.">
+              <AdminContentReportsPanel />
+            </PanelFrame>
+          )}
+          {activeTab === 'portal_messages' && (
+            <PanelFrame title="Portal messages" subtitle="Broadcast notices into the partner app.">
+              <AdminSupplierPortalMessagesPanel />
+            </PanelFrame>
+          )}
+          {activeTab === 'system' && <SystemResetPanel />}
+        </Suspense>
       </main>
     </div>
   );

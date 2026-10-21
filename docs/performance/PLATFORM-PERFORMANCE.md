@@ -73,7 +73,7 @@ Partner sections remount page modules on navigation but keep sidebar/top chrome 
 | `index-*.js` | 553 KB | 422 KB | React extracted to `react-vendor` |
 | `react-vendor-*.js` | — | 139 KB (~45 KB gzip) | Cacheable across routes |
 | `index` gzip | ~160 KB | ~118 KB | Measured via `gzip -c` |
-| `SupplierListingForm` | 441 KB | 441 KB | Unchanged (editor weight) |
+| `SupplierListingForm` | 441 KB | 441 KB | Later: crop modal split → 423 KB |
 
 **Partner data:** `fetchMyListings` / `fetchBookingsForSupplier` now coalesce in-flight requests and reuse results for ~8–12s (invalidated on listing/booking writes). Navigating Dashboard → Bookings → Inbox within the TTL should not re-download the full desk payloads.
 
@@ -83,14 +83,28 @@ Partner sections remount page modules on navigation but keep sidebar/top chrome 
 
 **Inbox / Dashboard unread (Phase 04):** List preview and dashboard unread flags use `fetchLatestBookingMessage` (1 row) instead of `fetchBookingMessages` (full thread). Open-thread UI still loads the full history via `BookingMessageThread`. Payload reduction is proportional to thread length (often 10–100× fewer rows per booking when threads are long). Request count remains capped at `PARTNER_INBOX_MESSAGE_FETCH_CAP` (80).
 
+## After admin panel split + vitals (measured `npm run build`)
+
+| Asset | Before | After | Notes |
+| --- | ---: | ---: | --- |
+| `AdminGate-*.js` | 115 KB | **25.6 KB** (~7.3 KB gzip) | Panels lazy-loaded per tab |
+| `AdminBookingsPanel-*.js` | (in gate) | 29.5 KB | Loaded only on Bookings tab |
+| `index-*.js` | 422 KB | 433 KB | +opt-in web-vitals-lite (~tiny) |
+| Destination hero | — | `fetchPriority="high"` | LCP candidate on destination routes |
+| `SupplierListingForm-*.js` | 451 KB | **423 KB** (~115 KB gzip) | `ListingPhotoCropModal` + `react-easy-crop` deferred |
+| `ListingPhotoCropModal-*.js` | — | 29 KB (~9 KB gzip) | Loaded only when cropping |
+
+**Observability:** `installWebVitalsLite()` — enable with `?perf=1` or `localStorage.traverion_perf=1`; samples via `window.__traverionPerf()`. Path-only; no PII.
+
+**Admin bookings:** Already server-paginated (`page` / `pageSize` via edge function) — no full-table client load for the bookings queue.
+
 ## Remaining (not yet measured / not yet changed)
 
-- Field Web Vitals (LCP/INP/CLS) on production hosts
+- Field Web Vitals (LCP/INP/CLS) on production hosts with `?perf=1`
 - DB EXPLAIN for booking list / availability (needs staging access)
-- Admin table server-side pagination audit
-- Further splitting `SupplierListingForm`
-- RUM / lightweight observability
+- Further splitting `SupplierListingForm` (crop / maps / stay onboarding)
+- Optional RPC batching latest messages for Inbox (N×limit-1 → 1 round-trip)
 
 ## Changes in this performance track
 
-See git history for commits implementing partner fetch coalescing, section chunk prefetch, and bundle cleanup.
+See git history for commits implementing partner fetch coalescing, section chunk prefetch, inbox latest-message, admin code-split, and bundle cleanup.

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, ImagePlus, MoreHorizontal, Plus } from 'lucide-react';
 import {
   LISTING_IMAGE_MAX_BYTES,
@@ -29,7 +29,10 @@ import {
   type ListingPhotoCropSettings,
 } from '../../lib/listingPhotoGrid';
 import { ListingPhotoActionMenu, photoMenuItemClass } from './ListingPhotoActionMenu';
-import { ListingPhotoCropModal } from './ListingPhotoCropModal';
+
+const ListingPhotoCropModal = lazy(() =>
+  import('./ListingPhotoCropModal').then((m) => ({ default: m.ListingPhotoCropModal }))
+);
 
 export type ListingPhotosValue = {
   slots: string[];
@@ -701,17 +704,19 @@ export default function ListingImageFields({
       )}
 
       {cropIndex != null && (slots[cropIndex] ?? '').trim() ? (
-        <ListingPhotoCropModal
-          imageUrl={(originals[cropIndex] ?? '').trim() || (slots[cropIndex] ?? '').trim()}
-          initial={crops[cropIndex] ?? emptyCrop()}
-          onCancel={() => setCropIndex(null)}
-          onApply={async ({ blob, settings }) => {
-            const idx = cropIndex;
-            if (idx == null) return;
-            await applyCroppedBlob(idx, blob, settings);
-            setCropIndex(null);
-          }}
-        />
+        <Suspense fallback={null}>
+          <ListingPhotoCropModal
+            imageUrl={(originals[cropIndex] ?? '').trim() || (slots[cropIndex] ?? '').trim()}
+            initial={crops[cropIndex] ?? emptyCrop()}
+            onCancel={() => setCropIndex(null)}
+            onApply={async ({ blob, settings }) => {
+              const idx = cropIndex;
+              if (idx == null) return;
+              await applyCroppedBlob(idx, blob, settings);
+              setCropIndex(null);
+            }}
+          />
+        </Suspense>
       ) : null}
 
       {!uploadsEnabled && (

@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { installStaleChunkReload } from './lib/stale-chunk-reload';
+import { installWebVitalsLite } from './lib/web-vitals-lite';
 import {
   redirectIfPasswordRecoveryLandingInWrongPlace,
   redirectLegacyTravelerResetPasswordPath,
@@ -16,6 +17,7 @@ import App from './App.tsx';
 import './index.css';
 
 installStaleChunkReload();
+installWebVitalsLite();
 
 redirectIfPasswordRecoveryLandingInWrongPlace();
 redirectLegacyTravelerResetPasswordPath();

@@ -179,7 +179,15 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
     <div className="min-h-screen bg-paper tv-page">
       <section className="relative text-white min-h-[min(42dvh,22rem)] sm:min-h-[min(48dvh,26rem)] flex flex-col justify-end overflow-hidden">
         <div className="page-hero-media" aria-hidden>
-          <img src={heroSrc} alt="" decoding="async" width={1600} height={900} className="object-cover" />
+          <img
+            src={heroSrc}
+            alt=""
+            fetchPriority="high"
+            decoding="async"
+            width={1600}
+            height={900}
+            className="object-cover"
+          />
         </div>
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/20" aria-hidden />
         <div className="relative z-10 w-full tv-shell px-4 sm:px-6 lg:px-8 pb-6 sm:pb-8 pt-14">
