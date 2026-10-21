@@ -30,7 +30,6 @@ const baseModel: TourOpsCardModel = {
   durationLabel: '2 hours',
   guestNotes: null,
   warning: null,
-  needsAcknowledge: false,
   guestPaidLabel: '€119.00',
   commissionLabel: '€17.85',
   commissionRateLabel: '15%',
@@ -51,8 +50,9 @@ describe('Bookings V4 — tour ops card & detail page', () => {
     expect(src).toContain('resolvePartnerArrivalDisplay');
     expect(src).toContain('partnerBookingDeskPath');
     expect(src).not.toContain('Mark as reviewed');
-    expect(src).toContain('Acknowledge');
+    expect(src).not.toContain('Acknowledge');
     expect(src).toContain('openSupplierInbox(booking.id)');
+    expect(src).toContain('TourOpsBookingDetail');
     const card = readFileSync(
       resolve(__dirname, '../../components/supplier/TourOpsBookingCard.tsx'),
       'utf8'
@@ -62,8 +62,17 @@ describe('Bookings V4 — tour ops card & detail page', () => {
     expect(card).toContain('Traverion commission');
     expect(card).toContain('Message guest');
     expect(card).not.toContain('Mark as reviewed');
+    expect(card).not.toContain('Acknowledge');
     expect(card).toContain('tour-ops-card__pickup');
     expect(card).toContain('tour-ops-card__rail-stack');
+    const detail = readFileSync(
+      resolve(__dirname, '../../components/supplier/TourOpsBookingDetail.tsx'),
+      'utf8'
+    );
+    expect(detail).toContain('tour-ops-detail__grid');
+    expect(detail).toContain('tour-ops-detail__aside');
+    expect(detail).not.toContain('Acknowledge');
+    expect(detail).toContain('Message customer');
   });
 
   it('defines tour-ops and single-row desktop toolbar styles', () => {
@@ -71,6 +80,8 @@ describe('Bookings V4 — tour ops card & detail page', () => {
     expect(css).toContain('.partner-bookings-workspace');
     expect(css).toContain('.tour-ops-card');
     expect(css).toContain('.tour-ops-detail');
+    expect(css).toContain('max-width: min(72rem, 100%)');
+    expect(css).toContain('.tour-ops-detail__grid');
     expect(css).toContain('prefers-reduced-motion');
     expect(css).toContain('One horizontal desktop row');
     expect(css).toContain('flex-wrap: nowrap');
@@ -140,6 +151,7 @@ describe('Bookings V4 — tour ops card & detail page', () => {
     expect(html).toContain('Supplier earnings');
     expect(html).toContain('€101.15');
     expect(html).not.toContain('Mark as reviewed');
+    expect(html).not.toContain('Acknowledge');
     expect(html).toContain('View details');
     expect(html).toContain('Message guest');
     expect(html).toContain('aria-expanded="true"');

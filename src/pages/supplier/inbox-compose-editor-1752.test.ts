@@ -21,11 +21,15 @@ describe('Phase 1752: host booking chat requires editor roles', () => {
     expect(inbox).toContain("'role'");
 
     const bookings = readFileSync(resolve(__dirname, 'SupplierBookings.tsx'), 'utf8');
-    expect(bookings).toContain('Phase 1752');
-    expect(bookings).toContain('Message customer');
+    const detail = readFileSync(
+      resolve(__dirname, '../../components/supplier/TourOpsBookingDetail.tsx'),
+      'utf8'
+    );
     expect(bookings).toContain('openSupplierInbox(booking.id)');
     expect(bookings).not.toContain('BookingMessageThread');
     expect(bookings).not.toContain('Open in Inbox');
+    expect(detail).toContain('Message customer');
+    expect(detail).toContain('onMessageGuest');
 
     const thread = readFileSync(resolve(__dirname, '../../components/BookingMessageThread.tsx'), 'utf8');
     expect(thread).toContain("composeBlock === 'role'");

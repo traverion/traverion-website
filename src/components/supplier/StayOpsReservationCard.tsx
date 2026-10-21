@@ -23,7 +23,6 @@ export type StayOpsCardModel = {
   guestEmail: string | null;
   guestPhone: string | null;
   warning: string | null;
-  needsReview: boolean;
 };
 
 type Props = {
@@ -35,7 +34,6 @@ type Props = {
   onToggleExpand: () => void;
   onOpenDetails: () => void;
   onMessageGuest: () => void;
-  onMarkReviewed?: () => void;
   onCopyReference: () => void;
   copied?: boolean;
 };
@@ -44,12 +42,10 @@ export default function StayOpsReservationCard({
   model,
   expanded,
   selected,
-  busy,
   checkbox,
   onToggleExpand,
   onOpenDetails,
   onMessageGuest,
-  onMarkReviewed,
   onCopyReference,
   copied,
 }: Props) {
@@ -198,17 +194,6 @@ export default function StayOpsReservationCard({
           <button type="button" className="tv-btn-secondary h-8 !px-3 text-[12.5px]" onClick={onOpenDetails}>
             View details
           </button>
-          {model.needsReview && onMarkReviewed ? (
-            <button
-              type="button"
-              disabled={busy}
-              className="tv-btn-ghost h-8 !px-2.5 text-[12.5px] disabled:opacity-50"
-              title="Informational only — does not change payment or confirmation"
-              onClick={onMarkReviewed}
-            >
-              {busy ? 'Saving…' : 'Acknowledge'}
-            </button>
-          ) : null}
         </div>
       </div>
     </article>

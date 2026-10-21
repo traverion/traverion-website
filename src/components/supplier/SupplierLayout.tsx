@@ -82,7 +82,6 @@ import {
   softReplacePathIfChanged,
 } from '../../lib/authNavigation';
 import { partnerRedirectForSession } from '../../lib/partnerAuthState';
-import { appStripeIsTestMode } from '../../lib/money';
 import {
   PARTNER_PRIMARY_NAV_SECTION_IDS,
   partnerMoreNavIncludesSection,
@@ -988,17 +987,6 @@ export default function SupplierLayout() {
   return (
     <div className="partner-app-shell text-slate-900">
       <SkipLink />
-      {appStripeIsTestMode() ? (
-        <div className="partner-test-banner px-4 py-1.5 text-center sm:px-6" role="status">
-          <p className="text-[12px] leading-snug">
-            <span className="font-semibold uppercase tracking-[0.12em]">Test mode</span>
-            <span className="mx-2 font-medium opacity-60" aria-hidden>
-              ·
-            </span>
-            <span className="font-medium">Payments and Income are sandbox data — no live charges.</span>
-          </p>
-        </div>
-      ) : null}
 
       <div className="partner-workspace">
         <PartnerSidebar

@@ -49,7 +49,6 @@ import {
 } from '../../components/supplier/supplierUi';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import {
-  acknowledgeBooking,
   fetchBookingsForSupplier,
   type BookingRow,
   updateBookingStatus,
@@ -88,7 +87,7 @@ import { nightsOccupiedByStay, stayRangeFromBooking } from '../../lib/stayOccupa
 import {
   stayPaidAdjacentNightCount,
 } from '../../lib/booking-confirmation-copy';
-import { partnerBookingIsLiveTrip, partnerBookingIsOperatingTrip, partnerBookingNeedsLook, partnerBookingIsUnpaidCheckout, partnerBookingShowsCancelAction, scheduleTodayIsoForBooking } from '../../lib/trip-views';
+import { partnerBookingIsLiveTrip, partnerBookingIsOperatingTrip, partnerBookingIsUnpaidCheckout, partnerBookingShowsCancelAction, scheduleTodayIsoForBooking } from '../../lib/trip-views';
 import { addCalendarDaysYmd } from '../../lib/booking-lifecycle-calendar';
 import { formatPartnerCheckoutHoldLabel, partnerUnpaidCheckoutHoldsInventory } from '../../lib/booking-hold';
 import { formatStayNightHuman } from '../../lib/stay-calendar';
@@ -881,21 +880,6 @@ export default function SupplierBookings({
     }
     await load();
   }, [cancelModal, canEditBookings, cancelReason, cancelReasonText, cancelEvidence, listingMeta, load]);
-
-  const handleAcknowledge = useCallback(
-    async (booking: BookingRow) => {
-      if (!canEditBookings || !partnerBookingIsOperatingTrip(booking)) return;
-      setUpdatingId(booking.id);
-      const ok = await acknowledgeBooking(booking.id);
-      if (ok) {
-        setBookings((prev) =>
-          prev.map((b) => (b.id === booking.id ? { ...b, acknowledged_at: new Date().toISOString() } : b))
-        );
-      }
-      setUpdatingId(null);
-    },
-    [canEditBookings]
-  );
 
   const listingOptions = useMemo(
     () =>
@@ -1800,7 +1784,6 @@ export default function SupplierBookings({
                       guestEmail: booking.guest_email?.trim() || null,
                       guestPhone: guestPhoneFromNotes(booking.special_requests),
                       warning: cardWarning,
-                      needsReview: partnerBookingNeedsLook(booking),
                     }}
                     expanded={expandedStayId === booking.id}
                     selected={highlightBookingId === booking.id}
@@ -1816,11 +1799,6 @@ export default function SupplierBookings({
                       setSelectedBookingId(booking.id);
                     }}
                     onMessageGuest={() => openSupplierInbox(booking.id)}
-                    onMarkReviewed={
-                      canEditBookings
-                        ? () => void handleAcknowledge(booking)
-                        : undefined
-                    }
                     onCopyReference={copyReference}
                   />
                 );
@@ -1867,7 +1845,6 @@ export default function SupplierBookings({
                     durationLabel: durationLabel && durationLabel !== '—' ? durationLabel : null,
                     guestNotes,
                     warning: cardWarning,
-                    needsAcknowledge: partnerBookingNeedsLook(booking),
                     guestPaidLabel: financeReady
                       ? expandedGuestPaidLabel
                       : tourExpanded
@@ -1893,9 +1870,6 @@ export default function SupplierBookings({
                     setSelectedBookingId(booking.id);
                   }}
                   onMessageGuest={() => openSupplierInbox(booking.id)}
-                  onAcknowledge={
-                    canEditBookings ? () => void handleAcknowledge(booking) : undefined
-                  }
                   onCopyReference={copyReference}
                 />
               );
@@ -2014,7 +1988,6 @@ export default function SupplierBookings({
             const referenceLabel = bookingReferenceLabel(booking);
             const guestPhone = guestPhoneFromNotes(booking.special_requests);
             const requestNotes = customerRequestNotes(booking.special_requests);
-            const needsAck = partnerBookingNeedsLook(booking);
             const busy = updatingId === booking.id;
             const fulfillment = arrival.fulfillment;
             const pickupGap = partnerBookingHasPickupAttention(
@@ -2032,10 +2005,14 @@ export default function SupplierBookings({
               })
                 ? openCancelRaw
                 : undefined;
-            const bookingLogistics = optionLogisticsLines({
-              ...readOptionLogistics(booking.purchase_snapshot),
-              fulfillment,
-            }).join(' ');
+            // Transport line only for pickup bookings — meeting-point options must not show transfer marketing.
+            const bookingLogistics =
+              fulfillment === 'pickup'
+                ? optionLogisticsLines({
+                    ...readOptionLogistics(booking.purchase_snapshot),
+                    fulfillment,
+                  }).join(' ')
+                : '';
             const commissionAdjusted =
               commercialSnapshot != null &&
               Number(commercialSnapshot.remaining_gross_minor) !== Number(commercialSnapshot.gross_minor);
@@ -2063,8 +2040,6 @@ export default function SupplierBookings({
                   arrivalInstructions: arrival.instructions,
                   pickupTimeHm: fulfillment === 'pickup' ? pickupHm : null,
                   transferLine: bookingLogistics || null,
-                  needsAcknowledge: needsAck,
-                  acknowledgedAt: booking.acknowledged_at ?? null,
                   pickupGapMessage: pickupGap
                     ? fulfillment === 'pickup'
                       ? 'Pickup address or time is missing, so the guest does not know where to be collected.'
@@ -2130,7 +2105,6 @@ export default function SupplierBookings({
                   });
                 }}
                 onMessageGuest={() => openSupplierInbox(booking.id)}
-                onAcknowledge={() => void handleAcknowledge(booking)}
                 onConfirm={() => void handleStatusChange(booking, 'confirmed')}
                 onRequestCancel={() => {
                   setCancelError(null);
@@ -2208,7 +2182,6 @@ export default function SupplierBookings({
             const bookingTotalLabel = customerBookingTotal(booking);
             const collectedLabel = formatBookingMoney(booking.amount_paid, booking.currency);
             const collectedCaption = partnerCollectedAmountCaption(booking);
-            const needsAck = partnerBookingNeedsLook(booking);
             // Phase 1582: detail panel must resolve openCancel (list row already did — missing here broke tsc/cancel UI).
             const openCancelRaw = openCancels[booking.id];
             const openCancel =
@@ -2292,14 +2265,6 @@ export default function SupplierBookings({
                             <a href={phoneHref} className="text-finland hover:underline">
                               {guestPhone}
                             </a>
-                          </StayOpsFact>
-                        ) : null}
-                        {booking.acknowledged_at ? (
-                          <StayOpsFact label="Reviewed">
-                            {new Date(booking.acknowledged_at).toLocaleString(undefined, {
-                              dateStyle: 'medium',
-                              timeStyle: 'short',
-                            })}
                           </StayOpsFact>
                         ) : null}
                       </dl>
@@ -2587,13 +2552,6 @@ export default function SupplierBookings({
                               at: null,
                             });
                           }
-                          if (booking.acknowledged_at) {
-                            items.push({
-                              id: 'reviewed',
-                              label: 'Reviewed',
-                              at: booking.acknowledged_at,
-                            });
-                          }
                           if (openCancel) {
                             items.push({
                               id: `cancel-${openCancel.id}`,
@@ -2635,17 +2593,6 @@ export default function SupplierBookings({
                       <Mail className="h-3.5 w-3.5" aria-hidden />
                       Message guest
                     </button>
-                    {canEditBookings && needsAck ? (
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => void handleAcknowledge(booking)}
-                        className="tv-btn-secondary inline-flex h-9 items-center gap-1.5 !px-3 text-[13px] disabled:opacity-50"
-                        title="Informational only — does not change payment or confirmation"
-                      >
-                        {busy ? 'Saving…' : 'Acknowledge'}
-                      </button>
-                    ) : null}
                     {canEditBookings &&
                     (partnerBookingIsOperatingTrip(booking) ||
                       partnerBookingIsUnpaidCheckout(booking)) ? (

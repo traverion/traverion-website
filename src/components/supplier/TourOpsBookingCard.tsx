@@ -27,7 +27,6 @@ export type TourOpsCardModel = {
   durationLabel: string | null;
   guestNotes: string | null;
   warning: string | null;
-  needsAcknowledge: boolean;
   guestPaidLabel: string | null;
   commissionLabel: string | null;
   commissionRateLabel: string | null;
@@ -45,7 +44,6 @@ type Props = {
   onToggleExpand: () => void;
   onOpenDetails: () => void;
   onMessageGuest: () => void;
-  onAcknowledge?: () => void;
   onCopyReference: () => void;
   copied?: boolean;
 };
@@ -54,12 +52,10 @@ export default function TourOpsBookingCard({
   model,
   expanded,
   selected,
-  busy,
   checkbox,
   onToggleExpand,
   onOpenDetails,
   onMessageGuest,
-  onAcknowledge,
   onCopyReference,
   copied,
 }: Props) {
@@ -244,16 +240,6 @@ export default function TourOpsBookingCard({
           <button type="button" className="tv-btn-secondary h-8 !px-3 text-[12.5px]" onClick={onOpenDetails}>
             View details
           </button>
-          {model.needsAcknowledge && onAcknowledge ? (
-            <button
-              type="button"
-              disabled={busy}
-              className="tv-btn-ghost h-8 !px-2.5 text-[12.5px] disabled:opacity-50"
-              onClick={onAcknowledge}
-            >
-              {busy ? 'Saving…' : 'Acknowledge'}
-            </button>
-          ) : null}
         </div>
       </div>
     </article>
