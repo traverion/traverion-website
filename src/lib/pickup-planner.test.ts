@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { guestFacingBookingNotes, parsePickupDraft, upsertPickupDraft } from './booking-notes';
 import { travelerPickupAddressFromRecord } from './pickup-area';
-import { pickupAttention, pickupDepartureKey, pickupStopKey } from './pickup-planner';
+import {
+  bookingPickupOpsStatus,
+  formatPickupPlannerDateHeading,
+  groupDeparturesByDateKey,
+  paginateDayGroups,
+  pickupAttention,
+  pickupDepartureKey,
+  pickupStopKey,
+  PICKUP_PLANNER_DAYS_PER_PAGE,
+} from './pickup-planner';
 
 describe('pickup planner grouping', () => {
   it('keeps the same product on different schedules apart', () => {
@@ -60,5 +69,42 @@ describe('pickup planner grouping', () => {
         null
       )
     ).toEqual([]);
+  });
+
+  it('formats day headings and paginates by calendar days', () => {
+    expect(formatPickupPlannerDateHeading('2026-10-21')).toMatch(/21/);
+    expect(formatPickupPlannerDateHeading('2026-10-21')).toMatch(/October/);
+    const days = groupDeparturesByDateKey([
+      { id: 'a', date: '2026-10-21', rows: [{ id: '1', listing_id: 'l', booking_date: '2026-10-21' }] },
+      { id: 'b', date: '2026-10-21', rows: [{ id: '2', listing_id: 'l', booking_date: '2026-10-21' }] },
+      { id: 'c', date: '2026-10-22', rows: [{ id: '3', listing_id: 'l', booking_date: '2026-10-22' }] },
+    ]);
+    expect(days).toHaveLength(2);
+    expect(days[0]!.departures).toHaveLength(2);
+    const paged = paginateDayGroups(
+      Array.from({ length: 12 }, (_, i) => ({ date: `2026-10-${String(i + 1).padStart(2, '0')}` })),
+      1
+    );
+    expect(PICKUP_PLANNER_DAYS_PER_PAGE).toBe(10);
+    expect(paged.slice).toHaveLength(10);
+    expect(paged.pageCount).toBe(2);
+  });
+
+  it('surfaces pickup and meeting operational statuses', () => {
+    expect(
+      bookingPickupOpsStatus({
+        id: '1',
+        listing_id: 'l',
+        purchase_snapshot: { listingTitle: 'Lights', capturedAt: '2026-10-01', fulfillment: 'pickup' },
+      })
+    ).toBe('pickup_time_needed');
+    expect(
+      bookingPickupOpsStatus({
+        id: '2',
+        listing_id: 'l',
+        pickup_time: '18:00:00',
+        purchase_snapshot: { listingTitle: 'Lights', capturedAt: '2026-10-01', fulfillment: 'meeting_point' },
+      })
+    ).toBe('guests_notified');
   });
 });

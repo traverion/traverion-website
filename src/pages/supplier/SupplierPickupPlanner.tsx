@@ -109,6 +109,8 @@ export default function SupplierPickupPlanner() {
   });
   const sortDate = 'asc' as const;
   const [filterQuery, setFilterQuery] = useState('');
+  const [dayPage, setDayPage] = useState(1);
+  const bookingsLenRef = useRef(0);
 
   const loadGenRef = useRef(0);
   const pickupPlannerHubUserIdRef = useRef<string | null>(null);
@@ -120,7 +122,8 @@ export default function SupplierPickupPlanner() {
       return;
     }
     const gen = ++loadGenRef.current;
-    setLoading(true);
+    // Soft refresh when pickups are already on screen — avoids skeleton flash on warm hops.
+    if (bookingsLenRef.current === 0) setLoading(true);
     setError(null);
     try {
       const [bookingsList, listings] = await Promise.all([
@@ -163,7 +166,7 @@ export default function SupplierPickupPlanner() {
         }));
         planner[l.id] = materialized.map((o) => ({
           id: o.id,
-          label: o.optionInfo?.trim() || o.pickupPlace?.trim() || 'Option',
+          label: o.name?.trim() || o.optionInfo?.trim() || o.pickupPlace?.trim() || 'Option',
           fulfillment: o.fulfillment === 'pickup' || o.fulfillment === 'meeting_point' ? o.fulfillment : null,
           area: pickupAreaFromOption(o),
           instructions: (o.travelerStartInstructions || o.optionInfo || '').trim(),
@@ -198,6 +201,9 @@ export default function SupplierPickupPlanner() {
       setOptionsByListing(optionsMap);
       setPlannerOptions(planner);
       setThumbs(images);
+      bookingsLenRef.current = bookingsList.filter(
+        (b) => partnerBookingIsLiveTrip(b) && !bookingIsStayNight(b) && !stayIds.has(b.listing_id)
+      ).length;
     } catch (e) {
       if (gen !== loadGenRef.current) return;
       setError(userFacingError(e, USER_ERROR.pickup));
@@ -402,6 +408,11 @@ export default function SupplierPickupPlanner() {
       (a.booking_date ?? '').localeCompare(b.booking_date ?? '') || a.created_at.localeCompare(b.created_at);
     return sortDate === 'asc' ? [...rows].sort(cmp) : [...rows].sort((a, b) => cmp(b, a));
   }, [sorted, listingFilterId, needsPickupOnly, sortDate, needsPickupInfo, filterQuery, listingTitles]);
+
+  // Reset day page when the filtered date set changes shape.
+  useEffect(() => {
+    setDayPage(1);
+  }, [listingFilterId, needsPickupOnly, filterQuery, dateFrom, dateTo, dayPreset, showAllDates]);
 
   const listingSelectOptions = useMemo(
     () =>
@@ -680,9 +691,12 @@ export default function SupplierPickupPlanner() {
           titles={listingTitles}
           thumbs={thumbs}
           optionsByListing={plannerOptions}
+          meetingPoints={meetingPoints}
           departureId={departureId}
           manageId={selectedBookingId}
           canEdit={canEditBookings}
+          page={dayPage}
+          onPageChange={setDayPage}
           onOpenDeparture={setDepartureAndUrl}
           onBack={() => setDepartureAndUrl(null)}
           onManage={setSelectedBookingAndUrl}

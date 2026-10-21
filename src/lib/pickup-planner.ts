@@ -133,3 +133,132 @@ export function draftDiffersFromConfirmed(b: PickupPlannerBooking, draft: Pickup
   if ((draft.instructions ?? '') !== '') return true;
   return false;
 }
+
+/** Long date heading for planner day groups — e.g. Wednesday, 21 October 2026 */
+export function formatPickupPlannerDateHeading(ymd: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return 'Date not set';
+  const d = new Date(`${ymd}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return ymd;
+  return d.toLocaleDateString('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+export const PICKUP_PLANNER_DAYS_PER_PAGE = 10;
+
+export type PickupOpsStatus =
+  | 'pickup_time_needed'
+  | 'ready_to_notify'
+  | 'guest_notified'
+  | 'meeting_time_needed'
+  | 'meeting_confirmed'
+  | 'meeting_updated'
+  | 'guests_notified';
+
+/** Single-booking operational readiness for planner cards and itinerary rows. */
+export function bookingPickupOpsStatus(b: PickupPlannerBooking): PickupOpsStatus | null {
+  const fulfillment = bookingFulfillment(b);
+  const draft = parsePickupDraft(b.special_requests);
+  const confirmedHm = (b.pickup_time ?? '').trim().slice(0, 5);
+  const draftHm = (draft?.timeHm ?? '').trim();
+  const hasConfirmed = /^\d{2}:\d{2}$/.test(confirmedHm);
+  const hasDraftTime = /^\d{2}:\d{2}$/.test(draftHm);
+
+  if (fulfillment === 'meeting_point') {
+    if (!hasConfirmed && !hasDraftTime) return 'meeting_time_needed';
+    if (draft) return 'meeting_updated';
+    if (hasConfirmed) return 'guests_notified';
+    return 'meeting_confirmed';
+  }
+
+  if (fulfillment !== 'pickup') return null;
+  if (!hasConfirmed && !hasDraftTime) return 'pickup_time_needed';
+  if (draft) return 'ready_to_notify';
+  if (hasConfirmed) return 'guest_notified';
+  return 'pickup_time_needed';
+}
+
+export function pickupOpsStatusLabel(status: PickupOpsStatus): string {
+  switch (status) {
+    case 'pickup_time_needed':
+      return 'Pickup time needed';
+    case 'ready_to_notify':
+      return 'Ready to notify';
+    case 'guest_notified':
+      return 'Guest notified';
+    case 'meeting_time_needed':
+      return 'Meeting time needed';
+    case 'meeting_confirmed':
+      return 'Meeting time confirmed';
+    case 'meeting_updated':
+      return 'Meeting time updated';
+    case 'guests_notified':
+      return 'Guests notified';
+  }
+}
+
+/** True when the supplier must act (missing time / unsent draft). */
+export function pickupOpsNeedsAction(status: PickupOpsStatus | null): boolean {
+  return (
+    status === 'pickup_time_needed' ||
+    status === 'ready_to_notify' ||
+    status === 'meeting_time_needed' ||
+    status === 'meeting_updated'
+  );
+}
+
+export type DepartureGroup<T extends PickupPlannerBooking = PickupPlannerBooking> = {
+  id: string;
+  date: string;
+  rows: T[];
+};
+
+/** Aggregate worst actionable status for a departure card. */
+export function departureOpsStatus<T extends PickupPlannerBooking>(rows: T[]): PickupOpsStatus | null {
+  let worst: PickupOpsStatus | null = null;
+  const rank = (s: PickupOpsStatus | null): number => {
+    if (s === 'pickup_time_needed' || s === 'meeting_time_needed') return 4;
+    if (s === 'ready_to_notify' || s === 'meeting_updated') return 3;
+    if (s === 'meeting_confirmed') return 2;
+    if (s === 'guest_notified' || s === 'guests_notified') return 1;
+    return 0;
+  };
+  for (const row of rows) {
+    const s = bookingPickupOpsStatus(row);
+    if (rank(s) > rank(worst)) worst = s;
+  }
+  return worst;
+}
+
+export function groupDeparturesByDateKey<T extends PickupPlannerBooking>(
+  groups: DepartureGroup<T>[]
+): { date: string; heading: string; departures: DepartureGroup<T>[] }[] {
+  const map = new Map<string, DepartureGroup<T>[]>();
+  for (const g of groups) {
+    const date = (g.date || '').trim() || 'unknown';
+    const list = map.get(date) ?? [];
+    list.push(g);
+    map.set(date, list);
+  }
+  return [...map.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, departures]) => ({
+      date,
+      heading: date === 'unknown' ? 'Date not set' : formatPickupPlannerDateHeading(date),
+      departures,
+    }));
+}
+
+export function paginateDayGroups<T>(
+  dayGroups: T[],
+  page: number,
+  pageSize: number = PICKUP_PLANNER_DAYS_PER_PAGE
+): { page: number; pageCount: number; slice: T[] } {
+  const pageCount = Math.max(1, Math.ceil(dayGroups.length / pageSize));
+  const safePage = Math.min(Math.max(1, page), pageCount);
+  const start = (safePage - 1) * pageSize;
+  return { page: safePage, pageCount, slice: dayGroups.slice(start, start + pageSize) };
+}

@@ -1034,7 +1034,11 @@ export async function saveSupplierPickupDetails(
   const priorTime = timeForEmail(prior.pickup_time);
   const nextTime = timeHm || '—';
   if (priorTime !== nextTime) {
-    fieldDiffs.push({ label: 'Pickup time', before: priorTime, after: nextTime });
+    fieldDiffs.push({
+      label: input.meetingPointOnly ? 'Meeting time' : 'Pickup time',
+      before: priorTime,
+      after: nextTime,
+    });
   }
   if (!input.meetingPointOnly && prevMeeting !== address) {
     fieldDiffs.push({ label: 'Pickup location', before: prevMeeting || '—', after: address || '—' });
