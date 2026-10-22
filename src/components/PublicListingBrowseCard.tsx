@@ -143,7 +143,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
       {showWishlist && wishlist ? (
         <button
           type="button"
-          className="lux-flat absolute top-2.5 right-2.5 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/92 text-ink shadow-sm ring-1 ring-black/[0.08] hover:bg-white disabled:opacity-60 motion-safe:active:scale-90 transition-transform"
+          className="lux-flat absolute top-2 right-2 z-10 inline-flex min-h-11 min-w-11 items-center justify-center bg-transparent p-0 text-white transition-transform duration-150 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:opacity-60 motion-safe:active:scale-95"
           aria-label={wishlist.saved ? `Remove ${tour.title} from saved` : `Save ${tour.title}`}
           aria-pressed={wishlist.saved}
           disabled={wishlist.busy}
@@ -154,10 +154,13 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
           }}
         >
           <Heart
-            className={`h-4 w-4 transition-colors duration-150 ${
-              wishlist.saved ? 'fill-finland text-finland motion-safe:animate-[pulse_0.45s_ease-out]' : 'text-ink'
+            className={`h-[22px] w-[22px] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.65)] transition-[fill,transform] duration-150 ${
+              wishlist.saved
+                ? 'fill-white motion-safe:animate-[pulse_0.45s_ease-out]'
+                : 'fill-transparent'
             }`}
-            strokeWidth={2}
+            strokeWidth={wishlist.saved ? 1.75 : 2}
+            aria-hidden
           />
         </button>
       ) : null}

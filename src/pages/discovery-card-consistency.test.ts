@@ -33,6 +33,17 @@ describe('Consumer discovery card consistency', () => {
     expect(src).toContain('partySize');
   });
 
+  it('wishlist heart is a white outlined/filled icon without a circular chip', () => {
+    const src = readFileSync(resolve(__dirname, '../components/PublicListingBrowseCard.tsx'), 'utf8');
+    expect(src).toContain('h-[22px] w-[22px]');
+    expect(src).toContain('fill-white');
+    expect(src).toContain('fill-transparent');
+    expect(src).toContain('drop-shadow-[0_1px_2px_rgba(0,0,0,0.65)]');
+    expect(src).toContain('hover:scale-105');
+    expect(src).not.toContain('rounded-full bg-white/92');
+    expect(src).not.toContain('fill-finland text-finland');
+  });
+
   it('Packages passes search date into card pricing', () => {
     const src = readFileSync(resolve(__dirname, 'Packages.tsx'), 'utf8');
     expect(src).toContain('browseDateIso={filterDate');
