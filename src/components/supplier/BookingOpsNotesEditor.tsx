@@ -94,7 +94,7 @@ export default function BookingOpsNotesEditor({ supplierId, bookingId, canEdit }
                 {saving ? 'Saving…' : 'Save note'}
               </button>
               {savedAt && !dirty ? (
-                <span className="text-[12px] text-ink-faint">
+                <span className="text-[12px] font-medium text-emerald-800" role="status">
                   Saved{' '}
                   {new Date(savedAt).toLocaleString(undefined, {
                     dateStyle: 'medium',

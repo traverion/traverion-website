@@ -69,10 +69,15 @@ describe('Bookings V4 — tour ops card & detail page', () => {
       resolve(__dirname, '../../components/supplier/TourOpsBookingDetail.tsx'),
       'utf8'
     );
+    const primitives = readFileSync(
+      resolve(__dirname, '../../components/supplier/BookingOpsDetailPrimitives.tsx'),
+      'utf8'
+    );
     expect(detail).toContain('tour-ops-detail__grid');
     expect(detail).toContain('tour-ops-detail__aside');
     expect(detail).not.toContain('Acknowledge');
-    expect(detail).toContain('Message customer');
+    expect(detail).toContain('BookingOpsActionRail');
+    expect(primitives).toContain('Message customer');
   });
 
   it('defines tour-ops and single-row desktop toolbar styles', () => {
@@ -80,7 +85,7 @@ describe('Bookings V4 — tour ops card & detail page', () => {
     expect(css).toContain('.partner-bookings-workspace');
     expect(css).toContain('.tour-ops-card');
     expect(css).toContain('.tour-ops-detail');
-    expect(css).toContain('max-width: min(72rem, 100%)');
+    expect(css).toContain('max-width: min(76rem, 100%)');
     expect(css).toContain('.tour-ops-detail__grid');
     expect(css).toContain('prefers-reduced-motion');
     expect(css).toContain('One horizontal desktop row');
