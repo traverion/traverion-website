@@ -22,7 +22,12 @@ import {
 } from '../data/supabase-bookings';
 import StayRequestActions from '../components/StayRequestActions';
 import SupplierCancelResolutionPanel from '../components/SupplierCancelResolutionPanel';
+import BookingSupportCasePanel from '../components/BookingSupportCasePanel';
 import { isStayRequestAwaitingHost } from '../lib/stay-request-approval';
+import {
+  fetchSupportCasesForBookings,
+  type BookingSupportCaseRow,
+} from '../data/supabase-support-cases';
 import { fetchListingOpsByIds, pgTimeToHm, type ListingOpsMeta } from '../data/supabase-listings';
 import { stayRangeFromBooking, nightsOccupiedByStay } from '../lib/stayOccupancy';
 import {
@@ -163,6 +168,9 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   const [listingOps, setListingOps] = useState<Record<string, ListingOpsMeta>>({});
   const [cancelRequests, setCancelRequests] = useState<Record<string, CancellationRequestRow>>({});
   const [cancelRequestsError, setCancelRequestsError] = useState<string | null>(null);
+  const [supportCasesByBooking, setSupportCasesByBooking] = useState<
+    Record<string, BookingSupportCaseRow[]>
+  >({});
   const [respondingId, setRespondingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -269,6 +277,14 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
         if (gen !== loadGenRef.current) return;
         // Keep prior open-cancel map — infrastructure failure must not hide Accept/Decline.
         setCancelRequestsError(userFacingError(cancelErr, USER_ERROR.trips));
+      }
+      try {
+        const cases = await fetchSupportCasesForBookings(list.map((b) => b.id));
+        if (gen !== loadGenRef.current) return;
+        setSupportCasesByBooking(cases);
+      } catch {
+        if (gen !== loadGenRef.current) return;
+        // Keep prior cases — support UI is additive.
       }
       if (supabase && user?.id) {
         const { data: reviewed, error: reviewErr } = await supabase
@@ -1315,6 +1331,18 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                           }
                         });
                       }}
+                    />
+                  ) : null}
+                  {tripDetailTab === 'overview' ? (
+                    <BookingSupportCasePanel
+                      booking={b}
+                      cases={supportCasesByBooking[b.id] ?? []}
+                      onContactOperator={() => {
+                        setTripDetailTab('messages');
+                        setFocusMessageId(b.id);
+                      }}
+                      onContactSupport={() => onNavigate('contact')}
+                      onOpened={() => void load()}
                     />
                   ) : null}
                   <dl className={`tv-trip-card__facts ${tripDetailTab === 'messages' ? 'hidden' : ''}`}>

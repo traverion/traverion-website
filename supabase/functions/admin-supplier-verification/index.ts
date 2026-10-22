@@ -132,6 +132,8 @@ type Body = {
     | 'content_reports_list'
     | 'resolve_content_report'
     | 'hide_review'
+    | 'support_cases_list'
+    | 'support_case_resolve'
     | 'commercial_terms_get'
     | 'commercial_terms_set'
     | 'payout_periods_list'
@@ -199,6 +201,12 @@ type Body = {
   refundIdempotencyKey?: string;
   investigateBookingId?: string;
   marketplaceResetConfirm?: string;
+  supportCaseId?: string;
+  supportResolutionCode?: string;
+  supportResolutionNote?: string;
+  supportReleaseHold?: boolean;
+  supportSupplierWarning?: boolean;
+  supportPartialAmountMinor?: number | null;
 };
 
 function isAdminUser(user: { app_metadata?: Record<string, unknown> } | null): boolean {
@@ -966,6 +974,73 @@ serve(async (req) => {
       });
     }
 
+    return json(result);
+  }
+
+  if (body.action === 'support_cases_list') {
+    const { data: rows, error } = await admin
+      .from('booking_support_cases')
+      .select(
+        'id, public_reference, booking_id, listing_id, supplier_id, reason_code, description, status, priority, reported_at, response_due_at, escalated_at, supplier_response, resolution_code, financial_hold_id, currency, amount_paid, customer_email'
+      )
+      .in('status', ['submitted', 'under_review', 'waiting_operator', 'escalated'])
+      .order('priority', { ascending: true })
+      .order('reported_at', { ascending: false })
+      .limit(100);
+    if (error) return json({ error: error.message }, 500);
+    return json({ items: rows ?? [] });
+  }
+
+  if (body.action === 'support_case_resolve') {
+    const caseId = typeof body.supportCaseId === 'string' ? body.supportCaseId.trim() : '';
+    const resolutionCode =
+      typeof body.supportResolutionCode === 'string' ? body.supportResolutionCode.trim() : '';
+    const note =
+      typeof body.supportResolutionNote === 'string' ? body.supportResolutionNote.trim() : '';
+    const releaseHold = body.supportReleaseHold !== false;
+    const warn = body.supportSupplierWarning === true;
+    const partialMinor =
+      body.supportPartialAmountMinor == null ? null : Number(body.supportPartialAmountMinor);
+    if (!caseId) return json({ error: 'supportCaseId required' }, 400);
+    if (!resolutionCode) return json({ error: 'supportResolutionCode required' }, 400);
+    if (note.length < 3) return json({ error: 'supportResolutionNote required' }, 400);
+    const { data, error } = await admin.rpc('admin_resolve_booking_support_case', {
+      p_case_id: caseId,
+      p_resolution_code: resolutionCode,
+      p_resolution_note: note,
+      p_actor_id: adminUserId,
+      p_release_hold: releaseHold,
+      p_supplier_warning: warn,
+      p_partial_amount_minor: Number.isFinite(partialMinor) ? partialMinor : null,
+    });
+    if (error) return json({ error: error.message }, 500);
+    const result = data as { ok?: boolean; error?: string; refund_prep?: { ok?: boolean; id?: string } } | null;
+    if (!result?.ok) return json({ error: result?.error ?? 'Could not resolve case' }, 400);
+
+    // When full refund instruction was queued on a cancelled booking, execute Stripe (TEST).
+    if (resolutionCode === 'full_refund') {
+      const bookingIdRow = await admin
+        .from('booking_support_cases')
+        .select('booking_id')
+        .eq('id', caseId)
+        .maybeSingle();
+      const bookingId = typeof bookingIdRow.data?.booking_id === 'string' ? bookingIdRow.data.booking_id : '';
+      if (bookingId) {
+        try {
+          await fetch(`${url}/functions/v1/execute-booking-refund`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${serviceKey}`,
+              apikey: serviceKey,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ bookingId }),
+          });
+        } catch {
+          // Instruction remains ready for recover cron.
+        }
+      }
+    }
     return json(result);
   }
 

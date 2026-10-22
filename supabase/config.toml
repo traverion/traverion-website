@@ -57,6 +57,10 @@ verify_jwt = false
 # Cron secret auth inside the function (Phase 3 deadline + refund drain).
 verify_jwt = false
 
+[functions.process-support-case-escalations]
+# Cron secret auth (Phase 4 48h no-show escalation — no auto-refund).
+verify_jwt = false
+
 # Phase 561: locked to service_role callers only (checked inside the
 # function against SUPABASE_SERVICE_ROLE_KEY) -- no live product flow
 # calls this from a client today.

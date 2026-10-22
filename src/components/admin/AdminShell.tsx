@@ -36,6 +36,7 @@ const AdminCommercialPanel = lazy(() => import('./AdminCommercialPanel'));
 const AdminInquiriesPanel = lazy(() => import('./AdminInquiriesPanel'));
 const AdminListingsModerationPanel = lazy(() => import('./AdminListingsModerationPanel'));
 const AdminContentReportsPanel = lazy(() => import('./AdminContentReportsPanel'));
+const AdminSupportCasesPanel = lazy(() => import('./AdminSupportCasesPanel'));
 
 function AdminPanelFallback() {
   return (
@@ -60,6 +61,7 @@ export type AdminTab =
   | 'listings'
   | 'inquiries'
   | 'reports'
+  | 'support_cases'
   | 'portal_messages'
   | 'system';
 
@@ -78,6 +80,7 @@ const NAV: NavItem[] = [
   { id: 'users', label: 'Auth users', icon: Users, group: 'People' },
   { id: 'inquiries', label: 'Inquiries', icon: Mail, group: 'People' },
   { id: 'reports', label: 'Content reports', icon: Flag, group: 'People' },
+  { id: 'support_cases', label: 'Support cases', icon: Flag, group: 'People' },
   { id: 'portal_messages', label: 'Portal messages', icon: Megaphone, group: 'People' },
   { id: 'system', label: 'Wipe / system', icon: AlertTriangle, group: 'System' },
 ];
@@ -841,6 +844,14 @@ export default function AdminShell() {
           {activeTab === 'reports' && (
             <PanelFrame title="Content reports" subtitle="Review reports and hide abusive reviews.">
               <AdminContentReportsPanel />
+            </PanelFrame>
+          )}
+          {activeTab === 'support_cases' && (
+            <PanelFrame
+              title="Support cases"
+              subtitle="Customer booking protection — holds are internal payout flags, not Stripe escrow."
+            >
+              <AdminSupportCasesPanel />
             </PanelFrame>
           )}
           {activeTab === 'portal_messages' && (

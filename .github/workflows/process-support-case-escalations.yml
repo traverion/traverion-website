@@ -1,0 +1,58 @@
+# Hourly: escalate overdue operator_no_show support cases (48h rule).
+# Does NOT auto-refund — Support must approve after review.
+#
+# Auth: same secret family as process-cancel-resolutions / booking reminders.
+
+name: Process support case escalations
+
+on:
+  schedule:
+    - cron: '18 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: process-support-case-escalations
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  escalate:
+    name: Call process-support-case-escalations
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: POST process-support-case-escalations
+        env:
+          CANCEL_RESOLUTION_CRON_SECRET: ${{ secrets.CANCEL_RESOLUTION_CRON_SECRET }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          BOOKING_REMINDER_CRON_SECRET: ${{ secrets.BOOKING_REMINDER_CRON_SECRET }}
+          FUNCTION_URL: https://xcopqllkulxfkpunetbc.supabase.co/functions/v1/process-support-case-escalations
+        run: |
+          set -euo pipefail
+          SECRET="${CANCEL_RESOLUTION_CRON_SECRET:-${CRON_SECRET:-${BOOKING_REMINDER_CRON_SECRET:-}}}"
+          if [ -z "${SECRET}" ]; then
+            echo "::error::Set CANCEL_RESOLUTION_CRON_SECRET, CRON_SECRET, or BOOKING_REMINDER_CRON_SECRET."
+            exit 1
+          fi
+
+          HTTP_CODE="$(curl -sS -o /tmp/support-escalate.json -w '%{http_code}' \
+            --connect-timeout 15 \
+            --max-time 120 \
+            -X POST "${FUNCTION_URL}" \
+            -H "Authorization: Bearer ${SECRET}" \
+            -H "Content-Type: application/json" \
+            -d '{"limit":50}')"
+
+          echo "HTTP status: ${HTTP_CODE}"
+          cat /tmp/support-escalate.json || true
+          echo
+
+          case "${HTTP_CODE}" in
+            2??) echo "process-support-case-escalations succeeded." ;;
+            *)
+              echo "::error::failed with HTTP ${HTTP_CODE}"
+              exit 1
+              ;;
+          esac

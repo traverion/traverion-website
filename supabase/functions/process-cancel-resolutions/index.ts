@@ -24,6 +24,9 @@ function cronSecretAuthorized(req: Request): boolean {
   const auth = req.headers.get('authorization')?.trim() ?? '';
   const bearer = auth.toLowerCase().startsWith('bearer ') ? auth.slice(7).trim() : '';
   if (!bearer) return false;
+  // Service-role bearer allowed for ops smoke tests (same key never ships to browsers).
+  const serviceRole = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')?.trim();
+  if (serviceRole && bearer === serviceRole) return true;
   const candidates = [
     Deno.env.get('CANCEL_RESOLUTION_CRON_SECRET')?.trim(),
     Deno.env.get('CRON_SECRET')?.trim(),

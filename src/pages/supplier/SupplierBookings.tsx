@@ -32,6 +32,7 @@ import {
   type CancellationRequestRow,
 } from '../../data/supabase-booking-ops';
 import PartnerSelect from '../../components/supplier/PartnerSelect';
+import SupplierSupportCaseRespond from '../../components/supplier/SupplierSupportCaseRespond';
 import NoticeCallout from '../../components/NoticeCallout';
 import {
   PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE,
@@ -1027,6 +1028,8 @@ export default function SupplierBookings({
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
       {!listHidden ? (
+      <>
+      <SupplierSupportCaseRespond supplierId={user?.id ?? null} />
       <SupplierPageHero
         badge={null}
         sansTitle
@@ -1127,6 +1130,7 @@ export default function SupplierBookings({
         }
       >
       </SupplierPageHero>
+      </>
       ) : null}
 
       {filtersSheetOpen ? (

@@ -43,6 +43,9 @@ export function prefetchAdminTab(tab: string): void {
     case 'reports':
       warm(tab, () => import('../components/admin/AdminContentReportsPanel'));
       break;
+    case 'support_cases':
+      warm(tab, () => import('../components/admin/AdminSupportCasesPanel'));
+      break;
     case 'portal_messages':
       warm(tab, () => import('../components/admin/AdminSupplierPortalMessagesPanel'));
       break;
