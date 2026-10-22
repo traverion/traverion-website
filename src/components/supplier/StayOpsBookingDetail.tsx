@@ -57,6 +57,8 @@ type Props = {
   onOpenFinancialStatement?: () => void;
   onOpenStayCalendar?: () => void;
   extraNotices?: ReactNode;
+  /** Supplier-only private notes (never shown to travelers). */
+  privateNotesSlot?: ReactNode;
 };
 
 function Fact({ label, children }: { label: string; children: ReactNode }) {
@@ -95,6 +97,7 @@ export default function StayOpsBookingDetail({
   onOpenFinancialStatement,
   onOpenStayCalendar,
   extraNotices,
+  privateNotesSlot,
 }: Props) {
   const phoneHref = model.guestPhone ? `tel:${model.guestPhone.replace(/[^\d+]/g, '')}` : '';
   const showOpsNotices = Boolean(
@@ -269,6 +272,8 @@ export default function StayOpsBookingDetail({
               {extraNotices}
             </section>
           ) : null}
+
+          {privateNotesSlot}
         </div>
 
         <aside className="tour-ops-detail__aside">

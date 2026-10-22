@@ -887,15 +887,17 @@ export default function SupplierInbox() {
                       >
                         <PanelRight className="h-4 w-4" aria-hidden />
                       </button>
-                      <button
-                        type="button"
-                        className="tv-inbox-view-booking tv-btn-secondary h-8 shrink-0 !px-2.5 text-[12.5px]"
-                        onClick={() => openCanonicalBooking(openBooking)}
-                        onPointerEnter={() => warmBookingDetails(openBooking)}
-                        onFocus={() => warmBookingDetails(openBooking)}
-                      >
-                        View booking
-                      </button>
+                      {!showBookingPanel ? (
+                        <button
+                          type="button"
+                          className="tv-inbox-view-booking tv-btn-secondary h-8 shrink-0 !px-2.5 text-[12.5px]"
+                          onClick={() => openCanonicalBooking(openBooking)}
+                          onPointerEnter={() => warmBookingDetails(openBooking)}
+                          onFocus={() => warmBookingDetails(openBooking)}
+                        >
+                          View booking
+                        </button>
+                      ) : null}
                     </div>
                   </header>
                 );
@@ -957,14 +959,12 @@ export default function SupplierInbox() {
             </NoticeCallout>
           ) : null}
         </section>
-        {openBooking && user?.id && showBookingDocked ? (
+        {openBooking && showBookingDocked ? (
           <div id="partner-inbox-booking-panel" className="tv-inbox-booking-pane">
             <InboxBookingPanel
               booking={openBooking}
               listing={listingsById[openBooking.listing_id]}
               listingTitle={titles[openBooking.listing_id] ?? ''}
-              supplierId={user.id}
-              role={role}
               onViewFullBooking={() => openCanonicalBooking(openBooking)}
               onWarmBooking={() => warmBookingDetails(openBooking)}
               onClose={() => setBookingPanelOpen(false)}
@@ -972,7 +972,7 @@ export default function SupplierInbox() {
           </div>
         ) : null}
       </div>
-      {openBooking && user?.id && showBookingDrawer ? (
+      {openBooking && showBookingDrawer ? (
         <div className="tv-inbox-booking-drawer" role="dialog" aria-modal="true" aria-label="Booking details">
           <button
             type="button"
@@ -985,8 +985,6 @@ export default function SupplierInbox() {
               booking={openBooking}
               listing={listingsById[openBooking.listing_id]}
               listingTitle={titles[openBooking.listing_id] ?? ''}
-              supplierId={user.id}
-              role={role}
               onViewFullBooking={() => {
                 setBookingPanelOpen(false);
                 openCanonicalBooking(openBooking);

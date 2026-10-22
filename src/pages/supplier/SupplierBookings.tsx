@@ -52,6 +52,7 @@ import {
   updateBookingStatus,
 } from '../../data/supabase-bookings';
 import StayRequestActions from '../../components/StayRequestActions';
+import BookingOpsNotesEditor from '../../components/supplier/BookingOpsNotesEditor';
 import StayOpsReservationCard from '../../components/supplier/StayOpsReservationCard';
 import StayOpsBookingDetail from '../../components/supplier/StayOpsBookingDetail';
 import TourOpsBookingCard from '../../components/supplier/TourOpsBookingCard';
@@ -2163,6 +2164,15 @@ export default function SupplierBookings({
                     </div>
                   ) : null
                 }
+                privateNotesSlot={
+                  user?.id ? (
+                    <BookingOpsNotesEditor
+                      supplierId={user.id}
+                      bookingId={booking.id}
+                      canEdit={canEditBookings}
+                    />
+                  ) : null
+                }
               />
             );
           })()
@@ -2431,6 +2441,15 @@ export default function SupplierBookings({
                       <p className="text-[13px] font-semibold text-ink">Refund due</p>
                       <p className="mt-0.5 text-[12px] leading-snug text-ink-muted">{REFUND_DUE_MANUAL_COPY}</p>
                     </div>
+                  ) : null
+                }
+                privateNotesSlot={
+                  user?.id ? (
+                    <BookingOpsNotesEditor
+                      supplierId={user.id}
+                      bookingId={booking.id}
+                      canEdit={canEditBookings}
+                    />
                   ) : null
                 }
               />

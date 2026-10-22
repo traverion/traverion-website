@@ -43,11 +43,18 @@ describe('Partner Inbox luxury redesign', () => {
     expect(css).toContain('min-width: 17.5rem');
     expect(css).toContain('max-width: 19.5rem');
     expect(css).toContain('.tv-inbox-booking-pane');
-    expect(css).toContain('.tv-inbox-booking__note-input');
+    expect(css).toContain('.tv-inbox-booking__ref-code');
+    expect(css).not.toContain('.tv-inbox-booking__note-input');
     expect(css).toContain('.tv-inbox-chat__title-row');
     expect(css).toContain('.tv-inbox-chat__experience');
     expect(css).toContain('.lux-page-enter--forward');
     expect(css).toContain('.lux-page-enter--back');
+  });
+
+  it('hides header View booking while the booking panel is open', () => {
+    const src = readFileSync(resolve(__dirname, 'SupplierInbox.tsx'), 'utf8');
+    expect(src).toContain('!showBookingPanel ? (');
+    expect(src).toContain('View booking');
   });
 
   it('preserves URL booking selection across partner workspace clear', () => {
