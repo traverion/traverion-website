@@ -76,4 +76,4 @@ Not fully screenshot-verified in this pass: stay detail, checkout Stripe step, m
 
 ## Commits
 
-Filled after push.
+- `a903ebf4` — Polish consumer UI with shared type, surface, and motion tokens (pushed to `origin/main`).
