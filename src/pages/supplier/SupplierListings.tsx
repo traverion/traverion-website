@@ -1,4 +1,14 @@
-import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
+import {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useCallback,
+  useRef,
+  useMemo,
+  lazy,
+  Suspense,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from 'react';
 import { createPortal } from 'react-dom';
 import {
   Plus,
@@ -645,9 +655,15 @@ export default function SupplierListings() {
     const el = document.querySelector(`[data-listing-gear="${listingActionsMenuId}"]`);
     if (!(el instanceof HTMLElement)) return;
     const rect = el.getBoundingClientRect();
-    const width = 176;
+    const width = 200;
+    const estimatedHeight = 340;
     const left = Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8));
-    setListingActionsMenuBox({ top: rect.bottom + 4, left, width });
+    const below = rect.bottom + 4;
+    const top =
+      below + estimatedHeight > window.innerHeight - 8
+        ? Math.max(8, rect.top - estimatedHeight - 4)
+        : below;
+    setListingActionsMenuBox({ top, left, width });
   }, [listingActionsMenuId]);
 
   useEffect(() => {
@@ -656,9 +672,14 @@ export default function SupplierListings() {
       return;
     }
     updateListingActionsMenuPosition();
+    const focusFirst = window.setTimeout(() => {
+      const menu = document.querySelector<HTMLElement>('[data-listing-actions-menu]');
+      menu?.querySelector<HTMLElement>('[role="menuitem"]:not([disabled])')?.focus();
+    }, 0);
     window.addEventListener('resize', updateListingActionsMenuPosition);
     window.addEventListener('scroll', updateListingActionsMenuPosition, true);
     return () => {
+      window.clearTimeout(focusFirst);
       window.removeEventListener('resize', updateListingActionsMenuPosition);
       window.removeEventListener('scroll', updateListingActionsMenuPosition, true);
     };
@@ -1527,17 +1548,18 @@ export default function SupplierListings() {
                   : card.statusLabel === 'Needs update'
                     ? 'warn'
                     : 'neutral';
+              const publicUrl = isStay
+                ? publicStayListingUrl(listing.id)
+                : publicTourListingUrl(listing.id);
+              // Live listings only — draft public URLs can render empty/invalid pages.
+              const showView = isLive;
               return (
-                <article key={listing.id} className="tv-ops-listing-row group min-w-0">
+                <article key={listing.id} className="tv-ops-listing-row min-w-0">
                   <div className="tv-ops-listing-row__grid">
-                    <button
-                      type="button"
-                      onClick={() => openSupplierListingEditor(listing.id)}
-                      className="tv-ops-listing-row__identity flex min-w-0 items-start gap-3 text-left"
-                    >
+                    <div className="tv-ops-listing-row__identity flex min-w-0 items-start gap-3">
                       <div className="tv-ops-listing-row__thumb relative shrink-0 overflow-hidden bg-black/[0.04]">
                         {heroSrc ? (
-                          <img src={heroSrc} alt="" className="h-full w-full object-cover" />
+                          <img src={heroSrc} alt="" className="h-full w-full object-cover" draggable={false} />
                         ) : (
                           <span className="flex h-full w-full items-center justify-center text-[11px] font-medium text-ink-faint">
                             No photo
@@ -1551,7 +1573,7 @@ export default function SupplierListings() {
                         </div>
                         <h2
                           title={listing.title}
-                          className="break-words text-[15px] font-semibold leading-snug tracking-tight text-ink line-clamp-2 [overflow-wrap:anywhere]"
+                          className="tv-ops-listing-row__title break-words text-[15px] font-semibold leading-snug tracking-tight text-ink line-clamp-2 [overflow-wrap:anywhere]"
                         >
                           {listing.title}
                         </h2>
@@ -1573,8 +1595,7 @@ export default function SupplierListings() {
                         {justPublishedId === listing.id ? (
                           <button
                             type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
+                            onClick={() => {
                               if (inventoryFamilyFromListing(listing) === 'stay') {
                                 openSupplierStayCalendar(listing.id);
                               } else {
@@ -1592,7 +1613,7 @@ export default function SupplierListings() {
                           </span>
                         ) : null}
                       </div>
-                    </button>
+                    </div>
 
                     <div className="tv-ops-listing-row__status hidden min-w-0 lg:flex lg:flex-col lg:justify-center lg:gap-1">
                       <StatusChip tone={statusTone}>{card.statusLabel}</StatusChip>
@@ -1603,7 +1624,7 @@ export default function SupplierListings() {
                     </div>
 
                     <div className="tv-ops-listing-row__commerce hidden min-w-0 lg:flex lg:flex-col lg:justify-center">
-                      <p className="text-[14px] font-semibold tabular-nums tracking-tight text-ink">
+                      <p className="text-[13.5px] font-semibold tabular-nums tracking-tight text-ink">
                         {money ? (
                           <>
                             From {money}
@@ -1622,66 +1643,20 @@ export default function SupplierListings() {
                             : 'No booking options'}
                         </p>
                       ) : (
-                        <p className="mt-0.5 text-[12px] text-ink-muted">Stay inventory</p>
+                        <p className="mt-0.5 text-[12px] text-ink-muted">Stay · nightly</p>
                       )}
                     </div>
 
-                    <div className="tv-ops-listing-row__actions flex shrink-0 flex-wrap items-center gap-1.5 border-t border-black/[0.06] pt-2.5 lg:justify-end lg:border-t-0 lg:pt-0">
-                      {isSupabase && canEditListings && card.primaryCta === 'publish' ? (
-                        <button
-                          type="button"
-                          onClick={() => void handleStatusChange(listing, 'published')}
-                          disabled={publishingId === listing.id}
-                          className="tv-btn-primary lux-flat inline-flex min-h-9 items-center justify-center px-3 text-xs disabled:opacity-50"
-                        >
-                          {publishingId === listing.id ? 'Publishing…' : 'Publish'}
-                        </button>
-                      ) : null}
-                      {/* Phase 1672: incomplete drafts get a primary continue Edit (gate already sets continue). */}
-                      {canEditListings && card.primaryCta === 'continue' ? (
-                        <button
-                          type="button"
-                          onClick={() => openSupplierListingEditor(listing.id)}
-                          className="tv-btn-primary lux-flat inline-flex min-h-9 items-center justify-center px-3 text-xs"
-                        >
-                          {card.primaryCtaLabel}
-                        </button>
-                      ) : null}
-                      {isSupabase && canEditListings && card.primaryCta === 'verify' ? (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile`)
-                          }
-                          title={card.publishDisabledReason ?? undefined}
-                          className="tv-btn-secondary lux-flat inline-flex min-h-9 items-center justify-center px-3 text-xs"
-                        >
-                          Verification required
-                        </button>
-                      ) : null}
-                      {card.primaryCta === 'view' ? (
+                    <div className="tv-ops-listing-row__actions flex shrink-0 items-center justify-end gap-1.5 border-t border-black/[0.06] pt-2.5 lg:border-t-0 lg:pt-0">
+                      {showView ? (
                         <a
-                          href={
-                            isStay
-                              ? publicStayListingUrl(listing.id)
-                              : publicTourListingUrl(listing.id)
-                          }
+                          href={publicUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="tv-btn-secondary lux-flat inline-flex min-h-9 items-center justify-center px-3 text-xs"
+                          className="tv-ops-listing-row__view lux-flat inline-flex h-8 items-center justify-center rounded-md px-2.5 text-[12.5px] font-semibold text-ink-muted ring-1 ring-inset ring-black/[0.08] hover:bg-black/[0.03] hover:text-ink"
                         >
                           View
                         </a>
-                      ) : null}
-                      {canEditListings && card.primaryCta !== 'continue' ? (
-                        <button
-                          type="button"
-                          onClick={() => openSupplierListingEditor(listing.id)}
-                          className="tv-btn-secondary lux-flat inline-flex min-h-9 items-center justify-center gap-1 px-2.5 text-xs"
-                        >
-                          <Pencil className="h-3.5 w-3.5" aria-hidden />
-                          Edit
-                        </button>
                       ) : null}
                       <button
                         type="button"
@@ -1693,7 +1668,7 @@ export default function SupplierListings() {
                         aria-expanded={listingActionsMenuId === listing.id}
                         aria-haspopup="menu"
                         aria-label={isStay ? 'Stay actions' : 'Tour actions'}
-                        className="lux-flat inline-flex h-9 w-9 items-center justify-center rounded-lg text-ink-muted hover:bg-black/[0.05] hover:text-ink disabled:opacity-40"
+                        className="tv-ops-listing-row__menu lux-flat inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-ink-muted hover:bg-black/[0.05] hover:text-ink disabled:opacity-40"
                       >
                         <MoreHorizontal className="h-4 w-4" aria-hidden />
                       </button>
@@ -1716,7 +1691,43 @@ export default function SupplierListings() {
           const menuListing = listings.find((l) => l.id === listingActionsMenuId);
           if (!menuListing) return null;
           const menuIsLive = menuListing.status !== 'draft';
-          const menuIsTour = inventoryFamilyFromListing(menuListing) !== 'stay';
+          const menuIsStay = inventoryFamilyFromListing(menuListing) === 'stay';
+          const menuIsTour = !menuIsStay;
+          const menuDraftPublish = !menuIsLive
+            ? partnerListingDraftPublishSubtitle(menuListing)
+            : null;
+          const menuLiveAttention = menuIsLive
+            ? getListingPublishBlockers(menuListing)[0] ?? null
+            : null;
+          const menuCard = partnerListingCardPresentation({
+            isLive: menuIsLive,
+            publishBlockers: menuDraftPublish?.blockers ?? [],
+            accountEligible: canPostNewListing,
+            liveAttention: menuLiveAttention,
+          });
+          const menuItemClass =
+            'flex w-full px-3 py-2 text-left text-[13px] text-ink hover:bg-paper focus:bg-paper focus:outline-none';
+          const onMenuKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+            const items = Array.from(
+              event.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])')
+            );
+            if (items.length === 0) return;
+            const current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+            const idx = current ? items.indexOf(current) : -1;
+            if (event.key === 'ArrowDown') {
+              event.preventDefault();
+              items[(idx + 1 + items.length) % items.length]?.focus();
+            } else if (event.key === 'ArrowUp') {
+              event.preventDefault();
+              items[(idx - 1 + items.length) % items.length]?.focus();
+            } else if (event.key === 'Home') {
+              event.preventDefault();
+              items[0]?.focus();
+            } else if (event.key === 'End') {
+              event.preventDefault();
+              items[items.length - 1]?.focus();
+            }
+          };
           return createPortal(
             <>
               <button
@@ -1727,6 +1738,10 @@ export default function SupplierListings() {
               />
               <div
                 role="menu"
+                data-listing-actions-menu
+                aria-label={menuIsStay ? 'Stay actions' : 'Tour actions'}
+                tabIndex={-1}
+                onKeyDown={onMenuKeyDown}
                 className="fixed z-[70] rounded-xl bg-paper-raised py-1 shadow-soft-lg ring-1 ring-black/[0.08] origin-top-right motion-safe:animate-slide-down"
                 style={{
                   top: listingActionsMenuBox.top,
@@ -1737,7 +1752,7 @@ export default function SupplierListings() {
                 <button
                   type="button"
                   role="menuitem"
-                  className="flex w-full px-3 py-2.5 text-left text-sm text-ink hover:bg-paper"
+                  className={menuItemClass}
                   onClick={() => {
                     closeListingActionsMenu();
                     openSupplierListingEditor(menuListing.id);
@@ -1749,13 +1764,13 @@ export default function SupplierListings() {
                   <a
                     role="menuitem"
                     href={
-                      inventoryFamilyFromListing(menuListing) === 'stay'
+                      menuIsStay
                         ? publicStayListingUrl(menuListing.id)
                         : publicTourListingUrl(menuListing.id)
                     }
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex w-full px-3 py-2.5 text-left text-sm text-ink hover:bg-paper"
+                    className={menuItemClass}
                     onClick={() => closeListingActionsMenu()}
                   >
                     Preview
@@ -1764,24 +1779,24 @@ export default function SupplierListings() {
                 <button
                   type="button"
                   role="menuitem"
-                  className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-ink hover:bg-paper"
+                  className={`${menuItemClass} items-center gap-2`}
                   onClick={() => {
                     closeListingActionsMenu();
-                    if (inventoryFamilyFromListing(menuListing) === 'stay') {
+                    if (menuIsStay) {
                       openSupplierStayCalendar(menuListing.id);
                     } else {
                       openSupplierCalendar(menuListing.id);
                     }
                   }}
                 >
-                  <CalendarDays className="h-4 w-4 shrink-0" aria-hidden />
+                  <CalendarDays className="h-3.5 w-3.5 shrink-0" aria-hidden />
                   Manage availability
                 </button>
                 {menuIsTour ? (
                   <button
                     type="button"
                     role="menuitem"
-                    className="flex w-full px-3 py-2.5 text-left text-sm text-ink hover:bg-paper"
+                    className={menuItemClass}
                     onClick={() => {
                       closeListingActionsMenu();
                       openSupplierListingEditor(menuListing.id, 'schedule');
@@ -1794,20 +1809,20 @@ export default function SupplierListings() {
                   type="button"
                   role="menuitem"
                   disabled={duplicatingId === menuListing.id}
-                  className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-ink hover:bg-paper disabled:opacity-50"
+                  className={`${menuItemClass} items-center gap-2 disabled:opacity-50`}
                   onClick={() => {
                     closeListingActionsMenu();
                     void handleDuplicateListing(menuListing);
                   }}
                 >
-                  <Copy className="h-4 w-4 shrink-0" aria-hidden />
+                  <Copy className="h-3.5 w-3.5 shrink-0" aria-hidden />
                   {duplicatingId === menuListing.id ? 'Duplicating\u2026' : 'Duplicate as draft'}
                 </button>
                 {menuIsLive ? (
                   <button
                     type="button"
                     role="menuitem"
-                    className="flex w-full px-3 py-2.5 text-left text-sm text-ink hover:bg-paper"
+                    className={menuItemClass}
                     onClick={() => {
                       closeListingActionsMenu();
                       setListingPendingDeactivate(menuListing);
@@ -1837,11 +1852,39 @@ export default function SupplierListings() {
                     Deactivate
                   </button>
                 ) : null}
+                {!menuIsLive && isSupabase && menuCard.primaryCta === 'publish' ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    disabled={publishingId === menuListing.id}
+                    className={`${menuItemClass} disabled:opacity-50`}
+                    onClick={() => {
+                      closeListingActionsMenu();
+                      void handleStatusChange(menuListing, 'published');
+                    }}
+                  >
+                    {publishingId === menuListing.id ? 'Publishing\u2026' : 'Reactivate'}
+                  </button>
+                ) : null}
+                {!menuIsLive && isSupabase && menuCard.primaryCta === 'verify' ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    title={menuCard.publishDisabledReason ?? undefined}
+                    className={menuItemClass}
+                    onClick={() => {
+                      closeListingActionsMenu();
+                      navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile`);
+                    }}
+                  >
+                    Verification required
+                  </button>
+                ) : null}
                 <div className="my-1 border-t border-black/[0.06]" role="separator" />
                 <button
                   type="button"
                   role="menuitem"
-                  className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-red-700 hover:bg-red-50"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] text-red-700 hover:bg-red-50 focus:bg-red-50 focus:outline-none"
                   onClick={() => {
                     closeListingActionsMenu();
                     setListingPendingDelete(menuListing);
@@ -1871,7 +1914,7 @@ export default function SupplierListings() {
                     }
                   }}
                 >
-                  <Trash2 className="h-4 w-4 shrink-0" aria-hidden />
+                  <Trash2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
                   Delete listing
                 </button>
               </div>
