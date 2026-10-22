@@ -552,7 +552,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           </header>
           <section aria-labelledby={TRIPS_HEADING_ID}>
           <div className="max-w-md tv-card p-5">
-            <h2 className="font-display text-2xl text-ink">Bookings unavailable</h2>
+            <h2 className="tv-section-heading">Bookings unavailable</h2>
             <p className="mt-3 text-sm text-ink-muted">
               Booking history is available only in the live app setup.
             </p>
@@ -639,14 +639,15 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   return (
     <div className="min-h-screen bg-paper tv-page">
       <div className="tv-shell px-4 sm:px-6 lg:px-8 py-8 pb-12">
-        <header className="mx-auto mb-6 max-w-[1000px] border-b border-black/[0.06] pb-5">
+        <header className="mx-auto mb-5 max-w-[1000px] border-b border-[#E8EBF0] pb-4">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
+              <p className="tv-eyebrow">Bookings</p>
               <h1 id={TRIPS_HEADING_ID} className="tv-page-title">
                 Your trips
               </h1>
-              <p className="mt-1 text-sm text-ink-muted max-w-xl">
-                Manage your upcoming adventures and past experiences.
+              <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-ink-muted">
+                Upcoming, past, and cancelled bookings — with local departure times.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -717,7 +718,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
         ) : null}
         {paymentBanner === 'success' && (
           <div className="mb-5 max-w-lg">
-            <h2 className="font-display text-2xl text-ink">Payment received</h2>
+            <h2 className="tv-section-heading">Payment received</h2>
             <p className="mt-2 text-sm text-ink-muted">
               {loading
                 ? 'Updating your trips…'
@@ -737,7 +738,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
         )}
         {paymentBanner === 'cancelled' && (
           <div className="mb-5 max-w-lg">
-            <h2 className="font-display text-2xl text-ink">Payment not completed</h2>
+            <h2 className="tv-section-heading">Payment not completed</h2>
             <p className="mt-2 text-sm text-ink-muted">
               {pendingPayBookings.some((b) => bookingIsStayNight(b))
                 ? STRIPE_CHECKOUT_CANCELLED_STAY_COPY
@@ -790,7 +791,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
         ) : (
           <div className="space-y-4">
             <div className="max-w-md">
-              <label htmlFor="trips-search" className="tv-eyebrow !mb-0 text-ink-faint">
+              <label htmlFor="trips-search" className="mb-1.5 block text-sm font-semibold tracking-tight text-[#111827]">
                 Search
               </label>
               <input
@@ -799,11 +800,11 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 value={tripSearchQuery}
                 onChange={(e) => setTripSearchQuery(e.target.value)}
                 placeholder="Experience, reference, or destination"
-                className="tv-input mt-1"
+                className="tv-input"
               />
             </div>
             <div
-              className="flex gap-1 rounded-full bg-paper-raised p-1 w-fit shadow-soft ring-1 ring-black/[0.06]"
+              className="flex w-fit gap-1 rounded-full bg-[#F5F6F8] p-1 ring-1 ring-black/[0.04]"
               role="tablist"
               aria-label="Trip status"
             >
@@ -820,14 +821,14 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   aria-controls={TRIPS_TABPANEL_ID}
                   aria-selected={tripView === id}
                   onClick={() => selectTripView(id)}
-                  className={`lux-flat min-h-11 rounded-full px-3.5 py-1.5 text-sm font-medium transition-[background-color,color,box-shadow] duration-150 ${
+                  className={`lux-flat min-h-10 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-[background-color,color,box-shadow] duration-150 ${
                     tripView === id
                       ? id === 'cancelled'
-                        ? 'bg-rose-600 text-white shadow-sm ring-1 ring-rose-700/20'
+                        ? 'bg-rose-600 text-white shadow-sm'
                         : id === 'past'
                           ? 'bg-stone-700 text-white shadow-sm'
-                          : 'bg-finland text-white shadow-sm ring-1 ring-finland/30'
-                      : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
+                          : 'bg-[#0758CB] text-white shadow-sm'
+                      : 'text-ink-muted hover:bg-white hover:text-[#0758CB]'
                   }`}
                 >
                   {label}
@@ -1065,7 +1066,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       });
                     }
                   }}
-                  className="lux-flat flex w-full items-start gap-3 p-3.5 sm:gap-3.5 sm:p-4 text-left"
+                  className="lux-flat flex w-full items-start gap-3 p-3 text-left sm:gap-3.5 sm:p-3.5"
                 >
                   {thumb ? (
                     <img
@@ -1092,7 +1093,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                           {dateLine}
                           {timeBit ? ` · ${timeBit}` : ''}
                         </p>
-                        <h3 className="mt-1 break-words font-display text-[1.05rem] sm:text-lg font-semibold text-ink line-clamp-2 leading-snug tracking-tight [overflow-wrap:anywhere]">
+                        <h3 className="tv-trip-card__title mt-1 line-clamp-2 break-words [overflow-wrap:anywhere]">
                           {tripTitle}
                         </h3>
                         {tripOption ? (
@@ -1134,7 +1135,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       {b.amount_paid != null &&
                       Number(b.amount_paid) > 0 &&
                       bookingPaymentWasCollected(b.payment_status) ? (
-                        <span className="font-display text-[0.95rem] font-semibold tabular-nums tracking-tight text-ink">
+                        <span className="font-sans text-[0.95rem] font-bold tabular-nums tracking-tight text-[#111827]">
                           {formatMoney(Number(b.amount_paid), b.currency)}
                           {isStripeTestCheckoutSession(b.checkout_session_id) || appStripeIsTestMode() ? (
                             <span className="ml-2 text-[11px] font-semibold uppercase tracking-wide text-amber-800">Test mode</span>

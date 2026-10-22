@@ -1,6 +1,21 @@
 import { useState, useRef, useEffect } from 'react';
 import { useDialogFocus } from '../hooks/useDialogFocus';
-import { Menu, X, User, LogOut, LayoutDashboard, Calendar, Heart, LifeBuoy, ExternalLink, Search, ShoppingBag } from 'lucide-react';
+import {
+  Menu,
+  X,
+  User,
+  LogOut,
+  LayoutDashboard,
+  Calendar,
+  Heart,
+  LifeBuoy,
+  ExternalLink,
+  Search,
+  ShoppingBag,
+  Compass,
+  Map,
+  Home,
+} from 'lucide-react';
 import {
   prefetchAccountPage,
   prefetchAuthPage,
@@ -135,34 +150,38 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
     <header
       data-scrolled={headerScrolled ? 'true' : undefined}
       className={`tv-consumer-header fixed top-0 left-0 right-0 z-[9999] border-b bg-white/95 backdrop-blur-md pt-[env(safe-area-inset-top,0px)] transition-[box-shadow,border-color] duration-200 ease-out ${
-        headerScrolled ? 'border-black/[0.06] shadow-[var(--tv-shadow-header)]' : 'border-black/[0.08] shadow-none'
+        headerScrolled ? 'border-black/[0.06] shadow-[var(--tv-shadow-header)]' : 'border-[#E8EBF0] shadow-none'
       }`}
     >
-      <div className="tv-shell px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
-          <button type="button" onClick={() => onNavigate('home')} className="lux-flat flex items-center gap-2 min-w-0" aria-label="Traverion home">
-            <img 
-              src={BRAND_LOGO_SRC} 
-              alt="TRAVERION" 
-              className="w-9 h-9 object-contain"
+      {/* 3-column grid keeps primary nav optically centered regardless of left/right widths */}
+      <div className="tv-shell grid h-[4.75rem] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 px-4 sm:px-6">
+          <button
+            type="button"
+            onClick={() => onNavigate('home')}
+            className="lux-flat flex min-w-0 items-center gap-2.5 justify-self-start"
+            aria-label="Traverion home"
+          >
+            <img
+              src={BRAND_LOGO_SRC}
+              alt="TRAVERION"
+              className="h-9 w-9 object-contain"
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
               }}
             />
-            <span className="font-sans text-[13px] font-bold tracking-tight text-ink">Traverion</span>
+            <span className="font-sans text-[0.9375rem] font-bold tracking-tight text-[#111827]">Traverion</span>
           </button>
 
-          {/* Navigation */}
-          <nav className="hidden lg:flex items-center gap-1.5 flex-1 justify-center" aria-label="Primary">
+          <nav className="tv-header-nav hidden items-center gap-1 justify-self-center lg:flex" aria-label="Primary">
             <button
               type="button"
               onClick={() => onNavigate('home')}
               aria-current={currentPage === 'home' ? 'page' : undefined}
-              className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors duration-200 ease-out ${
-                currentPage === 'home'
-                  ? 'bg-finland/10 font-bold text-finland'
-                  : 'text-ink hover:bg-black/[0.04]'
+              className={`tv-header-nav__item lux-flat ${
+                currentPage === 'home' ? 'tv-header-nav__item--active' : ''
               }`}
             >
+              <Compass className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden />
               Explore
             </button>
             <button
@@ -172,12 +191,11 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               aria-current={
                 currentPage === 'packages' || currentPage === 'tour-details' ? 'page' : undefined
               }
-              className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${
-                currentPage === 'packages' || currentPage === 'tour-details'
-                  ? 'bg-finland/10 font-bold text-finland'
-                  : 'text-ink hover:bg-black/[0.04]'
+              className={`tv-header-nav__item lux-flat ${
+                currentPage === 'packages' || currentPage === 'tour-details' ? 'tv-header-nav__item--active' : ''
               }`}
             >
+              <Map className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden />
               Tours
             </button>
             <button
@@ -185,21 +203,19 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               onClick={() => onNavigate('stays')}
               onPointerEnter={prefetchStaysPage}
               aria-current={currentPage === 'stays' || currentPage === 'stay-details' ? 'page' : undefined}
-              className={`lux-flat rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${
-                currentPage === 'stays' || currentPage === 'stay-details'
-                  ? 'bg-finland/10 font-bold text-finland'
-                  : 'text-ink hover:bg-black/[0.04]'
+              className={`tv-header-nav__item lux-flat ${
+                currentPage === 'stays' || currentPage === 'stay-details' ? 'tv-header-nav__item--active' : ''
               }`}
             >
+              <Home className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden />
               Stays
             </button>
           </nav>
 
-          {/* Profile */}
-          <div className="flex items-center gap-1.5 sm:gap-2" ref={userMenuRef}>
+          <div className="flex items-center justify-end gap-1 sm:gap-1.5 justify-self-end" ref={userMenuRef}>
             <button
               type="button"
-              className="lux-flat inline-flex h-11 w-11 items-center justify-center rounded-full text-ink hover:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-finland"
+              className="lux-flat inline-flex h-10 w-10 items-center justify-center rounded-full text-ink transition-colors duration-150 hover:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-finland"
               aria-label="Search tours"
               onClick={() => {
                 setIsMobileMenuOpen(false);
@@ -213,7 +229,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               <>
                 <button
                   type="button"
-                  className="lux-flat hidden h-11 w-11 items-center justify-center rounded-full text-ink transition-colors duration-200 hover:bg-black/[0.04] lg:inline-flex"
+                  className="lux-flat hidden h-10 w-10 items-center justify-center rounded-full text-ink transition-colors duration-150 hover:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-finland lg:inline-flex"
                   aria-label="Saved"
                   aria-current={currentPage === 'wishlist' ? 'page' : undefined}
                   onPointerEnter={prefetchWishlistPage}
@@ -223,7 +239,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 </button>
                 <button
                   type="button"
-                  className="lux-flat relative hidden h-11 w-11 items-center justify-center rounded-full text-ink transition-colors duration-200 hover:bg-black/[0.04] lg:inline-flex"
+                  className="lux-flat relative hidden h-10 w-10 items-center justify-center rounded-full text-ink transition-colors duration-150 hover:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-finland lg:inline-flex"
                   aria-label={hasUnreadBookings ? 'Trips, unread updates' : 'Trips'}
                   aria-current={currentPage === 'bookings' ? 'page' : undefined}
                   onPointerEnter={prefetchMyBookingsPage}
@@ -241,7 +257,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               <button
                 type="button"
                 onClick={() => setIsUserMenuOpen((o) => !o)}
-                className="lux-tap-target flex flex-col items-center gap-0.5 p-1.5 text-ink hover:text-finland rounded-lg"
+                className="lux-tap-target flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-ink transition-colors duration-150 hover:text-finland focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-finland"
                 aria-label={hasUnreadBookings ? 'Profile, unread trip updates' : 'Profile'}
                 aria-expanded={isUserMenuOpen}
                 aria-haspopup="true"
@@ -254,18 +270,18 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 }}
               >
                 {user ? (
-                  <span className="relative w-8 h-8 rounded-full bg-finland/20 text-finland flex items-center justify-center text-sm font-medium ring-1 ring-black/[0.08]">
+                  <span className="relative flex h-8 w-8 items-center justify-center rounded-full bg-finland/15 text-sm font-semibold text-finland ring-1 ring-black/[0.06]">
                     {travelerInitial}
                     {hasUnreadBookings ? (
-                      <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" aria-hidden />
+                      <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" aria-hidden />
                     ) : null}
                   </span>
                 ) : (
-                  <span className="w-8 h-8 rounded-full ring-1 ring-black/[0.08] flex items-center justify-center">
-                    <User className="w-4 h-4" />
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full ring-1 ring-black/[0.08]">
+                    <User className="h-4 w-4" />
                   </span>
                 )}
-                <span className="text-[10px] font-bold uppercase tracking-wide">Profile</span>
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-ink-muted">Profile</span>
               </button>
               {isUserMenuOpen && (
                 <div
@@ -273,7 +289,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                   ref={userMenuPanelRef}
                   role="dialog"
                   aria-label="Profile"
-                  className="absolute right-0 top-full mt-1.5 w-[17.5rem] origin-top-right overflow-hidden rounded-2xl bg-paper-raised py-1.5 shadow-soft-lg ring-1 ring-black/[0.08] motion-safe:animate-slide-down"
+                  className="absolute right-0 top-full mt-1.5 w-[17.5rem] origin-top-right overflow-hidden rounded-[var(--tv-radius-lg,1rem)] bg-white py-1.5 shadow-[var(--tv-elev-4)] ring-1 ring-black/[0.06] motion-safe:animate-slide-down"
                 >
                   {!isSupabaseConfigured() ? (
                     <div className="px-3.5 py-3 space-y-2">
@@ -474,9 +490,9 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
             role="dialog"
             aria-modal="true"
             aria-label="Menu"
-            className="lg:hidden fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top,0px))] z-[9998] border-t border-black/[0.06] bg-paper overflow-y-auto overscroll-contain pb-[max(1rem,env(safe-area-inset-bottom,0px))] motion-safe:animate-fade-in-down"
+            className="lg:hidden fixed inset-x-0 bottom-0 top-[calc(4.75rem+env(safe-area-inset-top,0px))] z-[9998] border-t border-black/[0.06] bg-paper overflow-y-auto overscroll-contain pb-[max(1rem,env(safe-area-inset-bottom,0px))] motion-safe:animate-fade-in-down"
           >
-            <nav className="flex flex-col p-4 space-y-2" aria-label="Mobile">
+            <nav className="flex flex-col space-y-1.5 p-4" aria-label="Mobile">
               <button
                 type="button"
                 onClick={() => {
@@ -484,10 +500,11 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                   setIsMobileMenuOpen(false);
                 }}
                 aria-current={currentPage === 'home' ? 'page' : undefined}
-                className={`lux-flat text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux font-semibold ${
-                  currentPage === 'home' ? 'bg-finland/10 text-finland' : 'text-ink hover:bg-black/[0.04]'
+                className={`tv-header-nav__item lux-flat w-full justify-start px-4 py-3 ${
+                  currentPage === 'home' ? 'tv-header-nav__item--active' : ''
                 }`}
               >
+                <Compass className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden />
                 Explore
               </button>
               <button
@@ -500,12 +517,11 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 aria-current={
                   currentPage === 'packages' || currentPage === 'tour-details' ? 'page' : undefined
                 }
-                className={`lux-flat text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux font-semibold ${
-                  currentPage === 'packages' || currentPage === 'tour-details'
-                    ? 'bg-finland/10 text-finland'
-                    : 'text-ink hover:bg-black/[0.04]'
+                className={`tv-header-nav__item lux-flat w-full justify-start px-4 py-3 ${
+                  currentPage === 'packages' || currentPage === 'tour-details' ? 'tv-header-nav__item--active' : ''
                 }`}
               >
+                <Map className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden />
                 Tours
               </button>
               <button
@@ -515,12 +531,11 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                   setIsMobileMenuOpen(false);
                 }}
                 aria-current={currentPage === 'stays' || currentPage === 'stay-details' ? 'page' : undefined}
-                className={`lux-flat text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux font-semibold ${
-                  currentPage === 'stays' || currentPage === 'stay-details'
-                    ? 'bg-finland/10 text-finland'
-                    : 'text-ink hover:bg-black/[0.04]'
+                className={`tv-header-nav__item lux-flat w-full justify-start px-4 py-3 ${
+                  currentPage === 'stays' || currentPage === 'stay-details' ? 'tv-header-nav__item--active' : ''
                 }`}
               >
+                <Home className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden />
                 Stays
               </button>
               {!isSupabaseConfigured() && (

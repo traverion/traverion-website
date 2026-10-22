@@ -160,12 +160,12 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
     return (
       <div className="min-h-screen bg-paper tv-page">
         <div className="max-w-xl mx-auto px-4 py-8">
-          <header className="mb-5 tv-card p-4 sm:p-5">
+          <header className="mb-5 rounded-[var(--tv-radius-lg,1rem)] bg-white p-4 shadow-[var(--tv-elev-1)] sm:p-5">
             <p className="tv-eyebrow">Traveler</p>
             <h1 id={ACCOUNT_HEADING_ID} className="tv-page-title">
               Account
             </h1>
-            <p className="mt-2 text-sm text-ink-muted">
+            <p className="mt-2 text-sm leading-relaxed text-ink-muted">
               Account features need the live app configuration. You can still browse tours or reach support.
             </p>
           </header>
@@ -195,12 +195,12 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
     return (
       <div className="min-h-screen bg-paper tv-page">
         <div className="max-w-xl mx-auto px-4 py-8">
-          <header className="mb-5 tv-card p-4 sm:p-5">
+          <header className="mb-5 rounded-[var(--tv-radius-lg,1rem)] bg-white p-4 shadow-[var(--tv-elev-1)] sm:p-5">
             <p className="tv-eyebrow">Traveler</p>
             <h1 id={ACCOUNT_HEADING_ID} className="tv-page-title">
               Account
             </h1>
-            <p className="mt-2 text-sm text-ink-muted">
+            <p className="mt-2 text-sm leading-relaxed text-ink-muted">
               {/* Phase 1634: Saved — match Wishlist page / hub tile wording. */}
               Log in to manage trips, Saved, and your traveler profile.
             </p>
@@ -266,25 +266,28 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
 
   return (
     <div className="min-h-screen bg-paper tv-page">
-      <div className="tv-shell px-4 sm:px-6 lg:px-8 py-8 pb-14">
-        <header className="mb-8 sm:mb-10">
+      <div className="tv-shell px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-12">
+        <header className="mb-6 border-b border-[#E8EBF0] pb-5 sm:mb-8">
           <p className="tv-eyebrow">Traveler</p>
           <h1 id={ACCOUNT_HEADING_ID} className="tv-page-title">
             Account
           </h1>
-          <p className="mt-2 max-w-2xl break-words text-base text-ink-muted [overflow-wrap:anywhere]" title={user.email ?? undefined}>
+          <p
+            className="mt-2 max-w-2xl break-words text-[0.9375rem] font-semibold tracking-tight text-[#111827] [overflow-wrap:anywhere]"
+            title={user.email ?? undefined}
+          >
             {displayName.trim() || user.email}
           </p>
           {displayName.trim() && user.email ? (
-            <p className="mt-0.5 break-all text-sm text-ink-faint [overflow-wrap:anywhere]">{user.email}</p>
+            <p className="mt-0.5 break-all text-sm text-ink-muted [overflow-wrap:anywhere]">{user.email}</p>
           ) : null}
         </header>
 
         <section aria-labelledby={ACCOUNT_HEADING_ID}>
-        <div className="grid gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-12 xl:gap-16">
-          <div className="min-w-0 space-y-10">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-10 xl:gap-12">
+          <div className="min-w-0 space-y-8">
             <section>
-              <h2 className="tv-section-heading mb-3">Your travel</h2>
+              <h2 className="tv-section-heading mb-3.5">Your travel</h2>
               {statsError ? (
                 // Phase 1635: stats cover Trips and Saved counts.
                 <ErrorState
@@ -322,7 +325,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                           <span className="flex items-center justify-between gap-2">
                             <span className="font-semibold text-ink">{tile.title}</span>
                             {tile.count != null ? (
-                              <span className="font-display text-sm tabular-nums font-semibold tracking-tight text-ink">
+                              <span className="font-sans text-sm font-bold tabular-nums tracking-tight text-[#111827]">
                                 {tile.count}
                               </span>
                             ) : statsLoading ? (
@@ -346,15 +349,15 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
               </p>
             </section>
 
-            <section className="rounded-2xl bg-paper-raised p-5 sm:p-6 ring-1 ring-black/[0.06]">
-              <h2 className="tv-eyebrow mb-2">Security</h2>
-              <p className="text-sm text-ink-muted leading-relaxed max-w-lg">
-                You are signed in as this traveler. Signing out does not change bookings.
+            <section className="rounded-[var(--tv-radius-lg,1rem)] bg-white p-4 sm:p-5 shadow-[var(--tv-elev-1)]">
+              <h2 className="text-sm font-bold tracking-tight text-[#111827]">Security</h2>
+              <p className="mt-1 text-sm leading-relaxed text-ink-muted">
+                Signing out does not change your bookings.
               </p>
               <button
                 type="button"
                 disabled={signingOut}
-                className="tv-btn-secondary mt-4 disabled:opacity-50"
+                className="tv-btn-secondary mt-3.5 disabled:opacity-50"
                 onClick={() => {
                   setSigningOut(true);
                   void signOut().finally(() => {
@@ -365,23 +368,13 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                 {signingOut ? 'Signing out…' : 'Sign out'}
               </button>
             </section>
-
-            <p className="flex flex-wrap gap-2">
-              <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-ghost -ml-2">
-                Browse tours
-              </button>
-              {/* Phase 1636: signed-in hub also offers stays. */}
-              <button type="button" onClick={() => onNavigate('stays')} className="tv-btn-ghost">
-                Browse stays
-              </button>
-            </p>
           </div>
 
           <section className="min-w-0">
-            <h2 className="tv-eyebrow mb-4">Your profile</h2>
+            <h2 className="tv-section-heading mb-3.5">Your profile</h2>
             {profileLoading ? (
               <div
-                className="rounded-2xl bg-paper-raised p-5 sm:p-6 ring-1 ring-black/[0.06]"
+                className="rounded-[var(--tv-radius-lg,1rem)] bg-white p-5 shadow-[var(--tv-elev-1)] sm:p-6"
                 aria-busy="true"
                 aria-label="Loading profile"
               >
@@ -389,7 +382,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
               </div>
             ) : profileError ? (
               <ErrorState
-                className="rounded-2xl bg-paper-raised p-5 sm:p-6 ring-1 ring-black/[0.06]"
+                className="rounded-[var(--tv-radius-lg,1rem)] bg-white p-5 shadow-[var(--tv-elev-1)] sm:p-6"
                 title="Profile unavailable"
                 body={profileError}
                 retry={{ onClick: () => void loadProfile() }}
@@ -401,7 +394,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
               />
             ) : (
               <form
-                className="space-y-4 rounded-2xl bg-paper-raised p-5 sm:p-6 ring-1 ring-black/[0.06] shadow-soft"
+                className="space-y-4 rounded-[var(--tv-radius-lg,1rem)] bg-white p-5 shadow-[var(--tv-elev-1)] sm:p-6"
                 onSubmit={(e) => {
                   e.preventDefault();
                   if (!user?.id) return;
@@ -426,7 +419,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                 }}
               >
                 <div>
-                  <label htmlFor="account-email" className="block text-sm font-medium text-ink mb-1">
+                  <label htmlFor="account-email" className="mb-1.5 block text-sm font-semibold tracking-tight text-[#111827]">
                     Email
                   </label>
                   <input
@@ -436,10 +429,10 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                     readOnly
                     className="tv-input bg-black/[0.03] text-ink-muted"
                   />
-                  <p className="text-xs text-ink-faint mt-1">Sign-in email — change via password reset or support.</p>
+                  <p className="mt-1 text-xs text-ink-faint">Sign-in email — change via password reset or support.</p>
                 </div>
                 <div>
-                  <label htmlFor="account-display-name" className="block text-sm font-medium text-ink mb-1">
+                  <label htmlFor="account-display-name" className="mb-1.5 block text-sm font-semibold tracking-tight text-[#111827]">
                     Display name
                   </label>
                   <input
@@ -454,7 +447,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                   />
                 </div>
                 <div>
-                  <label htmlFor="account-phone" className="block text-sm font-medium text-ink mb-1">
+                  <label htmlFor="account-phone" className="mb-1.5 block text-sm font-semibold tracking-tight text-[#111827]">
                     Phone <span className="font-normal text-ink-faint">(optional)</span>
                   </label>
                   <input

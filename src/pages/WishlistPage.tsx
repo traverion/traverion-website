@@ -198,7 +198,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
     return (
       <div className="min-h-screen bg-paper tv-page">
         <div className="tv-shell px-4 sm:px-6 lg:px-8 py-8">
-          <header className="mb-6 border-b border-black/[0.06] pb-5">
+          <header className="mb-5 border-b border-[#E8EBF0] pb-4">
             <p className="tv-eyebrow">Your travel</p>
             <h1 id={WISHLIST_HEADING_ID} className="tv-page-title">
               Saved
@@ -207,7 +207,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
           <section aria-labelledby={WISHLIST_HEADING_ID}>
           <EmptyState
             icon={Heart}
-            className="pt-2 pb-0"
+            className="mx-auto py-4"
             title="Saved tours and stays need the live app"
             body="Saved listings are only available when Traverion is connected. You can still browse tours and stays."
             action={
@@ -215,7 +215,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
                 <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-primary">
                   Browse tours
                 </button>
-                <button type="button" onClick={() => onNavigate('stays')} className="tv-btn-ghost">
+                <button type="button" onClick={() => onNavigate('stays')} className="tv-btn-secondary">
                   Browse stays
                 </button>
               </div>
@@ -234,20 +234,20 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
     return (
       <div className="min-h-screen bg-paper tv-page">
         <div className="tv-shell px-4 sm:px-6 lg:px-8 py-8">
-          <header className="mb-6 border-b border-black/[0.06] pb-5">
+          <header className="mb-5 border-b border-[#E8EBF0] pb-4">
             <p className="tv-eyebrow">Your travel</p>
             <h1 id={WISHLIST_HEADING_ID} className="tv-page-title">
               Saved
             </h1>
             {/* Phase 1637: logged-out Saved header subtitle (Trips / logged-in Saved parity). */}
-            <p className="mt-2 text-sm text-ink-muted leading-relaxed max-w-xl">
+            <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-ink-muted">
               Keep tours and stays you like — sign in to see them here.
             </p>
           </header>
           <section aria-labelledby={WISHLIST_HEADING_ID}>
           <EmptyState
             icon={LogIn}
-            className="pt-2 pb-0"
+            className="mx-auto py-4"
             title="Log in to see saved tours and stays"
             body="Saved listings are tied to your traveler account. Sign in to keep tours and stays while you browse."
             action={
@@ -262,7 +262,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
                 >
                   Log in
                 </button>
-                <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-ghost">
+                <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-secondary">
                   Browse tours
                 </button>
                 <button type="button" onClick={() => onNavigate('stays')} className="tv-btn-ghost">
@@ -280,15 +280,15 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
   return (
     <div className="min-h-screen bg-paper tv-page">
       <div className="tv-shell px-4 sm:px-6 lg:px-8 py-8 pb-12">
-        <header className="mb-6 border-b border-black/[0.06] pb-5">
+        <header className="mb-5 border-b border-[#E8EBF0] pb-4">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
+              <p className="tv-eyebrow">Your travel</p>
               <h1 id={WISHLIST_HEADING_ID} className="tv-page-title">
-                Saved experiences
+                Saved
               </h1>
-              <p className="mt-1 text-sm text-ink-muted">Your favorite experiences, all in one place.</p>
-              <p className="mt-2 text-sm text-ink-muted max-w-xl leading-relaxed">
-                Tours and stays you want to come back to — open one to check dates and book.
+              <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-ink-muted">
+                Tours and stays you want to revisit — open one to check dates and book.
               </p>
             </div>
             <button
@@ -360,11 +360,12 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
         ) : error ? null : (
           <EmptyState
             icon={Heart}
+            className="mx-auto py-4"
             title={unavailableCount > 0 ? 'No bookable saved listings' : 'Nothing saved yet'}
             body={
               unavailableCount > 0
                 ? `${unavailableCount} saved listing${unavailableCount === 1 ? '' : 's'} are unpublished or gone, so they are not shown as bookable. Clear them here or browse for something new.`
-                : 'Save experiences you love and find them here later.'
+                : 'Tap the heart on a tour or stay to keep it here.'
             }
             action={
               <div className="flex flex-wrap gap-2">
@@ -381,7 +382,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
                 <button type="button" onClick={() => onNavigate('packages')} className={unavailableCount > 0 ? 'tv-btn-ghost' : 'tv-btn-primary'}>
                   Browse tours
                 </button>
-                <button type="button" onClick={() => onNavigate('stays')} className="tv-btn-ghost">
+                <button type="button" onClick={() => onNavigate('stays')} className="tv-btn-secondary">
                   Browse stays
                 </button>
               </div>
