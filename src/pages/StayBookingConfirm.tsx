@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ArrowLeft, Home, Lock, MapPin } from 'lucide-react';
 import type { TourPackage } from '../types/tour';
 import { parseListingExtras } from '../types/listingExtras';
@@ -47,12 +48,17 @@ import {
   type StayCheckoutState,
 } from '../lib/stayCheckoutUrl';
 import { trackListingTraffic } from '../lib/listing-traffic';
+import { formatStayNightHuman } from '../lib/stay-calendar';
+import { stayCheckInHmForDate, stayFreeCancelDeadlineCopy } from '../lib/stay-free-cancel-deadline';
 
 type Props = {
   stay: TourPackage;
   initial: StayCheckoutState;
   onBackToListing: (state: StayCheckoutState) => void;
 };
+
+const sectionClass = 'rounded-xl border border-black/[0.08] bg-white p-3.5 sm:p-4';
+const sectionTitleClass = 'font-display text-[0.9375rem] font-semibold tracking-tight text-ink';
 
 export default function StayBookingConfirm({ stay, initial, onBackToListing }: Props) {
   const { user, requestAuth } = useAuth();
@@ -123,6 +129,14 @@ export default function StayBookingConfirm({ stay, initial, onBackToListing }: P
       ? occupiedRanges.some((r) => stayDateRangesOverlap(checkIn, checkOut, r.checkIn, r.checkOut)) ||
         nightsOccupiedByStay(checkIn, checkOut).some((n) => blockedNights.includes(n))
       : false;
+
+  const checkInHm = stayCheckInHmForDate(s, checkIn);
+  const freeCancelCopy = stayFreeCancelDeadlineCopy({
+    stay,
+    checkIn,
+    checkInHm,
+    departureTimezone: extras.departureTimezone,
+  });
 
   const syncUrl = useCallback(
     (next: StayCheckoutState, mode: 'push' | 'replace' = 'replace') => {
@@ -241,6 +255,8 @@ export default function StayBookingConfirm({ stay, initial, onBackToListing }: P
     selfBookCheckFailed,
     requestToBook,
     surface: 'confirmation',
+    totalAmount: quoteOk && stayQuote.ok ? stayQuote.totalAmount : undefined,
+    currency: quoteOk && stayQuote.ok ? stayQuote.currency : currency,
   });
 
   const currentState = (): StayCheckoutState => ({
@@ -374,25 +390,60 @@ export default function StayBookingConfirm({ stay, initial, onBackToListing }: P
   const destination =
     [stay.city, stay.region, stay.country].filter(Boolean).join(', ') || stay.destination || null;
 
+  const guestsLine = `${party.adults} adult${party.adults === 1 ? '' : 's'}${
+    party.children > 0 ? ` · ${party.children} child${party.children === 1 ? '' : 'ren'}` : ''
+  }${party.infants > 0 ? ` · ${party.infants} infant${party.infants === 1 ? '' : 's'}` : ''}`;
+
+  const payDisabled =
+    paying ||
+    !quoteOk ||
+    selectionOccupied ||
+    selfBookBlocked ||
+    maxGuests == null ||
+    checkoutPayBlockedByConsent(checkoutConsentAccepted);
+
+  const payButtonLabel =
+    checkoutPayBlockedByConsent(checkoutConsentAccepted) && quoteOk
+      ? 'Accept terms to continue'
+      : ctaLabel;
+
   const summary = quoteOk && stayQuote.ok ? (
-    <div className="space-y-4">
-      <div className="flex gap-3">
+    <div className="space-y-3">
+      <div className="flex gap-2.5">
         {hero ? (
-          <img src={hero} alt="" className="h-20 w-20 shrink-0 rounded-xl object-cover ring-1 ring-black/[0.06]" />
+          <img src={hero} alt="" className="h-16 w-16 shrink-0 rounded-lg object-cover ring-1 ring-black/[0.06]" />
         ) : (
-          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl bg-black/[0.04] ring-1 ring-black/[0.06]">
-            <Home className="h-6 w-6 text-ink-faint" aria-hidden />
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-black/[0.04] ring-1 ring-black/[0.06]">
+            <Home className="h-5 w-5 text-ink-faint" aria-hidden />
           </div>
         )}
         <div className="min-w-0">
-          <p className="font-display text-base font-semibold tracking-tight text-ink">{stay.title}</p>
-          {destination ? <p className="mt-0.5 truncate text-sm text-ink-muted">{destination}</p> : null}
-          <p className="mt-1 text-sm text-ink-muted">
-            {stayQuote.nights} night{stayQuote.nights === 1 ? '' : 's'} · {stayQuote.guests}{' '}
-            {stayQuote.guests === 1 ? 'guest' : 'guests'}
+          <p className="font-display text-[0.9375rem] font-semibold leading-snug tracking-tight text-ink">
+            {stay.title}
           </p>
+          {destination ? <p className="mt-0.5 truncate text-xs text-ink-muted">{destination}</p> : null}
         </div>
       </div>
+      <dl className="grid grid-cols-2 gap-x-3 gap-y-2 border-t border-black/[0.06] pt-3 text-sm">
+        <div>
+          <dt className="text-[11px] font-medium uppercase tracking-[0.08em] text-ink-faint">Check-in</dt>
+          <dd className="mt-0.5 font-medium tabular-nums text-ink">{formatStayNightHuman(checkIn)}</dd>
+        </div>
+        <div>
+          <dt className="text-[11px] font-medium uppercase tracking-[0.08em] text-ink-faint">Checkout</dt>
+          <dd className="mt-0.5 font-medium tabular-nums text-ink">{formatStayNightHuman(checkOut)}</dd>
+        </div>
+        <div className="col-span-2">
+          <dt className="text-[11px] font-medium uppercase tracking-[0.08em] text-ink-faint">Guests</dt>
+          <dd className="mt-0.5 text-ink">
+            {guestsLine}
+            <span className="text-ink-muted">
+              {' '}
+              · {stayQuote.nights} night{stayQuote.nights === 1 ? '' : 's'}
+            </span>
+          </dd>
+        </div>
+      </dl>
       <PriceBreakdown
         currency={stayQuote.currency}
         lines={stayQuotePriceLines(stayQuote)}
@@ -403,11 +454,13 @@ export default function StayBookingConfirm({ stay, initial, onBackToListing }: P
             : 'Dates stay available until payment succeeds.'
         }
       />
-      <p className="text-xs leading-relaxed text-ink-muted">
-        {listingShowsFreeCancellation(stay)
-          ? 'Free cancellation available — see the listing policy for deadlines.'
-          : 'Cancellation terms apply as shown on this listing.'}
-      </p>
+      {freeCancelCopy ? (
+        <p className="text-xs leading-relaxed text-ink-muted">{freeCancelCopy}</p>
+      ) : (
+        <p className="text-xs leading-relaxed text-ink-muted">
+          Cancellation terms apply as shown on this listing.
+        </p>
+      )}
     </div>
   ) : (
     <p className="text-sm text-red-700">
@@ -415,16 +468,27 @@ export default function StayBookingConfirm({ stay, initial, onBackToListing }: P
     </p>
   );
 
+  const paymentButton = (
+    <button
+      type="button"
+      className="tv-btn-primary w-full text-sm leading-snug disabled:opacity-50"
+      disabled={payDisabled}
+      onClick={() => void startPayment()}
+    >
+      {payButtonLabel}
+    </button>
+  );
+
   return (
-    <div className="fixed inset-0 z-[10000] flex flex-col bg-white">
+    <div className="fixed inset-0 z-[10000] flex flex-col bg-paper">
       <header className="shrink-0 border-b border-black/[0.08] bg-white pt-[env(safe-area-inset-top,0px)]">
-        <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
+        <div className="mx-auto flex h-12 w-full max-w-5xl items-center justify-between gap-3 px-4 sm:px-6">
           <button
             type="button"
             onClick={() => onBackToListing(currentState())}
-            className="lux-flat inline-flex h-11 min-w-0 items-center gap-2 rounded-md pr-2 text-ink"
+            className="lux-flat inline-flex h-10 min-w-0 items-center gap-2 rounded-md pr-2 text-ink"
           >
-            <img src={BRAND_LOGO_SRC} alt="" className="h-8 w-8 object-contain" />
+            <img src={BRAND_LOGO_SRC} alt="" className="h-7 w-7 object-contain" />
             <span className="font-sans text-[13px] font-bold tracking-tight">Traverion</span>
             <span className="sr-only">Back to stay</span>
           </button>
@@ -435,45 +499,49 @@ export default function StayBookingConfirm({ stay, initial, onBackToListing }: P
         </div>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+      <div className="min-h-0 flex-1 overflow-y-auto pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] lg:pb-0">
+        <div className="mx-auto w-full max-w-5xl px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
           {paymentCancelledNote ? (
-            <div className="mb-5">
+            <div className="mb-4">
               <NoticeCallout title="Checkout cancelled" tone="warn">
                 {paymentCancelledNote}
               </NoticeCallout>
             </div>
           ) : null}
 
-          <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_22.5rem] lg:items-start lg:gap-10">
-            <div className="min-w-0">
-              <button
-                type="button"
-                onClick={() => onBackToListing(currentState())}
-                className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-ink-muted hover:text-ink"
-              >
-                <ArrowLeft className="h-4 w-4" aria-hidden />
-                Back to stay
-              </button>
-              <h1 className="font-display text-2xl font-semibold tracking-tight text-ink sm:text-[1.75rem]">
-                Complete your reservation
-              </h1>
-              <p className="mt-1.5 text-sm text-ink-muted sm:text-base">
-                Review your stay details before continuing to secure payment.
-              </p>
+          <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_20.5rem] lg:items-start lg:gap-8">
+            <div className="min-w-0 space-y-3">
+              <div>
+                <button
+                  type="button"
+                  onClick={() => onBackToListing(currentState())}
+                  className="mb-2.5 inline-flex items-center gap-1.5 text-sm font-medium text-ink-muted hover:text-ink"
+                >
+                  <ArrowLeft className="h-4 w-4" aria-hidden />
+                  Back to stay
+                </button>
+                <h1 className="font-display text-xl font-semibold tracking-tight text-ink sm:text-[1.375rem]">
+                  Complete your reservation
+                </h1>
+                <p className="mt-1 text-sm text-ink-muted">
+                  Review your stay details before continuing to secure payment.
+                </p>
+              </div>
 
-              <section className="mt-6 rounded-2xl border border-black/[0.08] bg-white p-4 sm:p-5">
-                <h2 className="text-sm font-semibold text-ink">Your stay</h2>
-                <div className="mt-3 flex gap-3">
+              <section className={sectionClass}>
+                <h2 className={sectionTitleClass}>Your stay</h2>
+                <div className="mt-2.5 flex gap-2.5">
                   {hero ? (
                     <img
                       src={hero}
                       alt=""
-                      className="h-16 w-16 shrink-0 rounded-xl object-cover ring-1 ring-black/[0.06]"
+                      className="h-14 w-14 shrink-0 rounded-lg object-cover ring-1 ring-black/[0.06]"
                     />
                   ) : null}
                   <div className="min-w-0">
-                    <p className="font-display text-base font-semibold text-ink">{stay.title}</p>
+                    <p className="font-display text-[0.9375rem] font-semibold leading-snug tracking-tight text-ink">
+                      {stay.title}
+                    </p>
                     {destination ? (
                       <p className="mt-0.5 flex items-center gap-1 text-sm text-ink-muted">
                         <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
@@ -484,125 +552,141 @@ export default function StayBookingConfirm({ stay, initial, onBackToListing }: P
                 </div>
               </section>
 
-              <section className="mt-4 rounded-2xl border border-black/[0.08] bg-white p-4 sm:p-5">
-                <div className="flex items-center justify-between gap-2">
-                  <h2 className="text-sm font-semibold text-ink">Dates</h2>
-                  <button
-                    type="button"
-                    className="text-sm font-semibold text-finland hover:underline"
-                    onClick={() => setEditingDates((v) => !v)}
-                  >
-                    {editingDates ? 'Done' : 'Edit'}
-                  </button>
-                </div>
-                {editingDates ? (
-                  <div className="mt-3">
-                    <StayNightPicker
-                      id="stay-book-dates"
-                      checkIn={checkIn}
-                      checkOut={checkOut}
-                      occupiedNights={occupiedNights}
-                      todayIso={experienceTodayIso}
-                      minNights={minNights}
-                      onChange={(a, b) => {
-                        setCheckIn(a);
-                        setCheckOut(b);
-                        setPayError(null);
-                      }}
-                    />
+              <section className={sectionClass}>
+                <h2 className={sectionTitleClass}>Booking details</h2>
+
+                <div className="mt-2.5 border-t border-black/[0.06] pt-2.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-ink-faint">Dates</p>
+                      {!editingDates ? (
+                        <p className="mt-0.5 text-sm font-medium tabular-nums text-ink">
+                          {formatStayNightHuman(checkIn)} → {formatStayNightHuman(checkOut)}
+                          {quoteOk && stayQuote.ok
+                            ? ` · ${stayQuote.nights} night${stayQuote.nights === 1 ? '' : 's'}`
+                            : ''}
+                        </p>
+                      ) : null}
+                    </div>
+                    <button
+                      type="button"
+                      className="shrink-0 text-sm font-semibold text-finland hover:underline"
+                      onClick={() => setEditingDates((v) => !v)}
+                    >
+                      {editingDates ? 'Done' : 'Edit'}
+                    </button>
                   </div>
-                ) : (
-                  <p className="mt-2 text-sm text-ink">
-                    {checkIn} → {checkOut}
-                    {quoteOk && stayQuote.ok
-                      ? ` · ${stayQuote.nights} night${stayQuote.nights === 1 ? '' : 's'}`
-                      : ''}
-                  </p>
-                )}
+                  {editingDates ? (
+                    <div className="mt-2.5">
+                      <StayNightPicker
+                        id="stay-book-dates"
+                        checkIn={checkIn}
+                        checkOut={checkOut}
+                        occupiedNights={occupiedNights}
+                        todayIso={experienceTodayIso}
+                        minNights={minNights}
+                        onChange={(a, b) => {
+                          setCheckIn(a);
+                          setCheckOut(b);
+                          setPayError(null);
+                        }}
+                      />
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="mt-2.5 border-t border-black/[0.06] pt-2.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-ink-faint">Guests</p>
+                      {!editingGuests ? (
+                        <p className="mt-0.5 text-sm font-medium text-ink">{guestsLine}</p>
+                      ) : null}
+                    </div>
+                    <button
+                      type="button"
+                      className="shrink-0 text-sm font-semibold text-finland hover:underline"
+                      onClick={() => setEditingGuests((v) => !v)}
+                    >
+                      {editingGuests ? 'Done' : 'Edit'}
+                    </button>
+                  </div>
+                  {editingGuests ? (
+                    <div className="mt-2.5">
+                      <StayGuestPartySelector
+                        id="stay-book-guests"
+                        party={party}
+                        policy={guestPolicy}
+                        maxGuests={maxGuests}
+                        onChange={(next) => {
+                          setParty(next);
+                          setPayError(null);
+                        }}
+                      />
+                    </div>
+                  ) : null}
+                </div>
               </section>
 
-              <section className="mt-4 rounded-2xl border border-black/[0.08] bg-white p-4 sm:p-5">
-                <div className="flex items-center justify-between gap-2">
-                  <h2 className="text-sm font-semibold text-ink">Guests</h2>
-                  <button
-                    type="button"
-                    className="text-sm font-semibold text-finland hover:underline"
-                    onClick={() => setEditingGuests((v) => !v)}
-                  >
-                    {editingGuests ? 'Done' : 'Edit'}
-                  </button>
-                </div>
-                {editingGuests ? (
-                  <div className="mt-3">
-                    <StayGuestPartySelector
-                      id="stay-book-guests"
-                      party={party}
-                      policy={guestPolicy}
-                      maxGuests={maxGuests}
-                      onChange={(next) => {
-                        setParty(next);
+              <section className={sectionClass}>
+                <h2 className={sectionTitleClass}>Contact</h2>
+                <div className="mt-2.5 grid gap-2.5 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-medium text-ink" htmlFor="stay-book-guest-name">
+                      Lead guest name
+                    </label>
+                    <input
+                      id="stay-book-guest-name"
+                      type="text"
+                      autoComplete="name"
+                      autoCapitalize="words"
+                      required
+                      aria-required="true"
+                      value={guestName}
+                      onChange={(e) => {
+                        setGuestName(e.target.value);
                         setPayError(null);
                       }}
+                      className="tv-input mt-1 min-h-11 w-full"
+                      placeholder="Name on the booking"
                     />
                   </div>
-                ) : (
-                  <p className="mt-2 text-sm text-ink">
-                    {party.adults} adult{party.adults === 1 ? '' : 's'}
-                    {party.children > 0 ? ` · ${party.children} child${party.children === 1 ? '' : 'ren'}` : ''}
-                    {party.infants > 0 ? ` · ${party.infants} infant${party.infants === 1 ? '' : 's'}` : ''}
-                  </p>
-                )}
-              </section>
-
-              <section className="mt-4 rounded-2xl border border-black/[0.08] bg-white p-4 sm:p-5">
-                <h2 className="text-sm font-semibold text-ink">Contact information</h2>
-                <label className="mt-3 block text-sm font-medium text-ink" htmlFor="stay-book-guest-name">
-                  Lead guest name
-                </label>
-                <input
-                  id="stay-book-guest-name"
-                  type="text"
-                  autoComplete="name"
-                  autoCapitalize="words"
-                  value={guestName}
-                  onChange={(e) => {
-                    setGuestName(e.target.value);
-                    setPayError(null);
-                  }}
-                  className="tv-input mt-1 w-full"
-                  placeholder="Name on the booking"
-                />
-                <label className="mt-3 block text-sm font-medium text-ink" htmlFor="stay-book-guest-email">
-                  Email
-                </label>
-                <input
-                  id="stay-book-guest-email"
-                  type="email"
-                  autoComplete="email"
-                  value={user?.email ?? ''}
-                  readOnly
-                  className="tv-input mt-1 w-full bg-black/[0.02] text-ink-muted"
-                  placeholder={user ? undefined : 'Sign in to confirm your email'}
-                />
-                <label className="mt-3 block text-sm font-medium text-ink" htmlFor="stay-book-guest-phone">
-                  Phone <span className="font-normal text-ink-muted">(optional)</span>
-                </label>
-                <input
-                  id="stay-book-guest-phone"
-                  type="tel"
-                  autoComplete="tel"
-                  inputMode="tel"
-                  value={guestPhone}
-                  onChange={(e) => setGuestPhone(e.target.value)}
-                  className="tv-input mt-1 w-full"
-                  placeholder="Arrival contact"
-                />
+                  <div>
+                    <label className="block text-xs font-medium text-ink" htmlFor="stay-book-guest-email">
+                      Email
+                    </label>
+                    <input
+                      id="stay-book-guest-email"
+                      type="email"
+                      autoComplete="email"
+                      value={user?.email ?? ''}
+                      readOnly
+                      className="tv-input mt-1 min-h-11 w-full bg-black/[0.02] text-ink-muted"
+                      placeholder={user ? undefined : 'Sign in to confirm your email'}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-ink" htmlFor="stay-book-guest-phone">
+                      Phone <span className="font-normal text-ink-muted">(optional)</span>
+                    </label>
+                    <input
+                      id="stay-book-guest-phone"
+                      type="tel"
+                      autoComplete="tel"
+                      inputMode="tel"
+                      value={guestPhone}
+                      onChange={(e) => setGuestPhone(e.target.value)}
+                      className="tv-input mt-1 min-h-11 w-full"
+                      placeholder="Arrival contact"
+                    />
+                  </div>
+                </div>
               </section>
 
               {(s?.checkInTime || s?.checkOutTime || stayArrivalMethodLabel(s?.arrivalMethod) || s?.arrivalNote) && (
-                <section className="mt-4 rounded-2xl border border-black/[0.08] bg-white p-4 sm:p-5">
-                  <h2 className="text-sm font-semibold text-ink">Arrival information</h2>
-                  <ul className="mt-2 space-y-1.5 text-sm text-ink-muted">
+                <section className={sectionClass}>
+                  <h2 className={sectionTitleClass}>Arrival</h2>
+                  <ul className="mt-2 space-y-1 text-sm text-ink-muted">
                     {s?.checkInTime ? <li>Check-in from {s.checkInTime}</li> : null}
                     {s?.checkOutTime ? <li>Checkout by {s.checkOutTime}</li> : null}
                     {stayArrivalMethodLabel(s?.arrivalMethod) ? (
@@ -613,14 +697,15 @@ export default function StayBookingConfirm({ stay, initial, onBackToListing }: P
                 </section>
               )}
 
-              <section className="mt-4 rounded-2xl border border-black/[0.08] bg-white p-4 sm:p-5">
-                <h2 className="text-sm font-semibold text-ink">Cancellation & terms</h2>
-                <p className="mt-2 text-sm text-ink-muted">
-                  {listingShowsFreeCancellation(stay)
-                    ? 'Free cancellation is available for this stay — check the listing policy for the exact deadline.'
-                    : 'Review the cancellation policy on the listing before you pay.'}
+              <section className={sectionClass}>
+                <h2 className={sectionTitleClass}>Cancellation & terms</h2>
+                <p className="mt-1.5 text-sm leading-relaxed text-ink-muted">
+                  {freeCancelCopy ??
+                    (listingShowsFreeCancellation(stay)
+                      ? 'Free cancellation up to 24 hours before check-in (property local time).'
+                      : 'Review the cancellation policy on the listing before you pay.')}
                 </p>
-                <div className="mt-3">
+                <div className="mt-2.5">
                   <CheckoutConsentCheckbox
                     id="stay-book-consent"
                     checked={checkoutConsentAccepted}
@@ -632,49 +717,69 @@ export default function StayBookingConfirm({ stay, initial, onBackToListing }: P
                 </div>
               </section>
 
-              <div className="mt-4 lg:hidden rounded-2xl border border-black/[0.08] bg-white p-4">{summary}</div>
+              <div className="lg:hidden">
+                <div className={`${sectionClass} shadow-[0_8px_24px_-16px_rgba(15,23,42,0.2)]`}>
+                  <p className="tv-eyebrow mb-2.5">Booking summary</p>
+                  {summary}
+                </div>
+              </div>
 
               {occupancyError ? (
-                <p className="mt-4 text-sm text-red-700">
+                <p className="text-sm text-red-700">
                   {occupancyError}{' '}
-                  <button type="button" className="font-semibold text-finland hover:underline" onClick={() => reloadOccupancy()}>
+                  <button
+                    type="button"
+                    className="font-semibold text-finland hover:underline"
+                    onClick={() => reloadOccupancy()}
+                  >
                     Try again
                   </button>
                 </p>
               ) : null}
-              {payError ? <p className="mt-4 text-sm text-red-700">{payError}</p> : null}
+              {payError ? <p className="text-sm text-red-700">{payError}</p> : null}
 
-              <button
-                type="button"
-                className="tv-btn-primary mt-5 w-full disabled:opacity-50"
-                disabled={
-                  paying ||
-                  !quoteOk ||
-                  selectionOccupied ||
-                  selfBookBlocked ||
-                  maxGuests == null ||
-                  checkoutPayBlockedByConsent(checkoutConsentAccepted)
-                }
-                onClick={() => void startPayment()}
-              >
-                {checkoutPayBlockedByConsent(checkoutConsentAccepted) && quoteOk
-                  ? 'Accept terms to continue'
-                  : ctaLabel}
-              </button>
-              <p className="mt-3 text-xs leading-relaxed text-ink-faint">
-                {STRIPE_TEST_UNTIL_LIVE} · the total is confirmed on the server before payment
-              </p>
+              <div className="hidden lg:block">
+                {paymentButton}
+                <p className="mt-2 text-[11px] leading-relaxed text-ink-faint">
+                  {STRIPE_TEST_UNTIL_LIVE} · total confirmed on the server before payment
+                </p>
+              </div>
             </div>
 
-            <aside className="mt-8 hidden lg:sticky lg:top-6 lg:mt-0 lg:block">
-              <div className="rounded-2xl border border-black/[0.08] bg-white p-5 shadow-[0_12px_32px_-18px_rgba(15,23,42,0.22)]">
-                <p className="tv-eyebrow mb-3">Booking summary</p>
+            <aside className="mt-6 hidden lg:sticky lg:top-5 lg:mt-0 lg:block">
+              <div className="rounded-xl border border-black/[0.08] bg-white p-4 shadow-[0_10px_28px_-18px_rgba(15,23,42,0.22)]">
+                <p className="tv-eyebrow mb-2.5">Booking summary</p>
                 {summary}
+                {quoteOk && stayQuote.ok ? (
+                  <p className="mt-3 border-t border-black/[0.06] pt-3 font-display text-xl font-semibold tabular-nums tracking-tight text-ink">
+                    {formatMoney(stayQuote.totalAmount, stayQuote.currency)}
+                    <span className="ml-1.5 font-sans text-sm font-medium text-ink-muted">total</span>
+                  </p>
+                ) : null}
               </div>
             </aside>
           </div>
         </div>
       </div>
+
+      {typeof document !== 'undefined'
+        ? createPortal(
+            <div className="lg:hidden fixed inset-x-0 bottom-0 z-[10001] border-t border-black/[0.08] bg-white/96 backdrop-blur-md px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-10px_28px_-18px_rgba(15,23,42,0.35)]">
+              <div className="mx-auto flex w-full max-w-5xl flex-col gap-2">
+                {quoteOk && stayQuote.ok ? (
+                  <p className="text-center text-xs text-ink-muted">
+                    Total{' '}
+                    <span className="font-semibold tabular-nums text-ink">
+                      {formatMoney(stayQuote.totalAmount, stayQuote.currency)}
+                    </span>
+                  </p>
+                ) : null}
+                {paymentButton}
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }

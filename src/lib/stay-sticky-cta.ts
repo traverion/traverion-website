@@ -2,6 +2,7 @@
  * Mobile sticky CTA labels for stay listing — name the missing step, don't imply checkout is ready.
  */
 import { TRAVELER_OPENING_CHECKOUT_CTA } from './booking-confirmation-copy';
+import { formatMoney } from './money';
 
 export const STAY_RESERVE_CTA = 'Reserve';
 export const STAY_CONTINUE_BOOKING_CTA = 'Continue to booking';
@@ -25,6 +26,9 @@ export function stayStickyBookCtaLabel(params: {
   requestToBook?: boolean;
   /** confirmation = dedicated booking page CTA (not the listing sticky card). */
   surface?: 'listing' | 'confirmation';
+  /** Authoritative quote total for confirmation CTA (major units). */
+  totalAmount?: number;
+  currency?: string | null;
 }): string {
   if (params.selfBookCheckFailed) return 'Eligibility unavailable';
   if (params.selfBookBlocked) return 'Cannot book own listing';
@@ -35,7 +39,11 @@ export function stayStickyBookCtaLabel(params: {
   }
   if (params.quoteOk) {
     if (params.surface === 'confirmation') {
-      return params.requestToBook ? STAY_CONFIRM_REQUEST_CTA : STAY_CONFIRM_PAYMENT_CTA;
+      if (params.requestToBook) return STAY_CONFIRM_REQUEST_CTA;
+      if (typeof params.totalAmount === 'number' && Number.isFinite(params.totalAmount)) {
+        return `${STAY_CONFIRM_PAYMENT_CTA} · ${formatMoney(params.totalAmount, params.currency)}`;
+      }
+      return STAY_CONFIRM_PAYMENT_CTA;
     }
     return params.requestToBook ? STAY_REQUEST_CTA : STAY_RESERVE_CTA;
   }

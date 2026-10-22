@@ -69,7 +69,7 @@ describe('stayStickyBookCtaLabel', () => {
     ).toBe(STAY_RESERVE_CTA);
   });
 
-  it('confirmation surface uses Continue to secure payment', () => {
+  it('confirmation surface includes authoritative total on the payment CTA', () => {
     expect(
       stayStickyBookCtaLabel({
         selectionOccupied: false,
@@ -78,8 +78,10 @@ describe('stayStickyBookCtaLabel', () => {
         checkOut: '2026-10-04',
         minNights: 1,
         surface: 'confirmation',
+        totalAmount: 161.6,
+        currency: 'EUR',
       })
-    ).toBe(STAY_CONFIRM_PAYMENT_CTA);
+    ).toBe(`${STAY_CONFIRM_PAYMENT_CTA} · €161.60`);
   });
 
   it('uses Opening checkout… while Stripe opens', () => {

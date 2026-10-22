@@ -22,12 +22,15 @@ describe('Stay checkout dedicated confirmation', () => {
 
   it('confirmation page initiates Stripe with expectedTotal after terms', () => {
     expect(confirm).toContain('Complete your reservation');
+    expect(confirm).toContain('Booking details');
     expect(confirm).toContain("surface: 'confirmation'");
+    expect(confirm).toContain('totalAmount:');
     expect(confirm).toContain('expectedTotal: stayQuote.totalAmount');
     expect(STAY_CONFIRM_PAYMENT_CTA).toBe('Continue to secure payment');
     expect(confirm).toContain("res.code === 'quote_changed'");
     expect(confirm).toContain('createBookingCheckoutSession');
     expect(confirm).toContain('stay-book-consent');
-    expect(STAY_CONFIRM_PAYMENT_CTA).toMatch(/secure payment/i);
+    expect(confirm).toContain('stayFreeCancelDeadlineCopy');
   });
 });
+
