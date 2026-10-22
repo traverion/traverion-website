@@ -2695,16 +2695,16 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
   }
 
   .tv-browse-card {
-    transition: transform var(--tv-duration) var(--tv-ease), box-shadow var(--tv-duration) var(--tv-ease);
+    transition: transform var(--tv-duration-hover, 160ms) var(--tv-ease), box-shadow var(--tv-duration-ui, 180ms) var(--tv-ease);
   }
 
   .tv-browse-card:hover {
-    transform: translateY(-3px);
+    transform: translateY(-2px);
   }
 
   .tv-browse-card .tv-browse-card__surface {
     box-shadow: var(--tv-shadow-rest);
-    transition: box-shadow var(--tv-duration) var(--tv-ease), ring-color var(--tv-duration) var(--tv-ease);
+    transition: box-shadow var(--tv-duration-ui, 180ms) var(--tv-ease), ring-color var(--tv-duration-ui, 180ms) var(--tv-ease);
   }
 
   .tv-browse-card:hover .tv-browse-card__surface {
@@ -2712,11 +2712,11 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
   }
 
   .tv-browse-card .tv-browse-card__media img {
-    transition: transform 420ms var(--tv-ease);
+    transition: transform var(--tv-duration-drawer, 220ms) var(--tv-ease);
   }
 
   .tv-browse-card:hover .tv-browse-card__media img {
-    transform: scale(1.045);
+    transform: scale(1.02);
   }
 }
 
@@ -2804,7 +2804,7 @@ html {
 }
 
 .lux-page-enter {
-  animation: lux-page-enter 0.22s var(--lux-ease);
+  animation: lux-page-enter var(--tv-duration-drawer, 220ms) var(--lux-ease, var(--tv-ease));
 }
 
 @keyframes lux-page-enter-slide {
@@ -2844,11 +2844,11 @@ html {
 }
 
 .lux-page-enter--forward {
-  animation: lux-page-enter-forward 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: lux-page-enter-forward var(--tv-duration-drawer, 220ms) var(--tv-ease, cubic-bezier(0.22, 1, 0.36, 1)) both;
 }
 
 .lux-page-enter--back {
-  animation: lux-page-enter-back 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: lux-page-enter-back var(--tv-duration-drawer, 220ms) var(--tv-ease, cubic-bezier(0.22, 1, 0.36, 1)) both;
 }
 
 /* Auth login ↔ signup / forgot-password panel slides */
@@ -3443,10 +3443,13 @@ a:focus-visible,
   --tv-section-y: 2.5rem;
   --tv-section-y-lg: 3.5rem;
   --tv-discover-gap: 0.75rem;
-  /* Consumer motion & depth (Stay polish Phase 2) — reusable across traveler UI */
+  /* Platform motion (premium, restrained) — transform/opacity preferred over layout */
   --tv-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --tv-duration: 200ms;
   --tv-duration-fast: 150ms;
+  --tv-duration-hover: 160ms;
+  --tv-duration-ui: 180ms;
+  --tv-duration-drawer: 220ms;
   --tv-shadow-rest: 0 1px 2px rgba(15, 23, 42, 0.04), 0 0 0 1px rgba(28, 25, 23, 0.08);
   --tv-shadow-hover: 0 12px 28px -16px rgba(15, 23, 42, 0.38), 0 0 0 1px rgba(0, 53, 128, 0.14);
   --tv-shadow-panel: 0 8px 24px -14px rgba(15, 23, 42, 0.28), 0 0 0 1px rgba(28, 25, 23, 0.1);
@@ -9342,8 +9345,10 @@ details:not([open]) > :not(summary) {
 .tv-ops-listing-row {
   border-bottom: 1px solid rgba(15, 23, 42, 0.065);
   background: #ffffff;
-  transition: background-color 160ms ease;
+  transition: background-color var(--tv-duration-hover, 160ms) var(--tv-ease, ease);
   cursor: default;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 4.75rem;
 }
 
 .tv-ops-listing-row:last-child {

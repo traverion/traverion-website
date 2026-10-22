@@ -4,10 +4,12 @@
  */
 
 import type { PartnerNavSectionId } from './partnerNav';
+import { shouldPrefetchRoutes } from './routePrefetch';
 
 const warmed = new Set<string>();
 
 function warm(id: string, loader: () => Promise<unknown>): void {
+  if (!shouldPrefetchRoutes()) return;
   if (warmed.has(id)) return;
   warmed.add(id);
   void loader().catch(() => {

@@ -1,22 +1,70 @@
-/** Warm route chunks before navigation so Tours / a tour page feel instant. */
+/**
+ * Warm route chunks before navigation so common consumer transitions feel immediate.
+ * Respects Save-Data / slow connections — never prefetches private/sensitive payloads.
+ */
+
+/** True when route-chunk prefetch is appropriate (not Save-Data / 2G). */
+export function shouldPrefetchRoutes(): boolean {
+  if (typeof navigator === 'undefined') return true;
+  const conn = (navigator as Navigator & {
+    connection?: { saveData?: boolean; effectiveType?: string };
+  }).connection;
+  if (conn?.saveData) return false;
+  const type = (conn?.effectiveType || '').toLowerCase();
+  if (type === 'slow-2g' || type === '2g') return false;
+  return true;
+}
+
+function warm(loader: () => Promise<unknown>): void {
+  if (!shouldPrefetchRoutes()) return;
+  void loader().catch(() => {
+    /* ignore — navigation will load normally */
+  });
+}
 
 export function prefetchPackagesPage() {
-  void import('../pages/Packages');
+  warm(() => import('../pages/Packages'));
 }
 
 /** Phase 1654: warm Stays browse the same way as Tours. */
 export function prefetchStaysPage() {
-  void import('../pages/Stays');
+  warm(() => import('../pages/Stays'));
 }
 
 export function prefetchTourDetailsPage() {
-  void import('../pages/TourDetails');
+  warm(() => import('../pages/TourDetails'));
+}
+
+export function prefetchStayDetailsPage() {
+  warm(() => import('../pages/StayDetails'));
+}
+
+/** Prefetch the correct detail chunk for a catalog card. */
+export function prefetchListingDetailsPage(kind: 'tour' | 'stay'): void {
+  if (kind === 'stay') prefetchStayDetailsPage();
+  else prefetchTourDetailsPage();
+}
+
+export function prefetchDestinationPage() {
+  warm(() => import('../pages/DestinationPage'));
 }
 
 export function prefetchMyBookingsPage() {
-  void import('../pages/MyBookings');
+  warm(() => import('../pages/MyBookings'));
 }
 
 export function prefetchAuthPage() {
-  void import('../pages/AuthPage');
+  warm(() => import('../pages/AuthPage'));
+}
+
+export function prefetchAccountPage() {
+  warm(() => import('../pages/AccountPage'));
+}
+
+export function prefetchWishlistPage() {
+  warm(() => import('../pages/WishlistPage'));
+}
+
+export function prefetchBookingConfirmationPage() {
+  warm(() => import('../pages/BookingConfirmationPage'));
 }

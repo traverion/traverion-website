@@ -11,5 +11,6 @@ describe('AdminShell panel code-splitting', () => {
     expect(src).toContain("lazy(() => import('./AdminListingsModerationPanel'))");
     expect(src).not.toMatch(/import AdminBookingsPanel from/);
     expect(src).toContain('<Suspense');
+    expect(src).toContain('prefetchAdminTab');
   });
 });

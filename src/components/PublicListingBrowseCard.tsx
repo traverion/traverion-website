@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { Heart, MapPin, Users, BedDouble } from 'lucide-react';
-import { prefetchTourDetailsPage } from '../lib/routePrefetch';
+import { prefetchListingDetailsPage } from '../lib/routePrefetch';
 import type { TourPackage } from '../types/tour';
 import type { ListingDiscount } from '../data/supabase-discounts';
 import { getDisplayPriceForTour, isSupabaseListingId } from '../lib/discount-display';
@@ -173,7 +173,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
             onSelect();
           }
         }}
-        onPointerEnter={prefetchTourDetailsPage}
+        onPointerEnter={() => prefetchListingDetailsPage(isStay ? 'stay' : 'tour')}
         className="tv-browse-card__surface group lux-flat block w-full overflow-hidden rounded-xl bg-white text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
         style={{ animationDelay: `${Math.min(index * 35, 240)}ms` }}
         aria-label={`View ${tour.title}. ${priceAria}`}

@@ -2,10 +2,12 @@ import { useState, useRef, useEffect } from 'react';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import { Menu, X, User, LogOut, LayoutDashboard, Calendar, Heart, LifeBuoy, ExternalLink, Search, ShoppingBag } from 'lucide-react';
 import {
+  prefetchAccountPage,
   prefetchAuthPage,
   prefetchMyBookingsPage,
   prefetchPackagesPage,
   prefetchStaysPage,
+  prefetchWishlistPage,
 } from '../lib/routePrefetch';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -198,6 +200,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                   className="lux-flat hidden h-11 w-11 items-center justify-center rounded-full text-ink transition-colors duration-200 hover:bg-black/[0.04] lg:inline-flex"
                   aria-label="Saved"
                   aria-current={currentPage === 'wishlist' ? 'page' : undefined}
+                  onPointerEnter={prefetchWishlistPage}
                   onClick={() => onNavigate('wishlist')}
                 >
                   <Heart className={`h-4 w-4 ${currentPage === 'wishlist' ? 'fill-finland text-finland' : ''}`} aria-hidden />
@@ -230,6 +233,8 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 onPointerEnter={() => {
                   prefetchAuthPage();
                   prefetchMyBookingsPage();
+                  prefetchAccountPage();
+                  prefetchWishlistPage();
                 }}
               >
                 {user ? (

@@ -25,6 +25,7 @@ import { invokeAdminEdgeFunction, type AdminStatsPayload } from '../../lib/admin
 import { isSupabaseConfigured } from '../../lib/supabase';
 import { publicMarketingSiteUrl } from '../../lib/adminHost';
 import { appStripeIsTestMode } from '../../lib/money';
+import { prefetchAdminTab } from '../../lib/admin-tab-prefetch';
 
 const AdminSupplierVerificationPanel = lazy(() => import('./AdminSupplierVerificationPanel'));
 const AdminPastVerificationsPanel = lazy(() => import('./AdminPastVerificationsPanel'));
@@ -763,9 +764,11 @@ export default function AdminShell() {
                       <button
                         type="button"
                         onClick={() => setTab(item.id)}
-                        className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-left transition-all duration-200 ease-lux ${
+                        onPointerEnter={() => prefetchAdminTab(item.id)}
+                        onFocus={() => prefetchAdminTab(item.id)}
+                        className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-left transition-[background-color,color,transform,box-shadow] duration-[var(--tv-duration-hover,160ms)] ease-lux ${
                           active
-                            ? 'bg-finland text-white shadow-sm scale-[1.01]'
+                            ? 'bg-finland text-white shadow-sm'
                             : 'text-ink-muted hover:bg-finland/10 hover:text-finland'
                         }`}
                       >

@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { normalizePhoneNumber } from '../lib/phoneNormalize';
+import { createInflightCache } from '../lib/inflight-dedupe';
 import { resolveSupplierId } from './supabase-supplier-team';
 
 export type SupplierProfileRow = {
@@ -57,6 +58,13 @@ export type SupplierProfileRow = {
   created_at: string;
   updated_at: string;
 };
+
+/** Short TTL + coalescing — profile is read from many Partner surfaces on section hops. */
+const supplierProfileCache = createInflightCache<SupplierProfileRow | null>({ ttlMs: 12_000 });
+
+export function invalidateSupplierProfileCache(userId?: string): void {
+  supplierProfileCache.invalidate(userId);
+}
 
 const SUPPLIER_LOGO_BUCKET = 'supplier-logos';
 const VERIFICATION_BUCKET = 'supplier-verification';
@@ -358,6 +366,7 @@ export async function ensureSupplierProfile(
       { onConflict: 'id' }
     );
   if (error) return { success: false, error: error.message };
+  invalidateSupplierProfileCache(userId);
   return { success: true };
 }
 
@@ -367,19 +376,26 @@ export async function fetchSupplierProfile(
   opts?: { throwOnError?: boolean }
 ): Promise<SupplierProfileRow | null> {
   if (!supabase) return null;
-  // Phase 1202: team JWT → owner profile id (verification/payout gates).
-  const ownerSupplierId = await resolveSupplierId(userId);
-  const { data, error } = await supabase
-    .from('supplier_profiles')
-    .select('*')
-    .eq('id', ownerSupplierId)
-    .maybeSingle();
-  if (error) {
-    if (opts?.throwOnError) throw new Error(error.message);
+  const uid = userId.trim();
+  if (!uid) return null;
+  try {
+    return await supplierProfileCache.get(uid, async () => {
+      // Phase 1202: team JWT → owner profile id (verification/payout gates).
+      const ownerSupplierId = await resolveSupplierId(uid);
+      const { data, error } = await supabase!
+        .from('supplier_profiles')
+        .select('*')
+        .eq('id', ownerSupplierId)
+        .maybeSingle();
+      // Transport failures must not cache as a null profile.
+      if (error) throw new Error(error.message);
+      if (!data) return null;
+      return data as SupplierProfileRow;
+    });
+  } catch (e) {
+    if (opts?.throwOnError) throw e;
     return null;
   }
-  if (!data) return null;
-  return data as SupplierProfileRow;
 }
 
 /** Update payout fields on an existing supplier_profiles row (profile must already exist). */
@@ -411,6 +427,7 @@ export async function updateSupplierPayout(
     .maybeSingle();
   if (error) return { success: false, error: error.message };
   if (!data) return { success: false, error: 'Supplier profile not found' };
+  invalidateSupplierProfileCache(userId);
   return { success: true };
 }
 
@@ -436,6 +453,7 @@ export async function patchSupplierProfile(
   if (error) return { success: false, error: error.message };
   // RLS-denied updates return zero rows with no error — treat as failure (no false success).
   if (!data) return { success: false, error: 'Supplier profile not found' };
+  invalidateSupplierProfileCache(userId);
   return { success: true };
 }
 
@@ -490,6 +508,7 @@ export async function updateSupplierCompanyProfile(
     .maybeSingle();
   if (error) return { success: false, error: error.message };
   if (!data) return { success: false, error: 'Supplier profile not found' };
+  invalidateSupplierProfileCache(userId);
   return { success: true, supplierId: ownerSupplierId };
 }
 
