@@ -49,6 +49,7 @@ type EmailKind =
   | 'pickup_changed'
   | 'booking_cancelled'
   | 'cancellation_requested_by_supplier'
+  | 'supplier_cancelled_choose_resolution'
   | 'cancellation_accepted'
   | 'cancellation_declined'
   | 'new_booking_message'
@@ -332,6 +333,8 @@ function subjectForKind(
       return ref ? `Your booking has been cancelled · ${ref}` : `Your booking has been cancelled — ${t}`;
     case 'cancellation_requested_by_supplier':
       return withRef('Action needed on your booking');
+    case 'supplier_cancelled_choose_resolution':
+      return 'Your activity has been cancelled — choose a refund or new date';
     case 'cancellation_accepted':
       return withRef('Cancellation confirmed');
     case 'cancellation_declined':
@@ -845,6 +848,12 @@ serve(async (req) => {
       if (diffs.length) extraHtml = fieldDiffTableHtml(diffs);
       footerNote =
         'If you accept, a full refund is due when you paid online. Status becomes Refunded only after Stripe records it. Traverion does not send refunds automatically.';
+    } else if (kind === 'supplier_cancelled_choose_resolution') {
+      headline = 'Your activity was cancelled';
+      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your operator cancelled <strong>${escapeHtml(title)}</strong>. You are entitled to a <strong>full refund</strong>, or you can choose another available departure for the same activity in Trips. If you do not choose before the original official start time, your full refund begins automatically.</p>`;
+      if (diffs.length) extraHtml = fieldDiffTableHtml(diffs);
+      footerNote =
+        'Open Trips to get a full refund or pick another date. This email cannot issue a refund. Refunded appears only after Stripe confirms.';
     } else if (kind === 'cancellation_accepted') {
       headline = 'Cancellation confirmed';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">You accepted the host’s cancellation request. This booking is cancelled. A refund is due; it is recorded when Stripe processes it — Traverion does not refund automatically.</p>`;
@@ -974,7 +983,7 @@ serve(async (req) => {
             ? `${publicSiteUrl}/trips?booking=${encodeURIComponent(body.bookingId)}`
             : `${publicSiteUrl}/trips`;
     const ctaLabel =
-      kind === 'cancellation_requested_by_supplier'
+      kind === 'cancellation_requested_by_supplier' || kind === 'supplier_cancelled_choose_resolution'
         ? 'Choose in Trips'
         : kind === 'new_booking_message'
           ? 'View message'

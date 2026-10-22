@@ -102,6 +102,12 @@ export type BookingRow = {
   cancellation_reason?: string | null;
   refund_choice?: string | null;
   cancelled_at?: string | null;
+  /** Phase 1+: traveler | supplier | support | system */
+  cancellation_origin?: string | null;
+  /** Phase 1+: pending_customer_choice | full_refund | reschedule | support */
+  cancellation_resolution?: string | null;
+  rescheduled_from_booking_id?: string | null;
+  rescheduled_to_booking_id?: string | null;
   acknowledged_at?: string | null;
   created_at: string;
   /** Local experience start time (Postgres time, e.g. 18:30:00). */
@@ -152,7 +158,7 @@ export type BookingRow = {
 export type BookingWithPaymentRow = BookingRow;
 
 const BOOKING_LIST_COLUMNS =
-  'id, listing_id, guest_email, guest_name, guests, booking_date, check_out, nights, nightly_amount, cleaning_fee, status, special_requests, cancellation_reason, refund_choice, cancelled_at, acknowledged_at, created_at, start_time, pickup_time, booking_number, public_reference, guest_breakdown, booking_option_id, hold_expires_at, purchase_snapshot, approval_status, approval_expires_at, approval_decided_at';
+  'id, listing_id, guest_email, guest_name, guests, booking_date, check_out, nights, nightly_amount, cleaning_fee, status, special_requests, cancellation_reason, refund_choice, cancelled_at, cancellation_origin, cancellation_resolution, rescheduled_from_booking_id, rescheduled_to_booking_id, acknowledged_at, created_at, start_time, pickup_time, booking_number, public_reference, guest_breakdown, booking_option_id, hold_expires_at, purchase_snapshot, approval_status, approval_expires_at, approval_decided_at';
 
 const BOOKING_PAYMENT_COLUMNS = `${BOOKING_LIST_COLUMNS}, payment_status, checkout_session_id, payment_intent_id, total_amount, amount_paid, currency, auto_refund_status, auto_refund_error, auto_refund_stripe_id`;
 

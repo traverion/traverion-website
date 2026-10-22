@@ -63,6 +63,7 @@ export function guestMayInvokeCustomerEmailKind(emailKind: string): boolean {
     kind === 'booking_cancelled' ||
     kind === 'cancellation_accepted' ||
     kind === 'cancellation_declined'
+    // supplier_cancelled_choose_resolution: supplier/service only (not guest forge)
   );
 }
 

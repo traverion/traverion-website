@@ -29,6 +29,7 @@ export type NotifyCustomerContentKind =
   | 'pickup_changed'
   | 'booking_cancelled'
   | 'cancellation_requested_by_supplier'
+  | 'supplier_cancelled_choose_resolution'
   | 'cancellation_accepted'
   | 'cancellation_declined'
   | 'new_booking_message'

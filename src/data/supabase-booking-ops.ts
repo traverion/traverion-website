@@ -186,6 +186,8 @@ export async function requestSupplierCancellation(params: {
   immediate?: boolean;
   autoRefundQueued?: boolean;
   beforeOfficialStart?: boolean;
+  needsCustomerChoice?: boolean;
+  isStay?: boolean;
   refundExecution?: { success: boolean; error?: string };
 }> {
   if (!supabase) return { ok: false, error: PARTNER_CANCEL_REQUEST_SUBMIT_ERROR };
@@ -204,8 +206,8 @@ export async function requestSupplierCancellation(params: {
 
   const rpc = data && typeof data === 'object' ? (data as Record<string, unknown>) : {};
   const autoRefundQueued = rpc.auto_refund_queued === true;
-  // Phase 2: execute Stripe only when instruction queued (supplier after-start / traveler eligible).
-  // Before-start supplier cancel stays pending_customer_choice — no execute.
+  // Phase 2/3: execute Stripe only when instruction queued (after-start / stay / traveler).
+  // Tour before-start → pending_customer_choice — no execute until customer or deadline.
   let refundExecution: { success: boolean; error?: string } | undefined;
   if (autoRefundQueued) {
     const { executeBookingRefund } = await import('./supabase-bookings');
@@ -216,7 +218,142 @@ export async function requestSupplierCancellation(params: {
     immediate: rpc.immediate === true,
     autoRefundQueued,
     beforeOfficialStart: rpc.before_official_start === true,
+    needsCustomerChoice: rpc.needs_customer_choice === true,
+    isStay: rpc.is_stay === true,
     refundExecution,
+  };
+}
+
+/** Phase 3: traveler claims pending_customer_choice → full refund + Stripe execute. */
+export async function claimSupplierCancelRefundChoice(bookingId: string): Promise<{
+  ok: boolean;
+  error?: string;
+  alreadyResolved?: boolean;
+  refundExecution?: { success: boolean; error?: string };
+}> {
+  if (!supabase) return { ok: false, error: 'Could not start your refund.' };
+  const { data, error } = await supabase.rpc('claim_supplier_cancel_refund_choice', {
+    p_booking_id: bookingId,
+    p_reason: 'supplier_cancel_customer_chose_refund',
+  });
+  const parsed = parseRpc(data, error?.message, 'Could not start your refund.');
+  if (!parsed.ok) {
+    const rpc = data && typeof data === 'object' ? (data as Record<string, unknown>) : {};
+    return {
+      ...parsed,
+      alreadyResolved: rpc.error === 'already_resolved',
+    };
+  }
+  const { executeBookingRefund } = await import('./supabase-bookings');
+  const refundExecution = await executeBookingRefund(bookingId);
+  return { ...parsed, refundExecution };
+}
+
+/** Phase 3: traveler reschedules a supplier-cancelled tour onto a real departure. */
+export async function rescheduleSupplierCancelledBooking(params: {
+  bookingId: string;
+  newDate: string;
+  newStartTimeHm: string;
+}): Promise<{
+  ok: boolean;
+  error?: string;
+  newBookingId?: string;
+  alreadyResolved?: boolean;
+  inventoryUnavailable?: boolean;
+  deadlinePassed?: boolean;
+}> {
+  if (!supabase) return { ok: false, error: 'Could not reschedule this booking.' };
+  const { data, error } = await supabase.rpc('reschedule_supplier_cancelled_booking', {
+    p_booking_id: params.bookingId,
+    p_new_date: params.newDate,
+    p_new_start_time: params.newStartTimeHm,
+  });
+  const parsed = parseRpc(data, error?.message, 'Could not reschedule this booking.');
+  const rpc = data && typeof data === 'object' ? (data as Record<string, unknown>) : {};
+  if (!parsed.ok) {
+    return {
+      ...parsed,
+      alreadyResolved: rpc.error === 'already_resolved',
+      inventoryUnavailable: rpc.inventory_unavailable === true,
+      deadlinePassed: rpc.deadline_passed === true,
+    };
+  }
+  const newBookingId = typeof rpc.new_booking_id === 'string' ? rpc.new_booking_id : undefined;
+  // Soft notify — reschedule already committed; email failure must not undo it.
+  if (newBookingId) {
+    try {
+      const { data: row } = await supabase
+        .from('bookings')
+        .select(
+          'id, listing_id, guest_email, guest_name, booking_date, start_time, booking_number, guests, purchase_snapshot'
+        )
+        .eq('id', newBookingId)
+        .maybeSingle();
+      if (row) {
+        const title =
+          (row.purchase_snapshot as { listingTitle?: string } | null)?.listingTitle ?? 'Booking';
+        const newHm = String(rpc.start_time ?? '').trim();
+        const newDate = String(rpc.booking_date ?? row.booking_date ?? '').slice(0, 10);
+        await supabase.functions.invoke('notify-customer-booking', {
+          body: {
+            customerEmail: (row.guest_email ?? '').trim() || 'resolve@guest.local',
+            customerName: row.guest_name ?? undefined,
+            listingTitle: title,
+            bookingId: newBookingId,
+            bookingNumber: row.booking_number ?? undefined,
+            bookingDate: newDate || undefined,
+            emailKind: 'host_updated_schedule',
+            fieldDiffs: [
+              {
+                label: 'Status',
+                before: 'Cancelled by operator',
+                after: 'Rescheduled — confirmed',
+              },
+              {
+                label: 'New departure',
+                before: '—',
+                after: `${newDate}${newHm ? ` · ${newHm}` : ''}`,
+              },
+            ],
+            publicSiteUrl: publicSiteBaseUrl(),
+            idempotencyKey: `customer:reschedule_confirmed:${params.bookingId}:${newBookingId}`,
+          },
+        });
+        const meta = await fetchListingSupplierMetaForParty(row.listing_id);
+        const supplierId = meta?.supplier_id ? await resolveSupplierId(meta.supplier_id) : null;
+        if (supplierId) {
+          await notifySupplierEvent({
+            supplierId,
+            eventType: 'booking_detail_changed',
+            listingId: row.listing_id,
+            listingTitle: title,
+            bookingId: newBookingId,
+            bookingDate: newDate || undefined,
+            guests: row.guests ?? undefined,
+            guestName: row.guest_name ?? undefined,
+            bookingNumber: typeof row.booking_number === 'number' ? row.booking_number : undefined,
+            changeSummary: `Traveler rescheduled after operator cancellation to ${newDate}${
+              newHm ? ` ${newHm}` : ''
+            }. Payment preserved — no new charge.`,
+            fieldDiffs: [
+              {
+                label: 'Departure',
+                before: 'Cancelled departure',
+                after: `${newDate}${newHm ? ` · ${newHm}` : ''}`,
+              },
+            ],
+            idempotencyKey: `supplier:reschedule_confirmed:${params.bookingId}:${newBookingId}`,
+            portalBaseUrl: supplierPortalPublicBaseUrl(),
+          });
+        }
+      }
+    } catch {
+      // Soft notify only.
+    }
+  }
+  return {
+    ...parsed,
+    newBookingId,
   };
 }
 
@@ -254,9 +391,50 @@ export async function notifyTravelerCancellationRequest(params: {
   reasonLabel: string;
   /** Phase 1712: cancellation_requests.id so a re-request after decline is not already_sent. */
   requestId?: string | null;
+  /** Phase 3: Tour before start — customer must choose refund or reschedule. */
+  needsCustomerChoice?: boolean;
+  /** Official start deadline label for email (local activity timezone). */
+  choiceDeadlineLabel?: string | null;
+  startTimeLabel?: string | null;
 }): Promise<SoftNotifyResult> {
   if (!supabase) return { sent: false, error: 'Supabase not configured' };
   const reqSuffix = (params.requestId ?? '').trim() || String(Date.now());
+  const choose = params.needsCustomerChoice === true;
+  const emailKind = choose
+    ? 'supplier_cancelled_choose_resolution'
+    : 'cancellation_requested_by_supplier';
+  const idempotencyKey = choose
+    ? `customer:supplier_cancelled_choose:${params.bookingId}:${reqSuffix}`
+    : `customer:cancellation_by_supplier:${params.bookingId}:${reqSuffix}`;
+  const fieldDiffs = choose
+    ? [
+        { label: 'Reason', before: 'Active booking', after: params.reasonLabel },
+        {
+          label: 'Status',
+          before: 'Confirmed',
+          after: 'Cancelled by operator — choose a full refund or another departure in Trips',
+        },
+        ...(params.startTimeLabel
+          ? [{ label: 'Original start', before: '—', after: params.startTimeLabel }]
+          : []),
+        ...(params.choiceDeadlineLabel
+          ? [
+              {
+                label: 'Choose by',
+                before: '—',
+                after: params.choiceDeadlineLabel,
+              },
+            ]
+          : []),
+      ]
+    : [
+        { label: 'Reason', before: 'Active booking', after: params.reasonLabel },
+        {
+          label: 'Status',
+          before: 'Confirmed',
+          after: 'Cancelled by operator — a full refund is due. Open Trips for details.',
+        },
+      ];
   const { data, error } = await supabase.functions.invoke('notify-customer-booking', {
     body: {
       customerEmail: params.customerEmail,
@@ -265,18 +443,10 @@ export async function notifyTravelerCancellationRequest(params: {
       bookingId: params.bookingId,
       bookingNumber: params.bookingNumber,
       bookingDate: params.bookingDate ?? undefined,
-      emailKind: 'cancellation_requested_by_supplier',
-      fieldDiffs: [
-        { label: 'Reason', before: 'Active booking', after: params.reasonLabel },
-        {
-          label: 'Status',
-          before: 'Confirmed',
-          after: 'Cancelled by operator — a full refund is due. Open Trips for details.',
-        },
-      ],
+      emailKind,
+      fieldDiffs,
       publicSiteUrl: publicSiteBaseUrl(),
-      // Phase 1: per cancellation_requests row (immediate supplier cancel).
-      idempotencyKey: `customer:cancellation_by_supplier:${params.bookingId}:${reqSuffix}`,
+      idempotencyKey,
     },
   });
   // Phase 1859: return notify outcome — caller must not treat failure as RPC failure.

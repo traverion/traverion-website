@@ -21,6 +21,7 @@ import {
   type BookingRow,
 } from '../data/supabase-bookings';
 import StayRequestActions from '../components/StayRequestActions';
+import SupplierCancelResolutionPanel from '../components/SupplierCancelResolutionPanel';
 import { isStayRequestAwaitingHost } from '../lib/stay-request-approval';
 import { fetchListingOpsByIds, pgTimeToHm, type ListingOpsMeta } from '../data/supabase-listings';
 import { stayRangeFromBooking, nightsOccupiedByStay } from '../lib/stayOccupancy';
@@ -1292,6 +1293,28 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         listingTitle: tripTitle,
                       }}
                       onDone={() => void load()}
+                    />
+                  ) : null}
+                  {tripDetailTab === 'overview' ? (
+                    <SupplierCancelResolutionPanel
+                      booking={b}
+                      listingExtras={ops?.listing_extras}
+                      onContactOperator={() => {
+                        setTripDetailTab('messages');
+                        setFocusMessageId(b.id);
+                      }}
+                      onContactSupport={() => onNavigate('contact')}
+                      onResolved={(opts) => {
+                        void load().then(() => {
+                          if (opts?.newBookingId) {
+                            setOpenTripId(opts.newBookingId);
+                            setTripView('upcoming');
+                            const url = new URL(window.location.href);
+                            url.searchParams.set('booking', opts.newBookingId);
+                            window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+                          }
+                        });
+                      }}
                     />
                   ) : null}
                   <dl className={`tv-trip-card__facts ${tripDetailTab === 'messages' ? 'hidden' : ''}`}>

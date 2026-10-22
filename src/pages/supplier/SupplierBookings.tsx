@@ -892,6 +892,7 @@ export default function SupplierBookings({
       bookingDate: cancelModal.booking_date,
       reasonLabel: supplierCancellationReasonLabel(cancelReason),
       requestId: res.id,
+      needsCustomerChoice: res.needsCustomerChoice === true,
     });
     setCancelModal(null);
     setCancelReasonText('');
