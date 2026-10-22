@@ -24,6 +24,7 @@ export type MoneyBookingRow = {
   refund_choice?: string | null;
   hold_expires_at?: string | null;
   created_at?: string | null;
+  auto_refund_status?: string | null;
 };
 
 export function normalizePaymentStatus(raw: string | null | undefined): string {
@@ -64,7 +65,11 @@ export type MoneyBookingRowWithDispute = MoneyBookingRow & {
   dispute_status?: string | null;
 };
 
-export function travelerPaymentLabel(b: MoneyBookingRowWithDispute): string {
+export type MoneyBookingRowWithAutoRefund = MoneyBookingRowWithDispute & {
+  auto_refund_status?: string | null;
+};
+
+export function travelerPaymentLabel(b: MoneyBookingRowWithAutoRefund): string {
   const pay = normalizePaymentStatus(b.payment_status);
   const cancelled = (b.status ?? '').trim().toLowerCase() === 'cancelled';
   const dispute = (b.dispute_status ?? '').trim().toLowerCase();
@@ -77,6 +82,11 @@ export function travelerPaymentLabel(b: MoneyBookingRowWithDispute): string {
   if (cancelled && isPaidPaymentStatus(pay)) {
     const choice = (b.refund_choice ?? '').trim().toLowerCase();
     if (choice === 'no_refund') return 'No refund';
+    const auto = (b.auto_refund_status ?? '').trim().toLowerCase();
+    if (auto === 'failed') return 'Refund delayed';
+    if (auto === 'queued' || auto === 'processing' || auto === 'submitted') {
+      return 'Refund processing';
+    }
     return 'Refund due';
   }
   if (cancelled) return 'Cancelled';
@@ -105,17 +115,40 @@ export function partnerPaymentLabel(b: MoneyBookingRow): string {
  */
 export function partnerCollectedAmountCaption(b: MoneyBookingRow): string {
   const label = partnerPaymentLabel(b);
-  if (label === 'Refunded' || label === 'Refund due' || label === 'No refund') return label;
+  if (
+    label === 'Refunded' ||
+    label === 'Refund due' ||
+    label === 'Refund processing' ||
+    label === 'Refund delayed' ||
+    label === 'No refund'
+  ) {
+    return label;
+  }
   return 'Paid';
 }
 
 /** Traveler/partner copy when a refund is owed but auto-refund is off. */
 export const REFUND_DUE_MANUAL_COPY =
-  'A refund is due. Traverion does not send Stripe refunds automatically. This stays Refund due until a refund is issued in Stripe.';
+  'A refund is due. For stays, Traverion queues an automatic Stripe refund after eligible cancellation. This status clears when Stripe confirms the refund.';
 
-/** Cancelled + still paid (not no_refund) — money collected but refund not issued in Stripe. */
-export function isRefundDueBooking(b: MoneyBookingRow): boolean {
-  return travelerPaymentLabel(b) === 'Refund due';
+export const REFUND_PROCESSING_COPY =
+  'Your refund was submitted to Stripe. Bank timing depends on your card issuer — Trips will show Refunded when Stripe confirms it.';
+
+export const REFUND_DELAYED_COPY =
+  'We could not finish submitting this refund to Stripe. Traverion will keep the refund obligation visible until it succeeds. You can retry from this trip, or contact support if it stays delayed.';
+
+/** Cancelled + still paid with refund entitlement (includes processing / delayed). */
+export function isRefundDueBooking(b: MoneyBookingRowWithAutoRefund): boolean {
+  const label = travelerPaymentLabel(b);
+  return label === 'Refund due' || label === 'Refund processing' || label === 'Refund delayed';
+}
+
+export function isRefundProcessingBooking(b: MoneyBookingRowWithAutoRefund): boolean {
+  return travelerPaymentLabel(b) === 'Refund processing';
+}
+
+export function isRefundDelayedBooking(b: MoneyBookingRowWithAutoRefund): boolean {
+  return travelerPaymentLabel(b) === 'Refund delayed';
 }
 
 /** Sum of amount_paid on Refund due rows (same currency assumed by caller). */

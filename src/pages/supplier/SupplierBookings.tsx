@@ -2159,9 +2159,9 @@ export default function SupplierBookings({
                 }
                 onOpenPickupPlanner={() => openSupplierPickup(booking.id)}
                 extraNotices={
-                  partnerPaymentLabel(booking) === 'Refund due' ? (
+                  ['Refund due', 'Refund processing', 'Refund delayed'].includes(partnerPaymentLabel(booking)) ? (
                     <div className="mt-2 rounded-md border border-black/[0.06] border-l-[3px] border-l-amber-500 bg-paper px-3 py-2">
-                      <p className="text-[13px] font-semibold text-ink">Refund due</p>
+                      <p className="text-[13px] font-semibold text-ink">{partnerPaymentLabel(booking)}</p>
                       <p className="mt-0.5 text-[12px] leading-snug text-ink-muted">{REFUND_DUE_MANUAL_COPY}</p>
                     </div>
                   ) : null
@@ -2438,9 +2438,9 @@ export default function SupplierBookings({
                   )
                 }
                 extraNotices={
-                  partnerPaymentLabel(booking) === 'Refund due' ? (
+                  ['Refund due', 'Refund processing', 'Refund delayed'].includes(partnerPaymentLabel(booking)) ? (
                     <div className="mt-2 rounded-md border border-black/[0.06] border-l-[3px] border-l-amber-500 bg-paper px-3 py-2">
-                      <p className="text-[13px] font-semibold text-ink">Refund due</p>
+                      <p className="text-[13px] font-semibold text-ink">{partnerPaymentLabel(booking)}</p>
                       <p className="mt-0.5 text-[12px] leading-snug text-ink-muted">{REFUND_DUE_MANUAL_COPY}</p>
                     </div>
                   ) : null

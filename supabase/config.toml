@@ -30,6 +30,10 @@ verify_jwt = false
 [functions.stripe-webhook]
 verify_jwt = false
 
+[functions.execute-booking-refund]
+# Validate JWT (or service role) inside the function.
+verify_jwt = false
+
 # Invoked from stripe-webhook (server); uses service role in Authorization.
 [functions.notify-customer-booking]
 verify_jwt = false

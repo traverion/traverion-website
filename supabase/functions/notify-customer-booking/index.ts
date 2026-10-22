@@ -55,6 +55,7 @@ type EmailKind =
   | 'pickup_action_required'
   | 'traveler_welcome'
   | 'refund_completed'
+  | 'refund_initiated'
   | 'partial_refund_recorded'
   | 'experience_reminder'
   | 'review_request'
@@ -343,6 +344,8 @@ function subjectForKind(
       return 'Welcome to Traverion';
     case 'refund_completed':
       return withRef('Your refund is complete');
+    case 'refund_initiated':
+      return withRef('Your refund is being processed');
     case 'partial_refund_recorded':
       return withRef('A partial refund was recorded');
     case 'experience_reminder':
@@ -891,6 +894,14 @@ serve(async (req) => {
       footerNote =
         body.refundStatusNote?.trim() ||
         'Your booking shows this refund as complete. Your bank may take a few days to post it.';
+    } else if (kind === 'refund_initiated') {
+      headline = 'Your refund is being processed';
+      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">We submitted a refund to Stripe for this cancelled booking. Trips will show Refunded when Stripe confirms it.</p>`;
+      if (typeof amount === 'number') {
+        extraHtml = `<p style="margin:0;font-size:14px;color:#374151;"><strong>Refund amount:</strong> ${escapeHtml(currency)} ${amount.toFixed(2)}</p>`;
+      }
+      footerNote =
+        'Bank timing varies by card issuer. You will get another email when Stripe confirms the refund.';
     } else if (kind === 'partial_refund_recorded') {
       // Phase 1735: active paid booking stays Paid; inventory held.
       // Phase 1740: cancelled Refund due — do not claim reservation still active.

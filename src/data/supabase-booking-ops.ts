@@ -196,14 +196,24 @@ export async function requestSupplierCancellation(params: {
 
 export async function respondToCancellationRequest(
   requestId: string,
-  accept: boolean
-): Promise<{ ok: boolean; error?: string }> {
+  accept: boolean,
+  options?: { bookingId?: string | null }
+): Promise<{ ok: boolean; error?: string; refundExecution?: { success: boolean; error?: string } }> {
   if (!supabase) return { ok: false, error: 'Could not update this cancellation request.' };
   const { data, error } = await supabase.rpc('respond_cancellation_request', {
     p_request_id: requestId,
     p_accept: accept,
   });
-  return parseRpc(data, error?.message, 'Could not update this cancellation request.');
+  const parsed = parseRpc(data, error?.message, 'Could not update this cancellation request.');
+  if (!parsed.ok || !accept) return parsed;
+
+  const bookingId = (options?.bookingId ?? '').trim();
+  if (!bookingId) return parsed;
+
+  // Step 2.3: supplier-accepted cancel → full refund for stays (idempotent).
+  const { executeBookingRefund } = await import('./supabase-bookings');
+  const refundExecution = await executeBookingRefund(bookingId);
+  return { ...parsed, refundExecution };
 }
 
 export { bookingAllowsMessaging, messagingComposeBlock } from '../lib/messaging-authorization';

@@ -112,6 +112,10 @@ export type BookingRow = {
   total_amount?: number | null;
   amount_paid?: number | null;
   currency?: string | null;
+  /** Stay auto-refund pipeline (null once Stripe confirms refunded). */
+  auto_refund_status?: 'queued' | 'processing' | 'submitted' | 'failed' | string | null;
+  auto_refund_error?: string | null;
+  auto_refund_stripe_id?: string | null;
   /** Stay check-out (exclusive). Null for tours. */
   check_out?: string | null;
   nights?: number | null;
@@ -143,7 +147,7 @@ export type BookingWithPaymentRow = BookingRow;
 const BOOKING_LIST_COLUMNS =
   'id, listing_id, guest_email, guest_name, guests, booking_date, check_out, nights, nightly_amount, cleaning_fee, status, special_requests, cancellation_reason, refund_choice, cancelled_at, acknowledged_at, created_at, start_time, pickup_time, booking_number, public_reference, guest_breakdown, booking_option_id, hold_expires_at, purchase_snapshot, approval_status, approval_expires_at, approval_decided_at';
 
-const BOOKING_PAYMENT_COLUMNS = `${BOOKING_LIST_COLUMNS}, payment_status, checkout_session_id, payment_intent_id, total_amount, amount_paid, currency`;
+const BOOKING_PAYMENT_COLUMNS = `${BOOKING_LIST_COLUMNS}, payment_status, checkout_session_id, payment_intent_id, total_amount, amount_paid, currency, auto_refund_status, auto_refund_error, auto_refund_stripe_id`;
 
 /** Pre–approval columns (migration 252). */
 const BOOKING_LIST_COLUMNS_NO_APPROVAL =
@@ -1205,6 +1209,8 @@ export async function cancelBookingAsCustomer(
   unpaidCheckout?: boolean;
   /** Phase 1859: cancel already committed; soft warn if notify failed. */
   notifyWarning?: string;
+  /** Step 2.3: Stay auto-refund attempt after cancel (soft). */
+  refundExecution?: Awaited<ReturnType<typeof executeBookingRefund>>;
 }> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
   const { data: current, error: loadError } = await supabase
@@ -1338,7 +1344,59 @@ export async function cancelBookingAsCustomer(
     softResults.push(softNotifyFromEdgePayload(customer.data, customer.error));
   }
   const notifyWarning = softNotifyWarningFromResults(...softResults) ?? undefined;
-  return { success: true, refundChoice: serverChoice, unpaidCheckout, notifyWarning };
+
+  // Step 2.3: queue Stay auto-refund with Stripe (idempotent). Soft-fail — cancel already committed.
+  let refundExecution: Awaited<ReturnType<typeof executeBookingRefund>> | undefined;
+  if (!unpaidCheckout && serverChoice === 'full_refund') {
+    refundExecution = await executeBookingRefund(bookingId);
+  }
+
+  return {
+    success: true,
+    refundChoice: serverChoice,
+    unpaidCheckout,
+    notifyWarning,
+    refundExecution,
+  };
+}
+
+/** Submit queued Stay cancellation refund to Stripe (idempotent). */
+export async function executeBookingRefund(bookingId: string): Promise<{
+  success: boolean;
+  error?: string;
+  stripeRefundId?: string | null;
+  retryable?: boolean;
+  alreadyRefunded?: boolean;
+  pending?: boolean;
+}> {
+  if (!supabase) return { success: false, error: 'Supabase not configured' };
+  const { data, error } = await supabase.functions.invoke('execute-booking-refund', {
+    body: { bookingId },
+  });
+  if (error) {
+    return { success: false, error: error.message, retryable: true };
+  }
+  const payload = (data ?? {}) as {
+    success?: boolean;
+    error?: string;
+    stripeRefundId?: string;
+    retryable?: boolean;
+    alreadyRefunded?: boolean;
+    pending?: boolean;
+  };
+  if (!payload.success) {
+    return {
+      success: false,
+      error: payload.error ?? 'Could not submit refund',
+      retryable: payload.retryable !== false,
+    };
+  }
+  return {
+    success: true,
+    stripeRefundId: payload.stripeRefundId ?? null,
+    alreadyRefunded: payload.alreadyRefunded === true,
+    pending: payload.pending === true,
+  };
 }
 
 /** Fetch current consumer's bookings (RLS: guest_user_id or verified guest_email). Must be logged in. Throws on Supabase error. */

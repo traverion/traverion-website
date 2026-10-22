@@ -44,6 +44,7 @@ type EventType =
   | 'cancellation_declined'
   /** Phase 1733: Stripe full refund — Money/ledger reversed */
   | 'refund_completed'
+  | 'refund_initiated'
   /** Phase 1735: Stripe partial refund — amount_paid shrunk, stays Paid */
   | 'partial_refund_recorded';
 
@@ -163,6 +164,9 @@ function eventSubject(payload: Payload): string {
   if (payload.eventType === 'refund_completed') {
     return ref ? `Refund complete · ${ref}` : `Refund recorded · ${listing}`;
   }
+  if (payload.eventType === 'refund_initiated') {
+    return ref ? `Refund submitted · ${ref}` : `Refund submitted to Stripe · ${listing}`;
+  }
   if (payload.eventType === 'partial_refund_recorded') {
     return ref ? `Partial refund · ${ref}` : `Partial refund recorded · ${listing}`;
   }
@@ -212,17 +216,25 @@ function eventBody(payload: Payload): string {
       payload.unpaidCheckout === true
         ? 'No payment was collected. The hold is released; nothing is Refund due.'
         : payload.refundChoice === 'full_refund'
-          ? 'A full refund is due until Stripe records it — Traverion does not send refunds automatically. Inventory is released.'
+          ? 'A full refund is due. For stays Traverion submits the refund to Stripe automatically. Inventory is released.'
           : payload.refundChoice === 'no_refund'
             ? 'No refund applies for this traveler-initiated cancellation. Inventory is released.'
-            : 'When a refund applies, traveler status is Refund due until Stripe records a refund — Traverion does not send refunds automatically.',
+            : 'When a refund applies, traveler status updates when Stripe confirms the refund.',
     );
   } else if (payload.eventType === 'cancellation_accepted') {
     lines.push('Traveler chose cancellation after your cancellation request.');
     lines.push(`Listing: ${listing}`);
     lines.push(
-      'This booking is cancelled. Traveler refund is due until Stripe records Refunded — Traverion does not refund automatically.',
+      'This booking is cancelled. For stays Traverion submits a full refund to Stripe automatically. Status becomes Refunded when Stripe confirms it.',
     );
+  } else if (payload.eventType === 'refund_initiated') {
+    lines.push('A refund was submitted to Stripe for this cancelled booking.');
+    lines.push(`Listing: ${listing}`);
+    if (typeof payload.refundAmount === 'number' && Number.isFinite(payload.refundAmount)) {
+      const cur = (payload.currency ?? 'EUR').trim().toUpperCase() || 'EUR';
+      lines.push(`Refund amount: ${cur} ${payload.refundAmount.toFixed(2)}`);
+    }
+    lines.push('Bookings will show Refunded when Stripe confirms the refund. Earnings were already reversed on cancel.');
   } else if (payload.eventType === 'cancellation_declined') {
     lines.push('Traveler declined your cancellation request.');
     lines.push(`Listing: ${listing}`);

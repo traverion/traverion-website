@@ -1,0 +1,62 @@
+{
+  "ok": true,
+  "steps": [
+    {
+      "name": "created_paid_pi",
+      "paymentIntentId": "pi_3UTTLyC3BaJIHpM60QQ7KPbC",
+      "amountMinor": 2700
+    },
+    {
+      "name": "inserted_cancelled_stay_booking",
+      "bookingId": "a3333333-3333-4333-8333-333333333333"
+    },
+    {
+      "name": "fixture_is_stay",
+      "stay": true
+    },
+    {
+      "name": "ensure_instruction",
+      "id": "6268939f-8a4b-4f08-aab7-289abc01c7c0",
+      "status": "ready",
+      "amountMinor": 2700
+    },
+    {
+      "name": "claim_instruction",
+      "status": "processing"
+    },
+    {
+      "name": "stripe_refund_created",
+      "refundId": "re_3UTTLyC3BaJIHpM60tuW93rf",
+      "status": "succeeded"
+    },
+    {
+      "name": "stripe_refund_idempotent_replay",
+      "refundId": "re_3UTTLyC3BaJIHpM60tuW93rf"
+    },
+    {
+      "name": "mark_instruction_submitted",
+      "status": "succeeded"
+    },
+    {
+      "name": "non_refundable_blocked",
+      "error": "no_refund_entitlement"
+    },
+    {
+      "name": "webhook_style_success_mark",
+      "paymentStatus": "refunded"
+    },
+    {
+      "name": "stripe_refund_verified",
+      "id": "re_3UTTLyC3BaJIHpM60tuW93rf",
+      "status": "succeeded",
+      "amount": 2700
+    }
+  ],
+  "stripePaymentIntentId": "pi_3UTTLyC3BaJIHpM60QQ7KPbC",
+  "stripeRefundId": "re_3UTTLyC3BaJIHpM60tuW93rf",
+  "stripeRefundStatus": "succeeded",
+  "duplicateRefundId": "re_3UTTLyC3BaJIHpM60tuW93rf",
+  "instructionStatus": "succeeded",
+  "nonRefundableBlocked": true,
+  "errors": []
+}

@@ -15,6 +15,7 @@ import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import {
   fetchMyBookings,
   cancelBookingAsCustomer,
+  executeBookingRefund,
   updateGuestBookingSpecialRequests,
   resumePendingBookingCheckout,
   type BookingRow,
@@ -27,7 +28,14 @@ import {
   stayPaidAdjacentNightCount,
 } from '../lib/booking-confirmation-copy';
 import { formatMoney, isStripeTestCheckoutSession, appStripeIsTestMode } from '../lib/money';
-import { travelerPaymentLabel, REFUND_DUE_MANUAL_COPY, bookingPaymentWasCollected, isRefundDueBooking } from '../lib/payment-states';
+import {
+  travelerPaymentLabel,
+  REFUND_DUE_MANUAL_COPY,
+  REFUND_PROCESSING_COPY,
+  REFUND_DELAYED_COPY,
+  bookingPaymentWasCollected,
+  isRefundDueBooking,
+} from '../lib/payment-states';
 import { formatBookingParticipantsLabel } from '../lib/participant-mix';
 import { formatBookingDateDisplay } from '../lib/booking-flow';
 import { bookingLifecycleLabel } from '../lib/status-language';
@@ -305,11 +313,22 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
       // Phase 1726: toast follows server refund_choice (SQL may coerce near cutoff).
       const serverChoice = res.refundChoice ?? refundChoice;
       const serverUnpaid = res.unpaidCheckout ?? unpaid;
-      const baseBody = serverUnpaid
+      let baseBody = serverUnpaid
         ? TRAVELER_CANCEL_UNPAID_CHECKOUT_SUCCESS
         : serverChoice === 'full_refund'
           ? TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE
           : TRAVELER_SELF_CANCEL_SUCCESS_NO_REFUND;
+      if (!serverUnpaid && serverChoice === 'full_refund' && res.refundExecution?.success) {
+        baseBody =
+          'Booking cancelled. Your refund was submitted to Stripe. Trips will show Refunded when Stripe confirms it — bank timing varies.';
+      } else if (
+        !serverUnpaid &&
+        serverChoice === 'full_refund' &&
+        res.refundExecution &&
+        !res.refundExecution.success
+      ) {
+        baseBody = `${TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE} ${REFUND_DELAYED_COPY}`;
+      }
       // Phase 1859: cancel is authoritative; append soft notify warning when present.
       setActionSuccess({
         title: serverUnpaid ? 'Checkout cancelled' : 'Booking cancelled',
@@ -327,7 +346,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
       setRespondingId(req.id);
       setActionError(null);
       setActionSuccess(null);
-      const res = await respondToCancellationRequest(req.id, accept);
+      const res = await respondToCancellationRequest(req.id, accept, { bookingId: b.id });
       setRespondingId(null);
       if (!res.ok) {
         setActionError(userFacingError(res.error, 'Could not update this cancellation request.'));
@@ -896,9 +915,9 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
             ) : (
           <div className="space-y-4">
             {tripView === 'cancelled' && refundDueCount > 0 ? (
-              <NoticeCallout title="Refund due" tone="warn">
-                {refundDueCount} trip{refundDueCount === 1 ? '' : 's'} still show Refund due. {REFUND_DUE_MANUAL_COPY}{' '}
-                Open a trip below for the details.
+              <NoticeCallout title="Refunds in progress" tone="warn">
+                {refundDueCount} trip{refundDueCount === 1 ? '' : 's'} still need a completed Stripe refund.
+                Open a trip for status details.
               </NoticeCallout>
             ) : null}
           <div className="space-y-3">
@@ -1503,9 +1522,67 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       </p>
                     </NoticeCallout>
                   ) : null}
+                  {tripDetailTab === 'overview' && b.status === 'cancelled' && payLabel === 'Refund processing' ? (
+                    <NoticeCallout title="Refund processing" tone="info">
+                      {REFUND_PROCESSING_COPY}
+                    </NoticeCallout>
+                  ) : null}
+                  {tripDetailTab === 'overview' && b.status === 'cancelled' && payLabel === 'Refund delayed' ? (
+                    <NoticeCallout title="Refund delayed" tone="warn">
+                      <p>{REFUND_DELAYED_COPY}</p>
+                      <button
+                        type="button"
+                        className="tv-btn-secondary mt-3"
+                        disabled={cancellingId === b.id}
+                        onClick={async () => {
+                          setCancellingId(b.id);
+                          const retry = await executeBookingRefund(b.id);
+                          setCancellingId(null);
+                          if (retry.success) {
+                            setActionSuccess({
+                              title: 'Refund resubmitted',
+                              body: REFUND_PROCESSING_COPY,
+                            });
+                            load();
+                          } else {
+                            setActionError(
+                              userFacingError(retry.error, 'Could not resubmit this refund. Try again shortly.')
+                            );
+                          }
+                        }}
+                      >
+                        {cancellingId === b.id ? 'Retrying…' : 'Retry refund'}
+                      </button>
+                    </NoticeCallout>
+                  ) : null}
                   {tripDetailTab === 'overview' && b.status === 'cancelled' && payLabel === 'Refund due' ? (
                     <NoticeCallout title="Refund due" tone="warn">
                       {REFUND_DUE_MANUAL_COPY}
+                      {bookingIsStayNight(b) ? (
+                        <button
+                          type="button"
+                          className="tv-btn-secondary mt-3"
+                          disabled={cancellingId === b.id}
+                          onClick={async () => {
+                            setCancellingId(b.id);
+                            const retry = await executeBookingRefund(b.id);
+                            setCancellingId(null);
+                            if (retry.success) {
+                              setActionSuccess({
+                                title: 'Refund submitted',
+                                body: REFUND_PROCESSING_COPY,
+                              });
+                              load();
+                            } else {
+                              setActionError(
+                                userFacingError(retry.error, 'Could not submit this refund. Try again shortly.')
+                              );
+                            }
+                          }}
+                        >
+                          {cancellingId === b.id ? 'Submitting…' : 'Submit refund'}
+                        </button>
+                      ) : null}
                     </NoticeCallout>
                   ) : null}
                   {b.status === 'cancelled' && guestNotes ? (

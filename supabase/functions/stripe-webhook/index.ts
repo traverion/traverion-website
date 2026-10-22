@@ -724,6 +724,16 @@ serve(async (req) => {
           });
           if (reverseErr) throw new Error(reverseErr.message);
 
+          // Step 2.3: mark durable cancel-refund instructions succeeded (idempotent).
+          const latestRefundId =
+            Array.isArray(charge.refunds?.data) && charge.refunds.data[0]?.id
+              ? String(charge.refunds.data[0].id)
+              : null;
+          await admin.rpc('mark_booking_refund_instructions_succeeded', {
+            p_booking_id: booking.id,
+            p_stripe_refund_id: latestRefundId,
+          });
+
           // Notify traveler only after payment_status is actually refunded (not on partial).
           // Phase 1789: always notify — edge resolves auth email when guest_email blank (1788).
           const guestEmail = (booking.guest_email ?? '').trim().toLowerCase();

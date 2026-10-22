@@ -253,7 +253,7 @@ export const TRAVELER_SELF_CANCEL_CTA = 'Cancel booking';
 
 /** Traveler Trips — success after self-cancel with refund due. */
 export const TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE =
-  'Booking cancelled. Status: Refund due until Stripe records a refund. Traverion does not send refunds automatically. Open Cancelled to follow status.';
+  'Booking cancelled. A refund is due — for stays Traverion submits it to Stripe automatically. Open Cancelled to follow status until Stripe confirms Refunded.';
 
 /** Traveler Trips — success after self-cancel with no refund. */
 export const TRAVELER_SELF_CANCEL_SUCCESS_NO_REFUND =
@@ -295,7 +295,7 @@ export const SUPPLIER_BOOKING_CANCELLED_UNPAID_NOTIFY_SUB =
 
 /** Traveler Trips — success after accepting host cancel request. */
 export const TRAVELER_ACCEPT_CANCEL_SUCCESS =
-  'You accepted the cancellation. Status: Refund due until Stripe records a refund. Traverion does not send refunds automatically. Open Cancelled to follow status.';
+  'You accepted the cancellation. A full refund is due — for stays Traverion submits it to Stripe automatically. Open Cancelled to follow status until Stripe confirms Refunded.';
 
 /** Traveler Trips — success after declining host cancel request. */
 export const TRAVELER_DECLINE_CANCEL_SUCCESS =
@@ -332,7 +332,7 @@ export const TRAVELER_SELF_CANCEL_DELIVERY_NOTE =
  * Do not say “you should receive a full refund” as if Stripe already moved money.
  */
 export const TRAVELER_SELF_CANCEL_FULL_REFUND_POLICY =
-  'A full refund is due under the cancellation window. Status becomes Refund due until Stripe records the refund. Traverion does not send Stripe refunds automatically.';
+  'A full refund is due under the cancellation window. After you confirm, Traverion submits the refund to Stripe. Trips shows Refunded when Stripe confirms it — bank timing varies.';
 
 /** Email / notify fieldDiff after traveler self-cancel with a refund due. */
 export const TRAVELER_SELF_CANCEL_EMAIL_DIFF_FULL_REFUND =
@@ -347,15 +347,15 @@ export const TRAVELER_SELF_CANCEL_EMAIL_DIFF_NO_REFUND =
  * Do not promise an automatic payout as if money already moved.
  */
 export const TRAVELER_ACCEPT_HOST_CANCEL_REFUND_POLICY =
-  'If you accept, this booking is cancelled and a full refund is due. Status becomes Refunded only after Stripe records it. Traverion does not send Stripe refunds automatically, and does not cancel automatically if you do nothing';
+  'If you accept, this booking is cancelled and a full refund is due. Traverion submits the stay refund to Stripe after you accept. Status becomes Refunded only after Stripe confirms it, and the booking does not cancel if you do nothing';
 
 /** System thread after traveler accepts host cancel — Refund due honesty. */
 export const TRAVELER_ACCEPT_CANCEL_SYSTEM_MESSAGE =
-  'Traveler accepted the cancellation. This booking is cancelled. Status: Refund due until Stripe records a refund. Traverion does not send Stripe refunds automatically.';
+  'Traveler accepted the cancellation. This booking is cancelled. A full refund has been queued with Stripe. Status updates when Stripe confirms the refund.';
 
 /** System thread after traveler self-cancel with refund due — keep in sync with cancel_booking_as_traveler. */
 export const TRAVELER_SELF_CANCEL_SYSTEM_MESSAGE_FULL_REFUND =
-  'Traveler cancelled this booking. Status: Refund due until Stripe records a refund. Traverion does not send Stripe refunds automatically.';
+  'Traveler cancelled this booking. A refund has been queued with Stripe. Status updates when Stripe confirms the refund.';
 
 /** System thread after traveler self-cancel with no refund — keep in sync with cancel_booking_as_traveler. */
 export const TRAVELER_SELF_CANCEL_SYSTEM_MESSAGE_NO_REFUND =
@@ -367,14 +367,14 @@ export const TRAVELER_SELF_CANCEL_SYSTEM_MESSAGE_NO_REFUND =
  * Fallback when refund_choice is unknown; prefer FULL_REFUND / NO_REFUND variants.
  */
 export const SUPPLIER_BOOKING_CANCELLED_NOTIFY_SUB =
-  'The traveler cancelled this booking. When a refund applies, traveler status is Refund due until Stripe records a refund — Traverion does not send refunds automatically. Inventory is released; check Bookings and Income.';
+  'The traveler cancelled this booking. When a refund applies, Traverion submits it to Stripe for stays and Trips updates when Stripe confirms Refunded. Inventory is released; check Bookings and Income.';
 
 /**
  * Phase 1724: partner cancel notify when booking.refund_choice is full_refund.
  * Keep in sync with notify-supplier-event booking_cancelled HTML subcopy.
  */
 export const SUPPLIER_BOOKING_CANCELLED_FULL_REFUND_NOTIFY_SUB =
-  'The traveler cancelled this booking. A full refund is due until Stripe records it — Traverion does not send refunds automatically. Inventory is released; check Bookings and Income.';
+  'The traveler cancelled this booking. A full refund is due. For stays Traverion submits it to Stripe automatically. Inventory is released; check Bookings and Income.';
 
 /**
  * Phase 1724: partner cancel notify when booking.refund_choice is no_refund.
