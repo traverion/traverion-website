@@ -47,4 +47,4 @@ Local Vite: tour PDP — date → options → select small group → sticky €9
 
 ## Commits
 
-Filled after push.
+- `035883f6` — Tour Details UX + selection-aligned option pricing.
