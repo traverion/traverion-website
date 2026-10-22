@@ -31,7 +31,7 @@ import { PARTNER_PICKUP_CSV_HEADER, partnerPickupCsvValues } from '../../lib/par
 import PickupPlannerWorkspace from '../../components/supplier/PickupPlannerWorkspace';
 import { pickupAreaFromOption, travelerPickupAddressFromRecord } from '../../lib/pickup-area';
 import { parseBookingPickupInstructionsOverride, parsePickupDraft } from '../../lib/booking-notes';
-import { pickupDepartureKey } from '../../lib/pickup-planner';
+import { effectiveMeetingTimeHm, pickupDepartureKey } from '../../lib/pickup-planner';
 import { travelerPublicBookingReference } from '../../lib/public-booking-reference';
 import { csvSafeCell } from '../../lib/csv-export';
 import { bookingIsStayNight, bookingNeedsPickupCopy, resolvePartnerPickupCopy } from '../../lib/pickup-completeness';
@@ -431,11 +431,17 @@ export default function SupplierPickupPlanner() {
     if (!canExportPickupCsv || !user?.id) return;
     const rows = listBookings.map((b) => {
       const copy = pickupCopyFor(b);
+      const meetingFulfillment = displayFulfillmentFromPurchase(b.purchase_snapshot) === 'meeting_point';
+      const pickupOrMeetingHm = meetingFulfillment
+        ? effectiveMeetingTimeHm(b) || ''
+        : b.pickup_time
+          ? pgTimeToHm(b.pickup_time) ?? ''
+          : '';
       return partnerPickupCsvValues(
         b,
         displayListingTitleFromPurchase(b.purchase_snapshot, listingTitles[b.listing_id], ''),
         b.start_time ? pgTimeToHm(b.start_time) ?? '' : '',
-        b.pickup_time ? pgTimeToHm(b.pickup_time) ?? '' : '',
+        pickupOrMeetingHm,
         copy.meetingPoint,
         copy.pickupInstructions
       )
@@ -566,7 +572,13 @@ export default function SupplierPickupPlanner() {
         const copy = pickupCopyFor(row);
         const phone = (row.special_requests ?? '').match(/^Guest phone:\s*(.+)$/im)?.[1]?.trim() || '';
         const ref = travelerPublicBookingReference(row.public_reference) || (typeof row.booking_number === 'number' ? `#${row.booking_number}` : row.id);
-        return `<tr><td>${ref}</td><td>${row.guest_name ?? ''}</td><td>${row.guests ?? ''}</td><td>${travelerPickupAddressFromRecord({ snapshot: row.purchase_snapshot, specialRequests: row.special_requests })}</td><td>${row.pickup_time ? pgTimeToHm(row.pickup_time) ?? '' : ''}</td><td>${phone}</td><td>${copy.pickupInstructions}</td></tr>`;
+        const timeHm =
+          displayFulfillmentFromPurchase(row.purchase_snapshot) === 'meeting_point'
+            ? effectiveMeetingTimeHm(row) || ''
+            : row.pickup_time
+              ? pgTimeToHm(row.pickup_time) ?? ''
+              : '';
+        return `<tr><td>${ref}</td><td>${row.guest_name ?? ''}</td><td>${row.guests ?? ''}</td><td>${travelerPickupAddressFromRecord({ snapshot: row.purchase_snapshot, specialRequests: row.special_requests })}</td><td>${timeHm}</td><td>${phone}</td><td>${copy.pickupInstructions}</td></tr>`;
       })
       .join('');
     const popup = window.open('', '_blank', 'noopener,noreferrer');

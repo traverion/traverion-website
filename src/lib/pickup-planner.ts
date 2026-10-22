@@ -1,6 +1,10 @@
 import { parsePickupDraft, parseSupplierPickupPoint, type PickupDraftRecord } from './booking-notes';
 import { haversineKm, travelerPickupAddressFromRecord, type PickupArea } from './pickup-area';
-import { displayFulfillmentFromPurchase, isPurchaseSnapshot } from './purchase-snapshot';
+import {
+  displayFulfillmentFromPurchase,
+  displayStartTimeFromPurchase,
+  isPurchaseSnapshot,
+} from './purchase-snapshot';
 
 export type PickupPlannerBooking = {
   id: string;
@@ -28,9 +32,34 @@ export function pickupDepartureKey(b: PickupPlannerBooking): string {
   return [b.listing_id, optionId, scheduleId, b.booking_date ?? '', start].join('|');
 }
 
+function normalizeClockHm(raw: string | null | undefined): string {
+  const s = (raw ?? '').trim();
+  if (!s) return '';
+  const hm = s.slice(0, 5);
+  return /^\d{2}:\d{2}$/.test(hm) ? hm : '';
+}
+
 export function departureStartHm(b: PickupPlannerBooking): string {
-  const snap = isPurchaseSnapshot(b.purchase_snapshot) ? b.purchase_snapshot : null;
-  return (snap?.startTimeHm || '').trim();
+  return normalizeClockHm(displayStartTimeFromPurchase(b.purchase_snapshot, b.start_time));
+}
+
+/**
+ * Configured meeting/departure clock from the purchased schedule (or live start when
+ * no snapshot). Meeting-point tours use this as the default meeting time.
+ */
+export function configuredMeetingTimeHm(b: PickupPlannerBooking): string | null {
+  const hm = departureStartHm(b);
+  return hm || null;
+}
+
+/**
+ * Day-of meeting time: supplier override (draft or confirmed pickup_time), else the
+ * configured schedule meeting/departure time.
+ */
+export function effectiveMeetingTimeHm(b: PickupPlannerBooking): string | null {
+  const override = operationalPickupTimeHm(b);
+  if (override && /^\d{2}:\d{2}$/.test(override)) return override;
+  return configuredMeetingTimeHm(b);
 }
 
 export function departureTimezone(b: PickupPlannerBooking): string | null {
@@ -168,7 +197,10 @@ export function bookingPickupOpsStatus(b: PickupPlannerBooking): PickupOpsStatus
   const hasDraftTime = /^\d{2}:\d{2}$/.test(draftHm);
 
   if (fulfillment === 'meeting_point') {
-    if (!hasConfirmed && !hasDraftTime) return 'meeting_time_needed';
+    const hasConfigured = Boolean(configuredMeetingTimeHm(b));
+    // Schedule meeting/departure time counts — do not warn merely because there is
+    // no separately assigned booking pickup_time override.
+    if (!hasConfirmed && !hasDraftTime && !hasConfigured) return 'meeting_time_needed';
     if (draft) return 'meeting_updated';
     if (hasConfirmed) return 'guests_notified';
     return 'meeting_confirmed';

@@ -10,8 +10,10 @@ describe('Pickup Planner UX redesign', () => {
     expect(workspace).toContain('formatPickupPlannerDateHeading');
     expect(workspace).toContain('paginateDayGroups');
     expect(workspace).toContain('Manage pickups');
-    expect(workspace).toContain('Manage meeting');
+    expect(workspace).toContain('Edit meeting time');
     expect(workspace).toContain('Pickup time needed');
+    expect(workspace).toContain('effectiveMeetingTimeHm');
+    expect(workspace).not.toContain('Manage meeting');
     expect(workspace).toContain('PartnerTimeSelect');
     expect(workspace).toContain('tv-pickup-manage-sheet');
     expect(workspace).toContain('Save & notify guests');

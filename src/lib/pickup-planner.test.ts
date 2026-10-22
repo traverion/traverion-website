@@ -3,11 +3,14 @@ import { guestFacingBookingNotes, parsePickupDraft, upsertPickupDraft } from './
 import { travelerPickupAddressFromRecord } from './pickup-area';
 import {
   bookingPickupOpsStatus,
+  configuredMeetingTimeHm,
+  effectiveMeetingTimeHm,
   formatPickupPlannerDateHeading,
   groupDeparturesByDateKey,
   paginateDayGroups,
   pickupAttention,
   pickupDepartureKey,
+  pickupOpsNeedsAction,
   pickupStopKey,
   PICKUP_PLANNER_DAYS_PER_PAGE,
 } from './pickup-planner';
@@ -106,5 +109,66 @@ describe('pickup planner grouping', () => {
         purchase_snapshot: { listingTitle: 'Lights', capturedAt: '2026-10-01', fulfillment: 'meeting_point' },
       })
     ).toBe('guests_notified');
+  });
+
+  it('uses configured schedule meeting time so meeting-point bookings do not warn without an override', () => {
+    const scheduled = {
+      id: 'm1',
+      listing_id: 'l',
+      purchase_snapshot: {
+        listingTitle: 'Lights',
+        capturedAt: '2026-10-01',
+        fulfillment: 'meeting_point' as const,
+        startTimeHm: '20:00',
+      },
+    };
+    expect(configuredMeetingTimeHm(scheduled)).toBe('20:00');
+    expect(effectiveMeetingTimeHm(scheduled)).toBe('20:00');
+    expect(bookingPickupOpsStatus(scheduled)).toBe('meeting_confirmed');
+    expect(pickupOpsNeedsAction(bookingPickupOpsStatus(scheduled))).toBe(false);
+
+    const missingClock = {
+      id: 'm2',
+      listing_id: 'l',
+      purchase_snapshot: {
+        listingTitle: 'Lights',
+        capturedAt: '2026-10-01',
+        fulfillment: 'meeting_point' as const,
+      },
+    };
+    expect(bookingPickupOpsStatus(missingClock)).toBe('meeting_time_needed');
+    expect(pickupOpsNeedsAction(bookingPickupOpsStatus(missingClock))).toBe(true);
+
+    const override = {
+      ...scheduled,
+      id: 'm3',
+      pickup_time: '19:45:00',
+    };
+    expect(effectiveMeetingTimeHm(override)).toBe('19:45');
+    expect(bookingPickupOpsStatus(override)).toBe('guests_notified');
+
+    const draftNotes = upsertPickupDraft('', { timeHm: '19:30' });
+    expect(
+      bookingPickupOpsStatus({
+        ...scheduled,
+        id: 'm4',
+        special_requests: draftNotes,
+      })
+    ).toBe('meeting_updated');
+    expect(effectiveMeetingTimeHm({ ...scheduled, id: 'm4', special_requests: draftNotes })).toBe('19:30');
+
+    // Accommodation / hotel pickups still require an assigned pickup time.
+    expect(
+      bookingPickupOpsStatus({
+        id: 'p1',
+        listing_id: 'l',
+        purchase_snapshot: {
+          listingTitle: 'Lights',
+          capturedAt: '2026-10-01',
+          fulfillment: 'pickup' as const,
+          startTimeHm: '20:00',
+        },
+      })
+    ).toBe('pickup_time_needed');
   });
 });

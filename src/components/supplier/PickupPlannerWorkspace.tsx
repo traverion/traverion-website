@@ -9,8 +9,10 @@ import {
   bookingFulfillment,
   bookingPickupOpsStatus,
   confirmedPickupPoint,
+  configuredMeetingTimeHm,
   departureOpsStatus,
   departureStartHm,
+  effectiveMeetingTimeHm,
   formatPickupPlannerDateHeading,
   groupDeparturesByDateKey,
   operationalPickupTimeHm,
@@ -206,9 +208,11 @@ export default function PickupPlannerWorkspace(props: Props) {
               const option = displayOptionLabelFromPurchase(sample.purchase_snapshot, null);
               const fulfillment = bookingFulfillment(sample);
               const start = departureStartHm(sample);
+              const isMeeting = fulfillment === 'meeting_point';
+              const meetingHm = isMeeting ? effectiveMeetingTimeHm(sample) : null;
               const status = departureOpsStatus(dep.rows);
               const thumb = props.thumbs[sample.listing_id];
-              const isMeeting = fulfillment === 'meeting_point';
+              const cardTime = isMeeting ? meetingHm : start || null;
               const stopCount = new Set(
                 dep.rows
                   .map((row) => {
@@ -236,9 +240,12 @@ export default function PickupPlannerWorkspace(props: Props) {
                         <h3 className="tv-pickup-dep-card__title">{title}</h3>
                         {option ? <p className="tv-pickup-dep-card__option">{option}</p> : null}
                       </div>
-                      {start ? (
-                        <p className="tv-pickup-dep-card__time tabular-nums" aria-label={`Departure ${start}`}>
-                          {start}
+                      {cardTime ? (
+                        <p
+                          className="tv-pickup-dep-card__time tabular-nums"
+                          aria-label={isMeeting ? `Meeting ${cardTime}` : `Departure ${cardTime}`}
+                        >
+                          {cardTime}
                         </p>
                       ) : null}
                     </div>
@@ -246,7 +253,9 @@ export default function PickupPlannerWorkspace(props: Props) {
                       {dep.rows.length} booking{dep.rows.length === 1 ? '' : 's'} · {guestCount(dep.rows)} guest
                       {guestCount(dep.rows) === 1 ? '' : 's'}
                       {isMeeting
-                        ? ' · Meeting point'
+                        ? meetingHm
+                          ? ` · Meeting ${meetingHm}`
+                          : ' · Meeting point'
                         : stopCount > 0
                           ? ` · ${stopCount} pickup location${stopCount === 1 ? '' : 's'}`
                           : ' · Pickup'}
@@ -262,7 +271,7 @@ export default function PickupPlannerWorkspace(props: Props) {
                     className="tv-btn-primary tv-pickup-dep-card__cta"
                     onClick={() => props.onOpenDeparture(dep.id)}
                   >
-                    {isMeeting ? 'Manage meeting' : 'Manage pickups'}
+                    {isMeeting ? 'Edit meeting time' : 'Manage pickups'}
                   </button>
                 </article>
               );
@@ -358,7 +367,10 @@ function DeparturePlanner({
     ? formatPickupPlannerDateHeading(sample.booking_date)
     : 'Date not set';
   const [openStop, setOpenStop] = useState<string | null>('__first__');
-  const [meetingTime, setMeetingTime] = useState(() => operationalPickupTimeHm(sample) || '');
+  const scheduleMeetingHm = configuredMeetingTimeHm(sample) || start || null;
+  const [meetingTime, setMeetingTime] = useState(
+    () => operationalPickupTimeHm(sample) || scheduleMeetingHm || ''
+  );
   const [meetingBusy, setMeetingBusy] = useState(false);
   const [meetingNote, setMeetingNote] = useState<string | null>(null);
   const meetingPlace =
@@ -368,6 +380,8 @@ function DeparturePlanner({
     meetingPoint.trim() ||
     (optionMeta?.label || '').trim() ||
     'Meeting point';
+  const meetingDisplayHm = effectiveMeetingTimeHm(sample);
+  const meetingOverrideHm = operationalPickupTimeHm(sample);
 
   const stops = useMemo(() => {
     const map = new Map<string, BookingRow[]>();
@@ -466,10 +480,24 @@ function DeparturePlanner({
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#71717a]">Meeting point</p>
             <p className="mt-0.5 font-sans text-[15px] font-bold text-[#18181b]">{meetingPlace}</p>
-            {start ? (
+            {meetingDisplayHm ? (
               <p className="mt-1 text-[13px] text-[#52525b]">
-                Departure time <span className="font-semibold tabular-nums text-[#18181b]">{start}</span>
-                <span className="text-[#a1a1aa]"> · product schedule unchanged</span>
+                Meeting time{' '}
+                <span className="font-semibold tabular-nums text-[#18181b]">{meetingDisplayHm}</span>
+                {!meetingOverrideHm && scheduleMeetingHm ? (
+                  <span className="text-[#a1a1aa]"> · from schedule</span>
+                ) : null}
+                {meetingOverrideHm &&
+                scheduleMeetingHm &&
+                meetingOverrideHm !== scheduleMeetingHm ? (
+                  <span className="text-[#a1a1aa]"> · schedule {scheduleMeetingHm}</span>
+                ) : null}
+              </p>
+            ) : null}
+            {scheduleMeetingHm ? (
+              <p className="mt-0.5 text-[12px] text-[#71717a]">
+                Departure {scheduleMeetingHm}
+                <span className="text-[#a1a1aa]"> · product schedule unchanged when editing meeting time</span>
               </p>
             ) : null}
             {meetingStatus && pickupOpsNeedsAction(meetingStatus) ? (
@@ -483,7 +511,7 @@ function DeparturePlanner({
               label="Meeting time"
               value={meetingTime}
               disabled={!canEdit || meetingBusy}
-              suggestions={start ? suggestedPickupTimes(start) : []}
+              suggestions={scheduleMeetingHm ? suggestedPickupTimes(scheduleMeetingHm) : []}
               onChange={setMeetingTime}
             />
             <div className="flex flex-wrap gap-2">
@@ -502,7 +530,7 @@ function DeparturePlanner({
                 onClick={() => {
                   if (
                     !window.confirm(
-                      `Save meeting time ${meetingTime} and notify ${rows.length} guest${rows.length === 1 ? '' : 's'}? Departure time ${start || '—'} stays unchanged.`
+                      `Save meeting time ${meetingTime} and notify ${rows.length} guest${rows.length === 1 ? '' : 's'}? Departure time ${scheduleMeetingHm || '—'} stays unchanged.`
                     )
                   ) {
                     return;
@@ -651,7 +679,11 @@ function PickupManageWorkspace({
   const draft = parsePickupDraft(booking.special_requests);
   const start = departureStartHm(booking);
   const initial = {
-    time: draft?.timeHm || (booking.pickup_time ? booking.pickup_time.slice(0, 5) : ''),
+    time:
+      draft?.timeHm ||
+      (booking.pickup_time ? booking.pickup_time.slice(0, 5) : '') ||
+      (meetingOnly ? start : '') ||
+      '',
     address: draft?.address || confirmed.address,
     placeId: draft?.placeId || confirmed.placeId || '',
     lat: draft?.lat ?? confirmed.lat,
@@ -749,7 +781,7 @@ function PickupManageWorkspace({
         <header className="tv-pickup-manage-sheet__head">
           <div className="min-w-0">
             <h2 id="pickup-manage-title" className="font-sans text-base font-bold text-[#18181b]">
-              {meetingOnly ? 'Manage meeting' : 'Manage pickup'}
+              {meetingOnly ? 'Edit meeting time' : 'Manage pickup'}
             </h2>
             <p className="truncate text-[12px] text-[#71717a]">{title}</p>
           </div>
