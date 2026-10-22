@@ -150,7 +150,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
     <header
       data-scrolled={headerScrolled ? 'true' : undefined}
       className={`tv-consumer-header fixed top-0 left-0 right-0 z-[9999] border-b bg-white/95 backdrop-blur-md pt-[env(safe-area-inset-top,0px)] transition-[box-shadow,border-color] duration-200 ease-out ${
-        headerScrolled ? 'border-black/[0.06] shadow-[var(--tv-shadow-header)]' : 'border-[#E8EBF0] shadow-none'
+        headerScrolled ? 'border-black/[0.06]' : 'border-[#E8EBF0]'
       }`}
     >
       {/* 3-column grid keeps primary nav optically centered regardless of left/right widths */}

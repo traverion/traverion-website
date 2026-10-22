@@ -267,21 +267,13 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
   };
 
   const familyTabs = (
-    <div
-      className="flex w-fit gap-1 rounded-full bg-white/15 p-1 ring-1 ring-white/20 backdrop-blur-sm"
-      role="tablist"
-      aria-label="What to search"
-    >
+    <div className="tv-hero-family-tabs" role="tablist" aria-label="What to search">
       <button
         type="button"
         role="tab"
         aria-selected={searchFamily === 'tours'}
         onClick={() => setSearchFamily('tours')}
-        className={`lux-flat min-h-10 flex-1 rounded-full px-4 py-2 text-sm font-medium transition-colors sm:flex-none ${
-          searchFamily === 'tours'
-            ? 'bg-white text-ink shadow-sm ring-2 ring-white'
-            : 'text-white/80 hover:bg-white/10 hover:text-white'
-        }`}
+        className="tv-hero-family-tabs__btn lux-flat"
       >
         Tours
       </button>
@@ -290,11 +282,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         role="tab"
         aria-selected={searchFamily === 'stays'}
         onClick={() => setSearchFamily('stays')}
-        className={`lux-flat min-h-10 flex-1 rounded-full px-4 py-2 text-sm font-medium transition-colors sm:flex-none ${
-          searchFamily === 'stays'
-            ? 'bg-white text-ink shadow-sm ring-2 ring-white'
-            : 'text-white/80 hover:bg-white/10 hover:text-white'
-        }`}
+        className="tv-hero-family-tabs__btn lux-flat"
       >
         Stays
       </button>
@@ -323,25 +311,18 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
 
   return (
     <div className="min-h-screen bg-paper">
-      <section className="relative flex min-h-[min(68dvh,38rem)] flex-col justify-end overflow-hidden bg-ink text-white tv-page sm:min-h-[min(62dvh,36rem)]">
+      <section className="tv-home-hero tv-page">
         <div className="page-hero-media" aria-hidden>
           <img src={HERO_IMG.vacation} alt="" fetchPriority="high" decoding="async" width={1600} height={1067} />
         </div>
-        <div className="absolute inset-0 bg-gradient-to-t from-black/92 via-black/55 to-black/35" aria-hidden />
-        {/* Phase 1801: left vignette keeps brand/headline legible on bright coastal heroes. */}
-        <div
-          className="absolute inset-0 bg-gradient-to-r from-black/45 via-black/15 to-transparent"
-          aria-hidden
-        />
-        <div className="tv-rise relative z-10 w-full tv-shell px-4 pb-6 page-hero-content sm:px-6 sm:pb-12 lg:px-8 lg:pb-14">
+        <div className="tv-home-hero__veil" aria-hidden />
+        <div className="tv-home-hero__content tv-rise tv-shell page-hero-content px-4 sm:px-6 lg:px-8">
           {/* Phase 1801: brand dominates first viewport — headline must not overpower Traverion. */}
-          <p className="page-hero-eyebrow mb-2 font-sans text-4xl font-bold tracking-tight text-white sm:mb-3 sm:text-5xl">
-            Traverion
-          </p>
-          <h1 className="page-hero-title mb-2 max-w-2xl font-sans text-xl font-semibold leading-snug tracking-tight text-white sm:mb-3 sm:text-2xl">
+          <p className="page-hero-eyebrow font-sans text-white">Traverion</p>
+          <h1 className="page-hero-title font-sans text-white">
             Discover remarkable experiences and stays.
           </h1>
-          <p className="page-hero-subtitle mb-4 max-w-md text-[0.9375rem] font-normal leading-relaxed text-white/90 sm:mb-6 sm:text-base">
+          <p className="page-hero-subtitle font-sans">
             Book tours and nights directly with the people who run them.
           </p>
 
@@ -369,13 +350,13 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
 
           {/* Desktop: floating pill across the lower hero */}
           <div
-            className="mx-auto hidden w-full max-w-5xl space-y-3 sm:block"
+            className="mx-auto hidden w-full max-w-5xl space-y-2.5 sm:block"
             onPointerEnter={() => (searchFamily === 'stays' ? prefetchStaysPage() : prefetchPackagesPage())}
           >
             {familyTabs}
             <form
               onSubmit={submitSearch}
-              className={`tv-hero-search grid items-center gap-0 overflow-visible rounded-full bg-white p-1.5 text-ink ring-1 ring-black/[0.04] ${
+              className={`tv-hero-search grid items-center gap-0 overflow-visible rounded-full bg-white p-1.5 text-ink ${
                 searchFamily === 'stays'
                   ? 'grid-cols-[minmax(0,1.2fr)_auto_minmax(0,0.95fr)_auto_minmax(0,0.95fr)_auto_minmax(0,0.85fr)_auto]'
                   : 'grid-cols-[minmax(0,1.4fr)_auto_minmax(0,1.05fr)_auto_minmax(0,0.95fr)_auto]'
@@ -383,10 +364,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
               aria-label={searchFamily === 'stays' ? 'Search stays' : 'Search tours'}
             >
               {searchFields('home')}
-              <button
-                type="submit"
-                className="mx-1 flex h-14 items-center justify-center gap-2 self-center rounded-full bg-finland px-7 text-[15px] font-semibold text-white shadow-sm hover:bg-finland-dark"
-              >
+              <button type="submit" className="tv-hero-search-btn lux-flat">
                 <Search className="h-4 w-4" aria-hidden />
                 Search
               </button>
@@ -395,24 +373,24 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         </div>
       </section>
 
-      <section className="py-4 bg-paper">
+      <section className="bg-paper">
         <div className="tv-shell px-4 sm:px-6 lg:px-8">
-          <p className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-ink-muted">
-            <span className="inline-flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-finland" aria-hidden />
+          <div className="tv-home-trust">
+            <span className="tv-home-trust__item">
+              <ShieldCheck aria-hidden strokeWidth={2} />
               Cancellation terms on each listing
             </span>
-            <span className="inline-flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-finland" aria-hidden />
+            <span className="tv-home-trust__item">
+              <CalendarCheck aria-hidden strokeWidth={2} />
               Secure checkout · manage everything in Trips
             </span>
-          </p>
+          </div>
         </div>
       </section>
 
       <section className="tv-section">
         <div className="tv-content">
-          <div className="mb-4 sm:mb-5">
+          <div className="mb-5 sm:mb-6">
             <p className="tv-eyebrow">Destinations</p>
             <h2 className="tv-section-heading sm:text-[1.65rem]">Explore somewhere unforgettable</h2>
             <p className="tv-meta mt-1.5 max-w-lg">
