@@ -215,6 +215,15 @@ export default function IncomeFinancialSettings({
 
   return (
     <div className="mx-auto w-full max-w-[1180px] space-y-3">
+      <section className="rounded-[10px] border border-[#e5e7eb] bg-[#f8fafc] px-4 py-3.5 sm:px-5">
+        <h2 className="text-sm font-bold text-[#18181b]">Bank payout status</h2>
+        <p className="mt-1.5 text-[13px] leading-relaxed text-[#52525b]">
+          Automatic supplier bank payouts (Stripe Connect transfers) are <strong className="font-semibold text-[#18181b]">not enabled</strong>.
+          Frequency preferences and verified IBAN details are stored for when Traverion runs confirmed payouts.
+          A prepared payout period in Income is an internal record — not proof that money left Traverion.
+        </p>
+      </section>
+
       <section id="income-payout-account" className="rounded-[10px] border border-[#e5e7eb] bg-white px-4 py-3.5 sm:px-5">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-sm font-bold text-[#18181b]">Bank account</h2>

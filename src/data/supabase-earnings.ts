@@ -38,6 +38,50 @@ export type SupplierEarningItemRow = {
   experience_at: string | null;
   eligible_at: string | null;
   payout_period_id: string | null;
+  sold_at?: string | null;
+  service_completed_at?: string | null;
+  payment_intent_id?: string | null;
+  gross_minor?: number | null;
+  commission_minor?: number | null;
+  commission_bps?: number | null;
+};
+
+export type SupplierPeriodSalesReport = {
+  ok: boolean;
+  error?: string;
+  concept?: string;
+  currency?: string;
+  from?: string;
+  to?: string;
+  sale_count?: number;
+  gross_minor?: number;
+  commission_minor?: number;
+  supplier_net_minor?: number;
+  note?: string;
+};
+
+export type SupplierPeriodEarningsReport = {
+  ok: boolean;
+  error?: string;
+  concept?: string;
+  currency?: string;
+  from?: string;
+  to?: string;
+  earning_count?: number;
+  supplier_net_minor?: number;
+  outstanding_recovery_minor?: number;
+  net_after_debt_minor?: number;
+  note?: string;
+};
+
+export type BookingFinancialHoldRow = {
+  id: string;
+  booking_id: string;
+  supplier_id: string;
+  reason_code: string;
+  note: string | null;
+  active: boolean;
+  created_at: string;
 };
 
 export type BookingCommercialSnapshotRow = {
@@ -104,15 +148,86 @@ export async function fetchSupplierEarningItems(supplierId: string): Promise<Sup
   const { data, error } = await supabase
     .from('supplier_earning_items')
     .select(
-      'id, booking_id, supplier_id, currency, amount_minor, status, experience_at, eligible_at, payout_period_id'
+      'id, booking_id, supplier_id, currency, amount_minor, status, experience_at, eligible_at, payout_period_id, sold_at, service_completed_at, payment_intent_id, gross_minor, commission_minor, commission_bps'
     )
     .eq('supplier_id', ownerSupplierId)
     .order('created_at', { ascending: false });
   if (error) {
+    // Phase 5 columns may be missing on older local DBs — fall back to core columns.
+    if (/sold_at|service_completed_at|gross_minor|commission_minor|commission_bps|payment_intent_id/i.test(error.message)) {
+      const legacy = await supabase
+        .from('supplier_earning_items')
+        .select(
+          'id, booking_id, supplier_id, currency, amount_minor, status, experience_at, eligible_at, payout_period_id'
+        )
+        .eq('supplier_id', ownerSupplierId)
+        .order('created_at', { ascending: false });
+      if (legacy.error) {
+        if (/supplier_earning_items|does not exist|42P01/i.test(legacy.error.message)) return [];
+        throw new Error(legacy.error.message);
+      }
+      return (legacy.data ?? []) as SupplierEarningItemRow[];
+    }
     if (/supplier_earning_items|does not exist|42P01/i.test(error.message)) return [];
     throw new Error(error.message);
   }
   return (data ?? []) as SupplierEarningItemRow[];
+}
+
+/** Phase 5 authoritative period sales (net of commission). Supplier-scoped via RPC authz. */
+export async function fetchSupplierPeriodSales(input: {
+  supplierId: string;
+  fromIso: string;
+  toIso: string;
+  currency?: string;
+}): Promise<SupplierPeriodSalesReport> {
+  if (!supabase) return { ok: false, error: 'supabase_unavailable' };
+  const ownerSupplierId = await resolveSupplierId(input.supplierId);
+  const { data, error } = await supabase.rpc('supplier_period_sales', {
+    p_supplier_id: ownerSupplierId,
+    p_from: input.fromIso,
+    p_to: input.toIso,
+    p_currency: (input.currency ?? 'EUR').toUpperCase(),
+  });
+  if (error) throw new Error(error.message);
+  return (data ?? { ok: false, error: 'empty' }) as SupplierPeriodSalesReport;
+}
+
+/** Phase 5 authoritative period earnings (completed + cleared). */
+export async function fetchSupplierPeriodEarnings(input: {
+  supplierId: string;
+  fromIso: string;
+  toIso: string;
+  currency?: string;
+}): Promise<SupplierPeriodEarningsReport> {
+  if (!supabase) return { ok: false, error: 'supabase_unavailable' };
+  const ownerSupplierId = await resolveSupplierId(input.supplierId);
+  const { data, error } = await supabase.rpc('supplier_period_earnings', {
+    p_supplier_id: ownerSupplierId,
+    p_from: input.fromIso,
+    p_to: input.toIso,
+    p_currency: (input.currency ?? 'EUR').toUpperCase(),
+  });
+  if (error) throw new Error(error.message);
+  return (data ?? { ok: false, error: 'empty' }) as SupplierPeriodEarningsReport;
+}
+
+export async function fetchSupplierActiveFinancialHolds(
+  supplierId: string
+): Promise<BookingFinancialHoldRow[]> {
+  if (!supabase) return [];
+  const ownerSupplierId = await resolveSupplierId(supplierId);
+  const { data, error } = await supabase
+    .from('booking_financial_holds')
+    .select('id, booking_id, supplier_id, reason_code, note, active, created_at')
+    .eq('supplier_id', ownerSupplierId)
+    .eq('active', true)
+    .order('created_at', { ascending: false });
+  if (error) {
+    if (/booking_financial_holds|does not exist|42P01/i.test(error.message)) return [];
+    throw new Error(error.message);
+  }
+  return (data ?? []) as BookingFinancialHoldRow[];
 }
 
 /** One booking's frozen commercial split. Null when this booking has no snapshot. */

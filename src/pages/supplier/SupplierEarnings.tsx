@@ -8,16 +8,22 @@ import { canManageBookings, canManageFinance } from '../../lib/supplierTeamRoles
 import {
   earningItemsMajorByStatus,
   fetchSupplierActiveCommercialTerms,
+  fetchSupplierActiveFinancialHolds,
   fetchSupplierCommercialSnapshots,
   fetchSupplierEarningItems,
   fetchSupplierEarnings,
   fetchSupplierPayoutPeriodItems,
   fetchSupplierPayoutPeriods,
+  fetchSupplierPeriodEarnings,
+  fetchSupplierPeriodSales,
   type BookingCommercialSnapshotRow,
+  type BookingFinancialHoldRow,
   type SupplierCommercialTermsRow,
   type SupplierEarning,
   type SupplierEarningItemRow,
   type SupplierPayoutPeriodRow,
+  type SupplierPeriodEarningsReport,
+  type SupplierPeriodSalesReport,
 } from '../../data/supabase-earnings';
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
 import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
@@ -51,14 +57,16 @@ import { displayListingTitleFromPurchase } from '../../lib/purchase-snapshot';
 import { travelerPublicBookingReference } from '../../lib/public-booking-reference';
 import {
   buildIncomeEarningRows,
+  buildIncomeReportPeriods,
   commissionPercentLabel,
+  earningStatusExplanation,
   earningStatusLabel,
   maskIban,
   payoutMaySayPaid,
   payoutPresentationStatus,
-  sumNetMinor,
   type IncomeEarningRow,
   type IncomeEarningStatus,
+  type IncomeReportPeriod,
 } from '../../lib/supplier-income';
 import {
   downloadPdf,
@@ -103,8 +111,20 @@ function payoutStatusClass(status: string, paidAt: string | null | undefined): s
   if (label === 'Paid') return 'tv-income-status tv-income-status--paid';
   if (label === 'Processing') return 'tv-income-status tv-income-status--processing';
   if (label === 'Failed') return 'tv-income-status tv-income-status--failed';
-  if (label === 'Scheduled') return 'tv-income-status tv-income-status--available';
+  if (label === 'Prepared' || label === 'Drafting') return 'tv-income-status tv-income-status--available';
   return 'tv-income-status';
+}
+
+function holdReasonLabel(code: string | null | undefined): string {
+  const c = (code ?? '').trim().toLowerCase();
+  if (c === 'negative_balance') return 'Recovery balance';
+  if (c === 'dispute') return 'Dispute hold';
+  if (c === 'support_case' || c === 'customer_support') return 'Support case hold';
+  if (c === 'fraud_review') return 'Fraud review';
+  if (c === 'verification') return 'Verification hold';
+  if (c === 'manual_review') return 'Manual review';
+  if (!c) return 'Financial hold';
+  return c.replace(/_/g, ' ');
 }
 
 export default function SupplierEarnings() {
@@ -126,6 +146,13 @@ export default function SupplierEarnings() {
   const [error, setError] = useState<string | null>(null);
   const [ledgerError, setLedgerError] = useState<string | null>(null);
   const [payoutPeriods, setPayoutPeriods] = useState<SupplierPayoutPeriodRow[]>([]);
+  const [financialHolds, setFinancialHolds] = useState<BookingFinancialHoldRow[]>([]);
+  const [reportPeriodId, setReportPeriodId] = useState<string | null>(null);
+  const [periodSales, setPeriodSales] = useState<SupplierPeriodSalesReport | null>(null);
+  const [periodEarnings, setPeriodEarnings] = useState<SupplierPeriodEarningsReport | null>(null);
+  const [periodReportLoading, setPeriodReportLoading] = useState(false);
+  const [periodReportError, setPeriodReportError] = useState<string | null>(null);
+  const [periodReportNonce, setPeriodReportNonce] = useState(0);
   const [earningQuery, setEarningQuery] = useState('');
   const [earningFrom, setEarningFrom] = useState('');
   const [earningTo, setEarningTo] = useState('');
@@ -210,14 +237,16 @@ export default function SupplierEarnings() {
       fetchSupplierEarningItems(uid),
       fetchSupplierCommercialSnapshots(uid),
       fetchSupplierPayoutPeriods(uid),
+      fetchSupplierActiveFinancialHolds(uid),
     ])
-      .then(async ([data, bookings, listings, terms, items, snaps, periods]) => {
+      .then(async ([data, bookings, listings, terms, items, snaps, periods, holds]) => {
         if (gen !== loadGenRef.current) return;
         setEarnings(data);
         setCommercialTerms(terms);
         setEarningItems(items);
         setSnapshots(snaps);
         setPayoutPeriods(periods);
+        setFinancialHolds(holds);
         setListingTitles(Object.fromEntries(listings.map((l) => [l.id, l.title])));
         setPaidBookings(bookings.filter(isCollectedBooking));
         setRefundDueBookings(bookings.filter(isRefundDueBooking));
@@ -249,6 +278,11 @@ export default function SupplierEarnings() {
       setRefundDueBookings([]);
       setLedger([]);
       setPayoutPeriods([]);
+      setFinancialHolds([]);
+      setPeriodSales(null);
+      setPeriodEarnings(null);
+      setPeriodReportError(null);
+      setReportPeriodId(null);
       setListingTitles({});
       setProfile(null);
       setError(null);
@@ -479,6 +513,7 @@ export default function SupplierEarnings() {
       bookings: unique,
       snapshots,
       items: earningItems,
+      holds: financialHolds,
       experienceTitle: (booking) =>
         displayListingTitleFromPurchase(
           paidBookings.find((row) => row.id === booking.id)?.purchase_snapshot ??
@@ -490,7 +525,75 @@ export default function SupplierEarnings() {
         travelerPublicBookingReference(booking.public_reference) ||
         (typeof booking.booking_number === 'number' ? `#${booking.booking_number}` : booking.id.slice(0, 8)),
     });
-  }, [paidBookings, refundDueBookings, snapshots, earningItems, listingTitles]);
+  }, [paidBookings, refundDueBookings, snapshots, earningItems, listingTitles, financialHolds]);
+
+  const reportPeriods: IncomeReportPeriod[] = useMemo(
+    () => buildIncomeReportPeriods(commercialTerms?.payout_cadence ?? 'monthly'),
+    [commercialTerms?.payout_cadence]
+  );
+
+  const selectedReportPeriod = useMemo(() => {
+    if (reportPeriods.length === 0) return null;
+    return reportPeriods.find((period) => period.id === reportPeriodId) ?? reportPeriods[0] ?? null;
+  }, [reportPeriods, reportPeriodId]);
+
+  useEffect(() => {
+    if (!reportPeriodId && reportPeriods[0]) setReportPeriodId(reportPeriods[0].id);
+  }, [reportPeriodId, reportPeriods]);
+
+  useEffect(() => {
+    const uid = user?.id;
+    const period = selectedReportPeriod;
+    if (!isSupabase || !uid || !period) {
+      setPeriodSales(null);
+      setPeriodEarnings(null);
+      return;
+    }
+    let cancelled = false;
+    setPeriodReportLoading(true);
+    setPeriodReportError(null);
+    const currency = (
+      snapshots.find((row) => row.currency?.trim())?.currency ||
+      paidBookings.find((row) => row.currency?.trim())?.currency ||
+      'EUR'
+    ).toUpperCase();
+    void Promise.all([
+      fetchSupplierPeriodSales({
+        supplierId: uid,
+        fromIso: period.fromIso,
+        toIso: period.toIso,
+        currency,
+      }),
+      fetchSupplierPeriodEarnings({
+        supplierId: uid,
+        fromIso: period.fromIso,
+        toIso: period.toIso,
+        currency,
+      }),
+    ])
+      .then(([sales, earningsReport]) => {
+        if (cancelled) return;
+        setPeriodSales(sales);
+        setPeriodEarnings(earningsReport);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setPeriodReportError(userFacingError(err, USER_ERROR.money));
+      })
+      .finally(() => {
+        if (!cancelled) setPeriodReportLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isSupabase,
+    user?.id,
+    selectedReportPeriod,
+    snapshots,
+    paidBookings,
+    periodReportNonce,
+  ]);
 
   const filteredIncomeRows = useMemo(() => {
     const query = earningQuery.trim().toLowerCase();
@@ -625,11 +728,6 @@ export default function SupplierEarnings() {
   const pageCount = Math.max(1, Math.ceil(filteredIncomeRows.length / pageSize));
   const pageRows = filteredIncomeRows.slice(earningPage * pageSize, earningPage * pageSize + pageSize);
   const summaryCurrency = moneyByCurrency[0]?.currency ?? primaryCurrency;
-  const totalNet = sumNetMinor(incomeRows, summaryCurrency);
-  const pendingNet = sumNetMinor(incomeRows, summaryCurrency, ['pending', 'recorded']);
-  const availableNet = sumNetMinor(incomeRows, summaryCurrency, ['eligible']);
-  const paidNet = sumNetMinor(incomeRows, summaryCurrency, ['paid']);
-  const processingNet = sumNetMinor(incomeRows, summaryCurrency, ['included']);
   const nextPeriod = [...payoutPeriods]
     .filter((period) => period.status === 'ready' || period.status === 'processing' || period.status === 'drafting')
     .sort((a, b) => a.scheduled_for.localeCompare(b.scheduled_for))[0];
@@ -668,17 +766,25 @@ export default function SupplierEarnings() {
   };
 
   const openPayoutStatement = async (period: SupplierPayoutPeriodRow, download: boolean) => {
+    // Completed payout statements require verified payment confirmation — never for READY alone.
+    if (!payoutMaySayPaid(period.status, period.paid_at)) {
+      setError(
+        'A completed payout statement is available only after payment is confirmed with a completion time. Prepared periods are not bank payouts.'
+      );
+      return;
+    }
     const included = await fetchSupplierPayoutPeriodItems(period.id);
     const bytes = statementPdf(
       payoutStatementLines({
         reference: `PS-${period.period_key}`,
-        issueDate: localYmd(),
+        issueDate: period.paid_at?.slice(0, 10) || localYmd(),
         supplierName: profile?.company_legal_name ?? profile?.display_name ?? null,
         currency: period.currency,
         periodStart: period.period_start,
         periodEnd: period.period_end,
         statusLabel: payoutPresentationStatus(period.status, period.paid_at),
         paidAt: period.paid_at,
+        paymentReference: period.paid_via,
         totalNetMinor: Number(period.amount_minor) || 0,
         lines: included.map((item) => {
           const row = incomeRows.find((earning) => earning.bookingId === item.booking_id);
@@ -822,40 +928,109 @@ export default function SupplierEarnings() {
 
       {hasMoney && tab === 'overview' ? (
         <div className="mx-auto w-full max-w-[1180px] space-y-4">
-          <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-            {(
-              [
-                ['Total earnings', totalNet],
-                ['Pending', pendingNet],
-                ['Available', availableNet],
-                ['Paid out', paidNet],
-              ] as const
-            ).map(([label, minor]) => (
-              <div key={label} className="tv-income-metric">
-                <p className="tv-income-metric__label">{label}</p>
-                <p className="tv-income-metric__value">{formatMoney(minor / 100, summaryCurrency)}</p>
-              </div>
-            ))}
+          <div className="tv-income-period-bar">
+            <label className="tv-income-field min-w-[14rem] flex-1 sm:flex-none">
+              <span>Reporting period</span>
+              <PartnerSelect
+                aria-label="Reporting period"
+                value={selectedReportPeriod?.id ?? ''}
+                options={reportPeriods.map((period) => ({
+                  value: period.id,
+                  label: `${period.label} (${period.rangeLabel})`,
+                }))}
+                onChange={(next) => setReportPeriodId(next)}
+              />
+            </label>
+            <p className="tv-income-period-bar__hint">
+              {selectedReportPeriod
+                ? `${selectedReportPeriod.rangeLabel} · Sales use purchase date; earnings use service completion`
+                : 'Select a period'}
+            </p>
           </div>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2" data-testid="income-overview-primary-cards">
+            <div className="tv-income-metric tv-income-metric--hero">
+              <p className="tv-income-metric__label">Period sales</p>
+              <p className="tv-income-metric__value">
+                {periodReportLoading
+                  ? '…'
+                  : formatMoney(
+                      ((periodSales?.ok ? Number(periodSales.supplier_net_minor) : 0) || 0) / 100,
+                      (periodSales?.currency || summaryCurrency).toUpperCase()
+                    )}
+              </p>
+              <p className="tv-income-metric__hint">
+                Net of Traverion commission for bookings sold in this period, including future departures and stays.
+                {periodSales?.ok && typeof periodSales.sale_count === 'number'
+                  ? ` · ${periodSales.sale_count} sale${periodSales.sale_count === 1 ? '' : 's'}`
+                  : ''}
+              </p>
+            </div>
+            <div className="tv-income-metric tv-income-metric--hero">
+              <p className="tv-income-metric__label">Period earnings</p>
+              <p className="tv-income-metric__value">
+                {periodReportLoading
+                  ? '…'
+                  : formatMoney(
+                      ((periodEarnings?.ok ? Number(periodEarnings.supplier_net_minor) : 0) || 0) / 100,
+                      (periodEarnings?.currency || summaryCurrency).toUpperCase()
+                    )}
+              </p>
+              <p className="tv-income-metric__hint">
+                Net from completed, cleared services in this period. Future undelivered bookings are not earnings.
+                {periodEarnings?.ok && typeof periodEarnings.earning_count === 'number'
+                  ? ` · ${periodEarnings.earning_count} earning${periodEarnings.earning_count === 1 ? '' : 's'}`
+                  : ''}
+              </p>
+            </div>
+          </div>
+
+          {periodReportError ? (
+            <NoticeCallout title="Period totals unavailable" tone="warn">
+              <p>{periodReportError}</p>
+              <button type="button" className="tv-btn-ghost mt-2 -ml-2" onClick={() => setPeriodReportNonce((n) => n + 1)}>
+                Retry
+              </button>
+            </NoticeCallout>
+          ) : null}
+
+          {(periodEarnings?.ok && Number(periodEarnings.outstanding_recovery_minor) > 0) || recoveryBalance < 0 ? (
+            <NoticeCallout title="Outstanding recovery balance" tone="warn">
+              <p>
+                Outstanding recovery balance:{' '}
+                <strong className="font-semibold tabular-nums text-red-800">
+                  −
+                  {formatMoney(
+                    periodEarnings?.ok && Number(periodEarnings.outstanding_recovery_minor) > 0
+                      ? Number(periodEarnings.outstanding_recovery_minor) / 100
+                      : Math.abs(recoveryBalance),
+                    (periodEarnings?.currency || summaryCurrency).toUpperCase()
+                  )}
+                </strong>
+                . This debt reduces future prepared payouts and is never hidden as €0.00 without explanation.
+              </p>
+            </NoticeCallout>
+          ) : null}
+
           <div className="tv-income-info-strip">
             <div>
               <span className="tv-income-info-strip__label">Payout preference</span>
               <p className="tv-income-info-strip__value">{planSummary ?? 'Not set'}</p>
-              <p className="tv-income-info-strip__hint">Configured preference — not an automatic transfer</p>
+              <p className="tv-income-info-strip__hint">Preference only — automatic bank payouts are not enabled</p>
             </div>
             <div>
-              <span className="tv-income-info-strip__label">Next payout</span>
+              <span className="tv-income-info-strip__label">Prepared period</span>
               <p className="tv-income-info-strip__value">
-                {nextPeriod ? formatMoney(Number(nextPeriod.amount_minor) / 100, nextPeriod.currency) : 'Not scheduled'}
+                {nextPeriod ? formatMoney(Number(nextPeriod.amount_minor) / 100, nextPeriod.currency) : 'None'}
               </p>
               <p className="tv-income-info-strip__hint">
-                {nextPeriod ? 'From a recorded payout period' : 'No payout period on file'}
+                {nextPeriod ? 'Internal READY period — not a bank transfer' : 'No prepared payout period'}
               </p>
             </div>
             <div>
-              <span className="tv-income-info-strip__label">Next date</span>
+              <span className="tv-income-info-strip__label">Scheduled for</span>
               <p className="tv-income-info-strip__value">
-                {nextPeriod ? incomeDate(nextPeriod.scheduled_for) : 'Not scheduled'}
+                {nextPeriod ? incomeDate(nextPeriod.scheduled_for) : '—'}
               </p>
             </div>
             <div>
@@ -869,17 +1044,8 @@ export default function SupplierEarnings() {
               </p>
             </div>
           </div>
-          {processingNet > 0 ? (
-            <p className="text-[13px] text-[#52525b]">
-              Processing: {formatMoney(processingNet / 100, summaryCurrency)}
-            </p>
-          ) : null}
-          {!nextPeriod ? <p className="text-[12px] text-[#71717a]">{nextPayoutLabel}</p> : null}
-          {recoveryBalance < 0 ? (
-            <NoticeCallout title="Balance adjustment after payout" tone="warn">
-              A refund or dispute after a recorded payout created a recovery balance of {formatMoney(Math.abs(recoveryBalance), summaryCurrency)}. Future payouts may be reduced until this is settled.
-            </NoticeCallout>
-          ) : null}
+          <p className="text-[12px] text-[#71717a]">{nextPayoutLabel}</p>
+
           <section>
             <div className="flex items-baseline justify-between gap-2">
               <h2 className="text-sm font-bold text-[#18181b]">Recent earnings</h2>
@@ -887,36 +1053,41 @@ export default function SupplierEarnings() {
                 View all
               </button>
             </div>
-            <ul className="mt-2 divide-y divide-[#e5e7eb] overflow-hidden rounded-[10px] border border-[#e5e7eb] bg-white">
-              {incomeRows.slice(0, 5).map((row) => (
-                <li key={row.bookingId}>
-                  <button
-                    type="button"
-                    className="tv-money-row w-full border-0 bg-transparent text-left shadow-none"
-                    onClick={() => setSelectedEarningId(row.bookingId)}
-                  >
-                    <span className="min-w-0">
-                      <span className="block truncate text-[13px] font-semibold text-[#18181b]">{row.reference} · {row.experience}</span>
-                      <span className="mt-0.5 flex flex-wrap items-center gap-2 text-[12px] text-[#71717a]">
-                        <span>{incomeDate(row.activityDate)}</span>
-                        <span className={earningStatusClass(row.status)}>{earningStatusLabel(row.status)}</span>
+            {incomeRows.length === 0 ? (
+              <p className="mt-2 text-[13px] text-[#71717a]">No earnings rows yet for this account.</p>
+            ) : (
+              <ul className="mt-2 divide-y divide-[#e5e7eb] overflow-hidden rounded-[10px] border border-[#e5e7eb] bg-white">
+                {incomeRows.slice(0, 5).map((row) => (
+                  <li key={row.bookingId}>
+                    <button
+                      type="button"
+                      className="tv-money-row w-full border-0 bg-transparent text-left shadow-none"
+                      onClick={() => setSelectedEarningId(row.bookingId)}
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate text-[13px] font-semibold text-[#18181b]">{row.reference} · {row.experience}</span>
+                        <span className="mt-0.5 flex flex-wrap items-center gap-2 text-[12px] text-[#71717a]">
+                          <span>{incomeDate(row.activityDate)}</span>
+                          <span className={earningStatusClass(row.status)}>{earningStatusLabel(row.status)}</span>
+                          {row.held ? <span className="tv-income-status tv-income-status--failed">Held</span> : null}
+                        </span>
                       </span>
-                    </span>
-                    <span className="tv-money-row__amount">{formatMoney(row.netMinor / 100, row.currency)}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+                      <span className="tv-money-row__amount">{formatMoney(row.netMinor / 100, row.currency)}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
           <section>
             <div className="flex items-baseline justify-between gap-2">
-              <h2 className="text-sm font-bold text-[#18181b]">Recent payouts</h2>
+              <h2 className="text-sm font-bold text-[#18181b]">Recent payout periods</h2>
               <button type="button" className="text-[12px] font-semibold text-[#073b83]" onClick={() => setTabAndUrl('payouts')}>
                 View all
               </button>
             </div>
-            {payoutPeriods.length === 0 && filteredEarningsInWindow.length === 0 ? (
-              <p className="mt-2 text-[13px] text-[#71717a]">No payout records yet.</p>
+            {payoutPeriods.length === 0 ? (
+              <p className="mt-2 text-[13px] text-[#71717a]">No payout periods prepared yet.</p>
             ) : (
               <ul className="mt-2 divide-y divide-[#e5e7eb] overflow-hidden rounded-[10px] border border-[#e5e7eb] bg-white">
                 {payoutPeriods.slice(0, 4).map((period) => (
@@ -933,37 +1104,29 @@ export default function SupplierEarnings() {
                     </button>
                   </li>
                 ))}
-                {payoutPeriods.length === 0
-                  ? filteredEarningsInWindow.slice(0, 4).map((period) => (
-                      <li key={period.id} className="tv-money-row">
-                        <span className="text-[13px] text-[#18181b]">
-                          {period.period_start} – {period.period_end} · {period.status === 'paid' && period.payment_reference ? 'Paid' : PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL}
-                        </span>
-                        <span className="tv-money-row__amount">{formatMoney(Number(period.amount), period.currency)}</span>
-                      </li>
-                    ))
-                  : null}
               </ul>
             )}
           </section>
-          {adjustmentRows.length > 0 ? (
-            <section>
-              <h2 className="font-sans text-sm font-bold text-[#18181b]">Adjustments</h2>
-              <ul className="mt-2 divide-y divide-[#e5e7eb] overflow-hidden rounded-[10px] border border-[#e5e7eb] bg-white">
-                {adjustmentRows.slice(0, 4).map((row) => (
-                  <li key={row.id} className="tv-money-row">
-                    <span className="text-[13px]">{ledgerKindLabel(row.kind)}</span>
-                    <span className={`tv-money-row__amount ${Number(row.amount) < 0 ? 'text-red-800' : ''}`}>{formatMoney(Number(row.amount), row.currency)}</span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
         </div>
       ) : null}
 
       {hasMoney && tab === 'earnings' ? (
         <div className="mx-auto w-full max-w-[1180px] space-y-3">
+          {(periodEarnings?.ok && Number(periodEarnings.outstanding_recovery_minor) > 0) || recoveryBalance < 0 ? (
+            <NoticeCallout title="Outstanding recovery balance" tone="warn">
+              Outstanding recovery balance:{' '}
+              <strong className="font-semibold tabular-nums text-red-800">
+                −
+                {formatMoney(
+                  periodEarnings?.ok && Number(periodEarnings.outstanding_recovery_minor) > 0
+                    ? Number(periodEarnings.outstanding_recovery_minor) / 100
+                    : Math.abs(recoveryBalance),
+                  summaryCurrency
+                )}
+              </strong>
+              . Debt offsets reduce prepared payout nets; they are not silently erased.
+            </NoticeCallout>
+          ) : null}
           <div className="tv-income-filters">
             <label className="tv-income-field">
               <span>Search</span>
@@ -1076,8 +1239,9 @@ export default function SupplierEarnings() {
                     <tr>
                       <th className="px-3 py-2.5">Booking</th>
                       <th className="px-3 py-2.5">Experience</th>
-                      <th className="px-3 py-2.5">Activity</th>
-                      <th className="px-3 py-2.5">Purchase</th>
+                      <th className="px-3 py-2.5">Service</th>
+                      <th className="px-3 py-2.5">Sold</th>
+                      <th className="px-3 py-2.5 text-right">Commission</th>
                       <th className="px-3 py-2.5 text-right">Your earnings</th>
                       <th className="px-3 py-2.5">Status</th>
                     </tr>
@@ -1100,8 +1264,18 @@ export default function SupplierEarnings() {
                         <td className="max-w-[18rem] truncate px-3 py-2.5 text-[#3f3f46]" title={row.experience}>{row.experience}</td>
                         <td className="whitespace-nowrap px-3 py-2.5 text-[#52525b]">{incomeDate(row.activityDate)}</td>
                         <td className="whitespace-nowrap px-3 py-2.5 text-[#52525b]">{incomeDate(row.purchaseDate)}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums text-[#52525b]">
+                          {row.commissionMinor != null
+                            ? formatMoney(row.commissionMinor / 100, row.currency)
+                            : '—'}
+                        </td>
                         <td className="px-3 py-2.5 text-right font-bold tabular-nums text-[#18181b]">{formatMoney(row.netMinor / 100, row.currency)}</td>
-                        <td className="px-3 py-2.5"><span className={earningStatusClass(row.status)}>{earningStatusLabel(row.status)}</span></td>
+                        <td className="px-3 py-2.5">
+                          <span className={earningStatusClass(row.status)}>{earningStatusLabel(row.status)}</span>
+                          {row.held ? (
+                            <span className="ml-1 tv-income-status tv-income-status--failed">Held</span>
+                          ) : null}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -1133,12 +1307,16 @@ export default function SupplierEarnings() {
 
       {hasMoney && tab === 'payouts' ? (
         <div className="mx-auto w-full max-w-[1180px] space-y-3">
+          <NoticeCallout title="Automatic bank payouts are not enabled" tone="info">
+            Traverion prepares internal payout periods from cleared earnings. A Prepared period is not a completed bank transfer.
+            Paid requires a recorded completion time and payment confirmation — Stripe Connect supplier payouts are not active.
+          </NoticeCallout>
           {payoutPeriods.length === 0 && filteredEarningsInWindow.length === 0 ? (
             <div className="tv-income-empty tv-income-empty--compact">
               <div className="tv-income-empty__icon"><Wallet className="h-5 w-5" aria-hidden /></div>
-              <h3 className="text-sm font-bold text-[#18181b]">No payouts yet</h3>
+              <h3 className="text-sm font-bold text-[#18181b]">No payout periods yet</h3>
               <p className="mt-1 max-w-sm text-[13px] leading-relaxed text-[#71717a]">
-                Eligible earnings appear here once Traverion schedules a payout period. Available balance is not a bank transfer.
+                Eligible earnings appear here once Traverion prepares a payout period. Eligible balance is not a bank transfer.
               </p>
               <div className="mt-3 flex flex-wrap justify-center gap-2">
                 <button type="button" className="tv-btn-primary h-9 px-3 text-[13px]" onClick={() => setTabAndUrl('earnings')}>
@@ -1160,6 +1338,7 @@ export default function SupplierEarnings() {
                         <span className="block text-[13px] font-semibold text-[#18181b]">{period.period_key}</span>
                         <span className="mt-0.5 flex flex-wrap items-center gap-2 text-[12px] text-[#71717a]">
                           <span>{incomeDate(period.period_start)} – {incomeDate(period.period_end)}</span>
+                          <span>Due {incomeDate(period.scheduled_for)}</span>
                           <span className={payoutStatusClass(period.status, period.paid_at)}>{payoutPresentationStatus(period.status, period.paid_at)}</span>
                         </span>
                       </span>
@@ -1170,9 +1349,12 @@ export default function SupplierEarnings() {
                 {filteredEarningsInWindow.map((period) => (
                   <li key={period.id} className="tv-money-row">
                     <span className="min-w-0">
-                      <span className="block text-[13px] font-semibold text-[#18181b]">{period.invoice_number || 'Payout record'}</span>
+                      <span className="block text-[13px] font-semibold text-[#18181b]">{period.invoice_number || 'Legacy payout record'}</span>
                       <span className="text-[12px] text-[#71717a]">
-                        {period.period_start} – {period.period_end} · {period.status === 'paid' && period.payment_reference ? `Paid · ${period.payment_reference}` : PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL}
+                        {period.period_start} – {period.period_end} ·{' '}
+                        {period.status === 'paid' && period.payment_reference
+                          ? `Paid · ${period.payment_reference}`
+                          : PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL}
                       </span>
                     </span>
                     <span className="tv-money-row__amount">{formatMoney(Number(period.amount), period.currency)}</span>
@@ -1217,20 +1399,19 @@ export default function SupplierEarnings() {
                 (docKind === 'all' || docKind === 'statements') &&
                 (docYear === 'all' || (row.activityDate ?? '').startsWith(docYear))
             );
-            const payoutDocs = payoutPeriods.filter(
+            const confirmedPayoutDocs = payoutPeriods.filter(
               (period) =>
-                (docKind === 'all' ||
-                  docKind === 'payouts' ||
-                  (docKind === 'confirmations' && payoutMaySayPaid(period.status, period.paid_at))) &&
+                payoutMaySayPaid(period.status, period.paid_at) &&
+                (docKind === 'all' || docKind === 'payouts' || docKind === 'confirmations') &&
                 (docYear === 'all' || period.period_end.startsWith(docYear))
             );
-            if (statementDocs.length === 0 && payoutDocs.length === 0) {
+            if (statementDocs.length === 0 && confirmedPayoutDocs.length === 0) {
               return (
                 <div className="tv-income-empty tv-income-empty--compact">
                   <div className="tv-income-empty__icon"><FileText className="h-5 w-5" aria-hidden /></div>
                   <h3 className="text-sm font-bold text-[#18181b]">No documents yet</h3>
                   <p className="mt-1 max-w-sm text-[13px] text-[#71717a]">
-                    Earnings statements appear when a booking has a frozen commercial split. Payout statements appear after a period is recorded.
+                    Earnings statements appear when a booking has a frozen commercial split. Completed payout statements appear only after payment confirmation — prepared periods are not listed as paid documents.
                   </p>
                 </div>
               );
@@ -1238,7 +1419,7 @@ export default function SupplierEarnings() {
             return (
               <ul className="divide-y divide-[#e5e7eb] overflow-hidden rounded-[10px] border border-[#e5e7eb] bg-white">
                 {statementDocs.map((row) => (
-                  <li key={row.bookingId} className="flex flex-wrap items-center gap-3 px-3 py-2.5 sm:flex-nowrap">
+                  <li key={`es-${row.bookingId}`} className="flex flex-wrap items-center gap-3 px-3 py-2.5 sm:flex-nowrap">
                     <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#f0f4fa] text-[#073b83]">
                       <FileText className="h-4 w-4" aria-hidden />
                     </span>
@@ -1252,17 +1433,18 @@ export default function SupplierEarnings() {
                     </span>
                   </li>
                 ))}
-                {payoutDocs.map((period) => (
-                  <li key={period.id} className="flex flex-wrap items-center gap-3 px-3 py-2.5 sm:flex-nowrap">
+                {confirmedPayoutDocs.map((period) => (
+                  <li key={`ps-${period.id}`} className="flex flex-wrap items-center gap-3 px-3 py-2.5 sm:flex-nowrap">
                     <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#f0f4fa] text-[#073b83]">
                       <FileText className="h-4 w-4" aria-hidden />
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block text-[13px] font-semibold text-[#18181b]">
-                        {payoutMaySayPaid(period.status, period.paid_at) ? 'Payment confirmation' : 'Payout statement'} · {period.period_key}
+                        Payout statement · {period.period_key}
                       </span>
                       <span className="text-[12px] text-[#71717a]">
-                        {payoutPresentationStatus(period.status, period.paid_at)} · {formatMoney(Number(period.amount_minor) / 100, period.currency)}
+                        Confirmed {incomeDate(period.paid_at)} · {formatMoney(Number(period.amount_minor) / 100, period.currency)}
+                        {period.paid_via ? ` · ${period.paid_via}` : ''}
                       </span>
                     </span>
                     <span className="flex shrink-0 gap-3">
@@ -1274,7 +1456,9 @@ export default function SupplierEarnings() {
               </ul>
             );
           })()}
-          <p className="text-[12px] text-[#71717a]">Statements use the frozen booking split. A payout statement is not a transfer receipt unless a completion time is recorded.</p>
+          <p className="text-[12px] text-[#71717a]">
+            Statements use the frozen booking split and are not VAT invoices. Completed payout statements are historically stable and require payment confirmation — READY periods never appear as paid documents.
+          </p>
         </div>
       ) : null}
 
@@ -1314,8 +1498,19 @@ export default function SupplierEarnings() {
             <p className="mt-1 text-[12px] text-[#71717a]">
               Activity {incomeDate(selectedEarning.activityDate)} · Purchased {incomeDate(selectedEarning.purchaseDate)}
             </p>
-            <p className="mt-3">
+            <p className="mt-3 flex flex-wrap items-center gap-2">
               <span className={earningStatusClass(selectedEarning.status)}>{earningStatusLabel(selectedEarning.status)}</span>
+              {selectedEarning.held ? (
+                <span className="tv-income-status tv-income-status--failed">
+                  Held · {holdReasonLabel(selectedEarning.holdReason)}
+                </span>
+              ) : null}
+            </p>
+            <p className="mt-2 text-[12px] leading-relaxed text-[#52525b]">
+              {earningStatusExplanation(selectedEarning.status)}
+              {selectedEarning.held
+                ? ' An active financial hold keeps this booking out of automatic payout eligibility until released.'
+                : ''}
             </p>
 
             <dl className="mt-4 space-y-2.5 rounded-[10px] border border-[#e5e7eb] px-3 py-3 text-[13px]">
@@ -1444,14 +1639,21 @@ export default function SupplierEarnings() {
                 </ul>
               </section>
             ) : null}
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button type="button" className="tv-btn-primary h-9 px-3 text-[13px]" onClick={() => void openPayoutStatement(selectedPayout, false)}>
-                View statement
-              </button>
-              <button type="button" className="tv-btn-secondary h-9 px-3 text-[13px]" onClick={() => void openPayoutStatement(selectedPayout, true)}>
-                Download
-              </button>
-            </div>
+            {!payoutMaySayPaid(selectedPayout.status, selectedPayout.paid_at) ? (
+              <p className="mt-4 text-[12px] leading-relaxed text-[#52525b]">
+                This period is {payoutPresentationStatus(selectedPayout.status, selectedPayout.paid_at).toLowerCase()}.
+                A completed payout statement downloads only after payment confirmation. Automatic bank transfers are not enabled.
+              </p>
+            ) : (
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button type="button" className="tv-btn-primary h-9 px-3 text-[13px]" onClick={() => void openPayoutStatement(selectedPayout, false)}>
+                  View statement
+                </button>
+                <button type="button" className="tv-btn-secondary h-9 px-3 text-[13px]" onClick={() => void openPayoutStatement(selectedPayout, true)}>
+                  Download
+                </button>
+              </div>
+            )}
           </aside>
         </div>
       ) : null}

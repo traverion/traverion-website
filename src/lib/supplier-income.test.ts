@@ -121,8 +121,8 @@ describe('supplier net earnings', () => {
   it('does not call a payout paid without a completion time', () => {
     expect(payoutMaySayPaid('paid', null)).toBe(false);
     expect(payoutMaySayPaid('paid', '2026-11-01T00:00:00Z')).toBe(true);
-    expect(payoutPresentationStatus('paid', null)).toBe('Recorded');
-    expect(payoutPresentationStatus('ready', null)).toBe('Scheduled');
+    expect(payoutPresentationStatus('paid', null)).toBe('Recorded (unconfirmed)');
+    expect(payoutPresentationStatus('ready', null)).toBe('Prepared');
     expect(maskIban('FI2112345600000785')).toBe('•••• 0785');
   });
 
@@ -166,5 +166,6 @@ describe('supplier net earnings', () => {
     });
     expect(payout.join('\n')).toContain('Net amount payable to supplier: EUR 353.60');
     expect(payout.join('\n')).toContain('not proof of transfer');
+    expect(payout.join('\n')).toContain('not a VAT invoice');
   });
 });

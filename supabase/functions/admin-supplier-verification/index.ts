@@ -179,6 +179,7 @@ type Body = {
   payoutPeriodEnd?: string;
   payoutStatus?: string;
   payoutNote?: string | null;
+  payoutPaymentReference?: string | null;
   listingId?: string;
   listingSearch?: string;
   moderationReason?: string;
@@ -1287,10 +1288,22 @@ serve(async (req) => {
     const periodId = typeof body.payoutPeriodId === 'string' ? body.payoutPeriodId.trim() : '';
     if (!periodId) return json({ error: 'payoutPeriodId required' }, 400);
     const note = typeof body.payoutNote === 'string' ? body.payoutNote.trim() : '';
+    const paymentReference =
+      typeof body.payoutPaymentReference === 'string' ? body.payoutPaymentReference.trim() : '';
+    if (!paymentReference) {
+      return json(
+        {
+          error:
+            'payoutPaymentReference required — cannot mark a period paid without payment confirmation evidence',
+        },
+        400
+      );
+    }
     const { data, error } = await admin.rpc('admin_mark_payout_period_paid', {
       p_period_id: periodId,
       p_note: note || null,
       p_actor_id: adminUserId,
+      p_payment_reference: paymentReference,
     });
     if (error) return json({ error: error.message }, 500);
     const result = data as { ok?: boolean; error?: string } | null;

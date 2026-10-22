@@ -38,6 +38,7 @@ export type PayoutStatementInput = {
   periodEnd: string;
   statusLabel: string;
   paidAt: string | null;
+  paymentReference?: string | null;
   lines: PayoutStatementLine[];
   totalNetMinor: number;
 };
@@ -128,17 +129,21 @@ export function payoutStatementLines(input: PayoutStatementInput): string[] {
     `Reference: ${input.reference}`,
     `Issue date: ${input.issueDate}`,
     '',
-    'This statement lists net booking earnings included in a payout record.',
-    'It is not a VAT invoice.',
+    'This statement lists net booking earnings included in a confirmed payout record.',
+    'It is not a VAT invoice. Tax and VAT figures are not invented on this statement.',
     input.paidAt
       ? `Payment recorded at ${input.paidAt}.`
       : 'No completion time is recorded. This is not proof of transfer.',
+    input.paymentReference
+      ? `Payment confirmation reference: ${input.paymentReference}`
+      : 'Payment confirmation reference: not on file',
     '',
     'Supplier',
     input.supplierName || 'Legal name not on file',
     '',
     `Period: ${input.periodStart} to ${input.periodEnd}`,
     `Status: ${input.statusLabel}`,
+    `Currency: ${input.currency.toUpperCase()}`,
     '',
     'Included earnings',
   ];
