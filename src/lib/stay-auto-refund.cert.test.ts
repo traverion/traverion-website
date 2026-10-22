@@ -38,7 +38,8 @@ describe('Step 2.3 stay auto-refund', () => {
   it('edge executes Stripe refund with stable idempotency and never flips payment_status alone', () => {
     expect(edge).toContain('stripe.refunds.create');
     expect(edge).toContain('idempotencyKey');
-    expect(edge).toContain('stay-cancel-refund:');
+    // Phase 2: cancel-refund: primary; legacy stay-cancel-refund: still supported.
+    expect(edge.includes('cancel-refund:') || edge.includes('stay-cancel-refund:')).toBe(true);
     expect(edge).toContain('paymentStatusPendingWebhook');
     expect(edge).not.toContain("payment_status: 'refunded'");
     expect(edge).toContain('isStripeTestSecretKey');

@@ -185,6 +185,7 @@ export async function requestSupplierCancellation(params: {
   id?: string;
   immediate?: boolean;
   autoRefundQueued?: boolean;
+  beforeOfficialStart?: boolean;
   refundExecution?: { success: boolean; error?: string };
 }> {
   if (!supabase) return { ok: false, error: PARTNER_CANCEL_REQUEST_SUBMIT_ERROR };
@@ -203,7 +204,8 @@ export async function requestSupplierCancellation(params: {
 
   const rpc = data && typeof data === 'object' ? (data as Record<string, unknown>) : {};
   const autoRefundQueued = rpc.auto_refund_queued === true;
-  // Stay auto-refund: execute Stripe path when instruction was queued (same as traveler accept).
+  // Phase 2: execute Stripe only when instruction queued (supplier after-start / traveler eligible).
+  // Before-start supplier cancel stays pending_customer_choice — no execute.
   let refundExecution: { success: boolean; error?: string } | undefined;
   if (autoRefundQueued) {
     const { executeBookingRefund } = await import('./supabase-bookings');
@@ -213,6 +215,7 @@ export async function requestSupplierCancellation(params: {
     ...parsed,
     immediate: rpc.immediate === true,
     autoRefundQueued,
+    beforeOfficialStart: rpc.before_official_start === true,
     refundExecution,
   };
 }

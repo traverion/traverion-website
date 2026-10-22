@@ -324,7 +324,7 @@ export const PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE =
  * Stays: Traverion queues Stripe refund. Tours: Refund due until Phase 2 execution.
  */
 export const PARTNER_CANCEL_REQUEST_REFUND_POLICY =
-  'Traveler refund: a full refund is due when you cancel. For stays Traverion submits it to Stripe automatically. For tours, status becomes Refund due until Stripe records Refunded.';
+  'Traveler refund: a full refund is due when you cancel. If you cancel at or after the scheduled start, Traverion submits the Stripe refund automatically (Refund due until Stripe confirms). Before the start, the traveler chooses refund or reschedule — refund is not submitted yet.';
 
 /** Partner cancel modal title consequences. */
 export const PARTNER_CANCEL_IMMEDIATE_TITLE = 'Cancel this booking';

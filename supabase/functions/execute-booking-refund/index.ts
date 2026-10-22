@@ -1,7 +1,9 @@
 /**
- * Step 2.3: execute a queued Stay cancellation refund against Stripe.
- * Idempotent via booking_refund_instructions.idempotency_key (stay-cancel-refund:{bookingId}).
+ * Phase 2 / Step 2.3: execute a queued Stay or Tour cancellation refund against Stripe.
+ * Idempotent via booking_refund_instructions.idempotency_key
+ *   (cancel-refund:{bookingId}, legacy stay-cancel-refund:{bookingId}).
  * Does NOT set payment_status=refunded — stripe-webhook charge.refunded does that.
+ * Service-role { recover: true } drains pending/stale instructions without a browser.
  */
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
@@ -24,10 +26,15 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-const IDEMPOTENCY_PREFIX = 'stay-cancel-refund:';
+const IDEMPOTENCY_PREFIX = 'cancel-refund:';
+const LEGACY_STAY_PREFIX = 'stay-cancel-refund:';
 
 function refundKeyForBooking(bookingId: string): string {
   return `${IDEMPOTENCY_PREFIX}${bookingId}`;
+}
+
+function legacyStayKeyForBooking(bookingId: string): string {
+  return `${LEGACY_STAY_PREFIX}${bookingId}`;
 }
 
 serve(async (req) => {
@@ -75,7 +82,64 @@ serve(async (req) => {
 
     const body = (await req.json().catch(() => ({}))) as {
       bookingId?: string;
+      recover?: boolean;
+      limit?: number;
     };
+
+    // Service-role recovery drain — no traveler browser required.
+    if (body.recover === true) {
+      if (!isServiceRole) {
+        return json({ success: false, error: 'recover requires service role' }, 403);
+      }
+      const limit =
+        typeof body.limit === 'number' && Number.isFinite(body.limit)
+          ? Math.max(1, Math.min(Math.floor(body.limit), 50))
+          : 25;
+      const listed = await admin.rpc('list_pending_cancel_refund_instructions', {
+        p_limit: limit,
+      });
+      if (listed.error) return json({ success: false, error: listed.error.message }, 500);
+      const instructions = ((listed.data as { instructions?: Array<{ booking_id?: string }> } | null)
+        ?.instructions ?? []) as Array<{ booking_id?: string }>;
+      const results: Array<{ bookingId: string; ok: boolean; error?: string }> = [];
+      for (const row of instructions) {
+        const id = typeof row.booking_id === 'string' ? row.booking_id.trim() : '';
+        if (!id) continue;
+        try {
+          const nested = await fetch(`${supabaseUrl}/functions/v1/execute-booking-refund`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${serviceRoleKey}`,
+              apikey: serviceRoleKey,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ bookingId: id }),
+          });
+          const nestedJson = (await nested.json().catch(() => ({}))) as {
+            success?: boolean;
+            error?: string;
+          };
+          results.push({
+            bookingId: id,
+            ok: nestedJson.success === true,
+            error: nestedJson.success ? undefined : String(nestedJson.error ?? nested.status),
+          });
+        } catch (e) {
+          results.push({
+            bookingId: id,
+            ok: false,
+            error: e instanceof Error ? e.message : 'recover_invoke_failed',
+          });
+        }
+      }
+      return json({
+        success: true,
+        recover: true,
+        attempted: results.length,
+        results,
+      });
+    }
+
     const bookingId = typeof body.bookingId === 'string' ? body.bookingId.trim() : '';
     if (!bookingId) return json({ success: false, error: 'bookingId required' }, 400);
 
@@ -141,7 +205,7 @@ serve(async (req) => {
       return json({ success: false, error: 'No refund entitlement on this booking' }, 400);
     }
 
-    const ensure = await admin.rpc('ensure_stay_cancel_refund_instruction', {
+    const ensure = await admin.rpc('ensure_booking_cancel_refund_instruction', {
       p_booking_id: bookingId,
       p_reason: 'execute_booking_refund',
       p_actor_id: actorUserId,
@@ -168,14 +232,12 @@ serve(async (req) => {
       );
     }
 
-    const idempotencyKey = ensureObj.idempotency_key || refundKeyForBooking(bookingId);
+    const preferredKey = ensureObj.idempotency_key || refundKeyForBooking(bookingId);
+    const claimKeys = Array.from(
+      new Set([preferredKey, refundKeyForBooking(bookingId), legacyStayKeyForBooking(bookingId)])
+    );
 
-    const claim = await admin.rpc('claim_refund_instruction_for_execution', {
-      p_idempotency_key: idempotencyKey,
-      p_stale_after_seconds: 120,
-    });
-    if (claim.error) return json({ success: false, error: claim.error.message }, 500);
-    const claimObj = claim.data as {
+    let claimObj: {
       ok?: boolean;
       error?: string;
       already?: boolean;
@@ -185,21 +247,40 @@ serve(async (req) => {
       currency?: string;
       booking_id?: string;
       id?: string;
-    } | null;
+      idempotency_key?: string;
+    } | null = null;
+    let idempotencyKey = preferredKey;
 
-    if (!claimObj?.ok) {
-      // Another worker holds the claim — tell client to wait / retry later.
-      if (claimObj?.error === 'not_claimable') {
+    for (const key of claimKeys) {
+      const claim = await admin.rpc('claim_refund_instruction_for_execution', {
+        p_idempotency_key: key,
+        p_stale_after_seconds: 120,
+      });
+      if (claim.error) return json({ success: false, error: claim.error.message }, 500);
+      const row = claim.data as typeof claimObj;
+      if (row?.ok) {
+        claimObj = row;
+        idempotencyKey = key;
+        break;
+      }
+      if (row?.error === 'not_claimable') {
         return json({
           success: true,
           pending: true,
-          status: claimObj.status,
-          stripeRefundId: claimObj.stripe_refund_id ?? null,
+          status: row.status,
+          stripeRefundId: row.stripe_refund_id ?? null,
           bookingId,
           message: 'Refund already in progress',
         });
       }
-      return json({ success: false, error: String(claimObj?.error ?? 'claim_failed') }, 409);
+      // instruction_not_found on this key — try next
+      if (row?.error && row.error !== 'instruction_not_found') {
+        return json({ success: false, error: String(row.error ?? 'claim_failed') }, 409);
+      }
+    }
+
+    if (!claimObj?.ok) {
+      return json({ success: false, error: 'claim_failed' }, 409);
     }
 
     if (claimObj.already && claimObj.stripe_refund_id) {
@@ -344,7 +425,7 @@ serve(async (req) => {
     await admin.from('booking_payment_events').insert({
       booking_id: bookingId,
       event_id: `auto-refund:${refund.id}`,
-      event_type: 'stay_cancel_refund_submitted',
+      event_type: 'cancel_refund_submitted',
       payment_intent_id: paymentIntentId,
       amount: refundAmountMinor / 100,
       currency: String(claimObj.currency || booking.currency || 'EUR').toUpperCase(),
@@ -357,7 +438,7 @@ serve(async (req) => {
     });
 
     // Notify — initiated (completed comes from webhook).
-    let listingTitle = 'Your stay';
+    let listingTitle = 'Your booking';
     let listingSupplierId: string | null = null;
     if (booking.listing_id) {
       const { data: lt } = await admin

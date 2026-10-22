@@ -1354,7 +1354,7 @@ export async function cancelBookingAsCustomer(
   }
   const notifyWarning = softNotifyWarningFromResults(...softResults) ?? undefined;
 
-  // Step 2.3: queue Stay auto-refund with Stripe (idempotent). Soft-fail — cancel already committed.
+  // Phase 2 / Step 2.3: queue Stay+Tour auto-refund with Stripe (idempotent). Soft-fail — cancel already committed.
   let refundExecution: Awaited<ReturnType<typeof executeBookingRefund>> | undefined;
   if (!unpaidCheckout && serverChoice === 'full_refund') {
     refundExecution = await executeBookingRefund(bookingId);
@@ -1369,7 +1369,7 @@ export async function cancelBookingAsCustomer(
   };
 }
 
-/** Submit queued Stay cancellation refund to Stripe (idempotent). */
+/** Submit queued Stay/Tour cancellation refund to Stripe (idempotent). */
 export async function executeBookingRefund(bookingId: string): Promise<{
   success: boolean;
   error?: string;

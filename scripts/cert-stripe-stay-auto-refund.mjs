@@ -86,7 +86,7 @@ const BOOKING_ID = 'a3333333-3333-4333-8333-333333333333';
 const CHECK_IN = '2027-03-12';
 const CHECK_OUT = '2027-03-14';
 const AMOUNT_MINOR = 2700;
-const IDEMPOTENCY = `stay-cancel-refund:${BOOKING_ID}`;
+const IDEMPOTENCY = `cancel-refund:${BOOKING_ID}`;
 
 const report = {
   ok: false,
@@ -188,18 +188,21 @@ insert into public.bookings (
     step('fixture_is_stay', { stay: true });
 
     const ensure = dbQuery(
-      `select public.ensure_stay_cancel_refund_instruction('${BOOKING_ID}'::uuid, 'cert_traveler_self_cancel', null) as r;`
+      `select public.ensure_booking_cancel_refund_instruction('${BOOKING_ID}'::uuid, 'cert_traveler_self_cancel', null) as r;`
     );
     const ensureRow = ensure.rows?.[0]?.r;
     if (!ensureRow?.ok) throw new Error(`ensure failed: ${JSON.stringify(ensureRow)}`);
+    const idempotencyKey = String(ensureRow.idempotency_key || IDEMPOTENCY);
+    report.idempotencyKey = idempotencyKey;
     step('ensure_instruction', {
       id: ensureRow.id,
       status: ensureRow.status,
       amountMinor: ensureRow.amount_minor,
+      idempotencyKey,
     });
 
     const claim = dbQuery(
-      `select public.claim_refund_instruction_for_execution('${IDEMPOTENCY}', 120) as r;`
+      `select public.claim_refund_instruction_for_execution('${idempotencyKey}', 120) as r;`
     );
     const claimRow = claim.rows?.[0]?.r;
     if (!claimRow?.ok) throw new Error(`claim failed: ${JSON.stringify(claimRow)}`);
@@ -213,9 +216,9 @@ insert into public.bookings (
         amount: String(AMOUNT_MINOR),
         reason: 'requested_by_customer',
         'metadata[booking_id]': BOOKING_ID,
-        'metadata[traverion_refund_key]': IDEMPOTENCY,
+        'metadata[traverion_refund_key]': idempotencyKey,
       },
-      IDEMPOTENCY
+      idempotencyKey
     );
     report.stripeRefundId = refund.id;
     report.stripeRefundStatus = refund.status;
@@ -229,16 +232,16 @@ insert into public.bookings (
         amount: String(AMOUNT_MINOR),
         reason: 'requested_by_customer',
         'metadata[booking_id]': BOOKING_ID,
-        'metadata[traverion_refund_key]': IDEMPOTENCY,
+        'metadata[traverion_refund_key]': idempotencyKey,
       },
-      IDEMPOTENCY
+      idempotencyKey
     );
     report.duplicateRefundId = dup.id;
     if (dup.id !== refund.id) throw new Error(`idempotency broken: ${dup.id} != ${refund.id}`);
     step('stripe_refund_idempotent_replay', { refundId: dup.id });
 
     const marked = dbQuery(
-      `select public.mark_refund_instruction_submitted('${IDEMPOTENCY}', '${refund.id}', '${refund.status}') as r;`
+      `select public.mark_refund_instruction_submitted('${idempotencyKey}', '${refund.id}', '${refund.status}') as r;`
     );
     const markedRow = marked.rows?.[0]?.r;
     if (!markedRow?.ok) throw new Error(`mark submitted failed: ${JSON.stringify(markedRow)}`);
@@ -249,7 +252,7 @@ insert into public.bookings (
       `update public.bookings set refund_choice = 'no_refund', auto_refund_status = null where id = '${BOOKING_ID}'::uuid;`
     );
     const skip = dbQuery(
-      `select public.ensure_stay_cancel_refund_instruction('${BOOKING_ID}'::uuid, 'cert_non_refundable', null) as r;`
+      `select public.ensure_booking_cancel_refund_instruction('${BOOKING_ID}'::uuid, 'cert_non_refundable', null) as r;`
     );
     const skipRow = skip.rows?.[0]?.r;
     report.nonRefundableBlocked = skipRow?.error === 'no_refund_entitlement';
