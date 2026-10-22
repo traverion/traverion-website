@@ -12,7 +12,7 @@ export function MarketplaceFilterSection({
   return (
     <section className="space-y-2.5">
       <div>
-        <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">{title}</h3>
+        <h3 className="text-[12px] font-semibold tracking-tight text-ink-muted">{title}</h3>
         {hint ? <p className="mt-1 text-xs text-ink-faint leading-snug">{hint}</p> : null}
       </div>
       {children}

@@ -471,7 +471,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
       <div className="min-h-screen flex flex-col items-center justify-center px-6 py-16 bg-paper">
         <div className="w-full max-w-md tv-card p-4 sm:p-5 text-center">
           <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-9 w-auto mx-auto mb-6 opacity-90" />
-          <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Booking confirmation</p>
+          <p className="tv-eyebrow mb-2">Booking confirmation</p>
           <h1 className="font-display text-2xl tracking-tight text-ink">Booking confirmation unavailable</h1>
           <p className="text-ink-muted text-sm mt-2 mb-6 leading-relaxed">
             Bookings are not available in this environment.
@@ -492,7 +492,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
       <div className="min-h-screen flex flex-col items-center justify-center px-6 py-16 bg-paper">
         <div className="w-full max-w-md tv-card p-4 sm:p-5 text-center">
           <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-9 w-auto mx-auto mb-6 opacity-90" />
-          <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint mb-2">Booking confirmation</p>
+          <p className="tv-eyebrow mb-2">Booking confirmation</p>
           <h1 className="font-display text-2xl tracking-tight text-ink">No checkout in this link</h1>
           <p className="text-ink-muted text-sm mt-2 mb-6 leading-relaxed">
             {userFacingError(

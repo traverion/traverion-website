@@ -37,7 +37,7 @@ type Props = {
 };
 
 const sectionClass = 'mt-6 border-t border-[#E8EBF0] pt-6';
-const headingClass = 'mb-3 text-xl font-bold tracking-tight text-[#111827]';
+const headingClass = 'tv-section-heading mb-3';
 
 function Fact({ label, children }: { label: string; children: string }) {
   const value = children.trim();

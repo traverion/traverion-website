@@ -226,7 +226,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
           </p>
           <h3
             title={tour.title}
-            className={`mt-1 line-clamp-2 break-words font-sans font-bold leading-snug tracking-tight text-ink [overflow-wrap:anywhere] ${
+            className={`tv-card-title mt-1 line-clamp-2 break-words [overflow-wrap:anywhere] ${
               size === 'compact' ? 'text-[15px] sm:text-[16px]' : 'text-base sm:text-[1.0625rem]'
             }`}
           >

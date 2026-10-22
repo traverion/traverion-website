@@ -24,7 +24,7 @@ export default function AuthModal() {
 
   return (
     <div
-      className="fixed inset-0 z-[30000] flex items-end justify-center bg-black/50 sm:items-center sm:p-4"
+      className="tv-auth-overlay fixed inset-0 z-[30000] flex items-end justify-center sm:items-center sm:p-4"
       onClick={closeAuthModal}
     >
       <div
@@ -32,20 +32,20 @@ export default function AuthModal() {
         role="dialog"
         aria-modal="true"
         aria-labelledby="auth-modal-title"
-        className="tv-auth-dialog w-full sm:max-w-[28.5rem]"
+        className="tv-auth-dialog tv-pop w-full sm:max-w-[28.5rem]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="sticky top-0 z-10 flex justify-end bg-white px-3 pt-3">
+        <div className="sticky top-0 z-10 flex justify-end bg-white px-3 pt-3 sm:px-4 sm:pt-4">
           <button
             type="button"
             onClick={closeAuthModal}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-ink-muted hover:bg-black/[0.05] hover:text-ink"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full text-ink-muted transition-colors duration-150 hover:bg-black/[0.05] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland/40"
             aria-label="Close"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6">
+        <div className="px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-7 sm:pb-7">
           <TravelerAuthForm
             idPrefix="auth-modal"
             tab={tab}

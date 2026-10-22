@@ -98,8 +98,8 @@ export function MarketplaceBrowseShell({
           >
             <div className="mb-5 flex items-start justify-between gap-3 shrink-0">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">Browse</p>
-                <h2 id={`${headingId}-filters-title`} className="mt-1 text-xl font-semibold tracking-tight text-ink">
+                <p className="tv-eyebrow">Browse</p>
+                <h2 id={`${headingId}-filters-title`} className="tv-page-title mt-0.5 text-xl">
                   Filters
                   {filterCount > 0 ? (
                     <span className="ml-2 align-middle text-base font-sans font-semibold text-finland tabular-nums">
@@ -180,7 +180,7 @@ export function MarketplaceSortSelect({
 }) {
   return (
     <label className="inline-flex max-w-full items-center gap-2 rounded-full border border-black/[0.1] bg-white px-3 py-1 text-sm text-ink-muted">
-      <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-finland">Sort</span>
+      <span className="text-[11px] font-semibold tracking-wide text-finland">Sort</span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}

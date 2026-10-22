@@ -2249,7 +2249,7 @@ export default function BookingPage({
                 className="lux-flat inline-flex h-11 min-w-0 items-center gap-2 rounded-md pr-2 text-ink"
               >
                 <img src={BRAND_LOGO_SRC} alt="" className="h-8 w-8 object-contain" />
-                <span className="font-sans text-[11px] font-semibold tracking-[0.18em]">TRAVERION</span>
+                <span className="font-sans text-[13px] font-bold tracking-tight">Traverion</span>
                 <span className="sr-only">Back to tour</span>
               </button>
               <p className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-muted">

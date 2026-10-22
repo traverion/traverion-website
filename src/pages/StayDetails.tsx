@@ -1090,7 +1090,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
 
             {stay.description ? (
               <section>
-                <h2 className="font-sans text-lg font-bold tracking-tight text-ink mb-2">About this place</h2>
+                <h2 className="tv-section-heading mb-2">About this place</h2>
                 <div
                   className={`overflow-hidden transition-[max-height] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
                     descriptionExpanded ? 'max-h-[80rem]' : 'max-h-[6.5rem]'
@@ -1115,7 +1115,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
 
             {stay.highlights?.some((line) => line.trim()) ? (
               <section>
-                <h2 className="font-sans text-lg font-bold tracking-tight text-ink mb-3">Property highlights</h2>
+                <h2 className="tv-section-heading mb-3">Property highlights</h2>
                 <ul className="grid gap-2.5 sm:grid-cols-2">
                   {stay.highlights
                     .filter((line) => line.trim())
@@ -1139,7 +1139,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
 
             {amenities.length > 0 ? (
               <section>
-                <h2 className="font-sans text-lg font-bold tracking-tight text-ink mb-3">Amenities</h2>
+                <h2 className="tv-section-heading mb-3">Amenities</h2>
                 <ul className="grid grid-cols-1 gap-x-4 gap-y-2.5 sm:grid-cols-2">
                   {(amenitiesExpanded ? amenities : amenities.slice(0, 8)).map((a) => {
                     const Icon = stayAmenityLucideIcon(a);
@@ -1173,7 +1173,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
               if (areas.length === 0) return null;
               return (
                 <section>
-                  <h2 className="font-sans text-lg font-bold tracking-tight text-ink mb-3">Where you&apos;ll sleep</h2>
+                  <h2 className="tv-section-heading mb-3">Where you&apos;ll sleep</h2>
                   <ul className="grid gap-3 sm:grid-cols-2">
                     {areas.map((area) => {
                       const photos = primary?.roomPhotos?.find((row) => row.areaId === area.id)?.urls ?? [];
@@ -1214,7 +1214,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
             })()}
 
             <section className="border-t border-black/[0.08] pt-8">
-              <h2 className="font-sans text-lg font-bold tracking-tight text-ink mb-3 flex items-center gap-2">
+              <h2 className="tv-section-heading mb-3 flex items-center gap-2">
                 <Clock className="h-4 w-4 text-finland" aria-hidden strokeWidth={2} />
                 Check-in &amp; check-out
               </h2>
@@ -1241,7 +1241,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
 
             {stayRestrictionLines(s?.restrictions).length > 0 || s?.houseRules ? (
               <section className="border-t border-black/[0.08] pt-8">
-                <h2 className="font-sans text-lg font-bold tracking-tight text-ink mb-3">House rules</h2>
+                <h2 className="tv-section-heading mb-3">House rules</h2>
                 {stayRestrictionLines(s?.restrictions).length > 0 ? (
                   <ul className="mb-3 grid gap-2 sm:grid-cols-2">
                     {stayRestrictionLines(s?.restrictions).map((line) => (
@@ -1264,7 +1264,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
 
             {s?.exteriorCamera || (s?.safetyConsiderations?.length ?? 0) > 0 || s?.safetyNote ? (
               <section className="border-t border-black/[0.08] pt-8">
-                <h2 className="font-sans text-lg font-bold tracking-tight text-ink mb-3 flex items-center gap-2">
+                <h2 className="tv-section-heading mb-3 flex items-center gap-2">
                   <Shield className="h-4 w-4 text-finland" aria-hidden strokeWidth={2} />
                   Safety
                 </h2>
@@ -1288,7 +1288,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
             ) : null}
 
             <section className="border-t border-black/[0.08] pt-8">
-              <h2 className="font-sans text-lg font-bold tracking-tight text-ink mb-2">Cancellation</h2>
+              <h2 className="tv-section-heading mb-2">Cancellation</h2>
               <p
                 className={`text-sm text-ink-muted break-words [overflow-wrap:anywhere] whitespace-pre-wrap ${
                   cancellationExpanded ? '' : 'line-clamp-3'
@@ -1310,7 +1310,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
 
             {hostName ? (
               <section className="border-t border-black/[0.08] pt-8">
-                <h2 className="font-sans text-lg font-bold tracking-tight text-ink mb-2">Host</h2>
+                <h2 className="tv-section-heading mb-2">Host</h2>
                 <p className="text-sm font-medium text-ink">{hostName}</p>
                 {hostDescription ? (
                   <p className="mt-2 text-sm text-ink-muted leading-relaxed whitespace-pre-wrap">{hostDescription}</p>
@@ -1323,7 +1323,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
 
             <div id="stay-reviews" className="border-t border-black/[0.08] pt-8">
               <div className="mb-2 flex flex-wrap items-end justify-between gap-3">
-                <h2 className="font-sans text-lg font-bold tracking-tight text-ink">Reviews</h2>
+                <h2 className="tv-section-heading">Reviews</h2>
                 {reviews.length > 0 ? (
                   <button
                     type="button"
@@ -1390,7 +1390,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                     <p className="text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{r.comment}</p>
                     {reviewReplies[r.id]?.reply_text ? (
                       <div className="mt-3 rounded-xl bg-finland/[0.04] px-3.5 py-3 ring-1 ring-finland/10">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-finland mb-1">
+                        <p className="tv-eyebrow mb-1">
                           Response from the host
                         </p>
                         <p className="text-sm text-ink leading-relaxed break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{reviewReplies[r.id]!.reply_text}</p>
@@ -1549,32 +1549,29 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
             aria-labelledby="stay-booking-panel-title"
             className="tv-booking-sticky tv-booking-sticky--fit lg:sticky lg:top-[calc(4.75rem+env(safe-area-inset-top,0px))] h-fit scroll-mt-28"
           >
-            <p
-              id="stay-booking-panel-title"
-              className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-finland"
-            >
+            <p id="stay-booking-panel-title" className="tv-eyebrow mb-3">
               {requestToBook ? 'Request to book' : 'Reserve'}
             </p>
             {/* Phase 1548: dates selected + failed quote — do not invent catalog nightly (1546 sticky parity). */}
             {/* Phase 1606: Price unavailable (Tour 1604 parity) instead of an em dash. */}
             {checkIn && checkOut && stayQuote && !stayQuote.ok ? (
-              <p className="font-display text-2xl font-semibold tabular-nums tracking-tight text-ink">
+              <p className="font-sans text-2xl font-bold tabular-nums tracking-tight text-ink">
                 Price unavailable
               </p>
             ) : quoteOk && stayQuote?.ok ? (
               // Phase 1562: successful quote is the hero total (Tour 1561 / sticky 1546 parity — not catalog nightly).
               <div className="tv-quote-reveal">
-                <p className="font-display text-3xl font-semibold tabular-nums tracking-tight text-ink leading-none">
+                <p className="font-sans text-3xl font-bold tabular-nums tracking-tight text-ink leading-none">
                   {formatMoney(stayQuote.totalAmount, stayQuote.currency)}
                 </p>
-                <p className="mt-1.5 text-sm text-ink-muted">
+                <p className="tv-meta mt-1.5">
                   Total · {stayQuote.nights} night{stayQuote.nights === 1 ? '' : 's'}
                   {nightly > 0 ? ` · ${formatMoney(nightly, currency)} / night` : ''}
                 </p>
               </div>
             ) : nightly > 0 ? (
               <div>
-                <p className="font-display text-3xl font-semibold tabular-nums tracking-tight text-ink leading-none">
+                <p className="font-sans text-3xl font-bold tabular-nums tracking-tight text-ink leading-none">
                   {formatMoney(nightly, currency)}
                 </p>
                 <p className="mt-1.5 text-sm text-ink-muted">

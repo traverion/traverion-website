@@ -334,12 +334,14 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
           aria-hidden
         />
         <div className="tv-rise relative z-10 w-full tv-shell px-4 pb-6 page-hero-content sm:px-6 sm:pb-12 lg:px-8 lg:pb-14">
-          {/* Phase 1801: brand dominates first viewport — headline must not overpower TRAVERION. */}
-          <p className="mb-2 text-xs font-semibold tracking-[0.18em] text-white/80 sm:mb-3">TRAVERION</p>
-          <h1 className="page-hero-title mb-2 max-w-2xl font-sans text-3xl font-bold leading-[1.08] tracking-tight sm:mb-3 sm:text-4xl lg:text-[2.65rem]">
+          {/* Phase 1801: brand dominates first viewport — headline must not overpower Traverion. */}
+          <p className="page-hero-eyebrow mb-2 font-sans text-4xl font-bold tracking-tight text-white sm:mb-3 sm:text-5xl">
+            Traverion
+          </p>
+          <h1 className="page-hero-title mb-2 max-w-2xl font-sans text-xl font-semibold leading-snug tracking-tight text-white sm:mb-3 sm:text-2xl">
             Discover remarkable experiences and stays.
           </h1>
-          <p className="page-hero-subtitle mb-5 max-w-md text-sm font-normal leading-relaxed text-white/90 sm:mb-7 sm:text-base">
+          <p className="page-hero-subtitle mb-4 max-w-md text-[0.9375rem] font-normal leading-relaxed text-white/90 sm:mb-6 sm:text-base">
             Book tours and nights directly with the people who run them.
           </p>
 
@@ -410,10 +412,10 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
 
       <section className="tv-section">
         <div className="tv-content">
-          <div className="mb-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Destinations</p>
-            <h2 className="font-sans text-2xl font-bold tracking-tight text-[#111827] sm:text-3xl">Explore somewhere unforgettable</h2>
-            <p className="mt-2 text-sm text-ink-muted max-w-lg">
+          <div className="mb-4 sm:mb-5">
+            <p className="tv-eyebrow">Destinations</p>
+            <h2 className="tv-section-heading sm:text-[1.65rem]">Explore somewhere unforgettable</h2>
+            <p className="tv-meta mt-1.5 max-w-lg">
               Places with published tours and stays on Traverion.
             </p>
           </div>
@@ -458,7 +460,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                   >
                     <img src={img} alt="" loading="lazy" decoding="async" />
                     <span className="tv-dest-tile-label">
-                      <span className="block font-display text-base sm:text-lg leading-tight">{p.label}</span>
+                      <span className="block text-base font-bold leading-tight sm:text-lg">{p.label}</span>
                       {countLabel ? (
                         <span className="mt-0.5 block text-[11px] text-white/80" aria-hidden>
                           {countLabel}
@@ -507,11 +509,11 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
 
       <section className="tv-section tv-section-muted tv-section-divider">
         <div className="tv-content">
-          <div className="flex items-end justify-between gap-3 mb-5">
+          <div className="mb-4 flex items-end justify-between gap-3 sm:mb-5">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">{toursSectionEyebrow}</p>
-              <h2 className="font-sans text-2xl font-bold tracking-tight text-[#111827] sm:text-3xl">{toursSectionTitle}</h2>
-              <p className="mt-2 text-sm text-ink-muted">{toursSectionSubtitle}</p>
+              <p className="tv-eyebrow">{toursSectionEyebrow}</p>
+              <h2 className="tv-section-heading sm:text-[1.65rem]">{toursSectionTitle}</h2>
+              <p className="tv-meta mt-1.5">{toursSectionSubtitle}</p>
             </div>
             {!catalogLoading && allListings.length > 0 ? (
               <button
@@ -584,14 +586,12 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
 
       <section className="tv-section">
         <div className="tv-content">
-          <div className="flex items-end justify-between gap-3 mb-5">
+          <div className="mb-4 flex items-end justify-between gap-3 sm:mb-5">
             <div>
               {/* Phase 1680: stays personalization eyebrow/subtitle match tours For you honesty. */}
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">
-                {staysSectionEyebrow}
-              </p>
-              <h2 className="font-sans text-2xl font-bold tracking-tight text-[#111827] sm:text-3xl">{staysSectionTitle}</h2>
-              <p className="mt-2 text-sm text-ink-muted">{staysSectionSubtitle}</p>
+              <p className="tv-eyebrow">{staysSectionEyebrow}</p>
+              <h2 className="tv-section-heading sm:text-[1.65rem]">{staysSectionTitle}</h2>
+              <p className="tv-meta mt-1.5">{staysSectionSubtitle}</p>
             </div>
             {!catalogLoading && stayListings.length > 0 ? (
               <button type="button" onClick={() => goToStays()} className="tv-section-cta lux-flat">
@@ -656,13 +656,11 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
 
       <section className="tv-section tv-section-muted tv-section-divider">
         <div className="tv-content">
-          <h2 className="mb-2 font-sans text-2xl font-bold tracking-tight text-[#111827] sm:text-3xl">
-            Why book with Traverion
-          </h2>
-          <p className="mb-6 max-w-xl text-sm leading-relaxed text-ink-muted">
+          <h2 className="tv-section-heading mb-1.5 sm:text-[1.65rem]">Why book with Traverion</h2>
+          <p className="tv-meta mb-5 max-w-xl leading-relaxed sm:mb-6">
             Tours and stays from independent operators — with clear prices before you pay.
           </p>
-          <ul className="grid gap-6 border-t border-[#E6EAF0] pt-6 sm:grid-cols-2 lg:grid-cols-4">
+          <ul className="grid gap-5 border-t border-[#E6EAF0] pt-5 sm:grid-cols-2 sm:gap-6 sm:pt-6 lg:grid-cols-4">
             {[
               {
                 icon: Compass,

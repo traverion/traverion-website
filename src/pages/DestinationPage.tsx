@@ -354,7 +354,7 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
             ) : tourListings.length === 0 && stayListings.length > 0 ? (
               // Phase 1613: destination has stays only — still name Tours so shoppers know the gap.
               <section aria-labelledby="destination-tours-heading" className="rounded-2xl bg-paper-raised px-5 py-6 ring-1 ring-black/[0.06]">
-                <h2 id="destination-tours-heading" className="font-display text-xl text-ink tracking-tight">
+                <h2 id="destination-tours-heading" className="tv-section-heading text-xl">
                   Tours
                 </h2>
                 <p className="mt-2 text-sm text-ink-muted max-w-lg">
@@ -419,7 +419,7 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
             ) : stayListings.length === 0 && tourListings.length > 0 ? (
               // Phase 1613: destination has tours only — name Stays with a clear path out.
               <section aria-labelledby="destination-stays-heading" className="rounded-2xl bg-paper-raised px-5 py-6 ring-1 ring-black/[0.06]">
-                <h2 id="destination-stays-heading" className="font-display text-xl text-ink tracking-tight">
+                <h2 id="destination-stays-heading" className="tv-section-heading text-xl">
                   Stays
                 </h2>
                 <p className="mt-2 text-sm text-ink-muted max-w-lg">

@@ -132,7 +132,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 e.currentTarget.style.display = 'none';
               }}
             />
-            <span className="font-sans text-[11px] font-bold tracking-[0.18em] text-ink">TRAVERION</span>
+            <span className="font-sans text-[13px] font-bold tracking-tight text-ink">Traverion</span>
           </button>
 
           {/* Navigation */}

@@ -544,8 +544,8 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
       <div className="min-h-screen bg-paper tv-page">
         <div className="tv-shell px-4 sm:px-6 lg:px-8 py-8 pb-12">
           <header className="mb-6 border-b border-black/[0.06] pb-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Your travel</p>
-            <h1 id={TRIPS_HEADING_ID} className="font-sans text-2xl font-bold tracking-tight text-[#111827] sm:text-3xl">
+            <p className="tv-eyebrow">Your travel</p>
+            <h1 id={TRIPS_HEADING_ID} className="tv-page-title">
               Trips
             </h1>
             <p className="mt-2 text-sm text-ink-muted">Upcoming and past tours and stays you booked.</p>
@@ -594,8 +594,8 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
       <div className="min-h-screen bg-paper tv-page">
         <div className="tv-shell px-4 sm:px-6 lg:px-8 py-8 pb-12">
           <header className="mb-6 border-b border-black/[0.06] pb-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Your travel</p>
-            <h1 id={TRIPS_HEADING_ID} className="font-sans text-2xl font-bold tracking-tight text-[#111827] sm:text-3xl">
+            <p className="tv-eyebrow">Your travel</p>
+            <h1 id={TRIPS_HEADING_ID} className="tv-page-title">
               Trips
             </h1>
             <p className="mt-2 text-sm text-ink-muted leading-relaxed max-w-xl">
@@ -642,7 +642,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
         <header className="mx-auto mb-6 max-w-[1000px] border-b border-black/[0.06] pb-5">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <h1 id={TRIPS_HEADING_ID} className="font-sans text-2xl font-bold tracking-tight text-ink sm:text-[1.65rem]">
+              <h1 id={TRIPS_HEADING_ID} className="tv-page-title">
                 Your trips
               </h1>
               <p className="mt-1 text-sm text-ink-muted max-w-xl">
@@ -790,7 +790,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
         ) : (
           <div className="space-y-4">
             <div className="max-w-md">
-              <label htmlFor="trips-search" className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">
+              <label htmlFor="trips-search" className="tv-eyebrow !mb-0 text-ink-faint">
                 Search
               </label>
               <input
@@ -1670,7 +1670,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
             <div className="tv-sheet-panel relative max-w-lg motion-safe:animate-slide-up" role="dialog" aria-modal="true" aria-labelledby="cancel-trip-title">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">Cancellation</p>
+                  <p className="tv-eyebrow !mb-0">Cancellation</p>
                   <h3 id="cancel-trip-title" className="mt-2 font-sans text-xl font-bold tracking-tight text-ink">
                     {travelerSelfCancelIsUnpaidCheckout(cancelConfirm)
                       ? 'Cancel checkout?'

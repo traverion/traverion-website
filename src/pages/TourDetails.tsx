@@ -2422,7 +2422,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
       <section id="tour-reviews" className="scroll-mt-28 border-t border-[#E8EBF0] bg-paper pt-6">
         <div className="tv-shell mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-            <h2 className="text-xl font-bold tracking-tight text-[#111827]">Reviews</h2>
+            <h2 className="tv-section-heading">Reviews</h2>
             {reviews.length > 0 ? (
               <button
                 type="button"
@@ -2494,9 +2494,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                 <p className="line-clamp-4 text-sm leading-relaxed text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{r.comment}</p>
                 {reviewReplies[r.id]?.reply_text ? (
                   <div className="mt-3 rounded-xl bg-finland/[0.04] px-3.5 py-3 ring-1 ring-finland/10">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-finland mb-1">
-                      Response from the operator
-                    </p>
+                    <p className="tv-eyebrow mb-1">Response from the operator</p>
                     <p className="text-sm text-ink leading-relaxed break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{reviewReplies[r.id]!.reply_text}</p>
                   </div>
                 ) : null}

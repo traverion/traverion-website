@@ -21,8 +21,8 @@ export default function EmptyState({ icon: Icon, title, body, action, className 
           <Icon className="h-5 w-5" strokeWidth={1.85} />
         </div>
       ) : null}
-      <h2 className="font-display text-xl sm:text-2xl text-ink tracking-tight">{title}</h2>
-      <p className="mt-2 text-sm text-ink-muted leading-relaxed">{body}</p>
+      <h2 className="tv-section-heading">{title}</h2>
+      <p className="mt-2 text-sm text-ink-muted leading-relaxed max-w-md">{body}</p>
       {action ? (
         <div className="mt-5 flex flex-wrap gap-2 [&_a]:min-h-11 [&_button]:min-h-11">{action}</div>
       ) : null}

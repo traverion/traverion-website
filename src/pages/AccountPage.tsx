@@ -161,8 +161,8 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
       <div className="min-h-screen bg-paper tv-page">
         <div className="max-w-xl mx-auto px-4 py-8">
           <header className="mb-5 tv-card p-4 sm:p-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Traveler</p>
-            <h1 id={ACCOUNT_HEADING_ID} className="font-display text-3xl sm:text-4xl text-ink tracking-tight">
+            <p className="tv-eyebrow">Traveler</p>
+            <h1 id={ACCOUNT_HEADING_ID} className="tv-page-title">
               Account
             </h1>
             <p className="mt-2 text-sm text-ink-muted">
@@ -196,8 +196,8 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
       <div className="min-h-screen bg-paper tv-page">
         <div className="max-w-xl mx-auto px-4 py-8">
           <header className="mb-5 tv-card p-4 sm:p-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Traveler</p>
-            <h1 id={ACCOUNT_HEADING_ID} className="font-display text-3xl sm:text-4xl text-ink tracking-tight">
+            <p className="tv-eyebrow">Traveler</p>
+            <h1 id={ACCOUNT_HEADING_ID} className="tv-page-title">
               Account
             </h1>
             <p className="mt-2 text-sm text-ink-muted">
@@ -268,11 +268,8 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
     <div className="min-h-screen bg-paper tv-page">
       <div className="tv-shell px-4 sm:px-6 lg:px-8 py-8 pb-14">
         <header className="mb-8 sm:mb-10">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">Traveler</p>
-          <h1
-            id={ACCOUNT_HEADING_ID}
-            className="font-sans text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]"
-          >
+          <p className="tv-eyebrow">Traveler</p>
+          <h1 id={ACCOUNT_HEADING_ID} className="tv-page-title">
             Account
           </h1>
           <p className="mt-2 max-w-2xl break-words text-base text-ink-muted [overflow-wrap:anywhere]" title={user.email ?? undefined}>
@@ -287,7 +284,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-12 xl:gap-16">
           <div className="min-w-0 space-y-10">
             <section>
-              <h2 className="font-display text-[1.125rem] font-semibold tracking-tight text-ink mb-3">Your travel</h2>
+              <h2 className="tv-section-heading mb-3">Your travel</h2>
               {statsError ? (
                 // Phase 1635: stats cover Trips and Saved counts.
                 <ErrorState
@@ -350,7 +347,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
             </section>
 
             <section className="rounded-2xl bg-paper-raised p-5 sm:p-6 ring-1 ring-black/[0.06]">
-              <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint mb-2">Security</h2>
+              <h2 className="tv-eyebrow mb-2">Security</h2>
               <p className="text-sm text-ink-muted leading-relaxed max-w-lg">
                 You are signed in as this traveler. Signing out does not change bookings.
               </p>
@@ -381,7 +378,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
           </div>
 
           <section className="min-w-0">
-            <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint mb-4">Your profile</h2>
+            <h2 className="tv-eyebrow mb-4">Your profile</h2>
             {profileLoading ? (
               <div
                 className="rounded-2xl bg-paper-raised p-5 sm:p-6 ring-1 ring-black/[0.06]"

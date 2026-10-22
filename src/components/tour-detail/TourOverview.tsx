@@ -15,7 +15,7 @@ export default function TourOverview({ description, extras = [] }: Props) {
   if (!text && extras.length === 0) return null;
   return (
     <section className="mt-6 max-w-2xl border-t border-[#E8EBF0] pt-6">
-      <h2 className="mb-2 text-xl font-bold tracking-tight text-[#111827]">What you’ll do</h2>
+      <h2 className="tv-section-heading mb-2">What you’ll do</h2>
       {text ? (
         <>
           <p
