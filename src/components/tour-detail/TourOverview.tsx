@@ -14,20 +14,22 @@ export default function TourOverview({ description, extras = [] }: Props) {
   const shown = long && !open ? `${text.slice(0, COLLAPSE_AT).replace(/\s+\S*$/, '')}…` : text;
   if (!text && extras.length === 0) return null;
   return (
-    <section className="mt-6 max-w-xl border-t border-[#E8EBF0] pt-6">
-      <h2 className="tv-section-heading mb-2.5">What you’ll do</h2>
+    <section className="tv-pdp-section mt-7 border-t border-[#E8EBF0] pt-7">
+      <h2 className="tv-section-heading mb-3">What you’ll do</h2>
       {text ? (
         <>
           <p
             id="tour-overview-description"
-            className="text-[15px] leading-[1.65] text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap"
+            className={`max-w-xl text-[15px] leading-[1.7] text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap transition-[max-height] duration-200 motion-reduce:transition-none ${
+              long && !open ? 'max-h-[14rem] overflow-hidden' : ''
+            }`}
           >
             {shown}
           </p>
           {long ? (
             <button
               type="button"
-              className="mt-2 text-sm font-semibold text-finland hover:underline"
+              className="mt-2.5 text-sm font-semibold text-[#0758CB] hover:underline"
               aria-expanded={open}
               aria-controls="tour-overview-description"
               onClick={() => setOpen((v) => !v)}
@@ -38,7 +40,7 @@ export default function TourOverview({ description, extras = [] }: Props) {
         </>
       ) : null}
       {extras.length > 0 ? (
-        <ul className="mt-4 space-y-1.5 text-sm text-ink-muted">
+        <ul className="mt-4 max-w-xl space-y-1.5 text-sm leading-relaxed text-ink-muted">
           {extras.map((line) => (
             <li key={line} className="break-words [overflow-wrap:anywhere]">
               {line}

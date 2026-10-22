@@ -3730,20 +3730,72 @@ a:focus-visible,
   border-radius: var(--tv-radius-lg, 1rem);
   background: #ffffff;
   padding: 1rem 1.05rem 1.1rem;
-  box-shadow: var(--tv-shadow-panel);
-  border: 1px solid rgba(28, 25, 23, 0.06);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 12px 32px -18px rgba(15, 23, 42, 0.22),
+    0 0 0 1px rgba(28, 25, 23, 0.06);
+  border: 1px solid rgba(232, 235, 240, 0.95);
 }
 .tv-booking-sticky .tv-btn-primary.tv-tour-book {
   min-height: var(--tv-control-h, 2.75rem);
   font-weight: 650;
   letter-spacing: -0.01em;
+  transition:
+    background-color var(--tv-duration-fast, 150ms) var(--tv-ease),
+    box-shadow var(--tv-duration-ui, 180ms) var(--tv-ease),
+    transform var(--tv-duration-hover, 160ms) var(--tv-ease);
+}
+.tv-booking-sticky .tv-btn-primary.tv-tour-book:hover:not(:disabled) {
+  box-shadow: 0 8px 20px -12px rgba(7, 88, 203, 0.55);
+}
+.tv-booking-sticky .tv-btn-primary.tv-tour-book:active:not(:disabled) {
+  transform: translateY(0.5px);
+}
+
+/* Tour Details — premium hero + surfaces */
+.tv-tour-pdp .tv-tour-title {
+  font-size: clamp(1.45rem, 2.1vw, 2rem);
+  line-height: 1.18;
+  letter-spacing: -0.02em;
+  max-width: 100%;
+}
+.tv-tour-pdp .tv-tour-subtitle {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  letter-spacing: -0.005em;
+}
+.tv-icon-btn {
+  background: #ffffff;
+  box-shadow: 0 0 0 1px rgba(28, 25, 23, 0.08);
+  transition:
+    background-color var(--tv-duration-fast, 150ms) var(--tv-ease),
+    box-shadow var(--tv-duration-ui, 180ms) var(--tv-ease),
+    transform var(--tv-duration-hover, 160ms) var(--tv-ease);
+}
+.tv-icon-btn:hover:not(:disabled) {
+  background: rgba(15, 23, 42, 0.03);
+  box-shadow: 0 0 0 1px rgba(7, 88, 203, 0.22);
+}
+.tv-icon-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--tv-focus-ring);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tv-icon-btn,
+  .tv-booking-sticky .tv-btn-primary.tv-tour-book {
+    transition: none;
+  }
+  .tv-booking-sticky .tv-btn-primary.tv-tour-book:active:not(:disabled) {
+    transform: none;
+  }
 }
 
 /* Tour Details — compact option cards (selection price parity with sticky) */
 .tv-tour-option-card {
   border-radius: var(--tv-radius, 0.75rem);
   background: #ffffff;
-  border: 1px solid rgba(28, 25, 23, 0.1);
+  border: 1px solid rgba(232, 235, 240, 0.98);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
 }
 .tv-tour-option-card--idle:hover {
   border-color: rgba(7, 88, 203, 0.28);
@@ -3751,10 +3803,10 @@ a:focus-visible,
 }
 .tv-tour-option-card--selected {
   border-color: #0758cb;
-  background: #ffffff;
+  background: rgba(7, 88, 203, 0.03);
   box-shadow:
-    0 0 0 1px rgba(7, 88, 203, 0.18),
-    0 10px 24px -18px rgba(7, 88, 203, 0.35);
+    0 0 0 1px rgba(7, 88, 203, 0.12),
+    0 10px 24px -18px rgba(7, 88, 203, 0.28);
 }
 .tv-selection-restored {
   display: flex;

@@ -113,7 +113,6 @@ import { fetchWishlistListingIds, toggleWishlist } from '../data/supabase-wishli
 import { formatMoney, normalizeCurrency } from '../lib/money';
 import NoticeCallout from '../components/NoticeCallout';
 import TourQuickFacts from '../components/tour-detail/TourQuickFacts';
-import { experienceLanguageLabel, tourKindLabel } from '../lib/tour-quick-facts';
 import TourOverview from '../components/tour-detail/TourOverview';
 import TourAvailableOptions from '../components/tour-detail/TourAvailableOptions';
 import TourListingSections, { TourOperatorBlock } from '../components/tour-detail/TourListingSections';
@@ -334,20 +333,14 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
         })
       ),
     ];
-    if (optionStartTimes.length === 1) lines.push(`Usually starts at ${optionStartTimes[0]}.`);
-    else if (optionStartTimes.length > 1) {
-      lines.push(`Set start times: ${optionStartTimes.slice(0, 3).join(', ')}${optionStartTimes.length > 3 ? '…' : ''}.`);
-    } else if (x?.scheduleStyle === 'on_request') {
+    // Start times and spoken languages already appear in options / facts — skip duplicates here.
+    if (x?.scheduleStyle === 'on_request' && optionStartTimes.length === 0) {
       // Phase 1118: checkout is still fixed date/slot — do not claim post-book arrangement.
       lines.push('Host notes flexible timing — still choose an available date when you book.');
     }
     if (x?.venueSetting === 'indoor') lines.push('Mostly indoor.');
     else if (x?.venueSetting === 'outdoor') lines.push('Mostly outdoor.');
     else if (x?.venueSetting === 'mixed') lines.push('Indoor and outdoor.');
-    const spokenLang = (x?.additionalLanguages ?? [])
-      .map((code) => experienceLanguageLabel(code))
-      .filter(Boolean);
-    if (spokenLang.length > 0) lines.push(`Spoken languages: ${spokenLang.join(', ')}.`);
     if (x?.accessibilitySummary?.trim()) lines.push(x.accessibilitySummary.trim());
     return lines;
   }, [tour]);
@@ -1699,22 +1692,22 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
   }
 
   return (
-    <div className="min-h-screen bg-paper tv-page pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-0">
-      <div className="tv-shell mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6">
-        <div className="mb-3 flex items-center justify-between gap-3">
+    <div className="min-h-screen bg-paper tv-page tv-tour-pdp pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-0">
+      <div className="tv-shell mx-auto px-4 sm:px-6 lg:px-8 pt-2 sm:pt-3">
+        <div className="mb-2.5 flex items-center justify-between gap-3">
           <button
             type="button"
             onClick={onBack}
-            className="lux-flat inline-flex h-11 min-w-[2.75rem] items-center justify-center gap-2 rounded-full bg-paper-raised px-3.5 text-sm font-medium text-ink ring-1 ring-black/[0.06] hover:bg-black/[0.03]"
+            className="tv-icon-btn lux-flat inline-flex h-10 min-w-10 items-center justify-center gap-1.5 rounded-full px-3 text-sm font-medium text-ink"
           >
-            <ArrowLeft className="w-4 h-4" aria-hidden />
-            {backLabel}
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+            <span className="hidden sm:inline">{backLabel}</span>
           </button>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             {isSupabaseListingId(tour.id) && isSupabaseConfigured() ? (
               <button
                 type="button"
-                className="lux-flat inline-flex h-11 w-11 items-center justify-center rounded-full bg-paper-raised text-ink ring-1 ring-black/[0.06] hover:bg-black/[0.03] disabled:opacity-60"
+                className="tv-icon-btn lux-flat inline-flex h-10 w-10 items-center justify-center rounded-full text-ink disabled:opacity-60"
                 aria-label={
                   !wishlistHeartKnown
                     ? 'Checking saved status'
@@ -1728,14 +1721,14 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                 onClick={handleToggleWishlist}
               >
                 <Heart
-                  size={18}
+                  size={17}
                   className={`${wishlistHeartKnown && savedToWishlist ? 'fill-finland text-finland' : ''} ${savePop ? 'tv-pop' : ''}`}
                 />
               </button>
             ) : null}
             <button
               type="button"
-              className="lux-flat inline-flex h-11 w-11 items-center justify-center rounded-full bg-paper-raised text-ink ring-1 ring-black/[0.06] hover:bg-black/[0.03]"
+              className="tv-icon-btn lux-flat inline-flex h-10 w-10 items-center justify-center rounded-full text-ink"
               aria-label={shareCopied ? 'Link copied' : 'Share'}
               onClick={() => {
                 const url = window.location.href;
@@ -1751,49 +1744,54 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                 }
               }}
             >
-              {shareCopied ? <CheckCircle size={18} className="tv-pop text-finland" /> : <Share2 size={18} />}
+              {shareCopied ? <CheckCircle size={17} className="tv-pop text-finland" /> : <Share2 size={17} />}
             </button>
           </div>
         </div>
 
-        <header className="mb-3 max-w-2xl sm:mb-4">
-          <h1 className="font-sans text-[1.55rem] font-bold leading-[1.18] tracking-tight text-[#111827] break-words [overflow-wrap:anywhere] sm:text-[1.85rem] lg:text-[2rem]">
+        <header className="mb-3 sm:mb-3.5">
+          <h1 className="tv-tour-title font-sans font-bold tracking-tight text-[#111827] break-words [overflow-wrap:anywhere]">
             {tour.title}
           </h1>
-          {review.score ? (
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
             <button
               type="button"
-              className="mt-1.5 inline-flex items-center gap-1.5 rounded-md text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0758CB]"
+              className="inline-flex items-center gap-1.5 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0758CB]"
               onClick={() => {
                 document.getElementById('tour-reviews')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
               }}
+              aria-label={
+                review.score
+                  ? `${review.score} average from ${review.count} reviews. Go to reviews.`
+                  : 'No reviews yet. Go to reviews.'
+              }
             >
-              <Star size={15} className="shrink-0 fill-[#C9A227] text-[#C9A227]" aria-hidden />
-              <span className="font-bold tabular-nums text-[#111827]">{review.score}</span>
-              <span className="font-medium text-ink-muted underline decoration-[#E8EBF0] underline-offset-2">
-                {review.count} {review.count === 1 ? 'review' : 'reviews'}
-              </span>
+              {review.score ? (
+                <>
+                  <Star size={15} className="shrink-0 fill-[#C9A227] text-[#C9A227]" aria-hidden />
+                  <span className="font-bold tabular-nums text-[#111827]">{review.score}</span>
+                  <span className="font-medium text-ink-muted underline decoration-[#E8EBF0] underline-offset-2">
+                    {review.count} {review.count === 1 ? 'review' : 'reviews'}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Star size={15} className="shrink-0 text-ink-faint" aria-hidden />
+                  <span className="font-medium text-ink-muted underline decoration-[#E8EBF0] underline-offset-2">
+                    (0) reviews
+                  </span>
+                </>
+              )}
             </button>
-          ) : null}
-          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-ink-muted">
-            <span className="font-semibold text-[#0B397E]">{tourKindLabel(tour.experienceKind)}</span>
-            <span aria-hidden>·</span>
-            <span className="inline-flex items-center gap-1">
-              <MapPin size={13} className="shrink-0 text-[#0B397E]" aria-hidden />
-              {tour.destination}
-            </span>
-            {supplierLegal?.operatorName ? (
-              <>
-                <span aria-hidden>·</span>
-                <span>Hosted by {supplierLegal.operatorName}</span>
-              </>
+            {tour.destination?.trim() ? (
+              <span className="inline-flex min-w-0 items-center gap-1 text-ink">
+                <MapPin size={14} className="shrink-0 text-[#0B397E]" aria-hidden />
+                <span className="font-bold tracking-tight break-words [overflow-wrap:anywhere]">
+                  {tour.destination.trim()}
+                </span>
+              </span>
             ) : null}
-          </p>
-          {tour.subtitle?.trim() ? (
-            <p className="mt-1.5 max-w-2xl text-sm leading-snug text-ink-muted line-clamp-2 break-words [overflow-wrap:anywhere]">
-              {tour.subtitle.trim()}
-            </p>
-          ) : null}
+          </div>
         </header>
 
         <div className="tv-pdp-layout">
@@ -1847,19 +1845,19 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                         setSelectedImage(index);
                         setGalleryLightboxOpen(true);
                       }}
-                      className={`relative shrink-0 snap-start overflow-hidden rounded-2xl ${
+                      className={`relative shrink-0 snap-start overflow-hidden rounded-xl ${
                         index === 0 ? 'hidden' : 'w-[42%] aspect-[4/3]'
                       }`}
                       aria-label={`Photo ${index + 1} of ${images.length}`}
                     >
-                      <img src={img} alt="" className="h-full w-full object-cover" />
+                      <img src={img} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
                     </button>
                   ))}
                 </div>
               ) : null}
             </div>
           ) : (
-            <div className="flex aspect-[21/9] items-center justify-center rounded-2xl bg-ink/[0.06] ring-1 ring-black/[0.04]">
+            <div className="flex aspect-[21/9] items-center justify-center rounded-xl bg-ink/[0.06] ring-1 ring-black/[0.04]">
               <p className="px-4 text-center text-sm text-ink-muted">No photos yet for this experience</p>
             </div>
           )}
@@ -1878,6 +1876,12 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
             </div>
           ) : null}
         </div>
+
+        {tour.subtitle?.trim() ? (
+          <p className="tv-tour-subtitle mt-4 max-w-2xl text-[0.9375rem] leading-relaxed text-ink-muted break-words [overflow-wrap:anywhere]">
+            {tour.subtitle.trim()}
+          </p>
+        ) : null}
 
         <div className="mt-5">
           <TourQuickFacts tour={tour} option={selectedOptionApplied} />
@@ -2061,7 +2065,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                         <p className="mb-1.5 text-sm font-semibold tracking-tight text-[#111827]">Participants</p>
                         <button
                           type="button"
-                          className="relative flex w-full min-h-11 items-center justify-between gap-3 rounded-xl border border-black/[0.1] bg-white px-3.5 text-left transition-colors duration-150 hover:border-black/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0758CB]/25"
+                          className="relative flex w-full min-h-11 items-center justify-between gap-3 rounded-xl border border-[#E8EBF0] bg-white px-3.5 text-left transition-[border-color,box-shadow] duration-150 hover:border-[#0758CB]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0758CB]/25"
                           aria-expanded={participantsOpen}
                           aria-haspopup="dialog"
                           onClick={() => setParticipantsOpen((open) => !open)}
@@ -2478,11 +2482,14 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
               </button>
             </div>
           ) : reviews.length === 0 && !showReviewForm ? (
-            <div className="tv-pdp-below mb-6 rounded-xl border border-[#E8EBF0] bg-white px-4 py-5 sm:px-5">
-              <p className="text-sm font-semibold text-[#111827]">No reviews yet</p>
-              <p className="mt-1 max-w-md text-sm leading-relaxed text-ink-muted">
-                {LISTING_REVIEWS_EMPTY_COPY}
-              </p>
+            <div className="tv-pdp-below mb-6 flex items-start gap-3 py-1">
+              <Star size={20} className="mt-0.5 shrink-0 text-ink-faint" aria-hidden />
+              <div>
+                <p className="text-sm font-bold tracking-tight text-[#111827]">No reviews yet</p>
+                <p className="mt-0.5 max-w-md text-sm leading-relaxed text-ink-muted">
+                  {LISTING_REVIEWS_EMPTY_COPY}
+                </p>
+              </div>
             </div>
           ) : review.score ? (
             <div className="mb-4 flex items-center gap-3">

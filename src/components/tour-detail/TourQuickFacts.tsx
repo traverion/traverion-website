@@ -29,7 +29,7 @@ export default function TourQuickFacts({ tour, option }: Props) {
   const facts = tourQuickFacts(tour, option);
   if (facts.length === 0) return null;
   return (
-    <dl className="grid grid-cols-2 gap-x-4 gap-y-3.5 sm:grid-cols-3">
+    <dl className="grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-3">
       {facts.map((fact) => {
         const Icon = ICONS[fact.label] ?? Clock;
         let value = fact.value;
@@ -43,12 +43,12 @@ export default function TourQuickFacts({ tour, option }: Props) {
         }
         return (
           <div key={fact.label} className="flex min-w-0 items-start gap-2.5">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#F5F6F8] text-[#0B397E]">
-              <Icon className="h-3.5 w-3.5" aria-hidden />
+            <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#F5F7FA] text-[#0B397E]">
+              <Icon className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
             </span>
-            <div className="min-w-0 pt-0.5">
-              <dd className="text-sm font-semibold leading-snug tracking-tight text-[#111827]">{value}</dd>
-              <dt className="mt-0.5 text-[11px] leading-snug text-ink-muted">{label}</dt>
+            <div className="min-w-0">
+              <dd className="text-sm font-bold leading-snug tracking-tight text-[#111827]">{value}</dd>
+              <dt className="mt-0.5 text-[11px] font-medium leading-snug text-ink-muted">{label}</dt>
             </div>
           </div>
         );

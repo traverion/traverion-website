@@ -231,17 +231,9 @@ function OptionRow({
           : 'tv-tour-option-card--idle'
       }`}
     >
-      <div className="flex items-start justify-between gap-3">
-        <h3 className="min-w-0 text-[0.9375rem] font-bold leading-snug tracking-tight text-[#111827] break-words [overflow-wrap:anywhere]">
-          {variant.label}
-        </h3>
-        {selected ? (
-          <span className="mt-0.5 inline-flex shrink-0 items-center gap-1 rounded-md bg-[#0758CB]/10 px-1.5 py-0.5 text-[11px] font-semibold text-[#0758CB]">
-            <Check className="h-3 w-3" aria-hidden />
-            Selected
-          </span>
-        ) : null}
-      </div>
+      <h3 className="min-w-0 text-[0.9375rem] font-bold leading-snug tracking-tight text-[#111827] break-words [overflow-wrap:anywhere]">
+        {variant.label}
+      </h3>
       {detail ? (
         <p className={`mt-1 text-sm leading-snug text-ink-muted ${detailLong && !detailOpen ? 'line-clamp-2' : ''}`}>
           {detail}

@@ -1,4 +1,4 @@
-import { Check, MapPin, X } from 'lucide-react';
+import { Check, Info, MapPin, ShieldCheck, X } from 'lucide-react';
 import type { TourPackage } from '../../types/tour';
 import {
   TRAVERION_STANDARD_CANCELLATION_POLICY,
@@ -17,6 +17,7 @@ import {
   WHAT_TO_BRING_CATALOG,
   labelsForCatalogIds,
 } from '../../lib/listing-information-catalogs';
+import { listingShowsFreeCancellation } from '../../lib/listingTruth';
 
 type Legal = {
   operatorName: string;
@@ -36,15 +37,15 @@ type Props = {
   showOperator?: boolean;
 };
 
-const sectionClass = 'mt-6 border-t border-[#E8EBF0] pt-6';
-const headingClass = 'tv-section-heading mb-3';
+const sectionClass = 'tv-pdp-section mt-7 border-t border-[#E8EBF0] pt-7';
+const headingClass = 'tv-section-heading mb-3.5';
 
 function Fact({ label, children }: { label: string; children: string }) {
   const value = children.trim();
   if (!value) return null;
   return (
-    <div className="grid gap-1 py-3.5 sm:grid-cols-[8.75rem_minmax(0,1fr)] sm:gap-5">
-      <dt className="text-sm font-semibold tracking-tight text-ink">{label}</dt>
+    <div className="grid gap-1 py-3 sm:grid-cols-[8.75rem_minmax(0,1fr)] sm:gap-5 sm:items-start">
+      <dt className="text-sm font-semibold tracking-tight text-[#111827]">{label}</dt>
       <dd className="text-sm leading-relaxed text-ink-muted break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
         {value}
       </dd>
@@ -62,33 +63,33 @@ export function TourOperatorBlock({
   return (
     <section className={sectionClass}>
       <h2 className={headingClass}>About the operator</h2>
-      <div className="flex items-center gap-3.5">
+      <div className="flex max-w-xl items-start gap-3.5">
         {supplierLegal.business_logo_url ? (
           <img
             src={supplierLegal.business_logo_url}
             alt=""
-            className="h-11 w-11 shrink-0 rounded-xl object-cover ring-1 ring-black/[0.06]"
+            className="h-12 w-12 shrink-0 rounded-xl object-cover ring-1 ring-black/[0.06]"
           />
         ) : (
           <div
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#073b83]/10 text-sm font-semibold text-[#073b83]"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#0758CB]/10 text-sm font-bold text-[#0758CB]"
             aria-hidden
           >
             {supplierLegal.operatorName.slice(0, 1).toUpperCase()}
           </div>
         )}
-        <div className="min-w-0">
-          <p className="font-semibold tracking-tight text-ink">{supplierLegal.operatorName}</p>
-          <p className="text-sm text-ink-muted">Runs this experience on Traverion</p>
+        <div className="min-w-0 pt-0.5">
+          <p className="text-base font-bold tracking-tight text-[#111827]">{supplierLegal.operatorName}</p>
+          <p className="mt-0.5 text-sm text-ink-muted">Experience operator on Traverion</p>
         </div>
       </div>
       {supplierLegal.public_description?.trim() ? (
-        <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-ink-muted whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+        <p className="mt-3.5 max-w-xl text-[15px] leading-relaxed text-ink-muted whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
           {supplierLegal.public_description.trim()}
         </p>
       ) : null}
       {supplierLegal.privacy_policy_text?.trim() || supplierLegal.terms_conditions_text?.trim() ? (
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-3.5 flex flex-wrap gap-2">
           {supplierLegal.privacy_policy_text?.trim() ? (
             <button type="button" onClick={() => onOpenLegal('privacy')} className="tv-btn-ghost">
               Privacy policy
@@ -264,33 +265,42 @@ export default function TourListingSections({
       {pickup.visible ? (
         <section className={sectionClass}>
           <h2 className={headingClass}>Pickup and meeting</h2>
-          <div className="flex max-w-2xl gap-3 text-[15px] leading-relaxed text-ink">
-            <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#f4f5f7] text-[#073b83]">
-              <MapPin className="h-4 w-4" aria-hidden />
-            </span>
-            <div className="min-w-0 space-y-2">
-            {pickup.optionScoped && pickup.optionName ? (
-              <p className="text-sm font-semibold text-ink">For option · {pickup.optionName}</p>
-            ) : null}
-            {pickup.multiOptionHint ? (
-              <p className="text-ink-muted">{pickup.multiOptionHint}</p>
-            ) : null}
-            {!pickup.multiOptionHint && pickup.modeIntro ? <p>{pickup.modeIntro}</p> : null}
-            {!pickup.multiOptionHint && pickup.place ? (
-              <div>
-                {pickup.placeLabel ? (
-                  <p className="text-xs font-medium text-ink-muted">
-                    {pickup.placeLabel}
+          <div className="max-w-xl rounded-xl bg-[#F7F8FA] px-4 py-3.5 sm:px-5">
+            <div className="flex gap-3 text-[15px] leading-relaxed text-ink">
+              <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-[#0B397E] shadow-[0_0_0_1px_rgba(28,25,23,0.06)]">
+                <MapPin className="h-3.5 w-3.5" aria-hidden />
+              </span>
+              <div className="min-w-0 space-y-2">
+                {pickup.optionScoped && pickup.optionName ? (
+                  <p className="text-xs font-semibold uppercase tracking-[0.04em] text-ink-faint">
+                    Selected option
                   </p>
                 ) : null}
-                <p className="mt-0.5 break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{pickup.place}</p>
+                {pickup.multiOptionHint ? (
+                  <p className="text-ink-muted">{pickup.multiOptionHint}</p>
+                ) : null}
+                {!pickup.multiOptionHint && pickup.modeIntro ? (
+                  <p className="font-semibold tracking-tight text-[#111827]">{pickup.modeIntro}</p>
+                ) : null}
+                {!pickup.multiOptionHint && pickup.place ? (
+                  <div>
+                    {pickup.placeLabel ? (
+                      <p className="text-xs font-medium text-ink-muted">{pickup.placeLabel}</p>
+                    ) : null}
+                    <p className="mt-0.5 font-medium break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
+                      {pickup.place}
+                    </p>
+                  </div>
+                ) : null}
+                {!pickup.multiOptionHint && pickup.instructions ? (
+                  <div className="flex gap-2 pt-0.5">
+                    <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-faint" aria-hidden />
+                    <p className="break-words [overflow-wrap:anywhere] whitespace-pre-wrap text-sm text-ink-muted">
+                      {pickup.instructions}
+                    </p>
+                  </div>
+                ) : null}
               </div>
-            ) : null}
-            {!pickup.multiOptionHint && pickup.instructions ? (
-              <p className="break-words [overflow-wrap:anywhere] whitespace-pre-wrap text-ink-muted">
-                {pickup.instructions}
-              </p>
-            ) : null}
             </div>
           </div>
         </section>
@@ -299,7 +309,7 @@ export default function TourListingSections({
       {showImportant ? (
         <section className={sectionClass}>
           <h2 className={headingClass}>Good to know</h2>
-          <dl className="max-w-2xl divide-y divide-[#E8EBF0] border-y border-[#E8EBF0]">
+          <dl className="max-w-xl divide-y divide-[#E8EBF0]">
             {tour.difficulty ? <Fact label="Difficulty">{tour.difficulty}</Fact> : null}
             {extras?.knowBeforeYouGo?.trim() ? (
               <Fact label="Before you go">{extras.knowBeforeYouGo.trim()}</Fact>
@@ -343,10 +353,24 @@ export default function TourListingSections({
 
       <section className={sectionClass}>
         <h2 className={headingClass}>Cancellation</h2>
-        <div className="max-w-xl rounded-xl border border-[#E8EBF0] bg-white px-4 py-3.5">
-          <p className="text-[15px] leading-relaxed text-ink">
-            {tour.cancellationPolicy?.trim() || TRAVERION_STANDARD_CANCELLATION_POLICY}
-          </p>
+        <div className="flex max-w-xl gap-3">
+          <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#EEF6F3] text-[#0F766E]">
+            <ShieldCheck className="h-3.5 w-3.5" aria-hidden />
+          </span>
+          <div className="min-w-0">
+            {listingShowsFreeCancellation(tour) ? (
+              <p className="text-sm font-bold tracking-tight text-[#111827]">
+                Free cancellation up to 24 hours before departure
+              </p>
+            ) : null}
+            <p
+              className={`text-[15px] leading-relaxed text-ink ${
+                listingShowsFreeCancellation(tour) ? 'mt-1.5 text-ink-muted' : ''
+              }`}
+            >
+              {tour.cancellationPolicy?.trim() || TRAVERION_STANDARD_CANCELLATION_POLICY}
+            </p>
+          </div>
         </div>
       </section>
 
