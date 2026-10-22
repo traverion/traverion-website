@@ -179,7 +179,14 @@ export async function requestSupplierCancellation(params: {
   reasonCode: string;
   reasonText: string;
   evidenceNote?: string;
-}): Promise<{ ok: boolean; error?: string; id?: string }> {
+}): Promise<{
+  ok: boolean;
+  error?: string;
+  id?: string;
+  immediate?: boolean;
+  autoRefundQueued?: boolean;
+  refundExecution?: { success: boolean; error?: string };
+}> {
   if (!supabase) return { ok: false, error: PARTNER_CANCEL_REQUEST_SUBMIT_ERROR };
   const snap = snapshotSupplierCancellationPolicy(params.reasonCode);
   const { data, error } = await supabase.rpc('request_supplier_cancellation', {
@@ -191,7 +198,23 @@ export async function requestSupplierCancellation(params: {
     p_applied_fee: snap.applied_fee,
     p_fee_currency: snap.currency,
   });
-  return parseRpc(data, error?.message, PARTNER_CANCEL_REQUEST_SUBMIT_ERROR);
+  const parsed = parseRpc(data, error?.message, PARTNER_CANCEL_REQUEST_SUBMIT_ERROR);
+  if (!parsed.ok) return parsed;
+
+  const rpc = data && typeof data === 'object' ? (data as Record<string, unknown>) : {};
+  const autoRefundQueued = rpc.auto_refund_queued === true;
+  // Stay auto-refund: execute Stripe path when instruction was queued (same as traveler accept).
+  let refundExecution: { success: boolean; error?: string } | undefined;
+  if (autoRefundQueued) {
+    const { executeBookingRefund } = await import('./supabase-bookings');
+    refundExecution = await executeBookingRefund(params.bookingId);
+  }
+  return {
+    ...parsed,
+    immediate: rpc.immediate === true,
+    autoRefundQueued,
+    refundExecution,
+  };
 }
 
 export async function respondToCancellationRequest(
@@ -243,14 +266,14 @@ export async function notifyTravelerCancellationRequest(params: {
       fieldDiffs: [
         { label: 'Reason', before: 'Active booking', after: params.reasonLabel },
         {
-          label: 'What you should do',
-          before: '—',
-          after: 'Open Trips: Accept cancellation, or Decline to keep the booking.',
+          label: 'Status',
+          before: 'Confirmed',
+          after: 'Cancelled by operator — a full refund is due. Open Trips for details.',
         },
       ],
       publicSiteUrl: publicSiteBaseUrl(),
-      // Phase 1712: per-request key (not permanent per booking).
-      idempotencyKey: `customer:cancellation_requested_by_supplier:${params.bookingId}:${reqSuffix}`,
+      // Phase 1: per cancellation_requests row (immediate supplier cancel).
+      idempotencyKey: `customer:cancellation_by_supplier:${params.bookingId}:${reqSuffix}`,
     },
   });
   // Phase 1859: return notify outcome — caller must not treat failure as RPC failure.

@@ -206,57 +206,37 @@ describe('supplier cancellation policy', () => {
     );
   });
 
-  it('uses confirmed pickup for tour cancel start, frozen over later changes', () => {
+  it('uses official tour start only — pickup never moves the cancel clock', () => {
     expect(
       travelerSelfCancelStartHm({
         isStay: false,
-        startTimeHm: '20:00',
+        startTimeHm: '18:30',
         fulfillment: 'pickup',
-        confirmedPickupHm: '18:30',
+        confirmedPickupHm: '18:00',
       })
     ).toBe('18:30');
     expect(
       travelerSelfCancelStartHm({
         isStay: false,
         startTimeHm: '20:00',
-        fulfillment: 'meeting_point',
-        confirmedPickupHm: '18:30',
-      })
-    ).toBe('20:00');
-    expect(
-      travelerSelfCancelStartHm({
-        isStay: false,
-        startTimeHm: '20:00',
-        fulfillment: 'pickup',
-        confirmedPickupHm: null,
-      })
-    ).toBe('20:00');
-    expect(
-      travelerSelfCancelStartHm({
-        isStay: false,
-        startTimeHm: '20:00',
-        fulfillment: 'pickup',
+        cancelReferenceStartHm: '20:00',
         confirmedPickupHm: '17:00',
-        selfCancelStartHm: '18:30',
       })
-    ).toBe('18:30');
+    ).toBe('20:00');
+    expect(
+      travelerSelfCancelStartHm({
+        isStay: false,
+        startTimeHm: '',
+        cancelReferenceStartHm: '09:15',
+      })
+    ).toBe('09:15');
     // Blank purchased clock → caller should pass live start_time (SQL fallback parity).
     expect(
       travelerSelfCancelStartHm({
         isStay: false,
         startTimeHm: '',
-        fulfillment: 'meeting_point',
-        confirmedPickupHm: null,
       })
     ).toBe('00:00');
-    expect(
-      travelerSelfCancelStartHm({
-        isStay: false,
-        startTimeHm: '09:15',
-        fulfillment: 'meeting_point',
-        confirmedPickupHm: '07:00',
-      })
-    ).toBe('09:15');
     const snap = {
       listingTitle: 'Aurora',
       capturedAt: '2026-01-01T00:00:00Z',
@@ -266,10 +246,9 @@ describe('supplier cancellation policy', () => {
       pickupInstructions: null,
       fulfillment: 'pickup' as const,
     };
-    const frozen = withFrozenSelfCancelStartHm(snap, '18:30');
-    expect(frozen?.selfCancelStartHm).toBe('18:30');
-    expect(withFrozenSelfCancelStartHm(frozen, '17:00')?.selfCancelStartHm).toBe('18:30');
-    expect(withFrozenSelfCancelStartHm({ ...snap, fulfillment: 'meeting_point' }, '18:30')?.selfCancelStartHm).toBeUndefined();
+    // Deprecated helper is a no-op — pickup must not rewrite snapshot cancel clock.
+    expect(withFrozenSelfCancelStartHm(snap, '18:30')?.selfCancelStartHm).toBeUndefined();
+    expect(withFrozenSelfCancelStartHm(snap, '18:30')?.startTimeHm).toBe('20:00');
   });
 
   it('honours stay presets 48h / 7d / non_refundable for self-cancel availability', () => {

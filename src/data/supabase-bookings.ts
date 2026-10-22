@@ -25,7 +25,6 @@ import {
   partnerBookingStatusRewriteBlock,
   partnerManualConfirmBlock,
   partnerManualConfirmError,
-  withFrozenSelfCancelStartHm,
 } from '../lib/cancellation-policy';
 import {
   TRAVELER_SELF_CANCEL_EMAIL_DIFF_FULL_REFUND,
@@ -36,7 +35,6 @@ import {
   displayListingTitleFromPurchase,
   isPurchaseSnapshot,
   redactUnpaidStayCheckInAddress,
-  type PurchaseSnapshot,
 } from '../lib/purchase-snapshot';
 import { bookingPaymentWasCollected } from '../lib/payment-states';
 import {
@@ -780,22 +778,7 @@ export async function updateBookingSchedule(
   const payload: Record<string, unknown> = {};
   if ('start_time' in params) payload.start_time = nextStartPg;
   if ('pickup_time' in params) payload.pickup_time = nextPickupPg;
-  // Freeze cancel clock on first confirmed pickup so later edits cannot strip promised rights.
-  if (pickupChanged && nextPickupPg) {
-    const frozen = withFrozenSelfCancelStartHm(
-      prior.purchase_snapshot,
-      pgTimeToHm(nextPickupPg) ?? null
-    );
-    if (
-      frozen &&
-      isPurchaseSnapshot(prior.purchase_snapshot) &&
-      frozen.selfCancelStartHm &&
-      frozen.selfCancelStartHm !==
-        (prior.purchase_snapshot as PurchaseSnapshot).selfCancelStartHm
-    ) {
-      payload.purchase_snapshot = frozen;
-    }
-  }
+  // Phase 1: pickup edits must not rewrite purchase cancelReferenceStartHm / startTimeHm.
   if (Object.keys(payload).length === 0) return { ok: true };
 
   const { data: updated, error } = await supabase
@@ -1094,28 +1077,10 @@ export async function saveSupplierPickupDetails(
   notes = upsertSupplierPickupPoint(notes, point);
   notes = upsertPickupDraft(notes, null);
   const nextPickupPg = hmToPgTime(timeHm || null);
-  const pickupPayload: Record<string, unknown> = {
-    special_requests: notes || null,
-    pickup_time: nextPickupPg,
-  };
-  if (nextPickupPg) {
-    const frozen = withFrozenSelfCancelStartHm(
-      prior.purchase_snapshot,
-      pgTimeToHm(nextPickupPg) ?? timeHm ?? null
-    );
-    if (
-      frozen &&
-      isPurchaseSnapshot(prior.purchase_snapshot) &&
-      frozen.selfCancelStartHm &&
-      frozen.selfCancelStartHm !==
-        (prior.purchase_snapshot as PurchaseSnapshot).selfCancelStartHm
-    ) {
-      pickupPayload.purchase_snapshot = frozen;
-    }
-  }
+  // Phase 1: pickup confirmation must not change the cancel reference clock.
   const { data: updated, error } = await supabase
     .from('bookings')
-    .update(pickupPayload)
+    .update({ special_requests: notes || null, pickup_time: nextPickupPg })
     .eq('id', bookingId)
     .select('id')
     .maybeSingle();

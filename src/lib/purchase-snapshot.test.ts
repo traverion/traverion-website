@@ -50,6 +50,7 @@ describe('purchase-snapshot', () => {
       meetingPoint: 'Dock A',
       pickupInstructions: 'Be ready',
       startTimeHm: '20:00',
+      cancelReferenceStartHm: '20:00',
       capturedAt: '2026-09-22T00:00:00.000Z',
     });
     expect(isPurchaseSnapshot(snap)).toBe(true);

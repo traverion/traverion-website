@@ -33,7 +33,15 @@ import {
 } from '../../data/supabase-booking-ops';
 import PartnerSelect from '../../components/supplier/PartnerSelect';
 import NoticeCallout from '../../components/NoticeCallout';
-import { PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE, PARTNER_CANCEL_REQUEST_REFUND_POLICY, PARTNER_CANCEL_REQUEST_SUBMIT_ERROR, PARTNER_CANCEL_REQUEST_CONSEQUENCES_TITLE, PARTNER_CANCEL_REQUEST_FEE_TIMING_NOTE } from '../../lib/booking-confirmation-copy';
+import {
+  PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE,
+  PARTNER_CANCEL_REQUEST_REFUND_POLICY,
+  PARTNER_CANCEL_REQUEST_SUBMIT_ERROR,
+  PARTNER_CANCEL_REQUEST_CONSEQUENCES_TITLE,
+  PARTNER_CANCEL_REQUEST_FEE_TIMING_NOTE,
+  PARTNER_CANCEL_IMMEDIATE_TITLE,
+  PARTNER_CANCEL_IMMEDIATE_SUBTITLE,
+} from '../../lib/booking-confirmation-copy';
 import { SkeletonListItem } from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
@@ -851,6 +859,7 @@ export default function SupplierBookings({
       return;
     }
     setUpdatingId(cancelModal.id);
+    const previousStatus = cancelModal.status;
     const res = await requestSupplierCancellation({
       bookingId: cancelModal.id,
       reasonCode: cancelReason,
@@ -862,8 +871,14 @@ export default function SupplierBookings({
       setCancelError(userFacingError(res.error, PARTNER_CANCEL_REQUEST_SUBMIT_ERROR));
       return;
     }
-    // Phase 1796: always notify — edge resolves auth email when guest_email blank (1788).
-    // Phase 1859: request already committed; surface soft warn if traveler email fails.
+    // Immediate cancel releases inventory for this booking only (shared departures stay independent).
+    if (previousStatus === 'confirmed' && cancelModal.booking_date) {
+      await decrementAvailabilityBooked(
+        cancelModal.listing_id,
+        cancelModal.booking_date,
+        cancelModal.guests ?? 1
+      );
+    }
     const notify = await notifyTravelerCancellationRequest({
       customerEmail: (cancelModal.guest_email ?? '').trim() || 'resolve@guest.local',
       customerName: cancelModal.guest_name,
@@ -876,7 +891,6 @@ export default function SupplierBookings({
       bookingNumber: typeof cancelModal.booking_number === 'number' ? cancelModal.booking_number : undefined,
       bookingDate: cancelModal.booking_date,
       reasonLabel: supplierCancellationReasonLabel(cancelReason),
-      // Phase 1712: unique key per cancellation_requests row (re-request after decline).
       requestId: res.id,
     });
     setCancelModal(null);
@@ -884,9 +898,9 @@ export default function SupplierBookings({
     setCancelEvidence('');
     if (!notify.sent && !notify.skipped) {
       setError(
-        `Cancellation request submitted, but traveler email failed${
+        `Booking cancelled, but traveler email failed${
           notify.error ? `: ${notify.error}` : ''
-        }. They may not have been notified — the request is still open in Trips.`
+        }. They may not have been notified — Trips already shows the cancellation.`
       );
     }
     await load();
@@ -2463,10 +2477,14 @@ export default function SupplierBookings({
         <SupplierModalShell onClose={() => setCancelModal(null)} maxWidth="md">
           <SupplierModalHeader
             icon={Trash2}
-            title={isPaidPaymentStatus(cancelModal.payment_status) ? 'Request cancellation' : 'Cancel unpaid booking'}
+            title={
+              isPaidPaymentStatus(cancelModal.payment_status)
+                ? PARTNER_CANCEL_IMMEDIATE_TITLE
+                : 'Cancel unpaid booking'
+            }
             subtitle={
               isPaidPaymentStatus(cancelModal.payment_status)
-                ? 'The traveler must accept before this booking is cancelled.'
+                ? PARTNER_CANCEL_IMMEDIATE_SUBTITLE
                 : 'This booking is not paid. Cancelling releases the hold immediately.'
             }
             onClose={() => setCancelModal(null)}
@@ -2538,8 +2556,8 @@ export default function SupplierBookings({
                 ) : null}
                 {cancelError ? <p className="text-sm text-red-700">{cancelError}</p> : null}
                 <p className="text-xs text-ink-faint">
-                  Policy {snapshotSupplierCancellationPolicy(cancelReason).policy_id}. Traverion does not auto-accept if
-                  the traveler does not respond. {PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE}
+                  Policy {snapshotSupplierCancellationPolicy(cancelReason).policy_id}.{' '}
+                  {PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE}
                 </p>
                 <div className="flex items-center justify-end gap-2">
                   <button type="button" onClick={() => setCancelModal(null)} className="tv-btn-ghost">
@@ -2555,7 +2573,7 @@ export default function SupplierBookings({
                     }
                     className="rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
                   >
-                    {updatingId === cancelModal.id ? 'Submitting…' : 'Submit request to traveler'}
+                    {updatingId === cancelModal.id ? 'Cancelling…' : 'Cancel booking'}
                   </button>
                 </div>
               </>

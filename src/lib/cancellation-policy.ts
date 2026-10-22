@@ -18,45 +18,45 @@ export const TRAVELER_SELF_CANCEL_NON_REFUNDABLE =
   'This booking is non-refundable for guest-initiated cancellations. Contact the operator from Messages to discuss your booking.';
 
 /**
- * Tour cancel start wall clock (HH:MM).
- * Prefer frozen selfCancelStartHm; else confirmed pickup when fulfillment=pickup;
- * else booked meeting/departure. Never use estimated pickup windows.
+ * Authoritative cancel start wall clock (HH:MM).
+ * Tours / future Rentals: official booked start only (cancelReferenceStartHm / startTimeHm).
+ * Pickup times never determine cancellation eligibility.
+ * Stays: snapshotted check-in (default 16:00).
  */
 export function travelerSelfCancelStartHm(params: {
   isStay: boolean;
   checkInHm?: string | null;
+  /** Official tour/rental start or meeting time from purchase snapshot. */
   startTimeHm?: string | null;
+  /** Frozen cancel reference from purchase (same as official start at checkout). */
+  cancelReferenceStartHm?: string | null;
+  /** @deprecated Ignored — pickup must not affect cancel deadlines (Phase 1). */
   fulfillment?: PurchaseFulfillment | null;
+  /** @deprecated Ignored — pickup must not affect cancel deadlines (Phase 1). */
   confirmedPickupHm?: string | null;
+  /** @deprecated Prefer cancelReferenceStartHm; legacy alias. */
   selfCancelStartHm?: string | null;
 }): string {
   if (params.isStay) {
     const cin = (params.checkInHm ?? '').trim().slice(0, 5);
     return cin || '16:00';
   }
-  const frozen = (params.selfCancelStartHm ?? '').trim().slice(0, 5);
-  if (/^\d{2}:\d{2}$/.test(frozen)) return frozen;
-  const pickup = (params.confirmedPickupHm ?? '').trim().slice(0, 5);
-  if (params.fulfillment === 'pickup' && /^\d{2}:\d{2}$/.test(pickup)) return pickup;
+  const ref = (params.cancelReferenceStartHm ?? params.selfCancelStartHm ?? '').trim().slice(0, 5);
+  if (/^\d{2}:\d{2}$/.test(ref)) return ref;
   const start = (params.startTimeHm ?? '').trim().slice(0, 5);
   return /^\d{2}:\d{2}$/.test(start) ? start : '00:00';
 }
 
 /**
- * Freeze cancel clock on first confirmed pickup (pickup fulfillment only).
- * Later pickup edits must not rewrite an existing freeze.
+ * @deprecated Phase 1: pickup must not freeze or change the cancel clock.
+ * Official start is snapshotted as cancelReferenceStartHm / startTimeHm at purchase.
  */
 export function withFrozenSelfCancelStartHm(
   snapshot: unknown,
-  confirmedPickupHm: string | null | undefined
+  _confirmedPickupHm?: string | null | undefined
 ): PurchaseSnapshot | null {
   if (!isPurchaseSnapshot(snapshot)) return null;
-  const hm = (confirmedPickupHm ?? '').trim().slice(0, 5);
-  if (!/^\d{2}:\d{2}$/.test(hm)) return snapshot;
-  if (snapshot.fulfillment !== 'pickup') return snapshot;
-  const existing = (snapshot.selfCancelStartHm ?? '').trim().slice(0, 5);
-  if (/^\d{2}:\d{2}$/.test(existing)) return snapshot;
-  return { ...snapshot, selfCancelStartHm: hm };
+  return snapshot;
 }
 
 export const SUPPLIER_CANCELLATION_POLICY_ID = 'traverion_supplier_cancel_v1';
@@ -143,7 +143,7 @@ export function snapshotSupplierCancellationPolicy(reasonCode: string): Cancella
     applied_fee,
     traveler_refund: 'full_refund',
     auto_accept_hours: null,
-    note: 'Traverion does not auto-accept supplier cancellation requests. If the traveler does not respond, the booking stays active until they accept or Traverion support resolves it.',
+    note: 'Supplier-caused cancellation cancels the booking immediately with a full traveler refund entitlement. Tour Stripe refund execution is Phase 2; Stay auto-refund remains active.',
   };
 }
 
@@ -260,7 +260,7 @@ export function supplierPaidCancellationError(block: SupplierPaidCancellationBlo
 
 /**
  * Pickup planner may force-cancel unpaid holds only.
- * Paid trips must use Request cancellation in Bookings (traveler accept + Refund due).
+ * Paid trips must use Cancel booking in Bookings (immediate supplier cancel + Refund due).
  */
 export function partnerPickupAllowsForceCancel(row: {
   status?: string | null;

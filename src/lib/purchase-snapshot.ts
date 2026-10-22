@@ -28,8 +28,12 @@ export type PurchaseSnapshot = {
    */
   freeCancelHours?: number | null;
   /**
-   * Frozen tour cancel clock (HH:MM). Set on first confirmed pickup so later pickup
-   * edits cannot move the free-cancel deadline. Prefer over live pickup_time.
+   * Authoritative cancel/start clock (HH:MM) frozen at purchase — official tour/meeting
+   * start (or future rental start). Never derived from pickup. Prefer over live start_time.
+   */
+  cancelReferenceStartHm?: string | null;
+  /**
+   * @deprecated Phase 1 uses cancelReferenceStartHm / startTimeHm only (not pickup).
    */
   selfCancelStartHm?: string | null;
   /** Booked option id when present. */
@@ -242,6 +246,8 @@ export function buildPurchaseSnapshot(input: {
     startTimeHm: start,
     capturedAt: input.capturedAt ?? new Date().toISOString(),
   };
+  // Cancel / future-rental reference = official start at purchase (never pickup).
+  if (start) snap.cancelReferenceStartHm = start;
   if (duration) snap.duration = duration;
   if (fulfillment) snap.fulfillment = fulfillment;
   if (cancellation) snap.cancellationPolicy = cancellation;

@@ -315,16 +315,23 @@ export const PARTNER_LISTING_PUBLISH_STEP_NOTE =
 /** Partner listing editor final step title when still draft. */
 export const PARTNER_LISTING_PUBLISH_STEP_TITLE = 'Publish or keep a draft';
 
-/** Partner cancellation request: Resend is blocked — do not claim the traveler was emailed. */
+/** Partner cancellation: Resend is blocked — do not claim the traveler was emailed. */
 export const PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE =
-  'The request appears on the traveler’s Trips. Traverion does not treat email delivery as proof they saw it.';
+  'The cancellation appears on the traveler’s Trips. Traverion does not treat email delivery as proof they saw it.';
 
 /**
- * Partner cancel-request modal — traveler refund is due, not already paid out.
- * Do not say “a full refund is expected” as if Stripe already moved money.
+ * Partner cancel modal — traveler refund is due, not already paid out.
+ * Stays: Traverion queues Stripe refund. Tours: Refund due until Phase 2 execution.
  */
 export const PARTNER_CANCEL_REQUEST_REFUND_POLICY =
-  'Traveler refund: a full refund is due. Traverion does not send the Stripe refund automatically; status becomes Refund due until Stripe records Refunded.';
+  'Traveler refund: a full refund is due when you cancel. For stays Traverion submits it to Stripe automatically. For tours, status becomes Refund due until Stripe records Refunded.';
+
+/** Partner cancel modal title consequences. */
+export const PARTNER_CANCEL_IMMEDIATE_TITLE = 'Cancel this booking';
+
+/** Partner cancel modal — immediate cancel (no traveler approval). */
+export const PARTNER_CANCEL_IMMEDIATE_SUBTITLE =
+  'This cancels the booking immediately. The traveler does not need to accept. A full refund is due.';
 
 /** Traveler cancellation response: Resend is blocked — do not claim the host was emailed. */
 export const TRAVELER_CANCELLATION_RESPONSE_DELIVERY_NOTE =
@@ -715,16 +722,16 @@ export const PARTNERSHIP_FORM_THANK_YOU =
 export const PARTNERSHIP_FORM_SUBMIT_ERROR =
   'Could not submit your application. Try again in a moment.';
 
-/** Partner cancel-request failure — Bookings save, not email send. */
+/** Partner cancel failure — Bookings save, not email send. */
 export const PARTNER_CANCEL_REQUEST_SUBMIT_ERROR =
-  'Could not submit the cancellation request.';
+  'Could not submit this cancellation.';
 
 /** Partner cancel modal callout — submit, not email send. */
 export const PARTNER_CANCEL_REQUEST_CONSEQUENCES_TITLE = 'Consequences before you submit';
 
-/** Partner cancel modal — fee timing on traveler accept, not on submit/email. */
+/** Partner cancel modal — fee timing on immediate supplier cancel. */
 export const PARTNER_CANCEL_REQUEST_FEE_TIMING_NOTE =
-  'Fee is recorded when the traveler accepts, not when you submit this request.';
+  'Fee is recorded when you submit this cancellation, not when Stripe refunds the traveler.';
 
 /** Partner marketing landing — Get paid / Money plainly; payouts stay manual. */
 export const PARTNER_LANDING_GET_PAID_NOTE =

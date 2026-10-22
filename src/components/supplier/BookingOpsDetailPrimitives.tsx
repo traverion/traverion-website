@@ -213,7 +213,7 @@ export function BookingOpsActionRail({
           className="tv-btn-ghost inline-flex h-9 w-full items-center justify-center gap-1.5 !px-3 text-[13px] text-red-700 disabled:opacity-50"
         >
           <Trash2 className="h-3.5 w-3.5" aria-hidden />
-          Request cancellation
+          Cancel booking
         </button>
       ) : null}
     </div>

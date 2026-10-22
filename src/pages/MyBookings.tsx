@@ -192,20 +192,18 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   const getSelfCancelStartHm = useCallback((b: BookingRow): string => {
     const isStay = bookingIsStayNight(b);
     const snap = b.purchase_snapshot;
-    // Prefer purchased departure; if snap exists but startTimeHm is blank, fall back to
-    // bookings.start_time so Trips matches SQL cancel_booking_as_traveler.
+    // Official start only (never pickup). Blank snap clock → live start_time for SQL parity.
     const purchasedStart = displayStartTimeFromPurchase(snap, null);
     const liveStart = b.start_time ? pgTimeToHm(b.start_time) ?? null : null;
+    const cancelRef =
+      snap && typeof snap === 'object' && 'cancelReferenceStartHm' in snap
+        ? String((snap as PurchaseSnapshot).cancelReferenceStartHm ?? '').trim()
+        : '';
     return travelerSelfCancelStartHm({
       isStay,
       checkInHm: displayStayCheckInTimeFromPurchase(snap, null),
       startTimeHm: purchasedStart || liveStart,
-      fulfillment: displayFulfillmentFromPurchase(snap),
-      confirmedPickupHm: b.pickup_time ? pgTimeToHm(b.pickup_time) ?? null : null,
-      selfCancelStartHm:
-        snap && typeof snap === 'object' && 'selfCancelStartHm' in snap
-          ? String((snap as PurchaseSnapshot).selfCancelStartHm ?? '')
-          : null,
+      cancelReferenceStartHm: cancelRef || null,
     });
   }, []);
 
@@ -1750,24 +1748,59 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                           {TRAVELER_SELF_CANCEL_DEADLINE_PASSED_TITLE}
                         </p>
                         <p className="mt-1.5 text-sm text-ink leading-relaxed">
-                          {travelerSelfCancelUnavailableMessage({
-                            freeCancelHours: resolveStayCancelPolicyFromSnapshot(b.purchase_snapshot)
-                              .freeCancelHours,
-                          })}
+                          {(() => {
+                            const policy = resolveStayCancelPolicyFromSnapshot(b.purchase_snapshot);
+                            const tz = resolveDepartureTimezone(
+                              displayDepartureTimezoneFromPurchase(b.purchase_snapshot)
+                            );
+                            const deadline = travelerSelfCancelDeadlineMs({
+                              bookingDate: b.booking_date,
+                              startTimeHm: getSelfCancelStartHm(b),
+                              departureTimezone: tz,
+                              freeCancelHours: policy.freeCancelHours,
+                            });
+                            const when = deadline
+                              ? new Intl.DateTimeFormat('en-GB', {
+                                  timeZone: tz,
+                                  day: 'numeric',
+                                  month: 'long',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  hourCycle: 'h23',
+                                }).format(new Date(deadline))
+                              : null;
+                            if (policy.freeCancelHours == null) {
+                              return travelerSelfCancelUnavailableMessage({ freeCancelHours: null });
+                            }
+                            return when
+                              ? `Self-cancellation closed at ${when} (local time). Contact the supplier or Traverion Support to discuss your booking.`
+                              : travelerSelfCancelUnavailableMessage({
+                                  freeCancelHours: policy.freeCancelHours,
+                                });
+                          })()}
                         </p>
                         <p className="mt-1 text-sm text-ink-muted leading-relaxed">
                           {TRAVELER_SELF_CANCEL_CONTACT_OPERATOR_NOTE}
                         </p>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setTripDetailTab('messages');
-                            setFocusMessageId(b.id);
-                          }}
-                          className="tv-btn-secondary mt-3"
-                        >
-                          Contact operator
-                        </button>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTripDetailTab('messages');
+                              setFocusMessageId(b.id);
+                            }}
+                            className="tv-btn-secondary"
+                          >
+                            Contact supplier
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onNavigate('contact')}
+                            className="tv-btn-ghost"
+                          >
+                            Contact Traverion Support
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
