@@ -145,6 +145,8 @@ export default function SupplierInbox() {
   );
   const [bookingPanelOpen, setBookingPanelOpen] = useState(true);
   const [bookingDocked, setBookingDocked] = useState(false);
+  const [bookingDrawerMounted, setBookingDrawerMounted] = useState(false);
+  const [bookingDrawerOpen, setBookingDrawerOpen] = useState(false);
   const listScrollRef = useRef<HTMLDivElement | null>(null);
   const splitRef = useRef<HTMLDivElement | null>(null);
   const restoredListScrollRef = useRef(false);
@@ -200,6 +202,27 @@ export default function SupplierInbox() {
     if (!openId) return;
     if (!bookingDocked) setBookingPanelOpen(false);
   }, [openId, bookingDocked]);
+
+  // Drawer enter/exit: keep mounted through the slide-out so the chat never jumps.
+  useEffect(() => {
+    const wantDrawer = Boolean(openId) && !bookingDocked && bookingPanelOpen;
+    if (wantDrawer) {
+      setBookingDrawerMounted(true);
+      const frame = window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => setBookingDrawerOpen(true));
+      });
+      return () => window.cancelAnimationFrame(frame);
+    }
+    setBookingDrawerOpen(false);
+    return undefined;
+  }, [openId, bookingDocked, bookingPanelOpen]);
+
+  useEffect(() => {
+    if (bookingDocked || !openId) {
+      setBookingDrawerMounted(false);
+      setBookingDrawerOpen(false);
+    }
+  }, [bookingDocked, openId]);
 
   const load = useCallback(async () => {
     const uid = user?.id;
@@ -577,8 +600,8 @@ export default function SupplierInbox() {
   const showList = !mobileSheet || !openId;
   const showChat = !mobileSheet || Boolean(openId);
   const showBookingPanel = Boolean(openBooking) && bookingPanelOpen;
-  const showBookingDocked = showBookingPanel && bookingDocked;
-  const showBookingDrawer = showBookingPanel && !bookingDocked;
+  const showBookingDockedPane = Boolean(openBooking) && bookingDocked;
+  const showBookingDrawer = Boolean(openBooking) && !bookingDocked && bookingDrawerMounted;
 
   const statusForThread = (b: BookingRow) => {
     if (isStayRequestAwaitingHost(b)) return 'Request';
@@ -612,7 +635,7 @@ export default function SupplierInbox() {
       ) : null}
       <div
         ref={splitRef}
-        className={`tv-inbox-split${showBookingDocked ? ' tv-inbox-split--with-booking' : ''}`}
+        className={`tv-inbox-split${showBookingDockedPane && bookingPanelOpen ? ' tv-inbox-split--with-booking' : ''}`}
       >
         <section className={`tv-inbox-list-pane min-h-0 flex-col ${showList ? 'flex' : 'hidden'}`} aria-label="Conversations">
           <header className="tv-inbox-list-pane__head">
@@ -947,28 +970,48 @@ export default function SupplierInbox() {
             </NoticeCallout>
           ) : null}
         </section>
-        {openBooking && showBookingDocked ? (
-          <div id="partner-inbox-booking-panel" className="tv-inbox-booking-pane">
-            <InboxBookingPanel
-              booking={openBooking}
-              listing={listingsById[openBooking.listing_id]}
-              listingTitle={titles[openBooking.listing_id] ?? ''}
-              onViewFullBooking={() => openCanonicalBooking(openBooking)}
-              onWarmBooking={() => warmBookingDetails(openBooking)}
-              onClose={() => setBookingPanelOpen(false)}
-            />
+        {openBooking && showBookingDockedPane ? (
+          <div
+            id="partner-inbox-booking-panel"
+            className={`tv-inbox-booking-pane${bookingPanelOpen ? ' is-open' : ''}`}
+            aria-hidden={!bookingPanelOpen}
+          >
+            <div className="tv-inbox-booking-pane__shell">
+              <InboxBookingPanel
+                booking={openBooking}
+                listing={listingsById[openBooking.listing_id]}
+                listingTitle={titles[openBooking.listing_id] ?? ''}
+                onViewFullBooking={() => openCanonicalBooking(openBooking)}
+                onWarmBooking={() => warmBookingDetails(openBooking)}
+                onClose={() => setBookingPanelOpen(false)}
+              />
+            </div>
           </div>
         ) : null}
       </div>
       {openBooking && showBookingDrawer ? (
-        <div className="tv-inbox-booking-drawer" role="dialog" aria-modal="true" aria-label="Booking details">
+        <div
+          className={`tv-inbox-booking-drawer${bookingDrawerOpen ? ' is-open' : ''}`}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Booking details"
+          aria-hidden={!bookingDrawerOpen}
+        >
           <button
             type="button"
             className="tv-inbox-booking-drawer__backdrop"
             aria-label="Close booking details"
             onClick={() => setBookingPanelOpen(false)}
+            tabIndex={bookingDrawerOpen ? 0 : -1}
           />
-          <div id="partner-inbox-booking-panel" className="tv-inbox-booking-drawer__panel">
+          <div
+            id="partner-inbox-booking-panel"
+            className="tv-inbox-booking-drawer__panel"
+            onTransitionEnd={(e) => {
+              if (e.propertyName !== 'transform') return;
+              if (!bookingPanelOpen) setBookingDrawerMounted(false);
+            }}
+          >
             <InboxBookingPanel
               booking={openBooking}
               listing={listingsById[openBooking.listing_id]}

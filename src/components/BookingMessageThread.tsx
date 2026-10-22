@@ -69,7 +69,7 @@ function MessageText({ text, mine }: { text: string; mine: boolean }) {
   }
   if (last < text.length) parts.push(text.slice(last));
   return (
-    <p className="whitespace-pre-wrap break-words leading-snug [overflow-wrap:anywhere]">
+    <p className="m-0 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
       {parts.map((part, index) =>
         typeof part === 'string' ? (
           <span key={index}>{part}</span>
@@ -332,8 +332,16 @@ export default function BookingMessageThread({
                 day: 'numeric',
               });
               const prev = index > 0 ? rows[index - 1] : null;
+              const next = index < rows.length - 1 ? rows[index + 1] : null;
               const prevDay = prev
                 ? new Date(prev.created_at).toLocaleDateString(undefined, {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                  })
+                : '';
+              const nextDay = next
+                ? new Date(next.created_at).toLocaleDateString(undefined, {
                     year: 'numeric',
                     month: 'short',
                     day: 'numeric',
@@ -345,17 +353,30 @@ export default function BookingMessageThread({
                 prev.sender_role === m.sender_role &&
                 day === prevDay &&
                 Math.abs(new Date(m.created_at).getTime() - new Date(prev.created_at).getTime()) < 8 * 60 * 1000;
+              const continues =
+                next != null &&
+                next.sender_role === m.sender_role &&
+                day === nextDay &&
+                Math.abs(new Date(next.created_at).getTime() - new Date(m.created_at).getTime()) < 8 * 60 * 1000;
               const tone =
                 m.sender_role === 'system' ? 'system' : mine ? 'mine' : 'theirs';
               return (
-                <div key={m.id} className={grouped ? 'tv-chat__item tv-chat__item--grouped' : 'tv-chat__item'}>
+                <div
+                  key={m.id}
+                  className={`tv-chat__item tv-chat__item--${tone}${grouped ? ' tv-chat__item--grouped' : ''}`}
+                >
                   {day !== prevDay ? <p className="tv-msg-day">{day}</p> : null}
                   <div className={`tv-chat__bubble tv-chat__bubble--${tone}`}>
                     <MessageText text={m.body} mine={tone === 'mine'} />
-                    <time dateTime={m.created_at} className="tv-chat__time">
-                      {new Date(m.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
-                    </time>
                   </div>
+                  {!continues ? (
+                    <time dateTime={m.created_at} className="tv-chat__time">
+                      {new Date(m.created_at).toLocaleTimeString(undefined, {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </time>
+                  ) : null}
                 </div>
               );
             })
