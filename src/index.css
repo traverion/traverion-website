@@ -3715,22 +3715,24 @@ a:focus-visible,
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.65rem 1.35rem;
-  padding: 0.85rem 0;
+  gap: 0.5rem 1.5rem;
+  padding: 0.7rem 0 0.85rem;
   font-size: 0.8125rem;
   font-weight: 500;
-  letter-spacing: -0.005em;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
   color: #57534e;
   border-bottom: 1px solid rgba(232, 235, 240, 0.95);
 }
 .tv-home-trust__item {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.4rem;
+  min-height: 1.25rem;
 }
 .tv-home-trust__item svg {
-  width: 1rem;
-  height: 1rem;
+  width: 0.9375rem;
+  height: 0.9375rem;
   color: #0758cb;
   flex-shrink: 0;
 }
@@ -3752,7 +3754,7 @@ a:focus-visible,
   --tv-pdp-max: 76rem;
   --tv-section-y: 2.25rem;
   --tv-section-y-lg: 3rem;
-  --tv-discover-gap: 0.75rem;
+  --tv-discover-gap: 1rem; /* 16px destination / discovery gaps */
   /* Platform motion (premium, restrained) — transform/opacity preferred over layout */
   --tv-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --tv-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -3817,7 +3819,7 @@ a:focus-visible,
   :root {
     --tv-section-y: 2.75rem;
     --tv-section-y-lg: 3.5rem;
-    --tv-discover-gap: 1rem;
+    --tv-discover-gap: 1.125rem; /* ~18px */
   }
 }
 
@@ -3911,18 +3913,49 @@ a:focus-visible,
   border-top: 1px solid rgba(28, 25, 23, 0.06);
 }
 
-/* Destination discovery: denser tiles that fill rows without ballooning when few exist */
+/* Destination discovery: fixed card width, start-aligned — does not stretch two cards full-bleed */
 .tv-dest-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(10.5rem, 13.5rem));
   justify-content: start;
-  gap: var(--tv-discover-gap);
+  gap: var(--tv-discover-gap, 1rem); /* 16px base */
 }
 
 @media (min-width: 1024px) {
   .tv-dest-grid {
     grid-template-columns: repeat(auto-fill, minmax(11.5rem, 14rem));
+    gap: 1.25rem; /* 20px */
   }
+}
+
+.tv-home-destinations__intro {
+  margin-bottom: 1.35rem;
+}
+@media (min-width: 640px) {
+  .tv-home-destinations__intro {
+    margin-bottom: 1.6rem;
+  }
+}
+.tv-home-destinations__intro .tv-eyebrow {
+  margin-bottom: 0.45rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #003580;
+}
+.tv-home-destinations__intro .tv-section-heading {
+  font-size: clamp(1.35rem, 1.55vw, 1.7rem);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: #0f172a;
+}
+.tv-home-destinations__intro .tv-meta {
+  margin-top: 0.45rem;
+  max-width: 32rem;
+  color: #57534e;
+  font-size: 0.875rem;
+  line-height: 1.5;
 }
 
 .tv-dest-tile {
@@ -3935,15 +3968,21 @@ a:focus-visible,
   aspect-ratio: 3 / 4;
   background: #1c1917;
   text-align: left;
-  box-shadow: var(--tv-elev-2);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 8px 20px -12px rgba(15, 23, 42, 0.18),
+    0 0 0 1px rgba(28, 25, 23, 0.05);
   transition:
-    box-shadow var(--tv-duration-hover, 220ms) var(--tv-ease, ease),
-    transform var(--tv-duration-hover, 220ms) var(--tv-ease, ease);
+    box-shadow var(--tv-duration-hover, 200ms) var(--tv-ease),
+    transform var(--tv-duration-hover, 200ms) var(--tv-ease);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .tv-dest-tile:hover {
-    box-shadow: var(--tv-shadow-hover);
+    box-shadow:
+      0 2px 4px rgba(15, 23, 42, 0.05),
+      0 14px 28px -14px rgba(15, 23, 42, 0.28),
+      0 0 0 1px rgba(0, 53, 128, 0.1);
   }
 }
 
@@ -3957,7 +3996,7 @@ a:focus-visible,
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform var(--tv-duration-drawer, 220ms) var(--tv-ease, ease);
+  transition: transform var(--tv-duration-drawer, 220ms) var(--tv-ease);
 }
 
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
@@ -3992,23 +4031,39 @@ a:focus-visible,
 .tv-dest-tile-label {
   position: absolute;
   inset: auto 0 0 0;
-  padding: 2.5rem 0.85rem 0.85rem;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.86) 0%, rgba(0, 0, 0, 0.35) 55%, transparent 100%);
+  padding: 2.75rem 0.9rem 0.9rem;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.9) 0%,
+    rgba(0, 0, 0, 0.55) 42%,
+    rgba(0, 0, 0, 0.18) 72%,
+    transparent 100%
+  );
   color: #fff;
 }
 
-.tv-dest-tile-label > span:first-child {
+.tv-dest-tile-label__name {
+  display: block;
   font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  font-size: 1.0625rem;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.022em;
+  line-height: 1.2;
+}
+@media (min-width: 640px) {
+  .tv-dest-tile-label__name {
+    font-size: 1.125rem;
+  }
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .tv-dest-tile {
-    transition:
-      box-shadow var(--tv-duration-hover, 200ms) var(--tv-ease),
-      transform var(--tv-duration-hover, 200ms) var(--tv-ease);
-  }
+.tv-dest-tile-label__count {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.82);
 }
 
 /* Phase 1802: section “All tours / All stays” affordance — OTA-style text CTA */

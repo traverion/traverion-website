@@ -151,7 +151,10 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
     );
   }, [label, tourListings.length, stayListings.length]);
 
-  const heroSrc = useMemo(() => destinationCoverSrc(slug), [slug]);
+  const heroSrc = useMemo(
+    () => destinationCoverSrc(slug, { candidates: listings.map((l) => l.image) }),
+    [slug, listings]
+  );
 
   const parentCountry = useMemo(() => {
     if (!slug || !listings[0]) return null;

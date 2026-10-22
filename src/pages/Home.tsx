@@ -374,26 +374,26 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
       </section>
 
       <section className="bg-paper">
-        <div className="tv-shell px-4 sm:px-6 lg:px-8">
+        <div className="tv-content">
           <div className="tv-home-trust">
             <span className="tv-home-trust__item">
-              <ShieldCheck aria-hidden strokeWidth={2} />
+              <ShieldCheck aria-hidden strokeWidth={2.25} />
               Cancellation terms on each listing
             </span>
             <span className="tv-home-trust__item">
-              <CalendarCheck aria-hidden strokeWidth={2} />
+              <CalendarCheck aria-hidden strokeWidth={2.25} />
               Secure checkout · manage everything in Trips
             </span>
           </div>
         </div>
       </section>
 
-      <section className="tv-section">
+      <section className="tv-section tv-home-destinations">
         <div className="tv-content">
-          <div className="mb-5 sm:mb-6">
+          <div className="tv-home-destinations__intro">
             <p className="tv-eyebrow">Destinations</p>
-            <h2 className="tv-section-heading sm:text-[1.65rem]">Explore somewhere unforgettable</h2>
-            <p className="tv-meta mt-1.5 max-w-lg">
+            <h2 className="tv-section-heading">Explore somewhere unforgettable</h2>
+            <p className="tv-meta">
               Places with published tours and stays on Traverion.
             </p>
           </div>
@@ -405,7 +405,16 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                 const matches = [...allListings, ...stayListings].filter((t) =>
                   matchesDestination(t, p.id, [p])
                 );
-                const img = destinationCoverSrc(p.id);
+                // Prefer stay photos for country/region tiles when available so adjacent
+                // city cards (often the same tour) do not duplicate the same cover.
+                const coverCandidates =
+                  p.type === 'region'
+                    ? [
+                        ...matches.filter((t) => listingIsFamily(t, 'stay')).map((t) => t.image),
+                        ...matches.map((t) => t.image),
+                      ]
+                    : matches.map((t) => t.image);
+                const img = destinationCoverSrc(p.id, { candidates: coverCandidates });
                 const tourCount = matches.filter((t) => listingIsFamily(t, 'tour')).length;
                 const stayCount = matches.filter((t) => listingIsFamily(t, 'stay')).length;
                 const countLabel =
@@ -438,9 +447,9 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                   >
                     <img src={img} alt="" loading="lazy" decoding="async" />
                     <span className="tv-dest-tile-label">
-                      <span className="block text-base font-bold leading-tight sm:text-lg">{p.label}</span>
+                      <span className="tv-dest-tile-label__name">{p.label}</span>
                       {countLabel ? (
-                        <span className="mt-0.5 block text-[11px] text-white/80" aria-hidden>
+                        <span className="tv-dest-tile-label__count" aria-hidden>
                           {countLabel}
                         </span>
                       ) : null}
