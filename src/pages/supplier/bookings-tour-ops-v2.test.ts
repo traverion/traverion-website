@@ -26,6 +26,8 @@ const baseModel: TourOpsCardModel = {
   arrivalRailLabel: 'Pickup',
   arrivalRailWarn: false,
   pickupSummary: 'Hotel lobby, 08:30',
+  arrivalPlace: 'Hotel lobby',
+  arrivalInstructions: '08:30 pickup window',
   arrivalSectionLabel: 'Accommodation pickup',
   durationLabel: '2 hours',
   guestNotes: null,
@@ -92,6 +94,9 @@ describe('Bookings V4 — tour ops card & detail page', () => {
     expect(css).toContain('flex-wrap: nowrap');
     expect(css).toContain('.tour-ops-card__summary-grid');
     expect(css).toContain('.tour-ops-card__pickup');
+    expect(css).toContain('.tour-ops-card__finance-note');
+    expect(css).toContain('--pb-control-h');
+    expect(css).toContain('.tour-ops-card__meta-item--when');
   });
 
   it('uses short readable travel and sort filter labels', () => {
@@ -148,6 +153,9 @@ describe('Bookings V4 — tour ops card & detail page', () => {
     );
     expect(html).toContain('Ada Lovelace');
     expect(html).toContain('+358 40 123 4567');
+    expect(html).toContain('Hotel lobby');
+    expect(html).toContain('08:30 pickup window');
+    expect(html).toContain('Paid');
     expect(html).toContain('Customer paid');
     expect(html).toContain('€119.00');
     expect(html).toContain('Traverion commission');
@@ -155,11 +163,37 @@ describe('Bookings V4 — tour ops card & detail page', () => {
     expect(html).toContain('−€17.85');
     expect(html).toContain('Supplier earnings');
     expect(html).toContain('€101.15');
+    expect(html).toContain('Supplier earnings are not a payout.');
     expect(html).not.toContain('Mark as reviewed');
     expect(html).not.toContain('Acknowledge');
     expect(html).toContain('View details');
     expect(html).toContain('Message guest');
     expect(html).toContain('aria-expanded="true"');
+  });
+
+  it('clamps long experience titles and keeps option secondary', () => {
+    const html = renderToStaticMarkup(
+      createElement(TourOpsBookingCard, {
+        model: {
+          ...baseModel,
+          listingTitle:
+            'Rovaniemi: Northern Lights Guarantee — 100% Refund + Photos with an Extremely Long Marketing Suffix',
+        },
+        expanded: false,
+        selected: false,
+        checkbox: createElement('input', { type: 'checkbox', readOnly: true }),
+        onToggleExpand: () => undefined,
+        onOpenDetails: () => undefined,
+        onMessageGuest: () => undefined,
+        onCopyReference: () => undefined,
+      })
+    );
+    expect(html).toContain('tour-ops-card__title');
+    expect(html).toContain('Northern Lights Guarantee');
+    expect(html).toContain('Morning departure');
+    expect(html).toContain('tour-ops-card__option');
+    const css = readFileSync(resolve(__dirname, '../../index.css'), 'utf8');
+    expect(css).toMatch(/\.tour-ops-card__title[\s\S]*?-webkit-line-clamp:\s*2/);
   });
 
   it('isolates checkbox and copy clicks from row expand via stopPropagation', () => {

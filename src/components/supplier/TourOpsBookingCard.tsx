@@ -2,7 +2,7 @@
  * Expandable tour booking row — scan row + minimal inline ops details.
  */
 import { type MouseEvent, type ReactNode } from 'react';
-import { CalendarDays, ChevronDown, Copy, Mail, MapPin, Users } from 'lucide-react';
+import { CalendarDays, ChevronDown, Copy, Mail, MapPin, User, Users } from 'lucide-react';
 
 export type TourOpsCardModel = {
   id: string;
@@ -23,6 +23,9 @@ export type TourOpsCardModel = {
   arrivalRailLabel: string | null;
   arrivalRailWarn?: boolean;
   pickupSummary: string | null;
+  /** Prefer place over joined summary when present */
+  arrivalPlace?: string | null;
+  arrivalInstructions?: string | null;
   arrivalSectionLabel: string;
   durationLabel: string | null;
   guestNotes: string | null;
@@ -63,6 +66,22 @@ export default function TourOpsBookingCard({
   const actionableNote =
     model.warning && model.warning !== 'Pickup details missing' ? model.warning : null;
   const showGuestNotes = Boolean(model.guestNotes) && (model.arrivalRailWarn || Boolean(actionableNote));
+  const arrivalPlace = model.arrivalPlace?.trim() || null;
+  const arrivalInstructions = model.arrivalInstructions?.trim() || null;
+  const arrivalPrimary =
+    arrivalPlace ||
+    model.pickupSummary?.trim() ||
+    arrivalInstructions ||
+    (model.arrivalRailWarn ? 'Pickup location needed' : '—');
+  const showInstructionUnderPlace = Boolean(arrivalPlace && arrivalInstructions);
+  const pickupRailKind = (() => {
+    const label = (model.arrivalRailLabel || '').toLowerCase();
+    if (label.includes('meeting')) return 'meeting';
+    if (label.includes('fixed')) return 'fixed';
+    if (label.includes('needed') || model.arrivalRailWarn) return 'warn';
+    if (label.includes('pickup')) return 'pickup';
+    return 'default';
+  })();
 
   return (
     <article
@@ -105,40 +124,43 @@ export default function TourOpsBookingCard({
                   <span className={`tour-ops-card__status ${model.statusClass}`}>{model.statusLabel}</span>
                   {model.arrivalRailLabel ? (
                     <span
-                      className={`tour-ops-card__pickup${
+                      className={`tour-ops-card__pickup tour-ops-card__pickup--${pickupRailKind}${
                         model.arrivalRailWarn ? ' tour-ops-card__pickup--warn' : ''
                       }`}
                       title={model.pickupSummary || model.arrivalRailLabel}
                     >
-                      <MapPin className="h-3 w-3 shrink-0" aria-hidden />
+                      <MapPin className="h-3 w-3 shrink-0" strokeWidth={2} aria-hidden />
                       {model.arrivalRailLabel}
                     </span>
                   ) : null}
                 </div>
                 <ChevronDown
                   className={`tour-ops-card__chevron${expanded ? ' is-open' : ''}`}
+                  strokeWidth={2}
                   aria-hidden
                 />
               </div>
             </div>
             <div className="tour-ops-card__meta">
-              <span className="tour-ops-card__meta-item tour-ops-card__meta-item--strong">
-                <CalendarDays className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              <span className="tour-ops-card__meta-item tour-ops-card__meta-item--when">
+                <CalendarDays className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
                 <span
-                  className="truncate"
+                  className="tour-ops-card__when-text"
                   title={
                     model.departureNote ? `${model.dateLine}. ${model.departureNote}` : model.dateLine
                   }
                 >
                   {model.dateLine}
-                  {model.departureNote ? ` · ${model.departureNote}` : ''}
+                  {model.departureNote ? (
+                    <span className="tour-ops-card__when-note"> · {model.departureNote}</span>
+                  ) : null}
                 </span>
               </span>
               <span
-                className="tour-ops-card__meta-item tour-ops-card__meta-item--strong"
+                className="tour-ops-card__meta-item tour-ops-card__meta-item--guests"
                 title={model.participantLabel}
               >
-                <Users className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                <Users className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
                 <span className="truncate">{model.participantLabel}</span>
               </span>
               <button
@@ -156,7 +178,7 @@ export default function TourOpsBookingCard({
                 ) : (
                   <>
                     <span className="tour-ops-card__ref-code">{model.referenceLabel}</span>
-                    <Copy className="h-3 w-3 shrink-0 opacity-55" aria-hidden />
+                    <Copy className="h-3 w-3 shrink-0 opacity-55" strokeWidth={2} aria-hidden />
                   </>
                 )}
               </button>
@@ -174,7 +196,10 @@ export default function TourOpsBookingCard({
       <div className="tour-ops-card__panel" hidden={!expanded} onClick={stop}>
         <div className="tour-ops-card__summary-grid">
           <section className="tour-ops-card__summary-block">
-            <h3 className="tour-ops-card__summary-heading">Guest</h3>
+            <h3 className="tour-ops-card__summary-heading">
+              <User className="tour-ops-card__summary-icon" strokeWidth={2} aria-hidden />
+              Guest
+            </h3>
             <p className="tour-ops-card__summary-name">{model.guestName}</p>
             {model.guestPhone ? (
               <a
@@ -185,14 +210,31 @@ export default function TourOpsBookingCard({
               </a>
             ) : null}
             <p className="tour-ops-card__summary-meta">{model.participantLabel}</p>
+            <button
+              type="button"
+              className="tour-ops-card__summary-link lux-flat"
+              onClick={onMessageGuest}
+            >
+              <Mail className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
+              Message guest
+            </button>
           </section>
 
           <section className="tour-ops-card__summary-block">
-            <h3 className="tour-ops-card__summary-heading">{model.arrivalSectionLabel}</h3>
-            <p className="tour-ops-card__summary-value">
-              {model.pickupSummary ||
-                (model.arrivalRailWarn ? 'Pickup location needed' : '—')}
+            <h3 className="tour-ops-card__summary-heading">
+              <MapPin className="tour-ops-card__summary-icon" strokeWidth={2} aria-hidden />
+              {model.arrivalSectionLabel}
+            </h3>
+            <p
+              className={`tour-ops-card__summary-value${
+                arrivalPlace || model.pickupSummary ? ' tour-ops-card__summary-value--place' : ''
+              }`}
+            >
+              {arrivalPrimary}
             </p>
+            {showInstructionUnderPlace ? (
+              <p className="tour-ops-card__summary-note">{arrivalInstructions}</p>
+            ) : null}
             {showGuestNotes && model.guestNotes ? (
               <p className="tour-ops-card__summary-note">{model.guestNotes}</p>
             ) : null}
@@ -200,30 +242,38 @@ export default function TourOpsBookingCard({
 
           <section className="tour-ops-card__summary-block tour-ops-card__summary-block--finance">
             <h3 className="tour-ops-card__summary-heading">Payment</h3>
+            {model.paymentLabel ? (
+              <p className="tour-ops-card__payment-status">{model.paymentLabel}</p>
+            ) : null}
             {model.financeLoading ? (
               <p className="tour-ops-card__summary-meta">Loading…</p>
             ) : (
-              <dl className="tour-ops-card__finance">
-                <div>
-                  <dt>Customer paid</dt>
-                  <dd className="tabular-nums">{model.guestPaidLabel || 'Unavailable'}</dd>
-                </div>
-                <div>
-                  <dt>
-                    Traverion commission
-                    {model.commissionRateLabel ? ` (${model.commissionRateLabel})` : ''}
-                  </dt>
-                  <dd className="tabular-nums">
-                    {model.commissionLabel ? `−${model.commissionLabel}` : 'Unavailable'}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Supplier earnings</dt>
-                  <dd className="tabular-nums tour-ops-card__finance-earn">
-                    {model.earningsLabel || 'Unavailable'}
-                  </dd>
-                </div>
-              </dl>
+              <>
+                <dl className="tour-ops-card__finance">
+                  <div>
+                    <dt>Customer paid</dt>
+                    <dd className="tabular-nums">{model.guestPaidLabel || 'Unavailable'}</dd>
+                  </div>
+                  <div>
+                    <dt>
+                      Traverion commission
+                      {model.commissionRateLabel ? ` (${model.commissionRateLabel})` : ''}
+                    </dt>
+                    <dd className="tabular-nums">
+                      {model.commissionLabel ? `−${model.commissionLabel}` : 'Unavailable'}
+                    </dd>
+                  </div>
+                  <div className="tour-ops-card__finance-earn-row">
+                    <dt>Supplier earnings</dt>
+                    <dd className="tabular-nums tour-ops-card__finance-earn">
+                      {model.earningsLabel || 'Unavailable'}
+                    </dd>
+                  </div>
+                </dl>
+                {model.earningsLabel ? (
+                  <p className="tour-ops-card__finance-note">Supplier earnings are not a payout.</p>
+                ) : null}
+              </>
             )}
           </section>
         </div>
@@ -234,7 +284,7 @@ export default function TourOpsBookingCard({
 
         <div className="tour-ops-card__actions">
           <button type="button" className="tv-btn-primary h-8 !px-3 text-[12.5px]" onClick={onMessageGuest}>
-            <Mail className="h-3.5 w-3.5" aria-hidden />
+            <Mail className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
             Message guest
           </button>
           <button type="button" className="tv-btn-secondary h-8 !px-3 text-[12.5px]" onClick={onOpenDetails}>

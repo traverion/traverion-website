@@ -1867,6 +1867,8 @@ export default function SupplierBookings({
                     arrivalRailLabel: arrival.railLabel,
                     arrivalRailWarn: arrival.needsLocation || arrival.rail === 'location_needed',
                     pickupSummary,
+                    arrivalPlace: arrival.place,
+                    arrivalInstructions: arrival.instructions,
                     arrivalSectionLabel: arrival.sectionLabel,
                     durationLabel: durationLabel && durationLabel !== '—' ? durationLabel : null,
                     guestNotes,
