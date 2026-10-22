@@ -150,4 +150,4 @@ Typecheck still reports pre-existing supplier-page TS errors unrelated to this w
 ---
 
 ## 14. Push confirmation
-Changes pushed to `origin/main` as part of this mission delivery.
+Pushed to `origin/main`: `5aad1694` (refinement) and `7da9f63a` (report hash).
