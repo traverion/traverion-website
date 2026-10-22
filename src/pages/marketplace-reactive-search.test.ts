@@ -13,17 +13,20 @@ describe('Marketplace reactive filtering (no Search required)', () => {
     expect(src).toContain('replaceState');
     expect(src).toContain('popstate');
     expect(src).toContain('dateCapacityReloadGenRef');
+    expect(src).toContain('const showCatalogLoading = catalogLoading;');
+    expect(src).toContain('Done');
   });
 
-  it('Stays applies valid date ranges and guests without Search', () => {
+  it('Stays applies complete date ranges and guests without Search', () => {
     const src = readFileSync(resolve(__dirname, 'Stays.tsx'), 'utf8');
-    expect(src).toContain('applyStayDateRange');
+    expect(src).toContain('commitStayDateRange');
     expect(src).toContain('setGuests(patch.guests)');
     expect(src).toContain('window.setTimeout');
     expect(src).toContain('280');
     expect(src).toContain('parseCalendarDateParam');
     expect(src).toContain('replaceState');
     expect(src).toContain('popstate');
+    expect(src).toContain('Done');
   });
 
   it('search bar uses Helsinki browse today for calendar floor', () => {

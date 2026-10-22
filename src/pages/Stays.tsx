@@ -225,19 +225,31 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
     }
   }, [checkIn, checkOut]);
 
-  const applyStayDateRange = useCallback((nextIn: string, nextOut: string) => {
-    let out = nextOut;
-    if (nextIn && out && out <= nextIn) {
-      out = addCalendarDays(nextIn, 1);
-    } else if (nextIn && !out) {
-      out = addCalendarDays(nextIn, 1);
-    } else if (!nextIn && out) {
-      out = '';
+  /**
+   * Commit stay dates to applied browse state only when the range is complete
+   * (or fully cleared). Incomplete check-in alone must not fire occupancy queries.
+   */
+  const commitStayDateRange = useCallback((nextIn: string, nextOut: string) => {
+    let inIso = nextIn;
+    let outIso = nextOut;
+    if (!inIso) {
+      outIso = '';
+    } else if (outIso && outIso <= inIso) {
+      outIso = addCalendarDays(inIso, 1);
     }
-    setDraftCheckIn(nextIn);
-    setDraftCheckOut(out);
-    setCheckIn(nextIn);
-    setCheckOut(out);
+    setDraftCheckIn(inIso);
+    setDraftCheckOut(outIso);
+    const cleared = !inIso && !outIso;
+    const complete = Boolean(inIso && outIso && outIso > inIso);
+    if (cleared || complete) {
+      setCheckIn(inIso);
+      setCheckOut(outIso);
+    } else {
+      // Incomplete selection: update the bar only; clear applied dates so results
+      // do not query against a half-finished stay.
+      setCheckIn('');
+      setCheckOut('');
+    }
   }, []);
 
   const patchDraftSearch = useCallback(
@@ -264,19 +276,22 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
             if (parsedOut) nextOutRaw = parsedOut;
           }
         }
-        // Apply when check-in is set (auto +1 night) or both cleared.
-        applyStayDateRange(nextIn, nextOutRaw);
+        commitStayDateRange(nextIn, nextOutRaw);
       }
       if (patch.guests !== undefined) {
         setDraftGuests(patch.guests);
         setGuests(patch.guests);
       }
     },
-    [draftWhere, draftCheckIn, draftCheckOut, selectedDestination, applyStayDateRange]
+    [draftWhere, draftCheckIn, draftCheckOut, selectedDestination, commitStayDateRange]
   );
 
   const applyPrimarySearch = useCallback(() => {
-    applyStayDateRange(draftCheckIn, draftCheckOut);
+    // Explicit Search/Done: if only check-in is set, complete a 1-night range.
+    let inIso = draftCheckIn;
+    let outIso = draftCheckOut;
+    if (inIso && !outIso) outIso = addCalendarDays(inIso, 1);
+    commitStayDateRange(inIso, outIso);
     setQ(draftWhere);
     setGuests(draftGuests);
     setMobileSearchOpen(false);
@@ -284,7 +299,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
     if (query) {
       recordTravelerInterest({ kind: 'search', key: query, family: 'stay' });
     }
-  }, [draftWhere, draftCheckIn, draftCheckOut, draftGuests, applyStayDateRange]);
+  }, [draftWhere, draftCheckIn, draftCheckOut, draftGuests, commitStayDateRange]);
 
   /** Debounce free-text Where so stay results update without Search. */
   useEffect(() => {
@@ -485,8 +500,9 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
         if (requestedNights < minN) return false;
       }
       if (dateFilterActive) {
-        // Phase 1350: unknown occupancy must not invent open nights (null map).
-        if (occupancyForActiveBrowse == null) return false;
+        // While occupancy for the new range loads, keep catalog matches visible so
+        // auto-apply does not blank the grid (Search-click illusion).
+        if (occupancyForActiveBrowse == null) return true;
         const pack = occupancyForActiveBrowse[s.id];
         // Phase 1193: missing occupancy row → exclude (do not invent open nights).
         if (!pack) return false;
@@ -646,15 +662,15 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
     selectedDestination !== 'all'
       ? destinationOptions.find((c) => c.id === selectedDestination)?.label ?? selectedDestination
       : q.trim() || null;
-  const resultTitle =
-    catalogLoading || waitingOnOccupancy ? (
-      <span className="inline-block h-6 w-40 rounded bg-black/[0.06] animate-pulse align-middle" aria-hidden />
-    ) : (
-      <>
-        {filtered.length} {filtered.length === 1 ? 'stay' : 'stays'}
-        {destLabel ? ` in ${destLabel}` : ''}
-      </>
-    );
+  const resultTitle = catalogLoading ? (
+    <span className="inline-block h-6 w-40 rounded bg-black/[0.06] animate-pulse align-middle" aria-hidden />
+  ) : (
+    <>
+      {filtered.length} {filtered.length === 1 ? 'stay' : 'stays'}
+      {destLabel ? ` in ${destLabel}` : ''}
+      {waitingOnOccupancy ? ' · Updating…' : ''}
+    </>
+  );
 
   const filterPanel = (
     <>
@@ -979,7 +995,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
             }
           />
         ) : null}
-        {catalogLoading || waitingOnOccupancy ? (
+        {catalogLoading ? (
           <SkeletonCardGrid count={6} />
         ) : occupancyError && dateFilterActive && occupancyLoadedForBrowseKey !== occupancyBrowseKey ? null : filtered.length > 0 ? (
           <div className={MARKETPLACE_BROWSE_GRID_CLASS}>
@@ -1161,7 +1177,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
                 }}
                 className="tv-btn-primary flex-1"
               >
-                Search
+                Done
               </button>
             </div>
           </aside>

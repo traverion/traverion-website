@@ -321,7 +321,9 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     (dateCapacityLoading ||
       dateCapacityByListing === null ||
       dateCapacityLoadedFor !== dateCapacityBrowseKey);
-  const showCatalogLoading = catalogLoading || waitingOnDateCapacity;
+  // Only the initial catalog fetch blanks the grid. Date/guest auto-apply must keep
+  // results visible while capacity refreshes (otherwise Search feels required).
+  const showCatalogLoading = catalogLoading;
 
   const dateCapacityForActiveFilter = useMemo(() => {
     if (!dateCapacityBrowseKey || dateCapacityLoadedFor !== dateCapacityBrowseKey) return null;
@@ -571,8 +573,10 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     let knownSoldOutForDate = 0;
     let list = exceptCapacity.filter((tour) => {
       if (!filterDate) return true;
-      // Phase 1350: unknown capacity must not invent open seats (null map).
-      if (dateCapacityForActiveFilter == null) return false;
+      // While capacity for the newly selected date is in flight, keep schedule-matched
+      // tours visible so auto-apply does not blank the grid (Search-click illusion).
+      // Once the map for this browse key is ready, fail closed on missing/sold-out rows.
+      if (dateCapacityForActiveFilter == null) return true;
       const cap = dateCapacityForActiveFilter[tour.id];
       // Phase 1190: missing cap row while map is loaded → exclude (do not invent open).
       if (!cap) return false;
@@ -687,9 +691,10 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
       if (patch.date !== undefined) {
         // Picker emits YYYY-MM-DD or ''; apply immediately so URL/chips/results stay in sync.
         const dateNext = patch.date.trim() === '' ? '' : parseCalendarDateParam(patch.date);
-        if (patch.date.trim() !== '' && !dateNext) return;
-        setDraftDate(dateNext);
-        setFilterDate(dateNext);
+        if (patch.date.trim() === '' || dateNext) {
+          setDraftDate(dateNext);
+          setFilterDate(dateNext);
+        }
       }
       if (patch.guests !== undefined) {
         setDraftGuests(patch.guests);
@@ -747,7 +752,10 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
     <>
       {filteredPackages.length} {filteredPackages.length === 1 ? 'tour' : 'tours'}
       {destLabel ? ` in ${destLabel}` : ''}
-      {searchTerm.trim() !== '' && searchTerm !== deferredSearch ? ' · Updating…' : ''}
+      {waitingOnDateCapacity ||
+      (searchTerm.trim() !== '' && searchTerm !== deferredSearch)
+        ? ' · Updating…'
+        : ''}
     </>
   );
 
@@ -1016,6 +1024,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
               <button
                 type="submit"
                 className="mx-1 flex h-12 items-center justify-center gap-2 self-center rounded-full bg-finland px-6 text-sm font-semibold text-white shadow-sm hover:bg-finland-dark"
+                aria-label="Apply search"
               >
                 <Search className="h-4 w-4" aria-hidden />
                 Search
@@ -1330,12 +1339,13 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
               <button
                 type="button"
                 onClick={() => {
+                  // Filters already commit via patchDraftSearch; Done only closes the sheet.
                   applyPrimarySearch();
                   closeMobileSearch();
                 }}
                 className="tv-btn-primary flex-1"
               >
-                Search
+                Done
               </button>
             </div>
           </aside>
