@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { stayStickyBookCtaLabel } from './stay-sticky-cta';
-import { TRAVELER_CONTINUE_TEST_CTA, TRAVELER_OPENING_CHECKOUT_CTA } from './booking-confirmation-copy';
+import {
+  STAY_CONFIRM_PAYMENT_CTA,
+  STAY_REVIEW_BOOKING_CTA,
+  stayStickyBookCtaLabel,
+} from './stay-sticky-cta';
+import { TRAVELER_OPENING_CHECKOUT_CTA } from './booking-confirmation-copy';
 
 describe('stayStickyBookCtaLabel', () => {
   it('names unavailable dates instead of Continue', () => {
@@ -54,7 +58,7 @@ describe('stayStickyBookCtaLabel', () => {
     ).toBe('Need 2+ nights');
   });
 
-  it('only says Continue to checkout when quote is ok and lead guest is ready', () => {
+  it('asks to review booking before Stripe when quote is ok and lead guest is ready', () => {
     expect(
       stayStickyBookCtaLabel({
         selectionOccupied: false,
@@ -64,7 +68,21 @@ describe('stayStickyBookCtaLabel', () => {
         checkOut: '2026-10-04',
         minNights: 1,
       })
-    ).toBe(TRAVELER_CONTINUE_TEST_CTA);
+    ).toBe(STAY_REVIEW_BOOKING_CTA);
+  });
+
+  it('confirm CTA on review step', () => {
+    expect(
+      stayStickyBookCtaLabel({
+        selectionOccupied: false,
+        quoteOk: true,
+        leadGuestReady: true,
+        checkIn: '2026-10-01',
+        checkOut: '2026-10-04',
+        minNights: 1,
+        step: 'review',
+      })
+    ).toBe(STAY_CONFIRM_PAYMENT_CTA);
   });
 
   it('asks for guest name before Continue when quote is ok', () => {

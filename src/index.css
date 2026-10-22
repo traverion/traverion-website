@@ -4293,6 +4293,18 @@ details:not([open]) > :not(summary) {
   .tv-booking-sticky {
     padding: 1.35rem 1.35rem 1.45rem;
   }
+  /* Stay Instant Book: denser card so dates + guests + total + CTA fit laptop viewports */
+  .tv-booking-sticky.tv-booking-sticky--stay {
+    padding: 0.95rem 1rem 1.05rem;
+  }
+}
+.tv-booking-sticky.tv-booking-sticky--stay {
+  padding: 0.85rem 0.9rem 0.95rem;
+}
+.tv-booking-sticky.tv-booking-sticky--stay .tv-input {
+  min-height: 2.5rem;
+  padding-top: 0.45rem;
+  padding-bottom: 0.45rem;
 }
 
 /* Phase 1805: mobile sticky book bar — clearer price + depth */

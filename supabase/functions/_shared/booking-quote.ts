@@ -355,6 +355,8 @@ function quoteStayListing(input: {
     nights,
     baseNightly: nightly,
     baseMinNights: typeof stay.minNights === 'number' && stay.minNights >= 1 ? stay.minNights : 1,
+    // Parity with src/lib/booking-quote.ts quoteStayNights — listing cleaning when season omits it.
+    baseCleaningFee: typeof stay.cleaningFeeUsd === 'number' ? stay.cleaningFeeUsd : null,
     availabilityMode: stay.availabilityMode === 'scheduled' ? 'scheduled' : 'open',
     seasons: normalizeStaySeasons(stay.seasons),
   });

@@ -286,11 +286,20 @@ export async function createBookingCheckoutSession(params: {
   cancelPath?: string;
   /** Traveler checked checkout consent (required for new sessions). */
   checkoutConsentAccepted?: boolean;
+  /**
+   * Total shown on the review screen (major units). Edge refuses Stripe when this
+   * differs from the server quote (integer minor units).
+   */
+  expectedTotal?: number;
 }): Promise<{
   success: boolean;
   checkoutUrl?: string;
   bookingId?: string;
   error?: string;
+  /** Server-authoritative total when checkout succeeds or quote_changed. */
+  quotedTotal?: number;
+  currency?: string;
+  code?: string;
   /** Edge stage timings (ms) — no PII. */
   timings?: Record<string, number>;
 }> {
@@ -325,16 +334,45 @@ export async function createBookingCheckoutSession(params: {
       cancelPath: params.cancelPath,
       returnOrigin,
       checkoutConsentAccepted: params.checkoutConsentAccepted === true,
+      ...(typeof params.expectedTotal === 'number' && Number.isFinite(params.expectedTotal)
+        ? { expectedTotal: params.expectedTotal }
+        : {}),
     },
   });
   if (error) {
-    return { success: false, error: await readEdgeFunctionErrorMessage(error, data) };
+    let payloadOnErr = data as {
+      error?: unknown;
+      quotedTotal?: unknown;
+      currency?: unknown;
+      code?: unknown;
+    } | null;
+    const errCtx = error as { context?: { json?: () => Promise<unknown> } };
+    if ((!payloadOnErr || typeof payloadOnErr !== 'object') && errCtx?.context?.json) {
+      try {
+        payloadOnErr = (await errCtx.context.json()) as typeof payloadOnErr;
+      } catch {
+        /* ignore */
+      }
+    }
+    return {
+      success: false,
+      error: await readEdgeFunctionErrorMessage(error, payloadOnErr ?? data),
+      quotedTotal:
+        typeof payloadOnErr?.quotedTotal === 'number' && Number.isFinite(payloadOnErr.quotedTotal)
+          ? payloadOnErr.quotedTotal
+          : undefined,
+      currency: typeof payloadOnErr?.currency === 'string' ? payloadOnErr.currency : undefined,
+      code: typeof payloadOnErr?.code === 'string' ? payloadOnErr.code : undefined,
+    };
   }
   const payload = data as {
     success?: unknown;
     checkoutUrl?: unknown;
     bookingId?: unknown;
     error?: unknown;
+    quotedTotal?: unknown;
+    currency?: unknown;
+    code?: unknown;
     timings?: unknown;
   } | null;
   const timings =
@@ -346,6 +384,12 @@ export async function createBookingCheckoutSession(params: {
     checkoutUrl: typeof payload?.checkoutUrl === 'string' ? payload.checkoutUrl : undefined,
     bookingId: typeof payload?.bookingId === 'string' ? payload.bookingId : undefined,
     error: typeof payload?.error === 'string' ? payload.error : undefined,
+    quotedTotal:
+      typeof payload?.quotedTotal === 'number' && Number.isFinite(payload.quotedTotal)
+        ? payload.quotedTotal
+        : undefined,
+    currency: typeof payload?.currency === 'string' ? payload.currency : undefined,
+    code: typeof payload?.code === 'string' ? payload.code : undefined,
     timings,
   };
 }

@@ -60,6 +60,11 @@ type RequestBody = {
   travelerPickup?: unknown;
   /** Ignored for pricing. Kept so old clients do not break; server recomputes. */
   totalAmount?: number;
+  /**
+   * Optional client-shown total (major units). When set, must match the server quote
+   * in integer minor units or checkout is refused (409) — never silently charge a different amount.
+   */
+  expectedTotal?: number;
   currency?: string;
   bookingOptionId?: string;
   checkoutDate?: string;
@@ -510,6 +515,25 @@ serve(async (req) => {
     }
     if (typeof quote.guests === 'number' && quote.guests >= 1) {
       guests = quote.guests;
+    }
+
+    // Price integrity: refuse Stripe when the review-screen total no longer matches the server quote.
+    const expectedTotalRaw = body.expectedTotal;
+    if (typeof expectedTotalRaw === 'number' && Number.isFinite(expectedTotalRaw)) {
+      const expectedMinor = Math.round(expectedTotalRaw * 100);
+      const quotedMinor = Math.round(quote.totalAmount * 100);
+      if (expectedMinor !== quotedMinor) {
+        return json(
+          {
+            success: false,
+            error: 'The total changed. Review the updated price before continuing to payment.',
+            code: 'quote_changed',
+            quotedTotal: quote.totalAmount,
+            currency: quote.currency,
+          },
+          409
+        );
+      }
     }
 
     // Phase 1534: freeze quote-resolved departure when body omitted startTime
