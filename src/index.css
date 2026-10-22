@@ -3774,17 +3774,25 @@ a:focus-visible,
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 1.75rem;
+  /*
+   * Sticky booking requires the aside column to stretch to the main column height.
+   * Using flex-start / start alignment here shrinks the aside to the panel height,
+   * so position:sticky has no travel range and the panel stays parked at the top.
+   */
+  align-items: stretch;
 }
 @media (min-width: 1024px) {
   .tv-pdp-layout {
     grid-template-columns: minmax(0, 1fr) minmax(17.5rem, 20.5rem);
     gap: 2rem;
-    align-items: start;
   }
 }
 .tv-pdp-main {
   min-width: 0;
   max-width: 46rem;
+}
+.tv-pdp-aside {
+  min-width: 0;
 }
 .tv-pdp-below {
   max-width: 46rem;

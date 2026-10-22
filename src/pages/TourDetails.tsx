@@ -1949,7 +1949,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
               />
             </div>
 
-            <div className="min-w-0">
+            <div className="tv-pdp-aside min-w-0">
               <div
                 id="tour-booking-panel"
                 className="tv-booking-sticky tv-booking-sticky--fit lg:sticky lg:top-[calc(4.75rem+env(safe-area-inset-top,0px))] h-fit scroll-mt-28"
