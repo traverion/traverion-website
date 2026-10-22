@@ -1193,8 +1193,14 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
                   reviewAggregate={reviewAggregates.get(tour.id)}
                   tagLabels={TAG_LABELS}
                   size="compact"
-                  // Phase 1601: surface marketplace tags (small-group, pickup, etc.) on browse cards.
                   showTagPills
+                  browseDateIso={filterDate || undefined}
+                  partySize={
+                    (() => {
+                      const n = Number.parseInt(filterGuests, 10);
+                      return Number.isFinite(n) && n > 0 ? n : undefined;
+                    })()
+                  }
                   wishlist={
                     wishlist.enabled && wishlist.heartsKnown
                       ? {

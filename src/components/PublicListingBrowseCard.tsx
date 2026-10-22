@@ -39,6 +39,13 @@ export type PublicListingBrowseCardProps = {
     busy?: boolean;
     onToggle: () => void;
   } | null;
+  /**
+   * Search browse date (YYYY-MM-DD). When set, card price uses adult starting
+   * price eligible on that day — same offer day as checkout would use.
+   */
+  browseDateIso?: string;
+  /** Traveler/guest count from search — exclude options that cannot fit the party. */
+  partySize?: number;
 };
 
 /**
@@ -57,6 +64,8 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
   stayStayTotal = null,
   stayDatesSelected = false,
   wishlist = null,
+  browseDateIso = '',
+  partySize,
 }: PublicListingBrowseCardProps) {
   // Defense in depth: unpublished listings must not appear on traveler browse surfaces.
   if (!isListingVisibleToTravelers(tour.status)) return null;
@@ -67,8 +76,12 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
   // Phase 1107: null map = offers not loaded / load failed — do not invent “no discount”.
   const offersUnknown = discountsByListing == null && isSupabaseListingId(tour.id);
   const discountMap = discountsByListing ?? new Map<string, ListingDiscount[]>();
-  const { price, originalPrice, label, qualifier, summary } = getDisplayPriceForTour(tour, discountMap);
-  const hasDiscount = !offersUnknown && Boolean(label && price < originalPrice);
+  const { price, originalPrice, label, qualifier } = getDisplayPriceForTour(tour, discountMap, {
+    browseDateIso: browseDateIso || undefined,
+    partySize: partySize && partySize > 0 ? partySize : undefined,
+  });
+  const priceUnavailable = !isStay && !offersUnknown && !(price > 0) && !(originalPrice > 0);
+  const hasDiscount = !offersUnknown && !priceUnavailable && Boolean(label && price < originalPrice);
   const fromAmount = hasDiscount ? price : originalPrice;
   const showStrikethrough = hasDiscount && originalPrice > fromAmount;
   const currency = normalizeCurrency(tour.price?.currency);
@@ -258,7 +271,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
                   {formatMoney(stayNightly, currency)} / night
                 </span>
               </>
-            ) : stayQuoteUnavailable ? (
+            ) : stayQuoteUnavailable || priceUnavailable ? (
               <span className="font-bold tracking-tight text-ink">—</span>
             ) : (
               <>
@@ -272,7 +285,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
                 ) : null}
                 <span
                   className={`font-bold tracking-tight ${
-                    hasDiscount && !isStay ? 'text-[#B42318]' : isStay ? 'text-ink' : 'text-ink'
+                    hasDiscount && !isStay ? 'text-[#B42318]' : 'text-ink'
                   }`}
                 >
                   {formatMoney(isStay ? stayNightly : fromAmount, currency)}
@@ -280,9 +293,6 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
                 <span className="text-[13px] font-medium text-ink-muted">
                   {isStay ? `/ ${unitLabel}` : unitLabel}
                 </span>
-                {!isStay && summary ? (
-                  <span className="w-full text-xs font-medium text-ink-muted">{summary}</span>
-                ) : null}
               </>
             )}
           </p>

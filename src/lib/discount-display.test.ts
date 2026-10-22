@@ -75,8 +75,42 @@ describe('catalog headline vs stored startingFrom', () => {
     const display = getDisplayPriceForTour(t, new Map());
     expect(display.price).toBe(189);
     expect(display.qualifier).toBe('adult');
-    expect(display.summary).toMatch(/Adult/);
-    expect(display.summary).toMatch(/Child/);
+    // Discovery cards must not surface Adult/Child breakdowns.
+    expect(display.summary).toBeNull();
+  });
+
+  it('uses the cheapest eligible option on a selected browse date', () => {
+    // Fri 2026-10-30 — weekday bus (Mon–Thu €79) vs daily private (€349).
+    const t = tour({
+      price: {
+        startingFrom: 79,
+        currency: 'EUR',
+        perPerson: true,
+        twinOccupancy: false,
+        customQuote: false,
+        singleSupplement: 0,
+        validity: '',
+      },
+      listingExtras: {
+        bookingOptions: [
+          option({
+            id: 'bus',
+            name: 'Bus tour',
+            priceUsd: 79,
+            weekdays: [true, true, true, true, false, false, false],
+            availabilityDateFrom: '2020-01-01',
+          }),
+          option({
+            id: 'private',
+            name: 'Private tour',
+            priceUsd: 349,
+            availabilityDateFrom: '2020-01-01',
+          }),
+        ],
+      },
+    });
+    expect(getDisplayPriceForTour(t, new Map()).price).toBe(79);
+    expect(getDisplayPriceForTour(t, new Map(), { browseDateIso: '2026-10-30' }).price).toBe(349);
   });
 });
 

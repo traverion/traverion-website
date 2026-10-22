@@ -6,7 +6,7 @@ import {
   discountsApplicableToOption,
   getValidDiscount,
 } from '../data/supabase-discounts';
-import { participantPriceSummaryFromBookingOptions, pickHeadlineOption, pricedNamesFromBookingOptions } from './headline-price';
+import { pickHeadlineOption, pricedNamesFromBookingOptions } from './headline-price';
 import { formatMoney, normalizeCurrency } from './money';
 import { localYmd } from './local-ymd';
 import { experienceTodayIsoForListing } from './booking-quote';
@@ -15,8 +15,10 @@ import {
   listingOptionHasSchedules,
   listingOptionReadySchedules,
   resolveScheduleForDate,
+  tourSellingDeparturesOnDate,
 } from './listing-option-schedules';
 import { optionHeadlineUnitPrice, optionPricingMode } from './price-categories';
+import type { ListingBookingOption } from '../types/listingExtras';
 
 export function isSupabaseListingId(id: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
@@ -110,19 +112,65 @@ function discountedHeadline(
     originalPrice: base,
     label,
     qualifier: picked.qualifier,
-    summary: participantPriceSummaryFromBookingOptions(allOpts, (n) => formatMoney(n, currency)),
+    // Participant breakdowns belong on the PDP / booking flow — not discovery cards.
+    summary: null,
   };
+}
+
+export type DisplayPriceOptions = {
+  at?: Date;
+  /** Search browse civil date — price + offers for that day only. */
+  browseDateIso?: string;
+  /** Exclude options that cannot fit this party (maxPersons). */
+  partySize?: number;
+};
+
+function resolveDisplayPriceArgs(
+  atOrOptions: Date | DisplayPriceOptions | undefined
+): Required<Pick<DisplayPriceOptions, 'at'>> & DisplayPriceOptions {
+  if (!atOrOptions) return { at: new Date() };
+  if (atOrOptions instanceof Date) return { at: atOrOptions };
+  return { at: atOrOptions.at ?? new Date(), ...atOrOptions };
+}
+
+function optionEligibleForBrowse(
+  option: ListingBookingOption,
+  browseDateIso: string | undefined,
+  partySize: number | undefined
+): boolean {
+  if (typeof partySize === 'number' && partySize > 0) {
+    const max = option.maxPersons;
+    if (typeof max === 'number' && max > 0 && partySize > max) return false;
+  }
+  if (!browseDateIso) return true;
+  return tourSellingDeparturesOnDate([option], browseDateIso).length > 0;
+}
+
+function optionUnitForBrowseDate(option: ListingBookingOption, browseDateIso: string | undefined): number {
+  if (browseDateIso && listingOptionHasSchedules(option)) {
+    const resolved = resolveScheduleForDate(option, browseDateIso);
+    if (resolved) {
+      const n = optionHeadlineUnitPrice(resolved);
+      if (n > 0) return n;
+    }
+  }
+  return optionHeadlineUnitPrice(option);
 }
 
 /**
  * Catalog / header price. When options are participant types (Adult / Child), this is the
  * adult/standard fare — never the cheapest child price without context.
+ * Discovery cards omit `summary` (participant breakdowns belong on the PDP).
  */
 export function getDisplayPriceForTour(
   tour: TourPackage,
   discountsByListing: Map<string, ListingDiscount[]>,
-  at: Date = new Date()
+  atOrOptions: Date | DisplayPriceOptions = new Date()
 ): TourDisplayPrice {
+  const { at, browseDateIso, partySize } = resolveDisplayPriceArgs(atOrOptions);
+  const browseDay =
+    browseDateIso && /^\d{4}-\d{2}-\d{2}$/.test(browseDateIso.trim()) ? browseDateIso.trim() : undefined;
+
   if (listingIsFamily(tour, 'stay')) {
     const extras = parseListingExtras(tour.listingExtras as unknown);
     const nightly =
@@ -130,7 +178,7 @@ export function getDisplayPriceForTour(
         ? extras.stay.nightlyPriceUsd
         : tour.price?.startingFrom ?? 0;
     const discounts = discountsByListing.get(tour.id) ?? [];
-    const offerDayIso = catalogOfferTodayIso(tour, at.getTime());
+    const offerDayIso = browseDay ?? catalogOfferTodayIso(tour, at.getTime());
     const applicable = listingWideActiveDiscounts(discounts, offerDayIso).filter(
       (d) => !d.paused && !d.deleted_at
     );
@@ -145,18 +193,24 @@ export function getDisplayPriceForTour(
   }
   const discounts = discountsByListing.get(tour.id) ?? [];
   const extras = parseListingExtras(tour.listingExtras as unknown);
-  const opts = materializedBookingOptions(extras.bookingOptions);
+  const allOpts = materializedBookingOptions(extras.bookingOptions);
+  const opts = allOpts.filter((o) => optionEligibleForBrowse(o, browseDay, partySize));
   const fallbackBase = tour.price?.startingFrom ?? 0;
   const currency = normalizeCurrency(tour.price?.currency);
   const emptyMeta = {
     qualifier: null as string | null,
-    summary: participantPriceSummaryFromBookingOptions(opts, (n) => formatMoney(n, currency)),
+    // Discovery must not surface Adult/Child breakdowns — keep null for card/PDP header consistency.
+    summary: null as string | null,
   };
-  // Catalog “from” / offer badges use experience-local today, not the browser calendar day.
-  const offerAt = catalogOfferAnchorDate(tour, at);
-  const offerDayIso = catalogOfferTodayIso(tour, at.getTime());
+  // Offer day: selected browse date when present, else experience-local today.
+  const offerDayIso = browseDay ?? catalogOfferTodayIso(tour, at.getTime());
+  const offerAt = browseDay ? new Date(`${browseDay}T12:00:00`) : catalogOfferAnchorDate(tour, at);
 
   if (opts.length === 0) {
+    if (browseDay || (typeof partySize === 'number' && partySize > 0)) {
+      // No eligible option for this search context — do not invent a catalog price.
+      return { price: 0, originalPrice: 0, label: undefined, ...emptyMeta };
+    }
     const applicable = listingWideActiveDiscounts(discounts, offerDayIso);
     const { price, label } = bestDiscountedPrice(fallbackBase, applicable, currency);
     return { price, originalPrice: fallbackBase, label, ...emptyMeta };
@@ -190,9 +244,10 @@ export function getDisplayPriceForTour(
           (o.name.trim() === picked.option!.name.trim() && o.priceUsd === picked.option!.priceUsd)
         );
       }) ?? opts[0];
+    const unit = optionUnitForBrowseDate(host, browseDay) || picked.option.priceUsd;
     return discountedHeadline(
       tour,
-      { id: host.id, name: picked.option.name, priceUsd: picked.option.priceUsd },
+      { id: host.id, name: picked.option.name, priceUsd: unit },
       discounts,
       offerAt,
       fallbackBase
@@ -204,20 +259,14 @@ export function getDisplayPriceForTour(
   let bestLabel: string | undefined;
 
   for (const opt of opts) {
-    const bases =
-      listingOptionHasSchedules(opt)
-        ? listingOptionReadySchedules(opt)
-            .map((s) => optionHeadlineUnitPrice(s))
-            .filter((n) => n > 0)
-        : [typeof opt.priceUsd === 'number' && opt.priceUsd > 0 ? opt.priceUsd : fallbackBase];
+    const base = optionUnitForBrowseDate(opt, browseDay);
+    if (!(base > 0)) continue;
     const applicable = discountsApplicableToOption(discounts, opt.id, offerAt);
-    for (const base of bases) {
-      const { price, label } = bestDiscountedPrice(base, applicable, currency);
-      if (price < bestPrice) {
-        bestPrice = price;
-        bestOriginal = base;
-        bestLabel = label;
-      }
+    const { price, label } = bestDiscountedPrice(base, applicable, currency);
+    if (price < bestPrice) {
+      bestPrice = price;
+      bestOriginal = base;
+      bestLabel = label;
     }
   }
 
@@ -229,7 +278,7 @@ export function getDisplayPriceForTour(
     originalPrice: bestOriginal,
     label: bestLabel,
     qualifier: picked.qualifier,
-    summary: emptyMeta.summary,
+    summary: null,
   };
 }
 

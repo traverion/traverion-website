@@ -8,8 +8,7 @@ import { usePublishedSupplierListings } from '../hooks/usePublishedSupplierListi
 import { TourPackage } from '../types/tour';
 import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
 import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
-import { isSupabaseListingId, getDisplayPriceForTour } from '../lib/discount-display';
-import { formatMoney, normalizeCurrency } from '../lib/money';
+import { isSupabaseListingId } from '../lib/discount-display';
 import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
 import {
   MarketplaceSearchFields,
@@ -25,11 +24,11 @@ import { useTravelerWishlist } from '../hooks/useTravelerWishlist';
 import { supplierPortalLandingHref } from '../lib/partnerHost';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
-import { SkeletonCardGrid, SkeletonFeaturedHero, SkeletonPlaceGrid } from '../components/ui/Skeleton';
+import { SkeletonCardGrid, SkeletonPlaceGrid } from '../components/ui/Skeleton';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { HERO_IMG } from '../lib/heroImages';
+import { destinationCoverSrc } from '../lib/destinationCover';
 import { prefetchPackagesPage, prefetchStaysPage } from '../lib/routePrefetch';
-import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 import { addCalendarDays } from '../lib/stayOccupancy';
 import {
   recordTravelerInterest,
@@ -135,8 +134,13 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
     return ranked.slice(0, MAX_RESULTS_HOME);
   }, [allListings, interestSignals]);
   const interestPlace = useMemo(() => topDestinationInterestLabel(interestSignals), [interestSignals]);
-  const toursSectionTitle = interestPlace ? `Because you explored ${interestPlace}` : 'Find your next extraordinary experience';
-  const toursSectionEyebrow = interestPlace ? 'For you' : 'Experiences';
+  const toursSectionTitle = interestPlace
+    ? `Continue exploring ${interestPlace}`
+    : 'Find your next extraordinary experience';
+  const toursSectionEyebrow = interestPlace ? 'Inspired by you' : 'Experiences';
+  const toursSectionSubtitle = interestPlace
+    ? 'Experiences you might love next.'
+    : 'Tours published by operators on Traverion.';
   const displayedStayListings = useMemo(() => {
     const ranked = sortListingsByInterest(stayListings, (item) =>
       scoreListingFromInterest({
@@ -150,13 +154,11 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
     );
     return ranked.slice(0, 8);
   }, [stayListings, interestSignals]);
-  const staysSectionTitle = interestPlace ? `More stays near ${interestPlace}` : 'Places to stay';
-  const staysSectionEyebrow = interestPlace ? 'For you' : 'Stays';
+  const staysSectionTitle = interestPlace ? `Stays near ${interestPlace}` : 'Places to stay';
+  const staysSectionEyebrow = interestPlace ? 'Inspired by you' : 'Stays';
   const staysSectionSubtitle = interestPlace
-    ? 'Ranked from your recent browsing on this device — still only published stays.'
+    ? 'Places to stay near your recent discoveries.'
     : 'Nights from operators — separate from tour departures.';
-  const featuredListing = displayedListings[0];
-  const featuredSrc = featuredListing ? listingHeroImageSrc(featuredListing.image) : undefined;
 
   const displayedIds = useMemo(() => {
     const tourIds = displayedListings.map((t) => t.id).filter(isSupabaseListingId);
@@ -423,8 +425,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                 const matches = [...allListings, ...stayListings].filter((t) =>
                   matchesDestination(t, p.id, [p])
                 );
-                const fromInventory = matches[0] ?? null;
-                const img = listingHeroImageSrc(fromInventory?.image) ?? HERO_IMG.vacation;
+                const img = destinationCoverSrc(p.id);
                 const tourCount = matches.filter((t) => listingIsFamily(t, 'tour')).length;
                 const stayCount = matches.filter((t) => listingIsFamily(t, 'stay')).length;
                 const countLabel =
@@ -509,11 +510,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland mb-2">{toursSectionEyebrow}</p>
               <h2 className="font-sans text-2xl font-bold tracking-tight text-[#111827] sm:text-3xl">{toursSectionTitle}</h2>
-              <p className="mt-2 text-sm text-ink-muted">
-                {interestPlace
-                  ? 'Ranked from your recent browsing on this device — still only published tours.'
-                  : 'Tours published by operators on Traverion.'}
-              </p>
+              <p className="mt-2 text-sm text-ink-muted">{toursSectionSubtitle}</p>
             </div>
             {!catalogLoading && allListings.length > 0 ? (
               <button
@@ -541,14 +538,14 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
           ) : null}
           {catalogLoading && allListings.length === 0 ? (
             <div aria-busy="true" aria-label="Loading tours">
-              <SkeletonFeaturedHero />
-              <SkeletonCardGrid count={3} />
+              <SkeletonCardGrid count={4} />
             </div>
           ) : allListings.length === 0 && !listingsError ? (
             <EmptyState
+              className="py-8 max-w-lg"
               icon={Compass}
               title="No tours published yet"
-              body="Nothing is published yet. When an operator goes live, tours appear here."
+              body="When an operator goes live, tours appear here."
               action={
                 <a href={supplierPortalLandingHref()} className="tv-btn-primary inline-flex">
                   List your tours and stays
@@ -556,90 +553,30 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
               }
             />
           ) : allListings.length > 0 ? (
-            <>
-              {featuredListing ? (
-                <button
-                  type="button"
-                  onClick={() => openListing(featuredListing)}
-                  className="lux-flat relative w-full h-[12rem] sm:h-[15rem] rounded-2xl overflow-hidden mb-3.5 text-left group bg-ink"
-                >
-                  {featuredSrc ? (
-                    <img
-                      src={featuredSrc}
-                      alt=""
-                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
-                    />
-                  ) : null}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
-                  <div className="absolute bottom-5 left-5 right-5 text-white">
-                    <p className="text-[11px] uppercase tracking-[0.16em] text-white/70 mb-1.5">Featured tour</p>
-                    <p className="text-sm text-white/80">{featuredListing.city || featuredListing.destination}</p>
-                    <p className="mt-0.5 break-words font-sans text-2xl font-bold leading-tight [overflow-wrap:anywhere] sm:text-3xl">
-                      {featuredListing.title}
-                    </p>
-                    {(() => {
-                      if (discountsForDisplayedCatalog == null && isSupabaseListingId(featuredListing.id)) {
-                        return (
-                          <p className="mt-2 text-sm sm:text-base font-medium text-white/80">Checking offers…</p>
-                        );
-                      }
-                      const { price, originalPrice, label, qualifier, summary } = getDisplayPriceForTour(
-                        featuredListing,
-                        discountsForDisplayedCatalog ?? new Map()
-                      );
-                      const currency = normalizeCurrency(featuredListing.price?.currency);
-                      const discounted = Boolean(label && price < originalPrice);
-                      return (
-                        <p className="mt-2 text-sm font-semibold tabular-nums text-white sm:text-base">
-                          {discounted ? (
-                            <span className="mr-2 text-sm font-medium text-white/70 line-through">
-                              {formatMoney(originalPrice, currency)}
-                            </span>
-                          ) : null}
-                          <span className={discounted ? 'text-[#F6B4B4]' : undefined}>
-                            From {formatMoney(Number(price), currency)}
-                          </span>
-                          {qualifier ? ` per ${qualifier}` : ' per person'}
-                          {discounted && label ? (
-                            <span className="ml-2 rounded bg-[#FDECEC] px-1.5 py-0.5 text-xs font-semibold text-[#B42318]">
-                              {label}
-                            </span>
-                          ) : null}
-                          {summary ? (
-                            <span className="mt-0.5 block font-medium text-white/80">{summary}</span>
-                          ) : null}
-                        </p>
-                      );
-                    })()}
-                  </div>
-                </button>
-              ) : null}
-              <div className={HOME_DISCOVERY_GRID_CLASS}>
-                {displayedListings.slice(1).map((item, index) => (
-                  <PublicListingBrowseCard
-                    key={item.id}
-                    tour={item}
-                    index={index}
-                    onSelect={() => openListing(item)}
-                    discountsByListing={discountsForDisplayedCatalog}
-                    reviewAggregate={reviewAggregates.get(item.id)}
-                    tagLabels={TAG_LABELS}
-                    size="compact"
-                    // Phase 1601: surface marketplace tags on home discovery cards.
-                    showTagPills
-                    wishlist={
-                      wishlist.enabled && wishlist.heartsKnown
-                        ? {
-                            saved: wishlist.isSaved(item.id),
-                            busy: wishlist.busyId === item.id,
-                            onToggle: () => wishlist.toggle(item.id),
-                          }
-                        : null
-                    }
-                  />
-                ))}
-              </div>
-            </>
+            <div className={HOME_DISCOVERY_GRID_CLASS}>
+              {displayedListings.map((item, index) => (
+                <PublicListingBrowseCard
+                  key={item.id}
+                  tour={item}
+                  index={index}
+                  onSelect={() => openListing(item)}
+                  discountsByListing={discountsForDisplayedCatalog}
+                  reviewAggregate={reviewAggregates.get(item.id)}
+                  tagLabels={TAG_LABELS}
+                  size="compact"
+                  showTagPills
+                  wishlist={
+                    wishlist.enabled && wishlist.heartsKnown
+                      ? {
+                          saved: wishlist.isSaved(item.id),
+                          busy: wishlist.busyId === item.id,
+                          onToggle: () => wishlist.toggle(item.id),
+                        }
+                      : null
+                  }
+                />
+              ))}
+            </div>
           ) : null}
         </div>
       </section>
@@ -718,50 +655,49 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
 
       <section className="tv-section tv-section-muted tv-section-divider">
         <div className="tv-content">
-          <h2 className="mb-2 font-sans text-2xl font-bold tracking-tight text-[#111827] sm:text-3xl">Why book with Traverion</h2>
+          <h2 className="mb-2 font-sans text-2xl font-bold tracking-tight text-[#111827] sm:text-3xl">
+            Why book with Traverion
+          </h2>
           <p className="mb-6 max-w-xl text-sm leading-relaxed text-ink-muted">
-            Experiences and stays in one place, with the price and details shown before you pay.
+            Tours and stays from independent operators — with clear prices before you pay.
           </p>
           <ul className="grid gap-6 border-t border-[#E6EAF0] pt-6 sm:grid-cols-2 lg:grid-cols-4">
             {[
               {
                 icon: Compass,
-                title: 'Discover more',
-                body: 'Explore experiences and stays from independent operators in one place.',
+                title: 'One place to explore',
+                body: 'Browse tours and stays from operators who publish directly on Traverion.',
               },
               {
                 icon: ShieldCheck,
-                title: 'Book with confidence',
-                body: 'See the option, the date, and the price before you continue to checkout.',
+                title: 'Clear before you pay',
+                body: 'See the option, date, and price before checkout — including each listing’s cancellation terms.',
               },
               {
                 icon: MapPin,
-                title: 'Experiences worth remembering',
-                body: 'Book distinctive activities from the operators who actually run them.',
+                title: 'Book the people who run it',
+                body: 'Reserve with the operators who deliver the experience, not a generic reseller catalog.',
               },
               {
                 icon: CalendarCheck,
-                title: 'Your journey, organized',
-                body: 'Upcoming and past bookings stay available in Trips.',
+                title: 'Trips stays with you',
+                body: 'Find upcoming and past bookings anytime in Trips.',
               },
             ].map((item) => {
               const Icon = item.icon;
               return (
-              <li key={item.title} className="flex gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F5F6F8] text-[#0B397E]">
-                  <Icon className="h-4 w-4" aria-hidden />
-                </span>
-                <div>
-                  <p className="font-semibold text-[#111827]">{item.title}</p>
-                  <p className="mt-1 text-sm leading-relaxed text-ink-muted">{item.body}</p>
-                </div>
-              </li>
+                <li key={item.title} className="flex gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F5F6F8] text-[#0B397E]">
+                    <Icon className="h-4 w-4" aria-hidden />
+                  </span>
+                  <div>
+                    <p className="font-semibold text-[#111827]">{item.title}</p>
+                    <p className="mt-1 text-sm leading-relaxed text-ink-muted">{item.body}</p>
+                  </div>
+                </li>
               );
             })}
           </ul>
-          <a href={supplierPortalLandingHref()} className="tv-btn-ghost mt-6 -ml-2 inline-flex">
-            For operators
-          </a>
         </div>
       </section>
     </div>
