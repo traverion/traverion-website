@@ -2695,6 +2695,8 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
   }
 
   .tv-browse-card {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 22rem;
     transition: transform var(--tv-duration-hover, 160ms) var(--tv-ease), box-shadow var(--tv-duration-ui, 180ms) var(--tv-ease);
   }
 

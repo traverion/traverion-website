@@ -28,7 +28,7 @@ import { SkeletonCardGrid, SkeletonPlaceGrid } from '../components/ui/Skeleton';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { HERO_IMG } from '../lib/heroImages';
 import { destinationCoverSrc } from '../lib/destinationCover';
-import { prefetchPackagesPage, prefetchStaysPage } from '../lib/routePrefetch';
+import { prefetchDestinationPage, prefetchPackagesPage, prefetchStaysPage } from '../lib/routePrefetch';
 import { addCalendarDays } from '../lib/stayOccupancy';
 import {
   recordTravelerInterest,
@@ -443,6 +443,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                     key={p.id}
                     type="button"
                     aria-label={countLabel ? `${p.label}, ${countLabel}` : p.label}
+                    onPointerEnter={prefetchDestinationPage}
                     onClick={() => {
                       recordTravelerInterest({
                         kind: 'destination_view',
