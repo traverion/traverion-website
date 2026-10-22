@@ -39,7 +39,17 @@ import {
 import { formatBookingParticipantsLabel } from '../lib/participant-mix';
 import { formatBookingDateDisplay } from '../lib/booking-flow';
 import { bookingLifecycleLabel } from '../lib/status-language';
-import { travelerSelfCancelRefundChoice, travelerSelfCancelDeadlineMs, supplierCancellationReasonLabel, travelerSelfCancelBlock, travelerSelfCancelError, travelerSelfCancelIsUnpaidCheckout } from '../lib/cancellation-policy';
+import {
+  travelerSelfCancelRefundChoice,
+  travelerSelfCancelDeadlineMs,
+  travelerSelfCancelAvailable,
+  travelerSelfCancelUnavailableMessage,
+  travelerSelfCancelStartHm,
+  supplierCancellationReasonLabel,
+  travelerSelfCancelBlock,
+  travelerSelfCancelError,
+  travelerSelfCancelIsUnpaidCheckout,
+} from '../lib/cancellation-policy';
 import { resolveStayCancelPolicyFromSnapshot } from '../lib/stay-cancellation-preset';
 import { resolveDepartureTimezone } from '../lib/tour-departure-cutoff';
 import { openHostCancelRequestVisible } from '../lib/host-cancel-request-visibility';
@@ -96,6 +106,8 @@ import {
   TRAVELER_ACCEPT_HOST_CANCEL_REFUND_POLICY,
   TRAVELER_PICKUP_PENDING_UI_NOTE,
   TRAVELER_SELF_CANCEL_CTA,
+  TRAVELER_SELF_CANCEL_DEADLINE_PASSED_TITLE,
+  TRAVELER_SELF_CANCEL_CONTACT_OPERATOR_NOTE,
   TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE,
   TRAVELER_SELF_CANCEL_SUCCESS_NO_REFUND,
   TRAVELER_CANCEL_UNPAID_CHECKOUT_CTA,
@@ -177,24 +189,48 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   const loadGenRef = useRef(0);
   const tripsUserIdRef = useRef<string | null>(null);
 
+  const getSelfCancelStartHm = useCallback((b: BookingRow): string => {
+    const isStay = bookingIsStayNight(b);
+    const snap = b.purchase_snapshot;
+    return travelerSelfCancelStartHm({
+      isStay,
+      checkInHm: displayStayCheckInTimeFromPurchase(snap, null),
+      startTimeHm: displayStartTimeFromPurchase(
+        snap,
+        b.start_time ? pgTimeToHm(b.start_time) : null
+      ),
+      fulfillment: displayFulfillmentFromPurchase(snap),
+      confirmedPickupHm: b.pickup_time ? pgTimeToHm(b.pickup_time) ?? null : null,
+      selfCancelStartHm:
+        snap && typeof snap === 'object' && 'selfCancelStartHm' in snap
+          ? String((snap as PurchaseSnapshot).selfCancelStartHm ?? '')
+          : null,
+    });
+  }, []);
+
   const getRefundChoiceForCancel = useCallback((b: BookingRow): 'full_refund' | 'no_refund' => {
     const snapTz = displayDepartureTimezoneFromPurchase(b.purchase_snapshot);
-    const isStay = bookingIsStayNight(b);
-    const startHm = isStay
-      ? displayStayCheckInTimeFromPurchase(b.purchase_snapshot, null) || '16:00'
-      : displayStartTimeFromPurchase(
-          b.purchase_snapshot,
-          b.start_time ? pgTimeToHm(b.start_time) : null
-        ) || '00:00';
     const policy = resolveStayCancelPolicyFromSnapshot(b.purchase_snapshot);
     return travelerSelfCancelRefundChoice({
       bookingDate: b.booking_date,
-      startTimeHm: startHm,
+      startTimeHm: getSelfCancelStartHm(b),
       departureTimezone: snapTz,
       paymentStatus: b.payment_status,
       freeCancelHours: policy.freeCancelHours,
     });
-  }, []);
+  }, [getSelfCancelStartHm]);
+
+  const getSelfCancelAvailable = useCallback((b: BookingRow): boolean => {
+    const snapTz = displayDepartureTimezoneFromPurchase(b.purchase_snapshot);
+    const policy = resolveStayCancelPolicyFromSnapshot(b.purchase_snapshot);
+    return travelerSelfCancelAvailable({
+      bookingDate: b.booking_date,
+      startTimeHm: getSelfCancelStartHm(b),
+      departureTimezone: snapTz,
+      paymentStatus: b.payment_status,
+      freeCancelHours: policy.freeCancelHours,
+    });
+  }, [getSelfCancelStartHm]);
 
   const load = useCallback(async () => {
     if (!isSupabaseConfigured() || !user?.id) {
@@ -1690,7 +1726,8 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     )}
                     {liveTrip &&
                       !openCancel &&
-                      (travelerBookingNeedsPayNow(b) || b.status === 'confirmed') && (
+                      (travelerBookingNeedsPayNow(b) || b.status === 'confirmed') &&
+                      getSelfCancelAvailable(b) && (
                       <button
                         type="button"
                         onClick={() => setCancelConfirm(b)}
@@ -1701,6 +1738,36 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                           ? TRAVELER_CANCEL_UNPAID_CHECKOUT_CTA
                           : TRAVELER_SELF_CANCEL_CTA}
                       </button>
+                    )}
+                    {liveTrip &&
+                      !openCancel &&
+                      b.status === 'confirmed' &&
+                      !travelerSelfCancelIsUnpaidCheckout(b) &&
+                      !getSelfCancelAvailable(b) && (
+                      <div className="w-full rounded-xl bg-amber-50 px-3.5 py-3 ring-1 ring-amber-200/80">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-900/80">
+                          {TRAVELER_SELF_CANCEL_DEADLINE_PASSED_TITLE}
+                        </p>
+                        <p className="mt-1.5 text-sm text-ink leading-relaxed">
+                          {travelerSelfCancelUnavailableMessage({
+                            freeCancelHours: resolveStayCancelPolicyFromSnapshot(b.purchase_snapshot)
+                              .freeCancelHours,
+                          })}
+                        </p>
+                        <p className="mt-1 text-sm text-ink-muted leading-relaxed">
+                          {TRAVELER_SELF_CANCEL_CONTACT_OPERATOR_NOTE}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTripDetailTab('messages');
+                            setFocusMessageId(b.id);
+                          }}
+                          className="tv-btn-secondary mt-3"
+                        >
+                          Contact operator
+                        </button>
+                      </div>
                     )}
                   </div>
                   {(() => {
@@ -1812,17 +1879,11 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-finland">No payment taken</p>
                   <p className="mt-1.5 text-sm text-ink leading-relaxed">{TRAVELER_CANCEL_UNPAID_CHECKOUT_POLICY}</p>
                 </div>
-              ) : getRefundChoiceForCancel(cancelConfirm) === 'full_refund' ? (
+              ) : (
                 <div className="mt-4 rounded-xl bg-emerald-50 px-4 py-3.5 ring-1 ring-emerald-200/80">
                   <p className="text-sm text-ink leading-relaxed">
                     {(() => {
-                      const isStay = bookingIsStayNight(cancelConfirm);
-                      const startHm = isStay
-                        ? displayStayCheckInTimeFromPurchase(cancelConfirm.purchase_snapshot, null) || '16:00'
-                        : displayStartTimeFromPurchase(
-                            cancelConfirm.purchase_snapshot,
-                            cancelConfirm.start_time ? pgTimeToHm(cancelConfirm.start_time) : null
-                          ) || '00:00';
+                      const startHm = getSelfCancelStartHm(cancelConfirm);
                       const tz = resolveDepartureTimezone(
                         displayDepartureTimezoneFromPurchase(cancelConfirm.purchase_snapshot)
                       );
@@ -1844,7 +1905,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                           }).format(new Date(deadline))
                         : null;
                       return when
-                        ? `You can cancel for a full refund until ${when} (property local time).`
+                        ? `You can cancel for a full refund until ${when} (local time).`
                         : TRAVELER_SELF_CANCEL_FULL_REFUND_POLICY;
                     })()}
                   </p>
@@ -1853,18 +1914,6 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       Refund: {formatMoney(Number(cancelConfirm.amount_paid), cancelConfirm.currency)}
                     </p>
                   ) : null}
-                </div>
-              ) : (
-                <div className="mt-4 rounded-xl bg-amber-50 px-4 py-3.5 ring-1 ring-amber-200/80">
-                  <p className="text-sm text-ink leading-relaxed">
-                    {(() => {
-                      const policy = resolveStayCancelPolicyFromSnapshot(cancelConfirm.purchase_snapshot);
-                      if (policy.freeCancelHours == null) {
-                        return 'This booking is non-refundable for guest-initiated cancellations. You can still cancel, and no refund is due.';
-                      }
-                      return 'The free-cancellation window for this booking has passed. You can still cancel, and no refund is due.';
-                    })()}
-                  </p>
                 </div>
               )}
               <p className="mt-3 text-xs text-ink-muted leading-relaxed">{TRAVELER_SELF_CANCEL_DELIVERY_NOTE}</p>

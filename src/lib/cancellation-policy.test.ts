@@ -4,6 +4,8 @@ import {
   SUPPLIER_CANCEL_ALREADY_REFUNDED,
   SUPPLIER_CANCEL_UNPAID,
   SUPPLIER_RESPONSIBILITY_FEE_EUR,
+  TRAVELER_SELF_CANCEL_DEADLINE_PASSED,
+  TRAVELER_SELF_CANCEL_NON_REFUNDABLE,
   isForceMajeureReason,
   snapshotSupplierCancellationPolicy,
   supplierCancellationFeeEur,
@@ -14,6 +16,10 @@ import {
   travelerSelfCancelError,
   travelerSelfCancelRefundChoice,
   travelerSelfCancelDeadlineMs,
+  travelerSelfCancelAvailable,
+  travelerSelfCancelUnavailableMessage,
+  travelerSelfCancelStartHm,
+  withFrozenSelfCancelStartHm,
   partnerBookingStatusRewriteBlock,
   partnerManualConfirmBlock,
   partnerManualConfirmError,
@@ -141,6 +147,146 @@ describe('supplier cancellation policy', () => {
         paymentStatus: 'failed',
       })
     ).toBe('no_refund');
+  });
+
+  it('allows unpaid self-cancel anytime; paid only inside free window', () => {
+    const startUtc = Date.parse('2026-09-10T15:00:00.000Z'); // 18:00 Helsinki
+    expect(
+      travelerSelfCancelAvailable({
+        bookingDate: '2026-09-10',
+        startTimeHm: '18:00',
+        departureTimezone: 'Europe/Helsinki',
+        nowMs: startUtc - 2 * 60 * 60 * 1000,
+        paymentStatus: 'pending',
+      })
+    ).toBe(true);
+    expect(
+      travelerSelfCancelAvailable({
+        bookingDate: '2026-09-10',
+        startTimeHm: '18:00',
+        departureTimezone: 'Europe/Helsinki',
+        nowMs: startUtc - 25 * 60 * 60 * 1000,
+        paymentStatus: 'paid',
+      })
+    ).toBe(true);
+    // Exact 24h boundary → closed
+    expect(
+      travelerSelfCancelAvailable({
+        bookingDate: '2026-09-10',
+        startTimeHm: '18:00',
+        departureTimezone: 'Europe/Helsinki',
+        nowMs: startUtc - 24 * 60 * 60 * 1000,
+        paymentStatus: 'paid',
+      })
+    ).toBe(false);
+    expect(
+      travelerSelfCancelAvailable({
+        bookingDate: '2026-09-10',
+        startTimeHm: '18:00',
+        departureTimezone: 'Europe/Helsinki',
+        nowMs: startUtc - 2 * 60 * 60 * 1000,
+        paymentStatus: 'paid',
+      })
+    ).toBe(false);
+    expect(
+      travelerSelfCancelAvailable({
+        bookingDate: '2026-09-10',
+        startTimeHm: '16:00',
+        departureTimezone: 'Europe/Helsinki',
+        nowMs: startUtc - 100 * 60 * 60 * 1000,
+        paymentStatus: 'paid',
+        freeCancelHours: null,
+      })
+    ).toBe(false);
+    expect(travelerSelfCancelUnavailableMessage({ freeCancelHours: null })).toBe(
+      TRAVELER_SELF_CANCEL_NON_REFUNDABLE
+    );
+    expect(travelerSelfCancelUnavailableMessage({ freeCancelHours: 24 })).toBe(
+      TRAVELER_SELF_CANCEL_DEADLINE_PASSED
+    );
+  });
+
+  it('uses confirmed pickup for tour cancel start, frozen over later changes', () => {
+    expect(
+      travelerSelfCancelStartHm({
+        isStay: false,
+        startTimeHm: '20:00',
+        fulfillment: 'pickup',
+        confirmedPickupHm: '18:30',
+      })
+    ).toBe('18:30');
+    expect(
+      travelerSelfCancelStartHm({
+        isStay: false,
+        startTimeHm: '20:00',
+        fulfillment: 'meeting_point',
+        confirmedPickupHm: '18:30',
+      })
+    ).toBe('20:00');
+    expect(
+      travelerSelfCancelStartHm({
+        isStay: false,
+        startTimeHm: '20:00',
+        fulfillment: 'pickup',
+        confirmedPickupHm: null,
+      })
+    ).toBe('20:00');
+    expect(
+      travelerSelfCancelStartHm({
+        isStay: false,
+        startTimeHm: '20:00',
+        fulfillment: 'pickup',
+        confirmedPickupHm: '17:00',
+        selfCancelStartHm: '18:30',
+      })
+    ).toBe('18:30');
+    const snap = {
+      listingTitle: 'Aurora',
+      capturedAt: '2026-01-01T00:00:00Z',
+      startTimeHm: '20:00',
+      optionLabel: null,
+      meetingPoint: null,
+      pickupInstructions: null,
+      fulfillment: 'pickup' as const,
+    };
+    const frozen = withFrozenSelfCancelStartHm(snap, '18:30');
+    expect(frozen?.selfCancelStartHm).toBe('18:30');
+    expect(withFrozenSelfCancelStartHm(frozen, '17:00')?.selfCancelStartHm).toBe('18:30');
+    expect(withFrozenSelfCancelStartHm({ ...snap, fulfillment: 'meeting_point' }, '18:30')?.selfCancelStartHm).toBeUndefined();
+  });
+
+  it('honours stay presets 48h / 7d / non_refundable for self-cancel availability', () => {
+    const checkInUtc = Date.parse('2026-09-10T13:00:00.000Z'); // 16:00 Helsinki
+    expect(
+      travelerSelfCancelAvailable({
+        bookingDate: '2026-09-10',
+        startTimeHm: '16:00',
+        departureTimezone: 'Europe/Helsinki',
+        nowMs: checkInUtc - 49 * 60 * 60 * 1000,
+        paymentStatus: 'paid',
+        freeCancelHours: 48,
+      })
+    ).toBe(true);
+    expect(
+      travelerSelfCancelAvailable({
+        bookingDate: '2026-09-10',
+        startTimeHm: '16:00',
+        departureTimezone: 'Europe/Helsinki',
+        nowMs: checkInUtc - 48 * 60 * 60 * 1000,
+        paymentStatus: 'paid',
+        freeCancelHours: 48,
+      })
+    ).toBe(false);
+    expect(
+      travelerSelfCancelAvailable({
+        bookingDate: '2026-09-10',
+        startTimeHm: '16:00',
+        departureTimezone: 'Europe/Helsinki',
+        nowMs: checkInUtc - 169 * 60 * 60 * 1000,
+        paymentStatus: 'paid',
+        freeCancelHours: 168,
+      })
+    ).toBe(true);
   });
 
   it('rejects refunded bookings as already refunded, not unpaid', () => {

@@ -2,9 +2,10 @@
  * Stay guest-cancellation presets.
  * Snapshotted at purchase; SQL cancel_booking_as_traveler is authoritative.
  *
- * Cutoff boundary (client + SQL): free cancel while
+ * Cutoff boundary (client + SQL): free self-cancel while
  *   check_in_local - now > freeCancelHours
- * Exactly at the deadline (remaining == freeCancelHours) → no_refund.
+ * Exactly at the deadline (remaining == freeCancelHours) → self-cancel closed
+ * (contact operator). Paid late cancels are rejected — not cancelled with no_refund.
  */
 import type { CancellationPreset } from '../types/listingExtras';
 import {

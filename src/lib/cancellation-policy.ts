@@ -1,10 +1,63 @@
 import { bookingPaymentWasCollected, isPaidPaymentStatus, normalizePaymentStatus } from './payment-states';
 import { resolveDepartureTimezone, wallTimeInZoneToUtcMs } from './tour-departure-cutoff';
+import type { PurchaseFulfillment, PurchaseSnapshot } from './purchase-snapshot';
+import { isPurchaseSnapshot } from './purchase-snapshot';
 
 /**
  * Snapshot-able supplier cancellation fee policy.
  * Amounts are major currency units. Do not scatter €20 through UI.
  */
+
+/** SQL cancel_booking_as_traveler code when free-cancel window is closed. */
+export const TRAVELER_SELF_CANCEL_DEADLINE_PASSED_CODE = 'deadline_passed';
+
+export const TRAVELER_SELF_CANCEL_DEADLINE_PASSED =
+  'The free-cancellation deadline has passed. Contact the operator from Messages to discuss your booking.';
+
+export const TRAVELER_SELF_CANCEL_NON_REFUNDABLE =
+  'This booking is non-refundable for guest-initiated cancellations. Contact the operator from Messages to discuss your booking.';
+
+/**
+ * Tour cancel start wall clock (HH:MM).
+ * Prefer frozen selfCancelStartHm; else confirmed pickup when fulfillment=pickup;
+ * else booked meeting/departure. Never use estimated pickup windows.
+ */
+export function travelerSelfCancelStartHm(params: {
+  isStay: boolean;
+  checkInHm?: string | null;
+  startTimeHm?: string | null;
+  fulfillment?: PurchaseFulfillment | null;
+  confirmedPickupHm?: string | null;
+  selfCancelStartHm?: string | null;
+}): string {
+  if (params.isStay) {
+    const cin = (params.checkInHm ?? '').trim().slice(0, 5);
+    return cin || '16:00';
+  }
+  const frozen = (params.selfCancelStartHm ?? '').trim().slice(0, 5);
+  if (/^\d{2}:\d{2}$/.test(frozen)) return frozen;
+  const pickup = (params.confirmedPickupHm ?? '').trim().slice(0, 5);
+  if (params.fulfillment === 'pickup' && /^\d{2}:\d{2}$/.test(pickup)) return pickup;
+  const start = (params.startTimeHm ?? '').trim().slice(0, 5);
+  return /^\d{2}:\d{2}$/.test(start) ? start : '00:00';
+}
+
+/**
+ * Freeze cancel clock on first confirmed pickup (pickup fulfillment only).
+ * Later pickup edits must not rewrite an existing freeze.
+ */
+export function withFrozenSelfCancelStartHm(
+  snapshot: unknown,
+  confirmedPickupHm: string | null | undefined
+): PurchaseSnapshot | null {
+  if (!isPurchaseSnapshot(snapshot)) return null;
+  const hm = (confirmedPickupHm ?? '').trim().slice(0, 5);
+  if (!/^\d{2}:\d{2}$/.test(hm)) return snapshot;
+  if (snapshot.fulfillment !== 'pickup') return snapshot;
+  const existing = (snapshot.selfCancelStartHm ?? '').trim().slice(0, 5);
+  if (/^\d{2}:\d{2}$/.test(existing)) return snapshot;
+  return { ...snapshot, selfCancelStartHm: hm };
+}
 
 export const SUPPLIER_CANCELLATION_POLICY_ID = 'traverion_supplier_cancel_v1';
 
@@ -95,11 +148,11 @@ export function snapshotSupplierCancellationPolicy(reasonCode: string): Cancella
 }
 
 /**
- * Traveler self-cancel refund eligibility.
+ * Traveler self-cancel refund eligibility (only meaningful when self-cancel is open).
  * Unpaid / failed checkouts never owe a refund.
  * SQL cancel_booking_as_traveler is authoritative; this mirrors eligibility UI.
  *
- * Cutoff: free while startMs - now > freeCancelHours (exact boundary → no_refund).
+ * Cutoff: free while startMs - now > freeCancelHours (exact boundary → closed / no self-cancel).
  * freeCancelHours null = non-refundable (no ordinary guest free cancel).
  * Default 24 when omitted (legacy / tours).
  */
@@ -127,6 +180,30 @@ export function travelerSelfCancelRefundChoice(params: {
   if (startMs == null || !Number.isFinite(startMs)) return 'no_refund';
   const now = params.nowMs ?? Date.now();
   return startMs - now > hours * 60 * 60 * 1000 ? 'full_refund' : 'no_refund';
+}
+
+/**
+ * Whether ordinary traveler self-cancel is available.
+ * Unpaid checkouts: always (release hold). Paid: only inside free-cancel window.
+ * SQL rejects with code deadline_passed when this is false for paid trips.
+ */
+export function travelerSelfCancelAvailable(params: {
+  bookingDate: string | null;
+  startTimeHm?: string | null;
+  departureTimezone?: string | null;
+  nowMs?: number;
+  paymentStatus?: string | null;
+  freeCancelHours?: number | null;
+}): boolean {
+  if (!bookingPaymentWasCollected(params.paymentStatus)) return true;
+  return travelerSelfCancelRefundChoice(params) === 'full_refund';
+}
+
+export function travelerSelfCancelUnavailableMessage(params: {
+  freeCancelHours?: number | null;
+}): string {
+  if (params.freeCancelHours == null) return TRAVELER_SELF_CANCEL_NON_REFUNDABLE;
+  return TRAVELER_SELF_CANCEL_DEADLINE_PASSED;
 }
 
 /** Instant when the free-cancellation window closes in the experience zone. null if non-refundable. */

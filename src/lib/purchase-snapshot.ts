@@ -24,9 +24,14 @@ export type PurchaseSnapshot = {
   cancellationPreset?: string | null;
   /**
    * Hours before local check-in/start for free cancel. null = non-refundable.
-   * Cutoff: free while start - now > freeCancelHours (exact boundary → no refund).
+   * Cutoff: free self-cancel while start - now > freeCancelHours (exact boundary → closed).
    */
   freeCancelHours?: number | null;
+  /**
+   * Frozen tour cancel clock (HH:MM). Set on first confirmed pickup so later pickup
+   * edits cannot move the free-cancel deadline. Prefer over live pickup_time.
+   */
+  selfCancelStartHm?: string | null;
   /** Booked option id when present. */
   optionId?: string | null;
   /** Resolved schedule id when seasonal schedules were used. */

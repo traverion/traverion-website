@@ -251,11 +251,18 @@ export const TRAVELER_CONTINUE_TEST_CTA = 'Continue to checkout';
 /** Traveler Trips — self-cancel is immediate, not a host-approval “request”. */
 export const TRAVELER_SELF_CANCEL_CTA = 'Cancel booking';
 
+/** Traveler Trips — after free-cancel deadline / non-refundable (paid). */
+export const TRAVELER_SELF_CANCEL_DEADLINE_PASSED_TITLE = 'Cancellation deadline passed';
+
+/** Traveler Trips — nudge to existing booking Messages after deadline. */
+export const TRAVELER_SELF_CANCEL_CONTACT_OPERATOR_NOTE =
+  'Guest-initiated cancellation is no longer available for this booking. Contact the operator from Messages to discuss your situation.';
+
 /** Traveler Trips — success after self-cancel with refund due. */
 export const TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE =
   'Booking cancelled. A refund is due — for stays Traverion submits it to Stripe automatically. Open Cancelled to follow status until Stripe confirms Refunded.';
 
-/** Traveler Trips — success after self-cancel with no refund. */
+/** Traveler Trips — success after self-cancel with no refund (unpaid / legacy). */
 export const TRAVELER_SELF_CANCEL_SUCCESS_NO_REFUND =
   'Booking cancelled. No refund applies for this cancellation. Open Cancelled to see it.';
 

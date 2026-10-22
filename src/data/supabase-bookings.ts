@@ -18,7 +18,15 @@ import {
   type PickupDraftRecord,
   type SupplierPickupPoint,
 } from '../lib/booking-notes';
-import { travelerSelfCancelBlock, travelerSelfCancelError, travelerSelfCancelIsUnpaidCheckout, partnerBookingStatusRewriteBlock, partnerManualConfirmBlock, partnerManualConfirmError } from '../lib/cancellation-policy';
+import {
+  travelerSelfCancelBlock,
+  travelerSelfCancelError,
+  travelerSelfCancelIsUnpaidCheckout,
+  partnerBookingStatusRewriteBlock,
+  partnerManualConfirmBlock,
+  partnerManualConfirmError,
+  withFrozenSelfCancelStartHm,
+} from '../lib/cancellation-policy';
 import {
   TRAVELER_SELF_CANCEL_EMAIL_DIFF_FULL_REFUND,
   TRAVELER_SELF_CANCEL_EMAIL_DIFF_NO_REFUND,
@@ -28,6 +36,7 @@ import {
   displayListingTitleFromPurchase,
   isPurchaseSnapshot,
   redactUnpaidStayCheckInAddress,
+  type PurchaseSnapshot,
 } from '../lib/purchase-snapshot';
 import { bookingPaymentWasCollected } from '../lib/payment-states';
 import {
@@ -771,6 +780,22 @@ export async function updateBookingSchedule(
   const payload: Record<string, unknown> = {};
   if ('start_time' in params) payload.start_time = nextStartPg;
   if ('pickup_time' in params) payload.pickup_time = nextPickupPg;
+  // Freeze cancel clock on first confirmed pickup so later edits cannot strip promised rights.
+  if (pickupChanged && nextPickupPg) {
+    const frozen = withFrozenSelfCancelStartHm(
+      prior.purchase_snapshot,
+      pgTimeToHm(nextPickupPg) ?? null
+    );
+    if (
+      frozen &&
+      isPurchaseSnapshot(prior.purchase_snapshot) &&
+      frozen.selfCancelStartHm &&
+      frozen.selfCancelStartHm !==
+        (prior.purchase_snapshot as PurchaseSnapshot).selfCancelStartHm
+    ) {
+      payload.purchase_snapshot = frozen;
+    }
+  }
   if (Object.keys(payload).length === 0) return { ok: true };
 
   const { data: updated, error } = await supabase
@@ -1069,9 +1094,28 @@ export async function saveSupplierPickupDetails(
   notes = upsertSupplierPickupPoint(notes, point);
   notes = upsertPickupDraft(notes, null);
   const nextPickupPg = hmToPgTime(timeHm || null);
+  const pickupPayload: Record<string, unknown> = {
+    special_requests: notes || null,
+    pickup_time: nextPickupPg,
+  };
+  if (nextPickupPg) {
+    const frozen = withFrozenSelfCancelStartHm(
+      prior.purchase_snapshot,
+      pgTimeToHm(nextPickupPg) ?? timeHm ?? null
+    );
+    if (
+      frozen &&
+      isPurchaseSnapshot(prior.purchase_snapshot) &&
+      frozen.selfCancelStartHm &&
+      frozen.selfCancelStartHm !==
+        (prior.purchase_snapshot as PurchaseSnapshot).selfCancelStartHm
+    ) {
+      pickupPayload.purchase_snapshot = frozen;
+    }
+  }
   const { data: updated, error } = await supabase
     .from('bookings')
-    .update({ special_requests: notes || null, pickup_time: nextPickupPg })
+    .update(pickupPayload)
     .eq('id', bookingId)
     .select('id')
     .maybeSingle();
@@ -1197,7 +1241,7 @@ export async function batchCancelBookings(
   return { count };
 }
 
-/** Consumer cancels own booking. RLS allows update only when guest_email = auth user. Sets refund_choice to full_refund if tour start is >24h away, else no_refund. */
+/** Consumer cancels own booking. Paid self-cancel only inside free-cancel window; SQL rejects after deadline. */
 export async function cancelBookingAsCustomer(
   bookingId: string,
   refundChoice: 'full_refund' | 'no_refund'
