@@ -139,10 +139,13 @@ export function classifyDepartureStatus(params: {
   if (params.capacity < 1) return 'closed';
   if (!params.cutoffStillBookable) return 'cutoff';
   if (params.remaining <= 0) return 'sold_out';
-  if (params.remaining < params.capacity && params.remaining <= Math.max(2, Math.floor(params.capacity * 0.35))) {
+  // Limited = scarce remaining seats only. Light occupancy must stay Available.
+  if (
+    params.remaining < params.capacity &&
+    params.remaining <= Math.max(2, Math.floor(params.capacity * 0.35))
+  ) {
     return 'limited';
   }
-  if (params.remaining < params.capacity) return 'limited';
   return 'available';
 }
 

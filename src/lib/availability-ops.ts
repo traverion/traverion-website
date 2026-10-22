@@ -90,6 +90,8 @@ export function partnerTourDaySpotDisplay(params: {
 export type PartnerTourMonthCellDepartureLine = {
   shortName: string;
   startTimeHm: string;
+  /** Booked participants for this departure (authoritative for display). */
+  booked: number;
   remaining: number;
   capacity: number;
   full: boolean;
@@ -101,9 +103,11 @@ export type PartnerTourMonthCellLabel = {
   tone: 'full' | 'partial' | 'open' | null;
   /** First departure time when a single departure is offered. */
   timeHm: string | null;
-  /** Remaining seats for the best open departure (or day cap). */
+  /** Remaining seats (internal / a11y); UI must show booked/capacity, never remaining unlabeled. */
   remaining: number | null;
-  /** Capacity paired with remaining for compact display. */
+  /** Booked participants paired with capacity for compact Booked/Capacity display. */
+  booked: number | null;
+  /** Capacity paired with booked for compact display. */
   capacity: number | null;
   departuresCount: number;
   /** Per-departure seat lines for accurate multi-departure cells. */
@@ -117,6 +121,7 @@ function emptyMonthCellLabel(): PartnerTourMonthCellLabel {
     tone: null,
     timeHm: null,
     remaining: null,
+    booked: null,
     capacity: null,
     departuresCount: 0,
     departureLines: [],
@@ -150,12 +155,14 @@ export function partnerTourMonthCellCapacityLabel(params: {
       : null;
   const departureLines: PartnerTourMonthCellDepartureLine[] = params.departures.map((d) => {
     const capacity = Math.max(0, Math.floor(d.maxSpots));
-    const slotLeft = partnerTourRemainingSpots(capacity, d.occupyingGuests);
+    const booked = Math.max(0, Math.floor(d.occupyingGuests));
+    const slotLeft = partnerTourRemainingSpots(capacity, booked);
     const dayLeft = dayCap != null ? Math.max(0, dayCap - params.occupyingGuestsDay) : null;
     const remaining = dayLeft != null ? Math.min(slotLeft, dayLeft) : slotLeft;
     return {
       shortName: shortenDepartureName(d.name ?? ''),
       startTimeHm: (d.startTimeHm ?? '').trim(),
+      booked: Math.min(capacity, booked),
       remaining,
       capacity,
       full: remaining === 0,
@@ -168,6 +175,7 @@ export function partnerTourMonthCellCapacityLabel(params: {
       tone: 'full',
       timeHm: null,
       remaining: 0,
+      booked: 0,
       capacity: 0,
       departuresCount: params.departures.length,
       departureLines,
@@ -182,6 +190,7 @@ export function partnerTourMonthCellCapacityLabel(params: {
         : null;
     const totalRemaining = lines.reduce((a, b) => a + b, 0);
     const totalCapacity = params.departures.reduce((a, d) => a + Math.max(0, Math.floor(d.maxSpots)), 0);
+    const totalBooked = departureLines.reduce((a, d) => a + d.booked, 0);
     if (!anyOpen) {
       return {
         short: 'Sold out',
@@ -189,6 +198,7 @@ export function partnerTourMonthCellCapacityLabel(params: {
         tone: 'full',
         timeHm: primaryTime,
         remaining: 0,
+        booked: dayCap != null ? Math.min(dayCap, params.occupyingGuestsDay) : totalBooked,
         capacity: dayCap != null ? dayCap : totalCapacity,
         departuresCount: params.departures.length,
         departureLines,
@@ -198,10 +208,11 @@ export function partnerTourMonthCellCapacityLabel(params: {
     if (params.departures.length >= 2 && openCount < params.departures.length) {
       return {
         short: 'Partial',
-        aria: `partially booked — ${openCount} of ${params.departures.length} departures still have seats`,
+        aria: `partially booked — ${openCount} of ${params.departures.length} departures still have seats · Booked / Capacity ${totalBooked}/${totalCapacity}`,
         tone: 'partial',
         timeHm: null,
         remaining: totalRemaining,
+        booked: totalBooked,
         capacity: dayCap != null ? dayCap : totalCapacity,
         departuresCount: params.departures.length,
         departureLines,
@@ -218,6 +229,7 @@ export function partnerTourMonthCellCapacityLabel(params: {
         tone: 'open',
         timeHm: primaryTime,
         remaining: dayLeft,
+        booked: dayBooked,
         capacity: dayCap,
         departuresCount: params.departures.length,
         departureLines,
@@ -225,26 +237,26 @@ export function partnerTourMonthCellCapacityLabel(params: {
     }
     if (params.departures.length === 1) {
       const only = departureLines[0]!;
-      const booked = Math.max(0, only.capacity - only.remaining);
       return {
-        short: `${booked}/${only.capacity}`,
-        aria: `Booked / Capacity ${booked}/${only.capacity}`,
+        short: `${only.booked}/${only.capacity}`,
+        aria: `Booked / Capacity ${only.booked}/${only.capacity}`,
         tone: 'open',
         timeHm: primaryTime,
         remaining: only.remaining,
+        booked: only.booked,
         capacity: only.capacity,
         departuresCount: 1,
         departureLines,
       };
     }
     // Multi-departure without day override: never invent a single max-of-slots figure.
-    const totalBooked = Math.max(0, totalCapacity - totalRemaining);
     return {
       short: `${params.departures.length} dep`,
       aria: `${params.departures.length} departures · Booked / Capacity ${totalBooked}/${totalCapacity}`,
       tone: 'open',
       timeHm: null,
       remaining: totalRemaining,
+      booked: totalBooked,
       capacity: totalCapacity,
       departuresCount: params.departures.length,
       departureLines,
@@ -259,6 +271,7 @@ export function partnerTourMonthCellCapacityLabel(params: {
         tone: 'full',
         timeHm: null,
         remaining: 0,
+        booked: dayCap,
         capacity: dayCap,
         departuresCount: 0,
         departureLines,
@@ -271,6 +284,7 @@ export function partnerTourMonthCellCapacityLabel(params: {
       tone: 'open',
       timeHm: null,
       remaining,
+      booked,
       capacity: dayCap,
       departuresCount: 0,
       departureLines,
@@ -289,6 +303,7 @@ export function partnerTourMonthCellCapacityLabel(params: {
       tone: 'full',
       timeHm: null,
       remaining: 0,
+      booked: fallback,
       capacity: fallback,
       departuresCount: 0,
       departureLines,
@@ -301,6 +316,7 @@ export function partnerTourMonthCellCapacityLabel(params: {
     tone: 'open',
     timeHm: null,
     remaining,
+    booked,
     capacity: fallback,
     departuresCount: 0,
     departureLines,

@@ -63,6 +63,23 @@ describe('availabilityWorkspaceModel', () => {
         cutoffStillBookable: true,
       })
     ).toBe('limited');
+    // Light occupancy must stay Available (not Limited).
+    expect(
+      classifyDepartureStatus({
+        dayCapacityOverride: null,
+        remaining: 15,
+        capacity: 16,
+        cutoffStillBookable: true,
+      })
+    ).toBe('available');
+    expect(
+      classifyDepartureStatus({
+        dayCapacityOverride: null,
+        remaining: 12,
+        capacity: 16,
+        cutoffStillBookable: true,
+      })
+    ).toBe('available');
     expect(
       classifyDepartureStatus({
         dayCapacityOverride: null,

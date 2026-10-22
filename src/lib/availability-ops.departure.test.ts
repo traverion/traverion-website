@@ -101,9 +101,25 @@ describe('partnerTourMonthCellCapacityLabel', () => {
     expect(label.remaining).toBe(66);
     expect(label.capacity).toBe(66);
     expect(label.departureLines).toHaveLength(2);
-    expect(label.departureLines[0]).toMatchObject({ remaining: 16, capacity: 16 });
-    expect(label.departureLines[1]).toMatchObject({ remaining: 50, capacity: 50 });
+    expect(label.departureLines[0]).toMatchObject({ booked: 0, remaining: 16, capacity: 16 });
+    expect(label.departureLines[1]).toMatchObject({ booked: 0, remaining: 50, capacity: 50 });
     expect(label.short).not.toMatch(/50\/50/);
     expect(label.aria).toMatch(/Booked \/ Capacity 0\/66/);
+    expect(label.booked).toBe(0);
+  });
+
+  it('exposes booked/capacity for single departures matching Agenda/Week', () => {
+    const label = partnerTourMonthCellCapacityLabel({
+      offered: true,
+      dayCapacityOverride: null,
+      defaultCapacity: 16,
+      occupyingGuestsDay: 1,
+      departures: [{ startTimeHm: '18:30', maxSpots: 16, occupyingGuests: 1, name: 'Small Group' }],
+    });
+    expect(label.short).toBe('1/16');
+    expect(label.booked).toBe(1);
+    expect(label.capacity).toBe(16);
+    expect(label.remaining).toBe(15);
+    expect(label.departureLines[0]).toMatchObject({ booked: 1, remaining: 15, capacity: 16 });
   });
 });

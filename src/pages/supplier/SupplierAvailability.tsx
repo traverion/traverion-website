@@ -31,6 +31,7 @@ import {
   partnerAvailabilityTreatAsStay,
 } from '../../lib/partner-availability-stay-maps';
 import { displayListingTitleFromPurchase, partnerOpsDepartureDisplay } from '../../lib/purchase-snapshot';
+import { resolvePartnerArrivalDisplay } from '../../lib/partner-booking-logistics';
 import {
   buildMonthCells,
   capacitySpotsFromBookingOptions,
@@ -294,10 +295,35 @@ export default function SupplierAvailability() {
     const opsStart = pgTimeToHm(b.start_time);
     const dep = partnerOpsDepartureDisplay(b.purchase_snapshot, opsStart);
     const pickup = pgTimeToHm(b.pickup_time);
+    const item = listings.find((l) => l.id === b.listing_id);
+    const bookingOptions = item
+      ? materializedBookingOptions(item.listingExtras?.bookingOptions).map((o) => ({
+          id: o.id,
+          pickupPlace: o.pickupPlace,
+          optionInfo: o.optionInfo,
+          travelerStartInstructions: o.travelerStartInstructions,
+          fulfillment: o.fulfillment ?? null,
+        }))
+      : [];
+    const arrival = resolvePartnerArrivalDisplay({
+      purchaseSnapshot: b.purchase_snapshot,
+      bookingOptionId: b.booking_option_id,
+      specialRequests: b.special_requests,
+      listingMeetingPoint: item?.meetingPoint,
+      listingPickupInstructions: item?.pickupInstructions,
+      bookingOptions,
+    });
     const bits: string[] = [];
-    if (dep.displayHm) bits.push(`Start ${dep.displayHm}`);
+    if (dep.displayHm) bits.push(`Departure ${dep.displayHm}`);
     if (dep.purchasedNote) bits.push(dep.purchasedNote);
-    if (pickup) bits.push(`Pickup ${pickup}`);
+    if (arrival.fulfillment === 'pickup' && pickup) bits.push(`Pickup ${pickup}`);
+    if (arrival.railLabel && arrival.place) {
+      bits.push(`${arrival.railLabel}: ${arrival.place}`);
+    } else if (arrival.railLabel && arrival.needsLocation) {
+      bits.push(`${arrival.railLabel}`);
+    } else if (!arrival.railLabel && pickup) {
+      bits.push(`Pickup ${pickup}`);
+    }
     return bits.join(' · ');
   };
 
@@ -1765,6 +1791,7 @@ export default function SupplierAvailability() {
                       tone: null as 'full' | 'partial' | 'open' | null,
                       timeHm: null,
                       remaining: null,
+                      booked: null,
                       capacity: null,
                       departuresCount: 0,
                       departureLines: [],
@@ -1793,7 +1820,7 @@ export default function SupplierAvailability() {
                       : monthCapacityLabel.aria
                         ? `${dateLabel}, ${monthCapacityLabel.aria}`
                         : remaining !== null && tourCapacity != null
-                        ? `${dateLabel}, ${remaining} of ${tourCapacity} spots left`
+                        ? `${dateLabel}, Booked / Capacity ${Math.max(0, tourCapacity - remaining)}/${tourCapacity}`
                         : open
                           ? `${dateLabel}, available`
                           : `${dateLabel}, ${stayCalendar ? 'not offered' : 'no schedule'}`;
@@ -1896,7 +1923,7 @@ export default function SupplierAvailability() {
                             }`}
                             aria-hidden
                           />
-                          {monthCapacityLabel.short === 'Partial' ? 'Limited' : monthCapacityLabel.short}
+                          {monthCapacityLabel.short === 'Partial' ? 'Partial' : monthCapacityLabel.short}
                         </span>
                       ) : monthCapacityLabel.departureLines.length >= 2 ? (
                         <span className="tv-cal-day__deps" aria-hidden={false}>
@@ -1906,10 +1933,11 @@ export default function SupplierAvailability() {
                               className={`tv-cal-day__dep ${
                                 line.full ? 'tv-cal-day__dep--full' : ''
                               }`}
+                              title={`Booked / Capacity ${line.booked}/${line.capacity}`}
                             >
                               <span className="tv-cal-day__dep-name">{line.shortName}</span>
                               <span className="tv-cal-day__dep-cap">
-                                {line.full ? 'Full' : `${line.remaining}/${line.capacity}`}
+                                {line.full ? 'Full' : `${line.booked}/${line.capacity}`}
                               </span>
                             </span>
                           ))}
@@ -1919,11 +1947,14 @@ export default function SupplierAvailability() {
                             </span>
                           ) : null}
                         </span>
-                      ) : monthCapacityLabel.remaining != null &&
+                      ) : monthCapacityLabel.booked != null &&
                         monthCapacityLabel.capacity != null ? (
-                        <span className="tv-cal-day__meta tv-cal-day__meta--cap">
+                        <span
+                          className="tv-cal-day__meta tv-cal-day__meta--cap"
+                          title={`Booked / Capacity ${monthCapacityLabel.booked}/${monthCapacityLabel.capacity}`}
+                        >
                           <span className="tv-cal-day__dot" aria-hidden />
-                          {monthCapacityLabel.remaining} / {monthCapacityLabel.capacity}
+                          {monthCapacityLabel.booked}/{monthCapacityLabel.capacity}
                         </span>
                       ) : (
                         <span className="tv-cal-day__meta">{monthCapacityLabel.short}</span>
@@ -1945,6 +1976,11 @@ export default function SupplierAvailability() {
                       className={`tv-cal-day__meta ${
                         remaining === 0 ? 'tv-cal-day__meta--danger' : 'tv-cal-day__meta--cap'
                       }`}
+                      title={
+                        remaining === 0
+                          ? 'Sold out'
+                          : `Booked / Capacity ${Math.max(0, tourCapacity - remaining)}/${tourCapacity}`
+                      }
                     >
                       {remaining === 0 ? (
                         <>
@@ -1954,7 +1990,7 @@ export default function SupplierAvailability() {
                       ) : (
                         <>
                           <span className="tv-cal-day__dot" aria-hidden />
-                          {remaining} / {tourCapacity}
+                          {Math.max(0, tourCapacity - remaining)}/{tourCapacity}
                         </>
                       )}
                     </span>
@@ -2187,7 +2223,7 @@ export default function SupplierAvailability() {
                     <div className="tv-cal-drawer__body">
                       {(dayBookings.length > 0 || dayDepartures.length > 0) && (
                         <section className="tv-cal-drawer__section">
-                          <h3>Bookings</h3>
+                          <h3>Customers on this day</h3>
                           <ul className="m-0 list-none p-0">
                             {dayBookings.map((b) => {
                               const times = daySheetTimesLine(b);
