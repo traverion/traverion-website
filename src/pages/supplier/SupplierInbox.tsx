@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, MessageSquare, Search } from 'lucide-react';
+import { ArrowLeft, MessageSquare, PanelRight, Search } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
@@ -19,6 +19,7 @@ import {
   SupplierEmptyState,
   SupplierListSkeleton,
 } from '../../components/supplier/supplierUi';
+import InboxBookingPanel from '../../components/supplier/InboxBookingPanel';
 import NoticeCallout from '../../components/NoticeCallout';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
@@ -58,6 +59,9 @@ import {
   prefetchPartnerBookingsDesk,
   takePartnerBookingsDeskPrefetch,
 } from '../../lib/partner-bookings-desk-prefetch';
+
+/** Available split width needed to keep chat readable with list + booking docked. */
+const INBOX_BOOKING_DOCK_MIN_PX = 1120;
 
 /** Thread-list line: listing + option so same-guest bookings stay distinguishable. */
 function inboxListingLine(
@@ -137,9 +141,12 @@ export default function SupplierInbox() {
     return (readPartnerInboxUiState()?.q ?? '').toString();
   });
   const [mobileSheet, setMobileSheet] = useState(() =>
-    typeof window !== 'undefined' ? window.matchMedia('(max-width: 1023px)').matches : false
+    typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)').matches : false
   );
+  const [bookingPanelOpen, setBookingPanelOpen] = useState(true);
+  const [bookingDocked, setBookingDocked] = useState(false);
   const listScrollRef = useRef<HTMLDivElement | null>(null);
+  const splitRef = useRef<HTMLDivElement | null>(null);
   const restoredListScrollRef = useRef(false);
 
   useEffect(() => {
@@ -161,12 +168,38 @@ export default function SupplierInbox() {
   }, []);
 
   useEffect(() => {
-    const mq = window.matchMedia('(max-width: 1023px)');
+    const mq = window.matchMedia('(max-width: 767px)');
     const onChange = () => setMobileSheet(mq.matches);
     onChange();
     mq.addEventListener('change', onChange);
     return () => mq.removeEventListener('change', onChange);
   }, []);
+
+  const bookingDockedRef = useRef(bookingDocked);
+  bookingDockedRef.current = bookingDocked;
+
+  useEffect(() => {
+    const el = splitRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const measure = () => {
+      const w = el.getBoundingClientRect().width;
+      const nextDocked = w >= INBOX_BOOKING_DOCK_MIN_PX;
+      const wasDocked = bookingDockedRef.current;
+      setBookingDocked(nextDocked);
+      // Opening into a wide layout should reveal the panel once; do not fight a manual close.
+      if (nextDocked && !wasDocked) setBookingPanelOpen(true);
+    };
+    measure();
+    const ro = new ResizeObserver(() => measure());
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Narrow layouts: keep the booking drawer closed until the host opens it.
+  useEffect(() => {
+    if (!openId) return;
+    if (!bookingDocked) setBookingPanelOpen(false);
+  }, [openId, bookingDocked]);
 
   const load = useCallback(async () => {
     const uid = user?.id;
@@ -308,6 +341,24 @@ export default function SupplierInbox() {
   useEffect(() => {
     void load();
   }, [load, messageFetchCap]);
+
+  // Soft-refresh conversation previews / unread (same cadence as BookingMessageThread).
+  useEffect(() => {
+    const tick = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (bookingsLenRef.current === 0) return;
+      void load();
+    };
+    const id = window.setInterval(tick, 20_000);
+    const onVis = () => {
+      if (document.visibilityState === 'visible') tick();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [load]);
 
   useEffect(() => {
     const syncFromUrl = () => {
@@ -525,6 +576,16 @@ export default function SupplierInbox() {
 
   const showList = !mobileSheet || !openId;
   const showChat = !mobileSheet || Boolean(openId);
+  const showBookingPanel = Boolean(openBooking) && bookingPanelOpen;
+  const showBookingDocked = showBookingPanel && bookingDocked;
+  const showBookingDrawer = showBookingPanel && !bookingDocked;
+
+  const statusForThread = (b: BookingRow) => {
+    if (isStayRequestAwaitingHost(b)) return 'Request';
+    const label = partnerBookingLifecycleLabel(b.status);
+    if (label === 'Confirmed') return null;
+    return label;
+  };
 
   return (
     <div className={`${SUPPLIER_PAGE_CLASS} tv-inbox-workspace partner-inbox`}>
@@ -549,7 +610,10 @@ export default function SupplierInbox() {
           </button>
         </NoticeCallout>
       ) : null}
-      <div className="tv-inbox-split">
+      <div
+        ref={splitRef}
+        className={`tv-inbox-split${showBookingDocked ? ' tv-inbox-split--with-booking' : ''}`}
+      >
         <section className={`tv-inbox-list-pane min-h-0 flex-col ${showList ? 'flex' : 'hidden'}`} aria-label="Conversations">
           <header className="tv-inbox-list-pane__head">
             <div className="flex items-baseline justify-between gap-3">
@@ -725,8 +789,15 @@ export default function SupplierInbox() {
                                 : last?.body ?? 'Start a conversation'}
                             </span>
                             <span className="tv-inbox-thread__meta">
-                              {inboxListingLine(b, titles[b.listing_id], listingsById[b.listing_id])}
-                              {activityWhen(b) ? ` · ${activityWhen(b)}` : ''}
+                              {inboxHeaderExperienceTitle(b, titles[b.listing_id])}
+                              {statusForThread(b) ? (
+                                <>
+                                  <span className="tv-inbox-thread__meta-sep" aria-hidden>
+                                    ·
+                                  </span>
+                                  <span className="tv-inbox-thread__status">{statusForThread(b)}</span>
+                                </>
+                              ) : null}
                             </span>
                           </span>
                         </button>
@@ -775,7 +846,7 @@ export default function SupplierInbox() {
                   <header className="tv-inbox-chat__head">
                     <button
                       type="button"
-                      className="lux-flat mr-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink lg:hidden"
+                      className="lux-flat mr-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink md:hidden"
                       aria-label="Back to inbox"
                       onClick={() => setOpenBookingId(null)}
                     >
@@ -805,15 +876,27 @@ export default function SupplierInbox() {
                         {experienceTitle}
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      className="tv-inbox-view-booking tv-btn-secondary h-8 shrink-0 !px-2.5 text-[12.5px]"
-                      onClick={() => openCanonicalBooking(openBooking)}
-                      onPointerEnter={() => warmBookingDetails(openBooking)}
-                      onFocus={() => warmBookingDetails(openBooking)}
-                    >
-                      View booking
-                    </button>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <button
+                        type="button"
+                        className={`tv-inbox-booking-toggle lux-flat${bookingPanelOpen ? ' is-active' : ''}`}
+                        aria-pressed={bookingPanelOpen}
+                        aria-controls="partner-inbox-booking-panel"
+                        aria-label={bookingPanelOpen ? 'Hide booking details' : 'Show booking details'}
+                        onClick={() => setBookingPanelOpen((v) => !v)}
+                      >
+                        <PanelRight className="h-4 w-4" aria-hidden />
+                      </button>
+                      <button
+                        type="button"
+                        className="tv-inbox-view-booking tv-btn-secondary h-8 shrink-0 !px-2.5 text-[12.5px]"
+                        onClick={() => openCanonicalBooking(openBooking)}
+                        onPointerEnter={() => warmBookingDetails(openBooking)}
+                        onFocus={() => warmBookingDetails(openBooking)}
+                      >
+                        View booking
+                      </button>
+                    </div>
                   </header>
                 );
               })()}
@@ -874,7 +957,46 @@ export default function SupplierInbox() {
             </NoticeCallout>
           ) : null}
         </section>
+        {openBooking && user?.id && showBookingDocked ? (
+          <div id="partner-inbox-booking-panel" className="tv-inbox-booking-pane">
+            <InboxBookingPanel
+              booking={openBooking}
+              listing={listingsById[openBooking.listing_id]}
+              listingTitle={titles[openBooking.listing_id] ?? ''}
+              supplierId={user.id}
+              role={role}
+              onViewFullBooking={() => openCanonicalBooking(openBooking)}
+              onWarmBooking={() => warmBookingDetails(openBooking)}
+              onClose={() => setBookingPanelOpen(false)}
+            />
+          </div>
+        ) : null}
       </div>
+      {openBooking && user?.id && showBookingDrawer ? (
+        <div className="tv-inbox-booking-drawer" role="dialog" aria-modal="true" aria-label="Booking details">
+          <button
+            type="button"
+            className="tv-inbox-booking-drawer__backdrop"
+            aria-label="Close booking details"
+            onClick={() => setBookingPanelOpen(false)}
+          />
+          <div id="partner-inbox-booking-panel" className="tv-inbox-booking-drawer__panel">
+            <InboxBookingPanel
+              booking={openBooking}
+              listing={listingsById[openBooking.listing_id]}
+              listingTitle={titles[openBooking.listing_id] ?? ''}
+              supplierId={user.id}
+              role={role}
+              onViewFullBooking={() => {
+                setBookingPanelOpen(false);
+                openCanonicalBooking(openBooking);
+              }}
+              onWarmBooking={() => warmBookingDetails(openBooking)}
+              onClose={() => setBookingPanelOpen(false)}
+            />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

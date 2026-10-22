@@ -16,11 +16,12 @@ describe('Partner Inbox luxury redesign', () => {
     expect(src).toContain('openCanonicalBooking');
     expect(src).toContain('tv-inbox-view-booking');
     expect(src).toContain('tv-inbox-chat-skeleton');
-    expect(src).not.toContain('setDetailsOpen');
-    expect(src).not.toMatch(/className=["'][^"']*tv-inbox-details["']/);
+    expect(src).toContain('InboxBookingPanel');
+    expect(src).toContain('tv-inbox-booking-pane');
+    expect(src).toContain('INBOX_BOOKING_DOCK_MIN_PX');
   });
 
-  it('opens canonical Tour/Stay booking details without a third-column panel', () => {
+  it('opens canonical Tour/Stay booking details and docks a contextual booking panel', () => {
     const src = readFileSync(resolve(__dirname, 'SupplierInbox.tsx'), 'utf8');
     expect(src).toContain('openSupplierBooking');
     expect(src).toContain('bookingIsStayNight(booking) || isStayRequestAwaitingHost(booking)');
@@ -30,17 +31,19 @@ describe('Partner Inbox luxury redesign', () => {
     expect(src).toContain('rememberPartnerInboxReturn');
     expect(src).toContain('markPartnerPageTransition');
     expect(src).toContain('prefetchPartnerBookingsDesk');
+    expect(src).toContain('partner-inbox-booking-panel');
     expect(src).not.toContain('Open in Reservations');
     expect(src).not.toContain('Open in Bookings');
     expect(src).not.toContain('partnerPaymentLabel');
-    expect(src).not.toContain('resolvePartnerArrivalDisplay');
   });
 
-  it('keeps list pane width in the compact 320–360px range', () => {
+  it('keeps list and booking panes in the compact width band', () => {
     const css = readFileSync(resolve(__dirname, '../../index.css'), 'utf8');
-    expect(css).toContain('width: 21.5rem');
-    expect(css).toContain('min-width: 20rem');
-    expect(css).toContain('max-width: 22.5rem');
+    expect(css).toContain('width: 18.5rem');
+    expect(css).toContain('min-width: 17.5rem');
+    expect(css).toContain('max-width: 19.5rem');
+    expect(css).toContain('.tv-inbox-booking-pane');
+    expect(css).toContain('.tv-inbox-booking__note-input');
     expect(css).toContain('.tv-inbox-chat__title-row');
     expect(css).toContain('.tv-inbox-chat__experience');
     expect(css).toContain('.lux-page-enter--forward');
