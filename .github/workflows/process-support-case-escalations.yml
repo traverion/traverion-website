@@ -2,6 +2,7 @@
 # Does NOT auto-refund — Support must approve after review.
 #
 # Auth: same secret family as process-cancel-resolutions / booking reminders.
+# Ops: after adding this workflow, run workflow_dispatch once so schedules activate.
 
 name: Process support case escalations
 

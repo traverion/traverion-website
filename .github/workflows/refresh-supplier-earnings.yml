@@ -3,6 +3,7 @@
 #
 # Auth: Bearer secret matching Edge Function env.
 # Prefer EARNINGS_REFRESH_CRON_SECRET; otherwise CRON_SECRET / BOOKING_REMINDER_CRON_SECRET.
+# Ops: after adding this workflow, run workflow_dispatch once so schedules activate.
 
 name: Refresh supplier earnings eligibility
 

@@ -3,7 +3,10 @@
 #
 # Auth: Bearer secret matching Edge Function env.
 # Prefer CANCEL_RESOLUTION_CRON_SECRET; otherwise CRON_SECRET or
-# BOOKING_REMINDER_CRON_SECRET.
+# BOOKING_REMINDER_CRON_SECRET (proven via expire-stay / booking-reminders).
+#
+# Ops: new scheduled workflows may not fire until a successful workflow_dispatch
+# has run once on main. Failures are visible in Actions run history + step logs.
 
 name: Process cancel resolutions
 

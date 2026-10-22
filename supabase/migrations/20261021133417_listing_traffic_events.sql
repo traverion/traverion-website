@@ -15,14 +15,8 @@ create index if not exists listing_traffic_events_listing_created_idx
 create index if not exists listing_traffic_events_listing_type_created_idx
   on public.listing_traffic_events (listing_id, event_type, created_at desc);
 
--- Deduplicate noisy repeat views within a short window (same session + listing + type).
-create unique index if not exists listing_traffic_events_dedupe_hour_idx
-  on public.listing_traffic_events (
-    listing_id,
-    event_type,
-    session_key,
-    date_trunc('hour', created_at)
-  );
+-- Note: do not use date_trunc(timestamptz) in a unique index (not IMMUTABLE).
+-- See 272_repair_listing_traffic_events.sql for the applied remote repair.
 
 alter table public.listing_traffic_events enable row level security;
 
