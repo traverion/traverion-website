@@ -145,7 +145,7 @@ Typecheck still reports pre-existing supplier-page TS errors unrelated to this w
 
 ## 13. Commit hashes
 - Prior Tour Details premium: `607625b8`  
-- This consumer-wide refinement: *(see git log after push)*
+- This consumer-wide refinement: `5aad1694`
 
 ---
 
