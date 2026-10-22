@@ -139,6 +139,8 @@ type Body = {
     | 'payout_periods_list'
     | 'prepare_due_payouts'
     | 'mark_payout_period_paid'
+    | 'refresh_earning_eligibility'
+    | 'reconcile_supplier_commercial'
     | 'booking_financial_investigation'
     | 'financial_hold_set'
     | 'financial_hold_release'
@@ -1257,6 +1259,25 @@ serve(async (req) => {
   if (body.action === 'prepare_due_payouts') {
     const { data, error } = await admin.rpc('prepare_due_supplier_payouts', {
       p_now: new Date().toISOString(),
+    });
+    if (error) return json({ error: error.message }, 500);
+    return json(data ?? { ok: true });
+  }
+
+  if (body.action === 'refresh_earning_eligibility') {
+    const { data, error } = await admin.rpc('refresh_supplier_earning_eligibility', {
+      p_now: new Date().toISOString(),
+    });
+    if (error) return json({ error: error.message }, 500);
+    return json(data ?? { ok: true });
+  }
+
+  if (body.action === 'reconcile_supplier_commercial') {
+    const supplierId =
+      typeof body.supplierId === 'string' && body.supplierId.trim() ? body.supplierId.trim() : null;
+    const { data, error } = await admin.rpc('reconcile_supplier_commercial', {
+      p_supplier_id: supplierId,
+      p_limit: 200,
     });
     if (error) return json({ error: error.message }, 500);
     return json(data ?? { ok: true });

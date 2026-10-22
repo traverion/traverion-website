@@ -1,0 +1,61 @@
+# Hourly: promote completed Tour/Stay earnings after clearance hold.
+# Edge: refresh-supplier-earnings (NO Stripe Connect transfer).
+#
+# Auth: Bearer secret matching Edge Function env.
+# Prefer EARNINGS_REFRESH_CRON_SECRET; otherwise CRON_SECRET / BOOKING_REMINDER_CRON_SECRET.
+
+name: Refresh supplier earnings eligibility
+
+on:
+  schedule:
+    - cron: '18 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: refresh-supplier-earnings
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    name: Call refresh-supplier-earnings
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: POST refresh-supplier-earnings
+        env:
+          EARNINGS_REFRESH_CRON_SECRET: ${{ secrets.EARNINGS_REFRESH_CRON_SECRET }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          BOOKING_REMINDER_CRON_SECRET: ${{ secrets.BOOKING_REMINDER_CRON_SECRET }}
+          FUNCTION_URL: https://xcopqllkulxfkpunetbc.supabase.co/functions/v1/refresh-supplier-earnings
+        run: |
+          set -euo pipefail
+          SECRET="${EARNINGS_REFRESH_CRON_SECRET:-${CRON_SECRET:-${BOOKING_REMINDER_CRON_SECRET:-}}}"
+          if [ -z "${SECRET}" ]; then
+            echo "::error::Set EARNINGS_REFRESH_CRON_SECRET, CRON_SECRET, or BOOKING_REMINDER_CRON_SECRET in GitHub Actions secrets."
+            exit 1
+          fi
+
+          HTTP_CODE="$(curl -sS -o /tmp/refresh-supplier-earnings.json -w '%{http_code}' \
+            --connect-timeout 15 \
+            --max-time 120 \
+            -X POST "${FUNCTION_URL}" \
+            -H "Authorization: Bearer ${SECRET}" \
+            -H "Content-Type: application/json" \
+            -d '{}')"
+
+          echo "HTTP status: ${HTTP_CODE}"
+          cat /tmp/refresh-supplier-earnings.json || true
+          echo
+
+          case "${HTTP_CODE}" in
+            2??)
+              echo "refresh-supplier-earnings succeeded."
+              ;;
+            *)
+              echo "::error::refresh-supplier-earnings failed with HTTP ${HTTP_CODE}"
+              exit 1
+              ;;
+          esac
