@@ -4,13 +4,9 @@ import { describe, expect, it } from 'vitest';
 
 describe('Stay checkout initiation speed', () => {
   it('does not await occupancy re-fetch or self-book query before opening Stripe', () => {
-    const src = readFileSync(resolve(__dirname, '../pages/StayDetails.tsx'), 'utf8');
-    const fn = src.slice(src.indexOf('const startStayCheckout = async'));
-    // Must not block on a second occupancy network round-trip.
-    expect(fn).not.toMatch(
-      /await Promise\.all\(\[\s*fetchPublishedStayOccupiedRanges/
-    );
-    // Must use prefetched self-book state, not a second team membership query.
+    const src = readFileSync(resolve(__dirname, '../pages/StayBookingConfirm.tsx'), 'utf8');
+    const fn = src.slice(src.indexOf('const startPayment = async'));
+    expect(fn).not.toMatch(/await Promise\.all\(\[\s*fetchPublishedStayOccupiedRanges/);
     expect(fn).not.toContain('await viewerIsListingSupplierSide');
     expect(fn).toContain('selfBookBlocked');
     expect(fn).toContain('setPaying(true)');

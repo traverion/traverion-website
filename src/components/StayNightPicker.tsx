@@ -4,7 +4,7 @@ import { CalendarDays } from 'lucide-react';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import { computeAnchoredPopoverBox, type AnchoredPopoverBox } from '../lib/anchored-popover';
 import { formatStayNightHuman, monthGrid, stayNightState } from '../lib/stay-calendar';
-import { planStayNightPick } from '../lib/stay-night-pick';
+import { planStayNightPick, stayHoverPreviewNights } from '../lib/stay-night-pick';
 import {
   TraverionCalendarDayButton,
   TraverionCalendarMonth,
@@ -25,7 +25,8 @@ function stayVisual(
   iso: string,
   state: ReturnType<typeof stayNightState>,
   checkIn: string,
-  checkOut: string
+  checkOut: string,
+  hoverIso: string | null
 ): TraverionCalendarDayVisual {
   if (state === 'past') return 'disabled';
   if (state === 'occupied') return 'occupied';
@@ -33,6 +34,11 @@ function stayVisual(
     if (iso === checkIn) return 'rangeStart';
     if (iso === checkOut) return 'rangeEnd';
     if (iso > checkIn && iso < checkOut) return 'rangeMiddle';
+  }
+  if (checkIn && !checkOut && hoverIso && hoverIso > checkIn) {
+    if (iso === checkIn) return 'rangeStart';
+    if (iso === hoverIso) return 'rangeEnd';
+    if (iso > checkIn && iso < hoverIso) return 'rangeMiddle';
   }
   if (state === 'selected') return 'selected';
   if (state === 'checkout') return 'rangeEnd';
@@ -42,6 +48,7 @@ function stayVisual(
 /**
  * Compact check-in / check-out fields; calendar opens in a portaled overlay
  * anchored in viewport coordinates so sticky booking cards do not clip or drift it.
+ * Desktop popover expands to the full month — no nested calendar scrollbar.
  */
 export default function StayNightPicker({
   checkIn,
@@ -57,10 +64,12 @@ export default function StayNightPicker({
   const [open, setOpen] = useState(false);
   const [panelBox, setPanelBox] = useState<AnchoredPopoverBox | null>(null);
   const [enterAnim, setEnterAnim] = useState(false);
+  const [hoverIso, setHoverIso] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const measuredHeightRef = useRef(380);
+  /** ~6-week month + chrome — used for flip/clamp, not to force an inner scroll. */
+  const measuredHeightRef = useRef(520);
   const panelId = useId();
   const [cursor, setCursor] = useState(() => {
     const [y, m] = start.split('-').map(Number);
@@ -68,7 +77,10 @@ export default function StayNightPicker({
   });
 
   const cells = useMemo(() => monthGrid(cursor.y, cursor.m), [cursor.y, cursor.m]);
-  const close = useCallback(() => setOpen(false), []);
+  const close = useCallback(() => {
+    setOpen(false);
+    setHoverIso(null);
+  }, []);
   useDialogFocus(open, panelRef, close);
 
   const placePanel = useCallback(() => {
@@ -80,8 +92,6 @@ export default function StayNightPicker({
       if (h > 0) measuredHeightRef.current = h;
     }
     const vv = window.visualViewport;
-    // Prefer visualViewport size when present (mobile browser chrome), but keep
-    // getBoundingClientRect coords as-is — they match position:fixed top/left.
     const viewportWidth = vv?.width ?? window.innerWidth;
     const viewportHeight = vv?.height ?? window.innerHeight;
     const rect = el.getBoundingClientRect();
@@ -89,7 +99,7 @@ export default function StayNightPicker({
       anchorRect: rect,
       viewportWidth,
       viewportHeight,
-      preferredWidth: 20.5 * 16,
+      preferredWidth: 22 * 16,
       estimatedHeight: measuredHeightRef.current,
     });
     setPanelBox((prev) => {
@@ -125,8 +135,6 @@ export default function StayNightPicker({
     setEnterAnim(true);
     placePanel();
 
-    // Sticky ancestors can move the anchor without a reliable scroll target.
-    // While open, re-measure every frame; placePanel no-ops when geometry is unchanged.
     let rafLoop = 0;
     let scheduled = 0;
     const schedule = () => {
@@ -198,6 +206,7 @@ export default function StayNightPicker({
     });
     if (next.reason === 'past' || next.reason === 'occupied') return;
     onChange(next.checkIn, next.checkOut);
+    setHoverIso(null);
     if (next.close) close();
   };
 
@@ -207,6 +216,12 @@ export default function StayNightPicker({
       return { y: d.getUTCFullYear(), m: d.getUTCMonth() };
     });
   };
+
+  const hoverBlocked =
+    checkIn &&
+    hoverIso &&
+    hoverIso > checkIn &&
+    stayHoverPreviewNights(checkIn, hoverIso).some((n) => occupied.has(n));
 
   const fieldClass =
     'flex min-h-11 flex-1 flex-col justify-center gap-0.5 rounded-lg px-3 py-2 text-left transition-colors hover:bg-black/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland/40';
@@ -232,13 +247,27 @@ export default function StayNightPicker({
           if (!iso) return <span key={`e-${i}`} />;
           const state = stayNightState({ iso, todayIso, occupied, checkIn, checkOut });
           const disabled = state === 'past' || state === 'occupied';
+          const previewVisual = stayVisual(
+            iso,
+            state,
+            checkIn,
+            checkOut,
+            hoverBlocked ? null : hoverIso
+          );
           return (
             <TraverionCalendarDayButton
               key={iso}
               iso={iso}
-              visual={stayVisual(iso, state, checkIn, checkOut)}
+              visual={previewVisual}
               onSelect={pick}
               disabled={disabled}
+              onHoverChange={(next) => {
+                if (!checkIn || checkOut || disabled) {
+                  setHoverIso(null);
+                  return;
+                }
+                setHoverIso(next);
+              }}
               ariaLabel={
                 disabled
                   ? `${formatStayNightHuman(iso)}, unavailable`
@@ -253,13 +282,14 @@ export default function StayNightPicker({
       {checkIn || checkOut ? (
         <button
           type="button"
-          className="mt-2 w-full rounded-lg py-2 text-sm font-semibold text-finland hover:bg-finland/[0.06]"
+          className="mt-2 w-full rounded-lg py-2.5 text-sm font-semibold text-finland hover:bg-finland/[0.06]"
           onClick={() => {
             onChange('', '');
+            setHoverIso(null);
             setOpen(true);
           }}
         >
-          Clear dates
+          Reset dates
         </button>
       ) : null}
     </>
@@ -283,7 +313,7 @@ export default function StayNightPicker({
                 role="dialog"
                 aria-modal="true"
                 aria-label="Select stay dates"
-                className="tv-date-sheet__panel motion-safe:animate-slide-up"
+                className="tv-date-sheet__panel tv-date-sheet__panel--stay motion-safe:animate-slide-up"
               >
                 {calendar}
               </div>
@@ -295,15 +325,15 @@ export default function StayNightPicker({
               role="dialog"
               aria-modal="true"
               aria-label="Select stay dates"
-              className={`tv-popover p-3${enterAnim ? ' tv-popover-enter' : ''}`}
+              className={`tv-popover tv-stay-date-popover p-3${enterAnim ? ' tv-popover-enter' : ''}`}
               style={{
                 position: 'fixed',
                 top: panelBox.top,
                 left: panelBox.left,
                 width: panelBox.width,
-                maxHeight: panelBox.maxHeight,
-                overflowY: 'auto',
-                overscrollBehavior: 'contain',
+                // Expand to full month — never nest-scroll the calendar grid.
+                maxHeight: 'none',
+                overflow: 'visible',
                 zIndex: 140,
               }}
               onAnimationEnd={() => setEnterAnim(false)}

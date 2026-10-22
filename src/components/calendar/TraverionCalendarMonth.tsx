@@ -96,6 +96,7 @@ export function TraverionCalendarDayButton({
   visual,
   disabled,
   onSelect,
+  onHoverChange,
   ariaLabel,
   ariaPressed,
 }: {
@@ -103,6 +104,8 @@ export function TraverionCalendarDayButton({
   visual: TraverionCalendarDayVisual;
   disabled?: boolean;
   onSelect: (iso: string) => void;
+  /** Desktop hover preview for stay range selection. */
+  onHoverChange?: (iso: string | null) => void;
   ariaLabel: string;
   ariaPressed?: boolean;
 }) {
@@ -112,6 +115,8 @@ export function TraverionCalendarDayButton({
       type="button"
       disabled={disabled}
       onClick={() => onSelect(iso)}
+      onMouseEnter={() => onHoverChange?.(iso)}
+      onMouseLeave={() => onHoverChange?.(null)}
       aria-label={ariaLabel}
       aria-pressed={ariaPressed}
       className={`min-h-11 h-11 rounded-lg text-sm tabular-nums motion-safe:transition-colors ${traverionCalendarDayClass(

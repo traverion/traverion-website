@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { planStayNightPick } from './stay-night-pick';
+import { planStayNightPick, stayHoverPreviewNights } from './stay-night-pick';
 
 describe('planStayNightPick', () => {
   const occupied = new Set<string>(['2099-06-10']);
@@ -78,5 +78,53 @@ describe('planStayNightPick', () => {
     expect(next.close).toBe(false);
     expect(next.reason).toBe('min_nights');
     expect(next.checkOut).toBe('');
+  });
+
+  it('deselects check-in when clicked again', () => {
+    expect(
+      planStayNightPick({
+        iso: '2099-06-01',
+        todayIso: '2099-05-01',
+        occupied,
+        checkIn: '2099-06-01',
+        checkOut: '',
+        minNights: 1,
+      })
+    ).toEqual({ checkIn: '', checkOut: '', close: false });
+  });
+
+  it('clears check-out when the selected check-out is clicked again', () => {
+    expect(
+      planStayNightPick({
+        iso: '2099-06-04',
+        todayIso: '2099-05-01',
+        occupied,
+        checkIn: '2099-06-01',
+        checkOut: '2099-06-04',
+        minNights: 1,
+      })
+    ).toEqual({ checkIn: '2099-06-01', checkOut: '', close: false });
+  });
+
+  it('starts a new selection after a complete range', () => {
+    expect(
+      planStayNightPick({
+        iso: '2099-06-08',
+        todayIso: '2099-05-01',
+        occupied,
+        checkIn: '2099-06-01',
+        checkOut: '2099-06-04',
+        minNights: 1,
+      })
+    ).toEqual({ checkIn: '2099-06-08', checkOut: '', close: false });
+  });
+
+  it('previews nights between check-in and hover', () => {
+    expect(stayHoverPreviewNights('2099-06-01', '2099-06-04')).toEqual([
+      '2099-06-01',
+      '2099-06-02',
+      '2099-06-03',
+    ]);
+    expect(stayHoverPreviewNights('2099-06-01', '2099-06-01')).toEqual([]);
   });
 });

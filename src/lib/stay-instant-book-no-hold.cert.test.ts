@@ -41,11 +41,11 @@ describe('Instant Book no pre-payment inventory hold', () => {
     expect(stayCheckoutNightsAlreadyBooked(rows, '2026-10-21', '2026-10-23', null, now)).toBe(false);
   });
 
-  it('StayDetails checkout clears loading on failure and returns dates on cancel', () => {
-    const src = readFileSync(resolve(__dirname, '../pages/StayDetails.tsx'), 'utf8');
+  it('StayBookingConfirm clears loading on failure and returns dates on cancel', () => {
+    const src = readFileSync(resolve(__dirname, '../pages/StayBookingConfirm.tsx'), 'utf8');
     expect(src).toContain('.catch(');
-    expect(src).toContain('payment: \'cancelled\'');
-    expect(src).toContain('checkIn: stayQuote.checkIn');
+    expect(src).toContain('paymentCancelled: true');
+    expect(src).toContain('expectedTotal: stayQuote.totalAmount');
     expect(src).toMatch(/Dates stay available until payment succeeds/);
   });
 

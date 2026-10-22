@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   STAY_CONFIRM_PAYMENT_CTA,
-  STAY_REVIEW_BOOKING_CTA,
+  STAY_RESERVE_CTA,
   stayStickyBookCtaLabel,
 } from './stay-sticky-cta';
 import { TRAVELER_OPENING_CHECKOUT_CTA } from './booking-confirmation-copy';
@@ -24,7 +24,6 @@ describe('stayStickyBookCtaLabel', () => {
       stayStickyBookCtaLabel({
         selectionOccupied: false,
         quoteOk: true,
-        leadGuestReady: true,
         checkIn: '2026-10-01',
         checkOut: '2026-10-03',
         minNights: 1,
@@ -58,44 +57,29 @@ describe('stayStickyBookCtaLabel', () => {
     ).toBe('Need 2+ nights');
   });
 
-  it('asks to review booking before Stripe when quote is ok and lead guest is ready', () => {
+  it('listing CTA is Reserve when quote is ok', () => {
     expect(
       stayStickyBookCtaLabel({
         selectionOccupied: false,
         quoteOk: true,
-        leadGuestReady: true,
         checkIn: '2026-10-01',
         checkOut: '2026-10-04',
         minNights: 1,
       })
-    ).toBe(STAY_REVIEW_BOOKING_CTA);
+    ).toBe(STAY_RESERVE_CTA);
   });
 
-  it('confirm CTA on review step', () => {
+  it('confirmation surface uses Continue to secure payment', () => {
     expect(
       stayStickyBookCtaLabel({
         selectionOccupied: false,
         quoteOk: true,
-        leadGuestReady: true,
         checkIn: '2026-10-01',
         checkOut: '2026-10-04',
         minNights: 1,
-        step: 'review',
+        surface: 'confirmation',
       })
     ).toBe(STAY_CONFIRM_PAYMENT_CTA);
-  });
-
-  it('asks for guest name before Continue when quote is ok', () => {
-    expect(
-      stayStickyBookCtaLabel({
-        selectionOccupied: false,
-        quoteOk: true,
-        leadGuestReady: false,
-        checkIn: '2026-10-01',
-        checkOut: '2026-10-04',
-        minNights: 1,
-      })
-    ).toBe('Add guest name');
   });
 
   it('uses Opening checkout… while Stripe opens', () => {
@@ -104,25 +88,12 @@ describe('stayStickyBookCtaLabel', () => {
         selectionOccupied: false,
         paying: true,
         quoteOk: true,
-        leadGuestReady: true,
         checkIn: '2026-10-01',
         checkOut: '2026-10-04',
         minNights: 1,
+        surface: 'confirmation',
       })
     ).toBe(TRAVELER_OPENING_CHECKOUT_CTA);
-  });
-
-  it('names generic date/booked quote failures as Fix dates', () => {
-    expect(
-      stayStickyBookCtaLabel({
-        selectionOccupied: false,
-        quoteOk: false,
-        checkIn: '2026-10-01',
-        checkOut: '2026-10-04',
-        quoteError: 'Those nights are already booked.',
-        minNights: 1,
-      })
-    ).toBe('Fix dates');
   });
 
   it('Phase 1520: names capacity / guests / price quote failures honestly', () => {

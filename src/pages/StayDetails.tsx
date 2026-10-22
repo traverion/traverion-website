@@ -34,10 +34,16 @@ import { quoteStayNights, stayQuotePriceLines, experienceTodayIsoForListing } fr
 import { fetchDiscountsByListingIds, type ListingDiscount } from '../data/supabase-discounts';
 import { stayDateRangesOverlap, occupiedNightsFromStayRanges, nightsOccupiedByStay } from '../lib/stayOccupancy';
 import {
-  createBookingCheckoutSession,
   fetchPublishedStayOccupiedRanges,
   fetchPublishedStayBlockedNights,
 } from '../data/supabase-bookings';
+import StayBookingConfirm from './StayBookingConfirm';
+import {
+  buildStayCheckoutHref,
+  buildStayListingHref,
+  parseStayCheckoutSearch,
+  type StayCheckoutState,
+} from '../lib/stayCheckoutUrl';
 import { fetchSupplierPublicLegal } from '../data/supabase-supplier-profile';
 import {
   fetchReviewsByListingId,
@@ -62,19 +68,11 @@ import { stayExtraChargeLabel, type StayExtraSelection } from '../lib/stay-price
 import { stayArrivalMethodLabel } from '../lib/stay-arrival';
 import { ListingReviewsModal } from '../components/ListingReviewsModal';
 import NoticeCallout from '../components/NoticeCallout';
-import CheckoutConsentCheckbox from '../components/booking/CheckoutConsentCheckbox';
-import { checkoutPayBlockedByConsent } from '../lib/checkout-consent';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { STAY_REQUEST_APPROVAL_HOURS } from '../lib/stay-booking-method';
 import { stayAmenityDisplayList } from '../lib/stay-amenities';
 import { stayStickyBookCtaLabel } from '../lib/stay-sticky-cta';
 import { stayQuoteFailureFocusTarget } from '../lib/stay-quote-failure-focus';
-import { stayCheckoutLeadGuestNameReady } from '../lib/stay-checkout-guest';
-import {
-  createCheckoutTiming,
-  logCheckoutInitiationTiming,
-  mergeCheckoutTimings,
-} from '../lib/checkout-initiation-timing';
 import { travelerDisplayNameFromSources } from '../lib/traveler-display-name';
 import {
   STAY_LISTING_CONFIRMATION_NOTE,
@@ -88,7 +86,6 @@ import { isSupabaseListingId } from '../lib/discount-display';
 import { fetchConsumerProfileRow } from '../data/supabase-consumer-profile';
 import {
   travelerLeadGuestNameFromAuth,
-  travelerLeadGuestPhoneFromAuth,
   type TravelerCheckoutAuthMetadata,
 } from '../lib/traveler-checkout-autofill';
 import { fetchWishlistListingIds, toggleWishlist } from '../data/supabase-wishlist';
@@ -101,28 +98,43 @@ type Props = {
   backLabel?: string;
 };
 
-function readStayPrefill(): { checkIn: string; checkOut: string; guests: number } {
-  if (typeof window === 'undefined') return { checkIn: '', checkOut: '', guests: 2 };
+function readStayPrefill(): {
+  checkIn: string;
+  checkOut: string;
+  adults: number;
+  children: number;
+  infants: number;
+} {
+  if (typeof window === 'undefined') {
+    return { checkIn: '', checkOut: '', adults: 2, children: 0, infants: 0 };
+  }
   const p = new URLSearchParams(window.location.search);
   const rawIn = (p.get('date') ?? p.get('checkIn') ?? '').trim();
   const rawOut = (p.get('checkout') ?? p.get('checkOut') ?? '').trim();
   const { checkIn, checkOut } = failCloseOrphanStayCheckout(rawIn, rawOut);
-  const g = Number.parseInt(p.get('guests') ?? '', 10);
+  const adultsRaw = Number.parseInt(p.get('adults') ?? p.get('guests') ?? '', 10);
+  const childrenRaw = Number.parseInt(p.get('children') ?? '', 10);
+  const infantsRaw = Number.parseInt(p.get('infants') ?? '', 10);
   return {
     checkIn,
     checkOut,
-    guests: Number.isFinite(g) && g >= 1 ? Math.min(99, Math.floor(g)) : 2,
+    adults: Number.isFinite(adultsRaw) && adultsRaw >= 1 ? Math.min(99, Math.floor(adultsRaw)) : 2,
+    children: Number.isFinite(childrenRaw) && childrenRaw >= 0 ? Math.min(99, Math.floor(childrenRaw)) : 0,
+    infants: Number.isFinite(infantsRaw) && infantsRaw >= 0 ? Math.min(99, Math.floor(infantsRaw)) : 0,
   };
 }
 
 export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Props) {
   const { user, requestAuth } = useAuth();
-  // Phase 1704: sync via effect only — per-render `userRef = user` wiped session set in auth onSuccess
-  // before React `user` caught up (modal close re-render → Pay never resumed / self-book skipped).
+  // Phase 1704/1708: sync via effect — wishlist/auth onSuccess can fire before React `user` updates.
   const userRef = useRef(user);
   useEffect(() => {
     userRef.current = user;
   }, [user]);
+  const [locationSearch, setLocationSearch] = useState(
+    () => (typeof window !== 'undefined' ? window.location.search : '')
+  );
+  const checkoutFromUrl = useMemo(() => parseStayCheckoutSearch(locationSearch), [locationSearch]);
   const [stay, setStay] = useState<TourPackage | null>(null);
   const [stayDiscounts, setStayDiscounts] = useState<ListingDiscount[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -130,30 +142,16 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
   const [reviewOnlyAccess, setReviewOnlyAccess] = useState(false);
   const [checkIn, setCheckIn] = useState(() => readStayPrefill().checkIn);
   const [checkOut, setCheckOut] = useState(() => readStayPrefill().checkOut);
-  const [party, setParty] = useState<StayGuestParty>(() => ({
-    adults: readStayPrefill().guests,
-    children: 0,
-    infants: 0,
-  }));
-  const [selectedExtras, setSelectedExtras] = useState<StayExtraSelection[]>([]);
-  const [paying, setPaying] = useState(false);
-  const [checkoutConsentAccepted, setCheckoutConsentAccepted] = useState(false);
-  /** details = dates/guests card; review = confirm before Stripe. */
-  const [stayCheckoutStep, setStayCheckoutStep] = useState<'details' | 'review'>('details');
-  const checkoutLockRef = useRef(false);
-  const [payError, setPayError] = useState<string | null>(null);
-  const [checkoutCancelledNote, setCheckoutCancelledNote] = useState<string | null>(() => {
-    if (typeof window === 'undefined') return null;
-    const p = new URLSearchParams(window.location.search);
-    return p.get('payment') === 'cancelled'
-      ? 'Checkout was cancelled. Your dates are still selected — nights were not reserved. You can try again when ready.'
-      : null;
+  const [party, setParty] = useState<StayGuestParty>(() => {
+    const pre = readStayPrefill();
+    return { adults: pre.adults, children: pre.children, infants: pre.infants };
   });
+  const [selectedExtras, setSelectedExtras] = useState<StayExtraSelection[]>([]);
+  const [payError, setPayError] = useState<string | null>(null);
   const [selfBookBlocked, setSelfBookBlocked] = useState(false);
   const [selfBookCheckFailed, setSelfBookCheckFailed] = useState(false);
   const [guestName, setGuestName] = useState('');
   const [profileDisplayName, setProfileDisplayName] = useState('');
-  const [guestPhone, setGuestPhone] = useState('');
   const [hostName, setHostName] = useState<string | null>(null);
   const [hostDescription, setHostDescription] = useState<string | null>(null);
   const [occupiedRanges, setOccupiedRanges] = useState<{ checkIn: string; checkOut: string }[]>([]);
@@ -570,7 +568,6 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
   useEffect(() => {
     if (lastStayProfileUserIdRef.current !== null && lastStayProfileUserIdRef.current !== (user?.id ?? null)) {
       setGuestName('');
-      setGuestPhone('');
       setProfileDisplayName('');
     }
     lastStayProfileUserIdRef.current = user?.id ?? null;
@@ -580,8 +577,6 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
     void fetchConsumerProfileRow(uid)
       .then((row) => {
         if (lastStayProfileUserIdRef.current !== uid) return;
-        // Prefer traveler profile / customer_* metadata — never partner business display names
-        // (localhost same-origin auth shares storage with partner sessions).
         const fromProfile = (row?.display_name ?? '').trim();
         const nextName = travelerLeadGuestNameFromAuth({
           consumerDisplayName: fromProfile,
@@ -589,26 +584,21 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
         });
         if (fromProfile) setProfileDisplayName(fromProfile);
         if (nextName) setGuestName((prev) => prev.trim() || nextName);
-        const ph = travelerLeadGuestPhoneFromAuth({
-          consumerPhone: row?.contact_phone,
-          metadata: meta,
-        });
-        if (ph) setGuestPhone((prev) => prev.trim() || ph);
       })
       .catch(() => {
         /* keep auth metadata autofill on profile load failure */
       });
   }, [user?.id]);
 
-  // Phase 1210: surface self-book block before Pay (BookingPage 1186 / TourDetails 1164 parity).
+  // Phase 1210: surface self-book block before Reserve (BookingPage 1186 / TourDetails 1164 parity).
   useEffect(() => {
-    if (!stay?.supplierId || !isSupabaseConfigured() || !userRef.current?.id) {
+    if (!stay?.supplierId || !isSupabaseConfigured() || !user?.id) {
       setSelfBookBlocked(false);
       setSelfBookCheckFailed(false);
       return;
     }
     let cancelled = false;
-    void viewerIsListingSupplierSide(userRef.current.id, stay.supplierId)
+    void viewerIsListingSupplierSide(user.id, stay.supplierId)
       .then((selfBook) => {
         if (cancelled) return;
         setSelfBookBlocked(selfBook);
@@ -616,7 +606,6 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
         if (selfBook) setPayError(LISTING_SELF_BOOK_BLOCKED);
       })
       .catch(() => {
-        // Phase 1307: eligibility failure ≠ “not supplier side” — block book.
         if (cancelled) return;
         setSelfBookBlocked(true);
         setSelfBookCheckFailed(true);
@@ -627,6 +616,23 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
     };
   }, [stay?.supplierId, user?.id]);
 
+  useEffect(() => {
+    const onPop = () => setLocationSearch(window.location.search);
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  // Hydrate listing dates when returning from confirmation (back / clear book flag).
+  useEffect(() => {
+    if (checkoutFromUrl) return;
+    const pre = readStayPrefill();
+    if (pre.checkIn) setCheckIn(pre.checkIn);
+    if (pre.checkOut) setCheckOut(pre.checkOut);
+    if (pre.adults >= 1 || pre.children > 0 || pre.infants > 0) {
+      setParty({ adults: pre.adults, children: pre.children, infants: pre.infants });
+    }
+  }, [checkoutFromUrl, locationSearch]);
+
   const stayBookingAlertDescribedBy =
     [occupancyError ? 'stay-occupancy-error' : null, payError ? 'stay-pay-error' : null]
       .filter(Boolean)
@@ -635,9 +641,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
   const requestToBook = extras.stay?.bookingMethod === 'request';
   const stickyStayCtaLabel = stayStickyBookCtaLabel({
     selectionOccupied,
-    paying,
     quoteOk,
-    leadGuestReady: stayCheckoutLeadGuestNameReady(guestName),
     checkIn,
     checkOut,
     quoteError: stayQuote && !stayQuote.ok ? stayQuote.error : null,
@@ -645,16 +649,9 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
     occupancyUnavailable: Boolean(occupancyError),
     selfBookBlocked,
     selfBookCheckFailed,
-    acceptTerms: quoteOk && checkoutPayBlockedByConsent(checkoutConsentAccepted),
     requestToBook,
-    step: stayCheckoutStep,
+    surface: 'listing',
   });
-
-  const stayExtrasKey = selectedExtras.map((row) => `${row.id}:${row.quantity}`).join(',');
-  useEffect(() => {
-    // Any stay detail change invalidates the review screen — return to the booking card.
-    setStayCheckoutStep('details');
-  }, [checkIn, checkOut, party.adults, party.children, party.infants, stayExtrasKey, stay?.id]);
 
   const focusStayQuoteFailure = () => {
     const quoteError = stayQuote && !stayQuote.ok ? stayQuote.error : null;
@@ -672,33 +669,20 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
     if (stay?.id && !reviewOnlyAccess) trackListingTraffic(stay.id, 'view');
   }, [stay?.id, reviewOnlyAccess]);
 
-  const stayCheckoutReadyGates = (): boolean => {
+  const openStayBookingConfirm = () => {
     if (!stay || !stayQuote?.ok) {
       document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      return false;
+      return;
     }
-    // Phase 1731: review-only draft hydrate must not open Stripe.
     if (reviewOnlyAccess) {
       setPayError('This stay is no longer bookable. You can still leave a review below.');
-      return false;
-    }
-    if (checkoutPayBlockedByConsent(checkoutConsentAccepted)) {
-      // Phase 1662: sticky “Accept terms” should guide calmly — no red pay error flash.
-      setPayError(null);
-      setStayCheckoutStep('details');
-      document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      window.requestAnimationFrame(() => {
-        document.getElementById('stay-checkout-consent')?.focus();
-      });
-      return false;
+      return;
     }
     if (occupancyError) {
-      setPayError('We could not verify availability. Try again before paying.');
+      setPayError('We could not verify availability. Try again before continuing.');
       document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      return false;
+      return;
     }
-    // Sync check against already-loaded calendar (server still asserts at claim/promote).
-    // Do not await a second occupancy round-trip — Instant Book pending does not hold nights.
     const stillTaken =
       occupiedRanges.some((r) =>
         stayDateRangesOverlap(stayQuote.checkIn, stayQuote.checkOut, r.checkIn, r.checkOut)
@@ -706,145 +690,43 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
       nightsOccupiedByStay(stayQuote.checkIn, stayQuote.checkOut).some((n) => blockedNights.includes(n));
     if (stillTaken) {
       setPayError('Those dates were just taken. Choose different dates to continue.');
-      setStayCheckoutStep('details');
       document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      return false;
-    }
-    const name = guestName.trim();
-    if (!stayCheckoutLeadGuestNameReady(name)) {
-      setPayError('Enter the lead guest name so the host knows who is arriving.');
-      setStayCheckoutStep('details');
-      document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      document.getElementById('stay-guest-name')?.focus();
-      return false;
+      return;
     }
     if (selfBookCheckFailed) {
       setPayError(LISTING_SELF_BOOK_CHECK_FAILED);
-      document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      return false;
+      return;
     }
     if (selfBookBlocked) {
       setPayError(LISTING_SELF_BOOK_BLOCKED);
-      document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      return false;
-    }
-    return true;
-  };
-
-  const goToStayReview = () => {
-    if (!stayCheckoutReadyGates()) return;
-    trackListingTraffic(stay!.id, 'book_start');
-    setPayError(null);
-    setStayCheckoutStep('review');
-    document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-
-  const startStayCheckout = async () => {
-    const timing = createCheckoutTiming();
-    if (!stayCheckoutReadyGates()) return;
-    if (!stay || !stayQuote?.ok) return;
-    // Review first — auth is only required when opening Stripe.
-    if (stayCheckoutStep !== 'review') {
-      goToStayReview();
       return;
     }
-    // Phase 1142: tours require sign-in before Stripe; stays must match (edge rejects anon JWT).
-    // Phase 1704: gate on userRef — AuthModal onSuccess can fire before React `user` state updates.
-    if (isSupabaseConfigured() && !userRef.current) {
-      requestAuth({
-        intent: 'checkout',
-        onSuccess: () => {
-          void (async () => {
-            if (supabase) {
-              const { data: sessionData } = await supabase.auth.getSession();
-              if (sessionData.session?.user) {
-                userRef.current = sessionData.session.user;
-              }
-            }
-            void startStayCheckout();
-          })();
-        },
-      });
-      return;
-    }
-    if (checkoutLockRef.current || paying) return;
-    checkoutLockRef.current = true;
-    setPaying(true);
     setPayError(null);
-    setCheckoutCancelledNote(null);
-    timing.mark('client_ready');
-    // Refresh occupancy in the background for the next attempt — do not block Stripe open.
-    reloadStayOccupancy();
-    const name = guestName.trim();
-    const cancelQs = new URLSearchParams({
+    trackListingTraffic(stay.id, 'book_start');
+    const state: StayCheckoutState = {
       checkIn: stayQuote.checkIn,
       checkOut: stayQuote.checkOut,
-      payment: 'cancelled',
+      adults: party.adults,
+      children: party.children,
+      infants: party.infants,
+      paymentCancelled: false,
+    };
+    const href = buildStayCheckoutHref(stay.id, state);
+    window.history.pushState({}, '', href);
+    setLocationSearch(window.location.search);
+  };
+
+  const closeStayBookingConfirm = (state: StayCheckoutState) => {
+    const href = buildStayListingHref(stayId, state);
+    window.history.pushState({}, '', href);
+    setLocationSearch(window.location.search);
+    setCheckIn(state.checkIn);
+    setCheckOut(state.checkOut);
+    setParty({
+      adults: state.adults,
+      children: state.children,
+      infants: state.infants,
     });
-    timing.mark('edge_invoke');
-    void createBookingCheckoutSession({
-      listingId: stay.id,
-      listingTitle: stay.title,
-      bookingDate: stayQuote.checkIn,
-      checkoutDate: stayQuote.checkOut,
-      guests: stayQuote.guests,
-      guestBreakdown: stayQuote.guestBreakdown,
-      stayParty: party,
-      stayExtras: selectedExtras,
-      customerName: name,
-      customerPhone: guestPhone.trim() || undefined,
-      currency: stayQuote.currency,
-      expectedTotal: stayQuote.totalAmount,
-      checkoutConsentAccepted: true,
-      successPath: '/booking-confirmed',
-      // Return to this stay with dates intact — Instant Book does not reserve nights.
-      cancelPath: `/stays/${encodeURIComponent(stay.id)}?${cancelQs.toString()}`,
-    })
-      .then((res) => {
-        timing.mark('edge_returned');
-        const merged = mergeCheckoutTimings(timing.snapshot(), res.timings);
-        logCheckoutInitiationTiming(merged, { ok: Boolean(res.success && res.checkoutUrl) });
-        if (!res.success || !res.checkoutUrl) {
-          if (res.code === 'quote_changed' && typeof res.quotedTotal === 'number') {
-            setPayError(
-              `The total updated to ${formatMoney(res.quotedTotal, res.currency ?? stayQuote.currency)}. Review the new price before continuing — you were not charged.`
-            );
-            setStayCheckoutStep('review');
-          } else {
-            setPayError(userFacingError(res.error, 'Checkout could not start. You were not charged.'));
-          }
-          setPaying(false);
-          checkoutLockRef.current = false;
-          return;
-        }
-        if (
-          typeof res.quotedTotal === 'number' &&
-          Math.round(res.quotedTotal * 100) !== Math.round(stayQuote.totalAmount * 100)
-        ) {
-          setPayError(
-            `The total updated to ${formatMoney(res.quotedTotal, res.currency ?? stayQuote.currency)}. Review the new price before continuing — you were not charged.`
-          );
-          setPaying(false);
-          checkoutLockRef.current = false;
-          return;
-        }
-        // Keep paying=true through navigation; clear lock only if assign does not unload.
-        try {
-          timing.mark('redirect');
-          window.location.assign(res.checkoutUrl);
-        } catch {
-          setPayError('Could not open Stripe Checkout. Try again — you were not charged.');
-          setPaying(false);
-          checkoutLockRef.current = false;
-        }
-      })
-      .catch((err) => {
-        timing.mark('edge_error');
-        logCheckoutInitiationTiming(timing.snapshot(), { ok: false });
-        setPayError(userFacingError(err, 'Checkout could not start. You were not charged.'));
-        setPaying(false);
-        checkoutLockRef.current = false;
-      });
   };
 
   if (error && !stay) {
@@ -896,6 +778,16 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
           />
         </div>
       </div>
+    );
+  }
+
+  if (stay && checkoutFromUrl && !reviewOnlyAccess) {
+    return (
+      <StayBookingConfirm
+        stay={stay}
+        initial={checkoutFromUrl}
+        onBackToListing={closeStayBookingConfirm}
+      />
     );
   }
 
@@ -1601,137 +1493,14 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
             aria-labelledby="stay-booking-panel-title"
             className="tv-booking-sticky tv-booking-sticky--fit tv-booking-sticky--stay lg:sticky lg:top-[calc(4.75rem+env(safe-area-inset-top,0px))] h-fit scroll-mt-28"
           >
-            {stayCheckoutStep === 'review' && quoteOk && stayQuote?.ok ? (
-              <div className="tv-quote-reveal space-y-3">
-                <div className="flex items-start justify-between gap-2">
-                  <p id="stay-booking-panel-title" className="tv-eyebrow">
-                    Review & confirm
-                  </p>
-                  <button
-                    type="button"
-                    className="text-xs font-semibold text-finland hover:underline"
-                    onClick={() => setStayCheckoutStep('details')}
-                  >
-                    Edit
-                  </button>
-                </div>
-                <div className="flex gap-3">
-                  {hero ? (
-                    <img
-                      src={hero}
-                      alt=""
-                      className="h-16 w-16 shrink-0 rounded-xl object-cover ring-1 ring-black/[0.06]"
-                    />
-                  ) : (
-                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-black/[0.04] ring-1 ring-black/[0.06]">
-                      <Home className="h-5 w-5 text-ink-faint" aria-hidden />
-                    </div>
-                  )}
-                  <div className="min-w-0">
-                    <p className="truncate font-display text-base font-semibold tracking-tight text-ink">
-                      {stay?.title}
-                    </p>
-                    <p className="mt-0.5 text-sm text-ink-muted">
-                      {stayQuote.nights} night{stayQuote.nights === 1 ? '' : 's'} · {stayQuote.guests}{' '}
-                      {stayQuote.guests === 1 ? 'guest' : 'guests'}
-                    </p>
-                  </div>
-                </div>
-                <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
-                  <div>
-                    <dt className="text-ink-faint">Check-in</dt>
-                    <dd className="font-medium text-ink">{stayQuote.checkIn}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-ink-faint">Checkout</dt>
-                    <dd className="font-medium text-ink">{stayQuote.checkOut}</dd>
-                  </div>
-                  <div className="col-span-2">
-                    <dt className="text-ink-faint">Lead guest</dt>
-                    <dd className="font-medium text-ink">
-                      {guestName.trim()}
-                      {guestPhone.trim() ? ` · ${guestPhone.trim()}` : ''}
-                    </dd>
-                  </div>
-                </dl>
-                <PriceBreakdown
-                  currency={stayQuote.currency}
-                  lines={stayQuotePriceLines(stayQuote)}
-                  total={stayQuote.totalAmount}
-                  footnote={
-                    stayQuote.requests.length
-                      ? `Requested, not charged: ${stayQuote.requests
-                          .map((row) => (row.quantity > 1 ? `${row.name} × ${row.quantity}` : row.name))
-                          .join(', ')}.`
-                      : null
-                  }
-                />
-                {s?.checkInTime || stayArrivalMethodLabel(s?.arrivalMethod) || s?.arrivalNote ? (
-                  <p className="text-xs leading-relaxed text-ink-muted">
-                    {[
-                      s?.checkInTime ? `Check-in from ${s.checkInTime}` : null,
-                      stayArrivalMethodLabel(s?.arrivalMethod)
-                        ? `Arrival: ${stayArrivalMethodLabel(s?.arrivalMethod)}`
-                        : null,
-                      s?.arrivalNote || null,
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </p>
-                ) : null}
-                <p className="text-xs leading-relaxed text-ink-muted">
-                  {listingShowsFreeCancellation(stay)
-                    ? 'Free cancellation available — see the listing policy for deadlines.'
-                    : 'Cancellation terms apply as shown on this listing.'}{' '}
-                  Terms accepted.
-                </p>
-                {payError ? (
-                  <p id="stay-pay-error" className="text-sm text-red-700">
-                    {payError}
-                  </p>
-                ) : null}
-                <button
-                  type="button"
-                  className="tv-btn-primary w-full disabled:opacity-50"
-                  disabled={paying || selectionOccupied || selfBookBlocked || maxGuests == null}
-                  aria-describedby={stayBookingAlertDescribedBy}
-                  onClick={() => {
-                    if (occupancyError) {
-                      document
-                        .getElementById('stay-occupancy-error')
-                        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                      return;
-                    }
-                    if (selectionOccupied || selfBookBlocked || maxGuests == null) return;
-                    void startStayCheckout();
-                  }}
-                >
-                  {stickyStayCtaLabel}
-                </button>
-                <button
-                  type="button"
-                  className="tv-btn-ghost w-full"
-                  onClick={() => setStayCheckoutStep('details')}
-                >
-                  Edit stay details
-                </button>
-                <p className="text-[11px] leading-relaxed text-ink-faint" title={STAY_LISTING_CONFIRMATION_NOTE}>
-                  {STRIPE_TEST_UNTIL_LIVE} · server confirms the total before payment
-                </p>
-              </div>
-            ) : (
-              <>
             <p id="stay-booking-panel-title" className="tv-eyebrow mb-2">
               {requestToBook ? 'Request to book' : 'Reserve'}
             </p>
-            {/* Phase 1548: dates selected + failed quote — do not invent catalog nightly (1546 sticky parity). */}
-            {/* Phase 1606: Price unavailable (Tour 1604 parity) instead of an em dash. */}
             {checkIn && checkOut && stayQuote && !stayQuote.ok ? (
               <p className="font-sans text-2xl font-bold tabular-nums tracking-tight text-ink">
                 Price unavailable
               </p>
             ) : quoteOk && stayQuote?.ok ? (
-              // Phase 1562: successful quote is the hero total (Tour 1561 / sticky 1546 parity — not catalog nightly).
               <div className="tv-quote-reveal">
                 <p className="font-sans text-[1.75rem] font-bold tabular-nums tracking-tight text-ink leading-none">
                   {formatMoney(stayQuote.totalAmount, stayQuote.currency)}
@@ -1894,11 +1663,6 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                             .join(', ')}. The host confirms these separately.`
                         : null
                     }
-                    holdNote={
-                      requestToBook
-                        ? `Authorized at checkout · host has ${STAY_REQUEST_APPROVAL_HOURS}h to accept before capture.`
-                        : 'Dates stay open until payment succeeds.'
-                    }
                   />
                 </div>
               </details>
@@ -1906,74 +1670,25 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
             {stayQuote && !stayQuote.ok && checkIn && checkOut ? (
               <p className="mt-2.5 text-sm text-red-700">{userFacingError(stayQuote.error, USER_ERROR.checkout)}</p>
             ) : null}
+            {occupancyError ? (
+              <p id="stay-occupancy-error" className="mt-2.5 text-sm text-red-700">
+                {occupancyError}{' '}
+                <button type="button" className="font-semibold text-finland hover:underline" onClick={() => reloadStayOccupancy()}>
+                  Try again
+                </button>
+              </p>
+            ) : null}
+            {payError ? (
+              <p id="stay-pay-error" className="mt-2.5 text-sm text-red-700">
+                {payError}
+              </p>
+            ) : null}
             {quoteOk ? (
               <>
-                <label className="mt-3 block text-sm font-medium text-ink" htmlFor="stay-guest-name">
-                  Lead guest
-                </label>
-                <input
-                  id="stay-guest-name"
-                  type="text"
-                  autoComplete="name"
-                  autoCapitalize="words"
-                  enterKeyHint="next"
-                  value={guestName}
-                  onChange={(e) => {
-                    setGuestName(e.target.value);
-                    setPayError(null);
-                  }}
-                  className="tv-input mt-1 w-full"
-                  placeholder="Name on the booking"
-                />
-                <label className="mt-2 block text-sm font-medium text-ink" htmlFor="stay-guest-phone">
-                  Phone <span className="font-normal text-ink-muted">(optional)</span>
-                </label>
-                <input
-                  id="stay-guest-phone"
-                  type="tel"
-                  autoComplete="tel"
-                  inputMode="tel"
-                  enterKeyHint="done"
-                  value={guestPhone}
-                  onChange={(e) => setGuestPhone(e.target.value)}
-                  className="tv-input mt-1 w-full"
-                  placeholder="Arrival contact"
-                />
-                {occupancyError ? (
-                  <p id="stay-occupancy-error" className="mt-2.5 text-sm text-red-700">
-                    {occupancyError}{' '}
-                    <button type="button" className="font-semibold text-finland hover:underline" onClick={() => reloadStayOccupancy()}>
-                      Try again
-                    </button>
-                  </p>
-                ) : null}
-                {checkoutCancelledNote && !payError ? (
-                  <p className="mt-2.5 text-sm text-ink-muted">{checkoutCancelledNote}</p>
-                ) : null}
-                {payError ? (
-                  <p id="stay-pay-error" className="mt-2.5 text-sm text-red-700">
-                    {payError}
-                  </p>
-                ) : null}
-                <div className="mt-3">
-                  <CheckoutConsentCheckbox
-                    id="stay-checkout-consent"
-                    checked={checkoutConsentAccepted}
-                    onChange={(next) => {
-                      setCheckoutConsentAccepted(next);
-                      if (next) setPayError(null);
-                    }}
-                  />
-                </div>
                 <button
                   type="button"
                   className="tv-btn-primary w-full mt-3 disabled:opacity-50"
-                  disabled={
-                    paying ||
-                    selectionOccupied ||
-                    selfBookBlocked ||
-                    maxGuests == null
-                  }
+                  disabled={selectionOccupied || selfBookBlocked || maxGuests == null}
                   aria-describedby={stayBookingAlertDescribedBy}
                   onClick={() => {
                     if (occupancyError) {
@@ -1982,16 +1697,17 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                       return;
                     }
                     if (selectionOccupied || selfBookBlocked || maxGuests == null) return;
-                    goToStayReview();
+                    openStayBookingConfirm();
                   }}
                 >
                   {stickyStayCtaLabel}
                 </button>
                 <p className="mt-2 text-xs leading-relaxed text-ink-muted">
-                  {requestToBook
-                    ? 'Authorize only — host must accept before capture.'
-                    : 'Review details, then pay securely.'}
-                  {!user ? ' Sign in when prompted.' : ''}
+                  {listingShowsFreeCancellation(stay)
+                    ? 'Free cancellation available — see policy for deadlines.'
+                    : requestToBook
+                      ? 'Continue to request — host accepts before capture.'
+                      : 'Continue to review details, then pay securely.'}
                 </p>
               </>
             ) : (
@@ -2004,11 +1720,8 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
               </button>
             )}
             <p className="mt-2 text-[11px] leading-relaxed text-ink-faint" title={STAY_LISTING_CONFIRMATION_NOTE}>
-              {/* Phase 1586/1594: discreet TEST notice; full Trips copy in title for hover/screen readers. */}
               {STRIPE_TEST_UNTIL_LIVE} · confirmed stays appear in Trips
             </p>
-              </>
-            )}
           </aside>
           </div>
         </div>
@@ -2046,12 +1759,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
               <button
                 type="button"
                 className="tv-btn-primary min-h-11 shrink-0 disabled:opacity-50"
-                disabled={
-                  paying ||
-                  selectionOccupied ||
-                  selfBookBlocked ||
-                  maxGuests == null
-                }
+                disabled={selectionOccupied || selfBookBlocked || maxGuests == null}
                 aria-describedby={stayBookingAlertDescribedBy}
                 onClick={() => {
                   if (occupancyError) {
@@ -2060,7 +1768,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                     return;
                   }
                   if (selectionOccupied || selfBookBlocked || maxGuests == null) return;
-                  void startStayCheckout();
+                  openStayBookingConfirm();
                 }}
               >
                 {stickyStayCtaLabel}
