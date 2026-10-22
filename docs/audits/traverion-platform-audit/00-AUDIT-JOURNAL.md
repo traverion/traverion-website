@@ -24,6 +24,7 @@
 | 14–17 | Bookings/payments/security/infra | Done (code + selective tests) |
 | 18–19 | Perf/UX/E2E certification | Partial — metrics & full E2E NOT VERIFIED (documented) |
 | 20 | Deliverables | Done — 01–12 written |
+| Sprint 01 | Launch certification (payments/inventory) | Done — doc 13; contract PASS 103; E2E BLOCKED for founder |
 
 ## Key evidence anchors
 

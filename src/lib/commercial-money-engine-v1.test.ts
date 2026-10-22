@@ -94,10 +94,16 @@ describe('commercial money engine V1 — edge + UI wiring', () => {
 
   it('supplier Money shows net earnings and keeps the commission split on the statement', () => {
     expect(earningsUi).toContain('Your earnings');
-    expect(earningsUi).toContain('Eligible for next payout');
-    expect(earningsUi).toContain('Contact Traverion to change payout plan');
+    // Honest copy: payouts are manual — do not imply a queued automatic transfer date.
+    expect(earningsUi).toContain('PARTNER_MONEY_PAYOUT_STATUS_NOTE');
+    expect(earningsUi).not.toContain('Eligible for next payout');
+    expect(earningsUi).toContain('Contact Traverion to change your contractual payout plan');
     expect(earningsUi).not.toContain('formatMoney(s.paid + s.included');
     expect(earningsUi).not.toContain('>Gross bookings<');
+    const copy = readFileSync(resolve(root, 'src/lib/booking-confirmation-copy.ts'), 'utf8');
+    expect(copy).toContain(
+      'Payouts are reviewed by Traverion. There is no automatic transfer date until payouts are enabled'
+    );
     const pdf = readFileSync(resolve(root, 'src/lib/supplier-finance-pdf.ts'), 'utf8');
     expect(pdf).toContain('Traverion commission');
     expect(pdf).toContain('Net supplier earnings');
