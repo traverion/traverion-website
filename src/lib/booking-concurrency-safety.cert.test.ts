@@ -173,6 +173,17 @@ describe('TOURS — departure capacity architecture', () => {
     expect(assertSql).toContain('booking_occupies_inventory');
   });
 
+  it('database: slotOverrides capacity is part of assert (mig 243/262)', () => {
+    expect(assertSql).toContain('slotOverrides');
+    expect(assertSql).toContain('startTimeHm');
+    const repair = readFileSync(
+      resolve(__dirname, '../../supabase/migrations/262_repair_assert_slot_overrides.sql'),
+      'utf8'
+    );
+    expect(repair).toContain('slotOverrides');
+    expect(repair).toMatch(/Repair: re-apply assert_checkout_inventory/i);
+  });
+
   it('database: occupied guests count only inventory-occupying bookings', () => {
     expect(assertSql).toContain(
       'AND public.booking_occupies_inventory(b.status, b.payment_status, b.hold_expires_at, b.created_at)'

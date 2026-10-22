@@ -95,3 +95,7 @@ scripts/cert-transactional-emails.cjs
 
 # Vite/Vitest ephemeral config transforms
 vite.config.ts.timestamp-*.mjs
+
+# Local Stripe concurrency cert artifacts (contain Stripe TEST ids)
+scripts/.cert-*-report.json
+
