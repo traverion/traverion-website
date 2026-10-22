@@ -51,10 +51,12 @@ describe('Partner Inbox luxury redesign', () => {
     expect(css).toContain('.lux-page-enter--back');
   });
 
-  it('hides header View booking while the booking panel is open', () => {
+  it('uses one header text button to toggle the booking panel', () => {
     const src = readFileSync(resolve(__dirname, 'SupplierInbox.tsx'), 'utf8');
-    expect(src).toContain('!showBookingPanel ? (');
-    expect(src).toContain('View booking');
+    expect(src).toContain("showBookingPanel ? 'Hide booking' : 'View booking'");
+    expect(src).toContain('setBookingPanelOpen((v) => !v)');
+    expect(src).not.toContain('PanelRight');
+    expect(src).not.toContain('tv-inbox-booking-toggle');
   });
 
   it('preserves URL booking selection across partner workspace clear', () => {

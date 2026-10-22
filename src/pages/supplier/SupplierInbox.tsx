@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, MessageSquare, PanelRight, Search } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Search } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
@@ -876,29 +876,17 @@ export default function SupplierInbox() {
                         {experienceTitle}
                       </p>
                     </div>
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      <button
-                        type="button"
-                        className={`tv-inbox-booking-toggle lux-flat${bookingPanelOpen ? ' is-active' : ''}`}
-                        aria-pressed={bookingPanelOpen}
-                        aria-controls="partner-inbox-booking-panel"
-                        aria-label={bookingPanelOpen ? 'Hide booking details' : 'Show booking details'}
-                        onClick={() => setBookingPanelOpen((v) => !v)}
-                      >
-                        <PanelRight className="h-4 w-4" aria-hidden />
-                      </button>
-                      {!showBookingPanel ? (
-                        <button
-                          type="button"
-                          className="tv-inbox-view-booking tv-btn-secondary h-8 shrink-0 !px-2.5 text-[12.5px]"
-                          onClick={() => openCanonicalBooking(openBooking)}
-                          onPointerEnter={() => warmBookingDetails(openBooking)}
-                          onFocus={() => warmBookingDetails(openBooking)}
-                        >
-                          View booking
-                        </button>
-                      ) : null}
-                    </div>
+                    <button
+                      type="button"
+                      className={`tv-inbox-view-booking tv-btn-secondary h-8 shrink-0 !px-2.5 text-[12.5px]${
+                        showBookingPanel ? ' is-active' : ''
+                      }`}
+                      aria-pressed={showBookingPanel}
+                      aria-controls="partner-inbox-booking-panel"
+                      onClick={() => setBookingPanelOpen((v) => !v)}
+                    >
+                      {showBookingPanel ? 'Hide booking' : 'View booking'}
+                    </button>
                   </header>
                 );
               })()}

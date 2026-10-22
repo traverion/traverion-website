@@ -5314,27 +5314,12 @@ details:not([open]) > :not(summary) {
   border-radius: 0.4rem;
 }
 
-.tv-inbox-view-booking:hover {
+.tv-inbox-view-booking:hover,
+.tv-inbox-view-booking.is-active {
   background: rgba(7, 59, 131, 0.08);
 }
 
-.tv-inbox-booking-toggle {
-  display: inline-flex;
-  height: 2rem;
-  width: 2rem;
-  align-items: center;
-  justify-content: center;
-  border-radius: 0.4rem;
-  color: #57534e;
-}
-
-.tv-inbox-booking-toggle:hover,
-.tv-inbox-booking-toggle.is-active {
-  background: rgba(7, 59, 131, 0.08);
-  color: #073b83;
-}
-
-.tv-inbox-booking-toggle:focus-visible {
+.tv-inbox-view-booking:focus-visible {
   outline: 2px solid rgba(7, 59, 131, 0.35);
   outline-offset: 2px;
 }
