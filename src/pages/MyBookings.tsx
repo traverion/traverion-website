@@ -192,13 +192,14 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   const getSelfCancelStartHm = useCallback((b: BookingRow): string => {
     const isStay = bookingIsStayNight(b);
     const snap = b.purchase_snapshot;
+    // Prefer purchased departure; if snap exists but startTimeHm is blank, fall back to
+    // bookings.start_time so Trips matches SQL cancel_booking_as_traveler.
+    const purchasedStart = displayStartTimeFromPurchase(snap, null);
+    const liveStart = b.start_time ? pgTimeToHm(b.start_time) ?? null : null;
     return travelerSelfCancelStartHm({
       isStay,
       checkInHm: displayStayCheckInTimeFromPurchase(snap, null),
-      startTimeHm: displayStartTimeFromPurchase(
-        snap,
-        b.start_time ? pgTimeToHm(b.start_time) : null
-      ),
+      startTimeHm: purchasedStart || liveStart,
       fulfillment: displayFulfillmentFromPurchase(snap),
       confirmedPickupHm: b.pickup_time ? pgTimeToHm(b.pickup_time) ?? null : null,
       selfCancelStartHm:

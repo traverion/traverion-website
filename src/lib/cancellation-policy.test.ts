@@ -240,6 +240,23 @@ describe('supplier cancellation policy', () => {
         selfCancelStartHm: '18:30',
       })
     ).toBe('18:30');
+    // Blank purchased clock → caller should pass live start_time (SQL fallback parity).
+    expect(
+      travelerSelfCancelStartHm({
+        isStay: false,
+        startTimeHm: '',
+        fulfillment: 'meeting_point',
+        confirmedPickupHm: null,
+      })
+    ).toBe('00:00');
+    expect(
+      travelerSelfCancelStartHm({
+        isStay: false,
+        startTimeHm: '09:15',
+        fulfillment: 'meeting_point',
+        confirmedPickupHm: '07:00',
+      })
+    ).toBe('09:15');
     const snap = {
       listingTitle: 'Aurora',
       capturedAt: '2026-01-01T00:00:00Z',
