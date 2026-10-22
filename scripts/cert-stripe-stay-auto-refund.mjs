@@ -82,7 +82,8 @@ async function stripeGet(sk, path) {
 }
 
 const LISTING_ID = 'e21b231b-392a-4912-ba7f-07f7b181a564';
-const BOOKING_ID = 'a3333333-3333-4333-8333-333333333333';
+// Fresh UUID per run so Stripe idempotency keys never collide with prior cert attempts.
+const BOOKING_ID = randomUUID();
 const CHECK_IN = '2027-03-12';
 const CHECK_OUT = '2027-03-14';
 const AMOUNT_MINOR = 2700;
