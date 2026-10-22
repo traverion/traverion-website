@@ -11,8 +11,14 @@ import {
   parseBookingOptionDuration,
   parseListingExtras,
   TRAVERION_STANDARD_CANCELLATION_POLICY,
-  STAY_GUEST_CANCELLATION_POLICY,
 } from '../../types/listingExtras';
+import {
+  STAY_CANCELLATION_PRESETS,
+  normalizeStayCancellationPreset,
+  stayCancellationPresetLabel,
+  stayGuestCancellationPolicyText,
+  type StayCancellationPreset,
+} from '../../lib/stay-cancellation-preset';
 import ListingImageFields from '../../components/supplier/ListingImageFields';
 import ListingInformationStage from '../../components/supplier/listing-creation/ListingInformationStage';
 import { ListingPreviewPublishStage } from '../../components/supplier/listing-creation/ListingPreviewPublishStage';
@@ -950,6 +956,8 @@ type ListingFormState = {
   stayPinAddressKey: string;
   stayCleaningFee: string;
   stayCutoffMinutes: number | null;
+  /** Stay guest-cancellation preset (snapshotted onto bookings at checkout). */
+  stayCancellationPreset: StayCancellationPreset;
 };
 
 function stayLocationDisplayNameFromListing(
@@ -1119,6 +1127,9 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
     ...(activeOpts.length > 0 && !isStay ? { bookingOptions: activeOpts } : {}),
     ...(isStay ? { inventoryFamily: 'stay' as const } : {}),
     ...(isStay
+      ? { cancellationPreset: normalizeStayCancellationPreset(form.stayCancellationPreset) }
+      : {}),
+    ...(isStay
       ? {
           stay: {
             propertyType:
@@ -1233,14 +1244,17 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
     tags: (() => {
       const derived = deriveListingTags({
         bookingOptions: activeOpts,
-        // Platform standard policy is free cancel until 24h before start.
-        cancellationPreset: 'free_24h',
+        cancellationPreset: isStay
+          ? normalizeStayCancellationPreset(form.stayCancellationPreset)
+          : 'free_24h',
       });
       return derived.length ? derived : undefined;
     })(),
     supplierId: 'current',
     status: form.status,
-    cancellationPolicy: TRAVERION_STANDARD_CANCELLATION_POLICY,
+    cancellationPolicy: isStay
+      ? stayGuestCancellationPolicyText(normalizeStayCancellationPreset(form.stayCancellationPreset))
+      : TRAVERION_STANDARD_CANCELLATION_POLICY,
     listingExtras: Object.keys(extras).length > 0 ? extras : undefined,
     meetingPoint: first?.pickupPlace.trim() || undefined,
     pickupInstructions:
@@ -1471,6 +1485,7 @@ const emptyForm: ListingFormState = {
   stayPinAddressKey: '',
   stayCleaningFee: '',
   stayCutoffMinutes: null,
+  stayCancellationPreset: 'free_24h',
 };
 
 /**
@@ -1541,6 +1556,7 @@ function coerceListingFormState(raw: Partial<ListingFormState> | null | undefine
     typeof merged.stayCutoffMinutes === 'number' && merged.stayCutoffMinutes >= 0
       ? Math.floor(merged.stayCutoffMinutes)
       : null;
+  merged.stayCancellationPreset = normalizeStayCancellationPreset(merged.stayCancellationPreset);
   merged.stayUnits = normalizeStayUnits(merged.stayUnits);
   merged.stayOptions = normalizeStayOptions(merged.stayOptions);
   if (
@@ -2326,6 +2342,7 @@ export default function SupplierListingForm({
           stayCleaningFee: extras.stay?.cleaningFeeUsd != null ? String(extras.stay.cleaningFeeUsd) : '',
           stayCutoffMinutes:
             typeof extras.stay?.reservationCutoffMinutes === 'number' ? extras.stay.reservationCutoffMinutes : null,
+          stayCancellationPreset: normalizeStayCancellationPreset(extras.cancellationPreset),
         };
         const coercedNext = coerceListingFormState(next);
         initialFormSnapshotRef.current = serializeListingFormState(coercedNext);
@@ -5060,13 +5077,43 @@ export default function SupplierListingForm({
           )}
           {stepIdx === 7 && form.inventoryFamily === 'stay' && (
             <div className="space-y-8">
-              <section className="space-y-2" aria-labelledby="stay-cancel-heading">
+              <section className="space-y-3" aria-labelledby="stay-cancel-heading">
                 <h4 id="stay-cancel-heading" className="text-sm font-semibold text-[#111827]">
                   Cancellation
                 </h4>
                 <p className="max-w-xl text-sm leading-relaxed text-ink-muted">
-                  {STAY_GUEST_CANCELLATION_POLICY}
+                  Guests see this policy before they book. It is frozen on each reservation so later edits do not change existing bookings.
                 </p>
+                <fieldset className="space-y-2">
+                  <legend className="sr-only">Cancellation policy</legend>
+                  {STAY_CANCELLATION_PRESETS.map((preset) => (
+                    <label
+                      key={preset}
+                      className="flex cursor-pointer items-start gap-3 rounded-xl px-3 py-2.5 ring-1 ring-[#E6EAF0] has-[:checked]:ring-finland/40 has-[:checked]:bg-finland/[0.04]"
+                    >
+                      <input
+                        type="radio"
+                        name="stay-cancellation-preset"
+                        className="mt-1"
+                        checked={form.stayCancellationPreset === preset}
+                        onChange={() =>
+                          setForm((f) => ({
+                            ...f,
+                            stayCancellationPreset: preset,
+                          }))
+                        }
+                      />
+                      <span className="min-w-0">
+                        <span className="block text-sm font-medium text-ink">
+                          {stayCancellationPresetLabel(preset)}
+                        </span>
+                        <span className="mt-0.5 block text-xs leading-relaxed text-ink-muted">
+                          {stayGuestCancellationPolicyText(preset)}
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                </fieldset>
               </section>
               <section className="space-y-3 border-t border-[#E6EAF0] pt-6" aria-labelledby="stay-address-heading">
                 <div>

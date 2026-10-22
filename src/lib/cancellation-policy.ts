@@ -94,9 +94,14 @@ export function snapshotSupplierCancellationPolicy(reasonCode: string): Cancella
   };
 }
 
-/** Traveler self-cancel: 24 hours before experience-local start (IANA zone).
+/**
+ * Traveler self-cancel refund eligibility.
  * Unpaid / failed checkouts never owe a refund.
  * SQL cancel_booking_as_traveler is authoritative; this mirrors eligibility UI.
+ *
+ * Cutoff: free while startMs - now > freeCancelHours (exact boundary → no_refund).
+ * freeCancelHours null = non-refundable (no ordinary guest free cancel).
+ * Default 24 when omitted (legacy / tours).
  */
 export function travelerSelfCancelRefundChoice(params: {
   bookingDate: string | null;
@@ -105,29 +110,42 @@ export function travelerSelfCancelRefundChoice(params: {
   departureTimezone?: string | null;
   nowMs?: number;
   paymentStatus?: string | null;
+  /**
+   * Hours before local start/check-in. null = non-refundable.
+   * Omit / undefined → 24 (legacy default).
+   */
+  freeCancelHours?: number | null;
 }): 'full_refund' | 'no_refund' {
   if (!bookingPaymentWasCollected(params.paymentStatus)) return 'no_refund';
   if (!params.bookingDate) return 'no_refund';
+  const hours =
+    params.freeCancelHours === undefined ? 24 : params.freeCancelHours;
+  if (hours == null || !Number.isFinite(hours) || hours <= 0) return 'no_refund';
   const tz = resolveDepartureTimezone(params.departureTimezone);
   const hm = (params.startTimeHm ?? '00:00').slice(0, 5);
   const startMs = wallTimeInZoneToUtcMs(params.bookingDate, hm, tz);
   if (startMs == null || !Number.isFinite(startMs)) return 'no_refund';
   const now = params.nowMs ?? Date.now();
-  return startMs - now > 24 * 60 * 60 * 1000 ? 'full_refund' : 'no_refund';
+  return startMs - now > hours * 60 * 60 * 1000 ? 'full_refund' : 'no_refund';
 }
 
-/** Instant when the free-cancellation window closes: 24 hours before departure in the experience zone. */
+/** Instant when the free-cancellation window closes in the experience zone. null if non-refundable. */
 export function travelerSelfCancelDeadlineMs(params: {
   bookingDate: string | null;
   startTimeHm?: string | null;
   departureTimezone?: string | null;
+  /** Hours before local start. null = non-refundable (no deadline). Omit → 24. */
+  freeCancelHours?: number | null;
 }): number | null {
   if (!params.bookingDate) return null;
+  const hours =
+    params.freeCancelHours === undefined ? 24 : params.freeCancelHours;
+  if (hours == null || !Number.isFinite(hours) || hours <= 0) return null;
   const tz = resolveDepartureTimezone(params.departureTimezone);
   const hm = (params.startTimeHm ?? '00:00').slice(0, 5);
   const startMs = wallTimeInZoneToUtcMs(params.bookingDate, hm, tz);
   if (startMs == null || !Number.isFinite(startMs)) return null;
-  return startMs - 24 * 60 * 60 * 1000;
+  return startMs - hours * 60 * 60 * 1000;
 }
 
 /** True when Trips Cancel removes an unpaid checkout (no Stripe money collected). */

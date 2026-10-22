@@ -32,6 +32,7 @@ import { formatBookingParticipantsLabel } from '../lib/participant-mix';
 import { formatBookingDateDisplay } from '../lib/booking-flow';
 import { bookingLifecycleLabel } from '../lib/status-language';
 import { travelerSelfCancelRefundChoice, travelerSelfCancelDeadlineMs, supplierCancellationReasonLabel, travelerSelfCancelBlock, travelerSelfCancelError, travelerSelfCancelIsUnpaidCheckout } from '../lib/cancellation-policy';
+import { resolveStayCancelPolicyFromSnapshot } from '../lib/stay-cancellation-preset';
 import { resolveDepartureTimezone } from '../lib/tour-departure-cutoff';
 import { openHostCancelRequestVisible } from '../lib/host-cancel-request-visibility';
 import {
@@ -177,11 +178,13 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           b.purchase_snapshot,
           b.start_time ? pgTimeToHm(b.start_time) : null
         ) || '00:00';
+    const policy = resolveStayCancelPolicyFromSnapshot(b.purchase_snapshot);
     return travelerSelfCancelRefundChoice({
       bookingDate: b.booking_date,
       startTimeHm: startHm,
       departureTimezone: snapTz,
       paymentStatus: b.payment_status,
+      freeCancelHours: policy.freeCancelHours,
     });
   }, []);
 
@@ -1746,10 +1749,12 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       const tz = resolveDepartureTimezone(
                         displayDepartureTimezoneFromPurchase(cancelConfirm.purchase_snapshot)
                       );
+                      const policy = resolveStayCancelPolicyFromSnapshot(cancelConfirm.purchase_snapshot);
                       const deadline = travelerSelfCancelDeadlineMs({
                         bookingDate: cancelConfirm.booking_date,
                         startTimeHm: startHm,
                         departureTimezone: tz,
+                        freeCancelHours: policy.freeCancelHours,
                       });
                       const when = deadline
                         ? new Intl.DateTimeFormat('en-GB', {
@@ -1762,7 +1767,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                           }).format(new Date(deadline))
                         : null;
                       return when
-                        ? `You can cancel this experience for a full refund until ${when}.`
+                        ? `You can cancel for a full refund until ${when} (property local time).`
                         : TRAVELER_SELF_CANCEL_FULL_REFUND_POLICY;
                     })()}
                   </p>
@@ -1775,7 +1780,13 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               ) : (
                 <div className="mt-4 rounded-xl bg-amber-50 px-4 py-3.5 ring-1 ring-amber-200/80">
                   <p className="text-sm text-ink leading-relaxed">
-                    The free-cancellation window for this booking has passed. You can still cancel, and no refund is due.
+                    {(() => {
+                      const policy = resolveStayCancelPolicyFromSnapshot(cancelConfirm.purchase_snapshot);
+                      if (policy.freeCancelHours == null) {
+                        return 'This booking is non-refundable for guest-initiated cancellations. You can still cancel, and no refund is due.';
+                      }
+                      return 'The free-cancellation window for this booking has passed. You can still cancel, and no refund is due.';
+                    })()}
                   </p>
                 </div>
               )}

@@ -25,6 +25,10 @@ export type PurchaseSnapshot = {
   duration?: string | null;
   fulfillment?: PurchaseFulfillment | null;
   cancellationPolicy?: string | null;
+  /** Structured cancel preset frozen at purchase. */
+  cancellationPreset?: string | null;
+  /** Hours before local check-in/start for free cancel. null = non-refundable. */
+  freeCancelHours?: number | null;
   optionId?: string | null;
   scheduleId?: string | null;
   currency?: string | null;
@@ -132,6 +136,8 @@ export function buildPurchaseSnapshot(input: {
   duration?: string | null;
   fulfillment?: PurchaseFulfillment | null;
   cancellationPolicy?: string | null;
+  cancellationPreset?: string | null;
+  freeCancelHours?: number | null;
   optionId?: string | null;
   scheduleId?: string | null;
   currency?: string | null;
@@ -172,6 +178,16 @@ export function buildPurchaseSnapshot(input: {
   const fulfillment =
     input.fulfillment === 'pickup' || input.fulfillment === 'meeting_point' ? input.fulfillment : null;
   const cancellation = (input.cancellationPolicy ?? '').trim() || null;
+  const cancellationPreset =
+    typeof input.cancellationPreset === 'string' && input.cancellationPreset.trim()
+      ? input.cancellationPreset.trim()
+      : null;
+  const freeCancelHours =
+    input.freeCancelHours === null
+      ? null
+      : typeof input.freeCancelHours === 'number' && Number.isFinite(input.freeCancelHours)
+        ? Math.floor(input.freeCancelHours)
+        : undefined;
   const optionId = (input.optionId ?? '').trim() || null;
   const scheduleId = (input.scheduleId ?? '').trim() || null;
   const currency = (input.currency ?? '').trim().toUpperCase() || null;
@@ -206,6 +222,9 @@ export function buildPurchaseSnapshot(input: {
   if (duration) snap.duration = duration;
   if (fulfillment) snap.fulfillment = fulfillment;
   if (cancellation) snap.cancellationPolicy = cancellation;
+  if (cancellationPreset) snap.cancellationPreset = cancellationPreset;
+  if (freeCancelHours === null) snap.freeCancelHours = null;
+  else if (typeof freeCancelHours === 'number') snap.freeCancelHours = freeCancelHours;
   if (optionId) snap.optionId = optionId;
   if (scheduleId) snap.scheduleId = scheduleId;
   if (currency) snap.currency = currency;

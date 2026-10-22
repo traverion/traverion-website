@@ -25,11 +25,11 @@ import {
   resolveMeetingPointForSnapshot,
   resolveOptionFieldsForSnapshot,
   resolvePickupInstructionsForSnapshot,
-  resolveCancellationPolicyForSnapshot,
   resolveStayFieldsForSnapshot,
   normalizePurchaseStringList,
   mergePurchaseSnapshotMaxCheckOut,
 } from '../_shared/purchase-snapshot.ts';
+import { resolveStayCancellationForSnapshot } from '../_shared/stay-cancellation-preset.ts';
 import { isStripeTestSecretKey, stripeLiveSecretBlockedMessage } from '../_shared/stripe-test-only.ts';
 import { authUserVerifiedEmail } from '../_shared/auth-verified-email.ts';
 import { resolveCheckoutSiteUrl } from '../_shared/checkout-return-origin.ts';
@@ -596,6 +596,15 @@ serve(async (req) => {
           })
         : null;
 
+    const cancelSnap = resolveStayCancellationForSnapshot({
+      isStay: extrasFamily === 'stay',
+      listingExtras: listingRow.listing_extras,
+      listingCancellationPolicy:
+        typeof (listingRow as { cancellation_policy?: unknown }).cancellation_policy === 'string'
+          ? (listingRow as { cancellation_policy: string }).cancellation_policy
+          : null,
+    });
+
     const purchaseSnapshot = buildPurchaseSnapshot({
       listingTitle,
       optionLabel: quote.optionLabel ?? null,
@@ -613,11 +622,9 @@ serve(async (req) => {
       startTimeHm: startTime || null,
       duration: optionFields.duration,
       fulfillment: optionFields.fulfillment,
-      cancellationPolicy: resolveCancellationPolicyForSnapshot(
-        typeof (listingRow as { cancellation_policy?: unknown }).cancellation_policy === 'string'
-          ? (listingRow as { cancellation_policy: string }).cancellation_policy
-          : null
-      ),
+      cancellationPolicy: cancelSnap.cancellationPolicy,
+      cancellationPreset: cancelSnap.cancellationPreset,
+      freeCancelHours: cancelSnap.freeCancelHours,
       optionId: quote.optionId ?? storedOptionId,
       scheduleId: optionFields.scheduleId,
       currency: quote.currency,

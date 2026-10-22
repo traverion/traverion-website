@@ -1,22 +1,46 @@
-import { TRAVERION_STANDARD_CANCELLATION_POLICY } from '../types/listingExtras';
+import {
+  STAY_GUEST_CANCELLATION_POLICY,
+  TRAVERION_STANDARD_CANCELLATION_POLICY,
+  materializedBookingOptions,
+  parseListingExtras,
+} from '../types/listingExtras';
 import type { TourPackage } from '../types/tour';
-import { materializedBookingOptions, parseListingExtras } from '../types/listingExtras';
+import {
+  STAY_GUEST_CANCELLATION_POLICY_48H,
+  STAY_GUEST_CANCELLATION_POLICY_7D,
+  isStayCancellationPreset,
+} from './stay-cancellation-preset';
 
-/** Show “Free cancellation” only when the listing actually uses Traverion’s 24h terms or the tag. */
+/** Show “Free cancellation” when the listing uses a free-cancel preset / matching policy text. */
 export function listingShowsFreeCancellation(input: {
   tags?: string[] | null;
   cancellationPolicy?: string | null;
+  listingExtras?: unknown;
 }): boolean {
   if (input.tags?.includes('free-cancellation')) return true;
+  if (input.listingExtras != null) {
+    const preset = parseListingExtras(input.listingExtras).cancellationPreset;
+    if (preset === 'non_refundable') return false;
+    if (isStayCancellationPreset(preset) && preset !== 'non_refundable') return true;
+  }
   const policy = (input.cancellationPolicy ?? '').trim();
   // Empty policy is unknown — do not advertise free cancellation by default.
-  return policy === TRAVERION_STANDARD_CANCELLATION_POLICY;
+  return (
+    policy === TRAVERION_STANDARD_CANCELLATION_POLICY ||
+    policy === STAY_GUEST_CANCELLATION_POLICY ||
+    policy === STAY_GUEST_CANCELLATION_POLICY_48H ||
+    policy === STAY_GUEST_CANCELLATION_POLICY_7D
+  );
 }
 
 /** Browse tag chips must match real listing fields, not stale tags[] alone. */
 export function listingTourMatchesBrowseTag(tour: TourPackage, tagId: string): boolean {
   if (tagId === 'free-cancellation') {
-    return listingShowsFreeCancellation({ tags: tour.tags, cancellationPolicy: tour.cancellationPolicy });
+    return listingShowsFreeCancellation({
+      tags: tour.tags,
+      cancellationPolicy: tour.cancellationPolicy,
+      listingExtras: tour.listingExtras,
+    });
   }
   if (tagId === 'pickup-available') {
     const opts = materializedBookingOptions(parseListingExtras(tour.listingExtras).bookingOptions);
