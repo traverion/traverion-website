@@ -25,6 +25,7 @@
 | 18–19 | Perf/UX/E2E certification | Partial — metrics & full E2E NOT VERIFIED (documented) |
 | 20 | Deliverables | Done — 01–12 written |
 | Sprint 01 | Launch certification (payments/inventory) | Done — doc 13; contract PASS 103; E2E BLOCKED for founder |
+| Sprint 02 | Autonomous E2E + founder reduction | Done — doc 14; tour→auth wall PASS; stay deep-link FIXED; stay calendar PASS; R2B cron PASS; reminders skip risk |
 
 ## Key evidence anchors
 

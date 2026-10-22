@@ -31,6 +31,10 @@ import {
   normalizeLegacyTourUuidQueryParam,
   resolveTourListingIdFromSearch,
 } from './lib/tour-listing-query';
+import {
+  buildPublicListingDeepLinkHref,
+  resolvePublicListingDeepLinkTarget,
+} from './lib/public-listing-deep-link';
 import { STRIPE_TEST_UNTIL_LIVE } from './lib/booking-confirmation-copy';
 import {
   isTraverionAdminHost,
@@ -211,7 +215,11 @@ function App() {
     syncRouteFromUrl();
   }, [syncRouteFromUrl, isSupplierArea]);
 
-  /** Deep link: /packages?tour=<uuid>, /tour/<uuid>, or /tours/<uuid> (rewritten) opens TourDetails. */
+  /**
+   * Deep link: /packages?tour=<uuid>, /tour/<uuid>, /tours/<uuid> → TourDetails for tours;
+   * stay rows on a tour URL rewrite to /stays?stay= and open StayDetails.
+   * Canonical stay: /stays?stay=<uuid> (also /stay|stays/<uuid>).
+   */
   useEffect(() => {
     if (isSupplierArea) return;
     if (isTraverionAdminHost()) return;
@@ -223,13 +231,9 @@ function App() {
       const stayParam = new URLSearchParams(window.location.search).get('stay');
       if (path === '/stays' && stayParam && /^[0-9a-f-]{36}$/i.test(stayParam)) {
         void getListingByIdAsync(stayParam).then((t) => {
-          if (
-            cancelled ||
-            !t ||
-            !listingDetailVisibleToTraveler({ familyMatches: listingIsFamily(t, 'stay'), status: t.status })
-          ) {
-            return;
-          }
+          if (cancelled || !t) return;
+          const target = resolvePublicListingDeepLinkTarget(t);
+          if (!target || target.page !== 'stay-details') return;
           setSelectedTour(t);
           setCurrentPage('stay-details');
         });
@@ -238,19 +242,18 @@ function App() {
       const tourParam = resolveTourListingIdFromSearch(window.location.search);
       if (path !== '/packages' || !tourParam) return;
       void getListingByIdAsync(tourParam).then((t) => {
-        if (
-          cancelled ||
-          !t ||
-          !listingDetailVisibleToTraveler({
-            familyMatches: listingIsOnTravelerCatalog(t),
-            status: t.status,
-          }) ||
-          !listingHasUpcomingBookableSeason(t)
-        ) {
-          return;
-        }
+        if (cancelled || !t) return;
+        const target = resolvePublicListingDeepLinkTarget(t);
+        if (!target) return;
         setSelectedTour(t);
-        setCurrentPage('tour-details');
+        setCurrentPage(target.page);
+        if (target.page === 'stay-details') {
+          const next = buildPublicListingDeepLinkHref(target, t.id, window.location.search);
+          const cur = `${window.location.pathname}${window.location.search}`;
+          if (cur !== next) {
+            window.history.replaceState(window.history.state, '', next);
+          }
+        }
       });
     };
     run();
