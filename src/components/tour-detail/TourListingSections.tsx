@@ -43,8 +43,8 @@ function Fact({ label, children }: { label: string; children: string }) {
   const value = children.trim();
   if (!value) return null;
   return (
-    <div className="grid gap-1 py-3 sm:grid-cols-[9.5rem_minmax(0,1fr)] sm:gap-4">
-      <dt className="text-sm font-semibold text-ink">{label}</dt>
+    <div className="grid gap-1 py-3.5 sm:grid-cols-[8.75rem_minmax(0,1fr)] sm:gap-5">
+      <dt className="text-sm font-semibold tracking-tight text-ink">{label}</dt>
       <dd className="text-sm leading-relaxed text-ink-muted break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
         {value}
       </dd>
@@ -62,28 +62,28 @@ export function TourOperatorBlock({
   return (
     <section className={sectionClass}>
       <h2 className={headingClass}>About the operator</h2>
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3.5">
         {supplierLegal.business_logo_url ? (
           <img
             src={supplierLegal.business_logo_url}
             alt=""
-            className="h-12 w-12 shrink-0 rounded-lg object-cover ring-1 ring-black/[0.06]"
+            className="h-11 w-11 shrink-0 rounded-xl object-cover ring-1 ring-black/[0.06]"
           />
         ) : (
           <div
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[#073b83]/10 text-sm font-semibold text-[#073b83]"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#073b83]/10 text-sm font-semibold text-[#073b83]"
             aria-hidden
           >
             {supplierLegal.operatorName.slice(0, 1).toUpperCase()}
           </div>
         )}
         <div className="min-w-0">
-          <p className="font-semibold text-ink">{supplierLegal.operatorName}</p>
+          <p className="font-semibold tracking-tight text-ink">{supplierLegal.operatorName}</p>
           <p className="text-sm text-ink-muted">Runs this experience on Traverion</p>
         </div>
       </div>
       {supplierLegal.public_description?.trim() ? (
-        <p className="mt-3 text-sm leading-relaxed text-ink-muted whitespace-pre-wrap">
+        <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-ink-muted whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
           {supplierLegal.public_description.trim()}
         </p>
       ) : null}
@@ -343,9 +343,11 @@ export default function TourListingSections({
 
       <section className={sectionClass}>
         <h2 className={headingClass}>Cancellation</h2>
-        <p className="max-w-2xl text-[15px] leading-relaxed text-ink-muted">
-          {tour.cancellationPolicy?.trim() || TRAVERION_STANDARD_CANCELLATION_POLICY}
-        </p>
+        <div className="max-w-xl rounded-xl border border-[#E8EBF0] bg-white px-4 py-3.5">
+          <p className="text-[15px] leading-relaxed text-ink">
+            {tour.cancellationPolicy?.trim() || TRAVERION_STANDARD_CANCELLATION_POLICY}
+          </p>
+        </div>
       </section>
 
       {showOperator && supplierLegal ? (

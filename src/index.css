@@ -3739,6 +3739,57 @@ a:focus-visible,
   letter-spacing: -0.01em;
 }
 
+/* Tour Details — compact option cards (selection price parity with sticky) */
+.tv-tour-option-card {
+  border-radius: var(--tv-radius, 0.75rem);
+  background: #ffffff;
+  border: 1px solid rgba(28, 25, 23, 0.1);
+}
+.tv-tour-option-card--idle:hover {
+  border-color: rgba(7, 88, 203, 0.28);
+  box-shadow: 0 8px 20px -16px rgba(15, 23, 42, 0.28);
+}
+.tv-tour-option-card--selected {
+  border-color: #0758cb;
+  background: #ffffff;
+  box-shadow:
+    0 0 0 1px rgba(7, 88, 203, 0.18),
+    0 10px 24px -18px rgba(7, 88, 203, 0.35);
+}
+.tv-selection-restored {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 0.65rem;
+  background: rgba(0, 53, 128, 0.05);
+  border: 1px solid rgba(0, 53, 128, 0.1);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: #57534e;
+}
+.tv-pdp-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.75rem;
+}
+@media (min-width: 1024px) {
+  .tv-pdp-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(17.5rem, 20.5rem);
+    gap: 2rem;
+    align-items: start;
+  }
+}
+.tv-pdp-main {
+  min-width: 0;
+  max-width: 46rem;
+}
+.tv-pdp-below {
+  max-width: 46rem;
+}
+
 .tv-popover {
   border-radius: 1rem;
   background: #ffffff;

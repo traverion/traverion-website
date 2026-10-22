@@ -160,8 +160,8 @@ function quotedOfferPrice(quote: BookingQuoteOk) {
       <span className="text-sm font-medium text-ink-muted line-through tabular-nums">
         {formatMoney(quote.originalTotalAmount, quote.currency)}
       </span>
-      <span className="font-bold tabular-nums text-[#B42318]">{formatMoney(quote.totalAmount, quote.currency)}</span>
-      <span className="rounded bg-[#FDECEC] px-1.5 py-0.5 text-xs font-semibold text-[#B42318]">
+      <span className="font-bold tabular-nums text-[#111827]">{formatMoney(quote.totalAmount, quote.currency)}</span>
+      <span className="rounded-md bg-[#F8EFEA] px-1.5 py-0.5 text-xs font-semibold text-[#9A3412]">
         {quote.discountLabel}
       </span>
     </span>
@@ -1237,6 +1237,13 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
     };
   }, [tour, checkoutFromUrl, user?.id, bookingDate]);
 
+  // Compact restored notice — clear after a short window; never auto-dismiss errors.
+  useEffect(() => {
+    if (!selectionRestored) return;
+    const t = window.setTimeout(() => setSelectionRestored(false), 6500);
+    return () => window.clearTimeout(t);
+  }, [selectionRestored]);
+
   useEffect(() => {
     if (!tour || checkoutFromUrl) return;
     const selectedOptionId = selectedBookingVariant?.id ?? null;
@@ -1749,8 +1756,8 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
           </div>
         </div>
 
-        <header className="mb-3 max-w-3xl sm:mb-4">
-          <h1 className="font-sans text-[1.7rem] font-bold leading-[1.12] tracking-tight text-[#111827] break-words [overflow-wrap:anywhere] sm:text-[2rem] lg:text-[2.2rem]">
+        <header className="mb-3 max-w-2xl sm:mb-4">
+          <h1 className="font-sans text-[1.55rem] font-bold leading-[1.18] tracking-tight text-[#111827] break-words [overflow-wrap:anywhere] sm:text-[1.85rem] lg:text-[2rem]">
             {tour.title}
           </h1>
           {review.score ? (
@@ -1789,18 +1796,18 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
           ) : null}
         </header>
 
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1.85fr)_minmax(17.5rem,22rem)] lg:gap-8">
-          <div className="min-w-0">
+        <div className="tv-pdp-layout">
+          <div className="tv-pdp-main">
         <div>
           {hasGallery ? (
-            <div className={`grid grid-cols-1 gap-2 ${images.length > 1 ? 'lg:grid-cols-4 lg:grid-rows-2 lg:h-[22rem] lg:gap-2.5' : ''}`}>
+            <div className={`grid grid-cols-1 gap-2 ${images.length > 1 ? 'lg:grid-cols-4 lg:grid-rows-2 lg:h-[21rem] lg:gap-2' : ''}`}>
               <button
                 type="button"
                 onClick={() => {
                   setSelectedImage(0);
                   setGalleryLightboxOpen(true);
                 }}
-                className={`relative overflow-hidden rounded-2xl bg-ink/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0758CB] ${images.length > 1 ? 'lg:col-span-2 lg:row-span-2 aspect-[4/3] lg:aspect-auto' : 'aspect-[16/10] max-h-[28rem]'}`}
+                className={`relative overflow-hidden rounded-xl bg-ink/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0758CB] ${images.length > 1 ? 'lg:col-span-2 lg:row-span-2 aspect-[4/3] lg:aspect-auto' : 'aspect-[16/10] max-h-[28rem]'}`}
                 aria-label={`Open gallery, photo 1 of ${images.length}`}
               >
                   <img
@@ -1819,7 +1826,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                     setSelectedImage(i + 1);
                     setGalleryLightboxOpen(true);
                   }}
-                  className="relative hidden overflow-hidden rounded-2xl bg-ink/10 aspect-[4/3] lg:block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0758CB]"
+                  className="relative hidden overflow-hidden rounded-xl bg-ink/10 aspect-[4/3] lg:block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0758CB]"
                   aria-label={`Open gallery, photo ${i + 2} of ${images.length}`}
                 >
                   <img src={img} alt={`${tour.title}, photo ${i + 2}`} loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
@@ -1878,10 +1885,12 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
               {canBook && bookingVariantsOpen && bookingDate.trim() ? (
                 <div ref={optionsSectionRef} className="tv-availability-reveal mt-6 border-t border-[#E8EBF0] pt-6">
                   <TourAvailableOptions
+                    tour={tour}
                     date={bookingDate.trim()}
                     kind={optionsForSelectedDate.kind}
                     available={optionsForSelectedDate.available}
                     selectedId={selectedBookingVariant?.id ?? null}
+                    selectedDepartureTime={selectedDepartureTime}
                     guestsLabel={
                       participantFieldOption
                         ? formatMixSummaryCompact(
@@ -1894,6 +1903,10 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                           ) || `${guests} ${guests === 1 ? 'guest' : 'guests'}`
                         : `${guests} ${guests === 1 ? 'guest' : 'guests'}`
                     }
+                    guests={guests}
+                    participantMix={participantMix}
+                    mixSourceOption={selectedOptionApplied ?? participantFieldOption ?? null}
+                    todayIso={experienceTodayIso}
                     currency={normalizeCurrency(tour.price?.currency)}
                     discounts={discountsByListing?.get(tour.id) ?? []}
                     hideSelectedCatalogPrice={Boolean(
@@ -1942,9 +1955,18 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                 className="tv-booking-sticky tv-booking-sticky--fit lg:sticky lg:top-[calc(4.75rem+env(safe-area-inset-top,0px))] h-fit scroll-mt-28"
               >
                 {selectionRestored ? (
-                  <p className="mb-3 text-sm text-ink-muted">
-                    Your last selection is restored. Price and availability are checked again before payment.
-                  </p>
+                  <div className="tv-selection-restored" role="status">
+                    <p className="min-w-0">
+                      Selection restored — price and availability are checked again before payment.
+                    </p>
+                    <button
+                      type="button"
+                      className="shrink-0 text-[11px] font-semibold text-finland hover:underline"
+                      onClick={() => setSelectionRestored(false)}
+                    >
+                      Dismiss
+                    </button>
+                  </div>
                 ) : null}
                 {!canBook ? (
                   <div>
@@ -1968,7 +1990,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                         const several = panelQuote.guests > 1 || lines.length > 1;
                         return (
                           <div className="mb-3">
-                            <p className="text-[1.85rem] font-bold leading-none tracking-tight text-[#111827]">{quotedOfferPrice(panelQuote)}</p>
+                            <p className="text-[1.65rem] font-bold leading-none tracking-tight text-[#111827]">{quotedOfferPrice(panelQuote)}</p>
                             <p className="mt-1.5 text-sm text-ink-muted">
                               {several ? 'Total for this booking' : lines[0]?.label ? `Per ${lines[0].label.toLowerCase()}` : 'Per person'}
                             </p>
@@ -2004,13 +2026,13 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                               {formatMoney(originalPrice, currency)}
                             </p>
                           ) : null}
-                          <p className={`text-[1.85rem] font-bold leading-none tracking-tight tabular-nums ${hasDiscount ? 'text-[#B42318]' : 'text-[#111827]'}`}>
+                          <p className="text-[1.65rem] font-bold leading-none tracking-tight tabular-nums text-[#111827]">
                             {formatMoney(Number(price), currency)}
                           </p>
                           <div className="mt-1.5 flex flex-wrap items-center gap-2">
                             <p className="text-sm text-ink-muted">{unit}</p>
                             {hasDiscount && label ? (
-                              <span className="rounded bg-[#FDECEC] px-1.5 py-0.5 text-xs font-semibold text-[#B42318]">{label}</span>
+                              <span className="rounded-md bg-[#F8EFEA] px-1.5 py-0.5 text-xs font-semibold text-[#9A3412]">{label}</span>
                             ) : null}
                           </div>
                         </div>
@@ -2039,7 +2061,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                         <p className="mb-1.5 text-sm font-semibold tracking-tight text-[#111827]">Participants</p>
                         <button
                           type="button"
-                          className="tv-checkout-input tv-checkout-input--plain relative flex w-full items-center justify-between gap-3 pr-3 text-left"
+                          className="relative flex w-full min-h-11 items-center justify-between gap-3 rounded-xl border border-black/[0.1] bg-white px-3.5 text-left transition-colors duration-150 hover:border-black/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0758CB]/25"
                           aria-expanded={participantsOpen}
                           aria-haspopup="dialog"
                           onClick={() => setParticipantsOpen((open) => !open)}
@@ -2160,12 +2182,23 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                       {selectedBookingVariant ? (
                         <div className="space-y-2.5 border-t border-[#E8EBF0] pt-3">
                           <div className="flex items-start justify-between gap-3">
-                            <p className="text-sm font-semibold leading-snug text-[#111827]">
-                              {selectedBookingVariant.label}
-                              {selectedDepartureTime ? (
-                                <span className="font-medium text-ink-muted"> · {selectedDepartureTime}</span>
-                              ) : null}
-                            </p>
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold leading-snug tracking-tight text-[#111827] break-words [overflow-wrap:anywhere]">
+                                {selectedBookingVariant.label}
+                              </p>
+                              <p className="mt-0.5 text-xs text-ink-muted">
+                                {[
+                                  selectedDepartureTime || (departureTimes.length === 1 ? departureTimes[0] : null),
+                                  selectedOptionApplied?.fulfillment === 'pickup'
+                                    ? 'Pickup included'
+                                    : selectedOptionApplied?.fulfillment === 'meeting_point'
+                                      ? 'Meeting point'
+                                      : null,
+                                ]
+                                  .filter(Boolean)
+                                  .join(' · ') || 'Selected option'}
+                              </p>
+                            </div>
                             <button
                               type="button"
                               className="shrink-0 text-sm font-semibold text-[#0758CB]"
@@ -2419,9 +2452,9 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
           </div>
         </div>
 
-      <section id="tour-reviews" className="scroll-mt-28 border-t border-[#E8EBF0] bg-paper pt-6">
+      <section id="tour-reviews" className="scroll-mt-28 border-t border-[#E8EBF0] bg-paper pt-8 pb-2">
         <div className="tv-shell mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <div className="tv-pdp-below mb-4 flex flex-wrap items-end justify-between gap-3">
             <h2 className="tv-section-heading">Reviews</h2>
             {reviews.length > 0 ? (
               <button
@@ -2445,9 +2478,12 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
               </button>
             </div>
           ) : reviews.length === 0 && !showReviewForm ? (
-            <p className="mb-5 max-w-xl rounded-xl border border-[#E8EBF0] px-4 py-3 text-sm leading-relaxed text-ink-muted">
-              {LISTING_REVIEWS_EMPTY_COPY}
-            </p>
+            <div className="tv-pdp-below mb-6 rounded-xl border border-[#E8EBF0] bg-white px-4 py-5 sm:px-5">
+              <p className="text-sm font-semibold text-[#111827]">No reviews yet</p>
+              <p className="mt-1 max-w-md text-sm leading-relaxed text-ink-muted">
+                {LISTING_REVIEWS_EMPTY_COPY}
+              </p>
+            </div>
           ) : review.score ? (
             <div className="mb-4 flex items-center gap-3">
               <p className="text-4xl font-bold tabular-nums leading-none tracking-tight text-[#111827]">{review.score}</p>
@@ -2647,9 +2683,11 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
       </section>
 
       {supplierLegal ? (
-        <section className="bg-paper pb-10">
+        <section className="border-t border-[#E8EBF0] bg-paper pb-12 pt-2">
           <div className="tv-shell mx-auto px-4 sm:px-6 lg:px-8">
-            <TourOperatorBlock supplierLegal={supplierLegal} onOpenLegal={setLegalModal} />
+            <div className="tv-pdp-below">
+              <TourOperatorBlock supplierLegal={supplierLegal} onOpenLegal={setLegalModal} />
+            </div>
           </div>
         </section>
       ) : null}
