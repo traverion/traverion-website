@@ -181,7 +181,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 currentPage === 'home' ? 'tv-header-nav__item--active' : ''
               }`}
             >
-              <Compass className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden />
+              <Compass className="h-[0.9375rem] w-[0.9375rem] shrink-0" strokeWidth={2.35} aria-hidden />
               Explore
             </button>
             <button
@@ -195,7 +195,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 currentPage === 'packages' || currentPage === 'tour-details' ? 'tv-header-nav__item--active' : ''
               }`}
             >
-              <Map className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden />
+              <Map className="h-[0.9375rem] w-[0.9375rem] shrink-0" strokeWidth={2.35} aria-hidden />
               Tours
             </button>
             <button
@@ -207,7 +207,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 currentPage === 'stays' || currentPage === 'stay-details' ? 'tv-header-nav__item--active' : ''
               }`}
             >
-              <Home className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden />
+              <Home className="h-[0.9375rem] w-[0.9375rem] shrink-0" strokeWidth={2.35} aria-hidden />
               Stays
             </button>
           </nav>
@@ -504,7 +504,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                   currentPage === 'home' ? 'tv-header-nav__item--active' : ''
                 }`}
               >
-                <Compass className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden />
+                <Compass className="h-[0.9375rem] w-[0.9375rem] shrink-0" strokeWidth={2.35} aria-hidden />
                 Explore
               </button>
               <button
@@ -521,7 +521,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                   currentPage === 'packages' || currentPage === 'tour-details' ? 'tv-header-nav__item--active' : ''
                 }`}
               >
-                <Map className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden />
+                <Map className="h-[0.9375rem] w-[0.9375rem] shrink-0" strokeWidth={2.35} aria-hidden />
                 Tours
               </button>
               <button
@@ -535,7 +535,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                   currentPage === 'stays' || currentPage === 'stay-details' ? 'tv-header-nav__item--active' : ''
                 }`}
               >
-                <Home className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden />
+                <Home className="h-[0.9375rem] w-[0.9375rem] shrink-0" strokeWidth={2.35} aria-hidden />
                 Stays
               </button>
               {!isSupabaseConfigured() && (
