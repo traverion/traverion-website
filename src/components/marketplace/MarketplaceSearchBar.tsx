@@ -201,7 +201,7 @@ export function MarketplaceSearchPill({
   return (
     <form
       onSubmit={onSubmit ?? ((e) => e.preventDefault())}
-      className={`hidden items-center gap-0 overflow-visible rounded-full bg-white p-1.5 shadow-[0_12px_40px_-12px_rgba(7,26,58,0.28),0_4px_14px_-6px_rgba(0,0,0,0.1)] ring-1 ring-black/[0.04] sm:grid ${grid} ${className}`}
+      className={`tv-hero-search hidden items-center gap-0 overflow-visible rounded-full bg-white p-1.5 ring-1 ring-black/[0.04] sm:grid ${grid} ${className}`}
       aria-label={ariaLabel ?? (isStay ? 'Search stays' : 'Search tours')}
     >
       <MarketplaceSearchFields family={family} values={values} onChange={onChange} idPrefix={idPrefix} />
@@ -226,7 +226,7 @@ export function MarketplaceSearchStack({
   return (
     <form
       onSubmit={onSubmit ?? ((e) => e.preventDefault())}
-      className={`overflow-hidden rounded-[1.25rem] bg-white shadow-[0_16px_40px_-16px_rgba(7,26,58,0.35),0_6px_16px_-8px_rgba(0,0,0,0.12)] ring-1 ring-black/[0.05] ${className}`}
+      className={`tv-hero-search overflow-hidden rounded-[1.25rem] bg-white ring-1 ring-black/[0.05] ${className}`}
       aria-label={ariaLabel ?? (isStay ? 'Search stays' : 'Search tours')}
     >
       {header}
@@ -272,7 +272,7 @@ export function MarketplaceMobileSearchTrigger({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-[1.25rem] bg-white px-4 py-3.5 text-left text-ink shadow-[0_12px_32px_-12px_rgba(7,26,58,0.28)] ring-1 ring-black/[0.05] transition-transform active:scale-[0.99] sm:hidden"
+      className="tv-hero-search flex w-full items-center gap-3 rounded-[1.25rem] bg-white px-4 py-3.5 text-left text-ink ring-1 ring-black/[0.05] transition-transform active:scale-[0.99] sm:hidden"
       aria-label={ariaLabel}
       aria-haspopup="dialog"
       aria-expanded={expanded}

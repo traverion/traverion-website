@@ -859,21 +859,21 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
   }
 
   return (
-    <div className="min-h-screen bg-paper tv-page pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-0">
-      <div className="tv-shell px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        <div className="mb-4 flex items-center justify-between gap-3">
+    <div className="min-h-screen bg-paper tv-page tv-stay-pdp pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-0">
+      <div className="tv-shell px-4 sm:px-6 lg:px-8 pt-2 sm:pt-3 pb-6 sm:pb-8">
+        <div className="mb-2.5 flex items-center justify-between gap-3">
           <button
             type="button"
             onClick={onBack}
-            className="lux-flat inline-flex h-10 min-w-[2.5rem] items-center justify-center gap-1.5 rounded-full bg-white px-3 text-sm font-medium text-ink shadow-[var(--tv-shadow-rest)] transition-[box-shadow,background] duration-200 hover:shadow-[var(--tv-shadow-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland"
+            className="tv-icon-btn lux-flat inline-flex h-10 min-w-10 items-center justify-center gap-1.5 rounded-full px-3 text-sm font-medium text-ink"
           >
-            <ArrowLeft className="w-4 h-4" aria-hidden />
-            {backLabel}
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+            <span className="hidden sm:inline">{backLabel}</span>
           </button>
           {isSupabaseListingId(stay.id) && isSupabaseConfigured() ? (
             <button
               type="button"
-              className="lux-flat inline-flex h-11 w-11 items-center justify-center rounded-full bg-paper-raised text-ink ring-1 ring-black/[0.06] hover:bg-black/[0.03] disabled:opacity-60"
+              className="tv-icon-btn lux-flat inline-flex h-10 w-10 items-center justify-center rounded-full text-ink disabled:opacity-60"
               aria-label={
                 !wishlistHeartKnown
                   ? 'Checking saved status'
@@ -887,48 +887,51 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
               onClick={handleToggleWishlist}
             >
               <Heart
-                size={18}
+                size={17}
                 className={`${wishlistHeartKnown && savedToWishlist ? 'fill-finland text-finland' : ''} ${savePop ? 'tv-pop' : ''}`}
               />
             </button>
           ) : null}
         </div>
 
-        <header className="mb-4 max-w-3xl lg:mb-5">
+        <header className="mb-3 sm:mb-3.5">
           {s?.accommodationMode === 'multi' ? (
             <p className="mb-2 text-sm text-ink-muted">Room types for this property are not open for booking yet.</p>
           ) : null}
-          <h1 className="font-sans text-[1.85rem] font-bold tracking-tight text-ink sm:text-[2rem] lg:text-[2.25rem] break-words [overflow-wrap:anywhere] leading-[1.15]">
+          <h1 className="tv-tour-title font-sans font-bold tracking-tight text-[#111827] break-words [overflow-wrap:anywhere]">
             {stay.title}
           </h1>
-          <div className="mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm text-ink-muted">
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
             {(() => {
               const review = publicReviewLabel(reviewAggregate);
               if (review.score) {
                 return (
-                  <span className="inline-flex items-center gap-1 font-semibold text-ink">
-                    <Star className="h-3.5 w-3.5 fill-finland text-finland" aria-hidden />
-                    <span className="tabular-nums">{review.score}</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Star size={15} className="shrink-0 fill-[#C9A227] text-[#C9A227]" aria-hidden />
+                    <span className="font-bold tabular-nums text-[#111827]">{review.score}</span>
                     <span className="font-medium text-ink-muted">
-                      · {review.count} {review.count === 1 ? 'review' : 'reviews'}
+                      {review.count} {review.count === 1 ? 'review' : 'reviews'}
                     </span>
                   </span>
                 );
               }
               return (
-                <span className="inline-flex items-center rounded-md bg-finland/[0.06] px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-finland">
-                  New property
+                <span className="inline-flex items-center gap-1.5 text-ink-muted">
+                  <Star size={15} className="shrink-0 text-ink-faint" aria-hidden />
+                  <span className="font-medium">(0) reviews</span>
+                  <span className="rounded-md bg-finland/[0.06] px-1.5 py-0.5 text-[11px] font-semibold text-finland">
+                    New
+                  </span>
                 </span>
               );
             })()}
-            <span aria-hidden className="text-ink-faint">
-              ·
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <MapPin className="h-3.5 w-3.5 text-finland" aria-hidden strokeWidth={2} />
-              {s?.locationDisplayName?.trim()
-                ? s.locationDisplayName.trim()
-                : [stay.city, stay.country].filter(Boolean).join(', ') || stay.destination}
+            <span className="inline-flex min-w-0 items-center gap-1 text-ink">
+              <MapPin size={14} className="shrink-0 text-[#0B397E]" aria-hidden strokeWidth={2} />
+              <span className="font-bold tracking-tight break-words [overflow-wrap:anywhere]">
+                {s?.locationDisplayName?.trim()
+                  ? s.locationDisplayName.trim()
+                  : [stay.city, stay.country].filter(Boolean).join(', ') || stay.destination}
+              </span>
             </span>
           </div>
         </header>
@@ -949,7 +952,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                         setSelectedImage(0);
                         setGalleryLightboxOpen(true);
                       }}
-                      className={`relative overflow-hidden rounded-2xl bg-ink/10 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-finland ${
+                      className={`relative overflow-hidden rounded-xl bg-ink/10 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-finland ${
                         stayGalleryImages.length > 1
                           ? 'lg:col-span-2 lg:row-span-2 aspect-[4/3] lg:aspect-auto'
                           : 'aspect-[16/10] max-h-[28rem]'
@@ -978,7 +981,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                           setSelectedImage(photoIndex);
                           setGalleryLightboxOpen(true);
                         }}
-                        className="relative hidden overflow-hidden rounded-2xl bg-ink/10 aspect-[4/3] lg:block text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-finland"
+                        className="relative hidden overflow-hidden rounded-xl bg-ink/10 aspect-[4/3] lg:block text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-finland"
                         aria-label={`Open gallery, photo ${photoIndex + 1} of ${stayGalleryImages.length}`}
                       >
                         <img
@@ -1010,7 +1013,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                               setSelectedImage(safeIndex);
                               setGalleryLightboxOpen(true);
                             }}
-                            className="relative w-[42%] shrink-0 snap-start overflow-hidden rounded-2xl aspect-[4/3] text-left"
+                            className="relative w-[42%] shrink-0 snap-start overflow-hidden rounded-xl aspect-[4/3] text-left"
                             aria-label={`Photo ${safeIndex + 1} of ${stayGalleryImages.length}`}
                           >
                             <img src={src} alt="" className="h-full w-full object-cover" />
@@ -1021,7 +1024,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                   ) : null}
                 </div>
               ) : (
-                <div className="flex aspect-[21/9] items-center justify-center rounded-2xl bg-ink/[0.06] ring-1 ring-black/[0.04]">
+                <div className="flex aspect-[21/9] items-center justify-center rounded-xl bg-ink/[0.06] ring-1 ring-black/[0.04]">
                   <p className="px-4 text-center text-sm text-ink-muted">No photos yet for this stay</p>
                 </div>
               )}

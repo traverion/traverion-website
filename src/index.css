@@ -2697,28 +2697,35 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
   .tv-browse-card {
     content-visibility: auto;
     contain-intrinsic-size: auto 22rem;
-    transition: transform var(--tv-duration-hover, 160ms) var(--tv-ease), box-shadow var(--tv-duration-ui, 180ms) var(--tv-ease);
-  }
-
-  .tv-browse-card:hover {
-    transform: translateY(-2px);
+    transition: transform var(--tv-duration-hover, 180ms) var(--tv-ease), box-shadow var(--tv-duration-ui, 200ms) var(--tv-ease);
   }
 
   .tv-browse-card .tv-browse-card__surface {
-    box-shadow: var(--tv-shadow-rest);
-    transition: box-shadow var(--tv-duration-ui, 180ms) var(--tv-ease), ring-color var(--tv-duration-ui, 180ms) var(--tv-ease);
+    box-shadow: var(--tv-elev-1);
+    transition: box-shadow var(--tv-duration-ui, 200ms) var(--tv-ease), ring-color var(--tv-duration-ui, 200ms) var(--tv-ease);
+  }
+
+  .tv-browse-card .tv-browse-card__media img {
+    transition: transform var(--tv-duration-drawer, 240ms) var(--tv-ease);
+  }
+}
+
+/* Pointer devices only — avoid sticky hover lift on touch */
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .tv-browse-card:hover {
+    transform: translateY(-2px);
   }
 
   .tv-browse-card:hover .tv-browse-card__surface {
     box-shadow: var(--tv-shadow-hover);
   }
 
-  .tv-browse-card .tv-browse-card__media img {
-    transition: transform var(--tv-duration-drawer, 220ms) var(--tv-ease);
+  .tv-browse-card:hover .tv-browse-card__media img {
+    transform: scale(1.03);
   }
 
-  .tv-browse-card:hover .tv-browse-card__media img {
-    transform: scale(1.02);
+  .tv-dest-tile:hover {
+    transform: translateY(-2px);
   }
 }
 
@@ -2767,13 +2774,22 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
   color: rgba(255, 255, 255, 0.98) !important;
 }
 
-/* --- Luxury motion tokens (site-wide) --- */
+/* Legacy lux aliases — single source of truth is --tv-* elevation/motion */
 :root {
-  --lux-ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --lux-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --lux-shadow-hover: 0 14px 32px -10px rgba(0, 53, 128, 0.22), 0 6px 14px -8px rgba(0, 0, 0, 0.08);
-  --lux-shadow-hover-sm: 0 8px 22px -8px rgba(0, 53, 128, 0.16), 0 2px 8px -4px rgba(0, 0, 0, 0.06);
-  --lux-duration: 0.28s;
+  --lux-ease: var(--tv-ease, cubic-bezier(0.22, 1, 0.36, 1));
+  --lux-ease-out: var(--tv-ease-out, cubic-bezier(0.16, 1, 0.3, 1));
+  --lux-shadow-hover: var(--tv-shadow-hover);
+  --lux-shadow-hover-sm: var(--tv-elev-2);
+  --lux-duration: var(--tv-duration-ui, 200ms);
+}
+
+/* Homepage hero search — floating elevation without hard dark shadow */
+.tv-hero-search {
+  box-shadow: var(--tv-elev-3);
+  transition: box-shadow var(--tv-duration-ui, 200ms) var(--tv-ease);
+}
+.tv-hero-search:focus-within {
+  box-shadow: var(--tv-elev-4);
 }
 
 html {
@@ -3363,6 +3379,7 @@ a:focus-visible,
 }
 .tv-btn-primary:hover {
   background: #00285f;
+  box-shadow: 0 8px 18px -12px rgba(0, 53, 128, 0.55);
 }
 .tv-btn-primary:active {
   transform: scale(0.98);
@@ -3470,16 +3487,29 @@ a:focus-visible,
   --tv-discover-gap: 0.75rem;
   /* Platform motion (premium, restrained) — transform/opacity preferred over layout */
   --tv-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --tv-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --tv-duration-micro: 140ms;
   --tv-duration: 200ms;
   --tv-duration-fast: 150ms;
-  --tv-duration-hover: 160ms;
-  --tv-duration-ui: 180ms;
-  --tv-duration-drawer: 220ms;
-  --tv-shadow-rest: 0 1px 2px rgba(15, 23, 42, 0.04), 0 0 0 1px rgba(28, 25, 23, 0.08);
-  --tv-shadow-hover: 0 12px 28px -16px rgba(15, 23, 42, 0.38), 0 0 0 1px rgba(0, 53, 128, 0.14);
-  --tv-shadow-panel: 0 8px 24px -14px rgba(15, 23, 42, 0.28), 0 0 0 1px rgba(28, 25, 23, 0.1);
-  --tv-shadow-popover: 0 16px 40px -18px rgba(15, 23, 42, 0.42), 0 0 0 1px rgba(28, 25, 23, 0.1);
-  --tv-focus-ring: 0 0 0 3px rgba(0, 53, 128, 0.22);
+  --tv-duration-hover: 180ms;
+  --tv-duration-ui: 200ms;
+  --tv-duration-drawer: 240ms;
+  /* Elevation 0–4 — soft, diffuse, role-based (do not stack nested heavy shadows) */
+  --tv-elev-0: none;
+  --tv-elev-1: 0 1px 2px rgba(15, 23, 42, 0.04), 0 0 0 1px rgba(28, 25, 23, 0.06);
+  --tv-elev-2: 0 2px 8px -4px rgba(15, 23, 42, 0.1), 0 0 0 1px rgba(28, 25, 23, 0.06);
+  --tv-elev-3: 0 10px 28px -14px rgba(15, 23, 42, 0.22), 0 0 0 1px rgba(28, 25, 23, 0.07);
+  --tv-elev-4: 0 18px 44px -16px rgba(15, 23, 42, 0.32), 0 0 0 1px rgba(28, 25, 23, 0.08);
+  --tv-shadow-rest: var(--tv-elev-1);
+  --tv-shadow-hover: 0 12px 28px -16px rgba(15, 23, 42, 0.28), 0 0 0 1px rgba(0, 53, 128, 0.12);
+  --tv-shadow-panel: var(--tv-elev-3);
+  --tv-shadow-popover: var(--tv-elev-4);
+  --tv-shadow-header: 0 1px 0 rgba(28, 25, 23, 0.06), 0 8px 20px -16px rgba(15, 23, 42, 0.18);
+  --tv-focus-ring: 0 0 0 3px rgba(0, 53, 128, 0.2);
+  --tv-border: rgba(232, 235, 240, 0.98);
+  --tv-border-strong: rgba(28, 25, 23, 0.12);
+  --tv-discount-bg: #f8efea;
+  --tv-discount-fg: #9a3412;
   /* Consumer luxury polish — type, surface, control rhythm */
   --tv-radius-sm: 0.5rem;
   --tv-radius: 0.75rem;
@@ -3498,6 +3528,12 @@ a:focus-visible,
   --tv-leading-tight: 1.15;
   --tv-leading-snug: 1.35;
   --tv-leading-body: 1.55;
+  /* Alias legacy lux motion to the shared scale (no competing systems) */
+  --lux-ease: var(--tv-ease);
+  --lux-ease-out: var(--tv-ease-out);
+  --lux-duration: var(--tv-duration-ui);
+  --lux-shadow-hover: var(--tv-shadow-hover);
+  --lux-shadow-hover-sm: var(--tv-elev-2);
 }
 
 /* Shared consumer measure: header, catalogs, detail, account. */
@@ -3607,32 +3643,40 @@ a:focus-visible,
   border-top: 1px solid rgba(28, 25, 23, 0.06);
 }
 
-/* Destination discovery: compact photo tiles (fixed-ish width so few destinations do not balloon) */
+/* Destination discovery: denser tiles that fill rows without ballooning when few exist */
 .tv-dest-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(9.25rem, 12.5rem));
+  grid-template-columns: repeat(auto-fill, minmax(10.5rem, 13.5rem));
   justify-content: start;
   gap: var(--tv-discover-gap);
+}
+
+@media (min-width: 1024px) {
+  .tv-dest-grid {
+    grid-template-columns: repeat(auto-fill, minmax(11.5rem, 14rem));
+  }
 }
 
 .tv-dest-tile {
   position: relative;
   display: block;
   width: 100%;
-  max-width: 12.5rem;
+  max-width: 14rem;
   overflow: hidden;
   border-radius: var(--tv-radius-lg, 1rem);
   aspect-ratio: 3 / 4;
   background: #1c1917;
   text-align: left;
-  box-shadow: 0 0 0 1px rgba(28, 25, 23, 0.06);
+  box-shadow: var(--tv-elev-1);
   transition:
-    box-shadow var(--tv-duration-ui, 180ms) var(--tv-ease, ease),
-    transform var(--tv-duration-hover, 160ms) var(--tv-ease, ease);
+    box-shadow var(--tv-duration-ui, 200ms) var(--tv-ease, ease),
+    transform var(--tv-duration-hover, 180ms) var(--tv-ease, ease);
 }
 
-.tv-dest-tile:hover {
-  box-shadow: 0 0 0 1px rgba(0, 53, 128, 0.22), 0 10px 24px -12px rgba(15, 23, 42, 0.35);
+@media (hover: hover) and (pointer: fine) {
+  .tv-dest-tile:hover {
+    box-shadow: var(--tv-shadow-hover);
+  }
 }
 
 .tv-dest-tile:active {
@@ -3648,7 +3692,7 @@ a:focus-visible,
   transition: transform var(--tv-duration-drawer, 220ms) var(--tv-ease, ease);
 }
 
-@media (prefers-reduced-motion: no-preference) {
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
   .tv-dest-tile:hover img {
     transform: scale(1.03);
   }
@@ -7599,15 +7643,15 @@ details:not([open]) > :not(summary) {
 
 /* Phase 1814: shared empty/error state surface */
 .tv-state-panel {
-  max-width: 28rem;
-  padding-top: 1.75rem;
-  padding-bottom: 2rem;
+  max-width: 26rem;
+  padding-top: 1.25rem;
+  padding-bottom: 1.5rem;
 }
 
 @media (min-width: 640px) {
   .tv-state-panel {
-    padding-top: 2rem;
-    padding-bottom: 2.5rem;
+    padding-top: 1.5rem;
+    padding-bottom: 1.75rem;
   }
 }
 
@@ -7717,31 +7761,33 @@ details:not([open]) > :not(summary) {
 }
 .tv-auth-input {
   width: 100%;
-  min-height: 2.75rem;
-  border-radius: 0.7rem;
-  border: 1.5px solid #292524;
+  min-height: var(--tv-control-h, 2.75rem);
+  border-radius: var(--tv-radius, 0.75rem);
+  border: 1px solid var(--tv-border-strong, rgba(28, 25, 23, 0.14));
   background: #ffffff;
   padding: 0.6rem 0.85rem;
-  color: #1c1917;
-  font-size: 0.9375rem;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  color: #111827;
+  font-size: var(--tv-type-body, 0.9375rem);
+  transition:
+    border-color var(--tv-duration-fast, 150ms) var(--tv-ease),
+    box-shadow var(--tv-duration-ui, 180ms) var(--tv-ease);
 }
 .tv-auth-input:hover:not(:disabled):not(:focus) {
-  border-color: #1c1917;
+  border-color: rgba(28, 25, 23, 0.22);
 }
 .tv-auth-input:focus {
   outline: none;
   border-color: #003580;
-  box-shadow: 0 0 0 3px rgba(0, 53, 128, 0.16);
+  box-shadow: var(--tv-focus-ring);
 }
 .tv-checkout-input {
   width: 100%;
   min-height: var(--tv-control-h, 2.75rem);
   border-radius: var(--tv-radius, 0.75rem);
-  border: 1.5px solid #44403c;
+  border: 1px solid var(--tv-border-strong, rgba(28, 25, 23, 0.14));
   background: #ffffff;
   padding: 0.65rem 0.9rem 0.65rem 2.75rem;
-  color: #1c1917;
+  color: #111827;
   font-size: var(--tv-type-body, 0.9375rem);
   line-height: var(--tv-leading-snug, 1.35);
   transition:
@@ -7820,12 +7866,10 @@ details:not([open]) > :not(summary) {
 
 /* Phase 1816: traveler + partner auth form panel */
 .tv-auth-panel {
-  border-radius: 1rem;
+  border-radius: var(--tv-radius-lg, 1rem);
   background: #ffffff;
   padding: 1.15rem 1.15rem 1.35rem;
-  box-shadow:
-    0 0 0 1px rgba(28, 25, 23, 0.07),
-    0 18px 40px -24px rgba(15, 23, 42, 0.28);
+  box-shadow: var(--tv-elev-3);
 }
 
 @media (min-width: 640px) {

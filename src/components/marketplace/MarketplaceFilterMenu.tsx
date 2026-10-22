@@ -73,7 +73,7 @@ export function MarketplaceFilterMenu({
           id={panelId}
           role="dialog"
           aria-label={label}
-          className="absolute left-0 z-40 mt-2 w-[min(20rem,calc(100vw-2rem))] rounded-2xl bg-paper-raised p-4 shadow-soft-lg ring-1 ring-black/[0.08] motion-safe:animate-fade-in"
+          className="absolute left-0 z-40 mt-2 w-[min(20rem,calc(100vw-2rem))] rounded-[var(--tv-radius-lg,1rem)] bg-white p-4 shadow-[var(--tv-elev-4)] ring-1 ring-black/[0.06] motion-safe:animate-fade-in"
           onClick={
             closeOnSelect
               ? (e) => {

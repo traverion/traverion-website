@@ -119,9 +119,25 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
     };
   }, [isMobileMenuOpen]);
 
+  const [headerScrolled, setHeaderScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => {
+      const y = window.scrollY || document.documentElement.scrollTop || 0;
+      setHeaderScrolled(y > 8);
+    };
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   return (
     <>
-    <header className="fixed top-0 left-0 right-0 z-[9999] border-b border-black/[0.08] bg-white/95 backdrop-blur-md pt-[env(safe-area-inset-top,0px)]">
+    <header
+      data-scrolled={headerScrolled ? 'true' : undefined}
+      className={`tv-consumer-header fixed top-0 left-0 right-0 z-[9999] border-b bg-white/95 backdrop-blur-md pt-[env(safe-area-inset-top,0px)] transition-[box-shadow,border-color] duration-200 ease-out ${
+        headerScrolled ? 'border-black/[0.06] shadow-[var(--tv-shadow-header)]' : 'border-black/[0.08] shadow-none'
+      }`}
+    >
       <div className="tv-shell px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
           <button type="button" onClick={() => onNavigate('home')} className="lux-flat flex items-center gap-2 min-w-0" aria-label="Traverion home">
             <img 

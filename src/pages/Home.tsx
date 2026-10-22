@@ -375,7 +375,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
             {familyTabs}
             <form
               onSubmit={submitSearch}
-              className={`grid items-center gap-0 overflow-visible rounded-full bg-white p-1.5 text-ink shadow-[0_16px_48px_-14px_rgba(7,26,58,0.35),0_6px_18px_-8px_rgba(0,0,0,0.12)] ring-1 ring-black/[0.04] ${
+              className={`tv-hero-search grid items-center gap-0 overflow-visible rounded-full bg-white p-1.5 text-ink ring-1 ring-black/[0.04] ${
                 searchFamily === 'stays'
                   ? 'grid-cols-[minmax(0,1.2fr)_auto_minmax(0,0.95fr)_auto_minmax(0,0.95fr)_auto_minmax(0,0.85fr)_auto]'
                   : 'grid-cols-[minmax(0,1.4fr)_auto_minmax(0,1.05fr)_auto_minmax(0,0.95fr)_auto]'

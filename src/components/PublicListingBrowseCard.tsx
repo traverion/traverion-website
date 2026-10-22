@@ -211,9 +211,9 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
               </span>
             ) : null}
           </div>
-          {hasDiscount && label ? (
+            {hasDiscount && label ? (
             <div className="absolute bottom-2.5 left-2.5">
-              <span className="rounded-md bg-[#FDECEC] px-2 py-0.5 text-[11px] font-semibold text-[#B42318]">
+              <span className="rounded-md bg-[var(--tv-discount-bg,#F8EFEA)] px-2 py-0.5 text-[11px] font-semibold text-[var(--tv-discount-fg,#9A3412)]">
                 {label}
               </span>
             </div>
@@ -287,8 +287,8 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
                   </span>
                 ) : null}
                 <span
-                  className={`font-bold tracking-tight ${
-                    hasDiscount && !isStay ? 'text-[#B42318]' : 'text-ink'
+                  className={`font-bold tracking-tight tabular-nums ${
+                    hasDiscount && !isStay ? 'text-[var(--tv-discount-fg,#9A3412)]' : 'text-ink'
                   }`}
                 >
                   {formatMoney(isStay ? stayNightly : fromAmount, currency)}
