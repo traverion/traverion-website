@@ -54,12 +54,15 @@ describe('Native Traverion Custom Connect onboarding', () => {
     expect(settings).toContain('/verification');
     expect(settings).not.toContain('ConnectEmbeddedPanel');
     expect(journey).toContain('tv-verify-workspace');
+    expect(journey).toContain('SupplierVerificationStatusView');
+    expect(journey).toContain('resolveVerificationWorkspacePhase');
     expect(journey).toMatch(/Save &(?:amp;)? exit/);
     expect(journey).toContain('Connected Account Agreement');
     expect(journey).toContain('createBankAccountToken');
     expect(journey).toContain('submit_business');
     expect(journey).toContain('biz_structure');
     expect(journey).toContain('bank_details');
+    expect(journey).toContain('markClientSubmitted');
     expect(client).toContain('submit_business');
     expect(client).toContain('attach_bank_token');
     expect(stripeJs).toContain("createToken('bank_account'");

@@ -13,7 +13,15 @@ import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
+import {
+  editCategoryForRequirement,
+  firstScreenForEditCategory,
+  hasAuthoritativeSubmission,
+  resolveVerificationWorkspacePhase,
+  type VerificationWorkspacePhase,
+} from '../../lib/verification-workspace-lifecycle';
 import ConnectEmbeddedPanel from './ConnectEmbeddedPanel';
+import SupplierVerificationStatusView from './SupplierVerificationStatusView';
 
 type CategoryId =
   | 'business'
@@ -116,6 +124,10 @@ function draftKey(userId: string) {
   return `tv-verify-draft:v2:${userId}`;
 }
 
+function submittedKey(userId: string) {
+  return `tv-verify-submitted:v1:${userId}`;
+}
+
 function loadDraft(userId: string): DraftPayload | null {
   try {
     const raw = sessionStorage.getItem(draftKey(userId));
@@ -139,6 +151,22 @@ function clearDraft(userId: string) {
     sessionStorage.removeItem(draftKey(userId));
   } catch {
     /* ignore */
+  }
+}
+
+function markClientSubmitted(userId: string) {
+  try {
+    sessionStorage.setItem(submittedKey(userId), new Date().toISOString());
+  } catch {
+    /* ignore */
+  }
+}
+
+function readClientSubmitted(userId: string): boolean {
+  try {
+    return Boolean(sessionStorage.getItem(submittedKey(userId)));
+  } catch {
+    return false;
   }
 }
 
@@ -361,10 +389,25 @@ export default function SupplierNativeVerificationJourney({
   const currency = (profile?.connect_default_currency || 'EUR').toUpperCase();
   const bootstrapped = useRef(false);
   const draft = useMemo(() => loadDraft(userId), [userId]);
+  const [forceWizard, setForceWizard] = useState(false);
+  /** When true, wizard is a bank-only correction — not the full first-time journey. */
+  const [bankOnlyEdit, setBankOnlyEdit] = useState(false);
+  const [clientSubmitted, setClientSubmitted] = useState(() => readClientSubmitted(userId));
 
-  const [screen, setScreen] = useState<ScreenId>(
-    draft?.screen ?? (initialFocus === 'bank' ? 'bank_country' : 'biz_structure')
-  );
+  const initialPhase = resolveVerificationWorkspacePhase({
+    profile,
+    hasDraft: Boolean(draft),
+    forceWizard: false,
+    clientSubmitted: readClientSubmitted(userId),
+  });
+
+  const [phase, setPhase] = useState<VerificationWorkspacePhase>(() => initialPhase);
+
+  const [screen, setScreen] = useState<ScreenId>(() => {
+    if (initialFocus === 'bank') return 'bank_country';
+    if (draft?.screen) return draft.screen;
+    return 'biz_structure';
+  });
   const [direction, setDirection] = useState<'forward' | 'back'>('forward');
   const [busy, setBusy] = useState(false);
   const [bootBusy, setBootBusy] = useState(true);
@@ -427,9 +470,9 @@ export default function SupplierNativeVerificationJourney({
       buildScreens({
         businessType,
         needsOwners: needsOwnersStep,
-        startBank: initialFocus === 'bank' && !draft?.screen,
+        startBank: bankOnlyEdit,
       }),
-    [businessType, needsOwnersStep, initialFocus, draft?.screen]
+    [businessType, needsOwnersStep, bankOnlyEdit]
   );
 
   const screenIndex = Math.max(0, screens.findIndex((s) => s.id === screen));
@@ -449,10 +492,11 @@ export default function SupplierNativeVerificationJourney({
     void (async () => {
       setBootBusy(true);
       setError(null);
+      // Reuse existing connected account — never create a duplicate on Manage.
       const ensured = await invokeConnectSupplierOnboarding('ensure_account');
       if (cancelled) return;
-      setBootBusy(false);
       if (!ensured.success) {
+        setBootBusy(false);
         setError(userFacingError(ensured.error, USER_ERROR.generic));
         return;
       }
@@ -467,15 +511,46 @@ export default function SupplierNativeVerificationJourney({
       if (ensured.archived_legacy_account_id) {
         setNote('Verification is ready in Traverion.');
       }
-      onProfile(await fetchSupplierProfile(userId));
+      const nextProfile = await fetchSupplierProfile(userId);
+      if (cancelled) return;
+      onProfile(nextProfile);
+      const submitted =
+        hasAuthoritativeSubmission(nextProfile) || readClientSubmitted(userId);
+      if (submitted) {
+        clearDraft(userId);
+        setClientSubmitted(true);
+      }
+      const nextPhase = resolveVerificationWorkspacePhase({
+        profile: nextProfile,
+        hasDraft: Boolean(loadDraft(userId)),
+        forceWizard: false,
+        clientSubmitted: submitted,
+      });
+      // ?focus=bank on a submitted account → bank correction, never Business Structure.
+      if (initialFocus === 'bank' && submitted) {
+        setForceWizard(true);
+        setBankOnlyEdit(true);
+        setScreen('bank_country');
+        setPhase('wizard');
+      } else if (initialFocus === 'bank' && nextPhase === 'wizard') {
+        setBankOnlyEdit(false);
+        setScreen(loadDraft(userId)?.screen ?? 'bank_country');
+        setPhase('wizard');
+      } else {
+        setPhase(nextPhase);
+      }
+      setBootBusy(false);
     })();
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- bootstrap once per mount
   }, [userId, onProfile]);
 
-  // Persist non-sensitive draft for resume (never IBAN / identity docs).
+  // Persist non-sensitive draft only while collecting (never overwrite after submission).
   useEffect(() => {
+    if (phase !== 'wizard') return;
+    if (hasAuthoritativeSubmission(profile) && !forceWizard) return;
     saveDraft(userId, {
       screen,
       legalName,
@@ -501,6 +576,9 @@ export default function SupplierNativeVerificationJourney({
       owners,
     });
   }, [
+    phase,
+    forceWizard,
+    profile,
     userId,
     screen,
     legalName,
@@ -581,6 +659,13 @@ export default function SupplierNativeVerificationJourney({
 
   const goPrev = () => {
     if (screenIndex <= 0) {
+      if (forceWizard && (hasAuthoritativeSubmission(profile) || clientSubmitted)) {
+        setForceWizard(false);
+        setBankOnlyEdit(false);
+        setPhase('status');
+        return;
+      }
+      // Draft already persisted — exit to settings without restarting later.
       onClose();
       return;
     }
@@ -608,7 +693,7 @@ export default function SupplierNativeVerificationJourney({
           },
         },
       });
-      if (await applyResult(result, 'Business details saved.')) goNextLocal();
+      if (await applyResult(result, 'Business details saved.')) afterSuccessfulStep();
       return true;
     });
 
@@ -641,7 +726,7 @@ export default function SupplierNativeVerificationJourney({
           },
         },
       });
-      if (await applyResult(result, 'Representative saved.')) goNextLocal();
+      if (await applyResult(result, 'Representative saved.')) afterSuccessfulStep();
       return true;
     });
 
@@ -678,7 +763,7 @@ export default function SupplierNativeVerificationJourney({
         if (!result.success && owners.length > 0) break;
       }
       setNote('Ownership details recorded.');
-      goNextLocal();
+      afterSuccessfulStep();
       return true;
     });
 
@@ -689,14 +774,41 @@ export default function SupplierNativeVerificationJourney({
         return false;
       }
       const result = await invokeConnectSupplierOnboarding('accept_tos', { tos_accepted: true });
-      if (await applyResult(result, 'Agreement recorded.')) goNextLocal();
+      if (await applyResult(result, 'Agreement recorded.')) afterSuccessfulStep();
       return true;
     });
+
+  const enterWizardAt = (start: ScreenId, opts?: { bankOnly?: boolean }) => {
+    setForceWizard(true);
+    setBankOnlyEdit(Boolean(opts?.bankOnly));
+    setDirection('forward');
+    setScreen(start);
+    setPhase('wizard');
+    setError(null);
+    setNote(null);
+  };
+
+  const afterSuccessfulStep = () => {
+    if (forceWizard && (hasAuthoritativeSubmission(profile) || clientSubmitted)) {
+      void (async () => {
+        setForceWizard(false);
+        setBankOnlyEdit(false);
+        clearDraft(userId);
+        markClientSubmitted(userId);
+        setClientSubmitted(true);
+        await refresh();
+        setPhase('status');
+        setNote('Update submitted. Status refreshes from the payment provider.');
+      })();
+      return;
+    }
+    goNextLocal();
+  };
 
   const submitBank = () =>
     void withSubmit(async () => {
       if (bankMasked && !iban.trim()) {
-        goNextLocal();
+        afterSuccessfulStep();
         return true;
       }
       if (!iban.trim() || !holderName.trim()) {
@@ -720,18 +832,40 @@ export default function SupplierNativeVerificationJourney({
       if (await applyResult(result, 'Bank account submitted securely.')) {
         setBankMasked(`•••• ${iban.replace(/\s+/g, '').slice(-4)}`);
         setIban('');
-        goNextLocal();
+        afterSuccessfulStep();
       }
       return true;
     });
 
   const finish = () =>
     void withSubmit(async () => {
-      await refresh();
+      markClientSubmitted(userId);
+      setClientSubmitted(true);
       clearDraft(userId);
-      onClose();
+      setForceWizard(false);
+      setBankOnlyEdit(false);
+      await refresh();
+      const nextProfile = await fetchSupplierProfile(userId);
+      onProfile(nextProfile);
+      setPhase('status');
+      setNote('Information submitted. Status updates when review finishes.');
       return true;
     });
+
+  const startFromIntro = () => {
+    setForceWizard(false);
+    setBankOnlyEdit(false);
+    setScreen('biz_structure');
+    setPhase('wizard');
+  };
+
+  const startFixRequirements = () => {
+    const firstDue = due[0] ? String(due[0]) : '';
+    const category = firstDue ? editCategoryForRequirement(firstDue) : 'business';
+    enterWizardAt(firstScreenForEditCategory(category) as ScreenId, {
+      bankOnly: category === 'banking',
+    });
+  };
 
   const onContinue = () => {
     const action = current.submit;
@@ -792,6 +926,125 @@ export default function SupplierNativeVerificationJourney({
             ? 'Saving…'
             : 'Continue';
 
+  if (bootBusy) {
+    return (
+      <div className={fullScreen ? 'tv-verify-workspace' : 'mx-auto w-full max-w-[720px] px-4 py-16'}>
+        {fullScreen ? (
+          <header className="tv-verify-workspace__header">
+            <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-7 w-auto" />
+            <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#71717a]">Verification</span>
+          </header>
+        ) : null}
+        <div className={fullScreen ? 'tv-verify-workspace__main' : ''}>
+          <p className="text-center text-[13px] text-[#52525b]" role="status">
+            Preparing secure verification…
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === 'status' && !forceWizard) {
+    return (
+      <SupplierVerificationStatusView
+        profile={profile}
+        bankMasked={bankMasked}
+        canEdit={canEdit}
+        busy={busy}
+        error={error}
+        note={note}
+        accountId={lastMirror?.account_id ?? profile?.stripe_connected_account_id ?? null}
+        onClose={onClose}
+        onRefresh={() =>
+          void withSubmit(async () => {
+            await refresh();
+            setNote('Verification status refreshed.');
+            return true;
+          })
+        }
+        onUpdateBusiness={() => enterWizardAt('biz_structure')}
+        onUpdateBank={() => enterWizardAt('bank_country', { bankOnly: true })}
+        onFixRequirements={startFixRequirements}
+        onContinueIdentity={() => {
+          setShowIdentityEmbed(true);
+        }}
+        fullScreen={fullScreen}
+      />
+    );
+  }
+
+  if (phase === 'intro' && !forceWizard) {
+    const introBody = (
+      <div className="mx-auto w-full max-w-[36rem] space-y-5 text-center sm:text-left">
+        <p className="tv-verify-kicker">Payout verification</p>
+        <h1 className="tv-verify-title">Verify your business for payouts</h1>
+        <p className="tv-verify-lede mx-auto sm:mx-0">
+          Confirm your business, representative, and bank details in Traverion. Submitting does not mean you are
+          verified — status comes from the payment provider when review finishes.
+        </p>
+        {error ? (
+          <p className="rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 text-left text-[13px] text-red-900" role="alert">
+            {error}
+          </p>
+        ) : null}
+        {blockedReason ? (
+          <div className="rounded-[12px] border border-amber-200 bg-amber-50 px-4 py-3 text-left text-[13px] text-amber-950">
+            <p className="font-semibold">Support required</p>
+            <p className="mt-1 text-[12px] leading-relaxed">{blockedReason}</p>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="tv-btn-primary h-11 px-5 text-[13px]"
+            disabled={!canEdit || busy}
+            onClick={startFromIntro}
+          >
+            Start verification
+          </button>
+        )}
+      </div>
+    );
+    if (!fullScreen) {
+      return (
+        <div className="space-y-4">
+          <button type="button" className="text-[13px] font-semibold text-[#073b83]" onClick={onClose}>
+            Back to payout settings
+          </button>
+          {introBody}
+        </div>
+      );
+    }
+    return (
+      <div className="tv-verify-workspace">
+        <header className="tv-verify-workspace__header">
+          <div className="flex min-w-0 items-center gap-3">
+            <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-7 w-auto shrink-0" />
+            <span className="hidden text-[12px] font-semibold uppercase tracking-[0.14em] text-[#71717a] sm:inline">
+              Verification
+            </span>
+          </div>
+          <button type="button" className="text-[13px] font-semibold text-[#073b83]" onClick={onClose}>
+            Save &amp; exit
+          </button>
+        </header>
+        <div className="tv-verify-workspace__main">{introBody}</div>
+        <footer className="tv-verify-workspace__footer">
+          <button type="button" className="tv-btn-secondary h-11 px-4 text-[13px]" onClick={onClose}>
+            Exit
+          </button>
+          <button
+            type="button"
+            className="tv-btn-primary h-11 px-5 text-[13px]"
+            disabled={!canEdit || Boolean(blockedReason)}
+            onClick={startFromIntro}
+          >
+            Start verification
+          </button>
+        </footer>
+      </div>
+    );
+  }
+
   if (showIdentityEmbed) {
     return (
       <div className={fullScreen ? 'tv-verify-workspace' : 'mx-auto w-full max-w-[720px] space-y-4'}>
@@ -815,7 +1068,12 @@ export default function SupplierNativeVerificationJourney({
               onExit={async () => {
                 setShowIdentityEmbed(false);
                 await refresh();
-                goNextLocal();
+                if (hasAuthoritativeSubmission(profile) || clientSubmitted) {
+                  setForceWizard(false);
+                  setPhase('status');
+                } else {
+                  goNextLocal();
+                }
               }}
               onHostedFallback={(url) => {
                 window.location.assign(url);

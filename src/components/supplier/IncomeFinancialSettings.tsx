@@ -316,11 +316,13 @@ export default function IncomeFinancialSettings({
   ] as const;
 
   const primaryVerifyCta =
-    experience === 'ready_for_bank_payouts'
-      ? 'Manage verification'
-      : experience === 'not_started'
-        ? 'Complete verification'
-        : 'Continue verification';
+    experience === 'not_started'
+      ? 'Complete verification'
+      : experience === 'information_required'
+        ? 'Continue verification'
+        : experience === 'additional_information_required' || experience === 'restricted'
+          ? 'Update verification'
+          : 'Manage verification';
 
   return (
     <div id="income-payout-settings" className="mx-auto w-full max-w-[880px] space-y-4">
