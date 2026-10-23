@@ -135,7 +135,7 @@ export const TRANSFORM3_PHASE_CHECKLIST = {
   '22_overlays': 'done',
   '23_responsive': 'done',
   '24_motion_a11y': 'done',
-  '25_delivery': 'pending',
+  '25_delivery': 'done',
 } as const;
 
 /** Priority inconsistencies observed before Transform 3.0 implementation. */

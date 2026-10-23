@@ -32,7 +32,7 @@ describe('Departures & Availability premium ops redesign', () => {
     const src = readFileSync(resolve(__dirname, 'SupplierAvailability.tsx'), 'utf8');
     expect(src).toContain('SupplierPageHero');
     expect(src).toContain('sansTitle');
-    expect(src).toContain('Manage your departures, bookings, and available capacity.');
+    expect(src).toContain('Capacity, cutoffs, and booked seats by departure.');
     expect(src).toContain('partner-avail-workspace');
     expect(src).toContain('Reset filters');
     expect(src).toContain('shiftWeekRange');
