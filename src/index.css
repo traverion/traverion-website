@@ -406,10 +406,14 @@ body {
 
   /* Selected nav: soft fill + left bar — never a permanent outline ring. */
   .partner-sidebar .partner-nav-item[aria-current='page'] {
-    background-color: color-mix(in srgb, var(--partner-accent, #073b83) 9%, #ffffff);
+    background-color: var(--partner-accent-soft, color-mix(in srgb, #073b83 8.5%, #ffffff));
     color: var(--partner-accent, #073b83);
     font-weight: 650;
     box-shadow: none;
+  }
+
+  .partner-sidebar .partner-nav-section-label + * {
+    margin-top: 0.05rem;
   }
 
   .partner-sidebar .partner-nav-item:focus {

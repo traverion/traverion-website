@@ -86,7 +86,7 @@ function NavButton({
     >
       {active && !collapsed && !disabled ? (
         <span
-          className="absolute left-0 top-1/2 h-[1.125rem] w-[3px] -translate-y-1/2 rounded-full bg-finland"
+          className="absolute left-0 top-1/2 h-[1.05rem] w-[2.5px] -translate-y-1/2 rounded-full bg-finland"
           aria-hidden
         />
       ) : null}
@@ -210,38 +210,42 @@ export default function PartnerSidebar({
 
   return (
     <aside
-      className={`partner-sidebar hidden md:flex shrink-0 flex-col border-r border-slate-200/70 ${
-        collapsed ? 'w-[64px]' : 'w-[248px]'
+      className={`partner-sidebar hidden md:flex shrink-0 flex-col border-r border-[color:var(--partner-border,#e4e7ec)] ${
+        collapsed ? 'w-[60px]' : 'w-[240px]'
       }`}
       aria-label="Partner navigation"
     >
-      <div className={`shrink-0 ${collapsed ? 'px-2 pt-2.5 pb-1.5' : 'px-3 pt-2.5 pb-2'}`}>
+      <div className={`shrink-0 ${collapsed ? 'px-1.5 pt-2.5 pb-1.5' : 'px-2.5 pt-2.5 pb-2'}`}>
         <button
           type="button"
           onClick={onHome}
-          className={`partner-nav-item lux-flat flex min-w-0 items-center rounded-lg ${
-            collapsed ? 'justify-center px-1 py-1' : 'gap-2 px-1 py-1 -mx-0.5'
-          } hover:bg-slate-900/[0.04]`}
+          className={`partner-nav-item lux-flat flex min-w-0 items-center rounded-md ${
+            collapsed ? 'justify-center px-1 py-1' : 'gap-2 px-1.5 py-1'
+          } hover:bg-slate-900/[0.035]`}
           aria-label="Partner home"
         >
-          <img src={BRAND_LOGO_SRC} alt="" className="h-6 w-6 shrink-0 object-contain" />
+          <img src={BRAND_LOGO_SRC} alt="" className="h-5 w-5 shrink-0 object-contain" />
           {!collapsed ? (
             <span className="min-w-0 text-left">
-              <span className="block font-sans text-[10.5px] font-bold tracking-[0.14em] text-slate-900">
+              <span className="block font-sans text-[10px] font-bold tracking-[0.16em] text-[color:var(--partner-ink,#0c1118)]">
                 TRAVERION
               </span>
-              <span className="mt-0.5 block text-[10.5px] font-medium text-slate-500">Partner</span>
+              <span className="mt-px block text-[10px] font-medium text-[color:var(--partner-ink-faint,#8892a0)]">
+                Partner
+              </span>
             </span>
           ) : null}
         </button>
         {!collapsed ? (
-          <div className="mt-2 min-w-0 px-1">
+          <div className="mt-2.5 min-w-0 border-t border-[color:var(--partner-border,#e4e7ec)] px-1.5 pt-2.5">
             {businessLabel ? (
-              <p className="truncate text-[12.5px] font-semibold leading-snug tracking-tight text-slate-900">
+              <p className="truncate text-[12.5px] font-semibold leading-snug tracking-tight text-[color:var(--partner-ink,#0c1118)]">
                 {businessLabel}
               </p>
             ) : null}
-            <p className="mt-0.5 text-[10.5px] font-medium text-slate-400">Workspace</p>
+            <p className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.08em] text-[color:var(--partner-ink-faint,#8892a0)]">
+              Workspace
+            </p>
           </div>
         ) : null}
       </div>
@@ -258,7 +262,7 @@ export default function PartnerSidebar({
             return (
               <p
                 key={entry.id}
-                className="partner-nav-section-label px-2.5 pb-1 pt-2.5 text-[10px] font-semibold uppercase tracking-[0.11em] text-slate-400 first:pt-0.5"
+                className="partner-nav-section-label px-2.5 pb-1.5 pt-3 text-[9.5px] font-semibold uppercase tracking-[0.12em] text-[color:var(--partner-ink-faint,#8892a0)] first:pt-1"
               >
                 {entry.label}
               </p>
