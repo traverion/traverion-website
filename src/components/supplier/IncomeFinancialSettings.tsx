@@ -1,6 +1,5 @@
 import { useEffect, useId, useState } from 'react';
 import {
-  ArrowLeft,
   CheckCircle2,
   Circle,
   CreditCard,
@@ -45,8 +44,7 @@ import {
   PARTNER_PAYOUT_FREQUENCY_TWICE_MONTHLY_LABEL,
   PARTNER_PAYOUT_THRESHOLD_HINT,
 } from '../../lib/booking-confirmation-copy';
-import ConnectEmbeddedPanel from './ConnectEmbeddedPanel';
-import type { ConnectEmbeddedComponent } from '../../data/supabase-connect-onboarding';
+import SupplierNativeVerificationJourney from './SupplierNativeVerificationJourney';
 
 type Props = {
   userId: string;
@@ -60,7 +58,7 @@ type Props = {
   eligibleEarningsMinor?: number;
 };
 
-type WorkspaceMode = null | 'account_onboarding' | 'account_management';
+type WorkspaceMode = null | 'verify' | 'bank';
 
 function cadenceLabel(cadence: string | null | undefined): string {
   if (cadence === 'semimonthly') return 'Twice monthly';
@@ -330,56 +328,23 @@ export default function IncomeFinancialSettings({
         ? 'Complete verification'
         : 'Continue verification';
 
-  // Focused verification / bank management workspace
+  // Focused Traverion-native verification / bank workspace
   if (workspace) {
-    const isManage = workspace === 'account_management';
     return (
-      <div id="income-payout-settings" className="mx-auto w-full max-w-[880px] space-y-4">
-        <header className="space-y-3">
-          <button
-            type="button"
-            className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#073b83] transition-colors hover:text-[#052a5c]"
-            onClick={closeWorkspace}
-          >
-            <ArrowLeft className="h-4 w-4" aria-hidden />
-            Back to payout settings
-          </button>
-          <div className="space-y-1">
-            <h1 className="text-lg font-bold tracking-tight text-[#18181b] sm:text-xl">
-              {isManage ? 'Manage payout account' : 'Complete verification'}
-            </h1>
-            <p className="max-w-xl text-[13px] leading-relaxed text-[#52525b]">
-              {isManage
-                ? 'Update bank details and account information securely. Changes are confirmed before payouts are enabled.'
-                : 'Provide the required business and identity details. Verification is confirmed only when capabilities are approved — not when a form is submitted.'}
-            </p>
-          </div>
-        </header>
-
+      <div id="income-payout-settings">
         {connectError ? (
-          <p className="rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-900" role="alert">
+          <p className="mb-3 rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-900" role="alert">
             {connectError}
           </p>
         ) : null}
-
-        <div className="min-h-[320px] overflow-visible rounded-[12px] border border-[#e5e7eb] bg-white px-3 py-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:px-5 sm:py-5">
-          <ConnectEmbeddedPanel
-            component={workspace as ConnectEmbeddedComponent}
-            onExit={closeWorkspace}
-            onHostedFallback={(url) => {
-              window.location.assign(url);
-            }}
-            onError={(msg) => setConnectError(msg)}
-          />
-        </div>
-
-        <p className="flex items-start gap-2 px-1 text-[12px] leading-relaxed text-[#71717a]">
-          <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-          <span>
-            Identity verification and bank details are processed by our payment partner. Traverion never stores raw bank
-            credentials. Required legal disclosures appear inside the verification form.
-          </span>
-        </p>
+        <SupplierNativeVerificationJourney
+          userId={userId}
+          profile={profile}
+          canEdit={canEdit}
+          onProfile={onProfile}
+          onClose={closeWorkspace}
+          initialFocus={workspace === 'bank' ? 'bank' : 'full'}
+        />
       </div>
     );
   }
@@ -425,11 +390,7 @@ export default function IncomeFinancialSettings({
               type="button"
               className="tv-btn-primary h-10 px-3 text-[13px]"
               disabled={!canEdit || connectBusy}
-              onClick={() =>
-                openWorkspace(
-                  experience === 'ready_for_bank_payouts' ? 'account_management' : 'account_onboarding'
-                )
-              }
+              onClick={() => openWorkspace('verify')}
             >
               {connectBusy ? 'Working…' : primaryVerifyCta}
             </button>
@@ -517,7 +478,7 @@ export default function IncomeFinancialSettings({
             type="button"
             className={bank.connected ? 'tv-btn-secondary h-10 px-3 text-[13px]' : 'tv-btn-primary h-10 px-3 text-[13px]'}
             disabled={!canEdit || connectBusy}
-            onClick={() => openWorkspace('account_management')}
+            onClick={() => openWorkspace('bank')}
           >
             {bank.connected ? 'Manage bank account' : 'Add bank account'}
           </button>

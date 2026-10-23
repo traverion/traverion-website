@@ -1,11 +1,14 @@
 /**
- * Stripe Connect Express onboarding for Traverion suppliers (TEST only).
+ * Stripe Connect onboarding for Traverion suppliers (TEST only).
  *
- * Preferred path: Account Session → Connect embedded components (account_onboarding /
- * account_management) so suppliers never leave Traverion.
- * Fallback: Stripe-hosted Account Links when Account Sessions are unavailable.
+ * Preferred (new accounts): Custom connected accounts + API updates from
+ * Traverion-native forms (no Express login popup / hosted Account Link).
  *
- * Never marks verified from UI completion alone — always sync Account capabilities.
+ * Legacy Express accounts: Account Session embedded components (or hosted
+ * Account Link fallback). Never silently recreate Express → Custom.
+ *
+ * Verification status always comes from Account sync / webhooks — never from
+ * form submission alone.
  */
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
@@ -24,10 +27,65 @@ function json(body: unknown, status = 200): Response {
 }
 
 type Body = {
-  action?: 'start' | 'refresh' | 'status' | 'account_session' | 'account_link';
-  /** Embedded component to enable when action=account_session */
+  action?:
+    | 'start'
+    | 'refresh'
+    | 'status'
+    | 'account_session'
+    | 'account_link'
+    | 'ensure_account'
+    | 'submit_business'
+    | 'submit_representative'
+    | 'accept_tos'
+    | 'attach_bank_token'
+    | 'submit_identity_file';
   component?: 'account_onboarding' | 'account_management';
   returnOrigin?: string;
+  business?: {
+    legal_name?: string;
+    business_type?: 'company' | 'individual';
+    tax_id?: string;
+    registration_number?: string;
+    phone?: string;
+    url?: string;
+    address?: {
+      line1?: string;
+      line2?: string;
+      city?: string;
+      postal_code?: string;
+      country?: string;
+      state?: string;
+    };
+  };
+  representative?: {
+    first_name?: string;
+    last_name?: string;
+    email?: string;
+    phone?: string;
+    title?: string;
+    dob?: { day?: number; month?: number; year?: number };
+    address?: {
+      line1?: string;
+      line2?: string;
+      city?: string;
+      postal_code?: string;
+      country?: string;
+      state?: string;
+    };
+    relationship?: {
+      owner?: boolean;
+      percent_ownership?: number | null;
+      executive?: boolean;
+      director?: boolean;
+    };
+  };
+  bank_token?: string;
+  identity?: {
+    person_id?: string;
+    file_id?: string;
+    side?: 'front' | 'back';
+  };
+  tos_accepted?: boolean;
 };
 
 function allowlistedOrigin(raw: string | undefined, publicSite: string, extras: string[]): string {
@@ -37,6 +95,14 @@ function allowlistedOrigin(raw: string | undefined, publicSite: string, extras: 
   const origin = (raw ?? '').trim().replace(/\/$/, '');
   if (origin && candidates.some((c) => c === origin)) return origin;
   return candidates[0] || 'https://partner.traverion.com';
+}
+
+function clientIp(req: Request): string {
+  const forwarded = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
+  if (forwarded) return forwarded;
+  const real = req.headers.get('x-real-ip')?.trim();
+  if (real) return real;
+  return '0.0.0.0';
 }
 
 serve(async (req) => {
@@ -74,7 +140,7 @@ serve(async (req) => {
       return json({ success: false, error: stripeLiveSecretBlockedMessage() }, 503);
     }
     if (publishableKey && !publishableKey.startsWith('pk_test_')) {
-      return json({ success: false, error: 'STRIPE_PUBLISHABLE_KEY must be pk_test_ for Connect embedded' }, 503);
+      return json({ success: false, error: 'Publishable key must be test mode for payout verification' }, 503);
     }
 
     const authHeader = req.headers.get('Authorization') ?? '';
@@ -120,7 +186,7 @@ serve(async (req) => {
     const { data: profile, error: profileErr } = await admin
       .from('supplier_profiles')
       .select(
-        'id, display_name, company_legal_name, business_type, address_street, address_city, address_postal_code, address_country, stripe_connected_account_id, connect_onboarding_status, connect_charges_enabled, connect_payouts_enabled, connect_details_submitted, connect_disabled_reason, connect_requirements_currently_due, connect_requirements_past_due, connect_default_currency, connect_country, connect_debit_negative_balances, connect_last_synced_at, payout_rail, payment_cycle'
+        'id, display_name, company_legal_name, business_type, address_street, address_city, address_postal_code, address_country, contact_phone, company_registration_number, tax_id, stripe_connected_account_id, connect_account_type, connect_onboarding_status, connect_charges_enabled, connect_payouts_enabled, connect_details_submitted, connect_disabled_reason, connect_requirements_currently_due, connect_requirements_past_due, connect_default_currency, connect_country, connect_debit_negative_balances, connect_last_synced_at, payout_rail, payment_cycle'
       )
       .eq('id', supplierId)
       .maybeSingle();
@@ -131,23 +197,37 @@ serve(async (req) => {
     const origin = allowlistedOrigin(body.returnOrigin, publicSiteUrl, extraOrigins);
     const returnUrl = `${origin}/partner/money?tab=settings&connect=return`;
     const refreshUrl = `${origin}/partner/money?tab=settings&connect=refresh`;
+    const ip = clientIp(req);
 
-    async function syncAccount(accountId: string) {
-      const account = await stripe.accounts.retrieve(accountId);
-      const mirror = mirrorConnectAccount(account as Parameters<typeof mirrorConnectAccount>[0]);
+    async function persistMirror(mirror: ReturnType<typeof mirrorConnectAccount>) {
       const { error: updErr } = await admin
         .from('supplier_profiles')
         .update({ ...mirror, updated_at: new Date().toISOString() })
         .eq('id', supplierId);
       if (updErr) throw new Error(updErr.message);
+    }
+
+    async function syncAccount(accountId: string) {
+      const account = await stripe.accounts.retrieve(accountId);
+      // Ownership: only allow accounts tagged to this supplier (or legacy untagged during TEST).
+      const metaSupplier = (account.metadata?.traverion_supplier_id ?? '').trim();
+      if (metaSupplier && metaSupplier !== supplierId) {
+        throw new Error('Connected account does not belong to this supplier organization');
+      }
+      const mirror = mirrorConnectAccount(account as Parameters<typeof mirrorConnectAccount>[0]);
+      await persistMirror(mirror);
       return { account, mirror };
     }
 
-    async function ensureConnectedAccount(): Promise<string> {
+    /** Idempotent: reuse linked account; create Custom only when missing. Never recreate Express. */
+    async function ensureConnectedAccount(): Promise<{ accountId: string; accountType: string }> {
       let accountId = profile.stripe_connected_account_id as string | null;
       if (accountId) {
-        await syncAccount(accountId);
-        return accountId;
+        const { account, mirror } = await syncAccount(accountId);
+        return {
+          accountId,
+          accountType: mirror.connect_account_type || (account.type as string) || 'unknown',
+        };
       }
 
       const country = (profile.address_country || profile.connect_country || 'FI')
@@ -157,7 +237,7 @@ serve(async (req) => {
       const email = authData.user.email ?? undefined;
       const isIndividual = profile.business_type === 'individual';
       const createParams: Stripe.AccountCreateParams = {
-        type: 'express',
+        type: 'custom',
         country,
         email,
         business_type: isIndividual ? 'individual' : 'company',
@@ -167,6 +247,7 @@ serve(async (req) => {
         metadata: {
           traverion_supplier_id: supplierId!,
           traverion_environment: 'test',
+          traverion_onboarding: 'api_native',
         },
         settings: {
           payouts: {
@@ -175,13 +256,31 @@ serve(async (req) => {
         },
         business_profile: {
           name: (profile.display_name || profile.company_legal_name || undefined) ?? undefined,
+          product_description: 'Travel experiences and stays sold on Traverion',
+          mcc: '4722',
+          support_email: email,
+          support_phone: profile.contact_phone || undefined,
         },
       };
 
-      // Prefill non-sensitive Traverion profile fields; Stripe still owns KYC verification.
       if (!isIndividual && profile.company_legal_name) {
         createParams.company = {
           name: profile.company_legal_name,
+          phone: profile.contact_phone || undefined,
+          tax_id: profile.tax_id || profile.company_registration_number || undefined,
+          address: {
+            line1: profile.address_street || undefined,
+            city: profile.address_city || undefined,
+            postal_code: profile.address_postal_code || undefined,
+            country,
+          },
+        };
+      }
+
+      if (isIndividual) {
+        createParams.individual = {
+          email,
+          phone: profile.contact_phone || undefined,
           address: {
             line1: profile.address_street || undefined,
             city: profile.address_city || undefined,
@@ -203,10 +302,21 @@ serve(async (req) => {
         })
         .eq('id', supplierId);
       if (insertErr) throw new Error(insertErr.message);
-      return accountId;
+      // Refresh local profile pointer for subsequent actions in this request.
+      profile.stripe_connected_account_id = accountId;
+      profile.connect_account_type = 'custom';
+      return { accountId, accountType: 'custom' };
     }
 
-    function statusPayload(mirror: ReturnType<typeof mirrorConnectAccount> | Record<string, unknown>, accountId: string | null) {
+    function statusPayload(
+      mirror: ReturnType<typeof mirrorConnectAccount> | Record<string, unknown>,
+      accountId: string | null,
+      extras: Record<string, unknown> = {}
+    ) {
+      const accountType =
+        (mirror as { connect_account_type?: string | null }).connect_account_type ??
+        profile.connect_account_type ??
+        null;
       return {
         success: true as const,
         environment: 'test' as const,
@@ -214,12 +324,15 @@ serve(async (req) => {
           mirror as Parameters<typeof connectCanReceiveTransfers>[0]
         ),
         account_id: accountId,
+        account_type: accountType,
+        onboarding_mode: accountType === 'custom' ? 'api_native' : accountType === 'express' ? 'embedded' : 'unknown',
         onboarding: mirror,
         payout_schedule:
           profile.payment_cycle === 'biweekly'
             ? 'Twice monthly (Traverion cadence)'
             : 'Monthly (Traverion cadence)',
-        note: 'Verification status comes from Stripe Account capabilities, not the browser return URL.',
+        note: 'Verification status comes from Account capabilities, not form submission alone.',
+        ...extras,
       };
     }
 
@@ -238,6 +351,7 @@ serve(async (req) => {
             connect_details_submitted: false,
             connect_requirements_currently_due: [],
             connect_requirements_past_due: [],
+            connect_account_type: null,
             payout_rail: profile.payout_rail ?? 'manual_iban',
           },
           null
@@ -245,9 +359,228 @@ serve(async (req) => {
       });
     }
 
-    // Embedded Account Session (preferred)
-    if (action === 'account_session' || action === 'start') {
-      const accountId = await ensureConnectedAccount();
+    if (action === 'ensure_account' || action === 'start') {
+      const { accountId, accountType } = await ensureConnectedAccount();
+      const { mirror } = await syncAccount(accountId);
+      return json({
+        action: 'ensure_account',
+        ...statusPayload(mirror, accountId, {
+          created_or_reused: true,
+          account_type: accountType,
+        }),
+      });
+    }
+
+    if (action === 'submit_business') {
+      const { accountId, accountType } = await ensureConnectedAccount();
+      if (accountType === 'express') {
+        return json({
+          success: false,
+          error:
+            'This payout account uses the previous verification method. Continue with the secure in-app verification step, or contact Traverion to re-onboard in test.',
+          account_type: 'express',
+          onboarding_mode: 'embedded',
+        }, 409);
+      }
+      const b = body.business ?? {};
+      const country = (b.address?.country || profile.address_country || 'FI').toString().slice(0, 2).toUpperCase();
+      const businessType = b.business_type || (profile.business_type === 'individual' ? 'individual' : 'company');
+      const update: Stripe.AccountUpdateParams = {
+        business_type: businessType,
+        business_profile: {
+          name: b.legal_name || profile.display_name || undefined,
+          support_phone: b.phone || profile.contact_phone || undefined,
+          url: b.url || undefined,
+          mcc: '4722',
+          product_description: 'Travel experiences and stays sold on Traverion',
+        },
+      };
+      if (businessType === 'company') {
+        update.company = {
+          name: b.legal_name || profile.company_legal_name || undefined,
+          phone: b.phone || profile.contact_phone || undefined,
+          tax_id: b.tax_id || b.registration_number || profile.tax_id || profile.company_registration_number || undefined,
+          address: {
+            line1: b.address?.line1 || profile.address_street || undefined,
+            line2: b.address?.line2 || undefined,
+            city: b.address?.city || profile.address_city || undefined,
+            postal_code: b.address?.postal_code || profile.address_postal_code || undefined,
+            state: b.address?.state || undefined,
+            country,
+          },
+        };
+      } else {
+        update.individual = {
+          phone: b.phone || profile.contact_phone || undefined,
+          address: {
+            line1: b.address?.line1 || profile.address_street || undefined,
+            line2: b.address?.line2 || undefined,
+            city: b.address?.city || profile.address_city || undefined,
+            postal_code: b.address?.postal_code || profile.address_postal_code || undefined,
+            state: b.address?.state || undefined,
+            country,
+          },
+        };
+      }
+      await stripe.accounts.update(accountId, update);
+      // Keep Traverion company SoT in sync for non-sensitive fields.
+      await admin
+        .from('supplier_profiles')
+        .update({
+          company_legal_name: b.legal_name?.trim() || profile.company_legal_name,
+          business_type: businessType,
+          contact_phone: b.phone?.trim() || profile.contact_phone,
+          address_street: b.address?.line1?.trim() || profile.address_street,
+          address_city: b.address?.city?.trim() || profile.address_city,
+          address_postal_code: b.address?.postal_code?.trim() || profile.address_postal_code,
+          address_country: country,
+          company_registration_number:
+            b.registration_number?.trim() || profile.company_registration_number,
+          tax_id: b.tax_id?.trim() || profile.tax_id,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', supplierId);
+      const { mirror } = await syncAccount(accountId);
+      return json({ action, ...statusPayload(mirror, accountId) });
+    }
+
+    if (action === 'submit_representative') {
+      const { accountId, accountType } = await ensureConnectedAccount();
+      if (accountType === 'express') {
+        return json({
+          success: false,
+          error: 'Representative updates for this account use the secure in-app verification step.',
+          account_type: 'express',
+        }, 409);
+      }
+      const r = body.representative ?? {};
+      if (!r.first_name?.trim() || !r.last_name?.trim()) {
+        return json({ success: false, error: 'First and last name are required' }, 400);
+      }
+      if (!r.dob?.day || !r.dob?.month || !r.dob?.year) {
+        return json({ success: false, error: 'Date of birth is required' }, 400);
+      }
+      const country = (r.address?.country || profile.address_country || 'FI').toString().slice(0, 2).toUpperCase();
+      const persons = await stripe.accounts.listPersons(accountId, { limit: 20 });
+      const existingRep = persons.data.find((p) => p.relationship?.representative);
+      const personParams: Stripe.PersonCreateParams | Stripe.PersonUpdateParams = {
+        first_name: r.first_name.trim(),
+        last_name: r.last_name.trim(),
+        email: r.email?.trim() || authData.user.email || undefined,
+        phone: r.phone?.trim() || undefined,
+        dob: {
+          day: r.dob.day,
+          month: r.dob.month,
+          year: r.dob.year,
+        },
+        address: {
+          line1: r.address?.line1 || profile.address_street || undefined,
+          line2: r.address?.line2 || undefined,
+          city: r.address?.city || profile.address_city || undefined,
+          postal_code: r.address?.postal_code || profile.address_postal_code || undefined,
+          state: r.address?.state || undefined,
+          country,
+        },
+        relationship: {
+          representative: true,
+          executive: r.relationship?.executive !== false,
+          director: Boolean(r.relationship?.director),
+          owner: Boolean(r.relationship?.owner),
+          percent_ownership:
+            r.relationship?.percent_ownership != null
+              ? Number(r.relationship.percent_ownership)
+              : undefined,
+          title: r.title?.trim() || 'Representative',
+        },
+      };
+      let personId: string;
+      if (existingRep) {
+        const updated = await stripe.accounts.updatePerson(accountId, existingRep.id, personParams);
+        personId = updated.id;
+      } else {
+        const created = await stripe.accounts.createPerson(accountId, personParams as Stripe.PersonCreateParams);
+        personId = created.id;
+      }
+      const { mirror } = await syncAccount(accountId);
+      return json({ action, person_id: personId, ...statusPayload(mirror, accountId) });
+    }
+
+    if (action === 'accept_tos') {
+      if (!body.tos_accepted) {
+        return json({ success: false, error: 'You must accept the Connected Account Agreement to continue' }, 400);
+      }
+      const { accountId, accountType } = await ensureConnectedAccount();
+      if (accountType === 'express') {
+        return json({
+          success: false,
+          error: 'Agreement acceptance for this account is collected in the secure verification step.',
+          account_type: 'express',
+        }, 409);
+      }
+      await stripe.accounts.update(accountId, {
+        tos_acceptance: {
+          date: Math.floor(Date.now() / 1000),
+          ip,
+        },
+      });
+      const { mirror } = await syncAccount(accountId);
+      return json({ action, ...statusPayload(mirror, accountId) });
+    }
+
+    if (action === 'attach_bank_token') {
+      const token = (body.bank_token ?? '').trim();
+      if (!token.startsWith('btok_') && !token.startsWith('tok_')) {
+        return json({ success: false, error: 'Invalid bank token' }, 400);
+      }
+      const { accountId, accountType } = await ensureConnectedAccount();
+      if (accountType === 'express') {
+        return json({
+          success: false,
+          error: 'Bank details for this account are managed in the secure verification step.',
+          account_type: 'express',
+        }, 409);
+      }
+      await stripe.accounts.createExternalAccount(accountId, {
+        external_account: token,
+        default_for_currency: true,
+      });
+      const { mirror } = await syncAccount(accountId);
+      return json({
+        action,
+        ...statusPayload(mirror, accountId, {
+          bank_attached: true,
+          note: 'Bank token attached. Payout readiness still depends on Account capabilities.',
+        }),
+      });
+    }
+
+    if (action === 'submit_identity_file') {
+      const fileId = (body.identity?.file_id ?? '').trim();
+      const personId = (body.identity?.person_id ?? '').trim();
+      const side = body.identity?.side === 'back' ? 'back' : 'front';
+      if (!fileId.startsWith('file_') || !personId) {
+        return json({ success: false, error: 'Identity file and person are required' }, 400);
+      }
+      const { accountId, accountType } = await ensureConnectedAccount();
+      if (accountType === 'express') {
+        return json({
+          success: false,
+          error: 'Identity documents for this account are collected in the secure verification step.',
+          account_type: 'express',
+        }, 409);
+      }
+      await stripe.accounts.updatePerson(accountId, personId, {
+        verification: {
+          document: side === 'back' ? { back: fileId } : { front: fileId },
+        },
+      });
+      const { mirror } = await syncAccount(accountId);
+      return json({ action, ...statusPayload(mirror, accountId) });
+    }
+
+    // Embedded Account Session — used for Express legacy + risk remediation exceptions.
+    if (action === 'account_session') {
+      const { accountId } = await ensureConnectedAccount();
       const component =
         body.component === 'account_management' ? 'account_management' : 'account_onboarding';
 
@@ -285,10 +618,9 @@ serve(async (req) => {
           publishable_key: publishableKey || null,
           component,
           expires_at: session.expires_at,
-          note: 'Use client_secret with Connect.js. Completing the UI is not proof of verification — sync Account capabilities after exit.',
+          note: 'Embedded component reserved for legacy Express accounts or provider-controlled remediation.',
         });
       } catch (sessionErr) {
-        // Supported fallback: Stripe-hosted Account Link (Express).
         const link = await stripe.accountLinks.create({
           account: accountId,
           refresh_url: refreshUrl,
@@ -297,20 +629,20 @@ serve(async (req) => {
         });
         return json({
           success: true,
-          action: action === 'start' ? 'start' : 'account_session',
+          action: 'account_session',
           mode: 'hosted_fallback',
           environment: 'test',
           account_id: accountId,
           url: link.url,
           expires_at: link.expires_at,
           fallback_reason: sessionErr instanceof Error ? sessionErr.message : 'account_session_unavailable',
-          note: 'Embedded Account Session unavailable; using Stripe-hosted Account Link fallback.',
+          note: 'Embedded Account Session unavailable; hosted Account Link fallback (legacy path).',
         });
       }
     }
 
     if (action === 'account_link') {
-      const accountId = await ensureConnectedAccount();
+      const { accountId } = await ensureConnectedAccount();
       const link = await stripe.accountLinks.create({
         account: accountId,
         refresh_url: refreshUrl,

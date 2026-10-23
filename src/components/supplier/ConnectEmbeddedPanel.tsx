@@ -69,7 +69,8 @@ export default function ConnectEmbeddedPanel({ component, onExit, onHostedFallba
           fetchClientSecret,
           locale: CONNECT_EMBEDDED_LOCALE,
           appearance: {
-            overlays: 'dialog',
+            // Prefer drawer overlays so regulated sub-steps stay framed in Traverion (not a detached popup).
+            overlays: 'drawer',
             variables: {
               colorPrimary: '#073b83',
               colorBackground: '#ffffff',

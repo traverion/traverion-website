@@ -46,19 +46,18 @@ describe('Mission 2: Connect onboarding + TEST transfer engine', () => {
     'utf8'
   );
 
-  it('1. onboarding uses Account Sessions (embedded) with hosted Account Link fallback', () => {
-    expect(onboarding).toContain('accountSessions.create');
+  it('1. onboarding uses Custom API-native forms with embedded/hosted reserved for legacy', () => {
+    expect(onboarding).toContain("type: 'custom'");
     expect(onboarding).toContain('accounts.create');
+    expect(onboarding).toContain('submit_business');
+    expect(onboarding).toContain('accountSessions.create');
     expect(onboarding).toContain('accountLinks.create');
-    expect(onboarding).toContain("type: 'account_onboarding'");
     expect(onboarding).toContain('isStripeTestSecretKey');
     expect(onboarding).toContain('accounts.retrieve');
-    expect(onboarding).toContain('not the browser return URL');
     expect(settings).toContain('Complete verification');
-    expect(settings).toContain('ConnectEmbeddedPanel');
+    expect(settings).toContain('SupplierNativeVerificationJourney');
     expect(settings).toContain('invokeConnectSupplierOnboarding');
     expect(settings).toContain('Payout account');
-    expect(settings).toContain('Back to payout settings');
     expect(mirror).toContain('Never treat a browser return URL alone as verified');
   });
 

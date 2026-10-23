@@ -65,7 +65,7 @@ describe('Phase 6: supplier income experience', () => {
     expect(earningStatusExplanation('pending')).toMatch(/awaiting service completion/i);
     expect(settings).toContain('Payout settings');
     expect(settings).toContain('Payout account');
-    expect(settings).toContain('payment partner');
+    expect(settings).toContain('SupplierNativeVerificationJourney');
   });
 
   it('hardens period RPC access, paid-mark confirmation, and missing durations', () => {

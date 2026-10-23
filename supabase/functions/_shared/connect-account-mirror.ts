@@ -2,6 +2,7 @@
 
 export type ConnectAccountLike = {
   id: string;
+  type?: string | null;
   charges_enabled?: boolean | null;
   payouts_enabled?: boolean | null;
   details_submitted?: boolean | null;
@@ -22,6 +23,7 @@ export type ConnectAccountLike = {
 
 export type ConnectProfileMirror = {
   stripe_connected_account_id: string;
+  connect_account_type: 'express' | 'custom' | 'standard' | null;
   connect_charges_enabled: boolean;
   connect_payouts_enabled: boolean;
   connect_details_submitted: boolean;
@@ -51,8 +53,12 @@ export function deriveConnectOnboardingStatus(account: ConnectAccountLike): Conn
 export function mirrorConnectAccount(account: ConnectAccountLike, nowIso = new Date().toISOString()): ConnectProfileMirror {
   const status = deriveConnectOnboardingStatus(account);
   const payoutsEnabled = Boolean(account.payouts_enabled);
+  const rawType = (account.type ?? '').toLowerCase();
+  const accountType =
+    rawType === 'express' || rawType === 'custom' || rawType === 'standard' ? rawType : null;
   return {
     stripe_connected_account_id: account.id,
+    connect_account_type: accountType,
     connect_charges_enabled: Boolean(account.charges_enabled),
     connect_payouts_enabled: payoutsEnabled,
     connect_details_submitted: Boolean(account.details_submitted),

@@ -6,18 +6,66 @@ export type ConnectOnboardingAction =
   | 'refresh'
   | 'status'
   | 'account_session'
-  | 'account_link';
+  | 'account_link'
+  | 'ensure_account'
+  | 'submit_business'
+  | 'submit_representative'
+  | 'accept_tos'
+  | 'attach_bank_token'
+  | 'submit_identity_file';
 
 export type ConnectEmbeddedComponent = 'account_onboarding' | 'account_management';
+
+export type ConnectBusinessPayload = {
+  legal_name?: string;
+  business_type?: 'company' | 'individual';
+  tax_id?: string;
+  registration_number?: string;
+  phone?: string;
+  url?: string;
+  address?: {
+    line1?: string;
+    line2?: string;
+    city?: string;
+    postal_code?: string;
+    country?: string;
+    state?: string;
+  };
+};
+
+export type ConnectRepresentativePayload = {
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  phone?: string;
+  title?: string;
+  dob?: { day?: number; month?: number; year?: number };
+  address?: {
+    line1?: string;
+    line2?: string;
+    city?: string;
+    postal_code?: string;
+    country?: string;
+    state?: string;
+  };
+  relationship?: {
+    owner?: boolean;
+    percent_ownership?: number | null;
+    executive?: boolean;
+    director?: boolean;
+  };
+};
 
 export type ConnectOnboardingResult = {
   success: boolean;
   error?: string;
   action?: string;
-  mode?: 'embedded' | 'hosted' | 'hosted_fallback';
+  mode?: 'embedded' | 'hosted' | 'hosted_fallback' | 'api_native';
   environment?: string;
   can_receive_transfers?: boolean;
   account_id?: string | null;
+  account_type?: string | null;
+  onboarding_mode?: 'api_native' | 'embedded' | 'unknown' | string;
   url?: string;
   client_secret?: string;
   publishable_key?: string | null;
@@ -27,6 +75,8 @@ export type ConnectOnboardingResult = {
   payout_schedule?: string;
   fallback_reason?: string;
   note?: string;
+  person_id?: string;
+  bank_attached?: boolean;
 };
 
 export async function invokeConnectSupplierOnboarding(
@@ -34,6 +84,11 @@ export async function invokeConnectSupplierOnboarding(
   opts?: {
     returnOrigin?: string;
     component?: ConnectEmbeddedComponent;
+    business?: ConnectBusinessPayload;
+    representative?: ConnectRepresentativePayload;
+    bank_token?: string;
+    tos_accepted?: boolean;
+    identity?: { person_id?: string; file_id?: string; side?: 'front' | 'back' };
   }
 ): Promise<ConnectOnboardingResult> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
@@ -43,6 +98,11 @@ export async function invokeConnectSupplierOnboarding(
       body: {
         action,
         component: opts?.component,
+        business: opts?.business,
+        representative: opts?.representative,
+        bank_token: opts?.bank_token,
+        tos_accepted: opts?.tos_accepted,
+        identity: opts?.identity,
         returnOrigin:
           opts?.returnOrigin ??
           (typeof window !== 'undefined' ? window.location.origin : undefined),
@@ -51,16 +111,23 @@ export async function invokeConnectSupplierOnboarding(
   );
   if (error) return { success: false, error: error.message };
   if (!data?.success) {
-    return { success: false, error: data?.error ?? 'Connect onboarding failed' };
+    return { success: false, error: data?.error ?? 'Payout verification failed', ...data };
   }
   invalidateSupplierProfileCache();
   return data;
 }
 
-/** Fetch a fresh Account Session client secret for Connect.js (server-side only). */
+/** Fetch a fresh Account Session client secret for Connect.js (Express legacy / remediation). */
 export async function fetchConnectAccountSessionSecret(
   component: ConnectEmbeddedComponent = 'account_onboarding'
-): Promise<{ clientSecret: string; publishableKey: string | null; accountId: string | null; mode?: string; url?: string; error?: string }> {
+): Promise<{
+  clientSecret: string;
+  publishableKey: string | null;
+  accountId: string | null;
+  mode?: string;
+  url?: string;
+  error?: string;
+}> {
   const result = await invokeConnectSupplierOnboarding('account_session', { component });
   if (!result.success) {
     return { clientSecret: '', publishableKey: null, accountId: null, error: result.error };

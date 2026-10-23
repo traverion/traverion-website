@@ -42,8 +42,10 @@ export type SupplierProfileRow = {
   terms_conditions_text: string | null;
   payment_cycle: 'monthly' | 'biweekly' | null;
   payout_threshold_min: number | null;
-  /** Stripe Connect Express account id (acct_…). Null until onboarding starts. */
+  /** Stripe Connect account id (acct_…). Null until onboarding starts. */
   stripe_connected_account_id?: string | null;
+  /** Mirrored account type: custom = Traverion API forms; express = legacy embedded path. */
+  connect_account_type?: 'express' | 'custom' | 'standard' | null;
   payout_rail?: 'manual_iban' | 'stripe_connect' | null;
   connect_onboarding_status?: 'not_started' | 'pending' | 'restricted' | 'complete' | 'rejected' | null;
   connect_charges_enabled?: boolean | null;
