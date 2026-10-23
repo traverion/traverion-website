@@ -1,4 +1,4 @@
-/** Supplier-facing Connect / transfer / bank payout labels. Never equate transfer with bank paid. */
+/** Supplier-facing payout account labels. Never equate transfer success with bank paid. */
 
 export type ConnectOnboardingStatus =
   | 'not_started'
@@ -17,16 +17,17 @@ export type ConnectLifecycle =
   | 'failed'
   | 'reversed';
 
+/** Single clear status for the payout account summary. */
 export function connectOnboardingLabel(status: string | null | undefined): string {
   switch ((status ?? 'not_started').toLowerCase()) {
     case 'complete':
-      return 'Verified for payouts';
+      return 'Verified';
     case 'pending':
-      return 'Verification in progress';
+      return 'Under review';
     case 'restricted':
       return 'Action required';
     case 'rejected':
-      return 'Verification rejected';
+      return 'Restricted';
     default:
       return 'Not started';
   }
@@ -64,7 +65,7 @@ export function connectPayoutPresentationStatus(input: {
   if (life === 'bank_payout_paid') return 'Paid to bank';
   if (life === 'bank_payout_pending') return 'Bank payout in progress';
   if (life === 'bank_payout_failed') return 'Bank payout failed';
-  if (life === 'transfer_completed') return 'Sent to connected account';
+  if (life === 'transfer_completed') return 'Sent to payout account';
   if (life === 'transfer_pending') return 'Processing transfer';
   if (life === 'failed') return 'Failed or restricted';
   if (life === 'reversed') return 'Reversed';
@@ -89,16 +90,16 @@ export function payoutBlockReason(input: {
     return 'Outstanding recovery balance will be netted from the next payout.';
   }
   const status = (input.connect_onboarding_status ?? 'not_started').toLowerCase();
-  if (status === 'not_started') return 'Complete Stripe verification to receive automatic payouts.';
-  if (status === 'pending') return 'Stripe verification is incomplete.';
+  if (status === 'not_started') return 'Complete verification to receive automatic payouts.';
+  if (status === 'pending') return 'Additional verification is still in progress.';
   if (status === 'restricted') {
     const due = Array.isArray(input.connect_requirements_currently_due)
       ? input.connect_requirements_currently_due.length
       : 0;
     if (due > 0) return `${due} verification requirement${due === 1 ? '' : 's'} still due.`;
-    return input.connect_disabled_reason?.trim() || 'Connected account is restricted.';
+    return input.connect_disabled_reason?.trim() || 'Payout account needs attention.';
   }
-  if (status === 'rejected') return 'Stripe rejected this connected account. Contact Traverion support.';
-  if (!input.connect_payouts_enabled) return 'Connected account cannot receive payouts yet.';
+  if (status === 'rejected') return 'Payout account needs attention. Contact Traverion support.';
+  if (!input.connect_payouts_enabled) return 'Payouts not enabled yet.';
   return null;
 }

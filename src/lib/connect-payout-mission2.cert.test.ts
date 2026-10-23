@@ -57,7 +57,8 @@ describe('Mission 2: Connect onboarding + TEST transfer engine', () => {
     expect(settings).toContain('Complete verification');
     expect(settings).toContain('ConnectEmbeddedPanel');
     expect(settings).toContain('invokeConnectSupplierOnboarding');
-    expect(settings).toContain('Requirements currently due');
+    expect(settings).toContain('Payout account');
+    expect(settings).toContain('Back to payout settings');
     expect(mirror).toContain('Never treat a browser return URL alone as verified');
   });
 
@@ -88,7 +89,7 @@ describe('Mission 2: Connect onboarding + TEST transfer engine', () => {
     expect(connectPayoutPresentationStatus({
       periodStatus: 'ready',
       connectLifecycle: 'transfer_completed',
-    })).toBe('Sent to connected account');
+    })).toBe('Sent to payout account');
     expect(connectPayoutPresentationStatus({
       periodStatus: 'ready',
       connectLifecycle: 'bank_payout_paid',
@@ -105,10 +106,11 @@ describe('Mission 2: Connect onboarding + TEST transfer engine', () => {
     expect(earnings).toContain('Period earnings');
     expect(earnings).toContain('connectPayoutPresentationStatus');
     expect(earnings).toContain('Scheduled payout date');
-    expect(earnings).toContain('Connect payout statuses (TEST)');
-    expect(earnings).toContain('A Connect transfer alone is not a bank payment');
-    expect(settings).toContain('Business & Payouts');
-    expect(settings).toContain('Can receive transfers');
+    expect(earnings).toContain('How payout statuses work');
+    expect(earnings).toContain('Sending funds to your payout account alone is not a bank payment');
+    expect(settings).toContain('Payout settings');
+    expect(settings).toContain('Payout account');
+    expect(settings).toContain('Bank account');
   });
 
   it('7. webhook mirrors account.updated and dedupes via stripe_webhook_events', () => {
@@ -129,7 +131,7 @@ describe('Mission 2: Connect onboarding + TEST transfer engine', () => {
   });
 
   it('presentation helpers never mark incomplete Connect as transferable', () => {
-    expect(connectOnboardingLabel('complete')).toBe('Verified for payouts');
+    expect(connectOnboardingLabel('complete')).toBe('Verified');
     expect(
       connectCanReceiveTransfers({
         connect_payouts_enabled: true,

@@ -579,7 +579,7 @@ export function paidConfirmationEmailMaySend(paymentStatus: string | null | unde
  * Money page collected total caption — not a Stripe payout.
  */
 export const PARTNER_MONEY_COLLECTED_TO_DATE_NOTE =
-  'Guest checkout totals — not a Stripe payout. Payouts stay manual until Traverion enables them.';
+  'Guest checkout totals — not a bank payout. Payouts run when Traverion prepares and releases them.';
 
 /**
  * Money page paid-out ledger caption — do not label ledger “paid” as guest Collected.
@@ -735,7 +735,7 @@ export const PARTNER_CANCEL_REQUEST_FEE_TIMING_NOTE =
 
 /** Partner marketing landing — Get paid / Money plainly; payouts stay manual. */
 export const PARTNER_LANDING_GET_PAID_NOTE =
-  'Travelers pay with Stripe. Money shows pending and paid as they actually are — never a fake payout date. Payouts stay manual until Traverion enables them.';
+  'Travelers pay on Traverion. Money shows pending and paid as they actually are — never a fake payout date. Automatic payouts run after verification.';
 
 /** Partner marketing how-it-works step 3 — publish needs verification. */
 export const PARTNER_LANDING_HOW_PUBLISH_NOTE =

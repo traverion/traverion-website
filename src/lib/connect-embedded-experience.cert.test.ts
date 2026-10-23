@@ -94,26 +94,31 @@ describe('Supplier embedded Connect experience', () => {
     expect(edge).not.toMatch(/sk_live_/);
   });
 
-  it('renders Connect.js embedded panel with TEST publishable key gate', () => {
+  it('renders Connect.js embedded panel with English locale and TEST publishable key gate', () => {
     expect(pkg).toContain('@stripe/react-connect-js');
     expect(pkg).toContain('@stripe/connect-js');
     expect(embedded).toContain('loadConnectAndInitialize');
+    expect(embedded).toContain('locale: CONNECT_EMBEDDED_LOCALE');
+    expect(embedded).toContain("en-GB");
     expect(embedded).toContain('ConnectAccountOnboarding');
     expect(embedded).toContain('ConnectAccountManagement');
     expect(embedded).toContain('isStripeTestPublishableKey');
     expect(embedded).toContain('fetchConnectAccountSessionSecret');
   });
 
-  it('premium Business & Payouts UI covers progress, bank, and security note', () => {
-    expect(ui).toContain('Business & Payouts');
-    expect(ui).toContain('Account verification');
+  it('premium payout settings covers three money sections and focused verification workspace', () => {
+    expect(ui).toContain('Payout settings');
+    expect(ui).toContain('Payout account');
+    expect(ui).toContain('Bank account');
+    expect(ui).toContain('Payout preferences');
     expect(ui).toContain('Complete verification');
     expect(ui).toContain('Manage bank account');
+    expect(ui).toContain('Add bank account');
+    expect(ui).toContain('Back to payout settings');
     expect(ui).toContain('ConnectEmbeddedPanel');
-    expect(ui).toContain('Identity verification and bank details are securely managed through Stripe');
-    expect(ui).toContain('Legacy Traverion IBAN');
-    expect(ui).toContain('cannot unlock Stripe');
-    expect(ui).toContain('Connect payouts');
+    expect(ui).not.toContain('Business information');
+    expect(ui).not.toMatch(/Complete Stripe|Stripe Connect|Sandbox|TEST mode|Connected account/i);
+    expect(ui).toContain('payment partner');
   });
 
   it('progress adapts to Stripe capability state', () => {

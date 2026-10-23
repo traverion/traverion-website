@@ -435,8 +435,8 @@ describe('booking confirmation copy', () => {
     expect(paidConfirmationEmailMaySend('paid')).toBe(true);
     expect(paidConfirmationEmailMaySend('pending')).toBe(false);
     expect(paidConfirmationEmailMaySend('failed')).toBe(false);
-    expect(PARTNER_MONEY_COLLECTED_TO_DATE_NOTE.toLowerCase()).toContain('not a stripe payout');
-    expect(PARTNER_MONEY_COLLECTED_TO_DATE_NOTE.toLowerCase()).toContain('payouts stay manual');
+    expect(PARTNER_MONEY_COLLECTED_TO_DATE_NOTE.toLowerCase()).toContain('not a bank payout');
+    expect(PARTNER_MONEY_COLLECTED_TO_DATE_NOTE.toLowerCase()).toContain('payouts run when');
     expect(PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE.toLowerCase()).toContain('payouts recorded on this ledger');
     expect(PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE.toLowerCase()).not.toContain('guest checkout totals — not a stripe');
     expect(PARTNER_MONEY_PAID_OUT_TO_DATE_NOTE.toLowerCase()).toContain('not guest checkout');
@@ -535,7 +535,7 @@ describe('booking confirmation copy', () => {
     expect(PARTNER_CANCEL_REQUEST_CONSEQUENCES_TITLE.toLowerCase()).not.toContain('send');
     expect(PARTNER_CANCEL_REQUEST_FEE_TIMING_NOTE.toLowerCase()).toContain('submit');
     expect(PARTNER_CANCEL_REQUEST_FEE_TIMING_NOTE.toLowerCase()).not.toContain('send');
-    expect(PARTNER_LANDING_GET_PAID_NOTE.toLowerCase()).toContain('payouts stay manual');
+    expect(PARTNER_LANDING_GET_PAID_NOTE.toLowerCase()).toContain('automatic payouts');
     expect(PARTNER_LANDING_HOW_PUBLISH_NOTE.toLowerCase()).toContain('business and payout verification');
     expect(PARTNER_LANDING_HOW_PUBLISH_NOTE.toLowerCase()).not.toContain('publish a tour or stay. travelers book');
     expect(BOOKING_MESSAGE_SUBMIT_ERROR.toLowerCase()).toContain('post');

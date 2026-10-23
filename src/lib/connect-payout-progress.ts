@@ -63,17 +63,16 @@ export function connectExperienceLabel(state: ConnectExperienceState): string {
     case 'not_started':
       return 'Not started';
     case 'information_required':
-      return 'Information required';
-    case 'verification_in_progress':
-      return 'Verification in progress';
     case 'additional_information_required':
-      return 'Additional information required';
+      return 'Action required';
+    case 'verification_in_progress':
+      return 'Under review';
     case 'restricted':
       return 'Restricted';
     case 'ready_for_transfers':
-      return 'Ready for transfers';
+      return 'Verified';
     case 'ready_for_bank_payouts':
-      return 'Ready for bank payouts';
+      return 'Payouts enabled';
     default:
       return 'Action required';
   }
@@ -149,15 +148,15 @@ export function listSupplierPayoutBlocks(input: {
   const state = deriveConnectExperienceState(p);
 
   if (state === 'not_started') {
-    blocks.push({ category: 'account', message: 'Complete Stripe verification to enable automatic payouts.' });
+    blocks.push({ category: 'account', message: 'Complete verification to enable automatic payouts.' });
   } else if (state === 'information_required' || state === 'additional_information_required') {
-    blocks.push({ category: 'account', message: 'Business or identity information is still required by Stripe.' });
+    blocks.push({ category: 'account', message: 'Additional verification information is still required.' });
   } else if (state === 'verification_in_progress') {
-    blocks.push({ category: 'account', message: 'Stripe is reviewing your verification details.' });
+    blocks.push({ category: 'account', message: 'Your verification details are under review.' });
   } else if (state === 'restricted') {
-    blocks.push({ category: 'account', message: 'Your payout account is restricted. Resume verification to continue.' });
+    blocks.push({ category: 'account', message: 'Payout account needs attention. Resume verification to continue.' });
   } else if (!p?.connect_payouts_enabled) {
-    blocks.push({ category: 'account', message: 'A verified payout bank account is still required.' });
+    blocks.push({ category: 'account', message: 'A verified bank account is still required for payouts.' });
   }
 
   if (input.financialHold) {

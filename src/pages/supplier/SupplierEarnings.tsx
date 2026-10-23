@@ -42,9 +42,10 @@ import {
   ledgerRecoveryTotal,
 } from '../../lib/supplier-ledger-balance';
 import { formatBpsAsPercent, fromMinorUnits, planDefinition } from '../../lib/commercial-money';
+import { appStripeIsTestMode } from '../../lib/money';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchSupplierLedger, type SupplierLedgerEntry } from '../../data/supabase-booking-ops';
-import { PARTNER_MONEY_PAYOUT_STATUS_NOTE, PARTNER_MONEY_EMPTY_TITLE, PARTNER_MONEY_EMPTY_BODY, PARTNER_MONEY_LOAD_ERROR_TITLE, PARTNER_MONEY_FILTER_EMPTY_BODY, PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL, STRIPE_TEST_UNTIL_LIVE } from '../../lib/booking-confirmation-copy';
+import { PARTNER_MONEY_PAYOUT_STATUS_NOTE, PARTNER_MONEY_EMPTY_TITLE, PARTNER_MONEY_EMPTY_BODY, PARTNER_MONEY_LOAD_ERROR_TITLE, PARTNER_MONEY_FILTER_EMPTY_BODY, PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL } from '../../lib/booking-confirmation-copy';
 import NoticeCallout from '../../components/NoticeCallout';
 import { localYmd } from '../../lib/local-ymd';
 import {
@@ -876,8 +877,18 @@ export default function SupplierEarnings() {
     <div className={`${SUPPLIER_PAGE_CLASS} tv-income font-sans`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="tv-income-title">Income & Payouts</h1>
-          <p className="tv-income-subtitle">{`Guest checkout uses ${STRIPE_TEST_UNTIL_LIVE}. Amounts here are not bank transfers.`}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="tv-income-title">Income & Payouts</h1>
+            {appStripeIsTestMode() ? (
+              <span
+                className="rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-amber-950"
+                title="This environment uses test financial data. Amounts are not real bank transfers."
+              >
+                Test data
+              </span>
+            ) : null}
+          </div>
+          <p className="tv-income-subtitle">Track earnings, payout periods, and payout settings.</p>
         </div>
         <div className="tv-income-export">
           <button
@@ -1338,10 +1349,9 @@ export default function SupplierEarnings() {
 
       {hasMoney && tab === 'payouts' ? (
         <div className="mx-auto w-full max-w-[1180px] space-y-3">
-          <NoticeCallout title="Connect payout statuses (TEST)" tone="info">
-            Traverion prepares payout periods from cleared earnings. A successful Connect transfer means funds reached the
-            connected account — not that money has arrived in your bank. Bank payout confirmation is tracked separately.
-            Live automatic payouts remain off until Traverion authorizes production money movement.
+          <NoticeCallout title="How payout statuses work" tone="info">
+            Traverion prepares payout periods from cleared earnings. Funds sent to your payout account are not the same as
+            money arriving in your bank — bank payout confirmation is tracked separately.
           </NoticeCallout>
           {payoutPeriods.length === 0 && filteredEarningsInWindow.length === 0 ? (
             <div className="tv-income-empty tv-income-empty--compact">
@@ -1681,7 +1691,7 @@ export default function SupplierEarnings() {
             (selectedPayout.connect_lifecycle ?? 'internal_only') !== 'bank_payout_paid' ? (
               <p className="mt-4 text-[12px] leading-relaxed text-[#52525b]">
                 Status: {periodPayoutLabel(selectedPayout.status, selectedPayout.paid_at, selectedPayout.connect_lifecycle)}.
-                A completed payout statement downloads only after bank payout confirmation. A Connect transfer alone is not a bank payment.
+                A completed payout statement downloads only after bank payout confirmation. Sending funds to your payout account alone is not a bank payment.
               </p>
             ) : (
               <div className="mt-4 flex flex-wrap gap-2">

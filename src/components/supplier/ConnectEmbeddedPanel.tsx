@@ -9,6 +9,9 @@ import { fetchConnectAccountSessionSecret, type ConnectEmbeddedComponent } from 
 import { isStripeTestPublishableKey, stripeLivePublishableBlockedMessage } from '../../lib/stripe-test-only';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 
+/** Force English for Traverion supplier UI regardless of browser language. */
+export const CONNECT_EMBEDDED_LOCALE = 'en-GB';
+
 type Props = {
   component: ConnectEmbeddedComponent;
   onExit: () => void;
@@ -17,8 +20,9 @@ type Props = {
 };
 
 /**
- * Stripe Connect embedded onboarding / account management inside Traverion.
+ * Embedded payout verification / account management inside Traverion.
  * Client secret is always fetched server-side; never trusts supplier-supplied account IDs.
+ * Locale is fixed to English (en-GB) so browser language cannot switch the component to Finnish.
  */
 export default function ConnectEmbeddedPanel({ component, onExit, onHostedFallback, onError }: Props) {
   const [stripeConnectInstance, setStripeConnectInstance] = useState<StripeConnectInstance | null>(null);
@@ -32,7 +36,7 @@ export default function ConnectEmbeddedPanel({ component, onExit, onHostedFallba
       throw new Error('hosted_fallback');
     }
     if (!session.clientSecret) {
-      throw new Error(session.error || 'Could not create Account Session');
+      throw new Error(session.error || 'Could not start verification session');
     }
     return session.clientSecret;
   }, [component, onHostedFallback]);
@@ -50,7 +54,7 @@ export default function ConnectEmbeddedPanel({ component, onExit, onHostedFallba
           return;
         }
         if (!session.clientSecret) {
-          throw new Error(session.error || 'Could not create Account Session');
+          throw new Error(session.error || 'Could not start verification session');
         }
         const pk =
           session.publishableKey ||
@@ -63,6 +67,7 @@ export default function ConnectEmbeddedPanel({ component, onExit, onHostedFallba
         const instance = loadConnectAndInitialize({
           publishableKey: pk,
           fetchClientSecret,
+          locale: CONNECT_EMBEDDED_LOCALE,
           appearance: {
             overlays: 'dialog',
             variables: {
@@ -95,7 +100,7 @@ export default function ConnectEmbeddedPanel({ component, onExit, onHostedFallba
   if (loading) {
     return (
       <div
-        className="rounded-[10px] border border-[#e5e7eb] bg-white px-4 py-10 text-center text-[13px] text-[#52525b]"
+        className="rounded-[10px] border border-[#e5e7eb] bg-white px-4 py-12 text-center text-[13px] text-[#52525b]"
         role="status"
       >
         Loading secure verification…
@@ -114,7 +119,7 @@ export default function ConnectEmbeddedPanel({ component, onExit, onHostedFallba
   if (!stripeConnectInstance) return null;
 
   return (
-    <div className="w-full min-w-0 overflow-x-hidden rounded-[10px] border border-[#e5e7eb] bg-white p-2 sm:p-3">
+    <div className="w-full min-w-0 overflow-visible bg-white">
       <ConnectComponentsProvider connectInstance={stripeConnectInstance}>
         {component === 'account_management' ? (
           <ConnectAccountManagement />

@@ -43,7 +43,7 @@ export default function PartnerLandingPage() {
   useEffect(() => {
     setPageMetaWithOg(
       'Partner',
-      'Sell tours and stays on Traverion. List products, run the day, and get paid with Stripe.'
+      'Sell tours and stays on Traverion. List products, run the day, and get paid automatically.'
     );
   }, []);
 

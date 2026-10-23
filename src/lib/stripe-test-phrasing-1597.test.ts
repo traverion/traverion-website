@@ -16,13 +16,12 @@ describe('Stripe TEST meta / Money phrasing (Phase 1597)', () => {
     );
   });
 
-  it('Partner Money page description uses Guest checkout uses + STRIPE_TEST_UNTIL_LIVE', () => {
+  it('Partner Income page uses product subtitle — not permanent test-mode checkout copy', () => {
     const money = readFileSync(join(here, '../pages/supplier/SupplierEarnings.tsx'), 'utf8');
-    expect(money).toMatch(
-      /Guest checkout uses \$\{STRIPE_TEST_UNTIL_LIVE\}\./
-    );
-    expect(money).not.toMatch(
-      /never invents a transfer\. \$\{STRIPE_TEST_UNTIL_LIVE\}\./
-    );
+    expect(money).toContain('Track earnings, payout periods, and payout settings.');
+    expect(money).toContain('appStripeIsTestMode');
+    expect(money).toContain('Test data');
+    expect(money).not.toMatch(/Guest checkout uses \$\{STRIPE_TEST_UNTIL_LIVE\}/);
+    expect(money).not.toMatch(/never invents a transfer\. \$\{STRIPE_TEST_UNTIL_LIVE\}\./);
   });
 });
