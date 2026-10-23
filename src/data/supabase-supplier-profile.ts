@@ -46,6 +46,8 @@ export type SupplierProfileRow = {
   stripe_connected_account_id?: string | null;
   /** Mirrored account type: custom = Traverion API forms; express = legacy embedded path. */
   connect_account_type?: 'express' | 'custom' | 'standard' | null;
+  /** Archived previous connected account when switching to native Custom (TEST). */
+  connect_legacy_account_id?: string | null;
   payout_rail?: 'manual_iban' | 'stripe_connect' | null;
   connect_onboarding_status?: 'not_started' | 'pending' | 'restricted' | 'complete' | 'rejected' | null;
   connect_charges_enabled?: boolean | null;

@@ -39,10 +39,12 @@ describe('Native Traverion Custom Connect onboarding', () => {
     expect(edge).toContain("action === 'submit_representative'");
     expect(edge).toContain("action === 'accept_tos'");
     expect(edge).toContain("action === 'attach_bank_token'");
+    expect(edge).toContain("action === 'start_native_custom'");
     expect(edge).toContain('createExternalAccount');
     expect(edge).toContain('tos_acceptance');
     expect(edge).toContain('traverion_supplier_id');
     expect(edge).toContain('Never recreate Express');
+    expect(edge).toContain('connect_legacy_account_id');
     expect(edge).toContain('isStripeTestSecretKey');
     expect(edge).not.toMatch(/sk_live_/);
   });
@@ -61,9 +63,22 @@ describe('Native Traverion Custom Connect onboarding', () => {
   });
 
   it('keeps embedded only as Express legacy / identity exception', () => {
-    expect(journey).toContain('Continue secure verification');
+    expect(journey).toContain('Continue Express verification');
+    expect(journey).toContain('Use Traverion verification forms');
+    expect(journey).toContain('start_native_custom');
     expect(journey).toContain('Open secure identity collection');
     expect(edge).toContain('accountSessions.create');
     expect(mig).toContain('connect_account_type');
+  });
+
+  it('ships live Stripe TEST API certification script', () => {
+    const script = readFileSync(
+      resolve(root, 'scripts/cert-native-connect-onboarding.mjs'),
+      'utf8'
+    );
+    expect(script).toContain("type: 'custom'");
+    expect(script).toContain('sk_test_');
+    expect(script).toContain('acct_1UTnHQC9ZvbINwo4');
+    expect(script).toContain('live_money: false');
   });
 });

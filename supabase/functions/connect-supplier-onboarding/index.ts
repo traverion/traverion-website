@@ -34,11 +34,14 @@ type Body = {
     | 'account_session'
     | 'account_link'
     | 'ensure_account'
+    | 'start_native_custom'
     | 'submit_business'
     | 'submit_representative'
     | 'accept_tos'
     | 'attach_bank_token'
     | 'submit_identity_file';
+  /** Required confirmation for archiving an Express link before Custom create (TEST). */
+  confirm_archive_express?: boolean;
   component?: 'account_onboarding' | 'account_management';
   returnOrigin?: string;
   business?: {
@@ -186,7 +189,7 @@ serve(async (req) => {
     const { data: profile, error: profileErr } = await admin
       .from('supplier_profiles')
       .select(
-        'id, display_name, company_legal_name, business_type, address_street, address_city, address_postal_code, address_country, contact_phone, company_registration_number, tax_id, stripe_connected_account_id, connect_account_type, connect_onboarding_status, connect_charges_enabled, connect_payouts_enabled, connect_details_submitted, connect_disabled_reason, connect_requirements_currently_due, connect_requirements_past_due, connect_default_currency, connect_country, connect_debit_negative_balances, connect_last_synced_at, payout_rail, payment_cycle'
+        'id, display_name, company_legal_name, business_type, address_street, address_city, address_postal_code, address_country, contact_phone, company_registration_number, tax_id, stripe_connected_account_id, connect_account_type, connect_legacy_account_id, connect_onboarding_status, connect_charges_enabled, connect_payouts_enabled, connect_details_submitted, connect_disabled_reason, connect_requirements_currently_due, connect_requirements_past_due, connect_default_currency, connect_country, connect_debit_negative_balances, connect_last_synced_at, payout_rail, payment_cycle'
       )
       .eq('id', supplierId)
       .maybeSingle();
@@ -371,6 +374,111 @@ serve(async (req) => {
       });
     }
 
+    /**
+     * TEST-only: archive an Express (Stripe-collected) link and create a Custom account
+     * so Traverion-native forms can run. Never deletes the Stripe Express object.
+     * Blocked when transfer attempts exist for this supplier.
+     */
+    if (action === 'start_native_custom') {
+      if (!body.confirm_archive_express) {
+        return json({
+          success: false,
+          error: 'Confirm switching to Traverion verification forms before continuing.',
+        }, 400);
+      }
+
+      const existingId = (profile.stripe_connected_account_id as string | null) ?? null;
+      let archivedLegacyId: string | null =
+        (profile.connect_legacy_account_id as string | null) ?? null;
+      if (existingId) {
+        const existing = await stripe.accounts.retrieve(existingId);
+        if ((existing as { livemode?: boolean }).livemode) {
+          return json({ success: false, error: 'Live connected accounts cannot be switched here.' }, 503);
+        }
+        const existingType = (existing.type || profile.connect_account_type || '').toLowerCase();
+        if (existingType === 'custom') {
+          const { mirror } = await syncAccount(existingId);
+          return json({
+            action: 'start_native_custom',
+            ...statusPayload(mirror, existingId, {
+              already_native: true,
+              note: 'Custom account already linked — continue Traverion forms.',
+            }),
+          });
+        }
+
+        const { count: transferCount, error: transferErr } = await admin
+          .from('supplier_transfer_attempts')
+          .select('id', { count: 'exact', head: true })
+          .eq('supplier_id', supplierId);
+        if (transferErr) throw new Error(transferErr.message);
+        if ((transferCount ?? 0) > 0) {
+          return json({
+            success: false,
+            error:
+              'This organization already has transfer history. Keep the existing payout account or contact Traverion support.',
+            transfer_attempts: transferCount,
+          }, 409);
+        }
+
+        const { count: bankCount, error: bankErr } = await admin
+          .from('supplier_bank_payout_attempts')
+          .select('id', { count: 'exact', head: true })
+          .eq('supplier_id', supplierId);
+        if (bankErr) throw new Error(bankErr.message);
+        if ((bankCount ?? 0) > 0) {
+          return json({
+            success: false,
+            error: 'This organization already has bank payout history. Contact Traverion support before switching.',
+            bank_payout_attempts: bankCount,
+          }, 409);
+        }
+
+        // Archive Express id; clear active link so ensureConnectedAccount creates Custom.
+        const { error: archiveErr } = await admin
+          .from('supplier_profiles')
+          .update({
+            connect_legacy_account_id: existingId,
+            stripe_connected_account_id: null,
+            connect_account_type: null,
+            connect_onboarding_status: 'not_started',
+            connect_charges_enabled: false,
+            connect_payouts_enabled: false,
+            connect_details_submitted: false,
+            connect_disabled_reason: null,
+            connect_requirements_currently_due: [],
+            connect_requirements_past_due: [],
+            payout_rail: 'manual_iban',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', supplierId);
+        if (archiveErr) throw new Error(archiveErr.message);
+        profile.stripe_connected_account_id = null;
+        profile.connect_account_type = null;
+        profile.connect_legacy_account_id = existingId;
+        archivedLegacyId = existingId;
+      }
+
+      const { accountId, accountType } = await ensureConnectedAccount();
+      if (accountType !== 'custom') {
+        return json({
+          success: false,
+          error: 'Expected a Custom payout account for Traverion forms.',
+          account_type: accountType,
+        }, 500);
+      }
+      const { mirror } = await syncAccount(accountId);
+      return json({
+        action: 'start_native_custom',
+        ...statusPayload(mirror, accountId, {
+          archived_legacy_account_id: archivedLegacyId,
+          note: archivedLegacyId
+            ? 'Previous Express account archived. Continue with Traverion verification forms.'
+            : 'Custom payout account ready. Continue with Traverion verification forms.',
+        }),
+      });
+    }
+
     if (action === 'submit_business') {
       const { accountId, accountType } = await ensureConnectedAccount();
       if (accountType === 'express') {
@@ -501,6 +609,14 @@ serve(async (req) => {
         const created = await stripe.accounts.createPerson(accountId, personParams as Stripe.PersonCreateParams);
         personId = created.id;
       }
+      // Mark ownership/structure declarations when the representative covers those roles.
+      await stripe.accounts.update(accountId, {
+        company: {
+          directors_provided: true,
+          executives_provided: true,
+          owners_provided: true,
+        },
+      });
       const { mirror } = await syncAccount(accountId);
       return json({ action, person_id: personId, ...statusPayload(mirror, accountId) });
     }

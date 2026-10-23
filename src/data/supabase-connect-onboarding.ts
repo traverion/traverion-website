@@ -8,6 +8,7 @@ export type ConnectOnboardingAction =
   | 'account_session'
   | 'account_link'
   | 'ensure_account'
+  | 'start_native_custom'
   | 'submit_business'
   | 'submit_representative'
   | 'accept_tos'
@@ -89,6 +90,7 @@ export async function invokeConnectSupplierOnboarding(
     bank_token?: string;
     tos_accepted?: boolean;
     identity?: { person_id?: string; file_id?: string; side?: 'front' | 'back' };
+    confirm_archive_express?: boolean;
   }
 ): Promise<ConnectOnboardingResult> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
@@ -103,6 +105,7 @@ export async function invokeConnectSupplierOnboarding(
         bank_token: opts?.bank_token,
         tos_accepted: opts?.tos_accepted,
         identity: opts?.identity,
+        confirm_archive_express: opts?.confirm_archive_express,
         returnOrigin:
           opts?.returnOrigin ??
           (typeof window !== 'undefined' ? window.location.origin : undefined),

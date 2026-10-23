@@ -84,6 +84,7 @@ export default function SupplierNativeVerificationJourney({
   const [personId, setPersonId] = useState<string | null>(null);
   const [legacyExpress, setLegacyExpress] = useState(false);
   const [showLegacyEmbedded, setShowLegacyEmbedded] = useState(false);
+  const [switchingNative, setSwitchingNative] = useState(false);
   const [lastMirror, setLastMirror] = useState<ConnectOnboardingResult | null>(null);
 
   const [legalName, setLegalName] = useState(profile?.company_legal_name || profile?.display_name || '');
@@ -135,8 +136,11 @@ export default function SupplierNativeVerificationJourney({
         return;
       }
       setLastMirror(ensured);
-      if (ensured.account_type === 'express' || ensured.onboarding_mode === 'embedded') {
+      // Only Express (Stripe-collected) accounts force the legacy path — never Custom.
+      if (ensured.account_type === 'express') {
         setLegacyExpress(true);
+      } else {
+        setLegacyExpress(false);
       }
       onProfile(await fetchSupplierProfile(userId));
     })();
@@ -144,6 +148,32 @@ export default function SupplierNativeVerificationJourney({
       cancelled = true;
     };
   }, [userId, onProfile]);
+
+  const startNativeCustom = async () => {
+    if (!canEdit) return;
+    const ok = window.confirm(
+      'Switch this organization to Traverion verification forms?\n\n' +
+        'The previous Express payout account stays archived (not deleted). ' +
+        'This is only available in the test environment when there is no transfer history.'
+    );
+    if (!ok) return;
+    setSwitchingNative(true);
+    setError(null);
+    const result = await invokeConnectSupplierOnboarding('start_native_custom', {
+      confirm_archive_express: true,
+    });
+    setSwitchingNative(false);
+    if (!result.success) {
+      setError(userFacingError(result.error, USER_ERROR.generic));
+      return;
+    }
+    setLastMirror(result);
+    setLegacyExpress(false);
+    setShowLegacyEmbedded(false);
+    setNote(result.note || 'Traverion verification forms are ready.');
+    setStep('business');
+    onProfile(await fetchSupplierProfile(userId));
+  };
 
   const refresh = async () => {
     const result = await invokeConnectSupplierOnboarding('refresh');
@@ -373,18 +403,28 @@ export default function SupplierNativeVerificationJourney({
 
       {legacyExpress ? (
         <div className="rounded-[12px] border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-950">
-          <p className="font-semibold">Existing payout account</p>
+          <p className="font-semibold">Existing Express payout account</p>
           <p className="mt-1 text-[12px] leading-relaxed">
-            This organization already has a legacy payout account that uses a provider-controlled verification step.
-            Continue securely without leaving Traverion, or finish bank updates there.
+            This organization is linked to a provider-managed Express account, so verification opens a secure
+            provider step (including login when required). Traverion-native forms need a Custom payout account.
           </p>
-          <button
-            type="button"
-            className="tv-btn-primary mt-3 h-9 px-3 text-[13px]"
-            onClick={() => setShowLegacyEmbedded(true)}
-          >
-            Continue secure verification
-          </button>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="tv-btn-secondary h-9 px-3 text-[13px]"
+              onClick={() => setShowLegacyEmbedded(true)}
+            >
+              Continue Express verification
+            </button>
+            <button
+              type="button"
+              className="tv-btn-primary h-9 px-3 text-[13px]"
+              disabled={!canEdit || switchingNative}
+              onClick={() => void startNativeCustom()}
+            >
+              {switchingNative ? 'Switching…' : 'Use Traverion verification forms'}
+            </button>
+          </div>
         </div>
       ) : null}
 

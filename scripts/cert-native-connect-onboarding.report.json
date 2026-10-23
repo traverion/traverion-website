@@ -1,0 +1,100 @@
+{
+  "ok": true,
+  "environment": "test",
+  "live_money": false,
+  "cert_supplier_id": "cert-native-b15a21ce-ea66-4a5c-891b-144997387399",
+  "custom_account_id": "acct_1UTo1jCKiPMZkVWq",
+  "royal_nordic": {
+    "account_id": "acct_1UTnHQC9ZvbINwo4",
+    "type": "express",
+    "why_express_ui": "requirement_collection=stripe + Express dashboard — opens provider login; use start_native_custom to archive and create Custom"
+  },
+  "scenarios": [
+    {
+      "id": "diag_royal_nordic",
+      "ok": true,
+      "account_id": "acct_1UTnHQC9ZvbINwo4",
+      "type": "express",
+      "requirement_collection": "stripe",
+      "transfers_blocked_reason": "requirements.past_due"
+    },
+    {
+      "id": "create_custom",
+      "ok": true,
+      "account_id": "acct_1UTo1jCKiPMZkVWq",
+      "type": "custom",
+      "requirement_collection": "application",
+      "dashboard": "none",
+      "livemode": false
+    },
+    {
+      "id": "no_duplicate_retrieve",
+      "ok": true,
+      "account_id": "acct_1UTo1jCKiPMZkVWq"
+    },
+    {
+      "id": "submit_business",
+      "ok": true,
+      "account_id": "acct_1UTo1jCKiPMZkVWq"
+    },
+    {
+      "id": "submit_representative",
+      "ok": true,
+      "person_id": "person_1UTo1oCKiPMZkVWqcTxnrV7w"
+    },
+    {
+      "id": "accept_tos",
+      "ok": true
+    },
+    {
+      "id": "bank_token",
+      "ok": true,
+      "token_prefix": "btok_1UT"
+    },
+    {
+      "id": "attach_bank",
+      "ok": true,
+      "last4": "0785",
+      "currency": "eur",
+      "bank_name": "STRIPE TEST BANK"
+    },
+    {
+      "id": "authoritative_status",
+      "ok": true,
+      "account_id": "acct_1UTo1jCKiPMZkVWq",
+      "type": "custom",
+      "charges_enabled": false,
+      "payouts_enabled": false,
+      "details_submitted": true,
+      "currently_due_count": 15,
+      "past_due_count": 15,
+      "currently_due_sample": [
+        "company.directors_provided",
+        "company.executives_provided",
+        "directors.dob.day",
+        "directors.dob.month",
+        "directors.dob.year",
+        "directors.first_name",
+        "directors.last_name",
+        "executives.address.city",
+        "executives.address.line1",
+        "executives.address.postal_code",
+        "executives.dob.day",
+        "executives.dob.month"
+      ],
+      "falsely_claimed_payout_ready": false,
+      "note": "Not payout-ready yet — expected until Stripe verifies remaining requirements"
+    },
+    {
+      "id": "bank_error_rejected",
+      "ok": true,
+      "error_message": "There is a part of the token that is not valid: 'invalid'."
+    },
+    {
+      "id": "traverion_uniqueness_policy",
+      "ok": true,
+      "note": "Traverion prevents duplicates via supplier_profiles.stripe_connected_account_id unique index + ensure_account reuse"
+    }
+  ],
+  "at": "2026-10-23T19:21:30.568Z"
+}
