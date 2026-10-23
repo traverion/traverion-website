@@ -28,7 +28,8 @@ describe('Stay Reservations premium UX contracts', () => {
     expect(card).toContain('tour-ops-card__summary-grid');
     expect(detail).toContain('tour-ops-detail');
     expect(detail).toContain('Back to reservations');
-    expect(detail).toContain('Message customer');
+    expect(detail).toContain('onMessageGuest');
+    expect(card).toContain('Message guest');
     expect(detail).toContain('House rules');
     expect(detail).toContain('Open Stay Calendar');
     expect(detail).toContain('Booking activity');

@@ -86,7 +86,7 @@ function NavButton({
     >
       {active && !collapsed && !disabled ? (
         <span
-          className="absolute left-0 top-1/2 h-3.5 w-[2px] -translate-y-1/2 rounded-full bg-finland"
+          className="absolute left-0 top-1/2 h-[1.125rem] w-[3px] -translate-y-1/2 rounded-full bg-finland"
           aria-hidden
         />
       ) : null}

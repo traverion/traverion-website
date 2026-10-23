@@ -483,7 +483,6 @@ export default function SupplierReviews() {
         <p className="tv-reviews-title" role="heading" aria-level={1}>
           Reviews
         </p>
-        <p className="tv-reviews-subtitle">See what your guests are saying and manage your responses.</p>
       </div>
 
       {!canReply ? (

@@ -139,22 +139,33 @@ export function AnalyticsLineChart({
             <path d={path} fill="none" stroke="#073b83" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
           ) : null}
           {xs.map((c, i) => (
-            <circle
-              key={c.key}
-              cx={c.x}
-              cy={c.y}
-              r={xs.length === 1 ? 5 : hover === i ? 4.5 : 3}
-              fill="#073b83"
-              stroke="#fff"
-              strokeWidth="1.5"
-              onMouseEnter={() => setHover(i)}
-              onMouseLeave={() => setHover(null)}
-              onFocus={() => setHover(i)}
-              onBlur={() => setHover(null)}
-              tabIndex={0}
-              role="listitem"
-              aria-label={`${c.label}: ${formatTooltipValue(c.value, valueKind, currency)}`}
-            />
+            <g key={c.key}>
+              {/* Wide invisible hit target — visible dots only on hover or single-point series */}
+              <circle
+                cx={c.x}
+                cy={c.y}
+                r={10}
+                fill="transparent"
+                onMouseEnter={() => setHover(i)}
+                onMouseLeave={() => setHover(null)}
+                onFocus={() => setHover(i)}
+                onBlur={() => setHover(null)}
+                tabIndex={0}
+                role="listitem"
+                aria-label={`${c.label}: ${formatTooltipValue(c.value, valueKind, currency)}`}
+              />
+              {xs.length === 1 || hover === i ? (
+                <circle
+                  cx={c.x}
+                  cy={c.y}
+                  r={xs.length === 1 ? 4 : 4.25}
+                  fill="#073b83"
+                  stroke="#fff"
+                  strokeWidth="1.5"
+                  pointerEvents="none"
+                />
+              ) : null}
+            </g>
           ))}
         </g>
         {labelIndexes.map((i) => {

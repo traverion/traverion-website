@@ -35,7 +35,7 @@ describe('Partner Support Center', () => {
     expect(src).toContain('Send request');
     expect(src).toContain('submitPartnerSupportRequest');
     expect(src).toContain('CommunicationAttachmentsField');
-    expect(src).toContain('Your request has been sent.');
+    expect(src).toContain('Request sent');
     expect(src).not.toContain('Finish setup');
     expect(src).not.toContain('mailto:');
     expect(src).not.toContain('2 MB');

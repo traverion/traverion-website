@@ -57,7 +57,7 @@ export default function StayOpsReservationCard({
   copied,
 }: Props) {
   const stop = (e: MouseEvent) => e.stopPropagation();
-  const secondaryLine = [model.guestName, model.nightLabel].filter(Boolean).join(' · ');
+  const guestLine = [model.guestName, model.nightLabel].filter(Boolean).join(' · ');
 
   return (
     <article
@@ -89,9 +89,9 @@ export default function StayOpsReservationCard({
                 <p className="tour-ops-card__title" title={model.listingTitle}>
                   {model.listingTitle}
                 </p>
-                {secondaryLine ? (
-                  <p className="tour-ops-card__option" title={secondaryLine}>
-                    {secondaryLine}
+                {guestLine ? (
+                  <p className="tour-ops-card__option" title={guestLine}>
+                    {guestLine}
                   </p>
                 ) : null}
               </div>
@@ -106,21 +106,18 @@ export default function StayOpsReservationCard({
               </div>
             </div>
             <div className="tour-ops-card__meta">
-              <span className="tour-ops-card__meta-item tour-ops-card__meta-item--strong">
+              <span className="tour-ops-card__meta-item tour-ops-card__meta-item--when">
                 <CalendarDays className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                <span className="truncate" title={model.dateLine}>
+                <span className="tour-ops-card__when-text truncate" title={model.dateLine}>
                   {model.dateLine}
                 </span>
               </span>
               <span
-                className="tour-ops-card__meta-item tour-ops-card__meta-item--strong"
+                className="tour-ops-card__meta-item tour-ops-card__meta-item--guests"
                 title={model.participantLabel}
               >
                 <Users className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                <span className="truncate">
-                  {model.participantLabel}
-                  {model.nightLabel ? ` · ${model.nightLabel}` : ''}
-                </span>
+                <span className="truncate">{model.participantLabel}</span>
               </span>
               <button
                 type="button"

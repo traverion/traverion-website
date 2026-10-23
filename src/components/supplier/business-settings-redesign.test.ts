@@ -9,7 +9,7 @@ describe('Business settings redesign', () => {
     expect(src).toContain('Legal & documents');
     expect(src).toContain('Your verified business name');
     expect(src).toContain("handleNavigate('support')");
-    expect(src).toContain('Manage payouts');
+    expect(src).toContain('Open payout settings');
     expect(src).toContain('BUSINESS_SETTINGS_CONTENT_CLASS');
     expect(src).toContain('sansTitle');
     expect(src).toContain('Registered business');

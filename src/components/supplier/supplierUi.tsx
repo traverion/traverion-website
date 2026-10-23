@@ -100,8 +100,8 @@ export function SupplierPageHero({
   actions,
   children,
   badge = null,
-  /** Stay Ops pages prefer sans titles for operational density. */
-  sansTitle = false,
+  /** Prefer sans titles for operational density; set false only for rare display emphasis. */
+  sansTitle = true,
 }: SupplierPageHeroProps & { sansTitle?: boolean }) {
   return (
     <header className="partner-page-hero border-b border-[color:var(--partner-border,rgba(15,23,42,0.08))]">

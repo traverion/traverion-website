@@ -933,7 +933,7 @@ export default function SupplierEarnings() {
               </span>
             ) : null}
           </div>
-          <p className="tv-income-subtitle">Track earnings, payout periods, and payout settings.</p>
+          <p className="tv-income-subtitle">Earnings, payouts, and payment settings.</p>
         </div>
         <div className="tv-income-export">
           <button

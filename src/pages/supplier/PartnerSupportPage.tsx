@@ -102,29 +102,22 @@ export default function PartnerSupportPage() {
   if (successRef) {
     return (
       <div className={SUPPLIER_PAGE_CLASS}>
-        <SupplierPageHero
-          title="Support"
-          description="Need assistance or have an idea? Send a request to our team."
-        />
-        <div className="mx-auto w-full max-w-[920px]">
-          <div className="rounded-2xl border border-[#e5e7eb] bg-white px-5 py-8 text-center shadow-sm sm:px-8">
-            <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#ecfdf5] text-[#047857]">
-              <CheckCircle2 className="h-6 w-6" aria-hidden />
+        <SupplierPageHero title="Support" sansTitle />
+        <div className="mx-auto w-full max-w-[32rem]">
+          <div className="rounded-[12px] border border-[#e5e7eb] bg-white px-5 py-6 text-center shadow-[0_1px_2px_rgba(15,23,42,0.05)]">
+            <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-[#ecfdf5] text-[#047857]">
+              <CheckCircle2 className="h-5 w-5" aria-hidden />
             </span>
-            <p className="mt-4 text-[17px] font-semibold tracking-tight text-[#18181b]">
-              Your request has been sent.
-            </p>
-            <p className="mt-2 text-[13px] text-[#52525b]">
-              Our team will respond by email. Keep an eye on your inbox — we also sent a confirmation.
-            </p>
+            <p className="mt-3 text-[15px] font-semibold tracking-tight text-[#18181b]">Request sent</p>
+            <p className="mt-1.5 text-[13px] text-[#52525b]">We’ll reply by email with a confirmation.</p>
             {successRef !== '—' ? (
-              <p className="mt-3 text-[12px] font-medium text-[#71717a]">
+              <p className="mt-2 text-[12px] font-medium text-[#71717a]">
                 Reference: <span className="tabular-nums text-[#18181b]">{successRef}</span>
               </p>
             ) : null}
             <button
               type="button"
-              className="tv-btn-primary mt-6 inline-flex h-10 items-center justify-center px-4 text-[13px]"
+              className="tv-btn-primary mt-5 inline-flex h-9 items-center justify-center px-4 text-[13px]"
               onClick={() => setSuccessRef(null)}
             >
               Send another request
@@ -137,19 +130,16 @@ export default function PartnerSupportPage() {
 
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
-      <SupplierPageHero
-        title="Support"
-        description="Need assistance or have an idea? Send a request to our team."
-      />
+      <SupplierPageHero title="Support" sansTitle description="Send a request to Traverion." />
 
       <form
         id={formId}
         onSubmit={(e) => void onSubmit(e)}
-        className="mx-auto w-full max-w-[920px] space-y-5"
+        className="mx-auto w-full max-w-[32rem] space-y-3"
         noValidate
       >
-        <div className="rounded-2xl border border-[#e5e7eb] bg-white p-4 shadow-sm sm:p-6">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="rounded-[12px] border border-[#e5e7eb] bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.05)] sm:p-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <span id={`${formId}-type-label`} className="mb-1 block text-[11px] font-semibold text-[#71717a]">
                 Request type
@@ -199,7 +189,7 @@ export default function PartnerSupportPage() {
             </div>
           </div>
 
-          <div className="mt-4">
+          <div className="mt-3">
             <label htmlFor={`${formId}-subject`} className="mb-1 block text-[11px] font-semibold text-[#71717a]">
               Subject
             </label>
@@ -212,35 +202,35 @@ export default function PartnerSupportPage() {
                 setSubject(e.target.value);
                 setFieldErrors((f) => ({ ...f, subject: '' }));
               }}
-              placeholder="Briefly describe your request"
-              className="tv-input w-full text-[13px]"
+              placeholder="Brief summary"
+              className="tv-input h-10 w-full text-[13px]"
               aria-invalid={Boolean(fieldErrors.subject)}
             />
             {fieldErrors.subject ? <p className="mt-1 text-[12px] text-red-800">{fieldErrors.subject}</p> : null}
           </div>
 
-          <div className="mt-4">
+          <div className="mt-3">
             <label htmlFor={`${formId}-message`} className="mb-1 block text-[11px] font-semibold text-[#71717a]">
               Message
             </label>
             <textarea
               id={`${formId}-message`}
-              rows={8}
+              rows={5}
               maxLength={8000}
               value={message}
               onChange={(e) => {
                 setMessage(e.target.value);
                 setFieldErrors((f) => ({ ...f, message: '' }));
               }}
-              placeholder="Tell us what happened, what you need help with, or what you'd like us to improve..."
-              className="tv-input w-full resize-y text-[13px] leading-relaxed"
+              placeholder="What do you need help with?"
+              className="tv-input min-h-[7.5rem] w-full resize-y text-[13px] leading-relaxed"
               aria-invalid={Boolean(fieldErrors.message)}
             />
             {fieldErrors.message ? <p className="mt-1 text-[12px] text-red-800">{fieldErrors.message}</p> : null}
           </div>
 
-          <div className="mt-4">
-            <span className="mb-1.5 block text-[11px] font-semibold text-[#71717a]">Attachments (optional)</span>
+          <div className="mt-3">
+            <span className="mb-1 block text-[11px] font-semibold text-[#71717a]">Attachments (optional)</span>
             <CommunicationAttachmentsField
               category="partner_support"
               items={attachments}
@@ -256,7 +246,7 @@ export default function PartnerSupportPage() {
         </div>
 
         {error ? (
-          <p className="rounded-lg bg-red-50 px-3 py-2.5 text-[13px] text-red-900 ring-1 ring-red-200/80" role="alert">
+          <p className="rounded-lg bg-red-50 px-3 py-2 text-[13px] text-red-900 ring-1 ring-red-200/80" role="alert">
             {error}
           </p>
         ) : null}
@@ -265,7 +255,7 @@ export default function PartnerSupportPage() {
           <button
             type="submit"
             disabled={submitting || commAttachmentsBlocking(attachments)}
-            className="tv-btn-primary inline-flex h-11 min-w-[9.5rem] items-center justify-center px-5 text-[13px] disabled:opacity-60"
+            className="tv-btn-primary inline-flex h-10 min-w-[8.5rem] items-center justify-center px-4 text-[13px] disabled:opacity-60"
           >
             {submitting ? 'Sending…' : 'Send request'}
           </button>
