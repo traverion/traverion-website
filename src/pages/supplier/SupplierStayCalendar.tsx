@@ -527,7 +527,7 @@ export default function SupplierStayCalendar() {
       <header className="tv-avail-page-head stay-ops-cal-head">
         <div className="tv-avail-page-head__text">
           <h1>Stay Calendar</h1>
-          <p>Occupancy, arrivals and availability across your properties.</p>
+          <p>Arrivals, departures, and occupancy by property.</p>
         </div>
       </header>
 

@@ -464,7 +464,7 @@ export default function SupplierDiscountsOffers() {
             Offers
           </p>
           <p className="tv-offers-subtitle">
-            Timed percentage discounts for tours and stays. Travelers see the lower price on checkout.
+            Percentage discounts for published tours and stays.
           </p>
         </div>
         {canEdit ? (

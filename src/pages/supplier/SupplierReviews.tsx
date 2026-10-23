@@ -523,8 +523,8 @@ export default function SupplierReviews() {
             <p className="tv-reviews-empty__title" role="heading" aria-level={2}>
               No reviews yet
             </p>
-            <p className="mt-1 max-w-md text-[13px] leading-relaxed text-[#71717a]">
-              Your guest reviews will appear here once customers start sharing their experiences.
+            <p className="mt-1 max-w-sm text-[13px] leading-relaxed text-[#71717a]">
+              Guest feedback will show up here after stays and tours.
             </p>
           </div>
         ) : (

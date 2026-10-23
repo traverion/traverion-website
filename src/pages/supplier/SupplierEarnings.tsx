@@ -1048,7 +1048,7 @@ export default function SupplierEarnings() {
                     )}
               </p>
               <p className="tv-income-metric__hint">
-                Net of Traverion commission for bookings sold in this period, including future departures and stays.
+                Supplier-net of bookings sold in this period (includes future services).
                 {periodSales?.ok && typeof periodSales.sale_count === 'number'
                   ? ` · ${periodSales.sale_count} sale${periodSales.sale_count === 1 ? '' : 's'}`
                   : ''}
@@ -1065,7 +1065,7 @@ export default function SupplierEarnings() {
                     )}
               </p>
               <p className="tv-income-metric__hint">
-                Net from completed, cleared services in this period. Future undelivered bookings are not earnings.
+                Supplier-net from services completed and cleared in this period.
                 {periodEarnings?.ok && typeof periodEarnings.earning_count === 'number'
                   ? ` · ${periodEarnings.earning_count} earning${periodEarnings.earning_count === 1 ? '' : 's'}`
                   : ''}
