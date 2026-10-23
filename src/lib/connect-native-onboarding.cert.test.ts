@@ -53,10 +53,13 @@ describe('Native Traverion Custom Connect onboarding', () => {
   it('does not force hosted Account Link for the primary native path', () => {
     expect(settings).toContain('/verification');
     expect(settings).not.toContain('ConnectEmbeddedPanel');
-    expect(journey).toContain('Complete verification');
+    expect(journey).toContain('tv-verify-workspace');
+    expect(journey).toMatch(/Save &(?:amp;)? exit/);
     expect(journey).toContain('Connected Account Agreement');
     expect(journey).toContain('createBankAccountToken');
     expect(journey).toContain('submit_business');
+    expect(journey).toContain('biz_structure');
+    expect(journey).toContain('bank_details');
     expect(client).toContain('submit_business');
     expect(client).toContain('attach_bank_token');
     expect(stripeJs).toContain("createToken('bank_account'");

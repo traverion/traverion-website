@@ -62,10 +62,14 @@ export default function SupplierVerificationPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto w-full max-w-[720px] space-y-4 px-4 py-10" aria-busy="true" aria-label="Loading verification">
-        <div className="h-8 w-40 animate-pulse rounded-lg bg-black/[0.06]" />
-        <div className="h-5 w-full max-w-md animate-pulse rounded bg-black/[0.04]" />
-        <div className="mt-8 h-64 animate-pulse rounded-[12px] border border-[#e5e7eb] bg-white" />
+      <div className="tv-verify-workspace" aria-busy="true" aria-label="Loading verification">
+        <header className="tv-verify-workspace__header">
+          <span className="text-[13px] font-semibold text-[#18181b]">Traverion</span>
+          <span className="text-[12px] text-[#71717a]">Verification</span>
+        </header>
+        <div className="tv-verify-workspace__main">
+          <p className="text-center text-[13px] text-[#52525b]">Preparing verification…</p>
+        </div>
       </div>
     );
   }

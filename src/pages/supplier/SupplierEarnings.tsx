@@ -49,6 +49,11 @@ import { PARTNER_MONEY_PAYOUT_STATUS_NOTE, PARTNER_MONEY_EMPTY_TITLE, PARTNER_MO
 import NoticeCallout from '../../components/NoticeCallout';
 import { localYmd } from '../../lib/local-ymd';
 import {
+  clearIncomeHubCache,
+  readIncomeHubCache,
+  writeIncomeHubCache,
+} from '../../lib/supplier-income-hub-cache';
+import {
   PARTNER_MONEY_CSV_HEADER,
   buildPartnerMoneyCsvRows,
   partnerMoneyCsvHasExportableRows,
@@ -216,6 +221,7 @@ export default function SupplierEarnings() {
   const loadGenRef = useRef(0);
   const profileLoadGenRef = useRef(0);
   const earningsHubUserIdRef = useRef<string | null>(null);
+  const hasPaintedMoneyRef = useRef(false);
 
   const setTabAndUrl = useCallback((next: 'overview' | 'earnings' | 'payouts' | 'documents' | 'settings') => {
     setTab(next);
@@ -256,7 +262,10 @@ export default function SupplierEarnings() {
       return;
     }
     const gen = ++loadGenRef.current;
-    setLoading(true);
+    const cached = readIncomeHubCache(uid);
+    // Soft refresh when we already have paintable data — never flash three empty cards.
+    const soft = Boolean(cached) || hasPaintedMoneyRef.current;
+    if (!soft) setLoading(true);
     setError(null);
     setLedgerError(null);
     Promise.all([
@@ -271,17 +280,21 @@ export default function SupplierEarnings() {
     ])
       .then(async ([data, bookings, listings, terms, items, snaps, periods, holds]) => {
         if (gen !== loadGenRef.current) return;
+        const collected = bookings.filter(isCollectedBooking);
+        const refundDue = bookings.filter(isRefundDueBooking);
+        const titles = Object.fromEntries(listings.map((l) => [l.id, l.title]));
         setEarnings(data);
         setCommercialTerms(terms);
         setEarningItems(items);
         setSnapshots(snaps);
         setPayoutPeriods(periods);
         setFinancialHolds(holds);
-        setListingTitles(Object.fromEntries(listings.map((l) => [l.id, l.title])));
-        setPaidBookings(bookings.filter(isCollectedBooking));
-        setRefundDueBookings(bookings.filter(isRefundDueBooking));
+        setListingTitles(titles);
+        setPaidBookings(collected);
+        setRefundDueBookings(refundDue);
+        let ledgerRows: SupplierLedgerEntry[] = [];
         try {
-          const ledgerRows = await fetchSupplierLedger(uid);
+          ledgerRows = await fetchSupplierLedger(uid);
           if (gen !== loadGenRef.current) return;
           setLedger(ledgerRows);
           setLedgerError(null);
@@ -290,6 +303,20 @@ export default function SupplierEarnings() {
           // Keep prior ledger — failure must not look like zero adjustments.
           setLedgerError(userFacingError(ledgerErr, USER_ERROR.money));
         }
+        hasPaintedMoneyRef.current = true;
+        writeIncomeHubCache({
+          userId: uid,
+          earnings: data,
+          paidBookings: collected,
+          refundDueBookings: refundDue,
+          ledger: ledgerRows,
+          commercialTerms: terms,
+          earningItems: items,
+          snapshots: snaps,
+          payoutPeriods: periods,
+          financialHolds: holds,
+          listingTitles: titles,
+        });
       })
       .catch((e) => {
         if (gen !== loadGenRef.current) return;
@@ -323,6 +350,8 @@ export default function SupplierEarnings() {
       loadGenRef.current += 1;
       profileLoadGenRef.current += 1;
       clearEarningsPartnerWorkspace();
+      clearIncomeHubCache();
+      hasPaintedMoneyRef.current = false;
       setLoading(false);
       return;
     }
@@ -331,6 +360,22 @@ export default function SupplierEarnings() {
       loadGenRef.current += 1;
       profileLoadGenRef.current += 1;
       clearEarningsPartnerWorkspace();
+      hasPaintedMoneyRef.current = false;
+      const cached = readIncomeHubCache(user.id);
+      if (cached) {
+        setEarnings(cached.earnings as SupplierEarning[]);
+        setPaidBookings(cached.paidBookings as BookingRow[]);
+        setRefundDueBookings(cached.refundDueBookings as BookingRow[]);
+        setLedger(cached.ledger as SupplierLedgerEntry[]);
+        setCommercialTerms(cached.commercialTerms as SupplierCommercialTermsRow | null);
+        setEarningItems(cached.earningItems as SupplierEarningItemRow[]);
+        setSnapshots(cached.snapshots as BookingCommercialSnapshotRow[]);
+        setPayoutPeriods(cached.payoutPeriods as SupplierPayoutPeriodRow[]);
+        setFinancialHolds(cached.financialHolds as BookingFinancialHoldRow[]);
+        setListingTitles(cached.listingTitles);
+        hasPaintedMoneyRef.current = true;
+        setLoading(false);
+      }
     }
   }, [user?.id]);
 
@@ -948,9 +993,12 @@ export default function SupplierEarnings() {
           <button type="button" onClick={() => void load()} className="tv-btn-ghost mt-2 -ml-2">Retry</button>
         </NoticeCallout>
       ) : null}
-      {loading && !hasMoney ? <SupplierListSkeleton rows={3} /> : null}
+      {/* Settings/documents must never show money-list skeletons (blank rectangles above Settings). */}
+      {loading && !hasMoney && tab !== 'settings' && tab !== 'documents' ? (
+        <SupplierListSkeleton rows={3} />
+      ) : null}
 
-      {!loading && !hasMoney && !error ? (
+      {!loading && !hasMoney && !error && tab !== 'settings' ? (
         <div className="tv-income-empty tv-income-empty--compact">
           <div className="tv-income-empty__icon"><Wallet className="h-5 w-5" aria-hidden /></div>
           <h3 className="text-sm font-bold text-[#18181b]">{PARTNER_MONEY_EMPTY_TITLE}</h3>

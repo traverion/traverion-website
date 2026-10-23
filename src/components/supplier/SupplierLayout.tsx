@@ -1264,7 +1264,15 @@ export default function SupplierLayout() {
                     {section === 'reservations' && <SupplierBookings inventoryFamily="stay" />}
                     {section === 'stay-calendar' && <SupplierStayCalendar />}
                     {section === 'inbox' && <SupplierInbox />}
-                    {section === 'earnings' && <SupplierEarnings />}
+                    {/* Keep Income hub mounted during verification so return never remounts 3 blank skeletons. */}
+                    {(section === 'earnings' || section === 'verification') && (
+                      <div
+                        className={section === 'earnings' ? undefined : 'hidden'}
+                        aria-hidden={section !== 'earnings'}
+                      >
+                        <SupplierEarnings />
+                      </div>
+                    )}
                     {section === 'verification' && <SupplierVerificationPage />}
                     {section === 'discounts' && <SupplierDiscountsOffers />}
                     {section === 'reviews' && <SupplierReviews />}
