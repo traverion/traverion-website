@@ -1572,12 +1572,18 @@ export default function SupplierListings() {
                         </div>
                         <h2
                           title={listing.title}
-                          className="tv-ops-listing-row__title break-words text-[15px] font-semibold leading-snug tracking-tight text-ink line-clamp-2 [overflow-wrap:anywhere]"
+                          className="tv-ops-listing-row__title break-words text-[14.5px] font-semibold leading-snug tracking-tight text-ink line-clamp-1 sm:line-clamp-2 [overflow-wrap:anywhere]"
                         >
                           {listing.title}
                         </h2>
-                        <p className="mt-0.5 truncate text-[12.5px] text-ink-muted">
-                          {place || 'Destination not set'}
+                        <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[12.5px] text-ink-muted">
+                          <span className="truncate">{place || 'Destination not set'}</span>
+                          <span className="hidden shrink-0 text-ink-faint sm:inline" aria-hidden>
+                            ·
+                          </span>
+                          <span className="hidden shrink-0 text-[11.5px] font-medium uppercase tracking-[0.04em] text-ink-faint sm:inline">
+                            {typeLabel}
+                          </span>
                         </p>
                         <p className="mt-0.5 hidden text-[11.5px] font-medium text-ink-faint sm:block lg:hidden">
                           {typeLabel}
