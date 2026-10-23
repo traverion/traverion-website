@@ -113,7 +113,7 @@ export const TRANSFORM3_SHARED_FOUNDATION = [
 export const TRANSFORM3_PHASE_CHECKLIST = {
   '01_audit': 'done',
   '02_foundation': 'done',
-  '03_controls': 'pending',
+  '03_controls': 'done',
   '04_sidebar': 'pending',
   '05_page_structure': 'pending',
   '06_home': 'pending',

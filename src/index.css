@@ -123,20 +123,29 @@ body {
       border-color var(--partner-dur-micro) var(--partner-ease),
       color var(--partner-dur-micro) var(--partner-ease),
       box-shadow var(--partner-dur-micro) var(--partner-ease),
-      opacity var(--partner-dur-micro) var(--partner-ease);
+      opacity var(--partner-dur-micro) var(--partner-ease),
+      transform var(--partner-dur-micro) var(--partner-ease);
   }
 
   .partner-app-shell .tv-btn-primary,
   .partner-app-shell .tv-btn-secondary {
     min-height: var(--partner-control-h);
-    padding: 0.45rem 0.875rem;
+    padding: 0.4rem 0.875rem;
     font-size: 0.8125rem;
     font-weight: 600;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.012em;
+  }
+
+  .partner-app-shell .tv-btn-primary {
+    background: var(--partner-accent);
+    color: #fff;
+    border: 1px solid transparent;
+    box-shadow: 0 1px 2px color-mix(in srgb, var(--partner-accent) 22%, transparent);
   }
 
   .partner-app-shell .tv-btn-primary:hover:not(:disabled) {
-    box-shadow: 0 2px 8px color-mix(in srgb, var(--partner-accent) 28%, transparent);
+    background: var(--partner-accent-hover, #052d65);
+    box-shadow: 0 2px 10px color-mix(in srgb, var(--partner-accent) 32%, transparent);
   }
 
   .partner-app-shell .tv-btn-primary:active:not(:disabled),
@@ -144,11 +153,20 @@ body {
     transform: translateY(0.5px);
   }
 
+  .partner-app-shell .tv-btn-primary:disabled,
+  .partner-app-shell .tv-btn-secondary:disabled,
+  .partner-app-shell .tv-btn-ghost:disabled {
+    opacity: 0.48;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
   .partner-app-shell .tv-btn-ghost {
-    min-height: 2.25rem;
+    min-height: var(--partner-control-h-sm);
     border-radius: var(--partner-radius);
     font-size: 0.8125rem;
-    font-weight: 500;
+    font-weight: 550;
   }
 
   .partner-app-shell .tv-btn-danger,
@@ -227,15 +245,54 @@ body {
     background: var(--partner-surface);
     color: var(--partner-ink);
     border-radius: var(--partner-radius);
+    border: 0;
     box-shadow: 0 0 0 1px var(--partner-border);
-    min-height: 2.5rem;
-    font-size: 0.875rem;
+    min-height: var(--partner-control-h);
+    padding: 0.45rem 0.7rem;
+    font-size: 0.8125rem;
+    line-height: 1.35;
+    transition:
+      box-shadow var(--partner-dur-micro) var(--partner-ease),
+      background-color var(--partner-dur-micro) var(--partner-ease);
+  }
+
+  .partner-app-shell .tv-input:hover:not(:disabled):not(:focus) {
+    box-shadow: 0 0 0 1px var(--partner-border-strong, #d0d5dd);
+  }
+
+  .partner-app-shell .tv-input:focus,
+  .partner-app-shell .tv-input:focus-visible {
+    box-shadow:
+      0 0 0 1px var(--partner-accent),
+      0 0 0 3px color-mix(in srgb, var(--partner-accent) 18%, transparent);
+    outline: none;
+  }
+
+  .partner-app-shell .tv-input:disabled {
+    opacity: 0.55;
+    background: var(--partner-surface-muted);
+    cursor: not-allowed;
+  }
+
+  .partner-app-shell .tv-input[aria-invalid='true'] {
+    box-shadow:
+      0 0 0 1px var(--partner-danger, #be123c),
+      0 0 0 3px color-mix(in srgb, var(--partner-danger, #be123c) 14%, transparent);
+  }
+
+  .partner-app-shell .partner-select__trigger {
+    min-height: var(--partner-control-h);
+    border-radius: var(--partner-radius);
+    transition:
+      box-shadow var(--partner-dur-micro) var(--partner-ease),
+      background-color var(--partner-dur-micro) var(--partner-ease);
   }
 
   .partner-app-shell .partner-select__menu {
     background: var(--partner-surface);
     border-color: var(--partner-border);
     border-radius: var(--partner-radius);
+    box-shadow: var(--partner-shadow-float);
   }
 
   .partner-app-shell .tv-sheet-panel {
