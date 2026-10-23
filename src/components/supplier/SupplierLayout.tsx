@@ -1058,7 +1058,7 @@ export default function SupplierLayout() {
         <div className="partner-main-pane" ref={mainPaneRef}>
           {section === 'verification' ? null : (
           <header className="partner-topbar sticky top-0 z-30 pt-[env(safe-area-inset-top)]">
-            <div className="flex h-12 items-center gap-3 px-4 sm:px-6 lg:px-8">
+            <div className="flex h-[var(--partner-topbar-h,2.75rem)] items-center gap-3 px-4 sm:px-6 lg:px-8">
               <button
                 type="button"
                 onClick={() => handleNavigate('dashboard')}

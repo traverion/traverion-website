@@ -1189,7 +1189,6 @@ export default function SupplierListings() {
       <SupplierPageHero
         title="Listings"
         sansTitle
-        description="Manage your experiences, stays, and other listings."
         actions={
           <button
             type="button"

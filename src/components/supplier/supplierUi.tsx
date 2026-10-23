@@ -86,7 +86,8 @@ export const SUPPLIER_MODAL_PANEL_SCROLL_CLASS = `${SUPPLIER_MODAL_PANEL_CLASS} 
 type SupplierPageHeroProps = {
   icon?: LucideIcon;
   title: string;
-  description: ReactNode;
+  /** Optional — omit when the page title is self-explanatory. */
+  description?: ReactNode;
   actions?: ReactNode;
   children?: ReactNode;
   /** Optional eyebrow above the title. Omit for cleaner operational pages. */
@@ -104,14 +105,14 @@ export function SupplierPageHero({
 }: SupplierPageHeroProps & { sansTitle?: boolean }) {
   return (
     <header className="partner-page-hero border-b border-[color:var(--partner-border,rgba(15,23,42,0.08))]">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex flex-col gap-1.5 sm:flex-row sm:items-end sm:justify-between sm:gap-3">
         <div className="min-w-0">
-          {badge ? <p className="partner-label mb-1 text-finland">{badge}</p> : null}
+          {badge ? <p className="partner-label mb-0.5 text-finland">{badge}</p> : null}
           <h1 className={`partner-page-title${sansTitle ? '' : ' font-display'}`}>{title}</h1>
-          {description ? <p className="partner-section-desc mt-1">{description}</p> : null}
+          {description ? <p className="partner-section-desc mt-0.5 max-w-2xl">{description}</p> : null}
         </div>
         {actions ? (
-          <div className="shrink-0 flex flex-wrap items-center gap-2 [&_button]:min-h-10 [&_a]:min-h-10">
+          <div className="shrink-0 flex flex-wrap items-center gap-2 [&_button]:min-h-[var(--partner-control-h,2.375rem)] [&_a]:min-h-[var(--partner-control-h,2.375rem)]">
             {actions}
           </div>
         ) : null}

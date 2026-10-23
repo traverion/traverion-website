@@ -70,23 +70,23 @@ function NavButton({
             ? `${item.label} · ${badge}`
             : item.label
       }
-      className={`partner-nav-item lux-flat group relative flex w-full items-center gap-2 rounded-lg text-left text-[13px] ${
+      className={`partner-nav-item lux-flat group relative flex w-full items-center gap-2 rounded-md text-left text-[13px] ${
         collapsed
-          ? 'justify-center px-2 py-[6px]'
+          ? 'justify-center px-2 py-[5px]'
           : nested
-            ? 'pl-7 pr-2 py-[5px]'
-            : 'px-2.5 py-[6px]'
+            ? 'pl-7 pr-2 py-[4px]'
+            : 'px-2 py-[5px]'
       } ${
         disabled
           ? 'cursor-default font-medium text-slate-400'
           : active
-            ? 'bg-finland/[0.09] font-semibold text-finland'
-            : 'font-medium text-slate-600 hover:bg-slate-900/[0.045] hover:text-slate-900'
+            ? 'bg-finland/[0.08] font-semibold text-finland'
+            : 'font-medium text-slate-600 hover:bg-slate-900/[0.04] hover:text-slate-900'
       }`}
     >
       {active && !collapsed && !disabled ? (
         <span
-          className="absolute left-0 top-1/2 h-4 w-[2.5px] -translate-y-1/2 rounded-full bg-finland"
+          className="absolute left-0 top-1/2 h-3.5 w-[2px] -translate-y-1/2 rounded-full bg-finland"
           aria-hidden
         />
       ) : null}
