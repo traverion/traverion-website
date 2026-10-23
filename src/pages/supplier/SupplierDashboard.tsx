@@ -90,17 +90,24 @@ function AttentionItem({
       <button
         type="button"
         onClick={onClick}
-        className={`partner-row-interact lux-flat group flex w-full items-start gap-3 px-3.5 py-2.5 text-left ${ATTENTION_ROW[tone]}`}
+        className={`partner-home__attention-row lux-flat group flex w-full items-start gap-3 px-3.5 py-2.5 text-left ${ATTENTION_ROW[tone]}`}
       >
-        <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${ATTENTION_DOT[tone]}`} aria-hidden />
+        <span
+          className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ring-2 ring-white ${ATTENTION_DOT[tone]}`}
+          aria-hidden
+        />
         <span className="min-w-0 flex-1">
-          <span className="block text-[13.5px] font-semibold leading-snug text-slate-900">{title}</span>
+          <span className="block text-[13.5px] font-semibold leading-snug tracking-tight text-[color:var(--partner-ink,#0c1118)]">
+            {title}
+          </span>
           {detail ? (
-            <span className="mt-0.5 block text-[12.5px] leading-snug text-slate-500">{detail}</span>
+            <span className="mt-0.5 block text-[12.5px] leading-snug text-[color:var(--partner-ink-muted,#5a6472)]">
+              {detail}
+            </span>
           ) : null}
         </span>
         <ChevronRight
-          className="mt-0.5 h-4 w-4 shrink-0 text-slate-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-finland"
+          className="mt-0.5 h-4 w-4 shrink-0 text-slate-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-finland motion-reduce:transition-none"
           aria-hidden
         />
       </button>

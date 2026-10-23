@@ -559,26 +559,6 @@ body {
     max-width: 38rem;
   }
 
-  .partner-stack {
-    display: flex;
-    flex-direction: column;
-    gap: var(--partner-section-gap);
-  }
-
-  .partner-section__head {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 0.5rem 0.75rem;
-    margin-bottom: 0.65rem;
-  }
-
-  .partner-section__head--ruled {
-    padding-bottom: 0.55rem;
-    border-bottom: 1px solid color-mix(in srgb, var(--partner-border) 90%, transparent);
-  }
-
   .partner-label {
     font-size: var(--partner-label-size);
     font-weight: 600;
@@ -609,14 +589,16 @@ body {
   .partner-section__head {
     display: flex;
     flex-wrap: wrap;
-    align-items: baseline;
+    align-items: flex-end;
     justify-content: space-between;
-    gap: 0.5rem 1rem;
+    gap: 0.5rem 0.75rem;
+    margin-bottom: 0.15rem;
   }
 
   .partner-section__head--ruled {
-    padding-bottom: 0.625rem;
-    border-bottom: 1px solid var(--partner-border);
+    padding-bottom: 0.55rem;
+    margin-bottom: 0.65rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--partner-border) 90%, transparent);
   }
 
   .partner-surface-panel {
@@ -804,6 +786,25 @@ body {
     .partner-home__header-actions {
       align-self: flex-end;
     }
+  }
+
+  .partner-home__attention-row {
+    transition:
+      background-color var(--partner-dur-micro, 150ms) var(--partner-ease, ease),
+      box-shadow var(--partner-dur-micro, 150ms) var(--partner-ease, ease);
+  }
+
+  .partner-home__attention-row:hover {
+    background: #f6f7f9;
+    box-shadow: inset 3px 0 0 color-mix(in srgb, var(--partner-accent) 45%, transparent);
+  }
+
+  .partner-attention-row--danger:hover {
+    box-shadow: inset 3px 0 0 #e11d48;
+  }
+
+  .partner-attention-row--warn:hover {
+    box-shadow: inset 3px 0 0 #d97706;
   }
 
   .partner-home__ops-pill {
@@ -9526,6 +9527,30 @@ details:not([open]) > :not(summary) {
   line-height: 1.28;
   letter-spacing: -0.02em;
   color: #0f1419;
+}
+
+.tour-ops-card__title--when {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  -webkit-line-clamp: unset;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.025em;
+}
+
+.tour-ops-card__title-icon {
+  width: 0.95rem;
+  height: 0.95rem;
+  flex: none;
+  color: var(--partner-accent, #073b83);
+  opacity: 0.9;
+}
+
+.tour-ops-card__meta-item--product {
+  min-width: 0;
+  max-width: 100%;
+  color: #667085;
+  font-weight: 500;
 }
 
 .tour-ops-card__option {
