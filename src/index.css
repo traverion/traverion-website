@@ -14361,6 +14361,13 @@ details:not([open]) > :not(summary) {
   -webkit-overflow-scrolling: touch;
 }
 
+.tv-verify-workspace__main--status {
+  justify-content: flex-start;
+  max-width: 42rem;
+  padding-top: 1.25rem;
+  padding-bottom: 1.5rem;
+}
+
 .tv-verify-workspace__stage {
   width: 100%;
 }

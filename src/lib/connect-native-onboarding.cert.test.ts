@@ -62,7 +62,10 @@ describe('Native Traverion Custom Connect onboarding', () => {
     expect(journey).toContain('submit_business');
     expect(journey).toContain('biz_structure');
     expect(journey).toContain('bank_details');
+    expect(journey).toContain('bank_replace');
+    expect(journey).not.toMatch(/id:\s*'bank_country'/);
     expect(journey).toContain('markClientSubmitted');
+    expect(journey).toContain("get('replace') === '1'");
     expect(client).toContain('submit_business');
     expect(client).toContain('attach_bank_token');
     expect(stripeJs).toContain("createToken('bank_account'");

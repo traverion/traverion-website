@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { SupplierProfileRow } from '../data/supabase-supplier-profile';
 import {
+  bankAlreadyManaged,
   editCategoryForRequirement,
   firstScreenForEditCategory,
   hasAuthoritativeSubmission,
@@ -105,8 +106,21 @@ describe('verification-workspace-lifecycle', () => {
 
   it('maps requirements to edit screens', () => {
     expect(editCategoryForRequirement('external_account')).toBe('banking');
-    expect(firstScreenForEditCategory('banking')).toBe('bank_country');
+    expect(firstScreenForEditCategory('banking')).toBe('bank_replace');
     expect(editCategoryForRequirement('individual.verification.document')).toBe('identity');
     expect(editCategoryForRequirement('tos_acceptance.date')).toBe('agreement');
+  });
+
+  it('treats submitted or payout-capable accounts as bank-managed', () => {
+    expect(
+      bankAlreadyManaged(
+        profile({
+          stripe_connected_account_id: 'acct_x',
+          connect_details_submitted: true,
+        })
+      )
+    ).toBe(true);
+    expect(bankAlreadyManaged(profile({}), '•••• 1234')).toBe(true);
+    expect(bankAlreadyManaged(profile({ connect_onboarding_status: 'not_started' }))).toBe(false);
   });
 });

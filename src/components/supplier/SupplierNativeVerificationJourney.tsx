@@ -14,6 +14,7 @@ import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
 import {
+  bankAlreadyManaged,
   editCategoryForRequirement,
   firstScreenForEditCategory,
   hasAuthoritativeSubmission,
@@ -47,7 +48,7 @@ type ScreenId =
   | 'agree_info'
   | 'agree_accept'
   | 'id_status'
-  | 'bank_country'
+  | 'bank_replace'
   | 'bank_details'
   | 'bank_confirm'
   | 'review_summary'
@@ -218,6 +219,7 @@ function statusHeadline(status: string | null | undefined, payoutsEnabled: boole
 function buildScreens(opts: {
   businessType: 'company' | 'individual';
   needsOwners: boolean;
+  /** Bank replacement / bank-only correction — no full journey, no country step. */
   startBank: boolean;
 }): ScreenDef[] {
   const biz: ScreenDef[] = [
@@ -330,13 +332,8 @@ function buildScreens(opts: {
     },
   ];
 
-  const banking: ScreenDef[] = [
-    {
-      id: 'bank_country',
-      category: 'banking',
-      title: 'Bank country & currency',
-      lede: 'Payouts use your connected-account country and default currency.',
-    },
+  // Country/currency are account facts — shown read-only on bank details, not as onboarding steps.
+  const bankingFull: ScreenDef[] = [
     {
       id: 'bank_details',
       category: 'banking',
@@ -350,6 +347,16 @@ function buildScreens(opts: {
       lede: 'Submit securely to attach the account for payouts.',
       submit: 'bank',
     },
+  ];
+
+  const bankingReplace: ScreenDef[] = [
+    {
+      id: 'bank_replace',
+      category: 'banking',
+      title: 'Bank destination',
+      lede: 'Replace your payout destination only when you need a different account.',
+    },
+    ...bankingFull,
   ];
 
   const review: ScreenDef[] = [
@@ -368,12 +375,11 @@ function buildScreens(opts: {
     },
   ];
 
-  const all = [...biz, ...rep, ...ownership, ...agreement, ...identity, ...banking, ...review];
   if (opts.startBank) {
-    const bankIdx = all.findIndex((s) => s.category === 'banking');
-    if (bankIdx > 0) return all.slice(bankIdx);
+    return bankingReplace;
   }
-  return all;
+
+  return [...biz, ...rep, ...ownership, ...agreement, ...identity, ...bankingFull, ...review];
 }
 
 export default function SupplierNativeVerificationJourney({
@@ -404,8 +410,7 @@ export default function SupplierNativeVerificationJourney({
   const [phase, setPhase] = useState<VerificationWorkspacePhase>(() => initialPhase);
 
   const [screen, setScreen] = useState<ScreenId>(() => {
-    if (initialFocus === 'bank') return 'bank_country';
-    if (draft?.screen) return draft.screen;
+    if (draft?.screen && draft.screen !== 'bank_country') return draft.screen;
     return 'biz_structure';
   });
   const [direction, setDirection] = useState<'forward' | 'back'>('forward');
@@ -526,15 +531,28 @@ export default function SupplierNativeVerificationJourney({
         forceWizard: false,
         clientSubmitted: submitted,
       });
-      // ?focus=bank on a submitted account → bank correction, never Business Structure.
-      if (initialFocus === 'bank' && submitted) {
+      // Manage bank on a submitted account → status overview (same account). Never re-collect.
+      // Explicit replace is opt-in via ?focus=bank&replace=1 or status "Replace bank account".
+      const wantReplace =
+        typeof window !== 'undefined' &&
+        new URLSearchParams(window.location.search).get('replace') === '1';
+      if (initialFocus === 'bank' && submitted && wantReplace) {
         setForceWizard(true);
         setBankOnlyEdit(true);
-        setScreen('bank_country');
+        setScreen('bank_replace');
         setPhase('wizard');
+      } else if (initialFocus === 'bank' && submitted) {
+        setForceWizard(false);
+        setBankOnlyEdit(false);
+        setPhase('status');
+        const masked = loadDraft(userId)?.bankMasked ?? null;
+        if (bankAlreadyManaged(nextProfile, masked)) {
+          setNote('Bank destination is managed here. Use Replace bank account only when you need a new account.');
+        }
       } else if (initialFocus === 'bank' && nextPhase === 'wizard') {
         setBankOnlyEdit(false);
-        setScreen(loadDraft(userId)?.screen ?? 'bank_country');
+        const d = loadDraft(userId);
+        setScreen(d?.screen && d.screen !== 'bank_country' ? d.screen : 'bank_details');
         setPhase('wizard');
       } else {
         setPhase(nextPhase);
@@ -910,21 +928,23 @@ export default function SupplierNativeVerificationJourney({
 
   const progressPct = Math.round(((screenIndex + 1) / Math.max(screens.length, 1)) * 100);
   const continueLabel =
-    current.submit === 'tos'
-      ? 'Accept & continue'
-      : current.submit === 'bank'
-        ? busy
-          ? 'Securing…'
-          : bankMasked && !iban
-            ? 'Continue'
-            : 'Add bank & continue'
-        : current.submit === 'finish'
+    current.id === 'bank_replace'
+      ? 'Continue'
+      : current.submit === 'tos'
+        ? 'Accept & continue'
+        : current.submit === 'bank'
           ? busy
-            ? 'Refreshing…'
-            : 'Done'
-          : busy
-            ? 'Saving…'
-            : 'Continue';
+            ? 'Securing…'
+            : bankOnlyEdit
+              ? 'Submit new bank'
+              : 'Add bank & continue'
+          : current.submit === 'finish'
+            ? busy
+              ? 'Refreshing…'
+              : 'Done'
+            : busy
+              ? 'Saving…'
+              : 'Continue';
 
   if (bootBusy) {
     return (
@@ -953,7 +973,6 @@ export default function SupplierNativeVerificationJourney({
         busy={busy}
         error={error}
         note={note}
-        accountId={lastMirror?.account_id ?? profile?.stripe_connected_account_id ?? null}
         onClose={onClose}
         onRefresh={() =>
           void withSubmit(async () => {
@@ -963,12 +982,13 @@ export default function SupplierNativeVerificationJourney({
           })
         }
         onUpdateBusiness={() => enterWizardAt('biz_structure')}
-        onUpdateBank={() => enterWizardAt('bank_country', { bankOnly: true })}
+        onUpdateBank={() => enterWizardAt('bank_replace', { bankOnly: true })}
         onFixRequirements={startFixRequirements}
         onContinueIdentity={() => {
           setShowIdentityEmbed(true);
         }}
         fullScreen={fullScreen}
+        highlightBank={initialFocus === 'bank'}
       />
     );
   }
@@ -1409,22 +1429,52 @@ export default function SupplierNativeVerificationJourney({
               </div>
             ) : null}
 
-            {current.id === 'bank_country' ? (
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Country">
-                  <input className="tv-input h-11" value={addrCountry} disabled readOnly />
-                </Field>
-                <Field label="Currency">
-                  <input className="tv-input h-11" value={currency} disabled readOnly />
-                </Field>
+            {current.id === 'bank_replace' ? (
+              <div className="space-y-4">
+                <div className="rounded-[12px] border border-[#e5e7eb] bg-[#fafafa] px-4 py-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
+                    Current destination
+                  </p>
+                  <p className="mt-1 text-[15px] font-semibold tabular-nums text-[#18181b]">
+                    {bankMasked ||
+                      (profile?.connect_payouts_enabled
+                        ? 'Connected (masked by provider)'
+                        : 'No masked destination on file yet')}
+                  </p>
+                  <dl className="mt-3 grid grid-cols-2 gap-2 text-[12px]">
+                    <div>
+                      <dt className="text-[#71717a]">Country</dt>
+                      <dd className="font-medium text-[#18181b]">{addrCountry}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-[#71717a]">Currency</dt>
+                      <dd className="font-medium text-[#18181b]">{currency}</dd>
+                    </div>
+                  </dl>
+                </div>
+                <p className="text-[13px] leading-relaxed text-[#52525b]">
+                  Continue only if you need to replace this destination. Country and currency stay with your payout
+                  account.
+                </p>
               </div>
             ) : null}
 
             {current.id === 'bank_details' ? (
               <div className="space-y-4">
-                {bankMasked ? (
-                  <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[13px] text-emerald-950">
-                    Bank account on file: <span className="font-semibold tabular-nums">{bankMasked}</span>
+                <dl className="grid grid-cols-2 gap-2 rounded-lg border border-[#e5e7eb] bg-[#fafafa] px-3 py-2.5 text-[12px]">
+                  <div>
+                    <dt className="text-[#71717a]">Country</dt>
+                    <dd className="font-medium text-[#18181b]">{addrCountry}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[#71717a]">Currency</dt>
+                    <dd className="font-medium text-[#18181b]">{currency}</dd>
+                  </div>
+                </dl>
+                {bankMasked && bankOnlyEdit ? (
+                  <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-950">
+                    Replacing destination{' '}
+                    <span className="font-semibold tabular-nums">{bankMasked}</span>
                   </p>
                 ) : null}
                 <Field label="Account holder name" required>

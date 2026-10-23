@@ -25,6 +25,7 @@ import {
   deriveConnectExperienceState,
   listSupplierPayoutBlocks,
 } from '../../lib/connect-payout-progress';
+import { bankAlreadyManaged } from '../../lib/verification-workspace-lifecycle';
 import {
   catalogPayoutRates,
   catalogRateForPreference,
@@ -119,26 +120,35 @@ function stepIcon(state: string) {
 function bankStatusCopy(profile: SupplierProfileRow | null | undefined): {
   headline: string;
   detail: string;
-  connected: boolean;
+  managed: boolean;
 } {
-  if (profile?.connect_payouts_enabled) {
+  if (bankAlreadyManaged(profile)) {
+    if (profile?.connect_payouts_enabled) {
+      return {
+        headline: 'Bank destination on file',
+        detail:
+          'Managed in verification. Full account numbers are never stored in Traverion. Provider payout capability is separate from Traverion’s payout schedule.',
+        managed: true,
+      };
+    }
     return {
-      headline: 'Bank account connected',
-      detail: 'Payout destination is managed securely. Full account numbers are never stored in Traverion.',
-      connected: true,
+      headline: 'Bank details submitted',
+      detail:
+        'Destination was submitted with verification. Open Manage bank account to review or replace it — you will not restart onboarding.',
+      managed: true,
     };
   }
-  if (profile?.stripe_connected_account_id && profile.connect_details_submitted) {
+  if (profile?.stripe_connected_account_id) {
     return {
       headline: 'Bank account not connected',
-      detail: 'Add a bank account to receive automatic payouts.',
-      connected: false,
+      detail: 'Add a bank account from verification when you are ready.',
+      managed: false,
     };
   }
   return {
     headline: 'Bank account not connected',
     detail: 'Complete verification first, then add a bank account for payouts.',
-    connected: false,
+    managed: false,
   };
 }
 
@@ -250,24 +260,29 @@ export default function IncomeFinancialSettings({
     onProfile(await fetchSupplierProfile(userId));
   };
 
-  const openVerification = (focus: 'full' | 'bank' = 'full') => {
+  const openVerification = (focus: 'full' | 'bank' = 'full', opts?: { replace?: boolean }) => {
     setConnectError(null);
     setConnectNote(null);
     if (!canEdit) {
       setConnectError('Your role can view payout verification but cannot change it.');
       return;
     }
-    const q = focus === 'bank' ? '?focus=bank' : '';
+    const params = new URLSearchParams();
+    if (focus === 'bank') params.set('focus', 'bank');
+    // Only force replace collection when explicitly requested — never on ordinary Manage bank.
+    if (focus === 'bank' && opts?.replace) params.set('replace', '1');
+    const q = params.toString() ? `?${params.toString()}` : '';
     navigateSupplierUrl(`${PARTNER_APP_BASE}/verification${q}`);
   };
 
   const selectedCatalog =
     cycle === 'monthly' || cycle === 'biweekly' ? formatBpsAsPercent(catalogRateForPreference(cycle)) : null;
   const agreementRate = commercialTerms ? formatBpsAsPercent(commercialTerms.commission_bps) : null;
-  const extraPoints = rates.extraBps / 100;
   const savedPreference = preferenceLabel(profile?.payment_cycle);
   const activeCadence = cadenceLabel(commercialTerms?.payout_cadence);
-  const automaticPayoutsOn = Boolean(profile?.connect_payouts_enabled) && canReceiveTransfers;
+  /** Provider capability only — not Traverion SCAT transfer/bank-payout execution (kill-switched separately). */
+  const providerPayoutCapability =
+    Boolean(profile?.connect_payouts_enabled) && canReceiveTransfers;
 
   const savePreferences = async () => {
     setPreferenceError(null);
@@ -353,9 +368,9 @@ export default function IncomeFinancialSettings({
             ) : (
               <p className="max-w-md text-[12px] leading-relaxed text-[#52525b]">
                 {canReceiveTransfers
-                  ? automaticPayoutsOn
-                    ? 'You can receive earnings and automatic bank payouts.'
-                    : 'You can receive earnings. Bank payouts enable when a verified bank account is linked.'
+                  ? providerPayoutCapability
+                    ? 'Provider marks this account ready for payouts. Traverion transfers still follow internal controls and schedules.'
+                    : 'You can receive earnings transfers when Traverion enables them. Bank payout capability depends on the provider.'
                   : 'Additional steps are needed before you can receive earnings.'}
               </p>
             )}
@@ -442,20 +457,25 @@ export default function IncomeFinancialSettings({
                 <dd className="font-medium text-[#18181b]">{currency}</dd>
               </div>
               <div className="flex gap-1.5">
-                <dt className="text-[#71717a]">Payouts</dt>
+                <dt className="text-[#71717a]">Provider payouts</dt>
                 <dd className="font-medium text-[#18181b]">
-                  {profile?.connect_payouts_enabled ? 'Enabled' : 'Not enabled'}
+                  {profile?.connect_payouts_enabled ? 'Capability on' : 'Not enabled'}
                 </dd>
               </div>
             </dl>
           </div>
           <button
             type="button"
-            className={bank.connected ? 'tv-btn-secondary h-10 px-3 text-[13px]' : 'tv-btn-primary h-10 px-3 text-[13px]'}
+            className={bank.managed ? 'tv-btn-secondary h-10 px-3 text-[13px]' : 'tv-btn-primary h-10 px-3 text-[13px]'}
             disabled={!canEdit || connectBusy}
-            onClick={() => openVerification('bank')}
+            onClick={() =>
+              openVerification('bank', {
+                // Only jump straight into replace when nothing is on file yet.
+                replace: !bank.managed,
+              })
+            }
           >
-            {bank.connected ? 'Manage bank account' : 'Add bank account'}
+            {bank.managed ? 'Manage bank account' : 'Add bank account'}
           </button>
         </div>
         {locked && profile?.payout_iban ? (
@@ -481,26 +501,33 @@ export default function IncomeFinancialSettings({
 
         <dl className="mt-3 grid gap-3 text-[13px] sm:grid-cols-3">
           <div>
-            <dt className="text-[11px] font-semibold text-[#71717a]">Payout frequency</dt>
-            <dd className="mt-0.5 text-[#18181b]">{activeCadence !== 'Not set' ? activeCadence : savedPreference}</dd>
+            <dt className="text-[11px] font-semibold text-[#71717a]">Saved preference</dt>
+            <dd className="mt-0.5 text-[#18181b]">{savedPreference}</dd>
           </div>
           <div>
-            <dt className="text-[11px] font-semibold text-[#71717a]">Next estimated payout</dt>
-            <dd className="mt-0.5 text-[#18181b]">
-              {estimatedNext && automaticPayoutsOn
-                ? formatEstimateDate(estimatedNext)
-                : automaticPayoutsOn
-                  ? 'When schedule is set'
-                  : 'After payouts are enabled'}
-            </dd>
+            <dt className="text-[11px] font-semibold text-[#71717a]">Agreement cadence</dt>
+            <dd className="mt-0.5 text-[#18181b]">{activeCadence}</dd>
           </div>
           <div>
-            <dt className="text-[11px] font-semibold text-[#71717a]">Automatic payouts</dt>
-            <dd className="mt-0.5 text-[#18181b]">{automaticPayoutsOn ? 'Enabled' : 'Not enabled'}</dd>
+            <dt className="text-[11px] font-semibold text-[#71717a]">Provider payout capability</dt>
+            <dd className="mt-0.5 text-[#18181b]">{providerPayoutCapability ? 'On' : 'Off'}</dd>
           </div>
         </dl>
 
-        {!automaticPayoutsOn && nextAction ? (
+        <p className="mt-2 text-[12px] leading-relaxed text-[#52525b]">
+          Monthly and twice-monthly preferences are saved for when Traverion runs payouts. They are not an active
+          automatic schedule by themselves
+          {estimatedNext && commercialTerms?.payout_cadence
+            ? ` (illustrative next agreement date: ${formatEstimateDate(estimatedNext)}).`
+            : '.'}{' '}
+          Commission follows your commercial agreement
+          {agreementRate ? ` (${agreementRate})` : ''}
+          {selectedCatalog && agreementRate && selectedCatalog !== agreementRate
+            ? ` — catalog preference ${selectedCatalog} does not add a second commission until assigned.`
+            : '.'}
+        </p>
+
+        {!providerPayoutCapability && nextAction ? (
           <p className="mt-2 text-[12px] text-[#52525b]">{nextAction}</p>
         ) : null}
 
@@ -553,12 +580,6 @@ export default function IncomeFinancialSettings({
             {preferenceSaving ? 'Saving…' : 'Save preference'}
           </button>
         </div>
-        {selectedCatalog && agreementRate && selectedCatalog !== agreementRate ? (
-          <p className="mt-2 text-[12px] text-[#71717a]">
-            Catalog rate {selectedCatalog} differs from your agreement {agreementRate}
-            {extraPoints > 0 ? ` (+${extraPoints} pts for faster cadence when assigned).` : '.'}
-          </p>
-        ) : null}
         {preferenceMessage ? (
           <p className="mt-2 text-[12px] text-[#18181b]" role="status">
             {preferenceMessage}

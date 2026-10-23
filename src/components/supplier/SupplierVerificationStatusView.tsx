@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import type { SupplierProfileRow } from '../../data/supabase-supplier-profile';
 import {
   connectExperienceLabel,
@@ -5,6 +6,7 @@ import {
 } from '../../lib/connect-payout-progress';
 import { connectCanReceiveTransfers } from '../../lib/connect-payout-status';
 import {
+  bankAlreadyManaged,
   verificationNextStepsCopy,
   verificationStatusTone,
 } from '../../lib/verification-workspace-lifecycle';
@@ -17,7 +19,6 @@ type Props = {
   busy: boolean;
   error: string | null;
   note: string | null;
-  accountId: string | null;
   onClose: () => void;
   onRefresh: () => void;
   onUpdateBusiness: () => void;
@@ -25,6 +26,8 @@ type Props = {
   onFixRequirements: () => void;
   onContinueIdentity: () => void;
   fullScreen?: boolean;
+  /** Opened via Manage bank — scroll bank section into view. */
+  highlightBank?: boolean;
 };
 
 function SummaryRow({ label, value }: { label: string; value: string }) {
@@ -43,7 +46,6 @@ export default function SupplierVerificationStatusView({
   busy,
   error,
   note,
-  accountId,
   onClose,
   onRefresh,
   onUpdateBusiness,
@@ -51,7 +53,10 @@ export default function SupplierVerificationStatusView({
   onFixRequirements,
   onContinueIdentity,
   fullScreen = true,
+  highlightBank = false,
 }: Props) {
+  const topRef = useRef<HTMLDivElement>(null);
+  const bankRef = useRef<HTMLElement>(null);
   const experience = deriveConnectExperienceState(profile);
   const label = connectExperienceLabel(experience);
   const tone = verificationStatusTone(experience);
@@ -64,13 +69,23 @@ export default function SupplierVerificationStatusView({
     : [];
   const outstanding = [...due, ...past].map(String);
   const transfersOk = connectCanReceiveTransfers(profile ?? {});
-  const payoutsOk = Boolean(profile?.connect_payouts_enabled) && transfersOk;
+  const providerPayouts = Boolean(profile?.connect_payouts_enabled);
   const needsAction =
     experience === 'additional_information_required' ||
     experience === 'information_required' ||
     experience === 'restricted' ||
     outstanding.length > 0;
   const needsIdentity = outstanding.some((r) => /verification\.document|identity/i.test(r));
+  const bankManaged = bankAlreadyManaged(profile, bankMasked);
+
+  useEffect(() => {
+    topRef.current?.scrollIntoView({ block: 'start' });
+    if (highlightBank) {
+      requestAnimationFrame(() => {
+        bankRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      });
+    }
+  }, [highlightBank]);
 
   const toneClass =
     tone === 'success'
@@ -90,10 +105,12 @@ export default function SupplierVerificationStatusView({
     .join(', ');
   const bankLabel =
     bankMasked ||
-    (profile?.connect_payouts_enabled ? 'Connected (masked by provider)' : 'Not connected');
+    (providerPayouts ? 'Connected (masked by provider)' : bankManaged ? 'Submitted' : 'Not connected');
+  const country = (profile?.connect_country || profile?.address_country || '—').toString().toUpperCase();
+  const currency = (profile?.connect_default_currency || 'EUR').toString().toUpperCase();
 
   const body = (
-    <div className="tv-verify-status mx-auto w-full max-w-[40rem] space-y-5">
+    <div ref={topRef} className="tv-verify-status mx-auto w-full max-w-[40rem] space-y-4">
       <div className={`rounded-[12px] border px-4 py-3 ${toneClass}`}>
         <p className="text-[11px] font-semibold uppercase tracking-[0.12em] opacity-80">Verification status</p>
         <p className="mt-1 text-lg font-bold tracking-tight">{label}</p>
@@ -112,45 +129,82 @@ export default function SupplierVerificationStatusView({
       ) : null}
 
       <section className="rounded-[12px] border border-[#e5e7eb] bg-white px-4 py-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-        <h2 className="text-sm font-bold text-[#18181b]">Submitted details</h2>
+        <h2 className="text-sm font-bold text-[#18181b]">Business</h2>
         <dl className="mt-3 grid gap-3 sm:grid-cols-2">
-          <SummaryRow label="Business" value={businessName} />
+          <SummaryRow label="Legal name" value={businessName} />
           <SummaryRow
             label="Structure"
             value={profile?.business_type === 'individual' ? 'Individual' : 'Company'}
           />
           <SummaryRow label="Address" value={address || '—'} />
           <SummaryRow label="Phone" value={profile?.contact_phone?.trim() || '—'} />
-          <SummaryRow label="Bank account" value={bankLabel} />
+        </dl>
+        {canEdit ? (
+          <button
+            type="button"
+            className="tv-btn-secondary mt-3 h-9 px-3 text-[13px]"
+            disabled={busy}
+            onClick={onUpdateBusiness}
+          >
+            Update business
+          </button>
+        ) : null}
+      </section>
+
+      <section
+        ref={bankRef}
+        id="verification-bank-destination"
+        className={[
+          'rounded-[12px] border bg-white px-4 py-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]',
+          highlightBank ? 'border-[#073b83]/40 ring-2 ring-[#073b83]/10' : 'border-[#e5e7eb]',
+        ].join(' ')}
+      >
+        <h2 className="text-sm font-bold text-[#18181b]">Bank destination</h2>
+        <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+          <SummaryRow label="Account" value={bankLabel} />
+          <SummaryRow label="Country" value={country} />
+          <SummaryRow label="Currency" value={currency} />
           <SummaryRow
-            label="Account"
-            value={accountId ? `${accountId.slice(0, 8)}…` : '—'}
+            label="Provider payouts"
+            value={providerPayouts ? 'Capability enabled' : 'Not enabled yet'}
           />
         </dl>
+        <p className="mt-2 text-[12px] leading-relaxed text-[#71717a]">
+          Full account numbers are never stored in Traverion. Provider payout capability is not the same as Traverion
+          running an automatic payout schedule.
+        </p>
+        {canEdit ? (
+          <button
+            type="button"
+            className="tv-btn-secondary mt-3 h-9 px-3 text-[13px]"
+            disabled={busy}
+            onClick={onUpdateBank}
+          >
+            {bankManaged ? 'Replace bank account' : 'Add bank account'}
+          </button>
+        ) : null}
       </section>
 
       <section className="rounded-[12px] border border-[#e5e7eb] bg-white px-4 py-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
         <h2 className="text-sm font-bold text-[#18181b]">Provider capabilities</h2>
         <ul className="mt-3 space-y-2 text-[13px] text-[#3f3f46]">
           <li className="flex items-center justify-between gap-3">
-            <span>Earnings transfers</span>
-            <span className="font-semibold text-[#18181b]">{transfersOk ? 'Enabled' : 'Not enabled'}</span>
-          </li>
-          <li className="flex items-center justify-between gap-3">
-            <span>Bank payouts</span>
-            <span className="font-semibold text-[#18181b]">{payoutsOk ? 'Enabled' : 'Not enabled'}</span>
-          </li>
-          <li className="flex items-center justify-between gap-3">
-            <span>Details submitted</span>
+            <span>Charges</span>
             <span className="font-semibold text-[#18181b]">
-              {profile?.connect_details_submitted ? 'Yes' : 'No'}
+              {profile?.connect_charges_enabled ? 'Enabled' : 'Not enabled'}
+            </span>
+          </li>
+          <li className="flex items-center justify-between gap-3">
+            <span>Transfers readiness</span>
+            <span className="font-semibold text-[#18181b]">{transfersOk ? 'Ready' : 'Not ready'}</span>
+          </li>
+          <li className="flex items-center justify-between gap-3">
+            <span>Bank payouts (provider)</span>
+            <span className="font-semibold text-[#18181b]">
+              {providerPayouts ? 'Capability on' : 'Not enabled'}
             </span>
           </li>
         </ul>
-        <p className="mt-3 text-[12px] leading-relaxed text-[#71717a]">
-          Capabilities come from the payment provider. Completing Traverion forms does not by itself mean verification
-          is complete or that bank payouts are operational.
-        </p>
       </section>
 
       {outstanding.length > 0 ? (
@@ -161,34 +215,34 @@ export default function SupplierVerificationStatusView({
               <li key={req}>{req.replace(/\./g, ' · ')}</li>
             ))}
           </ul>
+          {canEdit ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="tv-btn-primary h-9 px-3 text-[13px]"
+                disabled={busy}
+                onClick={onFixRequirements}
+              >
+                Update required details
+              </button>
+              {needsIdentity ? (
+                <button
+                  type="button"
+                  className="tv-btn-secondary h-9 px-3 text-[13px]"
+                  disabled={busy}
+                  onClick={onContinueIdentity}
+                >
+                  Continue identity
+                </button>
+              ) : null}
+            </div>
+          ) : null}
         </section>
-      ) : null}
-
-      <div className="flex flex-wrap gap-2">
-        <button type="button" className="tv-btn-secondary h-10 px-3 text-[13px]" disabled={busy} onClick={onRefresh}>
-          {busy ? 'Refreshing…' : 'Refresh status'}
+      ) : needsAction && canEdit ? (
+        <button type="button" className="tv-btn-primary h-10 px-3 text-[13px]" disabled={busy} onClick={onFixRequirements}>
+          Update required details
         </button>
-        {canEdit && needsAction ? (
-          <button type="button" className="tv-btn-primary h-10 px-3 text-[13px]" disabled={busy} onClick={onFixRequirements}>
-            Update required details
-          </button>
-        ) : null}
-        {canEdit && needsIdentity ? (
-          <button type="button" className="tv-btn-secondary h-10 px-3 text-[13px]" disabled={busy} onClick={onContinueIdentity}>
-            Continue identity
-          </button>
-        ) : null}
-        {canEdit ? (
-          <>
-            <button type="button" className="tv-btn-secondary h-10 px-3 text-[13px]" disabled={busy} onClick={onUpdateBusiness}>
-              Update business
-            </button>
-            <button type="button" className="tv-btn-secondary h-10 px-3 text-[13px]" disabled={busy} onClick={onUpdateBank}>
-              Update bank
-            </button>
-          </>
-        ) : null}
-      </div>
+      ) : null}
     </div>
   );
 
@@ -199,6 +253,9 @@ export default function SupplierVerificationStatusView({
           Back to payout settings
         </button>
         {body}
+        <button type="button" className="tv-btn-secondary h-10 px-3 text-[13px]" disabled={busy} onClick={onRefresh}>
+          {busy ? 'Refreshing…' : 'Refresh status'}
+        </button>
       </div>
     );
   }
@@ -216,7 +273,9 @@ export default function SupplierVerificationStatusView({
           Done
         </button>
       </header>
-      <div className="tv-verify-workspace__main tv-verify-workspace__stage--scroll">{body}</div>
+      <div className="tv-verify-workspace__main tv-verify-workspace__main--status">
+        {body}
+      </div>
       <footer className="tv-verify-workspace__footer">
         <button type="button" className="tv-btn-secondary h-11 px-4 text-[13px]" disabled={busy} onClick={onClose}>
           Back to settings

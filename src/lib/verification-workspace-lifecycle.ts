@@ -131,7 +131,8 @@ export function firstScreenForEditCategory(
 ): string {
   switch (category) {
     case 'banking':
-      return 'bank_country';
+      // Replace flow starts at destination summary — never country/currency onboarding.
+      return 'bank_replace';
     case 'agreement':
       return 'agree_info';
     case 'identity':
@@ -143,4 +144,16 @@ export function firstScreenForEditCategory(
     default:
       return 'biz_structure';
   }
+}
+
+/** True when Manage bank should open status (not re-collect bank details). */
+export function bankAlreadyManaged(
+  profile: SupplierProfileRow | null | undefined,
+  bankMasked?: string | null
+): boolean {
+  if (bankMasked?.trim()) return true;
+  if (!profile?.stripe_connected_account_id) return false;
+  if (profile.connect_payouts_enabled) return true;
+  // Details submitted includes bank collection in the native journey — do not restart.
+  return Boolean(profile.connect_details_submitted);
 }

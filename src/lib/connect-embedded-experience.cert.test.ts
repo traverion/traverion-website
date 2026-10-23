@@ -115,6 +115,8 @@ describe('Supplier embedded Connect experience', () => {
     expect(ui).toContain('Manage bank account');
     expect(ui).toContain('Add bank account');
     expect(ui).toContain('/verification');
+    expect(ui).toContain('Provider payout capability');
+    expect(ui).toContain('bankAlreadyManaged');
     expect(ui).not.toContain('SupplierNativeVerificationJourney');
     expect(ui).not.toContain('Business information');
     expect(ui).not.toMatch(/Complete Stripe|Stripe Connect|Sandbox|TEST mode|Connected account/i);
