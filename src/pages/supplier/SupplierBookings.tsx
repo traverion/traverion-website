@@ -1035,9 +1035,7 @@ export default function SupplierBookings({
         sansTitle
         title={isStayDesk ? 'Reservations' : 'Bookings'}
         description={
-          isStayDesk
-            ? 'Guests, nights and property decisions.'
-            : 'Manage your reservations, guests, departures, and booking details.'
+          isStayDesk ? 'Guests, nights, and property decisions.' : 'Guests, departures, and booking details.'
         }
         actions={
           bookings.length > 0 ? (

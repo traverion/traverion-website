@@ -44,23 +44,23 @@ export default function PartnerConfirmModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="partner-confirm-title"
-        className={`${SUPPLIER_MODAL_PANEL_CLASS} z-[101] mx-auto w-full max-w-[26rem] p-5 sm:p-6`}
+        className={`${SUPPLIER_MODAL_PANEL_CLASS} z-[101] mx-auto w-full max-w-[24rem] p-4 sm:p-5`}
       >
-        <h2 id="partner-confirm-title" className="text-[17px] font-semibold tracking-tight text-[#18181b]">
+        <h2 id="partner-confirm-title" className="text-[1.0625rem] font-semibold tracking-tight text-[#18181b]">
           {title}
         </h2>
-        <p className="mt-2 text-[13px] leading-relaxed text-[#52525b]">{description}</p>
+        <p className="mt-1.5 text-[13px] leading-relaxed text-[#52525b]">{description}</p>
         {error ? (
           <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-[13px] text-red-900 ring-1 ring-red-200/80" role="alert">
             {error}
           </p>
         ) : null}
-        <div className="mt-5 flex flex-wrap justify-end gap-2">
+        <div className="mt-4 flex flex-wrap justify-end gap-2">
           <button
             type="button"
             disabled={busy}
             onClick={onCancel}
-            className="tv-btn-ghost inline-flex h-10 items-center justify-center px-3 text-[13px]"
+            className="tv-btn-ghost inline-flex h-9 items-center justify-center px-3 text-[13px]"
           >
             {cancelLabel}
           </button>
@@ -70,8 +70,8 @@ export default function PartnerConfirmModal({
             onClick={onConfirm}
             className={
               destructive
-                ? 'inline-flex h-10 items-center justify-center rounded-lg bg-[#b91c1c] px-3 text-[13px] font-semibold text-white hover:bg-[#991b1b] disabled:opacity-60'
-                : 'tv-btn-primary inline-flex h-10 items-center justify-center px-3 text-[13px]'
+                ? 'inline-flex h-9 items-center justify-center rounded-[var(--partner-radius,0.5rem)] bg-[#b91c1c] px-3 text-[13px] font-semibold text-white hover:bg-[#991b1b] disabled:opacity-60'
+                : 'tv-btn-primary inline-flex h-9 items-center justify-center px-3 text-[13px]'
             }
           >
             {busy ? 'Working…' : confirmLabel}

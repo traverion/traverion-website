@@ -1360,9 +1360,9 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
   --lc-accent-hover: #052d65;
   --lc-accent-soft: rgba(7, 59, 131, 0.08);
   --lc-line: #e5e7eb;
-  --lc-ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --lc-section-gap: 1.125rem;
-  --lc-card-pad: 1rem;
+  --lc-ease: var(--partner-ease, cubic-bezier(0.22, 1, 0.36, 1));
+  --lc-section-gap: 1rem;
+  --lc-card-pad: 0.875rem;
   background-color: var(--lc-paper);
   color: var(--lc-ink);
 }
@@ -4516,10 +4516,10 @@ details:not([open]) > :not(summary) {
 }
 
 .tv-reviews-title {
-  font-size: 1.375rem;
+  font-size: clamp(1.35rem, 2vw, 1.625rem);
   font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.25;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
   color: var(--tv-reviews-ink);
 }
 
@@ -5974,7 +5974,7 @@ details:not([open]) > :not(summary) {
 }
 
 .tv-inbox-workspace .tv-inbox-thread {
-  transition: background-color 160ms ease;
+  transition: background-color var(--partner-dur-micro, 140ms) var(--partner-ease, ease);
 }
 
 .tv-inbox-workspace .tv-inbox-thread:hover {
@@ -5986,7 +5986,14 @@ details:not([open]) > :not(summary) {
 }
 
 .tv-inbox-workspace .tv-inbox-thread__btn {
-  padding: 0.55rem 0.75rem;
+  padding: 0.5rem 0.7rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tv-inbox-workspace .tv-inbox-thread,
+  .tv-ops-booking-row {
+    transition: none;
+  }
 }
 
 .tv-inbox-workspace .tv-inbox-thread__btn:focus-visible,
@@ -8023,9 +8030,10 @@ details:not([open]) > :not(summary) {
   display: flex;
   align-items: center;
   overflow: hidden;
-  border-radius: 0.5rem;
-  background: #ffffff;
-  box-shadow: 0 0 0 1px rgba(28, 25, 23, 0.08);
+  border-radius: var(--partner-radius, 0.5rem);
+  background: var(--partner-surface, #ffffff);
+  box-shadow: var(--partner-shadow-raised, 0 0 0 1px rgba(28, 25, 23, 0.08));
+  transition: box-shadow var(--partner-dur-micro, 140ms) var(--partner-ease, ease);
 }
 
 .tv-ops-booking-row[data-highlight='true'] {
@@ -9042,27 +9050,25 @@ details:not([open]) > :not(summary) {
 
 /* Phase Bookings V2: Tours & Activities bookings workspace */
 .partner-bookings-workspace {
-  --pb-radius: 0.9rem;
-  --pb-border: rgba(15, 23, 42, 0.085);
-  --pb-shadow:
-    0 1px 2px rgba(15, 23, 42, 0.03),
-    0 8px 24px rgba(15, 23, 42, 0.035);
-  --pb-control-h: 2.375rem;
-  background: #ffffff;
+  --pb-radius: var(--partner-radius-lg, 0.75rem);
+  --pb-border: var(--partner-border, #e5e7eb);
+  --pb-shadow: var(--partner-shadow-raised, 0 1px 2px rgba(15, 23, 42, 0.05));
+  --pb-control-h: var(--partner-control-h, 2.375rem);
+  background: var(--partner-surface, #ffffff);
   border: 1px solid var(--pb-border);
   border-radius: var(--pb-radius);
   box-shadow: var(--pb-shadow);
   overflow: hidden;
-  margin-bottom: 1rem;
+  margin-bottom: 0.875rem;
 }
 
 .partner-bookings-workspace__toolbar {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.7rem 1rem 0.65rem;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.065);
-  background: linear-gradient(180deg, #ffffff 0%, #fbfbfc 100%);
+  gap: 0.45rem;
+  padding: 0.65rem 0.875rem 0.6rem;
+  border-bottom: 1px solid var(--partner-border, #e5e7eb);
+  background: color-mix(in srgb, var(--partner-surface-muted, #f3f4f6) 50%, #fff);
 }
 
 .partner-bookings-workspace__controls {
