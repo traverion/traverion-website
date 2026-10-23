@@ -65,6 +65,14 @@ verify_jwt = false
 # Cron secret auth (Phase 5 eligibility refresh — no Stripe bank payout).
 verify_jwt = false
 
+[functions.connect-supplier-onboarding]
+# Validate JWT inside the function (supplier Connect Account Link).
+verify_jwt = false
+
+[functions.execute-supplier-transfers]
+# Cron secret auth (Mission 2 TEST SCAT transfers — live money blocked).
+verify_jwt = false
+
 # Phase 561: locked to service_role callers only (checked inside the
 # function against SUPABASE_SERVICE_ROLE_KEY) -- no live product flow
 # calls this from a client today.

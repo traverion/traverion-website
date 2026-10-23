@@ -1,0 +1,107 @@
+{
+  "ok": false,
+  "environment": "test",
+  "live_money": false,
+  "live_activation": false,
+  "blocker": "Stripe Connect is not enabled on the Traverion TEST platform Stripe account. Account create returned invalid_request_error directing to https://dashboard.stripe.com/connect. MCP EnableConnect refused non-sandbox automatic enable.",
+  "stripe_platform_hint": "acct_1TFXpMC3BaJIHpM6 (from request log on failed accounts.create)",
+  "mcp_stripe_context": "acct_1TFXp1CJawbWge6X (livemode=false, zero connected accounts listed)",
+  "stripe_transfer_id": null,
+  "stripe_connected_account_id": null,
+  "scenarios": [
+    {
+      "id": 1,
+      "name": "supplier_onboarding_account_create",
+      "ok": false,
+      "blocked": true,
+      "error": "Connect not enabled on platform TEST account"
+    },
+    {
+      "id": 2,
+      "name": "successful_eligible_payout_transfer",
+      "ok": false,
+      "blocked": true,
+      "note": "Requires Connect-enabled platform + available TEST balance + payouts_enabled destination"
+    },
+    {
+      "id": 3,
+      "name": "duplicate_cron_idempotency",
+      "ok": true,
+      "verified_in_code": "unique idempotency_key + period active unique index + Stripe Idempotency-Key"
+    },
+    {
+      "id": 4,
+      "name": "duplicate_webhook_delivery",
+      "ok": true,
+      "verified_in_code": "stripe_webhook_events unique id + replay decision"
+    },
+    {
+      "id": 5,
+      "name": "supplier_financial_hold",
+      "ok": true,
+      "verified_in_code": "supplier_connect_transfer_preflight → financial_hold"
+    },
+    {
+      "id": 6,
+      "name": "supplier_debt_deductions",
+      "ok": true,
+      "verified_in_code": "supplier_outstanding_recovery_minor at prepare + preflight debt field"
+    },
+    {
+      "id": 7,
+      "name": "partial_refunds",
+      "ok": true,
+      "verified_in_code": "existing Phase 5 earning shrink before transfer"
+    },
+    {
+      "id": 8,
+      "name": "refund_after_transfer",
+      "ok": true,
+      "verified_in_code": "transfer.reversed webhook + recovery ledger"
+    },
+    {
+      "id": 9,
+      "name": "insufficient_platform_liquidity",
+      "ok": true,
+      "verified_in_code": "compute_platform_transferable_minor reserves + execute-supplier-transfers skip"
+    },
+    {
+      "id": 10,
+      "name": "restricted_connected_account",
+      "ok": true,
+      "verified_in_code": "preflight connect_requirements_due / connect_not_complete"
+    },
+    {
+      "id": 11,
+      "name": "failed_bank_payout",
+      "ok": true,
+      "verified_in_code": "supplier_bank_payout_attempts + payout.failed webhook; transfer ≠ bank paid"
+    },
+    {
+      "id": 12,
+      "name": "multiple_bookings_one_period",
+      "ok": true,
+      "verified_in_code": "supplier_transfer_allocations"
+    },
+    {
+      "id": 13,
+      "name": "long_lead_bookings",
+      "ok": true,
+      "verified_in_code": "platform hold until eligibility; no early Connect park"
+    },
+    {
+      "id": 14,
+      "name": "reconciliation",
+      "ok": true,
+      "verified_in_code": "supplier_payout_reconciliation_events + platform_liquidity_snapshots"
+    }
+  ],
+  "outstanding_approvals": [
+    "Enable Stripe Connect on the Traverion TEST platform account in Dashboard",
+    "Confirm Connect controller / loss liability settings with Stripe",
+    "Long-lead fund-holding / PSD2 counsel confirmation",
+    "Authorize Edge secret STRIPE_CONNECT_TRANSFERS_ENABLED=test (still not live)",
+    "Separate explicit authorization required before any live pilot"
+  ],
+  "at": "2026-10-23T17:10:00.000Z"
+}

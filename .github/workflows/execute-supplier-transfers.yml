@@ -1,0 +1,98 @@
+# Mission 2: Stripe Connect SCAT transfers — TEST only.
+# Requires Edge secrets:
+#   STRIPE_CONNECT_TRANSFERS_ENABLED=test
+#   STRIPE_SECRET_KEY=sk_test_…
+#   commercial_runtime_config.stripe_connect_transfers_enabled=1
+# Live money is blocked inside the Edge Function even if this workflow runs.
+#
+# Default dispatch uses dry_run=true. Set inputs.dry_run=false only for authorized TEST runs.
+
+name: Execute supplier Connect transfers (TEST)
+
+on:
+  schedule:
+    # Daily 06:40 UTC — no-ops unless TEST kill switches are enabled.
+    - cron: '40 6 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (no Stripe Transfer create)'
+        required: true
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      create_bank_payouts:
+        description: 'Also create connected-account Payout objects (TEST)'
+        required: true
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+concurrency:
+  group: execute-supplier-transfers
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  transfer:
+    name: Call execute-supplier-transfers
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: POST execute-supplier-transfers
+        env:
+          STRIPE_CONNECT_TRANSFERS_CRON_SECRET: ${{ secrets.STRIPE_CONNECT_TRANSFERS_CRON_SECRET }}
+          EARNINGS_REFRESH_CRON_SECRET: ${{ secrets.EARNINGS_REFRESH_CRON_SECRET }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          BOOKING_REMINDER_CRON_SECRET: ${{ secrets.BOOKING_REMINDER_CRON_SECRET }}
+          FUNCTION_URL: https://xcopqllkulxfkpunetbc.supabase.co/functions/v1/execute-supplier-transfers
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run || 'true' }}
+          CREATE_BANK: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.create_bank_payouts || 'false' }}
+        run: |
+          set -euo pipefail
+          SECRET="${STRIPE_CONNECT_TRANSFERS_CRON_SECRET:-${EARNINGS_REFRESH_CRON_SECRET:-${CRON_SECRET:-${BOOKING_REMINDER_CRON_SECRET:-}}}}"
+          if [ -z "${SECRET}" ]; then
+            echo "::error::Set a cron secret for execute-supplier-transfers."
+            exit 1
+          fi
+
+          BODY="$(jq -nc --argjson dry "$([ "$DRY_RUN" = "true" ] && echo true || echo false)" \
+            --argjson bank "$([ "$CREATE_BANK" = "true" ] && echo true || echo false)" \
+            '{dry_run:$dry, create_bank_payouts:$bank, limit:25}')"
+
+          HTTP_CODE="$(curl -sS -o /tmp/execute-supplier-transfers.json -w '%{http_code}' \
+            --connect-timeout 15 \
+            --max-time 180 \
+            -X POST "${FUNCTION_URL}" \
+            -H "Authorization: Bearer ${SECRET}" \
+            -H "Content-Type: application/json" \
+            -d "${BODY}")"
+
+          echo "HTTP status: ${HTTP_CODE}"
+          cat /tmp/execute-supplier-transfers.json || true
+          echo
+
+          case "${HTTP_CODE}" in
+            2??)
+              echo "execute-supplier-transfers succeeded (TEST path)."
+              ;;
+            503)
+              # Kill switch off is an expected safe no-op until TEST env is authorized.
+              if grep -q 'transfers disabled\|kill switch\|LIVE secret' /tmp/execute-supplier-transfers.json; then
+                echo "Transfers safely disabled — treating as successful guardrail response."
+                exit 0
+              fi
+              echo "::error::execute-supplier-transfers returned 503"
+              exit 1
+              ;;
+            *)
+              echo "::error::execute-supplier-transfers failed with HTTP ${HTTP_CODE}"
+              exit 1
+              ;;
+          esac

@@ -12,6 +12,7 @@ import {
 import { paymentIntentSucceededShouldPromote } from '../_shared/checkout-pi-succeeded.ts';
 import { promotePaidFromCheckoutSession, notifyTravelerCheckoutCaptureReversed } from '../_shared/promote-paid-from-checkout.ts';
 import { isStripeTestSecretKey, stripeLiveSecretBlockedMessage } from '../_shared/stripe-test-only.ts';
+import { mirrorConnectAccount } from '../_shared/connect-account-mirror.ts';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -938,6 +939,195 @@ serve(async (req) => {
           status: 'dispute_recorded',
           dispute: disputeResult,
         });
+      }
+
+      // Connect account capability / requirement updates (onboarding).
+      if (event.type === 'account.updated') {
+        const account = event.data.object as Stripe.Account;
+        const mirror = mirrorConnectAccount(account as Parameters<typeof mirrorConnectAccount>[0]);
+        const { data: supplier, error: supplierErr } = await admin
+          .from('supplier_profiles')
+          .select('id')
+          .eq('stripe_connected_account_id', account.id)
+          .maybeSingle();
+        if (supplierErr) throw new Error(supplierErr.message);
+        if (!supplier?.id) {
+          await markProcessed('processed', 'account.updated with no linked supplier');
+          return json({ success: true, eventId: event.id, status: 'unlinked_connect_account' });
+        }
+        const { error: updErr } = await admin
+          .from('supplier_profiles')
+          .update({ ...mirror, updated_at: new Date().toISOString() })
+          .eq('id', supplier.id);
+        if (updErr) throw new Error(updErr.message);
+        await admin.from('supplier_payout_reconciliation_events').insert({
+          supplier_id: supplier.id,
+          event_type: 'connect.account.updated',
+          severity: 'info',
+          payload: {
+            account_id: account.id,
+            connect_onboarding_status: mirror.connect_onboarding_status,
+            connect_payouts_enabled: mirror.connect_payouts_enabled,
+            stripe_event_id: event.id,
+          },
+        });
+        await markProcessed('processed');
+        return json({
+          success: true,
+          eventId: event.id,
+          supplierId: supplier.id,
+          status: 'connect_account_mirrored',
+          onboarding_status: mirror.connect_onboarding_status,
+        });
+      }
+
+      // SCAT transfer lifecycle (TEST). Transfer success ≠ bank payout.
+      if (
+        event.type === 'transfer.created' ||
+        event.type === 'transfer.updated' ||
+        event.type === 'transfer.reversed'
+      ) {
+        const transfer = event.data.object as Stripe.Transfer;
+        const { data: attempt } = await admin
+          .from('supplier_transfer_attempts')
+          .select('id, payout_period_id, supplier_id, status')
+          .eq('stripe_transfer_id', transfer.id)
+          .maybeSingle();
+        if (!attempt?.id) {
+          await markProcessed('processed', `${event.type} unmatched transfer`);
+          return json({ success: true, eventId: event.id, status: 'unmatched_transfer' });
+        }
+        if (event.type === 'transfer.reversed') {
+          await admin
+            .from('supplier_transfer_attempts')
+            .update({
+              status: 'reversed',
+              updated_at: new Date().toISOString(),
+              error_code: 'transfer_reversed',
+              error_message: 'Stripe transfer.reversed',
+            })
+            .eq('id', attempt.id);
+          await admin
+            .from('supplier_payout_periods')
+            .update({ connect_lifecycle: 'reversed' })
+            .eq('id', attempt.payout_period_id);
+        } else if (attempt.status !== 'transfer_completed' && attempt.status !== 'reversed') {
+          await admin
+            .from('supplier_transfer_attempts')
+            .update({
+              status: 'transfer_completed',
+              transferred_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              stripe_balance_transaction_id:
+                typeof transfer.balance_transaction === 'string'
+                  ? transfer.balance_transaction
+                  : transfer.balance_transaction?.id ?? null,
+            })
+            .eq('id', attempt.id);
+          await admin
+            .from('supplier_payout_periods')
+            .update({
+              connect_lifecycle: 'transfer_completed',
+              latest_transfer_attempt_id: attempt.id,
+            })
+            .eq('id', attempt.payout_period_id);
+        }
+        await admin.from('supplier_payout_reconciliation_events').insert({
+          supplier_id: attempt.supplier_id,
+          payout_period_id: attempt.payout_period_id,
+          transfer_attempt_id: attempt.id,
+          event_type: event.type,
+          severity: event.type === 'transfer.reversed' ? 'warn' : 'info',
+          payload: { stripe_transfer_id: transfer.id, stripe_event_id: event.id },
+        });
+        await markProcessed('processed');
+        return json({ success: true, eventId: event.id, transferAttemptId: attempt.id, eventType: event.type });
+      }
+
+      // Connected-account bank payout lifecycle (distinct from Transfer).
+      if (
+        event.type === 'payout.created' ||
+        event.type === 'payout.paid' ||
+        event.type === 'payout.failed' ||
+        event.type === 'payout.canceled' ||
+        event.type === 'payout.updated'
+      ) {
+        const payout = event.data.object as Stripe.Payout;
+        const { data: bankAttempt } = await admin
+          .from('supplier_bank_payout_attempts')
+          .select('id, payout_period_id, supplier_id, status')
+          .eq('stripe_payout_id', payout.id)
+          .maybeSingle();
+        // Also match by metadata if we created the payout with period id
+        let attempt = bankAttempt;
+        if (!attempt?.id && payout.metadata?.traverion_bank_payout_attempt_id) {
+          const { data: byMeta } = await admin
+            .from('supplier_bank_payout_attempts')
+            .select('id, payout_period_id, supplier_id, status')
+            .eq('id', payout.metadata.traverion_bank_payout_attempt_id)
+            .maybeSingle();
+          attempt = byMeta;
+        }
+        if (!attempt?.id) {
+          await markProcessed('processed', `${event.type} unmatched payout`);
+          return json({ success: true, eventId: event.id, status: 'unmatched_payout' });
+        }
+        const statusMap: Record<string, string> = {
+          'payout.created': 'pending',
+          'payout.updated': payout.status === 'in_transit' ? 'in_transit' : payout.status === 'paid' ? 'paid' : payout.status === 'failed' ? 'failed' : payout.status === 'canceled' ? 'canceled' : 'pending',
+          'payout.paid': 'paid',
+          'payout.failed': 'failed',
+          'payout.canceled': 'canceled',
+        };
+        const nextStatus = statusMap[event.type] ?? 'unknown';
+        await admin
+          .from('supplier_bank_payout_attempts')
+          .update({
+            status: nextStatus,
+            stripe_payout_id: payout.id,
+            stripe_balance_transaction_id:
+              typeof payout.balance_transaction === 'string'
+                ? payout.balance_transaction
+                : payout.balance_transaction?.id ?? null,
+            arrival_date: payout.arrival_date
+              ? new Date(payout.arrival_date * 1000).toISOString().slice(0, 10)
+              : null,
+            failure_code: payout.failure_code ?? null,
+            failure_message: payout.failure_message ?? null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', attempt.id);
+        const lifecycle =
+          nextStatus === 'paid'
+            ? 'bank_payout_paid'
+            : nextStatus === 'failed' || nextStatus === 'canceled'
+              ? 'bank_payout_failed'
+              : 'bank_payout_pending';
+        await admin
+          .from('supplier_payout_periods')
+          .update({
+            connect_lifecycle: lifecycle,
+            latest_bank_payout_attempt_id: attempt.id,
+            ...(nextStatus === 'paid'
+              ? {
+                  status: 'paid',
+                  paid_at: new Date().toISOString(),
+                  paid_via: 'stripe_connect_payout',
+                  note: payout.id,
+                }
+              : {}),
+          })
+          .eq('id', attempt.payout_period_id);
+        await admin.from('supplier_payout_reconciliation_events').insert({
+          supplier_id: attempt.supplier_id,
+          payout_period_id: attempt.payout_period_id,
+          bank_payout_attempt_id: attempt.id,
+          event_type: event.type,
+          severity: nextStatus === 'failed' ? 'error' : 'info',
+          payload: { stripe_payout_id: payout.id, stripe_event_id: event.id, status: nextStatus },
+        });
+        await markProcessed('processed');
+        return json({ success: true, eventId: event.id, bankPayoutAttemptId: attempt.id, eventType: event.type });
       }
 
       await markProcessed('ignored', `Unhandled event type: ${event.type}`);

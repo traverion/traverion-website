@@ -42,6 +42,20 @@ export type SupplierProfileRow = {
   terms_conditions_text: string | null;
   payment_cycle: 'monthly' | 'biweekly' | null;
   payout_threshold_min: number | null;
+  /** Stripe Connect Express account id (acct_…). Null until onboarding starts. */
+  stripe_connected_account_id?: string | null;
+  payout_rail?: 'manual_iban' | 'stripe_connect' | null;
+  connect_onboarding_status?: 'not_started' | 'pending' | 'restricted' | 'complete' | 'rejected' | null;
+  connect_charges_enabled?: boolean | null;
+  connect_payouts_enabled?: boolean | null;
+  connect_details_submitted?: boolean | null;
+  connect_disabled_reason?: string | null;
+  connect_requirements_currently_due?: string[] | null;
+  connect_requirements_past_due?: string[] | null;
+  connect_default_currency?: string | null;
+  connect_country?: string | null;
+  connect_debit_negative_balances?: boolean | null;
+  connect_last_synced_at?: string | null;
   welcome_email_sent_at: string | null;
   /** Set when approval email was delivered (admin retry idempotency). */
   business_verified_email_sent_at?: string | null;

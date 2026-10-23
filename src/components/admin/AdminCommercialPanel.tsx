@@ -42,6 +42,18 @@ type PayoutPeriodRow = {
   created_at: string;
   paid_at: string | null;
   note: string | null;
+  connect_lifecycle?: string | null;
+};
+
+type PayoutExceptionRow = {
+  id: string;
+  supplier_id: string | null;
+  payout_period_id: string | null;
+  transfer_attempt_id: string | null;
+  reason_code: string;
+  detail: string | null;
+  status: string;
+  created_at: string;
 };
 
 function majorFromMinor(minor: number, currency: string): string {
@@ -53,6 +65,7 @@ export default function AdminCommercialPanel() {
   const [loadedId, setLoadedId] = useState('');
   const [detail, setDetail] = useState<CommercialGetPayload | null>(null);
   const [periods, setPeriods] = useState<PayoutPeriodRow[]>([]);
+  const [exceptions, setExceptions] = useState<PayoutExceptionRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [periodsLoading, setPeriodsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -68,16 +81,41 @@ export default function AdminCommercialPanel() {
     if (!isSupabaseConfigured()) return;
     setPeriodsLoading(true);
     try {
-      const data = await invokeAdminEdgeFunction<{ items: PayoutPeriodRow[] }>({
-        action: 'payout_periods_list',
-      });
-      setPeriods(Array.isArray(data.items) ? data.items : []);
+      const [periodsData, exceptionsData] = await Promise.all([
+        invokeAdminEdgeFunction<{ items: PayoutPeriodRow[] }>({
+          action: 'payout_periods_list',
+        }),
+        invokeAdminEdgeFunction<{ items: PayoutExceptionRow[] }>({
+          action: 'payout_exceptions_list',
+        }).catch(() => ({ items: [] as PayoutExceptionRow[] })),
+      ]);
+      setPeriods(Array.isArray(periodsData.items) ? periodsData.items : []);
+      setExceptions(Array.isArray(exceptionsData.items) ? exceptionsData.items : []);
     } catch {
       setPeriods([]);
+      setExceptions([]);
     } finally {
       setPeriodsLoading(false);
     }
   }, []);
+
+  const resolveException = async (id: string) => {
+    setBusy(true);
+    setActionMsg(null);
+    try {
+      await invokeAdminEdgeFunction({
+        action: 'payout_exception_resolve',
+        payoutExceptionId: id,
+        exceptionStatus: 'resolved',
+      });
+      setActionMsg('Exception resolved (does not unblock other suppliers’ payouts).');
+      await loadPeriods();
+    } catch (e) {
+      setActionMsg(e instanceof Error ? e.message : 'Could not resolve exception');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const loadSupplier = useCallback(async (id: string) => {
     const sid = id.trim();
@@ -752,6 +790,52 @@ function BookingFinancialInvestigation() {
           </details>
         </div>
       ) : null}
+
+      <div className="tv-card p-4 sm:p-5 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-display text-lg text-ink tracking-tight">Payout exceptions</h2>
+          <button
+            type="button"
+            onClick={() => void loadPeriods()}
+            disabled={periodsLoading || !isSupabaseConfigured()}
+            className="tv-btn-ghost text-sm disabled:opacity-50"
+          >
+            Refresh
+          </button>
+        </div>
+        <p className="text-sm text-ink-muted">
+          Open Connect transfer / bank payout exceptions. Resolving one supplier does not pause others.
+          Routine TEST transfers never require admin approval.
+        </p>
+        {exceptions.length === 0 ? (
+          <p className="text-sm text-ink-muted">No open exceptions.</p>
+        ) : (
+          <ul className="divide-y divide-black/[0.06] border border-black/[0.06] rounded-lg overflow-hidden">
+            {exceptions.map((ex) => (
+              <li key={ex.id} className="flex flex-wrap items-start justify-between gap-3 px-3 py-2.5 text-sm">
+                <div className="min-w-0">
+                  <p className="font-semibold text-ink">{ex.reason_code}</p>
+                  <p className="text-xs text-ink-muted mt-0.5">
+                    {ex.supplier_id ? `Supplier ${ex.supplier_id.slice(0, 8)}…` : 'Platform'}
+                    {ex.payout_period_id ? ` · period ${ex.payout_period_id.slice(0, 8)}…` : ''}
+                    {' · '}
+                    {new Date(ex.created_at).toLocaleString()}
+                  </p>
+                  {ex.detail ? <p className="text-xs text-ink-muted mt-1 break-all">{ex.detail}</p> : null}
+                </div>
+                <button
+                  type="button"
+                  className="tv-btn-secondary text-xs shrink-0 disabled:opacity-50"
+                  disabled={busy}
+                  onClick={() => void resolveException(ex.id)}
+                >
+                  Resolve
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }

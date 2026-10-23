@@ -63,11 +63,11 @@ import {
   earningStatusLabel,
   maskIban,
   payoutMaySayPaid,
-  payoutPresentationStatus,
   type IncomeEarningRow,
   type IncomeEarningStatus,
   type IncomeReportPeriod,
 } from '../../lib/supplier-income';
+import { connectPayoutPresentationStatus } from '../../lib/connect-payout-status';
 import {
   downloadPdf,
   earningsStatementLines,
@@ -106,12 +106,41 @@ function earningStatusClass(status: IncomeEarningStatus): string {
   return 'tv-income-status';
 }
 
-function payoutStatusClass(status: string, paidAt: string | null | undefined): string {
-  const label = payoutPresentationStatus(status, paidAt);
-  if (label === 'Paid') return 'tv-income-status tv-income-status--paid';
-  if (label === 'Processing') return 'tv-income-status tv-income-status--processing';
-  if (label === 'Failed') return 'tv-income-status tv-income-status--failed';
-  if (label === 'Prepared' || label === 'Drafting') return 'tv-income-status tv-income-status--available';
+function periodPayoutLabel(
+  status: string,
+  paidAt: string | null | undefined,
+  connectLifecycle?: string | null
+): string {
+  return connectPayoutPresentationStatus({
+    periodStatus: status,
+    paidAt,
+    connectLifecycle,
+  });
+}
+
+function payoutStatusClass(
+  status: string,
+  paidAt: string | null | undefined,
+  connectLifecycle?: string | null
+): string {
+  const label = periodPayoutLabel(status, paidAt, connectLifecycle);
+  if (label === 'Paid to bank' || label === 'Paid' || label === 'Paid (manual record)') {
+    return 'tv-income-status tv-income-status--paid';
+  }
+  if (
+    label === 'Processing transfer' ||
+    label === 'Bank payout in progress' ||
+    label === 'Sent to connected account' ||
+    label === 'Processing'
+  ) {
+    return 'tv-income-status tv-income-status--processing';
+  }
+  if (label === 'Failed or restricted' || label === 'Bank payout failed' || label === 'Failed') {
+    return 'tv-income-status tv-income-status--failed';
+  }
+  if (label === 'Upcoming payout' || label === 'Prepared' || label === 'Drafting') {
+    return 'tv-income-status tv-income-status--available';
+  }
   return 'tv-income-status';
 }
 
@@ -782,7 +811,7 @@ export default function SupplierEarnings() {
         currency: period.currency,
         periodStart: period.period_start,
         periodEnd: period.period_end,
-        statusLabel: payoutPresentationStatus(period.status, period.paid_at),
+        statusLabel: periodPayoutLabel(period.status, period.paid_at, period.connect_lifecycle),
         paidAt: period.paid_at,
         paymentReference: period.paid_via,
         totalNetMinor: Number(period.amount_minor) || 0,
@@ -1097,7 +1126,9 @@ export default function SupplierEarnings() {
                         <span className="block text-[13px] font-semibold text-[#18181b]">{period.period_key}</span>
                         <span className="mt-0.5 flex flex-wrap items-center gap-2 text-[12px] text-[#71717a]">
                           <span>{incomeDate(period.scheduled_for || period.period_end)}</span>
-                          <span className={payoutStatusClass(period.status, period.paid_at)}>{payoutPresentationStatus(period.status, period.paid_at)}</span>
+                          <span className={payoutStatusClass(period.status, period.paid_at, period.connect_lifecycle)}>
+                            {periodPayoutLabel(period.status, period.paid_at, period.connect_lifecycle)}
+                          </span>
                         </span>
                       </span>
                       <span className="tv-money-row__amount">{formatMoney(Number(period.amount_minor) / 100, period.currency)}</span>
@@ -1307,9 +1338,10 @@ export default function SupplierEarnings() {
 
       {hasMoney && tab === 'payouts' ? (
         <div className="mx-auto w-full max-w-[1180px] space-y-3">
-          <NoticeCallout title="Automatic bank payouts are not enabled" tone="info">
-            Traverion prepares internal payout periods from cleared earnings. A Prepared period is not a completed bank transfer.
-            Paid requires a recorded completion time and payment confirmation — Stripe Connect supplier payouts are not active.
+          <NoticeCallout title="Connect payout statuses (TEST)" tone="info">
+            Traverion prepares payout periods from cleared earnings. A successful Connect transfer means funds reached the
+            connected account — not that money has arrived in your bank. Bank payout confirmation is tracked separately.
+            Live automatic payouts remain off until Traverion authorizes production money movement.
           </NoticeCallout>
           {payoutPeriods.length === 0 && filteredEarningsInWindow.length === 0 ? (
             <div className="tv-income-empty tv-income-empty--compact">
@@ -1339,7 +1371,9 @@ export default function SupplierEarnings() {
                         <span className="mt-0.5 flex flex-wrap items-center gap-2 text-[12px] text-[#71717a]">
                           <span>{incomeDate(period.period_start)} – {incomeDate(period.period_end)}</span>
                           <span>Due {incomeDate(period.scheduled_for)}</span>
-                          <span className={payoutStatusClass(period.status, period.paid_at)}>{payoutPresentationStatus(period.status, period.paid_at)}</span>
+                          <span className={payoutStatusClass(period.status, period.paid_at, period.connect_lifecycle)}>
+                            {periodPayoutLabel(period.status, period.paid_at, period.connect_lifecycle)}
+                          </span>
                         </span>
                       </span>
                       <span className="tv-money-row__amount">{formatMoney(Number(period.amount_minor) / 100, period.currency)}</span>
@@ -1596,14 +1630,18 @@ export default function SupplierEarnings() {
               {formatMoney(Number(selectedPayout.amount_minor) / 100, selectedPayout.currency)}
             </p>
             <p className="mt-2">
-              <span className={payoutStatusClass(selectedPayout.status, selectedPayout.paid_at)}>
-                {payoutPresentationStatus(selectedPayout.status, selectedPayout.paid_at)}
+              <span className={payoutStatusClass(selectedPayout.status, selectedPayout.paid_at, selectedPayout.connect_lifecycle)}>
+                {periodPayoutLabel(selectedPayout.status, selectedPayout.paid_at, selectedPayout.connect_lifecycle)}
               </span>
             </p>
             <dl className="mt-4 space-y-2 text-[13px]">
               <div>
                 <dt className="text-[11px] font-semibold text-[#71717a]">Period</dt>
                 <dd>{incomeDate(selectedPayout.period_start)} – {incomeDate(selectedPayout.period_end)}</dd>
+              </div>
+              <div>
+                <dt className="text-[11px] font-semibold text-[#71717a]">Scheduled payout date</dt>
+                <dd>{incomeDate(selectedPayout.scheduled_for)}</dd>
               </div>
               <div>
                 <dt className="text-[11px] font-semibold text-[#71717a]">Account</dt>
@@ -1614,7 +1652,7 @@ export default function SupplierEarnings() {
                 <dd>
                   {selectedPayout.paid_at
                     ? new Date(selectedPayout.paid_at).toLocaleString()
-                    : 'No completion time recorded'}
+                    : 'No bank payout confirmation recorded'}
                 </dd>
               </div>
             </dl>
@@ -1639,10 +1677,11 @@ export default function SupplierEarnings() {
                 </ul>
               </section>
             ) : null}
-            {!payoutMaySayPaid(selectedPayout.status, selectedPayout.paid_at) ? (
+            {!payoutMaySayPaid(selectedPayout.status, selectedPayout.paid_at) &&
+            (selectedPayout.connect_lifecycle ?? 'internal_only') !== 'bank_payout_paid' ? (
               <p className="mt-4 text-[12px] leading-relaxed text-[#52525b]">
-                This period is {payoutPresentationStatus(selectedPayout.status, selectedPayout.paid_at).toLowerCase()}.
-                A completed payout statement downloads only after payment confirmation. Automatic bank transfers are not enabled.
+                Status: {periodPayoutLabel(selectedPayout.status, selectedPayout.paid_at, selectedPayout.connect_lifecycle)}.
+                A completed payout statement downloads only after bank payout confirmation. A Connect transfer alone is not a bank payment.
               </p>
             ) : (
               <div className="mt-4 flex flex-wrap gap-2">

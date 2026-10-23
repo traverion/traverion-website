@@ -1249,12 +1249,48 @@ serve(async (req) => {
     const { data, error } = await admin
       .from('supplier_payout_periods')
       .select(
-        'id, supplier_id, currency, cadence, period_key, period_start, period_end, scheduled_for, status, amount_minor, item_count, created_at, paid_at, note'
+        'id, supplier_id, currency, cadence, period_key, period_start, period_end, scheduled_for, status, amount_minor, item_count, created_at, paid_at, note, connect_lifecycle'
       )
       .order('scheduled_for', { ascending: false })
       .limit(100);
     if (error) return json({ error: error.message }, 500);
     return json({ items: data ?? [] });
+  }
+
+  if (body.action === 'payout_exceptions_list') {
+    const { data, error } = await admin
+      .from('supplier_payout_exceptions')
+      .select(
+        'id, supplier_id, payout_period_id, transfer_attempt_id, reason_code, detail, status, created_at, resolved_at'
+      )
+      .eq('status', 'open')
+      .order('created_at', { ascending: false })
+      .limit(100);
+    if (error) return json({ error: error.message }, 500);
+    return json({ items: data ?? [], note: 'Open exceptions only — do not block unrelated suppliers' });
+  }
+
+  if (body.action === 'payout_exception_resolve') {
+    const exceptionId =
+      typeof body.payoutExceptionId === 'string' ? body.payoutExceptionId.trim() : '';
+    if (!exceptionId) return json({ error: 'payoutExceptionId required' }, 400);
+    const nextStatus =
+      body.exceptionStatus === 'ignored' || body.exceptionStatus === 'acknowledged'
+        ? body.exceptionStatus
+        : 'resolved';
+    const { data, error } = await admin
+      .from('supplier_payout_exceptions')
+      .update({
+        status: nextStatus,
+        resolved_at: new Date().toISOString(),
+        resolved_by: adminUserId,
+      })
+      .eq('id', exceptionId)
+      .select('id, status')
+      .maybeSingle();
+    if (error) return json({ error: error.message }, 500);
+    if (!data) return json({ error: 'exception_not_found' }, 404);
+    return json({ ok: true, item: data });
   }
 
   if (body.action === 'prepare_due_payouts') {

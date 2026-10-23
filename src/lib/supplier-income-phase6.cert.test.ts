@@ -52,7 +52,7 @@ describe('Phase 6: supplier income experience', () => {
     expect(payoutMaySayPaid('ready', null)).toBe(false);
     expect(payoutMaySayPaid('paid', null)).toBe(false);
     expect(payoutMaySayPaid('paid', '2026-11-01T00:00:00Z')).toBe(true);
-    expect(page).toContain('Automatic bank payouts are not enabled');
+    expect(page).toContain('Connect payout statuses (TEST)');
     expect(page).toContain('payoutMaySayPaid(period.status, period.paid_at)');
     expect(page).toContain('A completed payout statement is available only after payment is confirmed');
   });
@@ -62,8 +62,8 @@ describe('Phase 6: supplier income experience', () => {
     expect(page).toContain('fetchSupplierActiveFinancialHolds');
     expect(page).toContain('earningStatusExplanation');
     expect(earningStatusExplanation('pending')).toMatch(/awaiting service completion/i);
-    expect(settings).toContain('Automatic supplier bank payouts');
-    expect(settings).toContain('not enabled');
+    expect(settings).toContain('Stripe Connect payouts');
+    expect(settings).toContain('Live automatic bank payouts remain off');
   });
 
   it('hardens period RPC access, paid-mark confirmation, and missing durations', () => {

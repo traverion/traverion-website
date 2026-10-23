@@ -282,6 +282,8 @@ export type SupplierPayoutPeriodRow = {
   paid_at: string | null;
   paid_via: string | null;
   note: string | null;
+  /** Connect SCAT lifecycle — transfer_completed ≠ bank paid. */
+  connect_lifecycle?: string | null;
 };
 
 export type SupplierPayoutPeriodItemRow = {
@@ -298,7 +300,7 @@ export async function fetchSupplierPayoutPeriods(supplierId: string): Promise<Su
   const { data, error } = await supabase
     .from('supplier_payout_periods')
     .select(
-      'id, supplier_id, currency, cadence, period_key, period_start, period_end, scheduled_for, status, amount_minor, item_count, paid_at, paid_via, note'
+      'id, supplier_id, currency, cadence, period_key, period_start, period_end, scheduled_for, status, amount_minor, item_count, paid_at, paid_via, note, connect_lifecycle'
     )
     .eq('supplier_id', ownerSupplierId)
     .order('scheduled_for', { ascending: false });

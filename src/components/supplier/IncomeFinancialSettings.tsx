@@ -1,11 +1,17 @@
 import { useEffect, useId, useState } from 'react';
 import { Info } from 'lucide-react';
 import { fetchSupplierProfile, updateSupplierPayout, type SupplierProfileRow } from '../../data/supabase-supplier-profile';
+import { invokeConnectSupplierOnboarding } from '../../data/supabase-connect-onboarding';
 import type { SupplierCommercialTermsRow } from '../../data/supabase-earnings';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { formatBpsAsPercent } from '../../lib/commercial-money';
 import { maskIban } from '../../lib/supplier-income';
+import {
+  connectCanReceiveTransfers,
+  connectOnboardingLabel,
+  payoutBlockReason,
+} from '../../lib/connect-payout-status';
 import {
   catalogPayoutRates,
   catalogRateForPreference,
@@ -110,6 +116,32 @@ export default function IncomeFinancialSettings({
   const [bankSaving, setBankSaving] = useState(false);
   const [bankMessage, setBankMessage] = useState<string | null>(null);
   const [bankError, setBankError] = useState<string | null>(null);
+  const [connectBusy, setConnectBusy] = useState(false);
+  const [connectError, setConnectError] = useState<string | null>(null);
+  const [connectNote, setConnectNote] = useState<string | null>(null);
+
+  const canReceiveTransfers = connectCanReceiveTransfers({
+    connect_payouts_enabled: profile?.connect_payouts_enabled,
+    connect_onboarding_status: profile?.connect_onboarding_status,
+    connect_requirements_currently_due: profile?.connect_requirements_currently_due,
+    connect_requirements_past_due: profile?.connect_requirements_past_due,
+  });
+  const blockReason = payoutBlockReason({
+    connect_onboarding_status: profile?.connect_onboarding_status,
+    connect_payouts_enabled: profile?.connect_payouts_enabled,
+    connect_disabled_reason: profile?.connect_disabled_reason,
+    connect_requirements_currently_due: profile?.connect_requirements_currently_due,
+  });
+  const dueRequirements = Array.isArray(profile?.connect_requirements_currently_due)
+    ? profile!.connect_requirements_currently_due!
+    : [];
+  const connectStatus = profile?.connect_onboarding_status ?? 'not_started';
+  const connectCta =
+    connectStatus === 'not_started'
+      ? 'Start Stripe verification'
+      : connectStatus === 'complete' && canReceiveTransfers
+        ? 'Refresh verification status'
+        : 'Resume Stripe verification';
 
   useEffect(() => {
     setCycle(profile?.payment_cycle ?? '');
@@ -123,6 +155,58 @@ export default function IncomeFinancialSettings({
     if (window.location.hash !== '#income-payout-account') return;
     document.getElementById('income-payout-account')?.scrollIntoView({ block: 'start' });
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const connect = params.get('connect');
+    if (connect !== 'return' && connect !== 'refresh') return;
+    let cancelled = false;
+    void (async () => {
+      setConnectBusy(true);
+      setConnectError(null);
+      const result = await invokeConnectSupplierOnboarding('refresh');
+      if (cancelled) return;
+      setConnectBusy(false);
+      if (!result.success) {
+        setConnectError(userFacingError(result.error, USER_ERROR.generic));
+        return;
+      }
+      setConnectNote(
+        'Status refreshed from Stripe. A successful return from onboarding does not by itself mean you are verified.'
+      );
+      const next = await fetchSupplierProfile(userId);
+      if (!cancelled) onProfile(next);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, onProfile]);
+
+  const runConnectAction = async () => {
+    setConnectError(null);
+    setConnectNote(null);
+    if (!canEdit) {
+      setConnectError('Your role can view payout verification but cannot change it.');
+      return;
+    }
+    setConnectBusy(true);
+    const action =
+      connectStatus === 'complete' && canReceiveTransfers ? 'refresh' : 'start';
+    const result = await invokeConnectSupplierOnboarding(action);
+    setConnectBusy(false);
+    if (!result.success) {
+      setConnectError(userFacingError(result.error, USER_ERROR.generic));
+      return;
+    }
+    if (result.url) {
+      window.location.assign(result.url);
+      return;
+    }
+    setConnectNote(result.note ?? 'Verification status updated from Stripe.');
+    const next = await fetchSupplierProfile(userId);
+    onProfile(next);
+  };
 
   const selectedCatalog =
     cycle === 'monthly' || cycle === 'biweekly' ? formatBpsAsPercent(catalogRateForPreference(cycle)) : null;
@@ -218,10 +302,92 @@ export default function IncomeFinancialSettings({
       <section className="rounded-[10px] border border-[#e5e7eb] bg-[#f8fafc] px-4 py-3.5 sm:px-5">
         <h2 className="text-sm font-bold text-[#18181b]">Bank payout status</h2>
         <p className="mt-1.5 text-[13px] leading-relaxed text-[#52525b]">
-          Automatic supplier bank payouts (Stripe Connect transfers) are <strong className="font-semibold text-[#18181b]">not enabled</strong>.
-          Frequency preferences and verified IBAN details are stored for when Traverion runs confirmed payouts.
+          Stripe Connect onboarding is available in <strong className="font-semibold text-[#18181b]">TEST</strong>.
+          Live automatic bank payouts remain off until Traverion separately authorizes production money movement.
           A prepared payout period in Income is an internal record — not proof that money left Traverion.
         </p>
+      </section>
+
+      <section id="income-connect-payouts" className="rounded-[10px] border border-[#e5e7eb] bg-white px-4 py-3.5 sm:px-5">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-sm font-bold text-[#18181b]">Stripe Connect payouts</h2>
+          <span className="text-[12px] font-semibold text-[#52525b]">{connectOnboardingLabel(connectStatus)}</span>
+        </div>
+        <p className="mt-1.5 text-[13px] leading-relaxed text-[#52525b]">
+          Verify once with Stripe-hosted onboarding. Traverion confirms transfer and payout capability from Stripe
+          account requirements — not from a browser redirect alone.
+        </p>
+        <dl className="mt-3 grid gap-3 text-[13px] sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <dt className="text-[11px] font-semibold text-[#71717a]">Can receive transfers</dt>
+            <dd className="mt-0.5 text-[#18181b]">{canReceiveTransfers ? 'Yes' : 'No'}</dd>
+          </div>
+          <div>
+            <dt className="text-[11px] font-semibold text-[#71717a]">Payouts enabled</dt>
+            <dd className="mt-0.5 text-[#18181b]">{profile?.connect_payouts_enabled ? 'Yes' : 'No'}</dd>
+          </div>
+          <div>
+            <dt className="text-[11px] font-semibold text-[#71717a]">Payout schedule</dt>
+            <dd className="mt-0.5 text-[#18181b]">
+              {cycle === 'biweekly' || profile?.payment_cycle === 'biweekly'
+                ? 'Twice monthly (Traverion cadence)'
+                : 'Monthly (Traverion cadence)'}
+              {' · '}
+              connected account daily bank payout after transfer
+            </dd>
+          </div>
+          <div>
+            <dt className="text-[11px] font-semibold text-[#71717a]">Rail</dt>
+            <dd className="mt-0.5 text-[#18181b]">
+              {(profile?.payout_rail ?? 'manual_iban') === 'stripe_connect' ? 'Stripe Connect' : 'Manual IBAN (legacy)'}
+            </dd>
+          </div>
+        </dl>
+        {dueRequirements.length > 0 ? (
+          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+            <p className="text-[12px] font-semibold text-amber-950">Requirements currently due</p>
+            <ul className="mt-1 list-disc pl-4 text-[12px] text-amber-950">
+              {dueRequirements.slice(0, 8).map((req) => (
+                <li key={req}>{req}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {blockReason ? (
+          <p className="mt-3 text-[12px] leading-relaxed text-[#52525b]">{blockReason}</p>
+        ) : (
+          <p className="mt-3 text-[12px] leading-relaxed text-[#52525b]">
+            Connected account can receive TEST transfers when Traverion runs the transfer engine.
+          </p>
+        )}
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            className="tv-btn-primary h-10 px-3 text-[13px]"
+            disabled={!canEdit || connectBusy}
+            onClick={() => void runConnectAction()}
+          >
+            {connectBusy ? 'Working…' : connectCta}
+          </button>
+          {profile?.stripe_connected_account_id ? (
+            <span className="text-[11px] tabular-nums text-[#71717a]">
+              Account linked · synced{' '}
+              {profile.connect_last_synced_at
+                ? new Date(profile.connect_last_synced_at).toLocaleString()
+                : 'pending'}
+            </span>
+          ) : null}
+        </div>
+        {connectNote ? (
+          <p className="mt-2 text-[12px] text-[#18181b]" role="status">
+            {connectNote}
+          </p>
+        ) : null}
+        {connectError ? (
+          <p className="mt-2 text-[12px] text-red-800" role="alert">
+            {connectError}
+          </p>
+        ) : null}
       </section>
 
       <section id="income-payout-account" className="rounded-[10px] border border-[#e5e7eb] bg-white px-4 py-3.5 sm:px-5">
