@@ -44,12 +44,12 @@ export default function PartnerConfirmModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="partner-confirm-title"
-        className={`${SUPPLIER_MODAL_PANEL_CLASS} z-[101] mx-auto w-full max-w-[24rem] p-4 sm:p-5`}
+        className={`${SUPPLIER_MODAL_PANEL_CLASS} z-[101] mx-auto w-full max-w-[22rem] p-4 sm:p-4`}
       >
-        <h2 id="partner-confirm-title" className="text-[1.0625rem] font-semibold tracking-tight text-[#18181b]">
+        <h2 id="partner-confirm-title" className="text-[1rem] font-semibold tracking-tight text-[color:var(--partner-ink,#0c1118)]">
           {title}
         </h2>
-        <p className="mt-1.5 text-[13px] leading-relaxed text-[#52525b]">{description}</p>
+        <p className="mt-1.5 text-[13px] leading-relaxed text-[color:var(--partner-ink-muted,#5a6472)]">{description}</p>
         {error ? (
           <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-[13px] text-red-900 ring-1 ring-red-200/80" role="alert">
             {error}

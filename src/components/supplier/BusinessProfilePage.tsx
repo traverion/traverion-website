@@ -422,7 +422,7 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
       <SupplierPageHero
         sansTitle
         title="Business settings"
-        description="Manage your business identity, legal information, and account access."
+        description="Company identity, legal documents, and team access."
       >
         <div className="mt-3 flex flex-wrap items-center gap-2" aria-label="Verification status">
           <StatusChip tone={busChip.tone}>{busChip.label}</StatusChip>
