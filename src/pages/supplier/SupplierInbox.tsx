@@ -960,7 +960,7 @@ export default function SupplierInbox() {
               </span>
               <h2 className="tv-inbox-empty-pane__title">Select a conversation</h2>
               <p className="tv-inbox-empty-pane__body">
-                Choose a booking thread to read messages or reply to your traveler.
+                Pick a thread on the left to reply — booking context stays with each conversation.
               </p>
             </div>
           )}
