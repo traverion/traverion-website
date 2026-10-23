@@ -44,7 +44,8 @@ import {
   PARTNER_PAYOUT_FREQUENCY_TWICE_MONTHLY_LABEL,
   PARTNER_PAYOUT_THRESHOLD_HINT,
 } from '../../lib/booking-confirmation-copy';
-import SupplierNativeVerificationJourney from './SupplierNativeVerificationJourney';
+import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
+import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 
 type Props = {
   userId: string;
@@ -57,8 +58,6 @@ type Props = {
   debtMinor?: number;
   eligibleEarningsMinor?: number;
 };
-
-type WorkspaceMode = null | 'verify' | 'bank';
 
 function cadenceLabel(cadence: string | null | undefined): string {
   if (cadence === 'semimonthly') return 'Twice monthly';
@@ -170,7 +169,6 @@ export default function IncomeFinancialSettings({
   const [connectBusy, setConnectBusy] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
   const [connectNote, setConnectNote] = useState<string | null>(null);
-  const [workspace, setWorkspace] = useState<WorkspaceMode>(null);
 
   const experience = deriveConnectExperienceState(profile);
   const experienceLabel = connectExperienceLabel(experience);
@@ -252,19 +250,15 @@ export default function IncomeFinancialSettings({
     onProfile(await fetchSupplierProfile(userId));
   };
 
-  const openWorkspace = (mode: Exclude<WorkspaceMode, null>) => {
+  const openVerification = (focus: 'full' | 'bank' = 'full') => {
     setConnectError(null);
     setConnectNote(null);
     if (!canEdit) {
       setConnectError('Your role can view payout verification but cannot change it.');
       return;
     }
-    setWorkspace(mode);
-  };
-
-  const closeWorkspace = () => {
-    setWorkspace(null);
-    void refreshStatus();
+    const q = focus === 'bank' ? '?focus=bank' : '';
+    navigateSupplierUrl(`${PARTNER_APP_BASE}/verification${q}`);
   };
 
   const selectedCatalog =
@@ -328,27 +322,6 @@ export default function IncomeFinancialSettings({
         ? 'Complete verification'
         : 'Continue verification';
 
-  // Focused Traverion-native verification / bank workspace
-  if (workspace) {
-    return (
-      <div id="income-payout-settings">
-        {connectError ? (
-          <p className="mb-3 rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-900" role="alert">
-            {connectError}
-          </p>
-        ) : null}
-        <SupplierNativeVerificationJourney
-          userId={userId}
-          profile={profile}
-          canEdit={canEdit}
-          onProfile={onProfile}
-          onClose={closeWorkspace}
-          initialFocus={workspace === 'bank' ? 'bank' : 'full'}
-        />
-      </div>
-    );
-  }
-
   return (
     <div id="income-payout-settings" className="mx-auto w-full max-w-[880px] space-y-4">
       <header className="space-y-1">
@@ -390,7 +363,7 @@ export default function IncomeFinancialSettings({
               type="button"
               className="tv-btn-primary h-10 px-3 text-[13px]"
               disabled={!canEdit || connectBusy}
-              onClick={() => openWorkspace('verify')}
+              onClick={() => openVerification('full')}
             >
               {connectBusy ? 'Working…' : primaryVerifyCta}
             </button>
@@ -478,7 +451,7 @@ export default function IncomeFinancialSettings({
             type="button"
             className={bank.connected ? 'tv-btn-secondary h-10 px-3 text-[13px]' : 'tv-btn-primary h-10 px-3 text-[13px]'}
             disabled={!canEdit || connectBusy}
-            onClick={() => openWorkspace('bank')}
+            onClick={() => openVerification('bank')}
           >
             {bank.connected ? 'Manage bank account' : 'Add bank account'}
           </button>

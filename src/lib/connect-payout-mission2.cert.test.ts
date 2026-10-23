@@ -55,7 +55,7 @@ describe('Mission 2: Connect onboarding + TEST transfer engine', () => {
     expect(onboarding).toContain('isStripeTestSecretKey');
     expect(onboarding).toContain('accounts.retrieve');
     expect(settings).toContain('Complete verification');
-    expect(settings).toContain('SupplierNativeVerificationJourney');
+    expect(settings).toContain('/verification');
     expect(settings).toContain('invokeConnectSupplierOnboarding');
     expect(settings).toContain('Payout account');
     expect(mirror).toContain('Never treat a browser return URL alone as verified');

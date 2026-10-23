@@ -78,6 +78,8 @@ export type ConnectOnboardingResult = {
   note?: string;
   person_id?: string;
   bank_attached?: boolean;
+  native_blocked_reason?: string | null;
+  archived_legacy_account_id?: string | null;
 };
 
 export async function invokeConnectSupplierOnboarding(

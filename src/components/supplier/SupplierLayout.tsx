@@ -101,6 +101,7 @@ const SupplierBookings = lazy(() => import('../../pages/supplier/SupplierBooking
 const SupplierAvailability = lazy(() => import('../../pages/supplier/SupplierAvailability'));
 const SupplierStayCalendar = lazy(() => import('../../pages/supplier/SupplierStayCalendar'));
 const SupplierEarnings = lazy(() => import('../../pages/supplier/SupplierEarnings'));
+const SupplierVerificationPage = lazy(() => import('../../pages/supplier/SupplierVerificationPage'));
 const SupplierPerformance = lazy(() => import('../../pages/supplier/SupplierPerformance'));
 const SupplierInbox = lazy(() => import('../../pages/supplier/SupplierInbox'));
 const SupplierReviews = lazy(() => import('../../pages/supplier/SupplierReviews'));
@@ -168,6 +169,7 @@ type SupplierSection =
   | 'stay-calendar'
   | 'inbox'
   | 'earnings'
+  | 'verification'
   | 'discounts'
   | 'reviews'
   | 'pickup'
@@ -208,6 +210,7 @@ const PATH_ALIASES: Record<string, SupplierSection> = {
   calendar: 'availability',
   money: 'earnings',
   income: 'earnings',
+  verification: 'verification',
   listings: 'listings',
   availability: 'availability',
   bookings: 'bookings',
@@ -237,6 +240,7 @@ function pathForSection(s: SupplierSection): string {
   if (s === 'listings') return `${PARTNER_APP_BASE}/listings`;
   if (s === 'availability') return `${PARTNER_APP_BASE}/availability`;
   if (s === 'earnings') return `${PARTNER_APP_BASE}/money`;
+  if (s === 'verification') return `${PARTNER_APP_BASE}/verification`;
   if (s === 'create') return PARTNER_CREATE_PATH;
   if (s === 'reservations') return PARTNER_RESERVATIONS_PATH;
   if (s === 'stay-calendar') return `${PARTNER_APP_BASE}/stay-calendar`;
@@ -1023,33 +1027,36 @@ export default function SupplierLayout() {
     <div className="partner-app-shell text-slate-900">
       <SkipLink />
 
-      <div className="partner-workspace">
-        <PartnerSidebar
-          primary={PARTNER_SIDEBAR_PRIMARY}
-          footer={PARTNER_SIDEBAR_FOOTER}
-          activeSection={section}
-          businessLabel={operatorDisplayName}
-          onNavigate={(id) => handleNavigate(id as SupplierSection)}
-          onHome={() => handleNavigate('dashboard')}
-          onCreate={() => handleNavigate('create')}
-          canCreate={canCreateListings}
-          showFinishSetup={!onboardingComplete}
-          onFinishSetup={() => handleNavigate('onboarding')}
-          collapsed={sidebarCollapsed}
-          onToggleCollapsed={() =>
-            setSidebarCollapsed((v) => {
-              const next = !v;
-              try {
-                localStorage.setItem('traverion_partner_sidebar_collapsed_v1', next ? '1' : '0');
-              } catch {
-                /* ignore */
-              }
-              return next;
-            })
-          }
-        />
+      <div className={`partner-workspace${section === 'verification' ? ' partner-workspace--focus' : ''}`}>
+        {section === 'verification' ? null : (
+          <PartnerSidebar
+            primary={PARTNER_SIDEBAR_PRIMARY}
+            footer={PARTNER_SIDEBAR_FOOTER}
+            activeSection={section}
+            businessLabel={operatorDisplayName}
+            onNavigate={(id) => handleNavigate(id as SupplierSection)}
+            onHome={() => handleNavigate('dashboard')}
+            onCreate={() => handleNavigate('create')}
+            canCreate={canCreateListings}
+            showFinishSetup={!onboardingComplete}
+            onFinishSetup={() => handleNavigate('onboarding')}
+            collapsed={sidebarCollapsed}
+            onToggleCollapsed={() =>
+              setSidebarCollapsed((v) => {
+                const next = !v;
+                try {
+                  localStorage.setItem('traverion_partner_sidebar_collapsed_v1', next ? '1' : '0');
+                } catch {
+                  /* ignore */
+                }
+                return next;
+              })
+            }
+          />
+        )}
 
         <div className="partner-main-pane" ref={mainPaneRef}>
+          {section === 'verification' ? null : (
           <header className="partner-topbar sticky top-0 z-30 pt-[env(safe-area-inset-top)]">
             <div className="flex h-12 items-center gap-3 px-4 sm:px-6 lg:px-8">
               <button
@@ -1119,8 +1126,9 @@ export default function SupplierLayout() {
               </div>
             </div>
           </header>
+          )}
 
-          {mobileAccountOpen && (
+          {section !== 'verification' && mobileAccountOpen && (
             <div
               ref={mobileAccountRef}
               className="md:hidden fixed inset-0 z-50 bg-white pt-[env(safe-area-inset-top)] motion-safe:animate-fade-in"
@@ -1196,9 +1204,13 @@ export default function SupplierLayout() {
           <main
             id="main-content"
             tabIndex={-1}
-            className={partnerPageFrameClass(
-              section === 'availability' ? 'ops' : section === 'dashboard' ? 'home' : 'default'
-            )}
+            className={
+              section === 'verification'
+                ? 'min-h-0 flex-1 bg-white p-0'
+                : partnerPageFrameClass(
+                    section === 'availability' ? 'ops' : section === 'dashboard' ? 'home' : 'default'
+                  )
+            }
           >
             <div key={pageEnterKey} className={pageEnterClass}>
               <ChunkLoadErrorBoundary resetKey={section}>
@@ -1253,6 +1265,7 @@ export default function SupplierLayout() {
                     {section === 'stay-calendar' && <SupplierStayCalendar />}
                     {section === 'inbox' && <SupplierInbox />}
                     {section === 'earnings' && <SupplierEarnings />}
+                    {section === 'verification' && <SupplierVerificationPage />}
                     {section === 'discounts' && <SupplierDiscountsOffers />}
                     {section === 'reviews' && <SupplierReviews />}
                     {section === 'pickup' && <SupplierPickupPlanner />}
@@ -1380,7 +1393,7 @@ export default function SupplierLayout() {
       </div>
 
       <nav
-        className="partner-bottom-nav md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)] border-t border-slate-200/80"
+        className={`partner-bottom-nav md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)] border-t border-slate-200/80${section === 'verification' ? ' hidden' : ''}`}
         aria-label="Primary"
       >
         <div className="flex items-stretch justify-around max-w-lg mx-auto px-1">

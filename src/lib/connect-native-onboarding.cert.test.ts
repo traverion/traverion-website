@@ -43,14 +43,15 @@ describe('Native Traverion Custom Connect onboarding', () => {
     expect(edge).toContain('createExternalAccount');
     expect(edge).toContain('tos_acceptance');
     expect(edge).toContain('traverion_supplier_id');
-    expect(edge).toContain('Never recreate Express');
+    expect(edge).toContain('archiveLinkedAccount');
+    expect(edge).toContain('Never touch LIVE');
     expect(edge).toContain('connect_legacy_account_id');
     expect(edge).toContain('isStripeTestSecretKey');
     expect(edge).not.toMatch(/sk_live_/);
   });
 
   it('does not force hosted Account Link for the primary native path', () => {
-    expect(settings).toContain('SupplierNativeVerificationJourney');
+    expect(settings).toContain('/verification');
     expect(settings).not.toContain('ConnectEmbeddedPanel');
     expect(journey).toContain('Complete verification');
     expect(journey).toContain('Connected Account Agreement');
@@ -62,13 +63,30 @@ describe('Native Traverion Custom Connect onboarding', () => {
     expect(stripeJs).toContain('isStripeTestPublishableKey');
   });
 
-  it('keeps embedded only as Express legacy / identity exception', () => {
-    expect(journey).toContain('Continue Express verification');
-    expect(journey).toContain('Use Traverion verification forms');
-    expect(journey).toContain('start_native_custom');
-    expect(journey).toContain('Open secure identity collection');
+  it('auto-routes Express safely and keeps identity embed as narrow exception', () => {
+    expect(journey).toContain('Support required');
+    expect(journey).toContain('Contact Traverion support');
+    expect(journey).not.toContain('Use Traverion verification forms');
+    expect(journey).not.toContain('Continue Express verification');
+    expect(edge).toContain('archiveLinkedAccount');
+    expect(edge).toContain('moneyMovementCounts');
     expect(edge).toContain('accountSessions.create');
     expect(mig).toContain('connect_account_type');
+  });
+
+  it('ships dedicated /partner/verification workspace', () => {
+    const page = readFileSync(
+      resolve(root, 'src/pages/supplier/SupplierVerificationPage.tsx'),
+      'utf8'
+    );
+    const layout = readFileSync(
+      resolve(root, 'src/components/supplier/SupplierLayout.tsx'),
+      'utf8'
+    );
+    expect(page).toContain('SupplierNativeVerificationJourney');
+    expect(page).toContain('fullScreen');
+    expect(layout).toContain("section === 'verification'");
+    expect(layout).toContain('/verification');
   });
 
   it('ships live Stripe TEST API certification script', () => {

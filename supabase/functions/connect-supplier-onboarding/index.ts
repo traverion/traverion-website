@@ -222,15 +222,91 @@ serve(async (req) => {
       return { account, mirror };
     }
 
-    /** Idempotent: reuse linked account; create Custom only when missing. Never recreate Express. */
-    async function ensureConnectedAccount(): Promise<{ accountId: string; accountType: string }> {
+    async function moneyMovementCounts(): Promise<{ transfers: number; bankPayouts: number }> {
+      const [{ count: transfers }, { count: bankPayouts }] = await Promise.all([
+        admin
+          .from('supplier_transfer_attempts')
+          .select('id', { count: 'exact', head: true })
+          .eq('supplier_id', supplierId),
+        admin
+          .from('supplier_bank_payout_attempts')
+          .select('id', { count: 'exact', head: true })
+          .eq('supplier_id', supplierId),
+      ]);
+      return { transfers: transfers ?? 0, bankPayouts: bankPayouts ?? 0 };
+    }
+
+    async function archiveLinkedAccount(existingId: string): Promise<void> {
+      const { error: archiveErr } = await admin
+        .from('supplier_profiles')
+        .update({
+          connect_legacy_account_id: existingId,
+          stripe_connected_account_id: null,
+          connect_account_type: null,
+          connect_onboarding_status: 'not_started',
+          connect_charges_enabled: false,
+          connect_payouts_enabled: false,
+          connect_details_submitted: false,
+          connect_disabled_reason: null,
+          connect_requirements_currently_due: [],
+          connect_requirements_past_due: [],
+          payout_rail: 'manual_iban',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', supplierId);
+      if (archiveErr) throw new Error(archiveErr.message);
+      profile.stripe_connected_account_id = null;
+      profile.connect_account_type = null;
+      profile.connect_legacy_account_id = existingId;
+    }
+
+    /**
+     * Idempotent: reuse Custom account; auto-archive TEST Express with no money movement
+     * so Traverion-native forms are the default. Never touch LIVE or funded Express accounts.
+     */
+    async function ensureConnectedAccount(): Promise<{
+      accountId: string;
+      accountType: string;
+      native_blocked_reason?: string | null;
+      archived_legacy_account_id?: string | null;
+    }> {
       let accountId = profile.stripe_connected_account_id as string | null;
+      let archivedFrom: string | null = null;
       if (accountId) {
         const { account, mirror } = await syncAccount(accountId);
-        return {
-          accountId,
-          accountType: mirror.connect_account_type || (account.type as string) || 'unknown',
-        };
+        const accountType = mirror.connect_account_type || (account.type as string) || 'unknown';
+        if (accountType === 'custom') {
+          return { accountId, accountType: 'custom' };
+        }
+        if (accountType === 'express') {
+          if ((account as { livemode?: boolean }).livemode) {
+            return {
+              accountId,
+              accountType: 'express',
+              native_blocked_reason:
+                'This payout account cannot use Traverion forms automatically. Contact Traverion support.',
+            };
+          }
+          const movement = await moneyMovementCounts();
+          if (movement.transfers > 0 || movement.bankPayouts > 0) {
+            return {
+              accountId,
+              accountType: 'express',
+              native_blocked_reason:
+                'This organization already has payout activity on the previous verification path. Contact Traverion support to continue.',
+            };
+          }
+          // Safe TEST Express → archive, then create Custom below.
+          archivedFrom = accountId;
+          await archiveLinkedAccount(accountId);
+          accountId = null;
+        } else {
+          return { accountId, accountType };
+        }
+      }
+
+      if (accountId) {
+        return { accountId, accountType: (profile.connect_account_type as string) || 'unknown' };
       }
 
       const country = (profile.address_country || profile.connect_country || 'FI')
@@ -308,7 +384,12 @@ serve(async (req) => {
       // Refresh local profile pointer for subsequent actions in this request.
       profile.stripe_connected_account_id = accountId;
       profile.connect_account_type = 'custom';
-      return { accountId, accountType: 'custom' };
+      return {
+        accountId,
+        accountType: 'custom',
+        archived_legacy_account_id:
+          archivedFrom || ((profile.connect_legacy_account_id as string | null) ?? null),
+      };
     }
 
     function statusPayload(
@@ -363,13 +444,16 @@ serve(async (req) => {
     }
 
     if (action === 'ensure_account' || action === 'start') {
-      const { accountId, accountType } = await ensureConnectedAccount();
-      const { mirror } = await syncAccount(accountId);
+      const ensured = await ensureConnectedAccount();
+      const { mirror } = await syncAccount(ensured.accountId);
       return json({
         action: 'ensure_account',
-        ...statusPayload(mirror, accountId, {
+        ...statusPayload(mirror, ensured.accountId, {
           created_or_reused: true,
-          account_type: accountType,
+          account_type: ensured.accountType,
+          native_blocked_reason: ensured.native_blocked_reason ?? null,
+          archived_legacy_account_id: ensured.archived_legacy_account_id ?? null,
+          onboarding_mode: ensured.accountType === 'custom' ? 'api_native' : 'legacy_protected',
         }),
       });
     }

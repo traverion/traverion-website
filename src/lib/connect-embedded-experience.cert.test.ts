@@ -106,7 +106,7 @@ describe('Supplier embedded Connect experience', () => {
     expect(embedded).toContain('fetchConnectAccountSessionSecret');
   });
 
-  it('premium payout settings covers three money sections and native verification workspace', () => {
+  it('premium payout settings covers three money sections and routes to dedicated verification', () => {
     expect(ui).toContain('Payout settings');
     expect(ui).toContain('Payout account');
     expect(ui).toContain('Bank account');
@@ -114,7 +114,8 @@ describe('Supplier embedded Connect experience', () => {
     expect(ui).toContain('Complete verification');
     expect(ui).toContain('Manage bank account');
     expect(ui).toContain('Add bank account');
-    expect(ui).toContain('SupplierNativeVerificationJourney');
+    expect(ui).toContain('/verification');
+    expect(ui).not.toContain('SupplierNativeVerificationJourney');
     expect(ui).not.toContain('Business information');
     expect(ui).not.toMatch(/Complete Stripe|Stripe Connect|Sandbox|TEST mode|Connected account/i);
   });
