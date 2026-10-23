@@ -115,7 +115,7 @@ export const TRANSFORM3_PHASE_CHECKLIST = {
   '02_foundation': 'done',
   '03_controls': 'done',
   '04_sidebar': 'done',
-  '05_page_structure': 'pending',
+  '05_page_structure': 'done',
   '06_home': 'pending',
   '07_listings': 'pending',
   '08_inbox': 'pending',

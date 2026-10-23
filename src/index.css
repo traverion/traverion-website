@@ -524,15 +524,15 @@ body {
 
   .partner-page-hero {
     margin-bottom: var(--partner-hero-mb);
-    padding-bottom: 0.75rem;
+    padding-bottom: 0.7rem;
   }
 
   .partner-page-title {
     font-family: inherit;
     font-size: var(--partner-title-size-sm);
     font-weight: 700;
-    line-height: 1.15;
-    letter-spacing: -0.032em;
+    line-height: 1.12;
+    letter-spacing: -0.034em;
     color: var(--partner-ink);
   }
 
@@ -544,18 +544,39 @@ body {
 
   .partner-section-title {
     font-size: var(--partner-section-size);
-    font-weight: 600;
+    font-weight: 650;
     line-height: 1.25;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.022em;
     color: var(--partner-ink);
   }
 
   .partner-section-desc {
-    margin-top: 0.2rem;
+    margin-top: 0.15rem;
     font-size: var(--partner-body-size);
+    font-weight: 450;
     line-height: 1.45;
     color: var(--partner-ink-muted);
-    max-width: 40rem;
+    max-width: 38rem;
+  }
+
+  .partner-stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--partner-section-gap);
+  }
+
+  .partner-section__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 0.5rem 0.75rem;
+    margin-bottom: 0.65rem;
+  }
+
+  .partner-section__head--ruled {
+    padding-bottom: 0.55rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--partner-border) 90%, transparent);
   }
 
   .partner-label {

@@ -55,8 +55,8 @@ export function SupplierSection({
     <section id={id} className={`partner-section ${className}`.trim()}>
       <div className={ruled ? 'partner-section__head partner-section__head--ruled' : 'partner-section__head'}>
         <div className="min-w-0">
-          <h2 className="partner-section-title font-display">{title}</h2>
-          {description ? <p className="partner-section-desc">{description}</p> : null}
+          <h2 className="partner-section-title">{title}</h2>
+          {description ? <p className="partner-section-desc mt-0.5">{description}</p> : null}
         </div>
         {actions ? <div className="shrink-0 flex flex-wrap items-center gap-2">{actions}</div> : null}
       </div>
